@@ -7,7 +7,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
 };
 export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 1, fov: 78, graphics: 'medium', frameLimit: 60, reducedMotion: false,
-  master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS },
+  master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
 };
 const STORAGE_KEY = 'uc-v2-settings';
 export function loadSettings(): Settings {
@@ -23,6 +23,7 @@ export function loadSettings(): Settings {
     if (value.frameLimit === 30 || value.frameLimit === 60) result.frameLimit = value.frameLimit;
     if (typeof value.reducedMotion === 'boolean') result.reducedMotion = value.reducedMotion;
     if (typeof value.adsToggle === 'boolean') result.adsToggle = value.adsToggle;
+    if (typeof value.adaptive === 'boolean') result.adaptive = value.adaptive;
     if (value.bindings && typeof value.bindings === 'object') for (const key of Object.keys(DEFAULT_BINDINGS)) {
       if (typeof value.bindings[key] === 'string' && /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Space|Arrow(Up|Down|Left|Right))$/.test(value.bindings[key])) result.bindings[key] = value.bindings[key];
     }
@@ -35,3 +36,25 @@ export function loadProfile(): { name: string; color: string } {
   catch { return { name: '', color: '#bd8956' }; }
 }
 export function saveProfile(name: string, color: string) { try { localStorage.setItem('uc-nick', name); localStorage.setItem('uc-color', color); } catch { /* Optional persistence. */ } }
+
+// Legacy adaptive difficulty record: a factor in [-1, 1] nudged after each practice match.
+const ADAPT_KEY = 'uc-v2-adapt';
+export function loadAdapt(): number {
+  try { const value = Number(localStorage.getItem(ADAPT_KEY)); return Number.isFinite(value) ? clamp(value, -1, 1) : 0; } catch { return 0; }
+}
+// Legacy finishMatch(): win → braver bots; finishing in the bottom part → milder.
+export function recordPlacement(place: number, entrants: number, win: boolean): number {
+  const f = (place - 1) / Math.max(1, entrants - 1);
+  let a = loadAdapt();
+  if (win) a += .25; else if (f > .6) a -= .25; else if (f > .35) a -= .1; else a += .08;
+  a = clamp(a, -1, 1);
+  try { localStorage.setItem(ADAPT_KEY, String(a)); } catch { /* Optional persistence. */ }
+  return a;
+}
+// Legacy adaptNote().
+export function adaptNote(settings: { adaptive: boolean }): string {
+  if (!settings.adaptive) return '';
+  const a = loadAdapt();
+  if (Math.abs(a) < .05) return 'Ajuste automático: no ponto.';
+  return `Ajuste automático: bichos ${Math.round(Math.abs(a) * 20)}% mais ${a < 0 ? 'mansos' : 'bravos'} por causa das últimas partidas.`;
+}

@@ -3,6 +3,8 @@ import { Simulation } from '../src/simulation';
 import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../src/shared/collision';
 import { terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
+import { inArena } from '../src/shared/layout';
+import { finiteTree } from '../src/network/codec';
 import type { ActorState, InputFrame, PlayerProfile, RoomConfig, WorldSpec } from '../src/shared/types';
 
 const world = (withWall = false): WorldSpec => ({
@@ -44,7 +46,9 @@ describe('authoritative simulation', () => {
     expect(sim.snapshot().actors[0].weapons[1].ammo).toBe(16);
     const shots = sim.drainEvents().filter(e => e.type === 'shot');
     expect(shots).toHaveLength(1);
-    expect(shots[0].end.x).toBeLessThan(shots[0].origin.x - 80);
+    // Straight along yaw π/2 (−x) until it meets the island's terrain or range.
+    expect(shots[0].end.x).toBeLessThan(shots[0].origin.x - 20);
+    expect(Math.abs(shots[0].end.z - shots[0].origin.z)).toBeLessThan(1);
     expect(sim.snapshot().actors[0].ads).toBe(true);
     advance(sim, .2);
     expect(sim.snapshot().actors[0].weapons[1].ammo).toBe(16);
@@ -157,6 +161,41 @@ describe('authoritative simulation', () => {
     expect(sim.drainEvents().filter(e => e.type === 'pickup')).toHaveLength(2);
   });
 
+  it('spills chest contents onto the ground to be picked up one by one', () => {
+    const lootWorld = world();
+    lootWorld.spawns = lootWorld.spawns.slice(0, 1);
+    lootWorld.chests = [{ id: 'chest-1', x: 0, y: terrainHeight(0, -1.5), z: -1.5 }];
+    const sim = new Simulation(lootWorld, config, [profiles[0]], 'm');
+    advance(sim, 3.1);
+    const weaponsBefore = sim.snapshot().actors[0].weapons.length;
+    sim.action('a', { type: 'interact', id: 1, target: 'chest-1' });
+    const drops = sim.snapshot().loot.filter(item => item.from);
+    expect(drops.length).toBeGreaterThanOrEqual(3);
+    expect(drops.length).toBeLessThanOrEqual(4);
+    expect(sim.snapshot().actors[0].weapons).toHaveLength(weaponsBefore);
+    const weapon = drops.find(item => item.kind === 'weapon')!;
+    expect(weapon.weapon).toBeTruthy();
+    expect(weapon.rarity).toBeGreaterThanOrEqual(1);
+    for (const drop of drops) {
+      expect(new Set(drops.map(d => d.id)).size).toBe(drops.length);
+      expect(Math.hypot(drop.x - 0, drop.z + 1.5)).toBeLessThan(2);
+      expect(drop.y).toBeGreaterThanOrEqual(terrainHeight(drop.x, drop.z) - 1e-6);
+      expect(drop.from).toEqual({ x: 0, y: terrainHeight(0, -1.5) + .6, z: -1.5 });
+    }
+    sim.action('a', { type: 'interact', id: 2, target: weapon.id });
+    expect(sim.snapshot().actors[0].weapons.some(w => w.id === weapon.weapon)).toBe(true);
+    expect(sim.snapshot().loot.find(item => item.id === weapon.id)?.active).toBe(false);
+    advance(sim, 1.2);
+    expect(sim.snapshot().loot.some(item => item.id === weapon.id)).toBe(false);
+    expect(sim.snapshot().loot.filter(item => item.from)).toHaveLength(drops.length - 1);
+  });
+
+  it('keeps real-world snapshots publishable (no undefined fields)', () => {
+    const sim = new Simulation(createWorld(), { ...config, mode: 'battle-royale', bots: false }, [profiles[0]], 'm');
+    advance(sim, .5);
+    expect(finiteTree(sim.snapshot())).toBe(true);
+  });
+
   it('counts a lethal hit once and respawns a deathmatch player with protection', () => {
     const sim = new Simulation(world(), config, profiles, 'm');
     advance(sim, 5.1);
@@ -181,7 +220,8 @@ describe('authoritative simulation', () => {
     advance(sim, 5.1);
     const [a, b] = sim.snapshot().actors;
     const yaw = Math.atan2(-(b.pos.x - a.pos.x), -(b.pos.z - a.pos.z));
-    for (let i = 0; i < 10; i++) { send(sim, 'a', i + 1, { yaw, fire: true, ads: true }); advance(sim, .1); }
+    const pitch = Math.atan2(b.pos.y + .93 - (a.pos.y + 1.62), Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z));
+    for (let i = 0; i < 10; i++) { send(sim, 'a', i + 1, { yaw, pitch, fire: true, ads: true }); advance(sim, .1); }
     expect(sim.snapshot().actors.find(actor => actor.id === 'a')!.kills).toBe(1);
     advance(sim, 302.9 - sim.snapshot().time);
     expect(sim.snapshot().phase).toBe('playing');
@@ -197,7 +237,8 @@ describe('authoritative simulation', () => {
     advance(sim, 5.1);
     const [a, b] = sim.snapshot().actors;
     const yaw = Math.atan2(-(b.pos.x - a.pos.x), -(b.pos.z - a.pos.z));
-    send(sim, 'a', 1, { yaw, fire: true, ads: true }); advance(sim, .02);
+    const pitch = Math.atan2(b.pos.y + .93 - (a.pos.y + 1.62), Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z));
+    send(sim, 'a', 1, { yaw, pitch, fire: true, ads: true }); advance(sim, .02);
     send(sim, 'a', 2, { yaw, fire: false });
     expect(sim.snapshot().actors.find(actor => actor.id === 'a')!.damage).toBeGreaterThan(0);
     advance(sim, 304 - sim.snapshot().time);
@@ -224,6 +265,30 @@ describe('authoritative simulation', () => {
 
   it('uses terrain height to block sight across a hill', () => {
     expect(hasLineOfSight({ x: -8, y: 3, z: 55 }, { x: -8, y: 3, z: 125 }, world())).toBe(false);
+  });
+
+  it('flies the plane low across the island and faces falling capybaras where they steer', () => {
+    const sim = new Simulation(world(), { ...config, mode: 'battle-royale', bots: true }, [profiles[0]], 'plane-route', 9);
+    advance(sim, 3.1);
+    const start = sim.snapshot().plane;
+    advance(sim, 5.8);
+    const mid = sim.snapshot().plane;
+    expect(mid.y).toBe(115);
+    // Legacy route: 350 m through a point at most 35 m from the island centre.
+    const dx = mid.x - start.x, dz = mid.z - start.z, len = Math.hypot(dx, dz);
+    expect(Math.abs((0 - start.x) * -dz / len + (0 - start.z) * dx / len)).toBeLessThanOrEqual(35.01);
+    expect(Math.hypot(mid.x, mid.z)).toBeLessThan(40);
+    const human = (sim as any).actors.get('a');
+    sim.action('a', { type: 'jump', id: 1 });
+    send(sim, 'a', 1, { yaw: 1.1, pitch: -.4, moveZ: 1 });
+    advance(sim, .5);
+    const falling = sim.snapshot().actors.find(v => v.id === 'a')!;
+    expect(falling.stage).toBe('falling');
+    expect(falling.yaw).toBeCloseTo(1.1, 5);
+    expect(human.state.pitch).toBeCloseTo(-.4, 5);
+    advance(sim, 4);
+    for (const bot of sim.snapshot().actors.filter(v => v.bot && (v.stage === 'falling' || v.stage === 'parachute') && Math.hypot(v.velocity.x, v.velocity.z) > 1))
+      expect(Math.abs(Math.atan2(Math.sin(bot.yaw - Math.atan2(-bot.velocity.x, -bot.velocity.z)), Math.cos(bot.yaw - Math.atan2(-bot.velocity.x, -bot.velocity.z))))).toBeLessThan(.01);
   });
 
   it('fills battle royale to 21 actors and treats a late human as a spectator', () => {
@@ -274,10 +339,7 @@ describe('authoritative simulation', () => {
     const actors = sim.snapshot().actors;
     expect(actors).toHaveLength(8);
     for (const actor of actors) {
-      expect(actor.pos.x).toBeGreaterThanOrEqual(-100);
-      expect(actor.pos.x).toBeLessThanOrEqual(15);
-      expect(actor.pos.z).toBeGreaterThanOrEqual(-100);
-      expect(actor.pos.z).toBeLessThanOrEqual(15);
+      expect(inArena(actor.pos.x, actor.pos.z)).toBe(true);
       expect(actual.colliders.some(c => actor.pos.x > c.min.x - .32 && actor.pos.x < c.max.x + .32 && actor.pos.z > c.min.z - .32 && actor.pos.z < c.max.z + .32 && actor.pos.y < c.max.y && actor.pos.y + 1.8 > c.min.y)).toBe(false);
     }
   });
@@ -305,7 +367,7 @@ describe('authoritative simulation', () => {
     };
     const accessible = [...actual.loot, ...actual.chests].filter(item => approach(item));
     expect(accessible.length / (actual.loot.length + actual.chests.length)).toBeGreaterThan(.95);
-    const example = actual.loot.find(item => item.kind === 'armor' && item.x >= -98 && item.x <= 13 && item.z >= -98 && item.z <= 13 && approach(item))!;
+    const example = actual.loot.find(item => item.kind === 'armor' && inArena(item.x, item.z, 2) && approach(item))!;
     const pos = approach(example)!;
     const isolated = { ...actual, spawns: [{ ...pos, mode: 'deathmatch' as const, yaw: 0 }] };
     const sim = new Simulation(isolated, config, [profiles[0]], 'real-loot');
@@ -423,41 +485,60 @@ describe('authoritative simulation', () => {
     expect(actor.reloadUntil).toBe(0);
   });
 
-  it('matches the capybara head, torso, and legs without catching nearby empty space', () => {
+  it('uses legacy-sized shapes: a head sphere over a body cylinder, and nothing around them', () => {
     const sim = new Simulation(world(), config, profiles, 'rays');
     const target = sim.snapshot().actors[0];
     target.pos = { x: 0, y: 0, z: 0 };
     const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number) => { distance: number; head: boolean } | null;
-    expect(ray({ x: 0, y: .95, z: .19 }, { x: 1, y: 0, z: 0 }, target, 2)).toEqual({ distance: 0, head: false });
-    expect(ray({ x: .3, y: 1.45, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
-    expect(ray({ x: 0, y: .82, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
-    expect(ray({ x: 0, y: 1.18, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
-    expect(ray({ x: 0, y: 3, z: -.6 }, { x: 0, y: -1, z: 0 }, target, 3)?.head).toBe(true);
-    expect(ray({ x: .27, y: 3, z: 0 }, { x: 0, y: -1, z: 0 }, target, 3)?.head).toBe(false);
-    expect(ray({ x: .52, y: 1, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
-    expect(ray({ x: -.3, y: .32, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    expect(ray({ x: 0, y: .9, z: 0 }, { x: 1, y: 0, z: 0 }, target, 2)).toEqual({ distance: 0, head: false });
+    // Head sphere r .25 at (0, 1.6, -.04).
+    expect(ray({ x: 0, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 - .04 - .25, 5), head: true });
+    expect(ray({ x: .2, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: 3, z: -.04 }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - 1.85, 5), head: true });
+    // Body cylinder r .3 from the feet to 1.42.
+    expect(ray({ x: 0, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 - .3, 5), head: false });
+    expect(ray({ x: 0, y: .05, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    expect(ray({ x: .28, y: 3, z: 0 }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - 1.42, 5), head: false });
+    // Empty space beside the head and body, above the head, and under the feet.
+    expect(ray({ x: .3, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: .35, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: 0, y: 1.9, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: 0, y: -.1, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
   });
 
-  it('rotates shot volumes with the actor and scales them when crouched', () => {
+  it('rotates and crouches the shapes, and favours humans when a bot is shooting', () => {
     const sim = new Simulation(world(), config, profiles, 'posed-rays');
     const target = sim.snapshot().actors[0];
     target.pos = { x: 0, y: 0, z: 0 }; target.yaw = Math.PI / 2;
-    const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number) => { distance: number; head: boolean } | null;
-    expect(ray({ x: -3, y: 1.45, z: .3 }, { x: 1, y: 0, z: 0 }, target, 5)?.head).toBe(true);
-    expect(ray({ x: 0, y: .95, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number, p?: unknown, c?: unknown, y?: unknown, favoured?: boolean) => { distance: number; head: boolean } | null;
+    // Facing +x the head sphere sits .04 toward -x.
+    expect(ray({ x: -3, y: 1.6, z: 0 }, { x: 1, y: 0, z: 0 }, target, 5)?.distance).toBeCloseTo(3 - .04 - .25, 5);
     target.yaw = 0; target.crouch = true;
-    expect(ray({ x: .25, y: 1.045, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
-    expect(ray({ x: .25, y: 1.45, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    // Crouched, everything scales by 1.3/1.8 from the feet.
+    const k = 1.3 / 1.8;
+    expect(ray({ x: 0, y: 1.6 * k, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: 1.42 * k - .02, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    expect(ray({ x: 0, y: 1.45, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    target.crouch = false;
+    // Legacy player-favouring sizes: head r .19, body r .27 up to 1.36.
+    expect(ray({ x: .22, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: .22, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5, undefined, undefined, undefined, true)).toBeNull();
+    expect(ray({ x: .285, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    expect(ray({ x: .285, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5, undefined, undefined, undefined, true)).toBeNull();
+    expect(ray({ x: .1, y: 1.39, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5, undefined, undefined, undefined, true)).toBeNull();
   });
 
   it('lets solid cover stop a shot before the long muzzle', () => {
     const w = world();
-    w.colliders.push({ id: 'close-cover', min: { x: -2, y: 0, z: -2 }, max: { x: 2, y: 4, z: -1 }, material: 'stone' });
+    const base = terrainHeight(0, -1.5);
+    w.colliders.push({ id: 'close-cover', min: { x: -2, y: base - 1, z: -2 }, max: { x: 2, y: base + 4, z: -1 }, material: 'stone' });
     const sim = new Simulation(w, config, profiles, 'muzzle-cover');
     advance(sim, 5.1);
     const a = (sim as any).actors.get('a').state as ActorState, b = (sim as any).actors.get('b').state as ActorState;
     a.pos = { x: 0, y: terrainHeight(0, -5), z: -5 };
     b.pos = { x: 0, y: terrainHeight(0, 0), z: 0 }; b.yaw = 0; b.protectionUntil = 0;
+    // Drop the pre-teleport history so lag compensation does not rewind b onto a.
+    (sim as any).actors.get('b').history = [];
     send(sim, 'a', 1, { yaw: Math.PI, pitch: -.04, ads: true, fire: true });
     advance(sim, .02);
     expect(b.hp).toBe(100);
@@ -469,13 +550,14 @@ describe('authoritative simulation', () => {
       const sim = new Simulation(world(), config, profiles, 'turning-rewind');
       advance(sim, 5.1);
       const shooter = (sim as any).actors.get('a'), target = (sim as any).actors.get('b');
-      shooter.state.pos = { x: -5, y: terrainHeight(-5, -.8), z: -.8 };
+      // The ray grazes the front of the head sphere: a hit facing -z (yaw 0), a miss facing +z.
+      shooter.state.pos = { x: -5, y: terrainHeight(0, 0), z: -.27 };
       shooter.state.weapons[0] = { id: 'sniper', ammo: 5, reserve: 0, rarity: 0 };
-      target.state.pos = { x: 0, y: terrainHeight(0, -.8), z: 0 };
+      target.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
       target.state.yaw = Math.PI; target.state.protectionUntil = 0;
       target.history = [{ time: sim.snapshot().time - .18, pos: { ...target.state.pos }, crouch: false, yaw: 0 }];
       const eye = shooter.state.pos.y + 1.62;
-      const pitch = Math.atan2(target.state.pos.y + 1.45 - eye, 5);
+      const pitch = Math.atan2(target.state.pos.y + 1.6 - eye, 5);
       send(sim, 'a', 1, { yaw: -Math.PI / 2, pitch, ads: true, fire: true, clientTime: sim.snapshot().time - age });
       advance(sim, .02);
       return { hp: target.state.hp, hits: sim.drainEvents().filter(event => event.type === 'damage' && event.target === 'b') };

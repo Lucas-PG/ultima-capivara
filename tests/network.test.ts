@@ -31,6 +31,15 @@ describe('network protocol', () => {
     expect(restored?.phase).toBe('playing');
   });
 
+  it('carries chest drops (with their origin) through the reliable world part', () => {
+    const drop = { id: 'drop-1', kind: 'weapon' as const, weapon: 'm4' as const, x: 1, y: 2, z: 3, active: true, rarity: 2, respawnAt: 0,
+      from: { x: 0, y: 2.6, z: 3 }, spawnedAt: 12.5 };
+    const withDrop = { ...snapshot, loot: [drop] };
+    const world = JSON.parse(JSON.stringify(worldPart(withDrop)));
+    const restored = rebuildFrame(fastPart(withDrop), world, gearPart(withDrop));
+    expect(restored?.loot).toEqual([drop]);
+  });
+
   it('keeps ammo changes out of reliable gear and rebuilds each weapon slot from fast frames', () => {
     const weapons: ActorState['weapons'] = [
       { id: 'smg', ammo: 25, reserve: 75, rarity: 0 },

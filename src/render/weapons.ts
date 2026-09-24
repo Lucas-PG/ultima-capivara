@@ -1,26 +1,31 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { damp } from '../shared/math';
 import { WEAPONS } from '../shared/weapons';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 
 const palette = {
-  steel: new THREE.MeshStandardMaterial({ color: '#303637', metalness: .66, roughness: .42 }),
-  edge: new THREE.MeshStandardMaterial({ color: '#6f7673', metalness: .82, roughness: .35 }),
-  dark: new THREE.MeshStandardMaterial({ color: '#131a18', metalness: .22, roughness: .75 }),
-  olive: new THREE.MeshStandardMaterial({ color: '#454d3b', metalness: .12, roughness: .86 }),
-  wood: new THREE.MeshStandardMaterial({ color: '#906a48', roughness: .72 }),
-  walnut: new THREE.MeshStandardMaterial({ color: '#665040', roughness: .78 }),
-  brass: new THREE.MeshStandardMaterial({ color: '#c7a167', metalness: .6, roughness: .32 }),
-  shellRed: new THREE.MeshStandardMaterial({ color: '#a83d32', metalness: .2, roughness: .56 }),
-  blue: new THREE.MeshStandardMaterial({ color: '#263c3d', metalness: .3, roughness: .7 }),
-  skin: new THREE.MeshStandardMaterial({ color: '#96603b', roughness: 1 }),
-  skinLight: new THREE.MeshStandardMaterial({ color: '#ae774b', roughness: 1 }),
-  skinShade: new THREE.MeshStandardMaterial({ color: '#75492f', roughness: 1 }),
-  glove: new THREE.MeshStandardMaterial({ color: '#383b37', roughness: .93 }),
-  nail: new THREE.MeshStandardMaterial({ color: '#504335', roughness: .8 }),
+  // Cel-shaded palette: low metalness so the banded key light, not the
+  // environment reflection, carries the form; local colours stay readable.
+  steel: new THREE.MeshStandardMaterial({ color: '#3c4648', metalness: .32, roughness: .5 }),
+  edge: new THREE.MeshStandardMaterial({ color: '#8c9794', metalness: .4, roughness: .42 }),
+  dark: new THREE.MeshStandardMaterial({ color: '#1d2523', metalness: .1, roughness: .72 }),
+  olive: new THREE.MeshStandardMaterial({ color: '#5c6b45', metalness: .05, roughness: .8 }),
+  wood: new THREE.MeshStandardMaterial({ color: '#b07a4b', roughness: .7 }),
+  walnut: new THREE.MeshStandardMaterial({ color: '#7d5637', roughness: .74 }),
+  brass: new THREE.MeshStandardMaterial({ color: '#e0b265', metalness: .35, roughness: .38 }),
+  shellRed: new THREE.MeshStandardMaterial({ color: '#c24635', metalness: .1, roughness: .56 }),
+  blue: new THREE.MeshStandardMaterial({ color: '#2e5d5f', metalness: .12, roughness: .66 }),
+  skin: new THREE.MeshStandardMaterial({ color: '#a8703f', roughness: .95 }),
+  skinLight: new THREE.MeshStandardMaterial({ color: '#d6a877', roughness: .95 }),
+  skinShade: new THREE.MeshStandardMaterial({ color: '#6e4a31', roughness: .95 }),
+  sleeve: new THREE.MeshStandardMaterial({ color: '#3a9c98', roughness: .85 }),
+  cuff: new THREE.MeshStandardMaterial({ color: '#2c7773', roughness: .85 }),
+  tape: new THREE.MeshStandardMaterial({ color: '#e7d3a6', roughness: .9 }),
+  glove: new THREE.MeshStandardMaterial({ color: '#3b3f3a', roughness: .9 }),
+  nail: new THREE.MeshStandardMaterial({ color: '#3f3329', roughness: .7 }),
   lens: new THREE.MeshPhysicalMaterial({ color: '#315766', metalness: .36, roughness: .08, clearcoat: 1 }),
   scopeGlass: new THREE.MeshPhysicalMaterial({ color: '#adc2c3', metalness: .35, roughness: .055, clearcoat: 1, clearcoatRoughness: .04, side: THREE.DoubleSide }),
   glass: new THREE.MeshBasicMaterial({ color: '#9fcdd0', transparent: true, opacity: .3, depthWrite: false }),
@@ -173,6 +178,55 @@ function batchRigidParts(group: THREE.Group) {
     const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = true; group.add(mesh);
   }
 }
+// Ink outlines for the viewmodel (the world's outline pass does not cover it):
+// inverted hulls pushed out along smoothed normals by a constant screen width.
+const outlineMaterial = new THREE.ShaderMaterial({
+  uniforms: { thickness: { value: .0026 }, ink: { value: new THREE.Color('#1b1510') } },
+  side: THREE.BackSide,
+  vertexShader: `#include <common>
+    #include <skinning_pars_vertex>
+    uniform float thickness;
+    void main() {
+      #include <beginnormal_vertex>
+      #include <skinbase_vertex>
+      #include <skinnormal_vertex>
+      #include <begin_vertex>
+      #include <skinning_vertex>
+      vec4 mv = modelViewMatrix * vec4(transformed, 1.0);
+      mv.xyz += normalize(normalMatrix * objectNormal) * thickness * -mv.z;
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: 'uniform vec3 ink; void main() { gl_FragColor = vec4(ink, 1.0); \n#include <colorspace_fragment>\n }',
+});
+function hullGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
+  const bare = new THREE.BufferGeometry();
+  for (const name of ['position', 'skinIndex', 'skinWeight']) {
+    const attribute = source.getAttribute(name);
+    if (attribute) bare.setAttribute(name, attribute);
+  }
+  if (source.index) bare.setIndex(source.index);
+  const hull = mergeVertices(bare, 1e-4);
+  hull.computeVertexNormals();
+  return hull;
+}
+function addOutlines(root: THREE.Object3D) {
+  const meshes: THREE.Mesh[] = [];
+  root.traverse(object => {
+    if (!(object instanceof THREE.Mesh) || object.userData.outline) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    if (materials.some(material => material.transparent || material === outlineMaterial)) return;
+    const type = object.geometry.type;
+    if (type === 'CircleGeometry' || type === 'PlaneGeometry') return;
+    meshes.push(object);
+  });
+  for (const mesh of meshes) {
+    const geometry = hullGeometry(mesh.geometry);
+    const hull = mesh instanceof THREE.SkinnedMesh ? new THREE.SkinnedMesh(geometry, outlineMaterial) : new THREE.Mesh(geometry, outlineMaterial);
+    if (hull instanceof THREE.SkinnedMesh && mesh instanceof THREE.SkinnedMesh) hull.bind(mesh.skeleton, mesh.bindMatrix);
+    hull.userData.outline = true; hull.frustumCulled = false; hull.castShadow = false;
+    mesh.add(hull);
+  }
+}
 const magazine = (parent: THREE.Object3D, x: number, y: number, z: number, height: number, material: Mat) => {
   const group = new THREE.Group(); group.position.set(x, y, z); parent.add(group);
   group.userData.restY = y;
@@ -205,8 +259,9 @@ function gunBase(id: WeaponId): THREE.Group {
   const group = new THREE.Group();
   if (id === 'machete') {
     const shape = new THREE.Shape();
-    shape.moveTo(-.022, .07); shape.lineTo(.025, .07); shape.lineTo(.035, -.4);
-    shape.quadraticCurveTo(.053, -.58, -.014, -.64); shape.lineTo(-.036, -.60); shape.lineTo(-.022, .07);
+    // The tang runs into the guard so the blade never floats off the handle.
+    shape.moveTo(-.022, .2); shape.lineTo(.025, .2); shape.lineTo(.035, -.4);
+    shape.quadraticCurveTo(.053, -.58, -.014, -.64); shape.lineTo(-.036, -.60); shape.lineTo(-.022, .2);
     const blade = new THREE.ExtrudeGeometry(shape, { depth: .013, bevelEnabled: true, bevelThickness: .003, bevelSize: .003, bevelSegments: 2, curveSegments: 8 });
     blade.rotateX(Math.PI / 2); blade.translate(.025, -.01, -.18);
     const item = new THREE.Mesh(blade, palette.edge); group.add(item);
@@ -351,8 +406,13 @@ function gunBase(id: WeaponId): THREE.Group {
 
 function paw(group: THREE.Group, palm: THREE.Vector3, elbow: THREE.Vector3, left: boolean, gripAngle = 0) {
   const wrist = palm.clone().add(new THREE.Vector3(0, -.018, .055));
-  between(group, elbow, wrist, .087, .063, palette.skin);
-  ellipsoid(group, elbow.x, elbow.y, elbow.z, .088, .088, .094, palette.skin);
+  // Teal squad sleeve up to mid-forearm, then fur, a tape wrap and the paw.
+  const cuffAt = elbow.clone().lerp(wrist, .5), tapeAt = elbow.clone().lerp(wrist, .82);
+  between(group, elbow, cuffAt, .1, .088, palette.sleeve);
+  between(group, cuffAt.clone().lerp(elbow, .12), cuffAt, .095, .093, palette.cuff);
+  between(group, cuffAt, wrist, .077, .062, palette.skin);
+  between(group, tapeAt.clone().lerp(elbow, .06), tapeAt.clone().lerp(wrist, .5), .071, .068, palette.tape);
+  ellipsoid(group, elbow.x, elbow.y, elbow.z, .1, .1, .104, palette.sleeve);
   ellipsoid(group, wrist.x, wrist.y, wrist.z, .066, .065, .068, palette.skin);
 
   const foot = new THREE.Group(); foot.position.copy(palm);
@@ -431,11 +491,12 @@ export class WeaponView {
   private shotLife = 0;
   private reloadEnd = 0;
   private disposed = false;
+  private furColor = '';
 
   constructor(onAssetsReady: () => void = () => {}) {
-    this.scene.add(new THREE.HemisphereLight('#dce4e0', '#5e5147', 1.15));
-    const key = new THREE.DirectionalLight('#ffe2bf', 2.1); key.position.set(-1.2, 2.3, 3); this.scene.add(key);
-    const rim = new THREE.DirectionalLight('#afd0dc', .62); rim.position.set(1.6, .6, -2); this.scene.add(rim);
+    this.scene.add(new THREE.HemisphereLight('#e4ece6', '#5e5147', .85));
+    const key = new THREE.DirectionalLight('#ffe6c4', 2.7); key.position.set(-1.4, 2.4, 2.2); this.scene.add(key);
+    const rim = new THREE.DirectionalLight('#b9e3ea', 1.1); rim.position.set(1.8, .9, -1.6); this.scene.add(rim);
     this.scene.add(this.holder);
     let pistolFallback: THREE.Group | undefined, sniperFallback: THREE.Group | undefined;
     for (const id of ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'] as WeaponId[]) {
@@ -445,7 +506,7 @@ export class WeaponView {
       const group = id === 'pistol' || id === 'sniper' ? new THREE.Group() : body;
       if (group !== body) group.add(body);
       const support = arms(group, id); group.visible = false; this.holder.add(group);
-      batchRigidParts(group);
+      batchRigidParts(group); addOutlines(group);
       const muzzle = new THREE.Object3D(); muzzle.position.set(0, id === 'pistol' ? .005 : id === 'slingshot' ? .23 : -.044,
         id === 'pistol' ? -.30 : id === 'shotgun' ? -.95 : id === 'machete' ? -.75 : id === 'slingshot' ? -.36 : body.userData.muzzleZ || -.85);
       const eject = new THREE.Object3D(); eject.position.set(id === 'pistol' ? .06 : .083, -.03, -.045);
@@ -466,8 +527,21 @@ export class WeaponView {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .028, 10), palette.brass);
       mesh.visible = false; this.scene.add(mesh); this.shells.push({ mesh, velocity: new THREE.Vector3(), life: 0 });
     }
-    if (pistolFallback) this.loadPistol(pistolFallback, onAssetsReady);
-    if (sniperFallback) this.loadSniper(sniperFallback, onAssetsReady);
+    // `assets` settles once every imported model has loaded (or failed), so the
+    // renderer's warm-up can compile and upload them before the first match.
+    let pending = (pistolFallback ? 1 : 0) + (sniperFallback ? 1 : 0), settle = () => {};
+    this.assets = pending ? new Promise<void>(resolve => { settle = resolve; }) : Promise.resolve();
+    const ready = () => { onAssetsReady(); if (--pending <= 0) settle(); };
+    if (pistolFallback) this.loadPistol(pistolFallback, ready);
+    if (sniperFallback) this.loadSniper(sniperFallback, ready);
+  }
+
+  readonly assets: Promise<void>;
+
+  // Warm-up only: show every model at once so one render compiles and uploads all of them.
+  revealAll(on: boolean) {
+    this.holder.visible = on;
+    for (const [id, model] of Object.entries(this.models) as [WeaponId, Model][]) model.group.visible = on || id === this.active;
   }
 
   private loadPistol(fallback: THREE.Group, onAssetsReady: () => void) {
@@ -493,6 +567,7 @@ export class WeaponView {
       magazineMotion.userData.travel = .11;
       magazineMotion.add(loadedMagazine); modelRoot.add(magazineMotion);
       modelRoot.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = true; });
+      addOutlines(modelRoot);
       const pistol = this.models.pistol;
       pistol.group.remove(fallback);
       fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
@@ -553,7 +628,8 @@ export class WeaponView {
         sniper.group.remove(fallback);
         fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
         sniper.group.add(modelRoot);
-        scope(sniper.group, .15, -.18, .42, .049);
+        const optic = scope(sniper.group, .15, -.18, .42, .049);
+        addOutlines(modelRoot); addOutlines(optic);
         sniper.sightY = .15;
         sniper.muzzle.position.set(0, -.045, -.81);
         sniper.eject.position.set(.055, -.025, -.10);
@@ -583,6 +659,13 @@ export class WeaponView {
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number) {
     this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
     if (!actor || !this.holder.visible) { this.flash.visible = false; return; }
+    if (actor.color && actor.color !== this.furColor) {
+      this.furColor = actor.color;
+      const fur = new THREE.Color(actor.color);
+      palette.skin.color.copy(fur).lerp(new THREE.Color('#5a3f2c'), .1);
+      palette.skinLight.color.copy(fur).lerp(new THREE.Color('#f0d3a8'), .45);
+      palette.skinShade.color.copy(fur).lerp(new THREE.Color('#3f2a1d'), .45);
+    }
     const weapon = actor.weapons[actor.slot]?.id || 'pistol';
     if (weapon !== this.active) {
       this.models[this.active].group.visible = false; this.active = weapon; this.models[this.active].group.visible = true;
@@ -675,6 +758,7 @@ export class WeaponView {
     materials.forEach(value => value.dispose());
     textures.forEach(value => value.dispose());
     for (const material of Object.values(palette)) material.dispose();
+    outlineMaterial.dispose();
     furGrain.dispose(); woodGrain.dispose(); polymerGrain.dispose(); metalGrain.dispose(); scopeLensMap.dispose();
   }
 }

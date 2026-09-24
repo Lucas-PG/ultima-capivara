@@ -262,6 +262,12 @@ export class SoundEngine {
   private placeListener(position: Vec3, yaw: number) {
     const ctx = this.context!;
     const listener = ctx.listener, now = ctx.currentTime;
+    // Firefox has no AudioParam fields on AudioListener, only the older setters.
+    if (!listener.positionX) {
+      listener.setPosition(position.x, position.y, position.z);
+      listener.setOrientation(-Math.sin(yaw), 0, -Math.cos(yaw), 0, 1, 0);
+      return;
+    }
     listener.positionX.setTargetAtTime(position.x, now, .01);
     listener.positionY.setTargetAtTime(position.y, now, .01);
     listener.positionZ.setTargetAtTime(position.z, now, .01);

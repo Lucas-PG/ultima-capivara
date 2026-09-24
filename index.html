@@ -3,7 +3,12 @@
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="theme-color" content="#142b25"/><meta name="description" content="Sua turma. Uma ilha. A última capivara de pé. Battle royale e combate por tempo, direto no navegador."/>
 <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/>
-<title>Última Capivara · A ilha é nossa</title></head><body>
+<title>Última Capivara · A ilha é nossa</title>
+<style>/* Boot screen before the CSS bundle arrives: never flash an unstyled logo. */
+html,body{margin:0;height:100%;background:#102920}
+.boot-screen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#102920;color:#f1bf61;font:700 12px system-ui,sans-serif}
+.boot-screen img{width:70px;height:70px}.boot-screen strong{font-size:29px;letter-spacing:3px;margin-top:10px}.boot-screen span{color:#99b192}
+#game{position:fixed;inset:0;width:100%;height:100%}</style></head><body>
 <canvas id="game" aria-label="Ilha de Última Capivara"></canvas><div id="cover-art" aria-hidden="true"></div><div id="app"></div>
 <div id="toast" role="status" aria-live="polite"></div><div id="loading" class="boot-screen"><img src="./assets/favicon.svg" alt=""/><strong>PREPARANDO A ILHA</strong><span>Um instante. A aventura já vai começar.</span><i></i></div>
 <script type="module" src="/src/main.ts"></script></body></html>

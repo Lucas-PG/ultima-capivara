@@ -5,7 +5,8 @@ import type { ActorState, Collider, InputFrame, Vec3, WorldSpec } from './types'
 const RADIUS = .32;
 const STEP = .45;
 export const actorHeight = (actor: ActorState) => actor.crouch ? 1.3 : 1.8;
-export const actorEye = (actor: ActorState) => actor.crouch ? 1.08 : 1.62;
+// Standing eye sits in the head volume; crouched, the head centre drops to ~1.14 m.
+export const actorEye = (actor: ActorState) => actor.crouch ? 1.17 : 1.62;
 export const overlapsFootprint = (pos: Vec3, collider: Collider): boolean => {
   const x = pos.x - clamp(pos.x, collider.min.x, collider.max.x);
   const z = pos.z - clamp(pos.z, collider.min.z, collider.max.z);

@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 2;
-export const WORLD_VERSION = 'ilha-v2-2';
+export const WORLD_VERSION = 'ilha-v2-3';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
@@ -9,7 +9,7 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
 export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'slingshot';
 export type ConsumableId = 'bandage' | 'medkit' | 'guarana' | 'acai' | 'rapadura';
 export interface Vec3 { x: number; y: number; z: number }
-export interface RoomConfig { mode: Mode; capacity: number; bots: boolean; difficulty: Difficulty; duration: 300 | 480 | 600 }
+export interface RoomConfig { mode: Mode; capacity: number; bots: boolean; difficulty: Difficulty; duration: 300 | 480 | 600; adapt?: number /* practice only: legacy adaptive difficulty in [-1, 1] */ }
 export const DEFAULT_CONFIG: RoomConfig = { mode: 'battle-royale', capacity: 8, bots: true, difficulty: 'normal', duration: 480 };
 export interface PlayerProfile { id: string; name: string; color: string; ready: boolean; connected: boolean }
 export interface RoomState { code: string; myId: string; hostId: string; isHost: boolean; phase: Phase; config: RoomConfig; players: PlayerProfile[] }
@@ -60,7 +60,9 @@ export interface SpawnPoint extends Vec3 { mode: Mode | 'both'; yaw: number }
 export interface LootSpawn extends Vec3 { id: string; kind: 'weapon' | 'ammo' | 'armor' | 'helmet' | ConsumableId; weapon?: WeaponId }
 export interface ChestSpec extends Vec3 { id: string }
 export interface WorldSpec { version: string; size: number; colliders: Collider[]; objects: MapObject[]; spawns: SpawnPoint[]; loot: LootSpawn[]; chests: ChestSpec[]; districts: District[] }
-export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number }
+// Loot spilled from a chest carries where it came from and when, so clients can
+// animate it arcing out; its x/y/z is already the landing spot.
+export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number; from?: Vec3; spawnedAt?: number }
 export interface ZoneState { x: number; z: number; radius: number; nextRadius: number; nextX: number; nextZ: number; phase: number; shrinking: boolean; timeLeft: number; damage: number }
 export interface MatchResult { id: string; name: string; color: string; bot: boolean; kills: number; deaths: number; damage: number; place: number; winner: boolean }
 export interface WorldSnapshot {
@@ -81,6 +83,8 @@ export interface Settings {
   sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; frameLimit: 30 | 60; reducedMotion: boolean;
   master: number; effects: number; ambience: number; music: number;
   adsToggle: boolean; bindings: Record<string, string>;
+  // Legacy "Ajuste automático": practice bots adapt to recent placements.
+  adaptive: boolean;
 }
 export interface RenderFrame { snapshot: WorldSnapshot | null; playerId: string; input: InputFrame; dt: number; playing: boolean; spectateId: string | null; predicted?: Vec3 }
 export const PLAYER_COLORS = ['#bd8956', '#8f6347', '#d6ad7c', '#715044', '#c16e4c', '#869764', '#6f8e9a', '#b78d9b'];

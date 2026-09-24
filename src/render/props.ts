@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { releaseAfterUpload } from './memory';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { terrainHeight } from '../shared/terrain';
@@ -806,10 +807,18 @@ export function buildProps(world: WorldSpec): { group: THREE.Group; dispose(): v
     geometries.forEach(g => g.dispose());
     if (!merged) throw new Error('Could not batch world props');
     merged.computeBoundingSphere();
+    // Interiors and small facade props vanish past 70 m, where they are a few
+    // pixels wide; the chunk is centred so the LOD measures from it.
+    const center = merged.boundingSphere!.center.clone();
+    merged.translate(-center.x, -center.y, -center.z); merged.computeBoundingSphere();
+    // Props receive shadows but don't cast: they are mostly indoors or small,
+    // and casting them doubled the shadow pass.
     const mesh = new THREE.Mesh(merged, material);
-    mesh.castShadow = true;
     mesh.receiveShadow = true;
-    group.add(mesh);
+    releaseAfterUpload(merged);
+    const node = new THREE.LOD(); node.position.copy(center);
+    node.addLevel(mesh, 0); node.addLevel(new THREE.Object3D(), 70);
+    group.add(node);
     disposables.push(merged);
   }
   if (signs.size) {
@@ -831,10 +840,11 @@ export function buildProps(world: WorldSpec): { group: THREE.Group; dispose(): v
       const merged = mergeGeometries(geometries, false);
       geometries.forEach(g => g.dispose());
       if (!merged) throw new Error('Could not batch storefront signs');
-      merged.computeBoundingSphere();
+      merged.computeBoundingSphere(); releaseAfterUpload(merged);
       group.add(new THREE.Mesh(merged, signMaterial));
       disposables.push(merged);
     }
   }
+  opaque.clear(); signs.clear();
   return { group, dispose: () => disposables.forEach(value => value.dispose()) };
 }

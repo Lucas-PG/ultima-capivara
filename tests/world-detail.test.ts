@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { clearSpawn, hasLineOfSight } from '../src/shared/collision';
 import { terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
+import { inArena } from '../src/shared/layout';
 
 describe('crafted village and port', () => {
   const world = createWorld();
   const houses = world.objects.filter(object => object.detail?.startsWith('prop:house:'));
-  const arenaHouses = houses.filter(({ pos }) => pos.x >= -100 && pos.x <= 15 && pos.z >= -100 && pos.z <= 15);
+  const arenaHouses = houses.filter(({ pos }) => inArena(pos.x, pos.z));
 
   it('gives the played arena distinct furnished destinations and markets', () => {
     const roles = new Set(arenaHouses.map(object => object.detail!.split(':')[2]));

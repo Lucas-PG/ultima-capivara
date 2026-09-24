@@ -1,8 +1,10 @@
 import './ui/style.css';
 import { createWorld } from './shared/world';
+import { ARENA } from './shared/layout';
 import { actorEye, hasLineOfSight, moveActor } from './shared/collision';
 import { clamp, distance } from './shared/math';
 import { WEAPONS } from './shared/weapons';
+import { rarityOf } from './shared/rarity';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot } from './shared/types';
 import { GameRenderer } from './render/renderer';
 import { RoomSession } from './network/session';
@@ -21,6 +23,8 @@ let activeFrameLimit = settings.frameLimit;
 const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
 let renderer: GameRenderer | null = null;
+// One renderer for the page's lifetime, warmed up on the menu; `loading` holds the match's loading screen until the first real frame.
+let rendererReady: Promise<void> | null = null, loading = false, readyToReveal = false;
 let worker: Worker | null = null;
 let snapshot: WorldSnapshot | null = null;
 let room: RoomState | null = null;
@@ -86,7 +90,7 @@ const ui = new GameUI(world, settings, profile, {
 });
 
 function ensureRenderer() {
-  if (!renderer) renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; });
+  if (!renderer) { renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }); rendererReady = renderer.warmup(); }
   renderer.resize();
 }
 function beginMatch(id: string, matchId: string) {
@@ -100,6 +104,8 @@ function beginMatch(id: string, matchId: string) {
   playerId = id; match = matchId; playing = true; dirtyFrame = true;
   lastEvent = 0; initializedPose = false; lastAlive = true; lastStage = '';
   input.reset(); ui.closeModal(); ui.game(id); ui.setPaused(!input.locked);
+  loading = true; readyToReveal = false; ui.setLoading(true);
+  void rendererReady?.then(() => { if (match === matchId) { readyToReveal = true; dirtyFrame = true; } });
   return true;
 }
 function startWorker(config: RoomConfig, players: PlayerProfile[], matchId: string) {
@@ -132,8 +138,8 @@ function stopMatch() {
 function leave() {
   stopMatch(); session.leave(); room = null; practiceConfig = null;
   ui.closeModal(); ui.setRoom(null); ui.home();
-  // Release GPU resources when returning to the menu, including after a long match.
-  renderer?.dispose(); renderer = null;
+  // The renderer stays alive (it is disposed on pagehide) so the next match starts without reloading the island.
+  loading = false; ui.setLoading(false);
 }
 function acceptSnapshot(next: WorldSnapshot) {
   if (next.matchId !== match || (snapshot && next.tick < snapshot.tick)) return;
@@ -191,8 +197,8 @@ function predict(frame: InputFrame) {
   predicted.yaw = frame.yaw; predicted.pitch = frame.pitch;
   moveActor(predicted, frame, world, 1 / 60);
   if (snapshot.config.mode === 'deathmatch') {
-    predicted.pos.x = clamp(predicted.pos.x, -99.68, 14.68);
-    predicted.pos.z = clamp(predicted.pos.z, -99.68, 14.68);
+    predicted.pos.x = clamp(predicted.pos.x, ARENA.minX + .32, ARENA.maxX - .32);
+    predicted.pos.z = clamp(predicted.pos.z, ARENA.minZ + .32, ARENA.maxZ - .32);
   }
 }
 function cycleSpectator() {
@@ -206,7 +212,7 @@ function closestInteraction() {
   const eye = { ...me.pos, y: me.pos.y + actorEye(me) };
   const options: { id: string; name: string; distance: number }[] = [];
   const candidates = [
-    ...snapshot.loot.filter(l => l.active).map(l => ({ ...l, name: l.weapon ? WEAPONS[l.weapon].name : ({ weapon: 'Arma', ammo: 'Munição', armor: 'Colete', helmet: 'Capacete', bandage: 'Bandagem', medkit: 'Kit médico', guarana: 'Guaraná', acai: 'Açaí', rapadura: 'Rapadura' }[l.kind] || 'Equipamento') })),
+    ...snapshot.loot.filter(l => l.active).map(l => ({ ...l, name: l.weapon ? `${WEAPONS[l.weapon].name} ${rarityOf(l.rarity).name.toLowerCase()}` : ({ weapon: 'Arma', ammo: 'Munição', armor: 'Colete', helmet: 'Capacete', bandage: 'Bandagem', medkit: 'Kit médico', guarana: 'Guaraná', acai: 'Açaí', rapadura: 'Rapadura' }[l.kind] || 'Equipamento') })),
     ...world.chests.filter(c => !snapshot!.openedChests.includes(c.id)).map(c => ({ ...c, name: 'Abrir caixa de suprimentos' })),
   ];
   for (const candidate of candidates) {
@@ -217,6 +223,12 @@ function closestInteraction() {
   return options[0] || null;
 }
 input.onAction = sendAction;
+input.onCycle = direction => {
+  const me = snapshot?.actors.find(a => a.id === playerId);
+  if (!me || me.weapons.length < 2) return;
+  const slot = (me.slot + direction + me.weapons.length) % me.weapons.length;
+  sendAction({ type: 'slot', id: input.actionIdNext(), slot });
+};
 input.onInteract = () => { interaction = closestInteraction(); if (interaction) sendAction({ type: 'interact', id: input.actionIdNext(), target: interaction.id }); };
 input.onPause = () => { if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
@@ -243,8 +255,10 @@ function frame(now: number) {
   const me = snapshot?.actors.find(a => a.id === playerId) || null;
   const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : me;
   sound.update(listener, snapshot, dt, ui.screen !== 'game');
-  if (!playing || !snapshot || ui.screen !== 'game') return;
-  accumulator = Math.min(accumulator + dt, .1);
+  // After the match ends the island keeps drawing behind the in-game victory overlay.
+  const ended = !playing && snapshot?.phase === 'results';
+  if ((!playing && !ended) || !snapshot || ui.screen !== 'game') return;
+  accumulator = ended ? 0 : Math.min(accumulator + dt, .1);
   while (accumulator >= 1 / 60) {
     const time = snapshot.time + Math.min(.2, (now - receivedAt) / 1000);
     const next = input.sample(time);
@@ -253,7 +267,7 @@ function frame(now: number) {
     if (snapshot.phase === 'playing') { pending.push(next); if (pending.length > 120) pending.shift(); predict(next); }
     accumulator -= 1 / 60;
   }
-  const activeLimit = input.locked ? settings.frameLimit : 10;
+  const activeLimit = input.locked ? settings.frameLimit : ended ? 30 : 10;
   const interval = 1000 / activeLimit;
   if (now < renderDeadline - .5) return;
   // Keep the cadence across small rAF timing variations instead of dropping
@@ -262,19 +276,37 @@ function frame(now: number) {
   const renderDt = Math.min((now - lastRender) / 1000, .05); lastRender = now;
   if (spectateId && !snapshot.actors.some(a => a.id === spectateId && a.alive)) cycleSpectator();
   interaction = closestInteraction();
-  if (input.locked || dirtyFrame) {
+  if (input.locked || dirtyFrame || ended) {
     renderer?.update({ snapshot, playerId, input: input.frame, dt: renderDt, playing: true, spectateId, predicted: predicted?.pos });
     renderedFrames++; frameCount++; dirtyFrame = false;
+    if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }
   if (now - fpsAt >= 1000) { fps = frameCount * 1000 / (now - fpsAt); frameCount = 0; fpsAt = now; }
   ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction);
 }
 requestAnimationFrame(frame);
 document.querySelector('#loading')?.remove();
+// Build and warm the 3D island while the player is still on the menu, after the first paint.
+const preload = () => { try { ensureRenderer(); } catch { /* reported when a match starts */ } };
+if (typeof requestIdleCallback === 'function') requestIdleCallback(preload, { timeout: 2500 }); else setTimeout(preload, 800);
 const invitation = new URLSearchParams(location.search).get('sala');
 if (invitation && /^[A-Z0-9]{6}$/i.test(invitation)) ui.roomModal('join', invitation.toUpperCase());
 
 // Read-only diagnostics for local QA. Never exposed in the production build.
-if (import.meta.env.DEV) Object.defineProperty(window, '__capivara', { value: {
-  inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length }),
-} });
+if (import.meta.env.DEV) {
+  // Perf probe: frame intervals from an independent rAF loop plus long tasks.
+  const intervals: number[] = [], longTasks: number[] = []; let lastTick = performance.now();
+  const tick = (now: number) => { intervals.push(now - lastTick); if (intervals.length > 1200) intervals.shift(); lastTick = now; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  try { new PerformanceObserver(list => { for (const entry of list.getEntries()) longTasks.push(Math.round(entry.duration)); }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
+  Object.defineProperty(window, '__capivara', { value: {
+    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length }),
+    perf: () => {
+      const sorted = [...intervals].sort((a, b) => a - b), pick = (q: number) => +(sorted[Math.floor(sorted.length * q)] ?? 0).toFixed(1);
+      const heap = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;
+      return { frames: sorted.length, p50: pick(.5), p95: pick(.95), p99: pick(.99), max: +(sorted.at(-1) ?? 0).toFixed(1), over33: intervals.filter(t => t > 33.4).length,
+        longTasks: [...longTasks], renderer: renderer?.stats, heapMB: heap ? Math.round(heap / 1048576) : null };
+    },
+    resetPerf: () => { intervals.length = 0; longTasks.length = 0; },
+  } });
+}

@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
-import { terrainHeight } from '../shared/terrain';
+import { fbm, terrainHeight } from '../shared/terrain';
+import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
+import { releaseAfterUpload } from './memory';
 import { buildProps } from './props';
 import { buildWallArt } from './wall-art';
 import type { MapObject, Settings, WorldSpec } from '../shared/types';
@@ -46,6 +48,25 @@ const hash = (x: number, y: number, salt: number) => {
   n = Math.imul(n ^ (n >>> 13), 1274126177);
   return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
 };
+// Legacy terrain grain: an almost-white noise multiplied over the vertex
+// colours, so the ground reads as flat cartoon colour with a hint of texture.
+function legacyDetailTexture(): THREE.CanvasTexture {
+  const size = 256, canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = '#e6e6e6'; g.fillRect(0, 0, size, size);
+  for (let i = 0; i < size / 3; i++) {
+    const v = Math.random() < .5 ? 0 : 255;
+    g.fillStyle = `rgba(${v},${v},${v},${.04 * Math.random()})`;
+    g.beginPath(); g.arc(Math.random() * size, Math.random() * size, Math.random() * size * .12, 0, 7); g.fill();
+  }
+  const image = g.getImageData(0, 0, size, size), data = image.data;
+  for (let i = 0; i < data.length; i += 4) { const n = (Math.random() - .5) * 18; data[i] += n; data[i + 1] += n; data[i + 2] += n; }
+  g.putImageData(image, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 8;
+  return texture;
+}
+
 function surfaceTextures(surface: Surface, loader: THREE.TextureLoader): { color: THREE.Texture; normal: THREE.Texture; rough: THREE.Texture } {
   const prefix = photoSurface[surface];
   const load = (kind: string) => {
@@ -122,21 +143,28 @@ function roofGeometry(detail: string | undefined): THREE.BufferGeometry {
 const hipRoof = roofGeometry('hip');
 const gableRoof = roofGeometry('gable');
 
+// Legacy terrain colouring: two greens in broad patches, dry grass, dirt and
+// rock on slopes, sand on the shore, mud underwater and asphalt roads.
+const onRoad = (x: number, z: number, margin: number) => ROADS.some(([x0, z0, x1, z1]) => x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
 function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
-  const size = world.size, beach = world.districts.find(district => district.id === 'praia');
-  const steps = 130, stride = size / steps;
-  const positions: number[] = [], blends: number[] = [], uvs: number[] = [], indices: number[] = [];
+  const size = world.size, steps = 130, stride = size / steps;
+  // Brighter than the legacy hex values: our tone mapping and toon ramp read
+  // darker, and the island should look sunny, not murky.
+  const green = c('#86a852'), green2 = c('#9cbc5e'), dry = c('#bdb86e'), dirt = c('#b8955e'), rock = c('#b0a28a');
+  const sand = c('#ecd8a2'), mud = c('#7d7258'), asphalt = c('#5a5a57'), color = new THREE.Color();
+  const positions: number[] = [], colors: number[] = [], uvs: number[] = [], indices: number[] = [];
   for (let iz = 0; iz <= steps; iz++) for (let ix = 0; ix <= steps; ix++) {
     const x = -size / 2 + ix * stride, z = -size / 2 + iz * stride, y = terrainHeight(x, z);
-    const slope = Math.hypot(terrainHeight(x + stride, z) - terrainHeight(x - stride, z), terrainHeight(x, z + stride) - terrainHeight(x, z - stride)) / (4 * stride);
-    const patch = .5 + .5 * Math.sin(x * .071 + Math.sin(z * .026)) * Math.sin(z * .093 - x * .037);
-    const shore = THREE.MathUtils.clamp((.85 - y) * 2, 0, 1);
-    const beachDistance = beach ? Math.hypot(x - beach.x, z - beach.z) : Infinity;
-    const beachSand = beach ? 1 - THREE.MathUtils.smoothstep(beachDistance, beach.radius * .56, beach.radius * 1.16) : 0;
-    const coast = Math.max(shore, beachSand);
-    const exposed = THREE.MathUtils.clamp((slope - .24) * 2.4, 0, .83);
-    const soil = THREE.MathUtils.clamp((patch - .5) * .72, 0, .33);
-    positions.push(x, y, z); blends.push(coast, exposed, soil); uvs.push(x / 2, z / 2);
+    const slope = Math.hypot(terrainHeight(x + stride, z) - terrainHeight(x - stride, z), terrainHeight(x, z + stride) - terrainHeight(x, z - stride)) / (2 * stride);
+    const patch = fbm(x / 30 + 7, z / 30 + 3) * .5 + .5, dryness = fbm(x / 18 - 4, z / 18 + 9);
+    color.copy(green).lerp(green2, patch);
+    if (dryness > .25) color.lerp(dry, Math.min(.7, (dryness - .25) * 2));
+    if (slope > .42) color.lerp(dirt, Math.min(.85, (slope - .42) * 2.2));
+    if (slope > 1.1) color.lerp(rock, Math.min(.6, (slope - 1.1) * 1.5));
+    if (y < 1.4) color.lerp(sand, Math.min(1, (1.4 - y) / .9));
+    if (y < -.2) color.lerp(mud, Math.min(1, -y));
+    if (onRoad(x, z, .6)) color.copy(asphalt); else if (onRoad(x, z, 1.8)) color.lerp(dirt, .5);
+    positions.push(x, y, z); colors.push(color.r, color.g, color.b); uvs.push(x / 5, z / 5);
     if (ix < steps && iz < steps) {
       const a = iz * (steps + 1) + ix, b = a + 1, d = a + steps + 1;
       indices.push(a, d, b, b, d, d + 1);
@@ -144,7 +172,7 @@ function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geo.setAttribute('terrainBlend', new THREE.Float32BufferAttribute(blends, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.setIndex(indices); geo.computeVertexNormals();
   return geo;
@@ -222,7 +250,7 @@ function surfaceOf(object: MapObject, collider: Map<string, string>): Surface {
     detail === 'radio-mast' || detail === 'rust' || detail === 'beacon') return 'metal';
   if (detail === 'sofa' || detail === 'umbrella') return 'fabric';
   const physical = collider.get(object.id);
-  if (detail === 'wall' && physical === 'stone' && object.pos.x > 22 && object.pos.x < 96 && object.pos.z > -50 && object.pos.z < 16) return 'brick';
+  if (detail === 'wall' && physical === 'stone' && object.pos.x > 28 && object.pos.x < 82 && object.pos.z > -62 && object.pos.z < -10) return 'brick';
   return physical === 'wood' ? 'timber' : physical === 'metal' ? 'metal' : kind === 'box' ? 'plaster' : 'stone';
 }
 
@@ -260,12 +288,22 @@ export class WorldScene {
       const material = new THREE.MeshStandardMaterial({
         vertexColors: true, map: surface === 'fabric' ? null : textures[surface].color,
         normalMap: surface === 'fabric' ? null : textures[surface].normal,
-        normalScale: new THREE.Vector2(surface === 'plaster' ? .18 : surface === 'roof' ? .62 : .55,
-          surface === 'plaster' ? .18 : surface === 'roof' ? .62 : .55),
+        normalScale: new THREE.Vector2(surface === 'plaster' ? .12 : surface === 'roof' ? .4 : .3,
+          surface === 'plaster' ? .12 : surface === 'roof' ? .4 : .3),
         roughnessMap: surface === 'fabric' ? null : textures[surface].rough,
         roughness: roughness[surface], metalness: surface === 'metal' ? .28 : .02,
         side: surface === 'leaf' || surface === 'fabric' || surface === 'roof' ? THREE.DoubleSide : THREE.FrontSide,
       });
+      // Cartoon look: photo textures only add a hint of grain over the flat
+      // vertex colours instead of carrying the whole surface.
+      if (surface !== 'plaster' && surface !== 'roof' && surface !== 'earth' && surface !== 'fabric') {
+        material.onBeforeCompile = shader => {
+          shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+            vec3 grain = texture2D(map, vMapUv).rgb;
+            diffuseColor.rgb *= mix(vec3(1.0), grain * 1.4, .4);
+          `);
+        };
+      }
       if (surface === 'plaster' || surface === 'roof') {
         material.onBeforeCompile = shader => {
           shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', surface === 'plaster' ? `
@@ -273,45 +311,24 @@ export class WorldScene {
             diffuseColor.rgb *= mix(vec3(1.0), vec3(plasterValue), .17);
           ` : `
             vec3 clayTiles = texture2D(map, vMapUv).rgb;
-            diffuseColor.rgb *= mix(vec3(1.0), clayTiles, .58);
+            diffuseColor.rgb *= mix(vec3(1.0), clayTiles * 1.3, .38);
           `);
         };
       }
       this.surfaceMaterials.push({ material, normal: material.normalMap, rough: material.roughnessMap });
       return material;
     };
-    const groundMaterial = materialFor('earth');
-    groundMaterial.vertexColors = false;
-    groundMaterial.onBeforeCompile = shader => {
-      shader.uniforms.uSandMap = { value: textures.sand.color };
-      shader.uniforms.uRockMap = { value: textures.stone.color };
-      shader.vertexShader = `attribute vec3 terrainBlend; varying vec3 vTerrainBlend;\n${shader.vertexShader}`
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\n vTerrainBlend = terrainBlend;');
-      shader.fragmentShader = `uniform sampler2D uSandMap; uniform sampler2D uRockMap; varying vec3 vTerrainBlend;\n${shader.fragmentShader}`
-        .replace('#include <map_fragment>', `
-          vec2 warpedUv = vMapUv + vec2(
-            sin(vMapUv.y * .31) * .33 + sin(vMapUv.x * .17) * .16,
-            sin(vMapUv.x * .29) * .36 + sin(vMapUv.y * .19) * .14);
-          vec2 rotatedUv = vec2(warpedUv.x * .73 - warpedUv.y * .68, warpedUv.x * .68 + warpedUv.y * .73);
-          vec3 grassFine = texture2D(map, warpedUv).rgb;
-          vec3 grassBroad = texture2D(map, rotatedUv * .43 + vec2(.23, .57)).rgb;
-          vec3 grassColor = mix(grassFine, grassBroad, .32) * vec3(.77, 1.13, .74);
-          vec3 sandColor = texture2D(uSandMap, warpedUv * .94 + vec2(.37, .21)).rgb;
-          vec3 rockColor = texture2D(uRockMap, warpedUv * 1.34 + vec2(.12, .49)).rgb;
-          float sandy = clamp(vTerrainBlend.x + vTerrainBlend.z * .53, 0.0, 1.0);
-          float rocky = clamp(vTerrainBlend.y, 0.0, 1.0);
-          diffuseColor.rgb *= mix(mix(grassColor, sandColor, sandy), rockColor, rocky);
-          diffuseColor.rgb *= .88 + .12 * sin(vMapUv.x * .43 + sin(vMapUv.y * .11)) * sin(vMapUv.y * .39);
-        `);
-    };
+    const groundDetail = legacyDetailTexture(); this.disposables.push(groundDetail);
+    const groundMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, map: groundDetail, roughness: 1, metalness: 0 });
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
 
     this.waterNormals = waterNormalTexture();
     this.smallWaterNormals = waterNormalTexture(); this.smallWaterNormals.repeat.set(3, 5);
-    const seaMaterial = new THREE.MeshPhysicalMaterial({ color: '#3f8392', roughness: .22, metalness: .02,
-      normalMap: this.waterNormals, normalScale: new THREE.Vector2(.42, .42), clearcoat: 1,
-      clearcoatRoughness: .13, ior: 1.33, transparent: true, opacity: .93,
+    // Cartoon sea: standard shading with a rippled normal for sun glints. The
+    // clearcoat layer it had doubled the per-pixel cost of the whole horizon.
+    const seaMaterial = new THREE.MeshStandardMaterial({ color: '#3f8392', roughness: .22, metalness: .02,
+      normalMap: this.waterNormals, normalScale: new THREE.Vector2(.42, .42), transparent: true, opacity: .93,
       side: THREE.DoubleSide, depthWrite: false });
     this.water = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), seaMaterial);
     this.water.rotation.x = -Math.PI / 2; this.water.position.y = -.05; this.water.renderOrder = 1; this.group.add(this.water);
@@ -331,7 +348,8 @@ export class WorldScene {
 
     const buckets = new Map<string, { surface: Surface; parts: THREE.BufferGeometry[] }>();
     const stash = (surface: Surface, geometry: THREE.BufferGeometry, x: number, z: number) => {
-      const key = `${surface}:${Math.floor(x / 32)}:${Math.floor(z / 32)}`;
+      // 64 m cells: few enough draw calls from the plane, still culled on the ground.
+      const key = `${surface}:${Math.floor(x / 64)}:${Math.floor(z / 64)}`;
       const bucket = buckets.get(key) || { surface, parts: [] };
       bucket.parts.push(geometry); buckets.set(key, bucket);
     };
@@ -360,7 +378,12 @@ export class WorldScene {
     const add = (surface: Surface, geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = 0) => {
       const tint = c(color);
       if (surface === 'plaster') tint.lerp(c('#ffffff'), .04);
-      else if (surface === 'roof') tint.lerp(c('#ffffff'), .08);
+      else if (surface === 'roof') {
+        // Warm roofs read as the legacy build's bright terracotta red.
+        const hsl = tint.getHSL({ h: 0, s: 0, l: 0 });
+        if (hsl.s > .12 && (hsl.h < .14 || hsl.h > .78)) tint.lerp(c(hsl.l > .42 ? '#e2573a' : '#cf432c'), .7);
+        else tint.lerp(c('#ffffff'), .08);
+      }
       else if (surface !== 'leaf' && surface !== 'fabric') tint.lerp(c('#ffffff'), .22);
       stash(surface, coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]), x, z);
     };
@@ -537,9 +560,8 @@ export class WorldScene {
       const glazing = mergeGeometries(glassPanels, false);
       glassPanels.forEach(panel => panel.dispose());
       if (glazing) {
-        const glassMaterial = new THREE.MeshPhysicalMaterial({ color: '#e2f3eb', vertexColors: true,
-          transparent: true, opacity: .28, metalness: .08, roughness: .11, clearcoat: 1,
-          clearcoatRoughness: .08, depthWrite: false, side: THREE.DoubleSide });
+        const glassMaterial = new THREE.MeshStandardMaterial({ color: '#e2f3eb', vertexColors: true,
+          transparent: true, opacity: .28, metalness: .08, roughness: .11, depthWrite: false, side: THREE.DoubleSide });
         const panes = new THREE.Mesh(glazing, glassMaterial);
         panes.renderOrder = 3;
         this.group.add(panes);
@@ -551,7 +573,7 @@ export class WorldScene {
       const merged = mergeGeometries(parts, false);
       parts.forEach(g => g.dispose());
       if (!merged) continue;
-      merged.computeBoundingSphere();
+      merged.computeBoundingSphere(); releaseAfterUpload(merged);
       let material = materialCache.get(surface);
       if (!material) { material = materialFor(surface); materialCache.set(surface, material); this.disposables.push(material); }
       const mesh = new THREE.Mesh(merged, material);
@@ -559,6 +581,7 @@ export class WorldScene {
       mesh.receiveShadow = surface !== 'leaf';
       this.group.add(mesh); this.disposables.push(merged);
     }
+    buckets.clear();
     const vegetation = this.vegetation = buildVegetation(world), props = buildProps(world), wallArt = buildWallArt(world);
     this.group.add(vegetation.group, props.group, wallArt.group);
     this.disposables.push(vegetation, props, wallArt);
@@ -596,15 +619,20 @@ export class WorldScene {
       x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
       target.push(coloredGeometry(geometry, c(color), new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz)));
     };
-    for (let x = -100; x <= 15; x += 8) for (const z of [-100, 15]) {
-      add(posts, cylinder, '#ffe6a0', x, terrainHeight(x, z) + 1.3, z, .12, 2.6, .12);
-      add(posts, box, '#f7c76f', x + .38, terrainHeight(x, z) + 2.52, z, .9, .42, .035);
+    const { minX, maxX, minZ, maxZ } = ARENA;
+    const post = (x: number, z: number) => add(posts, cylinder, '#ffe6a0', x, Math.max(terrainHeight(x, z), 0) + 1.3, z, .12, 2.6, .12);
+    for (let x = minX; x <= maxX; x += 8) for (const z of [minZ, maxZ]) {
+      post(x, z);
+      add(posts, box, '#f7c76f', x + .38, Math.max(terrainHeight(x, z), 0) + 2.52, z, .9, .42, .035);
     }
-    for (let z = -92; z < 15; z += 8) for (const x of [-100, 15]) {
-      add(posts, cylinder, '#ffe6a0', x, terrainHeight(x, z) + 1.3, z, .12, 2.6, .12);
-    }
-    for (const [x, z, dx, dz] of [[-42.5, -100, 115, 0], [-42.5, 15, 115, 0], [-100, -42.5, 0, 115], [15, -42.5, 0, 115]]) {
-      add(lines, box, '#f2bb60', x, terrainHeight(x, z) + 2.35, z, dx || .035, .035, dz || .035);
+    for (let z = minZ + 8; z < maxZ; z += 8) for (const x of [minX, maxX]) post(x, z);
+    // The tape follows the ground in short spans instead of one straight line.
+    for (const [x0, z0, x1, z1] of [[minX, minZ, maxX, minZ], [minX, maxZ, maxX, maxZ], [minX, minZ, minX, maxZ], [maxX, minZ, maxX, maxZ]]) {
+      const length = Math.hypot(x1 - x0, z1 - z0), steps = Math.ceil(length / 4);
+      for (let i = 0; i < steps; i++) {
+        const x = x0 + (x1 - x0) * (i + .5) / steps, z = z0 + (z1 - z0) * (i + .5) / steps;
+        add(lines, box, '#f2bb60', x, Math.max(terrainHeight(x, z), 0) + 2.35, z, x1 !== x0 ? length / steps : .035, .035, z1 !== z0 ? length / steps : .035);
+      }
     }
     for (const [geometries, opacity] of [[posts, .5], [lines, .42]] as const) {
       const geometry = mergeGeometries(geometries, false);
@@ -628,10 +656,9 @@ export class WorldScene {
         material.normalMap = nextNormal; material.roughnessMap = nextRough; material.needsUpdate = true;
       }
     }
-    if (this.water.material instanceof THREE.MeshPhysicalMaterial) {
+    if (this.water.material instanceof THREE.MeshStandardMaterial) {
       const next = settings.graphics === 'low' ? null : this.waterNormals;
       if (this.water.material.normalMap !== next) { this.water.material.normalMap = next; this.water.material.needsUpdate = true; }
-      this.water.material.clearcoat = settings.graphics === 'low' ? .25 : 1;
       this.water.material.normalScale.setScalar(settings.graphics === 'low' ? .24 : .42);
       this.water.material.roughness = settings.graphics === 'low' ? .29 : .22;
     }
@@ -642,7 +669,7 @@ export class WorldScene {
     this.cascadeTime.value = time;
     this.waterNormals.offset.set(time * .025, time * .014);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);
-    if (this.water.material instanceof THREE.MeshPhysicalMaterial) this.water.material.opacity = .92 + Math.sin(time * .55) * .012;
+    if (this.water.material instanceof THREE.MeshStandardMaterial) this.water.material.opacity = .92 + Math.sin(time * .55) * .012;
     if (this.shore.material instanceof THREE.ShaderMaterial) this.shore.material.uniforms.uTime.value = time;
     this.mist.position.x = Math.sin(time * .03) * 2;
     this.mist.position.z = Math.cos(time * .04) * 2;

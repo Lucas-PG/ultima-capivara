@@ -14,6 +14,8 @@ export class InputController {
   onAction: (action: PlayerAction) => void = () => {};
   onInteract: () => void = () => {};
   onPause: () => void = () => {};
+  onCycle: (direction: 1 | -1) => void = () => {};
+  private wheelAt = 0;
   onLock: () => void = () => {};
   onError: (message: string) => void = () => {};
   constructor(private canvas: HTMLCanvasElement, private settings: Settings) {
@@ -51,6 +53,14 @@ export class InputController {
       if (event.button === 2) this.adsHeld = false;
     }, { signal });
     canvas.addEventListener('contextmenu', event => event.preventDefault(), { signal });
+    // Mouse wheel cycles weapons (down = next), one step per notch at most every 90 ms.
+    document.addEventListener('wheel', event => {
+      if (!this.locked || Math.abs(event.deltaY) < 1) return;
+      event.preventDefault();
+      const now = performance.now();
+      if (now - this.wheelAt < 90) return;
+      this.wheelAt = now; this.onCycle(event.deltaY > 0 ? 1 : -1);
+    }, { signal, passive: false });
     window.addEventListener('blur', () => this.clear(), { signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); }, { signal });
   }
