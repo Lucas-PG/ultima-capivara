@@ -10,7 +10,7 @@ import { GameRenderer } from './render/renderer';
 import { RoomSession } from './network/session';
 import { InputController } from './input';
 import { SoundEngine } from './audio';
-import { loadProfile, loadSettings, saveProfile, saveSettings } from './settings';
+import { loadProfile, loadSettings, saveProfile, saveSettings, loadAdapt, recordPlacement } from './settings';
 import { GameUI } from './ui/ui';
 
 const world = createWorld();
@@ -39,6 +39,7 @@ let fps = 0, frameCount = 0, fpsAt = performance.now();
 let renderedFrames = 0;
 let dirtyFrame = true;
 let interaction: { id: string; name: string } | null = null;
+let adaptRecorded = '';
 
 const session = new RoomSession({
   room(next) {
@@ -125,7 +126,8 @@ function startWorker(config: RoomConfig, players: PlayerProfile[], matchId: stri
 function startPractice(config: RoomConfig, p: { name: string; color: string }) {
   void sound.unlock();
   session.leave(); room = null; ui.setRoom(null);
-  practiceConfig = { ...config, bots: true };
+  // Practice only: legacy adaptive difficulty nudges the bots by recent results.
+  practiceConfig = { ...config, bots: true, adapt: settings.adaptive ? loadAdapt() : 0 };
   const id = 'practice', matchId = Array.from(crypto.getRandomValues(new Uint8Array(24)), n => n.toString(16).padStart(2, '0')).join('');
   if (!beginMatch(id, matchId)) return;
   startWorker(practiceConfig, [{ id, ...p, ready: true, connected: true }], matchId);
@@ -159,6 +161,10 @@ function acceptSnapshot(next: WorldSnapshot) {
     }
     if (lastStage !== actor.stage) pending = [];
     lastAlive = actor.alive; lastStage = actor.stage;
+  }
+  if (next.phase === 'results' && practiceConfig && settings.adaptive && adaptRecorded !== next.matchId) {
+    const mine = next.results.find(r => r.id === playerId);
+    if (mine) { adaptRecorded = next.matchId; recordPlacement(mine.place, next.results.length, mine.winner); }
   }
   if (next.phase === 'results') {
     playing = false; input.unlock(); worker?.terminate(); worker = null;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/simulation';
-import { DIFFICULTY } from '../src/simulation/bots';
+import { DIFFICULTY, adaptDifficulty } from '../src/simulation/bots';
 import { terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
 import type { ActorState, Difficulty, GameEvent, InputFrame, WorldSpec } from '../src/shared/types';
@@ -214,5 +214,16 @@ describe('legacy bot behaviour', () => {
     const moved = grounded.filter(a => a.state.alive && Math.hypot(a.state.pos.x - before.get(a.state.id)!.x, a.state.pos.z - before.get(a.state.id)!.z) > 3);
     expect(moved.length).toBeGreaterThan(grounded.filter(a => a.state.alive).length * .6);
     expect(grounded.filter(a => a.state.alive && terrainHeight(a.state.pos.x, a.state.pos.z) < -.3)).toHaveLength(0);
+  });
+
+  it('adaptive difficulty makes practice bots milder after losses and braver after wins, within legacy bounds', () => {
+    const base = DIFFICULTY.normal;
+    expect(adaptDifficulty(base, 0)).toEqual(base);
+    const mild = adaptDifficulty(base, -1), brave = adaptDifficulty(base, 1);
+    expect(mild.dmg).toBeLessThan(base.dmg); expect(mild.err).toBeGreaterThan(base.err); expect(mild.react).toBeGreaterThan(base.react);
+    expect(brave.dmg).toBeGreaterThan(base.dmg); expect(brave.err).toBeLessThan(base.err);
+    expect(mild.dmg / base.dmg).toBeGreaterThan(.75); expect(brave.dmg / base.dmg).toBeLessThan(1.25);
+    expect(adaptDifficulty(base, 99)).toEqual(adaptDifficulty(base, 1));
+    expect(adaptDifficulty(base, Number.NaN)).toEqual(base);
   });
 });
