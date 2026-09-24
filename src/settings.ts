@@ -6,7 +6,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', leanLeft: 'KeyQ', leanRight: 'KeyE',
 };
 export const DEFAULT_SETTINGS: Settings = {
-  sensitivity: 1, fov: 78, graphics: 'medium', reducedMotion: false,
+  sensitivity: 1, fov: 78, graphics: 'medium', frameLimit: 60, reducedMotion: false,
   master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS },
 };
 const STORAGE_KEY = 'uc-v2-settings';
@@ -20,6 +20,7 @@ export function loadSettings(): Settings {
       if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? 60 : key === 'sensitivity' ? .2 : 0, key === 'fov' ? 105 : key === 'sensitivity' ? 3 : 1);
     }
     if (['low', 'medium', 'high'].includes(value.graphics)) result.graphics = value.graphics;
+    if (value.frameLimit === 30 || value.frameLimit === 60) result.frameLimit = value.frameLimit;
     if (typeof value.reducedMotion === 'boolean') result.reducedMotion = value.reducedMotion;
     if (typeof value.adsToggle === 'boolean') result.adsToggle = value.adsToggle;
     if (value.bindings && typeof value.bindings === 'object') for (const key of Object.keys(DEFAULT_BINDINGS)) {

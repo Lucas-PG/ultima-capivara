@@ -7,6 +7,7 @@ import { terrainHeight } from '../shared/terrain';
 import type { ActorState, GameEvent, LootSpawn, RenderFrame, Settings, Vec3, WeaponId, WorldSpec } from '../shared/types';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
+import { buildCapybaraBody } from './capybara';
 
 const v = (p: Vec3) => new THREE.Vector3(p.x, p.y, p.z);
 const material = (color: string, emissive = '#000000') => new THREE.MeshStandardMaterial({ color, emissive, roughness: .8, metalness: .04 });
@@ -27,7 +28,6 @@ interface Particle { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number }
 interface ChestVisual { index: number; open: number; pos: Vec3 }
 interface LootBatch { mesh: THREE.InstancedMesh; specs: LootSpawn[] }
 
-const skinMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96, metalness: .02, side: THREE.DoubleSide });
 const itemMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .66, metalness: .16, side: THREE.DoubleSide });
 const pawnSphere = new THREE.SphereGeometry(1, 12, 8);
 const pawnBox = new THREE.BoxGeometry(1, 1, 1);
@@ -48,21 +48,6 @@ function mergeParts(parts: THREE.BufferGeometry[]) {
   merged.computeBoundingSphere(); return merged;
 }
 
-function makeFurNormal(): THREE.DataTexture {
-  const width = 32, data = new Uint8Array(width * width * 4);
-  let seed = 0x4c925;
-  for (let i = 0; i < width * width; i++) {
-    seed = Math.imul(seed ^ seed >>> 15, 1 | seed) + 0x6d2b79f5 | 0;
-    const noise = (seed >>> 24) - 128;
-    data[i * 4] = 128 + Math.round(noise * .065); data[i * 4 + 1] = 128 + Math.round(noise * .065);
-    data[i * 4 + 2] = 254; data[i * 4 + 3] = 255;
-  }
-  const map = new THREE.DataTexture(data, width, width, THREE.RGBAFormat);
-  map.wrapS = map.wrapT = THREE.RepeatWrapping; map.needsUpdate = true; return map;
-}
-const furNormal = makeFurNormal();
-skinMaterial.normalMap = furNormal; skinMaterial.normalScale.set(.22, .22);
-
 function nameSprite(name: string): THREE.Sprite {
   const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
   const ctx = canvas.getContext('2d')!;
@@ -76,69 +61,10 @@ function nameSprite(name: string): THREE.Sprite {
 
 function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
-  const fur = new THREE.Color(color);
-  const light = fur.clone().lerp(new THREE.Color('#edc899'), .35);
-  const shadow = fur.clone().lerp(new THREE.Color('#583e31'), .42);
-  const parts: THREE.BufferGeometry[] = [];
-  const part = (base: THREE.BufferGeometry, tint: string | THREE.Color, x: number, y: number, z: number, sx: number, sy: number, sz: number, bone: number, rotation = new THREE.Euler()) => {
-    const geometry = vertex(base, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation);
-    const count = geometry.getAttribute('position').count;
-    const indices = new Uint16Array(count * 4), weights = new Float32Array(count * 4);
-    for (let i = 0; i < count; i++) { indices[i * 4] = bone; weights[i * 4] = 1; }
-    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(indices, 4));
-    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
-    parts.push(geometry);
-  };
-  const oval = (tint: string | THREE.Color, x: number, y: number, z: number, sx: number, sy: number, sz: number, bone: number) => part(pawnSphere, tint, x, y, z, sx, sy, sz, bone);
-  const blockPart = (tint: string | THREE.Color, x: number, y: number, z: number, sx: number, sy: number, sz: number, bone: number) => part(pawnBox, tint, x, y, z, sx, sy, sz, bone);
-  // Compact 1.8 m biped body with the long capybara muzzle and small rounded ears.
-  oval(fur, 0, .98, .06, .39, .45, .29, 1);
-  oval(light, 0, 1.04, -.205, .285, .34, .12, 1);
-  oval(shadow, 0, .73, .22, .35, .24, .25, 1);
-  oval(fur, 0, 1.49, -.11, .32, .25, .275, 2);
-  oval(light, 0, 1.38, -.37, .275, .155, .185, 2);
-  oval(light, 0, 1.33, -.47, .20, .09, .105, 2);
-  oval(shadow, 0, 1.33, -.565, .072, .055, .04, 2);
-  for (const side of [-1, 1]) {
-    oval(shadow, side * .235, 1.724, -.012, .073, .07, .058, 2);
-    oval('#c18f7f', side * .237, 1.735, -.061, .037, .041, .019, 2);
-    oval('#f8e8cb', side * .251, 1.535, -.298, .064, .054, .029, 2);
-    oval('#292c29', side * .257, 1.536, -.324, .033, .034, .019, 2);
-    oval('#ffffff', side * .246, 1.551, -.339, .011, .012, .007, 2);
-    oval(shadow, side * .17, 1.385, -.476, .025, .03, .025, 2);
-    for (let i = 0; i < 2; i++) blockPart('#f0e1c6', side * (.045 + i * .035), 1.271, -.49, .027, .034, .033, 2);
-    const armBone = side < 0 ? 3 : 4;
-    oval(fur, side * .35, 1.1, -.075, .135, .27, .14, armBone);
-    oval(light, side * .35, .895, -.20, .105, .105, .105, armBone);
-    for (let finger = 0; finger < 4; finger++) {
-      oval(light, side * .35 + (finger - 1.5) * .035, .85, -.285, .023, .035, .065, armBone);
-      oval('#5c5045', side * .35 + (finger - 1.5) * .035, .835, -.335, .018, .01, .025, armBone);
-    }
-  }
-  const legPositions: [number, number][] = [[-.215, -.14], [.215, -.14], [-.215, .22], [.215, .22]];
-  legPositions.forEach(([x, z], i) => {
-    const bone = 5 + i;
-    oval(fur, x, .36, z, .145, .24, .14, bone);
-    oval(shadow, x, .08, z - .05, .16, .08, .18, bone);
-    for (let toe = -1; toe <= 1; toe++) oval('#5b4a3e', x + toe * .055, .06, z - .2, .032, .025, .055, bone);
-  });
-  // Vest and helmet are bones so equipment changes keep the avatar to one draw call.
-  oval('#3c5860', 0, 1.105, -.237, .295, .28, .105, 9);
-  blockPart('#ac9873', 0, 1.105, -.338, .61, .046, .038, 9);
-  for (const side of [-1, 1]) blockPart('#a98f6c', side * .24, 1.25, -.27, .055, .23, .055, 9);
-  oval('#536b66', 0, 1.66, -.10, .335, .12, .31, 10);
-  blockPart('#6e8070', 0, 1.632, -.37, .53, .045, .15, 10);
-  const body = new THREE.SkinnedMesh(mergeParts(parts), skinMaterial);
-  body.castShadow = true; body.receiveShadow = true;
-  const bones = Array.from({ length: 11 }, () => new THREE.Bone());
-  bones[1].position.set(0, .98, 0); bones[2].position.set(0, 1.49, -.11);
-  bones[3].position.set(-.34, 1.17, -.075); bones[4].position.set(.34, 1.17, -.075);
-  legPositions.forEach(([x, z], i) => bones[5 + i].position.set(x, .58, z));
-  bones[9].position.set(0, 1.1, -.23); bones[10].position.set(0, 1.68, -.1);
-  for (let i = 1; i < bones.length; i++) bones[0].add(bones[i]);
-  body.add(bones[0]); body.bind(new THREE.Skeleton(bones)); group.add(body);
+  const { body, bones } = buildCapybaraBody(color);
+  group.add(body);
   const weapon = new THREE.Mesh(new THREE.BufferGeometry(), itemMaterial);
-  weapon.position.set(0, 1.04, -.44); weapon.rotation.x = -.08; weapon.castShadow = true; group.add(weapon);
+  weapon.position.set(.39, 1.03, -.69); weapon.rotation.x = -.08; weapon.castShadow = true; group.add(weapon);
   const chute = new THREE.Group(); group.add(chute);
   addEllipsoid(chute, '#e6c280', 0, 3.65, 0, 1.9, .32, 1.18);
   for (const x of [-1.6, 1.6]) for (const z of [-.9, .9]) {
@@ -302,6 +228,8 @@ export class GameRenderer {
   private readonly particles: Particle[] = [];
   private readonly temp = new THREE.Object3D();
   private readonly sun: THREE.DirectionalLight;
+  private readonly interiorLight = new THREE.PointLight('#ffd09b', 0, 8, 2);
+  private readonly litRooms: { x: number; y: number; z: number; w: number; d: number; bakery: boolean }[];
   private readonly environment: THREE.WebGLRenderTarget;
   private settings: Settings;
   private elapsed = 0;
@@ -315,6 +243,8 @@ export class GameRenderer {
 
   constructor(canvas: HTMLCanvasElement, world: WorldSpec, settings: Settings, onAssetsReady: () => void = () => {}) {
     this.settings = settings; this.world = world; this.lootSpec = world.loot;
+    this.litRooms = world.objects.filter(object => object.detail === 'prop:house:bakery' || object.detail === 'prop:house:cafe')
+      .map(object => ({ ...object.pos, w: object.scale.x, d: object.scale.z, bakery: object.detail!.endsWith('bakery') }));
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: settings.graphics !== 'low', powerPreference: 'high-performance', alpha: false });
     this.weaponView = new WeaponView(onAssetsReady);
     this.gl.setPixelRatio(settings.graphics === 'high' ? Math.min(window.devicePixelRatio || 1, 1.25) : 1);
@@ -333,14 +263,16 @@ export class GameRenderer {
     this.scene.fog = new THREE.FogExp2('#a9c6bd', settings.graphics === 'low' ? .0055 : .0037);
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
-    this.scene.add(new THREE.HemisphereLight('#d5e1df', '#645344', .5));
+    this.scene.add(new THREE.HemisphereLight('#c7dfe7', '#60614e', .55));
+    this.interiorLight.visible = settings.graphics !== 'low';
+    this.scene.add(this.interiorLight);
     this.sun = new THREE.DirectionalLight('#ffe1b5', 2.15); this.sun.position.set(-55, 84, -38);
     this.sun.castShadow = settings.graphics !== 'low'; this.sun.shadow.mapSize.set(1024, 1024);
     const shadowReach = settings.graphics === 'high' ? 42 : 30;
     this.sun.shadow.camera.left = -shadowReach; this.sun.shadow.camera.right = shadowReach;
     this.sun.shadow.camera.top = shadowReach; this.sun.shadow.camera.bottom = -shadowReach;
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 170;
-    this.sun.shadow.bias = -.00018; this.sun.shadow.normalBias = .018;
+    this.sun.shadow.bias = -.00035; this.sun.shadow.normalBias = .055;
     this.scene.add(this.sun, this.sun.target);
     const haze = new THREE.Mesh(new THREE.SphereGeometry(640, 24, 12), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -439,8 +371,6 @@ export class GameRenderer {
       visual.phase += frame.dt * Math.min(12, Math.hypot(actor.velocity.x, actor.velocity.z) * 1.7);
       const walk = actor.grounded && !actor.crouch ? Math.min(1, Math.hypot(actor.velocity.x, actor.velocity.z) / 5) : 0;
       for (let i = 0; i < 4; i++) visual.bones[5 + i].rotation.x = Math.sin(visual.phase + (i === 0 || i === 3 ? 0 : Math.PI)) * .4 * walk;
-      visual.bones[3].rotation.x = -.22 - Math.sin(visual.phase) * .1 * walk;
-      visual.bones[4].rotation.x = -.25 + Math.sin(visual.phase) * .1 * walk;
       visual.bones[1].rotation.z = Math.sin(visual.phase * .5) * .018 * walk;
       visual.group.rotation.z = actor.lean * .11;
       if (actor.stage === 'falling') visual.group.rotation.x = -.22; else visual.group.rotation.x = 0;
@@ -591,6 +521,14 @@ export class GameRenderer {
     this.lastFrame = frame; this.elapsed += dt;
     this.worldView.update(this.elapsed);
     this.updateAvatars(frame); this.updateCamera(frame); this.updateLoot(frame.snapshot); this.updateEffects(dt);
+    const room = this.litRooms.find(room => Math.abs(this.camera.position.x - room.x) < room.w / 2 &&
+      Math.abs(this.camera.position.z - room.z) < room.d / 2 && this.camera.position.y < room.y + 3.1);
+    if (room) {
+      this.interiorLight.position.set(room.bakery ? room.x + room.w / 2 - 1.95 : room.x,
+        room.y + (room.bakery ? .93 : 2.45), room.bakery ? room.z - room.d * .24 : room.z);
+      this.interiorLight.color.set(room.bakery ? '#ffae62' : '#ffdcaa');
+    }
+    this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? room.bakery ? 4.3 : 4 : 0, 7, dt);
     const snapshot = frame.snapshot;
     const viewed = this.lastActor;
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.closeWall(), snapshot?.time || 0);
@@ -655,6 +593,7 @@ export class GameRenderer {
     this.settings = settings;
     this.gl.setPixelRatio(settings.graphics === 'high' ? Math.min(window.devicePixelRatio || 1, 1.25) : 1);
     this.gl.shadowMap.enabled = settings.graphics !== 'low'; this.sun.castShadow = settings.graphics !== 'low';
+    this.interiorLight.visible = settings.graphics !== 'low';
     const shadowReach = settings.graphics === 'high' ? 42 : 30;
     this.sun.shadow.camera.left = -shadowReach; this.sun.shadow.camera.right = shadowReach;
     this.sun.shadow.camera.top = shadowReach; this.sun.shadow.camera.bottom = -shadowReach;
@@ -682,7 +621,8 @@ export class GameRenderer {
       }
     });
     geometries.forEach(geometry => geometry.dispose());
-    textures.add(furNormal); textures.forEach(texture => texture.dispose());
+    textures.forEach(texture => texture.dispose());
+    this.avatars.forEach(visual => visual.body.skeleton.dispose());
     materials.forEach(mat => mat.dispose());
     this.gl.dispose();
   }

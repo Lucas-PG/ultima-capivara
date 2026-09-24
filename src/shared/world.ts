@@ -114,7 +114,15 @@ export function createWorld(): WorldSpec {
     obj('barrel', x, y + .55, z, .46, 1.1, .46, '#497b8b', 'rust');
     colliders.push({ id: id('barrel'), min: p(x - .42, y, z - .42), max: p(x + .42, y + 1.1, z + .42), material: 'metal' });
   };
-  const house = (x: number, z: number, w: number, d: number, color: string, roof: string, material: Collider['material'] = 'stone') => {
+  const streetDetail = (x: number, z: number, kind: string, color: string) => {
+    const y = ground(x, z);
+    obj('box', x, y, z, 1, 0, 1, color, `prop:${kind}`);
+    const [sx, sy, sz] = kind.startsWith('stall:') ? [2.45, .9, 1.16] :
+      kind === 'bench' ? [2.08, .8, .82] : kind === 'cart' ? [1.82, 1.1, 1.1] : [1.34, .8, 1.34];
+    colliders.push({ id: id('street-fixture'), min: p(x - sx / 2, y, z - sz / 2),
+      max: p(x + sx / 2, y + sy, z + sz / 2), material: 'wood' });
+  };
+  const house = (x: number, z: number, w: number, d: number, color: string, roof: string, material: Collider['material'] = 'stone', role = 'home') => {
     const y = ground(x, z);
     const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
     obj('box', x, y + .04, z, w - .2, .08, d - .2, '#9b8469', 'floor');
@@ -131,10 +139,17 @@ export function createWorld(): WorldSpec {
     obj('box', x, y + 2.8, z1 + .05, w + .4, .12, .15, '#efe2be', 'eave');
     for (const zz of [z0 - .27, z1 + .27]) obj('box', x, y + 3.12, zz, w + .7, .09, .09, '#533f3d', 'roof-edge');
     for (const xx of [x0 - .27, x1 + .27]) obj('box', xx, y + 3.12, z, .09, .09, d + .7, '#533f3d', 'roof-edge');
-    solid(x + w * .25, y + .34, z, 1.6, .68, .8, '#527280', 'wood', 'sofa');
-    solid(x - w * .26, y + .38, z - d * .18, 1.1, .76, .8, '#735139', 'wood', 'table');
-    crate(x + w * .3, z - d * .25, .85, y);
-    chest(x - w * .33, z + d * .2, y);
+    // A single marker supplies the renderer with the building's full room and
+    // frontage design. The main furniture has matching simulation colliders.
+    obj('box', x, y, z, w, 0, d, color, `prop:house:${role}`);
+    const fixture = (fx: number, fz: number, sx: number, sy: number, sz: number) =>
+      colliders.push({ id: id('fixture'), min: p(fx - sx / 2, y, fz - sz / 2), max: p(fx + sx / 2, y + sy, fz + sz / 2), material: 'wood' });
+    const bed = role === 'home' || role === 'fisher' || role === 'clinic';
+    fixture(x + w * .28, z + d * .11, bed ? 1.6 : 1.36, bed ? .75 : 1.03, bed ? 1.9 : 1.43);
+    fixture(x - w * .33, z - d * .17, .88, role === 'workshop' ? 1.04 : .94, 1.86);
+    if (role === 'bakery') fixture(x + w / 2 - .83, z - d * .24, 1.28, 2.24, 1.86);
+    if (role === 'cafe') fixture(x - w * .12, z - d * .12, .94, .8, .94);
+    chest(x - w * .34, z + d * .28, y);
     item(x, z + .7, 'weapon', random() > .65 ? 'smg' : 'pistol', y);
     item(x + .4, z - .7, 'ammo', undefined, y);
   };
@@ -192,26 +207,49 @@ export function createWorld(): WorldSpec {
   level(88, -57, 6, 88, '#92775c');
   level(-95, -93, 6, 48, '#6e6958', 'boardwalk');
 
-  // Vila: close streets, colourful homes, a chapel, and a square with useful cover.
-  for (const [x, z, w, d, c, r] of [
-    [-78, 0, 9, 7, '#e0a071', '#98564c'], [-65, 0, 9, 7, '#b5bf9a', '#7c5557'],
-    [-53, 0, 9, 7, '#e6c497', '#ad6b4e'], [-32, 0, 9, 7, '#a6bccc', '#76556a'],
-    [-18, 0, 9, 7, '#d9a6a5', '#825065'], [-74, -24, 9, 7, '#cab695', '#955b4d'],
-    [-61, -24, 9, 7, '#e3b284', '#9a5540'], [-29, -25, 9, 7, '#c4b3cc', '#635d77'],
-    [-13, -23, 9, 7, '#bdc6a4', '#77634d'], [-80, 17, 8, 7, '#e6ba8a', '#975b47'],
-    [-60, 17, 8, 7, '#b4c5c0', '#715866'], [-37, 19, 8, 7, '#efd1a6', '#a55e4b'],
-  ] as const) house(x, z, w, d, c, r);
-  tower(-8, 4, '#e5d3b2');
-  obj('cone', -8, ground(-8, 4) + 9.2, 4, 1.2, 2.5, 1.2, '#b56853', 'steeple');
-  obj('cylinder', -42, ground(-42, -11) + .5, -11, 2.5, 1, 2.5, '#9b8b74', 'fountain');
-  obj('cylinder', -42, ground(-42, -11) + 1.12, -11, 1.7, .25, 1.7, '#82b7b7', 'water');
+  // Vila: staggered facades around an open, legible square. The offsets make
+  // short alleys and keep the two entrances of each building useful in combat.
+  for (const [x, z, w, d, c, r, role] of [
+    [-83, 4, 9, 8, '#d89473', '#98564c', 'home'],
+    [-68, 8, 9, 8, '#f0c794', '#9e5a45', 'bakery'],
+    [-54, 6, 8, 7, '#a6c5be', '#715866', 'cafe'],
+    [-30, 9, 10, 8, '#efd1a6', '#a55e4b', 'home'],
+    [-16, 2, 8, 7, '#c4b3cc', '#635d77', 'workshop'],
+    [-81, -27, 10, 8, '#cab695', '#955b4d', 'home'],
+    [-65, -26, 8, 7, '#e3b284', '#9a5540', 'tailor'],
+    [-29, -27, 10, 8, '#d9a6a5', '#825065', 'home'],
+    [-13, -25, 8, 7, '#bdc6a4', '#77634d', 'clinic'],
+    [-83, 19, 8, 7, '#e6ba8a', '#975b47', 'home'],
+    [-58, 20, 9, 7, '#b4c5c0', '#715866', 'home'],
+    [-37, 20, 8, 7, '#e2ad80', '#99574a', 'home'],
+  ] as const) house(x, z, w, d, c, r, 'stone', role);
+  // The bakery and cafe roofs can be reached from the narrow side lanes.
+  stairs(-77, -72.5, 9.6, ground(-68, 8), 3.15 / 12, 12, '#b9a78b');
+  stairs(-62, -58, 7.8, ground(-54, 6), 3.15 / 12, 12, '#b9a78b');
+  obj('box', -43, ground(-43, -12) + .02, -12, 18, .035, 17, '#bfa987', 'courtyard');
+  for (const [x, z, kind] of [[-38, -1, 'planter'], [-35, -18, 'bench'], [-49, -17, 'cart'], [-44, -25, 'stall:produce']] as const)
+    streetDetail(x, z, kind, '#dba876');
+  for (const [x, z] of [[-75, -10], [-21, -10]] as const)
+    obj('box', x, ground(x, z), z, 3.2, 0, 23, '#d6bd92', 'prop:alley');
+  tower(-2, 18, '#e5d3b2');
+  obj('cone', -2, ground(-2, 18) + 9.2, 18, 1.2, 2.5, 1.2, '#b56853', 'steeple');
+  obj('box', -42, ground(-42, -11), -11, 18, 0, 17, '#bfa987', 'prop:plaza');
+  colliders.push({ id: id('fountain'), min: p(-44.25, ground(-42, -11), -13.25),
+    max: p(-39.75, ground(-42, -11) + 1.25, -8.75), material: 'stone' });
   for (const [x, z] of [[-49, -12], [-35, -12], [-44, -20], [-44, -3]]) crate(x, z);
-  item(-42, -12, 'medkit');
+  item(-45, -11, 'medkit');
   obj('sign', -47, ground(-47, -38) + 2.1, -35, 3.6, 2.4, .2, '#eccb8b', 'VILA / PORTO');
 
   // Porto: container yard, enterable warehouse, crane, piers, boats, fish market.
   warehouse(-76, -66, 25, 15, '#82949d');
-  house(-42, -63, 9, 7, '#d3bfa0', '#685a61', 'wood');
+  house(-42, -63, 9, 7, '#d3bfa0', '#685a61', 'wood', 'fisher');
+  house(-51, -78, 8, 7, '#a8c1b8', '#80595b', 'wood', 'fishmonger');
+  house(-91, -43, 8, 7, '#d7a279', '#885747', 'wood', 'home');
+  house(-25, -69, 8, 7, '#dbbc90', '#865c50', 'wood', 'workshop');
+  house(-15, -81, 8, 7, '#a5bab0', '#6d6565', 'wood', 'fisher');
+  for (const [x, z, kind] of [[-51, -88, 'stall:fish'], [-41, -82, 'stall:fish'], [-36, -75, 'cart'], [-57, -49, 'planter']] as const)
+    streetDetail(x, z, kind, '#7db8b4');
+  obj('box', -62, ground(-62, -86), -86, 26, 0, 12, '#9bb7ad', 'prop:harbor');
   for (const [x, z, c] of [[-105, -46, '#a94f3c'], [-103, -55, '#497ca1'], [-105, -65, '#dfad55'], [-46, -80, '#4d896c']] as const)
     solid(x, ground(x, z) + 1.25, z, 5.5, 2.5, 2.6, c, 'metal', 'container');
   for (const x of [-111, -101, -91]) {
@@ -228,7 +266,10 @@ export function createWorld(): WorldSpec {
   obj('sign', -82, ground(-82, -39) + 2, -39, 4.2, 2.2, .2, '#e6ca8b', 'PORTO');
 
   // Posto: pumps, kiosk, canopy, tire stacks and a roadside truck.
-  house(-5, -58, 10, 8, '#e9d3ad', '#ae694b');
+  house(-5, -58, 10, 8, '#e9d3ad', '#ae694b', 'stone', 'kiosk');
+  for (const [x, z, kind] of [[-16, -63, 'planter'], [5, -62, 'bench'], [-15, -53, 'cart']] as const)
+    streetDetail(x, z, kind, '#d6b070');
+  obj('box', -5, ground(-5, -41), -41, 19, 0, 10, '#ecc491', 'prop:forecourt');
   obj('box', -5, ground(-5, -41) + 4.35, -41, 20, .35, 12, '#e8c496', 'canopy');
   for (const x of [-13, 3]) for (const z of [-46, -36]) solid(x, ground(x, z) + 2.1, z, .34, 4.2, .34, '#b65543', 'metal', 'canopy-post');
   for (const x of [-9, -1]) {
@@ -274,7 +315,7 @@ export function createWorld(): WorldSpec {
   }
   solid(11, ground(11, 105) + 7, 105, .45, 14, .45, '#b1b8b3', 'metal', 'radio-mast');
   obj('sphere', 11, ground(11, 105) + 14, 105, .55, .55, .55, '#e6ad6a', 'beacon');
-  item(-8, 104, 'weapon', 'sniper');
+  item(-6, 104, 'weapon', 'sniper');
 
   // Praia: small kiosks, parasols, surf boards and moored skiffs.
   for (const x of [30, 43, 56, 69, 82]) {

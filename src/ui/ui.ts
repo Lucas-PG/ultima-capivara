@@ -29,6 +29,11 @@ export class GameUI {
   private lastResults = '';
   private toastTimer = 0;
   private hitTimer = 0;
+  private damageTimer = 0;
+  private eliminationTimer = 0;
+  private recentDamage = 0;
+  private damageTarget = '';
+  private damageAt = 0;
   private localId = '';
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     this.drawMapBackground(); this.home();
@@ -96,8 +101,10 @@ export class GameUI {
     catch { this.openModal('CONVIDE SUA TURMA', `<label>LINK DA SALA<input readonly value="${esc(url.href)}"/></label><p>Copie o link acima ou compartilhe o código ${esc(this.room.code)}.</p>`); }
   }
   game(playerId: string) {
+    this.recentDamage = 0; this.damageTarget = ''; this.damageAt = 0;
+    clearTimeout(this.hitTimer); clearTimeout(this.damageTimer); clearTimeout(this.eliminationTimer);
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; document.body.dataset.screen = 'game';
-    this.root.innerHTML = `<div class="hud" id="hud"><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><span>×</span></div><div class="match-top"><div class="match-label"><img src="./assets/favicon.svg" alt=""/><div><span id="hud-mode">ÚLTIMA DE PÉ</span><strong id="hud-objective">Prepare-se.</strong></div></div><div class="match-stats"><span>${icon('users')} <b id="hud-alive">21</b></span><span>${icon('crosshair')} <b id="hud-kills">0</b></span><span id="hud-timer">0:00</span></div></div><div class="compass" id="compass">N</div><div class="minimap"><canvas width="320" height="320" id="minimap"></canvas><div><span id="hud-district">ILHA</span><small id="hud-ping">LOCAL</small></div></div><div id="kill-feed" class="kill-feed"></div><div class="crosshair" id="crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="hit-marker" class="hit-marker">×</div><div class="damage-overlay" id="damage-overlay"></div><div class="storm-warning" id="storm-warning" hidden>${icon('bolt')} FORA DA ÁREA SEGURA</div><div class="center-notice" id="center-notice"></div><div class="interaction-prompt" id="interaction" hidden></div><div class="action-progress" id="action-progress" hidden><span></span><i></i></div><div class="player-vitals"><div class="player-portrait">${capybara(this.profile.color)}</div><div class="vitals-bars"><div class="health-label">${icon('heart')}<strong id="hud-health">100</strong><small id="hud-protection"></small></div><div class="meter health"><i id="health-fill"></i></div><div class="armor-line">${icon('shield')}<span class="meter armor"><i id="armor-fill"></i></span><b id="hud-armor">0</b></div></div></div><div class="consumables" id="consumables"></div><div class="weapon-panel"><div class="weapon-name"><span id="weapon-category">EQUIPAMENTO</span><strong id="weapon-name">PISTOLA</strong></div><div class="ammo-count"><b id="ammo-current">17</b><span>/ <i id="ammo-reserve">68</i></span></div><div id="weapon-slots" class="weapon-slots"></div></div><div class="hud-help"><kbd>ESC</kbd> MENU <kbd>TAB</kbd> PLACAR <kbd>F</kbd> INTERAGIR</div></div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
+    this.root.innerHTML = `<div class="hud" id="hud"><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><span>×</span></div><div class="match-top"><div class="match-label"><img src="./assets/favicon.svg" alt=""/><div><span id="hud-mode">ÚLTIMA DE PÉ</span><strong id="hud-objective">Prepare-se.</strong></div></div><div class="match-stats"><span>${icon('users')} <b id="hud-alive">21</b></span><span>${icon('crosshair')} <b id="hud-kills">0</b></span><span id="hud-timer">0:00</span></div></div><div class="compass" id="compass">N</div><div class="minimap"><canvas width="320" height="320" id="minimap"></canvas><div><span id="hud-district">ILHA</span><small id="hud-ping">LOCAL</small></div></div><div id="kill-feed" class="kill-feed"></div><div class="crosshair" id="crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="hit-marker" class="hit-marker">×</div><div id="damage-readout" class="damage-readout"></div><div id="elimination-confirm" class="elimination-confirm" aria-live="polite"><span>ELIMINAÇÃO</span><strong></strong></div><div class="damage-overlay" id="damage-overlay"></div><div class="storm-warning" id="storm-warning" hidden>${icon('bolt')} FORA DA ÁREA SEGURA</div><div class="center-notice" id="center-notice"></div><div class="interaction-prompt" id="interaction" hidden></div><div class="action-progress" id="action-progress" hidden><span></span><i></i></div><div class="player-vitals"><div class="player-portrait">${capybara(this.profile.color)}</div><div class="vitals-bars"><div class="health-label">${icon('heart')}<strong id="hud-health">100</strong><small id="hud-protection"></small></div><div class="meter health"><i id="health-fill"></i></div><div class="armor-line">${icon('shield')}<span class="meter armor"><i id="armor-fill"></i></span><b id="hud-armor">0</b></div></div></div><div class="consumables" id="consumables"></div><div class="weapon-panel"><div class="weapon-name"><span id="weapon-category">EQUIPAMENTO</span><strong id="weapon-name">PISTOLA</strong></div><div class="ammo-count"><b id="ammo-current">17</b><span>/ <i id="ammo-reserve">68</i></span></div><div id="weapon-slots" class="weapon-slots"></div></div><div class="hud-help"><kbd>ESC</kbd> MENU <kbd>TAB</kbd> PLACAR <kbd>F</kbd> INTERAGIR</div></div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
   }
   update(snapshot: WorldSnapshot, playerId: string, ping: number, scoreboard: boolean, fps: number, interaction: { id: string; name: string } | null) {
     this.snapshot = snapshot; this.localId = playerId;
@@ -148,10 +155,12 @@ export class GameUI {
   private settingsModal() {
     const labels = { sensitivity: 'Sensibilidade do mouse', fov: 'Campo de visão', master: 'Volume geral', effects: 'Efeitos e combate', ambience: 'Ambiente', music: 'Música' };
     const ranges = (keys: (keyof typeof labels)[]) => keys.map(key => `<label class="slider-label">${labels[key]} <output>${this.settings[key]}</output><input type="range" data-setting="${key}" min="${key === 'fov' ? 60 : key === 'sensitivity' ? .2 : 0}" max="${key === 'fov' ? 105 : key === 'sensitivity' ? 3 : 1}" step="${key === 'fov' ? 1 : .05}" value="${this.settings[key]}"/></label>`).join('');
-    const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento da câmera</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section></div><details class="bindings"><summary>PERSONALIZAR TECLAS</summary><div class="binding-grid">${Object.keys(DEFAULT_BINDINGS).map(key => `<label>${bindingLabels[key]}<button type="button" class="key-binding" data-binding="${key}">${keyName(this.settings.bindings[key])}</button></label>`).join('')}</div></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
+    const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label>Limite de quadros<select id="frame-limit"><option value="60">60 FPS · Fluido</option><option value="30">30 FPS · Economia</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento da câmera</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section></div><details class="bindings"><summary>PERSONALIZAR TECLAS</summary><div class="binding-grid">${Object.keys(DEFAULT_BINDINGS).map(key => `<label>${bindingLabels[key]}<button type="button" class="key-binding" data-binding="${key}">${keyName(this.settings.bindings[key])}</button></label>`).join('')}</div></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
     dialog.querySelector<HTMLSelectElement>('#graphics')!.value = this.settings.graphics;
+    dialog.querySelector<HTMLSelectElement>('#frame-limit')!.value = String(this.settings.frameLimit);
     dialog.querySelectorAll<HTMLInputElement>('[data-setting]').forEach(input => input.addEventListener('input', () => { const key = input.dataset.setting as keyof typeof labels; this.settings[key] = Number(input.value); input.parentElement!.querySelector('output')!.textContent = input.value; this.callbacks.settings(this.settings); }));
     dialog.querySelector('#graphics')!.addEventListener('change', event => { this.settings.graphics = (event.target as HTMLSelectElement).value as Settings['graphics']; this.callbacks.settings(this.settings); });
+    dialog.querySelector('#frame-limit')!.addEventListener('change', event => { this.settings.frameLimit = Number((event.target as HTMLSelectElement).value) === 30 ? 30 : 60; this.callbacks.settings(this.settings); });
     dialog.querySelector('#reduced-motion')!.addEventListener('change', event => { this.settings.reducedMotion = (event.target as HTMLInputElement).checked; this.callbacks.settings(this.settings); });
     dialog.querySelector('#ads-toggle')!.addEventListener('change', event => { this.settings.adsToggle = (event.target as HTMLInputElement).checked; this.callbacks.settings(this.settings); });
     const keyCapture = new AbortController(); dialog.addEventListener('close', () => keyCapture.abort());
@@ -170,9 +179,52 @@ export class GameUI {
   }
   event(event: GameEvent) {
     if (event.type === 'notice') this.toast(event.text);
-    if (event.type === 'damage' && event.actor === this.localId) { const marker = this.root.querySelector<HTMLElement>('#hit-marker'); if (marker) { marker.style.opacity = '1'; marker.style.color = event.head ? '#f3bf5d' : '#fff5dc'; clearTimeout(this.hitTimer); this.hitTimer = window.setTimeout(() => { marker.style.opacity = '0'; }, 140); } }
-    if (event.type === 'damage' && event.target === this.localId) { const overlay = this.root.querySelector<HTMLElement>('#damage-overlay'); if (overlay) { overlay.classList.remove('flash'); void overlay.offsetWidth; overlay.classList.add('flash'); } }
-    if (event.type === 'kill') { const feed = this.root.querySelector('#kill-feed'); if (!feed) return; const killer = this.snapshot?.actors.find(a => a.id === event.actor)?.name || (event.weapon === 'fall' ? 'QUEDA' : 'TEMPESTADE'), victim = this.snapshot?.actors.find(a => a.id === event.target)?.name || 'Capivara'; const entry = document.createElement('div'); entry.className = `kill-entry ${event.actor === this.localId ? 'own-kill' : ''}`; entry.innerHTML = `<b>${esc(killer)}</b>${icon('crosshair')}<span>${esc(victim)}</span>`; feed.prepend(entry); while (feed.children.length > 5) feed.lastElementChild!.remove(); window.setTimeout(() => entry.remove(), 6500); }
+    if (event.type === 'damage' && event.actor === this.localId && event.target !== this.localId) {
+      const marker = this.el('hit-marker'), readout = this.el('damage-readout');
+      if (marker && readout) {
+        const now = performance.now();
+        if (event.target !== this.damageTarget || now - this.damageAt > 750) this.recentDamage = 0;
+        this.recentDamage += event.amount; this.damageAt = now; this.damageTarget = event.target;
+        marker.style.opacity = '1'; marker.style.color = event.head ? '#f3bf5d' : '#fff5dc';
+        readout.textContent = String(Math.round(this.recentDamage));
+        readout.classList.add('visible'); readout.classList.toggle('headshot', event.head);
+        clearTimeout(this.hitTimer); clearTimeout(this.damageTimer);
+        this.hitTimer = window.setTimeout(() => { marker.style.opacity = '0'; }, 140);
+        this.damageTimer = window.setTimeout(() => readout.classList.remove('visible'), 850);
+      }
+    }
+    if (event.type === 'damage' && event.target === this.localId) {
+      const overlay = this.el('damage-overlay');
+      if (overlay) {
+        const me = this.snapshot?.actors.find(a => a.id === this.localId);
+        const source = this.snapshot?.actors.find(a => a.id === event.actor);
+        if (me && source && source !== me) {
+          const dx = source.pos.x - me.pos.x, dz = source.pos.z - me.pos.z;
+          const angle = Math.atan2(Math.cos(me.yaw) * dx - Math.sin(me.yaw) * dz,
+            -Math.sin(me.yaw) * dx - Math.cos(me.yaw) * dz);
+          const x = 50 + Math.sin(angle) * 48, y = 50 - Math.cos(angle) * 48;
+          overlay.style.background = `radial-gradient(ellipse at ${x}% ${y}%, #ad4729b0, transparent 62%)`;
+        } else overlay.style.background = '';
+        overlay.classList.remove('flash'); void overlay.offsetWidth; overlay.classList.add('flash');
+      }
+    }
+    if (event.type === 'kill') {
+      const feed = this.el('kill-feed'); if (!feed) return;
+      const killer = this.snapshot?.actors.find(a => a.id === event.actor)?.name || (event.weapon === 'fall' ? 'QUEDA' : 'TEMPESTADE');
+      const victim = this.snapshot?.actors.find(a => a.id === event.target)?.name || 'Capivara';
+      const own = event.actor === this.localId && event.target !== this.localId;
+      const entry = document.createElement('div'); entry.className = `kill-entry ${own ? 'own-kill' : ''}`;
+      entry.innerHTML = `<b>${esc(killer)}</b>${icon('crosshair')}<span>${esc(victim)}</span>`;
+      feed.prepend(entry); while (feed.children.length > 5) feed.lastElementChild!.remove();
+      window.setTimeout(() => entry.remove(), 6500);
+      if (own) {
+        const confirm = this.el('elimination-confirm');
+        confirm.querySelector('strong')!.textContent = victim;
+        confirm.classList.add('visible');
+        clearTimeout(this.eliminationTimer);
+        this.eliminationTimer = window.setTimeout(() => confirm.classList.remove('visible'), 2000);
+      }
+    }
   }
   toast(message: string, error = false) { const toast = document.querySelector<HTMLElement>('#toast')!; toast.textContent = message; toast.classList.add('visible'); toast.classList.toggle('error', error); clearTimeout(this.toastTimer); this.toastTimer = window.setTimeout(() => toast.classList.remove('visible'), error ? 7000 : 4000); }
   private el(id: string) { return this.root.querySelector<HTMLElement>(`#${id}`)!; }

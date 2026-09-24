@@ -16,11 +16,11 @@ const palette = {
   brass: new THREE.MeshStandardMaterial({ color: '#c7a167', metalness: .6, roughness: .32 }),
   shellRed: new THREE.MeshStandardMaterial({ color: '#a83d32', metalness: .2, roughness: .56 }),
   blue: new THREE.MeshStandardMaterial({ color: '#263c3d', metalness: .3, roughness: .7 }),
-  skin: new THREE.MeshStandardMaterial({ color: '#876046', roughness: 1 }),
-  skinLight: new THREE.MeshStandardMaterial({ color: '#a37d57', roughness: 1 }),
+  skin: new THREE.MeshStandardMaterial({ color: '#96603b', roughness: 1 }),
+  skinLight: new THREE.MeshStandardMaterial({ color: '#ae774b', roughness: 1 }),
+  skinShade: new THREE.MeshStandardMaterial({ color: '#75492f', roughness: 1 }),
   glove: new THREE.MeshStandardMaterial({ color: '#383b37', roughness: .93 }),
-  fabric: new THREE.MeshStandardMaterial({ color: '#625849', roughness: 1 }),
-  nail: new THREE.MeshStandardMaterial({ color: '#51483f', roughness: .7 }),
+  nail: new THREE.MeshStandardMaterial({ color: '#504335', roughness: .8 }),
   lens: new THREE.MeshPhysicalMaterial({ color: '#315766', metalness: .36, roughness: .08, clearcoat: 1 }),
   scopeGlass: new THREE.MeshPhysicalMaterial({ color: '#adc2c3', metalness: .35, roughness: .055, clearcoat: 1, clearcoatRoughness: .04, side: THREE.DoubleSide }),
   glass: new THREE.MeshBasicMaterial({ color: '#9fcdd0', transparent: true, opacity: .3, depthWrite: false }),
@@ -44,17 +44,20 @@ function grain(seed: number, wood = false): THREE.DataTexture {
   return texture;
 }
 function furTexture(): THREE.DataTexture {
-  const size = 256, data = new Uint8Array(size * size * 4);
+  const size = 128, data = new Uint8Array(size * size * 4);
   let seed = 87124;
   const random = () => { seed = Math.imul(seed, 1664525) + 1013904223 | 0; return (seed >>> 0) / 4294967296; };
-  for (let i = 0; i < data.length; i += 4) { const shade = 150 + random() * 35; data[i] = data[i + 1] = data[i + 2] = shade; data[i + 3] = 255; }
-  for (let strand = 0; strand < 6000; strand++) {
-    const x = random() * size, y = random() * size, length = 8 + random() * 21, curve = (random() - .5) * 3;
-    for (let j = 0; j < length; j++) {
-      const offset = ((Math.floor(y + j) % size) * size + (Math.floor(x + curve * j / length) + size) % size) * 4;
-      const shade = 170 + 65 * Math.sin(Math.PI * j / length);
-      data[offset] = data[offset + 1] = data[offset + 2] = shade;
-    }
+  const patches = Array.from({ length: 16 * 16 }, () => random() * 2 - 1);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const gx = x / 8, gy = y / 8, ix = Math.floor(gx), iy = Math.floor(gy);
+    const tx = gx - ix, ty = gy - iy;
+    const patch = (a: number, b: number) => patches[(b % 16) * 16 + a % 16];
+    const mottling = THREE.MathUtils.lerp(
+      THREE.MathUtils.lerp(patch(ix, iy), patch(ix + 1, iy), tx),
+      THREE.MathUtils.lerp(patch(ix, iy + 1), patch(ix + 1, iy + 1), tx), ty);
+    const shade = THREE.MathUtils.clamp(230 + mottling * 19 + (random() - .5) * 22, 190, 255);
+    const i = (y * size + x) * 4;
+    data[i] = shade; data[i + 1] = shade; data[i + 2] = shade; data[i + 3] = 255;
   }
   const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   texture.colorSpace = THREE.SRGBColorSpace; texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -89,7 +92,8 @@ function coatedLens(): THREE.CanvasTexture {
 }
 const scopeLensMap = coatedLens(); palette.scopeGlass.map = scopeLensMap;
 palette.skin.map = furGrain; palette.skinLight.map = furGrain;
-palette.skin.bumpMap = furGrain; palette.skin.bumpScale = .0015;
+palette.skin.bumpMap = furGrain; palette.skin.bumpScale = .001;
+palette.skinLight.bumpMap = furGrain; palette.skinLight.bumpScale = .001;
 palette.wood.map = woodGrain; palette.walnut.map = woodGrain;
 palette.olive.map = polymerGrain; palette.glove.map = polymerGrain;
 palette.dark.map = polymerGrain;
@@ -345,51 +349,47 @@ function gunBase(id: WeaponId): THREE.Group {
   return group;
 }
 
-function paw(group: THREE.Group, palm: THREE.Vector3, elbow: THREE.Vector3, left: boolean, wrapGrip = false) {
-  const wrist = palm.clone().add(new THREE.Vector3(0, -.025, .065));
-  between(group, elbow, wrist, .074, .047, palette.skin);
-  between(group, elbow.clone().lerp(wrist, .04), elbow.clone().lerp(wrist, .28), .081, .076, palette.fabric);
-  between(group, palm.clone().add(new THREE.Vector3(0, -.03, .055)), wrist.clone().add(new THREE.Vector3(0, 0, .028)), .052, .054, palette.glove);
-  const handPivot = new THREE.Group();
-  handPivot.position.copy(palm);
-  handPivot.rotation.y = wrapGrip ? (left ? -.88 : .88) : 0;
-  const hand = new THREE.Group(); hand.position.copy(palm).multiplyScalar(-1);
-  handPivot.add(hand); group.add(handPivot);
-  ellipsoid(hand, palm.x, palm.y, palm.z, .065, .042, .068, palette.glove);
-  ellipsoid(hand, palm.x, palm.y + .031, palm.z - .012, .058, .013, .048, palette.fabric);
-  for (const s of [-1, 1]) {
-    between(hand, palm.clone().add(new THREE.Vector3(s * .051, -.009, .046)),
-      palm.clone().add(new THREE.Vector3(s * .056, -.006, -.03)), .006, .006, palette.nail);
-  }
+function paw(group: THREE.Group, palm: THREE.Vector3, elbow: THREE.Vector3, left: boolean, gripAngle = 0) {
+  const wrist = palm.clone().add(new THREE.Vector3(0, -.018, .055));
+  between(group, elbow, wrist, .087, .063, palette.skin);
+  ellipsoid(group, elbow.x, elbow.y, elbow.z, .088, .088, .094, palette.skin);
+  ellipsoid(group, wrist.x, wrist.y, wrist.z, .066, .065, .068, palette.skin);
+
+  const foot = new THREE.Group(); foot.position.copy(palm);
+  foot.rotation.y = left ? -gripAngle : gripAngle;
+  group.add(foot);
+  ellipsoid(foot, 0, 0, 0, .072, .041, .069, palette.skin);
+  ellipsoid(foot, 0, .032, .002, .043, .006, .029, palette.skinLight);
   for (let i = 0; i < 4; i++) {
-    const dx = (i - 1.5) * .027;
-    const length = i === 0 || i === 3 ? .057 : .072;
-    const base = palm.clone().add(new THREE.Vector3(dx, -.012, -.048));
-    const joint = base.clone().add(new THREE.Vector3(dx * .1, -.012, -length * .52));
-    const tip = base.clone().add(new THREE.Vector3(dx * .2, -.038, -length));
-    between(hand, base, joint, .015, .013, palette.glove);
-    ellipsoid(hand, joint.x, joint.y, joint.z, .014, .014, .015, palette.skinLight);
-    between(hand, joint, tip, .013, .01, palette.skin);
-    ellipsoid(hand, tip.x, tip.y, tip.z, .012, .009, .015, palette.nail);
+    const x = (i - 1.5) * .039;
+    const outer = i === 0 || i === 3;
+    const z = outer ? -.066 : -.073;
+    ellipsoid(foot, x, -.013, z, .017, .018, outer ? .031 : .037, palette.skin);
+    ellipsoid(foot, x, -.002, z - (outer ? .027 : .032), .011, .006, .013, palette.nail);
+    if (i < 3) ellipsoid(foot, x + .0195, -.018, -.067, .005, .009, .023, palette.skinShade);
   }
-  const side = left ? 1 : -1;
-  const thumb = palm.clone().add(new THREE.Vector3(side * .052, -.018, .003));
-  const joint = thumb.clone().add(new THREE.Vector3(side * .035, -.014, -.027));
-  const tip = joint.clone().add(new THREE.Vector3(0, -.013, -.046));
-  between(hand, thumb, joint, .019, .016, palette.glove);
-  between(hand, joint, tip, .016, .012, palette.skinLight);
-  ellipsoid(hand, tip.x, tip.y, tip.z, .012, .009, .015, palette.nail);
-  if (!wrapGrip) for (const dx of [-.037, -.012, .012, .037]) box(hand, .012, .003, .017, palm.x + dx, palm.y + .045, palm.z - .017, palette.glove);
+  for (const side of [-1, 1]) {
+    ellipsoid(foot, side * .066, .004, .024, .011, .017, .031, palette.skin);
+    ellipsoid(foot, side * .068, .017, .045, .007, .013, .022, palette.skinShade);
+  }
 }
 function arms(group: THREE.Group, id: WeaponId): THREE.Group {
-  const long = !['pistol', 'machete', 'slingshot'].includes(id);
   const support = new THREE.Group(); group.add(support);
-  const supportZ = id === 'shotgun' ? -.43 : id === 'sniper' ? -.48 : id === 'smg' ? -.29 : long ? -.36 : -.07;
-  paw(support, id === 'pistol' ? new THREE.Vector3(-.042, -.045, .055) : id === 'sniper' ? new THREE.Vector3(.025, -.045, -.35) : new THREE.Vector3(-.076, -.15, supportZ),
-    new THREE.Vector3(-.38, -.47, .43), true, id === 'pistol');
   const main = new THREE.Group(); group.add(main);
-  paw(main, id === 'pistol' ? new THREE.Vector3(.04, -.035, .045) : new THREE.Vector3(.082, -.17, long ? .085 : .055),
-    new THREE.Vector3(.37, -.49, .58), false, id === 'pistol');
+  if (id === 'machete') {
+    paw(main, new THREE.Vector3(.067, -.092, .135), new THREE.Vector3(.25, -.37, .38), false, .24);
+  } else if (id === 'slingshot') {
+    paw(main, new THREE.Vector3(.065, -.13, .10), new THREE.Vector3(.25, -.38, .36), false, .2);
+    paw(support, new THREE.Vector3(-.085, .13, -.28), new THREE.Vector3(-.25, -.25, .12), true, .15);
+  } else if (id === 'pistol') {
+    paw(main, new THREE.Vector3(.058, -.085, .045), new THREE.Vector3(.27, -.38, .39), false, .36);
+    paw(support, new THREE.Vector3(-.058, -.087, .055), new THREE.Vector3(-.25, -.35, .34), true, .36);
+  } else {
+    const supportZ = id === 'shotgun' ? -.43 : id === 'sniper' ? -.36 : id === 'smg' ? -.29 : -.35;
+    paw(main, new THREE.Vector3(.077, -.18, .10), new THREE.Vector3(.27, -.41, .43), false, .22);
+    paw(support, new THREE.Vector3(-.087, -.13, supportZ),
+      new THREE.Vector3(-.27, -.40, id === 'shotgun' || id === 'sniper' ? .06 : .16), true, .18);
+  }
   return support;
 }
 
@@ -602,8 +602,8 @@ export class WeaponView {
         model.magazine.rotation.z = -magazineMotion * .25;
       }
     }
-    model.support.position.set(magazineMotion * .012, -magazineMotion * .07, magazineMotion * .15);
-    model.support.rotation.x = -magazineMotion * .4;
+    model.support.position.set(magazineMotion * .012, -magazineMotion * .055, magazineMotion * .11);
+    model.support.rotation.x = -magazineMotion * .25;
     if (model.action) {
       const baseZ = weapon === 'shotgun' ? -.43 : weapon === 'pistol' ? 0 : .014;
       const total = weapon === 'shotgun' ? .42 : weapon === 'sniper' ? .58 : .2;
@@ -627,11 +627,11 @@ export class WeaponView {
     this.holder.scale.setScalar(modelScale);
     const hipY = THREE.MathUtils.lerp(-.245, -model.sightY * modelScale, this.ads);
     this.holder.position.set(THREE.MathUtils.lerp(model.hipX + .045, 0, this.ads) + Math.sin(this.gait) * bob * .4,
-      hipY + Math.abs(Math.sin(this.gait)) * bob - this.kick * .7 - this.draw * .25 - sprint * .10 - closeWall * .18 - magazineMotion * .065,
-      THREE.MathUtils.lerp(-.73, model.adsZ, this.ads) + this.kick + closeWall * .12 + sprint * .09);
-    this.holder.rotation.set(this.kick * 1.5 + this.draw * .65 + magazineMotion * .32 + sprint * .2,
+      hipY + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - this.draw * .16 - sprint * .08 - closeWall * .12 - magazineMotion * .045,
+      THREE.MathUtils.lerp(-.73, model.adsZ, this.ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
+    this.holder.rotation.set(this.kick * 1.1 + this.draw * .38 + magazineMotion * .24 + sprint * .16,
       THREE.MathUtils.lerp(.24, 0, this.ads) + closeWall * .28,
-      THREE.MathUtils.lerp(-.055, 0, this.ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .18);
+      THREE.MathUtils.lerp(-.055, 0, this.ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13);
     model.group.rotation.x = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * .8 : 0;
     model.group.rotation.z = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * -.45 : 0;
     this.flashLife -= dt;

@@ -423,14 +423,65 @@ describe('authoritative simulation', () => {
     expect(actor.reloadUntil).toBe(0);
   });
 
-  it('hits actors from inside the body and on steep downward rays', () => {
+  it('matches the capybara head, torso, and legs without catching nearby empty space', () => {
     const sim = new Simulation(world(), config, profiles, 'rays');
     const target = sim.snapshot().actors[0];
     target.pos = { x: 0, y: 0, z: 0 };
     const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number) => { distance: number; head: boolean } | null;
-    expect(ray({ x: 0, y: .8, z: 0 }, { x: 1, y: 0, z: 0 }, target, 2)).toEqual({ distance: 0, head: false });
-    expect(ray({ x: 0, y: 3, z: 0 }, { x: 0, y: -1, z: 0 }, target, 3)?.head).toBe(true);
+    expect(ray({ x: 0, y: .95, z: .19 }, { x: 1, y: 0, z: 0 }, target, 2)).toEqual({ distance: 0, head: false });
+    expect(ray({ x: .3, y: 1.45, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: .82, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    expect(ray({ x: 0, y: 1.18, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: 3, z: -.6 }, { x: 0, y: -1, z: 0 }, target, 3)?.head).toBe(true);
     expect(ray({ x: .27, y: 3, z: 0 }, { x: 0, y: -1, z: 0 }, target, 3)?.head).toBe(false);
+    expect(ray({ x: .52, y: 1, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: -.3, y: .32, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+  });
+
+  it('rotates shot volumes with the actor and scales them when crouched', () => {
+    const sim = new Simulation(world(), config, profiles, 'posed-rays');
+    const target = sim.snapshot().actors[0];
+    target.pos = { x: 0, y: 0, z: 0 }; target.yaw = Math.PI / 2;
+    const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number) => { distance: number; head: boolean } | null;
+    expect(ray({ x: -3, y: 1.45, z: .3 }, { x: 1, y: 0, z: 0 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: .95, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    target.yaw = 0; target.crouch = true;
+    expect(ray({ x: .25, y: 1.045, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: .25, y: 1.45, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+  });
+
+  it('lets solid cover stop a shot before the long muzzle', () => {
+    const w = world();
+    w.colliders.push({ id: 'close-cover', min: { x: -2, y: 0, z: -2 }, max: { x: 2, y: 4, z: -1 }, material: 'stone' });
+    const sim = new Simulation(w, config, profiles, 'muzzle-cover');
+    advance(sim, 5.1);
+    const a = (sim as any).actors.get('a').state as ActorState, b = (sim as any).actors.get('b').state as ActorState;
+    a.pos = { x: 0, y: terrainHeight(0, -5), z: -5 };
+    b.pos = { x: 0, y: terrainHeight(0, 0), z: 0 }; b.yaw = 0; b.protectionUntil = 0;
+    send(sim, 'a', 1, { yaw: Math.PI, pitch: -.04, ads: true, fire: true });
+    advance(sim, .02);
+    expect(b.hp).toBe(100);
+    expect(sim.drainEvents().some(event => event.type === 'shot' && event.actor === 'a' && !event.hit)).toBe(true);
+  });
+
+  it('rewinds orientation as well as position for a turning target', () => {
+    const scenario = (age: number) => {
+      const sim = new Simulation(world(), config, profiles, 'turning-rewind');
+      advance(sim, 5.1);
+      const shooter = (sim as any).actors.get('a'), target = (sim as any).actors.get('b');
+      shooter.state.pos = { x: -5, y: terrainHeight(-5, -.8), z: -.8 };
+      shooter.state.weapons[0] = { id: 'sniper', ammo: 5, reserve: 0, rarity: 0 };
+      target.state.pos = { x: 0, y: terrainHeight(0, -.8), z: 0 };
+      target.state.yaw = Math.PI; target.state.protectionUntil = 0;
+      target.history = [{ time: sim.snapshot().time - .18, pos: { ...target.state.pos }, crouch: false, yaw: 0 }];
+      const eye = shooter.state.pos.y + 1.62;
+      const pitch = Math.atan2(target.state.pos.y + 1.45 - eye, 5);
+      send(sim, 'a', 1, { yaw: -Math.PI / 2, pitch, ads: true, fire: true, clientTime: sim.snapshot().time - age });
+      advance(sim, .02);
+      return { hp: target.state.hp, hits: sim.drainEvents().filter(event => event.type === 'damage' && event.target === 'b') };
+    };
+    expect(scenario(.18).hits.some(event => event.type === 'damage' && event.head)).toBe(true);
+    expect(scenario(.3).hp).toBe(100);
   });
 
   it('keeps a crouched actor crouched under a low roof', () => {

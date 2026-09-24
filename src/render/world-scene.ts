@@ -3,6 +3,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { terrainHeight } from '../shared/terrain';
+import { buildVegetation } from './vegetation';
+import { buildProps } from './props';
+import { buildWallArt } from './wall-art';
 import type { MapObject, Settings, WorldSpec } from '../shared/types';
 
 const c = (value: string | number) => new THREE.Color(value);
@@ -25,15 +28,7 @@ const cliffFace = (() => {
   geometry.computeVertexNormals(); return geometry;
 })();
 const thinCone = new THREE.ConeGeometry(.5, 1, 7);
-const bentBlade = (() => {
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute([
-    -.045, 0, 0, .045, 0, 0, -.032, .24, .025,
-    .045, 0, 0, .032, .24, .025, -.032, .24, .025,
-    -.032, .24, .025, .032, .24, .025, 0, .55, .14,
-  ], 3));
-  g.computeVertexNormals(); return g;
-})();
+const bentBlade = new THREE.ConeGeometry(.055, .45, 3).translate(0, .225, 0);
 type Surface = 'earth' | 'sand' | 'plaster' | 'brick' | 'stone' | 'timber' | 'bark' | 'metal' | 'roof' | 'road' | 'leaf' | 'fabric';
 const surfaces: Surface[] = ['earth', 'sand', 'plaster', 'brick', 'stone', 'timber', 'bark', 'metal', 'roof', 'road', 'leaf', 'fabric'];
 const photoSurface: Record<Surface, string> = {
@@ -100,48 +95,6 @@ function paintGeometry(result: THREE.BufferGeometry, color: THREE.Color, tile: n
 
 const branchShape = new THREE.CylinderGeometry(.56, 1, 1, 6, 1);
 const UP = new THREE.Vector3(0, 1, 0);
-const leafRects = [
-  [.008, .49, .145, .985], [.15, .55, .32, .985], [.344, .59, .48, .985],
-  [.502, .57, .65, .985], [.66, .57, .83, .985],
-  [.018, .005, .14, .44], [.207, .005, .34, .445], [.407, .005, .555, .445],
-];
-
-class FoliageBuilder {
-  private readonly positions: number[] = [];
-  private readonly normals: number[] = [];
-  private readonly uvs: number[] = [];
-  private readonly colors: number[] = [];
-
-  leaf(center: THREE.Vector3, right: THREE.Vector3, upward: THREE.Vector3, color: THREE.Color, atlas: number) {
-    const [u0, v0, u1, v1] = leafRects[atlas % leafRects.length];
-    const corners = [
-      center.clone().addScaledVector(right, -.5).addScaledVector(upward, -.5),
-      center.clone().addScaledVector(right, .5).addScaledVector(upward, -.5),
-      center.clone().addScaledVector(right, -.5).addScaledVector(upward, .5),
-      center.clone().addScaledVector(right, .5).addScaledVector(upward, .5),
-    ];
-    const normal = right.clone().cross(upward).normalize();
-    const indices = [0, 1, 2, 2, 1, 3];
-    const coords = [[u0, v0], [u1, v0], [u0, v1], [u1, v1]];
-    for (const i of indices) {
-      this.positions.push(corners[i].x, corners[i].y, corners[i].z);
-      this.normals.push(normal.x, normal.y, normal.z);
-      this.uvs.push(coords[i][0], coords[i][1]);
-      this.colors.push(color.r, color.g, color.b);
-    }
-  }
-
-  geometry(): THREE.BufferGeometry {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(this.positions, 3));
-    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(this.normals, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(this.uvs, 2));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(this.colors, 3));
-    geometry.computeBoundingSphere();
-    return geometry;
-  }
-}
-
 function roofGeometry(detail: string | undefined): THREE.BufferGeometry {
   const gable = detail === 'gable' || detail === 'market-awning' || detail === 'thatch';
   const vertices = gable ? [
@@ -282,8 +235,9 @@ export class WorldScene {
   private readonly waterNormals: THREE.CanvasTexture;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly cascadeTime = { value: 0 };
+  private readonly vegetation: ReturnType<typeof buildVegetation>;
+  private reducedMotion = false;
   private readonly shore: THREE.Mesh;
-  private readonly canopy: THREE.Mesh;
   private readonly disposables: { dispose: () => void }[] = [];
   private readonly surfaceMaterials: { material: THREE.MeshStandardMaterial; normal: THREE.Texture | null; rough: THREE.Texture | null }[] = [];
 
@@ -375,8 +329,12 @@ export class WorldScene {
     this.mist = new THREE.Mesh(waveGeo, waveMaterial); this.mist.rotation.x = -Math.PI / 2; this.mist.position.y = .02; this.group.add(this.mist);
     this.disposables.push(waveGeo, waveMaterial);
 
-    const buckets = {} as Record<Surface, THREE.BufferGeometry[]>;
-    for (const surface of surfaces) buckets[surface] = [];
+    const buckets = new Map<string, { surface: Surface; parts: THREE.BufferGeometry[] }>();
+    const stash = (surface: Surface, geometry: THREE.BufferGeometry, x: number, z: number) => {
+      const key = `${surface}:${Math.floor(x / 32)}:${Math.floor(z / 32)}`;
+      const bucket = buckets.get(key) || { surface, parts: [] };
+      bucket.parts.push(geometry); buckets.set(key, bucket);
+    };
     const colliderMaterials = new Map(world.colliders.map(collider => [collider.id, collider.material]));
     const pathObjects = world.objects.filter(object => object.detail === 'path');
     const urban = world.districts.filter(district => district.id === 'vila' || district.id === 'centro' || district.id === 'posto');
@@ -402,18 +360,17 @@ export class WorldScene {
     const add = (surface: Surface, geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = 0) => {
       const tint = c(color);
       if (surface === 'plaster') tint.lerp(c('#ffffff'), .04);
-      else if (surface === 'roof') tint.lerp(c('#ffffff'), .2);
-      else if (surface !== 'leaf' && surface !== 'fabric') tint.lerp(c('#ffffff'), .58);
-      buckets[surface].push(coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]));
+      else if (surface === 'roof') tint.lerp(c('#ffffff'), .08);
+      else if (surface !== 'leaf' && surface !== 'fabric') tint.lerp(c('#ffffff'), .22);
+      stash(surface, coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]), x, z);
     };
-    const foliage = new FoliageBuilder();
     const addBranch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, tint: string, surface: Surface = 'bark') => {
       const direction = to.clone().sub(from), length = direction.length();
       const midpoint = from.clone().add(to).multiplyScalar(.5);
       const rotation = new THREE.Quaternion().setFromUnitVectors(UP, direction.normalize());
       const geometry = branchShape.toNonIndexed();
       geometry.applyMatrix4(new THREE.Matrix4().compose(midpoint, rotation, new THREE.Vector3(radius, length, radius)));
-      buckets[surface].push(paintGeometry(geometry, c(tint).lerp(c('#ffffff'), .3), tileMeters[surface]));
+      stash(surface, paintGeometry(geometry, c(tint).lerp(c('#ffffff'), .15), tileMeters[surface]), midpoint.x, midpoint.z);
     };
     const glassPanels: THREE.BufferGeometry[] = [];
     const glass = (x: number, y: number, z: number, sx: number, sy: number, sz: number) =>
@@ -472,6 +429,7 @@ export class WorldScene {
     };
     for (const object of world.objects) {
       const { kind, pos, scale, color, detail, rotation = 0 } = object;
+      if (detail?.startsWith('prop:') || kind === 'palm' || kind === 'tree' || kind === 'grass') continue;
       if (detail === 'waterfall') {
         const geometry = new THREE.PlaneGeometry(scale.x, scale.y, 6, 12);
         const vertices = geometry.getAttribute('position');
@@ -495,97 +453,6 @@ export class WorldScene {
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, scale.y * .9, 6), new THREE.MeshStandardMaterial({ color: '#6e573d' }));
         pole.position.set(pos.x, pos.y - scale.y * .27, pos.z); this.group.add(pole);
         this.disposables.push(board.geometry, material, material.map!, pole.geometry, pole.material as THREE.Material);
-        continue;
-      }
-      if (kind === 'palm' || kind === 'tree') {
-        const h = scale.y, seed = Number(object.id.split('-').at(-1)) || 0;
-        const trunkTint = kind === 'palm' ? '#a38a69' : '#8b7659';
-        const lean = hash(seed, 9, 4) * 2 - 1;
-        const base = new THREE.Vector3(pos.x, pos.y, pos.z);
-        const lower = new THREE.Vector3(pos.x + lean * .13, pos.y + h * .32, pos.z + lean * .08);
-        const upper = new THREE.Vector3(pos.x + lean * .3, pos.y + h * .67, pos.z + lean * .2);
-        const crown = new THREE.Vector3(pos.x + lean * .42, pos.y + h * .79, pos.z + lean * .26);
-        const radius = kind === 'palm' ? .18 : Math.max(.19, scale.x * .13);
-        addBranch(base, lower, radius * 1.25, trunkTint);
-        addBranch(lower, upper, radius, trunkTint);
-        if (kind === 'tree') addBranch(upper, crown, radius * .67, trunkTint);
-        if (kind === 'palm') {
-          addBranch(upper, crown, radius * .63, trunkTint);
-          for (let n = 0; n < 13; n++) {
-            const angle = rotation + n * Math.PI * 2 / 13 + (hash(seed, n, 4) - .5) * .22;
-            const outward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-            const sideways = new THREE.Vector3(-outward.z, 0, outward.x);
-            const reach = 2.55 + hash(seed, n, 6) * .8;
-            const drop = 1.3 + hash(seed, n, 13) * .65;
-            const p1 = crown.clone().addScaledVector(outward, reach * .25).add(new THREE.Vector3(0, .65, 0));
-            const p2 = crown.clone().addScaledVector(outward, reach * .8).add(new THREE.Vector3(0, -.3, 0));
-            const tip = crown.clone().addScaledVector(outward, reach).add(new THREE.Vector3(0, -drop, 0));
-            const frondPoint = (t: number) => crown.clone().multiplyScalar((1 - t) ** 3)
-              .addScaledVector(p1, 3 * (1 - t) ** 2 * t)
-              .addScaledVector(p2, 3 * (1 - t) * t * t)
-              .addScaledVector(tip, t ** 3);
-            for (let section = 0; section < 4; section++)
-              addBranch(frondPoint(section / 4), frondPoint((section + 1) / 4), .09 - section * .017,
-                '#789657', 'leaf');
-            for (let k = 1; k <= 17; k++) for (const side of [-1, 1]) {
-              const t = k / 18, stem = frondPoint(t);
-              const r = hash(seed + n * 17, k, side + 5);
-              const center = stem.addScaledVector(sideways, side * (.19 + .08 * r));
-              const twist = (hash(seed + n * 31, k, side + 19) - .5) * .9;
-              const right = outward.clone().multiplyScalar(Math.cos(twist))
-                .addScaledVector(sideways, Math.sin(twist)).multiplyScalar(.42 + .13 * r);
-              const up = sideways.clone().multiplyScalar(side * (.88 - t * .19))
-                .add(new THREE.Vector3(0, -.72 - .35 * t, 0));
-              foliage.leaf(center, right, up, c(k % 3 ? '#e0e9c7' : '#c8d99b'), (k + n) % leafRects.length);
-            }
-          }
-          for (let spear = 0; spear < 8; spear++) {
-            const angle = rotation + spear * Math.PI / 4;
-            foliage.leaf(crown.clone().add(new THREE.Vector3(Math.cos(angle) * .22, .28, Math.sin(angle) * .22)),
-              new THREE.Vector3(-Math.sin(angle) * .5, 0, Math.cos(angle) * .5),
-              new THREE.Vector3(Math.cos(angle) * .32, 1.3, Math.sin(angle) * .32), c('#d5dfae'), spear);
-          }
-        } else {
-          const canopyRadius = Math.max(1.65, Math.max(scale.x, scale.z) * 1.28);
-          const branches = detail === 'mangrove' ? 10 : 8;
-          for (let n = 0; n < branches; n++) {
-            const angle = rotation + n * Math.PI * 2 / branches + (hash(seed, n, 3) - .5) * .26;
-            const outward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-            const origin = lower.clone().lerp(upper, .4 + hash(seed, n, 8) * .54);
-            const middle = origin.clone().addScaledVector(outward, canopyRadius * .46).add(new THREE.Vector3(0, h * .12, 0));
-            const tip = origin.clone().addScaledVector(outward, canopyRadius * (.8 + hash(seed, n, 9) * .3))
-              .add(new THREE.Vector3(0, h * (.13 + hash(seed, n, 10) * .1), 0));
-            addBranch(origin, middle, radius * .48, trunkTint);
-            addBranch(middle, tip, radius * .28, trunkTint);
-            const leafTint = c(color).lerp(c('#e2e8c3'), .66);
-            for (let k = 0; k < 17; k++) {
-              const r = hash(seed + n * 71, k, 1), s = hash(seed + n * 67, k, 2);
-              const angleOffset = (s - .5) * 1.8;
-              const leafAngle = angle + angleOffset;
-              const center = middle.clone().lerp(tip, .17 + r * .91)
-                .add(new THREE.Vector3((s - .5) * .8, (hash(seed + n, k, 6) - .5) * 1.25, (r - .5) * .8));
-              const right = new THREE.Vector3(Math.cos(leafAngle + Math.PI / 2), (s - .5) * .18,
-                Math.sin(leafAngle + Math.PI / 2)).multiplyScalar(.48 + r * .31);
-              const up = new THREE.Vector3(Math.cos(leafAngle) * .36, 1, Math.sin(leafAngle) * .36)
-                .normalize().multiplyScalar(.7 + s * .48);
-              foliage.leaf(center, right, up, leafTint.clone().multiplyScalar(.82 + r * .25), (k + n) % leafRects.length);
-            }
-          }
-          if (detail === 'mangrove') for (let n = 0; n < 4; n++) {
-            const a = n * Math.PI / 2 + rotation;
-            const root = new THREE.Vector3(pos.x + Math.cos(a) * .75, pos.y, pos.z + Math.sin(a) * .75);
-            addBranch(root, lower, radius * .43, trunkTint);
-          }
-        }
-        continue;
-      }
-      if (kind === 'grass') {
-        for (let n = 0; n < (detail === 'reeds' ? 9 : 13); n++) {
-          const a = n * 2.399 + rotation;
-          add('leaf', bentBlade, n % 3 === 1 ? '#b5ab6c' : color, pos.x + Math.cos(a) * .12,
-            pos.y, pos.z + Math.sin(a) * .12, scale.x * .55,
-            scale.y * (detail === 'reeds' ? .8 : .48) * (.75 + (n % 4) * .1), scale.z * .55, a);
-        }
         continue;
       }
       if (kind === 'lamp') {
@@ -679,30 +546,44 @@ export class WorldScene {
         this.disposables.push(glazing, glassMaterial);
       }
     }
-    const foliageAtlas = loader.load(`${import.meta.env.BASE_URL}textures/foliage.webp`);
-    foliageAtlas.colorSpace = THREE.SRGBColorSpace;
-    foliageAtlas.anisotropy = 4;
-    const foliageMaterial = new THREE.MeshStandardMaterial({ map: foliageAtlas, vertexColors: true,
-      alphaTest: .43, side: THREE.DoubleSide, roughness: .88, metalness: 0 });
-    const foliageGeometry = foliage.geometry();
-    this.canopy = new THREE.Mesh(foliageGeometry, foliageMaterial);
-    this.canopy.castShadow = settings.graphics === 'high';
-    this.canopy.receiveShadow = false;
-    this.group.add(this.canopy);
-    this.disposables.push(foliageAtlas, foliageMaterial, foliageGeometry);
-    for (const surface of surfaces) {
-      const geometries = buckets[surface];
-      if (!geometries.length) continue;
-      const merged = mergeGeometries(geometries, false);
-      geometries.forEach(g => g.dispose());
+    const materialCache = new Map<Surface, THREE.MeshStandardMaterial>();
+    for (const { surface, parts } of buckets.values()) {
+      const merged = mergeGeometries(parts, false);
+      parts.forEach(g => g.dispose());
       if (!merged) continue;
       merged.computeBoundingSphere();
-      const material = materialFor(surface);
+      let material = materialCache.get(surface);
+      if (!material) { material = materialFor(surface); materialCache.set(surface, material); this.disposables.push(material); }
       const mesh = new THREE.Mesh(merged, material);
-      mesh.castShadow = surface === 'plaster' || surface === 'brick' || surface === 'stone' || surface === 'timber' || surface === 'metal' || surface === 'roof';
+      mesh.castShadow = surface !== 'leaf' && surface !== 'earth' && surface !== 'sand' && surface !== 'road';
       mesh.receiveShadow = surface !== 'leaf';
       this.group.add(mesh); this.disposables.push(merged);
-      this.disposables.push(material);
+    }
+    const vegetation = this.vegetation = buildVegetation(world), props = buildProps(world), wallArt = buildWallArt(world);
+    this.group.add(vegetation.group, props.group, wallArt.group);
+    this.disposables.push(vegetation, props, wallArt);
+    const fountain = world.objects.find(object => object.detail === 'prop:plaza');
+    if (fountain) {
+      const waterGeometry = new THREE.RingGeometry(.73, 1.85, 48, 3).rotateX(-Math.PI / 2);
+      const waterMaterial = new THREE.MeshPhysicalMaterial({ color: '#479f9b', roughness: .2,
+        metalness: .05, clearcoat: .8, normalMap: this.smallWaterNormals, normalScale: new THREE.Vector2(.15, .15),
+        transparent: true, opacity: .91 });
+      const basin = new THREE.Mesh(waterGeometry, waterMaterial);
+      basin.position.set(fountain.pos.x, fountain.pos.y + 1.039, fountain.pos.z);
+      this.group.add(basin); this.disposables.push(waterGeometry, waterMaterial);
+      const jetMaterial = new THREE.MeshBasicMaterial({ color: '#bce7d9', transparent: true, opacity: .56 });
+      this.disposables.push(jetMaterial);
+      for (let i = 0; i < 4; i++) {
+        const angle = i * Math.PI / 2 + Math.PI / 4;
+        const points = Array.from({ length: 13 }, (_, n) => {
+          const t = n / 12, radius = .58 + t * .94;
+          return new THREE.Vector3(fountain.pos.x + Math.cos(angle) * radius,
+            fountain.pos.y + 1.34 + Math.sin(t * Math.PI) * .26 - t * .29,
+            fountain.pos.z + Math.sin(angle) * radius);
+        });
+        const geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 20, .018, 5, false);
+        this.group.add(new THREE.Mesh(geometry, jetMaterial)); this.disposables.push(geometry);
+      }
     }
     this.addArenaBoundary();
     this.group.add(this.arenaBoundary);
@@ -737,7 +618,7 @@ export class WorldScene {
   }
 
   setSettings(settings: Settings) {
-    this.canopy.castShadow = settings.graphics === 'high';
+    this.reducedMotion = settings.reducedMotion;
     this.mist.visible = settings.graphics === 'high';
     this.mist.material instanceof THREE.MeshBasicMaterial && (this.mist.material.opacity = settings.graphics === 'high' ? .025 : 0);
     for (const { material, normal, rough } of this.surfaceMaterials) {
@@ -757,6 +638,7 @@ export class WorldScene {
   }
 
   update(time: number) {
+    this.vegetation.update(this.reducedMotion ? 0 : time);
     this.cascadeTime.value = time;
     this.waterNormals.offset.set(time * .025, time * .014);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);

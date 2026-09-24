@@ -18,12 +18,30 @@ const STORM = [
 ];
 const USE_TIME: Record<ConsumableId, number> = { bandage: 2.5, medkit: 5, guarana: 2, acai: 3, rapadura: 1.5 };
 const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, slingshot: 12 };
+const BOT_SKILL = {
+  easy: { think: .55, sight: 32, attack: 19, react: 1.25, turn: 1.7, error: .085, burst: [.18, .26], recover: [1.7, 2.1] },
+  normal: { think: .35, sight: 50, attack: 28, react: .85, turn: 2.5, error: .055, burst: [.2, .28], recover: [1.6, 1.95] },
+  hard: { think: .22, sight: 70, attack: 45, react: .5, turn: 3.3, error: .034, burst: [.3, .43], recover: [.9, 1.2] },
+} as const;
+// Oriented local-space hit volumes follow the quadruped silhouette in render/capybara.ts.
+// Keep the movement capsule narrow enough for doors; shots use these volumes instead.
+const HIT_REGIONS = [
+  [0, 1.355, -.59, .39, .34, .5, true],
+  [0, 1.18, -1, .3, .17, .22, true],
+  [0, .95, .19, .45, .49, .76, false],
+  [0, 1.14, -.31, .36, .31, .31, false],
+  [-.3, .32, -.3, .15, .28, .18, false],
+  [.3, .32, -.3, .15, .28, .18, false],
+  [-.32, .32, .65, .17, .28, .18, false],
+  [.32, .32, .65, .17, .28, .18, false],
+] as const;
 interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
   botThinkAt: number; botReactAt: number; target: string | null; targetPos: Vec3 | null;
-  waypoint: Vec3 | null; strafe: number; boostUntil: number; hot: number; elimination: number;
-  history: { time: number; pos: Vec3; crouch: boolean }[];
+  botSeenAt: number; botBurstUntil: number; botRecoverUntil: number; botAimBias: number; botAimPhase: number;
+  waypoint: Vec3 | null; coverPos: Vec3 | null; strafe: number; boostUntil: number; hot: number; elimination: number;
+  history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
 interface Projectile { owner: string; weapon: WeaponId; pos: Vec3; velocity: Vec3; life: number }
 type EventWithoutId = { [K in GameEvent['type']]: Omit<Extract<GameEvent, { type: K }>, 'id'> }[GameEvent['type']];
@@ -114,7 +132,7 @@ export class Simulation {
       slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
       reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0,
     };
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, botThinkAt: br ? 5 + this.random() * 7 : 0, botReactAt: 0, target: null, targetPos: null, waypoint: null, strafe: 0, boostUntil: 0, hot: 0, elimination: 0, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, botThinkAt: br ? 5 + this.random() * 7 : 0, botReactAt: 0, target: null, targetPos: null, botSeenAt: -Infinity, botBurstUntil: 0, botRecoverUntil: 0, botAimBias: 0, botAimPhase: this.random() * Math.PI * 2, waypoint: null, coverPos: null, strafe: 0, boostUntil: 0, hot: 0, elimination: 0, history: [] });
   }
 
   input(id: string, input: InputFrame) {
@@ -228,7 +246,7 @@ export class Simulation {
       if (s.alive && (inp.fire || trigger)) this.fire(actor, trigger?.clientTime, trigger?.id);
       if (!inp.fire) actor.wasFiring = false;
       if (inp.jump) actor.input.jump = false;
-      actor.history.push({ time: this.time, pos: { ...s.pos }, crouch: s.crouch });
+      actor.history.push({ time: this.time, pos: { ...s.pos }, crouch: s.crouch, yaw: s.yaw });
       if (actor.history.length > 15) actor.history.shift();
     }
     this.updateProjectiles();
@@ -389,7 +407,7 @@ export class Simulation {
         if (t.id === s.id || !t.alive || t.stage !== 'ground') continue;
         const rewind = !s.bot && !def.melee && this.time - clientTime <= .2 && this.time - clientTime >= 0
           ? [...other.history].reverse().find(h => h.time <= clientTime) : undefined;
-        const found = this.rayActor(origin, direction, t, best, rewind?.pos, rewind?.crouch);
+        const found = this.rayActor(origin, direction, t, best, rewind?.pos, rewind?.crouch, rewind?.yaw);
         if (found) { best = found.distance; victim = other; head = found.head; }
       }
       if (victim) {
@@ -400,35 +418,26 @@ export class Simulation {
     }
     this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: endpoint, hit });
   }
-  private rayActor(origin: Vec3, d: Vec3, actor: ActorState, max: number, position = actor.pos, crouch = actor.crouch): { distance: number; head: boolean } | null {
+  private rayActor(origin: Vec3, d: Vec3, actor: ActorState, max: number, position = actor.pos, crouch = actor.crouch, yaw = actor.yaw): { distance: number; head: boolean } | null {
     let best = max, head = false;
-    const height = crouch ? 1.3 : 1.8;
-    const hx = origin.x - position.x, hy = origin.y - position.y - (height - .22), hz = origin.z - position.z;
-    const projection = hx * d.x + hy * d.y + hz * d.z;
-    const sphere = projection * projection - (hx * hx + hy * hy + hz * hz - .22 * .22);
-    if (sphere >= 0) {
-      const near = -projection - Math.sqrt(sphere), far = -projection + Math.sqrt(sphere);
-      if (far >= 0 && Math.max(0, near) < best) { best = Math.max(0, near); head = true; }
-    }
-    const ox = origin.x - position.x, oz = origin.z - position.z, a = d.x * d.x + d.z * d.z;
-    const b = ox * d.x + oz * d.z, c = ox * ox + oz * oz - .3 * .3;
-    let radialNear = 0, radialFar = max;
-    if (a < 1e-9) { if (c > 0) return best < max ? { distance: best, head } : null; }
-    else {
+    const scale = crouch ? 1.8 / 1.3 : 1;
+    const cos = Math.cos(yaw), sin = Math.sin(yaw);
+    const wx = origin.x - position.x, wz = origin.z - position.z;
+    const x = (cos * wx - sin * wz) * scale, y = (origin.y - position.y) * scale, z = (sin * wx + cos * wz) * scale;
+    const vx = (cos * d.x - sin * d.z) * scale, vy = d.y * scale, vz = (sin * d.x + cos * d.z) * scale;
+    for (const [cx, cy, cz, rx, ry, rz, isHead] of HIT_REGIONS) {
+      const px = (x - cx) / rx, py = (y - cy) / ry, pz = (z - cz) / rz;
+      const dx = vx / rx, dy = vy / ry, dz = vz / rz;
+      const a = dx * dx + dy * dy + dz * dz;
+      const b = px * dx + py * dy + pz * dz;
+      const c = px * px + py * py + pz * pz - 1;
       const disc = b * b - a * c;
-      if (disc < 0) return best < max ? { distance: best, head } : null;
-      radialNear = (-b - Math.sqrt(disc)) / a;
-      radialFar = (-b + Math.sqrt(disc)) / a;
+      if (disc < 0) continue;
+      const far = (-b + Math.sqrt(disc)) / a;
+      if (far < 0) continue;
+      const near = Math.max(0, (-b - Math.sqrt(disc)) / a);
+      if (near < best) { best = near; head = isHead; }
     }
-    let verticalNear = 0, verticalFar = max;
-    const bodyTop = height - .18;
-    if (Math.abs(d.y) < 1e-9) { if (origin.y < position.y || origin.y > position.y + bodyTop) return best < max ? { distance: best, head } : null; }
-    else {
-      const t0 = (position.y - origin.y) / d.y, t1 = (position.y + bodyTop - origin.y) / d.y;
-      verticalNear = Math.min(t0, t1); verticalFar = Math.max(t0, t1);
-    }
-    const bodyNear = Math.max(0, radialNear, verticalNear);
-    if (bodyNear <= Math.min(radialFar, verticalFar) && bodyNear < best) { best = bodyNear; head = false; }
     return best < max ? { distance: best, head } : null;
   }
   private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean) {
@@ -462,6 +471,8 @@ export class Simulation {
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
     s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
     a.input = emptyInput(); a.lastInputAt = -Infinity; a.lastShotPressId = -1; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.boostUntil = 0; a.history = [];
+    a.target = null; a.targetPos = null; a.waypoint = null; a.coverPos = null; a.botSeenAt = -Infinity;
+    a.botBurstUntil = 0; a.botRecoverUntil = 0; a.botReactAt = 0; a.botThinkAt = this.time;
     this.emit({ type: 'respawn', actor: s.id });
   }
   private updateProjectiles() {
@@ -495,54 +506,109 @@ export class Simulation {
       { x: c.min.x - margin, y: from.y, z: c.max.z + margin },
       { x: c.max.x + margin, y: from.y, z: c.min.z - margin },
       { x: c.max.x + margin, y: from.y, z: c.max.z + margin },
-    ].filter(p => this.config.mode !== 'deathmatch' || this.inArena(p));
-    const visible = corners.filter(p => hasLineOfSight(low, { x: p.x, y: low.y, z: p.z }, this.world));
+    ].map(p => groundPoint(p.x, p.z)).filter(p => (this.config.mode !== 'deathmatch' || this.inArena(p)) && clearSpawn(p, this.world));
+    const visible = corners.filter(p => Math.hypot(p.x - from.x, p.z - from.z) > 1.2 && hasLineOfSight(low, { x: p.x, y: low.y, z: p.z }, this.world));
     visible.sort((a, b) => Math.hypot(a.x - from.x, a.z - from.z) + Math.hypot(a.x - goal.x, a.z - goal.z) - Math.hypot(b.x - from.x, b.z - from.z) - Math.hypot(b.x - goal.x, b.z - goal.z));
     return visible[0] || goal;
   }
+  private botCover(from: ActorState, enemy: ActorState): Vec3 | null {
+    let best: Vec3 | null = null, bestDistance = Infinity;
+    for (const c of this.world.colliders) {
+      if (c.max.y < from.pos.y + 1.2 || c.min.y > from.pos.y + 1.2) continue;
+      const x = (c.min.x + c.max.x) / 2, z = (c.min.z + c.max.z) / 2;
+      const awayX = x - enemy.pos.x, awayZ = z - enemy.pos.z;
+      const length = Math.hypot(awayX, awayZ);
+      if (length < 1) continue;
+      const ux = awayX / length, uz = awayZ / length;
+      const extent = Math.abs(ux) * (c.max.x - c.min.x) / 2 + Math.abs(uz) * (c.max.z - c.min.z) / 2 + 1.1;
+      const p = groundPoint(x + ux * extent, z + uz * extent);
+      const travel = Math.hypot(p.x - from.pos.x, p.z - from.pos.z);
+      if (travel > 12 || travel >= bestDistance || this.config.mode === 'deathmatch' && !this.inArena(p) || !clearSpawn(p, this.world)) continue;
+      if (hasLineOfSight(center(enemy), { x: p.x, y: p.y + 1.1, z: p.z }, this.world)) continue;
+      best = p; bestDistance = travel;
+    }
+    return best;
+  }
   private updateBot(a: ActorRuntime) {
-    const s = a.state;
+    const s = a.state, skill = BOT_SKILL[this.config.difficulty];
+    const previous = a.target ? this.actors.get(a.target)?.state : null;
+    if (previous && (!previous.alive || previous.protectionUntil > this.time || !hasLineOfSight(center(s), center(previous), this.world))) {
+      a.target = null;
+      a.botBurstUntil = 0;
+      a.botReactAt = this.time + skill.react;
+    }
     if (this.time >= a.botThinkAt) {
-      a.botThinkAt = this.time + (this.config.difficulty === 'hard' ? .2 : this.config.difficulty === 'easy' ? .6 : .35);
+      a.botThinkAt = this.time + skill.think;
       let nearest: ActorRuntime | null = null, distance = Infinity;
       for (const other of this.actors.values()) {
         const t = other.state;
-        if (t.id === s.id || !t.alive || t.stage !== 'ground') continue;
+        if (t.id === s.id || !t.alive || t.stage !== 'ground' || t.protectionUntil > this.time) continue;
         const d = Math.hypot(t.pos.x - s.pos.x, t.pos.z - s.pos.z);
-        const range = this.config.difficulty === 'easy' ? 35 : this.config.difficulty === 'hard' ? 85 : 60;
-        if (d > range || d >= distance) continue;
+        if (d > skill.sight || d >= distance) continue;
         const angle = Math.atan2(-(t.pos.x - s.pos.x), -(t.pos.z - s.pos.z));
         const diff = Math.atan2(Math.sin(angle - s.yaw), Math.cos(angle - s.yaw));
-        if (d > 8 && Math.abs(diff) > 1.35 && this.time - a.lastHurt > 3) continue;
+        if (d > 8 && Math.abs(diff) > 1.35 && this.time - a.lastHurt > 3 && t.id !== a.target) continue;
         if (!hasLineOfSight(center(s), center(t), this.world)) continue;
         nearest = other; distance = d;
       }
-      if (nearest?.state.id !== a.target) a.botReactAt = this.time + (this.config.difficulty === 'hard' ? .25 : this.config.difficulty === 'easy' ? .8 : .5);
+      if (nearest?.state.id !== a.target) {
+        a.botReactAt = this.time + skill.react;
+        a.botBurstUntil = 0;
+      }
       a.target = nearest?.state.id || null;
-      if (nearest) a.targetPos = { ...nearest.state.pos };
-      else if (!a.targetPos || Math.hypot(a.targetPos.x - s.pos.x, a.targetPos.z - s.pos.z) < 2) {
+      if (nearest) { a.targetPos = { ...nearest.state.pos }; a.botSeenAt = this.time; a.coverPos = this.botCover(s, nearest.state); }
+      else if (!a.targetPos || this.time - a.botSeenAt > 8 || Math.hypot(a.targetPos.x - s.pos.x, a.targetPos.z - s.pos.z) < 2) {
         const available = this.loot.filter(l => l.active && Math.hypot(l.x - s.pos.x, l.z - s.pos.z) < 45 && hasLineOfSight(center(s), { x: l.x, y: l.y + .5, z: l.z }, this.world));
         a.targetPos = available.length ? { ...available[Math.floor(this.random() * available.length)] } : this.config.mode === 'battle-royale' && Math.hypot(s.pos.x - this.zone.nextX, s.pos.z - this.zone.nextZ) > this.zone.nextRadius * .8 ? groundPoint(this.zone.nextX, this.zone.nextZ) : this.spawnPoint(s.id);
+        a.coverPos = null;
       }
       a.strafe = this.random() < .5 ? -1 : 1;
-      const planned = nearest?.state.pos || a.targetPos;
+      const planned = nearest && a.coverPos && (s.hp < 50 || a.botRecoverUntil > this.time) ? a.coverPos : a.targetPos;
       a.waypoint = planned ? this.botWaypoint(s.pos, planned) : null;
     }
     const target = a.target ? this.actors.get(a.target) : undefined;
-    const goal = target?.state.alive ? target.state.pos : a.targetPos;
+    const visible = !!target && target.state.alive && target.state.protectionUntil <= this.time && hasLineOfSight(center(s), center(target.state), this.world);
+    const seekingCover = visible && a.coverPos && (s.hp < 50 || a.botRecoverUntil > this.time);
+    const goal = seekingCover ? a.coverPos : a.targetPos;
     const inp: InputFrame = a.input = { ...emptyInput(), seq: this.tick, clientTime: this.time, sprint: true };
     if (!goal) return;
     const waypoint = a.waypoint || goal;
-    const dx = waypoint.x - s.pos.x, dz = waypoint.z - s.pos.z, distance = Math.hypot(goal.x - s.pos.x, goal.z - s.pos.z);
-    const desired = Math.atan2(-dx, -dz);
-    s.yaw = inp.yaw = desired;
-    if (target && this.time >= a.botReactAt && distance < WEAPONS[s.weapons[s.slot].id].range && hasLineOfSight(center(s), center(target.state), this.world)) {
-      inp.fire = true; inp.ads = true; inp.sprint = false; inp.moveX = a.strafe * .4; inp.moveZ = distance > 14 ? .55 : 0;
+    const dx = waypoint.x - s.pos.x, dz = waypoint.z - s.pos.z;
+    const targetDistance = target ? Math.hypot(target.state.pos.x - s.pos.x, target.state.pos.z - s.pos.z) : Infinity;
+    const engaging = visible && targetDistance < Math.min(skill.attack, WEAPONS[s.weapons[s.slot].id].range);
+    const aimPoint = engaging ? { x: target!.state.pos.x, y: target!.state.pos.y + (target!.state.crouch ? .58 : .82), z: target!.state.pos.z } : waypoint;
+    const aimX = aimPoint.x - s.pos.x, aimZ = aimPoint.z - s.pos.z;
+    const drift = engaging ? Math.sin(this.time * 1.7 + a.botAimPhase) * skill.error * .45 : 0;
+    const desiredYaw = Math.atan2(-aimX, -aimZ) + (engaging ? a.botAimBias + drift : 0);
+    const yawDiff = Math.atan2(Math.sin(desiredYaw - s.yaw), Math.cos(desiredYaw - s.yaw));
+    inp.yaw = s.yaw + clamp(yawDiff, -skill.turn * TICK, skill.turn * TICK);
+    const desiredPitch = engaging ? Math.atan2(aimPoint.y - center(s).y, Math.hypot(aimX, aimZ)) : 0;
+    inp.pitch = s.pitch + clamp(desiredPitch - s.pitch, -skill.turn * TICK, skill.turn * TICK);
+
+    if (engaging) {
+      inp.ads = true; inp.sprint = false;
+      if (a.botBurstUntil && this.time >= a.botBurstUntil) {
+        a.botBurstUntil = 0;
+        a.botRecoverUntil = this.time + skill.recover[0] + this.random() * (skill.recover[1] - skill.recover[0]);
+      }
+      if (this.time >= a.botReactAt && !a.botBurstUntil && this.time >= a.botRecoverUntil && Math.abs(yawDiff) < .1 && Math.abs(desiredPitch - s.pitch) < .1) {
+        a.botBurstUntil = this.time + skill.burst[0] + this.random() * (skill.burst[1] - skill.burst[0]);
+        a.botAimBias = (this.random() * 2 - 1) * skill.error;
+      }
+      inp.fire = a.botBurstUntil > this.time && this.time >= a.botReactAt && Math.abs(yawDiff) < .16;
       if (s.weapons[s.slot].ammo === 0) this.startReload(a);
-    } else if (distance > 1.5) {
-      inp.moveZ = 1;
-      const ahead = { x: s.pos.x - Math.sin(desired) * 2, y: s.pos.y + .7, z: s.pos.z - Math.cos(desired) * 2 };
-      if (!hasLineOfSight({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, ahead, this.world)) { inp.moveZ = .3; inp.moveX = a.strafe; inp.jump = true; }
+      if (seekingCover) {
+        const length = Math.hypot(dx, dz);
+        if (length > 1) { inp.moveZ = (-Math.sin(inp.yaw) * dx - Math.cos(inp.yaw) * dz) / length; inp.moveX = (Math.cos(inp.yaw) * dx - Math.sin(inp.yaw) * dz) / length; }
+      } else {
+        inp.moveX = a.strafe * .75;
+        inp.moveZ = targetDistance > 16 ? .55 : targetDistance < (s.hp < 50 ? 16 : 7) ? -.65 : 0;
+      }
+    } else if (Math.hypot(goal.x - s.pos.x, goal.z - s.pos.z) > 1.5) {
+      const length = Math.hypot(dx, dz);
+      if (length > .01) { inp.moveZ = (-Math.sin(inp.yaw) * dx - Math.cos(inp.yaw) * dz) / length; inp.moveX = (Math.cos(inp.yaw) * dx - Math.sin(inp.yaw) * dz) / length; }
+      const ahead = { x: s.pos.x + dx / Math.max(length, .01) * 2, y: s.pos.y + .7, z: s.pos.z + dz / Math.max(length, .01) * 2 };
+      if (!hasLineOfSight({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, ahead, this.world)) { inp.moveX = a.strafe; inp.jump = true; }
     }
     for (const item of this.loot) if (item.active && Math.hypot(item.x - s.pos.x, item.z - s.pos.z) < 2.5 && hasLineOfSight(center(s), { x: item.x, y: item.y + .5, z: item.z }, this.world)) this.interact(a, item.id);
     if (s.hp < 60 && s.consumables.bandage && !s.using) this.startConsume(a, 'bandage');

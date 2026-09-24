@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 2;
-export const WORLD_VERSION = 'ilha-v2-1';
+export const WORLD_VERSION = 'ilha-v2-2';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
@@ -78,7 +78,7 @@ export type GameEvent =
   | { type: 'respawn'; id: number; actor: string }
   | { type: 'notice'; id: number; text: string };
 export interface Settings {
-  sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; reducedMotion: boolean;
+  sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; frameLimit: 30 | 60; reducedMotion: boolean;
   master: number; effects: number; ambience: number; music: number;
   adsToggle: boolean; bindings: Record<string, string>;
 }

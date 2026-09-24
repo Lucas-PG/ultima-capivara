@@ -6,6 +6,7 @@ import type { ActorState, GameEvent, Settings, Vec3, WeaponId, WorldSnapshot, Wo
 
 type AudioBuses = { master: GainNode; effects: GainNode; ambience: GainNode; music: GainNode };
 type ShotVoice = { crack: number; body: number; tail: number; bass: number; metal: number; length: number };
+type LocalPlace = { kind: 'bakery' | 'cafe' | 'harbor'; pos: Vec3; radius: number };
 const SAMPLE_FILES = {
   pistol: 'pistol.mp3', smg: 'smg.mp3', m4: 'm4.mp3', shotgun: 'shotgun.mp3', dmr: 'dmr.mp3', sniper: 'sniper.mp3',
   'footstep-0': 'footstep-0.mp3', 'footstep-1': 'footstep-1.mp3', 'footstep-2': 'footstep-2.mp3',
@@ -35,10 +36,19 @@ export class SoundEngine {
   private samples: Partial<Record<SampleId, AudioBuffer>> = {};
   private footstepIndex = 0;
   private ambientSources: AudioBufferSourceNode[] = [];
+  private ambientNodes: AudioNode[] = [];
   private spatialNodes = new Set<{ panner: PannerNode; filter: BiquadFilterNode }>();
   private windGain: GainNode | null = null;
   private surfGain: GainNode | null = null;
   private insectsGain: GainNode | null = null;
+  private fountainGain: GainNode | null = null;
+  private readonly fountain: Vec3 | null;
+  private readonly interiors: { pos: Vec3; halfX: number; halfZ: number }[];
+  private readonly localPlaces: LocalPlace[];
+  private inside = false;
+  private nearbyPlace: LocalPlace | null = null;
+  private nextRegionCheck = 0;
+  private nextPlaceSound = 0;
   private shots: number[] = [];
   private lastSnapshot: WorldSnapshot | null = null;
   private lastPosition: Vec3 | null = null;
@@ -55,7 +65,18 @@ export class SoundEngine {
   private disposed = false;
   private remoteSteps = new Map<string, { pos: Vec3; travelled: number }>();
 
-  constructor(settings: Settings, private world?: WorldSpec) { this.settings = { ...settings }; }
+  constructor(settings: Settings, private world?: WorldSpec) {
+    this.settings = { ...settings };
+    const objects = world?.objects || [];
+    this.fountain = objects.find(object => object.detail === 'prop:plaza')?.pos || null;
+    this.interiors = objects.filter(object => object.detail?.startsWith('prop:house:')).map(object => ({
+      pos: object.pos, halfX: object.scale.x / 2 - .2, halfZ: object.scale.z / 2 - .2,
+    }));
+    this.localPlaces = objects.flatMap(object => {
+      const kind = object.detail === 'prop:house:bakery' ? 'bakery' : object.detail === 'prop:house:cafe' ? 'cafe' : object.detail === 'prop:harbor' ? 'harbor' : null;
+      return kind ? [{ kind, pos: object.pos, radius: kind === 'harbor' ? 22 : 11 }] : [];
+    });
+  }
 
   async unlock(): Promise<void> {
     if (this.disposed || typeof window === 'undefined') return;
@@ -173,8 +194,10 @@ export class SoundEngine {
   dispose(): void {
     this.disposed = true;
     this.cancelReload();
-    for (const source of this.ambientSources) { try { source.stop(); } catch { /* already stopped */ } }
+    for (const source of this.ambientSources) { try { source.stop(); } catch { /* already stopped */ } source.disconnect(); }
     this.ambientSources = [];
+    for (const node of this.ambientNodes) node.disconnect();
+    this.ambientNodes = [];
     for (const node of this.spatialNodes) { node.panner.disconnect(); node.filter.disconnect(); }
     this.spatialNodes.clear();
     void this.context?.close();
@@ -257,6 +280,7 @@ export class SoundEngine {
     gain.gain.linearRampToValueAtTime(volume, start + Math.min(attack, duration * .3));
     gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
     source.connect(filter); filter.connect(gain); gain.connect(output);
+    source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
     source.start(start, Math.random() * .65, duration);
     source.stop(start + duration + .01);
   }
@@ -270,6 +294,7 @@ export class SoundEngine {
     gain.gain.exponentialRampToValueAtTime(Math.max(.0002, volume), start + Math.min(.008, duration * .2));
     gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
     oscillator.connect(gain); gain.connect(output);
+    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
     oscillator.start(start); oscillator.stop(start + duration + .01);
   }
 
@@ -312,23 +337,53 @@ export class SoundEngine {
       source.buffer = buffer; source.loop = true; shape.type = filter; shape.frequency.value = frequency;
       pan.pan.value = left; gain.gain.value = 0;
       source.connect(shape); shape.connect(pan); pan.connect(gain); gain.connect(buses.ambience);
-      source.start(0, Math.random() * 1.5); this.ambientSources.push(source);
+      source.start(0, Math.random() * 1.5); this.ambientSources.push(source); this.ambientNodes.push(shape, pan, gain);
       return gain;
     };
     this.windGain = loop(this.lowNoiseBuffer!, 'lowpass', 460, -.32);
     this.surfGain = loop(this.noiseBuffer!, 'lowpass', 950, .35);
     this.insectsGain = loop(this.noiseBuffer!, 'bandpass', 3600, -.15);
+    if (this.fountain) {
+      const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), panner = ctx.createPanner(), gain = ctx.createGain();
+      source.buffer = this.noiseBuffer; source.loop = true;
+      filter.type = 'bandpass'; filter.frequency.value = 950; filter.Q.value = .45;
+      panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.refDistance = 2; panner.maxDistance = 70; panner.rolloffFactor = 1.8;
+      panner.positionX.value = this.fountain.x; panner.positionY.value = this.fountain.y + .7; panner.positionZ.value = this.fountain.z;
+      gain.gain.value = 0;
+      source.connect(filter); filter.connect(panner); panner.connect(gain); gain.connect(buses.ambience);
+      source.start(0, Math.random() * 1.5);
+      this.ambientSources.push(source); this.ambientNodes.push(filter, panner, gain); this.fountainGain = gain;
+    }
     this.nextWildlife = ctx.currentTime + 4;
   }
 
   private updateAmbient(actor: ActorState | null, menu: boolean, now: number) {
     if (!this.windGain || !this.surfGain || !this.insectsGain || !this.buses) return;
+    if (menu || !actor) { this.inside = false; this.nearbyPlace = null; }
+    else if (now >= this.nextRegionCheck) {
+      this.nextRegionCheck = now + .25;
+      this.inside = actor.stage === 'ground' && this.interiors.some(house =>
+        Math.abs(actor.pos.x - house.pos.x) < house.halfX && Math.abs(actor.pos.z - house.pos.z) < house.halfZ &&
+        actor.pos.y >= house.pos.y - .3 && actor.pos.y < house.pos.y + 2.7);
+      const previous = this.nearbyPlace;
+      let nearest: LocalPlace | null = null, best = Infinity;
+      for (const place of this.localPlaces) {
+        const distance = Math.hypot(actor.pos.x - place.pos.x, actor.pos.z - place.pos.z);
+        if (distance < place.radius && distance < best) { nearest = place; best = distance; }
+      }
+      this.nearbyPlace = nearest;
+      if (nearest !== previous) this.nextPlaceSound = Math.min(this.nextPlaceSound, now + .9);
+    }
     const coast = actor ? clamp((2.5 - terrainHeight(actor.pos.x, actor.pos.z)) / 2.5, 0, 1) : .2;
-    const outdoor = menu ? .25 : actor ? 1 : .45;
+    const outdoor = menu ? .25 : actor ? this.inside ? .2 : 1 : .45;
     this.windGain.gain.setTargetAtTime(.035 * outdoor, now, .8);
     this.surfGain.gain.setTargetAtTime((.015 + .08 * coast) * outdoor, now, 1.2);
     this.insectsGain.gain.setTargetAtTime((.004 + .013 * (1 - coast)) * outdoor, now, 1.2);
-    if (!menu && actor && now >= this.nextWildlife) {
+    if (this.fountainGain) {
+      const distance = actor && this.fountain ? Math.hypot(actor.pos.x - this.fountain.x, actor.pos.z - this.fountain.z) : Infinity;
+      this.fountainGain.gain.setTargetAtTime(!menu && actor?.stage === 'ground' ? .025 * clamp(1 - distance / 27, 0, 1) : 0, now, .7);
+    }
+    if (!menu && actor && this.settings.ambience > 0 && !this.inside && now >= this.nextWildlife) {
       this.nextWildlife = now + 5 + Math.random() * 9;
       const bird = Math.random() < .65;
       const output = this.buses.ambience;
@@ -340,6 +395,24 @@ export class SoundEngine {
         this.noise(output, now, .35, 'bandpass', 3800, .018, .06);
         this.noise(output, now + .44, .25, 'bandpass', 3300, .012, .04);
       }
+    }
+    if (menu || !actor || this.settings.ambience <= 0 || now < this.nextPlaceSound) return;
+    const place = this.nearbyPlace;
+    if (!place) { this.nextPlaceSound = now + .8; return; }
+    const distance = Math.hypot(actor.pos.x - place.pos.x, actor.pos.z - place.pos.z);
+    const output = this.spatial(place.pos, this.buses.ambience, distance);
+    if (place.kind === 'bakery') {
+      this.noise(output, now, .12, 'highpass', 1250, .015, .004);
+      this.noise(output, now + .16, .09, 'highpass', 1600, .01, .003);
+      this.nextPlaceSound = now + 3 + Math.random() * 3;
+    } else if (place.kind === 'cafe') {
+      this.tone(output, now, 1500, 950, .07, .013, 'sine');
+      this.tone(output, now + .11, 1130, 790, .09, .009, 'sine');
+      this.nextPlaceSound = now + 6 + Math.random() * 5;
+    } else {
+      this.noise(output, now, .4, 'bandpass', 420, .012, .05, true);
+      this.tone(output, now + .06, 190, 105, .42, .011, 'triangle');
+      this.nextPlaceSound = now + 5 + Math.random() * 5;
     }
   }
 

@@ -13,7 +13,7 @@ npm run dev
 
 Abra **http://127.0.0.1:5173/** no Chrome, Edge ou Firefox desktop. Escolha um modo e clique em **Aquecer com os bots** para jogar imediatamente, sem conexão externa. Clique em **Entrar na partida** se o navegador solicitar outra interação para capturar o mouse. `Esc` libera o mouse.
 
-Para reduzir o uso de GPU durante a avaliação, abra **http://127.0.0.1:5173/?fps=30**. O jogo normalmente limita a renderização a 60 FPS, congela a cena no menu de pausa e não renderiza a tela inicial nem abas ocultas. Qualidade gráfica, áudio, sensibilidade, campo de visão e teclas estão em **Configurações**.
+O padrão é **60 FPS**. Em **Configurações → Limite de quadros**, você pode escolher 60 FPS ou 30 FPS para economizar GPU. A preferência fica salva; `?fps=60` ou `?fps=30` substitui essa escolha só para a sessão. O jogo congela a cena no menu de pausa e não renderiza a tela inicial nem abas ocultas. Gráficos, áudio, sensibilidade, campo de visão e teclas também estão em **Configurações**.
 
 Para testar a versão compilada, sem recargas durante edições:
 
@@ -45,6 +45,12 @@ As salas usam o serviço público PeerJS para apresentar os navegadores e WebRTC
 | **Correria** | Combate na Vila, Porto e Posto. 5, 8 ou 10 minutos. SMG, pistola e facão ao nascer; respawn em 3 segundos e proteção de 2 segundos, encerrada ao atirar. Vence quem tiver mais eliminações; empate divide a vitória. Bots completam pelo menos 8 participantes quando habilitados. |
 
 Salas comportam até **16 pessoas, incluindo quem criou a sala**. Capacidade padrão: 8. Bots têm três dificuldades.
+
+## Vila e combate
+
+A arena concentra 15 casas com duas entradas e funções distintas: padaria com forno e pães, café, oficina, ateliê, clínica, peixaria, casa de pescador e mercearia. Praça com fonte, canteiros, carrinhos, mercado e becos oferecem rotas e cobertura. Os interiores têm móveis com colisão; os objetos pequenos ficam fora do corredor central.
+
+As capivaras têm corpo quadrúpede, focinho alongado, patas com dedos curtos e equipamento preso por correias. A detecção de tiros acompanha cabeça, corpo, orientação e postura. Bots levam tempo para perceber e mirar, viram gradualmente, disparam rajadas com pausas e procuram a última posição vista quando perdem contato. Os três níveis de dificuldade mudam reação, alcance e precisão. Acertos mostram dano confirmado; eliminações e a direção do dano recebido têm feedback próprio.
 
 ## Controles
 

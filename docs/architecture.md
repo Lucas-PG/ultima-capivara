@@ -35,6 +35,6 @@ Para sinalização local manual nos padrões 127.0.0.1:9000/peerjs, execute `npm
 
 ## Arte e desempenho
 
-A ilha e suas colisões são determinísticas e compartilhadas. O ambiente agrupa geometria por material, pickups usam instâncias, personagens usam malha com esqueleto, e armas de primeira pessoa são renderizadas em uma cena separada. O menu usa uma imagem estática e não inicializa WebGL. A GPU só recebe frames durante uma partida visível. O parâmetro `?fps=30` limita as revisões a 30 FPS.
+A ilha e suas colisões são determinísticas e compartilhadas. O ambiente agrupa geometria por material e células de 32 metros para descartar trechos fora da câmera; móveis e vegetação também usam lotes por célula. Pickups usam instâncias, personagens usam malha com esqueleto, e armas de primeira pessoa são renderizadas em uma cena separada. O menu usa uma imagem estática e não inicializa WebGL. A GPU só recebe frames durante uma partida visível. A renderização usa limite padrão de 60 FPS, selecionável entre 30/60 nas preferências. O parâmetro `?fps=30` ou `?fps=60` substitui o limite durante a sessão. A cadência mantém seu prazo entre frames para não descartar um frame apenas por pequenas variações no horário do requestAnimationFrame.
 
 Não há envio de analytics. Preferências ficam no localStorage; sessão de recuperação, no sessionStorage. Os participantes da sala e o serviço de sinalização recebem os dados necessários à conexão. Como em qualquer WebRTC direto, participantes podem observar informações de rede uns dos outros.

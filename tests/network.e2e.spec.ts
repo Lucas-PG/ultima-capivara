@@ -69,6 +69,8 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
       guestId, { type: 'trigger', id: 1, yaw: .4, pitch: -.1, lean: 0, ads: true, clientTime: 1 },
     ]);
     const baselineBytes = await host.evaluate(async () => {
+      const typesUrl = '/src/shared/types.ts';
+      const { PROTOCOL_VERSION, WORLD_VERSION } = await import(typesUrl);
       const w = window as any;
       const s = w.session;
       const actor = { id: s.state.myId, name: 'Host', color: '#bd8956', bot: false, connected: true,
@@ -82,7 +84,7 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
         name: `Bot ${n}`, bot: true, pos: { x: n * 2, y: 0, z: -n } }))];
       const loot = Array.from({ length: 240 }, (_, n) => ({ id: `loot-${n}`, kind: 'ammo', x: n, y: 0,
         z: n, active: true, rarity: 0, respawnAt: 0 }));
-      const snapshot = { protocol: 2, world: 'ilha-v2-1', matchId: s.matchId, tick: 1, time: 1,
+      const snapshot = { protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: s.matchId, tick: 1, time: 1,
         phase: 'playing', config: s.state.config, countdown: 0, remaining: 479, actors,
         loot, openedChests: [], zone: { x: 0, z: 0, radius: 100, nextRadius: 90, nextX: 0,
           nextZ: 0, phase: 1, shrinking: false, timeLeft: 60, damage: 1 }, results: [],

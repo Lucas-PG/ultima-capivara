@@ -14,6 +14,10 @@ import { GameUI } from './ui/ui';
 const world = createWorld();
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 let settings = loadSettings(), profile = loadProfile();
+let savedFrameLimit = settings.frameLimit;
+const requestedFps = Number(new URLSearchParams(location.search).get('fps'));
+if (requestedFps === 30 || requestedFps === 60) settings.frameLimit = requestedFps;
+let activeFrameLimit = settings.frameLimit;
 const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
 let renderer: GameRenderer | null = null;
@@ -26,7 +30,7 @@ let predicted: ActorState | null = null;
 let pending: InputFrame[] = [];
 let receivedAt = 0, lastEvent = 0, match = '', playing = false;
 let lastAlive = true, lastStage = '', initializedPose = false;
-let accumulator = 0, lastFrame = performance.now(), lastRender = 0;
+let accumulator = 0, lastFrame = performance.now(), lastRender = 0, renderDeadline = 0;
 let fps = 0, frameCount = 0, fpsAt = performance.now();
 let renderedFrames = 0;
 let dirtyFrame = true;
@@ -73,7 +77,10 @@ const ui = new GameUI(world, settings, profile, {
   resume() { void sound.unlock(); void input.lock(); },
   spectate() { cycleSpectator(); void input.lock(); },
   settings(next) {
-    settings = next; saveSettings(next); input.setSettings(next); sound.setSettings(next); renderer?.setSettings(next); dirtyFrame = true;
+    if (next.frameLimit !== activeFrameLimit) {
+      savedFrameLimit = next.frameLimit; activeFrameLimit = next.frameLimit; renderDeadline = 0;
+    }
+    settings = next; saveSettings({ ...next, frameLimit: savedFrameLimit }); input.setSettings(next); sound.setSettings(next); renderer?.setSettings(next); dirtyFrame = true;
   },
   profile(next) { profile = { ...next }; saveProfile(next.name, next.color); },
 });
@@ -212,7 +219,7 @@ function closestInteraction() {
 input.onAction = sendAction;
 input.onInteract = () => { interaction = closestInteraction(); if (interaction) sendAction({ type: 'interact', id: input.actionIdNext(), target: interaction.id }); };
 input.onPause = () => { if (playing) ui.setPaused(true); };
-input.onLock = () => { ui.closeModal(); ui.setPaused(false); };
+input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 window.addEventListener('resize', () => { renderer?.resize(); dirtyFrame = true; });
 window.addEventListener('pagehide', () => { session.leave(); worker?.terminate(); sound.dispose(); renderer?.dispose(); });
@@ -229,8 +236,6 @@ document.addEventListener('visibilitychange', () => {
 
 // Simulation is independent of rendering. Never render the menu or a hidden tab,
 // and cap frames on high-refresh displays instead of saturating the GPU.
-const requestedFps = Number(new URLSearchParams(location.search).get('fps'));
-const frameLimit = requestedFps === 30 ? 30 : 60;
 function frame(now: number) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - lastFrame) / 1000, .1); lastFrame = now;
@@ -248,8 +253,12 @@ function frame(now: number) {
     if (snapshot.phase === 'playing') { pending.push(next); if (pending.length > 120) pending.shift(); predict(next); }
     accumulator -= 1 / 60;
   }
-  const activeLimit = input.locked ? frameLimit : 10;
-  if (now - lastRender < 1000 / activeLimit - .5) return;
+  const activeLimit = input.locked ? settings.frameLimit : 10;
+  const interval = 1000 / activeLimit;
+  if (now < renderDeadline - .5) return;
+  // Keep the cadence across small rAF timing variations instead of dropping
+  // every frame that arrives a fraction early. Never catch up after a stall.
+  renderDeadline = Math.max(renderDeadline + interval, now + interval * .05);
   const renderDt = Math.min((now - lastRender) / 1000, .05); lastRender = now;
   if (spectateId && !snapshot.actors.some(a => a.id === spectateId && a.alive)) cycleSpectator();
   interaction = closestInteraction();
