@@ -132,3 +132,13 @@ describe('death cam card', () => {
   // The card must last exactly as long as Brasa's death cam before spectate/respawn takes over.
   it('holds for the death cam duration', () => { expect(DEATH_CARD_SECONDS).toBe(1.8); });
 });
+
+describe('hud layout cost', () => {
+  // Forja's M1 trace showed 55-98 ms synchronous layouts inside the frame; the HUD must never read layout per tick.
+  it('does not read layout-forcing properties in the HUD code', () => {
+    for (const file of ['src/ui/ui.ts', 'src/ui/crosshair.ts']) {
+      const code = readFileSync(file, 'utf8').replace(/\/\/.*$/gm, '');
+      expect(code).not.toMatch(/\.(offsetWidth|offsetHeight|clientHeight|clientWidth|scrollHeight|innerText)\b|getBoundingClientRect\(|getComputedStyle\(/);
+    }
+  });
+});

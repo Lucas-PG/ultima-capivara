@@ -323,3 +323,7 @@ body #victory #confetti{display:none}
 #hud #banner .kcard b{font-family:var(--display);font-weight:400;padding:0 6px 0 5px;border-left:6px solid var(--kc,#1fb5a8);color:var(--ink)}
 #hud #banner .kcard i{font-style:normal;color:var(--lmuted)}
 #hud #banner .kcard .wi svg{height:14px;width:auto;display:block;color:var(--ink)}
+/* Layout containment: the HUD is a fixed full-screen box, and each card is its own layout root, so a changing number
+   relayouts only its card instead of the whole document (Forja's M1 trace: 55-98 ms document layouts). */
+#hud{contain:strict}
+#hud>:not(#storm):not(#vign):not(#scope-overlay){contain:layout style}

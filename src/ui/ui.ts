@@ -300,7 +300,8 @@ export class GameUI {
   // Crosshair gap and tick fade come from Brasa's CrosshairSpread (authoritative cone, local shot heat, ADS fade).
   // The crosshair is not scaled by --ui: its gap is a real screen-space angle.
   private crosshairGap(me: ActorState, now: number): number {
-    const height = document.querySelector<HTMLCanvasElement>('#game')?.clientHeight || window.innerHeight;
+    // #game is fixed to the viewport, so innerHeight equals its height without forcing a synchronous layout.
+    const height = window.innerHeight;
     const gap = this.crosshairSpread.gap(me, this.settings, height, now);
     const opacity = String(this.crosshairSpread.ticksOpacity);
     this.el('cross').querySelectorAll<HTMLElement>('i:not(.d)').forEach(tick => this.style(tick, 'opacity', opacity));
@@ -439,7 +440,7 @@ export class GameUI {
         if (event.head) this.floater('NA CACHOLA!', 'pop');
       }
       if (event.target === this.localId) {
-        const vign = this.el('vign'); vign.classList.remove('hit'); void vign.offsetWidth; vign.classList.add('hit');
+        this.restartAnimation(this.el('vign'), 'hit');
         const me = find(this.localId), source = find(event.actor);
         if (me && source && source !== me) {
           const burst = document.createElement('div'); burst.className = 'di'; burst.innerHTML = DAMAGE_ARC;
@@ -497,7 +498,7 @@ export class GameUI {
   }
   private hitMarker(kind: '' | 'head' | 'kill') {
     const marker = this.el('hitm'); marker.classList.toggle('head', kind === 'head'); marker.classList.toggle('kill', kind === 'kill');
-    marker.classList.remove('on'); void marker.offsetWidth; marker.classList.add('on');
+    this.restartAnimation(marker, 'on');
   }
   // Damage numbers and callouts float up next to the crosshair (the HUD has no camera to project world points).
   private floater(text: string, cls: string) {
@@ -542,6 +543,13 @@ export class GameUI {
   private toggle(element: Element, cls: string, on: boolean) { if (element.classList.contains(cls) !== on) element.classList.toggle(cls, on); }
   private style(element: HTMLElement, prop: string, value: string) { if (element.style.getPropertyValue(prop) !== value) element.style.setProperty(prop, value); }
   private attr(element: Element | null, name: string, value: string) { if (element && element.getAttribute(name) !== value) element.setAttribute(name, value); }
+  // Replays a CSS animation class without reading layout (the old offsetWidth trick forced a full layout mid-frame).
+  private restartAnimation(element: HTMLElement, cls: string) {
+    if (!element.classList.contains(cls)) { element.classList.add(cls); return; }
+    const running = element.getAnimations();
+    if (running.length) running.forEach(animation => { animation.cancel(); animation.play(); });
+    else { element.classList.remove(cls); requestAnimationFrame(() => element.classList.add(cls)); }
+  }
   private reducedMotion() { return this.settings.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches; }
   // Interface size and aim colours follow the settings; the HUD scales from its 1600x900 layout.
   applyHudPrefs() {
