@@ -306,7 +306,7 @@ def recess(x, y, width, height, depth, name):
 
 mouth_point = recess(0, 1.535, .037, .017, .029, 'Recessed mouth')
 for side in [-1, 1]:
-    recess(side * .13, 1.654, .028, .035, .035, 'Recessed eye')
+    recess(side * .13, 1.654, .022, .028, .040, 'Recessed eye')
 # The mouth rim and cavity close together; neutral has no dark oval decal.
 for group in list(head_surface.vertex_groups):
     head_surface.vertex_groups.remove(group)
@@ -340,6 +340,9 @@ for poly in head_surface.data.polygons:
             depth = max(0, min(1, (z + mouth_point.y) / .015))
             wine, back = linear_rgb('6B2E2A'), linear_rgb('351917')
             rgb = [wine[i] * (1 - depth) + back[i] * depth for i in range(3)]
+        eye_distance = ((abs(x) - .13) / .022) ** 2 + ((y - 1.654) / .028) ** 2
+        if eye_distance < 1.0 and -.146 < z < -.105:
+            rgb = list(shadow_rgb)
         head_surface.data.uv_layers.active.data[loop_index].uv = (14.5 / 16, .5)
         head_surface.data.color_attributes['Color'].data[loop_index].color = (*rgb, 1)
 # The dark nose pad occupies only the upper third of the furry muzzle.
@@ -362,9 +365,9 @@ for s, side in [(-1, 'L'), (1, 'R')]:
         tip = .45 * max(0, 1 - abs((point[1] - 1.654) / .024))
         peak = .45 * max(0, 1 - abs((point[0] - s * .13) / .021))
         return {'blink_' + side: 1 - tip - peak, 'blink_tip_' + side: tip, 'blink_peak_' + side: peak}
-    eye = ellipsoid('Eye_' + side, (s * .13, 1.654, -.12), (.021, .024, .014), 9, lid_weights, segments=12, rings=8)
-    glint = ellipsoid('Glint_' + side, (s * .13 - .006, 1.662, -.132), (.007, .008, .003), 10, {'glint_' + side: 1}, segments=16, rings=10)
-    for patch, centre_z, relief in [(eye, -.12, -.012), (glint, -.132, -.0095)]:
+    eye = ellipsoid('Eye_' + side, (s * .13, 1.654, -.12), (.016, .020, .014), 9, lid_weights, segments=12, rings=8)
+    glint = ellipsoid('Glint_' + side, (s * .13 - .006, 1.662, -.132), (.005, .006, .003), 10, {'glint_' + side: 1}, segments=16, rings=10)
+    for patch, centre_z, relief in [(eye, -.12, -.016), (glint, -.132, -.0135)]:
         for vertex in patch.data.vertices:
             x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
             point = fur_point(s * .13, 1.654)

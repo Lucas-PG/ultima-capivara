@@ -12,8 +12,6 @@ vi.mock('../src/render/assets', () => ({ AssetLoader: loaderConstructor }));
 vi.mock('three', async original => ({ ...await original<typeof THREE>(), WebGLRenderer: vi.fn() }));
 
 // Exercise the real warmup gate without allocating a browser or GPU.
-vi.mock('../src/render/sky', () => ({ PaintedSky: class {} }));
-vi.mock('../src/render/timing-gpu', () => ({ instrumentGpu: vi.fn(), instrumentMaterials: vi.fn() }));
 vi.mock('../src/render/world-scene', () => ({ WorldScene: class {} }));
 vi.mock('../src/render/thumbnails', () => ({ loadWeaponThumbnails: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../src/render/weapons', () => ({ WeaponView: class {} }));
