@@ -49,6 +49,11 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
       await expect.poll(async () => (await inspect(page)).snapshot?.phase, { timeout: 60_000 }).toBe('playing');
       await expect(page.locator('#loadingOverlay:not(.out)')).toHaveCount(0, { timeout: 60_000 });
     }
+    // Chromium has one pointer lock across contexts. Release the host's start-click
+    // lock before activating the guest, as two independent browsers do naturally.
+    await host.bringToFront();
+    await host.keyboard.press('Escape');
+    await expect.poll(() => host.evaluate(() => !!document.pointerLockElement)).toBe(false);
     await resume(guest);
     const before = await player(guest);
     await guest.keyboard.down('KeyW');
