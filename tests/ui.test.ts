@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_DEFAULTS, BINDING_GROUPS, bindingOf, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
+import { DEFAULT_BINDINGS } from '../src/settings';
 
 describe('loading screen', () => {
   it('never moves the progress bar backwards or outside 0..1', () => {
@@ -179,20 +180,19 @@ describe('lobby warmup', () => {
 
 describe('key remap covers every action', () => {
   // Quality bar: remapping covers everything (slots, curas, placar, mapa, atirar, mirar were fixed keys).
-  it('labels, groups and defaults every action exactly once, including everything settings.ts binds', async () => {
-    const { DEFAULT_BINDINGS } = await import('../src/settings');
+  it('labels, groups and defaults every action exactly once, including everything settings.ts binds', () => {
     const grouped = BINDING_GROUPS.flatMap(g => g.actions);
     expect(new Set(grouped).size).toBe(grouped.length);
     for (const action of new Set([...grouped, ...Object.keys(DEFAULT_BINDINGS)])) {
       expect(BINDING_LABELS[action]).toMatch(/^[A-ZÀ-Ú][a-zà-ú0-9 /]+$/);
-      expect(isBindableCode(BINDING_DEFAULTS[action] ?? DEFAULT_BINDINGS[action])).toBe(true);
+      expect(isBindableCode(DEFAULT_BINDINGS[action])).toBe(true);
     }
     for (const action of ['fire', 'ads', 'slot1', 'slot4', 'useBandage', 'useRapadura', 'scoreboard', 'map']) expect(grouped).toContain(action);
   });
   it('swaps instead of letting two actions share a key', () => {
     const next = remapBinding({ reload: 'KeyR', interact: 'KeyF' }, 'reload', 'KeyF');
     expect(next).toEqual({ reload: 'KeyF', interact: 'KeyR' });
-    expect(new Set(Object.values(remapBinding({ ...BINDING_DEFAULTS }, 'map', 'Tab'))).size).toBe(Object.keys(BINDING_DEFAULTS).length);
+    expect(new Set(Object.values(remapBinding({ ...DEFAULT_BINDINGS }, 'map', 'Tab'))).size).toBe(Object.keys(DEFAULT_BINDINGS).length);
   });
   it('accepts mouse buttons, digits and Tab but keeps Esc for the menu', () => {
     for (const code of ['Mouse0', 'Mouse2', 'Mouse4', 'Digit7', 'Tab', 'AltLeft', 'KeyM']) expect(isBindableCode(code)).toBe(true);
@@ -216,5 +216,13 @@ describe('key remap covers every action', () => {
     // Taking a key from another action leaves that one unbound, never two actions on one key.
     const taken = remapBinding(saved, 'slot3', 'Digit3');
     expect([taken.slot3, taken.reload]).toEqual(['Digit3', '']);
+  });
+  // Sentinela a550b7d: capturing Recarregar, then clicking Fechar, bound reload to Mouse0 and moved fire to R.
+  it('binds a mouse button only when pressed on the waiting chip; any other press cancels', () => {
+    expect(captureMousePress(true, 0)).toBe('Mouse0');
+    expect(captureMousePress(true, 2)).toBe('Mouse2');
+    for (const button of [0, 1, 2, 3, 4]) expect(captureMousePress(false, button)).toBeNull();
+    // Cancelling leaves fire on the left button.
+    expect(bindingOf(DEFAULT_BINDINGS, 'fire')).toBe('Mouse0');
   });
 });

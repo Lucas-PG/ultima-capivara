@@ -1,4 +1,4 @@
-import { BINDABLE_CODE } from '../settings';
+import { BINDABLE_CODE, DEFAULT_BINDINGS } from '../settings';
 // Pure HUD rules shared by the UI and its tests: loading progress, tip rotation, interface scale and result formatting.
 
 // Loading copy (style bible §13.1): friendly pt-BR, never technical, in load order.
@@ -94,15 +94,6 @@ export function startButtonState(allReady: boolean, roomLoading: number | null) 
 }
 
 // Key remap (quality bar: remapping covers every action). Codes are KeyboardEvent.code, or 'Mouse' + button index.
-// Defaults mirror settings.ts DEFAULT_BINDINGS once Brasa's full binding model lands; until then they are the fallback
-// for actions input.ts still reads as fixed keys, so every HUD hint shows the key that actually works.
-export const BINDING_DEFAULTS: Record<string, string> = {
-  forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', crouch: 'KeyC', leanLeft: 'KeyQ', leanRight: 'KeyE',
-  fire: 'Mouse0', ads: 'Mouse2', reload: 'KeyR', interact: 'KeyF', inspect: 'KeyI',
-  slot1: 'Digit1', slot2: 'Digit2', slot3: 'Digit3', slot4: 'Digit4',
-  useBandage: 'Digit5', useMedkit: 'Digit6', useGuarana: 'Digit7', useAcai: 'Digit8', useRapadura: 'Digit9',
-  scoreboard: 'Tab', map: 'KeyM',
-};
 export const BINDING_LABELS: Record<string, string> = {
   forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar',
   leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita', fire: 'Atirar', ads: 'Mirar', reload: 'Recarregar', interact: 'Pegar / abrir',
@@ -121,7 +112,10 @@ export const CONSUMABLE_ACTIONS = ['useBandage', 'useMedkit', 'useGuarana', 'use
 export const isBindableCode = (code: string) => BINDABLE_CODE.test(code);
 // An empty string is an explicit 'unbound' (an old save whose key a new default would have doubled); only a missing
 // action falls back to its default.
-export const bindingOf = (bindings: Record<string, string>, action: string) => bindings[action] ?? BINDING_DEFAULTS[action] ?? '';
+export const bindingOf = (bindings: Record<string, string>, action: string) => bindings[action] ?? DEFAULT_BINDINGS[action] ?? '';
+// While a chip waits for input, only a press on that chip becomes a mouse binding; a press anywhere else (Fechar, another
+// row, the backdrop) cancels the capture, so closing the dialog can never steal the left button from 'fire'.
+export const captureMousePress = (onCapturingChip: boolean, button: number): string | null => onCapturingChip ? `Mouse${button}` : null;
 export const unboundActions = (bindings: Record<string, string>, actions: readonly string[]) => actions.filter(action => !bindingOf(bindings, action));
 // Binding a code already used by another action swaps them, so no two actions ever share a key.
 export function remapBinding(bindings: Record<string, string>, action: string, code: string): Record<string, string> {

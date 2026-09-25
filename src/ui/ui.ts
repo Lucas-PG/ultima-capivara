@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -440,11 +440,13 @@ export class GameUI {
     dialog.querySelector('#adaptive')!.addEventListener('change', event => { this.settings.adaptive = (event.target as HTMLInputElement).checked; this.callbacks.settings(this.settings); });
     // Rebinding: keyboard or mouse button; Esc cancels; a code already in use swaps with the other action.
     const keyCapture = new AbortController(); dialog.addEventListener('close', () => keyCapture.abort());
-    let stopCapture: (() => void) | null = null;
+    let stopCapture: (() => void) | null = null, swallowClick: HTMLButtonElement | null = null;
     const refresh = () => dialog.querySelectorAll<HTMLButtonElement>('[data-binding]').forEach(b => { const code = bindingOf(this.settings.bindings, b.dataset.binding!); b.textContent = keyName(code); b.classList.toggle('unbound', !code); b.classList.remove('capturing'); });
     const note = dialog.querySelector<HTMLElement>('.binding-note')!;
     dialog.addEventListener('click', event => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-binding]'); if (!button) return;
+      // The left press that just bound this chip is followed by its click; that click must not reopen the capture.
+      if (swallowClick === button) { swallowClick = null; return; }
       stopCapture?.(); refresh();
       const action = button.dataset.binding!;
       // The chip keeps its size (no layout shift); the status line says what to do.
@@ -462,13 +464,21 @@ export class GameUI {
       };
       const onKey = (e: KeyboardEvent) => { e.preventDefault(); e.stopPropagation(); if (e.code === 'Escape') note.textContent = 'Troca cancelada.'; finish(e.code === 'Escape' ? null : e.code); };
       // The click that opened the capture must not bind the left button: mouse capture starts on the next press.
-      const onMouse = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); finish(`Mouse${e.button}`); };
-      const noMenu = (e: Event) => e.preventDefault();
+      // Only a press on the waiting chip binds; any other press cancels and still does its normal job (close, next row).
+      const onMouse = (e: MouseEvent) => {
+        const code = captureMousePress(button.contains(e.target as Node), e.button);
+        if (!code) { stopCapture?.(); refresh(); note.textContent = 'Troca cancelada.'; return; }
+        e.preventDefault(); e.stopPropagation(); if (e.button === 0) swallowClick = button; finish(code);
+      };
       const opts = { capture: true, signal: keyCapture.signal };
       document.addEventListener('keydown', onKey, opts);
-      const armMouse = window.setTimeout(() => { document.addEventListener('mousedown', onMouse, opts); document.addEventListener('contextmenu', noMenu, opts); }, 0);
-      stopCapture = () => { clearTimeout(armMouse); document.removeEventListener('keydown', onKey, true); document.removeEventListener('mousedown', onMouse, true); document.removeEventListener('contextmenu', noMenu, true); stopCapture = null; };
+      const armMouse = window.setTimeout(() => document.addEventListener('mousedown', onMouse, opts), 0);
+      stopCapture = () => { clearTimeout(armMouse); document.removeEventListener('keydown', onKey, true); document.removeEventListener('mousedown', onMouse, true); stopCapture = null; };
     }, { signal: keyCapture.signal });
+    // A binding press stops propagation, so this only sees later presses: a drag-off left no click to swallow.
+    dialog.addEventListener('mousedown', () => { swallowClick = null; }, { capture: true, signal: keyCapture.signal });
+    // Right-click binds Mouse2 on a chip, so chips never open the browser menu.
+    dialog.addEventListener('contextmenu', event => { if ((event.target as HTMLElement).closest('[data-binding]')) event.preventDefault(); }, { signal: keyCapture.signal });
     dialog.querySelector('#reset-bindings')!.addEventListener('click', () => { stopCapture?.(); this.settings.bindings = { ...DEFAULT_BINDINGS }; this.callbacks.settings(this.settings); refresh(); this.refreshKeyHints(); note.textContent = 'Teclas de volta ao padrão.'; });
     dialog.querySelector('#save-settings')!.addEventListener('click', () => this.closeModal());
   }
