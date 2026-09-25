@@ -41,7 +41,7 @@ function sanityTracker() {
         const moving = Math.hypot(a.input.moveX, a.input.moveZ) > .3, speed = Math.hypot(st.velocity.x, st.velocity.z);
         if (moving && speed < .6 && !st.using) s.pushing += TICK;
         const fighting = b.sees || b.mode === 'fight';
-        if (st.reloadUntil && b.sees && b.mode !== 'cover') s.openReload += TICK;
+        if (st.reloadUntil && b.sees && b.mode !== 'cover' && speed < .8) s.openReload += TICK;
         const l = last.get(st.id) || { yaw: st.yaw, turn: 0, flips: [], turns: [], window: null };
         const d = Math.atan2(Math.sin(st.yaw - l.yaw), Math.cos(st.yaw - l.yaw));
         // Jitter: the turn direction reverses more than 4 times within a second while not fighting.
@@ -49,9 +49,9 @@ function sanityTracker() {
         l.flips = l.flips.filter(t => time - t < 1);
         if (l.flips.length > 4) { s.jitter++; l.flips = []; }
         if (Math.abs(d) > .01) l.turn = d;
-        // Spinning: more than a full turn within 2 s while not fighting.
-        l.turns.push({ t: time, d: fighting ? 0 : Math.abs(d) }); l.turns = l.turns.filter(x => time - x.t < 2);
-        if (l.turns.reduce((sum, x) => sum + x.d, 0) > Math.PI * 2) { s.spins++; l.turns = []; }
+        // Spinning: a full turn in one direction within 2 s while not fighting.
+        l.turns.push({ t: time, d: fighting ? 0 : d }); l.turns = l.turns.filter(x => time - x.t < 2);
+        if (Math.abs(l.turns.reduce((sum, x) => sum + x.d, 0)) > Math.PI * 2) { s.spins++; l.turns = []; }
         // Stuck: trying to move but less than 0.4 m of progress in a second.
         if (!moving) l.window = null;
         else if (!l.window) l.window = { t: time, x: st.pos.x, z: st.pos.z };

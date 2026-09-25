@@ -76,6 +76,25 @@ describe('impact events', () => {
     expect(hit(12).armorBreak).toBeUndefined();
   });
 
+  it('tells the victim who eliminated them, from where and how far, for the death cam', () => {
+    const sim = new Simulation(flat(), dm, profiles, 'kill-data', 6);
+    advance(sim, 3.1);
+    const a = runtime(sim, 'a'), b = runtime(sim, 'b');
+    a.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 }; b.state.pos = { x: 0, y: terrainHeight(0, 12), z: 12 };
+    b.state.protectionUntil = 0;
+    sim.drainEvents();
+    (sim as any).damage(b, 500, 'a', 'm4', false);
+    const kill = sim.drainEvents().find(e => e.type === 'kill') as Extract<GameEvent, { type: 'kill' }>;
+    expect(kill.actor).toBe('a');
+    expect(kill.from).toEqual(a.state.pos);
+    expect(kill.distance).toBe(Math.round(Math.hypot(12, terrainHeight(0, 12) - terrainHeight(0, 0))));
+    (sim as any).respawn(b); b.state.protectionUntil = 0; sim.drainEvents();
+    (sim as any).damage(b, 500, null, 'storm', false);
+    const storm = sim.drainEvents().find(e => e.type === 'kill') as Extract<GameEvent, { type: 'kill' }>;
+    expect(storm.from).toBeUndefined();
+    expect(storm.distance).toBeUndefined();
+  });
+
   it('announces a consumable only when it takes effect, never when interrupted', () => {
     const sim = new Simulation(flat(), dm, profiles, 'use', 4);
     advance(sim, 3.1);

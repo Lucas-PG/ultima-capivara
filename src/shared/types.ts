@@ -76,7 +76,8 @@ export type Surface = 'dirt' | 'sand' | 'foliage' | 'stone' | 'wood' | 'metal' |
 export type GameEvent =
   | { type: 'shot'; id: number; actor: string; weapon: WeaponId; origin: Vec3; end: Vec3; hit: boolean; surface?: Surface; normal?: Vec3 }
   | { type: 'damage'; id: number; actor: string; target: string; amount: number; head: boolean; pos: Vec3; armorBreak?: boolean }
-  | { type: 'kill'; id: number; actor: string | null; target: string; weapon: WeaponId | 'storm' | 'fall' }
+  // `from` is the eliminator's position and `distance` the gap in metres at the moment of the kill.
+  | { type: 'kill'; id: number; actor: string | null; target: string; weapon: WeaponId | 'storm' | 'fall'; from?: Vec3; distance?: number }
   | { type: 'pickup'; id: number; actor: string; item: string }
   | { type: 'reload'; id: number; actor: string; weapon: WeaponId }
   | { type: 'respawn'; id: number; actor: string }

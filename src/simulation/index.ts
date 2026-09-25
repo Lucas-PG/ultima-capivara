@@ -49,6 +49,8 @@ const norm = (v: Vec3): Vec3 => { const n = Math.hypot(v.x, v.y, v.z) || 1; retu
 const DEG = Math.PI / 180;
 // Minimum time between a bot's visible alert tell and its first shot at a human.
 export const BOT_TELL = .45;
+// Loot a bot will walk to must be on its own level (no stairs pathing).
+const LEVEL = 1.8;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export class Simulation {
@@ -65,6 +67,7 @@ export class Simulation {
   private readonly landings: Vec3[] = [];
   private botCount = 0;
   private readonly spentDrops = new Map<LootState, number>();
+  private readonly approaches = new Map<string, Vec3 | 'open' | 'none'>();
   private readonly events: GameEvent[] = [];
   private readonly projectiles: Projectile[] = [];
   private tick = 0;
@@ -582,7 +585,9 @@ export class Simulation {
     if (killer && killer !== target) killer.state.kills++;
     target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
     if (this.config.mode === 'deathmatch') s.respawnAt = this.time + 3;
-    this.emit({ type: 'kill', actor: killer?.state.id || null, target: s.id, weapon });
+    const from = killer && killer !== target ? killer.state.pos : null;
+    this.emit({ type: 'kill', actor: killer?.state.id || null, target: s.id, weapon,
+      ...(from ? { from: { ...from }, distance: Math.round(Math.hypot(from.x - s.pos.x, from.y - s.pos.y, from.z - s.pos.z)) } : {}) });
   }
   private respawn(a: ActorRuntime) {
     const s = a.state; s.pos = this.spawnPoint(s.id); s.velocity = { x: 0, y: 0, z: 0 };
@@ -644,13 +649,14 @@ export class Simulation {
     const S = this.planeStart, d = this.planeDir;
     const side = (p: Vec3) => Math.abs((p.x - S.x) * -d.z + (p.z - S.z) * d.x);
     // Only spots within gliding reach of the route (about 100 m from 115 m up).
-    const spots = [...this.world.loot, ...this.world.chests].filter(p => this.dryAround(p.x, p.z) && Math.abs(p.y - terrainHeight(p.x, p.z)) < .35 && Math.abs(p.x) < 118 && Math.abs(p.z) < 118 && side(p) < 90);
+    // Open-sky spots only: a parachute aimed at loot under a roof lands on the roof.
+    const spots = [...this.world.loot, ...this.world.chests].filter(p => this.dryAround(p.x, p.z) && Math.abs(p.y - terrainHeight(p.x, p.z)) < .35 && Math.abs(p.x) < 118 && Math.abs(p.z) < 118 && side(p) < 90 && !this.roofed(p.x, p.y, p.z, 1.5));
     if (!spots.length) { b.land = { x: this.rnd(-60, 60), y: 0, z: this.rnd(-60, 60) }; b.jumpAt = this.rnd(5, 12); return; }
     let spot = spots[Math.floor(this.random() * spots.length)];
     for (let k = 0; k < 30 && this.landings.some(l => Math.hypot(l.x - spot.x, l.z - spot.z) < 26); k++) spot = spots[Math.floor(this.random() * spots.length)];
     this.landings.push(spot);
     b.land = { x: spot.x + this.rnd(-3, 3), y: 0, z: spot.z + this.rnd(-3, 3) };
-    if (!this.dryAround(b.land.x, b.land.z)) b.land = { x: spot.x, y: 0, z: spot.z };
+    if (!this.dryAround(b.land.x, b.land.z) || this.roofed(b.land.x, spot.y, b.land.z, 1.5)) b.land = { x: spot.x, y: 0, z: spot.z };
     const along = (b.land.x - S.x) * d.x + (b.land.z - S.z) * d.z;
     b.jumpAt = clamp(3 + (along - 20) / PLANE_SPEED + this.rnd(-1.2, .8), 4.5, 3 + PLANE_ROUTE / PLANE_SPEED - 1);
   }
@@ -693,6 +699,54 @@ export class Simulation {
     if (this.config.mode === 'deathmatch') return inArena(x, z, .5) && terrainHeight(x, z) > .3;
     return Math.abs(x) < 118 && Math.abs(z) < 118 && terrainHeight(x, z) > .3;
   }
+  // Indoor loot is reached through a doorway: the nearest outdoor spot with a straight
+  // knee-height line to the item. Loot with no such line is left alone by bots.
+  private approach(id: string, p: Vec3): Vec3 | 'open' | 'none' {
+    const cached = this.approaches.get(id);
+    if (cached) return cached;
+    let result: Vec3 | 'open' | 'none' = 'open';
+    if (this.roofed(p.x, p.y, p.z)) {
+      result = 'none';
+      const low = { x: p.x, y: p.y + .7, z: p.z };
+      let bd = Infinity;
+      for (let k = 0; k < 32; k++) {
+        const a = k / 32 * Math.PI * 2;
+        for (const r of [2.5, 4, 5.5, 7, 9]) {
+          const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r, y = this.standAt(x, z, p.y);
+          if (r >= bd || Math.abs(y - p.y) > 1 || !this.walkable(x, z) || this.pointBlocked(x, y, z) || this.roofed(x, y, z)) continue;
+          if (this.grid.sees({ x, y: y + .7, z }, low)) { bd = r; result = { x, y, z }; break; }
+        }
+      }
+    }
+    this.approaches.set(id, result);
+    return result;
+  }
+
+  // Something overhead within `margin` metres (a roof or an upper floor).
+  private roofed(x: number, y: number, z: number, margin = 0) {
+    return this.grid.near(x - margin, z - margin, x + margin, z + margin).some(c => x > c.min.x - margin && x < c.max.x + margin &&
+      z > c.min.z - margin && z < c.max.z + margin && c.min.y > y + 1);
+  }
+  // Standing height at (x, z) for someone at height `top`: terrain or the highest collider top within a step.
+  private standAt(x: number, z: number, top: number) {
+    let ground = terrainHeight(x, z);
+    for (const c of this.grid.near(x, z, x, z)) if (x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z && c.max.y <= top + .45) ground = Math.max(ground, c.max.y);
+    return ground;
+  }
+  // A bot stranded on a roof or wall top walks to the nearest point where the ground drops away.
+  private dropPoint(s: ActorState): Vec3 | null {
+    let best: Vec3 | null = null, bd = Infinity;
+    for (let k = 0; k < 12; k++) {
+      const a = k / 12 * Math.PI * 2;
+      for (let r = 1.5; r <= 10; r += 1.5) {
+        const x = s.pos.x + Math.cos(a) * r, z = s.pos.z + Math.sin(a) * r;
+        if (!this.walkable(x, z)) break;
+        if (this.standAt(x, z, s.pos.y) < s.pos.y - 1.5) { if (r < bd) { bd = r; best = { x, y: s.pos.y, z }; } break; }
+      }
+    }
+    return best;
+  }
+
   private pointBlocked(x: number, y: number, z: number) {
     return this.grid.near(x - .8, z - .8, x + .8, z + .8).some(c => x > c.min.x - .35 && x < c.max.x + .35 && z > c.min.z - .35 && z < c.max.z + .35 && y + .6 > c.min.y && y + .3 < c.max.y);
   }
@@ -747,7 +801,7 @@ export class Simulation {
     const current = s.weapons[this.bestWeapon(s)], value = botValue(current.id, current.rarity);
     const b = this.actors.get(s.id)?.brain, ignored = (id: string) => (b?.ignore.get(id) ?? -1) > this.time;
     for (const item of this.loot) {
-      if (!item.active || ignored(item.id)) continue;
+      if (!item.active || ignored(item.id) || this.approach(item.id, item) === 'none') continue;
       let want = false;
       if (item.kind === 'weapon') want = !!item.weapon && BOT_WEAPON[item.weapon].tier > 0 && botValue(item.weapon, item.rarity) > value;
       else if (item.kind === 'armor' || item.kind === 'acai') want = s.armor < 100;
@@ -755,12 +809,12 @@ export class Simulation {
       else if (item.kind === 'bandage' || item.kind === 'medkit' || item.kind === 'rapadura') want = this.heals(s) < 4;
       if (!want) continue;
       const d = Math.hypot(item.x - s.pos.x, item.z - s.pos.z);
-      if (d < bd && Math.abs(item.y - s.pos.y) < 5) { bd = d; best = { id: item.id, kind: 'item', pos: { x: item.x, y: item.y, z: item.z } }; }
+      if (d < bd && Math.abs(item.y - s.pos.y) < LEVEL) { bd = d; best = { id: item.id, kind: 'item', pos: { x: item.x, y: item.y, z: item.z } }; }
     }
     if (!dm && (BOT_WEAPON[current.id].tier < 3 || s.armor < 50)) for (const c of this.world.chests) {
-      if (this.openedChests.has(c.id) || ignored(c.id)) continue;
+      if (this.openedChests.has(c.id) || ignored(c.id) || this.approach(c.id, c) === 'none') continue;
       const d = Math.hypot(c.x - s.pos.x, c.z - s.pos.z);
-      if (d < bd && Math.abs(c.y - s.pos.y) < 5) { bd = d; best = { id: c.id, kind: 'chest', pos: { x: c.x, y: c.y, z: c.z } }; }
+      if (d < bd && Math.abs(c.y - s.pos.y) < LEVEL) { bd = d; best = { id: c.id, kind: 'chest', pos: { x: c.x, y: c.y, z: c.z } }; }
     }
     return best;
   }
@@ -781,7 +835,7 @@ export class Simulation {
   }
   // When a wall blocks the straight line, head for the nearest visible corner of
   // that wall segment. Walls are split at openings, so this usually is a doorway.
-  private route(s: ActorState, goal: Vec3): Vec3 | null {
+  private route(s: ActorState, goal: Vec3, avoid: Vec3 | null = null): Vec3 | null {
     const low = { x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, dx = goal.x - s.pos.x, dz = goal.z - s.pos.z, L = Math.hypot(dx, dz);
     if (L < 1.5 || this.grid.ray(low, { x: dx / L, y: 0, z: dz / L }, L) === null) return null;
     const c = this.grid.lastHit;
@@ -790,7 +844,8 @@ export class Simulation {
     let best: Vec3 | null = null, score = Infinity;
     for (const [x, z] of corners) {
       const d = Math.hypot(x - s.pos.x, z - s.pos.z);
-      if (d < 1.2 || !this.walkable(x, z)) continue;
+      // Never send a bot straight back to the corner it just used.
+      if (d < 1.2 || !this.walkable(x, z) || (avoid && Math.hypot(x - avoid.x, z - avoid.z) < 1)) continue;
       const y = Math.max(terrainHeight(x, z), s.pos.y);
       if (this.pointBlocked(x, y, z) || !this.grid.sees(low, { x, y: low.y, z })) continue;
       const sc = d + Math.hypot(goal.x - x, goal.z - z);
@@ -800,7 +855,11 @@ export class Simulation {
   }
   private probe(s: ActorState, angle: number) {
     const dir = { x: -Math.sin(angle), y: 0, z: -Math.cos(angle) };
-    if (this.grid.ray({ x: s.pos.x, y: s.pos.y + .6, z: s.pos.z }, dir, 1.3) !== null) return false;
+    // Three rays as wide as the movement capsule, so corners and door jambs count as blocked.
+    for (const side of [0, -.28, .28]) {
+      const origin = { x: s.pos.x + dir.z * side, y: s.pos.y + .6, z: s.pos.z - dir.x * side };
+      if (this.grid.ray(origin, dir, 1.3) !== null) return false;
+    }
     const x = s.pos.x + dir.x * 1.3, z = s.pos.z + dir.z * 1.3;
     // Shores (and the Correria fence) are walls for bots: never step down toward
     // water, but always allow climbing out of it.
@@ -901,17 +960,38 @@ export class Simulation {
         const px = -(b.lastSeen.z - s.pos.z), pz = b.lastSeen.x - s.pos.x, pl = Math.hypot(px, pz) || 1, k = now - b.lastSeenAt < 2.5 ? 6 * b.flank : 0;
         g = { x: b.lastSeen.x + px / pl * k, y: b.lastSeen.y, z: b.lastSeen.z + pz / pl * k }; run = true; kind = 'chase';
       } else if (now < b.alertUntil && b.hearPos) { g = b.hearPos; kind = 'hear'; }
-      else if (b.loot) { g = b.loot.pos; kind = 'loot'; }
-      else { if (!b.goal) b.goal = this.randomGoal(s); g = b.goal; }
-      if (now >= b.routeAt || !b.routeFor || Math.hypot(b.routeFor.x - g.x, b.routeFor.z - g.z) > 2) {
-        b.routeAt = now + .3; b.routeFor = { ...g }; b.via = this.route(s, g);
+      else if (b.loot) {
+        g = b.loot.pos; kind = 'loot';
+        const door = this.approach(b.loot.id, b.loot.pos);
+        // Walk to the doorway spot first unless the item is already in plain view.
+        if (typeof door === 'object' && Math.hypot(door.x - s.pos.x, door.z - s.pos.z) > 1 &&
+          !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: g.x, y: g.y + .7, z: g.z })) g = door;
       }
-      if (b.via && Math.hypot(b.via.x - s.pos.x, b.via.z - s.pos.z) < 1) b.via = null;
+      else { if (!b.goal) b.goal = this.randomGoal(s); g = b.goal; }
+      // Up on a roof with the goal below: head for the nearest edge and drop off instead of circling.
+      if (g.y < s.pos.y - 1.5 && s.grounded && s.pos.y - terrainHeight(s.pos.x, s.pos.z) > 2.2) {
+        if (!b.drop || Math.hypot(b.drop.x - s.pos.x, b.drop.z - s.pos.z) < .6) b.drop = this.dropPoint(s);
+        if (b.drop) { g = b.drop; run = false; kind = 'goal'; }
+      } else b.drop = null;
+      // Commit to a detour corner until it is reached or lost from sight; re-planning every
+      // few frames made bots flip between the two ends of a wall.
+      const goalMoved = !b.routeFor || Math.hypot(b.routeFor.x - g.x, b.routeFor.z - g.z) > 2;
+      const viaLost = !!b.via && !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: b.via.x, y: s.pos.y + .7, z: b.via.z });
+      if (goalMoved || viaLost || (!b.via && now >= b.routeAt)) {
+        b.routeAt = now + .3; b.routeFor = { ...g }; b.via = this.route(s, g, b.lastVia);
+      }
+      if (b.via && Math.hypot(b.via.x - s.pos.x, b.via.z - s.pos.z) < 1) { b.lastVia = b.via; b.via = null; b.routeAt = now; }
+      // Loot that stays out of reach (behind walls with no door found) is dropped for a while.
+      if (kind === 'loot' && b.loot) {
+        if (b.lootFor !== b.loot.id) { b.lootFor = b.loot.id; b.lootSince = now; }
+        else if (now - b.lootSince > 8) { b.ignore.set(b.loot.id, now + 30); b.loot = null; b.via = null; }
+      }
       const step = b.via || g, dist = Math.hypot(g.x - s.pos.x, g.z - s.pos.z);
       const dx = step.x - s.pos.x, dz = step.z - s.pos.z, stepDist = Math.hypot(dx, dz) || 1;
       if (dist < 1.3) {
         if (kind === 'goal') b.goal = null;
         else if (kind === 'hear') { b.hearPos = null; b.alertUntil = -1; }
+        else if (kind === 'loot' && b.loot && g !== b.loot.pos) b.routeAt = now; // at the doorway: next step is the item
         else if (kind === 'loot' && b.loot) {
           if (Math.abs(g.y - s.pos.y) < 1.6) this.interact(a, b.loot.id);
           b.loot = null; b.lootScanAt = now - .9;
@@ -927,16 +1007,24 @@ export class Simulation {
       if (now >= b.avoidAt) {
         b.avoidAt = now + .15;
         const angle = Math.atan2(-mx, -mz);
-        if (this.probe(s, angle + b.avoidOff * .6)) { if (b.avoidOff && this.probe(s, angle)) b.avoidOff = 0; }
+        // Hold a side-step for at least 0.6 s before straightening, so bots do not wobble along walls.
+        if (this.probe(s, angle + b.avoidOff * .6)) { if (b.avoidOff && now >= b.avoidHold && this.probe(s, angle)) b.avoidOff = 0; }
         else {
           let found = false; const sign = this.random() < .5 ? 1 : -1;
-          for (const o of [1, -1, 2, -2, 3, -3]) if (this.probe(s, angle + o * sign * .6)) { b.avoidOff = o * sign; found = true; break; }
+          for (const o of [1, -1, 2, -2, 3, -3]) if (this.probe(s, angle + o * sign * .6)) { b.avoidOff = o * sign; b.avoidHold = now + .6; found = true; break; }
           if (!found) b.avoidOff = 5;
         }
       }
       if (b.avoidOff) { const angle = Math.atan2(-mx, -mz) + b.avoidOff * .6; mx = -Math.sin(angle) * ml; mz = -Math.cos(angle) * ml; }
       mx /= ml; mz /= ml;
       if (speed >= 5 && Math.abs(angleDiff(Math.atan2(-mx, -mz), face)) < .3) face = Math.atan2(-mx, -mz);
+    }
+    // Pressing into something for a third of a second: try the next side-step right away.
+    const pressing = ml > 0 && !s.using && Math.hypot(s.velocity.x, s.velocity.z) < speed * .3;
+    b.pressT = pressing ? b.pressT + dt : 0;
+    if (b.pressT > .35) {
+      const order = [1, -1, 2, -2, 3, -3], next = order[(order.indexOf(b.avoidOff) + 1) % order.length];
+      b.avoidOff = next; b.avoidAt = now + .5; b.pressT = 0; b.via = null;
     }
     // The 1 s stuck window only runs while the bot is trying to walk somewhere.
     if (ml === 0 || b.stuckAt < 0) { b.stuckAt = now; b.lastPos = { ...s.pos }; }
@@ -946,11 +1034,17 @@ export class Simulation {
         if (b.loot) { b.ignore.set(b.loot.id, now + 30); b.loot = null; }
         b.via = null;
         if (b.mode === 'cover') b.coverUntil = now;
-        if (s.grounded) jump = true;
+        // Hop only over a genuinely low ledge; jumping at walls looks broken.
+        const ahead = { x: -Math.sin(s.yaw), y: 0, z: -Math.cos(s.yaw) };
+        if (s.grounded && this.grid.ray({ x: s.pos.x, y: s.pos.y + .3, z: s.pos.z }, ahead, 1) !== null &&
+          this.grid.ray({ x: s.pos.x, y: s.pos.y + 1.1, z: s.pos.z }, ahead, 1.2) === null) jump = true;
       }
       b.lastPos = { ...s.pos }; b.stuckAt = now;
     }
-    const yaw = s.yaw + clamp(angleDiff(s.yaw, face), -9 * dt, 9 * dt);
+    // Out of combat the heading eases toward where the bot wants to face; in a fight it tracks the target directly.
+    if (!Number.isFinite(b.face)) b.face = s.yaw;
+    b.face = fighting ? face : b.face + angleDiff(b.face, face) * (1 - Math.exp(-10 * dt));
+    const yaw = s.yaw + clamp(angleDiff(s.yaw, b.face), -9 * dt, 9 * dt);
     // Turn world-space movement into this frame's local input.
     const sprint = speed >= 5 && !crouch, scale = sprint ? 1 : Math.min(1, speed / 3.9);
     const inp: InputFrame = a.input = { ...emptyInput(), seq: this.tick, clientTime: now, yaw, pitch: clamp(pitch, -1.2, 1.2), crouch, jump, sprint };
