@@ -3,6 +3,7 @@ import { releaseAfterUpload } from './memory';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { terrainHeight } from '../shared/terrain';
+import { textSignMaterial } from './signage';
 import type { WorldSpec } from '../shared/types';
 
 // All small architecture and furniture is built once and merged by 32m cell.
@@ -834,7 +835,7 @@ export function buildProps(world: WorldSpec): { group: THREE.Group; dispose(): v
       context.fillText(theme.name, x + 256, y + 39, 476);
     }
     const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-    const signMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+    const signMaterial = textSignMaterial(texture);
     disposables.push(texture, signMaterial);
     for (const geometries of signs.values()) {
       const merged = mergeGeometries(geometries, false);
