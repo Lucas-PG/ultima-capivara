@@ -313,11 +313,30 @@ export class WorldScene {
     this.smallWaterNormals = waterNormalTexture(); this.smallWaterNormals.repeat.set(3, 5);
     this.disposables.push(this.smallWaterNormals);
 
-    const buckets = new Map<string, { surface: Surface; parts: THREE.BufferGeometry[] }>();
+    const surfaceBindings = new Map<Surface, { material: THREE.MeshStandardMaterial; id: number; cast: boolean; receive: boolean }>();
+    const materialVariants = new Map<string, { material: THREE.MeshStandardMaterial; id: number; cast: boolean; receive: boolean }>();
+    const buckets = new Map<string, { binding: { material: THREE.MeshStandardMaterial; cast: boolean; receive: boolean }; parts: THREE.BufferGeometry[] }>();
     const stash = (surface: Surface, geometry: THREE.BufferGeometry, x: number, z: number) => {
       // 64 m cells: few enough draw calls from the plane, still culled on the ground.
-      const key = `${surface}:${Math.floor(x / 64)}:${Math.floor(z / 64)}`;
-      const bucket = buckets.get(key) || { surface, parts: [] };
+      let binding = surfaceBindings.get(surface);
+      if (!binding) {
+        const candidate = materialFor(surface);
+        const cast = surface !== 'leaf' && surface !== 'earth' && surface !== 'sand' && surface !== 'road';
+        const receive = surface !== 'leaf';
+        const signature = [candidate.map?.uuid, candidate.normalMap?.uuid, candidate.roughnessMap?.uuid,
+          candidate.normalScale.x, candidate.normalScale.y, candidate.roughness, candidate.metalness,
+          candidate.side, candidate.customProgramCacheKey(), cast, receive].join(':');
+        binding = materialVariants.get(signature);
+        if (binding) candidate.dispose();
+        else {
+          binding = { material: candidate, id: materialVariants.size, cast, receive };
+          materialVariants.set(signature, binding);
+          this.disposables.push(candidate);
+        }
+        surfaceBindings.set(surface, binding);
+      }
+      const key = `${binding.id}:${Math.floor(x / 64)}:${Math.floor(z / 64)}`;
+      const bucket = buckets.get(key) || { binding, parts: [] };
       bucket.parts.push(geometry); buckets.set(key, bucket);
     };
     const colliderMaterials = new Map(world.colliders.map(collider => [collider.id, collider.material]));
@@ -548,17 +567,14 @@ export class WorldScene {
         this.disposables.push(glazing, glassMaterial);
       }
     }
-    const materialCache = new Map<Surface, THREE.MeshStandardMaterial>();
-    for (const { surface, parts } of buckets.values()) {
+    for (const { binding, parts } of buckets.values()) {
       const merged = mergeGeometries(parts, false);
       parts.forEach(g => g.dispose());
       if (!merged) continue;
       merged.computeBoundingSphere(); releaseAfterUpload(merged);
-      let material = materialCache.get(surface);
-      if (!material) { material = materialFor(surface); materialCache.set(surface, material); this.disposables.push(material); }
-      const mesh = new THREE.Mesh(merged, material);
-      mesh.castShadow = surface !== 'leaf' && surface !== 'earth' && surface !== 'sand' && surface !== 'road';
-      mesh.receiveShadow = surface !== 'leaf';
+      const mesh = new THREE.Mesh(merged, binding.material);
+      mesh.castShadow = binding.cast;
+      mesh.receiveShadow = binding.receive;
       this.group.add(mesh); this.disposables.push(merged);
     }
     buckets.clear();
