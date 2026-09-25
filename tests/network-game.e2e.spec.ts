@@ -25,6 +25,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
   test.setTimeout(180_000);
   const contexts = await Promise.all([browser.newContext({ viewport: { width: 1280, height: 720 } }), browser.newContext({ viewport: { width: 1280, height: 720 } })]);
   const errors: string[] = [];
+  const closeProgress: unknown[] = [];
   try {
     for (const context of contexts) await context.addInitScript(() => {
       if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
@@ -86,6 +87,23 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     expect((await inspect(host)).room.players).toHaveLength(2);
     expect((await player(guest)).weapons[0].ammo).toBe(ammo - 1);
     expect(Math.hypot((await player(guest)).pos.x - position.x, (await player(guest)).pos.z - position.z)).toBeLessThan(.15);
+    // State recovery precedes renderer preparation. As at initial join, wait for a
+    // playable guest before testing another interaction rather than racing shader work.
+    await expect.poll(async () => (await inspect(guest)).snapshot?.phase, { timeout: 60_000 }).toBe('playing');
+    await expect(guest.locator('#loadingOverlay:not(.out)')).toHaveCount(0, { timeout: 60_000 });
+    await guest.exposeFunction('__networkCloseProgress', (sample: unknown) => {
+      closeProgress.push({ receivedAt: Date.now(), sample });
+      if (closeProgress.length > 24) closeProgress.shift();
+    });
+    await guest.evaluate(() => {
+      // Test-only heartbeat distinguishes a stalled page from a live reconnect loop.
+      const w = window as any;
+      const timer = setInterval(() => {
+        const state = w.__capivara.inspect();
+        void w.__networkCloseProgress({ at: performance.now(), room: !!state.room, status: state.network.status });
+        if (!state.room) clearInterval(timer);
+      }, 250);
+    });
     const evidence = { guestId, rtt, recoveryMs, movementReplicationErrorLimitM: .15,
       interpolationDelayMs: (await inspect(guest)).network.interpolationDelayMs, errors };
     await info.attach('multiplayer-evidence', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
@@ -96,7 +114,10 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await host.locator('dialog #exit').click();
     await expect.poll(async () => (await inspect(guest)).room).toBeNull();
     await expect(guest.locator('#toast')).toContainText('O anfitrião fechou a sala.');
-  } finally { await Promise.all(contexts.map(context => context.close())); }
+  } finally {
+    await info.attach('host-close-progress', { body: JSON.stringify(closeProgress, null, 2), contentType: 'application/json' });
+    await Promise.all(contexts.map(context => context.close()));
+  }
 });
 
 test('a silent room exposes the join timeout and its retry button recovers', async ({ browser }, info) => {

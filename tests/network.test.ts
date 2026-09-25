@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { EventEmitter } from 'node:events';
 import { DEFAULT_CONFIG, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type WorldSnapshot } from '../src/shared/types';
 import { decodeFastFrame, encodeFastFrame, fastPart, gearPart, MAX_COMPRESSED_FRAME_BYTES, MAX_FRAME_BYTES, packet, parseWire, rebuildFrame, worldPart } from '../src/network/codec';
 import { RoomSession, validAction, validConfig, validInput } from '../src/network/session';
@@ -184,6 +185,88 @@ describe('connection recovery and latency', () => {
     const session = new RoomSession(callbacks);
     return { session, runtime: session as any, callbacks };
   }
+
+  function connection() {
+    const conn = Object.assign(new EventEmitter(), { open: true, peer: 'cap2-ABCDEF', send: vi.fn(), close: vi.fn() });
+    conn.close.mockImplementation(() => { if (conn.open) { conn.open = false; conn.emit('close'); } });
+    return conn;
+  }
+
+  it('waits for each guest to receive host closure, without closing a replacement room', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, runtime } = makeSession();
+      const oldPeer = { destroy: vi.fn() }, nextPeer = { destroy: vi.fn() };
+      const one = connection(), two = connection();
+      runtime.peer = oldPeer; runtime.roomValue = { isHost: true };
+      runtime.guests.set('one', { conn: one }); runtime.guests.set('two', { conn: two });
+      session.leave();
+      expect(session.state).toBeNull();
+      expect(one.send).toHaveBeenCalledWith(packet('closed', { reason: 'O anfitrião fechou a sala.' }));
+      runtime.peer = nextPeer; runtime.roomValue = { isHost: true, code: 'NEWNEW' }; runtime.closing = false;
+      await vi.advanceTimersByTimeAsync(600);
+      // Delayed reliable delivery beyond the old 250 ms cutoff must remain possible.
+      expect(one.open).toBe(true); expect(two.open).toBe(true); expect(oldPeer.destroy).not.toHaveBeenCalled();
+      one.emit('data', packet('closed-ack'));
+      expect(oldPeer.destroy).not.toHaveBeenCalled();
+      two.close(); // Older guests close themselves on receipt without an explicit ack.
+      expect(oldPeer.destroy).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(nextPeer.destroy).not.toHaveBeenCalled(); expect(session.state?.code).toBe('NEWNEW');
+      expect(one.listenerCount('data')).toBe(0); expect(two.listenerCount('close')).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('caps host close acknowledgment waits when a guest does not respond', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, runtime } = makeSession();
+      const peer = { destroy: vi.fn() }, conn = connection();
+      runtime.peer = peer; runtime.roomValue = { isHost: true }; runtime.guests.set('guest', { conn });
+      session.leave();
+      await vi.advanceTimersByTimeAsync(999); expect(peer.destroy).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1); expect(peer.destroy).toHaveBeenCalledOnce();
+      expect(conn.open).toBe(false); expect(conn.listenerCount('data')).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each(['peer-unavailable', 'network'] as const)('probes after a lost closed packet and transport drop: %s', async errorType => {
+    vi.useFakeTimers();
+    try {
+      const { session, runtime, callbacks } = makeSession();
+      const connections: ReturnType<typeof connection>[] = [];
+      const peer = Object.assign(new EventEmitter(), { destroyed: false, disconnected: false, destroy: vi.fn(),
+        connect: vi.fn(() => { const conn = connection(); connections.push(conn); return conn; }) });
+      runtime.peer = peer; runtime.watchGuestPeer(peer);
+      const profile = { name: 'Guest', color: PLAYER_COLORS[0] };
+      const room = { code: 'ABCDEF', hostId: 'host', myId: 'host', isHost: true, phase: 'playing', config: DEFAULT_CONFIG,
+        players: [{ ...profile, id: 'host', ready: true, connected: true }, { ...profile, id: 'guest', ready: true, connected: true }] };
+      const welcome = packet('welcome', { room, id: 'guest', token: 'a'.repeat(48), resumed: true });
+      const joined = runtime.connectGuest('ABCDEF', profile);
+      connections[0].emit('data', welcome); await joined;
+      // No closed control packet arrives. The actual connection close starts recovery.
+      connections[0].close();
+      expect(session.connectionStatus).toBe('reconnecting');
+      await vi.advanceTimersByTimeAsync(500); expect(peer.connect).toHaveBeenCalledTimes(2);
+      peer.emit('error', Object.assign(new Error(errorType), { type: errorType }));
+      await vi.advanceTimersByTimeAsync(0);
+      if (errorType === 'peer-unavailable') {
+        expect(session.state).toBeNull(); expect(session.connectionStatus).toBe('closed');
+        expect(callbacks.closed).toHaveBeenCalledExactlyOnceWith('O anfitrião fechou a sala.');
+        await vi.advanceTimersByTimeAsync(30_000); expect(peer.connect).toHaveBeenCalledTimes(2);
+      } else {
+        expect(session.state?.myId).toBe('guest'); expect(callbacks.closed).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1_000); expect(peer.connect).toHaveBeenCalledTimes(3);
+        connections[2].emit('data', welcome); await vi.advanceTimersByTimeAsync(0);
+        expect(session.connectionStatus).toBe('connected'); expect(session.state?.myId).toBe('guest');
+        await vi.advanceTimersByTimeAsync(30_000); expect(callbacks.closed).not.toHaveBeenCalled();
+        session.leave();
+      }
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
 
   it('measures each guest independently, ignores unsolicited pongs and shares the RTT table', () => {
     const { session, runtime } = makeSession();
