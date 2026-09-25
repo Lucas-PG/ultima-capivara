@@ -378,7 +378,7 @@ export class EffectsView {
       cloud.pos.set(pos.x + Math.cos(angle) * .3, pos.y + .45 + (i % 3) * .45, pos.z + Math.sin(angle) * .3);
       cloud.cell = CELL.puff; cloud.life = rand(.55, .7); cloud.fadeOut = .45; cloud.pop = true; cloud.rot = rand(-.5, .5);
       cloud.vel.set(Math.cos(angle) * 1.4, rand(.3, .8), Math.sin(angle) * 1.4); cloud.drag = 3.2;
-      cloud.size0 = .55; cloud.size1 = .85; cloud.minPx = 10;
+      cloud.size0 = .55; cloud.size1 = .85; cloud.minPx = 20;
       cloud.color.copy(this.color.cloud); cloud.light.copy(this.color.cloudLight);
     }
     const floor = this.groundAt(pos.x, pos.z, pos.y + .5) + .05;
@@ -387,13 +387,13 @@ export class EffectsView {
       star.pos.set(pos.x, pos.y + 1.2, pos.z); star.cell = CELL.star; star.life = rand(.6, .8); star.fadeOut = .3;
       star.vel.set(rand(-2.4, 2.4), rand(3, 4.5), rand(-2.4, 2.4)); star.gravity = 9; star.spin = rand(-7, 7);
       star.floor = floor; star.bounce = .35;
-      star.size0 = .2; star.size1 = .16; star.minPx = 6; star.color.copy(this.color.gold); star.light.copy(this.color.goldLight);
+      star.size0 = .2; star.size1 = .16; star.minPx = 10; star.color.copy(this.color.gold); star.light.copy(this.color.goldLight);
     }
     for (let i = 0; i < 3; i++) {
       const dizzy = this.cards.spawn();
       dizzy.center.set(pos.x, pos.y + 1.75, pos.z); dizzy.motion = Motion.Orbit; dizzy.radius = .32;
       dizzy.rot = i / 3 * Math.PI * 2; dizzy.spin = 7; dizzy.life = 1.1; dizzy.fadeIn = .15; dizzy.fadeOut = .3;
-      dizzy.cell = CELL.star; dizzy.size0 = dizzy.size1 = .14; dizzy.minPx = 5;
+      dizzy.cell = CELL.star; dizzy.size0 = dizzy.size1 = .14; dizzy.minPx = 9;
       dizzy.color.copy(this.color.gold); dizzy.light.copy(this.color.goldLight);
     }
   }
