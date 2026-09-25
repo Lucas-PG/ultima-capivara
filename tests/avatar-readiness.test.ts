@@ -10,7 +10,7 @@ vi.mock('../src/render/thumbnails', () => ({ loadWeaponThumbnails: vi.fn().mockR
 vi.mock('../src/render/weapons', () => ({ WeaponView: vi.fn() }));
 
 beforeAll(() => {
-  const context = { roundRect() {}, fill() {}, stroke() {}, fillText() {} };
+  const context = { measureText: () => ({ width: 160 }), scale() {}, strokeText() {}, fillText() {}, beginPath() {}, arc() {}, fill() {} };
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
 });
 afterAll(() => vi.unstubAllGlobals());

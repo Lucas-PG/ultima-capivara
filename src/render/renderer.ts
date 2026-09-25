@@ -4,6 +4,7 @@ import { instrumentGpu, instrumentMaterials } from './timing-gpu';
 import { PaintedSky } from './sky';
 import { PAINT } from './materials';
 import { StormView } from './storm';
+import { preloadNameplateFont } from './nameplates';
 import { disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec } from '../shared/types';
@@ -96,7 +97,7 @@ export class GameRenderer {
     this.scene.fog = new THREE.Fog(PAINT.fog, 110, 460);
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
-    this.avatars = new AvatarView(this.scene, this.camera);
+    this.avatars = new AvatarView(this.scene, this.camera, world);
     this.cameraRig = new CameraRig(this.camera, world, settings, this.avatars);
     this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.15));
     this.scene.add(this.interiorLight);
@@ -237,6 +238,7 @@ export class GameRenderer {
       await this.weaponView.assets;
       this.requireActive();
       await preloadCapybaraAsset(url => this.assets.gltf(url));
+      await preloadNameplateFont();
       this.requireActive();
       await this.assets.ready();
       this.requireActive();
@@ -339,7 +341,7 @@ export class GameRenderer {
     const width = Math.max(1, canvas.clientWidth || window.innerWidth), height = Math.max(1, canvas.clientHeight || window.innerHeight);
     if (width === this.lastSize.width && height === this.lastSize.height) return;
     this.lastSize = { width, height }; this.gl.setSize(width, height, false); this.pipeline.resize();
-    this.camera.aspect = width / height; this.camera.updateProjectionMatrix(); this.weaponView.resize(width, height);
+    this.camera.aspect = width / height; this.camera.updateProjectionMatrix(); this.weaponView.resize(width, height); this.avatars.resize(width, height);
   }
 
   setSettings(settings: Settings): void {

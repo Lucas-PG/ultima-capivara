@@ -4,25 +4,15 @@ import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody } from 
 import { itemGeometry, itemMaterial } from './item-geometry';
 import { addEllipsoid } from './primitives';
 import { WEAPONS } from '../shared/weapons';
-import type { ActorState, RenderFrame, WeaponId } from '../shared/types';
+import { Nameplate, nameplateFontSize, nameplateHit, stackNameplate } from './nameplates';
+import type { ActorState, RenderFrame, WeaponId, WorldSpec } from '../shared/types';
 
 export const BOT_COLOR = '#ae825e';
 interface Avatar {
   color: string; name: string;
   group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
-  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; initialized: boolean;
+  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean;
 }
-function nameSprite(name: string): THREE.Sprite {
-  const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = 'rgba(35,39,36,.63)'; ctx.roundRect(6, 7, 500, 82, 26); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,238,194,.6)'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.fillStyle = '#f8ebcc'; ctx.font = 'bold 39px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(name.slice(0, 22), 256, 48);
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false }));
-  sprite.scale.set(2.1, .39, 1); sprite.position.y = 2.03; return sprite;
-}
-
 export function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
   const { body, bones } = buildCapybaraBody(color);
@@ -44,8 +34,8 @@ export function avatar(color: string, name: string): Avatar {
     const start = new THREE.Vector3(x, 3.65, z), end = new THREE.Vector3(x * .15, 1.25, z * .15);
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
   }
-  const label = nameSprite(name); label.position.y = 2.2; group.add(label);
-  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, initialized: false };
+  const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
+  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false };
 }
 
 export class AvatarView {
@@ -55,7 +45,13 @@ export class AvatarView {
   private readonly weapons = new Map<WeaponId | null, THREE.BufferGeometry>();
   private readonly target = new THREE.Vector3();
   private cameraBlend = 0;
-  constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.PerspectiveCamera) {
+  private width = 1;
+  private height = 1;
+  private readonly forward = new THREE.Vector3();
+  private readonly up = new THREE.Vector3();
+  private readonly packed: Nameplate[] = [];
+  resize(width: number, height: number) { this.width = Math.max(1, width); this.height = Math.max(1, height); }
+  constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.PerspectiveCamera, private readonly world?: WorldSpec) {
     this.weapons.set(null, new THREE.BufferGeometry());
     for (const id of Object.keys(WEAPONS) as WeaponId[]) {
       const geometry = itemGeometry('weapon', id); this.weapons.set(id, geometry);
@@ -75,7 +71,7 @@ export class AvatarView {
   }
 
   private removeAvatar(id: string, visual: Avatar) {
-    this.scene.remove(visual.group); this.visuals.delete(id);
+    this.scene.remove(visual.group); this.visuals.delete(id); this.packed.length = 0;
     this.ordered.splice(this.ordered.indexOf(visual), 1);
     // Body geometry/material and held weapon geometries are shared caches.
     // The v3 skeleton disposer also releases its private mixer and LOD rigs.
@@ -100,9 +96,12 @@ export class AvatarView {
   update(frame: RenderFrame, cameraBlend: number, elapsed: number) {
     this.cameraBlend = cameraBlend;
     const actors = frame.snapshot?.actors;
-    for (const visual of this.ordered) visual.group.visible = false;
+    for (const visual of this.ordered) { visual.group.visible = false; visual.targetable = false; }
     if (!actors) return;
     const viewed = frame.spectateId || frame.playerId;
+    this.camera.updateMatrixWorld(); this.camera.getWorldDirection(this.forward);
+    this.up.setFromMatrixColumn(this.camera.matrixWorld, 1);
+    let aimed: Avatar | null = null, nearest = Infinity;
     for (const actor of actors) {
       const visual = this.ensureAvatar(actor);
       // Everyone still in the plane rides inside it; the viewed capivara stays
@@ -119,7 +118,6 @@ export class AvatarView {
       visual.bones[CAPY_BONES.armor].scale.setScalar(actor.armor > 0 ? 1 : .0001);
       visual.bones[CAPY_BONES.helmet].scale.setScalar(actor.helmet > 0 ? 1 : .0001);
       visual.chute.visible = actor.stage === 'parachute';
-      visual.label.visible = actor.alive && actor.id !== viewed && visual.group.position.distanceToSquared(this.camera.position) < 24 * 24;
       this.poseAvatar(visual, actor, frame.dt);
       const held = actor.weapons[actor.slot]?.id || null;
       if (held !== visual.weaponId) {
@@ -127,6 +125,45 @@ export class AvatarView {
         visual.weaponId = held;
       }
       visual.weapon.visible = actor.stage === 'ground' && !!held;
+      const plate = visual.plate, scale = visual.group.scale.y;
+      plate.head.copy(visual.group.position);
+      plate.head.x -= Math.sin(actor.yaw) * .04 * scale;
+      plate.head.y += 1.6 * scale; plate.head.z -= Math.cos(actor.yaw) * .04 * scale;
+      plate.distance = plate.head.distanceTo(this.camera.position);
+      visual.targetable = actor.alive && actor.id !== viewed && actor.stage === 'ground' && plate.distance <= 60;
+      if (visual.targetable) {
+        const hit = nameplateHit(this.camera.position, this.forward, actor, visual.group.position);
+        if (hit < nearest && plate.canSee(this.camera, this.world, elapsed)) { nearest = hit; aimed = visual; }
+      }
+    }
+    let packedCount = 0;
+    for (const visual of this.ordered) {
+      const plate = visual.plate, label = visual.label;
+      const visible = visual.targetable && plate.distance > 1.5 &&
+        (visual === aimed || plate.visibility.opacity > 0) && plate.canSee(this.camera, this.world, elapsed);
+      const opacity = plate.visibility.update(visual === aimed, visible, frame.dt);
+      label.material.opacity = opacity * THREE.MathUtils.clamp((plate.distance - 1.5) / .5, 0, 1);
+      label.visible = visual.group.visible && label.material.opacity > 0;
+      if (!label.visible) continue;
+      const scale = visual.group.scale.y, fontScale = nameplateFontSize(this.height, plate.distance) / 14;
+      const pixelsToUnits = 2 / (this.height * this.camera.projectionMatrix.elements[5]);
+      label.scale.set(plate.width * fontScale * pixelsToUnits / scale, plate.height * fontScale * pixelsToUnits / scale, 1);
+      label.position.set(0, 1.85 + .35 / scale, 0);
+      plate.projected.copy(visual.group.position); plate.projected.y += 1.85 * scale + .35;
+      const m = this.camera.matrixWorldInverse.elements;
+      const depth = -(m[2] * plate.projected.x + m[6] * plate.projected.y + m[10] * plate.projected.z + m[14]);
+      plate.projected.project(this.camera);
+      if (depth <= 0 || plate.projected.z > 1) { label.visible = false; continue; }
+      plate.bounds.width = plate.width * fontScale; plate.bounds.height = plate.height * fontScale;
+      plate.bounds.x = (plate.projected.x + 1) * .5 * this.width - plate.bounds.width / 2;
+      plate.bounds.y = (1 - plate.projected.y) * .5 * this.height - plate.bounds.height;
+      const shift = stackNameplate(plate, this.packed, packedCount);
+      const lift = shift * pixelsToUnits * depth / scale;
+      const cos = Math.cos(visual.group.rotation.y), sin = Math.sin(visual.group.rotation.y);
+      label.position.x += (cos * this.up.x - sin * this.up.z) * lift;
+      label.position.y += this.up.y * lift;
+      label.position.z += (sin * this.up.x + cos * this.up.z) * lift;
+      this.packed[packedCount++] = plate;
     }
   }
 
