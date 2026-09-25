@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -355,7 +355,9 @@ export class GameUI {
       for (let i = 0; i < 70; i++) { const bit = document.createElement('i'); bit.style.left = `${Math.random() * 100}%`; bit.style.background = colors[i % colors.length]; bit.style.animationDuration = `${2.2 + Math.random() * 2}s`; bit.style.animationDelay = `${Math.random() * 1.6}s`; bit.style.rotate = `${Math.random() * 180}deg`; confetti.appendChild(bit); }
       layer.querySelector('#flash')!.classList.add('on');
     }
-    window.setTimeout(() => { const panel = layer.querySelector<HTMLElement>('#vpanel'); panel?.classList.add('show'); panel?.querySelector<HTMLElement>('.button')?.focus({ preventScroll: true }); }, this.reducedMotion() ? 300 : 2200);
+    // Quality bar: nothing may block input for more than 400 ms. The panel slides in under the stamp while it plays,
+    // and its actions are focusable and clickable from 300 ms on.
+    window.setTimeout(() => { const panel = layer.querySelector<HTMLElement>('#vpanel'); panel?.classList.add('show'); panel?.querySelector<HTMLElement>('.button')?.focus({ preventScroll: true }); }, RESULTS_ACTIONS_DELAY);
   }
   // Paused mid-match: the first version's comic menu over the frozen island, with the quick settings inline.
   setPaused(paused: boolean) {

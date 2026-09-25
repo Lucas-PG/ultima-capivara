@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -108,5 +108,15 @@ describe('deploy base', () => {
   });
   it('has no origin-root asset URLs left in the stylesheet', () => {
     expect(readFileSync('src/ui/style.css', 'utf8')).not.toMatch(/url\(\s*['"]?\/(?!\/)/);
+  });
+});
+
+describe('results screen', () => {
+  // Sentinela: the rematch and menu actions were unreachable for 2.2 s behind the victory stamp.
+  it('makes the actions reachable within the 400 ms input budget', () => {
+    expect(RESULTS_ACTIONS_DELAY).toBeLessThanOrEqual(400);
+    const css = readFileSync('src/ui/style.css', 'utf8');
+    const panel = css.match(/#victory \.vpanel\{[^}]*transition:([^;}]*)/)?.[1] || '';
+    for (const ms of [...panel.matchAll(/(\d*\.?\d+)s/g)].map(m => Number(m[1]) * 1000)) expect(RESULTS_ACTIONS_DELAY + ms).toBeLessThanOrEqual(700);
   });
 });

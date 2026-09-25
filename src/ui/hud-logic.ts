@@ -63,3 +63,6 @@ export const ELIMINATED_ACTIONS = [
   { do: 'spectate', label: 'Assistir a próxima capivara', primary: true },
   { do: 'leave', label: 'Voltar ao menu', primary: false },
 ] as const;
+
+// Results: the rematch/menu actions become visible and clickable this soon after the match ends (quality bar: at most 400 ms).
+export const RESULTS_ACTIONS_DELAY = 300;
