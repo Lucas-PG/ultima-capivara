@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { NodeIO, type Document } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { ALL_EXTENSIONS, type Specular } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { AnimationMixer, Matrix4, SkinnedMesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { readFile } from 'node:fs/promises';
+import { inflateSync } from 'node:zlib';
 
 let asset: Document;
 beforeAll(async () => {
@@ -12,6 +13,32 @@ beforeAll(async () => {
 });
 
 describe('shipped capybara asset contract', () => {
+  it('keeps specular alpha off fur and the mouth, with soft reflection only on eyes and nose', () => {
+    const texture = asset.getRoot().listMaterials()[0].getExtension<Specular>('KHR_materials_specular')?.getSpecularTexture();
+    expect(texture).toBeDefined();
+    const png = Buffer.from(texture!.getImage()!);
+    expect(png.readUInt32BE(16)).toBe(16);
+    expect(png[24]).toBe(8); expect(png[25]).toBe(6); // RGBA, not an RGB mask with implicit alpha 1.
+    const chunks: Buffer[] = [];
+    for (let at = 8; at < png.length;) {
+      const length = png.readUInt32BE(at);
+      if (png.toString('ascii', at + 4, at + 8) === 'IDAT') chunks.push(png.subarray(at + 8, at + 8 + length));
+      at += length + 12;
+    }
+    const data = inflateSync(Buffer.concat(chunks)), filter = data[0], row = Uint8Array.from(data.subarray(1, 65));
+    // The atlas repeats every row. On row zero, Up is zero and Paeth equals Left.
+    expect(filter).toBeLessThanOrEqual(4);
+    for (let i = 0; i < row.length; i++) {
+      const left = i < 4 ? 0 : row[i - 4];
+      row[i] = (row[i] + (filter === 1 || filter === 4 ? left : filter === 3 ? Math.floor(left / 2) : 0)) & 255;
+    }
+    for (let column = 0; column < 16; column++) {
+      const alpha = row[column * 4 + 3];
+      if (column === 9 || column === 15) { expect(alpha).toBeGreaterThan(30); expect(alpha).toBeLessThan(128); }
+      else expect(alpha, `matte atlas column ${column}`).toBe(0);
+    }
+  });
+
   it('stays within the triangle, material and texture budgets with a single skin', async () => {
     const root = asset.getRoot();
     expect(root.listMeshes()).toHaveLength(3);
@@ -34,6 +61,9 @@ describe('shipped capybara asset contract', () => {
     const bytes = await readFile('public/models/capybara/capybara.glb');
     const json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
     expect(json.extensionsRequired).toContain('EXT_meshopt_compression');
+    // Uniform specular turned the dark mouth into a bright rim. Keep the authored
+    // nose/eye mask in the shipped asset so fur and the cavity remain matte.
+    expect(json.materials[0].extensions?.KHR_materials_specular?.specularTexture).toBeDefined();
   });
 
   it('fits the normal standing hit shapes in every decoded LOD, except weapon arms', () => {
@@ -79,7 +109,7 @@ describe('shipped capybara asset contract', () => {
     expect(Array.from(scale.getArray()!).some(value => value < .1)).toBe(true);
   });
 
-  it('keeps facial motion inside the head hitbox, including ears and mouth extremes', async () => {
+  it('keeps faces and locomotion inside the head hitbox, including ears and mouth extremes', async () => {
     const bytes = await readFile('public/models/capybara/capybara.glb');
     // Image decoding is unnecessary for CPU skinning; the real exported meshes,
     // skeleton, quantization and animation tracks are used without a GPU.
@@ -93,7 +123,7 @@ describe('shipped capybara asset contract', () => {
     gltf.scene.traverse(object => { if (object instanceof SkinnedMesh) meshes.push(object); });
     const mixer = new AnimationMixer(gltf.scene), vertex = new Vector3();
     const expressions = ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'];
-    for (const name of [...expressions.map(name => `face_${name}`), 'idle']) {
+    for (const name of [...expressions.map(name => `face_${name}`), 'idle', 'run', 'jump']) {
       const clip = gltf.animations.find(clip => clip.name === name)!;
       expect(clip, name).toBeDefined();
       mixer.stopAllAction(); mixer.clipAction(clip).play();
@@ -107,7 +137,7 @@ describe('shipped capybara asset contract', () => {
             let headWeight = 0;
             for (let j = 0; j < 4; j++) {
               const joint = mesh.skeleton.bones[indices.getComponent(i, j)];
-              if (/^(head|jaw|ear_|blink_|glint_|brow_|mouth_)/.test(joint.name)) headWeight += weights.getComponent(i, j);
+              if (/^(head|jaw|ear_|blink_|socket_|glint_|brow_|mouth_)/.test(joint.name)) headWeight += weights.getComponent(i, j);
             }
             if (headWeight < .5) continue;
             mesh.getVertexPosition(i, vertex); vertex.applyMatrix4(mesh.matrixWorld);

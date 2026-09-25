@@ -3,7 +3,8 @@ import { timing } from './timing';
 import { instrumentGpu, instrumentMaterials } from './timing-gpu';
 import { PaintedSky } from './sky';
 import { PAINT } from './materials';
-import { capybaraV3Enabled, disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
+import { preloadNameplateFont } from './nameplates';
+import { disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec, type ZoneState } from '../shared/types';
 import { AssetLoader } from './assets';
@@ -85,9 +86,9 @@ export class GameRenderer {
       ...ASSET_MANIFEST.filter(asset => !asset.path.startsWith('models/service-pistol/') && !asset.path.startsWith('models/m700/')),
       { path: 'models/weapons/painted-weapons.glb', kind: 'glb', bytes: weaponMetrics.bytes, label: 'Armas da ilha' },
     ] : ASSET_MANIFEST;
-    const manifest: readonly AssetEntry[] = capybaraV3Enabled() ? [...weaponManifest, {
+    const manifest: readonly AssetEntry[] = [...weaponManifest, {
       path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
-    }] : weaponManifest;
+    }];
     this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
     this.weaponView = new WeaponView(this.assets, () => { if (!this.disposed) onAssetsReady(); });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -104,7 +105,7 @@ export class GameRenderer {
     this.scene.fog = new THREE.Fog(PAINT.fog, 110, 460);
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
-    this.avatars = new AvatarView(this.scene, this.camera);
+    this.avatars = new AvatarView(this.scene, this.camera, world);
     this.cameraRig = new CameraRig(this.camera, world, settings, this.avatars);
     this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.15));
     this.scene.add(this.interiorLight);
@@ -262,6 +263,7 @@ export class GameRenderer {
       await this.weaponView.assets;
       this.requireActive();
       await preloadCapybaraAsset(url => this.assets.gltf(url));
+      await preloadNameplateFont();
       this.requireActive();
       await this.assets.ready();
       this.requireActive();
@@ -366,7 +368,7 @@ export class GameRenderer {
     const width = Math.max(1, canvas.clientWidth || window.innerWidth), height = Math.max(1, canvas.clientHeight || window.innerHeight);
     if (width === this.lastSize.width && height === this.lastSize.height) return;
     this.lastSize = { width, height }; this.gl.setSize(width, height, false); this.pipeline.resize();
-    this.camera.aspect = width / height; this.camera.updateProjectionMatrix(); this.weaponView.resize(width, height);
+    this.camera.aspect = width / height; this.camera.updateProjectionMatrix(); this.weaponView.resize(width, height); this.avatars.resize(width, height);
   }
 
   setSettings(settings: Settings): void {

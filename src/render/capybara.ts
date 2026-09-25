@@ -3,9 +3,6 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { ActorState } from '../shared/types';
-import { releaseAfterUpload } from './memory';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import palette from './capybara-palette.json';
 import { applyCharacterStyle } from './materials';
 
@@ -21,161 +18,13 @@ const PIVOT = {
 // Where the held weapon sits, in the arms bone's local space.
 export const WEAPON_MOUNT = new THREE.Vector3(.1, -.12, -.36);
 
-// All capybaras share one vertex-coloured material (one program, one upload).
-let sharedMaterial: THREE.MeshStandardMaterial | null = null;
-const capybaraMaterial = () => {
-  if (!sharedMaterial) {
-    sharedMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .78, metalness: 0 });
-    sharedMaterial.addEventListener('dispose', () => { sharedMaterial = null; });
-  }
-  return sharedMaterial;
-};
-
-// Geometry is built once per bandana colour and shared by every capybara wearing it
-// (all bots share one); each avatar only owns its skeleton. Building 21 bodies
-// on the first snapshot used to stall the first match frame.
-const geometryCache = new Map<string, THREE.BufferGeometry>();
-export function precacheCapybaras(colors: readonly string[]) { colors.forEach(capybaraGeometry); }
-function capybaraGeometry(color: string): THREE.BufferGeometry {
-  const cached = geometryCache.get(color);
-  if (cached) return cached;
-  // Flat, vivid cartoon colours: few tones, no fine texture to shimmer.
-  const fur = new THREE.Color('#B8743A');
-  const dark = new THREE.Color('#7A4424');
-  const muzzle = new THREE.Color('#D39A47');
-  const belly = new THREE.Color('#E8C08A');
-  const bandana = new THREE.Color(color), bandanaShade = shadeBandana(bandana);
-  const blush = muzzle.clone().lerp(new THREE.Color('#ee8a7c'), .45);
-  const earInner = fur.clone().lerp(new THREE.Color('#e3a393'), .55);
-  // Resolution tuned for 21 capybaras on screen: the toon ramp and ink
-  // outline read as smooth at these counts (about half the old triangles).
-  const sphere = new THREE.SphereGeometry(1, 16, 11);
-  const small = new THREE.SphereGeometry(1, 10, 7);
-  const cylinder = new THREE.CylinderGeometry(1, 1, 1, 10);
-  const roundedBox = new RoundedBoxGeometry(1, 1, 1, 2, .3);
-  const parts: THREE.BufferGeometry[] = [];
-  const add = (base: THREE.BufferGeometry, tint: THREE.Color | string, matrix: THREE.Matrix4, bone: number) => {
-    const geometry = base.index ? base.toNonIndexed() : base.clone();
-    geometry.applyMatrix4(matrix);
-    const shade = typeof tint === 'string' ? new THREE.Color(tint) : tint;
-    const count = geometry.getAttribute('position').count;
-    const colors = new Float32Array(count * 3), indices = new Uint16Array(count * 4), weights = new Float32Array(count * 4);
-    for (let i = 0; i < count; i++) {
-      colors[i * 3] = shade.r; colors[i * 3 + 1] = shade.g; colors[i * 3 + 2] = shade.b;
-      indices[i * 4] = bone; weights[i * 4] = 1;
-    }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(indices, 4));
-    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
-    parts.push(geometry);
-  };
-  const place = (x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = new THREE.Euler()) =>
-    new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(rotation), new THREE.Vector3(sx, sy, sz));
-  const ball = (tint: THREE.Color | string, bone: number, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation?: THREE.Euler) =>
-    add(sx > .12 ? sphere : small, tint, place(x, y, z, sx, sy, sz, rotation), bone);
-  const block = (tint: THREE.Color | string, bone: number, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation?: THREE.Euler) =>
-    add(roundedBox, tint, place(x, y, z, sx, sy, sz, rotation), bone);
-  const limb = (tint: THREE.Color | string, bone: number, from: THREE.Vector3, to: THREE.Vector3, radius: number) => {
-    const direction = to.clone().sub(from);
-    add(cylinder, tint, new THREE.Matrix4().compose(from.clone().add(to).multiplyScalar(.5),
-      new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize()),
-      new THREE.Vector3(radius, direction.length(), radius)), bone);
-  };
-  const ring = (tint: THREE.Color | string, bone: number, y: number, z: number, rx: number, rz: number, tube: number, height: number) => {
-    const torus = new THREE.TorusGeometry(1, tube, 6, 20);
-    add(torus, tint, place(0, y, z, rx, rz, height, new THREE.Euler(Math.PI / 2, 0, 0)), bone);
-    torus.dispose();
-  };
-  const { torso, head, arms, thighL, thighR, shinL, shinR, armor, helmet } = CAPY_BONES;
-
-  // Proportions follow the simulation's hit shapes, like the legacy build:
-  // head inside a r .25 sphere at (0, 1.6, -.04); body and legs inside a
-  // r .3 upright cylinder up to 1.42. Only the arms and the gun reach out.
-
-  // Legs: short and chunky, two bones each so the knees bend when walking.
-  for (const [side, thigh, shin] of [[-1, thighL, shinL], [1, thighR, shinR]] as const) {
-    const x = side * PIVOT.legX;
-    ball(fur, thigh, x, .48, .01, .13, .19, .13);
-    ball(fur, shin, x, .2, 0, .115, .17, .115);
-    ball(dark, shin, x, .06, -.06, .12, .07, .18);
-  }
-
-  // Torso: a round plush pear with a pale belly.
-  ball(fur, torso, 0, .9, 0, .3, .42, .28);
-  ball(belly, torso, 0, .85, -.15, .22, .29, .12);
-  // Teal collar and bandana: the squad colour, always on.
-  ring(bandana, torso, 1.27, 0, .2, .18, .35, .25);
-  const cone = new THREE.ConeGeometry(.5, 1, 4);
-  add(cone, bandana, place(0, 1.14, -.19, .24, .2, .08, new THREE.Euler(-.2, Math.PI / 4, Math.PI)), torso);
-  cone.dispose();
-  ball(bandanaShade, torso, 0, 1.22, -.21, .045, .04, .035);
-  // Leather belt with a buckle and a side holster.
-  ring('#6d4a31', torso, .72, 0, .26, .23, .15, .4);
-  block('#e2b05e', torso, 0, .72, -.27, .09, .07, .035);
-  block('#5a3f2c', torso, .24, .62, .1, .07, .18, .16);
-
-  // Head: round cranium, soft square snout, high-set eyes, buck teeth, ears.
-  ball(fur, head, 0, 1.64, 0, .22, .2, .21);
-  block(muzzle, head, 0, 1.54, -.14, .3, .18, .2);
-  ball(dark, head, 0, 1.6, -.235, .09, .04, .03);
-  ball('#fff7e6', head, -.03, 1.615, -.262, .022, .009, .008);
-  ball(dark, head, 0, 1.47, -.24, .06, .01, .01);
-  for (const side of [-1, 1]) {
-    block('#fff6e4', head, side * .018, 1.43, -.235, .034, .055, .02);
-    ball('#2d2019', head, side * .032, 1.595, -.262, .015, .01, .008);
-    ball(blush, head, side * .12, 1.5, -.2, .045, .025, .02, new THREE.Euler(0, side * -.6, 0));
-    // Eyes face out and forward; offsets follow that normal so nothing sinks in.
-    const nx = side * .7, nz = -.71, face = new THREE.Euler(0, side * -.78, 0);
-    const at = (d: number, up = 0, across = 0) => [side * .13 + nx * d - nz * across * side, 1.7 + up, -.15 + nz * d + nx * across * side] as const;
-    ball('#fdf6e8', head, ...at(0), .055, .062, .026, face);
-    ball('#1b140f', head, ...at(.016), .043, .052, .017, face);
-    ball('#ffffff', head, ...at(.03, .018, -.012), .013, .015, .006, face);
-    ball(dark, head, side * .15, 1.8, .03, .06, .065, .04, new THREE.Euler(0, 0, side * -.3));
-    ball(earInner, head, side * .153, 1.8, .005, .036, .04, .015, new THREE.Euler(0, 0, side * -.3));
-  }
-
-  // Arms reach forward to the weapon: teal sleeve, fur forearm, tape wrap, paw.
-  // They share one bone so the arms and the gun aim together.
-  const hands = [new THREE.Vector3(.13, 1.04, -.4), new THREE.Vector3(-.04, 1.06, -.6)];
-  for (const [i, side] of [[0, 1], [1, -1]] as const) {
-    const shoulder = new THREE.Vector3(side * .25, 1.17, -.02), hand = hands[i];
-    const elbow = shoulder.clone().lerp(hand, .5).add(new THREE.Vector3(side * .06, -.08, 0));
-    ball('#35a39c', arms, shoulder.x, shoulder.y, shoulder.z, .12, .12, .12);
-    limb('#35a39c', arms, shoulder, elbow, .1);
-    ball('#2b8a85', arms, elbow.x, elbow.y, elbow.z, .1, .1, .1);
-    limb(fur, arms, elbow, hand, .08);
-    limb('#efdcb0', arms, elbow.clone().lerp(hand, .62), elbow.clone().lerp(hand, .8), .086);
-    ball(fur, arms, hand.x, hand.y, hand.z, .085, .075, .09);
-  }
-
-  // Armour (bone 9): a snug khaki vest with two chest pouches.
-  ball('#66714f', armor, 0, .98, 0, .315, .28, .295);
-  for (const side of [-1, 1]) {
-    block('#7d8a60', armor, side * .12, .95, -.27, .13, .12, .05);
-    block('#e2b05e', armor, side * .12, 1.0, -.297, .05, .025, .012);
-  }
-  block('#6d4a31', armor, 0, 1.08, .28, .34, .05, .035);
-  // Helmet (bone 10): a round dome with a brim and a brass badge.
-  ball('#5a7064', helmet, 0, 1.76, 0, .235, .11, .225);
-  block('#48594f', helmet, 0, 1.71, -.19, .3, .035, .1);
-  block('#e2b05e', helmet, 0, 1.78, -.215, .05, .045, .015);
-
-  const geometry = mergeGeometries(parts, false);
-  parts.forEach(item => item.dispose());
-  sphere.dispose(); small.dispose(); cylinder.dispose(); roundedBox.dispose();
-  if (!geometry) throw new Error('Cannot merge capybara geometry');
-  geometry.computeBoundingSphere(); parts.length = 0; releaseAfterUpload(geometry);
-  geometryCache.set(color, geometry);
-  geometry.addEventListener('dispose', () => geometryCache.delete(color));
-  return geometry;
-}
-
 export function buildCapybaraBody(color: string): { body: THREE.SkinnedMesh; bones: THREE.Bone[]; dispose: () => void } {
-  // An opted-in avatar must be final when it enters the scene, never replaced later.
-  if (capybaraV3Enabled() && !characterAsset) throw new Error('A capivara v3 ainda não está pronta.');
-  const geometry = capybaraGeometry(color);
+  // Every avatar must be final when it enters the scene, never replaced later.
+  if (!characterAsset) throw new Error('A capivara v3 ainda não está pronta.');
   const { torso, head, arms, thighL, thighR, shinL, shinR, armor, helmet } = CAPY_BONES;
-  const body = new THREE.SkinnedMesh(geometry, capybaraMaterial());
+  // The empty carrier retains the held-weapon socket; all visible art comes from the GLB.
+  const source = characterAsset.scene.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh;
+  const body = new THREE.SkinnedMesh(new THREE.BufferGeometry(), characterMaterial(source.material as THREE.MeshStandardMaterial, color));
   // A fixed sphere that holds every pose (freefall, parachute arms) keeps
   // off-screen capybaras out of both the colour and the shadow pass.
   body.castShadow = true; body.receiveShadow = true;
@@ -200,14 +49,13 @@ export function buildCapybaraBody(color: string): { body: THREE.SkinnedMesh; bon
   }
   for (const bone of bones) bone.userData.rest = bone.position.clone();
   body.add(root); body.bind(new THREE.Skeleton(bones));
-  if (capybaraV3Enabled()) installCharacter(body, bones, color);
+  installCharacter(body, bones, color);
   // The geometry is shared: it is released with the renderer, not per avatar.
   return { body, bones, dispose: () => {} };
 }
 
-// Opt-in asset path. Geometry, atlas, and clips are shared; poses are private.
+// Geometry, atlas, and clips are shared; poses are private.
 export const CAPYBARA_ASSET_URL = `${import.meta.env.BASE_URL}models/capybara/capybara.glb`;
-export const capybaraV3Enabled = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('capy') === 'v3';
 let characterAsset: GLTF | null = null;
 let characterLoading: Promise<void> | null = null;
 let characterGeneration = 0;
@@ -247,11 +95,10 @@ interface CharacterInstance {
   active: string; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
   lastHP: number; lastKills: number; unarmed: number; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
-  relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
+  relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
 }
 
 export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Promise<void> {
-  if (!capybaraV3Enabled()) return Promise.resolve();
   if (!characterLoading) {
     const generation = characterGeneration;
     characterLoading = (async () => {
@@ -306,8 +153,6 @@ export function disposeCapybaraAssets(): void {
   if (characterAsset) disposeCharacterSource(characterAsset);
   characterAsset = null; characterLoading = null;
   characterMaterials.forEach(material => material.dispose());
-  geometryCache.forEach(geometry => geometry.dispose());
-  sharedMaterial?.dispose();
 }
 
 export type CapybaraExpression = 'neutral' | 'determined' | 'hit' | 'stunned' | 'victory' | 'blink';
@@ -348,31 +193,39 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   actions.idle.play();
   const runtime: CharacterInstance = {
     scene, mixer, actions, faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
-    lastHP: NaN, lastKills: NaN, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxedArms: [], armBlends: [],
+    lastHP: NaN, lastKills: NaN, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,
     root: scene.getObjectByName('root') as THREE.Bone,
     arms: [scene.getObjectByName('arm_L') as THREE.Bone, scene.getObjectByName('arm_R') as THREE.Bone],
   };
   scene.updateMatrixWorld(true);
+  // Unarmed rest: the upper arm swings down along the pear, then the elbow
+  // eases open so the paw rests on the belly side instead of a raised bent arm.
+  const forearms: THREE.Bone[] = [], relaxedForearms: THREE.Quaternion[] = [];
   for (let i = 0; i < runtime.arms.length; i++) {
-    const arm = runtime.arms[i], paw = scene.getObjectByName(i === 0 ? 'paw_L' : 'paw_R');
-    if (!paw) { runtime.relaxedArms.push(new THREE.Quaternion()); runtime.armBlends.push(new THREE.Quaternion()); continue; }
-    const shoulder = arm.getWorldPosition(new THREE.Vector3());
-    const from = paw.getWorldPosition(new THREE.Vector3()).sub(shoulder).normalize();
-    const to = new THREE.Vector3(i === 0 ? -.35 : .35, .7, -.02).sub(shoulder).normalize();
+    const arm = runtime.arms[i], side = i === 0 ? 'L' : 'R', sign = i === 0 ? -1 : 1;
+    const forearm = scene.getObjectByName(`forearm_${side}`), paw = scene.getObjectByName(`paw_${side}`);
+    if (!(forearm instanceof THREE.Bone) || !paw) continue;
+    const shoulder = arm.getWorldPosition(new THREE.Vector3()), elbow = forearm.getWorldPosition(new THREE.Vector3());
+    const hand = paw.getWorldPosition(new THREE.Vector3());
+    const elbowTarget = new THREE.Vector3(sign * .297, .944, -.065), handTarget = new THREE.Vector3(sign * .313, .769, -.265);
     const parent = arm.parent!.getWorldQuaternion(new THREE.Quaternion());
-    const worldSwing = new THREE.Quaternion().setFromUnitVectors(from, to);
-    runtime.relaxedArms.push(parent.clone().invert().multiply(worldSwing).multiply(parent));
-    runtime.armBlends.push(new THREE.Quaternion());
+    const swing = new THREE.Quaternion().setFromUnitVectors(elbow.clone().sub(shoulder).normalize(), elbowTarget.clone().sub(shoulder).normalize());
+    const relaxedArmWorld = swing.clone().multiply(arm.getWorldQuaternion(new THREE.Quaternion()));
+    const forearmDirection = hand.clone().sub(elbow).applyQuaternion(swing).normalize();
+    const open = new THREE.Quaternion().setFromUnitVectors(forearmDirection, handTarget.clone().sub(elbowTarget).normalize());
+    runtime.relaxBones.push(arm); runtime.relaxedArms.push(parent.clone().invert().multiply(swing).multiply(parent));
+    forearms.push(forearm); relaxedForearms.push(relaxedArmWorld.clone().invert().multiply(open).multiply(relaxedArmWorld));
   }
-  runtime.poseBones = [runtime.head, runtime.root, ...runtime.arms];
+  runtime.relaxBones.push(...forearms); runtime.relaxedArms.push(...relaxedForearms);
+  runtime.armBlends = runtime.relaxBones.map(() => new THREE.Quaternion());
+  runtime.poseBones = [runtime.head, runtime.root, ...runtime.arms, ...forearms];
   runtime.baseRotations = runtime.poseBones.map(bone => bone.quaternion.clone());
   characterInstances.set(body, runtime);
   // Keep the old skeleton as the compatibility weapon socket; only its mesh goes.
-  body.geometry = new THREE.BufferGeometry();
   body.add(scene);
   body.name = 'Capivara_v3';
-  const overlay = new URLSearchParams(location.search).has('capyHitboxes') ? createCapybaraHitboxOverlay() : null;
+  const overlay = typeof location !== 'undefined' && new URLSearchParams(location.search).has('capyHitboxes') ? createCapybaraHitboxOverlay() : null;
   if (overlay) body.add(overlay);
   const originalDispose = body.skeleton.dispose.bind(body.skeleton);
   body.skeleton.dispose = () => {
@@ -393,7 +246,7 @@ export function createCapybaraHitboxOverlay(): THREE.Group {
   group.add(head, body); return group;
 }
 
-/** Returns true when the opt-in rig owns this pose. No allocations per update. */
+/** Animate the loaded rig without allocating per update. */
 export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, dt: number): boolean {
   const runtime = characterInstances.get(body);
   if (!runtime) return false;
@@ -424,12 +277,12 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   head.rotateX(pitch * .45);
   const resting = !actor.weapons[actor.slot] && actor.stage === 'ground';
   runtime.unarmed = THREE.MathUtils.damp(runtime.unarmed, resting ? 1 : 0, 12, step);
-  for (let i = 0; i < arms.length; i++) {
-    arms[i].rotateX((pitch * .65 + (actor.sprint ? -.18 : 0)) * (1 - runtime.unarmed));
-    // Swing into the side-of-hip rest target in parent space, avoiding hands
-    // buried in the belly when rotating only around the upper-arm local X axis.
+  for (let i = 0; i < arms.length; i++) arms[i].rotateX((pitch * .65 + (actor.sprint ? -.18 : 0)) * (1 - runtime.unarmed));
+  // Swing into the side-of-hip rest target in parent space, avoiding hands
+  // buried in the belly when rotating only around the upper-arm local X axis.
+  for (let i = 0; i < runtime.relaxBones.length; i++) {
     runtime.armBlends[i].identity().slerp(runtime.relaxedArms[i], runtime.unarmed);
-    arms[i].quaternion.premultiply(runtime.armBlends[i]);
+    runtime.relaxBones[i].quaternion.premultiply(runtime.armBlends[i]);
   }
   legacyBones[CAPY_BONES.arms].rotation.x = pitch + (actor.sprint ? -.18 : 0);
   runtime.scene.rotation.set(0, 0, 0); runtime.scene.position.set(0, 0, 0);
