@@ -8,8 +8,8 @@ const SKY = {
 
 // Original low-frequency painted cloud card. One shared atlas, fixed world-facing
 // cards, no camera-facing billboards or alpha-test thresholds that pop in motion.
-function cloudTexture() {
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
+function cloudTexture(sunSides: number[]) {
+  const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 512;
   const ctx = canvas.getContext('2d')!;
   const light = document.createElement('canvas'); light.width = light.height = 256;
   const lightContext = light.getContext('2d')!;
@@ -18,23 +18,29 @@ function cloudTexture() {
     [[38, 181, 26, 18], [67, 164, 38, 32], [112, 150, 43, 40], [159, 165, 44, 28], [211, 181, 32, 19]],
     [[40, 181, 27, 19], [69, 153, 33, 45], [103, 177, 37, 25], [161, 154, 40, 48], [199, 177, 39, 26]],
   ];
-  shapes.forEach((lobes, index) => {
-    ctx.save(); ctx.translate(index % 2 * 256, Math.floor(index / 2) * 256);
+  sunSides.forEach((sunSide, index) => {
+    const lobes = shapes[index % shapes.length];
+    const top = Math.min(...lobes.map(([, y, , ry]) => y - ry)), bottom = Math.max(...lobes.map(([, y, , ry]) => y + ry));
+    const shadeTop = bottom - (bottom - top) * .2;
+    ctx.save(); ctx.translate(index % 4 * 256, Math.floor(index / 4) * 256);
     ctx.beginPath();
     for (const [x, y, rx, ry] of lobes) { ctx.moveTo(x + rx, y); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); }
     ctx.fillStyle = SKY.cloud; ctx.fill(); ctx.clip();
     // Shade only the lower fifth. The warm sun-facing side breaks up the cool
     // underside instead of drawing the same peach stripe across every cloud.
-    const shade = ctx.createLinearGradient(0, 165, 0, 205);
+    const shade = ctx.createLinearGradient(0, shadeTop, 0, bottom);
     shade.addColorStop(0, 'rgba(201,178,214,0)'); shade.addColorStop(1, SKY.shade);
-    ctx.fillStyle = shade; ctx.fillRect(0, 165, 256, 65);
+    ctx.fillStyle = shade; ctx.fillRect(0, shadeTop, 256, bottom - shadeTop);
     lightContext.clearRect(0, 0, 256, 256);
     lightContext.globalCompositeOperation = 'source-over';
-    const warm = lightContext.createRadialGradient(223, 205, 8, 223, 205, 110);
+    const sunX = sunSide >= 0 ? 256 : 0;
+    const warm = lightContext.createRadialGradient(sunX, bottom, 0, sunX, bottom, 190);
     warm.addColorStop(0, SKY.warm); warm.addColorStop(1, 'rgba(246,185,140,0)');
+    lightContext.globalAlpha = Math.abs(sunSide);
     lightContext.fillStyle = warm; lightContext.fillRect(0, 0, 256, 256);
+    lightContext.globalAlpha = 1;
     lightContext.globalCompositeOperation = 'destination-in';
-    const fade = lightContext.createLinearGradient(0, 165, 0, 205);
+    const fade = lightContext.createLinearGradient(0, shadeTop, 0, bottom);
     fade.addColorStop(0, 'rgba(255,255,255,0)'); fade.addColorStop(1, 'rgba(255,255,255,1)');
     lightContext.fillStyle = fade; lightContext.fillRect(0, 0, 256, 256);
     ctx.drawImage(light, 0, 0); ctx.restore();
@@ -46,7 +52,7 @@ function cloudTexture() {
 export class PaintedSky {
   readonly group = new THREE.Group();
   private readonly clouds: THREE.Mesh;
-  private readonly texture = cloudTexture();
+  private readonly texture: THREE.CanvasTexture;
   constructor() {
     const viewport = new THREE.Vector4();
     const dome = new THREE.Mesh(new THREE.SphereGeometry(600, 32, 16), new THREE.ShaderMaterial({
@@ -79,25 +85,28 @@ export class PaintedSky {
     dome.onBeforeRender = renderer => { renderer.getCurrentViewport(viewport); };
     dome.renderOrder = -1000; dome.frustumCulled = false; this.group.add(dome);
     const geometries: THREE.BufferGeometry[] = [];
-    const transform = new THREE.Object3D();
+    const transform = new THREE.Object3D(), sunDirection = new THREE.Vector3(-70, 55, -30).normalize();
+    const right = new THREE.Vector3(), sunSides: number[] = [];
     for (let i = 0; i < 8; i++) {
       const angle = i * Math.PI / 4 + [.17, -.11, .08, -.15, .12, -.06, .19, -.08][i];
       const scale = [.8, 1.25, .65, 1.4, .95, 1.1, .7, 1.2][i], height = [295, 340, 260, 355, 310, 325, 285, 350][i];
       transform.position.set(Math.cos(angle) * 470, height, Math.sin(angle) * 470);
       transform.lookAt(0, height * .45, 0); transform.rotateY([.09, -.16, .18, -.08, .13, -.2, .05, -.11][i]);
       transform.updateMatrix();
-      const card = new THREE.PlaneGeometry(245 * scale, 245 * scale), uv = card.getAttribute('uv'), variant = i % 3;
-      for (let v = 0; v < uv.count; v++) uv.setXY(v, (uv.getX(v) + variant % 2) / 2, (uv.getY(v) + 1 - Math.floor(variant / 2)) / 2);
+      sunSides.push(right.setFromMatrixColumn(transform.matrix, 0).dot(sunDirection));
+      const card = new THREE.PlaneGeometry(245 * scale, 245 * scale), uv = card.getAttribute('uv');
+      for (let v = 0; v < uv.count; v++) uv.setXY(v, (uv.getX(v) + i % 4) / 4, (uv.getY(v) + 1 - Math.floor(i / 4)) / 2);
       geometries.push(card.applyMatrix4(transform.matrix));
     }
     const geometry = mergeGeometries(geometries)!; geometries.forEach(part => part.dispose());
+    this.texture = cloudTexture(sunSides);
     const material = new THREE.MeshBasicMaterial({ map: this.texture, transparent: true, depthWrite: false, fog: false });
     this.clouds = new THREE.Mesh(geometry, material); this.clouds.renderOrder = -999; this.clouds.frustumCulled = false;
     this.group.add(this.clouds);
   }
-  update(camera: THREE.Camera, elapsed: number, reducedMotion: boolean) {
+  update(camera: THREE.Camera, _elapsed: number, _reducedMotion: boolean) {
     this.group.position.copy(camera.position);
-    this.clouds.rotation.y = reducedMotion ? 0 : elapsed * .0008;
+    // Fixed world directions keep the painted sun side aligned during a pan.
   }
   dispose() {
     this.texture.dispose();

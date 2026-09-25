@@ -46,8 +46,8 @@ export class GameRenderer {
   private readonly shadowRight = new THREE.Vector3(0, 1, 0).cross(this.shadowDirection).normalize();
   private readonly shadowUp = this.shadowDirection.clone().cross(this.shadowRight);
   private readonly shadowAnchor = new THREE.Vector3();
-  private readonly interiorLight = new THREE.PointLight(PAINT.interior, 0, 8, 2);
-  private readonly litRooms: { x: number; y: number; z: number; w: number; d: number; bakery: boolean }[];
+  private readonly interiorLight = new THREE.PointLight(PAINT.interior, 0, 14, 2);
+  private readonly litRooms: { x: number; y: number; z: number; w: number; d: number }[];
   private readonly environment: THREE.WebGLRenderTarget;
   private settings: Settings;
   private elapsed = 0;
@@ -67,8 +67,9 @@ export class GameRenderer {
   constructor(canvas: HTMLCanvasElement, world: WorldSpec, settings: Settings, onAssetsReady: () => void = () => {}, onProgress: AssetProgressCallback = () => {}) {
     this.onProgress = (fraction, label) => { if (!this.disposed) onProgress(fraction, label); };
     this.settings = settings;
-    this.litRooms = world.objects.filter(object => object.detail === 'prop:house:bakery' || object.detail === 'prop:house:cafe')
-      .map(object => ({ ...object.pos, w: object.scale.x, d: object.scale.z, bakery: object.detail!.endsWith('bakery') }));
+    this.litRooms = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
+      .map(object => ({ ...object.pos, y: object.pos.y - (object.kind === 'roof' ? 3.1 : 0),
+        w: object.scale.x, d: object.scale.z }));
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
@@ -166,13 +167,13 @@ export class GameRenderer {
     this.loot.update(frame.snapshot, this.elapsed); this.effects.update(dt);
     let room: typeof this.litRooms[number] | undefined;
     for (const candidate of this.litRooms) if (Math.abs(this.camera.position.x - candidate.x) < candidate.w / 2 &&
-      Math.abs(this.camera.position.z - candidate.z) < candidate.d / 2 && this.camera.position.y < candidate.y + 3.1) { room = candidate; break; }
+      Math.abs(this.camera.position.z - candidate.z) < candidate.d / 2 && this.camera.position.y > candidate.y &&
+      this.camera.position.y < candidate.y + 3.1) { room = candidate; break; }
     if (room) {
-      this.interiorLight.position.set(room.bakery ? room.x + room.w / 2 - 1.95 : room.x,
-        room.y + (room.bakery ? .93 : 2.45), room.bakery ? room.z - room.d * .24 : room.z);
+      this.interiorLight.position.set(room.x, room.y + 2.45, room.z);
       this.interiorLight.color.set(PAINT.interior);
     }
-    this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? room.bakery ? 4.3 : 4 : 0, 7, dt);
+    this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? 9 : 0, 7, dt);
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), snapshot?.time || 0);

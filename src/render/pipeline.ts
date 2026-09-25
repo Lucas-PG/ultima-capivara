@@ -6,8 +6,10 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
 // Graphics presets. The outline pass is the art style, so it runs on every
 // preset; what scales is resolution, MSAA inside it, and shadows.
+// Keep MSAA at <= 2: character-mask.spec.ts and Sentinela's depth probe cover
+// these sample counts. Four samples reintroduce grazing-face ID holes.
 export const PRESETS = {
-  low: { dpr: .75, samples: 0, shadows: false, shadowReach: 0, interior: false },
+  low: { dpr: .75, samples: 0, shadows: false, shadowReach: 0, interior: true },
   medium: { dpr: 1, samples: 0, shadows: true, shadowReach: 32, interior: true },
   high: { dpr: 1.25, samples: 2, shadows: true, shadowReach: 42, interior: true },
 } as const;

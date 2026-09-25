@@ -363,14 +363,6 @@ export class WorldScene {
     this.disposables.push(cascadeSheet);
     const add = (surface: Surface, geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = 0) => {
       const tint = c(color);
-      if (surface === 'plaster') tint.lerp(c('#ffffff'), .04);
-      else if (surface === 'roof') {
-        // Warm roofs read as the legacy build's bright terracotta red.
-        const hsl = tint.getHSL({ h: 0, s: 0, l: 0 });
-        if (hsl.s > .12 && (hsl.h < .14 || hsl.h > .78)) tint.lerp(c(hsl.l > .42 ? '#e2573a' : '#cf432c'), .7);
-        else tint.lerp(c('#ffffff'), .08);
-      }
-      else if (surface !== 'leaf' && surface !== 'fabric') tint.lerp(c('#ffffff'), .22);
       stash(surface, coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]), x, z);
     };
     const addBranch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, tint: string, surface: Surface = 'bark') => {
