@@ -256,21 +256,26 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
         disposeCharacterSource(asset);
         throw new Error('Carregamento da capivara cancelado após descarte.');
       }
-      for (const name of ['root', 'head', 'arm_L', 'arm_R']) {
-        if (!(asset.scene.getObjectByName(name) instanceof THREE.Bone)) throw new Error(`Capivara v3 inválida: osso ${name}.`);
+      try {
+        for (const name of ['root', 'head', 'arm_L', 'arm_R']) {
+          if (!(asset.scene.getObjectByName(name) instanceof THREE.Bone)) throw new Error(`Capivara v3 inválida: osso ${name}.`);
+        }
+        for (const name of ['idle', 'run', 'jump']) {
+          if (!asset.animations.some(clip => clip.name === name)) throw new Error(`Capivara v3 inválida: animação ${name}.`);
+        }
+        for (let i = 0; i < 3; i++) {
+          if (!(asset.scene.getObjectByName(`Capybara_LOD${i}`) instanceof THREE.SkinnedMesh)) throw new Error(`Capivara v3 inválida: LOD ${i}.`);
+        }
+        asset.scene.traverse(object => {
+          if (!(object instanceof THREE.SkinnedMesh)) return;
+          object.castShadow = true; object.receiveShadow = true;
+          object.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
+        });
+        characterAsset = asset;
+      } catch (error) {
+        disposeCharacterSource(asset);
+        throw error;
       }
-      for (const name of ['idle', 'run', 'jump']) {
-        if (!asset.animations.some(clip => clip.name === name)) throw new Error(`Capivara v3 inválida: animação ${name}.`);
-      }
-      for (let i = 0; i < 3; i++) {
-        if (!(asset.scene.getObjectByName(`Capybara_LOD${i}`) instanceof THREE.SkinnedMesh)) throw new Error(`Capivara v3 inválida: LOD ${i}.`);
-      }
-      asset.scene.traverse(object => {
-        if (!(object instanceof THREE.SkinnedMesh)) return;
-        object.castShadow = true; object.receiveShadow = true;
-        object.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
-      });
-      characterAsset = asset;
     })();
   }
   return characterLoading;

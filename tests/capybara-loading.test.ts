@@ -157,10 +157,19 @@ describe('capybara asset readiness', () => {
     expect(() => capy.buildCapybaraBody('#bd8956')).toThrow('ainda não está pronta');
   });
 
-  it('rejects malformed assets before the readiness promise succeeds', async () => {
+  it.each(['bone', 'clip', 'LOD'])('rejects malformed %s assets and releases every fetched resource', async defect => {
     const capy = await import('../src/render/capybara');
-    const asset = fixture(); asset.animations = [];
-    await expect(capy.preloadCapybaraAsset(async () => asset)).rejects.toThrow('animação idle');
+    const asset = fixture();
+    const meshes = asset.scene.children.filter(object => object instanceof THREE.SkinnedMesh);
+    const material = meshes[0].material as THREE.MeshStandardMaterial;
+    material.map = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+    const resources = new Set([...meshes.map(mesh => mesh.geometry), material, material.map, meshes[0].skeleton]);
+    const disposals = [...resources].map(resource => vi.spyOn(resource, 'dispose'));
+    if (defect === 'bone') asset.scene.getObjectByName('head')!.name = 'missing_head';
+    if (defect === 'clip') asset.animations = [];
+    if (defect === 'LOD') meshes[2].name = 'missing_LOD';
+    await expect(capy.preloadCapybaraAsset(async () => asset)).rejects.toThrow('Capivara v3 inválida');
+    for (const dispose of disposals) expect(dispose).toHaveBeenCalledTimes(1);
     expect(() => capy.buildCapybaraBody('#1FB5A8')).toThrow('ainda não está pronta');
   });
 
