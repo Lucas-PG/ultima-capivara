@@ -4,7 +4,12 @@ import { clamp } from './shared/math';
 export const DEFAULT_BINDINGS: Record<string, string> = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft',
   jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', leanLeft: 'KeyQ', leanRight: 'KeyE', inspect: 'KeyI',
+  fire: 'Mouse0', ads: 'Mouse2', slot1: 'Digit1', slot2: 'Digit2', slot3: 'Digit3', slot4: 'Digit4',
+  useBandage: 'Digit5', useMedkit: 'Digit6', useGuarana: 'Digit7', useAcai: 'Digit8', useRapadura: 'Digit9',
+  scoreboard: 'Tab', map: 'KeyM',
 };
+// Keys by KeyboardEvent.code, mouse buttons as 'Mouse' + event.button. Escape stays reserved for the menu.
+export const BINDABLE_CODE = /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Backquote|Arrow(Up|Down|Left|Right)|Mouse[0-4])$/;
 export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 1, fov: 78, graphics: 'medium', frameLimit: 60, reducedMotion: false,
   master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
@@ -30,7 +35,7 @@ export function loadSettings(): Settings {
     if (['white', 'yellow', 'cyan', 'magenta'].includes(value.crosshairColor)) result.crosshairColor = value.crosshairColor;
     if (value.hitPalette === 'default' || value.hitPalette === 'colorblind') result.hitPalette = value.hitPalette;
     if (value.bindings && typeof value.bindings === 'object') for (const key of Object.keys(DEFAULT_BINDINGS)) {
-      if (typeof value.bindings[key] === 'string' && /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Space|Arrow(Up|Down|Left|Right))$/.test(value.bindings[key])) result.bindings[key] = value.bindings[key];
+      if (typeof value.bindings[key] === 'string' && BINDABLE_CODE.test(value.bindings[key])) result.bindings[key] = value.bindings[key];
     }
   } catch { /* Blocked storage and old preferences must never prevent playing. */ }
   return result;
