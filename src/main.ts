@@ -1,10 +1,10 @@
 import './ui/style.css';
 import { createWorld } from './shared/world';
 import { ARENA } from './shared/layout';
-import { actorEye, hasLineOfSight, moveActor } from './shared/collision';
-import { clamp, distance } from './shared/math';
+import { moveActor } from './shared/collision';
+import { clamp } from './shared/math';
+import { closestInteraction as findInteraction } from './shared/interaction';
 import { WEAPONS } from './shared/weapons';
-import { rarityOf } from './shared/rarity';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot, RenderFrame } from './shared/types';
 import { GameRenderer } from './render/renderer';
 import { RoomSession } from './network/session';
@@ -42,6 +42,7 @@ let fps = 0, frameCount = 0, fpsAt = performance.now();
 let renderedFrames = 0;
 let dirtyFrame = true;
 let interaction: { id: string; name: string } | null = null;
+const interactionResult = { id: '', name: '' };
 let adaptRecorded = '';
 
 const session = new RoomSession({
@@ -116,7 +117,7 @@ function beginMatch(id: string, matchId: string) {
   lastEvent = 0; initializedPose = false; lastAlive = true; lastStage = '';
   input.reset(); ui.closeModal(); ui.game(id); ui.setPaused(!input.locked);
   loading = true; readyToReveal = false; matchPreparation = null; ui.setLoading(true);
-  ui.setLoadingProgress(Math.min(.98, loadFraction), loadLabel);
+  ui.setLoadingProgress(Math.min(.98, loadFraction), loadFraction >= .98 ? 'Carregando o avião' : loadLabel);
   return true;
 }
 function startWorker(config: RoomConfig, players: PlayerProfile[], matchId: string) {
@@ -241,20 +242,7 @@ function cycleSpectator() {
   spectateId = alive[(index + 1) % alive.length]?.id || null; dirtyFrame = true;
 }
 function closestInteraction() {
-  const me = predicted;
-  if (!snapshot || !me?.alive || me.stage !== 'ground') return null;
-  const eye = { ...me.pos, y: me.pos.y + actorEye(me) };
-  const options: { id: string; name: string; distance: number }[] = [];
-  const candidates = [
-    ...snapshot.loot.filter(l => l.active).map(l => ({ ...l, name: l.weapon ? `${WEAPONS[l.weapon].name} ${rarityOf(l.rarity).name.toLowerCase()}` : ({ weapon: 'Arma', ammo: 'Munição', armor: 'Colete', helmet: 'Capacete', bandage: 'Bandagem', medkit: 'Kit médico', guarana: 'Guaraná', acai: 'Açaí', rapadura: 'Rapadura' }[l.kind] || 'Equipamento') })),
-    ...world.chests.filter(c => !snapshot!.openedChests.includes(c.id)).map(c => ({ ...c, name: 'Abrir caixa de suprimentos' })),
-  ];
-  for (const candidate of candidates) {
-    const dist = distance(me.pos, candidate);
-    if (dist <= 3 && hasLineOfSight(eye, { ...candidate, y: candidate.y + .5 }, world)) options.push({ id: candidate.id, name: candidate.name, distance: dist });
-  }
-  options.sort((a, b) => a.distance - b.distance);
-  return options[0] || null;
+  return findInteraction(world, snapshot, predicted, interactionResult);
 }
 input.onAction = sendAction;
 input.onCycle = direction => {

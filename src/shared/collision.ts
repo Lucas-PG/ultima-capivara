@@ -44,8 +44,30 @@ export function raycastWorld(origin: Vec3, direction: Vec3, maxDistance: number,
 export function hasLineOfSight(a: Vec3, b: Vec3, world: WorldSpec): boolean {
   const distance = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
   if (distance < 1e-8) return true;
-  const direction = { x: (b.x - a.x) / distance, y: (b.y - a.y) / distance, z: (b.z - a.z) / distance };
-  return !raycastWorld(a, direction, distance - .05, world);
+  const dx = (b.x - a.x) / distance, dy = (b.y - a.y) / distance, dz = (b.z - a.z) / distance;
+  const limit = distance - .05;
+  // Boolean visibility needs no hit record, direction object or terrain points.
+  // Keep the same slab bounds and endpoint tolerance as raycastWorld.
+  for (let i = 0; i < world.colliders.length; i++) {
+    const collider = world.colliders[i];
+    let low = 0, high = limit;
+    for (let axis = 0; axis < 3; axis++) {
+      const d = axis === 0 ? dx : axis === 1 ? dy : dz, o = axis === 0 ? a.x : axis === 1 ? a.y : a.z;
+      const min = axis === 0 ? collider.min.x : axis === 1 ? collider.min.y : collider.min.z;
+      const max = axis === 0 ? collider.max.x : axis === 1 ? collider.max.y : collider.max.z;
+      if (Math.abs(d) < 1e-9) { if (o < min || o > max) { low = Infinity; break; } continue; }
+      const near = (min - o) / d, far = (max - o) / d;
+      low = Math.max(low, Math.min(near, far)); high = Math.min(high, Math.max(near, far));
+      if (low > high) break;
+    }
+    if (low <= high && low < limit) return false;
+  }
+  const steps = Math.ceil(limit / 2);
+  for (let i = 1; i <= steps; i++) {
+    const along = Math.min(limit, i * 2);
+    if (a.y + dy * along < terrainHeight(a.x + dx * along, a.z + dz * along) - .02) return false;
+  }
+  return true;
 }
 
 export function clearSpawn(pos: Vec3, world: WorldSpec): boolean {
