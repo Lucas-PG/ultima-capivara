@@ -55,6 +55,20 @@ describe('remote interpolation', () => {
     expect(buffer.sample(10000).get('remote')!.pos.x).toBeCloseTo(4.4);
   });
 
+  it('recovers from a long gap smoothly without carrying seconds of stale playback', () => {
+    const buffer = new RemoteInterpolation();
+    buffer.push(snapshot(0), 'local', 0); buffer.sample(0);
+    const held = buffer.sample(1000).get('remote')!.pos.x;
+    expect(held).toBeCloseTo(.4);
+    buffer.push(snapshot(1), 'local', 1000);
+    expect(buffer.sample(1000).get('remote')!.pos.x).toBeCloseTo(held);
+    const middle = buffer.sample(1050).get('remote')!.pos.x;
+    expect(middle).toBeGreaterThan(held); expect(middle).toBeLessThan(3.6);
+    buffer.push(snapshot(1.1), 'local', 1100);
+    expect(buffer.sample(1100).get('remote')!.pos.x).toBeGreaterThan(3.5);
+    expect(buffer.time).toBeGreaterThan(.9);
+  });
+
   it('snaps across respawns, lost death snapshots, and teleports, never reintroducing an old life', () => {
     for (const patch of [{ alive: false, deaths: 1 }, { deaths: 1 }, {}]) {
       const buffer = new RemoteInterpolation();

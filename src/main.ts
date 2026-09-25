@@ -398,7 +398,9 @@ if (import.meta.env.DEV) {
   requestAnimationFrame(tick);
   try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
-    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length }),
+    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length,
+      network: { status: session.connectionStatus, latencies: session.latencies, interpolationDelayMs: remoteInterpolation.delay * 1000 },
+      remoteActors: [...(renderFrame.remoteActors?.values() ?? [])].map(actor => ({ id: actor.id, pos: { ...actor.pos }, yaw: actor.yaw })) }),
     perf: () => {
       const sorted = [...intervals].sort((a, b) => a - b), pick = (q: number) => +(sorted[Math.floor(sorted.length * q)] ?? 0).toFixed(1);
       const heap = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;

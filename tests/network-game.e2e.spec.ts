@@ -1,0 +1,93 @@
+import { expect, test, type Page } from '@playwright/test';
+
+// Override only for the explicit local smoke run on Ponte's port 5187.
+const gameUrl = process.env.PONTE_GAME_URL || 'http://127.0.0.1:5174/';
+const inspect = (page: Page) => page.evaluate(() => (window as any).__capivara.inspect());
+const player = (page: Page, id?: string) => page.evaluate(id => {
+  const state = (window as any).__capivara.inspect();
+  return state.snapshot?.actors.find((actor: any) => actor.id === (id || state.room?.myId));
+}, id);
+
+async function resume(page: Page) {
+  if (!await page.evaluate(() => !!document.pointerLockElement)) {
+    await page.locator('[data-do="resume"]').click();
+    await expect.poll(() => page.evaluate(() => !!document.pointerLockElement)).toBe(true);
+  }
+}
+
+test('two game contexts join, replicate movement and shots, show RTT, and recover the same player', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'chromium', 'Rendered multiplayer smoke is the Chromium gate.');
+  test.setTimeout(180_000);
+  const contexts = await Promise.all([browser.newContext({ viewport: { width: 1280, height: 720 } }), browser.newContext({ viewport: { width: 1280, height: 720 } })]);
+  const errors: string[] = [];
+  try {
+    for (const context of contexts) await context.addInitScript(() => {
+      localStorage.setItem('uc-v2-settings', JSON.stringify({ graphics: 'low', master: 0, frameLimit: 60 }));
+    });
+    const [host, guest] = await Promise.all(contexts.map(context => context.newPage()));
+    for (const page of [host, guest]) page.on('pageerror', error => errors.push(error.message));
+    await host.goto(gameUrl);
+    await host.locator('[data-do="host"]').click();
+    await host.locator('[name="nickname"]').fill('Ponte Host');
+    await host.locator('[name="mode"]').selectOption('deathmatch');
+    await host.locator('[name="bots"]').uncheck();
+    await host.locator('#room-form [type="submit"]').click();
+    await expect(host.locator('.invite-card strong')).toHaveText(/^[A-Z2-9]{6}$/);
+    const code = await host.locator('.invite-card strong').innerText();
+    await guest.goto(`${gameUrl}?sala=${code}`);
+    await guest.locator('[name="nickname"]').fill('Ponte Guest');
+    await guest.locator('#room-form [type="submit"]').click();
+    await expect(guest.locator('#connection-status')).toHaveText(/Conectado/);
+    await expect(host.locator('.player-row')).toHaveCount(2);
+    const guestId = (await inspect(guest)).room.myId;
+    await Promise.all([host.locator('[data-do="ready"]').click(), guest.locator('[data-do="ready"]').click()]);
+    await expect(host.locator('[data-do="start"]')).toBeEnabled({ timeout: 90_000 });
+    await host.locator('[data-do="start"]').click();
+    for (const page of [host, guest]) {
+      await expect.poll(async () => (await inspect(page)).snapshot?.phase, { timeout: 60_000 }).toBe('playing');
+      await expect(page.locator('#loadingOverlay:not(.out)')).toHaveCount(0, { timeout: 60_000 });
+    }
+    await resume(guest);
+    const before = await player(guest);
+    await guest.keyboard.down('KeyW');
+    // A bounded movement window verifies real keyboard -> guest -> host Worker -> snapshot flow.
+    await expect.poll(async () => {
+      const actor = await player(host, guestId);
+      return Math.hypot(actor.pos.x - before.pos.x, actor.pos.z - before.pos.z);
+    }).toBeGreaterThan(.5);
+    await guest.keyboard.up('KeyW');
+    await expect.poll(async () => {
+      const [authoritative, replicated] = await Promise.all([player(host, guestId), player(guest)]);
+      return Math.hypot(authoritative.pos.x - replicated.pos.x, authoritative.pos.z - replicated.pos.z);
+    }).toBeLessThan(.15);
+    const ammo = (await player(guest)).weapons[0].ammo;
+    await guest.mouse.click(640, 360);
+    await expect.poll(async () => (await player(host, guestId)).weapons[0].ammo).toBe(ammo - 1);
+    await expect.poll(async () => (await player(guest)).weapons[0].ammo).toBe(ammo - 1);
+    await guest.keyboard.down('Tab');
+    await expect(guest.locator(`#scoreboard [data-player-ping="${guestId}"]`)).toHaveText(/^\d+ ms$/);
+    const rtt = await guest.locator(`#scoreboard [data-player-ping="${guestId}"]`).innerText();
+    await guest.screenshot({ path: info.outputPath('ponte-scoreboard-720.png') });
+    await guest.keyboard.up('Tab');
+    const position = (await player(guest)).pos;
+    const recoveryAt = Date.now();
+    await guest.reload();
+    await guest.locator('#room-form [type="submit"]').click();
+    await expect.poll(async () => (await inspect(guest)).room?.myId).toBe(guestId);
+    await expect.poll(async () => (await player(guest))?.connected, { timeout: 30_000 }).toBe(true);
+    const recoveryMs = Date.now() - recoveryAt;
+    expect(recoveryMs).toBeLessThan(30_000);
+    expect((await inspect(host)).room.players).toHaveLength(2);
+    expect((await player(guest)).weapons[0].ammo).toBe(ammo - 1);
+    expect(Math.hypot((await player(guest)).pos.x - position.x, (await player(guest)).pos.z - position.z)).toBeLessThan(.15);
+    const evidence = { guestId, rtt, recoveryMs, movementReplicationErrorLimitM: .15,
+      interpolationDelayMs: (await inspect(guest)).network.interpolationDelayMs, errors };
+    await info.attach('multiplayer-evidence', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+    console.log('Game multiplayer evidence:', JSON.stringify(evidence));
+    expect(errors).toEqual([]);
+    await host.keyboard.press('Escape');
+    await host.locator('[data-do="leave"]').click();
+    await expect.poll(async () => (await inspect(guest)).room).toBeNull();
+    await expect(guest.locator('#toast')).toContainText('O anfitrião fechou a sala.');
+  } finally { await Promise.all(contexts.map(context => context.close())); }
+});

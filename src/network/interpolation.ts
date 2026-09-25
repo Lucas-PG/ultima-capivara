@@ -1,7 +1,7 @@
 import type { ActorState, WorldSnapshot } from '../shared/types';
 
 type Sample = { time: number; tick: number; actor: ActorState };
-type Track = { samples: Sample[]; pose: ActorState };
+type Track = { samples: Sample[]; pose: ActorState; recovery?: { from: ActorState['pos']; at: number } };
 const BASE_DELAY = .1;
 const MAX_DELAY = .2;
 const MAX_EXTRAPOLATION = .1;
@@ -33,6 +33,8 @@ export class RemoteInterpolation {
   push(snapshot: WorldSnapshot, localId: string, now: number) {
     if (snapshot.matchId !== this.match) { this.reset(); this.match = snapshot.matchId; }
     const time = snapshot.time, newest = snapshot.tick > this.latestTick;
+    const catchingUp = newest && this.cursor !== null && time - this.delay > this.cursor + .1;
+    if (catchingUp) this.cursor = time - this.delay;
     if (newest) {
       if (this.latestTick >= 0) {
         const elapsed = (now - this.arrival) / 1000;
@@ -56,7 +58,8 @@ export class RemoteInterpolation {
       // Never draw a journey between lives or through a teleport. Death counts
       // also catch a respawn whose dead snapshot was lost on the fast channel.
       if (last && newest && (actor.deaths !== last.actor.deaths || actor.alive !== last.actor.alive ||
-        Math.hypot(actor.pos.x - last.actor.pos.x, actor.pos.y - last.actor.pos.y, actor.pos.z - last.actor.pos.z) > 12)) samples.length = 0;
+        Math.hypot(actor.pos.x - last.actor.pos.x, actor.pos.y - last.actor.pos.y, actor.pos.z - last.actor.pos.z) > 12)) { samples.length = 0; track.recovery = undefined; }
+      else if (catchingUp) track.recovery = { from: { ...track.pose.pos }, at: now };
       // A late packet from the previous life must not repopulate a reset track.
       if (!newest && last && (actor.deaths !== last.actor.deaths || actor.alive !== last.actor.alive || time < samples[0].time)) continue;
       samples.push({ time, tick: snapshot.tick, actor });
@@ -93,6 +96,13 @@ export class RemoteInterpolation {
       for (const axis of ['x', 'y', 'z'] as const) {
         pos[axis] = mix(a.actor.pos[axis], b.actor.pos[axis], t) + a.actor.velocity[axis] * extra;
         velocity[axis] = extra >= MAX_EXTRAPOLATION ? 0 : mix(a.actor.velocity[axis], b.actor.velocity[axis], t);
+      }
+      // After a long outage the clock catches up immediately, while the visible
+      // correction takes 100 ms. It must neither jump nor remain seconds behind.
+      if (track.recovery) {
+        const t = Math.max(0, Math.min(1, (now - track.recovery.at) / 100));
+        for (const axis of ['x', 'y', 'z'] as const) pos[axis] = mix(track.recovery.from[axis], pos[axis], t);
+        if (t === 1) track.recovery = undefined;
       }
       pose.yaw = angle(a.actor.yaw, b.actor.yaw, t);
       pose.pitch = mix(a.actor.pitch, b.actor.pitch, t);
