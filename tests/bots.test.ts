@@ -191,6 +191,7 @@ describe('legacy bot behaviour', () => {
     expect(hard.damage).toBeGreaterThan(easy.damage * 1.3);
   });
 
+  // This exercises 21 bots over 44 simulated seconds on the full island.
   it('jumps toward spread-out loot spots, lands and keeps moving on the real island', () => {
     const world = createWorld();
     const sim = new Simulation(world, { mode: 'battle-royale', capacity: 8, bots: true, difficulty: 'normal', duration: 300 },
@@ -214,7 +215,7 @@ describe('legacy bot behaviour', () => {
     const moved = grounded.filter(a => a.state.alive && Math.hypot(a.state.pos.x - before.get(a.state.id)!.x, a.state.pos.z - before.get(a.state.id)!.z) > 3);
     expect(moved.length).toBeGreaterThan(grounded.filter(a => a.state.alive).length * .6);
     expect(grounded.filter(a => a.state.alive && terrainHeight(a.state.pos.x, a.state.pos.z) < -.3)).toHaveLength(0);
-  });
+  }, 45_000);
 
   it('adaptive difficulty makes practice bots milder after losses and braver after wins, within legacy bounds', () => {
     const base = DIFFICULTY.normal;

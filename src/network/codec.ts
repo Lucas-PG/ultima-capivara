@@ -103,7 +103,7 @@ export function actorFrame(a: ActorState, index: number): number[] {
   return [index, qi(a.pos.x), qi(a.pos.y), qi(a.pos.z), qi(a.velocity.x), qi(a.velocity.y), qi(a.velocity.z),
     qi(a.yaw, 1000), qi(a.pitch, 1000), qi(a.lean), qi(a.hp), qi(a.armor), qi(a.helmet), flags,
     stages.indexOf(a.stage), a.kills, a.deaths, qi(a.damage), a.slot, qi(a.reloadUntil), qi(a.useUntil),
-    a.using ? items.indexOf(a.using) : -1, qi(a.respawnAt), qi(a.protectionUntil), a.lastInput,
+    a.using ? items.indexOf(a.using) : -1, qi(a.respawnAt), qi(a.protectionUntil), a.lastInput, qi(a.shotHeat),
     ...a.weapons.flatMap(w => [w.ammo, w.reserve])];
 }
 
@@ -130,26 +130,26 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
   for (const tuple of fast.actors) {
     if (!Array.isArray(tuple) || !tuple.every(Number.isFinite)) return null;
     const [index, px, py, pz, vx, vy, vz, yaw, pitch, lean, hp, armor, helmet, flags, stage, kills, deaths,
-      damage, slot, reloadUntil, useUntil, using, respawnAt, protectionUntil, lastInput] = tuple;
+      damage, slot, reloadUntil, useUntil, using, respawnAt, protectionUntil, lastInput, shotHeat] = tuple;
     if (!Number.isSafeInteger(index) || index !== actors.length) return null;
     const profile = world.actors[index], kit = gear[index];
     if (!profile || !kit || profile.id !== kit.id || !stages[stage] || (using !== -1 && !items[using])) return null;
     if (typeof profile.name !== 'string' || profile.name.length > 28 || /[<>\x00-\x1f]/.test(profile.name) ||
       typeof profile.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(profile.color) ||
       typeof profile.bot !== 'boolean' || !Array.isArray(kit.weapons) || kit.weapons.length < 1 || kit.weapons.length > 4 ||
-      tuple.length !== 25 + kit.weapons.length * 2 ||
+      tuple.length !== 26 + kit.weapons.length * 2 ||
       !kit.weapons.every((w: any) => w && typeof w.id === 'string' && Object.hasOwn(WEAPONS, w.id) &&
         Number.isSafeInteger(w.rarity) && w.rarity >= 0 && w.rarity <= 3) ||
       !kit.consumables || typeof kit.consumables !== 'object' || !Number.isInteger(flags) || flags < 0 || flags > 63 ||
       !Number.isInteger(stage) || !Number.isInteger(using) || hp < 0 || hp > 100_000 || armor < 0 || armor > 100_000 ||
       helmet < 0 || helmet > 100_000 || Math.max(Math.abs(px), Math.abs(py), Math.abs(pz)) > 100_000 ||
       !Number.isSafeInteger(slot) || slot < 0 || slot >= kit.weapons.length ||
-      ![kills, deaths, lastInput].every(n => Number.isSafeInteger(n) && n >= 0) ||
-      !kit.weapons.every((w: any, i: number) => Number.isSafeInteger(tuple[25 + i * 2]) &&
-        tuple[25 + i * 2] >= 0 && tuple[25 + i * 2] <= WEAPONS[w.id as keyof typeof WEAPONS].magazine &&
-        Number.isSafeInteger(tuple[26 + i * 2]) && tuple[26 + i * 2] >= 0 && tuple[26 + i * 2] <= 10_000)) return null;
+      ![kills, deaths, lastInput, shotHeat].every(n => Number.isSafeInteger(n) && n >= 0) || shotHeat > 120 ||
+      !kit.weapons.every((w: any, i: number) => Number.isSafeInteger(tuple[26 + i * 2]) &&
+        tuple[26 + i * 2] >= 0 && tuple[26 + i * 2] <= WEAPONS[w.id as keyof typeof WEAPONS].magazine &&
+        Number.isSafeInteger(tuple[27 + i * 2]) && tuple[27 + i * 2] >= 0 && tuple[27 + i * 2] <= 10_000)) return null;
     const weapons = kit.weapons.map((w: any, i: number) => ({ id: w.id, rarity: w.rarity,
-      ammo: tuple[25 + i * 2], reserve: tuple[26 + i * 2] }));
+      ammo: tuple[26 + i * 2], reserve: tuple[27 + i * 2] }));
     actors.push({ ...profile, pos: { x: px / 100, y: py / 100, z: pz / 100 },
       velocity: { x: vx / 100, y: vy / 100, z: vz / 100 }, yaw: yaw / 1000, pitch: pitch / 1000, lean: lean / 100,
       hp: hp / 100, armor: armor / 100, helmet: helmet / 100,
@@ -157,7 +157,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       crouch: !!(flags & 8), sprint: !!(flags & 16), ads: !!(flags & 32), stage: stages[stage],
       kills, deaths, damage: damage / 100, slot, weapons, consumables: kit.consumables,
       reloadUntil: reloadUntil / 100, useUntil: useUntil / 100, using: using === -1 ? null : items[using],
-      respawnAt: respawnAt / 100, protectionUntil: protectionUntil / 100, lastInput });
+      respawnAt: respawnAt / 100, protectionUntil: protectionUntil / 100, lastInput, shotHeat: shotHeat / 100 });
   }
   const snapshot = { protocol: PROTOCOL_VERSION, world: WORLD_VERSION, ...fast, config: world.config,
     loot: world.loot, openedChests: world.openedChests, results: world.results, actors } as WorldSnapshot;
