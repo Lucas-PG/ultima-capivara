@@ -109,7 +109,7 @@ describe('shipped capybara asset contract', () => {
     expect(Array.from(scale.getArray()!).some(value => value < .1)).toBe(true);
   });
 
-  it('keeps facial motion inside the head hitbox, including ears and mouth extremes', async () => {
+  it('keeps faces and locomotion inside the head hitbox, including ears and mouth extremes', async () => {
     const bytes = await readFile('public/models/capybara/capybara.glb');
     // Image decoding is unnecessary for CPU skinning; the real exported meshes,
     // skeleton, quantization and animation tracks are used without a GPU.
@@ -123,7 +123,7 @@ describe('shipped capybara asset contract', () => {
     gltf.scene.traverse(object => { if (object instanceof SkinnedMesh) meshes.push(object); });
     const mixer = new AnimationMixer(gltf.scene), vertex = new Vector3();
     const expressions = ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'];
-    for (const name of [...expressions.map(name => `face_${name}`), 'idle']) {
+    for (const name of [...expressions.map(name => `face_${name}`), 'idle', 'run', 'jump']) {
       const clip = gltf.animations.find(clip => clip.name === name)!;
       expect(clip, name).toBeDefined();
       mixer.stopAllAction(); mixer.clipAction(clip).play();
