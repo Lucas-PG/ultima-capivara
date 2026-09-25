@@ -77,6 +77,12 @@ export const SCENARIOS = {
   'armor-tp': { scene: { ...PLAZA, actors: [bot('bento', -41, 23)] }, events: [ev('use', { actor: 'bento', item: 'acai' })], frames: strip(3, 8, 14, 20, 28, 36, 44, 52), still: 3 },
   'boost-tp': { scene: { ...PLAZA, actors: [bot('bento', -41, 23)] }, events: [ev('use', { actor: 'bento', item: 'guarana' })], frames: strip(3, 8, 14, 20, 28, 36, 44, 52), still: 3 },
   'heal-fp': { scene: { ...PLAZA, weapon: 'm4' }, events: [ev('use', { actor: 'practice', item: 'bandage' })], frames: strip(3, 8, 14, 20, 28, 36, 44, 52), still: 3 },
+  // Death cam: a bot 14 m away eliminates you; the view rises and frames it for 1.8 s.
+  'death-cam': {
+    scene: { ...FIELD, weapon: 'm4', actors: [farBot('bento', 14, { weapon: 'm4', x: -23 })] },
+    events: [ev('kill', { actor: 'bento', target: 'practice', weapon: 'm4', from: { x: -23, y: 1, z: -14 }, distance: 14 })],
+    frames: [{ at: 1, patch: { practice: { alive: false } } }, ...strip(8, 16, 27, 40, 60, 80, 105)], still: 5,
+  },
   // Bot pre-attack tell.
   'alert-15m': { scene: { ...PLAZA, actors: [bot('bento', -38, 33)] }, events: [ev('alert', { actor: 'bento', target: 'practice', delay: .6 })], frames: strip(2, 5, 8, 14, 24, 36, 48, 62), still: 4 },
   'alert-40m': { scene: { ...FIELD, actors: [farBot('bento', 40)] }, events: [ev('alert', { actor: 'bento', target: 'practice', delay: .6 })], frames: strip(2, 5, 8, 14, 24, 36, 48, 62), still: 4 },

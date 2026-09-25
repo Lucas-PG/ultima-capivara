@@ -88,4 +88,18 @@ describe('local input feel', () => {
     expect(settings.bindings.useRapadura).toBe('Digit9');
     expect(settings.bindings.map).toBe('KeyM');
   });
+  it('leaves a newly added action unbound when an old save already uses its default key', () => {
+    const store = new Map<string, string>([['uc-v2-settings', JSON.stringify({ bindings: { reload: 'KeyI' } })]]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: () => {} });
+    const settings = loadSettings();
+    expect(settings.bindings.reload).toBe('KeyI');
+    expect(settings.bindings.inspect).toBe('');
+    const input = controller();
+    input.setSettings(settings); input.locked = true;
+    const actions: { type: string }[] = [], inspect = vi.fn();
+    input.onAction = action => actions.push(action); input.onInspect = inspect;
+    (input as any).key({ code: 'KeyI', repeat: false, preventDefault: () => {} }, true);
+    expect(actions.map(a => a.type)).toEqual(['reload']);
+    expect(inspect).not.toHaveBeenCalled();
+  });
 });

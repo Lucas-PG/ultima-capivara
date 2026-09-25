@@ -34,8 +34,13 @@ export function loadSettings(): Settings {
     if (typeof value.uiScale === 'number' && Number.isFinite(value.uiScale)) result.uiScale = clamp(value.uiScale, .8, 1.2);
     if (['white', 'yellow', 'cyan', 'magenta'].includes(value.crosshairColor)) result.crosshairColor = value.crosshairColor;
     if (value.hitPalette === 'default' || value.hitPalette === 'colorblind') result.hitPalette = value.hitPalette;
-    if (value.bindings && typeof value.bindings === 'object') for (const key of Object.keys(DEFAULT_BINDINGS)) {
-      if (typeof value.bindings[key] === 'string' && BINDABLE_CODE.test(value.bindings[key])) result.bindings[key] = value.bindings[key];
+    if (value.bindings && typeof value.bindings === 'object') {
+      const valid = (code: unknown): code is string => typeof code === 'string' && BINDABLE_CODE.test(code);
+      const taken = new Set<string>();
+      for (const key of Object.keys(DEFAULT_BINDINGS)) if (valid(value.bindings[key])) { result.bindings[key] = value.bindings[key]; taken.add(value.bindings[key]); }
+      // An action the save does not know yet keeps its default only if no saved binding already uses
+      // that code; otherwise it stays unbound, so one press never triggers two actions.
+      for (const key of Object.keys(DEFAULT_BINDINGS)) if (!valid(value.bindings[key]) && taken.has(result.bindings[key])) result.bindings[key] = '';
     }
   } catch { /* Blocked storage and old preferences must never prevent playing. */ }
   return result;

@@ -70,7 +70,8 @@ export class InputController {
   private mouse(event: MouseEvent, down: boolean) {
     if (!this.locked) return;
     const code = `Mouse${event.button}`;
-    if (Object.values(this.settings.bindings).includes(code)) event.preventDefault();
+    // Side buttons (3, 4) would navigate the page back or forward mid-match even when unbound.
+    if (event.button >= 3 || Object.values(this.settings.bindings).includes(code)) event.preventDefault();
     this.press(code, down, false);
   }
   // Every action goes through its binding, whether the code is a key or a mouse button.
