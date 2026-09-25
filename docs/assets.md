@@ -1,7 +1,7 @@
 # Origem dos recursos
 
 - `public/models/capybara/capybara.glb`: capivara original produzida por `tools/blender/capybara.py` em Blender 5.0.1, 24/09/2026. Atlas PNG 16 x 16 original, sem fontes externas. Pipeline e métricas em `tools/blender/README.md` e `public/models/capybara/metrics.json`.
-- Conceitos M0 `tatu-lookdev-{A,B,C}-capy.png`: gerações originais com ImageGen integrada em 24/09/2026, para review, salvas em `/Users/lucas_gaspe/dev/capivara-team/reviews/`. São conceitos, não capturas do gameplay. Prompts completos abaixo.
+- Conceitos M0 `tatu-lookdev-{A,B,C}-capy.png`: gerações originais com ImageGen integrada em 24/09/2026, aprovadas por Pincel como meta, arquivadas em `docs/concepts/` e `/Users/lucas_gaspe/dev/capivara-team/reviews/`. São conceitos, não capturas do gameplay. Prompts completos abaixo.
 
 ## Prompts dos conceitos da capivara M0
 
