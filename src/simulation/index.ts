@@ -243,7 +243,7 @@ export class Simulation {
     if (this.config.mode === 'battle-royale') { this.updatePlane(); this.updateZone(); }
     for (const actor of this.actors.values()) {
       const s = actor.state;
-      actor.shotHeat = Math.max(0, actor.shotHeat - TICK * 2.4);
+      if (actor.shotHeat > 0) actor.shotHeat = Math.max(0, actor.shotHeat - TICK * 2.4);
       if (!s.connected && actor.disconnectedAt >= 0 && this.time - actor.disconnectedAt >= 30) this.forfeit(actor);
       if (!s.alive) { if (this.config.mode === 'deathmatch' && s.respawnAt && this.time >= s.respawnAt && s.connected) this.respawn(actor); continue; }
       if (s.stage === 'plane') {
