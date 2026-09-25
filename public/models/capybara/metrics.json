@@ -60,8 +60,8 @@
   "materials": 1,
   "skins": 1,
   "joints": 35,
-  "bytes": 257736,
-  "rawBytes": 1021628,
+  "bytes": 257956,
+  "rawBytes": 1020756,
   "texture": {
     "format": "PNG",
     "width": 16,

@@ -688,7 +688,8 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
         rig.pose.bones['mouth_cavity'].scale.y = 1 if expression in ['hit', 'stunned', 'victory'] else .001
         if expression == 'victory':
             rig.pose.bones['mouth_cavity'].scale.x = 1.25
-            rig.pose.bones['mouth_cavity'].scale.y = .55
+            # Almost closed, with raised corners: a grin rather than an open O.
+            rig.pose.bones['mouth_cavity'].scale.y = .08
         for sign, side in [(-1, 'L'), (1, 'R')]:
             lid = rig.pose.bones['blink_' + side]
             if expression in ['hit', 'victory', 'blink']:
@@ -727,11 +728,10 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
                 lid.scale.y = .14
                 rig.pose.bones['blink_peak_' + side].location.y = .22
                 brow.location.y = .006
-                mouth.location.y = .035
+                # Corner bones inherit the cavity's vertical scale.
+                mouth.location.y = .10
                 ear.rotation_euler.x = .10
-                rig.pose.bones['jaw'].location.y = -.012
-                rig.pose.bones['jaw'].location.z = .005
-                rig.pose.bones['jaw'].scale.x = 1.08
+                rig.pose.bones['jaw'].scale.x = 1.04
             elif expression == 'blink':
                 lid.scale.y = .04
         for p in face_parts:
