@@ -9,6 +9,7 @@ const player = (page: Page, id?: string) => page.evaluate(id => {
 }, id);
 
 async function resume(page: Page) {
+  await page.bringToFront();
   if (!await page.evaluate(() => !!document.pointerLockElement)) {
     await page.locator('[data-do="resume"]').click();
     await expect.poll(() => page.evaluate(() => !!document.pointerLockElement)).toBe(true);
@@ -22,6 +23,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
   const errors: string[] = [];
   try {
     for (const context of contexts) await context.addInitScript(() => {
+      if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
       localStorage.setItem('uc-v2-settings', JSON.stringify({ graphics: 'low', master: 0, frameLimit: 60 }));
     });
     const [host, guest] = await Promise.all(contexts.map(context => context.newPage()));
@@ -85,6 +87,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await info.attach('multiplayer-evidence', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
     console.log('Game multiplayer evidence:', JSON.stringify(evidence));
     expect(errors).toEqual([]);
+    await host.bringToFront();
     await host.keyboard.press('Escape');
     await host.locator('[data-do="leave"]').click();
     await expect.poll(async () => (await inspect(guest)).room).toBeNull();
