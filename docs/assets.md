@@ -42,6 +42,7 @@ Notas de implementação do diretor: Lendária recebe filigrana dourada discreta
 
 
 - `public/assets/cover-v2.png`: imagem original gerada para este projeto com a ferramenta integrada ImageGen em 24/09/2026. Não usa uma fotografia ou personagem licenciado como entrada.
+- `public/assets/cover-{1672,960}.{avif,webp}` e `cover-blur-480.{avif,webp}`: variantes geradas de `cover-v2.png` por `node scripts/build-cover.mjs` (ffmpeg, cwebp 1.6, avifenc 1.4), em 25/09/2026. O menu baixa só a variante do tamanho da tela; a tela de carregamento usa a versão desfocada. O PNG fica como matriz e não é mais pedido pelo jogo.
 - `public/assets/favicon.svg` e ícones de interface: desenho vetorial no código do projeto.
 - Geometria do mapa, personagens, mãos, armas procedurais, pickups e materiais: código local em `src/render` e `src/shared/world.ts`. Modelos de armas adicionais e suas licenças estão em [public/models/SOURCES.md](../public/models/SOURCES.md).
 - Áudio: gravações CC0 de disparos, passos e recargas, com síntese Web Audio para ambiente, feedback e fallback. O banco local ocupa cerca de 69 KB; origens, autores e transformações em [audio-sources.md](audio-sources.md).
@@ -143,6 +144,50 @@ for the open visual gate and coverage measurement protocol.
 
 `public/decoders/basis/basis_transcoder.js` and `basis_transcoder.wasm` are copied unmodified from the installed Three.js 0.186.0 `examples/jsm/libs/basis` distribution for local KTX2 loading. These are software dependencies, not art assets. The upstream Basis Universal Apache 2.0 license and Three.js decoder README are included in that directory. Source: https://github.com/BinomialLLC/basis_universal . No CDN is contacted by the loader.
 
+## Forja final runtime atlas originals, 2026-09-25
+
+Generated with the built-in ImageGen tool for Pincel's final image brief. Originals are retained at `reviews/final-art/sky-water-storm-additive.png` and `reviews/final-art/vfx-flipbooks.png` in the shared team directory. Art approval and runtime integration are separate gates. The generator returned F1 at 1254x1254 RGBA rather than the requested 2048x2048, and F2 at 1774x887 RGBA rather than 4096x2048. These are original outputs, not upscaled substitutes. F2 has real transparent background; Brasa owns conversion to the requested 1024x512 runtime grid and its VFX integration. Pincel approved both originals on 2026-09-25, including native dimensions. Measured F1 seam deltas are 4.9/255 vertically for wisps and 4.1/255 horizontally for foam, acceptable with the runtime fade. Both use original generated artwork, no external licensed image inputs.
+
+### sky-water-storm-additive.png prompt
+
+```text
+Use case: stylized-concept. Production runtime additive texture atlas for the original cartoon game Última Capivara, Direction A Ilha Dourada. Output exactly 2048x2048 PNG. Pure solid black #000000 background everywhere outside the painted emission; black is additive transparency. Four exact 1024x1024 quadrants, no borders, labels, text, guide lines or contact sheet decorations.
+TOP LEFT (x0..1023,y0..1023): perfectly round sun disc centered512,512, core #FFF1C9, diameter about300px, restrained smooth warm halo fading all the way into pure black well before the quadrant edges. No oval, flares, spikes or rings.
+TOP RIGHT (x1024..2047,y0..1023): tileable vertically storm wisp texture. Broad soft flowing vertical wisps in #8A4DFF and #C9B2D6 against black. Seamlessly periodic at top and bottom, matching intensity and position of each wisp across those edges. Wisps span the full quadrant height. Sparse broad painted forms, low frequency, no grain, no sharp lightning.
+BOTTOM LEFT (x0..1023,y1024..2047): ONE horizontally tileable stylized shoreline foam ribbon in a 1024x256 band centered vertically within this quadrant (y1408..1663 of atlas), all remaining space pure black. Broken gently curving flat-painted foam lines #F4FBF6 with softly feathered edges, organic broad lobes, exact continuity between left and right edges, no photo bubbles, no blue water, no sand.
+BOTTOM RIGHT (x1024..2047,y1024..2047): exactly SIX separate small painted star or lozenge water sparkles, evenly spaced in a3x2 arrangement with generous black space, warm white #F4FBF6/#FFF1C9, each comfortably inside a180px circle. Simple chunky4-point or diamond silhouettes, subtle soft edge, no glitter cloud.
+Style: premium clean hand-painted cartoon game texture, large smooth shapes, no photographic texture, noise, grime, scratches, outlines, objects, landscapes, logos, or words. Atlas must be immediately usable by quadrant UV sampling. Respect the exact quadrant contents and clean black gutters except the explicitly seamless tile axes.
+```
+
+### vfx-flipbooks.png prompt
+
+```text
+Use case: stylized-concept. Create an original production game VFX sprite atlas for Última Capivara Direction A Ilha Dourada. PNG RGBA with TRUE TRANSPARENT background, straight alpha, no background matte, no checkerboard drawn. Requested output4096x2048, exact2:1 aspect, exactly8 equal columns and4 equal rows (512x512cells). Fixed cell positions are absolutely essential. Every painted subject centered inside its cell's416px diameter safe circle, leaving48px transparent margin on every side. The entire bottom2rows and last2cells ofrow1 MUST be empty transparent. No text, labels, guides or grid lines.
+Flat hand-painted cartoon sprites with chunky clean silhouettes, baked warm dark-brown #3A2418 outer ink line, upper-left light, only2-3 broad flat tones. NO bloom, blur, translucent halos, realistic smoke, grain, texture or tiny particles. Normal alpha blending, readable on bright daylight sky and sand.
+Cells listed left-to-right byrow:
+ROW0 (top, cell indices0..7):
+0: muzzleflash frame1, compact4-point orange star with cream centre, #FFB84D / #FFE7A3, darkbrown ink.
+1: muzzleflash frame2, slightly rotated and expanded version ofthe same4-point orange star, samepalette.
+2: muzzleflash frame3, smaller compact orange burst, samepalette.
+3: impact POW frame1, rounded chunky cream #FFF4E2 burst with small #FFB84D centre, no lettering.
+4: impact POW frame2, wider expanded variation ofcell3, samepalette.
+5: single headshot gold5-pointstar, #FFC23D / #FFE7A3, strong darkbrown outline.
+6: fur tuftA, small compact tapered cluster ofthree rounded capybara fur spikes, #D39A47 / #E8C08A with darkbrown outline.
+7: fur tuftB, distinct rotated/split variation oftuftA, samepalette.
+ROW1 (indices8..15):
+8: wood chipA, one chunky irregular wood fragment, #9C6A42 / #C07A45 with darkbrown outline.
+9: wood chipB, different blocky fragment, samepalette.
+10: one long tapered wood splinter, samepalette andink.
+11: compact dust/impact puffA, 3 rounded lobes, fill strictly NEUTRAL GREYS only #F0F0F0 / #B8B8B8 / #737373; ink #3A2418. No hue in fill, willbe shader tinted.
+12: expanding dust/impact puffB, 4 rounded lobes, same strictly neutral grey fill andink.
+13: generic chip, small irregular beveled polygon, same neutral grey fill, #3A2418 ink. No metal shine.
+14: EMPTY TRANSPARENT.
+15: EMPTY TRANSPARENT.
+ROW2: all8cells EMPTY TRANSPARENT.
+ROW3: all8cells EMPTY TRANSPARENT.
+Maintain generous transparent spacing, no drawing may cross cell boundaries. Do not collapse blank rows or compact the sheet. No guns, people, faces, scenery or additional sprites. Output the atlas itself without any presentation background.
+```
+
 ## Forja M1 concept prompts, 2026-09-24
 
 Original paintovers generated with the built-in ImageGen tool. Direction A is locked. These are art-review targets, not captured gameplay or runtime textures. Pincel approved all three on 2026-09-24 as implementation targets, subject to the refinements below. Inputs are the team's local baseline captures; originals remain unchanged. Files are retained in `docs/concepts/` and copied to the shared reviews directory.
@@ -219,3 +264,6 @@ P0 correction pass, 2026-09-25: the first icon generation returned an alpha canv
 > Use case: illustration-story. Production home screen mode-card artwork for original Brazilian cartoon game Ultima Capivara, locked Direction A Ilha Dourada. Wide horizontal 2048x640 PNG sheet, two equal1024x640 illustrations side by side with a precise vertical division atx1024, no border, no gutter, NO TEXT OR LABELS. Left half: a single appealing stylized capybara parachuting above a Brazilian tropical island at golden hour. Place the capybara under a colourful parachute in the RIGHT TWO THIRDS of this left card, with the island red-tile village, turquoise lagoon, palms below and a violet #8A4DFF storm ring on the far horizon. Keep the LEFT THIRD calm and dark enough for overlay text, mostly quiet sky/haze, no important subject there. Right half: three stylized capybaras sprinting across a Brazilian Vila plaza with a fountain, colourful festa-junina bunting and soft warm dust puffs, all characters clustered within the RIGHT TWO THIRDS of this right card. LEFT THIRD of this right card is quiet low-detail plaza shade for overlay text. All capybaras: long broad squared furry snout continuous with flattened crown, small glossy eyes, tiny round back ears, big head on pear torso, short thick limbs and large animal paws, olive #6E7040 vest and turquoise #1FB5A8 bandana. Fur #B8743A lit #D39A47 shade #7A4424, nose only #4A2C1C. Rich clean hand-painted cartoon production art, soft three-band light from upper left #FFD9A8, lavender #6B5B95 shadows, golden Brazilian island atmosphere, chunky rounded shapes, smooth painted materials, no photographic detail, grain, scratches, brands, logos or text. Do not imitate existing game art. Each half is a complete independent composition for a card.
 
 Final-art delivery: Pincel approved both P0 sheets on 2026-09-25, without retake. The first icon original with alpha is also delivered as `ui-icons-3x3-alpha.png`. Actual native dimensions: icons/portrait1254x1254; badges1536x1024; modes2172x724. The generator did not preserve the requested pixel dimensions or exact chroma-key RGB. Pincel owns cropping, keying and UI integration; no code-based image edits were applied. Manifest with hashes is `reviews/final-art/tatu-final-art-manifest.json` in the shared team directory. Pincel approved both P1 images on 2026-09-25 without retake; T1-T4 delivery is closed and approved.
+### F1 runtime cuts, 2026-09-25
+
+Run `uv run --with pillow python tools/assets/prepare-render-atlas.py` to reproduce four 627x627 RGB cuts from the retained original: `painted-sun.png`, `storm-wisps.png`, `shore-foam.png`, `water-glints.png`. The glint cut applies Pincel’s required luminance levels (below 70 becomes black; 70..255 maps to 0..255 with hue retained). All 372157 source pixels below the threshold become exactly black, removing the grey diamond matte. These cuts are prepared assets; shader wiring and its visual review are separate. Brasa’s F2 consumer commit 580fe0c supplies the final 1024x512 PNG (148876 bytes) and replaces the original-size manifest entry when integrated.

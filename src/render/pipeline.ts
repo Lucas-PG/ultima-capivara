@@ -9,7 +9,7 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 // World depth stays single-sampled: resolving even two samples across overlapping
 // R6 skin parts rejects mask pixels at the chin/bandana seam (TATU40).
 export const PRESETS = {
-  low: { dpr: .75, samples: 0, shadows: false, shadowReach: 0, interior: false },
+  low: { dpr: .75, samples: 0, shadows: false, shadowReach: 0, interior: true },
   medium: { dpr: 1, samples: 0, shadows: true, shadowReach: 32, interior: true },
   high: { dpr: 1.25, samples: 0, shadows: true, shadowReach: 42, interior: true },
 } as const;

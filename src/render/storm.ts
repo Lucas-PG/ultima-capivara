@@ -33,7 +33,9 @@ export class StormView {
           if(a<.004)discard;
           gl_FragColor=vec4(uColor,a);
         }`,
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+      // Only the exit surface tints the unsafe side. From outside, the entrance
+      // face must not wash the safe world behind it in violet.
+      transparent: true, depthWrite: false, side: THREE.BackSide, fog: false,
     });
     this.mesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 160, 1, true), this.material);
     this.mesh.frustumCulled = false; this.mesh.renderOrder = 2; this.mesh.visible = false;

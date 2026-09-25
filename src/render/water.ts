@@ -78,7 +78,10 @@ export class PaintedWater {
           glint*=step(.82,hash(floor(cell)))*smoothstep(.55,.95,.5+.5*sin(uTime*.7+hash(floor(cell))*6.28));
           glint*=1.0-smoothstep(20.0,60.0,distance(vWorld,cameraPosition));
           color=mix(color,foam,glint*.35);
-          gl_FragColor=vec4(color,smoothstep(0.0,.35,shoreDistance)*.96);
+          // Dissolve into the sky haze before the far clip or the ocean mesh edge.
+          // At the 120 m plane view this spans about 50 pixels at 1080p.
+          float horizon=1.0-smoothstep(500.0,750.0,distance(vWorld,cameraPosition));
+          gl_FragColor=vec4(color,smoothstep(0.0,.35,shoreDistance)*.96*horizon);
           #include <fog_fragment>
         }`,
     });
