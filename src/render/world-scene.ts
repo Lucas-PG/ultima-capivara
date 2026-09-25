@@ -221,7 +221,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-slope-v5';
+    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-albedo-v6';
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -319,23 +319,23 @@ export class WorldScene {
         float paintPatch = smoothstep(-.08, .08, broadWear);
         vec3 asphaltPaint = terrainAsphalt * clamp(.95 + paintPatch * .1 + fineWear * .01, .94, 1.06);
         diffuseColor.rgb = mix(diffuseColor.rgb, asphaltPaint, asphaltMask);
-      `).replace('#include <tonemapping_fragment>', `
+        // Authored stone is albedo, so it receives the same sun and shadows
+        // as grass. Lake banks retain their painted grass/sand substrate.
         float coastRadius = max(abs(vTerrainXZ.x), abs(vTerrainXZ.y)) * 0.65 + length(vTerrainXZ) * 0.35;
         float coastalRock = smoothstep(110.0, 113.0, coastRadius);
-        float lakeRock = 1.0 - smoothstep(25.0, 27.0, distance(vTerrainXZ, vec2(-34.0, 6.0)));
         float rockMask = max(smoothstep(1.03, 1.13, vTerrainSlope),
-          max(coastalRock, lakeRock) * smoothstep(0.55, 0.7, vTerrainSlope));
+          coastalRock * smoothstep(0.55, 0.7, vTerrainSlope));
         float irregular = sin(vTerrainXZ.x * 0.52 + sin(vTerrainXZ.y * 0.18)) * 0.12 +
           sin(vTerrainXZ.y * 0.47) * 0.08;
         float stratum = mod(floor((vTerrainWorldY + irregular) / 1.2), 2.0);
         float topBand = 1.0 - smoothstep(0.7, 1.0, vTerrainSlope);
         vec3 rockPaint = mix(terrainRockPaint, terrainRockTop, topBand) * mix(0.94, 1.06, stratum);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
+        diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
         // The Morro shelves are built retaining faces: distinct plaster/stone
         // courses and narrow joints give a readable scale at walking distance.
         float morroArea = step(-38.0, vTerrainXZ.x) * step(vTerrainXZ.x, 12.0) *
           step(64.0, vTerrainXZ.y) * step(vTerrainXZ.y, 120.0);
-        float morroFace = morroArea * smoothstep(0.58, 0.82, vTerrainSlope);
+        float morroFace = morroArea * smoothstep(0.6, 0.7, vTerrainSlope);
         float course = vTerrainWorldY + irregular;
         float jointDistance = min(mod(course, 1.2), 1.2 - mod(course, 1.2));
         float jointWidth = max(fwidth(course), 0.015);
@@ -343,9 +343,8 @@ export class WorldScene {
         vec3 morroPaint = mix(terrainMorroMid, terrainMorroLight,
           mod(floor(course / 1.2), 2.0));
         morroPaint = mix(morroPaint, terrainMorroJoint, joint * 0.55);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, morroPaint,
+        diffuseColor.rgb = mix(diffuseColor.rgb, morroPaint,
           morroFace * (1.0 - asphaltMask - curbMask));
-        #include <tonemapping_fragment>
       `);
     };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
