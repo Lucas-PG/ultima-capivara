@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { WORLD_PALETTE } from '../shared/terrain';
 import type { WorldSpec } from '../shared/types';
 import { releaseAfterUpload } from './memory';
 
@@ -57,8 +58,7 @@ export function buildVegetation(world: WorldSpec) {
     const base = new THREE.Color(color), positions = geometry.getAttribute('position');
     const normals = geometry.getAttribute('normal'), colors = new Float32Array(positions.count * 3);
     for (let i = 0; i < positions.count; i++) {
-      const grain = Math.sin(positions.getX(i) * 13.7 + positions.getZ(i) * 11.9) * Math.sin(positions.getY(i) * 16.3);
-      const light = .82 + .18 * Math.max(0, normals.getY(i)) + grain * .045;
+      const light = .94 + .06 * Math.max(0, normals.getY(i));
       colors.set([base.r * light, base.g * light, base.b * light], i * 3);
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3)); return geometry;
@@ -98,7 +98,7 @@ export function buildVegetation(world: WorldSpec) {
         const angle = i * 2.399 + rotation, height = Math.min(reeds ? 1.6 : .42, h) * (.5 + hash(seed, i) * .5);
         const root = base.clone().add(new THREE.Vector3(Math.cos(angle) * .12, 0, Math.sin(angle) * .12));
         const tip = root.clone().add(new THREE.Vector3(Math.cos(angle) * height * .45, height, Math.sin(angle) * height * .45));
-        leaf(root, tip, reeds ? .025 : .04, i % 3 ? '#7b963c' : '#bdba66');
+        leaf(root, tip, reeds ? .025 : .04, i % 3 ? WORLD_PALETTE.tuft : WORLD_PALETTE.tuftTip);
         if (reeds && i % 3 === 0) piece(coconut, '#825c3e', tip, new THREE.Vector3(.035, .13, .035));
       }
       continue;
@@ -113,13 +113,13 @@ export function buildVegetation(world: WorldSpec) {
         const t = segment / segments;
         const point = base.clone().lerp(top, t);
         point.x += Math.sin(t * Math.PI) * .16;
-        branch(previous, point, radius * (1 - t * .32), segment % 2 ? '#9e8160' : '#a88b68');
+        branch(previous, point, radius * (1 - t * .32), WORLD_PALETTE.palmTrunk);
         previous = point;
       }
       for (let ring = 1; ring < (far ? 0 : 10); ring++) {
         const t = ring / 10, point = base.clone().lerp(top, t);
         point.x += Math.sin(t * Math.PI) * .16;
-        piece(trunkRing, '#786347', point, new THREE.Vector3(radius * (1 - t * .32), .12, radius * (1 - t * .32)));
+        piece(trunkRing, WORLD_PALETTE.palmRing, point, new THREE.Vector3(radius * (1 - t * .32), .12, radius * (1 - t * .32)));
       }
       for (let i = 0; i < 9; i++) {
         const angle = rotation + i * Math.PI * 2 / 9;
@@ -128,14 +128,15 @@ export function buildVegetation(world: WorldSpec) {
         const across = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
         const point = (t: number) => top.clone().addScaledVector(direction, length * t)
           .add(new THREE.Vector3(0, Math.sin(t * Math.PI) * .65 - t * t * 1.0 + (i % 2) * .15, 0));
-        if (!far) for (let rib = 0; rib < 3; rib++) branch(point(rib / 3), point((rib + 1) / 3), .022, '#82914a');
+        if (!far) for (let rib = 0; rib < 3; rib++) branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid);
         for (let n = far ? 2 : 1; n <= 13; n += far ? 3 : 1) {
           const t = n / 14, root = point(t);
           const blade = Math.sin(Math.PI * t) * length * .36;
           for (const side of [-1, 1]) {
             const tip = root.clone().addScaledVector(across, blade * side)
               .addScaledVector(direction, length * .14).add(new THREE.Vector3(0, -.1 - blade * .13, 0));
-            leaf(root, tip, (.15 * Math.sin(Math.PI * t) + .026) * (far ? 2.2 : 1), (n + i) % 3 ? '#4f8039' : '#85a34e');
+            leaf(root, tip, (.15 * Math.sin(Math.PI * t) + .026) * (far ? 2.2 : 1),
+              (n + i) % 3 ? WORLD_PALETTE.palmMid : WORLD_PALETTE.palmLight);
           }
         }
       }
@@ -147,11 +148,11 @@ export function buildVegetation(world: WorldSpec) {
     }
     const trunkTop = base.clone().add(new THREE.Vector3(.15 * Math.cos(rotation), h * .6, .15 * Math.sin(rotation)));
     const trunkRadius = .15 + h * .015;
-    branch(base, trunkTop, trunkRadius, '#826348');
+    branch(base, trunkTop, trunkRadius, WORLD_PALETTE.trunk);
     for (let root = 0; root < (far ? 0 : 4); root++) {
       const angle = rotation + root * Math.PI / 2;
       branch(base.clone().add(new THREE.Vector3(Math.cos(angle) * .5, .04, Math.sin(angle) * .5)),
-        base.clone().add(new THREE.Vector3(0, .7, 0)), trunkRadius * .38, '#8b6c4e');
+        base.clone().add(new THREE.Vector3(0, .7, 0)), trunkRadius * .38, WORLD_PALETTE.trunk);
     }
     const radius = Math.max(1.6, h * .27);
     for (let cluster = 0; cluster < (far ? 5 : 7); cluster++) {
@@ -160,8 +161,9 @@ export function buildVegetation(world: WorldSpec) {
         outer ? Math.cos(angle) * radius * .57 : Math.cos(angle) * .35,
         h * (outer ? .71 : .88) + hash(seed, cluster) * .22,
         outer ? Math.sin(angle) * radius * .57 : Math.sin(angle) * .35));
-      branch(trunkTop.clone().add(new THREE.Vector3(0, -.6, 0)), center, trunkRadius * .4, '#856748');
-      const color = new THREE.Color(cluster % 3 === 0 ? '#709847' : cluster % 3 === 1 ? '#518344' : '#86a44e');
+      branch(trunkTop.clone().add(new THREE.Vector3(0, -.6, 0)), center, trunkRadius * .4, WORLD_PALETTE.trunk);
+      const color = new THREE.Color(cluster % 3 === 0 ? WORLD_PALETTE.foliageLight :
+        cluster % 3 === 1 ? WORLD_PALETTE.foliageMid : WORLD_PALETTE.foliageCore);
       const bulk = far ? 1.12 : 1;
       piece(crowns[lod], color, center, new THREE.Vector3(radius * .69 * bulk, radius * .49 * bulk, radius * .66 * bulk), 1);
       // Small leaves at crown edges add detail without filling the view with cards.
@@ -169,7 +171,7 @@ export function buildVegetation(world: WorldSpec) {
         const a = angle + spray * 1.256;
         const root = center.clone().add(new THREE.Vector3(Math.cos(a) * radius * .56, radius * .14, Math.sin(a) * radius * .56));
         const tip = root.clone().add(new THREE.Vector3(Math.cos(a) * .43, .1, Math.sin(a) * .43));
-        leaf(root, tip, .14, '#9fbb60');
+        leaf(root, tip, .14, WORLD_PALETTE.foliageLight);
       }
       if (!far && seed % 3 === 0 && cluster < 5) {
         for (let fruit = 0; fruit < 3; fruit++) piece(coconut, '#e8a145', center.clone().add(new THREE.Vector3(
