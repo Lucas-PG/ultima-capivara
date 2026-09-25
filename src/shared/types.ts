@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const WORLD_VERSION = 'ilha-v2-3';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -48,7 +48,7 @@ export interface ActorState {
   weapons: WeaponState[]; slot: number;
   consumables: Record<ConsumableId, number>;
   reloadUntil: number; useUntil: number; using: ConsumableId | null;
-  respawnAt: number; protectionUntil: number; lastInput: number;
+  respawnAt: number; protectionUntil: number; lastInput: number; shotHeat: number;
 }
 export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth' }
 export interface MapObject {

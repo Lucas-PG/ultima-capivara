@@ -3,7 +3,7 @@ import { clamp } from '../shared/math';
 import { rarityOf } from '../shared/rarity';
 import { ARENA } from '../shared/layout';
 import { terrainHeight } from '../shared/terrain';
-import { WEAPONS } from '../shared/weapons';
+import { shotSpread, WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
 import { accuracyText, cleanLabel, formatSurvived, hudScale, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
@@ -284,9 +284,16 @@ export class GameUI {
     this.updateCoach(snapshot, me, interaction);
     this.drawMap(snapshot, me);
   }
+  // Crosshair gap matches the authoritative cone (Brasa's shotSpread) projected with the current FOV and ADS zoom.
+  // The crosshair is not scaled by --ui: its gap is a real screen-space angle.
   private crosshairGap(me: ActorState, _now: number): number {
-    const def = me.weapons[me.slot] ? WEAPONS[me.weapons[me.slot].id] : null, speed = Math.hypot(me.velocity.x, me.velocity.z);
-    return 4 + (def ? me.ads ? def.adsSpread : def.spread : 1) * 3.2 + Math.min(speed, 6) * 1.1;
+    const weapon = me.weapons[me.slot], speed = Math.hypot(me.velocity.x, me.velocity.z);
+    const spread = weapon ? shotSpread(weapon.id, me.ads, speed, !me.grounded, me.shotHeat) : 0;
+    const height = document.querySelector<HTMLCanvasElement>('#game')?.clientHeight || window.innerHeight;
+    const scale = height / 1080;
+    const zoom = weapon?.id === 'sniper' ? 5.5 : weapon?.id === 'dmr' ? 2.9 : 1.25;
+    const fov = this.settings.fov / (me.ads ? zoom : 1) * Math.PI / 180;
+    return clamp(Math.tan(spread * Math.PI / 360) * height / (2 * Math.tan(fov / 2)), 4 * scale, 48 * scale);
   }
   // Interaction prompt: the item name takes its rarity colour, with a mini icon.
   private updatePrompt(me: ActorState, interaction: { id: string; name: string } | null) {
