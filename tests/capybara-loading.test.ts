@@ -67,7 +67,7 @@ describe('capybara cosmetic colour contract', () => {
     const material = baseline.body.material as THREE.MeshStandardMaterial;
     expect(material.userData.toonCharacter).toBeUndefined();
     expect(material.roughness).toBe(.78);
-    expect(material.customProgramCacheKey()).not.toContain('ilha-dourada-character-v1');
+    expect(material.customProgramCacheKey()).not.toContain('ilha-dourada-character-');
     const original = baseline.body.geometry.getAttribute('color');
     const positions = baseline.body.geometry.getAttribute('position');
     const bones = baseline.body.geometry.getAttribute('skinIndex');
@@ -103,7 +103,7 @@ describe('capybara cosmetic colour contract', () => {
       const material = meshes[0].material as THREE.MeshStandardMaterial;
       expect(meshes.every(mesh => mesh.material === material)).toBe(true);
       expect(material.userData.toonCharacter).toBe(true);
-      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v1');
+      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v2');
       expect(material.vertexColors).toBe(true);
       expect(material.emissiveMap).toBe(sourceMaterial.emissiveMap);
       expect(material.emissive.getHexString()).toBe('ffffff');
