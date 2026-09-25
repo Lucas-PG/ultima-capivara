@@ -18,6 +18,14 @@ const elimination = dist => ({
   events: [shoot('practice', { x: -41, y: 1.1, z: 18 + dist }, { target: 'bento' }), ev('kill', { actor: 'practice', target: 'bento', weapon: 'm4' })],
   frames: [{ at: 1, patch: { bento: { alive: false } } }, ...strip(4, 8, 14, 22, 32, 46, 64)], still: 2,
 });
+// Open field south of the Vila, facing -z: a clear line of sight to 40 m.
+const FIELD = { x: -20, z: 0, yaw: 0, pitch: 0 };
+const farBot = (id, dist, extra = {}) => ({ id, x: -20, z: -dist, yaw: Math.PI, weapon: 'smg', ...extra });
+const hitFar = (dist, head) => ({
+  scene: { ...FIELD, weapon: 'm4', actors: [farBot('bento', dist)] },
+  events: [shoot('practice', { x: -20, y: head ? 1.6 : 1.1, z: -dist }, { target: 'bento', head, amount: head ? 52 : 26 })],
+  frames: strip(1, 2, 4, 6, 9, 13, 19, 27), still: 2,
+});
 const surface = (scene, aim) => ({ scene: { weapon: 'm4', ...scene }, events: [shoot('practice', aim)], frames: strip(1, 3, 6, 10, 15, 22, 60, 230), still: 2 });
 const storm = (zone, extra = {}) => ({ scene: { ...PLAZA, pitch: .05, weapon: 'm4', zone: { radius: 95, ...zone }, ...extra }, frames: strip(30), still: 0 });
 
@@ -30,7 +38,7 @@ export const SCENARIOS = {
   'fp-sniper-far': { scene: { ...PLAZA, weapon: 'sniper' }, events: [shoot('practice', { x: -41, y: 3, z: 32 })], frames: SHOT, still: 1 },
   // Third person: a bot fires past the player (red tracer), close and far.
   'tp-fire-10m': { scene: { ...PLAZA, weapon: 'm4', actors: [bot('bento', -41, 28, { weapon: 'm4' })] }, events: [shoot('bento', { x: -39.6, y: 1.5, z: 10 })], frames: SHOT, still: 0 },
-  'tp-fire-40m': { scene: { ...PLAZA, weapon: 'm4', actors: [bot('bento', -48, 58, { weapon: 'm4' })] }, events: [shoot('bento', { x: -40, y: 1.5, z: 10 })], frames: SHOT, still: 0 },
+  'tp-fire-40m': { scene: { ...FIELD, weapon: 'm4', actors: [farBot('bento', 40, { weapon: 'm4' })] }, events: [shoot('bento', { x: -18.6, y: 1.5, z: 8 })], frames: SHOT, still: 0 },
   'tp-casings-3m': {
     scene: { x: -41, z: 18, yaw: Math.PI, pitch: -.35, weapon: 'm4', actors: [bot('bento', -42.2, 21, { weapon: 'm4', yaw: -Math.PI / 2 })] },
     events: [shoot('bento', { x: -30, y: 1.3, z: 21 })],
@@ -45,10 +53,15 @@ export const SCENARIOS = {
   'impact-water': surface({ x: -34, z: 26, yaw: 0, pitch: -.3 }, { x: -34, y: 0, z: 12 }),
   'impact-dirt': surface({ x: -104, z: -59, yaw: Math.PI / 2, pitch: -.3 }, { x: -110, y: 0, z: -59 }),
   // Hits and eliminations.
-  'hit-body-6m': hit(6, false), 'hit-head-6m': hit(6, true), 'hit-body-30m': hit(30, false), 'hit-head-30m': hit(30, true),
+  'hit-body-6m': hit(6, false), 'hit-head-6m': hit(6, true), 'hit-body-30m': hitFar(30, false), 'hit-head-30m': hitFar(30, true),
   'armor-break-6m': { ...hit(6, false), events: [shoot('practice', { x: -41, y: 1.1, z: 24 }, { target: 'bento', armorBreak: true })] },
   'armor-break-fp': { scene: { ...PLAZA, weapon: 'm4', actors: [bot('bento', -41, 24)] }, events: [shoot('bento', { x: -41, y: 1.2, z: 18 }, { target: 'practice', armorBreak: true })], frames: strip(1, 3, 6, 10, 15, 20, 26, 32), still: 2 },
-  'elimination-6m': elimination(6), 'elimination-30m': elimination(30),
+  'elimination-6m': elimination(6),
+  'elimination-30m': {
+    scene: { ...FIELD, weapon: 'm4', actors: [farBot('bento', 30)] },
+    events: [shoot('practice', { x: -20, y: 1.1, z: -30 }, { target: 'bento' }), ev('kill', { actor: 'practice', target: 'bento', weapon: 'm4' })],
+    frames: [{ at: 1, patch: { bento: { alive: false } } }, ...strip(4, 8, 14, 22, 32, 46, 64)], still: 2,
+  },
   // Loot, chest and consumables (bakery interior).
   'pickup-rarity': {
     scene: { x: -77, z: 31.5, yaw: Math.PI, pitch: -.5, weapon: 'pistol', loot: [{ id: 'loot-122', rarity: 3 }] },
@@ -66,7 +79,7 @@ export const SCENARIOS = {
   'heal-fp': { scene: { ...PLAZA, weapon: 'm4' }, events: [ev('use', { actor: 'practice', item: 'bandage' })], frames: strip(3, 8, 14, 20, 28, 36, 44, 52), still: 3 },
   // Bot pre-attack tell.
   'alert-15m': { scene: { ...PLAZA, actors: [bot('bento', -38, 33)] }, events: [ev('alert', { actor: 'bento', target: 'practice', delay: .6 })], frames: strip(2, 5, 8, 14, 24, 36, 48, 62), still: 4 },
-  'alert-40m': { scene: { ...PLAZA, actors: [bot('bento', -46, 58)] }, events: [ev('alert', { actor: 'bento', target: 'practice', delay: .6 })], frames: strip(2, 5, 8, 14, 24, 36, 48, 62), still: 4 },
+  'alert-40m': { scene: { ...FIELD, actors: [farBot('bento', 40)] }, events: [ev('alert', { actor: 'bento', target: 'practice', delay: .6 })], frames: strip(2, 5, 8, 14, 24, 36, 48, 62), still: 4 },
   // Storm wall: 150 m and 10 m ahead from inside, and 10 m outside looking back in.
   'storm-150m': storm({ x: -41, z: 18 - 40, radius: 190 }),
   'storm-10m': storm({ x: -41, z: 18 - 85 }),

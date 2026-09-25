@@ -307,15 +307,15 @@ export class EffectsView {
     const big = weapon === 'sniper' || weapon === 'dmr' || weapon === 'slingshot' ? 1.3 : weapon === 'shotgun' ? .75 : 1;
     const k = big * scale;
     if (surface === 'water') {
-      this.decals.spawn(pos, normal, CELL.ring, .08 * k, .7 * k, .45, .6, .8, s.mark, s.markLight, rand(0, 6.3));
-      for (let i = 0; i < 3 + Math.round(k); i++) {
+      this.decals.spawn(pos, normal, CELL.ring, .15 * k, 1.1 * k, .45, .6, .9, s.mark, s.markLight, rand(0, 6.3));
+      for (let i = 0; i < 4 + Math.round(k * 2); i++) {
         const drop = this.cards.spawn();
-        drop.pos.copy(pos); drop.cell = CELL.drop; drop.stretch = true; drop.aspect = 1.6; drop.life = rand(.3, .42);
-        drop.vel.set(rand(-.9, .9), rand(2.4, 3.6) * k, rand(-.9, .9)); drop.gravity = 11;
-        drop.size0 = .07 * k; drop.size1 = .05 * k; drop.minPx = 3; drop.color.copy(s.bit); drop.light.copy(s.bitLight);
+        drop.pos.copy(pos); drop.cell = CELL.drop; drop.stretch = true; drop.aspect = 1.6; drop.life = rand(.32, .44);
+        drop.vel.set(rand(-1.1, 1.1), rand(2.8, 4.2) * k, rand(-1.1, 1.1)); drop.gravity = 11;
+        drop.size0 = .12 * k; drop.size1 = .08 * k; drop.minPx = 5; drop.color.copy(s.bit); drop.light.copy(s.bitLight);
       }
       const mist = this.cards.spawn();
-      mist.pos.copy(pos); mist.cell = CELL.mist; mist.life = .35; mist.size0 = .1 * k; mist.size1 = .34 * k; mist.alpha = .55;
+      mist.pos.copy(pos); mist.cell = CELL.puff; mist.life = .38; mist.size0 = .18 * k; mist.size1 = .55 * k; mist.alpha = .7; mist.minPx = 8;
       mist.vel.set(0, .6, 0); mist.color.copy(s.puff); mist.light.copy(s.puffLight);
       return;
     }
@@ -473,11 +473,11 @@ export class EffectsView {
     star.pos.copy(pos); star.cell = CELL.twinkle; star.life = .12; star.size0 = .5; star.size1 = .3; star.minPx = 10; star.maxPx = 40;
     star.color.copy(this.color.armor); star.light.copy(this.color.white);
     const floor = this.groundAt(pos.x, pos.z, pos.y) + .03;
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 9; i++) {
       const shard = this.cards.spawn();
-      shard.pos.copy(pos); shard.cell = CELL.shard; shard.life = rand(.4, .5); shard.rot = rand(0, 6.3); shard.spin = rand(-10, 10);
-      shard.vel.set(rand(-2.6, 2.6), rand(1.2, 3), rand(-2.6, 2.6)); shard.gravity = 9; shard.floor = floor; shard.bounce = .3;
-      shard.size0 = .13; shard.size1 = .1; shard.minPx = 5; shard.maxPx = 22;
+      shard.pos.copy(pos); shard.cell = CELL.shard; shard.life = rand(.42, .52); shard.rot = rand(0, 6.3); shard.spin = rand(-10, 10);
+      shard.vel.set(rand(-2.8, 2.8), rand(1.4, 3.2), rand(-2.8, 2.8)); shard.gravity = 9; shard.floor = floor; shard.bounce = .3;
+      shard.size0 = .22; shard.size1 = .16; shard.minPx = 9; shard.maxPx = 30;
       shard.color.copy(this.color.armor); shard.light.copy(this.color.armorLight);
     }
     if (!local) return;
