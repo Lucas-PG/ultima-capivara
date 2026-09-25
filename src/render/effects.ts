@@ -23,6 +23,8 @@ export interface EffectsFrame {
   camera: THREE.PerspectiveCamera; fpCamera: THREE.PerspectiveCamera; avatars: AvatarView;
   /** True while the first-person weapon scene is drawn for the local player. */
   firstPerson: boolean; viewportHeight: number;
+  /** Accessibility: cards fade in and out without scale pops. */
+  reducedMotion: boolean;
 }
 
 // One palette table (bible §3, §11). Values are the authored sRGB hexes.
@@ -86,6 +88,8 @@ export class EffectsView {
   private readonly n = new THREE.Vector3();
   private readonly t1 = new THREE.Vector3();
   private readonly t2 = new THREE.Vector3();
+  private readonly u1 = new THREE.Vector3();
+  private readonly u2 = new THREE.Vector3();
   private readonly tint = new THREE.Color();
 
   constructor(private readonly scene: THREE.Scene, private readonly world: WorldSpec, private readonly fpScene: THREE.Scene) {
@@ -144,9 +148,9 @@ export class EffectsView {
     for (const pebble of this.pebbles) if (pebble.card && pebble.card.life <= 0) pebble.card = null;
     const px = 2 * Math.tan(THREE.MathUtils.degToRad(frame.camera.fov) / 2) / Math.max(1, frame.viewportHeight);
     const fpPx = 2 * Math.tan(THREE.MathUtils.degToRad(frame.fpCamera.fov) / 2) / Math.max(1, frame.viewportHeight);
-    this.cards.update(dt, px, this.resolveAnchor);
+    this.cards.update(dt, px, this.resolveAnchor, frame.reducedMotion);
     this.tracers.update(dt, px); this.decals.update(dt); this.casings.update(dt);
-    this.fpCards.update(dt, fpPx, this.resolveAnchor); this.fpCasings.update(dt);
+    this.fpCards.update(dt, fpPx, this.resolveAnchor, frame.reducedMotion); this.fpCasings.update(dt);
   }
 
   event(event: GameEvent, avatars: AvatarView, weaponView: WeaponView, playerId: string | undefined, snapshot: WorldSnapshot | null = null): void {
@@ -223,7 +227,11 @@ export class EffectsView {
           this.a.set(muzzle.x + (g.x - muzzle.x) * .6, muzzle.y, muzzle.z + (g.z - muzzle.z) * .6);
           this.casings.spawn(this.a, this.n.set(Math.cos(yaw) * rand(1.2, 1.8), rand(1.4, 2), -Math.sin(yaw) * rand(1.2, 1.8)), weapon === 'shotgun', 1.6);
         }
-      } else muzzle.set(event.origin.x, event.origin.y - .12, event.origin.z);
+      } else {
+        muzzle.set(event.origin.x, event.origin.y - .12, event.origin.z);
+        // Your own shot seen through a scope: a streak from the eye would run down the crosshair.
+        if (event.actor === playerId) streak = false;
+      }
     }
     if (weapon === 'slingshot') { this.pebble(muzzle, event); return; }
     if (streak && FLASH[weapon]) {
@@ -237,11 +245,12 @@ export class EffectsView {
       if (weapon === 'shotgun') {
         // The event carries one endpoint; scatter a few more pellets around it on the surface.
         const radius = Math.max(.15, muzzle.distanceTo(end) * .045);
-        this.t1.set(this.n.y, this.n.z, this.n.x).cross(this.n).normalize(); this.t2.crossVectors(this.n, this.t1);
+        this.u1.set(this.n.y, this.n.z, this.n.x).cross(this.n).normalize(); this.u2.crossVectors(this.n, this.u1);
         for (let i = 0; i < 4; i++) {
           const angle = rand(0, Math.PI * 2), r = radius * Math.sqrt(Math.random());
-          this.a.copy(end).addScaledVector(this.t1, Math.cos(angle) * r).addScaledVector(this.t2, Math.sin(angle) * r);
+          this.a.copy(end).addScaledVector(this.u1, Math.cos(angle) * r).addScaledVector(this.u2, Math.sin(angle) * r);
           this.impact(this.a, event.surface, this.n, weapon, .55);
+          if (streak && i < 2) this.tracers.spawn(muzzle, this.a, .11, .012, own ? .6 : .85, this.color.tracer, this.color.tracerCore);
         }
       }
     }

@@ -874,16 +874,21 @@ export class Simulation {
     } else if (fighting && t) {
       b.mode = 'fight';
       const dx = t.pos.x - s.pos.x, dz = t.pos.z - s.pos.z, dist = Math.hypot(dx, dz) || 1, ux = dx / dist, uz = dz / dist;
-      const forward = dist > bw.range * 1.25 ? 1 : dist < bw.range * .55 ? -1 : 0;
+      const reloading = !!s.reloadUntil;
+      // Never stand still in the open while reloading: back off and keep side-stepping.
+      const forward = reloading ? -1 : dist > bw.range * 1.25 ? 1 : dist < bw.range * .55 ? -1 : 0;
+      if (reloading && b.strafeDir === 0) b.strafeDir = this.random() < .5 ? -1 : 1;
       if (now >= b.strafeUntil) {
-        b.strafeDir = this.random() < .25 ? 0 : this.random() < .5 ? -1 : 1; b.strafeUntil = now + this.rnd(.35, 1);
+        b.strafeDir = this.random() < .25 && !reloading ? 0 : this.random() < .5 ? -1 : 1; b.strafeUntil = now + this.rnd(.35, 1);
         if (s.grounded && this.random() < .12 && dist < 25) jump = true;
       }
       mx = ux * forward - uz * b.strafeDir * .9; mz = uz * forward + ux * b.strafeDir * .9; speed = forward === 1 ? 4.4 : 3.6;
       face = Math.atan2(-dx, -dz);
       pitch = Math.atan2(t.pos.y + 1 - (s.pos.y + 1.42), dist);
-      if (b.strafeDir === 0 && dist > 16) crouch = true;
-      if (now >= b.coverCdUntil && ((s.hp < (b.elite ? 65 : 50) && this.heals(s) > 0) || (s.reloadUntil && dist < 35) || b.recentDmg > 45)) {
+      if (b.strafeDir === 0 && dist > 16 && !reloading) crouch = true;
+      // A reload that starts mid-fight looks for cover at once, whatever the search cooldown.
+      const reloadStarted = reloading && !b.reloading;
+      if ((now >= b.coverCdUntil || reloadStarted) && ((s.hp < (b.elite ? 65 : 50) && this.heals(s) > 0) || (reloading && dist < 35) || b.recentDmg > 45)) {
         const cover = this.findCover(s, t); b.coverCdUntil = now + 5;
         if (cover) { b.mode = 'cover'; b.coverPt = cover; b.coverUntil = now + this.rnd(1.2, 2.4); }
       }
@@ -951,6 +956,7 @@ export class Simulation {
     const inp: InputFrame = a.input = { ...emptyInput(), seq: this.tick, clientTime: now, yaw, pitch: clamp(pitch, -1.2, 1.2), crouch, jump, sprint };
     inp.moveZ = (-Math.sin(yaw) * mx - Math.cos(yaw) * mz) * scale;
     inp.moveX = (Math.cos(yaw) * mx - Math.sin(yaw) * mz) * scale;
+    b.reloading = !!s.reloadUntil;
     if (fighting && t && !s.reloadUntil && !s.using) {
       b.reactT -= dt;
       const dist = Math.hypot(t.pos.x - s.pos.x, t.pos.y - s.pos.y, t.pos.z - s.pos.z);

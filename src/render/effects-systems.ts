@@ -122,7 +122,7 @@ export class CardSystem {
 
   clear() { for (const card of this.cards) card.life = 0; }
 
-  update(dt: number, pxPerUnit: number, resolve: (id: string, out: THREE.Vector3) => boolean) {
+  update(dt: number, pxPerUnit: number, resolve: (id: string, out: THREE.Vector3) => boolean, reducedMotion = false) {
     this.material.uniforms.uPx.value = pxPerUnit;
     const pos = this.aPos.array as Float32Array, shape = this.aShape.array as Float32Array, color = this.aColor.array as Float32Array;
     const lightArr = this.aLight.array as Float32Array, misc = this.aMisc.array as Float32Array, axis = this.aAxis.array as Float32Array;
@@ -146,7 +146,7 @@ export class CardSystem {
         }
       }
       let size = c.size0 + (c.size1 - c.size0) * ease(t);
-      if (c.pop) size *= c.age < .14 ? Math.max(.01, backOut(c.age / .14)) : 1;
+      if (c.pop && !reducedMotion) size *= c.age < .14 ? Math.max(.01, backOut(c.age / .14)) : 1;
       let cell = c.cell;
       if (c.motion === Motion.Flash) {
         // Three hand-drawn frames at 60 Hz: full star, turned star, small burst.

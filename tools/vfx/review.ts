@@ -1,6 +1,7 @@
 // Dev-only VFX review harness (not part of the build): renders the real island
 // with the real renderer and replays hand-made authoritative events at a fixed
 // 60 Hz step, so effects can be captured frame by frame and compared.
+import * as THREE from 'three';
 import { GameRenderer } from '../../src/render/renderer';
 import { Simulation } from '../../src/simulation';
 import { createWorld } from '../../src/shared/world';
@@ -95,6 +96,27 @@ const api = {
     return impact;
   },
   camera() { return renderer?.cameraPosition; },
+  // Frame time with a GPU sync (1-pixel readback), with or without a firefight's worth
+  // of effects: every bot fires at a random nearby spot every 5th frame (12 shots/s each).
+  perf(frames: number, firefight: boolean) {
+    const gl = (renderer as unknown as { gl: THREE.WebGLRenderer }).gl, ctx = gl.getContext(), pixel = new Uint8Array(4);
+    const bots = snapshot!.actors.filter(a => a.id !== 'practice'), times: number[] = [];
+    let drawCalls = 0;
+    for (let i = 0; i < frames; i++) {
+      if (firefight && i % 5 === 0) for (const b of bots) {
+        const angle = Math.random() * Math.PI * 2, r = 4 + Math.random() * 10;
+        api.shoot(b.id, { x: b.pos.x + Math.cos(angle) * r, y: Math.random() * 2, z: b.pos.z + Math.sin(angle) * r });
+      }
+      const start = performance.now();
+      frame(1 / 60);
+      ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, pixel);
+      times.push(performance.now() - start);
+      drawCalls = Math.max(drawCalls, renderer!.stats.drawCalls);
+    }
+    times.sort((a, b) => a - b);
+    const pick = (q: number) => +times[Math.floor((times.length - 1) * q)].toFixed(2);
+    return { frames, mean: +(times.reduce((a, b) => a + b, 0) / times.length).toFixed(2), p50: pick(.5), p95: pick(.95), max: pick(1), maxDrawCalls: drawCalls };
+  },
   glow() { return (window as unknown as { glowState: unknown }).glowState; },
   debug() {
     const fx = (renderer as unknown as { effects: Record<string, { cards?: { life: number; age: number; cell: number; pos: unknown }[] }> }).effects;
