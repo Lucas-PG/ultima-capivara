@@ -74,7 +74,7 @@ export class EffectsView {
   private readonly decals: DecalSystem;
   private readonly casings: CasingSystem;
   private readonly fpCards: CardSystem;
-  private readonly fpCasings = new CasingSystem(12, false, null);
+  private readonly fpCasings = new CasingSystem(12, false, null, .7);
   private readonly systems: { update?: unknown; warm(on: boolean): void; clear(): void; dispose(): void }[];
   private readonly color = {} as Palette;
   private readonly surface = {} as SurfacePalette;
@@ -103,7 +103,7 @@ export class EffectsView {
       puff: new THREE.Color(s.puff), puffLight: new THREE.Color(s.puffLight), bit: new THREE.Color(s.bit),
       bitLight: new THREE.Color(s.bitLight), mark: new THREE.Color(s.mark), markLight: new THREE.Color(s.markLight),
     };
-    this.cards = new CardSystem(this.atlas, this.painted, 900, 4);
+    this.cards = new CardSystem(this.atlas, this.painted, 900, 4, 1.5);
     this.decals = new DecalSystem(this.atlas, 64);
     this.casings = new CasingSystem(64, true, (x, z, top) => this.groundAt(x, z, top));
     this.fpCards = new CardSystem(this.atlas, this.painted, 80, 10);
@@ -153,9 +153,9 @@ export class EffectsView {
     for (const pebble of this.pebbles) if (pebble.card && pebble.card.life <= 0) pebble.card = null;
     const px = 2 * Math.tan(THREE.MathUtils.degToRad(frame.camera.fov) / 2) / Math.max(1, frame.viewportHeight);
     const fpPx = 2 * Math.tan(THREE.MathUtils.degToRad(frame.fpCamera.fov) / 2) / Math.max(1, frame.viewportHeight);
-    this.cards.update(dt, px, this.resolveAnchor, frame.reducedMotion);
+    this.cards.update(dt, px, this.resolveAnchor, frame.reducedMotion, frame.viewportHeight);
     this.tracers.update(dt, px); this.decals.update(dt); this.casings.update(dt);
-    this.fpCards.update(dt, fpPx, this.resolveAnchor, frame.reducedMotion); this.fpCasings.update(dt);
+    this.fpCards.update(dt, fpPx, this.resolveAnchor, frame.reducedMotion, frame.viewportHeight); this.fpCasings.update(dt);
   }
 
   event(event: GameEvent, avatars: AvatarView, weaponView: WeaponView, playerId: string | undefined, snapshot: WorldSnapshot | null = null): void {
@@ -242,7 +242,7 @@ export class EffectsView {
     if (streak && FLASH[weapon]) {
       const hostile = !!playerId && event.actor !== playerId && this.passesNear(muzzle, end, snapshot, playerId);
       this.tracers.spawn(muzzle, end, .11, TRACER_WIDTH[weapon] || .018, own ? .7 : .95,
-        hostile ? this.color.tracerHostile : this.color.tracer, hostile ? this.color.tracer : this.color.tracerCore);
+        hostile ? this.color.tracerHostile : this.color.tracer, hostile ? this.color.tracer : this.color.tracerCore, hostile ? 2.2 : 1.4);
     }
     if (!event.hit && event.surface && event.normal) {
       this.n.copy(event.normal);
@@ -361,20 +361,20 @@ export class EffectsView {
     const pos = this.t2.copy(at);
     if (this.frame) pos.add(this.t1.subVectors(this.frame.camera.position, at).normalize().multiplyScalar(.32));
     const pow = this.cards.spawn();
-    pow.pos.copy(pos); pow.cell = PAINT.pow + (Math.random() < .5 ? 0 : 1); pow.life = .14; pow.fadeOut = .4; pow.rot = rand(0, 6.3);
-    pow.size0 = .24; pow.size1 = .32; pow.minPx = 12; pow.maxPx = 34; pow.pop = true;
+    pow.pos.copy(pos); pow.cell = PAINT.pow + (Math.random() < .5 ? 0 : 1); pow.life = .2; pow.fadeOut = .35; pow.rot = rand(-.4, .4);
+    pow.size0 = .46; pow.size1 = .52; pow.minPx = 20; pow.maxPx = 64; pow.pop = true;
     pow.color.copy(this.white);
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       const tuft = this.cards.spawn();
       tuft.pos.copy(pos); tuft.cell = PAINT.fur + (i % 2); tuft.life = rand(.34, .46); tuft.rot = rand(0, 6.3); tuft.spin = rand(-8, 8);
       tuft.vel.set(rand(-1.6, 1.6), rand(1, 2.4), rand(-1.6, 1.6)); tuft.gravity = 5; tuft.drag = 2.2;
-      tuft.size0 = .09; tuft.size1 = .07; tuft.minPx = 5; tuft.maxPx = 18;
+      tuft.size0 = .15; tuft.size1 = .12; tuft.minPx = 10; tuft.maxPx = 28;
       tuft.color.copy(this.white);
     }
     if (!head) return;
     const star = this.cards.spawn();
-    star.pos.copy(pos); star.cell = PAINT.star; star.life = .42; star.fadeOut = .35; star.pop = true;
-    star.vel.set(0, 1.4, 0); star.drag = 2; star.spin = 5; star.size0 = .22; star.size1 = .26; star.minPx = 16; star.maxPx = 40;
+    star.pos.copy(pos); star.cell = PAINT.star; star.life = .24; star.fadeOut = .3; star.pop = true;
+    star.vel.set(0, .5, 0); star.drag = 2; star.spin = 3; star.size0 = .55; star.size1 = .6; star.minPx = 24; star.maxPx = 72;
     star.color.copy(this.white);
   }
 

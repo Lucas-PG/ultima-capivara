@@ -47,7 +47,7 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
         float g=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
-        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.38*mix(1.0,.55,uStorm)),0.0,1.0);
+        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.38*mix(1.0,.75,uStorm)),0.0,1.0);
         // Out in the storm: a violet edge that leaves the central half of the screen clean for aiming,
         // plus a brief stronger edge on each storm bite.
         float sv=smoothstep(.55,1.35,length((vUv-.5)*2.0))*(uStorm*.3+uPulse*.6);

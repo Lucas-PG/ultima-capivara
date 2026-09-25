@@ -42,14 +42,15 @@ export class Card {
 
 function cardMaterial(atlas: THREE.Texture, painted: THREE.Texture): THREE.ShaderMaterial {
   const material = new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uAtlas: { value: null }, uPainted: { value: null }, uPx: { value: .001 }, uInk: { value: INK }, uInkMix: { value: .92 } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uAtlas: { value: null }, uPainted: { value: null }, uPx: { value: .001 }, uMaxScreen: { value: 180 }, uNearFade: { value: 0 }, uInk: { value: INK }, uInkMix: { value: .92 } }]),
     vertexShader: `attribute vec3 aPos;attribute vec4 aShape;attribute vec3 aColor;attribute vec3 aLight;attribute vec4 aMisc;attribute vec3 aAxis;
-      uniform float uPx;varying vec2 vUv;varying vec3 vColor;varying vec3 vLight;varying float vAlpha;varying float vPainted;${FOG_PARS_VERTEX}
+      uniform float uPx,uMaxScreen,uNearFade;varying vec2 vUv;varying vec3 vColor;varying vec3 vLight;varying float vAlpha;varying float vPainted;${FOG_PARS_VERTEX}
       void main(){
         vec4 mvPosition=viewMatrix*vec4(aPos,1.0);
         float px=uPx*max(.05,-mvPosition.z);
         vec2 size=aShape.xy;
-        size*=clamp(size.y,aMisc.y*px,aMisc.z*px)/max(size.y,1e-5);
+        // Never larger than a quarter of the screen height, whatever the distance.
+        size*=clamp(size.y,aMisc.y*px,min(aMisc.z,uMaxScreen)*px)/max(size.y,1e-5);
         vec2 dir=vec2(cos(aShape.z),sin(aShape.z));
         if(aMisc.w>.5){vec3 ax=(viewMatrix*vec4(aAxis,0.0)).xyz;float l=length(ax.xy);
           if(l>1e-5){dir=ax.xy/l;size.x=max(size.y,size.x*clamp(l/length(ax),.25,1.0));}}
@@ -60,7 +61,8 @@ function cardMaterial(atlas: THREE.Texture, painted: THREE.Texture): THREE.Shade
         gl_Position=projectionMatrix*mvPosition;
         vPainted=step(31.5,aShape.w);float cell=aShape.w-32.0*vPainted;
         vUv=(vec2(mod(cell,${ATLAS_COLUMNS}.0),${ATLAS_ROWS - 1}.0-floor(cell/${ATLAS_COLUMNS}.0))+uv)/vec2(${ATLAS_COLUMNS}.0,${ATLAS_ROWS}.0);
-        vColor=aColor;vLight=aLight;vAlpha=aMisc.x;
+        // World cards fade out inside 1.5 m of the camera so nothing smears across the view.
+        vColor=aColor;vLight=aLight;vAlpha=aMisc.x*(uNearFade>0.0?smoothstep(uNearFade-.5,uNearFade,-mvPosition.z):1.0);
         #include <fog_vertex>
       }`,
     fragmentShader: `uniform sampler2D uAtlas,uPainted;uniform vec3 uInk;uniform float uInkMix;varying vec2 vUv;varying vec3 vColor;varying vec3 vLight;varying float vAlpha;varying float vPainted;${FOG_PARS_FRAGMENT}
@@ -109,13 +111,13 @@ export class CardSystem {
   private readonly attributes: THREE.InstancedBufferAttribute[];
   readonly material: THREE.ShaderMaterial;
 
-  constructor(atlas: THREE.Texture, painted: THREE.Texture, capacity: number, renderOrder: number) {
+  constructor(atlas: THREE.Texture, painted: THREE.Texture, capacity: number, renderOrder: number, nearFade = 0) {
     this.geometry = quad(-.5, .5);
     this.aPos = dynamic(this.geometry, 'aPos', capacity, 3); this.aShape = dynamic(this.geometry, 'aShape', capacity, 4);
     this.aColor = dynamic(this.geometry, 'aColor', capacity, 3); this.aLight = dynamic(this.geometry, 'aLight', capacity, 3);
     this.aMisc = dynamic(this.geometry, 'aMisc', capacity, 4); this.aAxis = dynamic(this.geometry, 'aAxis', capacity, 3);
     this.geometry.instanceCount = 0;
-    this.material = cardMaterial(atlas, painted);
+    this.material = cardMaterial(atlas, painted); this.material.uniforms.uNearFade.value = nearFade;
     this.attributes = [this.aPos, this.aShape, this.aColor, this.aLight, this.aMisc, this.aAxis];
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false; this.mesh.renderOrder = renderOrder; this.mesh.visible = false;
@@ -134,8 +136,8 @@ export class CardSystem {
 
   clear() { for (const card of this.cards) card.life = 0; }
 
-  update(dt: number, pxPerUnit: number, resolve: (id: string, out: THREE.Vector3) => boolean, reducedMotion = false) {
-    this.material.uniforms.uPx.value = pxPerUnit;
+  update(dt: number, pxPerUnit: number, resolve: (id: string, out: THREE.Vector3) => boolean, reducedMotion = false, viewportHeight = 720) {
+    this.material.uniforms.uPx.value = pxPerUnit; this.material.uniforms.uMaxScreen.value = viewportHeight * .25;
     const pos = this.aPos.array as Float32Array, shape = this.aShape.array as Float32Array, color = this.aColor.array as Float32Array;
     const lightArr = this.aLight.array as Float32Array, misc = this.aMisc.array as Float32Array, axis = this.aAxis.array as Float32Array;
     let n = 0;
@@ -193,7 +195,7 @@ export class CardSystem {
   dispose() { this.geometry.dispose(); this.material.dispose(); }
 }
 
-interface Tracer { from: THREE.Vector3; to: THREE.Vector3; age: number; life: number; width: number; length: number; alpha: number; color: THREE.Color; light: THREE.Color }
+interface Tracer { from: THREE.Vector3; to: THREE.Vector3; age: number; life: number; width: number; length: number; alpha: number; minPx: number; color: THREE.Color; light: THREE.Color }
 
 // Short painted streaks that travel from the muzzle to the impact. The visible
 // segment is a fraction of the path, so a tracer reads as a flying round and
@@ -227,7 +229,7 @@ export class TracerSystem {
           vec3 p=mix(a,b,position.x);vec3 s=cross(b-a,p);float l=length(s);s=l>1e-6?s/l:vec3(1.0,0.0,0.0);
           float w=max(aStyle.x,aStyle.z*uPx*max(.05,-p.z))*mix(.35,1.0,position.x);
           p+=s*position.y*w;gl_Position=projectionMatrix*vec4(p,1.0);
-          vAcross=position.y*2.0;vAlong=position.x;vAlpha=aStyle.y;vColor=aColor;vLight=aLight;
+          vAcross=position.y*2.0;vAlong=position.x;vAlpha=aStyle.y*smoothstep(1.0,1.5,-p.z);vColor=aColor;vLight=aLight;
         }`,
       fragmentShader: `varying float vAcross;varying float vAlong;varying float vAlpha;varying vec3 vColor;varying vec3 vLight;
         void main(){float core=1.0-smoothstep(.3,.45,abs(vAcross));float a=vAlpha*smoothstep(0.0,.4,vAlong)*(1.0-smoothstep(.85,1.0,abs(vAcross)));
@@ -239,12 +241,12 @@ export class TracerSystem {
     });
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false; this.mesh.renderOrder = 3; this.mesh.visible = false;
-    for (let i = 0; i < capacity; i++) this.tracers.push({ from: new THREE.Vector3(), to: new THREE.Vector3(), age: 0, life: 0, width: .02, length: 3, alpha: 1, color: new THREE.Color(), light: new THREE.Color() });
+    for (let i = 0; i < capacity; i++) this.tracers.push({ from: new THREE.Vector3(), to: new THREE.Vector3(), age: 0, life: 0, width: .02, length: 3, alpha: 1, minPx: 1.4, color: new THREE.Color(), light: new THREE.Color() });
   }
 
-  spawn(from: THREE.Vector3, to: THREE.Vector3, life: number, width: number, alpha: number, color: THREE.Color, light: THREE.Color) {
+  spawn(from: THREE.Vector3, to: THREE.Vector3, life: number, width: number, alpha: number, color: THREE.Color, light: THREE.Color, minPx = 1.4) {
     const t = this.tracers[this.cursor]; this.cursor = (this.cursor + 1) % this.tracers.length;
-    t.from.copy(from); t.to.copy(to); t.age = 0; t.life = life; t.width = width; t.alpha = alpha;
+    t.from.copy(from); t.to.copy(to); t.age = 0; t.life = life; t.width = width; t.alpha = alpha; t.minPx = minPx;
     const distance = from.distanceTo(to); t.length = Math.min(4.5, Math.max(.8, distance * .3));
     t.color.copy(color); t.light.copy(light);
   }
@@ -269,7 +271,7 @@ export class TracerSystem {
       const i = n * 3;
       a[i] = t.from.x + (t.to.x - t.from.x) * tail; a[i + 1] = t.from.y + (t.to.y - t.from.y) * tail; a[i + 2] = t.from.z + (t.to.z - t.from.z) * tail;
       b[i] = t.from.x + (t.to.x - t.from.x) * h; b[i + 1] = t.from.y + (t.to.y - t.from.y) * h; b[i + 2] = t.from.z + (t.to.z - t.from.z) * h;
-      style[i] = t.width; style[i + 1] = t.alpha; style[i + 2] = 1.4;
+      style[i] = t.width; style[i + 1] = t.alpha; style[i + 2] = t.minPx;
       color[i] = t.color.r; color[i + 1] = t.color.g; color[i + 2] = t.color.b;
       lightArr[i] = t.light.r; lightArr[i + 1] = t.light.g; lightArr[i + 2] = t.light.b;
       n++;
@@ -403,11 +405,12 @@ export class CasingSystem {
   private readonly red = new THREE.Color('#e76f51');
   static readonly RADIUS = .0065;
 
-  constructor(capacity: number, fog: boolean, private readonly ground: ((x: number, z: number, top: number) => number) | null) {
+  constructor(capacity: number, fog: boolean, private readonly ground: ((x: number, z: number, top: number) => number) | null, private readonly size = 1) {
     const geometry = new THREE.CylinderGeometry(CasingSystem.RADIUS, CasingSystem.RADIUS, .026, 7);
     geometry.rotateZ(Math.PI / 2);
-    const material = new THREE.MeshLambertMaterial({ color: '#ffffff', fog });
-    this.mesh = new THREE.InstancedMesh(geometry, material, capacity);
+    // Brass body and mouth, darker base cap (#9C6A1E on the #E9B44C instance colour).
+    const materials = [new THREE.MeshLambertMaterial({ color: '#ffffff', fog }), new THREE.MeshLambertMaterial({ color: '#ffffff', fog }), new THREE.MeshLambertMaterial({ color: '#ab9763', fog })];
+    this.mesh = new THREE.InstancedMesh(geometry, materials, capacity);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false; this.mesh.visible = false; this.mesh.count = 0;
     for (let i = 0; i < capacity; i++) {
@@ -443,7 +446,7 @@ export class CasingSystem {
         }
       }
       // Shrink out over the last 0.2 s instead of popping.
-      const shrink = Math.min(1, (c.life - c.age) / .2) * (c.shotgun ? 1.6 : 1);
+      const shrink = Math.min(1, (c.life - c.age) / .2) * (c.shotgun ? 1.6 : 1) * this.size;
       this.quat.setFromEuler(c.rot);
       this.mesh.setMatrixAt(n, this.matrix.compose(c.pos, this.quat, this.scale.setScalar(shrink)));
       this.mesh.setColorAt(n, c.shotgun ? this.red : this.brass);
@@ -458,5 +461,5 @@ export class CasingSystem {
     if (on) { this.mesh.setMatrixAt(0, this.matrix.makeScale(0, 0, 0)); this.mesh.instanceMatrix.needsUpdate = true; }
   }
 
-  dispose() { this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material).dispose(); this.mesh.dispose(); }
+  dispose() { this.mesh.geometry.dispose(); for (const material of this.mesh.material as THREE.Material[]) material.dispose(); this.mesh.dispose(); }
 }
