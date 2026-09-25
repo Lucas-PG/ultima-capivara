@@ -21,7 +21,7 @@ const elimination = dist => ({
 // Open field south of the Vila, facing -z: a clear line of sight to 40 m.
 // Across the Lagoa pond, facing -z: a clear line of sight to about 40 m.
 const FIELD = { x: -34, z: 26, yaw: 0, pitch: -.02 };
-const farBot = (id, dist, extra = {}) => ({ id, x: -34, z: 26 - dist, yaw: 0, weapon: 'smg', ...extra });
+const farBot = (id, dist, extra = {}) => ({ id, x: -34, z: 26 - dist, yaw: Math.PI, weapon: 'smg', ...extra });
 const hitFar = (dist, head) => ({
   scene: { ...FIELD, weapon: 'm4', actors: [farBot('bento', dist)] },
   events: [shoot('practice', { x: -34, y: head ? 1.6 : 1.1, z: 26 - dist }, { target: 'bento', head, amount: head ? 52 : 26 })],

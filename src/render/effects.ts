@@ -293,7 +293,7 @@ export class EffectsView {
     card.pos.copy(pos); card.motion = Motion.Flash; card.cell = PAINT.flash;
     card.life = .05; card.fadeOut = .01; card.rot = rand(0, Math.PI * 2);
     card.size0 = card.size1 = (fp ? size.fp * (1 - ads * .4) : size.world) * rand(.9, 1.1);
-    card.minPx = fp ? 0 : 14; card.maxPx = fp ? 1e5 : 70; card.color.copy(this.white);
+    card.minPx = fp ? 0 : 20; card.maxPx = fp ? 1e5 : 90; card.color.copy(this.white);
   }
 
   private pebble(from: THREE.Vector3, event: Extract<GameEvent, { type: 'shot' }>) {
@@ -355,14 +355,15 @@ export class EffectsView {
     this.decals.spawn(pos, normal, spec.markCell, mark, mark, MARK_LIFE, .3, .9, s.mark, s.markLight, rand(0, 6.3));
   }
 
-  // White-orange "pow" and fur tufts; a headshot adds a gold star that pops up and away from the aim point.
+  // White-orange "pow" and fur tufts; a headshot adds a gold star held in front of the head.
+  // Pixel floors are on the card; the painted subjects fill about two thirds of it.
   private hitStar(at: THREE.Vector3, head: boolean) {
     // Out of the body toward the viewer, past the head sphere and body cylinder surfaces.
     const pos = this.t2.copy(at);
     if (this.frame) pos.add(this.t1.subVectors(this.frame.camera.position, at).normalize().multiplyScalar(.32));
     const pow = this.cards.spawn();
     pow.pos.copy(pos); pow.cell = PAINT.pow + (Math.random() < .5 ? 0 : 1); pow.life = .2; pow.fadeOut = .35; pow.rot = rand(-.4, .4);
-    pow.size0 = .46; pow.size1 = .52; pow.minPx = 20; pow.maxPx = 64; pow.pop = true;
+    pow.size0 = .46; pow.size1 = .52; pow.minPx = 30; pow.maxPx = 84; pow.pop = true;
     pow.color.copy(this.white);
     for (let i = 0; i < 2; i++) {
       const tuft = this.cards.spawn();
@@ -374,7 +375,7 @@ export class EffectsView {
     if (!head) return;
     const star = this.cards.spawn();
     star.pos.copy(pos); star.cell = PAINT.star; star.life = .24; star.fadeOut = .3; star.pop = true;
-    star.vel.set(0, .5, 0); star.drag = 2; star.spin = 3; star.size0 = .55; star.size1 = .6; star.minPx = 24; star.maxPx = 72;
+    star.vel.set(0, .5, 0); star.drag = 2; star.spin = 3; star.size0 = .55; star.size1 = .6; star.minPx = 38; star.maxPx = 96;
     star.color.copy(this.white);
   }
 

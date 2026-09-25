@@ -40,6 +40,8 @@ for (const key of list) {
     frames.push(file);
   }
   if (scenario.still !== undefined) execFileSync('cp', [frames[scenario.still], join(out, `brasa-m1b-${key}-${size}.png`)]);
+  // KEEP=1 also saves every full-resolution frame, named by its time in ms.
+  if (process.env.KEEP) frames.forEach((f, i) => execFileSync('cp', [f, join(out, `brasa-m1b-${key}-${Math.round(scenario.frames[i].at * 1000 / 60)}ms-${size}.png`)]));
   if (frames.length > 1) {
     execFileSync('montage', [...frames.flatMap((f, i) => ['-label', `${Math.round(scenario.frames[i].at * 1000 / 60)} ms`, f]),
       '-tile', `${Math.min(4, frames.length)}x`, '-geometry', `${Math.round(Number(width) / 2)}x${Math.round(Number(height) / 2)}+4+4`,
