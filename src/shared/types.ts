@@ -71,13 +71,21 @@ export interface WorldSnapshot {
   loot: LootState[]; openedChests: string[]; zone: ZoneState;
   results: MatchResult[]; plane: Vec3;
 }
+// What a shot's endpoint struck when it was not a capybara; `normal` faces the shooter's side.
+export type Surface = 'dirt' | 'sand' | 'foliage' | 'stone' | 'wood' | 'metal' | 'water';
 export type GameEvent =
-  | { type: 'shot'; id: number; actor: string; weapon: WeaponId; origin: Vec3; end: Vec3; hit: boolean }
-  | { type: 'damage'; id: number; actor: string; target: string; amount: number; head: boolean; pos: Vec3 }
-  | { type: 'kill'; id: number; actor: string | null; target: string; weapon: WeaponId | 'storm' | 'fall' }
+  | { type: 'shot'; id: number; actor: string; weapon: WeaponId; origin: Vec3; end: Vec3; hit: boolean; surface?: Surface; normal?: Vec3 }
+  | { type: 'damage'; id: number; actor: string; target: string; amount: number; head: boolean; pos: Vec3; armorBreak?: boolean }
+  // `from` is the eliminator's position and `distance` the gap in metres at the moment of the kill.
+  | { type: 'kill'; id: number; actor: string | null; target: string; weapon: WeaponId | 'storm' | 'fall'; from?: Vec3; distance?: number }
   | { type: 'pickup'; id: number; actor: string; item: string }
   | { type: 'reload'; id: number; actor: string; weapon: WeaponId }
   | { type: 'respawn'; id: number; actor: string }
+  | { type: 'use'; id: number; actor: string; item: ConsumableId }
+  // A slow projectile (slingshot stone) struck the world after its flight.
+  | { type: 'impact'; id: number; actor: string; weapon: WeaponId; pos: Vec3; surface: Surface; normal: Vec3 }
+  // A bot has locked onto a human and will open fire after `delay` seconds.
+  | { type: 'alert'; id: number; actor: string; target: string; delay: number }
   | { type: 'notice'; id: number; text: string };
 export interface Settings {
   sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; frameLimit: 30 | 60; reducedMotion: boolean;
