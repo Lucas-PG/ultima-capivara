@@ -96,11 +96,11 @@
     },
     {
       "id": "machete",
-      "trianglesWithPaws": 3356,
+      "trianglesWithPaws": 3288,
       "muzzle": [
-        0,
-        0,
-        -0.88
+        -0.14,
+        0.6,
+        0
       ],
       "sightY": 0
     },
@@ -115,7 +115,7 @@
       "sightY": 0.24
     }
   ],
-  "bytes": 397156,
+  "bytes": 431344,
   "materials": 1,
   "texture": {
     "format": "PNG",

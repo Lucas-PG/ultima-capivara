@@ -29,7 +29,7 @@ function shot(options: { weapon?: WeaponId; pose?: Partial<WeaponHipPose>; rarit
   const model = models[current];
   set.setRarity(model, options.rarity ?? 0);
   pose = { ...WEAPON_HIP_POSES[current], ...options.pose };
-  holder.position.set(pose.x, pose.y, pose.z); holder.scale.setScalar(pose.scale); holder.rotation.set(0, 0, 0);
+  holder.position.set(pose.x, pose.y, pose.z); holder.scale.setScalar(pose.scale); holder.rotation.set(options.ads ? 0 : pose.pitch ?? 0, 0, 0);
   camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0);
   if (options.ads) holder.position.set(0, -model.sightY * pose.scale, -.4);
   if (options.angle) {

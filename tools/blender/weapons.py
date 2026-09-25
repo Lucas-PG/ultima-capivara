@@ -196,20 +196,22 @@ def scope(parent, front=-.41, length=.35, radius=.05):
     return .169
 
 
-def paw(parent, side, palm, elbow):
+def paw(parent, side, palm, elbow, vertical=False):
     # Three rounded fingers and an opposable thumb. Fixed brown fur and dark pads.
     p, e = Vector(palm), Vector(elbow)
     wrist = p.lerp(e, .28)
     link('Forearm', parent, tuple(e), tuple(wrist), .074, 13, .059)
     link('Forearm_light', parent, tuple(e + Vector((0, .046, 0))), tuple(wrist + Vector((0, .04, 0))), .025, 14, .016)
     link('Olive_cuff', parent, tuple(p.lerp(e, .25)), tuple(p.lerp(e, .43)), .077, 17, .077)
-    ellipsoid('Palm', parent, palm, (.083, .066, .092), 13)
+    ellipsoid('Palm', parent, palm, (.07, .09, .062) if vertical else (.083, .066, .092), 13)
     ellipsoid('Palm_pad', parent, (p.x, p.y - .055, p.z), (.051, .018, .057), 16)
     for i in [-1, 0, 1]:
-        center = (p.x + i * .044, p.y + .018, p.z - .07)
-        ellipsoid('Finger', parent, center, (.026, .037, .048), 13)
-        ellipsoid('Claw', parent, (center[0], center[1] + .004, center[2] - .042), (.018, .015, .016), 16)
-    ellipsoid('Thumb', parent, (p.x - side * .064, p.y + .035, p.z + .027), (.037, .04, .042), 14)
+        center = (p.x - .063, p.y + i * .047, p.z - .013) if vertical else (p.x + i * .044, p.y + .018, p.z - .07)
+        ellipsoid('Finger', parent, center, (.047, .025, .036) if vertical else (.026, .037, .048), 13)
+        claw = (center[0] - .035, center[1], center[2] + .014) if vertical else (center[0], center[1] + .004, center[2] - .042)
+        ellipsoid('Claw', parent, claw, (.018, .015, .016), 16)
+    thumb = (p.x - .034, p.y + .081, p.z + .025) if vertical else (p.x - side * .064, p.y + .035, p.z + .027)
+    ellipsoid('Thumb', parent, thumb, (.037, .04, .042), 14)
     for i in [-1, 1]:
         ellipsoid('Wrist_tuft', parent, (wrist.x + i * .055, wrist.y, wrist.z), (.025, .026, .042), 13)
 
@@ -222,7 +224,7 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
     action = group(weapon + '_action', root)
     right = group(weapon + '_right_paw', root)
     left = group(weapon + '_left_paw', root) if weapon != 'machete' else None
-    sight_y, muzzle_y, muzzle_z = .1, 0, -.7
+    sight_y, muzzle_x, muzzle_y, muzzle_z = .1, 0, 0, -.7
     if weapon == 'pistol':
         profile('Frame', body, [(-.23, -.015), (.14, -.015), (.14, -.1), (-.18, -.1)], .105, 0, .009, 1)
         profile('Slide', action, [(-.285, .014), (-.263, .084), (.12, .084), (.148, .055), (.14, -.011), (-.285, -.011)], .119, 0, .009, 1)
@@ -273,12 +275,13 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
             else:
                 sight_y = sights(body, -.48, .08, .09)
     elif weapon == 'machete':
-        blade = profile('Broad_blade', body, [(-.13, -.026), (-.58, .50), (-.72, .57), (-.75, .51), (-.49, .18), (-.15, -.139)], .032, 7, .009, 1)
-        blade.rotation_euler.z = -.55
-        profile('Wood_handle', body, [(.17, -.043), (.12, -.009), (-.13, -.025), (-.14, -.142), (.13, -.16), (.18, -.12)], .077, 2, .012, 3)
-        block('Guard', body, (0, -.065, -.123), (.125, .169, .031), 0)
-        block('Handle_inlay', body, (.04, -.074, .038), (.009, .024, .096), 5, .003)
-        muzzle_z, sight_y = -.88, 0
+        # Broad face lies in the screen-facing plane; the handle is gripped upright.
+        blade = profile('Broad_blade', body, [(-.045, .02), (-.16, .49), (-.14, .60), (-.065, .57), (.045, .02)], .023, 7, .008, 1)
+        blade.rotation_euler.z = math.pi / 2
+        block('Wood_handle', body, (0, -.108, .01), (.073, .205, .068), 2, .015, 3)
+        block('Guard', body, (0, .005, .01), (.147, .035, .074), 0)
+        block('Handle_inlay', body, (0, -.102, .047), (.014, .055, .005), 5, .002)
+        muzzle_x, muzzle_y, muzzle_z, sight_y = -.14, .60, 0, 0
     else:
         # Carved Y. Forks and coral bands form a silhouette no firearm shares.
         link('Wood_grip', body, (0, -.23, .10), (0, .04, -.02), .056, 2, .063)
@@ -303,7 +306,7 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         paw(right, 1, (.066, -.156, .123), (.28, -.48, .10))
         paw(left, -1, (-.067, -.178, .151), (-.12, -.48, .10))
     elif weapon == 'machete':
-        paw(right, 1, (.063, -.089, .056), (.26, -.48, .10))
+        paw(right, 1, (.075, -.12, .04), (.26, -.48, -.10), vertical=True)
     elif weapon == 'slingshot':
         paw(right, 1, (.06, -.10, .07), (.27, -.48, .10))
         paw(left, -1, (-.025, .045, .21), (-.14, -.48, .10))
@@ -311,7 +314,7 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         support_z = -.47 if weapon == 'shotgun' else -.40 if weapon in ['dmr', 'sniper'] else -.37 if weapon == 'm4' else -.34
         paw(right, 1, (.072, -.177, .092), (.29, -.48, .10))
         paw(left, -1, (-.074, -.11, support_z), (-.15, -.40, .14))
-    group(weapon + '_muzzle', root, (0, muzzle_y, muzzle_z))
+    group(weapon + '_muzzle', root, (muzzle_x, muzzle_y, muzzle_z))
     group(weapon + '_eject', root, (.079, -.024, -.075))
     group(weapon + '_sight', root, (0, sight_y, .07))
     for part in [body, magazine, action, right, left, legendary]:
@@ -334,7 +337,7 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
             assert not obj.data.validate(verbose=False, clean_customdata=False), obj.name
             obj.data.calc_loop_triangles()
         triangles = sum(len(obj.data.loop_triangles) for obj in meshes)
-    report['weapons'].append({'id': weapon, 'trianglesWithPaws': triangles, 'muzzle': [0, muzzle_y, muzzle_z], 'sightY': sight_y})
+    report['weapons'].append({'id': weapon, 'trianglesWithPaws': triangles, 'muzzle': [muzzle_x, muzzle_y, muzzle_z], 'sightY': sight_y})
     root['weaponId'] = weapon
     root['sightY'] = sight_y
     root['forward'] = '-Z'

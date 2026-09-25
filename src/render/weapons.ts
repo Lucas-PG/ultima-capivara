@@ -720,7 +720,7 @@ export class WeaponView {
     this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, this.ads) + Math.sin(this.gait) * bob * .4,
       hipY + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - this.draw * .16 - sprint * .08 - closeWall * .12 - magazineMotion * .045,
       THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, this.ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
-    this.holder.rotation.set(this.kick * 1.1 + this.draw * .38 + magazineMotion * .24 + sprint * .16,
+    this.holder.rotation.set((pose?.pitch ?? 0) * (1 - this.ads) + this.kick * 1.1 + this.draw * .38 + magazineMotion * .24 + sprint * .16,
       THREE.MathUtils.lerp(pose ? 0 : .24, 0, this.ads) + closeWall * .28,
       THREE.MathUtils.lerp(pose ? 0 : -.055, 0, this.ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13);
     model.group.rotation.x = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * .8 : 0;

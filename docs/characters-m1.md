@@ -102,3 +102,21 @@ HP-difference face trigger are temporary opt-in implementation work. Foot
 contact and remote 20 Hz interpolation require a motion review. Four headwear
 options, vest-trim player colour and the authoritative reaction hookup also
 remain open. These are M1 requirements, not completed acceptance items.
+
+## Round 3 local measurements, 2026-09-25
+
+The head now separates the fur surface from the mouth line. A continuous lip
+follows the rounded jaw, while the dark inner mouth stays behind it at rest.
+Four eyelid deformation bones produce squeezed chevrons on hit and happy arcs
+on victory; two glint bones hide highlights when eyes close. The rig has 32
+bones, one skin and one material. CPU skinning checks include every facial
+extreme in all three LODs. Pincel review remains required.
+
+The machete now has an upright wooden grip, three wrapped fingers plus the
+thumb, and a broad blade face. Its pitched hip pose retains only the right
+paw. `characters-m1-framing.json` records all 16 model-layer measurements at
+FOV 78, with the exact asset SHA256. All eight hip poses pass at 720p/1080p:
+18.30 to 19.78 percent occupied pixels, bounding rectangle at most 41.10
+percent, zero occupied pixels within the 60 px crosshair radius. These numbers
+precede Forja's final FP compositing and do not certify animation clipping,
+HUD overlap, outline or the visual art gate.
