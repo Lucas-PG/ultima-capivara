@@ -1,5 +1,7 @@
 // Development-only review fixture using the actual GameRenderer and avatar hook.
 import * as THREE from 'three';
+import type { WeaponView } from '../../src/render/weapons';
+import type { AvatarReaction } from '../../src/render/effects';
 import type { AvatarView } from '../../src/render/avatars';
 import type { RenderPipeline } from '../../src/render/pipeline';
 import { GameRenderer } from '../../src/render/renderer';
@@ -26,7 +28,7 @@ const actor: ActorState = {
 };
 // Access is confined to this dev fixture, so production renderer needs no debug API.
 const view = renderer as unknown as {
-  scene: THREE.Scene; gl: THREE.WebGLRenderer; pipeline: RenderPipeline; avatars: AvatarView; interiorLight: THREE.PointLight;
+  scene: THREE.Scene; gl: THREE.WebGLRenderer; pipeline: RenderPipeline; avatars: AvatarView; weaponView: WeaponView; interiorLight: THREE.PointLight;
 };
 if (room) {
   // Same bakery lamp placement and settled intensity as GameRenderer.update().
@@ -66,5 +68,20 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
   document.querySelector('#caption')!.innerHTML = `<strong>CAPIVARA • ${clip.toUpperCase()}</strong><br>${angle} · ${distance} m · ${overlay ? 'hitbox cabeça r 0,25 / corpo r 0,30' : 'paleta Pincel · rig do jogo'}<br><small>Renderer do jogo · câmera fixa de revisão · FOV ${renderer.camera.fov}° · ${room ? 'interior' : 'exterior'}</small>`;
   return { name: avatar.body.name, children: avatar.body.children.length, triangles: stats.triangles };
 }
-(window as unknown as { capyReview: unknown }).capyReview = { shot, renderer, actor, avatar, ready: true };
+function advance(seconds: number, firstPerson = false) {
+  for (let i = 0; i < Math.ceil(seconds * 60); i++) {
+    frame.dt = 1 / 60; elapsed += frame.dt;
+    view.avatars.update(frame, 0, elapsed);
+    view.weaponView.update(actor, frame.dt, DEFAULT_SETTINGS, 0, elapsed);
+  }
+  avatar.label.visible = false;
+  if (firstPerson) avatar.group.visible = false;
+  view.pipeline.render(view.scene, renderer.camera, { drawCalls: 0, triangles: 0 }, firstPerson ? view.weaponView.scene : undefined, firstPerson ? view.weaponView.camera : undefined);
+}
+(window as unknown as { capyReview: unknown }).capyReview = {
+  shot, advance, renderer, actor, avatar, frame, ready: true,
+  react: (reaction: AvatarReaction) => view.avatars.react(actor.id, reaction),
+  respawn: () => view.avatars.respawn(actor.id),
+  inspect: () => view.weaponView.inspect(),
+};
 shot({ angle: params.get('angle') || 'three-quarter', distance: Number(params.get('distance') || 3), clip: params.get('clip') || 'idle', overlay: params.has('overlay'), head: params.has('head'), expression: params.get('expression') as CapybaraExpression | null, labels: params.has('labels'), time: params.has('labels') ? 1 : .3 });

@@ -249,6 +249,7 @@ export class GameRenderer {
       if (me) this.cameraRig.startDeathCam({ victimEye: { x: me.pos.x, y: me.pos.y + actorEye(me), z: me.pos.z }, killerId: event.actor,
         killerPos: event.from || null, duration: DEATH_CAM_SECONDS });
     }
+    if (event.type === 'respawn') this.avatars.respawn(event.actor);
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
 
