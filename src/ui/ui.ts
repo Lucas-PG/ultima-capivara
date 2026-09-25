@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, PLAYER_COLORS, type ActorState, type ConsumableId, type GameEvent, type Mode, type RoomConfig, type RoomState, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../shared/types';
+import { DEFAULT_CONFIG, PLAYER_COLORS, type ActorState, type ConsumableId, type GameEvent, type MatchResult, type Mode, type RoomConfig, type RoomState, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../shared/types';
 import { clamp } from '../shared/math';
 import { rarityOf } from '../shared/rarity';
 import { ARENA } from '../shared/layout';
@@ -6,6 +6,8 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
+import { accuracyText, cleanLabel, formatSurvived, hudScale, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { fillTip, TIPS } from './tips';
 
 export interface UICallbacks {
   host(profile: Profile, config: RoomConfig): Promise<void>; join(profile: Profile, code: string): Promise<void>;
@@ -26,6 +28,15 @@ const USE_LABEL: Record<ConsumableId, string> = { bandage: 'Enfaixando…', medk
 const LOOT_LABEL: Record<string, string> = { ammo: 'munição', armor: 'colete', helmet: 'capacete', bandage: 'bandagem', medkit: 'kit médico', guarana: 'guaraná', acai: 'açaí', rapadura: 'rapadura' };
 const DEATH_LINES = [(k: string) => `Virou comida de ${k}`, (k: string) => `${k} te mandou pro saco`, (k: string) => `Levou a pior contra ${k}`, (k: string) => `${k} não deixou nem o osso`];
 const fireMode = (id: WeaponId) => id === 'machete' ? 'CORTE' : id === 'slingshot' ? 'PEDRA' : id === 'shotgun' ? 'BOMBA' : id === 'sniper' ? 'FERROLHO' : WEAPONS[id].automatic ? 'AUTO' : 'SEMI';
+// Result stats the simulation may add (Brasa, M1); cards stay hidden until the fields exist.
+type ResultStats = MatchResult & Partial<{ shots: number; hits: number; headshots: number; survived: number; chests: number }>;
+const CROSSHAIR_COLORS: Record<Settings['crosshairColor'], string> = { white: '#ffffff', yellow: '#ffe14d', cyan: '#3fd8ff', magenta: '#ff4fd8' };
+// Colour-blind palette swaps red/gold for magenta/cyan; the markers also differ by shape, never by colour alone.
+const HIT_PALETTES: Record<Settings['hitPalette'], [string, string, string]> = { default: ['#ffffff', '#ffc23d', '#e5412d'], colorblind: ['#ffffff', '#3fd8ff', '#ff4fd8'] };
+const ONBOARD_KEY = 'uc-onboarded';
+const nextTip = tipBag(TIPS);
+// Damage direction: a 40° arc on a 140 px ring around the crosshair.
+const DAMAGE_ARC = '<svg viewBox="-160 -160 320 320" aria-hidden="true"><path d="M-47.9-131.6A140 140 0 0 1 47.9-131.6" fill="none" stroke="#16120e" stroke-width="16" stroke-linecap="round"/><path d="M-47.9-131.6A140 140 0 0 1 47.9-131.6" fill="none" stroke="#e5412d" stroke-width="9" stroke-linecap="round"/></svg>';
 const bindingLabels: Record<string, string> = { forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar', reload: 'Recarregar', interact: 'Interagir', leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita' };
 
 export class GameUI {
@@ -52,12 +63,24 @@ export class GameUI {
   private planeDir: { x: number; z: number } | null = null;
   private lastPlane: { x: number; z: number } | null = null;
   private localId = '';
+  private els = new Map<string, HTMLElement>();
+  private scoreKey = '';
+  private loadProgress = 0;
+  private tipIndexTimer = 0;
+  private toastItems: { text: string; el: HTMLElement; timer: number; at: number }[] = [];
+  private coach: { step: string; visibleAt: number | null; startPos: { x: number; z: number } | null } | null = null;
+  private onboarded = false;
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
+    try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
+    this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
     this.drawMapBackground(); this.home();
     // M toggles the island map over the match; it never touches pointer lock or movement input.
     document.addEventListener('keydown', event => {
       if (this.screen !== 'game' || event.repeat || event.target instanceof HTMLInputElement) return;
-      if (event.code === 'KeyM') this.toggleMap(); else if (event.code === 'Escape' && this.mapOpen) this.toggleMap(false);
+      if (event.code === 'KeyM') { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
+      else if (event.code === 'Escape' && this.mapOpen) this.toggleMap(false);
+      else if (event.code === 'KeyH' && this.coach) this.finishOnboarding();
+      else if ((event.code === 'ArrowRight' || event.code === 'ArrowLeft') && this.root.querySelector('#loadingOverlay')) this.showTip();
     });
     this.root.addEventListener('click', event => {
       const element = (event.target as HTMLElement).closest<HTMLElement>('[data-do],[data-mode]'); if (!element) return;
@@ -75,6 +98,8 @@ export class GameUI {
         case 'rematch': this.callbacks.rematch(); break;
         case 'spectate': this.callbacks.spectate(); break;
         case 'quit': if (this.room?.isHost) this.confirmLeave(); else this.callbacks.leave(); break;
+        case 'next-tip': this.showTip(); break;
+        case 'skip-tutorial': this.finishOnboarding(); break;
       }
     });
   }
@@ -82,8 +107,9 @@ export class GameUI {
     return `<header class="topbar"><button class="brand" data-do="home" aria-label="Tela inicial"><img src="./assets/favicon.svg" alt=""/><span>ÚLTIMA<br><b>CAPIVARA</b></span></button><nav>${back ? `<button class="nav-link" data-do="leave">${icon('back')} VOLTAR</button>` : '<span class="nav-link active">JOGAR</span><button class="nav-link" data-do="how">COMO JOGAR</button>'}<button class="icon-button" data-do="settings" aria-label="Configurações">${icon('settings')}</button></nav><div class="edition"><span class="live-dot"></span> EDIÇÃO ILHA <b>V2</b></div></header>`;
   }
   home() {
-    this.screen = 'home'; this.lastResults = ''; document.body.dataset.screen = 'home';
-    this.root.innerHTML = `${this.header()}<main class="home-content"><section class="hero-copy"><div class="cover-top"><span class="issue">Edição 02</span><span class="price">Grátis</span></div><p class="eyebrow"><span></span> A ILHA É NOSSA.</p><h1>ÚLTIMA<br><em>CAPIVARA</em><span class="title-stamp">SÓ UMA<br>FICA DE PÉ.</span></h1><p class="hero-description">Chame a turma. Escolha seu lugar na ilha.<br>O resto é instinto de sobrevivência.</p><div class="hero-actions"><button class="button primary warmup" data-do="practice">${icon('crosshair')} AQUECER COM OS BOTS ${icon('arrow')}<small>Joga na hora, sem sala</small></button><button class="button secondary" data-do="host">${icon('plus')} CRIAR SALA</button><button class="button secondary" data-do="join">${icon('users')} ENTRAR</button></div><div class="hero-facts"><span>${icon('users')} ATÉ 16 AMIGOS</span><i></i><span>${icon('globe')} NO NAVEGADOR</span><i></i><span>100% GRÁTIS</span></div></section><section class="mode-section" aria-label="Escolha o modo"><div class="section-heading"><span>ESCOLHA SUA CONFUSÃO</span><small>02 MODOS DE JOGO</small></div><div class="mode-grid"><button class="mode-card royale selected" data-mode="battle-royale" aria-pressed="true"><div class="mode-art">${icon('crown')}<span class="mode-index">01</span></div><div class="mode-copy"><span class="mode-tag">BATTLE ROYALE</span><h2>ÚLTIMA DE PÉ</h2><p>Uma ilha. Uma vida. Nenhuma segunda chance.</p><span class="mode-meta">${icon('users')} ATÉ 21 BICHOS <b class="selection-mark">${icon('check')}</b></span></div></button><button class="mode-card deathmatch" data-mode="deathmatch" aria-pressed="false"><div class="mode-art">${icon('bolt')}<span class="mode-index">02</span></div><div class="mode-copy"><span class="mode-tag">COMBATE POR TEMPO</span><h2>CORRERIA</h2><p>Caiu? Volta. Mais eliminações, mais glória.</p><span class="mode-meta">${icon('clock')} 8 MINUTOS <b class="selection-mark">${icon('check')}</b></span></div></button></div></section></main><footer class="home-footer"><span>${icon('leaf')} FEITO PARA JOGAR JUNTO.</span><span>ILHA DAS CAPIVARAS <i>22° S / 43° O</i></span><button data-do="how">CONTROLES ${icon('mouse')}</button></footer>`;
+    this.screen = 'home'; this.lastResults = ''; this.els.clear(); this.coach = null; document.body.dataset.screen = 'home';
+    const mode = (m: Mode) => `${this.selectedMode === m ? ' selected' : ''}" aria-pressed="${this.selectedMode === m}`;
+    this.root.innerHTML = `${this.header()}<main class="home-content"><section class="hero-copy"><div class="cover-top"><span class="issue">Edição 02</span><span class="price">Grátis</span></div><p class="eyebrow"><span></span> A ILHA É NOSSA.</p><h1>ÚLTIMA<br><em>CAPIVARA</em><span class="title-stamp">SÓ UMA<br>FICA DE PÉ.</span></h1><p class="hero-description">Chame a turma. Escolha seu lugar na ilha.<br>O resto é instinto de sobrevivência.</p><div class="hero-actions"><button class="button primary warmup" data-do="practice">${icon('crosshair')} AQUECER COM OS BOTS ${icon('arrow')}<small>Joga na hora, sem sala</small></button><button class="button secondary" data-do="host">${icon('plus')} CRIAR SALA</button><button class="button secondary" data-do="join">${icon('users')} ENTRAR</button></div><div class="hero-facts"><span>${icon('users')} ATÉ 16 AMIGOS</span><i></i><span>${icon('globe')} NO NAVEGADOR</span><i></i><span>100% GRÁTIS</span></div></section><section class="mode-section" aria-label="Escolha o modo"><div class="section-heading"><span>ESCOLHA SUA CONFUSÃO</span><small>02 MODOS DE JOGO</small></div><div class="mode-grid"><button class="mode-card royale${mode('battle-royale')}" data-mode="battle-royale"><div class="mode-art">${icon('crown')}<span class="mode-index">01</span></div><div class="mode-copy"><span class="mode-tag">BATTLE ROYALE</span><h2>ÚLTIMA DE PÉ</h2><p>Uma ilha. Uma vida. Nenhuma segunda chance.</p><span class="mode-meta">${icon('users')} ATÉ 21 BICHOS <b class="selection-mark">${icon('check')}</b></span></div></button><button class="mode-card deathmatch${mode('deathmatch')}" data-mode="deathmatch"><div class="mode-art">${icon('bolt')}<span class="mode-index">02</span></div><div class="mode-copy"><span class="mode-tag">COMBATE POR TEMPO</span><h2>CORRERIA</h2><p>Caiu? Volta. Mais eliminações, mais glória.</p><span class="mode-meta">${icon('clock')} 8 MINUTOS <b class="selection-mark">${icon('check')}</b></span></div></button></div></section></main><footer class="home-footer"><span>${icon('leaf')} FEITO PARA JOGAR JUNTO.</span><span>ILHA DAS CAPIVARAS <i>22° S / 43° O</i></span><button data-do="how">CONTROLES ${icon('mouse')}</button></footer>`;
   }
   // Short <select>s become sticker segmented toggles; the hidden select stays the source of truth for forms and listeners.
   private segmentize(root: HTMLElement) {
@@ -129,7 +155,7 @@ export class GameUI {
   }
   setRoom(room: RoomState | null) { this.room = room; if (room) { this.localId = room.myId; if (room.phase === 'lobby') this.lobby(); } }
   private lobby() {
-    const room = this.room!; this.screen = 'lobby'; document.body.dataset.screen = 'lobby';
+    const room = this.room!; this.screen = 'lobby'; this.els.clear(); document.body.dataset.screen = 'lobby';
     const me = room.players.find(p => p.id === room.myId), allReady = room.players.every(p => p.ready && p.connected);
     this.root.innerHTML = `${this.header(true)}<main class="lobby-content"><section class="lobby-intro"><p class="eyebrow">ENCONTRO MARCADO.</p><h1>SUA TURMA.<br><em>SUA ILHA.</em></h1><p>A melhor confusão começa com os amigos certos.</p><div class="invite-card"><div><span>CÓDIGO DA SALA</span><strong>${esc(room.code)}</strong></div><button class="button secondary" data-do="copy">${icon('link')} COPIAR LINK</button></div><div class="lobby-rules"><span>${icon(room.config.mode === 'battle-royale' ? 'crown' : 'bolt')} ${modeName(room.config.mode)}</span><p>${room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : `Você tem ${room.config.duration / 60} minutos. Elimine, reapareça e termine no topo.`}</p><small>${room.config.bots ? 'BOTS COMPLETAM A TURMA' : 'SOMENTE AMIGOS'} · ${room.config.capacity} VAGAS</small></div></section><section class="roster-panel"><div class="section-heading"><span>QUEM VAI PRA ILHA</span><small>${room.players.length}/${room.config.capacity}</small></div><div class="roster">${room.players.map(player => `<div class="player-row ${player.id === room.myId ? 'you' : ''}">${capybara(player.color)}<div><strong>${esc(player.name)} ${player.id === room.myId ? '<small>VOCÊ</small>' : ''}</strong><span>${player.id === room.hostId ? 'CRIADOR DA SALA' : 'NA TURMA'}</span></div><b class="ready-status ${player.ready && player.connected ? 'ready' : ''}">${!player.connected ? 'RECONECTANDO' : player.ready ? `${icon('check')} PRONTO` : 'PREPARANDO'}</b></div>`).join('')}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')} O próximo lugar pode ser do seu amigo.</div>` : ''}</div><div class="lobby-bottom"><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width" data-do="ready">${icon('check')} ${me?.ready ? 'ESTOU PRONTO · CANCELAR' : 'ESTOU PRONTO'}</button>${room.isHost ? `<button class="button ${allReady ? 'primary' : 'secondary'} full-width" data-do="start" ${allReady ? '' : 'disabled'}>${icon('play')} COMEÇAR PARTIDA</button>` : '<p>Quem criou a sala começa quando a turma estiver pronta.</p>'}<small>${room.isHost ? 'Mantenha esta aba aberta enquanto a turma joga.' : 'Seu jogo está pronto. Só falta a turma.'}</small></div></section></main>`;
   }
@@ -141,20 +167,23 @@ export class GameUI {
   game(playerId: string) {
     this.lastBanner = ''; this.deathInfo = null; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null; this.deathReleased = false;
     if (!this.thumbs) void import('../render/thumbnails').then(m => m.loadWeaponThumbnails()).then(map => { if (map.size) { this.thumbs = map; this.inventoryKey = ''; } });
-    this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; document.body.dataset.screen = 'game';
+    this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
+    this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
     const key = (code: string) => esc(keyName(code));
     this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><span>×</span></div>`
-      + `<div id="topL"><div class="stk chip" style="--r:-1.5deg"><span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="stk chip" style="--r:1deg"><span class="k">Presas</span><b id="hKills">0</b></div><div class="stk chip zone" id="hZoneChip" style="--r:-.8deg"><span class="k" id="hZoneK">Tempestade chega em</span><b id="hZoneT">1:00</b></div><div class="stk chip" id="hRankChip" style="--r:1.4deg" hidden><span class="k">Sua posição</span><b id="hRank">#1</b></div></div>`
+      + `<div id="topL" class="stk"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
       + `<div id="safe" class="stk" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="stk" hidden>Na tempestade! −<span id="hDps">1</span>/s</div>`
-      + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping">LOCAL</span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd>M</kbd> fecha o mapa</span></div></div>`
-      + `<div id="banner"></div><div id="spec" class="stk" hidden><div class="btns"><button type="button" class="go" data-do="spectate">Assistir a próxima capivara →</button><button type="button" class="alt" data-do="quit">Sair da partida</button></div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste</span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="quit">Sair da partida</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
-      + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><div id="hitm"><i></i><i></i><i></i><i></i></div>`
-      + `<div id="prompt" class="stk lt" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span id="promptTxt"></span></div><div id="reload" class="cbar stk" hidden><span id="reloadTxt">Enchendo o pente…</span><div class="bar"><div id="reloadBar"></div></div></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
-      + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row">${HUD_ART.shield}<div class="bar seg"><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row">${HUD_ART.heart}<div class="bar"><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
-      + `<div id="stance" class="stk">${HUD_ART.stance}<div class="lbl"><span class="k">Postura</span><b id="stanceTxt">Em pé</b></div></div>`
-      + `<div id="wpnbox"><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="mode" id="wMode">SEMI</span><span class="wname" id="wName">Pistola</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
-      + `<div id="consbar">${CONSUMABLES.map((id, i) => `<div class="cs zero" data-k="${id}"><kbd>${i + 5}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
+      + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd>M</kbd> fecha o mapa</span></div></div>`
+      + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden><div class="btns"><button type="button" class="go" data-do="spectate">Assistir a próxima capivara →</button><button type="button" class="alt" data-do="quit">Sair da partida</button></div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste</span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="quit">Sair da partida</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
+      + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
+      + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
+      + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
+      + `<div id="stance" class="stk">${HUD_ART.stance}<b id="stanceTxt" hidden>Em pé</b></div>`
+      + `<div id="wpnbox"><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
+      + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${i + 5}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
+      + `<div id="coach" class="stk" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
       + `</div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
+    this.applyHudPrefs();
   }
   update(snapshot: WorldSnapshot, playerId: string, ping: number, scoreboard: boolean, fps: number, interaction: { id: string; name: string } | null) {
     this.snapshot = snapshot; this.localId = playerId;
@@ -166,101 +195,153 @@ export class GameUI {
     const alive = snapshot.actors.filter(a => a.alive).length;
     this.text('hAliveK', br ? 'Bichos na ilha' : 'Na correria'); this.text('hAlive', br ? alive : snapshot.actors.length); this.text('hKills', me.kills);
     const zoneChip = this.el('hZoneChip'), finalStorm = zone.phase >= STORM_PHASES;
-    zoneChip.classList.toggle('time', !br);
-    zoneChip.classList.toggle('closing', br ? zone.shrinking || finalStorm : snapshot.remaining <= 30);
-    this.text('hZoneK', br ? `${finalStorm ? 'Última tempestade' : zone.shrinking ? 'Tempestade avançando' : 'Tempestade chega em'} · ${Math.min(zone.phase + 1, STORM_PHASES)}/${STORM_PHASES}` : 'Tempo restante');
-    this.text('hZoneT', br ? finalStorm ? '—' : clock(zone.timeLeft) : clock(snapshot.remaining));
-    this.el('hRankChip').hidden = br; if (!br) this.text('hRank', `#${snapshot.actors.filter(a => a.kills > me.kills).length + 1}`);
+    this.toggle(zoneChip, 'time', !br);
+    this.toggle(zoneChip, 'closing', br ? zone.shrinking || finalStorm : snapshot.remaining <= 30);
+    this.text('hZoneK', br ? finalStorm ? 'Última tempestade' : zone.shrinking ? 'Tempestade avançando' : 'Tempestade em' : 'Tempo restante');
+    this.text('hZoneT', br ? finalStorm ? '0:00' : clock(zone.timeLeft) : clock(snapshot.remaining));
+    this.show('hDots', br);
+    if (br) this.el('hDots').querySelectorAll('i').forEach((dot, i) => this.toggle(dot, 'on', i < Math.min(zone.phase + (zone.shrinking ? 1 : 0), STORM_PHASES)));
+    this.show('hRankChip', !br); if (!br) this.text('hRank', `#${snapshot.actors.filter(a => a.kills > me.kills).length + 1}`);
     const outside = br && me.alive && me.stage === 'ground' && Math.hypot(me.pos.x - zone.x, me.pos.z - zone.z) > zone.radius;
-    this.el('hOut').hidden = !outside; if (outside) this.text('hDps', Math.round(zone.damage));
-    this.el('storm').classList.toggle('on', outside);
+    this.show('hOut', outside); if (outside) this.text('hDps', Math.round(zone.damage));
+    this.toggle(this.el('storm'), 'on', outside);
     const safeDistance = Math.hypot(me.pos.x - zone.nextX, me.pos.z - zone.nextZ) - zone.nextRadius;
     const showSafe = br && me.alive && me.stage !== 'plane' && !finalStorm && safeDistance > 0 && snapshot.phase === 'playing';
-    this.el('safe').hidden = !showSafe;
-    if (showSafe) { this.el('safeArrow').setAttribute('transform', `rotate(${(this.localAngle(me, zone.nextX, zone.nextZ) * 180 / Math.PI).toFixed(1)})`); this.text('safeTxt', `Refúgio a ${Math.round(safeDistance)} m`); }
+    this.show('safe', showSafe);
+    if (showSafe) { this.attr(this.el('safeArrow'), 'transform', `rotate(${(this.localAngle(me, zone.nextX, zone.nextZ) * 180 / Math.PI).toFixed(0)})`); this.text('safeTxt', `Refúgio a ${Math.round(safeDistance)} m`); }
     const nearest = this.world.districts.reduce((a, b) => Math.hypot(a.x - me.pos.x, a.z - me.pos.z) < Math.hypot(b.x - me.pos.x, b.z - me.pos.z) ? a : b);
-    this.text('mapTab', me.stage === 'plane' ? 'Ilha' : nearest.name); this.text('hud-ping', `${ping ? `${Math.round(ping)} ms` : 'Local'} · ${Math.round(fps)} fps`);
+    this.text('mapTab', me.stage === 'plane' ? 'Ilha' : nearest.name);
+    // Only live information on the HUD: ping when online, FPS only when the player asked for it.
+    const net = [ping ? `${Math.round(ping)} ms` : '', this.settings.showFps ? `${Math.round(fps)} fps` : ''].filter(Boolean).join(' · ');
+    this.show('hud-ping', !!net); if (net) this.text('hud-ping', net);
     const hp = Math.max(0, me.hp), vitals = this.el('vitals'), shielded = t < me.protectionUntil;
-    this.el('hpBar').style.width = `${hp}%`; this.el('armBar').style.width = `${clamp(me.armor, 0, 100)}%`;
+    this.style(this.el('hpBar'), 'width', `${hp.toFixed(0)}%`); this.style(this.el('armBar'), 'width', `${clamp(me.armor, 0, 100).toFixed(0)}%`);
     this.text('hpTxt', Math.ceil(hp)); this.text('armTxt', Math.ceil(me.armor));
-    vitals.classList.toggle('low', me.alive && hp < 30); vitals.classList.toggle('boost', shielded); this.el('prot').hidden = !shielded;
-    this.el('helm').hidden = !(me.helmet > 0); if (me.helmet > 0) this.text('helmTxt', Math.ceil(me.helmet));
-    this.el('vign').classList.toggle('low', me.alive && hp < 30);
+    this.toggle(vitals, 'low', me.alive && hp < 30); this.toggle(vitals, 'boost', shielded); this.show('prot', shielded);
+    this.show('helm', me.helmet > 0); if (me.helmet > 0) this.text('helmTxt', Math.ceil(me.helmet));
+    this.toggle(this.el('vign'), 'low', me.alive && hp < 30);
     const weapon = me.weapons[me.slot], def = weapon ? WEAPONS[weapon.id] : null, rarity = rarityOf(weapon?.rarity);
-    this.text('wName', def ? def.name : 'Desarmada'); this.text('wRar', rarity.name); this.el('wRar').style.setProperty('--rc', rarity.color); this.el('wRar').hidden = !weapon;
-    this.text('wMode', weapon ? fireMode(weapon.id) : '—');
+    this.text('wName', def ? def.name : 'Desarmada'); this.text('wRar', rarity.name); this.style(this.el('wRar'), '--rc', rarity.color); this.show('wRar', !!weapon);
+    this.text('wMode', weapon ? fireMode(weapon.id) : '–');
     this.text('aMag', !weapon || !def ? 0 : def.melee ? '∞' : weapon.ammo); this.text('aRes', !weapon || !def || def.melee ? '' : `/ ${weapon.reserve}`);
-    this.el('ammo').classList.toggle('low', !!weapon && !!def && !def.melee && weapon.ammo <= Math.ceil(def.magazine * .2));
+    this.toggle(this.el('ammo'), 'low', !!weapon && !!def && !def.melee && weapon.ammo <= Math.ceil(def.magazine * .2));
     const inventoryKey = JSON.stringify([me.weapons.map(w => [w.id, w.rarity, w.ammo]), me.slot]);
     if (this.inventoryKey !== inventoryKey) {
       this.inventoryKey = inventoryKey;
       this.el('hotbar').innerHTML = [0, 1, 2, 3].map(i => { const w = me.weapons[i]; return `<div class="hs${i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${i + 1}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : ''}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
     }
+    // Consumables: only what you carry, each with its count; the slot key stays visible.
+    let carried = 0;
     this.root.querySelectorAll<HTMLElement>('#consbar .cs').forEach(slot => {
       const id = slot.dataset.k as ConsumableId, count = me.consumables[id] || 0;
-      this.textOf(slot.querySelector('b')!, count); slot.classList.toggle('zero', count <= 0); slot.classList.toggle('use', me.using === id);
+      this.textOf(slot.querySelector('b')!, count); if (slot.hidden !== count <= 0) slot.hidden = count <= 0; this.toggle(slot, 'use', me.using === id);
+      if (count > 0) carried++;
     });
+    this.show('consbar', carried > 0 && me.alive);
     const scoped = me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
-    this.el('scope-overlay').hidden = !scoped;
+    this.show('scope-overlay', scoped);
     const speed = Math.hypot(me.velocity.x, me.velocity.z), cross = this.el('cross');
-    cross.style.setProperty('--g', `${(4 + (def ? me.ads ? def.adsSpread : def.spread : 1) * 3.2 + Math.min(speed, 6) * 1.1).toFixed(1)}px`);
-    cross.style.opacity = me.alive && me.stage === 'ground' && !scoped && !(me.sprint && speed > .5) ? '1' : '0';
-    const prompt = this.el('prompt'); prompt.hidden = !interaction || !me.alive || me.stage !== 'ground';
-    if (interaction) { this.text('promptTxt', interaction.name.startsWith('Abrir') ? interaction.name : `Pegar ${interaction.name}`); this.text('promptKey', keyName(this.settings.bindings.interact)); }
-    const reloading = !!weapon && !!def && me.reloadUntil > t; this.el('reload').hidden = !reloading;
-    if (reloading) { this.text('reloadTxt', weapon.id === 'shotgun' ? 'Botando cartucho…' : weapon.id === 'slingshot' ? 'Pegando pedra…' : 'Enchendo o pente…'); this.el('reloadBar').style.width = `${clamp(1 - (me.reloadUntil - t) / Math.max(.1, def.reload), 0, 1) * 100}%`; }
+    this.style(cross, '--g', `${this.crosshairGap(me, now).toFixed(1)}px`);
+    this.style(cross, 'opacity', me.alive && me.stage === 'ground' && !scoped && !(me.sprint && speed > .5) ? '1' : '0');
+    this.updatePrompt(me, interaction);
+    // Reload: a ring fills around the crosshair, with a short label under it.
+    const reloading = !!weapon && !!def && me.reloadUntil > t && me.alive; this.show('reload', reloading); this.show('rring', reloading);
+    if (reloading) {
+      this.text('reloadTxt', weapon.id === 'shotgun' ? 'Botando cartucho' : weapon.id === 'slingshot' ? 'Pegando pedra' : 'Enchendo o pente');
+      this.attr(this.el('rringFg'), 'stroke-dasharray', `${(clamp(1 - (me.reloadUntil - t) / Math.max(.1, def.reload), 0, 1) * 100).toFixed(1)} 100`);
+    }
     if (me.using && me.useUntil > t) {
       if (this.useTrack?.item !== me.using || this.useTrack.until !== me.useUntil) this.useTrack = { item: me.using, until: me.useUntil, total: Math.max(.1, me.useUntil - t) };
-      this.text('useTxt', `${USE_LABEL[me.using]} ${(me.useUntil - t).toFixed(1)} s`); this.el('useBar').style.width = `${clamp(1 - (me.useUntil - t) / this.useTrack.total, 0, 1) * 100}%`;
+      this.text('useTxt', `${USE_LABEL[me.using]} ${(me.useUntil - t).toFixed(1).replace('.', ',')} s`); this.style(this.el('useBar'), 'width', `${(clamp(1 - (me.useUntil - t) / this.useTrack.total, 0, 1) * 100).toFixed(0)}%`);
     } else this.useTrack = null;
-    this.el('use').hidden = !this.useTrack;
-    const air = me.alive && (me.stage === 'falling' || me.stage === 'parachute'); this.el('alt').hidden = !air;
+    this.show('use', !!this.useTrack);
+    const air = me.alive && (me.stage === 'falling' || me.stage === 'parachute'); this.show('alt', air);
     if (air) { this.text('altTxt', `${Math.max(0, Math.round(me.pos.y - terrainHeight(me.pos.x, me.pos.z)))} m`); this.text('altHint', me.stage === 'falling' ? `${jump} abre o paraquedas` : 'WASD plana'); }
-    this.el('torso').setAttribute('transform', `rotate(${(me.lean * 16).toFixed(1)} 30 56)`); this.el('figure').setAttribute('transform', `translate(0 ${me.crouch ? 15 : 0})`);
-    this.text('stanceTxt', me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando esq.' : 'Espiando dir.' : 'Em pé');
+    this.attr(this.el('torso'), 'transform', `rotate(${(me.lean * 16).toFixed(0)} 30 56)`); this.attr(this.el('figure'), 'transform', `translate(0 ${me.crouch ? 15 : 0})`);
+    // Posture chip: quiet when standing, labelled and highlighted when it matters.
+    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
+    this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance);
     if (me.alive) this.deathInfo = null;
     let banner = '';
     if (snapshot.phase === 'countdown') banner = `${Math.ceil(snapshot.countdown)}<small>Prepare-se · a ilha já vai abrir</small>`;
     else if (!me.alive && br) { const info = this.deathInfo ||= { place: alive + 1, line: 'Fim da linha pra você' }; banner = `#${info.place}<small>${esc(info.line)}</small>`; }
     else if (!me.alive) banner = `Caiu!<small>Volta em ${Math.max(0, Math.ceil(me.respawnAt - t))} s</small>`;
-    else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando…'}</small>`; }
+    else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando'}</small>`; }
     this.setBanner(banner);
-    const deadInRoyale = this.deadInRoyale(); this.el('spec').hidden = !deadInRoyale; this.el('dmQuit').hidden = me.alive || br || snapshot.phase !== 'playing';
+    const deadInRoyale = this.deadInRoyale(); this.show('spec', deadInRoyale); this.show('dmQuit', !me.alive && !br && snapshot.phase === 'playing');
     // Eliminated in battle royale: free the mouse once so the on-screen buttons can be clicked.
     if (deadInRoyale && !this.deathReleased) { this.deathReleased = true; this.el('pause-panel').hidden = true; if (document.pointerLockElement) document.exitPointerLock(); }
     if (me.alive) this.deathReleased = false;
-    const score = this.el('scoreboard'); score.hidden = !scoreboard;
-    if (scoreboard) score.innerHTML = `<div class="scoreboard-content"><p class="eyebrow">${modeName(snapshot.config.mode)}</p><h2>A TURMA NA ILHA</h2>${this.scoreTable(snapshot)}</div>`;
+    const score = this.el('scoreboard'); this.show('scoreboard', scoreboard);
+    if (scoreboard) {
+      // Rebuild the table only when a row changes, never on every HUD tick.
+      const key = snapshot.actors.map(a => `${a.id}:${a.kills}:${a.deaths}:${Math.round(a.damage)}:${a.alive ? 1 : 0}`).join('|');
+      if (key !== this.scoreKey) { this.scoreKey = key; score.innerHTML = `<div class="scoreboard-content"><p class="eyebrow">${modeName(snapshot.config.mode)}</p><h2>A TURMA NA ILHA</h2>${this.scoreTable(snapshot)}</div>`; }
+    }
     const plane = snapshot.plane;
     if (this.lastPlane) { const dx = plane.x - this.lastPlane.x, dz = plane.z - this.lastPlane.z, len = Math.hypot(dx, dz); if (len > .05) this.planeDir = { x: dx / len, z: dz / len }; }
     this.lastPlane = { x: plane.x, z: plane.z };
+    this.updateCoach(snapshot, me, interaction);
     this.drawMap(snapshot, me);
+  }
+  private crosshairGap(me: ActorState, _now: number): number {
+    const def = me.weapons[me.slot] ? WEAPONS[me.weapons[me.slot].id] : null, speed = Math.hypot(me.velocity.x, me.velocity.z);
+    return 4 + (def ? me.ads ? def.adsSpread : def.spread : 1) * 3.2 + Math.min(speed, 6) * 1.1;
+  }
+  // Interaction prompt: the item name takes its rarity colour, with a mini icon.
+  private updatePrompt(me: ActorState, interaction: { id: string; name: string } | null) {
+    const visible = !!interaction && me.alive && me.stage === 'ground'; this.show('prompt', visible);
+    if (!visible || !interaction) return;
+    const loot = this.snapshot?.loot.find(l => l.id === interaction.id), chest = !loot && interaction.name.startsWith('Abrir');
+    const color = loot?.kind === 'weapon' ? rarityOf(loot.rarity).color : chest ? '#ffc23d' : '#fff4d6';
+    const iconKey = loot ? `${loot.kind}:${loot.weapon || ''}` : chest ? 'chest' : 'none';
+    const holder = this.el('promptIcon');
+    if (holder.dataset.k !== iconKey) {
+      holder.dataset.k = iconKey;
+      holder.innerHTML = loot?.kind === 'weapon' ? weaponIcon(loot.weapon || 'pistol') : loot && loot.kind in CONSUMABLE_ICONS ? CONSUMABLE_ICONS[loot.kind as ConsumableId] : loot?.kind === 'armor' ? HUD_ART.shield : loot?.kind === 'helmet' ? HUD_ART.helmet : chest ? icon('box') : '';
+    }
+    this.text('promptVerb', chest ? 'Abrir' : 'Pegar'); this.text('promptItem', chest ? 'caixa de suprimentos' : interaction.name);
+    this.style(this.el('prompt'), '--ic', color); this.text('promptKey', keyName(this.settings.bindings.interact));
   }
   private scoreTable(snapshot: WorldSnapshot) {
     const actors = [...snapshot.actors].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
     return `<table class="score-table"><thead><tr><th>CAPIVARA</th><th>ELIM.</th><th>MORTES</th><th>DANO</th></tr></thead><tbody>${actors.map((a, i) => `<tr class="${a.id === this.localId ? 'you' : ''}"><td><span class="rank">${i + 1}</span><i style="background:${/^#[a-f0-9]{6}$/i.test(a.color) ? a.color : '#bd8956'}"></i>${esc(a.name)}${a.bot ? '<small>BOT</small>' : a.id === this.localId ? '<small>VOCÊ</small>' : ''}</td><td>${a.kills}</td><td>${a.deaths}</td><td>${Math.round(a.damage)}</td></tr>`).join('')}</tbody></table>`;
   }
-  // The match ends inside the live game view, like the first version: headline, last prey, confetti,
-  // then the placement, stats, board and rematch buttons slide in underneath.
+  // Results over the live island: a stamped placement, then stats, awards, the board and the next step.
   private victory(snapshot: WorldSnapshot) {
-    const hud = this.el('hud'); hud.classList.add('ended'); this.el('pause-panel').hidden = true; this.el('scoreboard').hidden = true;
-    const br = snapshot.config.mode === 'battle-royale', winners = snapshot.results.filter(r => r.winner), won = winners.some(r => r.id === this.localId);
-    const me = snapshot.results.find(r => r.id === this.localId), place = me?.place ?? snapshot.results.length, names = winners.map(w => esc(w.name)).join(' e ');
+    const hud = this.el('hud'); hud.classList.add('ended'); this.el('pause-panel').hidden = true; this.el('scoreboard').hidden = true; this.coach = null; this.show('coach', false);
+    const br = snapshot.config.mode === 'battle-royale', results = snapshot.results as ResultStats[], winners = results.filter(r => r.winner), won = winners.some(r => r.id === this.localId);
+    const me = results.find(r => r.id === this.localId), place = me?.place ?? results.length, names = winners.map(w => esc(w.name)).join(' e ');
     const title = won ? br ? 'Última de pé!' : 'Dona da correria!' : br ? 'Não foi dessa vez' : winners.length ? `${names} ${winners.length > 1 ? 'levaram' : 'levou'}` : 'Ninguém levou';
-    const sub = won ? br ? `Última capivara de pé · ${snapshot.actors.length} bichos` : `${winners.length > 1 ? 'Vitória dividida · ' : ''}${me?.kills ?? 0} presas · ${Math.round(me?.damage ?? 0)} de dano` : br ? `${winners.length ? `${names} ficou de pé` : 'A ilha venceu desta vez'} · ${snapshot.actors.length} bichos` : `Você fez ${me?.kills ?? 0} presas · ${Math.round(me?.damage ?? 0)} de dano`;
+    const sub = won ? br ? `Última capivara de pé entre ${results.length}` : `${winners.length > 1 ? 'Vitória dividida · ' : ''}${me?.kills ?? 0} presas` : `Você ficou em ${ordinal(place)} de ${results.length}`;
     const prey = this.lastPrey ? `<div class="vlast"><span class="pt">${capybara(this.lastPrey.color)}</span><span>Última presa: <b>${esc(this.lastPrey.name)}</b></span></div>` : '';
+    const stat = (value: string | number, label: string) => `<div><b>${value}</b><span>${label}</span></div>`;
+    const stats = me ? [stat(me.kills, 'Eliminações'), stat(Math.round(me.damage), 'Dano'),
+      me.shots !== undefined && me.hits !== undefined ? stat(accuracyText(me.hits, me.shots), 'Precisão') : '',
+      me.headshots !== undefined ? stat(me.headshots, 'Na cachola') : '',
+      me.survived !== undefined ? stat(formatSurvived(me.survived), 'Tempo vivo') : ''].join('') : '';
+    // Awards only from simulation fields; a player gets at most two.
+    const best = (field: keyof ResultStats) => { const top = Math.max(0, ...results.map(r => Number(r[field] ?? 0))); return top > 0 && Number(me?.[field] ?? 0) === top; };
+    const awards = me ? ([['kills', 'Caçadora da ilha', 'mais eliminações'], ['damage', 'Mão pesada', 'mais dano'], ['headshots', 'Mira de ouro', 'mais tiros na cabeça'], ['chests', 'Rainha do baú', 'mais baús abertos'], ['survived', 'Sobrevivente', 'mais tempo viva']] as const)
+      .filter(([field]) => me[field] !== undefined && best(field)).slice(0, 2).map(([, name, why]) => `<span class="award">${icon('crown')}<b>${name}</b><small>${why}</small></span>`).join('') : '';
+    const host = !!this.room?.isHost, guest = !!this.room && !host;
+    const primary = guest ? `<span class="wait">${icon('clock')} Esperando quem criou a sala</span>` : `<button class="button primary" data-do="rematch">${icon(host ? 'users' : 'play')} ${host ? 'Reunir a turma' : 'Jogar de novo'}</button>`;
+    const board = [...results].sort((x, y) => x.place - y.place || y.kills - x.kills), top = board.slice(0, 5);
+    if (me && !top.includes(me)) top.push(me);
+    const rows = top.map(r => `<tr class="${r.id === this.localId ? 'you' : ''}"><td><span class="rank">${r.place}</span><i style="background:${/^#[a-f0-9]{6}$/i.test(r.color) ? r.color : PLAYER_COLORS[0]}"></i>${esc(r.name)}${r.bot ? '<small>BOT</small>' : r.id === this.localId ? '<small>VOCÊ</small>' : ''}</td><td>${r.kills}</td><td>${Math.round(r.damage)}</td></tr>`).join('');
     const layer = document.createElement('div'); layer.id = 'victory'; layer.className = won ? 'won' : 'lost';
     layer.innerHTML = `<div class="vrays"></div><div class="vcard"><div class="vnum">#${won ? 1 : place}</div><div class="vtitle">${title}</div><div class="vsub">${sub}</div>${prey}</div>`
-      + `<div class="vpanel stk" id="vpanel"><div class="vstats"><div><b>${me?.kills ?? 0}</b><span>Presas</span></div><div><b>${Math.round(me?.damage ?? 0)}</b><span>Dano</span></div><div><b>${me ? `#${me.place}` : '–'}</b><span>Colocação</span></div></div>`
-      + `<div class="vactions"><button class="button primary" data-do="rematch">${icon('users')} ${this.room ? 'VOLTAR PARA A TURMA' : 'MAIS UMA PARTIDA'}</button><button class="button secondary" data-do="leave">VOLTAR AO INÍCIO</button></div><div class="vboard">${this.scoreTable(snapshot)}</div></div>`
+      + `<div class="vpanel stk" id="vpanel" role="region" aria-label="Resultado da partida"><div class="vstats">${stats}</div>${awards ? `<div class="vawards">${awards}</div>` : ''}`
+      + `<div class="vboard"><table class="score-table"><thead><tr><th>CAPIVARA</th><th>ELIM.</th><th>DANO</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      + `<div class="vactions">${primary}<button class="button secondary" data-do="leave">${icon('back')} Voltar ao menu</button></div></div>`
       + `<div id="confetti"></div><div id="flash"></div>`;
     hud.appendChild(layer);
-    if (won) {
-      const confetti = layer.querySelector<HTMLElement>('#confetti')!, colors = ['#f1bf61', '#e3663f', '#7fc0d0', '#7fc48a', '#f8f0d9', '#a468ff'];
+    if (won && !this.reducedMotion()) {
+      const confetti = layer.querySelector<HTMLElement>('#confetti')!, colors = [...PLAYER_COLORS];
       for (let i = 0; i < 70; i++) { const bit = document.createElement('i'); bit.style.left = `${Math.random() * 100}%`; bit.style.background = colors[i % colors.length]; bit.style.animationDuration = `${2.2 + Math.random() * 2}s`; bit.style.animationDelay = `${Math.random() * 1.6}s`; bit.style.rotate = `${Math.random() * 180}deg`; confetti.appendChild(bit); }
       layer.querySelector('#flash')!.classList.add('on');
     }
-    window.setTimeout(() => layer.querySelector('#vpanel')?.classList.add('show'), 2200);
+    window.setTimeout(() => { const panel = layer.querySelector<HTMLElement>('#vpanel'); panel?.classList.add('show'); panel?.querySelector<HTMLElement>('.button')?.focus({ preventScroll: true }); }, this.reducedMotion() ? 300 : 2200);
   }
   // Paused mid-match: the first version's comic menu over the frozen island, with the quick settings inline.
   setPaused(paused: boolean) {
@@ -287,14 +368,25 @@ export class GameUI {
   private settingsModal() {
     const labels = { sensitivity: 'Sensibilidade do mouse', fov: 'Campo de visão', master: 'Volume geral', effects: 'Efeitos e combate', ambience: 'Ambiente', music: 'Música' };
     const ranges = (keys: (keyof typeof labels)[]) => keys.map(key => `<label class="slider-label">${labels[key]} <output>${this.settings[key]}</output><input type="range" data-setting="${key}" min="${key === 'fov' ? 60 : key === 'sensitivity' ? .2 : 0}" max="${key === 'fov' ? 105 : key === 'sensitivity' ? 3 : 1}" step="${key === 'fov' ? 1 : .05}" value="${this.settings[key]}"/></label>`).join('');
-    const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label>Limite de quadros<select id="frame-limit"><option value="60">60 FPS · Fluido</option><option value="30">30 FPS · Economia</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento da câmera</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label><label class="check-row"><input id="adaptive" type="checkbox" ${this.settings.adaptive ? 'checked' : ''}/><span>Ajuste automático dos bots no treino<small>Como na v1: fica mais manso se você vem perdendo e mais bravo se vem ganhando.</small></span></label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section></div><details class="bindings"><summary>PERSONALIZAR TECLAS</summary><div class="binding-grid">${Object.keys(DEFAULT_BINDINGS).map(key => `<label>${bindingLabels[key]}<button type="button" class="key-binding" data-binding="${key}">${keyName(this.settings.bindings[key])}</button></label>`).join('')}</div></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
+    const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label>Limite de quadros<select id="frame-limit"><option value="60">60 FPS · Fluido</option><option value="30">30 FPS · Economia</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento (câmera e interface)</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label><label class="check-row"><input id="adaptive" type="checkbox" ${this.settings.adaptive ? 'checked' : ''}/><span>Ajuste automático dos bots no treino<small>Como na v1: fica mais manso se você vem perdendo e mais bravo se vem ganhando.</small></span></label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section><section><h3>INTERFACE E MIRA</h3><label class="slider-label">Tamanho da interface <output id="ui-scale-out">${Math.round(this.settings.uiScale * 100)}%</output><input type="range" id="ui-scale" min="80" max="120" step="5" value="${Math.round(this.settings.uiScale * 100)}"/></label><label>Cor da mira<select id="crosshair-color"><option value="white">Branca</option><option value="yellow">Amarela</option><option value="cyan">Ciano</option><option value="magenta">Magenta</option></select></label><label>Marcadores de acerto<select id="hit-palette"><option value="default">Padrão</option><option value="colorblind">Daltonismo</option></select></label><label class="check-row"><input id="show-fps" type="checkbox" ${this.settings.showFps ? 'checked' : ''}/> Mostrar FPS no mapa</label><button type="button" class="button secondary" id="replay-tutorial">${icon('info')} REVER O TUTORIAL</button></section></div><details class="bindings"><summary>PERSONALIZAR TECLAS</summary><div class="binding-grid">${Object.keys(DEFAULT_BINDINGS).map(key => `<label>${bindingLabels[key]}<button type="button" class="key-binding" data-binding="${key}">${keyName(this.settings.bindings[key])}</button></label>`).join('')}</div></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
     dialog.querySelector<HTMLSelectElement>('#graphics')!.value = this.settings.graphics;
     dialog.querySelector<HTMLSelectElement>('#frame-limit')!.value = String(this.settings.frameLimit);
     dialog.querySelectorAll<HTMLInputElement>('[data-setting]').forEach(input => input.addEventListener('input', () => { const key = input.dataset.setting as keyof typeof labels; this.settings[key] = Number(input.value); input.parentElement!.querySelector('output')!.textContent = input.value; this.callbacks.settings(this.settings); }));
     dialog.querySelector('#graphics')!.addEventListener('change', event => { this.settings.graphics = (event.target as HTMLSelectElement).value as Settings['graphics']; this.callbacks.settings(this.settings); });
     dialog.querySelector('#frame-limit')!.addEventListener('change', event => { this.settings.frameLimit = Number((event.target as HTMLSelectElement).value) === 30 ? 30 : 60; this.callbacks.settings(this.settings); });
-    dialog.querySelector('#reduced-motion')!.addEventListener('change', event => { this.settings.reducedMotion = (event.target as HTMLInputElement).checked; this.callbacks.settings(this.settings); });
+    dialog.querySelector('#reduced-motion')!.addEventListener('change', event => { this.settings.reducedMotion = (event.target as HTMLInputElement).checked; this.applyHudPrefs(); this.callbacks.settings(this.settings); });
     dialog.querySelector('#ads-toggle')!.addEventListener('change', event => { this.settings.adsToggle = (event.target as HTMLInputElement).checked; this.callbacks.settings(this.settings); });
+    dialog.querySelector<HTMLSelectElement>('#crosshair-color')!.value = this.settings.crosshairColor;
+    dialog.querySelector<HTMLSelectElement>('#hit-palette')!.value = this.settings.hitPalette;
+    const scale = dialog.querySelector<HTMLInputElement>('#ui-scale')!;
+    scale.addEventListener('input', () => { this.settings.uiScale = Number(scale.value) / 100; dialog.querySelector('#ui-scale-out')!.textContent = `${scale.value}%`; this.applyHudPrefs(); this.callbacks.settings(this.settings); });
+    dialog.querySelector('#crosshair-color')!.addEventListener('change', event => { this.settings.crosshairColor = (event.target as HTMLSelectElement).value as Settings['crosshairColor']; this.applyHudPrefs(); this.callbacks.settings(this.settings); });
+    dialog.querySelector('#hit-palette')!.addEventListener('change', event => { this.settings.hitPalette = (event.target as HTMLSelectElement).value as Settings['hitPalette']; this.applyHudPrefs(); this.callbacks.settings(this.settings); });
+    dialog.querySelector('#show-fps')!.addEventListener('change', event => { this.settings.showFps = (event.target as HTMLInputElement).checked; this.callbacks.settings(this.settings); });
+    dialog.querySelector('#replay-tutorial')!.addEventListener('click', event => {
+      try { localStorage.removeItem(ONBOARD_KEY); } catch { /* Nothing stored. */ }
+      this.onboarded = false; (event.currentTarget as HTMLButtonElement).textContent = 'TUTORIAL NA PRÓXIMA PARTIDA DE TREINO';
+    });
     dialog.querySelector('#adaptive')!.addEventListener('change', event => { this.settings.adaptive = (event.target as HTMLInputElement).checked; this.callbacks.settings(this.settings); });
     const keyCapture = new AbortController(); dialog.addEventListener('close', () => keyCapture.abort());
     dialog.querySelectorAll<HTMLButtonElement>('[data-binding]').forEach(button => button.addEventListener('click', () => {
@@ -325,7 +417,7 @@ export class GameUI {
         const vign = this.el('vign'); vign.classList.remove('hit'); void vign.offsetWidth; vign.classList.add('hit');
         const me = find(this.localId), source = find(event.actor);
         if (me && source && source !== me) {
-          const burst = document.createElement('div'); burst.className = 'di'; burst.innerHTML = HUD_ART.burst;
+          const burst = document.createElement('div'); burst.className = 'di'; burst.innerHTML = DAMAGE_ARC;
           burst.style.transform = `rotate(${this.localAngle(me, source.pos.x, source.pos.z)}rad)`;
           this.el('dmgInd').appendChild(burst); window.setTimeout(() => burst.remove(), 1000);
         }
@@ -352,6 +444,7 @@ export class GameUI {
       this.lastHits.delete(event.target);
     }
     if (event.type === 'pickup' && event.actor === this.localId) {
+      if (this.coach?.step === 'loot') this.coachDone();
       const chest = event.item.startsWith('chest:') ? event.item.slice(6) as WeaponId : null, loot = this.snapshot?.loot.find(l => l.id === event.item);
       const weaponId = chest || (loot?.kind === 'weapon' ? loot.weapon || 'pistol' : null);
       const entry = document.createElement('div'); entry.className = 'fd info';
@@ -367,7 +460,9 @@ export class GameUI {
   }
   private setBanner(html: string) {
     if (html === this.lastBanner) return; this.lastBanner = html;
-    const banner = this.el('banner'); if (html) banner.innerHTML = html; banner.classList.toggle('on', !!html);
+    // A hidden banner leaves the accessibility tree: cleared after its fade, aria-hidden right away.
+    const banner = this.el('banner'); if (html) banner.innerHTML = html; banner.classList.toggle('on', !!html); banner.setAttribute('aria-hidden', String(!html));
+    if (!html) window.setTimeout(() => { if (!this.lastBanner && banner.isConnected) banner.textContent = ''; }, 300);
   }
   private hitMarker(kind: '' | 'head' | 'kill') {
     const marker = this.el('hitm'); marker.classList.toggle('head', kind === 'head'); marker.classList.toggle('kill', kind === 'kill');
@@ -385,8 +480,40 @@ export class GameUI {
     const dx = x - me.pos.x, dz = z - me.pos.z;
     return Math.atan2(dx * Math.cos(me.yaw) - dz * Math.sin(me.yaw), -dx * Math.sin(me.yaw) - dz * Math.cos(me.yaw));
   }
-  toast(message: string, error = false) { if (error) { const line = this.root.querySelector('#lockErr'); if (line) line.textContent = message; } const toast = document.querySelector<HTMLElement>('#toast')!; toast.textContent = message; toast.classList.add('visible'); toast.classList.toggle('error', error); clearTimeout(this.toastTimer); this.toastTimer = window.setTimeout(() => toast.classList.remove('visible'), error ? 7000 : 4000); }
-  private el(id: string) { return this.root.querySelector<HTMLElement>(`#${id}`)!; }
+  // Toasts stack (at most two), drop duplicates that arrive together, and never cover the view with a red slab.
+  toast(message: string, error = false) {
+    if (error) { const line = this.root.querySelector('#lockErr'); if (line) line.textContent = message; }
+    const host = document.querySelector<HTMLElement>('#toast')!, now = performance.now();
+    if (this.toastItems.some(item => item.text === message && now - item.at < 1500)) return;
+    const el = document.createElement('div'); el.className = `toast-item${error ? ' error' : ''}`; el.textContent = message;
+    host.appendChild(el); requestAnimationFrame(() => el.classList.add('visible'));
+    const item = { text: message, el, at: now, timer: window.setTimeout(() => this.dropToast(item), error ? 6000 : 3000) };
+    this.toastItems.push(item);
+    while (this.toastItems.length > 2) this.dropToast(this.toastItems[0]);
+  }
+  private dropToast(item: { el: HTMLElement; timer: number }) {
+    clearTimeout(item.timer); this.toastItems = this.toastItems.filter(other => other !== item);
+    item.el.classList.remove('visible'); window.setTimeout(() => item.el.remove(), 220);
+  }
+  // Cached lookups: the HUD markup is rebuilt only by game(), which clears the cache.
+  private el(id: string) {
+    let element = this.els.get(id);
+    if (!element || !element.isConnected) { element = this.root.querySelector<HTMLElement>(`#${id}`)!; if (element) this.els.set(id, element); }
+    return element;
+  }
+  private show(id: string, visible: boolean) { const element = this.el(id); if (element && element.hidden === visible) element.hidden = !visible; }
+  private toggle(element: Element, cls: string, on: boolean) { if (element.classList.contains(cls) !== on) element.classList.toggle(cls, on); }
+  private style(element: HTMLElement, prop: string, value: string) { if (element.style.getPropertyValue(prop) !== value) element.style.setProperty(prop, value); }
+  private attr(element: Element | null, name: string, value: string) { if (element && element.getAttribute(name) !== value) element.setAttribute(name, value); }
+  private reducedMotion() { return this.settings.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  // Interface size and aim colours follow the settings; the HUD scales from its 1600x900 layout.
+  applyHudPrefs() {
+    const body = document.body.style, [hit, head, kill] = HIT_PALETTES[this.settings.hitPalette];
+    body.setProperty('--ui', String(hudScale(innerWidth, innerHeight, this.settings.uiScale)));
+    body.setProperty('--xc', CROSSHAIR_COLORS[this.settings.crosshairColor]);
+    body.setProperty('--hit', hit); body.setProperty('--hithead', head); body.setProperty('--hitkill', kill);
+    document.body.classList.toggle('reduce-motion', this.settings.reducedMotion);
+  }
   private text(id: string, value: string | number) { const element = this.el(id); if (element) this.textOf(element, value); }
   private textOf(element: Element, value: string | number) { if (element.textContent !== String(value)) element.textContent = String(value); }
   // Island texture for both maps, built from the world data (terrain height, colliders) at MAP_PPM pixels per metre.
@@ -450,18 +577,83 @@ export class GameUI {
     const snapshot = this.snapshot, me = snapshot?.actors.find(a => a.id === this.localId);
     return !!snapshot && !!me && !me.alive && snapshot.config.mode === 'battle-royale' && snapshot.phase === 'playing';
   }
-  // Match loading screen: covers the scene until the island is loaded and the first real frame is drawn.
+  // Match loading screen (style bible §13.1): the cover art behind a paper card, real progress, and rotating tips.
   setLoading(on: boolean) {
-    clearInterval(this.tipTimer);
+    clearInterval(this.tipTimer); clearTimeout(this.tipIndexTimer);
     const current = this.root.querySelector<HTMLElement>('#loadingOverlay');
     if (!on) { if (current) { current.classList.add('out'); window.setTimeout(() => current.remove(), 350); } return; }
     if (current || this.screen !== 'game') return;
-    const tips = ['Aperte M pra ver a ilha inteira.', 'Q e E espiam pelas quinas.', 'Fora da área segura, a tempestade tira vida a cada segundo.', 'Caixas de suprimentos guardam armas e equipamento.', 'Tab mostra o placar da turma.', 'No avião, Espaço salta. No ar, abre o paraquedas.'];
-    let tip = Math.floor(Math.random() * tips.length);
-    const overlay = document.createElement('div'); overlay.id = 'loadingOverlay';
-    overlay.innerHTML = `<div class="lcard stk"><div class="lcapy">${capybara(this.profile.color)}</div><h2>Carregando a ilha…</h2><div class="lbar"><i></i></div><p class="ltip"><b>Dica</b> <span>${tips[tip]}</span></p></div>`;
+    this.loadProgress = 0;
+    const b = this.settings.bindings, mode = this.room?.config.mode ?? this.selectedMode;
+    const overlay = document.createElement('div'); overlay.id = 'loadingOverlay'; overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-label', 'Carregando a partida');
+    overlay.innerHTML = `<div class="lbg"></div><div class="lcard stk"><div class="lcapy">${capybara(this.profile.color)}</div><h2>Preparando a ilha</h2>`
+      + `<div class="lbar" role="progressbar" aria-label="Carregamento da ilha" aria-valuemin="0" aria-valuemax="100"><i></i></div><span class="lstatus" role="status">${loadingLabel(0)}</span></div>`
+      + `<div class="ltipbox stk"><b class="dica">Dica</b><p class="ltip" aria-live="polite"></p><button type="button" class="lnext" data-do="next-tip" aria-label="Próxima dica">${icon('arrow')}</button></div>`
+      + `<div class="lfoot"><span class="lmode stk">${icon(mode === 'battle-royale' ? 'crown' : 'bolt')} ${mode === 'battle-royale' ? 'Última de Pé' : 'Correria'} · Ilha das Capivaras</span>`
+      + `<span class="lkeys stk"><span><kbd>${esc([b.forward, b.left, b.back, b.right].map(keyName).join(' '))}</kbd> andar</span><span><kbd>Mouse</kbd> mirar</span><span><kbd>${esc(keyName(b.jump))}</kbd> saltar</span></span></div>`;
     this.root.appendChild(overlay);
-    this.tipTimer = window.setInterval(() => { tip = (tip + 1) % tips.length; const line = overlay.querySelector('.ltip span'); if (line) line.textContent = tips[tip]; }, 2600);
+    this.showTip(true);
+    this.tipTimer = window.setInterval(() => this.showTip(), 6000);
+  }
+  // Real progress from the loader (Forja's contract): monotonic 0..1, short pt-BR label, "Pronto!" at 1.
+  setLoadingProgress(fraction: number, label?: string) {
+    const overlay = this.root.querySelector<HTMLElement>('#loadingOverlay'), bar = overlay?.querySelector<HTMLElement>('.lbar');
+    if (!overlay || !bar) return;
+    const next = nextProgress(this.loadProgress, fraction); if (next === this.loadProgress && bar.classList.contains('determinate')) return;
+    this.loadProgress = next;
+    bar.classList.add('determinate'); bar.setAttribute('aria-valuenow', String(Math.round(next * 100)));
+    bar.querySelector<HTMLElement>('i')!.style.width = `${(next * 100).toFixed(1)}%`;
+    const status = overlay.querySelector('.lstatus');
+    if (status) status.textContent = next >= 1 ? 'Pronto!' : label ? cleanLabel(label) || loadingLabel(next) : loadingLabel(next);
+  }
+  private showTip(immediate = false) {
+    const line = this.root.querySelector<HTMLElement>('#loadingOverlay .ltip'); if (!line) return;
+    const b = this.settings.bindings, keys = { jump: keyName(b.jump), interact: keyName(b.interact), leanLeft: keyName(b.leanLeft), leanRight: keyName(b.leanRight), reload: keyName(b.reload), crouch: keyName(b.crouch) };
+    const tip = fillTip(nextTip(), keys);
+    clearTimeout(this.tipIndexTimer);
+    if (immediate || this.reducedMotion()) { line.textContent = tip; return; }
+    line.classList.add('fade'); this.tipIndexTimer = window.setTimeout(() => { line.textContent = tip; line.classList.remove('fade'); }, 200);
+  }
+  // First-run coach for practice: one short card at a time; each step waits for its moment and ends on the action itself.
+  private updateCoach(snapshot: WorldSnapshot, me: ActorState, interaction: { id: string; name: string } | null) {
+    const coach = this.coach; if (!coach) return;
+    const zone = snapshot.zone, now = performance.now(), b = this.settings.bindings;
+    const ready = coach.step === 'plane' ? me.stage === 'plane' : coach.step === 'chute' ? me.stage === 'falling'
+      : coach.step === 'move' ? me.stage === 'ground' && me.alive : coach.step === 'loot' ? !!interaction
+      : coach.step === 'storm' ? snapshot.phase === 'playing' && me.stage === 'ground' && (zone.shrinking || Math.hypot(me.pos.x - zone.nextX, me.pos.z - zone.nextZ) > zone.nextRadius) : true;
+    // Windows that closed without the card (the player already jumped or opened the chute) are simply skipped.
+    const missed = (coach.step === 'plane' && me.stage !== 'plane') || (coach.step === 'chute' && (me.stage === 'parachute' || me.stage === 'ground'));
+    if (missed) { this.coachDone(); return; }
+    if (!ready && coach.visibleAt === null) { this.show('coach', false); return; }
+    coach.visibleAt ??= now;
+    const shown = now - coach.visibleAt;
+    if (coach.step === 'move') coach.startPos ||= { x: me.pos.x, z: me.pos.z };
+    const finished = coach.step === 'intro' ? snapshot.phase === 'playing' && shown > 4000
+      : coach.step === 'move' ? !!coach.startPos && Math.hypot(me.pos.x - coach.startPos.x, me.pos.z - coach.startPos.z) > 6
+      : coach.step === 'loot' || coach.step === 'storm' ? shown > 9000 : false;
+    if (finished) { this.coachDone(); return; }
+    const k = (code: string) => `<kbd>${esc(keyName(code))}</kbd>`, br = snapshot.config.mode === 'battle-royale';
+    const text: Record<string, string> = {
+      intro: br ? '<b>Objetivo:</b> ser a última capivara de pé. Pegue armas, abra baús e fuja da tempestade.' : '<b>Objetivo:</b> fazer mais eliminações até o tempo acabar. Caiu, volta.',
+      plane: `${k(b.jump)} salta do avião. Aperte <kbd>M</kbd> e escolha onde cair.`,
+      chute: `${k(b.jump)} abre o paraquedas. Segure a direção pra planar.`,
+      move: `${k(b.forward)}${k(b.left)}${k(b.back)}${k(b.right)} anda, o mouse olha e ${k(b.sprint)} corre.`,
+      loot: `${k(b.interact)} pega o que brilha. A cor do brilho é a raridade.`,
+      storm: 'A tempestade fecha a ilha. Fique dentro do círculo branco: <kbd>M</kbd> abre o mapa.',
+    };
+    const card = this.el('coach'); this.show('coach', true);
+    if (card.dataset.step !== coach.step) { card.dataset.step = coach.step; this.el('coachTxt').innerHTML = text[coach.step]; }
+  }
+  private coachDone() {
+    const coach = this.coach; if (!coach || !this.snapshot) return;
+    const order = this.snapshot.config.mode === 'battle-royale' ? ['intro', 'plane', 'chute', 'move', 'loot', 'storm'] : ['intro', 'move', 'loot'];
+    const next = order[order.indexOf(coach.step) + 1];
+    if (!next) { this.finishOnboarding(); return; }
+    this.coach = { step: next, visibleAt: null, startPos: null }; this.show('coach', false);
+  }
+  private finishOnboarding() {
+    this.coach = null; this.onboarded = true; this.show('coach', false);
+    try { localStorage.setItem(ONBOARD_KEY, '1'); } catch { /* Private mode: the coach simply shows again next time. */ }
   }
   toggleMap(open = !this.mapOpen) {
     if (this.screen !== 'game') return; const big = this.root.querySelector<HTMLElement>('#bigmap'); if (!big) return;

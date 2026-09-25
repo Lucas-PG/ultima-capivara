@@ -1,4 +1,5 @@
 const paths: Record<string, string> = {
+  box: '<path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M3 13h18"/><rect x="10.5" y="11.5" width="3" height="3.5" rx=".8"/>',
   play: '<path d="m9 5 12 7-12 7z"/>',
   arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
   back: '<path d="M20 12H4m6-6-6 6 6 6"/>',
@@ -24,9 +25,10 @@ const paths: Record<string, string> = {
 };
 export function icon(name: string, cls = '') { return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.leaf}</svg>`; }
 export const escapeHtml = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
-export function capybara(color = '#bd8956') {
-  const safe = /^#[0-9a-f]{6}$/i.test(color) ? color : '#bd8956';
-  return `<svg class="capy-avatar" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="39" fill="${safe}22"/><g fill="${safe}" stroke="#172820" stroke-width="2"><circle cx="22" cy="24" r="9"/><circle cx="56" cy="24" r="9"/><path d="M15 40c0-18 45-23 51-1 6 18-3 28-23 28S12 59 15 40Z"/></g><path d="M34 42c0-9 31-10 32 4 0 12-10 15-20 12-8-2-12-7-12-16" fill="#e5bf87" opacity=".6"/><circle cx="30" cy="36" r="3.4" fill="#172820"/><circle cx="58" cy="42" r="2.5" fill="#172820"/><path d="M46 54q8 3 12-2" fill="none" stroke="#172820" stroke-width="2" stroke-linecap="round"/></svg>`;
+// Capybara sticker: fur is always the capybara brown; the player colour is the bandana (style bible §3.7).
+export function capybara(color = '#1fb5a8') {
+  const kit = /^#[0-9a-f]{6}$/i.test(color) ? color : '#1fb5a8';
+  return `<svg class="capy-avatar" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="39" fill="${kit}33"/><g stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"><circle cx="27" cy="19" r="6" fill="#b8743a"/><circle cx="45" cy="16" r="5.5" fill="#b8743a"/><path d="M13 43c0-16 12-26 28-26 12 0 20 5 24 13 3 5 3 10 3 15 0 9-6 15-15 15H29c-10 0-16-7-16-17Z" fill="#b8743a"/><path d="M49 28h10c5 0 9 4 9 9v9c0 6-5 10-11 10h-8Z" fill="#8a5230"/><path d="M17 58h44l-18 17Z" fill="${kit}"/></g><path d="M22 34c3-6 9-9 16-9" fill="none" stroke="#d39a47" stroke-width="3" stroke-linecap="round"/><ellipse cx="62" cy="36" rx="2.4" ry="3" fill="${INK}"/><circle cx="42" cy="33" r="3.6" fill="#1a120c"/><circle cx="43.2" cy="31.8" r="1.2" fill="#fff"/><path d="M56 49q4 2 8-1" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/></svg>`;
 }
 
 // Sticker HUD art, carried over from the first version of the game (reference/legacy.html).
