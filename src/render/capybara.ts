@@ -247,7 +247,7 @@ interface CharacterInstance {
   active: string; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
   lastHP: number; lastKills: number; unarmed: number; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
-  relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
+  relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
 }
 
 export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Promise<void> {
@@ -348,24 +348,33 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   actions.idle.play();
   const runtime: CharacterInstance = {
     scene, mixer, actions, faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
-    lastHP: NaN, lastKills: NaN, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxedArms: [], armBlends: [],
+    lastHP: NaN, lastKills: NaN, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,
     root: scene.getObjectByName('root') as THREE.Bone,
     arms: [scene.getObjectByName('arm_L') as THREE.Bone, scene.getObjectByName('arm_R') as THREE.Bone],
   };
   scene.updateMatrixWorld(true);
+  // Unarmed rest: the upper arm swings down along the pear, then the elbow
+  // eases open so the paw rests on the belly side instead of a raised bent arm.
+  const forearms: THREE.Bone[] = [], relaxedForearms: THREE.Quaternion[] = [];
   for (let i = 0; i < runtime.arms.length; i++) {
-    const arm = runtime.arms[i], paw = scene.getObjectByName(i === 0 ? 'paw_L' : 'paw_R');
-    if (!paw) { runtime.relaxedArms.push(new THREE.Quaternion()); runtime.armBlends.push(new THREE.Quaternion()); continue; }
-    const shoulder = arm.getWorldPosition(new THREE.Vector3());
-    const from = paw.getWorldPosition(new THREE.Vector3()).sub(shoulder).normalize();
-    const to = new THREE.Vector3(i === 0 ? -.35 : .35, .7, -.02).sub(shoulder).normalize();
+    const arm = runtime.arms[i], side = i === 0 ? 'L' : 'R', sign = i === 0 ? -1 : 1;
+    const forearm = scene.getObjectByName(`forearm_${side}`), paw = scene.getObjectByName(`paw_${side}`);
+    if (!(forearm instanceof THREE.Bone) || !paw) continue;
+    const shoulder = arm.getWorldPosition(new THREE.Vector3()), elbow = forearm.getWorldPosition(new THREE.Vector3());
+    const hand = paw.getWorldPosition(new THREE.Vector3());
+    const elbowTarget = new THREE.Vector3(sign * .297, .944, -.065), handTarget = new THREE.Vector3(sign * .313, .769, -.265);
     const parent = arm.parent!.getWorldQuaternion(new THREE.Quaternion());
-    const worldSwing = new THREE.Quaternion().setFromUnitVectors(from, to);
-    runtime.relaxedArms.push(parent.clone().invert().multiply(worldSwing).multiply(parent));
-    runtime.armBlends.push(new THREE.Quaternion());
+    const swing = new THREE.Quaternion().setFromUnitVectors(elbow.clone().sub(shoulder).normalize(), elbowTarget.clone().sub(shoulder).normalize());
+    const relaxedArmWorld = swing.clone().multiply(arm.getWorldQuaternion(new THREE.Quaternion()));
+    const forearmDirection = hand.clone().sub(elbow).applyQuaternion(swing).normalize();
+    const open = new THREE.Quaternion().setFromUnitVectors(forearmDirection, handTarget.clone().sub(elbowTarget).normalize());
+    runtime.relaxBones.push(arm); runtime.relaxedArms.push(parent.clone().invert().multiply(swing).multiply(parent));
+    forearms.push(forearm); relaxedForearms.push(relaxedArmWorld.clone().invert().multiply(open).multiply(relaxedArmWorld));
   }
-  runtime.poseBones = [runtime.head, runtime.root, ...runtime.arms];
+  runtime.relaxBones.push(...forearms); runtime.relaxedArms.push(...relaxedForearms);
+  runtime.armBlends = runtime.relaxBones.map(() => new THREE.Quaternion());
+  runtime.poseBones = [runtime.head, runtime.root, ...runtime.arms, ...forearms];
   runtime.baseRotations = runtime.poseBones.map(bone => bone.quaternion.clone());
   characterInstances.set(body, runtime);
   // Keep the old skeleton as the compatibility weapon socket; only its mesh goes.
@@ -424,12 +433,12 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   head.rotateX(pitch * .45);
   const resting = !actor.weapons[actor.slot] && actor.stage === 'ground';
   runtime.unarmed = THREE.MathUtils.damp(runtime.unarmed, resting ? 1 : 0, 12, step);
-  for (let i = 0; i < arms.length; i++) {
-    arms[i].rotateX((pitch * .65 + (actor.sprint ? -.18 : 0)) * (1 - runtime.unarmed));
-    // Swing into the side-of-hip rest target in parent space, avoiding hands
-    // buried in the belly when rotating only around the upper-arm local X axis.
+  for (let i = 0; i < arms.length; i++) arms[i].rotateX((pitch * .65 + (actor.sprint ? -.18 : 0)) * (1 - runtime.unarmed));
+  // Swing into the side-of-hip rest target in parent space, avoiding hands
+  // buried in the belly when rotating only around the upper-arm local X axis.
+  for (let i = 0; i < runtime.relaxBones.length; i++) {
     runtime.armBlends[i].identity().slerp(runtime.relaxedArms[i], runtime.unarmed);
-    arms[i].quaternion.premultiply(runtime.armBlends[i]);
+    runtime.relaxBones[i].quaternion.premultiply(runtime.armBlends[i]);
   }
   legacyBones[CAPY_BONES.arms].rotation.x = pitch + (actor.sprint ? -.18 : 0);
   runtime.scene.rotation.set(0, 0, 0); runtime.scene.position.set(0, 0, 0);

@@ -153,7 +153,7 @@ def mesh_part(name, verts, faces, color, weights, subdivide=True):
     parts.append(obj)
     return obj
 
-def rounded_block(name, center, dimensions, color, weights, bevel=.02):
+def rounded_block(name, center, dimensions, color, weights, bevel=.02, yaw=0):
     # Real flat faces with three bevel rings, not a squashed sphere.
     bpy.ops.mesh.primitive_cube_add(size=1, location=V(center))
     obj = bpy.context.object
@@ -163,6 +163,9 @@ def rounded_block(name, center, dimensions, color, weights, bevel=.02):
     mod.width, mod.segments = bevel, 3
     bpy.ops.object.modifier_apply(modifier=mod.name)
     verts = [(v.co.x, v.co.z, -v.co.y) for v in obj.data.vertices]
+    # Yaw turns the front face (-z) toward direction (sin yaw, 0, -cos yaw).
+    c, s = math.cos(yaw), math.sin(yaw)
+    verts = [(center[0] + (x - center[0]) * c - (z - center[2]) * s, y, center[2] + (x - center[0]) * s + (z - center[2]) * c) for x, y, z in verts]
     faces = [tuple(poly.vertices) for poly in obj.data.polygons]
     bpy.data.objects.remove(obj, do_unlink=True)
     return mesh_part(name, verts, faces, color, weights, subdivide=False)
@@ -213,12 +216,14 @@ def tube(name, points, radii, color, names):
 
 # Pear torso fits the normal .30 m body cylinder with animation clearance.
 # A continuous pear-to-neck surface avoids a stack-of-spheres silhouette.
-profile = [(.31, .035, .035), (.35, .14, .13), (.47, .238, .22), (.66, .288, .262), (.86, .282, .257), (1.06, .256, .222), (1.22, .239, .193), (1.36, .211, .165), (1.402, .164, .132), (1.418, .163, .131), (1.445, .163, .130), (1.464, .153, .124), (1.472, .04, .04)]
+# The widest ring sits at the hips and the round seat drops to .20 m, covering
+# the thighs so only short legs and big feet show below it (bible 9.1).
+profile = [(.20, .04, .04, .005), (.215, .14, .13, 0), (.25, .226, .21, -.006), (.31, .274, .255, -.01), (.39, .294, .278, -.012), (.49, .297, .284, -.012), (.60, .291, .279, -.01), (.73, .275, .258, -.005), (.87, .252, .232, 0), (1.01, .229, .208, .004), (1.15, .209, .187, .005), (1.27, .193, .169, .005), (1.35, .178, .152, .005), (1.402, .164, .132, .005), (1.418, .163, .131, .005), (1.445, .163, .130, .005), (1.464, .153, .124, .005), (1.472, .04, .04, .005)]
 verts, faces = [], []
-for y, rx, rz in profile:
+for y, rx, rz, cz in profile:
     for i in range(20):
         a = math.tau * i / 20
-        verts.append((rx * math.cos(a), y, .005 + rz * math.sin(a)))
+        verts.append((rx * math.cos(a), y, cz + rz * math.sin(a)))
 for j in range(len(profile) - 1):
     for i in range(20):
         a, b = j * 20 + i, j * 20 + (i + 1) % 20
@@ -229,16 +234,18 @@ body_surface = mesh_part('Torso_pear', verts, faces, 0, lambda p: blend('spine',
 for poly in body_surface.data.polygons:
     center = sum((body_surface.data.vertices[v].co for v in poly.vertices), Vector()) / len(poly.vertices)
     x, y, z = center.x, center.z, -center.y
-    belly = z < -.12 and (x / .192) ** 2 + ((y - .71) / .274) ** 2 <= 1
-    index = 1 if y > 1.22 else 0
+    # The lit chest band shows only in the vest V-neck, not inside the armholes.
+    index = 1 if y > 1.22 and z < -.06 else 0
     for loop in poly.loop_indices:
         body_surface.data.uv_layers.active.data[loop].uv = ((index + .5) / 16, .5)
-# Conforming oval with a one-centimetre colour transition at its edge.
+# Conforming egg, wider low on the pear, with a one-centimetre colour edge.
+# Its top tucks under the bandana point inside the open vest front.
 patch_verts, patch_faces, patch_mix = [], [], []
 for row, radius in enumerate([.001, .2, .4, .6, .8, .96, 1]):
     for i in range(32):
         angle = math.tau * i / 32
-        x, y = .192 * radius * math.cos(angle), .71 + .274 * radius * math.sin(angle)
+        x = .18 * radius * math.cos(angle) * (1 - .22 * math.sin(angle))
+        y = .64 + .31 * radius * math.sin(angle)
         hit, point, normal, face = body_surface.ray_cast(V((x, y, -1)), V((0, 0, 1)))
         assert hit, (x, y)
         point += V((0, 0, -.004))
@@ -373,11 +380,17 @@ for poly in head_surface.data.polygons:
     for loop_index in poly.loop_indices:
         vertex = head_surface.data.vertices[head_surface.data.loops[loop_index].vertex_index]
         y = vertex.co.z
+        x, z = vertex.co.x, -vertex.co.y
         light = max(0, min(1, (y - 1.61) / .135))
         shadow = max(0, min(1, (1.53 - y) / .085))
+        # Muzzle stays in the fur family: its top plane takes the lit tone and
+        # only the underside darkens, so the front never reads as a dark mask.
+        muzzle = max(0, min(1, (-z - .15) / .05))
+        up = vertex.normal.z
+        light = light * (1 - muzzle) + muzzle * max(0, min(1, (up - .15) / .35))
+        shadow = shadow * (1 - muzzle) + muzzle * max(0, min(1, (-up - .35) / .4))
         rgb = [base_rgb[i] * (1 - light) + light_rgb[i] * light for i in range(3)]
         rgb = [rgb[i] * (1 - shadow) + shadow_rgb[i] * shadow for i in range(3)]
-        x, z = vertex.co.x, -vertex.co.y
         mouth_distance = (x / .038) ** 2 + ((y - 1.535) / .019) ** 2
         if mouth_distance < 1.06 and z < -.235:
             depth = max(0, min(1, (z + mouth_point.y) / .015))
@@ -426,10 +439,10 @@ for s, side in [(-1, 'L'), (1, 'R')]:
         vertex.co = point + V((0, 0, -.0025 + (z + .10) * .12))
     ellipsoid('Ear_' + side, (s * .124, 1.766, .042), (.046, .045, .028), 0, {'ear_' + side: .88, 'head': .12}, segments=12, rings=8)
     ellipsoid('Ear_inner_' + side, (s * .124, 1.766, .019), (.029, .029, .01), 11, {'ear_' + side: 1}, segments=12, rings=6)
-    tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .01), (s * .137, .23, .01), (s * .137, .15, -.012), (s * .137, .08, -.04)], [.087, .12, .105, .093, .07], 0, ['thigh_' + side, 'shin_' + side, 'foot_' + side])
+    tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .01), (s * .137, .23, .01), (s * .137, .15, -.012), (s * .137, .08, -.04)], [.10, .13, .125, .11, .085], 0, ['thigh_' + side, 'shin_' + side, 'foot_' + side])
     rounded_block('Foot_' + side, (s * .137, .061, -.045), (.225, .115, .25), 2, {'foot_' + side: 1}, bevel=.048)
     hand_z = -.39 if s == 1 else -.49
-    tube('Arm_' + side, [(s * .225, 1.195, -.015), (s * .267, 1.12, -.08), (s * .27, 1.0, -.19), (s * .2, 1.016, (hand_z - .19) / 2), (s * .1, 1.045, hand_z)], [.056, .095, .084, .077, .065], 0, ['arm_' + side, 'forearm_' + side, 'paw_' + side])
+    tube('Arm_' + side, [(s * .225, 1.195, -.015), (s * .267, 1.12, -.08), (s * .27, 1.0, -.19), (s * .2, 1.016, (hand_z - .19) / 2), (s * .1, 1.045, hand_z)], [.075, .108, .1, .092, .08], 0, ['arm_' + side, 'forearm_' + side, 'paw_' + side])
     ellipsoid('Paw_' + side, (s * .1, 1.045, hand_z - .014), (.092, .078, .11), 0, {'paw_' + side: 1}, square=.65)
     # Three chunky fingers and a thumb, with dark animal pads.
     for finger in [-1, 0, 1]:
@@ -450,9 +463,6 @@ for row in range(3):
         faces.append((a, b, b + 32, a + 32))
 mesh_part('Bandana_band', verts, faces, 5, {'neck': 1}, subdivide=False)
 rounded_block('Bandana_knot', (-.105, 1.440, .115), (.065, .027, .015), 6, {'neck': 1}, bevel=.012)
-for side in [-1, 1]:
-    x = -.105 + side * .022
-    mesh_part('Bandana_tail', [(x, 1.438, .121), (x + .04, 1.438, .127), (x + side * .025, 1.29, .195), (x + side * .025 - .027, 1.315, .20)], [(0, 1, 2, 3)], 5, {'neck': .7, 'spine': .3}, subdivide=False)
 flap_verts, flap_faces = [], []
 for row in range(17):
     t = row / 16
@@ -471,36 +481,108 @@ flap = mesh_part('Bandana_point', flap_verts, flap_faces, 5,
                  lambda p: blend('spine', 'neck', max(0, min(1, (p[1] - 1.2) / .25))), subdivide=False)
 flap.vertex_groups.new(name='cloth_clearance').add(list(range(len(flap.data.vertices))), 1, 'REPLACE')
 
-# Open-front olive vest, separated from fur by broad edges and trim.
-# A continuous wrap avoids box-shaped chest plates and leaves the belly exposed.
-rows = [(.864, .283, .261), (.878, .287, .263), (.92, .29, .26), (1.08, .266, .231), (1.24, .252, .212), (1.315, .23, .184)]
-verts, faces = [], []
-for y, rx, rz in rows:
-    for i in range(25):
-        a = -math.pi / 2 + .43 + (math.tau - .86) * i / 24
-        verts.append((rx * math.cos(a), y, .005 + rz * math.sin(a)))
-for row in range(len(rows) - 1):
-    for i in range(24):
-        a = row * 25 + i
-        # Open armholes instead of a cape over the shoulders.
-        if row < 3 or not (4 <= i <= 7 or 16 <= i <= 19):
-            faces.append((a, a + 1, a + 26, a + 25))
-mesh_part('Vest_wrap', verts, faces, 7, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33))
+# Open-front olive vest that wraps chest, sides and back like a garment.
+# It is sampled on the torso surface in (angle from front, height) space, so
+# it follows the pear instead of floating as a separate tube or backpack.
+def torso_point(a, y, offset):
+    # a = 0 faces forward (-z); positive angles turn toward +x.
+    outward = Vector((math.sin(a), 0, -math.cos(a)))
+    origin = Vector((0, y, .005)) + outward
+    hit, point, normal, face = body_surface.ray_cast(V(origin), V(-outward))
+    assert hit, ('torso surface', a, y)
+    normal = normal.normalized()
+    if normal.dot(V(outward)) < 0:
+        normal.negate()
+    point = point + normal * offset
+    return (point.x, point.z, -point.y), normal
+VEST_HEM, VEST_TOP, VEST_GAP = .80, 1.405, .5
+def vest_gap(y):
+    # A V-neck: the front opening widens toward the neck and clears the bandana point.
+    t = max(0, min(1, (y - 1.05) / (VEST_TOP - 1.05)))
+    return VEST_GAP + .45 * t * t * (3 - 2 * t)
+ARMHOLE_A, ARMHOLE_Y, ARMHOLE_DA, ARMHOLE_DY = 1.48, 1.19, .36, .125
+def armhole(a, y):
+    return ((abs(a) - ARMHOLE_A) / ARMHOLE_DA) ** 2 + ((y - ARMHOLE_Y) / ARMHOLE_DY) ** 2
+columns, rows = 64, 30
+grid = [[None] * (columns + 1) for _ in range(rows + 1)]
+for j in range(rows + 1):
+    y = VEST_HEM + (VEST_TOP - VEST_HEM) * j / rows
+    gap = vest_gap(y)
+    for i in range(columns + 1):
+        # Left front edge, around the back, to the right front edge.
+        a = -(gap + (math.tau - 2 * gap) * i / columns)
+        a = (a + math.pi) % math.tau - math.pi
+        grid[j][i] = [a, y]
+keep = {(j, i) for j in range(rows) for i in range(columns)
+        if armhole(sum(grid[j + dj][i + di][0] for dj in (0, 1) for di in (0, 1)) / 4,
+                   sum(grid[j + dj][i + di][1] for dj in (0, 1) for di in (0, 1)) / 4) > 1}
+# Snap every vertex on a hole boundary onto the ellipse, giving a smooth armhole.
+for j in range(rows + 1):
+    for i in range(columns + 1):
+        around = [(j + dj, i + di) for dj in (-1, 0) for di in (-1, 0) if 0 <= j + dj < rows and 0 <= i + di < columns]
+        if any(c in keep for c in around) and not all(c in keep for c in around):
+            a, y = grid[j][i]
+            if abs(abs(a) - ARMHOLE_A) < ARMHOLE_DA * 1.6 and abs(y - ARMHOLE_Y) < ARMHOLE_DY * 1.6:
+                scale = armhole(a, y) ** -.5
+                side = math.copysign(1, a)
+                grid[j][i] = [side * (ARMHOLE_A + (abs(a) - ARMHOLE_A) * scale), ARMHOLE_Y + (y - ARMHOLE_Y) * scale]
+index, verts, faces = {}, [], []
+for j, i in sorted(keep):
+    quad = []
+    for dj, di in [(0, 0), (0, 1), (1, 1), (1, 0)]:
+        key = (j + dj, i + di)
+        if key not in index:
+            index[key] = len(verts)
+            verts.append(torso_point(*grid[key[0]][key[1]], .004)[0])
+        quad.append(index[key])
+    faces.append(tuple(quad))
+vest = mesh_part('Vest_wrap', verts, faces, 7, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33), subdivide=False)
+bpy.context.view_layer.objects.active = vest
+thickness = vest.modifiers.new('Cloth thickness', 'SOLIDIFY')
+thickness.thickness, thickness.offset, thickness.use_even_offset = .012, 1, True
+bpy.ops.object.modifier_apply(modifier=thickness.name)
+bm = bmesh.new()
+bm.from_mesh(vest.data)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+bm.to_mesh(vest.data)
+bm.free()
+VEST_OUT = .004 + .012
 for side in [-1, 1]:
-    rounded_block('Vest_pocket', (side * .149, 1.04, -.197), (.09, .125, .045), 7, {'spine': 1}, bevel=.014)
-    rounded_block('Pocket_flap', (side * .149, 1.087, -.218), (.095, .031, .013), 13, {'spine': 1}, bevel=.004)
-    tube('Vest_trim', [(side * .12, .90, -.222), (side * .114, 1.08, -.217), (side * .105, 1.26, -.195)], [.015, .015, .015], 5, ['spine', 'neck'])
-# A broad leather shoulder strap, all detail above the 3 cm readability cutoff.
+    # Chest pockets on each front panel, turned to the local surface normal.
+    a = side * (VEST_GAP + .36)
+    for name, y, dims, color, depth, bevel in [('Vest_pocket', .98, (.085, .11, .032), 7, .016, .012), ('Pocket_flap', 1.035, (.092, .03, .012), 13, .034, .004)]:
+        centre, normal = torso_point(a, y, VEST_OUT + depth)
+        yaw = math.atan2(normal.x, normal.y)
+        rounded_block(name, centre, dims, color, {'spine': 1}, bevel=bevel, yaw=yaw)
+    # Player-colour trim follows the front edge of each panel.
+    trim = [torso_point(side * vest_gap(y), y, VEST_OUT)[0] for y in [VEST_HEM + .01, .95, 1.1, 1.22, 1.32, VEST_TOP - .01]]
+    tube('Vest_trim', trim, [.011] * len(trim), 5, ['spine', 'neck'])
+# A broad leather strap over the left shoulder to the right hip, on top of the vest.
+strap_path = [(-1.35 + 2.45 * k / 11, VEST_TOP - .02 - .58 * k / 11) for k in range(12)]
 verts, faces = [], []
-for x, y, rx, rz in [(-.20, 1.31, .23, .20), (-.10, 1.21, .255, .223), (0, 1.11, .274, .24), (.10, 1.01, .28, .252), (.20, .91, .279, .253)]:
+for a, y in strap_path:
+    centre, normal = torso_point(a, y, VEST_OUT + .006)
     for sign in [-1, 1]:
-        xx = x + sign * .018
-        verts.append((xx, y + sign * .018, .005 - rz * math.sqrt(max(.01, 1 - (xx / rx) ** 2)) - .006))
-for row in range(4):
+        # The strap width runs along the path's perpendicular, about 3.6 cm.
+        p, n = torso_point(a + sign * .065, y + sign * .026, VEST_OUT + .006)
+        verts.append(p)
+for row in range(len(strap_path) - 1):
     a = row * 2
     faces.append((a, a + 1, a + 3, a + 2))
 mesh_part('Leather_strap', verts, faces, 8, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33), subdivide=False)
-rounded_block('Strap_buckle', (.02, 1.09, -.26), (.055, .06, .013), 12, {'spine': 1}, bevel=.008)
+centre, normal = torso_point(.18, 1.05, VEST_OUT + .013)
+rounded_block('Strap_buckle', centre, (.055, .06, .013), 12, {'spine': 1}, bevel=.008, yaw=math.atan2(normal.x, normal.y))
+# Bandana tails hang from the knot over the vest back, never inside it.
+for side in [-1, 1]:
+    x = -.105 + side * .022
+    tail = []
+    for y, xs in [(1.438, 0), (1.40, .008), (1.29, .025)]:
+        for dx in [0, .04 - xs * 1.08 if y != 1.438 else .04]:
+            px = x + side * xs + dx
+            hit, point, normal, face = vest.ray_cast(V((px, y, 1)), V((0, 0, -1)))
+            z = max(.121, (-point.y if hit else .121) + .005)
+            tail.append((px, y, z))
+    mesh_part('Bandana_tail', tail, [(0, 1, 3, 2), (2, 3, 5, 4)], 5, {'neck': .7, 'spine': .3}, subdivide=False)
 
 bpy.ops.object.select_all(action='DESELECT')
 for obj in parts: obj.select_set(True)
