@@ -1,26 +1,73 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { WORLD_PALETTE } from '../shared/terrain';
-import type { WorldSpec } from '../shared/types';
+import type { MapObject, WorldSpec } from '../shared/types';
 import { releaseAfterUpload } from './memory';
+import { createToonMaterial } from './materials';
 
 // Closed crowns and individually shaped fronds have a readable silhouette from
 // either side. No atlas rectangles, oversized leaf cards, or transparent sorting.
 export function buildVegetation(world: WorldSpec) {
   const group = new THREE.Group();
   const breeze = { value: 0 };
-  const geometries = new Map<string, THREE.BufferGeometry[]>();
-  const materials = [
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .94 }),
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .86, side: THREE.DoubleSide }),
-  ];
-  materials[1].onBeforeCompile = shader => {
+  const templates = new Map<string, THREE.BufferGeometry[]>();
+  const material = createToonMaterial('foliage', { vertexColors: true, roughness: .9, side: THREE.DoubleSide });
+  material.onBeforeCompile = shader => {
     shader.uniforms.uBreeze = breeze;
-    shader.vertexShader = `uniform float uBreeze;\n${shader.vertexShader}`.replace(
+    shader.vertexShader = `uniform float uBreeze;
+      attribute vec3 plantTemplate;
+      attribute float crownCenter;
+      attribute float palmFrond;\n${shader.vertexShader}`.replace(
+      '#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        #ifdef USE_INSTANCING
+          if (plantTemplate.y > 0.5) {
+            float normalHeightScale = length(instanceMatrix[1].xyz);
+            float normalRadialScale = length(instanceMatrix[0].xyz);
+            float normalTemplateHeight = plantTemplate.x;
+            float palmVariation = .85 + .3 * fract(sin(dot(instanceMatrix[3].xz,
+              vec2(41.37, 17.61))) * 43758.5453);
+            float normalCrownScale = plantTemplate.y > 1.5 ? normalHeightScale * palmVariation :
+              max(1.6, plantTemplate.z * normalTemplateHeight * normalHeightScale) /
+              max(1.6, plantTemplate.z * normalTemplateHeight);
+            float normalCrownBlend = smoothstep(normalTemplateHeight * .45,
+              normalTemplateHeight * .75, position.y);
+            float xzFactor = mix(1.0, normalCrownScale / max(normalRadialScale, .001), normalCrownBlend);
+            float yFactor = crownCenter > 0.0 ? normalCrownScale / max(normalHeightScale, .001) : 1.0;
+            objectNormal = normalize(vec3(objectNormal.x / xzFactor,
+              objectNormal.y / yFactor, objectNormal.z / xzFactor));
+          }
+        #endif
+      `).replace(
       '#include <begin_vertex>', `#include <begin_vertex>
-        float gust = sin(uBreeze * 1.3 + position.x * .63 + position.z * .41);
-        transformed.x += gust * .028;
-        transformed.z += cos(uBreeze * .9 + position.z * .48) * .018;
+        float phase = 0.0;
+        #ifdef USE_INSTANCING
+          phase = instanceMatrix[3].x * .17 + instanceMatrix[3].z * .11;
+          if (plantTemplate.y > 0.5) {
+            float heightScale = length(instanceMatrix[1].xyz);
+            float radialScale = length(instanceMatrix[0].xyz);
+            float templateHeight = plantTemplate.x;
+            float palmVariation = .85 + .3 * fract(sin(dot(instanceMatrix[3].xz,
+              vec2(41.37, 17.61))) * 43758.5453);
+            float crownScale = plantTemplate.y > 1.5 ? heightScale * palmVariation :
+              max(1.6, plantTemplate.z * templateHeight * heightScale) /
+              max(1.6, plantTemplate.z * templateHeight);
+            float crownBlend = smoothstep(templateHeight * .45, templateHeight * .75, position.y);
+            transformed.xz *= mix(1.0, crownScale / max(radialScale, .001), crownBlend);
+            if (crownCenter > 0.0)
+              transformed.y = crownCenter + (transformed.y - crownCenter) *
+                crownScale / max(heightScale, .001);
+            if (plantTemplate.y > 1.5 && palmFrond > .5) {
+              float variant = floor(fract(sin(dot(instanceMatrix[3].xz,
+                vec2(12.9898, 78.233))) * 43758.5453) * 3.0);
+              if (palmFrond > 9.5 - variant)
+                transformed = vec3(0.0, plantTemplate.x * .91, 0.0);
+            }
+          }
+        #endif
+        float gust = sin(uBreeze * 1.3 + position.x * .63 + position.z * .41 + phase);
+        float sway = smoothstep(0.0, 2.0, max(position.y, 0.0));
+        transformed.x += gust * .028 * sway;
+        transformed.z += cos(uBreeze * .9 + position.z * .48 + phase) * .018 * sway;
       `);
   };
   // Open-ended, 7-sided branches: the caps are never seen and doubled the count.
@@ -48,11 +95,11 @@ export function buildVegetation(world: WorldSpec) {
     x = Math.imul(x ^ x >>> 16, 2246822507);
     return (x >>> 0) / 4294967296;
   };
-  let lod = 0;
-  const stash = (geometry: THREE.BufferGeometry, material: number, x: number, z: number) => {
+  let lod = 0, templateKey = '';
+  const stash = (geometry: THREE.BufferGeometry, _material: number, _x: number, _z: number) => {
     geometry.deleteAttribute('uv');
-    const key = `${material}:${Math.floor(x / 32)}:${Math.floor(z / 32)}:${lod}`;
-    const bucket = geometries.get(key) || []; bucket.push(geometry); geometries.set(key, bucket);
+    const bucket = templates.get(templateKey) || [];
+    bucket.push(geometry); templates.set(templateKey, bucket);
   };
   const tint = (geometry: THREE.BufferGeometry, color: string | THREE.Color) => {
     const base = new THREE.Color(color), positions = geometry.getAttribute('position');
@@ -64,34 +111,55 @@ export function buildVegetation(world: WorldSpec) {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3)); return geometry;
   };
   const piece = (base: THREE.BufferGeometry, color: string | THREE.Color, position: THREE.Vector3,
-    scale: THREE.Vector3, material = 0, rotation = new THREE.Quaternion()) => {
+    scale: THREE.Vector3, material = 0, rotation = new THREE.Quaternion(), frond = 0) => {
     const geometry = base.index ? base.toNonIndexed() : base.clone();
     geometry.applyMatrix4(matrix.compose(position, rotation, scale));
+    geometry.setAttribute('crownCenter', new THREE.Float32BufferAttribute(
+      new Array<number>(geometry.getAttribute('position').count).fill(material === 1 ? position.y : 0), 1));
+    geometry.setAttribute('palmFrond', new THREE.Float32BufferAttribute(
+      new Array<number>(geometry.getAttribute('position').count).fill(frond), 1));
     stash(tint(geometry, color), material, position.x, position.z);
   };
-  const branch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, color: string) => {
+  const branch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, color: string, frond = 0) => {
     const delta = to.clone().sub(from);
     piece(stem, color, from.clone().lerp(to, .5), new THREE.Vector3(radius, delta.length(), radius),
-      0, new THREE.Quaternion().setFromUnitVectors(up, delta.normalize()));
+      0, new THREE.Quaternion().setFromUnitVectors(up, delta.normalize()), frond);
   };
-  const leaf = (base: THREE.Vector3, tip: THREE.Vector3, width: number, color: string | THREE.Color) => {
+  const leaf = (base: THREE.Vector3, tip: THREE.Vector3, width: number, color: string | THREE.Color,
+    frond = 0, vertical = 0) => {
     const axis = tip.clone().sub(base);
-    const side = new THREE.Vector3(-axis.z, .03, axis.x).normalize().multiplyScalar(width);
+    const side = new THREE.Vector3(-axis.z, .03 + axis.length() * vertical, axis.x).normalize().multiplyScalar(width);
     const mid = base.clone().lerp(tip, .46).add(new THREE.Vector3(0, width * .18, 0));
     const left = mid.clone().add(side), right = mid.clone().sub(side);
     const ridge = mid.clone().add(new THREE.Vector3(0, width * .24, 0));
     const points = [base, left, ridge, left, tip, ridge, tip, right, ridge, right, base, ridge];
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(points.flatMap(p => [p.x, p.y, p.z]), 3));
+    g.setAttribute('crownCenter', new THREE.Float32BufferAttribute(new Array<number>(points.length).fill(base.y), 1));
+    g.setAttribute('palmFrond', new THREE.Float32BufferAttribute(new Array<number>(points.length).fill(frond), 1));
     g.computeVertexNormals(); stash(tint(g, color), 1, base.x, base.z);
   };
-  for (lod = 0; lod < 2; lod++) for (const object of world.objects) {
-    if (!['tree', 'palm', 'grass'].includes(object.kind)) continue;
+  const species = (object: MapObject) => object.kind === 'tree' ?
+    (['mangrove', 'orchard', 'ipe-yellow', 'ipe-pink', 'flamboyant', 'banana'].includes(object.detail || '') ? object.detail! : 'tree') :
+    object.kind === 'grass' && object.detail === 'reeds' ? 'reeds' : object.kind;
+  const specimens = new Map<string, MapObject>();
+  for (const object of world.objects) if (object.kind === 'tree' || object.kind === 'palm' || object.kind === 'grass') {
+    const key = species(object);
+    if (!specimens.has(key)) specimens.set(key, object);
+  }
+  const positionKey = (x: number, z: number) => `${x.toFixed(4)}:${z.toFixed(4)}`;
+  const trunkRadii = new Map<string, number>();
+  for (const collider of world.colliders) if (/^(mangrove-)?trunk-/.test(collider.id))
+    trunkRadii.set(positionKey((collider.min.x + collider.max.x) / 2,
+      (collider.min.z + collider.max.z) / 2), (collider.max.x - collider.min.x) / 2);
+  for (lod = 0; lod < 2; lod++) for (const [key, object] of specimens) {
+    templateKey = `${key}:${lod}`;
     const far = lod === 1;
     if (far && object.kind === 'grass') continue;
-    const { pos, scale, kind, rotation = 0 } = object;
-    const base = new THREE.Vector3(pos.x, pos.y, pos.z), h = scale.y;
-    const seed = Math.round((pos.x + 150) * 197 + (pos.z + 150) * 307);
+    const { scale, kind } = object;
+    const rotation = 0;
+    const base = new THREE.Vector3(), h = scale.y;
+    const seed = 75600 + (key === 'orchard' ? 0 : 1);
     if (kind === 'grass') {
       const reeds = object.detail === 'reeds';
       for (let i = 0; i < (reeds ? 9 : 7); i++) {
@@ -127,16 +195,21 @@ export function buildVegetation(world: WorldSpec) {
         const direction = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
         const across = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
         const point = (t: number) => top.clone().addScaledVector(direction, length * t)
-          .add(new THREE.Vector3(0, Math.sin(t * Math.PI) * .65 - t * t * 1.0 + (i % 2) * .15, 0));
-        if (!far) for (let rib = 0; rib < 3; rib++) branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid);
+          .add(new THREE.Vector3(0, Math.sin(t * Math.PI) * .65 - t * t * 2.7 + (i % 2) * .15, 0));
+        // The same connected silhouette sits below the close leaflets and is
+        // retained alone at distance, so the LOD swap loses only fine detail.
+        for (const [start, end, width] of [[0, .46, .16], [.27, .78, .18], [.58, 1, .14]] as const)
+          leaf(point(start), point(end), length * width, WORLD_PALETTE.palmMid, i + 1, .6);
+        if (!far) for (let rib = 0; rib < 3; rib++)
+          branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid, i + 1);
         for (let n = far ? 2 : 1; n <= 13; n += far ? 3 : 1) {
           const t = n / 14, root = point(t);
           const blade = Math.sin(Math.PI * t) * length * .36;
           for (const side of [-1, 1]) {
             const tip = root.clone().addScaledVector(across, blade * side)
               .addScaledVector(direction, length * .14).add(new THREE.Vector3(0, -.1 - blade * .13, 0));
-            leaf(root, tip, (.15 * Math.sin(Math.PI * t) + .026) * (far ? 2.2 : 1),
-              (n + i) % 3 ? WORLD_PALETTE.palmMid : WORLD_PALETTE.palmLight);
+            leaf(root, tip, (far ? .27 : .15) * Math.sin(Math.PI * t) + .026,
+              (n + i) % 3 ? WORLD_PALETTE.palmMid : WORLD_PALETTE.palmLight, i + 1, .5);
           }
         }
       }
@@ -144,6 +217,21 @@ export function buildVegetation(world: WorldSpec) {
         const angle = rotation + i * 1.25;
         piece(coconut, '#907046', top.clone().add(new THREE.Vector3(Math.cos(angle) * .22, -.15, Math.sin(angle) * .22)), new THREE.Vector3(.14, .19, .14));
       }
+      continue;
+    }
+    if (key === 'banana') {
+      const crown = base.clone().add(new THREE.Vector3(0, h * .77, 0));
+      branch(base, crown, .13, WORLD_PALETTE.palmTrunk);
+      for (let i = 0; i < 7; i++) {
+        const angle = i * Math.PI * 2 / 7;
+        const root = crown.clone().add(new THREE.Vector3(Math.cos(angle) * .12, 0, Math.sin(angle) * .12));
+        const tip = crown.clone().add(new THREE.Vector3(Math.cos(angle) * h * .45,
+          h * (.05 + (i % 2) * .04), Math.sin(angle) * h * .45));
+        leaf(root, tip, h * (far ? .19 : .16), i % 3 ? WORLD_PALETTE.foliageLight : WORLD_PALETTE.foliageMid);
+        if (!far) branch(root, tip, .025, WORLD_PALETTE.foliageCore);
+      }
+      if (!far) piece(coconut, '#D8D98A', crown.clone().add(new THREE.Vector3(0, -.28, 0)),
+        new THREE.Vector3(.17, .32, .17));
       continue;
     }
     const trunkTop = base.clone().add(new THREE.Vector3(.15 * Math.cos(rotation), h * .6, .15 * Math.sin(rotation)));
@@ -154,24 +242,30 @@ export function buildVegetation(world: WorldSpec) {
       branch(base.clone().add(new THREE.Vector3(Math.cos(angle) * .5, .04, Math.sin(angle) * .5)),
         base.clone().add(new THREE.Vector3(0, .7, 0)), trunkRadius * .38, WORLD_PALETTE.trunk);
     }
-    const radius = Math.max(1.6, h * .27);
+    const broad = key === 'flamboyant';
+    const flowering = key === 'ipe-yellow' || key === 'ipe-pink';
+    const radius = Math.max(1.6, h * (broad ? .34 : .27));
     for (let cluster = 0; cluster < (far ? 5 : 7); cluster++) {
       const angle = rotation + cluster * 2.399, outer = cluster < 5;
       const center = base.clone().add(new THREE.Vector3(
-        outer ? Math.cos(angle) * radius * .57 : Math.cos(angle) * .35,
-        h * (outer ? .71 : .88) + hash(seed, cluster) * .22,
-        outer ? Math.sin(angle) * radius * .57 : Math.sin(angle) * .35));
+        outer ? Math.cos(angle) * radius * (broad ? .8 : .57) : Math.cos(angle) * .35,
+        h * (broad ? .78 : outer ? .71 : .88) + hash(seed, cluster) * .22,
+        outer ? Math.sin(angle) * radius * (broad ? .8 : .57) : Math.sin(angle) * .35));
       branch(trunkTop.clone().add(new THREE.Vector3(0, -.6, 0)), center, trunkRadius * .4, WORLD_PALETTE.trunk);
-      const color = new THREE.Color(cluster % 3 === 0 ? WORLD_PALETTE.foliageLight :
-        cluster % 3 === 1 ? WORLD_PALETTE.foliageMid : WORLD_PALETTE.foliageCore);
+      const canopyColor = flowering && cluster < 6 ? (key === 'ipe-yellow' ? '#FFC93C' : '#F28DB2') :
+        broad && cluster < 6 ? (cluster % 2 ? '#E8483C' : '#E76F51') :
+          cluster % 3 === 0 ? WORLD_PALETTE.foliageLight :
+            cluster % 3 === 1 ? WORLD_PALETTE.foliageMid : WORLD_PALETTE.foliageCore;
+      const color = new THREE.Color(canopyColor);
       const bulk = far ? 1.12 : 1;
-      piece(crowns[lod], color, center, new THREE.Vector3(radius * .69 * bulk, radius * .49 * bulk, radius * .66 * bulk), 1);
+      piece(crowns[lod], color, center, new THREE.Vector3(radius * (broad ? .76 : .69) * bulk,
+        radius * (broad ? .28 : .49) * bulk, radius * (broad ? .76 : .66) * bulk), 1);
       // Small leaves at crown edges add detail without filling the view with cards.
       for (let spray = 0; spray < (far ? 0 : 5); spray++) {
         const a = angle + spray * 1.256;
         const root = center.clone().add(new THREE.Vector3(Math.cos(a) * radius * .56, radius * .14, Math.sin(a) * radius * .56));
         const tip = root.clone().add(new THREE.Vector3(Math.cos(a) * .43, .1, Math.sin(a) * .43));
-        leaf(root, tip, .14, WORLD_PALETTE.foliageLight);
+        leaf(root, tip, .14, flowering || broad ? canopyColor : WORLD_PALETTE.foliageLight);
       }
       if (!far && seed % 3 === 0 && cluster < 5) {
         for (let fruit = 0; fruit < 3; fruit++) piece(coconut, '#e8a145', center.clone().add(new THREE.Vector3(
@@ -179,39 +273,141 @@ export function buildVegetation(world: WorldSpec) {
       }
     }
   }
-  // Each 32 m chunk swaps to its far version beyond 45 m (and drops grass).
-  const merged: THREE.BufferGeometry[] = [];
-  const lods = new Map<string, THREE.LOD>();
+  // Templates are authored once. The instance matrices keep each tree at its
+  // own terrain point while one draw covers all plants of a species in a cell.
+  const merged = new Map<string, THREE.BufferGeometry>();
   const shadowProxy = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: THREE.DoubleSide });
-  for (const [key, parts] of geometries) {
+  for (const [key, parts] of templates) {
     const geometry = mergeGeometries(parts, false); parts.forEach(p => p.dispose());
     if (!geometry) throw new Error('Cannot merge vegetation geometry');
-    geometry.computeBoundingSphere(); merged.push(geometry);
-    const [material, cx, cz, level] = key.split(':');
-    const mesh = new THREE.Mesh(geometry, materials[Number(material)]);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    const chunk = `${material}:${cx}:${cz}`;
-    let node = lods.get(chunk);
-    if (!node) { node = new THREE.LOD(); lods.set(chunk, node); group.add(node); }
-    node.addLevel(mesh, level === '0' ? 0 : 45);
+    const type = key.split(':')[0], templateHeight = specimens.get(type)!.scale.y;
+    const templateKind = type === 'grass' || type === 'reeds' ? 0 : type === 'palm' || type === 'banana' ? 2 : 1;
+    const crownSlope = type === 'flamboyant' ? .34 : .27;
+    const count = geometry.getAttribute('position').count;
+    const plantTemplate = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) plantTemplate.set([templateHeight, templateKind, crownSlope], i * 3);
+    geometry.setAttribute('plantTemplate', new THREE.BufferAttribute(plantTemplate, 3));
+    geometry.computeBoundingSphere();
+    if (templateKind) geometry.boundingSphere!.radius *= 1.5;
+    merged.set(key, geometry);
+    releaseAfterUpload(geometry);
   }
-  for (const node of lods.values()) {
-    if (node.levels.length === 1 && node.levels[0].distance === 0) node.addLevel(new THREE.Object3D(), 45);
-    // LOD distance is measured from the node, so centre it on its chunk.
-    const first = node.levels.find(level => level.object instanceof THREE.Mesh)!.object as THREE.Mesh;
-    const center = first.geometry.boundingSphere!.center.clone();
-    for (const level of node.levels) if (level.object instanceof THREE.Mesh) { level.object.geometry.translate(-center.x, -center.y, -center.z); level.object.geometry.computeBoundingSphere(); }
-    node.position.copy(center);
-    // Shadows come from an invisible proxy of the cheap far geometry, so the
-    // shadow pass never draws the detailed crowns and fronds.
-    const far = node.levels.find(level => level.distance > 0 && level.object instanceof THREE.Mesh)?.object as THREE.Mesh | undefined;
-    for (const level of node.levels) if (level.object instanceof THREE.Mesh) level.object.castShadow = false;
-    if (far) { const proxy = new THREE.Mesh(far.geometry, shadowProxy); proxy.castShadow = true; node.add(proxy); }
+  templates.clear();
+  const cells = new Map<string, MapObject[]>();
+  for (const object of world.objects) if (object.kind === 'tree' || object.kind === 'palm' || object.kind === 'grass') {
+    const key = `${species(object)}:${Math.floor(object.pos.x / 32)}:${Math.floor(object.pos.z / 32)}`;
+    const bucket = cells.get(key) || [];
+    bucket.push(object); cells.set(key, bucket);
   }
-  // The returned closures share this scope: drop the per-piece parts so they can be collected.
-  geometries.clear();
-  merged.forEach(releaseAfterUpload);
+  const instanceMatrix = new THREE.Matrix4();
+  const instancePosition = new THREE.Vector3(), instanceScale = new THREE.Vector3();
+  const instanceRotation = new THREE.Quaternion(), yawRotation = new THREE.Quaternion();
+  const leanAxis = new THREE.Vector3();
+  const instances: THREE.InstancedMesh[] = [];
+  const makeInstances = (geometry: THREE.BufferGeometry, count: number, material: THREE.Material,
+    objects: MapObject[], cx: number, cz: number, templateHeight: number, shadow = false) => {
+    const mesh = new THREE.InstancedMesh(geometry, material, count);
+    objects.forEach((object, index) => {
+      instancePosition.set(object.pos.x - cx, object.pos.y, object.pos.z - cz);
+      const heightScale = object.scale.y / templateHeight;
+      if (shadow) instanceScale.setScalar(heightScale);
+      else if (object.kind === 'grass') {
+        const bladeCap = object.detail === 'reeds' ? 1.6 : .42;
+        instanceScale.set(1, Math.min(bladeCap, object.scale.y) / Math.min(bladeCap, templateHeight), 1);
+      } else {
+        const templateRadius = object.kind === 'palm' ? .13 + templateHeight * .009 :
+          object.detail === 'banana' ? .13 : .15 + templateHeight * .015;
+        const targetRadius = trunkRadii.get(positionKey(object.pos.x, object.pos.z)) ??
+          (object.kind === 'palm' ? .13 + object.scale.y * .009 : .15 + object.scale.y * .015);
+        instanceScale.set(targetRadius / templateRadius, heightScale, targetRadius / templateRadius);
+      }
+      // Most authored landmark trees have no rotation. Give each a stable
+      // orientation so instancing does not reveal identical neighbouring crowns.
+      const rotation = object.rotation ?? hash(Math.round(object.pos.x * 100), Math.round(object.pos.z * 100)) * Math.PI * 2;
+      yawRotation.setFromAxisAngle(up, rotation);
+      if (object.kind === 'palm') {
+        const salt = Math.round(object.pos.x * 100) ^ Math.round(object.pos.z * 100);
+        const coast = object.pos.y < 2.2;
+        const direction = coast ? Math.atan2(-object.pos.z, -object.pos.x) +
+          (hash(salt, 3) - .5) * .7 : hash(salt, 4) * Math.PI * 2;
+        const lean = THREE.MathUtils.degToRad(3 + hash(salt, 5) * 9);
+        leanAxis.set(Math.sin(direction), 0, -Math.cos(direction));
+        instanceRotation.setFromAxisAngle(leanAxis, lean).multiply(yawRotation);
+      } else instanceRotation.copy(yawRotation);
+      mesh.setMatrixAt(index, instanceMatrix.compose(instancePosition, instanceRotation, instanceScale));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    instances.push(mesh);
+    return mesh;
+  };
+  for (const [key, objects] of cells) {
+    const [type, cellX, cellZ] = key.split(':');
+    const cx = (Number(cellX) + .5) * 32, cz = (Number(cellZ) + .5) * 32;
+    const nearGeometry = merged.get(`${type}:0`)!;
+    const farGeometry = merged.get(`${type}:1`);
+    const templateHeight = specimens.get(type)!.scale.y;
+    const near = makeInstances(nearGeometry, objects.length, material, objects, cx, cz, templateHeight);
+    near.receiveShadow = true;
+    const node = new THREE.LOD(); node.name = `vegetation:${key}`; node.position.set(cx, 0, cz);
+    node.addLevel(near, 0);
+    if (farGeometry) {
+      const far = makeInstances(farGeometry, objects.length, material, objects, cx, cz, templateHeight);
+      far.receiveShadow = true;
+      // LOD measures from the cell centre, not from each trunk. Cover the
+      // furthest trunk in this cell so every palm stays near through 55 m and
+      // returns to near by 50 m, even on the approach from the cell edge.
+      const palmOffset = type === 'palm' ? Math.max(...objects.map(object =>
+        Math.hypot(object.pos.x - cx, object.pos.y, object.pos.z - cz))) : 0;
+      const distance = type === 'palm' ? 55 + palmOffset + 1 : 65;
+      node.addLevel(far, distance, type === 'palm' ? 5 / distance : .1);
+    }
+    group.add(node);
+  }
+  // Shadow-only silhouettes keep the broad canopy and palm radial shape with
+  // a fraction of the visible mesh's triangles. They have no colour or UVs.
+  const shadowStem = new THREE.CylinderGeometry(.025, .05, .8, 5, 1, true);
+  shadowStem.translate(0, .4, 0); shadowStem.deleteAttribute('uv');
+  const shadowCrown = new THREE.IcosahedronGeometry(1, 0);
+  shadowCrown.scale(.3, .24, .3); shadowCrown.translate(0, .75, 0); shadowCrown.deleteAttribute('uv');
+  const shadowFronds = new THREE.BufferGeometry();
+  const frondVertices: number[] = [];
+  for (let i = 0; i < 9; i++) {
+    const angle = i * Math.PI * 2 / 9, dx = Math.cos(angle), dz = Math.sin(angle);
+    const sideX = -dz * .075, sideZ = dx * .075;
+    frondVertices.push(0, .92, 0, dx * .34 + sideX, .51, dz * .34 + sideZ,
+      dx * .34 - sideX, .51, dz * .34 - sideZ);
+  }
+  shadowFronds.setAttribute('position', new THREE.Float32BufferAttribute(frondVertices, 3));
+  shadowFronds.computeVertexNormals();
+  const treeStem = shadowStem.index ? shadowStem.toNonIndexed() : shadowStem.clone();
+  const palmStem = shadowStem.index ? shadowStem.toNonIndexed() : shadowStem.clone();
+  const crownTriangles = shadowCrown.index ? shadowCrown.toNonIndexed() : shadowCrown.clone();
+  const shadowTree = mergeGeometries([treeStem, crownTriangles], false);
+  const shadowPalm = mergeGeometries([palmStem, shadowFronds], false);
+  treeStem.dispose(); palmStem.dispose(); crownTriangles.dispose();
+  shadowStem.dispose(); shadowCrown.dispose(); shadowFronds.dispose();
+  if (!shadowTree || !shadowPalm) throw new Error('Cannot merge vegetation shadow templates');
+  for (const geometry of [shadowTree, shadowPalm]) { geometry.computeBoundingSphere(); releaseAfterUpload(geometry); }
+  // The shadow camera covers a small slice of the map. Grouping by broadleaf
+  // or palm silhouette in 64 m cells cuts redundant proxy draws.
+  const shadowCells = new Map<string, MapObject[]>();
+  for (const object of world.objects) if (object.kind === 'tree' || object.kind === 'palm') {
+    const type = object.kind === 'palm' || object.detail === 'banana' ? 'palm' : 'tree';
+    const key = `${type}:${Math.floor(object.pos.x / 64)}:${Math.floor(object.pos.z / 64)}`;
+    const bucket = shadowCells.get(key) || [];
+    bucket.push(object); shadowCells.set(key, bucket);
+  }
+  for (const [key, objects] of shadowCells) {
+    const [type, cellX, cellZ] = key.split(':');
+    const cx = (Number(cellX) + .5) * 64, cz = (Number(cellZ) + .5) * 64;
+    const geometry = type === 'palm' ? shadowPalm : shadowTree;
+    const proxy = makeInstances(geometry, objects.length, shadowProxy, objects, cx, cz, 1, true);
+    proxy.position.set(cx, 0, cz); proxy.castShadow = true;
+    group.add(proxy);
+  }
   stem.dispose(); crowns.forEach(g => g.dispose()); coconut.dispose(); trunkRing.dispose();
   return { group, update(time: number) { breeze.value = time; },
-    dispose() { merged.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); shadowProxy.dispose(); } };
+    dispose() { instances.forEach(mesh => mesh.dispose()); merged.forEach(g => g.dispose());
+      shadowTree.dispose(); shadowPalm.dispose(); material.dispose(); shadowProxy.dispose(); } };
 }

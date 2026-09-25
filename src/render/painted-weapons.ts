@@ -56,6 +56,12 @@ export class PaintedWeaponSet {
         }
       }
       const mesh = asset.scene.getObjectByProperty('isMesh', true) as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+      // Match the base atlas sampling: mipmaps would bleed the lit blade column
+      // into neighbouring matte columns on distant or oblique surfaces.
+      if (mesh.material.emissiveMap) {
+        mesh.material.emissiveMap.magFilter = mesh.material.emissiveMap.minFilter = THREE.NearestFilter;
+        mesh.material.emissiveMap.generateMipmaps = false; mesh.material.emissiveMap.needsUpdate = true;
+      }
       for (const rarity of RARITY) {
         const colors = palette.map(hex => parseInt(hex, 16));
         colors[9] = parseInt(rarity.color.slice(1), 16);

@@ -15,10 +15,10 @@ const world = createWorld();
 const renderer = new GameRenderer(document.querySelector('canvas')!, world, { ...DEFAULT_SETTINGS, fov: 60 });
 await renderer.warmup();
 const room = params.get('lighting') === 'interior' ? world.objects.find(object => object.detail === 'prop:house:bakery') : undefined;
-const center = room ? { x: room.pos.x, z: room.pos.z + .8 } : { x: 0, z: -60 };
+const center = room ? { x: room.pos.x, z: room.pos.z + .8 } : { x: Number(params.get('x') || 0), z: Number(params.get('z') || -60) };
 const floor = room ? room.pos.y + .08 : terrainHeight(center.x, center.z);
 const actor: ActorState = {
-  id: 'capy-review', name: 'Capivara M1', color: params.get('color') || '#1FB5A8', bot: false, connected: true,
+  id: 'capy-review', name: params.get('name') || 'Capivara M1', color: params.get('color') || '#1FB5A8', bot: false, connected: true,
   pos: { x: center.x, y: floor, z: center.z }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
   hp: 100, armor: 0, helmet: 0, alive: true, grounded: true, crouch: false, sprint: false, ads: false, stage: 'ground',
   kills: 0, deaths: 0, damage: 0, weapons: [], slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
@@ -33,19 +33,19 @@ if (room) {
   view.interiorLight.position.set(room.pos.x + room.scale.x / 2 - 1.95, room.pos.y + .93, room.pos.z - room.scale.z * .24);
   view.interiorLight.color.set('#ffae62'); view.interiorLight.intensity = 4.3;
 }
+let elapsed = 0;
 const frame: RenderFrame = { snapshot: { actors: [actor] } as RenderFrame['snapshot'], playerId: 'camera', playing: false, input: emptyInput(), spectateId: null, dt: 1 / 30 };
 view.avatars.update(frame, 0, 0);
 const avatar = view.avatars.get(actor.id)!;
 avatar.label.visible = false;
 const hitboxes = createCapybaraHitboxOverlay(); avatar.group.add(hitboxes);
 
-function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean } = {}) {
+function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean; labels?: boolean } = {}) {
   const { angle = 'three-quarter', distance = 3, clip = 'idle', time = .3, overlay = false } = options;
   setCapybaraExpression(avatar.body, options.expression || null);
   actor.velocity.z = clip === 'run' ? -6 : 0;
   actor.grounded = clip !== 'jump';
-  for (let i = 0; i < Math.ceil(time * 30); i++) view.avatars.update(frame, 0, 0);
-  avatar.label.visible = false; hitboxes.visible = overlay;
+  hitboxes.visible = overlay;
   const azimuth = angle === 'side' ? Math.PI / 2 : angle === 'front' ? 0 : angle === 'back' ? Math.PI : Math.PI / 4;
   // The near paw advances toward the lens during run, requiring extra room at 1 m.
   renderer.camera.fov = options.head ? 42 : distance === 1 ? 120 : 60;
@@ -58,6 +58,8 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
     lod.autoUpdate = false; lod.levels.forEach((level, i) => { level.object.visible = i === options.lod; });
   }
   renderer.resize();
+  for (let i = 0; i < Math.ceil(time * 30); i++) view.avatars.update(frame, 0, elapsed += 1 / 30);
+  if (!options.labels) avatar.label.visible = false;
   const stats = { drawCalls: 0, triangles: 0 };
   view.pipeline.render(view.scene, renderer.camera, stats);
   document.querySelector<HTMLElement>('#caption')!.hidden = params.has('clean');
@@ -65,4 +67,4 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
   return { name: avatar.body.name, children: avatar.body.children.length, triangles: stats.triangles };
 }
 (window as unknown as { capyReview: unknown }).capyReview = { shot, renderer, actor, avatar, ready: true };
-shot({ angle: params.get('angle') || 'three-quarter', distance: Number(params.get('distance') || 3), clip: params.get('clip') || 'idle', overlay: params.has('overlay'), head: params.has('head'), expression: params.get('expression') as CapybaraExpression | null });
+shot({ angle: params.get('angle') || 'three-quarter', distance: Number(params.get('distance') || 3), clip: params.get('clip') || 'idle', overlay: params.has('overlay'), head: params.has('head'), expression: params.get('expression') as CapybaraExpression | null, labels: params.has('labels'), time: params.has('labels') ? 1 : .3 });

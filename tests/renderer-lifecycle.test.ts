@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { GameRenderer } from '../src/render/renderer';
 import type { WorldSnapshot } from '../src/shared/types';
 
+// Character download/validation has its own readiness suite; this harness isolates GPU lifecycle.
+vi.mock('../src/render/capybara', () => ({ preloadCapybaraAsset: vi.fn(async () => {}), disposeCapybaraAssets: vi.fn() }));
 vi.mock('../src/render/weapons', () => ({ WeaponView: vi.fn() }));
 vi.mock('../src/render/thumbnails', () => ({ loadWeaponThumbnails: vi.fn(async () => {}) }));
 vi.mock('../src/render/avatars', async () => {
@@ -27,9 +29,11 @@ function harness(ready: Promise<void> = Promise.resolve()) {
     scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
     assets: { ready: vi.fn(() => ready), dispose: vi.fn() },
     weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), revealAll: vi.fn(), dispose: vi.fn() },
+    storm: { mesh: new THREE.Mesh(), dispose: vi.fn() },
+    sky: { group: new THREE.Group(), dispose: vi.fn() },
     worldView: { group: new THREE.Group(), dispose: vi.fn() },
     avatars: { prepare: vi.fn(), warmupWeapons: new THREE.Group(), dispose: vi.fn() },
-    pipeline: { warmup: vi.fn(async () => {}), renderPost: vi.fn(), dispose: vi.fn() },
+    pipeline: { beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), dispose: vi.fn() },
     environment: { dispose: vi.fn() }, onProgress: vi.fn(), resize: vi.fn(),
     gl: { setRenderTarget: vi.fn(), compileAsync: vi.fn(async () => {}), render: vi.fn(), dispose: vi.fn(), shadowMap: { enabled: true } },
   };

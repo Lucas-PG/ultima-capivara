@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { GameRenderer } from '../src/render/renderer';
-import { preloadCapybaraAsset } from '../src/render/capybara';
+import { disposeCapybaraAssets, preloadCapybaraAsset } from '../src/render/capybara';
 import { AvatarView } from '../src/render/avatars';
 import type { ActorState } from '../src/shared/types';
 
@@ -10,26 +10,32 @@ vi.mock('../src/render/thumbnails', () => ({ loadWeaponThumbnails: vi.fn().mockR
 vi.mock('../src/render/weapons', () => ({ WeaponView: vi.fn() }));
 
 beforeAll(() => {
-  const context = { roundRect() {}, fill() {}, stroke() {}, fillText() {} };
+  const context = { measureText: () => ({ width: 160 }), scale() {}, strokeText() {}, fillText() {}, beginPath() {}, arc() {}, fill() {} };
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
 });
 afterAll(() => vi.unstubAllGlobals());
+
+let source: THREE.Group;
+beforeEach(async () => {
+  disposeCapybaraAssets();
+  source = new THREE.Group();
+  const bones = ['root', 'head', 'arm_L', 'arm_R'].map(name => {
+    const bone = new THREE.Bone(); bone.name = name; return bone;
+  });
+  source.add(bones[0]); bones[0].add(...bones.slice(1));
+  const skeleton = new THREE.Skeleton(bones), material = new THREE.MeshStandardMaterial({ map: new THREE.Texture() });
+  for (let i = 0; i < 3; i++) {
+    const mesh = new THREE.SkinnedMesh(new THREE.BoxGeometry(), material);
+    mesh.name = `Capybara_LOD${i}`; mesh.bind(skeleton); source.add(mesh);
+  }
+  await preloadCapybaraAsset(async () => ({ scene: source, animations: ['idle', 'run', 'jump'].map(name => new THREE.AnimationClip(name, 1, [])) }) as unknown as GLTF);
+});
 
 const actor = (id: string, name = 'Capivara', color = '#1fb5a8') => ({ id, name, color }) as ActorState;
 
 describe('match avatar preparation', () => {
   it.each([false, true])('disposes avatars and shared assets once, including pending warmup = %s', async warming => {
     vi.stubGlobal('location', { search: '?capy=v3&capyHitboxes' });
-    const source = new THREE.Group(), bones = ['root', 'head', 'arm_L', 'arm_R'].map(name => {
-      const bone = new THREE.Bone(); bone.name = name; return bone;
-    });
-    source.add(bones[0]); bones[0].add(...bones.slice(1));
-    const skeleton = new THREE.Skeleton(bones), material = new THREE.MeshStandardMaterial({ map: new THREE.Texture() });
-    for (let i = 0; i < 3; i++) {
-      const mesh = new THREE.SkinnedMesh(new THREE.BoxGeometry(), material);
-      mesh.name = `Capybara_LOD${i}`; mesh.bind(skeleton); source.add(mesh);
-    }
-    await preloadCapybaraAsset(async () => ({ scene: source, animations: ['idle', 'run', 'jump'].map(name => new THREE.AnimationClip(name, 1, [])) }) as unknown as GLTF);
     const scene = new THREE.Scene(), view = new AvatarView(scene, new THREE.PerspectiveCamera());
     view.prepare([actor('first'), actor('second')]);
     let finishCompile!: () => void;
@@ -39,6 +45,7 @@ describe('match avatar preparation', () => {
     const renderer = Object.assign(Object.create(GameRenderer.prototype), {
       disposed: false, warming: null, scene, avatars: view, camera: new THREE.PerspectiveCamera(),
       worldView: { group: new THREE.Group(), ...owned() },
+      sky: { group: new THREE.Group(), ...owned() }, storm: { mesh: new THREE.Mesh(), ...owned() },
       weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), revealAll: vi.fn(), ...owned() },
       environment: owned(), pipeline: owned(), assets: { ready: vi.fn().mockResolvedValue(undefined), ...owned() },
       onProgress: vi.fn(), resize: vi.fn(),
@@ -84,7 +91,7 @@ describe('match avatar preparation', () => {
     expect(after.name).toBe('Outra capivara'); expect(after.color).toBe('#e76f51');
     expect(scene.children).toContain(after.group); expect(scene.children).not.toContain(before.group);
     expect(skeleton).toHaveBeenCalledOnce(); expect(label).toHaveBeenCalledOnce();
-    expect(geometry).not.toHaveBeenCalled(); expect(weapon).not.toHaveBeenCalled();
+    expect(geometry).toHaveBeenCalledOnce(); expect(weapon).not.toHaveBeenCalled();
     view.prepare([actor('practice', 'Outra capivara', '#e76f51')]);
     expect(view.get('practice')).toBe(after);
     view.dispose(); expect(skeleton).toHaveBeenCalledOnce();

@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { AssetLoader } from './assets';
+import { PaintedWater } from './water';
+import { createToonMaterial, type ToonMaterialKind } from './materials';
 import { terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
@@ -33,34 +35,18 @@ const cliffFace = (() => {
 })();
 const thinCone = new THREE.ConeGeometry(.5, 1, 7);
 const bentBlade = new THREE.ConeGeometry(.055, .45, 3).translate(0, .225, 0);
-type Surface = 'earth' | 'sand' | 'plaster' | 'brick' | 'stone' | 'timber' | 'bark' | 'metal' | 'roof' | 'road' | 'leaf' | 'fabric';
-const surfaces: Surface[] = ['earth', 'sand', 'plaster', 'brick', 'stone', 'timber', 'bark', 'metal', 'roof', 'road', 'leaf', 'fabric'];
-const photoSurface: Record<Surface, string> = {
-  earth: 'grass', sand: 'sand', plaster: 'plaster', brick: 'brick', stone: 'stone', timber: 'timber',
-  bark: 'bark', metal: 'metal', roof: 'roof', road: 'road', leaf: 'grass', fabric: 'plaster',
-};
+type Surface = 'earth' | 'sand' | 'plaster' | 'brick' | 'stone' | 'timber' | 'cover-wood' | 'bark' | 'metal' | 'roof' | 'road' | 'leaf' | 'fabric';
 const tileMeters: Record<Surface, number> = {
-  earth: 2, sand: 2, plaster: 1.8, brick: 3, stone: 1.5, timber: 2, bark: 1.9,
+  earth: 2, sand: 2, plaster: 1.8, brick: 3, stone: 1.5, timber: 2, 'cover-wood': 2, bark: 1.9,
   metal: 2, roof: 4, road: 2.3, leaf: 2, fabric: 2,
 };
-const roughness: Record<Surface, number> = { earth: 1, sand: 1, plaster: 1, brick: 1, stone: 1, timber: 1,
+const roughness: Record<Surface, number> = { earth: 1, sand: 1, plaster: 1, brick: 1, stone: 1, timber: 1, 'cover-wood': 1,
   bark: 1, metal: .85, roof: 1, road: 1, leaf: .88, fabric: .96 };
 const hash = (x: number, y: number, salt: number) => {
   let n = Math.imul(x + salt * 17, 374761393) + Math.imul(y - salt * 31, 668265263);
   n = Math.imul(n ^ (n >>> 13), 1274126177);
   return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
 };
-function surfaceTextures(surface: Surface, loader: AssetLoader): { color: THREE.Texture; normal: THREE.Texture; rough: THREE.Texture } {
-  const prefix = photoSurface[surface];
-  const load = (kind: string) => {
-    const texture = loader.texture(`textures/${prefix}-${kind}.webp`);
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = 4;
-    return texture;
-  };
-  const color = load('color'); color.colorSpace = THREE.SRGBColorSpace;
-  return { color, normal: load('normal'), rough: load('roughness') };
-}
 const boatHull = (() => {
   const shape = new THREE.Shape();
   shape.moveTo(-.5, -.32); shape.lineTo(-.4, .27); shape.quadraticCurveTo(0, .5, .4, .27);
@@ -164,36 +150,6 @@ function waterNormalTexture(): THREE.CanvasTexture {
   return texture;
 }
 
-function shoreGeometry(size: number): THREE.BufferGeometry {
-  const positions: number[] = [], uvs: number[] = [];
-  const step = 2.5, half = size / 2;
-  const add = (x: number, z: number, u: number, v: number) => { positions.push(x, .065, z); uvs.push(u, v); };
-  for (let z = -half; z < half; z += step) for (let x = -half; x < half; x += step) {
-    const corners = [[x, z], [x + step, z], [x + step, z + step], [x, z + step]];
-    const heights = corners.map(([px, pz]) => terrainHeight(px, pz) - .045);
-    const crossings: [number, number][] = [];
-    for (let edge = 0; edge < 4; edge++) {
-      const next = (edge + 1) % 4, a = heights[edge], b = heights[next];
-      if ((a < 0) === (b < 0)) continue;
-      const t = a / (a - b);
-      crossings.push([THREE.MathUtils.lerp(corners[edge][0], corners[next][0], t), THREE.MathUtils.lerp(corners[edge][1], corners[next][1], t)]);
-    }
-    for (let i = 0; i + 1 < crossings.length; i += 2) {
-      const a = crossings[i], b = crossings[i + 1], cx = (a[0] + b[0]) / 2, cz = (a[1] + b[1]) / 2;
-      const gx = terrainHeight(cx + .5, cz) - terrainHeight(cx - .5, cz);
-      const gz = terrainHeight(cx, cz + .5) - terrainHeight(cx, cz - .5);
-      const length = Math.hypot(gx, gz) || 1, ox = -gx / length * .85, oz = -gz / length * .85;
-      const ua = a[0] * .28 + a[1] * .18, ub = b[0] * .28 + b[1] * .18;
-      add(a[0], a[1], ua, 0); add(b[0], b[1], ub, 0); add(a[0] + ox, a[1] + oz, ua, 1);
-      add(a[0] + ox, a[1] + oz, ua, 1); add(b[0], b[1], ub, 0); add(b[0] + ox, b[1] + oz, ub, 1);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.computeVertexNormals(); return geometry;
-}
-
 function surfaceOf(object: MapObject, collider: Map<string, string>): Surface {
   const { kind, detail } = object;
   if (kind === 'grass' || kind === 'palm' || kind === 'tree') return 'leaf';
@@ -215,29 +171,14 @@ export class WorldScene {
   readonly group = new THREE.Group();
   readonly arenaBoundary = new THREE.Group();
   readonly water: THREE.Mesh;
-  readonly mist: THREE.Mesh;
-  readonly skyTexture: THREE.DataTexture;
-  private readonly waterNormals: THREE.CanvasTexture;
+  private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly cascadeTime = { value: 0 };
   private readonly vegetation: ReturnType<typeof buildVegetation>;
   private reducedMotion = false;
-  private readonly shore: THREE.Mesh;
   private readonly disposables: { dispose: () => void }[] = [];
-  private readonly surfaceMaterials: { material: THREE.MeshStandardMaterial; normal: THREE.Texture | null; rough: THREE.Texture | null }[] = [];
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.skyTexture = loader.hdr('textures/partly-cloudy-sky-1k.hdr');
-    this.skyTexture.mapping = THREE.EquirectangularReflectionMapping;
-    this.disposables.push(this.skyTexture);
-    const assetTextures = new Map<string, ReturnType<typeof surfaceTextures>>();
-    const textures = Object.fromEntries(surfaces.map(surface => {
-      const prefix = photoSurface[surface];
-      let value = assetTextures.get(prefix);
-      if (!value) { value = surfaceTextures(surface, loader); assetTextures.set(prefix, value); }
-      return [surface, value];
-    })) as Record<Surface, ReturnType<typeof surfaceTextures>>;
-    for (const value of assetTextures.values()) this.disposables.push(value.color, value.normal, value.rough);
     const signAtlas = loader.texture('textures/island-signs.png');
     signAtlas.colorSpace = THREE.SRGBColorSpace;
     signAtlas.minFilter = THREE.LinearMipmapLinearFilter;
@@ -245,40 +186,31 @@ export class WorldScene {
     const signMaterial = textSignMaterial(signAtlas);
     this.disposables.push(signAtlas, signMaterial);
     void loader.ready().then(onAssetsReady, () => {});
+    const kinds: Record<Surface, ToonMaterialKind> = {
+      earth: 'terrain', sand: 'terrain', plaster: 'plaster', brick: 'stone', stone: 'stone',
+      timber: 'wood', 'cover-wood': 'wood', bark: 'wood', metal: 'painted-metal', roof: 'stone', road: 'stone', leaf: 'foliage', fabric: 'fabric',
+    };
     const materialFor = (surface: Surface) => {
-      const material = new THREE.MeshStandardMaterial({
-        vertexColors: true, map: surface === 'fabric' ? null : textures[surface].color,
-        normalMap: surface === 'fabric' ? null : textures[surface].normal,
-        normalScale: new THREE.Vector2(surface === 'plaster' ? .12 : surface === 'roof' ? .4 : .3,
-          surface === 'plaster' ? .12 : surface === 'roof' ? .4 : .3),
-        roughnessMap: surface === 'fabric' ? null : textures[surface].rough,
-        roughness: roughness[surface], metalness: surface === 'metal' ? .28 : .02,
+      const material = createToonMaterial(kinds[surface], {
+        vertexColors: true, roughness: roughness[surface],
         side: surface === 'leaf' || surface === 'fabric' || surface === 'roof' ? THREE.DoubleSide : THREE.FrontSide,
       });
-      // Cartoon look: photo textures only add a hint of grain over the flat
-      // vertex colours instead of carrying the whole surface.
-      if (surface !== 'plaster' && surface !== 'roof' && surface !== 'earth' && surface !== 'fabric') {
+      if (surface === 'cover-wood') {
+        // Resolve the shadow once beside the base, outside the cover's own
+        // silhouette. Tree/roof shadows remain, without unresolved slat stripes.
         material.onBeforeCompile = shader => {
-          shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
-            vec3 grain = texture2D(map, vMapUv).rgb;
-            diffuseColor.rgb *= mix(vec3(1.0), grain * 1.4, .4);
-          `);
+          shader.vertexShader = `attribute vec3 coverShadowPoint;\n${shader.vertexShader}`.replace(
+            '#include <shadowmap_vertex>', `#include <shadowmap_vertex>
+              #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
+                #pragma unroll_loop_start
+                for (int i = 0; i < NUM_DIR_LIGHT_SHADOWS; i++) {
+                  vDirectionalShadowCoord[i] = directionalShadowMatrix[i] * vec4(coverShadowPoint, 1.0);
+                }
+                #pragma unroll_loop_end
+              #endif`);
         };
+        material.customProgramCacheKey = () => 'painted-cover-base-shadow-v1';
       }
-      if (surface === 'plaster' || surface === 'roof') {
-        material.onBeforeCompile = shader => {
-          shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', surface === 'plaster' ? `
-            float plasterValue = dot(texture2D(map, vMapUv).rgb, vec3(.28, .59, .13));
-            diffuseColor.rgb *= mix(vec3(1.0), vec3(plasterValue), .17);
-          ` : `
-            vec3 clayTiles = texture2D(map, vMapUv).rgb;
-            diffuseColor.rgb *= mix(vec3(1.0), clayTiles * 1.3, .38);
-          `);
-        };
-      }
-      const shaderVariant = surface === 'plaster' || surface === 'roof' ? surface :
-        surface === 'earth' || surface === 'fabric' ? 'flat' : 'grain';
-      material.customProgramCacheKey = () => `island-surface-${shaderVariant}-photo-v1`;
       return material;
     };
     const groundColors = loader.texture('textures/terrain-color.png');
@@ -287,8 +219,8 @@ export class WorldScene {
     groundColors.magFilter = THREE.LinearFilter;
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
-    const groundMaterial = new THREE.MeshStandardMaterial({ map: groundColors, roughness: 1, metalness: 0 });
-    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-slope-v4';
+    const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
+    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-slope-v5';
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -300,6 +232,9 @@ export class WorldScene {
       shader.uniforms.terrainSandLight = { value: new THREE.Color(WORLD_PALETTE.sandLight) };
       shader.uniforms.terrainRockPaint = { value: new THREE.Color(WORLD_PALETTE.rock) };
       shader.uniforms.terrainRockTop = { value: new THREE.Color(WORLD_PALETTE.rockTop) };
+      shader.uniforms.terrainMorroLight = { value: new THREE.Color('#D8C8AA') };
+      shader.uniforms.terrainMorroMid = { value: new THREE.Color('#BBAE98') };
+      shader.uniforms.terrainMorroJoint = { value: new THREE.Color('#9E8F7A') };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `
         #include <common>
         attribute float terrainSlope;
@@ -327,6 +262,9 @@ export class WorldScene {
         uniform vec3 terrainSandLight;
         uniform vec3 terrainRockPaint;
         uniform vec3 terrainRockTop;
+        uniform vec3 terrainMorroLight;
+        uniform vec3 terrainMorroMid;
+        uniform vec3 terrainMorroJoint;
         float terrainHash(vec2 cell) {
           return fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453) * 2.0 - 1.0;
         }
@@ -388,34 +326,31 @@ export class WorldScene {
         float topBand = 1.0 - smoothstep(0.7, 1.0, vTerrainSlope);
         vec3 rockPaint = mix(terrainRockPaint, terrainRockTop, topBand) * mix(0.94, 1.06, stratum);
         gl_FragColor.rgb = mix(gl_FragColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
+        // The Morro shelves are built retaining faces: distinct plaster/stone
+        // courses and narrow joints give a readable scale at walking distance.
+        float morroArea = step(-38.0, vTerrainXZ.x) * step(vTerrainXZ.x, 12.0) *
+          step(64.0, vTerrainXZ.y) * step(vTerrainXZ.y, 120.0);
+        float morroFace = morroArea * smoothstep(0.58, 0.82, vTerrainSlope);
+        float course = vTerrainWorldY + irregular;
+        float jointDistance = min(mod(course, 1.2), 1.2 - mod(course, 1.2));
+        float jointWidth = max(fwidth(course), 0.015);
+        float joint = 1.0 - smoothstep(0.025 + jointWidth, 0.065 + jointWidth, jointDistance);
+        vec3 morroPaint = mix(terrainMorroMid, terrainMorroLight,
+          mod(floor(course / 1.2), 2.0));
+        morroPaint = mix(morroPaint, terrainMorroJoint, joint * 0.55);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, morroPaint,
+          morroFace * (1.0 - asphaltMask - curbMask));
         #include <tonemapping_fragment>
       `);
     };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
 
-    this.waterNormals = waterNormalTexture();
+    this.paintedWater = new PaintedWater(world, ground.geometry);
+    this.water = this.paintedWater.mesh;
+    this.group.add(this.water, this.paintedWater.contacts); this.disposables.push(this.paintedWater);
     this.smallWaterNormals = waterNormalTexture(); this.smallWaterNormals.repeat.set(3, 5);
-    // Cartoon sea: standard shading with a rippled normal for sun glints. The
-    // clearcoat layer it had doubled the per-pixel cost of the whole horizon.
-    const seaMaterial = new THREE.MeshStandardMaterial({ color: '#3f8392', roughness: .22, metalness: .02,
-      normalMap: this.waterNormals, normalScale: new THREE.Vector2(.42, .42), transparent: true, opacity: .93,
-      side: THREE.DoubleSide, depthWrite: false });
-    this.water = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), seaMaterial);
-    this.water.rotation.x = -Math.PI / 2; this.water.position.y = -.05; this.water.renderOrder = 1; this.group.add(this.water);
-    this.disposables.push(this.water.geometry, seaMaterial, this.waterNormals, this.smallWaterNormals);
-    const shoreMaterial = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 } }, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: 'uniform float uTime;varying vec2 vUv;void main(){float wash=.74+.26*sin(vUv.x*6.0-uTime*1.4);float edge=1.0-smoothstep(.05,.95,vUv.y);float grain=.75+.25*sin(vUv.x*31.0+vUv.y*19.0);gl_FragColor=vec4(vec3(.85,.94,.89),edge*wash*grain*.48);}',
-    });
-    this.shore = new THREE.Mesh(shoreGeometry(world.size), shoreMaterial);
-    this.shore.renderOrder = 2; this.group.add(this.shore);
-    this.disposables.push(this.shore.geometry, shoreMaterial);
-    const waveGeo = new THREE.PlaneGeometry(260, 260, 36, 36);
-    const waveMaterial = new THREE.MeshBasicMaterial({ color: '#a9d5ce', transparent: true, opacity: .025, blending: THREE.AdditiveBlending, depthWrite: false });
-    this.mist = new THREE.Mesh(waveGeo, waveMaterial); this.mist.rotation.x = -Math.PI / 2; this.mist.position.y = .02; this.group.add(this.mist);
-    this.disposables.push(waveGeo, waveMaterial);
+    this.disposables.push(this.smallWaterNormals);
 
     const surfaceBindings = new Map<Surface, { material: THREE.MeshStandardMaterial; id: number; cast: boolean; receive: boolean }>();
     const materialVariants = new Map<string, { material: THREE.MeshStandardMaterial; id: number; cast: boolean; receive: boolean }>();
@@ -435,7 +370,6 @@ export class WorldScene {
         else {
           binding = { material: candidate, id: materialVariants.size, cast, receive };
           materialVariants.set(signature, binding);
-          this.surfaceMaterials.push({ material: candidate, normal: candidate.normalMap, rough: candidate.roughnessMap });
           this.disposables.push(candidate);
         }
         surfaceBindings.set(surface, binding);
@@ -468,15 +402,18 @@ export class WorldScene {
     this.disposables.push(cascadeSheet);
     const add = (surface: Surface, geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = 0) => {
       const tint = c(color);
-      if (surface === 'plaster') tint.lerp(c('#ffffff'), .04);
-      else if (surface === 'roof') {
-        // Warm roofs read as the legacy build's bright terracotta red.
-        const hsl = tint.getHSL({ h: 0, s: 0, l: 0 });
-        if (hsl.s > .12 && (hsl.h < .14 || hsl.h > .78)) tint.lerp(c(hsl.l > .42 ? '#e2573a' : '#cf432c'), .7);
-        else tint.lerp(c('#ffffff'), .08);
+      const painted = coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]);
+      if (surface === 'cover-wood') {
+        const cosine = Math.abs(Math.cos(rotation)), sine = Math.abs(Math.sin(rotation));
+        // The fixed sun is northwest (-70,55,-30). Sample just beyond that
+        // corner so the box and projecting rails cannot shadow their own probe.
+        const px = x - (sx * cosine + sz * sine) / 2 - .15;
+        const pz = z - (sz * cosine + sx * sine) / 2 - .15;
+        const count = painted.getAttribute('position').count, points = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) { points[i * 3] = px; points[i * 3 + 1] = y - sy / 2 + .08; points[i * 3 + 2] = pz; }
+        painted.setAttribute('coverShadowPoint', new THREE.BufferAttribute(points, 3));
       }
-      else if (surface !== 'leaf' && surface !== 'fabric') tint.lerp(c('#ffffff'), .22);
-      stash(surface, coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]), x, z);
+      stash(surface, painted, x, z);
     };
     const addBranch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, tint: string, surface: Surface = 'bark') => {
       const direction = to.clone().sub(from), length = direction.length();
@@ -615,8 +552,10 @@ export class WorldScene {
               pos.z + dz * scale.z * .47), .085, color, 'roof');
         }
       } else {
-        const surface = surfaceOf(object, colliderMaterials);
-        add(surface, geometry, color, pos.x, pos.y, pos.z, scale.x, scale.y, scale.z, rotation);
+        let surface = surfaceOf(object, colliderMaterials);
+        if (surface === 'timber' && (detail === 'crate' || detail === 'wall')) surface = 'cover-wood';
+        const paint = surface === 'cover-wood' ? '#9C6A42' : color;
+        add(surface, geometry, paint, pos.x, pos.y, pos.z, scale.x, scale.y, scale.z, rotation);
         if (detail === 'shutter') for (const face of [-1, 1]) for (let slat = 0; slat < 5; slat++)
           add('timber', box, '#b6bfa2', pos.x, pos.y + (slat - 2) * .21, pos.z + face * .065,
             scale.x * .9, .025, .025);
@@ -748,32 +687,13 @@ export class WorldScene {
 
   setSettings(settings: Settings) {
     this.reducedMotion = settings.reducedMotion;
-    this.mist.visible = settings.graphics === 'high';
-    this.mist.material instanceof THREE.MeshBasicMaterial && (this.mist.material.opacity = settings.graphics === 'high' ? .025 : 0);
-    for (const { material, normal, rough } of this.surfaceMaterials) {
-      const nextNormal = settings.graphics === 'low' ? null : normal;
-      const nextRough = settings.graphics === 'low' ? null : rough;
-      if (material.normalMap !== nextNormal || material.roughnessMap !== nextRough) {
-        material.normalMap = nextNormal; material.roughnessMap = nextRough; material.needsUpdate = true;
-      }
-    }
-    if (this.water.material instanceof THREE.MeshStandardMaterial) {
-      const next = settings.graphics === 'low' ? null : this.waterNormals;
-      if (this.water.material.normalMap !== next) { this.water.material.normalMap = next; this.water.material.needsUpdate = true; }
-      this.water.material.normalScale.setScalar(settings.graphics === 'low' ? .24 : .42);
-      this.water.material.roughness = settings.graphics === 'low' ? .29 : .22;
-    }
   }
 
   update(time: number) {
     this.vegetation.update(this.reducedMotion ? 0 : time);
     this.cascadeTime.value = time;
-    this.waterNormals.offset.set(time * .025, time * .014);
+    this.paintedWater.update(time, this.reducedMotion);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);
-    if (this.water.material instanceof THREE.MeshStandardMaterial) this.water.material.opacity = .92 + Math.sin(time * .55) * .012;
-    if (this.shore.material instanceof THREE.ShaderMaterial) this.shore.material.uniforms.uTime.value = time;
-    this.mist.position.x = Math.sin(time * .03) * 2;
-    this.mist.position.z = Math.cos(time * .04) * 2;
   }
 
   dispose() { this.disposables.forEach(value => value.dispose()); }
