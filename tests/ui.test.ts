@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accuracyText, cleanLabel, formatSurvived, HUD_MIN_SCALE, hudScale, loadingLabel, nextProgress, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, HUD_MIN_SCALE, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -70,5 +70,22 @@ describe('hud', () => {
     expect(new Set(PLAYER_COLORS).size).toBe(8);
     for (const color of PLAYER_COLORS) expect(color).toMatch(/^#[0-9a-f]{6}$/);
     expect(PLAYER_COLORS).not.toContain('#bd8956');
+  });
+});
+
+describe('leaving a match', () => {
+  // Formiga's smoke test: an eliminated player could only exit through a hidden spectator control.
+  it('gives an eliminated battle royale player a visible exit next to spectate', () => {
+    expect(ELIMINATED_ACTIONS.map(a => a.do)).toEqual(['spectate', 'leave']);
+    expect(ELIMINATED_ACTIONS.find(a => a.do === 'leave')?.label).toBe('Voltar ao menu');
+  });
+  it('exits in one click when nothing is lost, and confirms when something is', () => {
+    expect(leaveNeedsConfirm({ screen: 'game', host: false, phase: 'playing', alive: false, royale: true })).toBe(false);
+    expect(leaveNeedsConfirm({ screen: 'game', host: false, phase: 'results', alive: true, royale: true })).toBe(false);
+    expect(leaveNeedsConfirm({ screen: 'game', host: false, phase: 'playing', alive: true, royale: true })).toBe(true);
+    expect(leaveNeedsConfirm({ screen: 'game', host: false, phase: 'playing', alive: false, royale: false })).toBe(true);
+    expect(leaveNeedsConfirm({ screen: 'game', host: true, phase: 'playing', alive: false, royale: true })).toBe(true);
+    expect(leaveNeedsConfirm({ screen: 'lobby', host: false })).toBe(true);
+    expect(leaveNeedsConfirm({ screen: 'home', host: false })).toBe(false);
   });
 });

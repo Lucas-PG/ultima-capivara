@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, cleanLabel, formatSurvived, hudScale, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -100,7 +100,6 @@ export class GameUI {
         case 'resume': this.callbacks.resume(); break;
         case 'rematch': this.callbacks.rematch(); break;
         case 'spectate': this.callbacks.spectate(); break;
-        case 'quit': if (this.room?.isHost) this.confirmLeave(); else this.callbacks.leave(); break;
         case 'next-tip': this.showTip(); break;
         case 'skip-tutorial': this.finishOnboarding(); break;
       }
@@ -177,7 +176,7 @@ export class GameUI {
       + `<div id="topL" class="stk"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
       + `<div id="safe" class="stk" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="stk" hidden>Na tempestade! −<span id="hDps">1</span>/s</div>`
       + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd>M</kbd> fecha o mapa</span></div></div>`
-      + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden><div class="btns"><button type="button" class="go" data-do="spectate">Assistir a próxima capivara →</button><button type="button" class="alt" data-do="quit">Sair da partida</button></div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste</span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="quit">Sair da partida</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
+      + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden role="group" aria-label="Você foi eliminada"><div class="btns">${ELIMINATED_ACTIONS.map(a => `<button type="button" class="${a.primary ? 'go' : 'alt'}" data-do="${a.do}">${a.primary ? icon('eye') : icon('back')} ${a.label}</button>`).join('')}</div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste<span class="esc"> · <kbd>Esc</kbd> solta o mouse pra clicar</span></span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="leave">${icon('back')} Voltar ao menu</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
       + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
       + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
@@ -271,9 +270,12 @@ export class GameUI {
     else if (!me.alive) banner = `Caiu!<small>Volta em ${Math.max(0, Math.ceil(me.respawnAt - t))} s</small>`;
     else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando'}</small>`; }
     this.setBanner(banner);
+    // Out for good: the player's own loadout and vitals leave the screen so the choice (watch or leave) is the focus.
+    this.toggle(this.el('hud'), 'out', !me.alive && br);
     const deadInRoyale = this.deadInRoyale(); this.show('spec', deadInRoyale); this.show('dmQuit', !me.alive && !br && snapshot.phase === 'playing');
     // Eliminated in battle royale: free the mouse once so the on-screen buttons can be clicked.
-    if (deadInRoyale && !this.deathReleased) { this.deathReleased = true; this.el('pause-panel').hidden = true; if (document.pointerLockElement) document.exitPointerLock(); }
+    if (deadInRoyale && !this.deathReleased) { this.deathReleased = true; this.el('pause-panel').hidden = true; if (document.pointerLockElement) document.exitPointerLock(); this.el('spec').querySelector<HTMLElement>('[data-do="spectate"]')?.focus({ preventScroll: true }); }
+    this.toggle(this.el('spec'), 'locked', deadInRoyale && !!document.pointerLockElement);
     if (me.alive) this.deathReleased = false;
     const score = this.el('scoreboard'); this.show('scoreboard', scoreboard);
     if (scoreboard) {
@@ -370,7 +372,11 @@ export class GameUI {
     }));
   }
   private confirmLeave() {
-    if (this.screen === 'home') return; const dialog = this.openModal('ATÉ LOGO, CAPIVARA?', `<p>${this.room?.isHost ? 'Você criou esta sala. Ao sair, a partida termina para toda a turma.' : 'Você vai sair desta partida e voltar ao início.'}</p><div class="modal-actions"><button class="button secondary" id="stay">FICAR</button><button class="button primary" id="exit">SAIR DA PARTIDA</button></div>`);
+    if (this.screen === 'home') return;
+    const me = this.snapshot?.actors.find(a => a.id === this.localId);
+    const context = { screen: this.screen, host: !!this.room?.isHost, phase: this.snapshot?.phase, alive: me?.alive, royale: this.snapshot?.config.mode === 'battle-royale' };
+    if (!leaveNeedsConfirm(this.screen === 'game' ? context : { screen: this.screen, host: !!this.room?.isHost })) { this.closeModal(); this.callbacks.leave(); return; }
+    const dialog = this.openModal('ATÉ LOGO, CAPIVARA?', `<p>${this.room?.isHost ? 'Você criou esta sala. Ao sair, a partida termina para toda a turma.' : 'Você vai sair desta partida e voltar ao início.'}</p><div class="modal-actions"><button class="button secondary" id="stay">FICAR</button><button class="button primary" id="exit">SAIR DA PARTIDA</button></div>`);
     dialog.querySelector('#stay')!.addEventListener('click', () => this.closeModal()); dialog.querySelector('#exit')!.addEventListener('click', () => { this.closeModal(); this.callbacks.leave(); });
   }
   private settingsModal() {

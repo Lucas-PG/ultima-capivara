@@ -39,3 +39,19 @@ export const hudScale = (width: number, height: number, user = 1) =>
 export const formatSurvived = (seconds: number) => { const s = Math.max(0, Math.round(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 export const accuracyText = (hits: number, shots: number) => shots > 0 ? `${Math.round(Math.min(1, hits / shots) * 100)}%` : '–';
 export const ordinal = (place: number) => `${place}º`;
+
+// Leaving asks for confirmation only when something is lost: an online host closes the room for everyone,
+// the lobby gives up a seat, or the player is still in the match (alive, or waiting to respawn in Correria).
+// Out of a battle royale, or on the results screen, the exit is one click.
+export interface LeaveContext { screen: 'home' | 'lobby' | 'game' | 'results'; host: boolean; phase?: string; alive?: boolean; royale?: boolean }
+export function leaveNeedsConfirm(c: LeaveContext): boolean {
+  if (c.screen === 'home') return false;
+  if (c.host || c.screen === 'lobby') return true;
+  if (c.phase === 'results') return false;
+  return !(c.royale && c.alive === false);
+}
+// Eliminated in battle royale: two buttons, always visible together. Watching is the primary action; the exit never hides.
+export const ELIMINATED_ACTIONS = [
+  { do: 'spectate', label: 'Assistir a próxima capivara', primary: true },
+  { do: 'leave', label: 'Voltar ao menu', primary: false },
+] as const;

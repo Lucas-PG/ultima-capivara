@@ -276,3 +276,14 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 #hud #vitals{transform:translateX(-50%)}
 #hud #ammoBox{--r:0deg}
 #hud #mapWrap{transform:none}
+
+/* Eliminated in battle royale: watching and leaving always sit side by side; the exit is calm paper, never a red alarm. */
+#hud #spec .btns button{display:inline-flex;align-items:center;gap:8px}
+#hud #spec .btns svg{width:20px;height:20px;stroke-width:2.4}
+#hud #spec .alt{background:var(--paper-2);color:var(--ink);transform:rotate(1deg)}
+#hud #spec button:focus-visible,#hud #dmQuit button:focus-visible{outline:3px solid #1fb5a8;outline-offset:3px}
+#hud #spec .esc{display:none}
+#hud #spec.locked .esc{display:inline}
+#hud #dmQuit button{display:inline-flex;align-items:center;gap:6px;background:var(--paper-2);color:var(--ink)}
+#hud #dmQuit svg{width:16px;height:16px;stroke-width:2.4}
+#hud.out #vitals,#hud.out #wpnbox,#hud.out #consbar,#hud.out #stance,#hud.out #prompt,#hud.out #reload,#hud.out #rring,#hud.out #use{display:none!important}
