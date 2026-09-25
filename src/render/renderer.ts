@@ -7,7 +7,7 @@ import { terrainHeight } from '../shared/terrain';
 import { PLAYER_COLORS, type ActorState, type GameEvent, type LootSpawn, type RenderFrame, type Settings, type Vec3, type WeaponId, type WorldSpec } from '../shared/types';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
-import { buildCapybaraBody, CAPY_BONES, WEAPON_MOUNT } from './capybara';
+import { buildCapybaraBody, CAPY_BONES, WEAPON_MOUNT, preloadCapybaraAsset, updateCapybaraBody } from './capybara';
 import { createOutlineMaterial } from './toon';
 import { rarityOf } from '../shared/rarity';
 import { WEAPONS } from '../shared/weapons';
@@ -523,6 +523,10 @@ export class GameRenderer {
     const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
     visual.phase += dt * Math.min(13, speed * 2.1);
     visual.group.rotation.set(0, actor.yaw, 0);
+    if (updateCapybaraBody(visual.body, actor, dt)) {
+      if (actor.crouch) visual.group.scale.setScalar(1.3 / 1.8);
+      return;
+    }
     const pitch = THREE.MathUtils.clamp(actor.pitch, -1, 1);
     if (actor.stage === 'falling') {
       // Belly down around the body's centre, paws forward, legs trailing.
@@ -842,6 +846,7 @@ export class GameRenderer {
   // Never rejects; gives up waiting after 15 s so a slow network can't block the game.
   warmup(): Promise<void> {
     this.warming ||= (async () => {
+      await preloadCapybaraAsset();
       const textures = () => { const list: THREE.Texture[] = []; this.scene.traverse(object => { const mats = (object as THREE.Mesh).material; for (const mat of Array.isArray(mats) ? mats : mats ? [mats] : []) for (const value of Object.values(mat)) if (value instanceof THREE.Texture) list.push(value); }); return list; };
       const loaded = (texture: THREE.Texture) => { const image = texture.image as { complete?: boolean; data?: unknown; width?: number } | null; return !!image && image.complete !== false && (image.data !== undefined || (image.width ?? 0) > 0); };
       const started = performance.now();

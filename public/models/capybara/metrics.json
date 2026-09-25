@@ -1,0 +1,64 @@
+{
+  "sourceTriangles": 21160,
+  "palette": [
+    "B8743A",
+    "D39A47",
+    "7A4424",
+    "4A2C1C",
+    "E8C08A",
+    "1FB5A8",
+    "12877E",
+    "6E7040",
+    "5A3A22",
+    "1A120C",
+    "FFFFFF",
+    "BA795B",
+    "F4DEB3",
+    "88904E",
+    "B8743A",
+    "B8743A"
+  ],
+  "lods": [
+    {
+      "name": "Capybara_LOD0",
+      "triangles": 13998
+    },
+    {
+      "name": "Capybara_LOD1",
+      "triangles": 4800
+    },
+    {
+      "name": "Capybara_LOD2",
+      "triangles": 1400
+    }
+  ],
+  "hitbox": {
+    "head": {
+      "center": [
+        0,
+        1.6,
+        -0.04
+      ],
+      "radius": 0.25
+    },
+    "body": {
+      "radius": 0.3,
+      "top": 1.42
+    }
+  },
+  "clips": [
+    "idle",
+    "jump",
+    "run"
+  ],
+  "materials": 1,
+  "skins": 1,
+  "joints": 22,
+  "bytes": 152220,
+  "rawBytes": 709756,
+  "texture": {
+    "format": "PNG",
+    "width": 16,
+    "height": 16
+  }
+}

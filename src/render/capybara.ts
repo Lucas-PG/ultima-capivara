@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
+import type { ActorState } from '../shared/types';
 import { releaseAfterUpload } from './memory';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -191,6 +195,128 @@ export function buildCapybaraBody(color: string): { body: THREE.SkinnedMesh; bon
   }
   for (const bone of bones) bone.userData.rest = bone.position.clone();
   body.add(root); body.bind(new THREE.Skeleton(bones));
+  if (capybaraV3Enabled()) {
+    if (characterAsset) installCharacter(body, bones);
+    else {
+      let disposed = false;
+      const dispose = body.skeleton.dispose.bind(body.skeleton);
+      body.skeleton.dispose = () => { disposed = true; dispose(); };
+      void preloadCapybaraAsset().then(() => { if (!disposed) installCharacter(body, bones); });
+    }
+  }
   // The geometry is shared: it is released with the renderer, not per avatar.
   return { body, bones, dispose: () => {} };
+}
+
+// M0 opt-in asset path. Geometry, atlas, and clips are shared; poses are private.
+export const CAPYBARA_ASSET_URL = '/models/capybara/capybara.glb';
+export const capybaraV3Enabled = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('capy') === 'v3';
+let characterAsset: GLTF | null = null;
+let characterLoading: Promise<void> | null = null;
+const characterInstances = new WeakMap<THREE.SkinnedMesh, CharacterInstance>();
+interface CharacterInstance {
+  scene: THREE.Group; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>;
+  active: string; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
+  legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
+}
+
+export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Promise<void> {
+  if (!capybaraV3Enabled()) return Promise.resolve();
+  if (!characterLoading) {
+    characterLoading = (async () => {
+      const asset = await (load ? load(CAPYBARA_ASSET_URL) : new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(CAPYBARA_ASSET_URL));
+      characterAsset = asset;
+      asset.scene.traverse(object => {
+        if (!(object instanceof THREE.SkinnedMesh)) return;
+        object.castShadow = true; object.receiveShadow = true;
+        object.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
+        // Renderer disposal invalidates the cache so a subsequent match reloads.
+        object.geometry.addEventListener('dispose', () => { characterAsset = null; characterLoading = null; });
+      });
+    })().catch(error => {
+      characterLoading = null;
+      console.warn('Capivara v3 indisponível; mantendo modelo procedural.', error);
+    });
+  }
+  return characterLoading;
+}
+
+function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[]): void {
+  if (!characterAsset || characterInstances.has(body)) return;
+  const scene = cloneSkeleton(characterAsset.scene) as THREE.Group;
+  const meshes: THREE.SkinnedMesh[] = [];
+  scene.traverse(object => { if (object instanceof THREE.SkinnedMesh) meshes.push(object); });
+  meshes.sort((a, b) => a.name.localeCompare(b.name));
+  const skeleton = meshes[0].skeleton;
+  const lod = new THREE.LOD(); lod.name = 'Capivara_LOD'; scene.add(lod);
+  // Quantization uses a scene-wide grid, so all LODs retain one shared skin.
+  for (let i = 0; i < meshes.length; i++) {
+    const mesh = meshes[i];
+    if (mesh.skeleton !== skeleton) mesh.skeleton.dispose();
+    mesh.skeleton = skeleton;
+    lod.addLevel(mesh, [0, 12, 28][i], .1);
+  }
+  const mixer = new THREE.AnimationMixer(scene);
+  const actions: Record<string, THREE.AnimationAction> = {};
+  for (const clip of characterAsset.animations) actions[clip.name] = mixer.clipAction(clip);
+  actions.jump.setLoop(THREE.LoopOnce, 1); actions.jump.clampWhenFinished = true;
+  actions.idle.play();
+  const runtime: CharacterInstance = {
+    scene, mixer, actions, active: 'idle', elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [],
+    head: scene.getObjectByName('head') as THREE.Bone,
+    root: scene.getObjectByName('root') as THREE.Bone,
+    arms: [scene.getObjectByName('arm_L') as THREE.Bone, scene.getObjectByName('arm_R') as THREE.Bone],
+  };
+  runtime.poseBones = [runtime.head, runtime.root, ...runtime.arms];
+  runtime.baseRotations = runtime.poseBones.map(bone => bone.quaternion.clone());
+  characterInstances.set(body, runtime);
+  // Keep the old skeleton as the compatibility weapon socket; only its mesh goes.
+  body.geometry = new THREE.BufferGeometry();
+  body.add(scene);
+  body.name = 'Capivara_v3';
+  const originalDispose = body.skeleton.dispose.bind(body.skeleton);
+  body.skeleton.dispose = () => {
+    mixer.stopAllAction(); mixer.uncacheRoot(scene); skeleton.dispose();
+    body.geometry.dispose(); characterInstances.delete(body); originalDispose();
+  };
+  if (new URLSearchParams(location.search).has('capyHitboxes')) body.add(createCapybaraHitboxOverlay());
+}
+
+export function createCapybaraHitboxOverlay(): THREE.Group {
+  const group = new THREE.Group(); group.name = 'Hitboxes_normais';
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.25, 20, 12), new THREE.MeshBasicMaterial({ color: '#ff427b', wireframe: true, depthTest: false, transparent: true, opacity: .55 }));
+  head.position.set(0, 1.6, -.04);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, 1.42, 20, 1, true), new THREE.MeshBasicMaterial({ color: '#46e8ff', wireframe: true, depthTest: false, transparent: true, opacity: .4 }));
+  body.position.y = .71;
+  group.add(head, body); return group;
+}
+
+/** Returns true when the opt-in rig owns this pose. No allocations per update. */
+export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, dt: number): boolean {
+  const runtime = characterInstances.get(body);
+  if (!runtime) return false;
+  const { mixer, actions, head, root, arms, legacyBones } = runtime;
+  const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
+  const next = actor.stage !== 'ground' || !actor.grounded ? 'jump' : speed > .35 ? 'run' : 'idle';
+  if (next !== runtime.active) {
+    actions[runtime.active].fadeOut(.15);
+    actions[next].reset().fadeIn(.15).play(); runtime.active = next;
+  }
+  actions.run.timeScale = Math.max(.4, Math.min(1.7, speed / 6));
+  for (let i = 0; i < runtime.poseBones.length; i++) runtime.poseBones[i].quaternion.copy(runtime.baseRotations[i]);
+  runtime.elapsed += Math.min(dt, .1); mixer.update(Math.min(dt, .1));
+  for (let i = 0; i < runtime.poseBones.length; i++) runtime.baseRotations[i].copy(runtime.poseBones[i].quaternion);
+  const pitch = THREE.MathUtils.clamp(actor.pitch, -1, 1);
+  head.rotateX(pitch * .45);
+  for (const arm of arms) arm.rotateX(pitch * .65 + (actor.sprint ? -.18 : 0));
+  legacyBones[CAPY_BONES.arms].rotation.x = pitch + (actor.sprint ? -.18 : 0);
+  runtime.scene.rotation.set(0, 0, 0); runtime.scene.position.set(0, 0, 0);
+  if (actor.stage === 'falling') {
+    runtime.scene.rotation.x = -1.25;
+    runtime.scene.position.set(0, .9 * (1 - Math.cos(-1.25)), -.9 * Math.sin(-1.25));
+  } else if (actor.stage === 'parachute') {
+    for (const arm of arms) arm.rotateX(2.4);
+    root.rotation.z += Math.sin(runtime.elapsed * 2.2) * .025;
+  }
+  return true;
 }
