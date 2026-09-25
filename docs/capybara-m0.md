@@ -34,10 +34,19 @@ O merge local de `v2-renan` incorporou o split 859c2fd. O hook de pose está em
 `src/render/avatars.ts`; `renderer.ts` tem somente import e await de pré-carga.
 `preloadCapybaraAsset(load?)` aceita o método `gltf` do loader compartilhado de
 Forja, quando ele chegar. No modo isolado, usa GLTFLoader + MeshoptDecoder.
-Falha de download conserva o personagem procedural.
+O preload não tem timeout de sucesso. Erro de download ou estrutura inválida
+rejeita a promise; a construção opt-in exige asset pronto, sem fallback ou
+substituição tardia. O URL respeita `import.meta.env.BASE_URL`. Cinco testes em
+`tests/capybara-loading.test.ts` cobrem atraso de 16 s, erro, GLB inválido,
+implantação em subdiretório e ausência de download com a flag desligada.
+
+Dependência de integração: o novo gate de `main.ts` de Forja deve entrar junto.
+Ele bloqueia update/reveal e trata a rejeição voltando ao início com mensagem de
+recarga. O `main.ts` anterior deste checkout não possui esse tratamento; não
+publicar o hook isoladamente. Forja confirmou esse contrato em 24/09/2026.
 
 O skeleton procedural permanece apenas como socket compatível da arma; sua
-malha é substituída por um container vazio depois da carga. A pose do GLB é
+malha vira um container vazio na construção, já após a carga. A pose do GLB é
 independente. Descarte do avatar libera mixer e skeletons privados. Geometrias e
 atlas compartilhados são descartados junto com o renderer.
 
@@ -88,6 +97,18 @@ Plano para M1, seguindo a direção A oficialmente travada:
    inferior direito e simplificar metal/madeira para cores pintadas sem arranhão
    fotográfico. Patas animais marrons com almofadas escuras foram aprovadas.
 
-Limites intencionais de M0: uma paleta de pelo; sem variantes de colete/capacete;
+Limitações abertas, sem dispensa do quality bar: uma paleta de pelo; sem variantes de colete/capacete;
 clips adicionais e primeira pessoa final ficam para M1. Não houve mudança nas
 regras da simulação ou nas hitboxes menores que favorecem o jogador contra bots.
+
+## Quality bar publicado após a prova técnica
+
+A auditoria registrou TATU-01 a TATU-11 abertos em
+`/Users/lucas_gaspe/dev/capivara-team/reviews/defects.md`; TATU-12 e TATU-13 foram
+corrigidos e verificados. A aprovação da prova técnica não equivale ao gate de
+qualidade de produção. O orquestrador atribuiu TATU-01..11 explicitamente ao M1
+em `roadmap.md`, como trabalho de personagem e primeira pessoa; não foram
+dispensados. Os dois defeitos novos de loader ficam no M0 e foram corrigidos,
+com testes de intenção. Review independente do diff solicitado à Sentinela.
+A nova matriz 720p/1080p, exterior/interior e os sweeps de estabilidade/perf de
+produção ainda não estão cobertos pela evidência de M0.

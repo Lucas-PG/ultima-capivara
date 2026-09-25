@@ -26,6 +26,9 @@ Integration hooks authorized by Forja: `preloadCapybaraAsset` in renderer warmup
 `updateCapybaraBody` inside AvatarView.poseAvatar in `src/render/avatars.ts`.
 The renderer split was merged locally from `v2-renan` and the pose hook migrated. `preloadCapybaraAsset` accepts the shared loader's
 `gltf` function so the final asset manifest/progress system can own downloads.
+Warmup must await the preload without a success timeout. Errors propagate and
+opt-in avatar construction requires a ready asset; no asynchronous body swap.
+Land together with Forja's main readiness/error gate. URLs use Vite BASE_URL.
 
 API references used: [Blender GLB export](https://docs.blender.org/api/main/bpy.ops.export_scene.html),
 [glTF Transform meshopt](https://github.com/donmccurdy/glTF-Transform/blob/main/packages/functions/src/meshopt.ts).

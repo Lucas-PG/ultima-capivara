@@ -168,6 +168,8 @@ function capybaraGeometry(color: string): THREE.BufferGeometry {
 }
 
 export function buildCapybaraBody(color: string): { body: THREE.SkinnedMesh; bones: THREE.Bone[]; dispose: () => void } {
+  // An opted-in avatar must be final when it enters the scene, never replaced later.
+  if (capybaraV3Enabled() && !characterAsset) throw new Error('A capivara v3 ainda não está pronta.');
   const geometry = capybaraGeometry(color);
   const { torso, head, arms, thighL, thighR, shinL, shinR, armor, helmet } = CAPY_BONES;
   const body = new THREE.SkinnedMesh(geometry, capybaraMaterial());
@@ -195,21 +197,13 @@ export function buildCapybaraBody(color: string): { body: THREE.SkinnedMesh; bon
   }
   for (const bone of bones) bone.userData.rest = bone.position.clone();
   body.add(root); body.bind(new THREE.Skeleton(bones));
-  if (capybaraV3Enabled()) {
-    if (characterAsset) installCharacter(body, bones);
-    else {
-      let disposed = false;
-      const dispose = body.skeleton.dispose.bind(body.skeleton);
-      body.skeleton.dispose = () => { disposed = true; dispose(); };
-      void preloadCapybaraAsset().then(() => { if (!disposed) installCharacter(body, bones); });
-    }
-  }
+  if (capybaraV3Enabled()) installCharacter(body, bones);
   // The geometry is shared: it is released with the renderer, not per avatar.
   return { body, bones, dispose: () => {} };
 }
 
 // M0 opt-in asset path. Geometry, atlas, and clips are shared; poses are private.
-export const CAPYBARA_ASSET_URL = '/models/capybara/capybara.glb';
+export const CAPYBARA_ASSET_URL = `${import.meta.env.BASE_URL}models/capybara/capybara.glb`;
 export const capybaraV3Enabled = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('capy') === 'v3';
 let characterAsset: GLTF | null = null;
 let characterLoading: Promise<void> | null = null;
@@ -225,7 +219,15 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
   if (!characterLoading) {
     characterLoading = (async () => {
       const asset = await (load ? load(CAPYBARA_ASSET_URL) : new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(CAPYBARA_ASSET_URL));
-      characterAsset = asset;
+      for (const name of ['root', 'head', 'arm_L', 'arm_R']) {
+        if (!(asset.scene.getObjectByName(name) instanceof THREE.Bone)) throw new Error(`Capivara v3 inválida: osso ${name}.`);
+      }
+      for (const name of ['idle', 'run', 'jump']) {
+        if (!asset.animations.some(clip => clip.name === name)) throw new Error(`Capivara v3 inválida: animação ${name}.`);
+      }
+      for (let i = 0; i < 3; i++) {
+        if (!(asset.scene.getObjectByName(`Capybara_LOD${i}`) instanceof THREE.SkinnedMesh)) throw new Error(`Capivara v3 inválida: LOD ${i}.`);
+      }
       asset.scene.traverse(object => {
         if (!(object instanceof THREE.SkinnedMesh)) return;
         object.castShadow = true; object.receiveShadow = true;
@@ -233,10 +235,8 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
         // Renderer disposal invalidates the cache so a subsequent match reloads.
         object.geometry.addEventListener('dispose', () => { characterAsset = null; characterLoading = null; });
       });
-    })().catch(error => {
-      characterLoading = null;
-      console.warn('Capivara v3 indisponível; mantendo modelo procedural.', error);
-    });
+      characterAsset = asset;
+    })();
   }
   return characterLoading;
 }

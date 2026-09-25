@@ -196,11 +196,11 @@ export class GameRenderer {
 
   // Menu-time preload: waits for the world's textures (and sky) to arrive, then compiles every
   // shader of the world and first-person scenes so the first match frame doesn't stall.
-  // Never rejects; gives up waiting after 15 s so a slow network can't block the game.
+  // Opt-in characters must finish loading; rejection keeps the match behind its loading gate.
   warmup(): Promise<void> {
     this.warming ||= (async () => {
       const started = performance.now();
-      await Promise.race([preloadCapybaraAsset(), new Promise(resolve => setTimeout(resolve, 15000))]);
+      await preloadCapybaraAsset();
       const textures = () => { const list: THREE.Texture[] = []; this.scene.traverse(object => { const mats = (object as THREE.Mesh).material; for (const mat of Array.isArray(mats) ? mats : mats ? [mats] : []) for (const value of Object.values(mat)) if (value instanceof THREE.Texture) list.push(value); }); return list; };
       const loaded = (texture: THREE.Texture) => { const image = texture.image as { complete?: boolean; data?: unknown; width?: number } | null; return !!image && image.complete !== false && (image.data !== undefined || (image.width ?? 0) > 0); };
       while (performance.now() - started < 15000 && !(this.worldView.skyTexture.image && textures().every(loaded))) await new Promise(resolve => setTimeout(resolve, 120));
