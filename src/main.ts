@@ -315,6 +315,20 @@ if (typeof requestIdleCallback === 'function') requestIdleCallback(preload, { ti
 const invitation = new URLSearchParams(location.search).get('sala');
 if (invitation && /^[A-Z0-9]{6}$/i.test(invitation)) ui.roomModal('join', invitation.toUpperCase());
 
+// A separate QA build can render deterministic scenes without starting a networked match.
+if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has('qa')) {
+  void import('../tests/visual/qa-hook').then(({ installQa }) => installQa({
+    world, ui, input, settings,
+    begin: async () => {
+      if (!beginMatch('practice', 'qa-seed-2026')) throw new Error('Renderer unavailable');
+      playing = false;
+      await rendererReady;
+      loading = false; ui.setLoading(false); ui.setPaused(false);
+      return renderer!;
+    },
+  }));
+}
+
 // Read-only diagnostics for local QA. Never exposed in the production build.
 if (import.meta.env.DEV) {
   // Perf probe: frame intervals from an independent rAF loop plus long tasks.
