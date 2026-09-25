@@ -3,6 +3,9 @@ import { clamp, emptyInput } from './shared/math';
 import { RECOIL } from './shared/weapons';
 import type { WeaponId } from './shared/types';
 
+const SLOTS = ['slot1', 'slot2', 'slot3', 'slot4'] as const;
+const CONSUMABLE_ACTIONS = [['useBandage', 'bandage'], ['useMedkit', 'medkit'], ['useGuarana', 'guarana'], ['useAcai', 'acai'], ['useRapadura', 'rapadura']] as const;
+
 export class InputController {
   readonly frame: InputFrame = emptyInput();
   locked = false;
@@ -15,6 +18,8 @@ export class InputController {
   private abort = new AbortController();
   onAction: (action: PlayerAction) => void = () => {};
   onInteract: () => void = () => {};
+  // Local-only weapon inspect (Tatu's first-person animation); cancelled by any combat action there.
+  onInspect: () => void = () => {};
   onPause: () => void = () => {};
   onCycle: (direction: 1 | -1) => void = () => {};
   private wheelAt = 0;
@@ -40,25 +45,9 @@ export class InputController {
     }, { signal });
     document.addEventListener('keydown', event => this.key(event, true), { signal });
     document.addEventListener('keyup', event => this.key(event, false), { signal });
-    document.addEventListener('mousedown', event => {
-      if (!this.locked) return;
-      if (event.button === 0) {
-        if (!this.frame.fire) {
-          this.frame.firePressId = ++this.actionId;
-          this.onAction({
-            type: 'trigger', id: this.actionId, yaw: this.frame.yaw, pitch: this.frame.pitch,
-            lean: Number(this.keys.has(this.settings.bindings.leanRight)) - Number(this.keys.has(this.settings.bindings.leanLeft)),
-            ads: this.settings.adsToggle ? this.adsToggled : this.adsHeld, clientTime: this.frame.clientTime,
-          });
-        }
-        this.frame.fire = true;
-      }
-      if (event.button === 2) { this.adsHeld = true; this.adsToggled = !this.adsToggled; }
-    }, { signal });
-    document.addEventListener('mouseup', event => {
-      if (event.button === 0) { this.frame.fire = false; delete this.frame.firePressId; }
-      if (event.button === 2) this.adsHeld = false;
-    }, { signal });
+    // Mouse buttons are bindable like keys: 'Mouse' + event.button (0 left, 1 middle, 2 right, 3/4 side).
+    document.addEventListener('mousedown', event => this.mouse(event, true), { signal });
+    document.addEventListener('mouseup', event => this.mouse(event, false), { signal });
     canvas.addEventListener('contextmenu', event => event.preventDefault(), { signal });
     // Mouse wheel cycles weapons (down = next), one step per notch at most every 90 ms.
     document.addEventListener('wheel', event => {
@@ -73,18 +62,43 @@ export class InputController {
   }
   private key(event: KeyboardEvent, down: boolean) {
     if (!this.locked) return;
+    // Escape is reserved for the menu and cannot be rebound.
     if (event.code === 'Escape' && down) { event.preventDefault(); this.unlock(); return; }
-    if (['Space', 'Tab', ...Object.values(this.settings.bindings)].includes(event.code)) event.preventDefault();
-    if (down) this.keys.add(event.code); else this.keys.delete(event.code);
-    if (event.code === 'Tab') this.scoreboard = down;
-    if (!down || event.repeat) return;
+    if (event.code === 'Space' || Object.values(this.settings.bindings).includes(event.code)) event.preventDefault();
+    this.press(event.code, down, event.repeat);
+  }
+  private mouse(event: MouseEvent, down: boolean) {
+    if (!this.locked) return;
+    const code = `Mouse${event.button}`;
+    // Side buttons (3, 4) would navigate the page back or forward mid-match even when unbound.
+    if (event.button >= 3 || Object.values(this.settings.bindings).includes(code)) event.preventDefault();
+    this.press(code, down, false);
+  }
+  // Every action goes through its binding, whether the code is a key or a mouse button.
+  private press(code: string, down: boolean, repeat: boolean) {
     const binding = this.settings.bindings;
-    if (event.code === binding.reload) this.onAction({ type: 'reload', id: ++this.actionId });
-    if (event.code === binding.interact) this.onInteract();
-    if (event.code === binding.jump) { this.jumpPressedAt = performance.now(); this.onAction({ type: 'jump', id: ++this.actionId }); }
-    if (/^Digit[1-4]$/.test(event.code)) this.onAction({ type: 'slot', id: ++this.actionId, slot: Number(event.code.slice(-1)) - 1 });
-    const consumables = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'] as const;
-    if (/^Digit[5-9]$/.test(event.code)) this.onAction({ type: 'consume', id: ++this.actionId, item: consumables[Number(event.code.slice(-1)) - 5] });
+    if (down) this.keys.add(code); else this.keys.delete(code);
+    if (code === binding.scoreboard) this.scoreboard = down;
+    if (code === binding.fire) {
+      if (down && !this.frame.fire) {
+        this.frame.firePressId = ++this.actionId;
+        this.onAction({
+          type: 'trigger', id: this.actionId, yaw: this.frame.yaw, pitch: this.frame.pitch,
+          lean: Number(this.keys.has(binding.leanRight)) - Number(this.keys.has(binding.leanLeft)),
+          ads: this.settings.adsToggle ? this.adsToggled : this.adsHeld, clientTime: this.frame.clientTime,
+        });
+      }
+      this.frame.fire = down;
+      if (!down) delete this.frame.firePressId;
+    }
+    if (code === binding.ads) { if (down && !repeat) this.adsToggled = !this.adsToggled; this.adsHeld = down; }
+    if (!down || repeat) return;
+    if (code === binding.reload) this.onAction({ type: 'reload', id: ++this.actionId });
+    if (code === binding.interact) this.onInteract();
+    if (code === binding.inspect) this.onInspect();
+    if (code === binding.jump) { this.jumpPressedAt = performance.now(); this.onAction({ type: 'jump', id: ++this.actionId }); }
+    SLOTS.forEach((action, slot) => { if (code === binding[action]) this.onAction({ type: 'slot', id: ++this.actionId, slot }); });
+    for (const [action, item] of CONSUMABLE_ACTIONS) if (code === binding[action]) this.onAction({ type: 'consume', id: ++this.actionId, item });
   }
   sample(time: number): InputFrame {
     const held = (key: string) => this.locked && this.keys.has(this.settings.bindings[key]);
