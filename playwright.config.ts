@@ -23,7 +23,7 @@ export default defineConfig({
     },
     {
       command: 'npx vite --host 127.0.0.1 --port 5174 --strictPort',
-      env: { VITE_PEER_HOST: '127.0.0.1', VITE_PEER_PORT: '9001', VITE_PEER_SECURE: 'false', VITE_PEER_PATH: '/peerjs' },
+      env: { VITE_QA: '1', VITE_PEER_HOST: '127.0.0.1', VITE_PEER_PORT: '9001', VITE_PEER_SECURE: 'false', VITE_PEER_PATH: '/peerjs' },
       url: 'http://127.0.0.1:5174/testfixtures/net.html',
       reuseExistingServer: false,
       timeout: 30_000,

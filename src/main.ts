@@ -401,6 +401,11 @@ if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has(
   }));
 }
 
+// Real networking QA drives InputController without a browser pointer-lock dependency.
+if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has('networkQa')) {
+  void import('../tests/network-game-hook').then(({ installNetworkInput }) => installNetworkInput(input));
+}
+
 // Read-only diagnostics for local QA. Never exposed in the production build.
 if (import.meta.env.DEV) {
   // Perf probe: frame intervals from an independent rAF loop plus long tasks.

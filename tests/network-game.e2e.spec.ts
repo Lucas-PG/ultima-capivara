@@ -8,12 +8,16 @@ const player = (page: Page, id?: string) => page.evaluate(id => {
   return state.snapshot?.actors.find((actor: any) => actor.id === (id || state.room?.myId));
 }, id);
 
-async function resume(page: Page) {
-  await page.bringToFront();
-  if (!await page.evaluate(() => !!document.pointerLockElement)) {
-    await page.locator('[data-do="resume"]').click();
-    await expect.poll(() => page.evaluate(() => !!document.pointerLockElement)).toBe(true);
-  }
+function gameAddress(code?: string) {
+  const url = new URL(gameUrl); url.searchParams.set('networkQa', '1');
+  if (code) url.searchParams.set('sala', code);
+  return url.href;
+}
+async function controls(page: Page, action: 'activate' | 'pause' | 'fire' | 'key', code = '', down = false) {
+  await page.evaluate(({ action, code, down }) => {
+    const input = (window as any).__networkQA;
+    if (action === 'key') input.key(code, down); else input[action]();
+  }, { action, code, down });
 }
 
 test('two game contexts join, replicate movement and shots, show RTT, and recover the same player', async ({ browser }, info) => {
@@ -28,7 +32,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     });
     const [host, guest] = await Promise.all(contexts.map(context => context.newPage()));
     for (const page of [host, guest]) page.on('pageerror', error => errors.push(error.message));
-    await host.goto(gameUrl);
+    await host.goto(gameAddress());
     await host.locator('[data-do="host"]').click();
     await host.locator('[name="nickname"]').fill('Ponte Host');
     await host.getByRole('button', { name: 'Correria', exact: true }).click();
@@ -36,7 +40,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await host.locator('#room-form [type="submit"]').click();
     await expect(host.locator('.invite-card strong')).toHaveText(/^[A-Z2-9]{6}$/);
     const code = await host.locator('.invite-card strong').innerText();
-    await guest.goto(`${gameUrl}?sala=${code}`);
+    await guest.goto(gameAddress(code));
     await guest.locator('[name="nickname"]').fill('Ponte Guest');
     await guest.locator('#room-form [type="submit"]').click();
     await expect(guest.locator('#connection-status')).toHaveText(/Conectado/);
@@ -49,33 +53,28 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
       await expect.poll(async () => (await inspect(page)).snapshot?.phase, { timeout: 60_000 }).toBe('playing');
       await expect(page.locator('#loadingOverlay:not(.out)')).toHaveCount(0, { timeout: 60_000 });
     }
-    // Chromium has one pointer lock across contexts. Release the host's start-click
-    // lock before activating the guest, as two independent browsers do naturally.
-    await host.bringToFront();
-    await host.keyboard.press('Escape');
-    await expect.poll(() => host.evaluate(() => !!document.pointerLockElement)).toBe(false);
-    await resume(guest);
+    await controls(guest, 'activate');
     const before = await player(guest);
-    await guest.keyboard.down('KeyW');
+    await controls(guest, 'key', 'KeyW', true);
     // A bounded movement window verifies real keyboard -> guest -> host Worker -> snapshot flow.
     await expect.poll(async () => {
       const actor = await player(host, guestId);
       return Math.hypot(actor.pos.x - before.pos.x, actor.pos.z - before.pos.z);
     }).toBeGreaterThan(.5);
-    await guest.keyboard.up('KeyW');
+    await controls(guest, 'key', 'KeyW', false);
     await expect.poll(async () => {
       const [authoritative, replicated] = await Promise.all([player(host, guestId), player(guest)]);
       return Math.hypot(authoritative.pos.x - replicated.pos.x, authoritative.pos.z - replicated.pos.z);
     }).toBeLessThan(.15);
     const ammo = (await player(guest)).weapons[0].ammo;
-    await guest.mouse.click(640, 360);
+    await controls(guest, 'fire');
     await expect.poll(async () => (await player(host, guestId)).weapons[0].ammo).toBe(ammo - 1);
     await expect.poll(async () => (await player(guest)).weapons[0].ammo).toBe(ammo - 1);
-    await guest.keyboard.down('Tab');
+    await controls(guest, 'key', 'Tab', true);
     await expect(guest.locator(`#scoreboard [data-player-ping="${guestId}"]`)).toHaveText(/^\d+ ms$/);
     const rtt = await guest.locator(`#scoreboard [data-player-ping="${guestId}"]`).innerText();
     await guest.screenshot({ path: info.outputPath('ponte-scoreboard-720.png') });
-    await guest.keyboard.up('Tab');
+    await controls(guest, 'key', 'Tab', false);
     const position = (await player(guest)).pos;
     const recoveryAt = Date.now();
     await guest.reload();
@@ -92,8 +91,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await info.attach('multiplayer-evidence', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
     console.log('Game multiplayer evidence:', JSON.stringify(evidence));
     expect(errors).toEqual([]);
-    await host.bringToFront();
-    await host.keyboard.press('Escape');
+    await controls(host, 'pause');
     await host.locator('[data-do="leave"]').click();
     await expect.poll(async () => (await inspect(guest)).room).toBeNull();
     await expect(guest.locator('#toast')).toContainText('O anfitrião fechou a sala.');
@@ -119,7 +117,7 @@ test('a silent room exposes the join timeout and its retry button recovers', asy
       w.session.acceptConnection = noop;
       return w.session.state.code;
     });
-    await guest.goto(`${gameUrl}?sala=${code}`);
+    await guest.goto(gameAddress(code));
     await guest.locator('[name="nickname"]').fill('Ponte Retry');
     await guest.locator('#room-form [type="submit"]').click();
     await expect(guest.locator('#room-form [type="submit"]')).toHaveText('Conectando à sala');
