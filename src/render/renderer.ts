@@ -18,7 +18,7 @@ import { WeaponView } from './weapons';
 import { AvatarView, avatar, BOT_COLOR } from './avatars';
 import { CameraRig, makePlane } from './camera';
 import { LootView } from './loot';
-import { EffectsView } from './effects';
+import { EffectsView, type EffectsFrame } from './effects';
 import { StormView } from './storm';
 import { DEATH_CAM_SECONDS } from '../shared/death-cam';
 import { actorEye } from '../shared/collision';
@@ -41,6 +41,7 @@ export class GameRenderer {
   private readonly cameraRig: CameraRig;
   private readonly loot: LootView;
   private readonly effects: EffectsView;
+  private readonly effectsFrame: EffectsFrame;
   private readonly pipeline: RenderPipeline;
   private readonly plane = makePlane();
   private readonly storm: StormView;
@@ -122,6 +123,8 @@ export class GameRenderer {
     this.storm = new StormView(this.scene);
     this.loot = new LootView(this.scene, world);
     this.effects = new EffectsView(this.scene, world, this.weaponView.scene, this.assets);
+    this.effectsFrame = { camera: this.camera, fpCamera: this.weaponView.camera, avatars: this.avatars,
+      firstPerson: false, viewportHeight: 1, reducedMotion: settings.reducedMotion };
     this.pipeline = new RenderPipeline(this.gl, PRESETS[settings.graphics].samples);
     this.applyPreset(settings);
     this.resize();
@@ -190,7 +193,10 @@ export class GameRenderer {
     const held = viewed?.weapons[viewed.slot]?.id;
     const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
     const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35);
-    this.effects.update(dt, { camera: this.camera, fpCamera: this.weaponView.camera, avatars: this.avatars, firstPerson, viewportHeight: this.lastSize.height, reducedMotion: this.settings.reducedMotion });
+    this.effectsFrame.firstPerson = firstPerson;
+    this.effectsFrame.viewportHeight = this.lastSize.height;
+    this.effectsFrame.reducedMotion = this.settings.reducedMotion;
+    this.effects.update(dt, this.effectsFrame);
     if (snapshot) {
       const zone = snapshot.zone;
       this.worldView.arenaBoundary.visible = snapshot.config.mode === 'deathmatch';
