@@ -478,8 +478,9 @@ export class GameUI {
   // Damage numbers and callouts float up next to the crosshair (the HUD has no camera to project world points).
   private floater(text: string, cls: string) {
     const layer = this.el('nums'), el = document.createElement('div'); el.className = cls; el.textContent = text;
-    el.style.left = `calc(50% + ${Math.round(28 + Math.random() * 30) * (Math.random() < .5 ? -1 : 1)}px)`;
-    el.style.top = `calc(50% - ${cls.startsWith('pop') ? 70 : 34}px)`; el.style.rotate = `${(Math.random() * 16 - 8).toFixed(1)}deg`;
+    el.style.left = cls.startsWith('pop') ? '50%' : `calc(50% + ${Math.round(28 + Math.random() * 30) * (Math.random() < .5 ? -1 : 1)}px)`;
+    // Callouts stack by kind so a headshot and a kill in the same moment never overlap.
+    el.style.top = `calc(50% - ${cls === 'pop kill' ? 150 : cls.startsWith('pop') ? 84 : 34}px)`; el.style.rotate = `${(Math.random() * 16 - 8).toFixed(1)}deg`;
     layer.appendChild(el); window.setTimeout(() => el.remove(), 900);
     while (layer.children.length > 14) layer.firstElementChild!.remove();
   }
