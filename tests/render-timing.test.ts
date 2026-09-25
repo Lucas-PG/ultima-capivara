@@ -23,6 +23,14 @@ describe('local stall evidence', () => {
     ]);
     probe.reset(); expect(probe.snapshot().spans).toEqual([]); expect(probe.snapshot().droppedSpans).toBe(0);
   });
+  it('keeps ordinary animation gaps in the ring without producing browser tracing work', () => {
+    const mark = vi.spyOn(performance, 'mark'), measure = vi.spyOn(performance, 'measure');
+    const probe = new TimingRecorder(true, 4);
+    probe.record('raf-gap', performance.now(), 16.7);
+    expect(probe.snapshot().spans).toHaveLength(1);
+    expect(mark).not.toHaveBeenCalled(); expect(measure).not.toHaveBeenCalled();
+    mark.mockRestore(); measure.mockRestore();
+  });
   it('does not leave user timing entries accumulating in the browser buffer', () => {
     const probe = new TimingRecorder(true, 4);
     probe.record('texture-upload', performance.now(), 0, 'texImage2D', true);
