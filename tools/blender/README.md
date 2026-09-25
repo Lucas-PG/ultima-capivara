@@ -3,14 +3,15 @@
 Run `npm ci && npm run assets:characters` with Blender 5.0.1 installed. Set
 `BLENDER_BIN` to override `/Applications/Blender.app/Contents/MacOS/Blender`.
 The deterministic script builds quad ring surfaces, subdivides once, decimates
-three LODs, smooth skins them to one 26-joint armature, exports GLB and compresses
+three LODs, smooth skins them to one 35-joint armature, exports GLB and compresses
 geometry plus animations with glTF Transform / Meshopt. A 16 x 16 PNG palette and eye-emission mask are
 embedded; there are no remote assets, photo textures, or normal maps.
 
 - Output: `public/models/capybara/capybara.glb` and `metrics.json`.
 - Intermediate files and full Blender log: `output/characters/` (ignored).
 - Axes: metres, feet at zero, forward -Z in game; +Y in Blender.
-- Runtime gate: `?capy=v3`. Without the gate, no character GLB is requested.
+- Runtime: the GLB is required on every URL, including a normal launch.
+  The procedural character and fallback poses have been removed.
 - LOD switch distances: 12 m and 28 m, with 10% hysteresis.
 - Clips: `idle` (breath, ear twitch, blink), `run`, `jump` (in place),
   plus six additive facial poses: neutral, determined, hit, stunned, victory, blink.
@@ -32,7 +33,7 @@ Integration hooks authorized by Forja: `preloadCapybaraAsset` in renderer warmup
 The renderer split was merged locally from `v2-renan` and the pose hook migrated. `preloadCapybaraAsset` accepts the shared loader's
 `gltf` function so the final asset manifest/progress system can own downloads.
 Warmup must await the preload without a success timeout. Errors propagate and
-opt-in avatar construction requires a ready asset; no asynchronous body swap.
+avatar construction requires a ready asset; no asynchronous body swap.
 Land together with Forja's main readiness/error gate. URLs use Vite BASE_URL.
 `disposeCapybaraAssets()` releases all character caches once at renderer disposal,
 after per-avatar skeletons. It also cancels late preload completion.
