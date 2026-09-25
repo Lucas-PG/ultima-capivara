@@ -222,6 +222,8 @@ export class GameRenderer {
     return false;
   }
 
+  inspectWeapon(): void { this.weaponView.inspect(); }
+
   event(event: GameEvent): void {
     this.effects.event(event, this.avatars, this.weaponView, this.lastFrame?.playerId);
   }
