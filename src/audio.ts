@@ -2,7 +2,7 @@ import { clamp } from './shared/math';
 import { terrainHeight } from './shared/terrain';
 import { hasLineOfSight } from './shared/collision';
 import { WEAPONS } from './shared/weapons';
-import type { ActorState, GameEvent, Settings, Vec3, WeaponId, WorldSnapshot, WorldSpec } from './shared/types';
+import type { ActorState, ConsumableId, GameEvent, Settings, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from './shared/types';
 
 type AudioBuses = { master: GainNode; effects: GainNode; ambience: GainNode; music: GainNode };
 type ShotVoice = { crack: number; body: number; tail: number; bass: number; metal: number; length: number };
@@ -25,6 +25,11 @@ const VOICES: Record<WeaponId, ShotVoice> = {
   machete: { crack: 0, body: 0, tail: 0, bass: 0, metal: 0, length: .23 },
   slingshot: { crack: 0, body: 0, tail: 0, bass: 0, metal: 0, length: .3 },
 };
+
+// Low-health heartbeat threshold (matches the HUD's low-health state) and the storm rumble level.
+export const LOW_HP = 30;
+export const STORM_LEVEL = .07;
+const RARITY_CHIME: readonly (readonly number[])[] = [[], [659.25, 880], [659.25, 830.61, 1046.5], [659.25, 830.61, 987.77, 1318.5]];
 
 /** Local sound samples have a synthesized fallback. No AudioContext or hardware is opened before unlock(). */
 export class SoundEngine {
@@ -59,6 +64,12 @@ export class SoundEngine {
   private nextWildlife = 0;
   private nextMusic = 0;
   private musicDucker: GainNode | null = null;
+  // Other players' gunfire runs through here so local confirms can sit on top of it.
+  private remoteFire: GainNode | null = null;
+  private stormGain: GainNode | null = null;
+  private nextCrackle = 0;
+  private stormLfo: { lfo: OscillatorNode; depth: GainNode } | null = null;
+  private nextHeart = 0;
   private duckUntil = 0;
   private voiceAt = new Map<string, number>();
   private voiceEnds: number[] = [];
@@ -97,6 +108,7 @@ export class SoundEngine {
     const musicDucker = context.createGain(); musicDucker.gain.value = 1;
     effects.connect(master); ambience.connect(master); music.connect(musicDucker); musicDucker.connect(master); master.connect(limiter); limiter.connect(context.destination);
     this.musicDucker = musicDucker;
+    const remoteFire = context.createGain(); remoteFire.connect(effects); this.remoteFire = remoteFire;
     this.buses = { master, effects, ambience, music };
     this.noiseBuffer = this.makeNoise(false);
     this.lowNoiseBuffer = this.makeNoise(true);
@@ -129,8 +141,11 @@ export class SoundEngine {
       this.shots = this.shots.filter(end => end > now);
       if (this.shots.length >= 24 || (!own && this.shots.length >= 18)) return;
       this.shots.push(now + VOICES[event.weapon].length + (own ? 0 : distance / 343));
-      const output = own ? this.buses.effects : this.spatial(event.origin, this.buses.effects, distance);
+      const output = own ? this.buses.effects : this.spatial(event.origin, this.remoteFire || this.buses.effects, distance);
       this.weapon(event.weapon, output, own ? 1 : .72, now + (own ? 0 : distance / 343));
+      if (event.surface && !event.hit) this.impactSound(event.surface, event.end, listener, own);
+    } else if (event.type === 'impact') {
+      this.impactSound(event.surface, event.pos, listener, event.actor === myId);
     } else if (event.type === 'reload') {
       if (event.actor === myId && ctx.currentTime < this.localReloadEnd + .25) return;
       const actor = this.lastSnapshot?.actors.find(a => a.id === event.actor);
@@ -150,20 +165,46 @@ export class SoundEngine {
           this.voiceChirp('hurt', hurt.id, hurt.pos, listener, myId);
         });
       }
-      if (event.target === myId) {
-        this.noise(this.buses.effects, ctx.currentTime, .18, 'lowpass', 260, .12, .004);
-        this.tone(this.buses.effects, ctx.currentTime, 95, 48, .18, .12, 'sine');
+      const now = ctx.currentTime;
+      if (event.target === myId && !event.actor) this.stormBite(now);
+      else if (event.target === myId) {
+        // The thump leans toward the side the shot came from.
+        const from = this.lastSnapshot?.actors.find(a => a.id === event.actor);
+        const pan = from ? clamp(Math.sin(Math.atan2(-(from.pos.x - listener.x), -(from.pos.z - listener.z)) - yaw) * -.75, -.75, .75) : 0;
+        const side = this.panned(pan);
+        this.noise(side, now, .18, 'lowpass', 260, .12, .004);
+        this.tone(side, now, 95, 48, .18, .12, 'sine');
       } else if (event.actor === myId) {
-        this.metalClick(this.buses.effects, ctx.currentTime, event.head ? 2550 : 1750, event.head ? .17 : .09);
+        this.duckRemoteFire(now);
+        if (event.head) {
+          // Headshot: a bright two-note "ding" that never reads as a body hit.
+          this.metalClick(this.buses.effects, now, 2550, .12);
+          this.tone(this.buses.effects, now, 1568, 1568, .2, .075, 'triangle');
+          this.tone(this.buses.effects, now + .045, 2349, 2349, .24, .05, 'sine');
+        } else this.metalClick(this.buses.effects, now, 1750, .09);
       }
+      if (event.armorBreak) this.armorBreakSound(event.pos, listener, event.target === myId || event.actor === myId, now);
     } else if (event.type === 'kill') {
       this.pendingHurt.delete(event.target);
       const eliminated = this.lastSnapshot?.actors.find(a => a.id === event.target);
       if (eliminated) this.voiceChirp('elimination', eliminated.id, eliminated.pos, listener, myId);
-      if (event.actor === myId) this.tone(this.buses.effects, ctx.currentTime, 470, 720, .16, .07, 'triangle');
+      if (event.actor === myId) { this.duckRemoteFire(ctx.currentTime); this.tone(this.buses.effects, ctx.currentTime, 470, 720, .16, .07, 'triangle'); }
+      if (eliminated && event.target !== myId) this.poof(eliminated.pos, listener, ctx.currentTime);
     } else if (event.type === 'pickup' && event.actor === myId) {
-      this.metalClick(this.buses.effects, ctx.currentTime, 1200, .09);
-      this.tone(this.buses.effects, ctx.currentTime, 520, 720, .12, .045, 'sine');
+      const now = ctx.currentTime, loot = this.lastSnapshot?.loot.find(l => l.id === event.item);
+      const chest = !loot && !!this.world?.chests.some(c => c.id === event.item);
+      this.metalClick(this.buses.effects, now, 1200, .09);
+      this.tone(this.buses.effects, now, 520, 720, .12, .045, 'sine');
+      if (chest) {
+        this.noise(this.buses.effects, now, .22, 'bandpass', 420, .07, .03, true);
+        this.chime(now + .08, [659.25, 830.61, 987.77, 1318.5], .04);
+      } else if (loot?.kind === 'weapon' && loot.rarity > 0) this.chime(now + .05, RARITY_CHIME[loot.rarity], .03 + loot.rarity * .006);
+    } else if (event.type === 'use') {
+      this.useSound(event.item, event.actor === myId, this.lastSnapshot?.actors.find(a => a.id === event.actor)?.pos || listener, listener, ctx.currentTime);
+    } else if (event.type === 'alert' && event.target === myId) {
+      // The bot's pre-attack "hm!" comes from where it stands.
+      const bot = this.lastSnapshot?.actors.find(a => a.id === event.actor);
+      if (bot) this.voiceChirp('spot', bot.id, bot.pos, listener, myId);
     } else if (event.type === 'respawn' && event.actor === myId) {
       this.tone(this.buses.effects, ctx.currentTime, 240, 410, .42, .065, 'triangle');
     }
@@ -178,6 +219,16 @@ export class SoundEngine {
     if (menu && this.settings.music > 0 && now >= this.nextMusic) this.menuPhrase(now);
     if (!menu && actor?.alive && snapshot?.phase === 'playing' && this.settings.music > 0 && now >= this.nextMusic) this.matchPhrase(now);
     this.musicDucker?.gain.setTargetAtTime(now < this.duckUntil ? .5 : 1, now, now < this.duckUntil ? .025 : .45);
+    this.updateStorm(actor, snapshot, menu, now);
+    if (!menu && actor?.alive && actor.stage === 'ground' && actor.hp > 0 && actor.hp < LOW_HP && snapshot?.phase === 'playing') {
+      if (now >= this.nextHeart) {
+        // Lub-dub, quicker as health drops: 0.95 s at 30 hp down to 0.6 s near zero.
+        const interval = .6 + .35 * actor.hp / LOW_HP;
+        this.tone(this.buses.effects, now, 66, 46, .14, .11, 'sine');
+        this.tone(this.buses.effects, now + .17, 60, 42, .12, .075, 'sine');
+        this.nextHeart = now + interval;
+      }
+    } else this.nextHeart = Math.max(this.nextHeart, now);
     if (!actor || !snapshot || !Number.isFinite(dt) || dt <= 0) {
       this.lastPosition = null; this.lastActorId = null; this.lastStage = null; this.distanceToStep = 0;
       this.cancelReload();
@@ -231,6 +282,7 @@ export class SoundEngine {
     this.disposed = true;
     this.cancelReload();
     for (const source of this.ambientSources) { try { source.stop(); } catch { /* already stopped */ } source.disconnect(); }
+    if (this.stormLfo) { try { this.stormLfo.lfo.stop(); } catch { /* already stopped */ } this.stormLfo.lfo.disconnect(); this.stormLfo = null; }
     this.ambientSources = [];
     for (const node of this.ambientNodes) node.disconnect();
     this.ambientNodes = [];
@@ -238,7 +290,7 @@ export class SoundEngine {
     this.spatialNodes.clear();
     void this.context?.close();
     this.context = null; this.buses = null; this.noiseBuffer = null; this.lowNoiseBuffer = null;
-    this.musicDucker = null; this.voiceAt.clear(); this.voiceEnds = []; this.pendingHurt.clear(); this.spottedActor = null;
+    this.musicDucker = null; this.remoteFire = null; this.stormGain = null; this.voiceAt.clear(); this.voiceEnds = []; this.pendingHurt.clear(); this.spottedActor = null;
     this.samples = {};
   }
 
@@ -397,6 +449,18 @@ export class SoundEngine {
       source.start(0, Math.random() * 1.5);
       this.ambientSources.push(source); this.ambientNodes.push(filter, panner, gain); this.fountainGain = gain;
     }
+    // Storm: a low rumble with a slow swell, silent until the listener is outside the zone.
+    {
+      const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain(), lfo = ctx.createOscillator(), depth = ctx.createGain();
+      source.buffer = this.lowNoiseBuffer; source.loop = true;
+      filter.type = 'lowpass'; filter.frequency.value = 320; gain.gain.value = 0;
+      lfo.frequency.value = .35; depth.gain.value = 0;
+      lfo.connect(depth); depth.connect(gain.gain);
+      source.connect(filter); filter.connect(gain); gain.connect(buses.effects);
+      source.start(0, Math.random() * 1.5); lfo.start();
+      this.ambientSources.push(source); this.ambientNodes.push(filter, gain, depth);
+      this.stormLfo = { lfo, depth }; this.stormGain = gain;
+    }
     this.nextWildlife = ctx.currentTime + 4;
   }
 
@@ -553,6 +617,98 @@ export class SoundEngine {
     this.tone(output, now + 1.05, root, root * .997, .65, .006, 'triangle');
     this.nextMusic = now + 4.2;
   }
+  private panned(pan: number): AudioNode {
+    const ctx = this.context!, panner = ctx.createStereoPanner();
+    panner.pan.value = pan; panner.connect(this.buses!.effects);
+    window.setTimeout(() => panner.disconnect(), 600);
+    return panner;
+  }
+
+  // Local confirms (hit, headshot, elimination) dip other players' gunfire by
+  // about 6 dB for a quarter second so they are never masked by distant fire.
+  private duckRemoteFire(now: number) {
+    const gain = this.remoteFire?.gain;
+    if (!gain) return;
+    gain.cancelScheduledValues(now);
+    gain.setTargetAtTime(.5, now, .008);
+    gain.setTargetAtTime(1, now + .25, .12);
+  }
+
+  private chime(start: number, notes: readonly number[], volume: number) {
+    notes.forEach((pitch, i) => {
+      this.tone(this.buses!.effects, start + i * .055, pitch, pitch, .22, volume, 'triangle');
+      this.tone(this.buses!.effects, start + i * .055, pitch * 2, pitch * 2, .12, volume * .25, 'sine');
+    });
+  }
+
+  private impactSound(surface: Surface, pos: Vec3, listener: Vec3, own: boolean) {
+    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
+    if (distance > (own ? 60 : 22)) return;
+    const now = this.context!.currentTime + distance / 343, output = this.spatial(pos, this.buses!.effects, distance), k = own ? 1 : .6;
+    if (surface === 'metal') { this.metalClick(output, now, 2400, .09 * k); this.tone(output, now, 1900, 1650, .16, .03 * k, 'triangle'); }
+    else if (surface === 'wood') { this.noise(output, now, .07, 'bandpass', 700, .09 * k, .002); this.tone(output, now, 240, 160, .06, .03 * k, 'triangle'); }
+    else if (surface === 'stone') this.noise(output, now, .05, 'highpass', 1900, .08 * k, .001);
+    else if (surface === 'water') { this.noise(output, now, .2, 'bandpass', 1300, .07 * k, .01); this.noise(output, now + .05, .16, 'lowpass', 500, .04 * k, .02); }
+    else this.noise(output, now, .08, 'lowpass', surface === 'sand' ? 520 : 700, .07 * k, .003, true);
+  }
+
+  private armorBreakSound(pos: Vec3, listener: Vec3, local: boolean, now: number) {
+    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
+    if (!local && distance > 30) return;
+    const output = local ? this.buses!.effects : this.spatial(pos, this.buses!.effects, distance), k = local ? 1 : .6;
+    // Glassy shatter: a bright crack, then falling shards.
+    this.noise(output, now, .09, 'highpass', 3200, .13 * k, .001);
+    this.tone(output, now, 1320, 520, .24, .06 * k, 'triangle');
+    this.metalClick(output, now + .06, 2800, .06 * k); this.metalClick(output, now + .13, 2200, .045 * k);
+  }
+
+  private poof(pos: Vec3, listener: Vec3, now: number) {
+    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
+    if (distance > 45) return;
+    const output = this.spatial(pos, this.buses!.effects, distance);
+    // Cartoon "pof": a soft low puff and a short springy squeak.
+    this.noise(output, now + .02, .26, 'lowpass', 520, .12, .01, true);
+    this.tone(output, now + .03, 330, 700, .12, .035, 'sine');
+  }
+
+  private useSound(item: ConsumableId, local: boolean, pos: Vec3, listener: Vec3, now: number) {
+    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
+    if (!local && distance > 25) return;
+    const output = local ? this.buses!.effects : this.spatial(pos, this.buses!.effects, distance), k = local ? 1 : .55;
+    if (item === 'acai') {
+      // Armor up: a glassy shimmer rising.
+      [880, 1108.7, 1318.5].forEach((pitch, i) => this.tone(output, now + i * .06, pitch, pitch * 1.01, .28, .035 * k, 'triangle'));
+      this.noise(output, now, .3, 'highpass', 4200, .02 * k, .08);
+    } else if (item === 'guarana') {
+      // Fizz and a quick upward zip.
+      this.noise(output, now, .35, 'bandpass', 3000, .05 * k, .02);
+      this.tone(output, now + .05, 420, 980, .22, .045 * k, 'triangle');
+    } else {
+      // Heal: a warm rising arpeggio; the medkit gets one more note.
+      const notes = item === 'medkit' ? [392, 493.88, 587.33, 783.99] : [440, 554.37, 659.25];
+      notes.forEach((pitch, i) => this.tone(output, now + i * .07, pitch, pitch, .24, .04 * k, 'sine'));
+    }
+  }
+
+  private stormBite(now: number) {
+    // One bite per second: a low whump with an electric crackle, distinct from gunfire damage.
+    this.tone(this.buses!.effects, now, 80, 38, .3, .12, 'sine');
+    this.noise(this.buses!.effects, now, .22, 'lowpass', 300, .09, .01, true);
+    this.noise(this.buses!.effects, now + .03, .12, 'highpass', 2600, .045, .002);
+  }
+
+  private updateStorm(actor: ActorState | null, snapshot: WorldSnapshot | null, menu: boolean, now: number) {
+    const zone = snapshot?.zone;
+    const outside = !menu && !!actor?.alive && actor.stage !== 'plane' && snapshot?.config.mode === 'battle-royale' && snapshot.phase === 'playing' &&
+      !!zone && Math.hypot(actor.pos.x - zone.x, actor.pos.z - zone.z) > zone.radius;
+    this.stormGain?.gain.setTargetAtTime(outside ? STORM_LEVEL : 0, now, outside ? .35 : .6);
+    this.stormLfo?.depth.gain.setTargetAtTime(outside ? STORM_LEVEL * .45 : 0, now, .5);
+    if (outside && now >= this.nextCrackle && this.buses) {
+      this.nextCrackle = now + 1.2 + Math.random() * 2.2;
+      this.noise(this.buses.effects, now, .09, 'highpass', 3000 + Math.random() * 1500, .02, .002);
+    }
+  }
+
   private voiceChirp(kind: 'hurt' | 'spot' | 'elimination', id: string, pos: Vec3, listener: Vec3, myId: string) {
     const ctx = this.context!, now = ctx.currentTime;
     if (now - (this.voiceAt.get(id) ?? -Infinity) < 2) return;

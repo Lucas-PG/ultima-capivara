@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SoundEngine } from '../src/audio';
+import { LOW_HP, SoundEngine, STORM_LEVEL } from '../src/audio';
 import { DEFAULT_SETTINGS } from '../src/settings';
 
 describe('audio mix and capybara chirps', () => {
@@ -39,7 +39,7 @@ describe('audio mix and capybara chirps', () => {
     audio.context = { currentTime: 1, state: 'running' };
     audio.buses = { effects: {} };
     audio.placeListener = vi.fn();
-    audio.voiceChirp = vi.fn();
+    audio.voiceChirp = vi.fn(); audio.poof = vi.fn();
     const here = { x: 0, y: 0, z: 0 }, far = { x: 100, y: 0, z: 0 };
     audio.lastSnapshot = { actors: [
       { id: 'far', pos: far }, { id: 'near', pos: here }, { id: 'lethal', pos: here },
@@ -67,7 +67,7 @@ describe('audio mix and capybara chirps', () => {
     audio.updateAmbient = vi.fn(); audio.placeListener = vi.fn(); audio.updateRemoteSteps = vi.fn(); audio.updateReload = vi.fn();
     audio.tone = vi.fn(); audio.nextSpotCheck = 100;
     const actor = { id: 'a', alive: true, stage: 'ground', pos: { x: 0, y: 0, z: 0 }, yaw: 0, velocity: { x: 0, y: 0, z: 0 } };
-    audio.update(actor, { phase: 'playing', actors: [actor] }, 1 / 60, false);
+    audio.update(actor, { phase: 'playing', actors: [actor], config: { mode: 'deathmatch' } }, 1 / 60, false);
     expect(audio.tone).toHaveBeenCalledTimes(2);
     expect(audio.tone.mock.calls.map((call: unknown[]) => call[5])).toEqual([.009, .006]);
     audio.weapon = vi.fn();
@@ -78,5 +78,102 @@ describe('audio mix and capybara chirps', () => {
     audio.context.currentTime = 3.1;
     audio.update(null, null, 1 / 60, false);
     expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 3.1, .45);
+  });
+});
+
+// Feedback completeness: every event gets a cue, and local feedback stays on top of the mix.
+describe('combat feedback audio', () => {
+  function engine() {
+    const audio = new SoundEngine(DEFAULT_SETTINGS) as any;
+    audio.context = { currentTime: 1, state: 'running' };
+    audio.buses = { effects: { name: 'effects' }, music: {} };
+    audio.remoteFire = { name: 'remote', gain: { cancelScheduledValues: vi.fn(), setTargetAtTime: vi.fn() } };
+    audio.placeListener = vi.fn(); audio.spatial = vi.fn((_pos: unknown, out: unknown) => out);
+    audio.weapon = vi.fn(); audio.metalClick = vi.fn(); audio.tone = vi.fn(); audio.noise = vi.fn(); audio.voiceChirp = vi.fn();
+    audio.panned = vi.fn(() => ({ name: 'panned' }));
+    return audio;
+  }
+  const here = { x: 0, y: 0, z: 0 };
+
+  it('routes other players\' gunfire under a bus that local hit confirms duck by 6 dB for a quarter second', () => {
+    const audio = engine();
+    audio.event({ id: 1, type: 'shot', actor: 'enemy', weapon: 'm4', origin: { x: 50, y: 0, z: 0 }, end: here, hit: false }, here, 0, 'self');
+    expect(audio.weapon.mock.calls[0][1]).toBe(audio.remoteFire);
+    audio.event({ id: 2, type: 'shot', actor: 'self', weapon: 'm4', origin: here, end: here, hit: false }, here, 0, 'self');
+    expect(audio.weapon.mock.calls[1][1]).toBe(audio.buses.effects);
+    audio.event({ id: 3, type: 'damage', actor: 'self', target: 'enemy', amount: 26, head: false, pos: here }, here, 0, 'self');
+    expect(audio.remoteFire.gain.setTargetAtTime).toHaveBeenCalledWith(.5, 1, .008);
+    expect(audio.remoteFire.gain.setTargetAtTime).toHaveBeenCalledWith(1, 1.25, .12);
+  });
+
+  it('gives a headshot a distinct bell cue that a body hit never plays', () => {
+    const audio = engine();
+    audio.event({ id: 1, type: 'damage', actor: 'self', target: 'enemy', amount: 26, head: false, pos: here }, here, 0, 'self');
+    expect(audio.tone).not.toHaveBeenCalled();
+    audio.event({ id: 2, type: 'damage', actor: 'self', target: 'enemy', amount: 52, head: true, pos: here }, here, 0, 'self');
+    expect(audio.tone.mock.calls.map((call: unknown[]) => call[2])).toContain(1568);
+  });
+
+  it('plays incoming damage toward the attacker and a storm bite as its own cue', () => {
+    const audio = engine();
+    audio.stormBite = vi.fn();
+    audio.lastSnapshot = { actors: [{ id: 'east', pos: { x: 10, y: 0, z: 0 } }] };
+    // Facing -z (yaw 0), an attacker at +x is on the right.
+    audio.event({ id: 1, type: 'damage', actor: 'east', target: 'self', amount: 20, head: false, pos: here }, here, 0, 'self');
+    expect(audio.panned.mock.calls[0][0]).toBeGreaterThan(.5);
+    audio.event({ id: 2, type: 'damage', actor: '', target: 'self', amount: 4, head: false, pos: here }, here, 0, 'self');
+    expect(audio.stormBite).toHaveBeenCalledOnce();
+    expect(audio.panned).toHaveBeenCalledOnce();
+  });
+
+  it('beats the low-health heart only while alive under the threshold, faster as health drops', () => {
+    const audio = engine();
+    audio.updateAmbient = vi.fn(); audio.updateRemoteSteps = vi.fn(); audio.updateReload = vi.fn(); audio.updateStorm = vi.fn();
+    audio.nextMusic = 1e9; audio.nextSpotCheck = 1e9;
+    const actor = (hp: number, alive = true) => ({ id: 'self', alive, hp, stage: 'ground', pos: here, yaw: 0, velocity: here });
+    const beat = (hp: number, alive = true) => { audio.tone.mockClear(); audio.nextHeart = 0; audio.update(actor(hp, alive), { phase: 'playing', actors: [] }, 1 / 60, false); return audio.tone.mock.calls.length; };
+    expect(beat(LOW_HP + 20)).toBe(0);
+    expect(beat(0, false)).toBe(0);
+    expect(beat(LOW_HP - 5)).toBe(2);
+    const slow = audio.nextHeart - 1;
+    beat(4);
+    expect(audio.nextHeart - 1).toBeLessThan(slow);
+  });
+
+  it('rumbles the storm only while the listener is outside the safe zone', () => {
+    const audio = engine();
+    audio.stormGain = { gain: { setTargetAtTime: vi.fn() } };
+    const zone = { x: 0, z: 0, radius: 20 };
+    const snap = { phase: 'playing', config: { mode: 'battle-royale' }, zone };
+    audio.updateStorm({ alive: true, stage: 'ground', pos: { x: 5, y: 0, z: 0 } }, snap, false, 1);
+    expect(audio.stormGain.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 1, .6);
+    audio.updateStorm({ alive: true, stage: 'ground', pos: { x: 30, y: 0, z: 0 } }, snap, false, 1);
+    expect(audio.stormGain.gain.setTargetAtTime).toHaveBeenLastCalledWith(STORM_LEVEL, 1, .35);
+  });
+
+  it('voices a bot\'s pre-attack alert from the bot, and only to the player it targets', () => {
+    const audio = engine();
+    const bot = { id: 'bot-1', pos: { x: 12, y: 0, z: 0 } };
+    audio.lastSnapshot = { actors: [bot] };
+    audio.event({ id: 1, type: 'alert', actor: 'bot-1', target: 'someone-else', delay: .5 }, here, 0, 'self');
+    expect(audio.voiceChirp).not.toHaveBeenCalled();
+    audio.event({ id: 2, type: 'alert', actor: 'bot-1', target: 'self', delay: .5 }, here, 0, 'self');
+    expect(audio.voiceChirp).toHaveBeenCalledWith('spot', 'bot-1', bot.pos, here, 'self');
+  });
+
+  it('gives every consumable and pickup rarity an audible confirmation', () => {
+    const audio = engine();
+    for (const item of ['bandage', 'medkit', 'rapadura', 'guarana', 'acai'] as const) {
+      audio.tone.mockClear();
+      audio.event({ id: 1, type: 'use', actor: 'self', item }, here, 0, 'self');
+      expect(audio.tone).toHaveBeenCalled();
+    }
+    audio.lastSnapshot = { actors: [], loot: [{ id: 'l1', kind: 'weapon', rarity: 3 }, { id: 'l0', kind: 'weapon', rarity: 0 }] };
+    audio.tone.mockClear();
+    audio.event({ id: 2, type: 'pickup', actor: 'self', item: 'l0' }, here, 0, 'self');
+    const common = audio.tone.mock.calls.length;
+    audio.tone.mockClear();
+    audio.event({ id: 3, type: 'pickup', actor: 'self', item: 'l1' }, here, 0, 'self');
+    expect(audio.tone.mock.calls.length).toBeGreaterThan(common);
   });
 });

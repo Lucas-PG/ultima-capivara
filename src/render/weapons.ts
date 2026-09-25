@@ -456,7 +456,6 @@ function arms(group: THREE.Group, id: WeaponId): THREE.Group {
 }
 
 interface Model { group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; magazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Object3D; sightY: number; hipX: number; adsZ: number; painted?: PaintedWeaponModel; rarity?: number }
-interface Shell { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number }
 
 function disposeImported(root: THREE.Object3D) {
   const geometry = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
@@ -483,15 +482,11 @@ export class WeaponView {
   private readonly models = {} as Record<WeaponId, Model>;
   private readonly painted = paintedWeaponsEnabled() ? new PaintedWeaponSet() : null;
   private readonly warmupVariants = new THREE.Group();
-  private readonly flash: THREE.Sprite;
-  private readonly shells: Shell[] = [];
   private active: WeaponId = 'pistol';
   private ads = 0;
   private kick = 0;
   private draw = 0;
   private gait = 0;
-  private flashLife = 0;
-  private shellCursor = 0;
   private shotLife = 0;
   private reloadEnd = 0;
   private inspectTime = -1;
@@ -524,18 +519,6 @@ export class WeaponView {
       this.models[id] = { group, muzzle, eject, magazine: body.userData.magazine, action: body.userData.action, support,
         sightY: body.userData.sightY || 0, hipX: id === 'pistol' ? .23 : id === 'machete' ? .25 : id === 'slingshot' ? .23 : id === 'smg' ? .20 : .18,
         adsZ: id === 'pistol' ? -.36 : id === 'machete' ? -.32 : id === 'slingshot' ? -.33 : -.29 };
-    }
-    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
-    const context = canvas.getContext('2d')!;
-    const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gradient.addColorStop(0, 'rgba(255,255,230,1)'); gradient.addColorStop(.25, 'rgba(255,213,118,.94)'); gradient.addColorStop(.65, 'rgba(255,120,55,.45)'); gradient.addColorStop(1, 'rgba(255,120,55,0)');
-    context.fillStyle = gradient; context.fillRect(0, 0, 64, 64);
-    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-    this.flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, color: '#fff2cd', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    this.flash.scale.set(.24, .24, .24); this.flash.visible = false; this.scene.add(this.flash);
-    for (let i = 0; i < 12; i++) {
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .028, 10), palette.brass);
-      mesh.visible = false; this.scene.add(mesh); this.shells.push({ mesh, velocity: new THREE.Vector3(), life: 0 });
     }
     this.assets = (this.painted ? this.loadPainted() : Promise.all([
       pistolFallback ? this.loadPistol(pistolFallback) : Promise.resolve(),
@@ -673,20 +656,16 @@ export class WeaponView {
     this.cancelInspect(); this.inspectAllowed = false;
     this.kick = Math.min(.15, this.kick + (id === 'sniper' ? .12 : id === 'shotgun' ? .095 : id === 'machete' ? .07 : id === 'pistol' ? .055 : .034));
     this.shotLife = id === 'machete' ? .48 : id === 'shotgun' ? .42 : id === 'sniper' ? .58 : .2;
-    this.flashLife = id === 'machete' || id === 'slingshot' ? 0 : .065;
-    if (id === 'machete' || id === 'slingshot') return;
-    const shell = this.shells[this.shellCursor++ % this.shells.length];
-    this.scene.updateMatrixWorld(true);
-    this.models[id].eject.getWorldPosition(shell.mesh.position);
-    shell.mesh.material = id === 'shotgun' ? palette.shellRed : palette.brass;
-    shell.mesh.scale.setScalar(id === 'shotgun' ? 1.6 : 1);
-    shell.mesh.visible = true; shell.mesh.rotation.set(0, 0, Math.PI / 2);
-    shell.velocity.set(1.4 + Math.random() * .7, .9 + Math.random() * .7, .2 + Math.random() * .4); shell.life = .7;
   }
+
+  // Barrel tip and ejection port of the held weapon, in this scene's (camera) space.
+  // The effects module draws the muzzle flash and casings there.
+  muzzleWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].muzzle.getWorldPosition(target); }
+  ejectWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].eject.getWorldPosition(target); }
 
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number) {
     this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
-    if (!actor || !this.holder.visible) { this.cancelInspect(); this.inspectAllowed = false; this.flash.visible = false; return; }
+    if (!actor || !this.holder.visible) { this.cancelInspect(); this.inspectAllowed = false; return; }
     const weapon = actor.weapons[actor.slot]?.id || 'pistol';
     if (weapon !== this.active) {
       this.cancelInspect();
@@ -758,20 +737,6 @@ export class WeaponView {
     }
     model.group.rotation.x = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * .8 : 0;
     model.group.rotation.z = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * -.45 : 0;
-    this.flashLife -= dt;
-    this.flash.visible = this.flashLife > 0;
-    if (this.flash.visible) {
-      this.scene.updateMatrixWorld(true);
-      model.muzzle.getWorldPosition(this.flash.position);
-      const s = weapon === 'shotgun' || weapon === 'sniper' ? .42 : .28;
-      this.flash.scale.set(s, s, s);
-    }
-    for (const shell of this.shells) {
-      if (shell.life <= 0) continue;
-      shell.life -= dt; shell.mesh.visible = shell.life > 0;
-      shell.velocity.y -= dt * 7; shell.mesh.position.addScaledVector(shell.velocity, dt);
-      shell.mesh.rotation.x += dt * 17; shell.mesh.rotation.z += dt * 11;
-    }
   }
 
   resize(width: number, height: number) { this.camera.aspect = width / Math.max(1, height); this.camera.updateProjectionMatrix(); }
@@ -785,7 +750,7 @@ export class WeaponView {
     const materials = new Set<THREE.Material>();
     const textures = new Set<THREE.Texture>();
     this.scene.traverse(object => {
-      if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite)) return;
+      if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite) || object.userData.effects) return;
       if (object instanceof THREE.Mesh) geometries.add(object.geometry);
       const ownMaterials = Array.isArray(object.material) ? object.material : [object.material];
       for (const material of ownMaterials) if (!Object.values(palette).includes(material)) {
