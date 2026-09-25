@@ -17,6 +17,7 @@ import type { MapObject, Settings, WorldSpec } from '../shared/types';
 const c = (value: string | number) => new THREE.Color(value);
 const box = new THREE.BoxGeometry(1, 1, 1);
 const softBox = new RoundedBoxGeometry(1, 1, 1, 1, .055);
+const chamferBox = new RoundedBoxGeometry(1, 1, 1, 1, .18);
 const cylinder = new THREE.CylinderGeometry(.5, .5, 1, 12);
 const cone = new THREE.ConeGeometry(.5, 1, 12);
 const sphere = new THREE.IcosahedronGeometry(.5, 2);
@@ -313,7 +314,11 @@ export class WorldScene {
         float asphaltMask = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
         float curbMask = (1.0 - smoothstep(0.4 - edgeWidth, 0.4 + edgeWidth, distanceToRoad)) * (1.0 - asphaltMask);
         diffuseColor.rgb = mix(diffuseColor.rgb, terrainCurb, curbMask);
-        diffuseColor.rgb = mix(diffuseColor.rgb, terrainAsphalt, asphaltMask);
+        float broadWear = terrainFbm(vTerrainXZ / 18.0 + vec2(6.0, 19.0));
+        float fineWear = terrainNoise(vTerrainXZ / 3.8 + vec2(23.0, 7.0));
+        float paintPatch = smoothstep(-.08, .08, broadWear);
+        vec3 asphaltPaint = terrainAsphalt * clamp(.95 + paintPatch * .1 + fineWear * .01, .94, 1.06);
+        diffuseColor.rgb = mix(diffuseColor.rgb, asphaltPaint, asphaltMask);
       `).replace('#include <tonemapping_fragment>', `
         float coastRadius = max(abs(vTerrainXZ.x), abs(vTerrainXZ.y)) * 0.65 + length(vTerrainXZ) * 0.35;
         float coastalRock = smoothstep(110.0, 113.0, coastRadius);
@@ -542,7 +547,16 @@ export class WorldScene {
       } else if (kind === 'roof') {
         const roofSurface = surfaceOf(object, colliderMaterials);
         add(roofSurface, geometry, color, pos.x, pos.y, pos.z, scale.x, scale.y, scale.z, rotation);
-        add('timber', box, '#514945', pos.x, pos.y + .04, pos.z, scale.x * 1.01, .1, scale.z * 1.01);
+        if (detail === 'thatch') {
+          add('timber', softBox, '#B98556', pos.x, pos.y - .055, pos.z,
+            scale.x * .94, .1, scale.z * .94);
+          for (const side of [-1, 1]) for (let tuft = -4; tuft <= 4; tuft++) {
+            add('roof', chamferBox, tuft % 2 ? '#B98556' : '#D8BC94',
+              pos.x + tuft * scale.x / 9, pos.y - .07, pos.z + side * (scale.z / 2 + .025),
+              scale.x / 10, .14, .1);
+          }
+        } else add('timber', box, '#514945', pos.x, pos.y + .04, pos.z,
+          scale.x * 1.01, .1, scale.z * 1.01);
         if (detail === 'gable') add('metal', box, '#75645c', pos.x, pos.y + scale.y * .97, pos.z, .12, .08, scale.z * .95, rotation);
         if (detail === 'hip' && Math.abs(scale.y - 1.8) < .05) {
           decorateHouse(object);
@@ -555,7 +569,10 @@ export class WorldScene {
         let surface = surfaceOf(object, colliderMaterials);
         if (surface === 'timber' && (detail === 'crate' || detail === 'wall')) surface = 'cover-wood';
         const paint = surface === 'cover-wood' ? '#9C6A42' : color;
-        add(surface, geometry, paint, pos.x, pos.y, pos.z, scale.x, scale.y, scale.z, rotation);
+        add(surface, detail === 'kiosk-post' ? chamferBox : geometry,
+          paint, pos.x, pos.y, pos.z, scale.x, scale.y, scale.z, rotation);
+        if (detail === 'kiosk-post') add('timber', chamferBox, '#7A5234', pos.x,
+          terrainHeight(pos.x, pos.z) + .025, pos.z, .2, .07, .2);
         if (detail === 'shutter') for (const face of [-1, 1]) for (let slat = 0; slat < 5; slat++)
           add('timber', box, '#b6bfa2', pos.x, pos.y + (slat - 2) * .21, pos.z + face * .065,
             scale.x * .9, .025, .025);
@@ -599,6 +616,23 @@ export class WorldScene {
         }
       }
     }
+    // Vila's long road gets a low chamfered lip. Keep a crossing open beside
+    // the plaza; paint sits above the analytic asphalt without a collider.
+    for (let x = -108; x < 10; x += 2) {
+      const center = x + 1;
+      if (center > -39 && center < -23) continue;
+      for (const [edge, side] of [[41.5, -1], [48.5, 1]] as const) {
+        const z = edge + side * .2;
+        add('stone', chamferBox, WORLD_PALETTE.curb, center, terrainHeight(center, z) + .035,
+          z, 1.99, .08, .32);
+      }
+    }
+    for (let x = -38; x <= -24; x += 1.2) for (const z of [43.35, 46.65]) {
+      add('road', box, '#F4E7C6', x, terrainHeight(x, z) + .032, z, .42, .012, 3.04);
+    }
+    for (let x = -101; x <= -49; x += 13) {
+      add('road', box, '#F4E7C6', x, terrainHeight(x, 45) + .03, 45, 3.1, .01, .16);
+    }
     if (glassPanels.length) {
       const glazing = mergeGeometries(glassPanels, false);
       glassPanels.forEach(panel => panel.dispose());
@@ -634,19 +668,28 @@ export class WorldScene {
       const basin = new THREE.Mesh(waterGeometry, waterMaterial);
       basin.position.set(fountain.pos.x, fountain.pos.y + 1.039, fountain.pos.z);
       this.group.add(basin); this.disposables.push(waterGeometry, waterMaterial);
-      const jetMaterial = new THREE.MeshBasicMaterial({ color: '#bce7d9', transparent: true, opacity: .56 });
-      this.disposables.push(jetMaterial);
+      const jetMaterial = new THREE.MeshBasicMaterial({ color: '#2EC4B6' });
+      const splashMaterial = new THREE.MeshBasicMaterial({ color: '#F4FBF6', transparent: true,
+        opacity: .8, depthWrite: false });
+      this.disposables.push(jetMaterial, splashMaterial);
+      const jets: THREE.BufferGeometry[] = [], splashes: THREE.BufferGeometry[] = [];
       for (let i = 0; i < 4; i++) {
         const angle = i * Math.PI / 2 + Math.PI / 4;
         const points = Array.from({ length: 13 }, (_, n) => {
           const t = n / 12, radius = .58 + t * .94;
           return new THREE.Vector3(fountain.pos.x + Math.cos(angle) * radius,
-            fountain.pos.y + 1.34 + Math.sin(t * Math.PI) * .26 - t * .29,
+            fountain.pos.y + 1.34 + Math.sin(t * Math.PI) * .42 - t * .29,
             fountain.pos.z + Math.sin(angle) * radius);
         });
-        const geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 20, .018, 5, false);
-        this.group.add(new THREE.Mesh(geometry, jetMaterial)); this.disposables.push(geometry);
+        jets.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 20, .05, 6, false));
+        const splash = new THREE.SphereGeometry(.075, 8, 5);
+        splash.scale(1.55, .4, 1.55).translate(points[12].x, points[12].y, points[12].z);
+        splashes.push(splash);
       }
+      const jetGeometry = mergeGeometries(jets, false), splashGeometry = mergeGeometries(splashes, false);
+      jets.forEach(geometry => geometry.dispose()); splashes.forEach(geometry => geometry.dispose());
+      if (jetGeometry) { this.group.add(new THREE.Mesh(jetGeometry, jetMaterial)); this.disposables.push(jetGeometry); }
+      if (splashGeometry) { this.group.add(new THREE.Mesh(splashGeometry, splashMaterial)); this.disposables.push(splashGeometry); }
     }
     this.addArenaBoundary();
     this.group.add(this.arenaBoundary);
