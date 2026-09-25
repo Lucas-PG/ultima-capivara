@@ -29,6 +29,7 @@ if (!THREE.ShaderChunk.lights_fragment_begin.includes('paintedSunShadow')) {
 export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTexture) {
   return new THREE.RawShaderMaterial({
     uniforms: {
+      uStorm: { value: 0 }, uPulse: { value: 0 },
       tColor: { value: color }, tDepth: { value: depth }, toneMappingExposure: { value: 1.1 },
       tCharacter: { value: color }, characterEnabled: { value: 0 }, transparentBackground: { value: 0 },
       suppressWater: { value: 0 }, cameraWorldY: { value: 0 },
@@ -41,11 +42,15 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     fragmentShader: `precision highp float;
       #include <tonemapping_pars_fragment>
       #include <colorspace_pars_fragment>
-      uniform sampler2D tColor,tDepth,tCharacter;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY;uniform vec2 texel;uniform float cn,cf,width;varying vec2 vUv;
+      uniform sampler2D tColor,tDepth,tCharacter;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
-        vec3 c=texture2D(tColor,vUv).rgb;float d=texture2D(tDepth,vUv).x;
-        if(transparentBackground>.5 && d>=.999999)discard;
+        vec4 src=texture2D(tColor,vUv);vec3 c=src.rgb;float d=texture2D(tDepth,vUv).x;
+        bool fpEmpty=transparentBackground>.5 && d>=.999999;
+        if(fpEmpty && src.a<.01)discard;
+        // FP cards also extend beyond weapon depth. Recover their colour from the clear target.
+        if(fpEmpty)c/=max(src.a,.01);
+        float coverage=clamp(src.a-(fpEmpty?0.0:1.0),0.0,1.0);
         vec2 o=texel*width;
         float a=texture2D(tDepth,vUv+vec2(o.x,0.0)).x,b=texture2D(tDepth,vUv-vec2(o.x,0.0)).x;
         float e=texture2D(tDepth,vUv+vec2(0.0,o.y)).x,f=texture2D(tDepth,vUv-vec2(0.0,o.y)).x;
@@ -59,19 +64,24 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
           float surfaceY=cameraWorldY+dot(viewPosition,cameraUpRow);
           edge*=smoothstep(-.07,.2,surfaceY);
         }
+        // VFX alpha suppresses both world ink and character ink under the painted card.
+        edge*=1.0-coverage;
         gl_FragColor=vec4(c,1.0);
         gl_FragColor.rgb=NeutralToneMapping(gl_FragColor.rgb);
         gl_FragColor=sRGBTransferOETF(gl_FragColor);
         float g=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
-        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.12),0.0,1.0);
+        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.12*mix(1.0,.75,uStorm)),0.0,1.0);
+        float sv=smoothstep(.55,1.35,length((vUv-.5)*2.0))*(uStorm*.3+uPulse*.6);
+        gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.541,.302,1.0),sv);
         gl_FragColor.rgb=mix(gl_FragColor.rgb,ink,edge*.85);
         if(characterEnabled>.5){
           vec2 co=texel*max(1.0,width*1.2);
           float center=texture2D(tCharacter,vUv).r;
           float around=min(min(texture2D(tCharacter,vUv+vec2(co.x,0.0)).r,texture2D(tCharacter,vUv-vec2(co.x,0.0)).r),
             min(texture2D(tCharacter,vUv+vec2(0.0,co.y)).r,texture2D(tCharacter,vUv-vec2(0.0,co.y)).r));
-          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.168627,.105882,.070588),clamp(center-around,0.0,1.0));
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.168627,.105882,.070588),clamp(center-around,0.0,1.0)*(1.0-coverage));
         }
+        gl_FragColor.a=fpEmpty?clamp(src.a,0.0,1.0):1.0;
       }`,
   });
 }

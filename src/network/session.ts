@@ -380,7 +380,7 @@ export class RoomSession {
       case 'frame': this.receiveFrame(m); break;
       case 'events': if (m.matchId === this.matchId && Array.isArray(m.data) && m.data.length <= 200 && finiteTree(m.data)) {
         const fresh = (m.data as GameEvent[]).filter(e => e && Number.isSafeInteger(e.id) && e.id > this.lastEventId &&
-          ['shot', 'damage', 'kill', 'pickup', 'reload', 'respawn', 'notice'].includes(e.type) && plainTextTree(e));
+          ['shot', 'damage', 'kill', 'pickup', 'reload', 'respawn', 'notice', 'use', 'alert', 'impact'].includes(e.type) && plainTextTree(e));
         if (fresh.length) { this.lastEventId = fresh[fresh.length - 1].id; this.callbacks.events(fresh); }
       } break;
       case 'channel': if (Number.isInteger(m.id)) this.setupGuestGame(conn, m.id as number); break;

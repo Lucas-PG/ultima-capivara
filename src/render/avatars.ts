@@ -4,6 +4,7 @@ import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody } from 
 import { itemGeometry, itemMaterial } from './item-geometry';
 import { addEllipsoid } from './primitives';
 import { WEAPONS } from '../shared/weapons';
+import type { AvatarReaction } from './effects';
 import { Nameplate, nameplateFontSize, nameplateHit, stackNameplate } from './nameplates';
 import type { ActorState, RenderFrame, WeaponId, WorldSpec } from '../shared/types';
 
@@ -11,7 +12,7 @@ export const BOT_COLOR = '#ae825e';
 interface Avatar {
   color: string; name: string;
   group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
-  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean;
+  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean; squash: number;
 }
 export function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
@@ -35,7 +36,7 @@ export function avatar(color: string, name: string): Avatar {
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
   }
   const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
-  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false };
+  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, squash: 0 };
 }
 
 export class AvatarView {
@@ -64,6 +65,12 @@ export class AvatarView {
     for (const actor of actors) this.ensureAvatar(actor);
   }
   get(id: string) { return this.visuals.get(id); }
+  // Authoritative hit/elimination hook. For now a 90 ms squash on hits; the
+  // capybara runtime drives flinch, face and death clips from here.
+  react(id: string, reaction: AvatarReaction) {
+    const visual = this.visuals.get(id);
+    if (visual && reaction.kind === 'hit') visual.squash = .09;
+  }
   dispose() {
     for (const [id, visual] of this.visuals) this.removeAvatar(id, visual);
     this.warmupWeapons.removeFromParent(); this.warmupWeapons.clear();
@@ -120,6 +127,11 @@ export class AvatarView {
       visual.bones[CAPY_BONES.helmet].scale.setScalar(actor.helmet > 0 ? 1 : .0001);
       visual.chute.visible = actor.stage === 'parachute';
       this.poseAvatar(visual, actor, frame.dt);
+      if (visual.squash > 0) {
+        visual.squash = Math.max(0, visual.squash - frame.dt);
+        const k = Math.sin(visual.squash / .09 * Math.PI) * .06;
+        visual.group.scale.set(visual.group.scale.x * (1 + k * .6), visual.group.scale.y * (1 - k), visual.group.scale.z * (1 + k * .6));
+      }
       const held = actor.weapons[actor.slot]?.id || null;
       if (held !== visual.weaponId) {
         visual.weapon.geometry = this.weapons.get(held)!;
