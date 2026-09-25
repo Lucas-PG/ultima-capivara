@@ -214,14 +214,14 @@ export function createWorld(): WorldSpec {
   const baseFor = (x0: number, z0: number, x1: number, z1: number) =>
     Math.min(ground(x0, z0), ground(x1, z0), ground(x0, z1), ground(x1, z1), ground((x0 + x1) / 2, (z0 + z1) / 2)) - .06;
   // Legacy findSpot(): free, dry, fairly flat ground away from roads.
-  const findSpot = (w: number, d: number, m: number, road = false, area?: readonly [number, number, number, number]) => {
+  const findSpot = (w: number, d: number, m: number, road = false, area?: readonly [number, number, number, number], maxRelief = 1.3) => {
     for (let k = 0; k < 60; k++) {
       const x = area ? area[0] + random() * (area[2] - area[0]) : -116 + random() * 232;
       const z = area ? area[1] + random() * (area[3] - area[1]) : -116 + random() * 232;
       const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
       if (!rectClear(x0, z0, x1, z1, m) || (!road && rectRoad(x0, z0, x1, z1, 1))) continue;
       const hs = [ground(x0, z0), ground(x1, z0), ground(x0, z1), ground(x1, z1)];
-      if (Math.min(...hs) < .7 || Math.max(...hs) - Math.min(...hs) > 1.3) continue;
+      if (Math.min(...hs) < .7 || Math.max(...hs) - Math.min(...hs) > maxRelief) continue;
       return { x, z, x0, x1, z0, z1, y: baseFor(x0, z0, x1, z1) };
     }
     return null;
@@ -323,7 +323,7 @@ export function createWorld(): WorldSpec {
     }
     obj('box', 3, ground(3, -22) + 1.1, -22, 5.5, 2.2, 2.3, '#86a6ab', 'truck');
     colliders.push({ id: id('truck'), min: p(.25, ground(3, -22), -23.15), max: p(5.75, ground(3, -22) + 2.2, -20.85), material: 'metal' });
-    for (const x of [1.4, 4.7]) for (const z of [-23.1, -20.9]) obj('cylinder', x, ground(x, z) + .55, z, .65, .3, .65, '#343b3b', 'wheel');
+    for (const x of [1.4, 4.7]) for (const z of [-23.1, -20.9]) obj('cylinder', x, ground(x, z) + .25, z, .65, .5, .65, '#343b3b', 'wheel');
     for (const [x, z, kind] of [[-22, -18, 'planter'], [-2, -12, 'bench'], [-22, -12, 'cart']] as const) streetDetail(x, z, kind, '#d6b070');
     barrel(4, -32); crate(4, -35);
     item(cx, cz + 2, 'guarana');
@@ -401,8 +401,8 @@ export function createWorld(): WorldSpec {
     // A rock face on the steep south slope; the cascade spills into a basin below.
     const x = 100, top = ground(x, -19) + .4, low = ground(x, -13.5), height = Math.max(2.4, top - low);
     solid(x, low + height / 2, -16.6, 5.2, height, 1.9, '#777f76', 'stone', 'cliff');
-    obj('rock', x - 2.3, low + .65, -15.3, 1.5, 1.3, 1.5, '#798577', 'cliff');
-    obj('rock', x + 2.1, low + .7, -15.3, 1.3, 1.4, 1.4, '#697568', 'cliff');
+    solid(x - 2.3, low + .65, -15.3, 1.5, 1.3, 1.5, '#798577', 'stone', 'cliff', 'rock');
+    solid(x + 2.1, low + .7, -15.3, 1.3, 1.4, 1.4, '#697568', 'stone', 'cliff', 'rock');
     obj('box', x, low + height / 2, -15.6, 3.2, height, .22, '#87c2c7', 'waterfall');
     obj('box', x, low + .055, -13, 4.7, .07, 3.5, '#609b9b', 'water');
     for (const bx of [93, 97, 103, 107]) obj('box', bx, ground(bx, -9) + .16, -9, 3.7, .3, 2, '#a49b83', 'bridge-stone');
@@ -473,16 +473,19 @@ export function createWorld(): WorldSpec {
         const x = horizontal ? x0 + 5 + random() * (x1 - x0 - 10) : x0 + 1.2 + random() * (x1 - x0 - 2.4);
         const z = horizontal ? z0 + 1.2 + random() * (z1 - z0 - 2.4) : z0 + 5 + random() * (z1 - z0 - 10);
         const w = along ? 4.3 : 1.9, d = along ? 1.9 : 4.3;
-        if (rectClear(x - w / 2, z - d / 2, x + w / 2, z + d / 2, 1.5)) s = { x, z, x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, y: baseFor(x - w / 2, z - d / 2, x + w / 2, z + d / 2) };
+        const heights = [ground(x - w / 2, z - d / 2), ground(x + w / 2, z - d / 2),
+          ground(x - w / 2, z + d / 2), ground(x + w / 2, z + d / 2)];
+        if (rectClear(x - w / 2, z - d / 2, x + w / 2, z + d / 2, 1.5) && Math.max(...heights) - Math.min(...heights) <= .35)
+          s = { x, z, x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, y: baseFor(x - w / 2, z - d / 2, x + w / 2, z + d / 2) };
       }
-    } else s = findSpot(along ? 4.3 : 1.9, along ? 1.9 : 4.3, 1.5);
+    } else s = findSpot(along ? 4.3 : 1.9, along ? 1.9 : 4.3, 1.5, false, undefined, .35);
     if (!s) return;
     const w = s.x1 - s.x0, d = s.z1 - s.z0, paint = pick(carColors);
     solid(s.x, s.y + .73, s.z, w, .78, d, paint, 'metal', 'car');
     obj('box', s.x + (along ? .2 : 0), s.y + 1.42, s.z + (along ? 0 : .2), along ? 2.2 : 1.6, .6, along ? 1.6 : 2.2, '#2a2f36', 'car-cabin');
     for (const a of [-1, 1]) for (const b of [-1, 1]) {
       const wx = s.x + (along ? a * w * .32 : b * w * .5), wz = s.z + (along ? b * d * .5 : a * d * .32);
-      obj('cylinder', wx, s.y + .35, wz, .6, .28, .6, '#262a2b', 'wheel');
+      obj('cylinder', wx, ground(wx, wz) + .23, wz, .6, .46, .6, '#262a2b', 'wheel');
     }
   };
   const ruin = () => {
@@ -507,9 +510,13 @@ export function createWorld(): WorldSpec {
 
   // Trees (legacy density, v2 models): spaced out, off roads and lots; palms by the shore.
   const planted: { x: number; z: number }[] = [];
+  const nearPickup = (x: number, z: number, radius: number) =>
+    loot.some(point => Math.hypot(point.x - x, point.z - z) < radius) ||
+    chests.some(point => Math.hypot(point.x - x, point.z - z) < radius);
   for (let tries = 0; planted.length < 380 && tries < 9000; tries++) {
     const x = -120 + random() * 240, z = -120 + random() * 240, y = ground(x, z);
-    if (y < .9 || clear(x, z, 2.5) || onRoad(x, z, 2) || planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 14)) continue;
+    if (y < .9 || clear(x, z, 2.5) || nearPickup(x, z, 1.2) || onRoad(x, z, 2) ||
+      planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 14)) continue;
     planted.push({ x, z });
     const kind = y < 2.2 || random() < .18 ? 'palm' : 'tree', scale = .75 + random() * .75;
     const height = (kind === 'palm' ? 7 + random() * 3 : 5 + random() * 3) * scale;
@@ -518,7 +525,7 @@ export function createWorld(): WorldSpec {
   }
   for (let i = 0, n = 0; i < 260 && n < 70; i++) {
     const x = -118 + random() * 236, z = -118 + random() * 236, y = ground(x, z);
-    if (y < .5 || clear(x, z, 2.5) || onRoad(x, z, 1.5)) continue;
+    if (y < .5 || clear(x, z, 2.5) || nearPickup(x, z, 2.5) || onRoad(x, z, 1.5)) continue;
     const sx = 1 + random() * 1.6, sy = .7 + random() * 1.1, sz = 1 + random() * 1.4; n++;
     obj('rock', x, y + sy * .3, z, sx, sy, sz, '#8b8b7f', 'field', random() * Math.PI);
     colliders.push({ id: id('rock'), min: p(x - sx * .62, y - .5, z - sz * .62), max: p(x + sx * .62, y + sy * 1.1, z + sz * .62), material: 'stone' });

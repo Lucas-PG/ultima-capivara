@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
-import { fbm, terrainHeight } from '../shared/terrain';
+import { terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
 import { releaseAfterUpload } from './memory';
@@ -48,25 +48,6 @@ const hash = (x: number, y: number, salt: number) => {
   n = Math.imul(n ^ (n >>> 13), 1274126177);
   return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
 };
-// Legacy terrain grain: an almost-white noise multiplied over the vertex
-// colours, so the ground reads as flat cartoon colour with a hint of texture.
-function legacyDetailTexture(): THREE.CanvasTexture {
-  const size = 256, canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
-  const g = canvas.getContext('2d')!;
-  g.fillStyle = '#e6e6e6'; g.fillRect(0, 0, size, size);
-  for (let i = 0; i < size / 3; i++) {
-    const v = Math.random() < .5 ? 0 : 255;
-    g.fillStyle = `rgba(${v},${v},${v},${.04 * Math.random()})`;
-    g.beginPath(); g.arc(Math.random() * size, Math.random() * size, Math.random() * size * .12, 0, 7); g.fill();
-  }
-  const image = g.getImageData(0, 0, size, size), data = image.data;
-  for (let i = 0; i < data.length; i += 4) { const n = (Math.random() - .5) * 18; data[i] += n; data[i + 1] += n; data[i + 2] += n; }
-  g.putImageData(image, 0, 0);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 8;
-  return texture;
-}
-
 function surfaceTextures(surface: Surface, loader: THREE.TextureLoader): { color: THREE.Texture; normal: THREE.Texture; rough: THREE.Texture } {
   const prefix = photoSurface[surface];
   const load = (kind: string) => {
@@ -143,28 +124,14 @@ function roofGeometry(detail: string | undefined): THREE.BufferGeometry {
 const hipRoof = roofGeometry('hip');
 const gableRoof = roofGeometry('gable');
 
-// Legacy terrain colouring: two greens in broad patches, dry grass, dirt and
-// rock on slopes, sand on the shore, mud underwater and asphalt roads.
-const onRoad = (x: number, z: number, margin: number) => ROADS.some(([x0, z0, x1, z1]) => x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
 function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
-  const size = world.size, steps = 130, stride = size / steps;
-  // Brighter than the legacy hex values: our tone mapping and toon ramp read
-  // darker, and the island should look sunny, not murky.
-  const green = c('#86a852'), green2 = c('#9cbc5e'), dry = c('#bdb86e'), dirt = c('#b8955e'), rock = c('#b0a28a');
-  const sand = c('#ecd8a2'), mud = c('#7d7258'), asphalt = c('#5a5a57'), color = new THREE.Color();
-  const positions: number[] = [], colors: number[] = [], uvs: number[] = [], indices: number[] = [];
+  const size = world.size, steps = 150, stride = size / steps;
+  const positions: number[] = [], uvs: number[] = [], slopes: number[] = [], indices: number[] = [];
   for (let iz = 0; iz <= steps; iz++) for (let ix = 0; ix <= steps; ix++) {
     const x = -size / 2 + ix * stride, z = -size / 2 + iz * stride, y = terrainHeight(x, z);
-    const slope = Math.hypot(terrainHeight(x + stride, z) - terrainHeight(x - stride, z), terrainHeight(x, z + stride) - terrainHeight(x, z - stride)) / (2 * stride);
-    const patch = fbm(x / 30 + 7, z / 30 + 3) * .5 + .5, dryness = fbm(x / 18 - 4, z / 18 + 9);
-    color.copy(green).lerp(green2, patch);
-    if (dryness > .25) color.lerp(dry, Math.min(.7, (dryness - .25) * 2));
-    if (slope > .42) color.lerp(dirt, Math.min(.85, (slope - .42) * 2.2));
-    if (slope > 1.1) color.lerp(rock, Math.min(.6, (slope - 1.1) * 1.5));
-    if (y < 1.4) color.lerp(sand, Math.min(1, (1.4 - y) / .9));
-    if (y < -.2) color.lerp(mud, Math.min(1, -y));
-    if (onRoad(x, z, .6)) color.copy(asphalt); else if (onRoad(x, z, 1.8)) color.lerp(dirt, .5);
-    positions.push(x, y, z); colors.push(color.r, color.g, color.b); uvs.push(x / 5, z / 5);
+    const slope = Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z),
+      terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
+    positions.push(x, y, z); uvs.push(x / size + .5, z / size + .5); slopes.push(slope);
     if (ix < steps && iz < steps) {
       const a = iz * (steps + 1) + ix, b = a + 1, d = a + steps + 1;
       indices.push(a, d, b, b, d, d + 1);
@@ -172,8 +139,8 @@ function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setAttribute('terrainSlope', new THREE.Float32BufferAttribute(slopes, 1));
   geo.setIndex(indices); geo.computeVertexNormals();
   return geo;
 }
@@ -318,8 +285,116 @@ export class WorldScene {
       this.surfaceMaterials.push({ material, normal: material.normalMap, rough: material.roughnessMap });
       return material;
     };
-    const groundDetail = legacyDetailTexture(); this.disposables.push(groundDetail);
-    const groundMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, map: groundDetail, roughness: 1, metalness: 0 });
+    const groundColors = loader.load(`${import.meta.env.BASE_URL}textures/terrain-color.png`);
+    groundColors.colorSpace = THREE.SRGBColorSpace;
+    groundColors.minFilter = THREE.LinearMipmapLinearFilter;
+    groundColors.magFilter = THREE.LinearFilter;
+    groundColors.generateMipmaps = true;
+    this.disposables.push(groundColors);
+    const groundMaterial = new THREE.MeshStandardMaterial({ map: groundColors, roughness: 1, metalness: 0 });
+    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-slope-v3';
+    groundMaterial.onBeforeCompile = shader => {
+      shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
+      shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
+      shader.uniforms.terrainCurb = { value: new THREE.Color(WORLD_PALETTE.curb) };
+      shader.uniforms.terrainGrass = { value: new THREE.Color(WORLD_PALETTE.grass) };
+      shader.uniforms.terrainGrassLight = { value: new THREE.Color(WORLD_PALETTE.grassLight) };
+      shader.uniforms.terrainDryGrass = { value: new THREE.Color(WORLD_PALETTE.dryGrass) };
+      shader.uniforms.terrainSand = { value: new THREE.Color(WORLD_PALETTE.sand) };
+      shader.uniforms.terrainSandLight = { value: new THREE.Color(WORLD_PALETTE.sandLight) };
+      shader.uniforms.terrainRockPaint = { value: new THREE.Color(WORLD_PALETTE.rock) };
+      shader.uniforms.terrainRockTop = { value: new THREE.Color(WORLD_PALETTE.rockTop) };
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', `
+        #include <common>
+        attribute float terrainSlope;
+        varying float vTerrainSlope;
+        varying vec2 vTerrainXZ;
+        varying float vTerrainWorldY;
+      `).replace('#include <begin_vertex>', `
+        #include <begin_vertex>
+        vTerrainSlope = terrainSlope;
+        vTerrainXZ = (modelMatrix * vec4(position, 1.0)).xz;
+        vTerrainWorldY = (modelMatrix * vec4(position, 1.0)).y;
+      `);
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
+        #include <common>
+        varying float vTerrainSlope;
+        varying vec2 vTerrainXZ;
+        varying float vTerrainWorldY;
+        uniform vec4 terrainRoads[5];
+        uniform vec3 terrainAsphalt;
+        uniform vec3 terrainCurb;
+        uniform vec3 terrainGrass;
+        uniform vec3 terrainGrassLight;
+        uniform vec3 terrainDryGrass;
+        uniform vec3 terrainSand;
+        uniform vec3 terrainSandLight;
+        uniform vec3 terrainRockPaint;
+        uniform vec3 terrainRockTop;
+        float terrainHash(vec2 cell) {
+          return fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453) * 2.0 - 1.0;
+        }
+        float terrainNoise(vec2 point) {
+          vec2 cell = floor(point);
+          vec2 blend = fract(point);
+          blend = blend * blend * (3.0 - 2.0 * blend);
+          return mix(mix(terrainHash(cell), terrainHash(cell + vec2(1.0, 0.0)), blend.x),
+            mix(terrainHash(cell + vec2(0.0, 1.0)), terrainHash(cell + vec2(1.0, 1.0)), blend.x), blend.y);
+        }
+        float terrainFbm(vec2 point) {
+          return terrainNoise(point) * 0.6 + terrainNoise(point * 2.1 + vec2(5.2, 1.3)) * 0.28 +
+            terrainNoise(point * 4.3 + vec2(9.1, 3.7)) * 0.12;
+        }
+        float terrainRectDistance(vec2 point, vec4 rect) {
+          vec2 center = (rect.xy + rect.zw) * 0.5;
+          vec2 halfSize = (rect.zw - rect.xy) * 0.5;
+          vec2 outside = abs(point - center) - halfSize;
+          return length(max(outside, 0.0)) + min(max(outside.x, outside.y), 0.0);
+        }
+      `).replace('#include <map_fragment>', `
+        #include <map_fragment>
+        if (vTerrainSlope >= 0.58) {
+          float grassPatch = terrainFbm(vTerrainXZ / 36.0 + vec2(7.0, 3.0));
+          float dryPatch = terrainFbm(vTerrainXZ / 48.0 + vec2(-4.0, 9.0));
+          vec3 paintedGrass = dryPatch > 0.24 ? terrainDryGrass :
+            (grassPatch > 0.0 ? terrainGrassLight : terrainGrass);
+          float left = 24.0 + terrainFbm(vec2(vTerrainXZ.y / 12.0 + 11.0, 2.0)) * 5.0;
+          float right = 74.0 + terrainFbm(vec2(vTerrainXZ.y / 12.0 + 29.0, 2.0)) * 5.0;
+          float sea = -132.0 + terrainFbm(vec2(vTerrainXZ.x / 12.0 + 17.0, 4.0)) * 5.0;
+          float inland = -104.0 + terrainFbm(vec2(vTerrainXZ.x / 12.0 + 37.0, 4.0)) * 5.0;
+          float beachEdge = min(min(vTerrainXZ.x - left, right - vTerrainXZ.x),
+            min(vTerrainXZ.y - sea, inland - vTerrainXZ.y));
+          float warpedX = vTerrainXZ.x + terrainFbm(vTerrainXZ / 12.0 + vec2(41.0, 9.0)) * 4.0;
+          float warpedZ = vTerrainXZ.y + terrainFbm(vTerrainXZ / 12.0 + vec2(-7.0, 33.0)) * 4.0;
+          vec3 paintedSand = terrainFbm(vec2(warpedX / 24.0 + 3.0, warpedZ / 24.0 - 8.0)) > 0.0 ?
+            terrainSandLight : terrainSand;
+          vec3 paintedSlope = mix(paintedGrass, paintedSand,
+            max(1.0 - step(0.8, vTerrainWorldY), smoothstep(-1.0, 1.0, beachEdge)));
+          diffuseColor.rgb = mix(diffuseColor.rgb, paintedSlope, smoothstep(0.58, 0.62, vTerrainSlope));
+        }
+        float distanceToRoad = 1e6;
+        for (int road = 0; road < 5; road++)
+          distanceToRoad = min(distanceToRoad, terrainRectDistance(vTerrainXZ, terrainRoads[road]));
+        float edgeWidth = max(fwidth(distanceToRoad), 0.002);
+        float asphaltMask = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
+        float curbMask = (1.0 - smoothstep(0.4 - edgeWidth, 0.4 + edgeWidth, distanceToRoad)) * (1.0 - asphaltMask);
+        diffuseColor.rgb = mix(diffuseColor.rgb, terrainCurb, curbMask);
+        diffuseColor.rgb = mix(diffuseColor.rgb, terrainAsphalt, asphaltMask);
+      `).replace('#include <tonemapping_fragment>', `
+        float coastRadius = max(abs(vTerrainXZ.x), abs(vTerrainXZ.y)) * 0.65 + length(vTerrainXZ) * 0.35;
+        float coastalRock = smoothstep(110.0, 113.0, coastRadius);
+        float lakeRock = 1.0 - smoothstep(25.0, 27.0, distance(vTerrainXZ, vec2(-34.0, 6.0)));
+        float rockMask = max(smoothstep(1.03, 1.13, vTerrainSlope),
+          max(coastalRock, lakeRock) * smoothstep(0.55, 0.7, vTerrainSlope));
+        float irregular = sin(vTerrainXZ.x * 0.52 + sin(vTerrainXZ.y * 0.18)) * 0.12 +
+          sin(vTerrainXZ.y * 0.47) * 0.08;
+        float stratum = mod(floor((vTerrainWorldY + irregular) / 1.2), 2.0);
+        float topBand = 1.0 - smoothstep(0.7, 1.0, vTerrainSlope);
+        vec3 rockPaint = mix(terrainRockPaint, terrainRockTop, topBand) * mix(0.94, 1.06, stratum);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
+        #include <tonemapping_fragment>
+      `);
+    };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
 
