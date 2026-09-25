@@ -1,5 +1,5 @@
 {
-  "sourceTriangles": 42154,
+  "sourceTriangles": 41994,
   "palette": [
     "A27C5C",
     "C19D62",
@@ -60,8 +60,8 @@
   "materials": 1,
   "skins": 1,
   "joints": 35,
-  "bytes": 254984,
-  "rawBytes": 1004904,
+  "bytes": 255768,
+  "rawBytes": 1006156,
   "texture": {
     "format": "PNG",
     "width": 16,

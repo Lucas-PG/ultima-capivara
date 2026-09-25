@@ -52,6 +52,16 @@ describe('authoritative character reactions', () => {
       expect(Math.abs(anchor - crown - .35)).toBeLessThan(.015);
     }
   });
+  it('shortens resting arms without accumulating scale or changing combat reach', () => {
+    const h = harness(), arm = h.visual.body.getObjectByName('arm_R')!;
+    h.advance(2);
+    expect(arm.scale.x).toBeCloseTo(.95, 4);
+    h.advance(2);
+    expect(arm.scale.x).toBeCloseTo(.95, 4);
+    h.actor.weapons = [{ id: 'm4', ammo: 30, reserve: 90, rarity: 0 }];
+    h.advance(2);
+    expect(arm.scale.x).toBeCloseTo(1, 4);
+  });
   it('reacts to armor-only damage without an HP delta and does not replay it from a later snapshot', () => {
     const h = harness(), neutral = h.mouth.scale.y;
     view.react(h.actor.id, { kind: 'hit', head: false, amount: 25, from: { x: 3, y: 1.6, z: -2 } });
