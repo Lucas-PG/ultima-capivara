@@ -29,7 +29,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await host.goto(gameUrl);
     await host.locator('[data-do="host"]').click();
     await host.locator('[name="nickname"]').fill('Ponte Host');
-    await host.locator('[name="mode"]').selectOption('deathmatch');
+    await host.getByRole('button', { name: 'Correria', exact: true }).click();
     await host.locator('[name="bots"]').uncheck();
     await host.locator('#room-form [type="submit"]').click();
     await expect(host.locator('.invite-card strong')).toHaveText(/^[A-Z2-9]{6}$/);
@@ -90,4 +90,37 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await expect.poll(async () => (await inspect(guest)).room).toBeNull();
     await expect(guest.locator('#toast')).toContainText('O anfitrião fechou a sala.');
   } finally { await Promise.all(contexts.map(context => context.close())); }
+});
+
+test('a silent room exposes the join timeout and its retry button recovers', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'chromium', 'Rendered join flow is the Chromium gate.');
+  const host = await browser.newPage();
+  const guest = await browser.newPage();
+  try {
+    await host.goto(new URL('testfixtures/net.html', gameUrl).href);
+    const code = await host.evaluate(async () => {
+      const moduleUrl = '/src/network/session.ts';
+      const { RoomSession } = await import(moduleUrl);
+      const w = window as any;
+      const noop = () => {};
+      w.session = new RoomSession({ room: noop, start: noop, input: noop, action: noop, player: noop,
+        snapshot: noop, events: noop, error: noop, closed: noop });
+      await w.session.host({ name: 'Host', color: '#1fb5a8' });
+      w.acceptConnection = w.session.acceptConnection.bind(w.session);
+      // A real WebRTC connection with a host that never answers the handshake.
+      w.session.acceptConnection = noop;
+      return w.session.state.code;
+    });
+    await guest.goto(`${gameUrl}?sala=${code}`);
+    await guest.locator('[name="nickname"]').fill('Ponte Retry');
+    await guest.locator('#room-form [type="submit"]').click();
+    await expect(guest.locator('#room-form [type="submit"]')).toHaveText('Conectando à sala');
+    await expect(guest.locator('.form-error')).toHaveText('A sala demorou a responder. Tente novamente.', { timeout: 20_000 });
+    await expect(guest.getByRole('button', { name: 'TENTAR NOVAMENTE', exact: true })).toBeEnabled();
+    await guest.screenshot({ path: info.outputPath('ponte-join-timeout.png') });
+    await host.evaluate(() => { const w = window as any; w.session.acceptConnection = w.acceptConnection; });
+    await guest.getByRole('button', { name: 'TENTAR NOVAMENTE', exact: true }).click();
+    await expect(guest.locator('#connection-status')).toHaveText(/Conectado/);
+    await expect(guest.locator('.player-row')).toHaveCount(2);
+  } finally { await Promise.all([host.close(), guest.close()]); }
 });
