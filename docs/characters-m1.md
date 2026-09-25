@@ -92,3 +92,13 @@ before the generic scene traversal. `disposeCapybaraAssets` then releases only
 shared character caches. Disposal during compilation uses the same single
 cleanup path. Focused tests cover the optional manifest, delayed/rejected
 loads, deployment base, malformed-source cleanup and disposal while warming.
+
+## Remaining animation and cosmetic gates
+
+The asset currently exports idle, run and jump plus the six facial clips.
+Walk, crouch, fall, parachute, directional hit, death flop and emotes still
+need dedicated authored motion. Runtime fall/parachute transforms and the
+HP-difference face trigger are temporary opt-in implementation work. Foot
+contact and remote 20 Hz interpolation require a motion review. Four headwear
+options, vest-trim player colour and the authoritative reaction hookup also
+remain open. These are M1 requirements, not completed acceptance items.
