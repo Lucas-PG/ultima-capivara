@@ -91,7 +91,7 @@ bone('jaw', (0, 1.535, -.21), (0, 1.58, -.21), 'head')
 bone('mouth_cavity', (0, 1.535, -.263), (0, 1.565, -.263), 'head')
 bone('tail', (0, .62, .23), (0, .66, .29), 'spine')
 for s, side in [(-1, 'L'), (1, 'R')]:
-    bone('ear_' + side, (s * .15, 1.755, .005), (s * .16, 1.815, .005), 'head')
+    bone('ear_' + side, (s * .115, 1.718, .085), (s * .115, 1.765, .085), 'head')
     bone('socket_' + side, (s * .176, 1.654, -.12), (s * .176, 1.698, -.12), 'head')
     bone('blink_' + side, (s * .176, 1.654, -.12), (s * .176, 1.698, -.12), 'head')
     for part in ['tip', 'peak']:
@@ -214,11 +214,15 @@ def tube(name, points, radii, color, names):
     lookup = {tuple(v): w for v, w in zip(verts, weights)}
     return mesh_part(name, verts, faces, color, lambda p: lookup[tuple(p)])
 
-# Pear torso fits the normal .30 m body cylinder with animation clearance.
-# A continuous pear-to-neck surface avoids a stack-of-spheres silhouette.
-# The widest ring sits at the hips and the round seat drops to .20 m, covering
-# the thighs so only short legs and big feet show below it (bible 9.1).
-profile = [(.20, .04, .04, .005), (.215, .14, .13, 0), (.25, .226, .21, -.006), (.31, .274, .255, -.01), (.39, .294, .278, -.012), (.49, .297, .284, -.012), (.60, .291, .279, -.01), (.73, .275, .258, -.005), (.87, .252, .232, 0), (1.01, .229, .208, .004), (1.15, .209, .187, .005), (1.27, .193, .169, .005), (1.35, .178, .152, .005), (1.402, .164, .132, .005), (1.418, .163, .131, .005), (1.445, .163, .130, .005), (1.464, .153, .124, .005), (1.472, .04, .04, .005)]
+# Barrel torso: broad chest and hips share nearly parallel sides, like the cover.
+# Rounded seat still covers the thighs, retaining the approved short legs.
+# Leave room for the fitted vest inside the normal .30 m body cylinder.
+profile = [(.20, .04, .04, .005), (.215, .14, .13, 0), (.25, .215, .20, -.006),
+           (.31, .259, .245, -.01), (.39, .278, .262, -.01), (.49, .281, .268, -.01),
+           (.60, .280, .265, -.008), (.73, .278, .256, -.004), (.87, .274, .250, 0),
+           (1.01, .271, .244, .004), (1.15, .256, .220, .005), (1.27, .227, .194, .005),
+           (1.35, .195, .166, .005), (1.402, .169, .138, .005), (1.418, .164, .132, .005),
+           (1.445, .163, .130, .005), (1.464, .153, .124, .005), (1.472, .04, .04, .005)]
 verts, faces = [], []
 for y, rx, rz, cz in profile:
     for i in range(20):
@@ -229,7 +233,7 @@ for j in range(len(profile) - 1):
         a, b = j * 20 + i, j * 20 + (i + 1) % 20
         faces.append((a, b, b + 20, a + 20))
 faces.extend([tuple(reversed(range(20))), tuple((len(profile) - 1) * 20 + i for i in range(20))])
-body_surface = mesh_part('Torso_pear', verts, faces, 0, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33))
+body_surface = mesh_part('Torso_barrel', verts, faces, 0, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33))
 # Colour follows the actual surface, so the crisp belly cannot float or clip.
 for poly in body_surface.data.polygons:
     center = sum((body_surface.data.vertices[v].co for v in poly.vertices), Vector()) / len(poly.vertices)
@@ -238,7 +242,7 @@ for poly in body_surface.data.polygons:
     index = 1 if y > 1.22 and z < -.06 else 0
     for loop in poly.loop_indices:
         body_surface.data.uv_layers.active.data[loop].uv = ((index + .5) / 16, .5)
-# Conforming egg, wider low on the pear, with a one-centimetre colour edge.
+# Conforming belly patch on the barrel, with a one-centimetre colour edge.
 # Its top tucks under the bandana point inside the open vest front.
 patch_verts, patch_faces, patch_mix = [], [], []
 for row, radius in enumerate([.001, .2, .4, .6, .8, .96, 1]):
@@ -263,18 +267,22 @@ for loop in patch.data.loops:
     patch.data.color_attributes['Color'].data[loop.index].color = (*rgb, 1)
 # A single longitudinal quad surface joins cheeks and rectangular muzzle.
 # Forehead-to-nose is one gently descending line, without a box seam.
-head_profile = [(.168, .03, 1.573, .028), (.138, .100, 1.5725, .1025),
-                (.078, .174, 1.5905, .1525), (.018, .214, 1.60, .158),
-                (-.05, .208, 1.597, .144), (-.108, .182, 1.58, .134),
-                (-.17, .142, 1.574, .106), (-.225, .116, 1.568, .079),
-                (-.262, .11, 1.565, .062), (-.276, .098, 1.567, .047),
-                (-.283, .065, 1.571, .022), (-.284, .035, 1.575, .010)]
+# Side silhouette is about 1.4 times longer than tall. Close support rings at
+# the muzzle keep its top/bottom parallel and its front broad, without a cone.
+head_profile = [(.158, .035, 1.59, .035), (.144, .105, 1.592, .092),
+                (.092, .166, 1.597, .133), (.035, .194, 1.597, .145),
+                (-.030, .195, 1.593, .142), (-.092, .173, 1.583, .124),
+                (-.145, .139, 1.580, .104), (-.190, .122, 1.580, .099),
+                (-.224, .114, 1.580, .095), (-.240, .104, 1.582, .089),
+                (-.249, .093, 1.582, .080), (-.250, .079, 1.582, .067),
+                (-.250, .060, 1.582, .050), (-.250, .040, 1.582, .033),
+                (-.250, .020, 1.582, .016), (-.250, .001, 1.582, .001)]
 verts, faces = [], []
 segments = 32
 for z, rx, cy, ry in head_profile:
     for i in range(segments):
         a = math.tau * i / segments
-        shape = lambda v: math.copysign(abs(v) ** .72, v)
+        shape = lambda v: math.copysign(abs(v) ** .48, v)
         verts.append((rx * shape(math.cos(a)), cy + ry * shape(math.sin(a)), z))
 for row in range(len(head_profile) - 1):
     for i in range(segments):
@@ -297,27 +305,12 @@ def fur_point(x, y):
     assert hit, ('face surface', x, y)
     return point
 
-def recess(x, y, width, height, depth, name):
-    point = fur_point(x, y)
-    # A shallow subtraction creates a real concave surface behind the fur rim.
-    centre = point + V((0, 0, -depth * .42))
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1, location=centre)
-    cutter = bpy.context.object
-    cutter.scale = (width, depth, height)
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    bpy.context.view_layer.objects.active = head_surface
-    cut = head_surface.modifiers.new(name, 'BOOLEAN')
-    cut.operation, cut.solver, cut.object = 'DIFFERENCE', 'EXACT', cutter
-    bpy.ops.object.modifier_apply(modifier=cut.name)
-    bpy.data.objects.remove(cutter, do_unlink=True)
-    return point
-
-mouth_point = recess(0, 1.535, .037, .017, .029, 'Recessed mouth')
+mouth_point = fur_point(0, 1.535)
 # Shallow lateral sockets preserve profile readability. Geometry and bones use
 # the same tangent plane, so squints and arcs remain on the curved cheek.
 eye_frames = {}
 for side in [-1, 1]:
-    hit, point, normal, face = reference.ray_cast(V((side * .176, 1.654, -1)), V((0, 0, 1)))
+    hit, point, normal, face = reference.ray_cast(V((side * .165, 1.665, -1)), V((0, 0, 1)))
     assert hit, ('lateral eye surface', side)
     normal = normal.normalized()
     if normal.dot(V((0, 0, -1))) < 0:
@@ -353,6 +346,10 @@ for sign, side in [(-1, 'L'), (1, 'R')]:
         b.head = centre if prefix != 'glint_' else centre - tangent * .006 + up * .008 + normal * .002
         b.tail = b.head + up * .044
         b.align_roll(normal)
+    brow = arm.edit_bones['brow_' + side]
+    brow.head = point + up * .033
+    brow.tail = brow.head + up * .032
+    brow.align_roll(normal)
 bpy.ops.object.mode_set(mode='OBJECT')
 rig.select_set(False)
 # The mouth rim and cavity close together; neutral has no dark oval decal.
@@ -362,14 +359,14 @@ for name in ['head', 'jaw', 'mouth_cavity', 'mouth_L', 'mouth_R', 'socket_L', 's
     head_surface.vertex_groups.new(name=name)
 for vertex in head_surface.data.vertices:
     x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
-    distance = ((x / .047) ** 2 + ((y - 1.535) / .028) ** 2) ** .5
-    mouth_weight = max(0, min(1, (1.65 - distance) / .45)) if z < -.225 else 0
+    mouth_weight = 0  # Facial linework animates over an undistorted flat muzzle.
     jaw_weight = max(0, min(1, (1.56 - y) / .055)) * max(0, min(1, (-z - .06) / .1)) * (1 - mouth_weight)
     mouth_side = 'L' if x < 0 else 'R'
     corner_weight = mouth_weight * .6 * min(1, abs(x) / .034) ** 2
     eye_side = 'L' if x < 0 else 'R'
-    eye_distance = (((abs(x) - .176) / .028) ** 2 + ((y - 1.654) / .035) ** 2) ** .5
-    eye_weight = max(0, min(1, (1.4 - eye_distance) / .3)) if z < -.055 else 0
+    eye_point = eye_frames[-1 if x < 0 else 1][0]
+    eye_distance = ((vertex.co - eye_point).length / .034)
+    eye_weight = max(0, min(1, (1.4 - eye_distance) / .3))
     for name, weight in [('head', max(0, 1 - jaw_weight - mouth_weight - eye_weight)), ('jaw', jaw_weight), ('mouth_cavity', mouth_weight - corner_weight), ('mouth_' + mouth_side, corner_weight), ('socket_' + eye_side, eye_weight)]:
         if weight > 0:
             head_surface.vertex_groups[name].add([vertex.index], weight, 'REPLACE')
@@ -391,19 +388,19 @@ for poly in head_surface.data.polygons:
         shadow = shadow * (1 - muzzle) + muzzle * max(0, min(1, (-up - .35) / .4))
         rgb = [base_rgb[i] * (1 - light) + light_rgb[i] * light for i in range(3)]
         rgb = [rgb[i] * (1 - shadow) + shadow_rgb[i] * shadow for i in range(3)]
-        mouth_distance = (x / .038) ** 2 + ((y - 1.535) / .019) ** 2
-        if mouth_distance < 1.06 and z < -.235:
-            depth = max(0, min(1, (z + mouth_point.y) / .015))
-            wine, back = linear_rgb('6B2E2A'), linear_rgb('351917')
-            rgb = [wine[i] * (1 - depth) + back[i] * depth for i in range(3)]
         head_surface.data.uv_layers.active.data[loop_index].uv = (14.5 / 16, .5)
         head_surface.data.color_attributes['Color'].data[loop_index].color = (*rgb, 1)
+# Separate facial linework keeps expression colour and deformation local.
+# The broad flat muzzle stays intact as the mouth closes to a fine line.
+lining = ellipsoid('Mouth_lining', (0, 1.535, -mouth_point.y - .001), (.034, .015, .001), 14, {'mouth_cavity': 1}, segments=16, rings=8)
+for item in lining.data.color_attributes['Color'].data:
+    item.color = (*linear_rgb('6B2E2A'), 1)
 # The dark nose pad occupies only the upper third of the furry muzzle.
-nose = rounded_block('Nose_pad', (0, 1.595, -.275), (.096, .043, .018), 15, {'head': 1}, bevel=.012)
+nose = rounded_block('Nose_pad', (0, 1.625, -.249), (.096, .043, .012), 15, {'head': 1}, bevel=.012)
 for vertex in nose.data.vertices:
-    vertex.co.x *= .78 + .22 * max(0, min(1, (vertex.co.z - 1.5735) / .043))
+    vertex.co.x *= .78 + .22 * max(0, min(1, (vertex.co.z - 1.6035) / .043))
 for side in [-1, 1]:
-    ellipsoid('Nostril', (side * .022, 1.592, -.281), (.01, .007, .004), 9, {'head': 1}, segments=10, rings=6)
+    ellipsoid('Nostril', (side * .022, 1.622, -.257), (.01, .007, .004), 9, {'head': 1}, segments=10, rings=6)
 # A fur-coloured lower lip and fine wine rim articulate the actual cavity.
 for name, angles, radius, color in [('Lower_lip', range(180, 361, 30), .003, 0), ('Lip_line', range(0, 361, 30), .0012, 3)]:
     points = []
@@ -434,11 +431,10 @@ for s, side in [(-1, 'L'), (1, 'R')]:
     brow = tube('Brow_tuft_' + side, [(s * .11, 1.704, -.10), (s * .13, 1.710, -.10), (s * .15, 1.704, -.10)], [.002, .006, .002], 2, ['brow_' + side, 'head'])
     for vertex in brow.data.vertices:
         x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
-        hit, point, normal, face = reference.ray_cast(V((x, y, -1)), V((0, 0, 1)))
-        assert hit, ('brow surface', x, y)
-        vertex.co = point + V((0, 0, -.0025 + (z + .10) * .12))
-    ellipsoid('Ear_' + side, (s * .124, 1.766, .042), (.046, .045, .028), 0, {'ear_' + side: .88, 'head': .12}, segments=12, rings=8)
-    ellipsoid('Ear_inner_' + side, (s * .124, 1.766, .019), (.029, .029, .01), 11, {'ear_' + side: 1}, segments=12, rings=6)
+        point, normal, tangent, up = eye_frames[s]
+        vertex.co = point + tangent * (x - s * .13) + up * (.033 + y - 1.704) + normal * .001
+    ellipsoid('Ear_' + side, (s * .115, 1.733, .085), (.032, .034, .023), 0, {'ear_' + side: .88, 'head': .12}, segments=12, rings=8)
+    ellipsoid('Ear_inner_' + side, (s * .115, 1.733, .066), (.020, .022, .008), 11, {'ear_' + side: 1}, segments=12, rings=6)
     tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .01), (s * .137, .23, .01), (s * .137, .15, -.012), (s * .137, .08, -.04)], [.10, .13, .125, .11, .085], 0, ['thigh_' + side, 'shin_' + side, 'foot_' + side])
     rounded_block('Foot_' + side, (s * .137, .061, -.045), (.225, .115, .25), 2, {'foot_' + side: 1}, bevel=.048)
     hand_z = -.39 if s == 1 else -.49
@@ -483,7 +479,7 @@ flap.vertex_groups.new(name='cloth_clearance').add(list(range(len(flap.data.vert
 
 # Open-front olive vest that wraps chest, sides and back like a garment.
 # It is sampled on the torso surface in (angle from front, height) space, so
-# it follows the pear instead of floating as a separate tube or backpack.
+# it follows the barrel instead of floating as a separate tube or backpack.
 def torso_point(a, y, offset):
     # a = 0 faces forward (-z); positive angles turn toward +x.
     outward = Vector((math.sin(a), 0, -math.cos(a)))
@@ -608,6 +604,23 @@ for level, budget in enumerate([14000, 4800, 1400]):
     decimate = obj.modifiers.new('Triangle budget', 'DECIMATE')
     decimate.ratio = min(1, budget / source_tris)
     bpy.ops.object.modifier_apply(modifier=decimate.name)
+    # The body/head union is concave at the neck: a simplified edge must not
+    # bridge outside it. Apply final garment clearance after decimation.
+    arm_groups = {g.index for g in obj.vertex_groups if 'arm' in g.name or 'paw' in g.name}
+    head_centre = V((0, 1.6, -.04))
+    for vertex in obj.data.vertices:
+        if any(g.group in arm_groups and g.weight > 0 for g in vertex.groups):
+            continue
+        if vertex.co.z > 1.419:
+            offset = vertex.co - head_centre
+            if offset.length > .244:
+                vertex.co = head_centre + offset.normalized() * .244
+        else:
+            radius = math.hypot(vertex.co.x, vertex.co.y)
+            if radius > .297:
+                vertex.co.x *= .297 / radius
+                vertex.co.y *= .297 / radius
+
     # Coarse body and cloth triangles simplify independently. Keep the distant
     # flap outside the torso, tapering to zero at its stitched collar seam.
     clearance = obj.vertex_groups.get('cloth_clearance')

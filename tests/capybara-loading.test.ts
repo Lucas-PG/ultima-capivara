@@ -34,7 +34,12 @@ function fixture(): GLTF {
   const skeleton = new THREE.Skeleton(bones);
   const material = new THREE.MeshPhysicalMaterial();
   for (let i = 0; i < 3; i++) {
-    const mesh = new THREE.SkinnedMesh(new THREE.BoxGeometry(), material);
+    const geometry = new THREE.BoxGeometry(), count = geometry.getAttribute('position').count;
+    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+    const weights = new Float32Array(count * 4);
+    for (let vertex = 0; vertex < count; vertex++) weights[vertex * 4] = 1;
+    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
+    const mesh = new THREE.SkinnedMesh(geometry, material);
     mesh.name = `Capybara_LOD${i}`; mesh.bind(skeleton); scene.add(mesh);
   }
   return { scene, animations: ['idle', 'run', 'jump'].map(name => new THREE.AnimationClip(name, 1, [])) } as unknown as GLTF;

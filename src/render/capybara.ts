@@ -58,6 +58,9 @@ export function buildCapybaraBody(color: string): { body: THREE.SkinnedMesh; bon
 // Geometry, atlas, and clips are shared; poses are private.
 export const CAPYBARA_ASSET_URL = `${import.meta.env.BASE_URL}models/capybara/capybara.glb`;
 let characterAsset: GLTF | null = null;
+let characterHeadTop = 1.85;
+/** Rest-pose crown, measured once from the loaded mesh rather than the hit sphere. */
+export function capybaraHeadTop(): number { return characterHeadTop; }
 let characterLoading: Promise<void> | null = null;
 let characterGeneration = 0;
 const characterInstances = new WeakMap<THREE.SkinnedMesh, CharacterInstance>();
@@ -123,6 +126,11 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
           object.castShadow = true; object.receiveShadow = true;
           object.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
         });
+        asset.scene.updateMatrixWorld(true);
+        const source = asset.scene.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh;
+        source.skeleton.update();
+        const bounds = new THREE.Box3().setFromObject(source, true);
+        if (Number.isFinite(bounds.max.y)) characterHeadTop = bounds.max.y;
         characterAsset = asset;
       } catch (error) {
         disposeCharacterSource(asset);
