@@ -14,11 +14,13 @@ export class CharacterMask {
       Object.assign(shader.uniforms, this.uniforms);
       shader.fragmentShader = `uniform sampler2D sceneDepth;uniform vec2 inverseSize;uniform float near,far;\n${shader.fragmentShader}`;
       shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+        // The multisampled world depth can resolve off the mask pixel centre.
+        // Cover that subpixel slope so the same face does not reject itself.
         float viewDepth=2.0*near*far/(far+near-(gl_FragCoord.z*2.0-1.0)*(far-near));
-        if(viewDepth>150.0 || gl_FragCoord.z>texture2D(sceneDepth,gl_FragCoord.xy*inverseSize).r+0.0000001)discard;
+        if(viewDepth>150.0 || gl_FragCoord.z>texture2D(sceneDepth,gl_FragCoord.xy*inverseSize).r+0.0000001+0.75*fwidth(gl_FragCoord.z))discard;
         #include <opaque_fragment>`);
     };
-    this.material.customProgramCacheKey = () => 'visible-character-mask-v1';
+    this.material.customProgramCacheKey = () => 'visible-character-mask-v2';
   }
   resize(width: number, height: number) {
     this.target.setSize(width, height); this.uniforms.inverseSize.value.set(1 / width, 1 / height);
