@@ -136,3 +136,40 @@ but leaves the art gate open. Next round must narrow the nose pad, blend the
 jaw, recess the far eye, clarify hit/stunned expressions, flatten the bandana
 and lift the fur values. Machete wood/blade/paw values, smooth paw normals
 and the loose teal finger accent also need correction.
+
+## Round 4 candidate, not approved
+
+The nose pad is now 9.6 cm wide, a tapered rounded shape on the furry muzzle.
+The separate jaw block was removed; lower head vertices blend onto the jaw
+bone, and a conforming mouth cavity opens for hit, stunned and victory.
+Eye surfaces are recessed onto the head, the stunned eyes are larger and
+asymmetric, and the cloth band follows the torso surface with a 3 mm offset
+and 2.5 cm height. The asset remains within all three LOD and posed hitbox
+checks, with 33 joints and one shared material.
+
+The machete has a wood guard, a light blade edge (#E8EEF2), smoother paw
+geometry and a teal wrist band replacing the loose finger accent. The atlas
+still uses the bible's fixed fur and wood values. Its 720p hip mask covers
+19.38 percent, bounding rectangle 41.10 percent, with zero crosshair pixels.
+The previous complete eight-weapon footprint report belongs to round 3 and
+its recorded SHA256; a new full batch is required for round 4.
+
+`character-studio.html?runtime` applies the current game material hook and
+post pipeline. Without that parameter it retains the raw form review.
+`weapon-review.html?runtime` applies the current game toon ramp. Both are
+local diagnostic fixtures; the in-scene exterior/interior pair is still
+required, and Forja's later M1 pipeline must be checked after integration.
+Current production-path captures reveal excessive rim on dark facial parts
+and overly orange fur. TATU-29 tracks that material issue with Forja. The far
+eye and the six expressions still require Pincel's verdict; no art gate is
+closed by these technical checks.
+
+The round 4 specular investigation found two independent contributors:
+Forja's dark-albedo rim mask (`e61e439`, locally `3feb4ea`) removes the new rim
+from dark atlas regions, while a dedicated 16x16 alpha mask in the GLB limits
+physical specular to the eyes and nose. Mouth and fur have alpha zero.
+Blender's glTF exporter reads this mask from alpha, not RGB; the asset test
+checks the exported pixels as well as the clone retaining the map. The model
+still shares one material. The white mouth rim is gone in
+`tatu-capy-m1-r4-masked-specular.png`; saturation and final M1 lighting remain
+open for the integrated Forja pipeline and Pincel's review.
