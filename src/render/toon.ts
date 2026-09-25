@@ -31,6 +31,8 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     uniforms: {
       tColor: { value: color }, tDepth: { value: depth }, toneMappingExposure: { value: 1.1 },
       tCharacter: { value: color }, characterEnabled: { value: 0 }, transparentBackground: { value: 0 },
+      suppressWater: { value: 0 }, cameraWorldY: { value: 0 },
+      cameraUpRow: { value: new THREE.Vector3() }, inverseProjectionScale: { value: new THREE.Vector2() },
       ink: { value: new THREE.Vector3(.227451, .141176, .094118) },
       texel: { value: new THREE.Vector2(1, 1) }, width: { value: 1.25 }, cn: { value: .07 }, cf: { value: 850 },
     },
@@ -39,7 +41,7 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     fragmentShader: `precision highp float;
       #include <tonemapping_pars_fragment>
       #include <colorspace_pars_fragment>
-      uniform sampler2D tColor,tDepth,tCharacter;uniform vec3 ink;uniform float characterEnabled,transparentBackground;uniform vec2 texel;uniform float cn,cf,width;varying vec2 vUv;
+      uniform sampler2D tColor,tDepth,tCharacter;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY;uniform vec2 texel;uniform float cn,cf,width;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
         vec3 c=texture2D(tColor,vUv).rgb;float d=texture2D(tDepth,vUv).x;
@@ -51,6 +53,12 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         float lap=abs(a+b+e+f-4.0*d)*zl*zl*(cf-cn)/(cn*cf);
         // Far away only strong silhouettes keep their ink, so dense detail doesn't turn into noise.
         float edge=smoothstep(.035+zl*.0008,.085+zl*.0018,lap/zl)*(1.0-smoothstep(45.0,120.0,zl))*step(d,.99999);
+        if(suppressWater>.5){
+          float linearDepth=L(d);
+          vec3 viewPosition=vec3((vUv*2.0-1.0)*linearDepth*inverseProjectionScale,-linearDepth);
+          float surfaceY=cameraWorldY+dot(viewPosition,cameraUpRow);
+          edge*=smoothstep(-.07,.2,surfaceY);
+        }
         gl_FragColor=vec4(c,1.0);
         gl_FragColor.rgb=NeutralToneMapping(gl_FragColor.rgb);
         gl_FragColor=sRGBTransferOETF(gl_FragColor);

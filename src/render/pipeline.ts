@@ -48,6 +48,7 @@ export class RenderPipeline {
     this.postMaterial = createOutlineMaterial(this.postTarget.texture, this.postTarget.depthTexture);
     this.postMaterial.uniforms.tCharacter.value = this.mask.target.texture;
     this.postMaterial.uniforms.characterEnabled.value = 1;
+    this.postMaterial.uniforms.suppressWater.value = 1;
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.postMaterial); quad.frustumCulled = false; this.postScene.add(quad);
   }
 
@@ -74,6 +75,10 @@ export class RenderPipeline {
     stats.drawCalls = this.gl.info.render.calls; stats.triangles = this.gl.info.render.triangles;
     this.mask.render(this.gl, scene, camera);
     stats.drawCalls += this.gl.info.render.calls; stats.triangles += this.gl.info.render.triangles;
+    this.postMaterial.uniforms.cameraWorldY.value = camera.position.y;
+    const matrix = camera.matrixWorld.elements;
+    this.postMaterial.uniforms.cameraUpRow.value.set(matrix[1], matrix[5], matrix[9]);
+    this.postMaterial.uniforms.inverseProjectionScale.value.set(1 / camera.projectionMatrix.elements[0], 1 / camera.projectionMatrix.elements[5]);
     this.postMaterial.uniforms.cn.value = camera.near; this.postMaterial.uniforms.cf.value = camera.far;
     this.postMaterial.uniforms.toneMappingExposure.value = this.gl.toneMappingExposure;
     this.gl.setRenderTarget(this.aaTarget); this.gl.render(this.postScene, this.postCamera);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { AssetLoader } from './assets';
+import { PaintedWater } from './water';
 import { createToonMaterial, type ToonMaterialKind } from './materials';
 import { terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
@@ -160,36 +161,6 @@ function waterNormalTexture(): THREE.CanvasTexture {
   return texture;
 }
 
-function shoreGeometry(size: number): THREE.BufferGeometry {
-  const positions: number[] = [], uvs: number[] = [];
-  const step = 2.5, half = size / 2;
-  const add = (x: number, z: number, u: number, v: number) => { positions.push(x, .065, z); uvs.push(u, v); };
-  for (let z = -half; z < half; z += step) for (let x = -half; x < half; x += step) {
-    const corners = [[x, z], [x + step, z], [x + step, z + step], [x, z + step]];
-    const heights = corners.map(([px, pz]) => terrainHeight(px, pz) - .045);
-    const crossings: [number, number][] = [];
-    for (let edge = 0; edge < 4; edge++) {
-      const next = (edge + 1) % 4, a = heights[edge], b = heights[next];
-      if ((a < 0) === (b < 0)) continue;
-      const t = a / (a - b);
-      crossings.push([THREE.MathUtils.lerp(corners[edge][0], corners[next][0], t), THREE.MathUtils.lerp(corners[edge][1], corners[next][1], t)]);
-    }
-    for (let i = 0; i + 1 < crossings.length; i += 2) {
-      const a = crossings[i], b = crossings[i + 1], cx = (a[0] + b[0]) / 2, cz = (a[1] + b[1]) / 2;
-      const gx = terrainHeight(cx + .5, cz) - terrainHeight(cx - .5, cz);
-      const gz = terrainHeight(cx, cz + .5) - terrainHeight(cx, cz - .5);
-      const length = Math.hypot(gx, gz) || 1, ox = -gx / length * .85, oz = -gz / length * .85;
-      const ua = a[0] * .28 + a[1] * .18, ub = b[0] * .28 + b[1] * .18;
-      add(a[0], a[1], ua, 0); add(b[0], b[1], ub, 0); add(a[0] + ox, a[1] + oz, ua, 1);
-      add(a[0] + ox, a[1] + oz, ua, 1); add(b[0], b[1], ub, 0); add(b[0] + ox, b[1] + oz, ub, 1);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.computeVertexNormals(); return geometry;
-}
-
 function surfaceOf(object: MapObject, collider: Map<string, string>): Surface {
   const { kind, detail } = object;
   if (kind === 'grass' || kind === 'palm' || kind === 'tree') return 'leaf';
@@ -211,13 +182,11 @@ export class WorldScene {
   readonly group = new THREE.Group();
   readonly arenaBoundary = new THREE.Group();
   readonly water: THREE.Mesh;
-  readonly mist: THREE.Mesh;
-  private readonly waterNormals: THREE.CanvasTexture;
+  private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly cascadeTime = { value: 0 };
   private readonly vegetation: ReturnType<typeof buildVegetation>;
   private reducedMotion = false;
-  private readonly shore: THREE.Mesh;
   private readonly disposables: { dispose: () => void }[] = [];
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
@@ -343,28 +312,11 @@ export class WorldScene {
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
 
-    this.waterNormals = waterNormalTexture();
+    this.paintedWater = new PaintedWater(world, ground.geometry);
+    this.water = this.paintedWater.mesh;
+    this.group.add(this.water, this.paintedWater.contacts); this.disposables.push(this.paintedWater);
     this.smallWaterNormals = waterNormalTexture(); this.smallWaterNormals.repeat.set(3, 5);
-    // Cartoon sea: standard shading with a rippled normal for sun glints. The
-    // clearcoat layer it had doubled the per-pixel cost of the whole horizon.
-    const seaMaterial = new THREE.MeshStandardMaterial({ color: '#3f8392', roughness: .22, metalness: .02,
-      normalMap: this.waterNormals, normalScale: new THREE.Vector2(.42, .42), transparent: true, opacity: .93,
-      side: THREE.DoubleSide, depthWrite: false });
-    this.water = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), seaMaterial);
-    this.water.rotation.x = -Math.PI / 2; this.water.position.y = -.05; this.water.renderOrder = 1; this.group.add(this.water);
-    this.disposables.push(this.water.geometry, seaMaterial, this.waterNormals, this.smallWaterNormals);
-    const shoreMaterial = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 } }, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: 'uniform float uTime;varying vec2 vUv;void main(){float wash=.74+.26*sin(vUv.x*6.0-uTime*1.4);float edge=1.0-smoothstep(.05,.95,vUv.y);float grain=.75+.25*sin(vUv.x*31.0+vUv.y*19.0);gl_FragColor=vec4(vec3(.85,.94,.89),edge*wash*grain*.48);}',
-    });
-    this.shore = new THREE.Mesh(shoreGeometry(world.size), shoreMaterial);
-    this.shore.renderOrder = 2; this.group.add(this.shore);
-    this.disposables.push(this.shore.geometry, shoreMaterial);
-    const waveGeo = new THREE.PlaneGeometry(260, 260, 36, 36);
-    const waveMaterial = new THREE.MeshBasicMaterial({ color: '#a9d5ce', transparent: true, opacity: .025, blending: THREE.AdditiveBlending, depthWrite: false });
-    this.mist = new THREE.Mesh(waveGeo, waveMaterial); this.mist.rotation.x = -Math.PI / 2; this.mist.position.y = .02; this.group.add(this.mist);
-    this.disposables.push(waveGeo, waveMaterial);
+    this.disposables.push(this.smallWaterNormals);
 
     const buckets = new Map<string, { surface: Surface; parts: THREE.BufferGeometry[] }>();
     const stash = (surface: Surface, geometry: THREE.BufferGeometry, x: number, z: number) => {
@@ -670,25 +622,13 @@ export class WorldScene {
 
   setSettings(settings: Settings) {
     this.reducedMotion = settings.reducedMotion;
-    this.mist.visible = settings.graphics === 'high';
-    this.mist.material instanceof THREE.MeshBasicMaterial && (this.mist.material.opacity = settings.graphics === 'high' ? .025 : 0);
-    if (this.water.material instanceof THREE.MeshStandardMaterial) {
-      const next = settings.graphics === 'low' ? null : this.waterNormals;
-      if (this.water.material.normalMap !== next) { this.water.material.normalMap = next; this.water.material.needsUpdate = true; }
-      this.water.material.normalScale.setScalar(settings.graphics === 'low' ? .24 : .42);
-      this.water.material.roughness = settings.graphics === 'low' ? .29 : .22;
-    }
   }
 
   update(time: number) {
     this.vegetation.update(this.reducedMotion ? 0 : time);
     this.cascadeTime.value = time;
-    this.waterNormals.offset.set(time * .025, time * .014);
+    this.paintedWater.update(time, this.reducedMotion);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);
-    if (this.water.material instanceof THREE.MeshStandardMaterial) this.water.material.opacity = .92 + Math.sin(time * .55) * .012;
-    if (this.shore.material instanceof THREE.ShaderMaterial) this.shore.material.uniforms.uTime.value = time;
-    this.mist.position.x = Math.sin(time * .03) * 2;
-    this.mist.position.z = Math.cos(time * .04) * 2;
   }
 
   dispose() { this.disposables.forEach(value => value.dispose()); }

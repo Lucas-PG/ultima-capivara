@@ -111,3 +111,24 @@ matched Pincel approval set. The standalone preview's only console error was an
 unrequested favicon.ico 404, with zero shader errors or warnings. Counts were
 427 calls/941,480 triangles without a remote character and 433/971,794 with one.
 These counts exceed the final budget; Jangada's world batching is still required.
+
+## Slice 4: painted water
+
+Water depth is sampled from the existing rendered terrain grid, with no new
+terrain build or network asset. Shallow/mid/deep colours are #2EC4B6/#1FB0AE/
+#0E7C86. Depth continues smoothly beyond the terrain rectangle instead of
+switching colour at its border. Shore foam width uses the sampled terrain slope
+so shallow beaches do not become a wide white band. The shoreline fades over
+35 cm; foam stays within about one metre, at up to 55% opacity.
+
+One instanced foam draw covers solid colliders that cross the water level,
+including pier supports and rocks. Foam/glints use broad, slow variation; reduced
+motion freezes their shared clock. There are no photographic or water normal
+maps on the sea. All presets use the same intentional colour/edge treatment.
+The previous separate shoreline/mist meshes are removed. Post ink is suppressed
+on submerged geometry so the terrain depth cannot draw a hard line across foam.
+
+Typecheck and the terrain-alignment/resource-disposal water test pass. The local
+Medium/1280x720 water view has zero console errors/warnings and is retained at
+`output/playwright/m1-water-fixed.png`. Final matched art and budget review is
+still pending; no defect is closed by this implementation note alone.
