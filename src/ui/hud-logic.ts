@@ -1,3 +1,4 @@
+import { BINDABLE_CODE, DEFAULT_BINDINGS } from '../settings';
 // Pure HUD rules shared by the UI and its tests: loading progress, tip rotation, interface scale and result formatting.
 
 // Loading copy (style bible §13.1): friendly pt-BR, never technical, in load order.
@@ -67,9 +68,69 @@ export const ELIMINATED_ACTIONS = [
 // Results: the rematch/menu actions become visible and clickable this soon after the match ends (quality bar: at most 400 ms).
 export const RESULTS_ACTIONS_DELAY = 300;
 
+// Death cam card (Brasa's M1 death cam): shown from the kill event for the camera's duration, then the spectate or
+// respawn UI takes over. Mirrors DEATH_CAM_SECONDS in src/shared/death-cam.ts on v3/gameplay; switch to that import
+// once it lands so the card and the camera can never drift apart.
+export const DEATH_CARD_SECONDS = 1.8;
+// "Tico te pegou · M4 · 23 m". Storm and fall kills have no killer and keep their own lines (null here).
+export function killCardParts(killer: string | null | undefined, weaponName: string | null, distance: number | null | undefined) {
+  if (!killer || !weaponName) return null;
+  return { killer, weapon: weaponName, distance: Number.isFinite(distance) ? `${Math.max(0, Math.round(distance!))} m` : null };
+}
+
+// Menu cover: AVIF with a WebP fallback (scripts/build-cover.mjs), sized to the screen's device pixels so small
+// screens never download the desktop art. The loading screen blurs its backdrop, so it gets the tiny soft variant.
+export function coverImageSet(cssWidth: number, dpr = 1, url: (file: string) => string = file => publicUrl(file)) {
+  const name = cssWidth * dpr > 1100 ? 'cover-1672' : 'cover-960';
+  const set = (n: string) => `image-set(url("${url(`assets/${n}.avif`)}") type("image/avif"), url("${url(`assets/${n}.webp`)}") type("image/webp"))`;
+  return { cover: set(name), blur: set('cover-blur-480') };
+}
+
 // Lobby start button (host): while the island warms up it is disabled and busy with real progress;
 // otherwise it is enabled only when everyone is ready and connected.
 export function startButtonState(allReady: boolean, roomLoading: number | null) {
   const loading = roomLoading !== null;
   return { loading, disabled: loading || !allReady, primary: allReady && !loading, pct: loading ? Math.round(Math.min(1, Math.max(0, roomLoading!)) * 100) : 0 };
+}
+
+// Key remap (quality bar: remapping covers every action). Codes are KeyboardEvent.code, or 'Mouse' + button index.
+export const BINDING_LABELS: Record<string, string> = {
+  forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar',
+  leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita', fire: 'Atirar', ads: 'Mirar', reload: 'Recarregar', interact: 'Pegar / abrir',
+  inspect: 'Inspecionar arma', slot1: 'Arma 1', slot2: 'Arma 2', slot3: 'Arma 3', slot4: 'Arma 4',
+  useBandage: 'Usar bandagem', useMedkit: 'Usar kit médico', useGuarana: 'Tomar guaraná', useAcai: 'Tomar açaí', useRapadura: 'Comer rapadura',
+  scoreboard: 'Placar', map: 'Mapa da ilha',
+};
+export const BINDING_GROUPS: readonly { title: string; actions: readonly string[] }[] = [
+  { title: 'Movimento', actions: ['forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'leanLeft', 'leanRight'] },
+  { title: 'Combate', actions: ['fire', 'ads', 'reload', 'interact', 'inspect'] },
+  { title: 'Armas e curas', actions: ['slot1', 'slot2', 'slot3', 'slot4', 'useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] },
+  { title: 'Interface', actions: ['scoreboard', 'map'] },
+];
+export const CONSUMABLE_ACTIONS = ['useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] as const;
+// Esc stays reserved for the menu; the bindable codes are settings.ts BINDABLE_CODE (Brasa's binding model).
+export const isBindableCode = (code: string) => BINDABLE_CODE.test(code);
+// An empty string is an explicit 'unbound' (an old save whose key a new default would have doubled); only a missing
+// action falls back to its default.
+export const bindingOf = (bindings: Record<string, string>, action: string) => bindings[action] ?? DEFAULT_BINDINGS[action] ?? '';
+// While a chip waits for input, only a press on that chip becomes a mouse binding; a press anywhere else (Fechar, another
+// row, the backdrop) cancels the capture, so closing the dialog can never steal the left button from 'fire'.
+export const captureMousePress = (onCapturingChip: boolean, button: number): string | null => onCapturingChip ? `Mouse${button}` : null;
+export const unboundActions = (bindings: Record<string, string>, actions: readonly string[]) => actions.filter(action => !bindingOf(bindings, action));
+// Binding a code already used by another action swaps them, so no two actions ever share a key.
+export function remapBinding(bindings: Record<string, string>, action: string, code: string): Record<string, string> {
+  if (!isBindableCode(code)) return bindings;
+  const next = { ...bindings }, previous = bindingOf(bindings, action);
+  for (const other of Object.keys(next)) if (other !== action && next[other] === code) next[other] = previous;
+  next[action] = code;
+  return next;
+}
+const MOUSE_LABELS = ['Mouse esq.', 'Mouse meio', 'Mouse dir.', 'Mouse 4', 'Mouse 5'];
+const ARROWS: Record<string, string> = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+export function keyLabel(code: string): string {
+  if (!code) return 'Sem tecla';
+  if (/^Mouse[0-4]$/.test(code)) return MOUSE_LABELS[Number(code.slice(5))];
+  if (ARROWS[code]) return ARROWS[code];
+  if (code === 'Backquote') return '\'';
+  return code.replace(/^Key/, '').replace(/^Digit/, '').replace(/(Left|Right)$/, '').replace('Space', 'Espaço').replace('Control', 'Ctrl');
 }
