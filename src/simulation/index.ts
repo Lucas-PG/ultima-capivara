@@ -35,7 +35,7 @@ const HIT_SHAPES = {
 interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; jumpQueuedUntil: number; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
-  brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number; stormExposure: number;
+  brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number; stormExposure: number; landedAt: number;
   shots: number; hits: number; headshots: number; chests: number; eliminatedAt: number | null;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
@@ -51,6 +51,8 @@ const DEG = Math.PI / 180;
 export const BOT_TELL = .45;
 // Loot a bot will walk to must be on its own level (no stairs pathing).
 const LEVEL = 1.8;
+// Seconds after a human lands before bots may pick them as a target.
+export const LANDING_GRACE = 2.5;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export class Simulation {
@@ -160,7 +162,7 @@ export class Simulation {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, shots: 0, hits: 0, headshots: 0, chests: 0, eliminatedAt: null, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, eliminatedAt: null, history: [] });
   }
 
   input(id: string, input: InputFrame) {
@@ -343,7 +345,7 @@ export class Simulation {
     }
     if (s.pos.y <= ground) {
       const impact = s.velocity.y;
-      s.pos.y = ground; s.velocity = { x: 0, y: 0, z: 0 }; s.stage = 'ground'; s.grounded = true;
+      s.pos.y = ground; s.velocity = { x: 0, y: 0, z: 0 }; s.stage = 'ground'; s.grounded = true; a.landedAt = this.time;
       if (impact < -20) this.damage(a, Math.min(100, (-impact - 20) * 3), null, 'fall', false);
     }
   }
@@ -875,6 +877,8 @@ export class Simulation {
     for (const other of this.actors.values()) {
       const t = other.state;
       if (t.id === s.id || !t.alive || t.stage !== 'ground' || t.protectionUntil > this.time) continue;
+      // A human who just touched down gets a moment to find their feet, unless they already shot this bot.
+      if (!t.bot && this.time - other.landedAt < LANDING_GRACE && b.lastAttacker !== t.id) continue;
       // Legacy bots hunted humans and only fought other bots up close or when shot by them.
       const human = !t.bot || dm;
       const dx = t.pos.x - s.pos.x, dz = t.pos.z - s.pos.z, d = Math.hypot(dx, dz);
@@ -1054,7 +1058,7 @@ export class Simulation {
     if (fighting && t && !s.reloadUntil && !s.using) {
       b.reactT -= dt;
       const dist = Math.hypot(t.pos.x - s.pos.x, t.pos.y - s.pos.y, t.pos.z - s.pos.z);
-      if (b.reactT <= 0 && now >= b.fireAt && dist <= def.range && Math.abs(angleDiff(yaw, face)) < .2 && (b.mode !== 'cover' || atCover)) this.botShoot(a, target!);
+      if (b.reactT <= 0 && now >= b.fireAt && now - a.landedAt >= .5 && dist <= def.range && Math.abs(angleDiff(yaw, face)) < .2 && (b.mode !== 'cover' || atCover)) this.botShoot(a, target!);
     }
   }
   private botShoot(a: ActorRuntime, target: ActorRuntime) {

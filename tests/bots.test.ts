@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOT_TELL, Simulation } from '../src/simulation';
+import { BOT_TELL, LANDING_GRACE, Simulation } from '../src/simulation';
 import { DIFFICULTY, adaptDifficulty } from '../src/simulation/bots';
 import { terrainHeight } from '../src/shared/terrain';
 import { WEAPONS } from '../src/shared/weapons';
@@ -241,6 +241,24 @@ describe('legacy bot behaviour', () => {
       expect((alert!.event as Extract<GameEvent, { type: 'alert' }>).target).toBe('player');
       expect((alert!.event as Extract<GameEvent, { type: 'alert' }>).delay).toBeGreaterThanOrEqual(BOT_TELL);
       expect(shot.time - alert!.time).toBeGreaterThanOrEqual(BOT_TELL - 1 / 60);
+    }
+  });
+  it('gives a human who just landed a moment before any bot targets them, unless they shoot first', () => {
+    for (const shootFirst of [false, true]) {
+      const { sim, player, bot } = duel(8, 'hard', Math.PI, 11);
+      bot.brain.elite = true; bot.brain.skill = 1; player.hp = 10_000;
+      (sim as any).actors.get('player').landedAt = sim.snapshot().time;
+      if (shootFirst) bot.brain.lastAttacker = 'player';
+      const events = collect(sim, LANDING_GRACE - .2, 1 / 60);
+      const alerted = events.some(e => e.event.type === 'alert' && e.event.actor === 'bot-1');
+      expect(alerted).toBe(shootFirst);
+      if (!shootFirst) {
+        // Grace over: the same bot, facing the player again, now picks them.
+        collect(sim, .4, 1 / 60);
+        bot.state.pos = { x: 0, y: terrainHeight(0, -8), z: -8 }; bot.state.yaw = bot.brain.face = Math.PI; bot.brain.thinkAt = 0; bot.brain.goal = null; bot.brain.loot = null;
+        const later = collect(sim, 1, 1 / 60);
+        expect(later.some(e => e.event.type === 'alert' && e.event.actor === 'bot-1')).toBe(true);
+      }
     }
   });
 });
