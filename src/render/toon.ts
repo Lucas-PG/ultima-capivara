@@ -15,8 +15,8 @@ if (!chunk.includes('toonCoord')) {
 
 // Preserve a lavender light contribution under the sun's occlusion. This lifts
 // cast shadows without adding lights or flattening the three diffuse bands.
-const shadowTint = new THREE.Color('#B4C2EE'), sunTint = new THREE.Color('#FFD9A8');
-shadowTint.setRGB(shadowTint.r / sunTint.r * .55, shadowTint.g / sunTint.g * .55, shadowTint.b / sunTint.b * .55);
+const shadowTint = new THREE.Color('#C9B2D6'), sunTint = new THREE.Color('#FFD9A8');
+shadowTint.setRGB(shadowTint.r / sunTint.r * .75, shadowTint.g / sunTint.g * .75, shadowTint.b / sunTint.b * .75);
 const sunShadow = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
 if (!THREE.ShaderChunk.lights_fragment_begin.includes('paintedSunShadow')) {
   THREE.ShaderChunk.lights_fragment_begin = THREE.ShaderChunk.lights_fragment_begin.replace(sunShadow, `
