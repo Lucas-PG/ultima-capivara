@@ -118,6 +118,12 @@ export function createWorld(): WorldSpec {
     obj('barrel', x, y + .55, z, .46, 1.1, .46, '#497b8b', 'rust');
     colliders.push({ id: id('barrel'), min: p(x - .42, y, z - .42), max: p(x + .42, y + 1.1, z + .42), material: 'metal' });
   };
+  const specimenTree = (x: number, z: number, height: number, detail: string) => {
+    const y = ground(x, z);
+    obj('tree', x, y - .1, z, 1.4, height, 1.4, '#5FA544', detail);
+    colliders.push({ id: id('trunk'), min: p(x - .24, y - .5, z - .24),
+      max: p(x + .24, y + Math.min(3, height * .6), z + .24), material: 'wood' });
+  };
   const streetDetail = (x: number, z: number, kind: string, color: string) => {
     const y = ground(x, z);
     obj('box', x, y, z, 1, 0, 1, color, `prop:${kind}`);
@@ -336,7 +342,12 @@ export function createWorld(): WorldSpec {
     obj('cylinder', 77, ground(77, 53) + 4, 53, 2.4, 8, 2.4, '#b2b9b9', 'silo');
     obj('sphere', 77, ground(77, 53) + 8.3, 53, 2.4, 1, 2.4, '#c6ccca', 'silo-cap');
     colliders.push({ id: id('silo'), min: p(74.6, ground(77, 53), 50.6), max: p(79.4, ground(77, 53) + 8, 55.4), material: 'metal' });
-    for (const x of [48, 55, 62, 69, 76]) for (const z of [78, 84]) obj('tree', x + (random() - .5) * 1.4, ground(x, z), z, 2, 6, 2, '#708d4b', 'orchard');
+    for (const x of [48, 55, 62, 69, 76]) for (const z of [78, 84]) {
+      const px = x + (random() - .5) * 1.4, py = ground(px, z);
+      obj('tree', px, py, z, 2, 6, 2, '#708d4b', 'orchard');
+      colliders.push({ id: id('trunk'), min: p(px - .24, py - .5, z - .24),
+        max: p(px + .24, py + 3, z + .24), material: 'wood' });
+    }
     for (const z of [48, 86]) for (let x = 45.6; x < 80; x += 3.2) obj('box', x, ground(x, z) + .6, z, 2.8, .12, .13, '#9e7950', 'fence');
     for (const x of [44, 80]) for (let z = 49.6; z < 86; z += 3.2) if (z < 64 || z > 74) obj('box', x, ground(x, z) + .6, z, .13, .12, 2.8, '#9e7950', 'fence');
     for (let i = 0; i < 8; i++) {
@@ -377,7 +388,10 @@ export function createWorld(): WorldSpec {
     for (let i = 0; i < 46; i++) {
       const x = -125 + random() * 21, z = -100 + random() * 42;
       if (Math.abs(x + 110) < 2.2) continue;
-      obj('tree', x, ground(x, z), z, 1.2, 5 + random() * 4, 1.2, '#507b5a', 'mangrove');
+      const y = ground(x, z), height = 5 + random() * 4;
+      obj('tree', x, y, z, 1.2, height, 1.2, '#507b5a', 'mangrove');
+      colliders.push({ id: id('mangrove-trunk'), min: p(x - .25, y - .5, z - .25),
+        max: p(x + .25, y + Math.min(3, height * .6), z + .25), material: 'wood' });
     }
     item(-106, -57, 'bandage');
   }
@@ -503,6 +517,13 @@ export function createWorld(): WorldSpec {
   for (let i = 0; i < 8; i++) car(false);
   for (let i = 0; i < 14; i++) ruin();
   for (let i = 0; i < 24; i++) crates();
+
+  // District specimens carry the approved tropical silhouettes.
+  specimenTree(-37, 60, 8.6, 'ipe-yellow');
+  specimenTree(93, -45, 7.8, 'ipe-pink');
+  specimenTree(-42, 80, 8.4, 'flamboyant');
+  specimenTree(30, -102, 4.8, 'banana');
+  specimenTree(83, 82, 5.2, 'banana');
 
   // Trees (legacy density, v2 models): spaced out, off roads and lots; palms by the shore.
   const planted: { x: number; z: number }[] = [];

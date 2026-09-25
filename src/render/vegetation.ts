@@ -14,11 +14,26 @@ export function buildVegetation(world: WorldSpec) {
   const material = createToonMaterial('foliage', { vertexColors: true, roughness: .9, side: THREE.DoubleSide });
   material.onBeforeCompile = shader => {
     shader.uniforms.uBreeze = breeze;
-    shader.vertexShader = `uniform float uBreeze;\n${shader.vertexShader}`.replace(
+    shader.vertexShader = `uniform float uBreeze;
+      attribute vec3 plantTemplate;
+      attribute float crownCenter;\n${shader.vertexShader}`.replace(
       '#include <begin_vertex>', `#include <begin_vertex>
         float phase = 0.0;
         #ifdef USE_INSTANCING
           phase = instanceMatrix[3].x * .17 + instanceMatrix[3].z * .11;
+          if (plantTemplate.y > 0.5) {
+            float heightScale = instanceMatrix[1].y;
+            float radialScale = length(instanceMatrix[0].xyz);
+            float templateHeight = plantTemplate.x;
+            float crownScale = plantTemplate.y > 1.5 ? heightScale :
+              max(1.6, plantTemplate.z * templateHeight * heightScale) /
+              max(1.6, plantTemplate.z * templateHeight);
+            float crownBlend = smoothstep(templateHeight * .45, templateHeight * .75, position.y);
+            transformed.xz *= mix(1.0, crownScale / max(radialScale, .001), crownBlend);
+            if (crownCenter > 0.0)
+              transformed.y = crownCenter + (transformed.y - crownCenter) *
+                crownScale / max(heightScale, .001);
+          }
         #endif
         float gust = sin(uBreeze * 1.3 + position.x * .63 + position.z * .41 + phase);
         float sway = smoothstep(0.0, 2.0, max(position.y, 0.0));
@@ -70,6 +85,8 @@ export function buildVegetation(world: WorldSpec) {
     scale: THREE.Vector3, material = 0, rotation = new THREE.Quaternion()) => {
     const geometry = base.index ? base.toNonIndexed() : base.clone();
     geometry.applyMatrix4(matrix.compose(position, rotation, scale));
+    geometry.setAttribute('crownCenter', new THREE.Float32BufferAttribute(
+      new Array<number>(geometry.getAttribute('position').count).fill(material === 1 ? position.y : 0), 1));
     stash(tint(geometry, color), material, position.x, position.z);
   };
   const branch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, color: string) => {
@@ -86,6 +103,7 @@ export function buildVegetation(world: WorldSpec) {
     const points = [base, left, ridge, left, tip, ridge, tip, right, ridge, right, base, ridge];
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(points.flatMap(p => [p.x, p.y, p.z]), 3));
+    g.setAttribute('crownCenter', new THREE.Float32BufferAttribute(new Array<number>(points.length).fill(base.y), 1));
     g.computeVertexNormals(); stash(tint(g, color), 1, base.x, base.z);
   };
   const species = (object: MapObject) => object.kind === 'tree' ?
@@ -96,6 +114,11 @@ export function buildVegetation(world: WorldSpec) {
     const key = species(object);
     if (!specimens.has(key)) specimens.set(key, object);
   }
+  const positionKey = (x: number, z: number) => `${x.toFixed(4)}:${z.toFixed(4)}`;
+  const trunkRadii = new Map<string, number>();
+  for (const collider of world.colliders) if (/^(mangrove-)?trunk-/.test(collider.id))
+    trunkRadii.set(positionKey((collider.min.x + collider.max.x) / 2,
+      (collider.min.z + collider.max.z) / 2), (collider.max.x - collider.min.x) / 2);
   for (lod = 0; lod < 2; lod++) for (const [key, object] of specimens) {
     templateKey = `${key}:${lod}`;
     const far = lod === 1;
@@ -219,7 +242,16 @@ export function buildVegetation(world: WorldSpec) {
   for (const [key, parts] of templates) {
     const geometry = mergeGeometries(parts, false); parts.forEach(p => p.dispose());
     if (!geometry) throw new Error('Cannot merge vegetation geometry');
-    geometry.computeBoundingSphere(); merged.set(key, geometry);
+    const type = key.split(':')[0], templateHeight = specimens.get(type)!.scale.y;
+    const templateKind = type === 'grass' || type === 'reeds' ? 0 : type === 'palm' || type === 'banana' ? 2 : 1;
+    const crownSlope = type === 'flamboyant' ? .34 : .27;
+    const count = geometry.getAttribute('position').count;
+    const plantTemplate = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) plantTemplate.set([templateHeight, templateKind, crownSlope], i * 3);
+    geometry.setAttribute('plantTemplate', new THREE.BufferAttribute(plantTemplate, 3));
+    geometry.computeBoundingSphere();
+    if (templateKind) geometry.boundingSphere!.radius *= 1.5;
+    merged.set(key, geometry);
     releaseAfterUpload(geometry);
   }
   templates.clear();
@@ -232,13 +264,24 @@ export function buildVegetation(world: WorldSpec) {
   const instanceMatrix = new THREE.Matrix4();
   const instancePosition = new THREE.Vector3(), instanceScale = new THREE.Vector3();
   const instanceRotation = new THREE.Quaternion();
+  const instances: THREE.InstancedMesh[] = [];
   const makeInstances = (geometry: THREE.BufferGeometry, count: number, material: THREE.Material,
-    objects: MapObject[], cx: number, cz: number, templateHeight: number) => {
+    objects: MapObject[], cx: number, cz: number, templateHeight: number, shadow = false) => {
     const mesh = new THREE.InstancedMesh(geometry, material, count);
     objects.forEach((object, index) => {
-      const factor = object.scale.y / templateHeight;
       instancePosition.set(object.pos.x - cx, object.pos.y, object.pos.z - cz);
-      instanceScale.setScalar(factor);
+      const heightScale = object.scale.y / templateHeight;
+      if (shadow) instanceScale.setScalar(heightScale);
+      else if (object.kind === 'grass') {
+        const bladeCap = object.detail === 'reeds' ? 1.6 : .42;
+        instanceScale.set(1, Math.min(bladeCap, object.scale.y) / Math.min(bladeCap, templateHeight), 1);
+      } else {
+        const templateRadius = object.kind === 'palm' ? .13 + templateHeight * .009 :
+          object.detail === 'banana' ? .13 : .15 + templateHeight * .015;
+        const targetRadius = trunkRadii.get(positionKey(object.pos.x, object.pos.z)) ??
+          (object.kind === 'palm' ? .13 + object.scale.y * .009 : .15 + object.scale.y * .015);
+        instanceScale.set(targetRadius / templateRadius, heightScale, targetRadius / templateRadius);
+      }
       // Most authored landmark trees have no rotation. Give each a stable
       // orientation so instancing does not reveal identical neighbouring crowns.
       const rotation = object.rotation ?? hash(Math.round(object.pos.x * 100), Math.round(object.pos.z * 100)) * Math.PI * 2;
@@ -247,6 +290,7 @@ export function buildVegetation(world: WorldSpec) {
     });
     mesh.instanceMatrix.needsUpdate = true;
     mesh.computeBoundingSphere();
+    instances.push(mesh);
     return mesh;
   };
   for (const [key, objects] of cells) {
@@ -304,11 +348,12 @@ export function buildVegetation(world: WorldSpec) {
     const [type, cellX, cellZ] = key.split(':');
     const cx = (Number(cellX) + .5) * 64, cz = (Number(cellZ) + .5) * 64;
     const geometry = type === 'palm' ? shadowPalm : shadowTree;
-    const proxy = makeInstances(geometry, objects.length, shadowProxy, objects, cx, cz, 1);
+    const proxy = makeInstances(geometry, objects.length, shadowProxy, objects, cx, cz, 1, true);
     proxy.position.set(cx, 0, cz); proxy.castShadow = true;
     group.add(proxy);
   }
   stem.dispose(); crowns.forEach(g => g.dispose()); coconut.dispose(); trunkRing.dispose();
   return { group, update(time: number) { breeze.value = time; },
-    dispose() { merged.forEach(g => g.dispose()); shadowTree.dispose(); shadowPalm.dispose(); material.dispose(); shadowProxy.dispose(); } };
+    dispose() { instances.forEach(mesh => mesh.dispose()); merged.forEach(g => g.dispose());
+      shadowTree.dispose(); shadowPalm.dispose(); material.dispose(); shadowProxy.dispose(); } };
 }
