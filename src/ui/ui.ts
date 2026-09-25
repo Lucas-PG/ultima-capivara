@@ -71,6 +71,7 @@ export class GameUI {
   private toastItems: { text: string; el: HTMLElement; timer: number; at: number }[] = [];
   private coach: { step: string; visibleAt: number | null; startPos: { x: number; z: number } | null } | null = null;
   private onboarded = false;
+  private pendingToasts: { message: string; error: boolean }[] = [];
   private readonly crosshairSpread = new CrosshairSpread();
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
@@ -357,7 +358,7 @@ export class GameUI {
     this.toggleMap(false);
     const snapshot = this.snapshot, online = !!this.room, alive = snapshot ? snapshot.actors.filter(a => a.alive).length : 0, b = this.settings.bindings;
     const keys = (...codes: string[]) => `<span class="keys">${codes.map(code => `<kbd class="kc">${esc(code)}</kbd>`).join('')}</span>`;
-    panel.innerHTML = `<div class="mc"><div class="eyebrow stk">Partida em andamento · ${alive} ${alive === 1 ? 'vivo' : 'vivos'}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${online ? 'Menu' : 'Pausado'}</h1>${!online && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
+    panel.innerHTML = `<div class="mc"><div class="eyebrow stk">Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'vivo' : 'vivos'}` : ''}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${online ? 'Menu' : 'Pausado'}</h1>${!online && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
       + `<button type="button" class="play" data-do="resume">Voltar pra ilha</button><div id="lockErr" role="status"></div>`
       + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys('1–4', 'Roda')}armas</span><span>${keys('5–9')}curas</span><span>${keys('Tab')}placar</span><span>${keys('M')}mapa</span></div>`
       + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2)}</b></span><input type="range" data-quick="sensitivity" min="0.2" max="3" step="0.05" value="${this.settings.sensitivity}"></label>`
@@ -479,9 +480,12 @@ export class GameUI {
   // Damage numbers and callouts float up next to the crosshair (the HUD has no camera to project world points).
   private floater(text: string, cls: string) {
     const layer = this.el('nums'), el = document.createElement('div'); el.className = cls; el.textContent = text;
-    el.style.left = cls.startsWith('pop') ? '50%' : `calc(50% + ${Math.round(28 + Math.random() * 30) * (Math.random() < .5 ? -1 : 1)}px)`;
-    // Callouts stack by kind so a headshot and a kill in the same moment never overlap.
-    el.style.top = `calc(50% - ${cls === 'pop kill' ? 150 : cls.startsWith('pop') ? 84 : 34}px)`; el.style.rotate = `${(Math.random() * 16 - 8).toFixed(1)}deg`;
+    // Feedback stays right of the reticle, outside an ~8° aim cone (about 94 px at 1080p, FOV 78), stacked by kind
+    // so a damage number, a headshot and a kill in the same moment never overlap each other or the target.
+    const cone = Math.round(innerHeight / 1080 * 110);
+    el.style.left = `calc(50% + ${cone + (cls.startsWith('pop') ? 0 : Math.round(Math.random() * 16))}px)`;
+    el.style.top = `calc(50% - ${cls === 'pop kill' ? cone + 36 : cls.startsWith('pop') ? Math.round(cone * .45) : -Math.round(cone * .15)}px)`;
+    el.style.rotate = `${(Math.random() * 8 - 4).toFixed(1)}deg`;
     layer.appendChild(el); window.setTimeout(() => el.remove(), 900);
     while (layer.children.length > 14) layer.firstElementChild!.remove();
   }
@@ -492,6 +496,8 @@ export class GameUI {
   // Toasts stack (at most two), drop duplicates that arrive together, and never cover the view with a red slab.
   toast(message: string, error = false) {
     if (error) { const line = this.root.querySelector('#lockErr'); if (line) line.textContent = message; }
+    // Nothing is clickable during loading: hold messages until the island is on screen.
+    if (this.root.querySelector('#loadingOverlay:not(.out)')) { if (!this.pendingToasts.some(t => t.message === message)) this.pendingToasts.push({ message, error }); return; }
     const host = document.querySelector<HTMLElement>('#toast')!, now = performance.now();
     if (this.toastItems.some(item => item.text === message && now - item.at < 1500)) return;
     const el = document.createElement('div'); el.className = `toast-item${error ? ' error' : ''}`; el.textContent = message;
@@ -569,13 +575,16 @@ export class GameUI {
     } else { ctx.strokeStyle = '#e5412d'; ctx.lineWidth = 3; ctx.strokeRect(X(ARENA.minX), Z(ARENA.minZ), (ARENA.maxX - ARENA.minX) * scale, (ARENA.maxZ - ARENA.minZ) * scale); }
     ctx.save(); ctx.font = `${full ? 26 : 23}px "Dela Gothic One","Arial Black",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = full ? 7 : 5; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#fff4d6';
     // Labels clamped to the edge must never overlap: a label that would collide with one already drawn is skipped.
-    const placed: [number, number, number, number][] = [];
+    const placed: [number, number, number, number][] = [[X(actor.pos.x) - 18, Z(actor.pos.z) - 18, X(actor.pos.x) + 18, Z(actor.pos.z) + 18]];
+    if (!full) placed.push([size / 2 - 16, 0, size / 2 + 16, 34]);
     for (const district of this.world.districts) {
       const x = X(district.x), y = Z(district.z); if (x < -60 || y < -20 || x > size + 60 || y > size + 20) continue;
       const label = district.name.toUpperCase(), w = ctx.measureText(label).width / 2 + 6, lx = clamp(x, w, size - w), ly = clamp(y, 14, size - 14);
-      const box: [number, number, number, number] = [lx - w, ly - 15, lx + w, ly + 15];
-      if (placed.some(o => box[0] < o[2] && box[2] > o[0] && box[1] < o[3] && box[3] > o[1])) continue;
-      placed.push(box); ctx.strokeText(label, lx, ly); ctx.fillText(label, lx, ly);
+      // Try the label in place, then nudged below or above the obstacle; skip it only if every slot collides.
+      const hit = (y: number) => placed.some(o => lx - w < o[2] && lx + w > o[0] && y - 15 < o[3] && y + 15 > o[1]);
+      const ty = [ly, ly + 30, ly - 30].map(y => clamp(y, 14, size - 14)).find(y => !hit(y));
+      if (ty === undefined) continue;
+      placed.push([lx - w, ty - 15, lx + w, ty + 15]); ctx.strokeText(label, lx, ty); ctx.fillText(label, lx, ty);
     }
     ctx.restore();
     ctx.save(); ctx.translate(X(actor.pos.x), Z(actor.pos.z)); ctx.rotate(-actor.yaw); const k = full ? 1.5 : 1.25; ctx.scale(k, k);
@@ -594,7 +603,14 @@ export class GameUI {
   setLoading(on: boolean) {
     clearInterval(this.tipTimer); clearTimeout(this.tipIndexTimer);
     const current = this.root.querySelector<HTMLElement>('#loadingOverlay');
-    if (!on) { if (current) { current.classList.add('out'); window.setTimeout(() => current.remove(), 350); } return; }
+    if (!on) {
+      if (current) { current.classList.add('out'); window.setTimeout(() => current.remove(), 350); }
+      // The pause panel already asks for the click; only messages that still apply are shown.
+      const pending = this.pendingToasts; this.pendingToasts = [];
+      // Errors are dropped once the pointer is locked, or while the pause panel shows them in its own #lockErr line.
+      for (const t of pending) if (!t.error || (!document.pointerLockElement && this.el('pause-panel')?.hidden !== false)) this.toast(t.message, t.error);
+      return;
+    }
     if (current || this.screen !== 'game') return;
     this.loadProgress = 0;
     const b = this.settings.bindings, mode = this.room?.config.mode ?? this.selectedMode;
