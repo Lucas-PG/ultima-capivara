@@ -9,3 +9,5 @@ output/
 *.local
 .env
 .vitest/
+tests/visual/baselines/
+tests/perf/results/

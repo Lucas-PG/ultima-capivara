@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { AssetLoader } from './assets';
+import { PaintedWeaponSet, PAINTED_WEAPON_IDS, paintedWeaponsEnabled, type PaintedWeaponModel } from './painted-weapons';
+import { WEAPON_HIP_POSES, WEAPON_VIEW_FOV } from './weapon-framing';
 import { damp } from '../shared/math';
 import { advanceAds, WEAPONS } from '../shared/weapons';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
@@ -18,9 +20,9 @@ const palette = {
   brass: new THREE.MeshStandardMaterial({ color: '#e0b265', metalness: .35, roughness: .38 }),
   shellRed: new THREE.MeshStandardMaterial({ color: '#c24635', metalness: .1, roughness: .56 }),
   blue: new THREE.MeshStandardMaterial({ color: '#2e5d5f', metalness: .12, roughness: .66 }),
-  skin: new THREE.MeshStandardMaterial({ color: '#a8703f', roughness: .95 }),
-  skinLight: new THREE.MeshStandardMaterial({ color: '#d6a877', roughness: .95 }),
-  skinShade: new THREE.MeshStandardMaterial({ color: '#6e4a31', roughness: .95 }),
+  skin: new THREE.MeshStandardMaterial({ color: '#B8743A', roughness: .95 }),
+  skinLight: new THREE.MeshStandardMaterial({ color: '#D39A47', roughness: .95 }),
+  skinShade: new THREE.MeshStandardMaterial({ color: '#7A4424', roughness: .95 }),
   sleeve: new THREE.MeshStandardMaterial({ color: '#3a9c98', roughness: .85 }),
   cuff: new THREE.MeshStandardMaterial({ color: '#2c7773', roughness: .85 }),
   tape: new THREE.MeshStandardMaterial({ color: '#e7d3a6', roughness: .9 }),
@@ -453,7 +455,7 @@ function arms(group: THREE.Group, id: WeaponId): THREE.Group {
   return support;
 }
 
-interface Model { group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; magazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Group; sightY: number; hipX: number; adsZ: number }
+interface Model { group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; magazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Object3D; sightY: number; hipX: number; adsZ: number; painted?: PaintedWeaponModel; rarity?: number }
 
 function disposeImported(root: THREE.Object3D) {
   const geometry = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
@@ -478,6 +480,8 @@ export class WeaponView {
   readonly camera = new THREE.PerspectiveCamera(58, 1, .01, 10);
   private readonly holder = new THREE.Group();
   private readonly models = {} as Record<WeaponId, Model>;
+  private readonly painted = paintedWeaponsEnabled() ? new PaintedWeaponSet() : null;
+  private readonly warmupVariants = new THREE.Group();
   private active: WeaponId = 'pistol';
   private ads = 0;
   private kick = 0;
@@ -486,15 +490,17 @@ export class WeaponView {
   private shotLife = 0;
   private reloadEnd = 0;
   private disposed = false;
-  private furColor = '';
 
   constructor(private readonly loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.scene.add(new THREE.HemisphereLight('#e4ece6', '#5e5147', .85));
-    const key = new THREE.DirectionalLight('#ffe6c4', 2.7); key.position.set(-1.4, 2.4, 2.2); this.scene.add(key);
-    const rim = new THREE.DirectionalLight('#b9e3ea', 1.1); rim.position.set(1.8, .9, -1.6); this.scene.add(rim);
+    this.scene.add(new THREE.HemisphereLight(this.painted ? '#B4C2EE' : '#e4ece6', this.painted ? '#C9A66B' : '#5e5147', this.painted ? 1.15 : .85));
+    const key = new THREE.DirectionalLight(this.painted ? '#FFD9A8' : '#ffe6c4', 2.7); key.position.set(-1.4, 2.4, 2.2); this.scene.add(key);
+    if (!this.painted) {
+      const rim = new THREE.DirectionalLight('#b9e3ea', 1.1); rim.position.set(1.8, .9, -1.6); this.scene.add(rim);
+    } else { this.camera.fov = WEAPON_VIEW_FOV; this.camera.updateProjectionMatrix(); }
+    this.warmupVariants.visible = false; this.scene.add(this.warmupVariants);
     this.scene.add(this.holder);
     let pistolFallback: THREE.Group | undefined, sniperFallback: THREE.Group | undefined;
-    for (const id of ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'] as WeaponId[]) {
+    for (const id of this.painted ? [] : PAINTED_WEAPON_IDS) {
       const body = gunBase(id);
       if (id === 'pistol') pistolFallback = body;
       if (id === 'sniper') sniperFallback = body;
@@ -510,10 +516,13 @@ export class WeaponView {
         sightY: body.userData.sightY || 0, hipX: id === 'pistol' ? .23 : id === 'machete' ? .25 : id === 'slingshot' ? .23 : id === 'smg' ? .20 : .18,
         adsZ: id === 'pistol' ? -.36 : id === 'machete' ? -.32 : id === 'slingshot' ? -.33 : -.29 };
     }
-    this.assets = Promise.all([
+    this.assets = (this.painted ? this.loadPainted() : Promise.all([
       pistolFallback ? this.loadPistol(pistolFallback) : Promise.resolve(),
       sniperFallback ? this.loadSniper(sniperFallback) : Promise.resolve(),
-    ]).then(() => { onAssetsReady(); });
+    ])).then(() => {
+      if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
+      onAssetsReady();
+    });
     void this.assets.catch(() => {});
 
   }
@@ -522,8 +531,20 @@ export class WeaponView {
 
   // Warm-up only: show every model at once so one render compiles and uploads all of them.
   revealAll(on: boolean) {
-    this.holder.visible = on;
+    this.holder.visible = on; this.warmupVariants.visible = on;
     for (const [id, model] of Object.entries(this.models) as [WeaponId, Model][]) model.group.visible = on || id === this.active;
+  }
+
+  private async loadPainted() {
+    const set = this.painted!;
+    await set.preload(url => this.loader.gltf(url));
+    if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
+    for (const id of PAINTED_WEAPON_IDS) {
+      const painted = set.create(id);
+      this.models[id] = { ...painted, painted, rarity: 0, hipX: WEAPON_HIP_POSES[id].x, adsZ: -.4 };
+      painted.group.visible = false; this.holder.add(painted.group);
+      for (let rarity = 1; rarity < 4; rarity++) this.warmupVariants.add(set.create(id, rarity).group);
+    }
   }
 
   private async loadPistol(fallback: THREE.Group) {
@@ -627,19 +648,16 @@ export class WeaponView {
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number) {
     this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
     if (!actor || !this.holder.visible) return;
-    if (actor.color && actor.color !== this.furColor) {
-      this.furColor = actor.color;
-      const fur = new THREE.Color(actor.color);
-      palette.skin.color.copy(fur).lerp(new THREE.Color('#5a3f2c'), .1);
-      palette.skinLight.color.copy(fur).lerp(new THREE.Color('#f0d3a8'), .45);
-      palette.skinShade.color.copy(fur).lerp(new THREE.Color('#3f2a1d'), .45);
-    }
     const weapon = actor.weapons[actor.slot]?.id || 'pistol';
     if (weapon !== this.active) {
       this.models[this.active].group.visible = false; this.active = weapon; this.models[this.active].group.visible = true;
       this.draw = 1; this.kick = 0; this.reloadEnd = 0; this.ads = 0;
     }
     const model = this.models[this.active]; model.group.visible = true;
+    const rarity = actor.weapons[actor.slot]?.rarity ?? 0;
+    if (model.painted && rarity !== model.rarity) {
+      this.painted!.setRarity(model.painted, rarity); model.rarity = rarity;
+    }
     const reloading = actor.reloadUntil > simulationTime;
     if (reloading && actor.reloadUntil > this.reloadEnd) this.reloadEnd = actor.reloadUntil;
     const duration = WEAPONS[weapon].reload || 1;
@@ -656,7 +674,7 @@ export class WeaponView {
     model.support.position.set(magazineMotion * .012, -magazineMotion * .055, magazineMotion * .11);
     model.support.rotation.x = -magazineMotion * .25;
     if (model.action) {
-      const baseZ = weapon === 'shotgun' ? -.43 : weapon === 'pistol' ? 0 : .014;
+      const baseZ = model.painted ? 0 : weapon === 'shotgun' ? -.43 : weapon === 'pistol' ? 0 : .014;
       const total = weapon === 'shotgun' ? .42 : weapon === 'sniper' ? .58 : .2;
       const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
       if (model.action.userData.fbxBolt) model.action.position.y = model.action.userData.restY + cycle * .07;
@@ -674,15 +692,16 @@ export class WeaponView {
     this.gait += dt * (actor.sprint ? 14 : speed > .4 ? 10 : 2);
     const bob = settings.reducedMotion ? 0 : Math.min(speed / 7, 1) * (actor.sprint ? .027 : .012);
     const sprint = actor.sprint ? 1 : 0;
-    const modelScale = .72;
+    const pose = model.painted ? WEAPON_HIP_POSES[weapon] : null;
+    const modelScale = pose?.scale ?? .72;
     this.holder.scale.setScalar(modelScale);
-    const hipY = THREE.MathUtils.lerp(-.245, -model.sightY * modelScale, this.ads);
-    this.holder.position.set(THREE.MathUtils.lerp(model.hipX + .045, 0, this.ads) + Math.sin(this.gait) * bob * .4,
+    const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, this.ads);
+    this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, this.ads) + Math.sin(this.gait) * bob * .4,
       hipY + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - this.draw * .16 - sprint * .08 - closeWall * .12 - magazineMotion * .045,
-      THREE.MathUtils.lerp(-.73, model.adsZ, this.ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
-    this.holder.rotation.set(this.kick * 1.1 + this.draw * .38 + magazineMotion * .24 + sprint * .16,
-      THREE.MathUtils.lerp(.24, 0, this.ads) + closeWall * .28,
-      THREE.MathUtils.lerp(-.055, 0, this.ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13);
+      THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, this.ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
+    this.holder.rotation.set((pose?.pitch ?? 0) * (1 - this.ads) + this.kick * 1.1 + this.draw * .38 + magazineMotion * .24 + sprint * .16,
+      THREE.MathUtils.lerp(pose ? 0 : .24, 0, this.ads) + closeWall * .28,
+      THREE.MathUtils.lerp(pose ? 0 : -.055, 0, this.ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13);
     model.group.rotation.x = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * .8 : 0;
     model.group.rotation.z = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * -.45 : 0;
   }
@@ -691,7 +710,9 @@ export class WeaponView {
   get adsAmount() { return this.ads; }
   get weapon() { return this.active; }
   dispose() {
+    if (this.disposed) return;
     this.disposed = true;
+    this.painted?.dispose();
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();
     const textures = new Set<THREE.Texture>();

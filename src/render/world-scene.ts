@@ -9,6 +9,7 @@ import { releaseAfterUpload } from './memory';
 import { buildProps } from './props';
 import { buildWallArt } from './wall-art';
 import { textSignMaterial, twoSidedTextSign } from './signage';
+import { SIGN_ART } from '../shared/signage';
 import type { MapObject, Settings, WorldSpec } from '../shared/types';
 
 const c = (value: string | number) => new THREE.Color(value);
@@ -146,18 +147,6 @@ function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
   return geo;
 }
 
-function signTexture(label: string): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 256;
-  const context = canvas.getContext('2d')!;
-  context.fillStyle = '#efe1bc'; context.fillRect(0, 0, 512, 256);
-  context.fillStyle = '#ab7354'; context.fillRect(12, 12, 488, 232);
-  context.fillStyle = '#f4e7bd'; context.fillRect(22, 22, 468, 212);
-  context.fillStyle = '#593c33'; context.font = 'bold 62px Georgia, serif'; context.textAlign = 'center'; context.textBaseline = 'middle';
-  const parts = label.split(' / ');
-  parts.forEach((part, i) => context.fillText(part, 256, parts.length > 1 ? 82 + i * 100 : 128, 440));
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
-}
-
 function waterNormalTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
   const context = canvas.getContext('2d')!, pixels = context.createImageData(256, 256);
@@ -249,6 +238,12 @@ export class WorldScene {
       return [surface, value];
     })) as Record<Surface, ReturnType<typeof surfaceTextures>>;
     for (const value of assetTextures.values()) this.disposables.push(value.color, value.normal, value.rough);
+    const signAtlas = loader.texture('textures/island-signs.png');
+    signAtlas.colorSpace = THREE.SRGBColorSpace;
+    signAtlas.minFilter = THREE.LinearMipmapLinearFilter;
+    signAtlas.magFilter = THREE.LinearFilter;
+    const signMaterial = textSignMaterial(signAtlas);
+    this.disposables.push(signAtlas, signMaterial);
     void loader.ready().then(onAssetsReady, () => {});
     const materialFor = (surface: Surface) => {
       const material = new THREE.MeshStandardMaterial({
@@ -281,7 +276,9 @@ export class WorldScene {
           `);
         };
       }
-      this.surfaceMaterials.push({ material, normal: material.normalMap, rough: material.roughnessMap });
+      const shaderVariant = surface === 'plaster' || surface === 'roof' ? surface :
+        surface === 'earth' || surface === 'fabric' ? 'flat' : 'grain';
+      material.customProgramCacheKey = () => `island-surface-${shaderVariant}-photo-v1`;
       return material;
     };
     const groundColors = loader.texture('textures/terrain-color.png');
@@ -420,11 +417,31 @@ export class WorldScene {
     this.mist = new THREE.Mesh(waveGeo, waveMaterial); this.mist.rotation.x = -Math.PI / 2; this.mist.position.y = .02; this.group.add(this.mist);
     this.disposables.push(waveGeo, waveMaterial);
 
-    const buckets = new Map<string, { surface: Surface; parts: THREE.BufferGeometry[] }>();
+    const surfaceBindings = new Map<Surface, { material: THREE.MeshStandardMaterial; id: number; cast: boolean; receive: boolean }>();
+    const materialVariants = new Map<string, { material: THREE.MeshStandardMaterial; id: number; cast: boolean; receive: boolean }>();
+    const buckets = new Map<string, { binding: { material: THREE.MeshStandardMaterial; cast: boolean; receive: boolean }; parts: THREE.BufferGeometry[] }>();
     const stash = (surface: Surface, geometry: THREE.BufferGeometry, x: number, z: number) => {
       // 64 m cells: few enough draw calls from the plane, still culled on the ground.
-      const key = `${surface}:${Math.floor(x / 64)}:${Math.floor(z / 64)}`;
-      const bucket = buckets.get(key) || { surface, parts: [] };
+      let binding = surfaceBindings.get(surface);
+      if (!binding) {
+        const candidate = materialFor(surface);
+        const cast = surface !== 'leaf' && surface !== 'earth' && surface !== 'sand' && surface !== 'road';
+        const receive = surface !== 'leaf';
+        const signature = [candidate.map?.uuid, candidate.normalMap?.uuid, candidate.roughnessMap?.uuid,
+          candidate.normalScale.x, candidate.normalScale.y, candidate.roughness, candidate.metalness,
+          candidate.side, candidate.customProgramCacheKey(), cast, receive].join(':');
+        binding = materialVariants.get(signature);
+        if (binding) candidate.dispose();
+        else {
+          binding = { material: candidate, id: materialVariants.size, cast, receive };
+          materialVariants.set(signature, binding);
+          this.surfaceMaterials.push({ material: candidate, normal: candidate.normalMap, rough: candidate.roughnessMap });
+          this.disposables.push(candidate);
+        }
+        surfaceBindings.set(surface, binding);
+      }
+      const key = `${binding.id}:${Math.floor(x / 64)}:${Math.floor(z / 64)}`;
+      const bucket = buckets.get(key) || { binding, parts: [] };
       bucket.parts.push(geometry); buckets.set(key, bucket);
     };
     const colliderMaterials = new Map(world.colliders.map(collider => [collider.id, collider.material]));
@@ -544,15 +561,25 @@ export class WorldScene {
         continue;
       }
       if (kind === 'sign') {
-        const material = textSignMaterial(signTexture(detail || ''));
-        const board = twoSidedTextSign(scale.x, scale.y * .62, material);
-        board.position.set(pos.x, pos.y + .4, pos.z); board.rotation.y = rotation; this.group.add(board);
-        const groundY = terrainHeight(pos.x, pos.z);
-        const boardBottom = board.position.y - scale.y * .31;
-        const poleHeight = boardBottom - groundY;
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, poleHeight, 6), new THREE.MeshStandardMaterial({ color: '#6e573d' }));
-        pole.position.set(pos.x, groundY + poleHeight / 2, pos.z); this.group.add(pole);
-        this.disposables.push((board.children[0] as THREE.Mesh).geometry, material, material.map!, pole.geometry, pole.material as THREE.Material);
+        const atlasIndex = SIGN_ART.findIndex(sign => sign.label === detail);
+        if (atlasIndex < 0) throw new Error(`Unapproved island sign: ${detail}`);
+        const board = twoSidedTextSign(scale.x, scale.y * .62, signMaterial, SIGN_ART[atlasIndex].accent, atlasIndex);
+        board.group.position.set(pos.x, pos.y + .4, pos.z); board.group.rotation.y = rotation; this.group.add(board.group);
+        const boardBottom = board.group.position.y - scale.y * .31;
+        const postMaterial = new THREE.MeshStandardMaterial({ color: '#8A5E3C', roughness: 1 });
+        for (const side of [-1, 1]) {
+          const offset = side * (scale.x / 2 - .24);
+          const postX = pos.x + Math.cos(rotation) * offset;
+          const postZ = pos.z - Math.sin(rotation) * offset;
+          const groundY = terrainHeight(postX, postZ);
+          const postHeight = Math.max(.1, boardBottom - groundY);
+          const postGeometry = new THREE.BoxGeometry(.08, postHeight, .08);
+          const post = new THREE.Mesh(postGeometry, postMaterial);
+          post.position.set(postX, groundY + postHeight / 2, postZ);
+          post.rotation.y = rotation;
+          this.group.add(post); this.disposables.push(postGeometry);
+        }
+        this.disposables.push(board.geometry, board.edgeGeometry, board.edgeMaterial, postMaterial);
         continue;
       }
       if (kind === 'lamp') {
@@ -645,17 +672,14 @@ export class WorldScene {
         this.disposables.push(glazing, glassMaterial);
       }
     }
-    const materialCache = new Map<Surface, THREE.MeshStandardMaterial>();
-    for (const { surface, parts } of buckets.values()) {
+    for (const { binding, parts } of buckets.values()) {
       const merged = mergeGeometries(parts, false);
       parts.forEach(g => g.dispose());
       if (!merged) continue;
       merged.computeBoundingSphere(); releaseAfterUpload(merged);
-      let material = materialCache.get(surface);
-      if (!material) { material = materialFor(surface); materialCache.set(surface, material); this.disposables.push(material); }
-      const mesh = new THREE.Mesh(merged, material);
-      mesh.castShadow = surface !== 'leaf' && surface !== 'earth' && surface !== 'sand' && surface !== 'road';
-      mesh.receiveShadow = surface !== 'leaf';
+      const mesh = new THREE.Mesh(merged, binding.material);
+      mesh.castShadow = binding.cast;
+      mesh.receiveShadow = binding.receive;
       this.group.add(mesh); this.disposables.push(merged);
     }
     buckets.clear();

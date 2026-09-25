@@ -93,6 +93,9 @@ export interface Settings {
   adsToggle: boolean; bindings: Record<string, string>;
   // Legacy "Ajuste automático": practice bots adapt to recent placements.
   adaptive: boolean;
+  // HUD preferences: FPS readout, interface size (0.8 to 1.2) and colour-blind friendly aim feedback.
+  showFps: boolean; uiScale: number; crosshairColor: 'white' | 'yellow' | 'cyan' | 'magenta'; hitPalette: 'default' | 'colorblind';
 }
 export interface RenderFrame { snapshot: WorldSnapshot | null; playerId: string; input: InputFrame; dt: number; playing: boolean; spectateId: string | null; predicted?: Vec3 }
-export const PLAYER_COLORS = ['#bd8956', '#8f6347', '#d6ad7c', '#715044', '#c16e4c', '#869764', '#6f8e9a', '#b78d9b'];
+// Kit colours (bandana and vest trim), never fur: every player still reads as a capybara (style bible §3.7).
+export const PLAYER_COLORS = ['#1fb5a8', '#e76f51', '#ffc23d', '#3d6fb6', '#a468ff', '#f28db2', '#8cc453', '#f4f1e8'];

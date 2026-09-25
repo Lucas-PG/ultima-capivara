@@ -1,0 +1,26 @@
+name: local-qa
+on: [push, pull_request]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: QA_SMOKE=1 npm run test:visual
+      - run: QA_SMOKE=1 npm run test:perf
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-smoke
+          path: |
+            test-results/
+            tests/perf/results/

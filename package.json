@@ -15,8 +15,16 @@
     "test:watch": "vitest",
     "test:setup": "playwright install chromium firefox webkit",
     "test:e2e": "playwright test",
+    "test:visual": "playwright test -c playwright.visual.config.ts",
+    "test:visual:approve": "playwright test -c playwright.visual.config.ts --update-snapshots",
+    "test:visual:1080": "QA_VIEWPORT=1080 playwright test -c playwright.visual.config.ts",
+    "test:visual:ui:768": "QA_VIEWPORT=768 QA_UI_ONLY=1 playwright test -c playwright.visual.config.ts",
+    "test:visual:ui:wide": "QA_VIEWPORT=wide QA_UI_ONLY=1 playwright test -c playwright.visual.config.ts",
+    "test:perf": "playwright test -c playwright.perf.config.ts",
     "test:load": "tsx scripts/load-test.ts",
-    "signaling": "node scripts/signaling.mjs"
+    "signaling": "node scripts/signaling.mjs",
+    "assets:characters": "node tools/blender/build-characters.mjs",
+    "assets:weapons": "node tools/blender/build-weapons.mjs"
   },
   "dependencies": {
     "@fontsource/barlow": "5.3.0",
@@ -27,9 +35,13 @@
     "three": "0.186.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "4.2.1",
+    "@gltf-transform/extensions": "4.2.1",
+    "@gltf-transform/functions": "4.2.1",
     "@playwright/test": "1.63.0",
     "@types/node": "^24.0.0",
     "@types/three": "0.186.0",
+    "meshoptimizer": "1.1.1",
     "peer": "1.0.2",
     "tsx": "^4.20.0",
     "typescript": "7.0.2",

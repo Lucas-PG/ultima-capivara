@@ -1,8 +1,13 @@
 import * as THREE from 'three';
+import { capybaraV3Enabled, disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec, type ZoneState } from '../shared/types';
 import { AssetLoader } from './assets';
+import { ASSET_MANIFEST, type AssetEntry } from './asset-manifest';
+import capybaraMetrics from '../../public/models/capybara/metrics.json';
+import weaponMetrics from '../../public/models/weapons/metrics.json';
+import { paintedWeaponsEnabled } from './painted-weapons';
 import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
@@ -55,6 +60,7 @@ export class GameRenderer {
   private warming: Promise<void> | null = null;
   private preparation: Promise<void> = Promise.resolve();
   private disposed = false;
+  private releaseWarmupAvatars: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement, world: WorldSpec, settings: Settings, onAssetsReady: () => void = () => {}, onProgress: AssetProgressCallback = () => {}) {
     this.onProgress = (fraction, label) => { if (!this.disposed) onProgress(fraction, label); };
@@ -64,7 +70,14 @@ export class GameRenderer {
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
-    this.assets = new AssetLoader(this.gl, this.onProgress);
+    const weaponManifest: readonly AssetEntry[] = paintedWeaponsEnabled() ? [
+      ...ASSET_MANIFEST.filter(asset => !asset.path.startsWith('models/service-pistol/') && !asset.path.startsWith('models/m700/')),
+      { path: 'models/weapons/painted-weapons.glb', kind: 'glb', bytes: weaponMetrics.bytes, label: 'Armas da ilha' },
+    ] : ASSET_MANIFEST;
+    const manifest: readonly AssetEntry[] = capybaraV3Enabled() ? [...weaponManifest, {
+      path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
+    }] : weaponManifest;
+    this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
     this.weaponView = new WeaponView(this.assets, () => { if (!this.disposed) onAssetsReady(); });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     // Neutral keeps saturated cartoon colours; ACES washed them toward grey.
@@ -177,6 +190,8 @@ export class GameRenderer {
     if (snapshot) {
       const zone = snapshot.zone;
       this.worldView.arenaBoundary.visible = snapshot.config.mode === 'deathmatch';
+      // Like legacy, the storm wall is always up: a tall curtain at the safe
+      // edge that also hides the empty far sea.
       const br = frame.playing && snapshot.config.mode === 'battle-royale';
       this.storm.update(zone, this.camera, this.elapsed, br);
       const exposed = br && viewed?.alive && viewed.stage !== 'plane' ? StormView.exposure(zone, viewed.pos.x, viewed.pos.z) : 0;
@@ -238,6 +253,8 @@ export class GameRenderer {
       this.requireActive();
       await this.weaponView.assets;
       this.requireActive();
+      await preloadCapybaraAsset(url => this.assets.gltf(url));
+      this.requireActive();
       await this.assets.ready();
       this.requireActive();
       this.onProgress(.9, 'Pintando a ilha');
@@ -278,13 +295,21 @@ export class GameRenderer {
       if (!object.visible && !(object instanceof THREE.Light)) { hidden.push(object); object.visible = true; }
       if (object instanceof THREE.LOD) { lods.push(object); object.autoUpdate = false; }
     });
-    // Stand-in capybaras (one per fur colour, with gun, parachute and name tag)
+    // Stand-in capybaras (one per bandana colour, with gun, parachute and name tag)
     // build and upload the shared body geometries and compile the skinned programs.
     const stands = [...PLAYER_COLORS, BOT_COLOR].map(color => avatar(color, 'Capivara'));
     for (const stand of stands) {
       stand.weapon.geometry = itemGeometry('weapon', 'm4'); stand.group.position.copy(this.camera.position);
       this.scene.add(stand.group);
     }
+    this.releaseWarmupAvatars = () => {
+      this.releaseWarmupAvatars = null;
+      for (const stand of stands) {
+        this.scene.remove(stand.group); stand.weapon.geometry.dispose(); stand.body.skeleton.dispose();
+        stand.group.traverse(object => { if (object instanceof THREE.Sprite) { object.material.map?.dispose(); object.material.dispose(); } });
+        stand.chute.traverse(object => { if (object instanceof THREE.Mesh || object instanceof THREE.Line) { object.geometry.dispose(); (object.material as THREE.Material).dispose(); } });
+      }
+    };
     this.scene.add(this.avatars.warmupWeapons);
     this.effects.warm(true);
     reveal(this.scene); this.weaponView.revealAll(true); reveal(this.weaponView.scene);
@@ -312,11 +337,7 @@ export class GameRenderer {
       this.weaponView.revealAll(false);
       this.effects.warm(false);
       target.dispose(); this.scene.remove(this.avatars.warmupWeapons);
-      for (const stand of stands) {
-        this.scene.remove(stand.group); stand.weapon.geometry.dispose(); stand.body.skeleton.dispose();
-        stand.group.traverse(object => { if (object instanceof THREE.Sprite) { object.material.map?.dispose(); object.material.dispose(); } });
-        stand.chute.traverse(object => { if (object instanceof THREE.Mesh || object instanceof THREE.Line) { object.geometry.dispose(); (object.material as THREE.Material).dispose(); } });
-      }
+      this.releaseWarmupAvatars?.();
     }
   }
 
@@ -349,6 +370,9 @@ export class GameRenderer {
     this.scene.remove(this.worldView.group);
     this.worldView.dispose(); this.weaponView.dispose();
     this.environment.dispose(); this.pipeline.dispose(); this.assets.dispose(); this.effects.dispose(); this.storm.dispose();
+    // Detach avatar instances before traversing resources owned by this scene.
+    this.releaseWarmupAvatars?.();
+    this.avatars.dispose();
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
     this.scene.traverse(object => {
       if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite || object instanceof THREE.Line)) return;
@@ -361,8 +385,8 @@ export class GameRenderer {
     });
     geometries.forEach(geometry => geometry.dispose());
     textures.forEach(texture => texture.dispose());
-    this.avatars.dispose();
     materials.forEach(mat => mat.dispose());
+    disposeCapybaraAssets();
     this.gl.dispose();
   }
 }
