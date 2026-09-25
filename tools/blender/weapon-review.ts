@@ -12,7 +12,8 @@ const gl = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas')!, 
 gl.setPixelRatio(1); gl.setSize(innerWidth, innerHeight);
 gl.toneMapping = THREE.NeutralToneMapping; gl.toneMappingExposure = 1.1;
 gl.setClearColor(0, 0);
-const pipeline = params.has('runtime') ? new (await import('../../src/render/pipeline')).RenderPipeline(gl, 2) : null;
+const renderModule = params.has('runtime') ? await import('../../src/render/pipeline') : null;
+const pipeline = renderModule ? new renderModule.RenderPipeline(gl, renderModule.PRESETS.high.samples) : null;
 pipeline?.resize();
 const background = new THREE.Scene(); background.background = new THREE.Color('#e9e4d8');
 const scene = new THREE.Scene();

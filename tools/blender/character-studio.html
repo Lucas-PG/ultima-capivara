@@ -26,8 +26,8 @@ if (q.has('runtime')) {
   addEventListener('beforeunload', () => { sky.dispose(); environment.dispose(); });
   sun.position.set(-70, 55, -30);
   const { applyCharacterStyle } = await import('../../src/render/materials');
-  const { RenderPipeline } = await import('../../src/render/pipeline');
-  pipeline = new RenderPipeline(r, 2); pipeline.resize();
+  const { RenderPipeline, PRESETS } = await import('../../src/render/pipeline');
+  pipeline = new RenderPipeline(r, PRESETS.high.samples); pipeline.resize();
   const styled = new Map();
   gltf.scene.traverse(o => {
     if (!o.isMesh) return;
