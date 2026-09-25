@@ -3,9 +3,10 @@ import { clamp } from '../shared/math';
 import { rarityOf } from '../shared/rarity';
 import { ARENA } from '../shared/layout';
 import { terrainHeight } from '../shared/terrain';
-import { shotSpread, WEAPONS } from '../shared/weapons';
+import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
+import { CrosshairSpread } from './crosshair';
 
 export interface UICallbacks {
   host(profile: Profile, config: RoomConfig): Promise<void>; join(profile: Profile, code: string): Promise<void>;
@@ -52,6 +53,7 @@ export class GameUI {
   private planeDir: { x: number; z: number } | null = null;
   private lastPlane: { x: number; z: number } | null = null;
   private localId = '';
+  private readonly crosshairSpread = new CrosshairSpread();
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     this.drawMapBackground(); this.home();
     // M toggles the island map over the match; it never touches pointer lock or movement input.
@@ -203,13 +205,10 @@ export class GameUI {
     const scoped = me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
     this.el('scope-overlay').hidden = !scoped;
     const speed = Math.hypot(me.velocity.x, me.velocity.z), cross = this.el('cross');
-    const spread = weapon ? shotSpread(weapon.id, me.ads, speed, !me.grounded, me.shotHeat) : 0;
     const height = document.querySelector<HTMLCanvasElement>('#game')?.clientHeight || window.innerHeight;
-    const scale = height / 1080;
-    const zoom = weapon?.id === 'sniper' ? 5.5 : weapon?.id === 'dmr' ? 2.9 : 1.25;
-    const fov = this.settings.fov / (me.ads ? zoom : 1) * Math.PI / 180;
-    const gap = clamp(Math.tan(spread * Math.PI / 360) * height / (2 * Math.tan(fov / 2)), 4 * scale, 48 * scale);
+    const gap = this.crosshairSpread.gap(me, this.settings, height, performance.now());
     cross.style.setProperty('--g', `${gap.toFixed(1)}px`);
+    cross.querySelectorAll<HTMLElement>('i:not(.d)').forEach(tick => { tick.style.opacity = String(this.crosshairSpread.ticksOpacity); });
     cross.style.opacity = me.alive && me.stage === 'ground' && !scoped && !(me.sprint && speed > .5) ? '1' : '0';
     const prompt = this.el('prompt'); prompt.hidden = !interaction || !me.alive || me.stage !== 'ground';
     if (interaction) { this.text('promptTxt', interaction.name.startsWith('Abrir') ? interaction.name : `Pegar ${interaction.name}`); this.text('promptKey', keyName(this.settings.bindings.interact)); }
@@ -317,6 +316,7 @@ export class GameUI {
     this.openModal('INSTINTO DE SOBREVIVÊNCIA.', `<div class="how-grid"><div>${icon('users')}<h3>CHAME A TURMA</h3><p>Crie uma sala e compartilhe o link. Quem cria mantém o jogo aberto. Sem cadastro, sem instalação.</p></div><div>${icon('crown')}<h3>ÚLTIMA DE PÉ</h3><p>Salte do avião, abra baús e encontre armas. A tempestade fecha a ilha. Sobreviva até o fim.</p></div><div>${icon('bolt')}<h3>CORRERIA</h3><p>Mais eliminações vence. Você reaparece depois de cair, pronto para voltar à luta.</p></div></div><div class="controls-grid">${[['W A S D','MOVER'],['MOUSE','OLHAR'],['M1 / M2','ATIRAR / MIRAR'],['ESPAÇO','PULAR / PARAQUEDAS'],['SHIFT','CORRER'],['C','AGACHAR'],['Q / E','ESPIAR'],['F','PEGAR / ABRIR'],['R','RECARREGAR'],['1–4','TROCAR ARMA'],['5–9','USAR CONSUMÍVEL'],['TAB','PLACAR'],['M','MAPA DA ILHA']].map(([key, text]) => `<span><kbd>${key}</kbd> ${text}</span>`).join('')}</div>`);
   }
   event(event: GameEvent) {
+    if (event.type === 'shot' && event.actor === this.localId) this.crosshairSpread.onShot(event.weapon, performance.now());
     if (event.type === 'notice') this.toast(event.text);
     if (this.screen !== 'game' || !this.root.querySelector('#hud')) return;
     const find = (id: string | null) => id ? this.snapshot?.actors.find(a => a.id === id) : undefined;
@@ -456,6 +456,23 @@ export class GameUI {
     const snapshot = this.snapshot, me = snapshot?.actors.find(a => a.id === this.localId);
     return !!snapshot && !!me && !me.alive && snapshot.config.mode === 'battle-royale' && snapshot.phase === 'playing';
   }
+  setLoadingProgress(fraction: number, label?: string) {
+    const overlay = this.root.querySelector<HTMLElement>('#loadingOverlay');
+    const bar = overlay?.querySelector<HTMLElement>('.lbar');
+    const fill = bar?.querySelector<HTMLElement>('i');
+    if (!overlay || !bar || !fill || !Number.isFinite(fraction)) return;
+    const next = Math.max(0, Math.min(1, fraction));
+    if (next < Number(overlay.dataset.progress || 0)) return;
+    overlay.dataset.progress = String(next);
+    const percent = Math.round(next * 100);
+    bar.classList.add('determinate');
+    bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', 'Carregamento da ilha');
+    bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100'); bar.setAttribute('aria-valuenow', String(percent));
+    fill.style.width = `${percent}%`;
+    const status = overlay.querySelector('.lstatus');
+    if (status && (label !== undefined || next === 1)) status.textContent = next === 1 ? 'Pronto!' : label!.trim().replace(/(?:\.\.\.|…)$/, '').slice(0, 28);
+  }
+
   // Match loading screen: covers the scene until the island is loaded and the first real frame is drawn.
   setLoading(on: boolean) {
     clearInterval(this.tipTimer);
@@ -465,7 +482,7 @@ export class GameUI {
     const tips = ['Aperte M pra ver a ilha inteira.', 'Q e E espiam pelas quinas.', 'Fora da área segura, a tempestade tira vida a cada segundo.', 'Caixas de suprimentos guardam armas e equipamento.', 'Tab mostra o placar da turma.', 'No avião, Espaço salta. No ar, abre o paraquedas.'];
     let tip = Math.floor(Math.random() * tips.length);
     const overlay = document.createElement('div'); overlay.id = 'loadingOverlay';
-    overlay.innerHTML = `<div class="lcard stk"><div class="lcapy">${capybara(this.profile.color)}</div><h2>Carregando a ilha…</h2><div class="lbar"><i></i></div><p class="ltip"><b>Dica</b> <span>${tips[tip]}</span></p></div>`;
+    overlay.innerHTML = `<div class="lcard stk"><div class="lcapy">${capybara(this.profile.color)}</div><h2>Carregando a ilha…</h2><div class="lbar"><i></i></div><span class="lstatus" role="status"></span><p class="ltip"><b>Dica</b> <span>${tips[tip]}</span></p></div>`;
     this.root.appendChild(overlay);
     this.tipTimer = window.setInterval(() => { tip = (tip + 1) % tips.length; const line = overlay.querySelector('.ltip span'); if (line) line.textContent = tips[tip]; }, 2600);
   }

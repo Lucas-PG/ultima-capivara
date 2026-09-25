@@ -371,12 +371,16 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   body.geometry = new THREE.BufferGeometry();
   body.add(scene);
   body.name = 'Capivara_v3';
+  const overlay = new URLSearchParams(location.search).has('capyHitboxes') ? createCapybaraHitboxOverlay() : null;
+  if (overlay) body.add(overlay);
   const originalDispose = body.skeleton.dispose.bind(body.skeleton);
   body.skeleton.dispose = () => {
     mixer.stopAllAction(); mixer.uncacheRoot(scene); skeleton.dispose();
     body.geometry.dispose(); characterInstances.delete(body); originalDispose();
+    overlay?.traverse(object => {
+      if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose(); }
+    });
   };
-  if (new URLSearchParams(location.search).has('capyHitboxes')) body.add(createCapybaraHitboxOverlay());
 }
 
 export function createCapybaraHitboxOverlay(): THREE.Group {

@@ -1,7 +1,8 @@
 # Direction A character and first-person work
 
 Work in progress, behind opt-in review flags. The art gate is open. M0 technical
-readiness remains isolated in e2be33e and 7624115 and awaits Forja integration.
+readiness fixes remain isolated in e2be33e and 7624115. The subsequent merge
+connects them to Forja's shared loader and main readiness gate.
 
 ## Character round 2
 
@@ -42,7 +43,7 @@ short claws and an olive cuff distinguish the paws from human hands.
 
 `PaintedWeaponSet` accepts the shared loader's GLTF function, rejects missing
 parts, pre-creates rarity materials and owns source resource cleanup. The
-production renderer hook waits for Forja's readiness landing. The asset is
+production renderer hook is still pending M1 integration. The asset is
 not registered or downloaded by the default path.
 
 `tools/blender/weapon-review.html` measures occupied pixels in the transparent
@@ -70,3 +71,19 @@ converted to the arm parent's coordinate space. A simple rotation about the
 upper arm's local X axis would put the paws inside the torso. The runtime keeps
 this blend private per avatar and allocates its quaternions at installation.
 The source bind pose still holds a weapon; the in-game unarmed rest is animated.
+
+## Shared loader integration
+
+`GameRenderer` extends `ASSET_MANIFEST` only for `?capy=v3`, with the relative
+path `models/capybara/capybara.glb` and the generated metrics' exact byte size.
+`warmup()` injects `assets.gltf` into `preloadCapybaraAsset` before `assets.ready`,
+thumbnails and GPU preparation. Errors reach Forja's existing main gate.
+There is no parallel fixture preload, fallback success or timeout.
+
+The avatar update hook lives in `AvatarView.poseAvatar`, immediately after
+resetting the compatibility bones and group pose. At disposal, live and
+warmup avatars detach and release their private rigs, labels and parachutes
+before the generic scene traversal. `disposeCapybaraAssets` then releases only
+shared character caches. Disposal during compilation uses the same single
+cleanup path. Focused tests cover the optional manifest, delayed/rejected
+loads, deployment base, malformed-source cleanup and disposal while warming.

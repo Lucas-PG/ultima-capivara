@@ -1,12 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
+import { statSync } from 'node:fs';
+import type { Settings, WorldSpec } from '../src/shared/types';
+import type { AssetEntry } from '../src/render/asset-manifest';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
+
+const { loaderConstructor } = vi.hoisted(() => ({ loaderConstructor: vi.fn() }));
+vi.mock('../src/render/assets', () => ({ AssetLoader: loaderConstructor }));
+vi.mock('three', async original => ({ ...await original<typeof THREE>(), WebGLRenderer: vi.fn() }));
 
 // Exercise the real warmup gate without allocating a browser or GPU.
 vi.mock('../src/render/world-scene', () => ({ WorldScene: class {} }));
+vi.mock('../src/render/thumbnails', () => ({ loadWeaponThumbnails: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../src/render/weapons', () => ({ WeaponView: class {} }));
 vi.mock('../src/render/avatars', () => ({ AvatarView: class {}, avatar: vi.fn(), BOT_COLOR: '#bd8956' }));
-vi.mock('../src/render/camera', () => ({ CameraRig: class {}, makePlane: vi.fn() }));
+vi.mock('../src/render/camera', async () => {
+  const THREE = await import('three');
+  return { CameraRig: class {}, makePlane: () => new THREE.Group() };
+});
 vi.mock('../src/render/loot', () => ({ LootView: class {} }));
 vi.mock('../src/render/effects', () => ({ EffectsView: class {} }));
 vi.mock('../src/render/pipeline', () => ({ RenderPipeline: class {}, PRESETS: {} }));
@@ -27,16 +38,17 @@ function fixture(): GLTF {
   return { scene, animations: ['idle', 'run', 'jump'].map(name => new THREE.AnimationClip(name, 1, [])) } as unknown as GLTF;
 }
 
-async function warmupHarness() {
+async function warmupHarness(load = vi.fn(async () => fixture())) {
   const { GameRenderer } = await import('../src/render/renderer');
   const upload = vi.fn();
+  const assets = { gltf: load, ready: vi.fn().mockResolvedValue(undefined), dispose: vi.fn() };
   const renderer = Object.assign(Object.create(GameRenderer.prototype), {
-    warming: null, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
+    disposed: false, warming: null, assets, onProgress: vi.fn(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
     worldView: { skyTexture: { image: { data: [] } } },
     weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera() },
     gl: { compileAsync: vi.fn().mockResolvedValue(undefined) }, resize: vi.fn(), uploadEverything: upload,
   }) as InstanceType<typeof GameRenderer>;
-  return { renderer, upload };
+  return { renderer, upload, assets };
 }
 
 beforeEach(() => {
@@ -121,20 +133,36 @@ afterEach(() => {
 });
 
 describe('capybara asset readiness', () => {
+  it.each([false, true])('registers the exact optional asset size only with opt-in = %s', async enabled => {
+    vi.stubGlobal('location', { search: enabled ? '?capy=v3' : '' });
+    const { GameRenderer } = await import('../src/render/renderer');
+    const stop = new Error('Manifest captured before GPU setup');
+    loaderConstructor.mockClear().mockImplementation(function () { throw stop; });
+    expect(() => new GameRenderer({} as HTMLCanvasElement, { objects: [] } as unknown as WorldSpec, {} as Settings)).toThrow(stop);
+    const manifest = loaderConstructor.mock.calls[0][2] as readonly AssetEntry[];
+    const entries = manifest.filter(asset => asset.path.includes('capybara'));
+    expect(entries).toEqual(enabled ? [{
+      path: 'models/capybara/capybara.glb', kind: 'glb',
+      bytes: statSync('public/models/capybara/capybara.glb').size, label: 'Capivara',
+    }] : []);
+  });
+
   it('keeps warmup pending beyond 15 seconds and creates only the final opted-in avatar', async () => {
     const capy = await import('../src/render/capybara');
     let finish!: (asset: GLTF) => void;
     const load = vi.fn(() => new Promise<GLTF>(resolve => { finish = resolve; }));
-    const preload = capy.preloadCapybaraAsset(load);
-    expect(capy.preloadCapybaraAsset(load)).toBe(preload);
-    const { renderer, upload } = await warmupHarness();
+    const { renderer, upload, assets } = await warmupHarness(load);
     let ready = false;
     const warmup = renderer.warmup().then(() => { ready = true; });
     await vi.advanceTimersByTimeAsync(16000);
     expect(ready).toBe(false);
     expect(upload).not.toHaveBeenCalled();
     expect(() => capy.buildCapybaraBody('#1FB5A8')).toThrow('ainda não está pronta');
+    expect(assets.ready).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledWith(capy.CAPYBARA_ASSET_URL);
     finish(fixture()); await warmup;
+    expect(assets.ready).toHaveBeenCalledOnce();
+    expect(assets.ready.mock.invocationCallOrder[0]).toBeLessThan(upload.mock.invocationCallOrder[0]);
     expect(load).toHaveBeenCalledTimes(1);
     expect(upload).toHaveBeenCalledTimes(1);
     const avatar = capy.buildCapybaraBody('#1FB5A8');
@@ -147,11 +175,9 @@ describe('capybara asset readiness', () => {
     const capy = await import('../src/render/capybara');
     const failure = new Error('GLB unavailable');
     const warning = vi.spyOn(console, 'warn');
-    const preload = capy.preloadCapybaraAsset(async () => { throw failure; });
-    const failedPreload = expect(preload).rejects.toBe(failure);
-    const { renderer, upload } = await warmupHarness();
+    const { renderer, upload, assets } = await warmupHarness(vi.fn(async () => { throw failure; }));
     await expect(renderer.warmup()).rejects.toBe(failure);
-    await failedPreload;
+    expect(assets.ready).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
     expect(warning).not.toHaveBeenCalled();
     expect(() => capy.buildCapybaraBody('#bd8956')).toThrow('ainda não está pronta');
@@ -177,7 +203,8 @@ describe('capybara asset readiness', () => {
     vi.stubEnv('BASE_URL', '/ilha/');
     const capy = await import('../src/render/capybara');
     const load = vi.fn(async () => fixture());
-    await capy.preloadCapybaraAsset(load);
+    const { renderer } = await warmupHarness(load);
+    await renderer.warmup();
     expect(load).toHaveBeenCalledWith('/ilha/models/capybara/capybara.glb');
   });
 
@@ -185,7 +212,9 @@ describe('capybara asset readiness', () => {
     vi.stubGlobal('location', { search: '' });
     const capy = await import('../src/render/capybara');
     const load = vi.fn(async () => fixture());
-    await capy.preloadCapybaraAsset(load);
+    const { renderer, upload } = await warmupHarness(load);
+    await renderer.warmup();
+    expect(upload).toHaveBeenCalledOnce();
     expect(load).not.toHaveBeenCalled();
     const avatar = capy.buildCapybaraBody('#bd8956');
     expect(avatar.body.name).not.toBe('Capivara_v3');

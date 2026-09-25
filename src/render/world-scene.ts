@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import type { AssetLoader } from './assets';
 import { fbm, terrainHeight } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
@@ -67,10 +67,10 @@ function legacyDetailTexture(): THREE.CanvasTexture {
   return texture;
 }
 
-function surfaceTextures(surface: Surface, loader: THREE.TextureLoader): { color: THREE.Texture; normal: THREE.Texture; rough: THREE.Texture } {
+function surfaceTextures(surface: Surface, loader: AssetLoader): { color: THREE.Texture; normal: THREE.Texture; rough: THREE.Texture } {
   const prefix = photoSurface[surface];
   const load = (kind: string) => {
-    const texture = loader.load(`${import.meta.env.BASE_URL}textures/${prefix}-${kind}.webp`);
+    const texture = loader.texture(`textures/${prefix}-${kind}.webp`);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.anisotropy = 4;
     return texture;
@@ -269,11 +269,8 @@ export class WorldScene {
   private readonly disposables: { dispose: () => void }[] = [];
   private readonly surfaceMaterials: { material: THREE.MeshStandardMaterial; normal: THREE.Texture | null; rough: THREE.Texture | null }[] = [];
 
-  constructor(world: WorldSpec, settings: Settings, onAssetsReady: () => void = () => {}) {
-    const loading = new THREE.LoadingManager();
-    loading.onLoad = onAssetsReady;
-    const loader = new THREE.TextureLoader(loading);
-    this.skyTexture = new HDRLoader(loading).load(`${import.meta.env.BASE_URL}textures/partly-cloudy-sky-1k.hdr`);
+  constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
+    this.skyTexture = loader.hdr('textures/partly-cloudy-sky-1k.hdr');
     this.skyTexture.mapping = THREE.EquirectangularReflectionMapping;
     this.disposables.push(this.skyTexture);
     const assetTextures = new Map<string, ReturnType<typeof surfaceTextures>>();
@@ -284,6 +281,7 @@ export class WorldScene {
       return [surface, value];
     })) as Record<Surface, ReturnType<typeof surfaceTextures>>;
     for (const value of assetTextures.values()) this.disposables.push(value.color, value.normal, value.rough);
+    void loader.ready().then(onAssetsReady, () => {});
     const materialFor = (surface: Surface) => {
       const material = new THREE.MeshStandardMaterial({
         vertexColors: true, map: surface === 'fabric' ? null : textures[surface].color,

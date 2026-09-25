@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { aimDirection, damp } from '../shared/math';
+import { damp } from '../shared/math';
 import { actorEye } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
 import type { ActorState, RenderFrame, Settings, Vec3, WorldSpec } from '../shared/types';
@@ -7,7 +7,7 @@ import type { AvatarView } from './avatars';
 import { addBox, addEllipsoid } from './primitives';
 
 const material = (color: string) => new THREE.MeshStandardMaterial({ color, emissive: '#000000', roughness: .8, metalness: .04 });
-const v = (p: Vec3) => new THREE.Vector3(p.x, p.y, p.z);
+const AXES = ['x', 'y', 'z'] as const;
 const ease = (t: number) => t * t * (3 - 2 * t);
 type CameraMode = 'orbit' | 'chase' | 'fps';
 export function makePlane(): THREE.Group {
@@ -28,14 +28,14 @@ export function makePlane(): THREE.Group {
 
 function segmentAabb(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number, min: Vec3, max: Vec3): number {
   let near = 0, far = maxDistance;
-  for (const axis of ['x', 'y', 'z'] as const) {
+  for (const axis of AXES) {
     if (Math.abs(direction[axis]) < 1e-8) {
       if (origin[axis] < min[axis] || origin[axis] > max[axis]) return Infinity;
       continue;
     }
     const inv = 1 / direction[axis];
     let t1 = (min[axis] - origin[axis]) * inv, t2 = (max[axis] - origin[axis]) * inv;
-    if (t1 > t2) [t1, t2] = [t2, t1];
+    if (t1 > t2) { const swap = t1; t1 = t2; t2 = swap; }
     near = Math.max(near, t1); far = Math.min(far, t2);
     if (far < near) return Infinity;
   }
@@ -47,6 +47,12 @@ export class CameraRig {
   private lastViewedId: string | null = null;
   private cameraInitialized = false;
   private menuAngle = 0;
+  private readonly position = new THREE.Vector3();
+  private readonly quaternion = new THREE.Quaternion();
+  private readonly target = new THREE.Vector3();
+  private readonly lookTarget = new THREE.Vector3();
+  private readonly direction = new THREE.Vector3();
+  private readonly rotation = new THREE.Euler(0, 0, 0, 'YXZ');
   private elapsed = 0;
   private adsAmount = 0;
   // Plane: third-person orbit. Drop: chase camera. Ground: first person.
@@ -68,7 +74,8 @@ export class CameraRig {
     this.settings = settings; this.elapsed = elapsed; this.adsAmount = adsAmount;
     const snapshot = frame.snapshot;
     const viewedId = frame.spectateId || frame.playerId;
-    const actor = snapshot?.actors.find(a => a.id === viewedId);
+    let actor: ActorState | undefined;
+    if (snapshot) for (const candidate of snapshot.actors) if (candidate.id === viewedId) { actor = candidate; break; }
     this.lastActor = actor;
     if (frame.playing && actor?.alive) {
       const own = viewedId === frame.playerId;
@@ -82,30 +89,30 @@ export class CameraRig {
       }
       if (snap) this.cameraBlend = 0;
       this.cameraMode = mode;
-      const position = new THREE.Vector3(), quaternion = new THREE.Quaternion();
+      const position = this.position, quaternion = this.quaternion;
       let fov = this.settings.fov;
       if (mode === 'orbit') {
         // Orbit the plane with the mouse, like the legacy build. Level mouse
         // looks down at the island instead of at the horizon.
         const orbitPitch = THREE.MathUtils.clamp(pitch - .38, -1.2, .3), reach = 26 * Math.cos(orbitPitch);
         position.set(this.planePosition.x + Math.sin(yaw) * reach, this.planePosition.y + 4 - Math.sin(orbitPitch) * 26, this.planePosition.z + Math.cos(yaw) * reach);
-        quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.planePosition.clone().setY(this.planePosition.y + 1), this.camera.up));
+        quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(this.planePosition).setY(this.planePosition.y + 1), this.camera.up));
       } else if (mode === 'chase') {
-        const body = this.avatars.get(actor.id)?.group.position || v(actor.pos);
+        const body = this.avatars.get(actor.id)?.group.position || this.target.copy(actor.pos);
         const chute = actor.stage === 'parachute', distance = chute ? 7.5 : 6;
         const chasePitch = THREE.MathUtils.clamp(pitch, -1.3, .6), reach = distance * Math.cos(chasePitch);
         position.set(body.x + Math.sin(yaw) * reach, body.y + 2.4 - Math.sin(chasePitch) * distance, body.z + Math.cos(yaw) * reach);
         position.y = Math.max(position.y, terrainHeight(position.x, position.z) + .6);
-        quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, body.clone().setY(body.y + (chute ? 2.2 : 1.2)), this.camera.up));
+        quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(body).setY(body.y + (chute ? 2.2 : 1.2)), this.camera.up));
         fov = this.settings.fov + 6;
       } else {
         const predicted = own && frame.predicted ? frame.predicted : actor.pos;
         const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
         const bob = this.settings.reducedMotion ? 0 : actor.grounded ? Math.sin(this.elapsed * (actor.sprint ? 15 : 10)) * Math.min(speed / 8, 1) * (actor.sprint ? .035 : .018) : 0;
-        const target = v(predicted).add(new THREE.Vector3(0, actorEye(actor) + bob, 0));
+        const target = this.target.copy(predicted).setY(predicted.y + actorEye(actor) + bob);
         const leanDistance = actor.lean * .24;
         if (Math.abs(leanDistance) > .001) {
-          const leanDir = new THREE.Vector3(Math.cos(yaw) * Math.sign(leanDistance), 0, -Math.sin(yaw) * Math.sign(leanDistance));
+          const leanDir = this.direction.set(Math.cos(yaw) * Math.sign(leanDistance), 0, -Math.sin(yaw) * Math.sign(leanDistance));
           let allowed = Math.abs(leanDistance);
           for (const collider of this.world.colliders) {
             if (Math.abs(collider.min.x - target.x) > 2 && Math.abs(collider.max.x - target.x) > 2) continue;
@@ -120,7 +127,7 @@ export class CameraRig {
         position.copy(this.fpsPosition);
         // Yaw must be applied before pitch. Resetting a lookAt() XYZ Euler's roll
         // can flip the horizon when the view crosses east or west.
-        quaternion.setFromEuler(new THREE.Euler(pitch, yaw, actor.lean * -.045, 'YXZ'));
+        quaternion.setFromEuler(this.rotation.set(pitch, yaw, actor.lean * -.045));
         const ads = own ? this.adsAmount : actor.ads && !actor.sprint ? 1 : 0;
         const zoom = actor.weapons[actor.slot]?.id === 'sniper' ? 5.5 : actor.weapons[actor.slot]?.id === 'dmr' ? 2.9 : 1.25;
         fov = this.settings.fov / (1 + ads * (zoom - 1));
@@ -138,8 +145,9 @@ export class CameraRig {
     }
     if (frame.playing) {
       if (!this.cameraInitialized && actor) {
-        this.camera.position.copy(v(actor.pos).add(new THREE.Vector3(0, actorEye(actor), 0)));
-        this.camera.lookAt(this.camera.position.clone().add(v(aimDirection(actor.yaw, actor.pitch))));
+        this.camera.position.copy(actor.pos); this.camera.position.y += actorEye(actor);
+        this.direction.set(-Math.sin(actor.yaw) * Math.cos(actor.pitch), Math.sin(actor.pitch), -Math.cos(actor.yaw) * Math.cos(actor.pitch));
+        this.camera.lookAt(this.lookTarget.copy(this.camera.position).add(this.direction));
         this.cameraInitialized = true; this.lastViewedId = viewedId;
       }
       return;
@@ -158,18 +166,18 @@ export class CameraRig {
     if (!snapshot) return;
     const sample = this.planeSample, fresh = sample.match !== snapshot.matchId;
     if (fresh || snapshot.tick !== sample.tick) {
-      const pos = v(snapshot.plane), step = snapshot.time - sample.time;
+      const pos = this.target.copy(snapshot.plane), step = snapshot.time - sample.time;
       if (fresh) { this.planePosition.copy(pos); this.planeVelocity.set(0, 0, 0); }
       else if (step > 0 && step < 1) this.planeVelocity.copy(pos).sub(sample.pos).divideScalar(step);
-      this.planeSample = { match: snapshot.matchId, tick: snapshot.tick, time: snapshot.time, at: this.elapsed, pos };
+      sample.match = snapshot.matchId; sample.tick = snapshot.tick; sample.time = snapshot.time; sample.at = this.elapsed; sample.pos.copy(pos);
     }
-    const target = this.planeSample.pos.clone().addScaledVector(this.planeVelocity, Math.min(.25, this.elapsed - this.planeSample.at));
+    const target = this.target.copy(this.planeSample.pos).addScaledVector(this.planeVelocity, Math.min(.25, this.elapsed - this.planeSample.at));
     if (this.planePosition.distanceToSquared(target) > 400) this.planePosition.copy(target);
     else this.planePosition.lerp(target, Math.min(1, dt * 10));
   }
 
   closeWall(): number {
-    const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir);
+    const dir = this.direction; this.camera.getWorldDirection(dir);
     let nearest = 1.5;
     for (const collider of this.world.colliders) {
       if (Math.abs(collider.min.x - this.camera.position.x) > 3 && Math.abs(collider.max.x - this.camera.position.x) > 3) continue;
