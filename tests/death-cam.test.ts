@@ -8,11 +8,11 @@ import type { ActorState, RenderFrame, Settings, WorldSnapshot } from '../src/sh
 // The death cam frames your eliminator for a fixed beat, then gets out of the
 // way: it never runs for a spectated capybara and never survives a respawn.
 const at = (x: number, z: number) => ({ x, y: terrainHeight(x, z), z });
-function rig(settings: Settings = DEFAULT_SETTINGS) {
+function rig(settings: Settings = DEFAULT_SETTINGS, colliders: { id: string; min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number }; material: 'stone' }[] = []) {
   const killer = new THREE.Group(); killer.position.copy(at(0, -20) as THREE.Vector3); killer.visible = true;
   const avatars = { get: (id: string) => id === 'killer' ? { group: killer } : undefined };
   const camera = new THREE.PerspectiveCamera(settings.fov, 16 / 9, .07, 850); camera.rotation.order = 'YXZ';
-  const world = { version: 't', size: 256, colliders: [], objects: [], spawns: [], loot: [], chests: [], districts: [] };
+  const world = { version: 't', size: 256, colliders, objects: [], spawns: [], loot: [], chests: [], districts: [] };
   return new CameraRig(camera, world, settings, avatars as never);
 }
 const me = (alive: boolean): ActorState => ({ id: 'me', alive, pos: at(0, 0), velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0, stage: 'ground',
@@ -55,6 +55,24 @@ describe('death cam', () => {
     r.update(frame(true), DEFAULT_SETTINGS, (r as any).elapsed + 1 / 60, 0);
     expect(r.deathCamActive).toBe(false);
     start(r); r.update(frame(false, 'other'), DEFAULT_SETTINGS, (r as any).elapsed + 1 / 60, 0);
+    expect(r.deathCamActive).toBe(false);
+  });
+
+  it('stays under a wide ceiling that spans far beyond the victim instead of rising through it', () => {
+    const floor = terrainHeight(0, 0), ceiling = floor + 2.6;
+    const r = rig(DEFAULT_SETTINGS, [{ id: 'roof', min: { x: -10, y: ceiling, z: -10 }, max: { x: 10, y: ceiling + .3, z: 10 }, material: 'stone' }]);
+    start(r); run(r, frame(false), .8);
+    expect(r.camera.position.y).toBeLessThan(ceiling);
+  });
+
+  it('keeps its full beat on its own frame clock when frames are slow and clamped', () => {
+    const r = rig();
+    start(r);
+    // 10 fps with the renderer's 0.05 s clamp: 1.8 s of camera clock takes 36 frames.
+    const slow = frame(false, null, .05);
+    for (let i = 0; i < 35; i++) r.update(slow, DEFAULT_SETTINGS, (r as any).elapsed + .05, 0);
+    expect(r.deathCamActive).toBe(true);
+    r.update(slow, DEFAULT_SETTINGS, (r as any).elapsed + .06, 0);
     expect(r.deathCamActive).toBe(false);
   });
 });

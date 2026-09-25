@@ -12,6 +12,7 @@ import { LootView } from './loot';
 import { EffectsView } from './effects';
 import { StormView } from './storm';
 import { DEATH_CAM_SECONDS } from '../shared/death-cam';
+import { actorEye } from '../shared/collision';
 import { RenderPipeline, PRESETS } from './pipeline';
 import { itemGeometry } from './item-geometry';
 export { itemGeometry } from './item-geometry';
@@ -219,7 +220,7 @@ export class GameRenderer {
     // Death cam only for your own elimination, never when a spectated capybara falls.
     if (event.type === 'kill' && frame && event.target === frame.playerId && !frame.spectateId) {
       const me = frame.snapshot?.actors.find(actor => actor.id === event.target);
-      if (me) this.cameraRig.startDeathCam({ victimEye: { x: me.pos.x, y: me.pos.y + 1.62, z: me.pos.z }, killerId: event.actor,
+      if (me) this.cameraRig.startDeathCam({ victimEye: { x: me.pos.x, y: me.pos.y + actorEye(me), z: me.pos.z }, killerId: event.actor,
         killerPos: event.from || null, duration: DEATH_CAM_SECONDS });
     }
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
@@ -335,6 +336,9 @@ export class GameRenderer {
     this.scene.fog = new THREE.Fog('#bcd3d2', 90, settings.graphics === 'low' ? 330 : 420);
     this.camera.fov = settings.fov; this.camera.updateProjectionMatrix(); this.resize();
   }
+
+  // The spectate hand-off waits for the camera's own clock, which is clamped per frame.
+  get deathCamActive() { return this.cameraRig.deathCamActive; }
 
   get stats() { return { ...this.frameStats }; }
   get cameraPosition(): Vec3 { return { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }; }

@@ -26,6 +26,7 @@ const settings: Settings = structuredClone(DEFAULT_SETTINGS);
 const fixture = new Simulation(world, { mode: 'battle-royale', capacity: 8, bots: false, difficulty: 'normal', duration: 480 },
   [{ id: 'practice', name: 'Capivara', color: '#1fb5a8', ready: true, connected: true }], 'vfx-review', 0x5eed);
 const base = fixture.snapshot();
+let liveSeq = 0;
 let renderer: GameRenderer | null = null, snapshot: WorldSnapshot | null = null, spec: SceneSpec | null = null, nextId = 1;
 const input = emptyInput();
 
@@ -116,6 +117,37 @@ const api = {
     times.sort((a, b) => a - b);
     const pick = (q: number) => +times[Math.floor((times.length - 1) * q)].toFixed(2);
     return { frames, mean: +(times.reduce((a, b) => a + b, 0) / times.length).toFixed(2), p50: pick(.5), p95: pick(.95), max: pick(1), maxDrawCalls: drawCalls };
+  },
+  // Live bot clip: the real simulation with one bot against an invulnerable human
+  // observer, rendered from the human's eyes. Returns what the bot is doing.
+  live(opts: { seed: number; human: { x: number; z: number; yaw: number; pitch: number }; bot: { x: number; z: number }; difficulty?: 'easy' | 'normal' | 'hard' }) {
+    const sim = new Simulation(world, { mode: 'deathmatch', capacity: 8, bots: true, difficulty: opts.difficulty || 'normal', duration: 300 },
+      [{ id: 'practice', name: 'Capivara', color: '#1fb5a8', ready: true, connected: true }], 'vfx-live', opts.seed);
+    for (let i = 0; i < 190; i++) sim.step(1 / 60);
+    const actors = (sim as unknown as { actors: Map<string, { state: ActorState; brain: Record<string, unknown> | null }> }).actors;
+    for (const [id, a] of actors) if (id !== 'practice' && id !== 'bot-1') { a.state.alive = false; a.state.hp = 0; a.state.respawnAt = 0; }
+    const me = actors.get('practice')!.state, bot = actors.get('bot-1')!;
+    Object.assign(me, { pos: { x: opts.human.x, y: terrainHeight(opts.human.x, opts.human.z), z: opts.human.z }, hp: 1e6, protectionUntil: 0, yaw: opts.human.yaw, pitch: opts.human.pitch });
+    Object.assign(bot.state, { pos: { x: opts.bot.x, y: terrainHeight(opts.bot.x, opts.bot.z), z: opts.bot.z }, protectionUntil: 0,
+      yaw: Math.atan2(-(opts.human.x - opts.bot.x), -(opts.human.z - opts.bot.z)) });
+    Object.assign(bot.brain!, { thinkAt: 0, lastPos: { ...bot.state.pos } });
+    spec = { x: opts.human.x, z: opts.human.z, yaw: opts.human.yaw, pitch: opts.human.pitch };
+    sim.drainEvents();
+    (window as unknown as { liveSim: Simulation }).liveSim = sim;
+    snapshot = sim.snapshot();
+    return true;
+  },
+  liveStep(frames: number) {
+    const sim = (window as unknown as { liveSim: Simulation }).liveSim;
+    for (let i = 0; i < frames; i++) {
+      sim.input('practice', { ...emptyInput(), seq: ++liveSeq, yaw: spec!.yaw, pitch: spec!.pitch, clientTime: sim.snapshot().time });
+      sim.step(1 / 60);
+      snapshot = sim.snapshot();
+      for (const e of sim.drainEvents()) renderer?.event(e);
+      frame(1 / 60);
+    }
+    const b = (sim as unknown as { actors: Map<string, { state: ActorState; brain: { mode: string; target: string | null } }> }).actors.get('bot-1')!;
+    return { mode: b.brain.mode, target: b.brain.target, reloading: b.state.reloadUntil > 0, ammo: b.state.weapons[b.state.slot].ammo, pos: b.state.pos };
   },
   glow() { return (window as unknown as { glowState: unknown }).glowState; },
   debug() {

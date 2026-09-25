@@ -101,8 +101,8 @@ export class CameraRig {
       reach.divideScalar(length);
       let allowed = length;
       for (const collider of this.world.colliders) {
-        if (Math.abs(collider.min.x - eye.x) > 4 && Math.abs(collider.max.x - eye.x) > 4) continue;
-        if (Math.abs(collider.min.z - eye.z) > 4 && Math.abs(collider.max.z - eye.z) > 4) continue;
+        // Skip only boxes wholly outside a 4 m square; a wide ceiling that contains the eyes must still count.
+        if (collider.min.x > eye.x + 4 || collider.max.x < eye.x - 4 || collider.min.z > eye.z + 4 || collider.max.z < eye.z - 4) continue;
         const hit = segmentAabb(eye, reach, allowed, collider.min, collider.max);
         if (hit < allowed) allowed = Math.max(0, hit - .2);
       }
