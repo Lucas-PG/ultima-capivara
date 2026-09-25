@@ -23,3 +23,10 @@ cloth bandana, olive vest and strap, short limbs, authored vertex colours,
 a white eye-emission mask and six facial clips. Pincel's Direction A bible and
 2026-09-24 review govern the work. It is a modelling draft, not approved final
 art. No external source geometry or texture is used.
+
+## Direction A M1 weapon set
+
+`weapons/painted-weapons.glb` is original project geometry from
+`tools/blender/weapons.py`, compressed with `build-weapons.mjs`. Eight original
+weapon silhouettes, four-digit capybara paws and the 32 x 32 painted atlas use
+no downloaded geometry or image textures. Models and framing remain in review.

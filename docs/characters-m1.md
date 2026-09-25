@@ -1,0 +1,72 @@
+# Direction A character and first-person work
+
+Work in progress, behind opt-in review flags. The art gate is open. M0 technical
+readiness remains isolated in e2be33e and 7624115 and awaits Forja integration.
+
+## Character round 2
+
+Pincel's review `pincel-capyM1-review.md` governs this round. The muzzle is fur,
+with a dark nose pad only. One longitudinal quad surface joins the flattened
+back of the head, cheeks, descending forehead and rounded muzzle. The head
+must remain within the radius 0.25 m hit sphere. Pincel corrected the proposed
+0.52 m depth to about 0.47 m to respect that constraint.
+
+The draft has a thin cloth band, knot and two tails, olive vest, leather strap,
+short legs, flat feet and four-digit paws. No external tail. The belly is an
+atlas region on the torso surface. An emissive mask lights the eye glints.
+Palette columns 5 and 6 remain the only player-tinted colours.
+
+Six facial clips share the rig: neutral, determined, hit, stunned, victory and
+blink. Runtime blends them additively over locomotion. The review fixture can
+select each pose via `expression` and `head` query parameters. Unarmed arms
+blend down at rest. Brasa's authoritative reaction API will replace the draft
+HP-difference trigger so armor-only hits receive the same feedback.
+
+Required evidence still pending: all expressions at 1 m and 3 m, front/side/
+three-quarter/back, the 30 m and 60 px silhouettes, exterior/interior frames
+at 720p and 1080p, gear visibility, animation transitions and foot contact.
+Pincel has not approved the draft visually.
+
+## Painted weapons
+
+`tools/blender/weapons.py` authors eight original models using one 32 x 32
+painted atlas shared with brown paws. `npm run assets:weapons` exports and
+compresses the set. Painted metal, light bevels, smooth warm wood, polymer,
+teal accent and rarity stripe follow bible section 10. Legendary variants
+also reveal geometric gold receiver filigree.
+
+Each weapon includes explicit muzzle, ejection and sight anchors. Pistols
+have two paws at the grip; long guns have a support paw on the handguard;
+the machete has only the right paw. Three fingers plus a thumb, dark pads,
+short claws and an olive cuff distinguish the paws from human hands.
+
+`PaintedWeaponSet` accepts the shared loader's GLTF function, rejects missing
+parts, pre-creates rarity materials and owns source resource cleanup. The
+production renderer hook waits for Forja's readiness landing. The asset is
+not registered or downloaded by the default path.
+
+`tools/blender/weapon-review.html` measures occupied pixels in the transparent
+first-person layer at FOV 78. Hip idle acceptance, at both 1280 x 720 and
+1920 x 1080:
+
+- Occupied pixels: 18 to 25 percent of the viewport.
+- Bounding rectangle: at most 45 percent of the viewport.
+- Crosshair: zero occupied pixels inside radius 60 px.
+- ADS is exempt from coverage, with the sight centred.
+
+The initial `weapon-framing.ts` poses are drafts awaiting those measurements.
+They are not production framing values. Inspect, equip/unequip, reload,
+sprint and camera-near clipping still require runtime integration and review.
+
+## Verification discipline
+
+The orchestrator removed exclusive-slot requirements for builds and visual QA.
+The current character and weapon exports pass focused asset/readiness tests.
+Full clean-checkout checks, Pincel screenshots and Sentinela review are still
+required. No claim of completed M1 approval is made.
+
+The relaxed-arm pose uses a shoulder-to-paw swing toward the side of the hip,
+converted to the arm parent's coordinate space. A simple rotation about the
+upper arm's local X axis would put the paws inside the torso. The runtime keeps
+this blend private per avatar and allocates its quaternions at installation.
+The source bind pose still holds a weapon; the in-game unarmed rest is animated.

@@ -78,3 +78,12 @@ A imagem é usada somente como capa estática. Nenhuma captura de gameplay é su
 A segunda revisão estudou [Esperança, da Blizzard](https://news.blizzard.com/en-us/article/23865963/voyage-to-esperanca-a-portuguese-city-built-on-tradition-brilliance-and-hope), para identidade dos bairros, interiores e sons locais; o [processo de iluminação de Overwatch](https://news.blizzard.com/en-us/article/23674944/environment-states-in-overwatch-2-behind-the-scenes-with-the-engineering-team), para contraste e custo de renderização; e [Garden Warfare, no portfólio do estúdio Mighty Canvas](https://mightycanvas.com/portfolio-items/plants-vs-zombies-garden-warfare/), para linguagem cartunesca e personagens legíveis.
 
 As aplicações locais foram fachadas identificáveis, piso com menos contraste que os alvos, detalhes de perto, equipamento azul-esverdeado nas capivaras, foco quente no forno e paisagem sonora por local. Nenhuma imagem, modelo, textura ou áudio desses jogos foi incorporado à distribuição.
+
+## Direction A scripted M1 assets, 2026-09-25
+
+The capybara refinement and eight painted weapons are original Blender Python
+geometry and animation, governed by the approved M1 concept sheets already
+recorded above. No new generated-image prompt or third-party texture is used.
+Reproduce with `npm run assets:characters` and `npm run assets:weapons`; budgets
+are recorded beside the GLBs in `public/models/`. See `docs/characters-m1.md`
+for the open visual gate and coverage measurement protocol.
