@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
+import { accuracyText, cleanLabel, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -53,7 +53,7 @@ export class GameUI {
   private lastResults = '';
   private toastTimer = 0;
   private lastBanner = '';
-  private deathInfo: { place: number; line: string } | null = null;
+  private deathInfo: { place: number; line: string; card: string | null; until: number } | null = null;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
   private lastPrey: { name: string; color: string } | null = null;
@@ -267,13 +267,17 @@ export class GameUI {
     if (me.alive) this.deathInfo = null;
     let banner = '';
     if (snapshot.phase === 'countdown') banner = `${Math.ceil(snapshot.countdown)}<small>Prepare-se · a ilha já vai abrir</small>`;
-    else if (!me.alive && br) { const info = this.deathInfo ||= { place: alive + 1, line: 'Fim da linha pra você' }; banner = `#${info.place}<small>${esc(info.line)}</small>`; }
-    else if (!me.alive) banner = `Caiu!<small>Volta em ${Math.max(0, Math.ceil(me.respawnAt - t))} s</small>`;
+    else if (!me.alive) {
+      // During the death cam the card names the killer; afterwards BR shows the placement line, Correria the respawn timer.
+      const info = this.deathInfo ||= { place: alive + 1, line: 'Fim da linha pra você', card: null, until: 0 }, carding = !!info.card && now < info.until;
+      const detail = carding ? info.card! : br ? esc(info.line) : `Volta em ${Math.max(0, Math.ceil(me.respawnAt - t))} s`;
+      banner = `${br ? `#${info.place}` : 'Caiu!'}<small class="${carding ? 'kc' : ''}">${detail}</small>`;
+    }
     else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando'}</small>`; }
     this.setBanner(banner);
     // Out for good: the player's own loadout and vitals leave the screen so the choice (watch or leave) is the focus.
-    const out = !me.alive && br, hud = this.el('hud');
-    // The moment the player is out, every combat cue goes: damage arcs, floaters, hit markers, vignettes.
+    const out = !me.alive, hud = this.el('hud');
+    // The moment the player is down (out of a battle royale, or waiting to respawn in Correria), every combat cue goes.
     if (out && !hud.classList.contains('out')) { this.el('dmgInd').replaceChildren(); this.el('nums').replaceChildren(); this.el('hitm').classList.remove('on'); }
     this.toggle(hud, 'out', out);
     const deadInRoyale = this.deadInRoyale(); this.show('spec', deadInRoyale); this.show('dmQuit', !me.alive && !br && snapshot.phase === 'playing');
@@ -459,8 +463,14 @@ export class GameUI {
       if (mine) { this.hitMarker('kill'); this.floater('POF!', 'pop kill'); if (victim) this.lastPrey = { name: victim.name, color: victim.color }; }
       if (died && this.snapshot) {
         const others = this.snapshot.actors.filter(a => a.alive && a.id !== this.localId).length;
-        const line = killer && event.weapon !== 'storm' && event.weapon !== 'fall' ? DEATH_LINES[Math.floor(Math.random() * DEATH_LINES.length)](killer.name) : event.weapon === 'fall' ? 'O chão ganhou essa' : 'A tempestade te engoliu';
-        this.deathInfo = { place: others + 1, line };
+        const byPlayer = !!killer && event.weapon !== 'storm' && event.weapon !== 'fall';
+        const line = byPlayer ? DEATH_LINES[Math.floor(Math.random() * DEATH_LINES.length)](killer!.name) : event.weapon === 'fall' ? 'O chão ganhou essa' : 'A tempestade te engoliu';
+        // Kill card for the death cam: who, with what, from how far (the event's distance at the moment of the kill).
+        const kill = event as typeof event & { distance?: number };
+        const measured = kill.distance ?? (killer && victim ? Math.hypot(killer.pos.x - victim.pos.x, killer.pos.y - victim.pos.y, killer.pos.z - victim.pos.z) : null);
+        const parts = byPlayer ? killCardParts(killer!.name, WEAPONS[event.weapon as WeaponId]?.name ?? null, measured) : null;
+        const card = parts ? `<span class="kcard"><span class="pt">${capybara(killer!.color)}</span><b style="--kc:${/^#[0-9a-f]{6}$/i.test(killer!.color) ? killer!.color : PLAYER_COLORS[0]}">${esc(parts.killer)}</b> te pegou <i>·</i> <span class="wi">${weaponIcon(event.weapon as WeaponId)}</span>${esc(parts.weapon)}${parts.distance ? ` <i>·</i> ${parts.distance}` : ''}</span>` : null;
+        this.deathInfo = { place: others + 1, line, card, until: performance.now() + DEATH_CARD_SECONDS * 1000 };
       }
       this.lastHits.delete(event.target);
     }

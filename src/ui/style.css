@@ -314,3 +314,12 @@ body #hud .num,body #hud .pop{animation:rm-flash .9s ease-out forwards!important
 body #hud #vitals.low{animation:rm-pulse .6s ease-in-out infinite!important}
 body #victory #confetti{display:none}
 }
+
+/* Death cam card: killer face, name in their kit colour, weapon icon and distance; fades in with the camera. */
+#hud #banner small.kc{display:flex;align-items:center;gap:7px;width:max-content;animation:rm-in .18s ease-out}
+#hud #banner .kcard{display:contents}
+#hud #banner .kcard .pt svg{width:30px;height:30px;display:block}
+/* Name stays ink on paper (contrast); the kit colour is a thick chip on its left, never the text background. */
+#hud #banner .kcard b{font-family:var(--display);font-weight:400;padding:0 6px 0 5px;border-left:6px solid var(--kc,#1fb5a8);color:var(--ink)}
+#hud #banner .kcard i{font-style:normal;color:var(--lmuted)}
+#hud #banner .kcard .wi svg{height:14px;width:auto;display:block;color:var(--ink)}

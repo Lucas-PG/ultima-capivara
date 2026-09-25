@@ -66,3 +66,13 @@ export const ELIMINATED_ACTIONS = [
 
 // Results: the rematch/menu actions become visible and clickable this soon after the match ends (quality bar: at most 400 ms).
 export const RESULTS_ACTIONS_DELAY = 300;
+
+// Death cam card (Brasa's M1 death cam): shown from the kill event for the camera's duration, then the spectate or
+// respawn UI takes over. Mirrors DEATH_CAM_SECONDS in src/shared/death-cam.ts on v3/gameplay; switch to that import
+// once it lands so the card and the camera can never drift apart.
+export const DEATH_CARD_SECONDS = 1.8;
+// "Tico te pegou · M4 · 23 m". Storm and fall kills have no killer and keep their own lines (null here).
+export function killCardParts(killer: string | null | undefined, weaponName: string | null, distance: number | null | undefined) {
+  if (!killer || !weaponName) return null;
+  return { killer, weapon: weaponName, distance: Number.isFinite(distance) ? `${Math.max(0, Math.round(distance!))} m` : null };
+}

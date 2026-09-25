@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -119,4 +119,16 @@ describe('results screen', () => {
     const panel = css.match(/#victory \.vpanel\{[^}]*transition:([^;}]*)/)?.[1] || '';
     for (const ms of [...panel.matchAll(/(\d*\.?\d+)s/g)].map(m => Number(m[1]) * 1000)) expect(RESULTS_ACTIONS_DELAY + ms).toBeLessThanOrEqual(700);
   });
+});
+
+describe('death cam card', () => {
+  it('names the killer, weapon and distance in the agreed pt-BR format', () => {
+    expect(killCardParts('Tico', 'M4', 23.4)).toEqual({ killer: 'Tico', weapon: 'M4', distance: '23 m' });
+    expect(killCardParts('Tico', 'Doze', undefined)?.distance).toBeNull();
+  });
+  it('has no card for storm or fall deaths, which keep their own lines', () => {
+    expect(killCardParts(null, null, 12)).toBeNull();
+  });
+  // The card must last exactly as long as Brasa's death cam before spectate/respawn takes over.
+  it('holds for the death cam duration', () => { expect(DEATH_CARD_SECONDS).toBe(1.8); });
 });
