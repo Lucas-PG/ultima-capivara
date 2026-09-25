@@ -25,10 +25,12 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     uniforms: {
       tColor: { value: color }, tDepth: { value: depth },
       texel: { value: new THREE.Vector2(1, 1) }, width: { value: 1.5 }, cn: { value: .07 }, cf: { value: 850 },
+      // Storm screen feedback (Brasa): 0 leaves the image untouched.
+      uStorm: { value: 0 }, uPulse: { value: 0 },
     },
     depthTest: false, depthWrite: false,
     vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}',
-    fragmentShader: `uniform sampler2D tColor,tDepth;uniform vec2 texel;uniform float cn,cf,width;varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tColor,tDepth;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
         vec3 c=texture2D(tColor,vUv).rgb;float d=texture2D(tDepth,vUv).x;
@@ -43,7 +45,11 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
         float g=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
-        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.38),0.0,1.0);
+        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.38*mix(1.0,.55,uStorm)),0.0,1.0);
+        // Out in the storm: a violet edge that leaves the central half of the screen clean for aiming,
+        // plus a brief stronger edge on each storm bite.
+        float sv=smoothstep(.55,1.35,length((vUv-.5)*2.0))*(uStorm*.3+uPulse*.42);
+        gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.541,.302,1.0),sv);
         gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.09,.075,.06),edge*.95);
       }`,
   });

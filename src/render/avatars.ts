@@ -3,12 +3,13 @@ import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody } from './capybara';
 import { itemGeometry, itemMaterial } from './item-geometry';
 import { addEllipsoid } from './primitives';
 import type { ActorState, RenderFrame, Vec3, WeaponId } from '../shared/types';
+import type { AvatarReaction } from './effects';
 
 const v = (p: Vec3) => new THREE.Vector3(p.x, p.y, p.z);
 export const BOT_COLOR = '#ae825e';
 interface Avatar {
   group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
-  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; phase: number; initialized: boolean;
+  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; phase: number; initialized: boolean; squash: number;
 }
 function nameSprite(name: string): THREE.Sprite {
   const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
@@ -35,7 +36,7 @@ export function avatar(color: string, name: string): Avatar {
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
   }
   const label = nameSprite(name); label.position.y = 2.2; group.add(label);
-  return { group, body, bones, weapon, weaponId: null, chute, label, phase: 0, initialized: false };
+  return { group, body, bones, weapon, weaponId: null, chute, label, phase: 0, initialized: false, squash: 0 };
 }
 
 export class AvatarView {
@@ -44,6 +45,12 @@ export class AvatarView {
   private cameraBlend = 0;
   constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.PerspectiveCamera) {}
   get(id: string) { return this.visuals.get(id); }
+  // Authoritative hit/elimination hook. For now a 90 ms squash on hits; the
+  // capybara runtime drives flinch, face and death clips from here.
+  react(id: string, reaction: AvatarReaction) {
+    const visual = this.visuals.get(id);
+    if (visual && reaction.kind === 'hit') visual.squash = .09;
+  }
   dispose() { this.visuals.forEach(visual => visual.body.skeleton.dispose()); }
 
   private ensureAvatar(actor: ActorState): Avatar {
@@ -76,6 +83,11 @@ export class AvatarView {
       visual.chute.visible = actor.stage === 'parachute';
       visual.label.visible = actor.alive && actor.id !== viewed && visual.group.position.distanceToSquared(this.camera.position) < 24 * 24;
       this.poseAvatar(visual, actor, frame.dt);
+      if (visual.squash > 0) {
+        visual.squash = Math.max(0, visual.squash - frame.dt);
+        const k = Math.sin(visual.squash / .09 * Math.PI) * .06;
+        visual.group.scale.set(visual.group.scale.x * (1 + k * .6), visual.group.scale.y * (1 - k), visual.group.scale.z * (1 + k * .6));
+      }
       const held = actor.weapons[actor.slot]?.id || null;
       if (held !== visual.weaponId) {
         visual.weapon.geometry.dispose();

@@ -1,16 +1,19 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { damp } from '../shared/math';
-import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec } from '../shared/types';
+import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec, type ZoneState } from '../shared/types';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
 import { AvatarView, avatar, BOT_COLOR } from './avatars';
 import { CameraRig, makePlane } from './camera';
 import { LootView } from './loot';
 import { EffectsView } from './effects';
+import { StormView } from './storm';
 import { RenderPipeline, PRESETS } from './pipeline';
 import { itemGeometry } from './item-geometry';
 export { itemGeometry } from './item-geometry';
+
+const ZONE_NONE: ZoneState = { x: 0, z: 0, radius: 0, nextRadius: 0, nextX: 0, nextZ: 0, phase: 0, shrinking: false, timeLeft: 0, damage: 0 };
 
 export class GameRenderer {
   readonly camera: THREE.PerspectiveCamera;
@@ -24,7 +27,10 @@ export class GameRenderer {
   private readonly effects: EffectsView;
   private readonly pipeline: RenderPipeline;
   private readonly plane = makePlane();
-  private readonly zone: THREE.Mesh;
+  private readonly storm: StormView;
+  private stormAmount = 0;
+  private stormPulse = 0;
+  private effectsMatch = '';
   private readonly sun: THREE.DirectionalLight;
   private readonly interiorLight = new THREE.PointLight('#ffd09b', 0, 8, 2);
   private readonly litRooms: { x: number; y: number; z: number; w: number; d: number; bakery: boolean }[];
@@ -90,16 +96,9 @@ export class GameRenderer {
     });
     this.scene.add(this.worldView.group);
     this.scene.add(this.plane); this.plane.visible = false;
-    const zoneMaterial = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color('#a77de0') } },
-      vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: 'uniform float uTime;uniform vec3 uColor;varying vec2 vUv;void main(){float band=.5+.5*sin(vUv.x*340.0+vUv.y*65.0-uTime*2.4);float fade=smoothstep(.0,.18,vUv.y)*(1.0-smoothstep(.7,1.0,vUv.y));gl_FragColor=vec4(uColor,(.10+.12*band)*fade);}',
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
-    });
-    this.zone = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 96, 1, true), zoneMaterial);
-    this.zone.frustumCulled = false; this.zone.renderOrder = 2; this.scene.add(this.zone);
+    this.storm = new StormView(this.scene);
     this.loot = new LootView(this.scene, world);
-    this.effects = new EffectsView(this.scene);
+    this.effects = new EffectsView(this.scene, world, this.weaponView.scene);
     this.pipeline = new RenderPipeline(this.gl, PRESETS[settings.graphics].samples);
     this.applyPreset(settings);
     this.resize();
@@ -139,11 +138,13 @@ export class GameRenderer {
     this.adaptResolution();
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
+    // A new match starts with no marks, shells or effects from the previous one.
+    if (frame.snapshot && frame.snapshot.matchId !== this.effectsMatch) { this.effectsMatch = frame.snapshot.matchId; this.effects.clear(); }
     this.worldView.update(this.elapsed);
     this.cameraRig.updatePlanePath(frame.snapshot, dt, this.elapsed);
     this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed);
     this.cameraRig.update(frame, this.settings, this.elapsed, this.weaponView.adsAmount);
-    this.loot.update(frame.snapshot, this.elapsed); this.effects.update(dt);
+    this.loot.update(frame.snapshot, this.elapsed);
     const room = this.litRooms.find(room => Math.abs(this.camera.position.x - room.x) < room.w / 2 &&
       Math.abs(this.camera.position.z - room.z) < room.d / 2 && this.camera.position.y < room.y + 3.1);
     if (room) {
@@ -155,21 +156,25 @@ export class GameRenderer {
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), snapshot?.time || 0);
+    const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && ['sniper', 'dmr'].includes(viewed.weapons[viewed.slot]?.id || '');
+    const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35);
+    this.effects.update(dt, { camera: this.camera, fpCamera: this.weaponView.camera, avatars: this.avatars, firstPerson, viewportHeight: this.lastSize.height });
     if (snapshot) {
       const zone = snapshot.zone;
       this.worldView.arenaBoundary.visible = snapshot.config.mode === 'deathmatch';
-      // Like legacy, the storm wall is always up: a tall curtain at the safe
-      // edge that also hides the empty far sea.
-      this.zone.visible = frame.playing && snapshot.config.mode === 'battle-royale';
-      this.zone.position.set(zone.x, 70, zone.z); this.zone.scale.set(zone.radius, 170, zone.radius);
-      (this.zone.material as THREE.ShaderMaterial).uniforms.uTime.value = this.elapsed;
+      const br = frame.playing && snapshot.config.mode === 'battle-royale';
+      this.storm.update(zone, this.camera, this.elapsed, br);
+      const exposed = br && viewed?.alive && viewed.stage !== 'plane' ? StormView.exposure(zone, viewed.pos.x, viewed.pos.z) : 0;
+      this.stormAmount = damp(this.stormAmount, exposed, 5, dt);
       this.plane.visible = frame.playing && snapshot.config.mode === 'battle-royale' && snapshot.actors.some(a => a.stage === 'plane');
       this.plane.position.copy(this.cameraRig.planePosition);
       // The nose (-Z) follows the flight path.
       if (this.cameraRig.planeVelocity.lengthSq() > 1) this.plane.rotation.y = Math.atan2(-this.cameraRig.planeVelocity.x, -this.cameraRig.planeVelocity.z);
       else this.plane.rotation.y = -Math.PI / 2;
       this.plane.children.filter(child => child.name === 'propeller').forEach(child => { child.rotation.z += dt * 34; });
-    } else { this.zone.visible = false; this.plane.visible = false; this.worldView.arenaBoundary.visible = false; }
+    } else { this.storm.update(ZONE_NONE, this.camera, this.elapsed, false); this.stormAmount = 0; this.plane.visible = false; this.worldView.arenaBoundary.visible = false; }
+    this.stormPulse = Math.max(0, this.stormPulse - dt / .45);
+    this.pipeline.setScreenFeedback(this.stormAmount, this.settings.reducedMotion ? this.stormPulse * .5 : this.stormPulse);
     // Thin the haze with altitude so the island stays readable from the plane.
     if (this.scene.fog instanceof THREE.Fog) {
       const altitude = THREE.MathUtils.smoothstep(this.camera.position.y, 15, 110), far = this.settings.graphics === 'low' ? 330 : 420;
@@ -181,8 +186,7 @@ export class GameRenderer {
       this.sun.target.updateMatrixWorld();
     }
     this.pipeline.render(this.scene, this.camera, this.frameStats);
-    const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && ['sniper', 'dmr'].includes(viewed.weapons[viewed.slot]?.id || '');
-    if (frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35) {
+    if (firstPerson) {
       this.gl.autoClear = false; this.gl.clearDepth(); this.gl.render(this.weaponView.scene, this.weaponView.camera); this.gl.autoClear = true;
       this.frameStats.drawCalls += this.gl.info.render.calls;
       this.frameStats.triangles += this.gl.info.render.triangles;
@@ -190,7 +194,10 @@ export class GameRenderer {
   }
 
   event(event: GameEvent): void {
-    this.effects.event(event, this.avatars, this.weaponView, this.lastFrame?.playerId);
+    const frame = this.lastFrame, viewed = frame?.spectateId || frame?.playerId;
+    // A storm bite on the viewed capybara: attacker-less damage while outside the zone.
+    if (event.type === 'damage' && !event.actor && event.target === viewed && this.stormAmount > .5) this.stormPulse = 1;
+    this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
 
   // Menu-time preload: waits for the world's textures (and sky) to arrive, then compiles every
@@ -233,6 +240,7 @@ export class GameRenderer {
       stand.weapon.geometry = itemGeometry('weapon', 'm4'); stand.group.position.copy(this.camera.position);
       this.scene.add(stand.group);
     }
+    this.effects.warm(true);
     reveal(this.scene); this.weaponView.revealAll(true); reveal(this.weaponView.scene);
     const shadows = this.gl.shadowMap.enabled;
     try {
@@ -247,6 +255,7 @@ export class GameRenderer {
       hidden.forEach(object => { object.visible = false; });
       lods.forEach(lod => { lod.autoUpdate = true; });
       this.weaponView.revealAll(false);
+      this.effects.warm(false);
       target.dispose();
       for (const stand of stands) {
         this.scene.remove(stand.group); stand.weapon.geometry.dispose(); stand.body.skeleton.dispose();
@@ -278,7 +287,7 @@ export class GameRenderer {
   dispose(): void {
     this.scene.remove(this.worldView.group);
     this.worldView.dispose(); this.weaponView.dispose();
-    this.environment.dispose(); this.pipeline.dispose();
+    this.environment.dispose(); this.pipeline.dispose(); this.effects.dispose(); this.storm.dispose();
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
     this.scene.traverse(object => {
       if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite || object instanceof THREE.Line)) return;

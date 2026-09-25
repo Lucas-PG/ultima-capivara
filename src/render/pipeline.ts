@@ -41,6 +41,11 @@ export class RenderPipeline {
     this.gl.setRenderTarget(null); this.gl.render(this.postScene, this.postCamera);
   }
 
+  // Storm exposure (0..1) and the decaying pulse of the latest storm bite.
+  setScreenFeedback(storm: number, pulse: number) {
+    this.postMaterial.uniforms.uStorm.value = storm; this.postMaterial.uniforms.uPulse.value = pulse;
+  }
+
   renderPost() { this.gl.render(this.postScene, this.postCamera); }
 
   dispose() {
