@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -75,6 +75,7 @@ export class GameUI {
   private readonly crosshairSpread = new CrosshairSpread();
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
+    document.documentElement.style.setProperty('--cover', `url("${publicUrl('assets/cover-v2.png')}")`);
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
     this.drawMapBackground(); this.home();
     // M toggles the island map over the match; it never touches pointer lock or movement input.
@@ -649,7 +650,8 @@ export class GameUI {
     const b = this.settings.bindings, keys = { jump: keyName(b.jump), interact: keyName(b.interact), leanLeft: keyName(b.leanLeft), leanRight: keyName(b.leanRight), reload: keyName(b.reload), crouch: keyName(b.crouch) };
     const tip = fillTip(nextTip(), keys);
     clearTimeout(this.tipIndexTimer);
-    if (immediate || this.reducedMotion()) { line.textContent = tip; return; }
+    // The tip change is a fade, which reduced motion keeps.
+    if (immediate) { line.textContent = tip; return; }
     line.classList.add('fade'); this.tipIndexTimer = window.setTimeout(() => { line.textContent = tip; line.classList.remove('fade'); }, 200);
   }
   // First-run coach for practice: one short card at a time; each step waits for its moment and ends on the action itself.

@@ -30,10 +30,18 @@ export function tipBag<T>(items: readonly T[], random: () => number = Math.rando
 }
 
 // The HUD is laid out at 1600x900; it follows the smaller viewport ratio, times the player's "Tamanho da interface".
-// The .92 floor keeps the smallest HUD text (13 px) at 12 px on a 1280x720 screen (quality bar minimum).
-export const HUD_MIN_SCALE = .92;
-export const hudScale = (width: number, height: number, user = 1) =>
-  +(Math.min(1.35, Math.max(HUD_MIN_SCALE, Math.min(width / 1600, height / 900))) * Math.min(1.2, Math.max(.8, user))).toFixed(3);
+// The smallest HUD text is 13 px and the quality bar floor is 12 px, so the effective scale never drops under 12/13,
+// whatever the resolution or the interface size setting.
+export const HUD_MIN_TEXT = 13, TEXT_FLOOR = 12;
+export const HUD_MIN_SCALE = Math.ceil(TEXT_FLOOR / HUD_MIN_TEXT * 1000) / 1000;
+export const hudScale = (width: number, height: number, user = 1) => {
+  const viewport = Math.min(1.35, Math.min(width / 1600, height / 900)), size = Math.min(1.2, Math.max(.8, user));
+  return +Math.max(HUD_MIN_SCALE, viewport * size).toFixed(3);
+};
+
+// Public files resolve against the deploy base (Vite base './'), never the origin root, so subpath deploys keep them.
+export const publicUrl = (file: string, base: string = import.meta.env.BASE_URL, page: string = location.href) =>
+  new URL(`${base.endsWith('/') ? base : `${base}/`}${file}`, page).href;
 
 // pt-BR formatting for the results screen.
 export const formatSurvived = (seconds: number) => { const s = Math.max(0, Math.round(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };

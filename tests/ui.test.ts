@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, HUD_MIN_SCALE, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, tipBag } from '../src/ui/hud-logic';
+import { readFileSync } from 'node:fs';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -55,11 +56,20 @@ describe('hud', () => {
   it('scales from the 1600x900 layout, clamped, times the interface size setting', () => {
     expect(hudScale(1600, 900)).toBe(1);
     expect(hudScale(1920, 1080)).toBe(1.2);
-    // Small screens stop shrinking where 13 px HUD text would drop under the 12 px minimum.
     expect(hudScale(1280, 720)).toBe(HUD_MIN_SCALE);
-    expect(13 * HUD_MIN_SCALE).toBeGreaterThanOrEqual(11.96);
-    expect(hudScale(800, 450)).toBe(HUD_MIN_SCALE);
     expect(hudScale(1920, 1080, 2)).toBe(1.44);
+  });
+  // Quality bar: no HUD text under 12 px at any supported resolution and interface size (Sentinela found 9.57 px at 720p, 80%).
+  it('never renders HUD text under the 12 px floor', () => {
+    for (const [w, h] of [[1280, 720], [1366, 768], [1600, 900], [1920, 1080], [2560, 1080], [2560, 1440]])
+      for (const size of [.8, .9, 1, 1.1, 1.2]) expect(HUD_MIN_TEXT * hudScale(w, h, size)).toBeGreaterThanOrEqual(TEXT_FLOOR);
+    expect(hudScale(1280, 720, .8)).toBe(HUD_MIN_SCALE);
+  });
+  it('keeps every desktop HUD, loading and results font at or above the 13 px design minimum', () => {
+    const css = readFileSync('src/ui/style.css', 'utf8').replace(/@media\(max-width:[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, '');
+    const rules = css.match(/(?:#hud|#loadingOverlay|#victory)[^{}]*\{[^}]*\}/g) || [];
+    const small = rules.filter(rule => [...rule.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].some(m => Number(m[1]) < HUD_MIN_TEXT));
+    expect(small).toEqual([]);
   });
   it('formats result stats in pt-BR', () => {
     expect(formatSurvived(125.4)).toBe('2:05');
@@ -87,5 +97,16 @@ describe('leaving a match', () => {
     expect(leaveNeedsConfirm({ screen: 'game', host: true, phase: 'playing', alive: false, royale: true })).toBe(true);
     expect(leaveNeedsConfirm({ screen: 'lobby', host: false })).toBe(true);
     expect(leaveNeedsConfirm({ screen: 'home', host: false })).toBe(false);
+  });
+});
+
+describe('deploy base', () => {
+  // Vite base is './': public files must follow a subpath deploy instead of the origin root.
+  it('resolves the cover art under a non-root deployment', () => {
+    expect(publicUrl('assets/cover-v2.png', '/ilha/', 'https://exemplo.com/ilha/')).toBe('https://exemplo.com/ilha/assets/cover-v2.png');
+    expect(publicUrl('assets/cover-v2.png', './', 'https://exemplo.com/jogos/capivara/index.html')).toBe('https://exemplo.com/jogos/capivara/assets/cover-v2.png');
+  });
+  it('has no origin-root asset URLs left in the stylesheet', () => {
+    expect(readFileSync('src/ui/style.css', 'utf8')).not.toMatch(/url\(\s*['"]?\/(?!\/)/);
   });
 });
