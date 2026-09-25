@@ -25,9 +25,10 @@ const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
 const renderFrame: RenderFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
 let renderer: GameRenderer | null = null;
-// Load the 3D island on the first match, then reuse it until the page closes.
+// Load the 3D island on lobby entry or Practice, then reuse it until the page closes.
 // `loading` holds the loading screen until the first prepared frame.
 let rendererReady: Promise<void> | null = null, loading = false, readyToReveal = false;
+let rendererWarmed = false, lobbyLoad = 0;
 let pageDisposed = false;
 class RendererUnavailableError extends Error {}
 const rendererUnavailableMessage = 'Não foi possível iniciar o gráfico 3D. Ative a aceleração de hardware e tente novamente.';
@@ -52,10 +53,12 @@ let adaptRecorded = '';
 
 const session = new RoomSession({
   room(next) {
-    const returned = next?.phase === 'lobby' && room?.phase !== 'lobby';
+    const returned = next?.phase === 'lobby' && (room?.phase !== 'lobby' || room.code !== next.code);
     room = next;
     if (returned) stopMatch();
     ui.setRoom(next);
+    if (returned) warmLobby();
+    else if (next?.phase !== 'lobby') { lobbyLoad++; ui.setRoomLoading(null); }
   },
   start(config, players, matchId) {
     if (!room) return;
@@ -121,13 +124,30 @@ function ensureRenderer() {
           fraction < .75 ? 'Engraxando as armas' : fraction < .9 ? 'Chamando a turma' :
           fraction < 1 ? 'Carregando o avião' : 'Pronto!';
         ui.setLoadingProgress(fraction, loadLabel);
+        if (room?.phase === 'lobby' && !rendererWarmed) ui.setRoomLoading(fraction);
       }); } catch (error) { throw new RendererUnavailableError('Renderer construction failed', { cause: error }); }
       renderer.resize();
       await renderer.warmup();
+      rendererWarmed = true;
     })();
     void rendererReady.catch(() => {});
   }
   renderer?.resize();
+}
+function warmLobby() {
+  const request = ++lobbyLoad;
+  if (rendererWarmed) { ui.setRoomLoading(null); return; }
+  ui.setRoomLoading(0);
+  ensureRenderer();
+  ui.setRoomLoading(loadFraction);
+  void rendererReady!.then(() => {
+    if (!pageDisposed && request === lobbyLoad) ui.setRoomLoading(null);
+  }).catch(error => {
+    if (pageDisposed || request !== lobbyLoad || room?.phase !== 'lobby') return;
+    ui.setRoomLoading(null);
+    ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
+      'Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
+  });
 }
 function beginMatch(id: string, matchId: string) {
   stopMatch();
