@@ -397,12 +397,11 @@ for poly in head_surface.data.polygons:
 lining = ellipsoid('Mouth_lining', (0, 1.535, -mouth_point.y - .001), (.034, .015, .001), 14, {'mouth_cavity': 1}, segments=16, rings=8)
 for item in lining.data.color_attributes['Color'].data:
     item.color = (*linear_rgb('6B2E2A'), 1)
-# The dark nose pad occupies only the upper third of the furry muzzle.
-nose = rounded_block('Nose_pad', (0, 1.625, -.249), (.096, .043, .012), 15, {'head': 1}, bevel=.012)
-for vertex in nose.data.vertices:
-    vertex.co.x *= .78 + .22 * max(0, min(1, (vertex.co.z - 1.6035) / .043))
+# A broad, shallow oval pad follows the upper muzzle. Narrow slits avoid the
+# socket-like pair of circular dots inside a rectangular badge.
+ellipsoid('Nose_pad', (0, 1.637, -.249), (.061, .022, .005), 15, {'head': 1}, segments=24, rings=12)
 for side in [-1, 1]:
-    ellipsoid('Nostril', (side * .022, 1.622, -.257), (.01, .007, .004), 9, {'head': 1}, segments=10, rings=6)
+    ellipsoid('Nostril_slit', (side * .029, 1.646, -.2535), (.014, .0022, .001), 9, {'head': 1}, segments=16, rings=8)
 # A fur-coloured lower lip and fine wine rim articulate the actual cavity.
 for name, angles, radius, color in [('Lower_lip', range(180, 361, 30), .003, 0), ('Lip_line', range(0, 361, 30), .0012, 3)]:
     points = []
