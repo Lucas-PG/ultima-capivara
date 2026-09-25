@@ -45,6 +45,7 @@ export interface BotBrain {
   avoidOff: number; avoidAt: number; stuckAt: number; lastPos: Vec3;
   via: Vec3 | null; routeFor: Vec3 | null; routeAt: number; ignore: Map<string, number>;
   land: Vec3 | null; jumpAt: number;
+  reloading: boolean; drop: Vec3 | null; lastVia: Vec3 | null; lootFor: string | null; lootSince: number; pressT: number; avoidHold: number; face: number; hearLock: number;
 }
 
 export function createBrain(elite: boolean, skill: number, pos: Vec3, flank: number): BotBrain {
@@ -53,7 +54,7 @@ export function createBrain(elite: boolean, skill: number, pos: Vec3, flank: num
     target: null, sees: false, lastSeen: null, lastSeenAt: -99, trackT: 0, reactT: 0,
     fireAt: 0, burst: 0, strafeDir: 1, strafeUntil: 0, mode: 'roam', coverPt: null, flank,
     goal: null, loot: null, lootScanAt: -99, zoneGoal: null, hearPos: null, lastAttacker: null,
-    avoidOff: 0, avoidAt: 0, stuckAt: -1, lastPos: { ...pos }, via: null, routeFor: null, routeAt: 0, ignore: new Map(), land: null, jumpAt: Infinity,
+    avoidOff: 0, avoidAt: 0, stuckAt: -1, lastPos: { ...pos }, via: null, routeFor: null, routeAt: 0, ignore: new Map(), land: null, jumpAt: Infinity, reloading: false, drop: null, lastVia: null, lootFor: null, lootSince: 0, pressT: 0, avoidHold: 0, face: Number.NaN, hearLock: 0,
   };
 }
 

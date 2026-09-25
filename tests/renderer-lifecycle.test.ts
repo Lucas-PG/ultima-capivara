@@ -35,6 +35,7 @@ function harness(ready: Promise<void> = Promise.resolve()) {
     avatars: { prepare: vi.fn(), warmupWeapons: new THREE.Group(), dispose: vi.fn() },
     pipeline: { beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), dispose: vi.fn() },
     environment: { dispose: vi.fn() }, onProgress: vi.fn(), resize: vi.fn(),
+    effects: { warm: vi.fn(), dispose: vi.fn() },
     gl: { setRenderTarget: vi.fn(), compileAsync: vi.fn(async () => {}), render: vi.fn(), dispose: vi.fn(), shadowMap: { enabled: true } },
   };
   const renderer: GameRenderer = Object.assign(Object.create(GameRenderer.prototype), fields);
