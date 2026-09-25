@@ -210,8 +210,7 @@ function acceptEvents(events: GameEvent[]) {
       ui.event(event);
     }
     if (event.type === 'shot' && event.actor === playerId && input.locked && event.weapon !== 'machete') {
-      const recoil = { pistol: .014, smg: .007, m4: .011, shotgun: .042, dmr: .028, sniper: .055, slingshot: .01 }[event.weapon];
-      input.frame.pitch = clamp(input.frame.pitch + recoil * (input.frame.ads ? .7 : 1), -1.48, 1.48);
+      input.applyRecoil(event.weapon);
     }
     if (event.type === 'notice') ui.toast(event.text);
   }
@@ -274,6 +273,7 @@ function frame(now: number) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - lastFrame) / 1000, .1); lastFrame = now;
   if (document.hidden || (loading && !readyToReveal)) return;
+  input.recoverRecoil(dt);
   const me = snapshot?.actors.find(a => a.id === playerId) || null;
   const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : me;
   sound.update(listener, snapshot, dt, ui.screen !== 'game');

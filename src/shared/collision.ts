@@ -87,7 +87,7 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
   const mx = clamp(input.moveX, -1, 1), mz = clamp(input.moveZ, -1, 1), length = Math.max(1, Math.hypot(mx, mz));
   const speed = (actor.crouch ? 2.1 : actor.sprint ? 6.4 : input.ads ? 2.4 : 3.9) * clamp(speedMultiplier, .1, 2);
   const wantedX = (f * mz + r * mx) / length * speed, wantedZ = (g * mz + s * mx) / length * speed;
-  const alpha = 1 - Math.exp(-(actor.grounded ? 11 : 1.6) * dt);
+  const alpha = 1 - Math.exp(-(actor.grounded ? 9 : 1.6) * dt);
   actor.velocity.x += (wantedX - actor.velocity.x) * alpha;
   actor.velocity.z += (wantedZ - actor.velocity.z) * alpha;
   if (input.jump && actor.grounded) { actor.velocity.y = 7; actor.grounded = false; }
