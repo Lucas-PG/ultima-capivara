@@ -145,7 +145,7 @@ for the open visual gate and coverage measurement protocol.
 
 ## Forja final runtime atlas originals, 2026-09-25
 
-Generated with the built-in ImageGen tool for Pincel's final image brief. Originals are retained at `reviews/final-art/sky-water-storm-additive.png` and `reviews/final-art/vfx-flipbooks.png` in the shared team directory. Art approval and runtime integration are separate gates. The generator returned F1 at 1254x1254 RGBA rather than the requested 2048x2048, and F2 at 1774x887 RGBA rather than 4096x2048. These are original outputs, not upscaled substitutes. F2 has real transparent background; Brasa owns conversion to the requested 1024x512 runtime grid and its VFX integration. F1 seam continuity still needs sampling validation and Pincel review before repetition in the shaders. Both use original generated artwork, no external licensed image inputs.
+Generated with the built-in ImageGen tool for Pincel's final image brief. Originals are retained at `reviews/final-art/sky-water-storm-additive.png` and `reviews/final-art/vfx-flipbooks.png` in the shared team directory. Art approval and runtime integration are separate gates. The generator returned F1 at 1254x1254 RGBA rather than the requested 2048x2048, and F2 at 1774x887 RGBA rather than 4096x2048. These are original outputs, not upscaled substitutes. F2 has real transparent background; Brasa owns conversion to the requested 1024x512 runtime grid and its VFX integration. Pincel approved both originals on 2026-09-25, including native dimensions. Measured F1 seam deltas are 4.9/255 vertically for wisps and 4.1/255 horizontally for foam, acceptable with the runtime fade. Both use original generated artwork, no external licensed image inputs.
 
 ### sky-water-storm-additive.png prompt
 
@@ -229,3 +229,7 @@ Text clean readable hand lettering: title "Tempestade com distância"; panel A "
 - Water: the concept horizon drifts toward royal blue; authored water must stay shallow `#2EC4B6`, mid `#1FB0AE`, deep/horizon `#0E7C86`, then fog `#F2DCB6`. Remove invented horizon mountains; use open sea or actual island headlands.
 - Storm: at 150 m show only soft horizon haze. At 10 m, the boundary surface tints only geometry behind it at about 20 percent. Foreground objects inside the safe zone retain their colours. The outside-zone vignette must leave the central 50 percent clear for aiming.
 - Review implementation at hilltop, porto/praia, and storm 150 m/10 m/outside poses. Concepts are approved direction references, not evidence that the runtime implementation is complete.
+
+### F1 runtime cuts, 2026-09-25
+
+Run `uv run --with pillow python tools/assets/prepare-render-atlas.py` to reproduce four 627x627 RGB cuts from the retained original: `painted-sun.png`, `storm-wisps.png`, `shore-foam.png`, `water-glints.png`. The glint cut applies Pincel’s required luminance levels (below 70 becomes black; 70..255 maps to 0..255 with hue retained). All 372157 source pixels below the threshold become exactly black, removing the grey diamond matte. These cuts are prepared assets; shader wiring and its visual review are separate. Brasa’s F2 consumer commit 580fe0c supplies the final 1024x512 PNG (148876 bytes) and replaces the original-size manifest entry when integrated.
