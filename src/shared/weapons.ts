@@ -17,3 +17,24 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
   machete: { name: 'Facão', shortName: 'Facão', description: 'Arma corpo a corpo', ammo: null, magazine: 0, damage: 45, rpm: 110, reload: 0, range: 2.4, headMultiplier: 1.4, spread: 0, adsSpread: 0, melee: true },
   slingshot: { name: 'Estilingão', shortName: 'Estilingão', description: 'Pedrada de estilingue', ammo: 'pedra', magazine: 1, damage: 80, rpm: 70, reload: .6, range: 90, headMultiplier: 1.6, spread: .4, adsSpread: .12, projectile: true, speed: 50 },
 };
+
+// Distances in metres: full damage to start, then a linear taper to the floor.
+const FALLOFF: Partial<Record<WeaponId, readonly [number, number, number]>> = {
+  pistol: [25, 90, .7], smg: [18, 60, .65], m4: [45, 140, .8],
+  shotgun: [8, 38, .2],
+};
+export function damageFalloff(id: WeaponId, distance: number): number {
+  const rule = FALLOFF[id];
+  if (!rule) return 1;
+  const [start, end, floor] = rule;
+  return 1 - (1 - floor) * Math.min(1, Math.max(0, (distance - start) / (end - start)));
+}
+
+// Heat is server owned and decays between shots. Moving or firing a burst widens
+// the cone, while the first settled shot keeps the weapon's listed accuracy.
+export function shotSpread(id: WeaponId, ads: boolean, speed: number, airborne: boolean, heat: number): number {
+  const def = WEAPONS[id];
+  if (def.melee || def.projectile) return 0;
+  const movement = airborne ? .9 : Math.min(1, speed / 3.9) * .45;
+  return (ads ? def.adsSpread : def.spread) + movement + heat * (ads ? .35 : .65);
+}
