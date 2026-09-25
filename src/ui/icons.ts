@@ -1,3 +1,4 @@
+import { PLAYER_COLORS } from '../shared/types';
 const paths: Record<string, string> = {
   box: '<path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M3 13h18"/><rect x="10.5" y="11.5" width="3" height="3.5" rx=".8"/>',
   play: '<path d="m9 5 12 7-12 7z"/>',
@@ -26,8 +27,13 @@ const paths: Record<string, string> = {
 export function icon(name: string, cls = '') { return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.leaf}</svg>`; }
 export const escapeHtml = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 // Capybara sticker: fur is always the capybara brown; the player colour is the bandana (style bible §3.7).
+// Painted UI sprites cut from the approved final-art sheets by scripts/build-ui-art.mjs.
+export const uiArt = (name: string) => `${import.meta.env.BASE_URL}assets/ui/${name}.webp`;
 export function capybara(color = '#1fb5a8') {
   const kit = /^#[0-9a-f]{6}$/i.test(color) ? color : '#1fb5a8';
+  // Kit colours have a painted portrait with the bandana in that colour; wrapped in the same 80x80 SVG so every
+  // avatar slot keeps its size rules. Any other colour falls back to the drawn sticker.
+  if ((PLAYER_COLORS as readonly string[]).includes(kit.toLowerCase())) return `<svg class="capy-avatar" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="39" fill="${kit}33"/><image href="${uiArt(`capy-${kit.slice(1).toLowerCase()}`)}" x="0" y="0" width="80" height="80" style="clip-path:circle(39px at 40px 40px)"/></svg>`;
   return `<svg class="capy-avatar" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="39" fill="${kit}33"/><g stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"><circle cx="27" cy="19" r="6" fill="#b8743a"/><circle cx="45" cy="16" r="5.5" fill="#b8743a"/><path d="M13 43c0-16 12-26 28-26 12 0 20 5 24 13 3 5 3 10 3 15 0 9-6 15-15 15H29c-10 0-16-7-16-17Z" fill="#b8743a"/><path d="M49 28h10c5 0 9 4 9 9v9c0 6-5 10-11 10h-8Z" fill="#8a5230"/><path d="M17 58h44l-18 17Z" fill="${kit}"/></g><path d="M22 34c3-6 9-9 16-9" fill="none" stroke="#d39a47" stroke-width="3" stroke-linecap="round"/><ellipse cx="62" cy="36" rx="2.4" ry="3" fill="${INK}"/><circle cx="42" cy="33" r="3.6" fill="#1a120c"/><circle cx="43.2" cy="31.8" r="1.2" fill="#fff"/><path d="M56 49q4 2 8-1" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/></svg>`;
 }
 

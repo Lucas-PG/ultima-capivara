@@ -248,7 +248,7 @@ body:not([data-screen=game]) .button{font-family:var(--display);font-weight:400;
 #victory .vstats b{font-size:30px}
 #victory .vawards{display:flex;gap:10px;flex-wrap:wrap}
 #victory .award{display:flex;align-items:center;gap:7px;background:var(--onca);border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);border-radius:4px;padding:3px 10px;font-size:13px;transform:rotate(-1deg)}
-#victory .award svg{width:18px;height:18px;stroke-width:2.3}
+#victory .award img{width:30px;height:30px;margin:-6px 0;display:block}
 #victory .award b{font-family:var(--display);font-weight:400}
 #victory .award small{font-size:13px;color:var(--lmuted)}
 #victory .vboard{grid-column:auto;max-height:none}
@@ -335,3 +335,6 @@ body #victory #confetti{display:none}
 .modal .key-binding{min-width:96px;white-space:nowrap}
 .modal .key-binding.unbound{background:var(--paper);color:var(--red);border-style:dashed;font-size:12px}
 .modal .bindings .unbound-count{color:var(--red)}
+
+/* Final art: the mode column shows the painted key art, framed on its subject (royale parachuter, correria runners). */
+.mode-art.painted{background:var(--art) 68% 42%/auto 118% no-repeat,#233833}.deathmatch .mode-art.painted{background-position:62% 55%}.mode-art.painted::before,.mode-art.painted::after{display:none}.mode-art.painted .mode-index{text-shadow:0 1px 3px #12241b}
