@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Simulation } from '../src/simulation';
+import { BOT_TELL, Simulation } from '../src/simulation';
 import { DIFFICULTY, adaptDifficulty } from '../src/simulation/bots';
 import { terrainHeight } from '../src/shared/terrain';
 import { WEAPONS } from '../src/shared/weapons';
@@ -228,5 +228,19 @@ describe('legacy bot behaviour', () => {
     expect(mild.dmg / base.dmg).toBeGreaterThan(.75); expect(brave.dmg / base.dmg).toBeLessThan(1.25);
     expect(adaptDifficulty(base, 99)).toEqual(adaptDifficulty(base, 1));
     expect(adaptDifficulty(base, Number.NaN)).toEqual(base);
+  });
+  it('shows a visible alert tell at least BOT_TELL before its first shot at a human, even as a hard elite', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const { sim, player, bot } = duel(6, 'hard', Math.PI, seed);
+      bot.brain.elite = true; bot.brain.skill = 1;
+      player.hp = 10_000;
+      const events = collect(sim, 3, 1 / 60);
+      const alert = events.find(e => e.event.type === 'alert' && e.event.actor === 'bot-1');
+      const shot = botShots(events)[0];
+      expect(alert && shot).toBeTruthy();
+      expect((alert!.event as Extract<GameEvent, { type: 'alert' }>).target).toBe('player');
+      expect((alert!.event as Extract<GameEvent, { type: 'alert' }>).delay).toBeGreaterThanOrEqual(BOT_TELL);
+      expect(shot.time - alert!.time).toBeGreaterThanOrEqual(BOT_TELL - 1 / 60);
+    }
   });
 });

@@ -3,6 +3,7 @@ import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, ray
 import { terrainHeight } from '../shared/terrain';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { advanceAds, coolShotHeat, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
+import { resolveImpact, type Impact } from './surface';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, ColliderGrid, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
@@ -34,7 +35,7 @@ const HIT_SHAPES = {
 interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; jumpQueuedUntil: number; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
-  brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number;
+  brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number; stormExposure: number;
   shots: number; hits: number; headshots: number; chests: number; eliminatedAt: number | null;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
@@ -46,6 +47,8 @@ const groundPoint = (x: number, z: number): Vec3 => ({ x, y: terrainHeight(x, z)
 const center = (actor: ActorState): Vec3 => ({ x: actor.pos.x, y: actor.pos.y + actorEye(actor), z: actor.pos.z });
 const norm = (v: Vec3): Vec3 => { const n = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / n, y: v.y / n, z: v.z / n }; };
 const DEG = Math.PI / 180;
+// Minimum time between a bot's visible alert tell and its first shot at a human.
+export const BOT_TELL = .45;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export class Simulation {
@@ -154,7 +157,7 @@ export class Simulation {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, shots: 0, hits: 0, headshots: 0, chests: 0, eliminatedAt: null, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, shots: 0, hits: 0, headshots: 0, chests: 0, eliminatedAt: null, history: [] });
   }
 
   input(id: string, input: InputFrame) {
@@ -282,7 +285,12 @@ export class Simulation {
       if (s.using && this.time >= s.useUntil) this.finishConsume(actor);
       if (s.reloadUntil && this.time >= s.reloadUntil) this.finishReload(actor);
       if (actor.hot > 0) { const heal = Math.min(actor.hot, 5 * TICK, 100 - s.hp); s.hp += heal; actor.hot -= heal; }
-      if (this.config.mode === 'battle-royale' && Math.hypot(s.pos.x - this.zone.x, s.pos.z - this.zone.z) > this.zone.radius) this.damage(actor, this.zone.damage * TICK, null, 'storm', false);
+      // The storm bites once per second of exposure. Exposure carries over when
+      // stepping back inside, so edge-hopping never dodges damage.
+      if (this.config.mode === 'battle-royale' && Math.hypot(s.pos.x - this.zone.x, s.pos.z - this.zone.z) > this.zone.radius) {
+        actor.stormExposure += TICK;
+        if (actor.stormExposure >= 1 - 1e-9) { actor.stormExposure -= 1; this.damage(actor, this.zone.damage, null, 'storm', false); }
+      }
       if (trigger) {
         s.yaw = trigger.yaw; s.pitch = trigger.pitch; s.lean = trigger.lean; s.ads = trigger.ads;
         actor.wasFiring = false;
@@ -395,6 +403,7 @@ export class Simulation {
     if (item === 'acai') s.armor = Math.min(100, s.armor + 25);
     if (item === 'guarana') { a.hot = Math.min(30, 100 - s.hp); a.boostUntil = this.time + 10; }
     s.using = null; s.useUntil = 0;
+    this.emit({ type: 'use', actor: s.id, item });
   }
   private interact(a: ActorRuntime, target: string) {
     const s = a.state;
@@ -486,7 +495,7 @@ export class Simulation {
       this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: { x: origin.x + forward.x * 2, y: origin.y + forward.y * 2, z: origin.z + forward.z * 2 }, hit: false });
       return;
     }
-    const pellets = def.pellets || 1; let hit = false, headHit = false, endpoint = { x: origin.x + forward.x * def.range, y: origin.y + forward.y * def.range, z: origin.z + forward.z * def.range };
+    const pellets = def.pellets || 1; let hit = false, headHit = false, impact: Impact | null = null, endpoint = { x: origin.x + forward.x * def.range, y: origin.y + forward.y * def.range, z: origin.z + forward.z * def.range };
     for (let n = 0; n < pellets; n++) {
       const direction = aim ? this.cone(forward, aim.cone + (pellets > 1 ? def.spread * DEG * .5 : 0))
         : def.melee ? forward : norm({ x: forward.x + (this.random() * 2 - 1) * spread * DEG, y: forward.y + (this.random() * 2 - 1) * spread * DEG, z: forward.z + (this.random() * 2 - 1) * spread * DEG });
@@ -504,10 +513,14 @@ export class Simulation {
         hit = true; headHit ||= head; endpoint = { x: origin.x + direction.x * best, y: origin.y + direction.y * best, z: origin.z + direction.z * best };
         const falloff = damageFalloff(w.id, best);
         this.damage(victim, def.damage * (head ? def.headMultiplier : 1) * (1 + w.rarity * .08) * falloff * (a.brain ? this.botDamage(a, victim) : 1), s.id, w.id, head);
-      } else if (wall) endpoint = wall.point;
+      } else if (!hit) {
+        impact = resolveImpact(origin, direction, wall, def.range);
+        if (impact) endpoint = impact.point;
+      }
     }
     if (hit) { a.hits++; if (headHit) a.headshots++; }
-    this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: endpoint, hit });
+    const struck = !hit && impact ? { surface: impact.surface, normal: { x: Math.round(impact.normal.x * 1000) / 1000, y: Math.round(impact.normal.y * 1000) / 1000, z: Math.round(impact.normal.z * 1000) / 1000 } } : {};
+    this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: endpoint, hit, ...struck });
   }
   private rayActor(origin: Vec3, d: Vec3, actor: ActorState, max: number, position = actor.pos, crouch = actor.crouch, yaw = actor.yaw, favoured = false): { distance: number; head: boolean } | null {
     const shape = favoured ? HIT_SHAPES.favoured : HIT_SHAPES.normal;
@@ -544,6 +557,7 @@ export class Simulation {
     const s = target.state;
     if (!s.alive || s.protectionUntil > this.time || !Number.isFinite(raw) || raw <= 0) return;
     let damage = raw;
+    const hadArmor = s.armor > 0;
     if (head && s.helmet > 0) { const blocked = Math.min(s.helmet, damage * .4); s.helmet -= blocked; damage -= blocked; }
     if (s.armor > 0) { const blocked = Math.min(s.armor, damage); s.armor -= blocked; damage -= blocked; }
     s.hp = Math.max(0, s.hp - damage);
@@ -558,7 +572,7 @@ export class Simulation {
       if (!brain.sees) brain.thinkAt = Math.min(brain.thinkAt, this.time + .08);
     }
     if (s.using) { s.using = null; s.useUntil = 0; }
-    this.emit({ type: 'damage', actor: attackerId || '', target: s.id, amount: Math.round(raw * 10) / 10, head, pos: { ...s.pos, y: s.pos.y + 1 } });
+    this.emit({ type: 'damage', actor: attackerId || '', target: s.id, amount: Math.round(raw * 10) / 10, head, pos: { ...s.pos, y: s.pos.y + 1 }, ...(hadArmor && s.armor <= 0 ? { armorBreak: true } : {}) });
     if (s.hp <= 0) this.kill(target, attacker || null, weapon);
   }
   private kill(target: ActorRuntime, killer: ActorRuntime | null, weapon: WeaponId | 'storm' | 'fall') {
@@ -600,7 +614,10 @@ export class Simulation {
         if (owner) { owner.hits++; if (head) owner.headshots++; }
         this.damage(victim, WEAPONS[p.weapon].damage * (head ? WEAPONS[p.weapon].headMultiplier : 1), p.owner, p.weapon, head);
       }
-      if (victim || wall || p.pos.y < terrainHeight(p.pos.x, p.pos.z) || p.life <= 0) this.projectiles.splice(i, 1);
+      const underground = p.pos.y < terrainHeight(p.pos.x, p.pos.z);
+      const landed = victim ? null : resolveImpact(previous, dir, wall || (underground ? { distance: length, collider: { id: 'terrain', min: p.pos, max: p.pos, material: 'earth' } } : null), length);
+      if (landed) this.emit({ type: 'impact', actor: p.owner, weapon: p.weapon, pos: landed.point, surface: landed.surface, normal: landed.normal });
+      if (victim || wall || landed || underground || p.life <= 0) this.projectiles.splice(i, 1);
     }
   }
   // ---------------- bots (ported from the legacy build) ----------------
@@ -816,6 +833,8 @@ export class Simulation {
       if (best) {
         const d = Math.hypot(best.state.pos.x - s.pos.x, best.state.pos.z - s.pos.z), human = !best.state.bot || dm;
         b.reactT = (b.elite ? this.rnd(.25, .4) + d / 220 : this.rnd(.45, .75) + d / 140) + (human ? diff.react : .4);
+        // Humans always get a readable tell: the alert pop stays up this long before the first shot.
+        if (human) { b.reactT = Math.max(b.reactT, BOT_TELL); this.emit({ type: 'alert', actor: s.id, target: best.state.id, delay: Math.round(b.reactT * 100) / 100 }); }
         b.trackT = 0;
       }
       b.target = best?.state.id || null;
