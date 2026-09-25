@@ -271,7 +271,10 @@ export class GameUI {
     else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando'}</small>`; }
     this.setBanner(banner);
     // Out for good: the player's own loadout and vitals leave the screen so the choice (watch or leave) is the focus.
-    this.toggle(this.el('hud'), 'out', !me.alive && br);
+    const out = !me.alive && br, hud = this.el('hud');
+    // The moment the player is out, every combat cue goes: damage arcs, floaters, hit markers, vignettes.
+    if (out && !hud.classList.contains('out')) { this.el('dmgInd').replaceChildren(); this.el('nums').replaceChildren(); this.el('hitm').classList.remove('on'); }
+    this.toggle(hud, 'out', out);
     const deadInRoyale = this.deadInRoyale(); this.show('spec', deadInRoyale); this.show('dmQuit', !me.alive && !br && snapshot.phase === 'playing');
     // Eliminated in battle royale: free the mouse once so the on-screen buttons can be clicked.
     if (deadInRoyale && !this.deathReleased) { this.deathReleased = true; this.el('pause-panel').hidden = true; if (document.pointerLockElement) document.exitPointerLock(); this.el('spec').querySelector<HTMLElement>('[data-do="spectate"]')?.focus({ preventScroll: true }); }

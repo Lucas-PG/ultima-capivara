@@ -286,4 +286,4 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 #hud #spec.locked .esc{display:inline}
 #hud #dmQuit button{display:inline-flex;align-items:center;gap:6px;background:var(--paper-2);color:var(--ink)}
 #hud #dmQuit svg{width:16px;height:16px;stroke-width:2.4}
-#hud.out #vitals,#hud.out #wpnbox,#hud.out #consbar,#hud.out #stance,#hud.out #prompt,#hud.out #reload,#hud.out #rring,#hud.out #use{display:none!important}
+#hud.out #vitals,#hud.out #wpnbox,#hud.out #consbar,#hud.out #stance,#hud.out #prompt,#hud.out #reload,#hud.out #rring,#hud.out #use,#hud.out #dmgInd,#hud.out #nums,#hud.out #hitm,#hud.out #cross,#hud.out #vign,#hud.out #storm,#hud.out #hOut,#hud.out #safe,#hud.out #scope-overlay,#hud.out #alt{display:none!important}
