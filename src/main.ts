@@ -29,6 +29,8 @@ let renderer: GameRenderer | null = null;
 // `loading` holds the loading screen until the first prepared frame.
 let rendererReady: Promise<void> | null = null, loading = false, readyToReveal = false;
 let pageDisposed = false;
+class RendererUnavailableError extends Error {}
+const rendererUnavailableMessage = 'Não foi possível iniciar o gráfico 3D. Ative a aceleração de hardware e tente novamente.';
 let matchPreparation: Promise<void> | null = null;
 let loadFraction = 0, loadLabel = 'Desenhando a ilha';
 let worker: Worker | null = null;
@@ -75,10 +77,17 @@ const ui = new GameUI(world, settings, profile, {
   async join(p, code) { await sound.unlock(); await session.join(code, p); },
   practice: startPractice,
   ready: value => session.ready(value),
-  start() {
-    try { ensureRenderer(); }
-    catch { ui.toast('O gráfico 3D não está disponível. Ative a aceleração de hardware antes de começar.', true); return; }
-    void sound.unlock(); session.start(); if (playing) void input.lock();
+  async start() {
+    const startingRoom = room?.code;
+    void sound.unlock(); ensureRenderer();
+    try { await rendererReady; }
+    catch (error) {
+      if (!pageDisposed) ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
+        'Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
+      return;
+    }
+    if (pageDisposed || !room?.isHost || room.code !== startingRoom) return;
+    session.start(); if (playing) void input.lock();
   },
   leave,
   rematch() {
@@ -105,14 +114,14 @@ function ensureRenderer() {
       // when the engine modules already live in the browser cache.
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       if (pageDisposed) throw new Error('Page closed before renderer initialization');
-      renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }, (fraction) => {
+      try { renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }, (fraction) => {
         loadFraction = fraction;
         loadLabel = fraction < .15 ? 'Desenhando a ilha' : fraction < .3 ? 'Plantando os coqueiros' :
           fraction < .45 ? 'Enchendo o mar' : fraction < .6 ? 'Escondendo os baús' :
           fraction < .75 ? 'Engraxando as armas' : fraction < .9 ? 'Chamando a turma' :
           fraction < 1 ? 'Carregando o avião' : 'Pronto!';
         ui.setLoadingProgress(fraction, loadLabel);
-      });
+      }); } catch (error) { throw new RendererUnavailableError('Renderer construction failed', { cause: error }); }
       renderer.resize();
       await renderer.warmup();
     })();
@@ -122,12 +131,7 @@ function ensureRenderer() {
 }
 function beginMatch(id: string, matchId: string) {
   stopMatch();
-  try { ensureRenderer(); }
-  catch {
-    leave();
-    ui.toast('Não foi possível iniciar o gráfico 3D. Ative a aceleração de hardware e tente novamente.', true);
-    return false;
-  }
+  ensureRenderer();
   playerId = id; match = matchId; playing = true; dirtyFrame = true;
   lastEvent = 0; initializedPose = false; lastAlive = true; lastStage = '';
   input.reset(); ui.closeModal(); ui.game(id); ui.setPaused(!input.locked);
@@ -139,9 +143,10 @@ function startWorker(config: RoomConfig, players: PlayerProfile[], matchId: stri
   void rendererReady?.then(() => {
     if (!playing || match !== matchId) return;
     startReadyWorker(config, players, matchId);
-  }).catch(() => {
-    if (match !== matchId) return;
-    leave(); ui.toast('Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
+  }).catch(error => {
+    if (match !== matchId || pageDisposed) return;
+    leave(); ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
+      'Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
   });
 }
 function startReadyWorker(config: RoomConfig, players: PlayerProfile[], matchId: string) {
@@ -190,9 +195,10 @@ function acceptSnapshot(next: WorldSnapshot) {
       return renderer!.prepareMatch(next);
     }).then(() => {
       if (playing && match === preparingId) { readyToReveal = true; dirtyFrame = true; }
-    }).catch(() => {
-      if (match !== preparingId) return;
-      leave(); ui.toast('Não foi possível preparar a partida. Recarregue a página e tente novamente.', true);
+    }).catch(error => {
+      if (match !== preparingId || pageDisposed) return;
+      leave(); ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
+        'Não foi possível preparar a partida. Recarregue a página e tente novamente.', true);
     });
   }
   const actor = next.actors.find(a => a.id === playerId);
