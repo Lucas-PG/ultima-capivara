@@ -35,12 +35,12 @@ const cliffFace = (() => {
 })();
 const thinCone = new THREE.ConeGeometry(.5, 1, 7);
 const bentBlade = new THREE.ConeGeometry(.055, .45, 3).translate(0, .225, 0);
-type Surface = 'earth' | 'sand' | 'plaster' | 'brick' | 'stone' | 'timber' | 'bark' | 'metal' | 'roof' | 'road' | 'leaf' | 'fabric';
+type Surface = 'earth' | 'sand' | 'plaster' | 'brick' | 'stone' | 'timber' | 'cover-wood' | 'bark' | 'metal' | 'roof' | 'road' | 'leaf' | 'fabric';
 const tileMeters: Record<Surface, number> = {
-  earth: 2, sand: 2, plaster: 1.8, brick: 3, stone: 1.5, timber: 2, bark: 1.9,
+  earth: 2, sand: 2, plaster: 1.8, brick: 3, stone: 1.5, timber: 2, 'cover-wood': 2, bark: 1.9,
   metal: 2, roof: 4, road: 2.3, leaf: 2, fabric: 2,
 };
-const roughness: Record<Surface, number> = { earth: 1, sand: 1, plaster: 1, brick: 1, stone: 1, timber: 1,
+const roughness: Record<Surface, number> = { earth: 1, sand: 1, plaster: 1, brick: 1, stone: 1, timber: 1, 'cover-wood': 1,
   bark: 1, metal: .85, roof: 1, road: 1, leaf: .88, fabric: .96 };
 const hash = (x: number, y: number, salt: number) => {
   let n = Math.imul(x + salt * 17, 374761393) + Math.imul(y - salt * 31, 668265263);
@@ -188,12 +188,31 @@ export class WorldScene {
     void loader.ready().then(onAssetsReady, () => {});
     const kinds: Record<Surface, ToonMaterialKind> = {
       earth: 'terrain', sand: 'terrain', plaster: 'plaster', brick: 'stone', stone: 'stone',
-      timber: 'wood', bark: 'wood', metal: 'painted-metal', roof: 'stone', road: 'stone', leaf: 'foliage', fabric: 'fabric',
+      timber: 'wood', 'cover-wood': 'wood', bark: 'wood', metal: 'painted-metal', roof: 'stone', road: 'stone', leaf: 'foliage', fabric: 'fabric',
     };
-    const materialFor = (surface: Surface) => createToonMaterial(kinds[surface], {
-      vertexColors: true, roughness: roughness[surface],
-      side: surface === 'leaf' || surface === 'fabric' || surface === 'roof' ? THREE.DoubleSide : THREE.FrontSide,
-    });
+    const materialFor = (surface: Surface) => {
+      const material = createToonMaterial(kinds[surface], {
+        vertexColors: true, roughness: roughness[surface],
+        side: surface === 'leaf' || surface === 'fabric' || surface === 'roof' ? THREE.DoubleSide : THREE.FrontSide,
+      });
+      if (surface === 'cover-wood') {
+        // Resolve the shadow once beside the base, outside the cover's own
+        // silhouette. Tree/roof shadows remain, without unresolved slat stripes.
+        material.onBeforeCompile = shader => {
+          shader.vertexShader = `attribute vec3 coverShadowPoint;\n${shader.vertexShader}`.replace(
+            '#include <shadowmap_vertex>', `#include <shadowmap_vertex>
+              #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
+                #pragma unroll_loop_start
+                for (int i = 0; i < NUM_DIR_LIGHT_SHADOWS; i++) {
+                  vDirectionalShadowCoord[i] = directionalShadowMatrix[i] * vec4(coverShadowPoint, 1.0);
+                }
+                #pragma unroll_loop_end
+              #endif`);
+        };
+        material.customProgramCacheKey = () => 'painted-cover-base-shadow-v1';
+      }
+      return material;
+    };
     const groundColors = loader.texture('textures/terrain-color.png');
     groundColors.colorSpace = THREE.SRGBColorSpace;
     groundColors.minFilter = THREE.LinearMipmapLinearFilter;
@@ -383,7 +402,18 @@ export class WorldScene {
     this.disposables.push(cascadeSheet);
     const add = (surface: Surface, geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = 0) => {
       const tint = c(color);
-      stash(surface, coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]), x, z);
+      const painted = coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]);
+      if (surface === 'cover-wood') {
+        const cosine = Math.abs(Math.cos(rotation)), sine = Math.abs(Math.sin(rotation));
+        // The fixed sun is northwest (-70,55,-30). Sample just beyond that
+        // corner so the box and projecting rails cannot shadow their own probe.
+        const px = x - (sx * cosine + sz * sine) / 2 - .15;
+        const pz = z - (sz * cosine + sx * sine) / 2 - .15;
+        const count = painted.getAttribute('position').count, points = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) { points[i * 3] = px; points[i * 3 + 1] = y - sy / 2 + .08; points[i * 3 + 2] = pz; }
+        painted.setAttribute('coverShadowPoint', new THREE.BufferAttribute(points, 3));
+      }
+      stash(surface, painted, x, z);
     };
     const addBranch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, tint: string, surface: Surface = 'bark') => {
       const direction = to.clone().sub(from), length = direction.length();
@@ -522,8 +552,10 @@ export class WorldScene {
               pos.z + dz * scale.z * .47), .085, color, 'roof');
         }
       } else {
-        const surface = surfaceOf(object, colliderMaterials);
-        add(surface, geometry, color, pos.x, pos.y, pos.z, scale.x, scale.y, scale.z, rotation);
+        let surface = surfaceOf(object, colliderMaterials);
+        if (surface === 'timber' && (detail === 'crate' || detail === 'wall')) surface = 'cover-wood';
+        const paint = surface === 'cover-wood' ? '#9C6A42' : color;
+        add(surface, geometry, paint, pos.x, pos.y, pos.z, scale.x, scale.y, scale.z, rotation);
         if (detail === 'shutter') for (const face of [-1, 1]) for (let slat = 0; slat < 5; slat++)
           add('timber', box, '#b6bfa2', pos.x, pos.y + (slat - 2) * .21, pos.z + face * .065,
             scale.x * .9, .025, .025);
