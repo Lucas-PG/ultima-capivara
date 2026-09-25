@@ -42,7 +42,7 @@ export function buildWallArt(world: WorldSpec) {
     ctx.restore();
   }
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
-  const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 1 });
+  const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 1, side: THREE.FrontSide });
   const buckets = new Map<string, THREE.BufferGeometry[]>();
   for (const object of world.objects) {
     const role = object.detail?.split(':')[2];
