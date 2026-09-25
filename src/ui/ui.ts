@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, startButtonState, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
+import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -19,7 +19,9 @@ export interface UICallbacks {
 type Profile = { name: string; color: string };
 export const modeName = (mode: Mode) => mode === 'battle-royale' ? 'ÚLTIMA DE PÉ' : 'CORRERIA';
 const clock = (seconds: number) => { const s = Math.max(0, Math.ceil(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
-const keyName = (code: string) => code.replace('Key', '').replace('Digit', '').replace('Left', '').replace('Right', '').replace('Space', 'Espaço').replace('Control', 'Ctrl');
+const keyName = (code: string) => keyLabel(code);
+// Tiny HUD key chips show a dash for an unbound action (Settings spells out 'Sem tecla').
+const chipKey = (code: string) => code ? keyLabel(code) : '–';
 // HUD facts mirrored from the simulation: six storm phases, and the plane drops a human after 12 s.
 const STORM_PHASES = 6, PLANE_AUTO_DROP = 12;
 // Minimap zoom (metres shown across the corner map) and island texture resolution (pixels per metre).
@@ -38,7 +40,6 @@ const ONBOARD_KEY = 'uc-onboarded';
 const nextTip = tipBag(TIPS);
 // Damage direction: a 40° arc on a 140 px ring around the crosshair.
 const DAMAGE_ARC = '<svg viewBox="-160 -160 320 320" aria-hidden="true"><path d="M-47.9-131.6A140 140 0 0 1 47.9-131.6" fill="none" stroke="#16120e" stroke-width="16" stroke-linecap="round"/><path d="M-47.9-131.6A140 140 0 0 1 47.9-131.6" fill="none" stroke="#e5412d" stroke-width="9" stroke-linecap="round"/></svg>';
-const bindingLabels: Record<string, string> = { forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar', reload: 'Recarregar', interact: 'Interagir', leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita' };
 
 export class GameUI {
   screen: 'home' | 'lobby' | 'game' | 'results' = 'home';
@@ -53,7 +54,7 @@ export class GameUI {
   private lastResults = '';
   private toastTimer = 0;
   private lastBanner = '';
-  private deathInfo: { place: number; line: string } | null = null;
+  private deathInfo: { place: number; line: string; card: string | null; until: number } | null = null;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
   private lastPrey: { name: string; color: string } | null = null;
@@ -77,17 +78,20 @@ export class GameUI {
   private readonly crosshairSpread = new CrosshairSpread();
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
-    document.documentElement.style.setProperty('--cover', `url("${publicUrl('assets/cover-v2.png')}")`);
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
     window.addEventListener('pagehide', () => this.lifecycle.abort(), { once: true });
     this.drawMapBackground(); this.home();
-    // M toggles the island map over the match; it never touches pointer lock or movement input.
+    // The map binding (M by default) toggles the island map; it never touches pointer lock or movement input.
     document.addEventListener('keydown', event => {
       if (this.screen !== 'game' || event.repeat || event.target instanceof HTMLInputElement) return;
-      if (event.code === 'KeyM') { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
+      if (event.code === bindingOf(this.settings.bindings, 'map')) { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
       else if (event.code === 'Escape' && this.mapOpen) this.toggleMap(false);
       else if (event.code === 'KeyH' && this.coach) this.finishOnboarding();
       else if ((event.code === 'ArrowRight' || event.code === 'ArrowLeft') && this.root.querySelector('#loadingOverlay')) this.showTip();
+    });
+    // The map may also sit on a mouse button (remap covers every action), so presses are matched the same way.
+    document.addEventListener('mousedown', event => {
+      if (this.screen === 'game' && `Mouse${event.button}` === bindingOf(this.settings.bindings, 'map')) { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
     });
     this.root.addEventListener('click', event => {
       const element = (event.target as HTMLElement).closest<HTMLElement>('[data-do],[data-mode]'); if (!element) return;
@@ -197,14 +201,14 @@ export class GameUI {
     this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><span>×</span></div>`
       + `<div id="topL" class="stk"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
       + `<div id="safe" class="stk" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="stk" hidden>Na tempestade! −<span id="hDps">1</span>/s</div>`
-      + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd>M</kbd> fecha o mapa</span></div></div>`
+      + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
       + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden role="group" aria-label="Você foi eliminada"><div class="btns">${ELIMINATED_ACTIONS.map(a => `<button type="button" class="${a.primary ? 'go' : 'alt'}" data-do="${a.do}">${a.primary ? icon('eye') : icon('back')} ${a.label}</button>`).join('')}</div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste<span class="esc"> · <kbd>Esc</kbd> solta o mouse pra clicar</span></span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="leave">${icon('back')} Voltar ao menu</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
       + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
       + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
       + `<div id="stance" class="stk">${HUD_ART.stance}<b id="stanceTxt" hidden>Em pé</b></div>`
       + `<div id="wpnbox"><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
-      + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${i + 5}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
+      + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
       + `<div id="coach" class="stk" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
       + `</div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
     this.applyHudPrefs();
@@ -252,7 +256,7 @@ export class GameUI {
     const inventoryKey = JSON.stringify([me.weapons.map(w => [w.id, w.rarity, w.ammo]), me.slot]);
     if (this.inventoryKey !== inventoryKey) {
       this.inventoryKey = inventoryKey;
-      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(i => { const w = me.weapons[i]; return `<div class="hs${i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${i + 1}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : ''}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
+      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(i => { const w = me.weapons[i]; return `<div class="hs${i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${i + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : ''}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
     }
     // Consumables: only what you carry, each with its count; the slot key stays visible.
     let carried = 0;
@@ -288,13 +292,17 @@ export class GameUI {
     if (me.alive) this.deathInfo = null;
     let banner = '';
     if (snapshot.phase === 'countdown') banner = `${Math.ceil(snapshot.countdown)}<small>Prepare-se · a ilha já vai abrir</small>`;
-    else if (!me.alive && br) { const info = this.deathInfo ||= { place: alive + 1, line: 'Fim da linha pra você' }; banner = `#${info.place}<small>${esc(info.line)}</small>`; }
-    else if (!me.alive) banner = `Caiu!<small>Volta em ${Math.max(0, Math.ceil(me.respawnAt - t))} s</small>`;
+    else if (!me.alive) {
+      // During the death cam the card names the killer; afterwards BR shows the placement line, Correria the respawn timer.
+      const info = this.deathInfo ||= { place: alive + 1, line: 'Fim da linha pra você', card: null, until: 0 }, carding = !!info.card && now < info.until;
+      const detail = carding ? info.card! : br ? esc(info.line) : `Volta em ${Math.max(0, Math.ceil(me.respawnAt - t))} s`;
+      banner = `${br ? `#${info.place}` : 'Caiu!'}<small class="${carding ? 'kc' : ''}">${detail}</small>`;
+    }
     else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando'}</small>`; }
     this.setBanner(banner);
     // Out for good: the player's own loadout and vitals leave the screen so the choice (watch or leave) is the focus.
-    const out = !me.alive && br, hud = this.el('hud');
-    // The moment the player is out, every combat cue goes: damage arcs, floaters, hit markers, vignettes.
+    const out = !me.alive, hud = this.el('hud');
+    // The moment the player is down (out of a battle royale, or waiting to respawn in Correria), every combat cue goes.
     if (out && !hud.classList.contains('out')) { this.el('dmgInd').replaceChildren(); this.el('nums').replaceChildren(); this.el('hitm').classList.remove('on'); }
     this.toggle(hud, 'out', out);
     const deadInRoyale = this.deadInRoyale(); this.show('spec', deadInRoyale); this.show('dmQuit', !me.alive && !br && snapshot.phase === 'playing');
@@ -317,7 +325,8 @@ export class GameUI {
   // Crosshair gap and tick fade come from Brasa's CrosshairSpread (authoritative cone, local shot heat, ADS fade).
   // The crosshair is not scaled by --ui: its gap is a real screen-space angle.
   private crosshairGap(me: ActorState, now: number): number {
-    const height = document.querySelector<HTMLCanvasElement>('#game')?.clientHeight || window.innerHeight;
+    // #game is fixed to the viewport, so innerHeight equals its height without forcing a synchronous layout.
+    const height = window.innerHeight;
     const gap = this.crosshairSpread.gap(me, this.settings, height, now);
     const opacity = String(this.crosshairSpread.ticksOpacity);
     this.el('cross').querySelectorAll<HTMLElement>('i:not(.d)').forEach(tick => this.style(tick, 'opacity', opacity));
@@ -389,7 +398,7 @@ export class GameUI {
     const keys = (...codes: string[]) => `<span class="keys">${codes.map(code => `<kbd class="kc">${esc(code)}</kbd>`).join('')}</span>`;
     panel.innerHTML = `<div class="mc"><div class="eyebrow stk">Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'vivo' : 'vivos'}` : ''}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${online ? 'Menu' : 'Pausado'}</h1>${!online && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
       + `<button type="button" class="play" data-do="resume">Voltar pra ilha</button><div id="lockErr" role="status"></div>`
-      + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys('1–4', 'Roda')}armas</span><span>${keys('5–9')}curas</span><span>${keys('Tab')}placar</span><span>${keys('M')}mapa</span></div>`
+      + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span></div>`
       + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2)}</b></span><input type="range" data-quick="sensitivity" min="0.2" max="3" step="0.05" value="${this.settings.sensitivity}"></label>`
       + `<label><span>Campo de visão <b data-out="fov">${this.settings.fov}°</b></span><input type="range" data-quick="fov" min="60" max="105" step="1" value="${this.settings.fov}"></label></div>`
       + `<div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt" data-do="leave">Sair da partida</button></div></div>`;
@@ -409,7 +418,7 @@ export class GameUI {
   private settingsModal() {
     const labels = { sensitivity: 'Sensibilidade do mouse', fov: 'Campo de visão', master: 'Volume geral', effects: 'Efeitos e combate', ambience: 'Ambiente', music: 'Música' };
     const ranges = (keys: (keyof typeof labels)[]) => keys.map(key => `<label class="slider-label">${labels[key]} <output>${this.settings[key]}</output><input type="range" data-setting="${key}" min="${key === 'fov' ? 60 : key === 'sensitivity' ? .2 : 0}" max="${key === 'fov' ? 105 : key === 'sensitivity' ? 3 : 1}" step="${key === 'fov' ? 1 : .05}" value="${this.settings[key]}"/></label>`).join('');
-    const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label>Limite de quadros<select id="frame-limit"><option value="60">60 FPS · Fluido</option><option value="30">30 FPS · Economia</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento (câmera e interface)</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label><label class="check-row"><input id="adaptive" type="checkbox" ${this.settings.adaptive ? 'checked' : ''}/><span>Ajuste automático dos bots no treino<small>Como na v1: fica mais manso se você vem perdendo e mais bravo se vem ganhando.</small></span></label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section><section><h3>INTERFACE E MIRA</h3><label class="slider-label">Tamanho da interface <output id="ui-scale-out">${Math.round(this.settings.uiScale * 100)}%</output><input type="range" id="ui-scale" min="80" max="120" step="5" value="${Math.round(this.settings.uiScale * 100)}"/></label><label>Cor da mira<select id="crosshair-color"><option value="white">Branca</option><option value="yellow">Amarela</option><option value="cyan">Ciano</option><option value="magenta">Magenta</option></select></label><label>Marcadores de acerto<select id="hit-palette"><option value="default">Padrão</option><option value="colorblind">Daltonismo</option></select></label><label class="check-row"><input id="show-fps" type="checkbox" ${this.settings.showFps ? 'checked' : ''}/> Mostrar FPS no mapa</label><button type="button" class="button secondary" id="replay-tutorial">${icon('info')} REVER O TUTORIAL</button></section></div><details class="bindings"><summary>PERSONALIZAR TECLAS</summary><div class="binding-grid">${Object.keys(DEFAULT_BINDINGS).map(key => `<label>${bindingLabels[key]}<button type="button" class="key-binding" data-binding="${key}">${keyName(this.settings.bindings[key])}</button></label>`).join('')}</div></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
+    const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label>Limite de quadros<select id="frame-limit"><option value="60">60 FPS · Fluido</option><option value="30">30 FPS · Economia</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento (câmera e interface)</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label><label class="check-row"><input id="adaptive" type="checkbox" ${this.settings.adaptive ? 'checked' : ''}/><span>Ajuste automático dos bots no treino<small>Como na v1: fica mais manso se você vem perdendo e mais bravo se vem ganhando.</small></span></label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section><section><h3>INTERFACE E MIRA</h3><label class="slider-label">Tamanho da interface <output id="ui-scale-out">${Math.round(this.settings.uiScale * 100)}%</output><input type="range" id="ui-scale" min="80" max="120" step="5" value="${Math.round(this.settings.uiScale * 100)}"/></label><label>Cor da mira<select id="crosshair-color"><option value="white">Branca</option><option value="yellow">Amarela</option><option value="cyan">Ciano</option><option value="magenta">Magenta</option></select></label><label>Marcadores de acerto<select id="hit-palette"><option value="default">Padrão</option><option value="colorblind">Daltonismo</option></select></label><label class="check-row"><input id="show-fps" type="checkbox" ${this.settings.showFps ? 'checked' : ''}/> Mostrar FPS no mapa</label><button type="button" class="button secondary" id="replay-tutorial">${icon('info')} REVER O TUTORIAL</button></section></div><details class="bindings"${this.unboundCount() ? ' open' : ''}><summary>PERSONALIZAR TECLAS E MOUSE${this.unboundCount() ? ` · <span class="unbound-count">${this.unboundCount()} sem tecla</span>` : ''}</summary>${this.bindingGroups()}<p class="form-note binding-note" role="status">${this.unboundCount() ? `Algumas ações ficaram sem tecla. Clique nelas e escolha uma.` : 'Clique numa ação e aperte a nova tecla ou botão do mouse. <kbd>Esc</kbd> cancela.'}</p><button type="button" class="button secondary" id="reset-bindings">RESTAURAR PADRÃO</button></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
     dialog.querySelector<HTMLSelectElement>('#graphics')!.value = this.settings.graphics;
     dialog.querySelector<HTMLSelectElement>('#frame-limit')!.value = String(this.settings.frameLimit);
     dialog.querySelectorAll<HTMLInputElement>('[data-setting]').forEach(input => input.addEventListener('input', () => { const key = input.dataset.setting as keyof typeof labels; this.settings[key] = Number(input.value); input.parentElement!.querySelector('output')!.textContent = input.value; this.callbacks.settings(this.settings); }));
@@ -429,19 +438,74 @@ export class GameUI {
       this.onboarded = false; (event.currentTarget as HTMLButtonElement).textContent = 'TUTORIAL NA PRÓXIMA PARTIDA DE TREINO';
     });
     dialog.querySelector('#adaptive')!.addEventListener('change', event => { this.settings.adaptive = (event.target as HTMLInputElement).checked; this.callbacks.settings(this.settings); });
+    // Rebinding: keyboard or mouse button; Esc cancels; a code already in use swaps with the other action.
     const keyCapture = new AbortController(); dialog.addEventListener('close', () => keyCapture.abort());
-    dialog.querySelectorAll<HTMLButtonElement>('[data-binding]').forEach(button => button.addEventListener('click', () => {
-      button.textContent = 'PRESSIONE UMA TECLA';
-      const capture = (event: KeyboardEvent) => {
-        event.preventDefault(); event.stopPropagation(); document.removeEventListener('keydown', capture, true);
-        if (/^(Key[A-Z]|Shift(Left|Right)|Control(Left|Right)|Space|Arrow(Up|Down|Left|Right))$/.test(event.code)) { const key = button.dataset.binding!, old = this.settings.bindings[key]; for (const action in this.settings.bindings) if (this.settings.bindings[action] === event.code) this.settings.bindings[action] = old; this.settings.bindings[key] = event.code; this.callbacks.settings(this.settings); }
-        dialog.querySelectorAll<HTMLButtonElement>('[data-binding]').forEach(b => { b.textContent = keyName(this.settings.bindings[b.dataset.binding!]); });
-      }; document.addEventListener('keydown', capture, { capture: true, signal: keyCapture.signal });
-    }));
+    let stopCapture: (() => void) | null = null, swallowClick: HTMLButtonElement | null = null;
+    const refresh = () => dialog.querySelectorAll<HTMLButtonElement>('[data-binding]').forEach(b => { const code = bindingOf(this.settings.bindings, b.dataset.binding!); b.textContent = keyName(code); b.classList.toggle('unbound', !code); b.classList.remove('capturing'); });
+    const note = dialog.querySelector<HTMLElement>('.binding-note')!;
+    dialog.addEventListener('click', event => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-binding]'); if (!button) return;
+      // The left press that just bound this chip is followed by its click; that click must not reopen the capture.
+      if (swallowClick === button) { swallowClick = null; return; }
+      stopCapture?.(); refresh();
+      const action = button.dataset.binding!;
+      // The chip keeps its size (no layout shift); the status line says what to do.
+      button.textContent = '?'; button.classList.add('capturing');
+      note.textContent = `Aperte a nova tecla ou botão para ${BINDING_LABELS[action] ?? action}. Esc cancela.`;
+      const finish = (code: string | null) => {
+        stopCapture?.();
+        if (code && isBindableCode(code)) {
+          const before = this.settings.bindings, swapped = Object.keys(before).find(other => other !== action && before[other] === code);
+          this.settings.bindings = remapBinding(before, action, code); this.callbacks.settings(this.settings);
+          const left = swapped ? bindingOf(this.settings.bindings, swapped) : '';
+          note.textContent = !swapped ? `${BINDING_LABELS[action]} agora é ${keyName(code)}.` : left ? `${BINDING_LABELS[action]} agora é ${keyName(code)}. ${BINDING_LABELS[swapped] ?? swapped} ficou com ${keyName(left)}.` : `${BINDING_LABELS[action]} agora é ${keyName(code)}. ${BINDING_LABELS[swapped] ?? swapped} ficou sem tecla.`;
+        } else if (code) note.textContent = 'Essa tecla fica reservada. Escolha outra.';
+        refresh(); this.refreshKeyHints();
+      };
+      const onKey = (e: KeyboardEvent) => { e.preventDefault(); e.stopPropagation(); if (e.code === 'Escape') note.textContent = 'Troca cancelada.'; finish(e.code === 'Escape' ? null : e.code); };
+      // The click that opened the capture must not bind the left button: mouse capture starts on the next press.
+      // Only a press on the waiting chip binds; any other press cancels and still does its normal job (close, next row).
+      const onMouse = (e: MouseEvent) => {
+        const code = captureMousePress(button.contains(e.target as Node), e.button);
+        if (!code) { stopCapture?.(); refresh(); note.textContent = 'Troca cancelada.'; return; }
+        e.preventDefault(); e.stopPropagation(); if (e.button === 0) swallowClick = button; finish(code);
+      };
+      const opts = { capture: true, signal: keyCapture.signal };
+      document.addEventListener('keydown', onKey, opts);
+      const armMouse = window.setTimeout(() => document.addEventListener('mousedown', onMouse, opts), 0);
+      stopCapture = () => { clearTimeout(armMouse); document.removeEventListener('keydown', onKey, true); document.removeEventListener('mousedown', onMouse, true); stopCapture = null; };
+    }, { signal: keyCapture.signal });
+    // A binding press stops propagation, so this only sees later presses: a drag-off left no click to swallow.
+    dialog.addEventListener('mousedown', () => { swallowClick = null; }, { capture: true, signal: keyCapture.signal });
+    // Right-click binds Mouse2 on a chip, so chips never open the browser menu.
+    dialog.addEventListener('contextmenu', event => { if ((event.target as HTMLElement).closest('[data-binding]')) event.preventDefault(); }, { signal: keyCapture.signal });
+    dialog.querySelector('#reset-bindings')!.addEventListener('click', () => { stopCapture?.(); this.settings.bindings = { ...DEFAULT_BINDINGS }; this.callbacks.settings(this.settings); refresh(); this.refreshKeyHints(); note.textContent = 'Teclas de volta ao padrão.'; });
     dialog.querySelector('#save-settings')!.addEventListener('click', () => this.closeModal());
   }
+  // After a remap mid-match, key chips on the HUD follow at once (the hotbar rebuilds on its next tick).
+  private refreshKeyHints() {
+    if (this.screen !== 'game') return;
+    this.inventoryKey = '';
+    this.root.querySelectorAll<HTMLElement>('#consbar .cs').forEach((slot, i) => this.textOf(slot.querySelector('kbd')!, chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i]))));
+    const mapKey = this.root.querySelector('#mapKey'); if (mapKey) this.textOf(mapKey, keyName(bindingOf(this.settings.bindings, 'map')));
+    this.text('promptKey', keyName(bindingOf(this.settings.bindings, 'interact')));
+  }
+  // Remap list grouped for scanning; only actions the input layer reads (DEFAULT_BINDINGS) are listed, extras go last.
+  private unboundCount() { return unboundActions(this.settings.bindings, Object.keys(DEFAULT_BINDINGS)).length; }
+  private bindingGroups() {
+    const known = new Set(Object.keys(DEFAULT_BINDINGS)), listed = new Set(BINDING_GROUPS.flatMap(g => g.actions));
+    const groups = [...BINDING_GROUPS.map(g => ({ title: g.title, actions: g.actions.filter(a => known.has(a)) })), { title: 'Outros', actions: [...known].filter(a => !listed.has(a)) }];
+    return groups.filter(g => g.actions.length).map(g => `<h4 class="binding-group">${g.title}</h4><div class="binding-grid">${g.actions.map(key => `<label>${esc(BINDING_LABELS[key] ?? key)}<button type="button" class="key-binding${bindingOf(this.settings.bindings, key) ? '' : ' unbound'}" data-binding="${key}" aria-label="${esc(BINDING_LABELS[key] ?? key)}: ${bindingOf(this.settings.bindings, key) ? 'trocar tecla' : 'sem tecla, escolher uma'}">${esc(keyName(bindingOf(this.settings.bindings, key)))}</button></label>`).join('')}</div>`).join('');
+  }
+  // Controls reference from the live bindings, so the help never lies after a remap.
+  private controlsList(): [string, string][] {
+    const b = (a: string) => keyName(bindingOf(this.settings.bindings, a)), list = (...a: string[]) => a.map(b).join(' ');
+    return [[list('forward', 'left', 'back', 'right'), 'MOVER'], ['MOUSE', 'OLHAR'], [`${b('fire')} / ${b('ads')}`, 'ATIRAR / MIRAR'], [b('jump'), 'PULAR / PARAQUEDAS'],
+      [b('sprint'), 'CORRER'], [b('crouch'), 'AGACHAR'], [`${b('leanLeft')} / ${b('leanRight')}`, 'ESPIAR'], [b('interact'), 'PEGAR / ABRIR'], [b('reload'), 'RECARREGAR'],
+      [list('slot1', 'slot2', 'slot3', 'slot4'), 'TROCAR ARMA'], [list(...CONSUMABLE_ACTIONS), 'USAR CURA'], [b('scoreboard'), 'PLACAR'], [b('map'), 'MAPA DA ILHA']];
+  }
   private howModal() {
-    this.openModal('INSTINTO DE SOBREVIVÊNCIA.', `<div class="how-grid"><div>${icon('users')}<h3>CHAME A TURMA</h3><p>Crie uma sala e compartilhe o link. Quem cria mantém o jogo aberto. Sem cadastro, sem instalação.</p></div><div>${icon('crown')}<h3>ÚLTIMA DE PÉ</h3><p>Salte do avião, abra baús e encontre armas. A tempestade fecha a ilha. Sobreviva até o fim.</p></div><div>${icon('bolt')}<h3>CORRERIA</h3><p>Mais eliminações vence. Você reaparece depois de cair, pronto para voltar à luta.</p></div></div><div class="controls-grid">${[['W A S D','MOVER'],['MOUSE','OLHAR'],['M1 / M2','ATIRAR / MIRAR'],['ESPAÇO','PULAR / PARAQUEDAS'],['SHIFT','CORRER'],['C','AGACHAR'],['Q / E','ESPIAR'],['F','PEGAR / ABRIR'],['R','RECARREGAR'],['1–4','TROCAR ARMA'],['5–9','USAR CONSUMÍVEL'],['TAB','PLACAR'],['M','MAPA DA ILHA']].map(([key, text]) => `<span><kbd>${key}</kbd> ${text}</span>`).join('')}</div>`);
+    this.openModal('INSTINTO DE SOBREVIVÊNCIA.', `<div class="how-grid"><div>${icon('users')}<h3>CHAME A TURMA</h3><p>Crie uma sala e compartilhe o link. Quem cria mantém o jogo aberto. Sem cadastro, sem instalação.</p></div><div>${icon('crown')}<h3>ÚLTIMA DE PÉ</h3><p>Salte do avião, abra baús e encontre armas. A tempestade fecha a ilha. Sobreviva até o fim.</p></div><div>${icon('bolt')}<h3>CORRERIA</h3><p>Mais eliminações vence. Você reaparece depois de cair, pronto para voltar à luta.</p></div></div><div class="controls-grid">${this.controlsList().map(([keys, text]) => `<span><kbd>${esc(keys)}</kbd> ${text}</span>`).join('')}</div>`);
   }
   event(event: GameEvent) {
     if (event.type === 'shot' && event.actor === this.localId) this.crosshairSpread.onShot(event.weapon, performance.now());
@@ -456,7 +520,7 @@ export class GameUI {
         if (event.head) this.floater('NA CACHOLA!', 'pop');
       }
       if (event.target === this.localId) {
-        const vign = this.el('vign'); vign.classList.remove('hit'); void vign.offsetWidth; vign.classList.add('hit');
+        this.restartAnimation(this.el('vign'), 'hit');
         const me = find(this.localId), source = find(event.actor);
         if (me && source && source !== me) {
           const burst = document.createElement('div'); burst.className = 'di'; burst.innerHTML = DAMAGE_ARC;
@@ -480,8 +544,14 @@ export class GameUI {
       if (mine) { this.hitMarker('kill'); this.floater('POF!', 'pop kill'); if (victim) this.lastPrey = { name: victim.name, color: victim.color }; }
       if (died && this.snapshot) {
         const others = this.snapshot.actors.filter(a => a.alive && a.id !== this.localId).length;
-        const line = killer && event.weapon !== 'storm' && event.weapon !== 'fall' ? DEATH_LINES[Math.floor(Math.random() * DEATH_LINES.length)](killer.name) : event.weapon === 'fall' ? 'O chão ganhou essa' : 'A tempestade te engoliu';
-        this.deathInfo = { place: others + 1, line };
+        const byPlayer = !!killer && event.weapon !== 'storm' && event.weapon !== 'fall';
+        const line = byPlayer ? DEATH_LINES[Math.floor(Math.random() * DEATH_LINES.length)](killer!.name) : event.weapon === 'fall' ? 'O chão ganhou essa' : 'A tempestade te engoliu';
+        // Kill card for the death cam: who, with what, from how far (the event's distance at the moment of the kill).
+        const kill = event as typeof event & { distance?: number };
+        const measured = kill.distance ?? (killer && victim ? Math.hypot(killer.pos.x - victim.pos.x, killer.pos.y - victim.pos.y, killer.pos.z - victim.pos.z) : null);
+        const parts = byPlayer ? killCardParts(killer!.name, WEAPONS[event.weapon as WeaponId]?.name ?? null, measured) : null;
+        const card = parts ? `<span class="kcard"><span class="pt">${capybara(killer!.color)}</span><b style="--kc:${/^#[0-9a-f]{6}$/i.test(killer!.color) ? killer!.color : PLAYER_COLORS[0]}">${esc(parts.killer)}</b> te pegou <i>·</i> <span class="wi">${weaponIcon(event.weapon as WeaponId)}</span>${esc(parts.weapon)}${parts.distance ? ` <i>·</i> ${parts.distance}` : ''}</span>` : null;
+        this.deathInfo = { place: others + 1, line, card, until: performance.now() + DEATH_CARD_SECONDS * 1000 };
       }
       this.lastHits.delete(event.target);
     }
@@ -508,7 +578,7 @@ export class GameUI {
   }
   private hitMarker(kind: '' | 'head' | 'kill') {
     const marker = this.el('hitm'); marker.classList.toggle('head', kind === 'head'); marker.classList.toggle('kill', kind === 'kill');
-    marker.classList.remove('on'); void marker.offsetWidth; marker.classList.add('on');
+    this.restartAnimation(marker, 'on');
   }
   // Damage numbers and callouts float up next to the crosshair (the HUD has no camera to project world points).
   private floater(text: string, cls: string) {
@@ -553,9 +623,19 @@ export class GameUI {
   private toggle(element: Element, cls: string, on: boolean) { if (element.classList.contains(cls) !== on) element.classList.toggle(cls, on); }
   private style(element: HTMLElement, prop: string, value: string) { if (element.style.getPropertyValue(prop) !== value) element.style.setProperty(prop, value); }
   private attr(element: Element | null, name: string, value: string) { if (element && element.getAttribute(name) !== value) element.setAttribute(name, value); }
+  // Replays a CSS animation class without reading layout (the old offsetWidth trick forced a full layout mid-frame).
+  private restartAnimation(element: HTMLElement, cls: string) {
+    if (!element.classList.contains(cls)) { element.classList.add(cls); return; }
+    const running = element.getAnimations();
+    if (running.length) running.forEach(animation => { animation.cancel(); animation.play(); });
+    else { element.classList.remove(cls); requestAnimationFrame(() => element.classList.add(cls)); }
+  }
   private reducedMotion() { return this.settings.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches; }
   // Interface size and aim colours follow the settings; the HUD scales from its 1600x900 layout.
   applyHudPrefs() {
+    // The cover follows the screen width (desktop vs small); both variants are tiny compared to the PNG master.
+    const art = coverImageSet(innerWidth, devicePixelRatio || 1), root = document.documentElement.style;
+    if (root.getPropertyValue('--cover') !== art.cover) { root.setProperty('--cover', art.cover); root.setProperty('--cover-blur', art.blur); }
     const body = document.body.style, [hit, head, kill] = HIT_PALETTES[this.settings.hitPalette];
     body.setProperty('--ui', String(hudScale(innerWidth, innerHeight, this.settings.uiScale)));
     body.setProperty('--xc', CROSSHAIR_COLORS[this.settings.crosshairColor]);
@@ -698,11 +778,11 @@ export class GameUI {
     const k = (code: string) => `<kbd>${esc(keyName(code))}</kbd>`, br = snapshot.config.mode === 'battle-royale';
     const text: Record<string, string> = {
       intro: br ? '<b>Objetivo:</b> ser a última capivara de pé. Pegue armas, abra baús e fuja da tempestade.' : '<b>Objetivo:</b> fazer mais eliminações até o tempo acabar. Caiu, volta.',
-      plane: `${k(b.jump)} salta do avião. Aperte <kbd>M</kbd> e escolha onde cair.`,
+      plane: `${k(b.jump)} salta do avião. Aperte ${k(bindingOf(this.settings.bindings, 'map'))} e escolha onde cair.`,
       chute: `${k(b.jump)} abre o paraquedas. Segure a direção pra planar.`,
       move: `${k(b.forward)}${k(b.left)}${k(b.back)}${k(b.right)} anda, o mouse olha e ${k(b.sprint)} corre.`,
       loot: `${k(b.interact)} pega o que brilha. A cor do brilho é a raridade.`,
-      storm: 'A tempestade fecha a ilha. Fique dentro do círculo branco: <kbd>M</kbd> abre o mapa.',
+      storm: `A tempestade fecha a ilha. Fique dentro do círculo branco: ${k(bindingOf(this.settings.bindings, 'map'))} abre o mapa.`,
     };
     const card = this.el('coach'); this.show('coach', true);
     if (card.dataset.step !== coach.step) { card.dataset.step = coach.step; this.el('coachTxt').innerHTML = text[coach.step]; }

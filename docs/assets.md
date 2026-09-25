@@ -42,6 +42,7 @@ Notas de implementação do diretor: Lendária recebe filigrana dourada discreta
 
 
 - `public/assets/cover-v2.png`: imagem original gerada para este projeto com a ferramenta integrada ImageGen em 24/09/2026. Não usa uma fotografia ou personagem licenciado como entrada.
+- `public/assets/cover-{1672,960}.{avif,webp}` e `cover-blur-480.{avif,webp}`: variantes geradas de `cover-v2.png` por `node scripts/build-cover.mjs` (ffmpeg, cwebp 1.6, avifenc 1.4), em 25/09/2026. O menu baixa só a variante do tamanho da tela; a tela de carregamento usa a versão desfocada. O PNG fica como matriz e não é mais pedido pelo jogo.
 - `public/assets/favicon.svg` e ícones de interface: desenho vetorial no código do projeto.
 - Geometria do mapa, personagens, mãos, armas procedurais, pickups e materiais: código local em `src/render` e `src/shared/world.ts`. Modelos de armas adicionais e suas licenças estão em [public/models/SOURCES.md](../public/models/SOURCES.md).
 - Áudio: gravações CC0 de disparos, passos e recargas, com síntese Web Audio para ambiente, feedback e fallback. O banco local ocupa cerca de 69 KB; origens, autores e transformações em [audio-sources.md](audio-sources.md).
