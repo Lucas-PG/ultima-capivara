@@ -6,7 +6,7 @@ Start local Vite with `?timing=1`. Production builds leave the recorder disabled
 `window.__capivara.timings()` exports the preset, viewport/DPR, `timeOrigin`,
 chronological spans, Long Tasks (start, duration and Chrome attribution), and explicit
 loss counters. `resetPerf()` clears both the legacy probe and the new recording.
-Export at least every 30 seconds during a long run: 65,536 numeric span slots and
+Export between capture windows: 262,144 numeric span slots and
 256 Long Tasks are retained. Do not silently drop an overwritten segment.
 
 Each span records phase, simulation tick and rendered-frame count at completion.
@@ -17,15 +17,16 @@ warmup, first material use and newly created world shader programs. WebGL driver
 hooks record texture upload/mipmap calls, compileShader and linkProgram CPU durations.
 Material observation is installed on prepared world and first-person materials.
 
-Slow spans (at least 8 ms) plus loading, GPU and transition events emit User Timing
+Slow spans (at least 8 ms, or rAF gaps over 33.4 ms) plus loading, GPU and transition events emit User Timing
 marks/measures for CDP correlation. Browser performance buffers are immediately
 cleared; the bounded numeric ring retains the records. The diagnostic mode has an
 intentional observer/wrapper overhead, including argument arrays at driver calls.
 Normal play installs none of those wrappers and adds no per-frame record allocation.
 
-The glTF parser hook measures beforeRoot to afterRoot, including asynchronous
-resource/decode waits. Texture readiness measures request to decoded-image load
-callback, including network. These are wall durations, not pure parse/decode CPU.
+The glTF loader records its synchronous parse call separately from total parse
+wall time, including asynchronous resource/decode waits. Texture readiness
+measures request to image load callback, including network. Explicit image.decode()
+then runs inside the readiness barrier, with a separate decode wall span. These are wall durations, not pure parse/decode CPU.
 Driver uploads are CPU submission durations, not GPU completion time. Never label
 these spans as proof of a GC, decode, or GPU stall on their own.
 

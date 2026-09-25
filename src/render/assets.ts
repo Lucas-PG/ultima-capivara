@@ -24,13 +24,14 @@ export class AssetLoader {
     this.ktx = new KTX2Loader(this.manager).setTranscoderPath(`${import.meta.env.BASE_URL}decoders/basis/`).detectSupport(gl);
     this.gltfLoader = new GLTFLoader(this.manager).setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(this.ktx);
     this.manager.addHandler(/\.ktx2$/i, this.ktx);
-    if (timing.enabled) this.gltfLoader.register(parser => {
-      let started = -1;
-      return { name: 'CapivaraParseTiming',
-        beforeRoot: () => { started = timing.begin(); return null; },
-        afterRoot: () => { timing.end('gltf-parse-wall', started, parser.options.path, true); return null; },
+    if (timing.enabled) {
+      const parse = this.gltfLoader.parse.bind(this.gltfLoader);
+      this.gltfLoader.parse = (data, path, onLoad, onError) => {
+        const started = timing.begin();
+        try { parse(data, path, asset => { timing.end('gltf-parse-wall', started, path, true); onLoad(asset); }, onError); }
+        finally { timing.end('gltf-parse-sync', started, path, true); }
       };
-    });
+    }
   }
 
   private path(url: string) { return new URL(url, this.base).pathname.slice(this.base.pathname.length); }
@@ -48,7 +49,13 @@ export class AssetLoader {
     let texture!: THREE.Texture;
     const started = timing.begin();
     this.track(new Promise<void>((resolve, reject) => {
-      texture = new THREE.TextureLoader(this.manager).load(this.url(path), () => { timing.end('texture-ready-wall', started, path, true); resolve(); }, undefined, reject);
+      texture = new THREE.TextureLoader(this.manager).load(this.url(path), loaded => {
+        timing.end('texture-ready-wall', started, path, true);
+        // Explicit decode keeps lazy image work inside the readiness barrier.
+        const image = loaded.image as HTMLImageElement, decodeAt = timing.begin();
+        const decoded = typeof image.decode === 'function' ? image.decode() : Promise.resolve();
+        void decoded.then(() => { timing.end('texture-decode-wall', decodeAt, path, true); resolve(); }, reject);
+      }, undefined, reject);
     }));
     this.textures.set(path, texture); return texture;
   }

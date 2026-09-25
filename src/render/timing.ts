@@ -4,7 +4,7 @@ export const TIMING_NAMES = [
   'raf-gap', 'snapshot', 'audio', 'interaction', 'hud', 'render', 'camera',
   'camera-transition', 'world-draw', 'first-person-draw', 'shader-compile-world',
   'shader-compile-first-person', 'shader-compile-post', 'warmup-upload-world',
-  'warmup-upload-first-person', 'gltf-parse-wall', 'texture-ready-wall',
+  'warmup-upload-first-person', 'gltf-parse-wall', 'gltf-parse-sync', 'texture-ready-wall', 'texture-decode-wall',
   'texture-upload', 'first-material-use', 'shader-program-created', 'resolution-change', 'driver-shader-compile', 'driver-program-link',
 ] as const;
 export type TimingName = typeof TIMING_NAMES[number];
@@ -25,7 +25,7 @@ export class TimingRecorder {
   readonly timeOrigin: number;
   readonly longTaskSupported: boolean;
 
-  constructor(readonly enabled: boolean, private readonly capacity = 65536,
+  constructor(readonly enabled: boolean, private readonly capacity = 262144,
     private readonly clock: Pick<Performance, 'now' | 'timeOrigin'> = performance) {
     this.data = enabled ? new Float64Array(capacity * 7) : null;
     this.timeOrigin = clock.timeOrigin;
@@ -55,7 +55,7 @@ export class TimingRecorder {
     this.data[offset + 6] = labelId;
     // Slow spans and loading/transition events also appear in a CDP User Timing trace.
     // Clear the browser buffer immediately: the numeric ring remains the source of truth.
-    if (trace || duration >= 8) {
+    if (trace || (name === 'raf-gap' ? duration > 33.4 : duration >= 8)) {
       const mark = `capivara:${name}`;
       performance.mark(mark, { startTime: start });
       performance.measure(mark, { start, duration, detail: { label, phase: PHASES[this.phase], tick: this.tick, frame: this.frame } });
