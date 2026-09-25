@@ -243,6 +243,8 @@ export class GameRenderer {
     return false;
   }
 
+  inspectWeapon(): void { this.weaponView.inspect(); }
+
   event(event: GameEvent): void {
     const frame = this.lastFrame, viewed = frame?.spectateId || frame?.playerId;
     // A storm bite on the viewed capybara: attacker-less damage while outside the zone.
@@ -253,6 +255,7 @@ export class GameRenderer {
       if (me) this.cameraRig.startDeathCam({ victimEye: { x: me.pos.x, y: me.pos.y + actorEye(me), z: me.pos.z }, killerId: event.actor,
         killerPos: event.from || null, duration: DEATH_CAM_SECONDS });
     }
+    if (event.type === 'respawn') this.avatars.respawn(event.actor);
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
 

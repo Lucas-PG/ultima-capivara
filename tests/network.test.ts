@@ -176,3 +176,92 @@ describe('network protocol', () => {
     expect(validAction({ ...trigger, clientTime: NaN })).toBe(false);
   });
 });
+
+describe('connection recovery and latency', () => {
+  function makeSession() {
+    const callbacks = { room: vi.fn(), start: vi.fn(), input: vi.fn(), action: vi.fn(), player: vi.fn(),
+      snapshot: vi.fn(), events: vi.fn(), error: vi.fn(), closed: vi.fn(), status: vi.fn() };
+    const session = new RoomSession(callbacks);
+    return { session, runtime: session as any, callbacks };
+  }
+
+  it('measures each guest independently, ignores unsolicited pongs and shares the RTT table', () => {
+    const { session, runtime } = makeSession();
+    const now = vi.spyOn(performance, 'now').mockReturnValue(100);
+    try {
+      runtime.roomValue = { hostId: 'host', isHost: true };
+      const one = { conn: { open: true, send: vi.fn() }, profile: { id: 'one' }, pingAt: null };
+      const two = { conn: { open: true, send: vi.fn() }, profile: { id: 'two' }, pingAt: null };
+      runtime.guests.set('one', one); runtime.guests.set('two', two);
+      runtime.pingGuests(); now.mockReturnValue(125);
+      runtime.onHostControl(one.conn, packet('pong', { at: 99 }));
+      expect(session.latencies).toEqual({});
+      runtime.onHostControl(one.conn, packet('pong', { at: 100 })); now.mockReturnValue(180);
+      runtime.onHostControl(two.conn, packet('pong', { at: 100 }));
+      expect(session.latencies).toEqual({ host: 0, one: 25, two: 80 });
+      expect(two.conn.send).toHaveBeenLastCalledWith(packet('latency', { data: { host: 0, one: 25, two: 80 } }));
+      runtime.onHostControl(one.conn, packet('pong', { at: 100 }));
+      expect(session.latencies.one).toBe(25);
+    } finally { now.mockRestore(); }
+  });
+
+  it('reports a TURN route only from the selected ICE candidate pair', async () => {
+    const { session, runtime } = makeSession();
+    const stats = new Map([
+      ['transport', { type: 'transport', selectedCandidatePairId: 'pair' }],
+      ['pair', { type: 'candidate-pair', localCandidateId: 'local', remoteCandidateId: 'remote' }],
+      ['local', { type: 'local-candidate', candidateType: 'relay' }],
+      ['remote', { type: 'remote-candidate', candidateType: 'host' }],
+    ]);
+    const conn = { open: true, peerConnection: { getStats: async () => stats } };
+    runtime.hostConn = conn; await runtime.inspectRoute(conn);
+    expect(session.connectionStatus).toBe('relay');
+    stats.set('local', { type: 'local-candidate', candidateType: 'host' });
+    await runtime.inspectRoute(conn); expect(session.connectionStatus).toBe('connected');
+    runtime.reconnecting = true; stats.set('local', { type: 'local-candidate', candidateType: 'relay' });
+    await runtime.inspectRoute(conn); expect(session.connectionStatus).toBe('connected');
+  });
+
+  it('settles a silent join after ten seconds with a retry message', async () => {
+    vi.useFakeTimers();
+    try {
+      const { runtime } = makeSession();
+      const conn = { on: vi.fn(), close: vi.fn() };
+      runtime.peer = { destroyed: false, connect: () => conn };
+      const joined = runtime.connectGuest('ABCDEF', { name: 'Guest', color: PLAYER_COLORS[0] }).catch((error: Error) => error.message);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await joined).toBe('A sala demorou a responder. Tente novamente.');
+      expect(conn.close).toHaveBeenCalledOnce(); expect(runtime.joining).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('runs one recovery loop, stops at 30 seconds, and cleans state for another room', async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, runtime, callbacks } = makeSession();
+      runtime.peer = { destroyed: false, disconnected: false, destroy: vi.fn() };
+      runtime.roomValue = { isHost: false };
+      runtime.connectGuest = vi.fn().mockRejectedValue(new Error('offline'));
+      runtime.lastTick = 5000; runtime.worldRev = 20; runtime.gearRev = 8;
+      runtime.scheduleReconnect('ABCDEF', { name: 'Guest', color: PLAYER_COLORS[0] });
+      runtime.scheduleReconnect('ABCDEF', { name: 'Guest', color: PLAYER_COLORS[0] });
+      expect(session.connectionStatus).toBe('reconnecting');
+      await vi.advanceTimersByTimeAsync(2500); expect(runtime.connectGuest).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(27_500);
+      expect(callbacks.closed).toHaveBeenCalledOnce(); expect(session.connectionStatus).toBe('closed');
+      const attempts = runtime.connectGuest.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(40_000); expect(runtime.connectGuest).toHaveBeenCalledTimes(attempts);
+      expect(runtime.retryTimer).toBeNull(); expect(runtime.heartbeat).toBeNull();
+      expect(runtime.lastTick).toBe(-1); expect(runtime.worldRev).toBe(0); expect(runtime.gearRev).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('delivers hit feedback immediately even when no motion snapshot is available', () => {
+    const { runtime, callbacks } = makeSession();
+    const conn = { close: vi.fn() }; runtime.hostConn = conn; runtime.matchId = snapshot.matchId;
+    const events = [{ type: 'damage', id: 1, actor: 'guest', target: 'host', amount: 25, head: false, pos: { x: 0, y: 0, z: 0 } }];
+    runtime.onGuestControl(conn, packet('events', { matchId: snapshot.matchId, data: events }));
+    expect(callbacks.events).toHaveBeenCalledWith(events);
+    expect(callbacks.snapshot).not.toHaveBeenCalled();
+  });
+});

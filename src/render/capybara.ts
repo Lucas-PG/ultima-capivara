@@ -3,6 +3,7 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { ActorState } from '../shared/types';
+import type { AvatarReaction } from './effects';
 import palette from './capybara-palette.json';
 import { applyCharacterStyle } from './materials';
 
@@ -93,7 +94,7 @@ interface CharacterInstance {
   scene: THREE.Group; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>;
   faceActions: (THREE.AnimationAction | undefined)[];
   active: string; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
-  lastHP: number; lastKills: number; unarmed: number; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
+  hitTime: number; hitX: number; hitZ: number; deathTime: number; deathSide: number; emoteTime: number; unarmed: number; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
   relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
 }
@@ -164,6 +165,52 @@ export function setCapybaraExpression(body: THREE.SkinnedMesh, expression: Capyb
   if (runtime) runtime.forcedExpression = expression;
 }
 
+/** Authoritative events include armor-only hits and arrive before some snapshots. */
+export function reactCapybara(body: THREE.SkinnedMesh, reaction: AvatarReaction): void {
+  const runtime = characterInstances.get(body);
+  if (!runtime || runtime.deathTime >= 0) return;
+  const group = body.parent, yaw = group?.rotation.y || 0;
+  const dx = reaction.from ? reaction.from.x - (group?.position.x || 0) : 0;
+  const dz = reaction.from ? reaction.from.z - (group?.position.z || 0) : -1;
+  const length = Math.hypot(dx, dz) || 1;
+  const x = (Math.cos(yaw) * dx - Math.sin(yaw) * dz) / length;
+  const z = (Math.sin(yaw) * dx + Math.cos(yaw) * dz) / length;
+  runtime.emoteTime = 0;
+  if (reaction.kind === 'death') {
+    runtime.deathTime = 0; runtime.deathSide = x < 0 ? -1 : 1;
+    runtime.hitTime = 0; runtime.expression = 'stunned'; runtime.faceTime = 0;
+  } else {
+    const strength = Math.min(1, Math.max(.35, reaction.amount / 35));
+    runtime.hitTime = .22; runtime.hitX = -z * .07 * strength; runtime.hitZ = x * .07 * strength;
+    runtime.expression = 'hit'; runtime.faceTime = .38;
+  }
+}
+
+export function resetCapybaraPose(body: THREE.SkinnedMesh): void {
+  const runtime = characterInstances.get(body);
+  if (!runtime) return;
+  runtime.hitTime = runtime.faceTime = runtime.emoteTime = 0; runtime.deathTime = -1;
+  runtime.expression = 'neutral'; runtime.forcedExpression = null;
+  for (const action of runtime.faceActions) action?.setEffectiveWeight(0);
+  runtime.actions[runtime.active].stop(); runtime.actions.idle.reset().play(); runtime.active = 'idle';
+  runtime.scene.rotation.set(0, 0, 0); runtime.scene.position.set(0, 0, 0);
+}
+
+/** Results-only winner celebration. The caller guards match identity. */
+export function celebrateCapybara(body: THREE.SkinnedMesh): void {
+  const runtime = characterInstances.get(body);
+  if (!runtime || runtime.deathTime >= 0) return;
+  runtime.emoteTime = 1.8; runtime.expression = 'victory'; runtime.faceTime = 1.8;
+}
+
+export function capybaraIsDead(body: THREE.SkinnedMesh): boolean {
+  return (characterInstances.get(body)?.deathTime ?? -1) >= 0;
+}
+export function capybaraCorpseVisible(body: THREE.SkinnedMesh): boolean {
+  const time = characterInstances.get(body)?.deathTime ?? -1;
+  return time >= 0 && time < 2.4;
+}
+
 function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], color: string): void {
   if (!characterAsset || characterInstances.has(body)) return;
   const scene = cloneSkeleton(characterAsset.scene) as THREE.Group;
@@ -193,7 +240,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   actions.idle.play();
   const runtime: CharacterInstance = {
     scene, mixer, actions, faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
-    lastHP: NaN, lastKills: NaN, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
+    hitTime: 0, hitX: 0, hitZ: 0, deathTime: -1, deathSide: 1, emoteTime: 0, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,
     root: scene.getObjectByName('root') as THREE.Bone,
     arms: [scene.getObjectByName('arm_L') as THREE.Bone, scene.getObjectByName('arm_R') as THREE.Bone],
@@ -252,19 +299,19 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   if (!runtime) return false;
   const { mixer, actions, head, root, arms, legacyBones } = runtime;
   const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
-  const next = actor.stage !== 'ground' || !actor.grounded ? 'jump' : speed > .35 ? 'run' : 'idle';
+  const dead = runtime.deathTime >= 0;
+  const next = dead || runtime.emoteTime > 0 ? 'idle' : actor.stage !== 'ground' || !actor.grounded ? 'jump' : speed > .35 ? 'run' : 'idle';
   if (next !== runtime.active) {
     actions[runtime.active].fadeOut(.15);
     actions[next].reset().fadeIn(.15).play(); runtime.active = next;
   }
   actions.run.timeScale = Math.max(.4, Math.min(1.7, speed / 6));
   for (let i = 0; i < runtime.poseBones.length; i++) runtime.poseBones[i].quaternion.copy(runtime.baseRotations[i]);
-  const step = Math.min(dt, .1);
+  const step = Math.max(0, Math.min(dt, .1));
   runtime.faceTime = Math.max(0, runtime.faceTime - step);
-  if (actor.hp < runtime.lastHP) { runtime.expression = 'hit'; runtime.faceTime = .38; }
-  else if (actor.kills > runtime.lastKills) { runtime.expression = 'victory'; runtime.faceTime = .8; }
-  runtime.lastHP = actor.hp; runtime.lastKills = actor.kills;
-  if (!actor.alive) { runtime.expression = 'stunned'; runtime.faceTime = .5; }
+  runtime.hitTime = Math.max(0, runtime.hitTime - step);
+  runtime.emoteTime = Math.max(0, runtime.emoteTime - step);
+  if (dead) { runtime.deathTime += step; runtime.expression = 'stunned'; }
   else if (!runtime.faceTime) runtime.expression = actor.ads ? 'determined' : 'neutral';
   const expression = runtime.forcedExpression || runtime.expression;
   for (let i = 0; i < FACE_EXPRESSIONS.length; i++) {
@@ -273,9 +320,9 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   }
   runtime.elapsed += step; mixer.update(step);
   for (let i = 0; i < runtime.poseBones.length; i++) runtime.baseRotations[i].copy(runtime.poseBones[i].quaternion);
-  const pitch = THREE.MathUtils.clamp(actor.pitch, -1, 1);
+  const pitch = dead ? 0 : THREE.MathUtils.clamp(actor.pitch, -1, 1);
   head.rotateX(pitch * .45);
-  const resting = !actor.weapons[actor.slot] && actor.stage === 'ground';
+  const resting = dead || runtime.emoteTime > 0 || (!actor.weapons[actor.slot] && actor.stage === 'ground');
   runtime.unarmed = THREE.MathUtils.damp(runtime.unarmed, resting ? 1 : 0, 12, step);
   for (let i = 0; i < arms.length; i++) arms[i].rotateX((pitch * .65 + (actor.sprint ? -.18 : 0)) * (1 - runtime.unarmed));
   // Swing into the side-of-hip rest target in parent space, avoiding hands
@@ -292,6 +339,23 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   } else if (actor.stage === 'parachute') {
     for (const arm of arms) arm.rotateX(2.4);
     root.rotation.z += Math.sin(runtime.elapsed * 2.2) * .025;
+  }
+  if (runtime.hitTime > 0) {
+    const recoil = Math.sin(Math.PI * runtime.hitTime / .22);
+    head.rotateX(runtime.hitX * recoil); head.rotateZ(runtime.hitZ * recoil);
+  }
+  if (runtime.emoteTime > 0) {
+    const time = 1.8 - runtime.emoteTime;
+    const weight = THREE.MathUtils.smoothstep(time, 0, .2) * THREE.MathUtils.smoothstep(runtime.emoteTime, 0, .25);
+    for (let i = 0; i < arms.length; i++) arms[i].rotateZ((i === 0 ? 1 : -1) * weight * (1.1 + .12 * Math.sin(time * 9)));
+  }
+  if (dead) {
+    // A soft side flop around the feet, then a small settling bounce. No blood.
+    const fall = THREE.MathUtils.smoothstep(runtime.deathTime, 0, .65);
+    const settle = runtime.deathTime > .65 ? Math.sin((runtime.deathTime - .65) * 16) * Math.exp(-(runtime.deathTime - .65) * 8) * .04 : 0;
+    runtime.scene.rotation.set(0, 0, runtime.deathSide * (fall * 1.48 + settle));
+    runtime.scene.position.set(0, fall * .31, 0);
+    for (let i = 0; i < arms.length; i++) arms[i].rotateZ((i === 0 ? -1 : 1) * fall * .3);
   }
   return true;
 }

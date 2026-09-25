@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { afterEach, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import { ADS_TIME } from '../src/shared/weapons';
@@ -24,7 +25,7 @@ it('starts a newly selected weapon at hip even if the previous sight was fully a
   const model = () => ({ group: { visible: true, rotation: { x: 0, z: 0 } }, support: { position: { set: noop }, rotation: { x: 0 } }, sightY: .1, hipX: .2, adsZ: -.3 });
   const view = Object.create(WeaponView.prototype) as any;
   Object.assign(view, {
-    holder: { visible: true, scale: { setScalar: noop }, position: { set: noop }, rotation: { set: noop } },
+    holder: new THREE.Group(), inspectTime: -1, inspectAllowed: false, restPosition: new THREE.Vector3(), restRotation: new THREE.Euler(),
     models: { smg: model(), m4: model() }, active: 'smg', ads: 1, draw: 0, kick: 0, reloadEnd: 0,
     gait: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], furColor: actor.color,
   });

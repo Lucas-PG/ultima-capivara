@@ -10,6 +10,7 @@ import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, Ro
 import type { GameRenderer } from './render/renderer';
 import { timing } from './render/timing';
 import { RoomSession } from './network/session';
+import { RemoteInterpolation, shotClientTime } from './network/interpolation';
 import { InputController } from './input';
 import { SoundEngine } from './audio';
 import { loadProfile, loadSettings, saveProfile, saveSettings, loadAdapt, recordPlacement } from './settings';
@@ -25,6 +26,8 @@ let activeFrameLimit = settings.frameLimit;
 const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
 const renderFrame: RenderFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
+const remoteInterpolation = new RemoteInterpolation();
+let renderedRemoteTime: number | null = null;
 let renderer: GameRenderer | null = null;
 // Load the 3D island on lobby entry or Practice, then reuse it until the page closes.
 // `loading` holds the loading screen until the first prepared frame.
@@ -73,6 +76,7 @@ const session = new RoomSession({
   input(id, frame) { worker?.postMessage({ type: 'input', id, input: frame }); },
   action(id, action) { worker?.postMessage({ type: 'action', id, action }); },
   player(player, status) { worker?.postMessage({ type: 'player', profile: player, status }); },
+  status: value => ui.setConnectionStatus(value),
   snapshot: acceptSnapshot,
   events: acceptEvents,
   error(message) { ui.toast(message, true); },
@@ -198,6 +202,7 @@ function startPractice(config: RoomConfig, p: { name: string; color: string }) {
   void input.lock();
 }
 function stopMatch() {
+  remoteInterpolation.reset(); renderedRemoteTime = null;
   playing = false; input.unlock(); worker?.terminate(); worker = null;
   snapshot = null; predicted = null; pending = []; spectateId = null; accumulator = 0; interaction = null; diedAt = 0; lastKiller = null; killSeen = false;
 }
@@ -212,6 +217,7 @@ function acceptSnapshot(next: WorldSnapshot) {
   timing.context(loading ? 'loading' : next.phase, next.tick, renderedFrames);
   const snapshotAt = timing.begin();
   snapshot = next; receivedAt = performance.now();
+  remoteInterpolation.push(next, playerId, receivedAt);
   if (loading && !matchPreparation) {
     const preparingId = match;
     matchPreparation = rendererReady!.then(() => {
@@ -275,6 +281,8 @@ function sendAction(action: PlayerAction) {
     return;
   }
   if (action.type === 'jump' && me?.stage === 'falling') action = { type: 'parachute', id: action.id };
+  if (action.type === 'trigger') action = { ...action, clientTime: shotClientTime(
+    snapshot.time + Math.min(.2, (performance.now() - receivedAt) / 1000), renderedRemoteTime) };
   if (practiceConfig) worker?.postMessage({ type: 'action', id: playerId, action });
   else session.sendAction(action);
 }
@@ -296,6 +304,7 @@ function closestInteraction() {
   return findInteraction(world, snapshot, predicted, interactionResult);
 }
 input.onAction = sendAction;
+input.onInspect = () => renderer?.inspectWeapon();
 input.onCycle = direction => {
   const me = snapshot?.actors.find(a => a.id === playerId);
   if (!me || me.weapons.length < 2) return;
@@ -338,7 +347,7 @@ function frame(now: number) {
   accumulator = ended ? 0 : Math.min(accumulator + dt, .1);
   while (accumulator >= 1 / 60) {
     const time = snapshot.time + Math.min(.2, (now - receivedAt) / 1000);
-    const next = input.sample(time);
+    const next = input.sample(shotClientTime(time, renderedRemoteTime));
     if (practiceConfig) worker?.postMessage({ type: 'input', id: playerId, input: next });
     else session.sendInput(next);
     if (snapshot.phase === 'playing') { pending.push(next); if (pending.length > 120) pending.shift(); predict(next); }
@@ -364,16 +373,18 @@ function frame(now: number) {
   timing.end('interaction', interactionAt);
   if (input.locked || dirtyFrame || ended || renderer?.deathCamActive) {
     renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt;
+    renderFrame.remoteActors = remoteInterpolation.sample(now);
     renderFrame.spectateId = spectateId; renderFrame.predicted = predicted?.pos;
     const renderAt = timing.begin();
     renderer?.update(renderFrame);
     timing.end('render', renderAt);
+    renderedRemoteTime = remoteInterpolation.time;
     renderedFrames++; frameCount++; dirtyFrame = false;
     if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }
   if (now - fpsAt >= 1000) { fps = frameCount * 1000 / (now - fpsAt); frameCount = 0; fpsAt = now; }
   const hudAt = timing.begin();
-  ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction);
+  ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction, session.latencies);
   timing.end('hud', hudAt);
 }
 requestAnimationFrame(frame);
@@ -395,6 +406,11 @@ if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has(
   }));
 }
 
+// Real networking QA drives InputController without a browser pointer-lock dependency.
+if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has('networkQa')) {
+  void import('../tests/network-game-hook').then(({ installNetworkInput }) => installNetworkInput(input));
+}
+
 // Read-only diagnostics for local QA. Never exposed in the production build.
 if (import.meta.env.DEV) {
   // Perf probe: frame intervals from an independent rAF loop plus long tasks.
@@ -404,7 +420,9 @@ if (import.meta.env.DEV) {
   requestAnimationFrame(tick);
   try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
-    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length }),
+    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length,
+      network: { status: session.connectionStatus, latencies: session.latencies, interpolationDelayMs: remoteInterpolation.delay * 1000 },
+      remoteActors: [...(renderFrame.remoteActors?.values() ?? [])].map(actor => ({ id: actor.id, pos: { ...actor.pos }, yaw: actor.yaw })) }),
     perf: () => {
       const sorted = [...intervals].sort((a, b) => a - b), pick = (q: number) => +(sorted[Math.floor(sorted.length * q)] ?? 0).toFixed(1);
       const heap = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;
