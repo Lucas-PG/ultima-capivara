@@ -1,33 +1,56 @@
 <!doctype html>
-<!-- GPU contract: MSAA world depth versus a single-sample ID pass at near .01. -->
 <html><body><canvas id="c"></canvas><script type="module">
 import * as THREE from 'three';
 import { CharacterMask } from '../../src/render/character-mask';
-const size=256,gl=new THREE.WebGLRenderer({canvas:document.querySelector('canvas')});gl.setSize(size,size);gl.setClearColor(0);gl.toneMapping=THREE.NoToneMapping;
-const world=new THREE.WebGLRenderTarget(size,size,{samples:4});world.depthTexture=new THREE.DepthTexture(size,size);
-const reference=new THREE.WebGLRenderTarget(size,size);
-const mask=new CharacterMask(world.depthTexture);mask.resize(size,size);
-const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(50,1,.01,850);
-const body=new THREE.Mesh(new THREE.PlaneGeometry(1,1,12,12),new THREE.MeshBasicMaterial({color:0xffffff}));body.layers.enable(1);scene.add(body);
-const wall=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0x000000}));scene.add(wall);
-const pixels=new Uint8Array(size*size*4),expected=new Uint8Array(pixels.length),cases=[];
-// Keep the face large enough to measure at every distance; the last two cases
-// straddle the 150 m cutoff without a sloped face crossing that boundary.
-for(const distance of [3,30,60,149,151])for(const blocked of [false,true]) {
- body.position.set(0,0,-distance);body.rotation.y=distance>=149?0:.8;body.scale.setScalar(distance*.5);
- wall.visible=blocked;wall.position.set(0,0,-distance*.8);wall.scale.setScalar(distance*.6);
- gl.setRenderTarget(world);gl.render(scene,camera);
- mask.render(gl,scene,camera);gl.readRenderTargetPixels(mask.target,0,0,size,size,pixels);
- gl.setRenderTarget(reference);gl.render(scene,camera);gl.readRenderTargetPixels(reference,0,0,size,size,expected);
- let inside=0,holes=0,leaks=0;
- for(let y=2;y<size-2;y++)for(let x=2;x<size-2;x++){
-  const i=(y*size+x)*4;
-  // Exclude silhouette pixels so coverage antialiasing is not counted as a hole.
-  const solid=expected[i]>250&&expected[i-4]>250&&expected[i+4]>250&&expected[i-size*4]>250&&expected[i+size*4]>250;
-  if(solid&&distance<150){inside++;if(pixels[i]<250)holes++;}
-  if((blocked||distance>150)&&pixels[i]>10)leaks++;
+// Game-like pixel footprint: 1280x720 at FOV 78 gives ~0.00118 rad/px; 256 px => vertical fov ~17.3 deg.
+// An odd crop keeps the subpixel-wide 120 m grazing face on a pixel centre.
+const size=257,gl=new THREE.WebGLRenderer({canvas:document.querySelector('canvas')});gl.setSize(size,size);gl.setClearColor(0);gl.toneMapping=THREE.NoToneMapping;
+const camera=new THREE.PerspectiveCamera(17.3,1,.07,850),scene=new THREE.Scene();
+const body=new THREE.Mesh(new THREE.PlaneGeometry(1,1.9,12,12),new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide}));body.layers.enable(1);scene.add(body);
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(6,6),new THREE.MeshBasicMaterial({color:0x000000}));scene.add(wall);
+const px=new Uint8Array(size*size*4),ref=new Uint8Array(px.length),rows=[];
+for(const samples of [0,2]){
+ const world=new THREE.WebGLRenderTarget(size,size,{samples,type:THREE.HalfFloatType});world.depthTexture=new THREE.DepthTexture(size,size);
+ const reference=new THREE.WebGLRenderTarget(size,size),mask=new CharacterMask(world.depthTexture);mask.resize(size,size);
+ for(const rot of [.8,1.3,1.45])for(const distance of [3,30,60,120,151])for(const gap of [null,.05,.3]){
+  body.position.set(0,0,-distance);body.rotation.y=rot;
+  const near=.5*Math.sin(rot);
+  wall.visible=gap!==null;wall.position.set(0,0,-(distance-near-(gap??0)));
+  gl.setRenderTarget(world);gl.render(scene,camera);mask.render(gl,scene,camera);gl.readRenderTargetPixels(mask.target,0,0,size,size,px);
+  wall.visible=false;gl.setRenderTarget(reference);gl.render(scene,camera);gl.readRenderTargetPixels(reference,0,0,size,size,ref);
+  let inside=0,holes=0,leaks=0,silhouette=0;
+  for(let i=0;i<px.length;i+=4){ if(ref[i]>250){ silhouette++; if(gap===null&&distance<150){inside++;if(px[i]<250)holes++;} else if(px[i]>10)leaks++; } }
+  rows.push({samples,rot,distance,gap,silhouette,inside,holes,leaks});
  }
- cases.push({distance,blocked,inside,holes,leaks});
+ mask.dispose();world.dispose();reference.dispose();
 }
-mask.dispose();world.dispose();reference.dispose();body.geometry.dispose();wall.geometry.dispose();body.material.dispose();wall.material.dispose();gl.dispose();window.result=cases;
+// The real skinned, lit material has a different vertex program from the ID
+// override. Keep a close facial pose as well as the rigid occlusion probes.
+const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+const { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js');
+const { applyCharacterStyle } = await import('../../src/render/materials');
+const gltf=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('/models/capybara/capybara.glb');
+scene.remove(body,wall);scene.add(gltf.scene);
+gltf.scene.traverse(o=>{if(o.isMesh){o.layers.enable(1);o.material=applyCharacterStyle(o.material.clone());const lod=/LOD([012])$/.exec(o.name);if(lod)o.visible=lod[1]==='0';}});
+scene.add(new THREE.HemisphereLight('#b4c2ee','#c9a66b',1.15));
+const sun=new THREE.DirectionalLight('#ffd9a8',2.7);sun.position.set(-70,55,-30);scene.add(sun);
+const mixer=new THREE.AnimationMixer(gltf.scene),idle=gltf.animations.find(a=>/idle/i.test(a.name));if(idle)mixer.clipAction(idle).play();mixer.update(.3);
+camera.fov=42;camera.aspect=900/700;camera.position.set(Math.sin(155*Math.PI/180),1.6,Math.cos(155*Math.PI/180));camera.lookAt(0,1.6,0);camera.updateProjectionMatrix();
+const width=900,height=700;
+gl.setSize(width,height);
+const facePx=new Uint8Array(width*height*4),faceRef=new Uint8Array(facePx.length);
+for(const samples of [0,2]){
+ const world=new THREE.WebGLRenderTarget(width,height,{samples,type:THREE.HalfFloatType});world.depthTexture=new THREE.DepthTexture(width,height);
+ const reference=new THREE.WebGLRenderTarget(width,height),mask=new CharacterMask(world.depthTexture);mask.resize(width,height);
+ gl.setRenderTarget(world);gl.render(scene,camera);mask.render(gl,scene,camera);gl.readRenderTargetPixels(mask.target,0,0,width,height,facePx);
+ scene.overrideMaterial=new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide});gl.setRenderTarget(reference);gl.render(scene,camera);gl.readRenderTargetPixels(reference,0,0,width,height,faceRef);
+ let inside=0,holes=0;
+ for(let y=2;y<height-2;y++)for(let x=2;x<width-2;x++){
+  const i=(y*width+x)*4;
+  if(faceRef[i]>250&&faceRef[i-4]>250&&faceRef[i+4]>250&&faceRef[i-width*4]>250&&faceRef[i+width*4]>250){inside++;if(facePx[i]<250)holes++;}
+ }
+ rows.push({kind:'skinned-face',samples,inside,holes,leaks:0});
+ scene.overrideMaterial.dispose();scene.overrideMaterial=null;mask.dispose();world.dispose();reference.dispose();
+}
+gl.dispose();window.result=rows;
 </script></body></html>
