@@ -270,7 +270,7 @@ describe('authoritative simulation', () => {
   });
 
   it('fires one pistol round for a quick trigger press after the release frame arrives', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'quick-trigger');
+    const sim = new Simulation(world(), config, [profiles[0]], 'quick-trigger', 101);
     advance(sim, 3.1);
     sim.action('a', { type: 'slot', id: 1, slot: 1 });
     const press = { type: 'trigger' as const, id: 2, yaw: Math.PI / 2, pitch: 0, lean: 0, ads: true, clientTime: sim.snapshot().time };
@@ -284,9 +284,10 @@ describe('authoritative simulation', () => {
     expect(sim.snapshot().actors[0].weapons[1].ammo).toBe(16);
     const shots = sim.drainEvents().filter(e => e.type === 'shot');
     expect(shots).toHaveLength(1);
-    // Straight along yaw π/2 (−x) until it meets the island's terrain or range.
+    // Along yaw π/2 (−x) until it meets the island's terrain or range, within the pistol's hip cone.
     expect(shots[0].end.x).toBeLessThan(shots[0].origin.x - 20);
-    expect(Math.abs(shots[0].end.z - shots[0].origin.z)).toBeLessThan(1);
+    const sideways = Math.atan2(Math.abs(shots[0].end.z - shots[0].origin.z), shots[0].origin.x - shots[0].end.x) * 180 / Math.PI;
+    expect(sideways).toBeLessThanOrEqual(WEAPONS.pistol.spread * Math.SQRT2);
     expect(sim.snapshot().actors[0].ads).toBe(true);
     advance(sim, .2);
     expect(sim.snapshot().actors[0].weapons[1].ammo).toBe(16);
@@ -296,7 +297,7 @@ describe('authoritative simulation', () => {
   });
 
   it('coalesces a trigger press with held automatic fire without an extra shot', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'held-trigger');
+    const sim = new Simulation(world(), config, [profiles[0]], 'held-trigger', 102);
     advance(sim, 3.1);
     sim.action('a', { type: 'trigger', id: 1, yaw: 0, pitch: 0, lean: 0, ads: false, clientTime: sim.snapshot().time });
     send(sim, 'a', 1, { fire: true, firePressId: 1 });
@@ -312,7 +313,7 @@ describe('authoritative simulation', () => {
   });
 
   it('does not replay a delayed reliable trigger after its held-fire frame already shot', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'delayed-trigger');
+    const sim = new Simulation(world(), config, [profiles[0]], 'delayed-trigger', 103);
     advance(sim, 3.1);
     const pressTime = sim.snapshot().time;
     send(sim, 'a', 1, { fire: true, firePressId: 1 });
@@ -329,7 +330,7 @@ describe('authoritative simulation', () => {
   });
 
   it('does not replay a delayed held frame after its reliable pistol trigger already shot', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'delayed-held-fire');
+    const sim = new Simulation(world(), config, [profiles[0]], 'delayed-held-fire', 104);
     advance(sim, 3.1);
     sim.action('a', { type: 'slot', id: 1, slot: 1 });
     sim.action('a', { type: 'trigger', id: 2, yaw: 0, pitch: 0, lean: 0, ads: false, clientTime: sim.snapshot().time });
@@ -348,7 +349,7 @@ describe('authoritative simulation', () => {
   });
 
   it('honors a quick jump action once even when the next input frame has released jump', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'quick-jump');
+    const sim = new Simulation(world(), config, [profiles[0]], 'quick-jump', 105);
     advance(sim, 3.1);
     const ground = sim.snapshot().actors[0].pos.y;
     sim.action('a', { type: 'jump', id: 5 });
@@ -368,7 +369,7 @@ describe('authoritative simulation', () => {
   });
 
   it('keeps movement finite and rejects invalid, stale, and distant future input sequences', () => {
-    const sim = new Simulation(world(), config, profiles, 'm');
+    const sim = new Simulation(world(), config, profiles, 'm', 106);
     advance(sim, 3.1);
     send(sim, 'a', 1, { moveZ: 1 });
     advance(sim, .5);
@@ -387,7 +388,7 @@ describe('authoritative simulation', () => {
   it('consumes loot and chests only once', () => {
     const lootWorld = world();
     lootWorld.spawns = lootWorld.spawns.slice(0, 1);
-    const sim = new Simulation(lootWorld, config, [profiles[0]], 'm');
+    const sim = new Simulation(lootWorld, config, [profiles[0]], 'm', 107);
     advance(sim, 3.1);
     sim.action('a', { type: 'interact', id: 1, target: 'armor-1' });
     sim.action('a', { type: 'interact', id: 2, target: 'armor-1' });
@@ -403,7 +404,7 @@ describe('authoritative simulation', () => {
     const lootWorld = world();
     lootWorld.spawns = lootWorld.spawns.slice(0, 1);
     lootWorld.chests = [{ id: 'chest-1', x: 0, y: terrainHeight(0, -1.5), z: -1.5 }];
-    const sim = new Simulation(lootWorld, config, [profiles[0]], 'm');
+    const sim = new Simulation(lootWorld, config, [profiles[0]], 'm', 108);
     advance(sim, 3.1);
     const weaponsBefore = sim.snapshot().actors[0].weapons.length;
     sim.action('a', { type: 'interact', id: 1, target: 'chest-1' });
@@ -429,13 +430,13 @@ describe('authoritative simulation', () => {
   });
 
   it('keeps real-world snapshots publishable (no undefined fields)', () => {
-    const sim = new Simulation(createWorld(), { ...config, mode: 'battle-royale', bots: false }, [profiles[0]], 'm');
+    const sim = new Simulation(createWorld(), { ...config, mode: 'battle-royale', bots: false }, [profiles[0]], 'm', 109);
     advance(sim, .5);
     expect(finiteTree(sim.snapshot())).toBe(true);
   });
 
   it('counts a lethal hit once and respawns a deathmatch player with protection', () => {
-    const sim = new Simulation(world(), config, profiles, 'm');
+    const sim = new Simulation(world(), config, profiles, 'm', 110);
     advance(sim, 5.1);
     const [a, b] = sim.snapshot().actors;
     const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
@@ -454,7 +455,7 @@ describe('authoritative simulation', () => {
   });
 
   it('ends timed combat at the deadline and awards the most eliminations', () => {
-    const sim = new Simulation(world(), config, profiles, 'timed-score');
+    const sim = new Simulation(world(), config, profiles, 'timed-score', 111);
     advance(sim, 5.1);
     const [a, b] = sim.snapshot().actors;
     const yaw = Math.atan2(-(b.pos.x - a.pos.x), -(b.pos.z - a.pos.z));
@@ -471,7 +472,7 @@ describe('authoritative simulation', () => {
   });
 
   it('shares timed victory on equal eliminations even when damage differs', () => {
-    const sim = new Simulation(world(), config, profiles, 'timed-tie');
+    const sim = new Simulation(world(), config, profiles, 'timed-tie', 112);
     advance(sim, 5.1);
     const [a, b] = sim.snapshot().actors;
     const yaw = Math.atan2(-(b.pos.x - a.pos.x), -(b.pos.z - a.pos.z));
@@ -489,7 +490,7 @@ describe('authoritative simulation', () => {
   it('blocks shots and movement through a wall', () => {
     const w = world(true);
     expect(hasLineOfSight({ x: 0, y: 2, z: 0 }, { x: 0, y: 2, z: -5 }, w)).toBe(false);
-    const sim = new Simulation(w, config, profiles, 'm');
+    const sim = new Simulation(w, config, profiles, 'm', 113);
     advance(sim, 5.1);
     const [a, b] = sim.snapshot().actors;
     const yaw = Math.atan2(-(b.pos.x - a.pos.x), -(b.pos.z - a.pos.z));
@@ -530,7 +531,7 @@ describe('authoritative simulation', () => {
   });
 
   it('fills battle royale to 21 actors and treats a late human as a spectator', () => {
-    const sim = new Simulation(world(), { ...config, mode: 'battle-royale', bots: true }, profiles, 'br');
+    const sim = new Simulation(world(), { ...config, mode: 'battle-royale', bots: true }, profiles, 'br', 114);
     expect(sim.snapshot().actors).toHaveLength(21);
     advance(sim, 3.1);
     const aliveBefore = sim.snapshot().actors.filter(a => a.alive).length;
@@ -573,7 +574,7 @@ describe('authoritative simulation', () => {
 
   it('uses safe deathmatch spawns in the real island arena', () => {
     const actual = createWorld();
-    const sim = new Simulation(actual, { ...config, capacity: 16, bots: true }, profiles, 'island');
+    const sim = new Simulation(actual, { ...config, capacity: 16, bots: true }, profiles, 'island', 115);
     const actors = sim.snapshot().actors;
     expect(actors).toHaveLength(8);
     for (const actor of actors) {
@@ -586,7 +587,7 @@ describe('authoritative simulation', () => {
     const w = world();
     w.spawns = [{ x: 10, y: terrainHeight(10, 0), z: 0, mode: 'deathmatch', yaw: 0 }];
     w.colliders = [{ id: 'cover', min: { x: 4, y: 0, z: -2 }, max: { x: 6, y: 5, z: 2 }, material: 'stone' }];
-    const sim = new Simulation(w, config, [profiles[0]], 'hidden-spawn');
+    const sim = new Simulation(w, config, [profiles[0]], 'hidden-spawn', 116);
     w.spawns.push({ x: 0, y: terrainHeight(0, 0), z: 0, mode: 'deathmatch', yaw: 0 });
     w.spawns.push({ x: 20, y: terrainHeight(20, 0), z: 0, mode: 'deathmatch', yaw: 0 });
     sim.player(profiles[1], 'join');
@@ -608,14 +609,14 @@ describe('authoritative simulation', () => {
     const example = actual.loot.find(item => item.kind === 'armor' && inArena(item.x, item.z, 2) && approach(item))!;
     const pos = approach(example)!;
     const isolated = { ...actual, spawns: [{ ...pos, mode: 'deathmatch' as const, yaw: 0 }] };
-    const sim = new Simulation(isolated, config, [profiles[0]], 'real-loot');
+    const sim = new Simulation(isolated, config, [profiles[0]], 'real-loot', 117);
     advance(sim, 3.1);
     sim.action('a', { type: 'interact', id: 1, target: example.id });
     expect(sim.snapshot().loot.find(item => item.id === example.id)!.active).toBe(false);
   });
 
   it('requires a fresh press for a semi automatic weapon and stops stale fire', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'semi');
+    const sim = new Simulation(world(), config, [profiles[0]], 'semi', 118);
     advance(sim, 5.1);
     sim.action('a', { type: 'slot', id: 1, slot: 1 });
     for (let i = 0; i < 6; i++) { send(sim, 'a', i + 1, { fire: true }); advance(sim, .1); }
@@ -628,7 +629,7 @@ describe('authoritative simulation', () => {
   });
 
   it('forfeits an absent battle royale player after 30 seconds without a false kill', () => {
-    const sim = new Simulation(world(), { ...config, mode: 'battle-royale' }, profiles, 'forfeit');
+    const sim = new Simulation(world(), { ...config, mode: 'battle-royale' }, profiles, 'forfeit', 119);
     advance(sim, 3.1);
     sim.player(profiles[0], 'disconnect');
     advance(sim, 30.1);
@@ -644,7 +645,7 @@ describe('authoritative simulation', () => {
   });
 
   it('holds an expired deathmatch player out until a new join', () => {
-    const sim = new Simulation(world(), config, profiles, 'dm-disconnect');
+    const sim = new Simulation(world(), config, profiles, 'dm-disconnect', 120);
     advance(sim, 3.1);
     sim.player(profiles[0], 'disconnect');
     advance(sim, 30.1);
@@ -660,7 +661,7 @@ describe('authoritative simulation', () => {
   });
 
   it('accepts fresh input and action counters after reconnect while preserving the actor', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'reconnect-counters');
+    const sim = new Simulation(world(), config, [profiles[0]], 'reconnect-counters', 121);
     advance(sim, 5.1);
     send(sim, 'a', 100, { moveZ: 1 });
     sim.action('a', { type: 'slot', id: 100, slot: 1 });
@@ -699,7 +700,7 @@ describe('authoritative simulation', () => {
   });
 
   it('gives a late deathmatch join two seconds of protection from its join time', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'late-dm');
+    const sim = new Simulation(world(), config, [profiles[0]], 'late-dm', 122);
     advance(sim, 12);
     sim.player(profiles[1], 'join');
     const snap = sim.snapshot();
@@ -707,7 +708,7 @@ describe('authoritative simulation', () => {
   });
 
   it('loads shotgun shells one at a time and lets a loaded shell interrupt reloading', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'shells');
+    const sim = new Simulation(world(), config, [profiles[0]], 'shells', 123);
     advance(sim, 5.1);
     const actor = (sim as any).actors.get('a').state as ActorState;
     actor.weapons = [{ id: 'shotgun', ammo: 0, reserve: 6, rarity: 0 }];
@@ -724,7 +725,7 @@ describe('authoritative simulation', () => {
   });
 
   it('uses legacy-sized shapes: a head sphere over a body cylinder, and nothing around them', () => {
-    const sim = new Simulation(world(), config, profiles, 'rays');
+    const sim = new Simulation(world(), config, profiles, 'rays', 124);
     const target = sim.snapshot().actors[0];
     target.pos = { x: 0, y: 0, z: 0 };
     const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number) => { distance: number; head: boolean } | null;
@@ -745,7 +746,7 @@ describe('authoritative simulation', () => {
   });
 
   it('rotates and crouches the shapes, and favours humans when a bot is shooting', () => {
-    const sim = new Simulation(world(), config, profiles, 'posed-rays');
+    const sim = new Simulation(world(), config, profiles, 'posed-rays', 125);
     const target = sim.snapshot().actors[0];
     target.pos = { x: 0, y: 0, z: 0 }; target.yaw = Math.PI / 2;
     const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number, p?: unknown, c?: unknown, y?: unknown, favoured?: boolean) => { distance: number; head: boolean } | null;
@@ -770,7 +771,7 @@ describe('authoritative simulation', () => {
     const w = world();
     const base = terrainHeight(0, -1.5);
     w.colliders.push({ id: 'close-cover', min: { x: -2, y: base - 1, z: -2 }, max: { x: 2, y: base + 4, z: -1 }, material: 'stone' });
-    const sim = new Simulation(w, config, profiles, 'muzzle-cover');
+    const sim = new Simulation(w, config, profiles, 'muzzle-cover', 126);
     advance(sim, 5.1);
     const a = (sim as any).actors.get('a').state as ActorState, b = (sim as any).actors.get('b').state as ActorState;
     a.pos = { x: 0, y: terrainHeight(0, -5), z: -5 };
@@ -785,7 +786,7 @@ describe('authoritative simulation', () => {
 
   it('rewinds orientation as well as position for a turning target', () => {
     const scenario = (age: number) => {
-      const sim = new Simulation(world(), config, profiles, 'turning-rewind');
+      const sim = new Simulation(world(), config, profiles, 'turning-rewind', 127);
       advance(sim, 5.1);
       const shooter = (sim as any).actors.get('a'), target = (sim as any).actors.get('b');
       // The ray grazes the front of the head sphere: a hit facing -z (yaw 0), a miss facing +z.
@@ -807,7 +808,7 @@ describe('authoritative simulation', () => {
 
   it('keeps a crouched actor crouched under a low roof', () => {
     const w = world();
-    const actor = new Simulation(w, config, [profiles[0]], 'headroom').snapshot().actors[0];
+    const actor = new Simulation(w, config, [profiles[0]], 'headroom', 128).snapshot().actors[0];
     w.colliders.push({ id: 'ceiling', min: { x: actor.pos.x - 2, y: actor.pos.y + 1.35, z: actor.pos.z - 2 }, max: { x: actor.pos.x + 2, y: actor.pos.y + 1.55, z: actor.pos.z + 2 }, material: 'wood' });
     moveActor(actor, input(1, { crouch: true }), w, 1 / 60);
     moveActor(actor, input(2), w, 1 / 60);
@@ -819,7 +820,7 @@ describe('authoritative simulation', () => {
     const w = world();
     const ground = terrainHeight(0, 0), roof = ground + 2.5;
     w.colliders.push({ id: 'roof', min: { x: -2, y: roof - .2, z: -2 }, max: { x: 2, y: roof, z: 2 }, material: 'wood' });
-    const sim = new Simulation(w, { ...config, mode: 'battle-royale' }, profiles, 'roof');
+    const sim = new Simulation(w, { ...config, mode: 'battle-royale' }, profiles, 'roof', 129);
     advance(sim, 3.1);
     const actor = (sim as any).actors.get('a').state as ActorState;
     actor.stage = 'parachute'; actor.pos = { x: 0, y: roof + .6, z: 0 }; actor.velocity = { x: 0, y: -6.5, z: 0 };
@@ -833,7 +834,7 @@ describe('authoritative simulation', () => {
     const roof = actual.objects.find(object => object.kind === 'roof' && object.detail === 'hip')!;
     const x = roof.pos.x + roof.scale.x * .25;
     const visibleHeight = roof.pos.y + roof.scale.y * .5;
-    const sim = new Simulation(actual, { ...config, mode: 'battle-royale' }, profiles, 'island-roof');
+    const sim = new Simulation(actual, { ...config, mode: 'battle-royale' }, profiles, 'island-roof', 130);
     advance(sim, 3.1);
     const actor = (sim as any).actors.get('a').state as ActorState;
     actor.stage = 'parachute'; actor.pos = { x, y: visibleHeight + .6, z: roof.pos.z };
@@ -853,7 +854,7 @@ describe('authoritative simulation', () => {
   });
 
   it('clears previous-life effects and rewind history on respawn', () => {
-    const sim = new Simulation(world(), config, profiles, 'fresh-life');
+    const sim = new Simulation(world(), config, profiles, 'fresh-life', 131);
     advance(sim, 5.1);
     const runtime = (sim as any).actors.get('a');
     runtime.hot = 30; runtime.boostUntil = 100; runtime.history = [{ time: sim.snapshot().time, pos: { x: 100, y: 0, z: 100 }, crouch: false }];
@@ -869,7 +870,7 @@ describe('authoritative simulation', () => {
   });
 
   it('waits for a disconnected last survivor to reconnect or forfeit before ending battle royale', () => {
-    const sim = new Simulation(world(), { ...config, mode: 'battle-royale' }, profiles, 'last-disconnect');
+    const sim = new Simulation(world(), { ...config, mode: 'battle-royale' }, profiles, 'last-disconnect', 132);
     advance(sim, 3.1);
     (sim as any).actors.get('b').state.alive = false;
     sim.player(profiles[0], 'disconnect');
