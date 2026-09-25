@@ -296,6 +296,7 @@ function closestInteraction() {
   return findInteraction(world, snapshot, predicted, interactionResult);
 }
 input.onAction = sendAction;
+input.onInspect = () => renderer?.inspectWeapon();
 input.onCycle = direction => {
   const me = snapshot?.actors.find(a => a.id === playerId);
   if (!me || me.weapons.length < 2) return;

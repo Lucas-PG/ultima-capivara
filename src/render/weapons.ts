@@ -489,6 +489,10 @@ export class WeaponView {
   private gait = 0;
   private shotLife = 0;
   private reloadEnd = 0;
+  private inspectTime = -1;
+  private inspectAllowed = false;
+  private readonly restPosition = new THREE.Vector3();
+  private readonly restRotation = new THREE.Euler();
   private disposed = false;
 
   constructor(private readonly loader: AssetLoader, onAssetsReady: () => void = () => {}) {
@@ -635,7 +639,21 @@ export class WeaponView {
     if (magazine) { magazine.userData.fbxMagazine = true; magazine.userData.restZ = magazine.position.z; sniper.magazine = magazine; }
   }
 
+  inspect(): boolean {
+    if (this.disposed || !this.inspectAllowed) return false;
+    this.inspectTime = 0;
+    return true;
+  }
+
+  private cancelInspect() {
+    if (this.inspectTime < 0) return;
+    this.inspectTime = -1;
+    // Event-driven shots read muzzle anchors before the next render update.
+    this.holder.position.copy(this.restPosition); this.holder.rotation.copy(this.restRotation);
+  }
+
   shot(id: WeaponId) {
+    this.cancelInspect(); this.inspectAllowed = false;
     this.kick = Math.min(.15, this.kick + (id === 'sniper' ? .12 : id === 'shotgun' ? .095 : id === 'machete' ? .07 : id === 'pistol' ? .055 : .034));
     this.shotLife = id === 'machete' ? .48 : id === 'shotgun' ? .42 : id === 'sniper' ? .58 : .2;
   }
@@ -647,9 +665,10 @@ export class WeaponView {
 
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number) {
     this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
-    if (!actor || !this.holder.visible) return;
+    if (!actor || !this.holder.visible) { this.cancelInspect(); this.inspectAllowed = false; return; }
     const weapon = actor.weapons[actor.slot]?.id || 'pistol';
     if (weapon !== this.active) {
+      this.cancelInspect();
       this.models[this.active].group.visible = false; this.active = weapon; this.models[this.active].group.visible = true;
       this.draw = 1; this.kick = 0; this.reloadEnd = 0; this.ads = 0;
     }
@@ -659,6 +678,8 @@ export class WeaponView {
       this.painted!.setRarity(model.painted, rarity); model.rarity = rarity;
     }
     const reloading = actor.reloadUntil > simulationTime;
+    this.inspectAllowed = !actor.ads && !actor.sprint && !reloading && this.shotLife <= 0;
+    if (!this.inspectAllowed) this.cancelInspect();
     if (reloading && actor.reloadUntil > this.reloadEnd) this.reloadEnd = actor.reloadUntil;
     const duration = WEAPONS[weapon].reload || 1;
     const progress = reloading ? THREE.MathUtils.clamp(1 - (this.reloadEnd - simulationTime) / duration, 0, 1) : 0;
@@ -702,6 +723,18 @@ export class WeaponView {
     this.holder.rotation.set((pose?.pitch ?? 0) * (1 - this.ads) + this.kick * 1.1 + this.draw * .38 + magazineMotion * .24 + sprint * .16,
       THREE.MathUtils.lerp(pose ? 0 : .24, 0, this.ads) + closeWall * .28,
       THREE.MathUtils.lerp(pose ? 0 : -.055, 0, this.ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13);
+    this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.rotation);
+    if (this.inspectTime >= 0) {
+      this.inspectTime += dt;
+      const progress = Math.min(1, this.inspectTime / 1.6);
+      const look = Math.sin(Math.PI * progress) ** 2 * (settings.reducedMotion ? .35 : 1);
+      this.holder.position.x -= look * .09; this.holder.position.y += look * .065;
+      this.holder.position.z += look * .04;
+      this.holder.rotation.x += look * .18;
+      this.holder.rotation.y -= look * (weapon === 'machete' ? .2 : weapon === 'slingshot' ? .3 : .5);
+      this.holder.rotation.z += look * (weapon === 'machete' ? -.3 : .35);
+      if (progress === 1) this.inspectTime = -1;
+    }
     model.group.rotation.x = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * .8 : 0;
     model.group.rotation.z = weapon === 'machete' && this.shotLife > 0 ? Math.sin((1 - this.shotLife / .48) * Math.PI) * -.45 : 0;
   }
