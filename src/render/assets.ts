@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { timing } from './timing';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
@@ -9,6 +10,7 @@ import { AssetProgress, type AssetProgressCallback } from './asset-progress';
 export class AssetLoader {
   private readonly manager = new THREE.LoadingManager();
   private readonly textures = new Map<string, THREE.Texture>();
+  private readonly decodingTextures = new Set<string>();
   private readonly models = new Map<string, Promise<GLTF>>();
   private readonly pending: Promise<unknown>[] = [];
   private readonly ktx: KTX2Loader;
@@ -18,11 +20,22 @@ export class AssetLoader {
 
   constructor(gl: THREE.WebGLRenderer, onProgress: AssetProgressCallback = () => {}, manifest: readonly AssetEntry[] = ASSET_MANIFEST) {
     this.progress = new AssetProgress(manifest, onProgress);
-    this.manager.onProgress = url => this.progress.finish(this.path(url));
+    this.manager.onProgress = url => {
+      const path = this.path(url);
+      if (!this.decodingTextures.has(path)) this.progress.finish(path);
+    };
     this.manager.onError = url => this.progress.fail(this.path(url));
     this.ktx = new KTX2Loader(this.manager).setTranscoderPath(`${import.meta.env.BASE_URL}decoders/basis/`).detectSupport(gl);
     this.gltfLoader = new GLTFLoader(this.manager).setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(this.ktx);
     this.manager.addHandler(/\.ktx2$/i, this.ktx);
+    if (timing.enabled) {
+      const parse = this.gltfLoader.parse.bind(this.gltfLoader);
+      this.gltfLoader.parse = (data, path, onLoad, onError) => {
+        const started = timing.begin();
+        try { parse(data, path, asset => { timing.end('gltf-parse-wall', started, path, true); onLoad(asset); }, onError); }
+        finally { timing.end('gltf-parse-sync', started, path, true); }
+      };
+    }
   }
 
   private path(url: string) { return new URL(url, this.base).pathname.slice(this.base.pathname.length); }
@@ -38,8 +51,20 @@ export class AssetLoader {
   texture(path: string): THREE.Texture {
     const cached = this.textures.get(path); if (cached) return cached;
     let texture!: THREE.Texture;
+    const started = timing.begin();
+    this.decodingTextures.add(path);
     this.track(new Promise<void>((resolve, reject) => {
-      texture = new THREE.TextureLoader(this.manager).load(this.url(path), () => resolve(), undefined, reject);
+      const fail = (error: unknown) => { this.progress.fail(path); this.decodingTextures.delete(path); reject(error); };
+      texture = new THREE.TextureLoader(this.manager).load(this.url(path), loaded => {
+        timing.end('texture-ready-wall', started, path, true);
+        // Explicit decode keeps lazy image work inside the readiness barrier.
+        const image = loaded.image as HTMLImageElement, decodeAt = timing.begin();
+        const decoded = Promise.resolve().then(() => typeof image.decode === 'function' ? image.decode() : undefined);
+        void decoded.then(() => {
+          timing.end('texture-decode-wall', decodeAt, path, true);
+          this.decodingTextures.delete(path); this.progress.finish(path); resolve();
+        }, fail);
+      }, undefined, fail);
     }));
     this.textures.set(path, texture); return texture;
   }

@@ -6,7 +6,8 @@ import { clamp } from './shared/math';
 import { closestInteraction as findInteraction } from './shared/interaction';
 import { WEAPONS } from './shared/weapons';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot, RenderFrame } from './shared/types';
-import { GameRenderer } from './render/renderer';
+import type { GameRenderer } from './render/renderer';
+import { timing } from './render/timing';
 import { RoomSession } from './network/session';
 import { InputController } from './input';
 import { SoundEngine } from './audio';
@@ -24,8 +25,10 @@ const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
 const renderFrame: RenderFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
 let renderer: GameRenderer | null = null;
-// One renderer for the page's lifetime, warmed up on the menu; `loading` holds the match's loading screen until the first real frame.
+// Load the 3D island on the first match, then reuse it until the page closes.
+// `loading` holds the loading screen until the first prepared frame.
 let rendererReady: Promise<void> | null = null, loading = false, readyToReveal = false;
+let pageDisposed = false;
 let matchPreparation: Promise<void> | null = null;
 let loadFraction = 0, loadLabel = 'Desenhando a ilha';
 let worker: Worker | null = null;
@@ -95,15 +98,27 @@ const ui = new GameUI(world, settings, profile, {
 });
 
 function ensureRenderer() {
-  if (!renderer) { renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }, (fraction) => {
-    loadFraction = fraction;
-    loadLabel = fraction < .15 ? 'Desenhando a ilha' : fraction < .3 ? 'Plantando os coqueiros' :
-      fraction < .45 ? 'Enchendo o mar' : fraction < .6 ? 'Escondendo os baús' :
-      fraction < .75 ? 'Engraxando as armas' : fraction < .9 ? 'Chamando a turma' :
-      fraction < 1 ? 'Carregando o avião' : 'Pronto!';
-    ui.setLoadingProgress(fraction, loadLabel);
-  }); rendererReady = renderer.warmup(); void rendererReady.catch(() => {}); }
-  renderer.resize();
+  if (!rendererReady) {
+    rendererReady = (async () => {
+      const { GameRenderer } = await import('./render/renderer');
+      // Let the loading screen paint before constructing the world, including
+      // when the engine modules already live in the browser cache.
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (pageDisposed) throw new Error('Page closed before renderer initialization');
+      renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }, (fraction) => {
+        loadFraction = fraction;
+        loadLabel = fraction < .15 ? 'Desenhando a ilha' : fraction < .3 ? 'Plantando os coqueiros' :
+          fraction < .45 ? 'Enchendo o mar' : fraction < .6 ? 'Escondendo os baús' :
+          fraction < .75 ? 'Engraxando as armas' : fraction < .9 ? 'Chamando a turma' :
+          fraction < 1 ? 'Carregando o avião' : 'Pronto!';
+        ui.setLoadingProgress(fraction, loadLabel);
+      });
+      renderer.resize();
+      await renderer.warmup();
+    })();
+    void rendererReady.catch(() => {});
+  }
+  renderer?.resize();
 }
 function beginMatch(id: string, matchId: string) {
   stopMatch();
@@ -165,10 +180,15 @@ function leave() {
 }
 function acceptSnapshot(next: WorldSnapshot) {
   if (next.matchId !== match || (snapshot && next.tick < snapshot.tick)) return;
+  timing.context(loading ? 'loading' : next.phase, next.tick, renderedFrames);
+  const snapshotAt = timing.begin();
   snapshot = next; receivedAt = performance.now();
   if (loading && !matchPreparation) {
     const preparingId = match;
-    matchPreparation = renderer!.prepareMatch(next).then(() => {
+    matchPreparation = rendererReady!.then(() => {
+      if (!playing || match !== preparingId || pageDisposed) return;
+      return renderer!.prepareMatch(next);
+    }).then(() => {
       if (playing && match === preparingId) { readyToReveal = true; dirtyFrame = true; }
     }).catch(() => {
       if (match !== preparingId) return;
@@ -199,6 +219,7 @@ function acceptSnapshot(next: WorldSnapshot) {
     playing = false; input.unlock(); worker?.terminate(); worker = null;
     ui.update(next, playerId, session.ping, false, fps, null);
   }
+  timing.end('snapshot', snapshotAt);
 }
 function acceptEvents(events: GameEvent[]) {
   for (const event of events) {
@@ -255,7 +276,7 @@ input.onPause = () => { if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 window.addEventListener('resize', () => { renderer?.resize(); dirtyFrame = true; });
-window.addEventListener('pagehide', () => { stopMatch(); session.leave(); sound.dispose(); renderer?.dispose(); });
+window.addEventListener('pagehide', () => { pageDisposed = true; stopMatch(); session.leave(); sound.dispose(); renderer?.dispose(); });
 window.addEventListener('pageshow', event => {
   // pagehide releases the match and audio hardware. A restored page must create
   // fresh resources instead of reviving references to a terminated Worker.
@@ -273,10 +294,13 @@ function frame(now: number) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - lastFrame) / 1000, .1); lastFrame = now;
   if (document.hidden || (loading && !readyToReveal)) return;
+  timing.context(loading ? 'loading' : snapshot?.phase ?? 'menu', snapshot?.tick ?? -1, renderedFrames);
   input.recoverRecoil(dt);
   const me = snapshot?.actors.find(a => a.id === playerId) || null;
   const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : me;
+  const audioAt = timing.begin();
   sound.update(listener, snapshot, dt, ui.screen !== 'game');
+  timing.end('audio', audioAt);
   // After the match ends the island keeps drawing behind the in-game victory overlay.
   const ended = !playing && snapshot?.phase === 'results';
   if ((!playing && !ended) || !snapshot || ui.screen !== 'game') return;
@@ -297,21 +321,25 @@ function frame(now: number) {
   renderDeadline = Math.max(renderDeadline + interval, now + interval * .05);
   const renderDt = Math.min((now - lastRender) / 1000, .05); lastRender = now;
   if (spectateId && !snapshot.actors.some(a => a.id === spectateId && a.alive)) cycleSpectator();
+  const interactionAt = timing.begin();
   interaction = closestInteraction();
+  timing.end('interaction', interactionAt);
   if (input.locked || dirtyFrame || ended) {
     renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt;
-    renderFrame.spectateId = spectateId; renderFrame.predicted = predicted?.pos; renderer?.update(renderFrame);
+    renderFrame.spectateId = spectateId; renderFrame.predicted = predicted?.pos;
+    const renderAt = timing.begin();
+    renderer?.update(renderFrame);
+    timing.end('render', renderAt);
     renderedFrames++; frameCount++; dirtyFrame = false;
     if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }
   if (now - fpsAt >= 1000) { fps = frameCount * 1000 / (now - fpsAt); frameCount = 0; fpsAt = now; }
+  const hudAt = timing.begin();
   ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction);
+  timing.end('hud', hudAt);
 }
 requestAnimationFrame(frame);
 document.querySelector('#loading')?.remove();
-// Build and warm the 3D island while the player is still on the menu, after the first paint.
-const preload = () => { try { ensureRenderer(); } catch { /* reported when a match starts */ } };
-if (typeof requestIdleCallback === 'function') requestIdleCallback(preload, { timeout: 2500 }); else setTimeout(preload, 800);
 const invitation = new URLSearchParams(location.search).get('sala');
 if (invitation && /^[A-Z0-9]{6}$/i.test(invitation)) ui.roomModal('join', invitation.toUpperCase());
 
@@ -333,9 +361,10 @@ if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has(
 if (import.meta.env.DEV) {
   // Perf probe: frame intervals from an independent rAF loop plus long tasks.
   const intervals: number[] = [], longTasks: number[] = []; let lastTick = performance.now();
-  const tick = (now: number) => { intervals.push(now - lastTick); if (intervals.length > 1200) intervals.shift(); lastTick = now; requestAnimationFrame(tick); };
+  timing.observeLongTasks();
+  const tick = (now: number) => { timing.record('raf-gap', lastTick, now - lastTick); intervals.push(now - lastTick); if (intervals.length > 1200) intervals.shift(); lastTick = now; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
-  try { new PerformanceObserver(list => { for (const entry of list.getEntries()) longTasks.push(Math.round(entry.duration)); }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
+  try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
     inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length }),
     perf: () => {
@@ -344,6 +373,7 @@ if (import.meta.env.DEV) {
       return { frames: sorted.length, p50: pick(.5), p95: pick(.95), p99: pick(.99), max: +(sorted.at(-1) ?? 0).toFixed(1), over33: intervals.filter(t => t > 33.4).length,
         longTasks: [...longTasks], renderer: renderer?.stats, heapMB: heap ? Math.round(heap / 1048576) : null };
     },
-    resetPerf: () => { intervals.length = 0; longTasks.length = 0; },
+    timings: () => ({ ...timing.snapshot(), preset: settings.graphics, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } }),
+    resetPerf: () => { intervals.length = 0; longTasks.length = 0; timing.reset(); lastTick = performance.now(); },
   } });
 }

@@ -1,5 +1,10 @@
 # Texture sources and license
 
+M1 migration, 2026-09-25: the photographic surface maps, unused foliage atlas and
+HDR panorama listed below were removed. Runtime sky and cloud cards are original
+procedural painted art in `src/render/sky.ts`; world surfaces use authored vertex
+colours and flat materials. The table preserves attribution for historical commits.
+
 These assets come from [Poly Haven](https://polyhaven.com/license) textures, the Island Tree 01 model, and a pure-sky HDRI, released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Files are bundled locally; the game does not call the Poly Haven API at runtime. Source 1K files were verified against the API MD5 checksums. Surface maps and the leaf atlas were resized to 512 px and encoded as WebP; the sky HDRI is kept at its original 1K resolution.
 
 | Local prefix | Source | Maps |
