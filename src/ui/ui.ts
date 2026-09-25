@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, startButtonState, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -58,6 +58,7 @@ export class GameUI {
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
   private lastPrey: { name: string; color: string } | null = null;
   private thumbs: Map<WeaponId, string> | null = null;
+  private readonly lifecycle = new AbortController();
   private mapOpen = false;
   private deathReleased = false;
   private tipTimer = 0;
@@ -78,6 +79,7 @@ export class GameUI {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
     document.documentElement.style.setProperty('--cover', `url("${publicUrl('assets/cover-v2.png')}")`);
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
+    window.addEventListener('pagehide', () => this.lifecycle.abort(), { once: true });
     this.drawMapBackground(); this.home();
     // M toggles the island map over the match; it never touches pointer lock or movement input.
     document.addEventListener('keydown', event => {
@@ -165,9 +167,9 @@ export class GameUI {
   }
   // Host start button: while the island warms up it is disabled, labelled and shows real progress (setRoomLoading).
   private startButton(allReady: boolean) {
-    const loading = this.roomLoading !== null, pct = Math.round((this.roomLoading ?? 0) * 100);
-    const label = loading ? `<span class="rl-label">Carregando a ilha</span><span class="rl-bar" role="progressbar" aria-label="Carregando a ilha" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span>` : `${icon('play')} COMEÇAR PARTIDA`;
-    return `<button class="button ${allReady && !loading ? 'primary' : 'secondary'} full-width${loading ? ' room-loading' : ''}" data-do="start" ${allReady && !loading ? '' : 'disabled'} aria-busy="${loading}">${label}</button>`;
+    const state = startButtonState(allReady, this.roomLoading);
+    const label = state.loading ? `<span class="rl-label">Carregando a ilha</span><span class="rl-bar" role="progressbar" aria-label="Carregando a ilha" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${state.pct}"><i style="width:${state.pct}%"></i></span>` : `${icon('play')} COMEÇAR PARTIDA`;
+    return `<button class="button ${state.primary ? 'primary' : 'secondary'} full-width${state.loading ? ' room-loading' : ''}" data-do="start" ${state.disabled ? 'disabled' : ''} aria-busy="${state.loading}">${label}</button>`;
   }
   // Lobby warmup progress (Forja): a fraction shows the busy start button; null restores normal readiness.
   setRoomLoading(fraction: number | null) {
@@ -178,7 +180,7 @@ export class GameUI {
     if (!button || !this.room) return;
     const bar = button.querySelector<HTMLElement>('.rl-bar');
     // Progress ticks update only the bar; entering or leaving the loading state rebuilds the button.
-    if (next !== null && wasLoading && bar) { const pct = Math.round(next * 100); bar.setAttribute('aria-valuenow', String(pct)); bar.querySelector('i')!.style.width = `${pct}%`; return; }
+    if (next !== null && wasLoading && bar) { const pct = startButtonState(false, next).pct; bar.setAttribute('aria-valuenow', String(pct)); bar.querySelector('i')!.style.width = `${pct}%`; return; }
     button.outerHTML = this.startButton(this.room.players.every(p => p.ready && p.connected));
   }
   private async copyInvite() {
@@ -188,7 +190,7 @@ export class GameUI {
   }
   game(playerId: string) {
     this.lastBanner = ''; this.deathInfo = null; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null; this.deathReleased = false;
-    if (!this.thumbs) void import('../render/thumbnails').then(m => m.loadWeaponThumbnails()).then(map => { if (map.size) { this.thumbs = map; this.inventoryKey = ''; } });
+    if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
     this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
     const key = (code: string) => esc(keyName(code));
