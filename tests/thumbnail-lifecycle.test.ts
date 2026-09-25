@@ -8,12 +8,28 @@ vi.mock('three', async importOriginal => ({
 
 beforeEach(() => {
   vi.resetModules(); vi.clearAllMocks(); vi.useFakeTimers();
-  vi.stubGlobal('window', { setTimeout, clearTimeout });
+  vi.stubGlobal('window', Object.assign(new EventTarget(), { setTimeout, clearTimeout }));
   vi.stubGlobal('document', { createElement: vi.fn(() => ({})) });
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('thumbnail loading lifecycle', () => {
+  it('cancels on pagehide when lobby warmup was the first caller without a signal', async () => {
+    const { loadWeaponThumbnails } = await import('../src/render/thumbnails');
+    const first = loadWeaponThumbnails();
+    const ui = new AbortController();
+    expect(loadWeaponThumbnails(ui.signal)).toBe(first);
+    await vi.advanceTimersByTimeAsync(249);
+    window.dispatchEvent(new Event('pagehide'));
+    let settled = false; void first.then(() => { settled = true; });
+    await Promise.resolve(); expect(settled).toBe(true);
+    await vi.runAllTimersAsync();
+    expect((await first).size).toBe(0);
+    expect((await loadWeaponThumbnails()).size).toBe(0);
+    await vi.runAllTimersAsync();
+    expect(WebGLRenderer).not.toHaveBeenCalled();
+  });
+
   it('does not create a context when the dynamic import finishes after pagehide', async () => {
     const lifecycle = new AbortController(); lifecycle.abort();
     const { loadWeaponThumbnails } = await import('../src/render/thumbnails');

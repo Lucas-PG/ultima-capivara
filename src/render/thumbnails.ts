@@ -8,19 +8,22 @@ const WEAPON_IDS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper
 const WIDTH = 256, HEIGHT = 160, OUTLINE = 5, INK = '#16120e';
 const cache = new Map<WeaponId, string>();
 let pending: Promise<Map<WeaponId, string>> | null = null;
+let pageClosed = false, cancelPending: (() => void) | null = null;
+window.addEventListener('pagehide', () => { pageClosed = true; cancelPending?.(); }, { once: true });
 
 export const weaponThumbnail = (id: WeaponId) => cache.get(id);
 
 export function loadWeaponThumbnails(signal?: AbortSignal): Promise<Map<WeaponId, string>> {
-  if (signal?.aborted) return Promise.resolve(cache);
+  if (pageClosed || signal?.aborted) return Promise.resolve(cache);
   pending ||= new Promise(resolve => {
-    const finish = () => { signal?.removeEventListener('abort', cancel); resolve(cache); };
+    const finish = () => { cancelPending = null; signal?.removeEventListener('abort', cancel); resolve(cache); };
     const cancel = () => { window.clearTimeout(timer); pending = null; finish(); };
     // Yield first so the match's own renderer and HUD come up before this extra context.
     const timer = window.setTimeout(() => {
       try { if (!signal?.aborted) render(); } catch { /* thumbnails are decorative; the HUD falls back to silhouettes */ }
       finish();
     }, 250);
+    cancelPending = cancel;
     signal?.addEventListener('abort', cancel, { once: true });
   });
   return pending;
