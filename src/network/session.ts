@@ -7,6 +7,7 @@ import { decodeFastFrame, encodeFastFrame, fastPart, finiteTree, gearPart, MAX_F
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const GRACE_MS = 30_000;
 const KEEPALIVE_MS = 3_000;
+const CLOSE_ACK_MS = 1_000;
 const INPUTS_PER_SECOND = 90;
 const ACTIONS_PER_SECOND = 20;
 type Profile = { name: string; color: string };
@@ -213,6 +214,10 @@ export class RoomSession {
   private watchGuestPeer(peer: Peer) {
     peer.on('error', error => {
       if (this.closing || this.peer !== peer) return;
+      // The short reconnect probe distinguishes a released host ID from a network blip.
+      if (this.reconnecting && this.joining && error.type === 'peer-unavailable') {
+        this.finish('O anfitrião fechou a sala.'); return;
+      }
       if (this.joining) { this.joining.reject(peerError(error)); this.joining = null; this.hostConn?.close(); }
       else if (!this.reconnecting) this.fail(peerError(error).message);
     });
@@ -395,7 +400,9 @@ export class RoomSession {
         }
         this.latencyValues = values;
       } break;
-      case 'closed': this.finish(String(m.reason || 'O anfitrião fechou a sala.')); break;
+      case 'closed':
+        send(conn, packet('closed-ack'));
+        this.finish(String(m.reason || 'O anfitrião fechou a sala.')); break;
     }
   }
 
@@ -601,7 +608,6 @@ export class RoomSession {
     this.closing = true;
     const room = this.roomValue;
     const peers = [...this.guests.values()];
-    if (room?.isHost) for (const g of peers) send(g.conn, packet('closed', { reason: 'O anfitrião fechou a sala.' }));
     if (this.heartbeat) clearInterval(this.heartbeat);
     if (this.retryTimer) clearTimeout(this.retryTimer);
     if (this.recoveryDeadline) clearTimeout(this.recoveryDeadline);
@@ -609,12 +615,30 @@ export class RoomSession {
     if (this.joining) { this.joining.reject(new Error('Você saiu da sala.')); this.joining = null; }
     for (const g of peers) if (g.expires) clearTimeout(g.expires);
     const ownPeer = this.peer, ownConn = this.hostConn, ownGame = this.hostGame;
+    // Capture old connections so delayed cleanup cannot touch a newly hosted room.
+    const connections = peers.map(g => ({ conn: g.conn, game: g.game }));
+    const pending = new Set(connections.flatMap(({ conn }) => conn?.open ? [conn] : []));
+    const listeners: { conn: DataConnection; data: (raw: unknown) => void; close: () => void }[] = [];
+    let closeTimer: ReturnType<typeof setTimeout> | undefined;
+    let disposed = false;
     const closeConnections = () => {
-      for (const g of peers) { g.game?.close(); g.conn?.close(); }
+      if (disposed) return;
+      disposed = true; clearTimeout(closeTimer);
+      for (const { conn, data, close } of listeners) { conn.off('data', data); conn.off('close', close); }
+      for (const { conn, game } of connections) { game?.close(); conn?.close(); }
       ownGame?.close(); ownConn?.close(); ownPeer?.destroy();
     };
-    if (room?.isHost) setTimeout(closeConnections, 250);
-    else closeConnections();
+    if (room?.isHost && pending.size) {
+      // Reliable delivery can take longer than 250 ms under load. Wait for receipt,
+      // or the guest closing itself after receipt, with a cap for unresponsive peers.
+      for (const conn of pending) {
+        const close = () => { pending.delete(conn); if (!pending.size) closeConnections(); };
+        const data = (raw: unknown) => { if (parseWire(raw)?.t === 'closed-ack') close(); };
+        listeners.push({ conn, data, close }); conn.on('data', data); conn.on('close', close);
+      }
+      closeTimer = setTimeout(closeConnections, CLOSE_ACK_MS);
+      for (const { conn } of connections) send(conn, packet('closed', { reason: 'O anfitrião fechou a sala.' }));
+    } else closeConnections();
     this.guests.clear();
     this.peer = null; this.hostConn = null; this.hostGame = null; this.roomValue = null;
     this.current = null; this.matchId = ''; this.localInput = -1; this.localActions.clear();
