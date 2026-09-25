@@ -84,3 +84,10 @@ export function coverImageSet(cssWidth: number, dpr = 1, url: (file: string) => 
   const set = (n: string) => `image-set(url("${url(`assets/${n}.avif`)}") type("image/avif"), url("${url(`assets/${n}.webp`)}") type("image/webp"))`;
   return { cover: set(name), blur: set('cover-blur-480') };
 }
+
+// Lobby start button (host): while the island warms up it is disabled and busy with real progress;
+// otherwise it is enabled only when everyone is ready and connected.
+export function startButtonState(allReady: boolean, roomLoading: number | null) {
+  const loading = roomLoading !== null;
+  return { loading, disabled: loading || !allReady, primary: allReady && !loading, pct: loading ? Math.round(Math.min(1, Math.max(0, roomLoading!)) * 100) : 0 };
+}

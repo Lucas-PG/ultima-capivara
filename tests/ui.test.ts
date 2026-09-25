@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -161,12 +161,19 @@ describe('menu download budget', () => {
 });
 
 describe('lobby warmup', () => {
-  // Forja's lazy renderer warms up when the lobby opens; the host must see a busy, disabled start instead of a dead button.
-  it('exposes setRoomLoading on GameUI and never lets the start button be enabled while loading', () => {
-    const code = readFileSync('src/ui/ui.ts', 'utf8');
-    expect(code).toMatch(/setRoomLoading\(fraction: number \| null\)/);
-    expect(code).toMatch(/allReady && !loading \? '' : 'disabled'/);
-    expect(code).toMatch(/Carregando a ilha/);
+  // Forja's lazy renderer warms up in the lobby; the host must never be able to start while it loads.
+  it('disables the start button while loading, whatever the readiness', () => {
+    for (const fraction of [0, .42, 1]) for (const allReady of [true, false])
+      expect(startButtonState(allReady, fraction)).toEqual({ loading: true, disabled: true, primary: false, pct: Math.round(fraction * 100) });
+  });
+  it('restores the normal readiness rule once loading is cleared', () => {
+    expect(startButtonState(true, null)).toEqual({ loading: false, disabled: false, primary: true, pct: 0 });
+    expect(startButtonState(false, null)).toEqual({ loading: false, disabled: true, primary: false, pct: 0 });
+  });
+  it('rounds and clamps the progress percentage', () => {
+    expect(startButtonState(true, .426).pct).toBe(43);
+    expect(startButtonState(true, 1.4).pct).toBe(100);
+    expect(startButtonState(true, -.2).pct).toBe(0);
   });
 });
 

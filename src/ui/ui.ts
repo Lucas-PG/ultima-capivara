@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, cleanLabel, coverImageSet, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { accuracyText, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -164,9 +164,9 @@ export class GameUI {
   }
   // Host start button: while the island warms up it is disabled, labelled and shows real progress (setRoomLoading).
   private startButton(allReady: boolean) {
-    const loading = this.roomLoading !== null, pct = Math.round((this.roomLoading ?? 0) * 100);
-    const label = loading ? `<span class="rl-label">Carregando a ilha</span><span class="rl-bar" role="progressbar" aria-label="Carregando a ilha" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span>` : `${icon('play')} COMEÇAR PARTIDA`;
-    return `<button class="button ${allReady && !loading ? 'primary' : 'secondary'} full-width${loading ? ' room-loading' : ''}" data-do="start" ${allReady && !loading ? '' : 'disabled'} aria-busy="${loading}">${label}</button>`;
+    const state = startButtonState(allReady, this.roomLoading);
+    const label = state.loading ? `<span class="rl-label">Carregando a ilha</span><span class="rl-bar" role="progressbar" aria-label="Carregando a ilha" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${state.pct}"><i style="width:${state.pct}%"></i></span>` : `${icon('play')} COMEÇAR PARTIDA`;
+    return `<button class="button ${state.primary ? 'primary' : 'secondary'} full-width${state.loading ? ' room-loading' : ''}" data-do="start" ${state.disabled ? 'disabled' : ''} aria-busy="${state.loading}">${label}</button>`;
   }
   // Lobby warmup progress (Forja): a fraction shows the busy start button; null restores normal readiness.
   setRoomLoading(fraction: number | null) {
@@ -177,7 +177,7 @@ export class GameUI {
     if (!button || !this.room) return;
     const bar = button.querySelector<HTMLElement>('.rl-bar');
     // Progress ticks update only the bar; entering or leaving the loading state rebuilds the button.
-    if (next !== null && wasLoading && bar) { const pct = Math.round(next * 100); bar.setAttribute('aria-valuenow', String(pct)); bar.querySelector('i')!.style.width = `${pct}%`; return; }
+    if (next !== null && wasLoading && bar) { const pct = startButtonState(false, next).pct; bar.setAttribute('aria-valuenow', String(pct)); bar.querySelector('i')!.style.width = `${pct}%`; return; }
     button.outerHTML = this.startButton(this.room.players.every(p => p.ready && p.connected));
   }
   private async copyInvite() {
