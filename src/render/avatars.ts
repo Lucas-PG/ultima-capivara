@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { applyCharacterStyle } from './materials';
-import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, celebrateCapybara } from './capybara';
+import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, celebrateCapybara } from './capybara';
 import { itemGeometry, itemMaterial } from './item-geometry';
 import { addEllipsoid } from './primitives';
 import { WEAPONS } from '../shared/weapons';
@@ -190,8 +190,8 @@ export class AvatarView {
       const scale = visual.group.scale.y, fontScale = nameplateFontSize(this.height, plate.distance) / 14;
       const pixelsToUnits = 2 / (this.height * this.camera.projectionMatrix.elements[5]);
       label.scale.set(plate.width * fontScale * pixelsToUnits / scale, plate.height * fontScale * pixelsToUnits / scale, 1);
-      label.position.set(0, 1.85 + .35 / scale, 0);
-      plate.projected.copy(visual.group.position); plate.projected.y += 1.85 * scale + .35;
+      label.position.set(0, capybaraHeadTop() + .35 / scale, 0);
+      plate.projected.copy(visual.group.position); plate.projected.y += capybaraHeadTop() * scale + .35;
       const m = this.camera.matrixWorldInverse.elements;
       const depth = -(m[2] * plate.projected.x + m[6] * plate.projected.y + m[10] * plate.projected.z + m[14]);
       plate.projected.project(this.camera);

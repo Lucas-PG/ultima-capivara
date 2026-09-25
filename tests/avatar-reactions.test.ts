@@ -37,6 +37,21 @@ function harness() {
 }
 
 describe('authoritative character reactions', () => {
+  it('anchors labels 35 cm over the loaded crown, including crouched avatars', () => {
+    const h = harness();
+    for (const crouch of [false, true]) {
+      h.actor.crouch = crouch;
+      camera.position.set(0, crouch ? 1.15 : 1.6, 3);
+      camera.lookAt(0, crouch ? 1.15 : 1.6, 0);
+      h.advance(.6);
+      h.visual.group.updateMatrixWorld(true);
+      h.visual.body.traverse(object => { if (object instanceof THREE.SkinnedMesh) object.skeleton.update(); });
+      const crown = new THREE.Box3().setFromObject(h.rig, true).max.y;
+      const anchor = h.visual.label.getWorldPosition(new THREE.Vector3()).y;
+      expect(h.visual.label.visible).toBe(true);
+      expect(Math.abs(anchor - crown - .35)).toBeLessThan(.015);
+    }
+  });
   it('reacts to armor-only damage without an HP delta and does not replay it from a later snapshot', () => {
     const h = harness(), neutral = h.mouth.scale.y;
     view.react(h.actor.id, { kind: 'hit', head: false, amount: 25, from: { x: 3, y: 1.6, z: -2 } });
