@@ -105,6 +105,36 @@ const roles: Record<string, { name: string; accent: string; pale: string }> = {
   kiosk: { name: 'MERCEARIA', accent: '#cd8452', pale: '#f2d093' },
 };
 const signRoles = Object.keys(roles).filter(role => roles[role].name);
+function drawShopSymbol(context: CanvasRenderingContext2D, role: string, x: number, y: number) {
+  context.save(); context.translate(x, y);
+  context.fillStyle = '#2B1B12'; context.strokeStyle = '#2B1B12'; context.lineWidth = 5;
+  if (role === 'fisher' || role === 'fishmonger') {
+    context.beginPath(); context.ellipse(0, 0, 48, 18, 0, 0, Math.PI * 2); context.fill();
+    context.beginPath(); context.moveTo(-45, 0); context.lineTo(-76, -22); context.lineTo(-76, 22); context.closePath(); context.fill();
+    context.fillStyle = '#F4E7C6'; context.beginPath(); context.arc(28, -4, 4, 0, Math.PI * 2); context.fill();
+  } else if (role === 'bakery') {
+    context.beginPath(); context.ellipse(0, 6, 65, 23, 0, Math.PI, 0); context.lineTo(65, 13); context.quadraticCurveTo(0, 31, -65, 13); context.closePath(); context.fill();
+    context.strokeStyle = '#F4E7C6'; context.lineWidth = 4;
+    for (const offset of [-26, 0, 26]) { context.beginPath(); context.moveTo(offset - 8, -5); context.lineTo(offset + 6, 12); context.stroke(); }
+  } else if (role === 'cafe') {
+    context.fillRect(-44, -16, 75, 43);
+    context.beginPath(); context.arc(36, 0, 18, -Math.PI / 2, Math.PI / 2); context.stroke();
+    context.fillRect(-52, 28, 100, 5);
+  } else if (role === 'workshop') {
+    context.rotate(-.7); context.fillRect(-9, -34, 18, 67); context.fillRect(-35, -40, 70, 17);
+  } else if (role === 'tailor') {
+    for (const side of [-1, 1]) {
+      context.beginPath(); context.arc(side * 24, 19, 14, 0, Math.PI * 2); context.stroke();
+      context.beginPath(); context.moveTo(side * 20, 7); context.lineTo(-side * 38, -26); context.stroke();
+    }
+  } else if (role === 'clinic') {
+    context.fillRect(-13, -31, 26, 62); context.fillRect(-31, -13, 62, 26);
+  } else {
+    context.beginPath(); context.ellipse(0, 5, 25, 28, 0, 0, Math.PI * 2); context.fill();
+    context.beginPath(); context.ellipse(13, -28, 15, 7, -.5, 0, Math.PI * 2); context.fill();
+  }
+  context.restore();
+}
 const hash = (x: number, z: number) => {
   const n = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
   return n - Math.floor(n);
@@ -830,9 +860,8 @@ export function buildProps(world: WorldSpec): { group: THREE.Group; dispose(): v
       const role = signRoles[i], theme = roles[role], x = i % 4 * 512, y = Math.floor(i / 4) * 76;
       context.fillStyle = '#f8eac5'; context.fillRect(x, y, 512, 76);
       context.fillStyle = theme.accent; context.fillRect(x + 7, y + 7, 498, 62);
-      context.fillStyle = '#fff6db'; context.font = `bold ${theme.name.length > 15 ? 35 : 39}px Georgia, serif`;
-      context.textAlign = 'center'; context.textBaseline = 'middle';
-      context.fillText(theme.name, x + 256, y + 39, 476);
+      context.fillStyle = '#F4E7C6'; context.fillRect(x + 15, y + 15, 482, 46);
+      drawShopSymbol(context, role, x + 256, y + 39);
     }
     const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
     const signMaterial = textSignMaterial(texture);

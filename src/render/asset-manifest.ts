@@ -4,6 +4,7 @@ export interface AssetEntry { path: string; kind: 'texture' | 'hdr' | 'gltf' | '
 // The manifest test checks these sizes against the shipped files.
 export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { path: 'textures/terrain-color.png', kind: 'texture', bytes: 67309, label: 'Cores da ilha' },
+  { path: 'textures/island-signs.png', kind: 'texture', bytes: 64223, label: 'Placas da ilha' },
   { path: 'textures/grass-color.webp', kind: 'texture', bytes: 104780, label: 'Texturas da ilha' },
   { path: 'textures/grass-normal.webp', kind: 'texture', bytes: 122114, label: 'Texturas da ilha' },
   { path: 'textures/grass-roughness.webp', kind: 'texture', bytes: 11912, label: 'Texturas da ilha' },

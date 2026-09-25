@@ -277,7 +277,6 @@ export function createWorld(): WorldSpec {
     }
     for (const [x, z, kind] of [[52, -30, 'bench'], [36, -42, 'planter'], [72, -42, 'planter'], [58, -44, 'cart'], [88, -28, 'bench']] as const) streetDetail(x, z, kind, '#d6b070');
     for (const [x, z] of [[46, -44], [70, -44], [60, -60]] as const) item(x, z, 'weapon', 'm4');
-    sign(28, -30, 'CENTRO');
   }
 
   // Porto: warehouse, container yard (legacy positions), fish houses, harbour, piers and boats.
@@ -329,7 +328,6 @@ export function createWorld(): WorldSpec {
     for (const [x, z, kind] of [[-22, -18, 'planter'], [-2, -12, 'bench'], [-22, -12, 'cart']] as const) streetDetail(x, z, kind, '#d6b070');
     barrel(4, -32); crate(4, -35);
     item(cx, cz + 2, 'guarana');
-    sign(-24, -35, 'POSTO');
   }
 
   // Fazenda: barn, silo, orchard south of the farm road, fences with a road gap.
@@ -347,7 +345,6 @@ export function createWorld(): WorldSpec {
     }
     item(72, 62, 'weapon', 'shotgun');
     chest(50, 62);
-    sign(40, 64, 'FAZENDA');
   }
 
   // Morro: terraced casinhas on the south hill, a radio mast at the top.
@@ -357,7 +354,6 @@ export function createWorld(): WorldSpec {
     solid(16, ground(16, 100) + 7, 100, .45, 14, .45, '#b1b8b3', 'metal', 'radio-mast');
     obj('sphere', 16, ground(16, 100) + 14, 100, .55, .55, .55, '#e6ad6a', 'beacon');
     item(12, 96, 'weapon', 'sniper');
-    sign(-40, 66, 'MORRO');
   }
 
   // Praia: thatched kiosks and parasols on the levelled north beach.
@@ -413,7 +409,7 @@ export function createWorld(): WorldSpec {
       colliders.push({ id: id('rock'), min: p(rx - size * .42, ground(rx, rz), rz - size * .42), max: p(rx + size * .42, ground(rx, rz) + size * .5, rz + size * .42), material: 'stone' });
     }
     item(108, -30, 'weapon', 'dmr');
-    sign(88, -8, 'CACHOEIRA');
+    sign(88, -8, 'MIRANTE');
   }
 
   // Forte: stone walls with a gate, four red-capped corner towers and a keep
@@ -436,7 +432,6 @@ export function createWorld(): WorldSpec {
     item(fx - 6, fz + 6, 'weapon', 'sniper'); item(fx + 6, fz + 6, 'weapon', 'dmr');
     item(fx - 6, fz - 7, 'armor'); item(fx + 7, fz - 7, 'helmet'); item(fx, fz + 8, 'ammo');
     chest(fx - 8.5, fz + 8.5, y); chest(fx + 8.5, fz - 8.5, y);
-    sign(fx, fz + half + 4, 'FORTE');
   }
 
   // Farol: a red-and-white lighthouse on the south-east hill with the keeper's hut.
@@ -450,7 +445,6 @@ export function createWorld(): WorldSpec {
     obj('cone', lx, y + 16.8, lz, 1.9, 1.3, 1.9, '#d8392b', 'steeple');
     item(lx + 4, lz - 3, 'weapon', 'dmr'); item(lx - 4, lz - 3, 'armor');
     chest(lx + 3.5, lz + 3.5, y);
-    sign(lx - 6, lz - 7, 'FAROL');
   }
 
   // Legacy cover scattered across the island: sandbags, barriers, fences, cars, ruins, crates.
