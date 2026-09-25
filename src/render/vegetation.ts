@@ -17,6 +17,24 @@ export function buildVegetation(world: WorldSpec) {
     shader.vertexShader = `uniform float uBreeze;
       attribute vec3 plantTemplate;
       attribute float crownCenter;\n${shader.vertexShader}`.replace(
+      '#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        #ifdef USE_INSTANCING
+          if (plantTemplate.y > 0.5) {
+            float normalHeightScale = instanceMatrix[1].y;
+            float normalRadialScale = length(instanceMatrix[0].xyz);
+            float normalTemplateHeight = plantTemplate.x;
+            float normalCrownScale = plantTemplate.y > 1.5 ? normalHeightScale :
+              max(1.6, plantTemplate.z * normalTemplateHeight * normalHeightScale) /
+              max(1.6, plantTemplate.z * normalTemplateHeight);
+            float normalCrownBlend = smoothstep(normalTemplateHeight * .45,
+              normalTemplateHeight * .75, position.y);
+            float xzFactor = mix(1.0, normalCrownScale / max(normalRadialScale, .001), normalCrownBlend);
+            float yFactor = crownCenter > 0.0 ? normalCrownScale / max(normalHeightScale, .001) : 1.0;
+            objectNormal = normalize(vec3(objectNormal.x / xzFactor,
+              objectNormal.y / yFactor, objectNormal.z / xzFactor));
+          }
+        #endif
+      `).replace(
       '#include <begin_vertex>', `#include <begin_vertex>
         float phase = 0.0;
         #ifdef USE_INSTANCING
