@@ -146,7 +146,7 @@ export class Simulation {
       stage: br ? 'plane' : 'ground', kills: 0, deaths: 0, damage: 0,
       weapons: br ? bot ? this.botLoadout() : [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
       slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
-      reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0,
+      reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0, shotHeat: 0,
     };
     if (brain) {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
@@ -185,7 +185,9 @@ export class Simulation {
     else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) actor.triggerQueued = action; }
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
-      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length) { s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; actor.shotHeat = 0; }
+      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot) {
+        s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; actor.shotHeat = s.shotHeat = 0;
+      }
     } else if (action.type === 'reload') this.startReload(actor);
     else if (action.type === 'consume') this.startConsume(actor, action.item);
     else if (action.type === 'interact') this.interact(actor, action.target);
@@ -243,7 +245,7 @@ export class Simulation {
     if (this.config.mode === 'battle-royale') { this.updatePlane(); this.updateZone(); }
     for (const actor of this.actors.values()) {
       const s = actor.state;
-      if (actor.shotHeat > 0) actor.shotHeat = Math.max(0, actor.shotHeat - TICK * 2.4);
+      if (actor.shotHeat > 0) actor.shotHeat = s.shotHeat = Math.max(0, actor.shotHeat - TICK * 2.4);
       if (!s.connected && actor.disconnectedAt >= 0 && this.time - actor.disconnectedAt >= 30) this.forfeit(actor);
       if (!s.alive) { if (this.config.mode === 'deathmatch' && s.respawnAt && this.time >= s.respawnAt && s.connected) this.respawn(actor); continue; }
       if (s.stage === 'plane') {
@@ -462,7 +464,7 @@ export class Simulation {
     a.wasFiring = true;
     if (!def.melee && w.ammo <= 0) { this.startReload(a); return; }
     const spread = shotSpread(w.id, s.ads, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded, a.shotHeat);
-    if (!s.bot && !def.melee && !def.projectile) a.shotHeat = Math.min(1.2, a.shotHeat + (w.id === 'smg' ? .32 : w.id === 'm4' ? .3 : .12));
+    if (!s.bot && !def.melee && !def.projectile) a.shotHeat = s.shotHeat = Math.min(1.2, a.shotHeat + (w.id === 'smg' ? .32 : w.id === 'm4' ? .3 : .12));
     if (pressId !== undefined) a.lastShotPressId = Math.max(a.lastShotPressId, pressId);
     if (s.protectionUntil > this.time) s.protectionUntil = this.time;
     a.nextShot = this.time + 60 / def.rpm;
@@ -566,7 +568,7 @@ export class Simulation {
     s.weapons = [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
     s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
-    a.input = emptyInput(); a.lastInputAt = -Infinity; a.lastShotPressId = -1; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = 0; a.boostUntil = 0; a.history = [];
+    a.input = emptyInput(); a.lastInputAt = -Infinity; a.lastShotPressId = -1; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = s.shotHeat = 0; a.boostUntil = 0; a.history = [];
     if (a.brain) a.brain = createBrain(a.brain.elite, a.brain.skill, s.pos, a.brain.flank);
     this.emit({ type: 'respawn', actor: s.id });
   }

@@ -61,6 +61,63 @@ describe('authoritative simulation', () => {
     expect(actor.shotHeat).toBe(0);
   });
 
+  it('keeps burst heat when the player re-selects the same weapon slot', () => {
+    const sim = new Simulation(world(), config, [profiles[0]], 'same-slot', 23);
+    advance(sim, 3.1);
+    const actor = (sim as any).actors.get('a');
+    (sim as any).fire(actor);
+    actor.nextShot = 0; actor.wasFiring = false;
+    (sim as any).fire(actor);
+    const heat = actor.shotHeat;
+    expect(heat).toBeGreaterThan(.3);
+    sim.action('a', { type: 'slot', id: 1, slot: 0 });
+    expect(actor.shotHeat).toBe(heat);
+    expect(actor.state.shotHeat).toBe(heat);
+    sim.action('a', { type: 'slot', id: 2, slot: 1 });
+    expect(actor.shotHeat).toBe(0);
+    expect(actor.state.shotHeat).toBe(0);
+  });
+
+  it('widens real seeded shot rays with burst, movement and airtime, then narrows after cooling', () => {
+    const sim = new Simulation(world(true), config, [profiles[0]], 'ray-spread', 911);
+    advance(sim, 3.1);
+    const actor = (sim as any).actors.get('a');
+    actor.state.weapons[0] = { id: 'm4', ammo: 2000, reserve: 0, rarity: 0 };
+    actor.state.slot = 0; actor.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
+    actor.state.yaw = actor.state.pitch = 0;
+    const fire = () => {
+      actor.nextShot = 0; actor.wasFiring = false;
+      (sim as any).fire(actor);
+      const shot = sim.drainEvents().find(event => event.type === 'shot' && event.actor === 'a');
+      if (shot?.type !== 'shot') throw new Error('Shot was not fired');
+      const ray = { x: shot.end.x - shot.origin.x, y: shot.end.y - shot.origin.y, z: shot.end.z - shot.origin.z };
+      return Math.hypot(ray.x, ray.y) / Math.abs(ray.z);
+    };
+    const sample = (heat: number, speed: number, grounded: boolean) => {
+      actor.state.velocity.x = speed; actor.state.grounded = grounded;
+      let total = 0;
+      for (let i = 0; i < 240; i++) { actor.shotHeat = actor.state.shotHeat = heat; total += fire(); }
+      return total / 240;
+    };
+    const settled = sample(0, 0, true);
+    actor.shotHeat = actor.state.shotHeat = 0;
+    for (let i = 0; i < 4; i++) fire();
+    const burstHeat = actor.shotHeat;
+    expect(burstHeat).toBeGreaterThan(.9);
+    const burst = sample(burstHeat, 0, true);
+    const moving = sample(0, 3.9, true);
+    const airborne = sample(0, 0, false);
+    actor.state.grounded = true; actor.state.velocity.x = 0;
+    actor.shotHeat = actor.state.shotHeat = burstHeat;
+    advance(sim, .6);
+    expect(actor.shotHeat).toBe(0);
+    const recovered = sample(actor.shotHeat, 0, true);
+    expect(burst).toBeGreaterThan(settled * 1.15);
+    expect(moving).toBeGreaterThan(settled * 1.1);
+    expect(airborne).toBeGreaterThan(moving * 1.1);
+    expect(recovered).toBeLessThan(burst * .9);
+  });
+
   it('tapers short-range weapon damage without weakening close hits or marksman rifles', () => {
     expect(damageFalloff('smg', 18)).toBe(1);
     expect(damageFalloff('smg', 39)).toBeCloseTo(.825);
