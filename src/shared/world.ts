@@ -10,6 +10,12 @@ export function createWorld(): WorldSpec {
   const random = rng(0x5eed1e5);
   const objects: MapObject[] = [];
   const colliders: Collider[] = [];
+  const deferredDecorations: MapObject[] = [];
+  const decor = (kind: MapObject['kind'], x: number, y: number, z: number,
+    sx: number, sy: number, sz: number, color: string, detail: string) => {
+    deferredDecorations.push({ id: `decor-${deferredDecorations.length + 1}`, kind,
+      pos: p(x, y, z), scale: p(sx, sy, sz), color, detail });
+  };
   // Deferred trunks leave the legacy random placement and its IDs unchanged.
   const deferredTrunks: { prefix: string; min: Vec3; max: Vec3; material: Collider['material'] }[] = [];
   const loot: LootSpawn[] = [];
@@ -137,7 +143,7 @@ export function createWorld(): WorldSpec {
   const house = (x: number, z: number, w: number, d: number, color: string, roof: string, material: Collider['material'] = 'stone', role = 'home', stocked = true) => {
     const y = ground(x, z);
     const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
-    obj('box', x, y + .04, z, w - .2, .08, d - .2, '#9b8469', 'floor');
+    obj('box', x, y + .04, z, w - .2, .08, d - .2, '#E2C7A0', 'floor');
     wallX(x0, x1, z1, y, 3, [door(x - w * .18), window(x + w * .25)], color, material);
     wallX(x0, x1, z0, y, 3, [door(x + w * .2), window(x - w * .24)], color, material);
     wallZ(z0, z1, x0, y, 3, [window(z)], color, material);
@@ -239,8 +245,10 @@ export function createWorld(): WorldSpec {
 
   // Houses on their own levelled lots.
   const palette = [
-    ['#d89473', '#98564c'], ['#f0c794', '#9e5a45'], ['#a6c5be', '#715866'], ['#efd1a6', '#a55e4b'], ['#c4b3cc', '#635d77'],
-    ['#cab695', '#955b4d'], ['#e3b284', '#9a5540'], ['#d9a6a5', '#825065'], ['#bdc6a4', '#77634d'], ['#e6ba8a', '#975b47'],
+    ['#F3E6CF', '#D0673F'], ['#F3E6CF', '#D0673F'], ['#F6D8A8', '#B5532F'],
+    ['#F3E6CF', '#D0673F'], ['#F3E6CF', '#D0673F'], ['#F2C1A9', '#B5532F'],
+    ['#F3E6CF', '#D0673F'], ['#F3E6CF', '#D0673F'], ['#CFE3D2', '#B5532F'],
+    ['#F3E6CF', '#D0673F'],
   ] as const;
   HOUSES.forEach((h, i) => { const [c, r] = palette[i % palette.length]; house(h.x, h.z, h.w, h.d, c, r, h.material, h.role); });
 
@@ -362,8 +370,10 @@ export function createWorld(): WorldSpec {
 
   // Morro: terraced casinhas on the south hill, a radio mast at the top.
   {
-    const walls = ['#d69674', '#e4bd8b', '#a7bbab', '#dcb0a6', '#b5653e', '#efd1a6'];
-    for (const lot of MORRO_LOTS) house(lot.x, lot.z, 5.2, 4.4, pick(walls), '#975c4b', 'wood', 'home', random() < .4);
+    const walls = ['#F3E6CF', '#F3E6CF', '#F6D8A8', '#F3E6CF', '#F3E6CF', '#F2C1A9'];
+    for (const lot of MORRO_LOTS) house(lot.x, lot.z, 5.2, 4.4, pick(walls),
+      Math.abs(Math.round(lot.x * 17 + lot.z * 13)) % 10 < 3 ? '#B5532F' : '#D0673F',
+      'wood', 'home', random() < .4);
     solid(16, ground(16, 100) + 7, 100, .45, 14, .45, '#b1b8b3', 'metal', 'radio-mast');
     obj('sphere', 16, ground(16, 100) + 14, 100, .55, .55, .55, '#e6ad6a', 'beacon');
     item(12, 96, 'weapon', 'sniper');
@@ -373,7 +383,10 @@ export function createWorld(): WorldSpec {
   {
     for (const x of [32, 44, 56, 68]) {
       addRoof(x, ground(x, -110) + 2.5, -110, 5.4, 1.4, 4.2, '#c49356', 'thatch');
-      for (const dx of [-2.2, 2.2]) for (const dz of [-1.6, 1.6]) solid(x + dx, ground(x, -110) + 1.25, -110 + dz, .18, 2.5, .18, '#8b6842', 'wood', 'kiosk-post');
+      // Painted soffit clears the 2.2 m doorway and gives the shade a warm surface.
+      decor('box', x, ground(x, -110) + 2.45, -110, 5.05, .09, 3.85, '#D8B99A', 'kiosk-soffit');
+      for (const dx of [-2.2, 2.2]) for (const dz of [-1.6, 1.6]) solid(x + dx, ground(x, -110) + 1.25, -110 + dz, .18, 2.5, .18, '#9C6A42', 'wood', 'kiosk-post');
+      decor('box', x, ground(x, -108) + 2.52, -107.9, 5.5, .17, .18, '#F28DB2', 'kiosk-trim');
       crate(x, -110);
       obj('cone', x + 4.4, ground(x + 4.4, -119) + 2.1, -119, 1.8, .6, 1.8, pick(['#da8062', '#7aafaa', '#e5b96e']), 'umbrella');
       obj('cylinder', x + 4.4, ground(x + 4.4, -119) + 1.05, -119, .07, 2.1, .07, '#80694a', 'umbrella-pole');
@@ -466,7 +479,11 @@ export function createWorld(): WorldSpec {
   // Legacy cover scattered across the island: sandbags, barriers, fences, cars, ruins, crates.
   const sandbags = () => {
     const along = random() < .5, s = findSpot(along ? 3.2 : .7, along ? .7 : 3.2, 1.5);
-    if (s) solid(s.x, s.y + .55, s.z, s.x1 - s.x0, 1.1, s.z1 - s.z0, '#a8966c', 'earth', 'sandbag');
+    if (s) {
+      const width = s.x1 - s.x0, depth = s.z1 - s.z0;
+      solid(s.x, s.y + .55, s.z, width, 1.1, depth, '#D8C8AA', 'stone', 'sandbag');
+      decor('box', s.x, s.y + 1.06, s.z, width - .02, .08, depth - .02, '#BBAE98', 'sandbag-cap');
+    }
   };
   const barrier = () => {
     const along = random() < .5, s = findSpot(along ? 3 : .6, along ? .6 : 3, 1.2, random() < .4);
@@ -502,10 +519,14 @@ export function createWorld(): WorldSpec {
   };
   const ruin = () => {
     const s = findSpot(6, .3, 2); if (!s) return;
-    const a = 1.8 + random() * 1.2, ha = 1.3 + random() * 1.3, hb = 1 + random() * 1.2, paint = pick(['#e8d5b0', '#d9a07a', '#c9c0a8']);
+    const a = 1.8 + random() * 1.2, ha = 1.3 + random() * 1.3, hb = 1 + random() * 1.2;
+    const paint = pick(['#D8C8AA', '#BBAE98', '#C8704E']);
     solid(s.x0 + a / 2, s.y + ha / 2, s.z, a, ha, .3, paint, 'stone', 'ruin');
     solid((s.x0 + a + 1.2 + s.x1) / 2, s.y + hb / 2, s.z, s.x1 - s.x0 - a - 1.2, hb, .3, paint, 'stone', 'ruin');
     solid(s.x0 + a + .6, s.y + .25, s.z, 1.2, .5, .3, paint, 'stone', 'ruin');
+    decor('box', s.x0 + a / 2, s.y + ha - .04, s.z, a - .02, .08, .29, '#9E8F7A', 'ruin-cap');
+    decor('box', (s.x0 + a + 1.2 + s.x1) / 2, s.y + hb - .04, s.z,
+      s.x1 - s.x0 - a - 1.22, .08, .29, '#9E8F7A', 'ruin-cap');
   };
   const crates = () => {
     const s = findSpot(2.6, 1.3, 1.5); if (!s) return;
@@ -586,5 +607,6 @@ export function createWorld(): WorldSpec {
   specimenTree(30, -102, 4.8, 'banana');
   specimenTree(83, 82, 5.2, 'banana');
 
+  objects.push(...deferredDecorations);
   return { version: WORLD_VERSION, size: 260, colliders, objects, spawns, loot, chests, districts };
 }

@@ -201,7 +201,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-slope-v4';
+    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-slope-v5';
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -213,6 +213,9 @@ export class WorldScene {
       shader.uniforms.terrainSandLight = { value: new THREE.Color(WORLD_PALETTE.sandLight) };
       shader.uniforms.terrainRockPaint = { value: new THREE.Color(WORLD_PALETTE.rock) };
       shader.uniforms.terrainRockTop = { value: new THREE.Color(WORLD_PALETTE.rockTop) };
+      shader.uniforms.terrainMorroLight = { value: new THREE.Color('#D8C8AA') };
+      shader.uniforms.terrainMorroMid = { value: new THREE.Color('#BBAE98') };
+      shader.uniforms.terrainMorroJoint = { value: new THREE.Color('#9E8F7A') };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `
         #include <common>
         attribute float terrainSlope;
@@ -240,6 +243,9 @@ export class WorldScene {
         uniform vec3 terrainSandLight;
         uniform vec3 terrainRockPaint;
         uniform vec3 terrainRockTop;
+        uniform vec3 terrainMorroLight;
+        uniform vec3 terrainMorroMid;
+        uniform vec3 terrainMorroJoint;
         float terrainHash(vec2 cell) {
           return fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453) * 2.0 - 1.0;
         }
@@ -301,6 +307,20 @@ export class WorldScene {
         float topBand = 1.0 - smoothstep(0.7, 1.0, vTerrainSlope);
         vec3 rockPaint = mix(terrainRockPaint, terrainRockTop, topBand) * mix(0.94, 1.06, stratum);
         gl_FragColor.rgb = mix(gl_FragColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
+        // The Morro shelves are built retaining faces: distinct plaster/stone
+        // courses and narrow joints give a readable scale at walking distance.
+        float morroArea = step(-38.0, vTerrainXZ.x) * step(vTerrainXZ.x, 12.0) *
+          step(64.0, vTerrainXZ.y) * step(vTerrainXZ.y, 120.0);
+        float morroFace = morroArea * smoothstep(0.58, 0.82, vTerrainSlope);
+        float course = vTerrainWorldY + irregular;
+        float jointDistance = min(mod(course, 1.2), 1.2 - mod(course, 1.2));
+        float jointWidth = max(fwidth(course), 0.015);
+        float joint = 1.0 - smoothstep(0.025 + jointWidth, 0.065 + jointWidth, jointDistance);
+        vec3 morroPaint = mix(terrainMorroMid, terrainMorroLight,
+          mod(floor(course / 1.2), 2.0));
+        morroPaint = mix(morroPaint, terrainMorroJoint, joint * 0.55);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, morroPaint,
+          morroFace * (1.0 - asphaltMask - curbMask));
         #include <tonemapping_fragment>
       `);
     };

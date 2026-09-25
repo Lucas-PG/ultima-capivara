@@ -91,7 +91,7 @@ const pennant = (() => {
   return geometry;
 })();
 const groundRing = new THREE.TorusGeometry(.5, .055, 5, 16).rotateX(-Math.PI / 2);
-const roofPalette = ['#b9644b', '#b97655', '#8d7776', '#9e685e'];
+const roofPalette = ['#D0673F', '#B5532F', '#D0673F', '#B5532F'];
 const cream = '#f4dfad', wood = '#80563e', dark = '#523d3a', brass = '#d9aa5e';
 const roles: Record<string, { name: string; accent: string; pale: string }> = {
   home: { name: '', accent: '#83a49a', pale: '#ded0b4' },
