@@ -199,10 +199,10 @@ export class GameRenderer {
   // Never rejects; gives up waiting after 15 s so a slow network can't block the game.
   warmup(): Promise<void> {
     this.warming ||= (async () => {
-      await preloadCapybaraAsset();
+      const started = performance.now();
+      await Promise.race([preloadCapybaraAsset(), new Promise(resolve => setTimeout(resolve, 15000))]);
       const textures = () => { const list: THREE.Texture[] = []; this.scene.traverse(object => { const mats = (object as THREE.Mesh).material; for (const mat of Array.isArray(mats) ? mats : mats ? [mats] : []) for (const value of Object.values(mat)) if (value instanceof THREE.Texture) list.push(value); }); return list; };
       const loaded = (texture: THREE.Texture) => { const image = texture.image as { complete?: boolean; data?: unknown; width?: number } | null; return !!image && image.complete !== false && (image.data !== undefined || (image.width ?? 0) > 0); };
-      const started = performance.now();
       while (performance.now() - started < 15000 && !(this.worldView.skyTexture.image && textures().every(loaded))) await new Promise(resolve => setTimeout(resolve, 120));
       await Promise.race([this.weaponView.assets, new Promise(resolve => setTimeout(resolve, Math.max(0, 15000 - (performance.now() - started))))]);
       try {
