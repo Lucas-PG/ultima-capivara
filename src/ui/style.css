@@ -320,3 +320,9 @@ body #victory #confetti{display:none}
    relayouts only its card instead of the whole document (Forja's M1 trace: 55-98 ms document layouts). */
 #hud{contain:strict}
 #hud>:not(#storm):not(#vign):not(#scope-overlay){contain:layout style}
+
+/* Lobby: the host's start button while the island warms up (disabled, labelled, real progress). */
+.button.room-loading{flex-direction:column;gap:6px;cursor:progress;opacity:1}
+.button.room-loading .rl-label{font-size:14px}
+.button.room-loading .rl-bar{display:block;width:70%;height:8px;border:2px solid var(--ink);border-radius:4px;background:var(--paper-2);overflow:hidden}
+.button.room-loading .rl-bar i{display:block;height:100%;background:var(--onca);transition:width .2s ease-out}
