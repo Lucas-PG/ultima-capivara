@@ -382,11 +382,13 @@ export function createWorld(): WorldSpec {
   // Praia: thatched kiosks and parasols on the levelled north beach.
   {
     for (const x of [32, 44, 56, 68]) {
-      addRoof(x, ground(x, -110) + 2.5, -110, 5.4, 1.4, 4.2, '#c49356', 'thatch');
+      addRoof(x, ground(x, -110) + 2.5, -110, 5.4, 1.4, 4.2, '#D8BC94', 'thatch');
       // Painted soffit clears the 2.2 m doorway and gives the shade a warm surface.
       decor('box', x, ground(x, -110) + 2.45, -110, 5.05, .09, 3.85, '#D8B99A', 'kiosk-soffit');
-      for (const dx of [-2.2, 2.2]) for (const dz of [-1.6, 1.6]) solid(x + dx, ground(x, -110) + 1.25, -110 + dz, .18, 2.5, .18, '#9C6A42', 'wood', 'kiosk-post');
-      decor('box', x, ground(x, -108) + 2.52, -107.9, 5.5, .17, .18, '#F28DB2', 'kiosk-trim');
+      for (const dx of [-2.2, 2.2]) for (const dz of [-1.6, 1.6]) solid(x + dx, ground(x, -110) + 1.25, -110 + dz, .12, 2.5, .12, '#8A5E3C', 'wood', 'kiosk-post');
+      // The accent board meets the soffit edge without overlapping the roof
+      // volume, which previously made a pink/magenta depth-fighting smear.
+      decor('box', x, ground(x, -108) + 2.44, -107.85, 5.4, .12, .1, '#F28DB2', 'kiosk-trim');
       crate(x, -110);
       obj('cone', x + 4.4, ground(x + 4.4, -119) + 2.1, -119, 1.8, .6, 1.8, pick(['#da8062', '#7aafaa', '#e5b96e']), 'umbrella');
       obj('cylinder', x + 4.4, ground(x + 4.4, -119) + 1.05, -119, .07, 2.1, .07, '#80694a', 'umbrella-pole');
