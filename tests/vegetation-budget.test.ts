@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import * as THREE from 'three';
 import { buildVegetation } from '../src/render/vegetation';
 import { createWorld } from '../src/shared/world';
 
 describe('vegetation rendering budget', () => {
+  it('preserves legacy loot, chest and spawn placement when vegetation gains colliders', () => {
+    const world = createWorld();
+    // Baselines from c5a4a3a, before the instancing pass. A content pass that
+    // deliberately changes placement must re-review and update these hashes.
+    const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+    expect(world.loot).toHaveLength(191);
+    expect(world.spawns).toHaveLength(76);
+    expect(world.chests).toHaveLength(58);
+    expect(digest(world.loot)).toBe('828f96915b5496c9816e0c9675000fd0fbba32b0692b41637c2133f8f5387542');
+    expect(digest(world.spawns)).toBe('f17bb02c99398d585c8ea2268240ee27a95e0c23359dc17837de3fc9711e28f8');
+    expect(digest(world.chests)).toBe('f3c16f59630eb559b5fd127f9847b792eb8f34e58893a3ee1ad183acfaf7e9b4');
+  });
+
   it('keeps every plant at its authored position, size and collision width through LOD', () => {
     const world = createWorld(), vegetation = buildVegetation(world);
     const species = (object: (typeof world.objects)[number]) => object.kind === 'tree' ?
