@@ -354,7 +354,13 @@ export function buildVegetation(world: WorldSpec) {
     if (farGeometry) {
       const far = makeInstances(farGeometry, objects.length, material, objects, cx, cz, templateHeight);
       far.receiveShadow = true;
-      node.addLevel(far, type === 'palm' ? 50 : 65, .1);
+      // LOD measures from the cell centre, not from each trunk. Cover the
+      // furthest trunk in this cell so every palm stays near through 55 m and
+      // returns to near by 50 m, even on the approach from the cell edge.
+      const palmOffset = type === 'palm' ? Math.max(...objects.map(object =>
+        Math.hypot(object.pos.x - cx, object.pos.y, object.pos.z - cz))) : 0;
+      const distance = type === 'palm' ? 55 + palmOffset + 1 : 65;
+      node.addLevel(far, distance, type === 'palm' ? 5 / distance : .1);
     }
     group.add(node);
   }

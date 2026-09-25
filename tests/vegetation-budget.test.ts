@@ -5,6 +5,36 @@ import { buildVegetation } from '../src/render/vegetation';
 import { createWorld } from '../src/shared/world';
 
 describe('vegetation rendering budget', () => {
+  it('keeps each palm close LOD through 55 m out and returns by 50 m in', () => {
+    const world = createWorld(), vegetation = buildVegetation(world);
+    const camera = new THREE.PerspectiveCamera();
+    const cells = new Map(vegetation.group.children.filter((node): node is THREE.LOD =>
+      node instanceof THREE.LOD && node.name.startsWith('vegetation:palm:')).map(node => [node.name, node]));
+    vegetation.group.updateMatrixWorld(true);
+    try {
+      for (const palm of world.objects.filter(object => object.kind === 'palm')) {
+        const cellX = Math.floor(palm.pos.x / 32), cellZ = Math.floor(palm.pos.z / 32);
+        const cell = cells.get(`vegetation:palm:${cellX}:${cellZ}`);
+        expect(cell, `missing palm cell for ${palm.id}`).toBeDefined();
+        const dx = palm.pos.x - cell!.position.x, dz = palm.pos.z - cell!.position.z;
+        const direction = new THREE.Vector2(dx, dz).normalize();
+        const view = (distance: number) => {
+          camera.position.set(palm.pos.x + direction.x * distance, palm.pos.y + 1.62,
+            palm.pos.z + direction.y * distance);
+          camera.updateMatrixWorld();
+          cell!.update(camera);
+        };
+        view(0);
+        view(54.9);
+        expect(cell!.levels[0].object.visible, `${palm.id} switched before 55 m outbound`).toBe(true);
+        view(130);
+        expect(cell!.levels[1].object.visible, `${palm.id} never reached far LOD`).toBe(true);
+        view(49.9);
+        expect(cell!.levels[0].object.visible, `${palm.id} stayed far below 50 m inbound`).toBe(true);
+      }
+    } finally { vegetation.dispose(); }
+  });
+
   it('keeps distant coconut crowns drooping and close to the near silhouette', () => {
     const vegetation = buildVegetation(createWorld());
     try {
