@@ -254,7 +254,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     arms: [scene.getObjectByName('arm_L') as THREE.Bone, scene.getObjectByName('arm_R') as THREE.Bone],
   };
   scene.updateMatrixWorld(true);
-  // Unarmed rest: the upper arm swings down along the pear, then the elbow
+  // Unarmed rest: the upper arm swings down along the barrel, then the elbow
   // eases open so the paw rests on the belly side instead of a raised bent arm.
   const forearms: THREE.Bone[] = [], relaxedForearms: THREE.Quaternion[] = [];
   for (let i = 0; i < runtime.arms.length; i++) {
@@ -332,6 +332,8 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   head.rotateX(pitch * .45);
   const resting = dead || runtime.emoteTime > 0 || (!actor.weapons[actor.slot] && actor.stage === 'ground');
   runtime.unarmed = THREE.MathUtils.damp(runtime.unarmed, resting ? 1 : 0, 12, step);
+  // Compact resting arms without changing the authored combat reach or sockets.
+  for (const arm of arms) arm.scale.setScalar(1 - .05 * runtime.unarmed);
   for (let i = 0; i < arms.length; i++) arms[i].rotateX((pitch * .65 + (actor.sprint ? -.18 : 0)) * (1 - runtime.unarmed));
   // Swing into the side-of-hip rest target in parent space, avoiding hands
   // buried in the belly when rotating only around the upper-arm local X axis.

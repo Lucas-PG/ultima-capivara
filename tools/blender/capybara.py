@@ -217,11 +217,11 @@ def tube(name, points, radii, color, names):
 # Barrel torso: broad chest and hips share nearly parallel sides, like the cover.
 # Rounded seat still covers the thighs, retaining the approved short legs.
 # Leave room for the fitted vest inside the normal .30 m body cylinder.
-profile = [(.20, .04, .04, .005), (.215, .14, .13, 0), (.25, .215, .20, -.006),
-           (.31, .259, .245, -.01), (.39, .278, .262, -.01), (.49, .281, .268, -.01),
-           (.60, .280, .265, -.008), (.73, .278, .256, -.004), (.87, .274, .250, 0),
-           (1.01, .271, .244, .004), (1.15, .256, .220, .005), (1.27, .227, .194, .005),
-           (1.35, .195, .166, .005), (1.402, .169, .138, .005), (1.418, .164, .132, .005),
+profile = [(.32, .04, .04, .005), (.335, .14, .13, 0), (.37, .225, .21, -.006),
+           (.43, .275, .258, -.008), (.51, .290, .277, -.008), (.61, .291, .279, -.006),
+           (.73, .289, .271, -.004), (.87, .284, .259, 0), (1.01, .280, .249, .004),
+           (1.15, .271, .231, .005), (1.27, .251, .207, .005),
+           (1.35, .212, .175, .005), (1.402, .169, .138, .005), (1.418, .164, .132, .005),
            (1.445, .163, .130, .005), (1.464, .153, .124, .005), (1.472, .04, .04, .005)]
 verts, faces = [], []
 for y, rx, rz, cz in profile:
@@ -248,13 +248,13 @@ patch_verts, patch_faces, patch_mix = [], [], []
 for row, radius in enumerate([.001, .2, .4, .6, .8, .96, 1]):
     for i in range(32):
         angle = math.tau * i / 32
-        x = .18 * radius * math.cos(angle) * (1 - .22 * math.sin(angle))
-        y = .64 + .31 * radius * math.sin(angle)
+        x = .105 * radius * math.cos(angle)
+        y = .75 + .245 * radius * math.sin(angle)
         hit, point, normal, face = body_surface.ray_cast(V((x, y, -1)), V((0, 0, 1)))
         assert hit, (x, y)
         point += V((0, 0, -.004))
         patch_verts.append((point.x, point.z, -point.y))
-        patch_mix.append(0 if radius == 1 else 1)
+        patch_mix.append(max(0, min(1, (1 - radius) / .35)))
     if row:
         for i in range(32):
             a, b = (row - 1) * 32 + i, (row - 1) * 32 + (i + 1) % 32
@@ -263,7 +263,9 @@ patch = mesh_part('Belly_patch', patch_verts, patch_faces, 14, {'spine': 1}, sub
 def linear_rgb(hex_color):
     return tuple((v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4) for v in (int(hex_color[i:i + 2], 16) / 255 for i in (0, 2, 4)))
 for loop in patch.data.loops:
-    rgb = linear_rgb(PALETTE[4 if patch_mix[loop.vertex_index] else 0])
+    weight = patch_mix[loop.vertex_index]
+    belly, fur = linear_rgb('D39A47'), linear_rgb(PALETTE[0])
+    rgb = tuple(fur[i] * (1 - weight) + belly[i] * weight for i in range(3))
     patch.data.color_attributes['Color'].data[loop.index].color = (*rgb, 1)
 # A single longitudinal quad surface joins cheeks and rectangular muzzle.
 # Forehead-to-nose is one gently descending line, without a box seam.
@@ -586,6 +588,29 @@ bpy.context.view_layer.objects.active = parts[0]
 bpy.ops.object.join()
 base = bpy.context.object
 base.name = 'Capybara_source'
+# A slightly broader/taller skull increases its share of the compact body.
+# Facial pivots move with their vertices, preserving blink and expression axes.
+def fuller_head(point):
+    centre = V((0, 1.6, -.04))
+    offset = point - centre
+    offset.x *= 1.04
+    offset.z *= 1.025
+    return centre + offset
+face_groups = {g.index for g in base.vertex_groups if g.name in ['head', 'jaw'] or g.name.startswith(('ear_', 'blink_', 'socket_', 'glint_', 'brow_', 'mouth_'))}
+for vertex in base.data.vertices:
+    if sum(g.weight for g in vertex.groups if g.group in face_groups) > .5:
+        vertex.co = fuller_head(vertex.co)
+bpy.context.view_layer.objects.active = rig
+rig.select_set(True)
+bpy.ops.object.mode_set(mode='EDIT')
+for b in arm.edit_bones:
+    if b.name in ['head', 'jaw'] or b.name.startswith(('ear_', 'blink_', 'socket_', 'glint_', 'brow_', 'mouth_')):
+        b.head = fuller_head(b.head)
+        b.tail = fuller_head(b.tail)
+bpy.ops.object.mode_set(mode='OBJECT')
+rig.select_set(False)
+bpy.context.view_layer.objects.active = base
+
 # Recalculate consistent outward normals after ring construction.
 bpy.ops.object.mode_set(mode='EDIT')
 bpy.ops.mesh.select_all(action='SELECT')
