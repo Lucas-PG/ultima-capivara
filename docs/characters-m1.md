@@ -43,8 +43,10 @@ short claws and an olive cuff distinguish the paws from human hands.
 
 `PaintedWeaponSet` accepts the shared loader's GLTF function, rejects missing
 parts, pre-creates rarity materials and owns source resource cleanup. The
-production renderer hook is still pending M1 integration. The asset is
-not registered or downloaded by the default path.
+production renderer registers the set only for `?weapons=v3`, replacing the
+legacy pistol and rifle manifest entries. It prepares eight models and all
+four rarity materials before readiness. The default path does not register
+or download the painted set.
 
 `tools/blender/weapon-review.html` measures occupied pixels in the transparent
 first-person layer at FOV 78. Hip idle acceptance, at both 1280 x 720 and
@@ -57,7 +59,10 @@ first-person layer at FOV 78. Hip idle acceptance, at both 1280 x 720 and
 
 The initial `weapon-framing.ts` poses are drafts awaiting those measurements.
 They are not production framing values. Inspect, equip/unequip, reload,
-sprint and camera-near clipping still require runtime integration and review.
+sprint and camera-near clipping still require animation polish and review.
+The runtime now uses these same draft hip poses at FOV 78, with sight alignment
+for ADS. Tests verify a single shared download, all 32 weapon/rarity variants
+in warmup, centred sights and single disposal of the shared resources.
 
 ## Verification discipline
 

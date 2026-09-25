@@ -147,6 +147,23 @@ describe('capybara asset readiness', () => {
     }] : []);
   });
 
+  it('replaces only legacy weapon assets in the optional painted manifest', async () => {
+    vi.stubGlobal('location', { search: '?capy=v3&weapons=v3' });
+    const { GameRenderer } = await import('../src/render/renderer');
+    const { ASSET_MANIFEST } = await import('../src/render/asset-manifest');
+    const stop = new Error('Manifest captured before GPU setup');
+    loaderConstructor.mockClear().mockImplementation(function () { throw stop; });
+    expect(() => new GameRenderer({} as HTMLCanvasElement, { objects: [] } as unknown as WorldSpec, {} as Settings)).toThrow(stop);
+    const manifest = loaderConstructor.mock.calls[0][2] as readonly AssetEntry[];
+    expect(manifest.some(asset => /^models\/(service-pistol|m700)\//.test(asset.path))).toBe(false);
+    expect(manifest.find(asset => asset.path === 'models/weapons/painted-weapons.glb')).toEqual({
+      path: 'models/weapons/painted-weapons.glb', kind: 'glb',
+      bytes: statSync('public/models/weapons/painted-weapons.glb').size, label: 'Armas da ilha',
+    });
+    for (const entry of ASSET_MANIFEST.filter(asset => !/^models\/(service-pistol|m700)\//.test(asset.path))) expect(manifest).toContainEqual(entry);
+    expect(manifest.some(asset => asset.path === 'models/capybara/capybara.glb')).toBe(true);
+  });
+
   it('keeps warmup pending beyond 15 seconds and creates only the final opted-in avatar', async () => {
     const capy = await import('../src/render/capybara');
     let finish!: (asset: GLTF) => void;

@@ -6,6 +6,8 @@ import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Ve
 import { AssetLoader } from './assets';
 import { ASSET_MANIFEST, type AssetEntry } from './asset-manifest';
 import capybaraMetrics from '../../public/models/capybara/metrics.json';
+import weaponMetrics from '../../public/models/weapons/metrics.json';
+import { paintedWeaponsEnabled } from './painted-weapons';
 import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
@@ -60,9 +62,13 @@ export class GameRenderer {
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
-    const manifest: readonly AssetEntry[] = capybaraV3Enabled() ? [...ASSET_MANIFEST, {
+    const weaponManifest: readonly AssetEntry[] = paintedWeaponsEnabled() ? [
+      ...ASSET_MANIFEST.filter(asset => !asset.path.startsWith('models/service-pistol/') && !asset.path.startsWith('models/m700/')),
+      { path: 'models/weapons/painted-weapons.glb', kind: 'glb', bytes: weaponMetrics.bytes, label: 'Armas da ilha' },
+    ] : ASSET_MANIFEST;
+    const manifest: readonly AssetEntry[] = capybaraV3Enabled() ? [...weaponManifest, {
       path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
-    }] : ASSET_MANIFEST;
+    }] : weaponManifest;
     this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
     this.weaponView = new WeaponView(this.assets, () => { if (!this.disposed) onAssetsReady(); });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
