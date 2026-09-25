@@ -120,7 +120,10 @@ export function terrainColor(x: number, z: number, y: number, slope: number,
   if (includeRoads && road(0)) return WORLD_PALETTE.road;
   if (includeRoads && road(.4)) return WORLD_PALETTE.curb;
   if (y < -.2) return WORLD_PALETTE.mud;
-  const beach = includeBeach && beachDistance(x, z) > 0;
+  const beachEdge = includeBeach ? beachDistance(x, z) : -Infinity;
+  // The eastern waterline touches the 0.8 m pad. Keep its final 1 m of sand
+  // continuous instead of leaving a detached grass triangle at the seam.
+  const beach = beachEdge > 0 || (x > 70 && z < -124 && y < .82 && beachEdge > -2);
   const coast = Math.max(Math.abs(x), Math.abs(z)) * .65 + Math.hypot(x, z) * .35 > 112;
   const lakeEdge = Math.hypot(x - LAKE[0], z - LAKE[1]) < LAKE[2] * 1.8;
   if (slope > .6 && !beach && (coast || lakeEdge)) return WORLD_PALETTE.rock;

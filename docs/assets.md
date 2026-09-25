@@ -61,7 +61,7 @@ Prompt comum de J11 e J12: "Original premium production concept sheet, 16:9, at 
 
 ## Mapa de cores do terreno, 24/09/2026
 
-`public/textures/terrain-color.png` é um mapa de cores procedural determinístico original, sem fotografia. Foi gerado localmente por `npx tsx scripts/generate-terrain-colors.ts` a partir de `src/shared/terrain.ts`, com ImageMagick apenas para codificar o PNG. Dimensão 1024x1024; 67.378 bytes. Quando altura ou paleta do terreno mudar, executar o script novamente e registrar o novo PNG no manifesto de recursos. Estradas e meio-fio de 0,4 m são máscaras analíticas no shader de solo, não fazem parte do PNG.
+`public/textures/terrain-color.png` é um mapa de cores procedural determinístico original, sem fotografia. Foi gerado localmente por `npx tsx scripts/generate-terrain-colors.ts` a partir de `src/shared/terrain.ts`, com ImageMagick apenas para codificar o PNG. Dimensão 1024x1024; 67.309 bytes. Quando altura ou paleta do terreno mudar, executar o script novamente e registrar o novo PNG no manifesto de recursos. Estradas e meio-fio de 0,4 m são máscaras analíticas no shader de solo, não fazem parte do PNG.
 
 ## Referências de direção de arte
 
