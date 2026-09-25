@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -20,6 +20,8 @@ type Profile = { name: string; color: string };
 export const modeName = (mode: Mode) => mode === 'battle-royale' ? 'ÚLTIMA DE PÉ' : 'CORRERIA';
 const clock = (seconds: number) => { const s = Math.max(0, Math.ceil(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const keyName = (code: string) => keyLabel(code);
+// Tiny HUD key chips show a dash for an unbound action (Settings spells out 'Sem tecla').
+const chipKey = (code: string) => code ? keyLabel(code) : '–';
 // HUD facts mirrored from the simulation: six storm phases, and the plane drops a human after 12 s.
 const STORM_PHASES = 6, PLANE_AUTO_DROP = 12;
 // Minimap zoom (metres shown across the corner map) and island texture resolution (pixels per metre).
@@ -204,7 +206,7 @@ export class GameUI {
       + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
       + `<div id="stance" class="stk">${HUD_ART.stance}<b id="stanceTxt" hidden>Em pé</b></div>`
       + `<div id="wpnbox"><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
-      + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${key(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i]))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
+      + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
       + `<div id="coach" class="stk" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
       + `</div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
     this.applyHudPrefs();
@@ -252,7 +254,7 @@ export class GameUI {
     const inventoryKey = JSON.stringify([me.weapons.map(w => [w.id, w.rarity, w.ammo]), me.slot]);
     if (this.inventoryKey !== inventoryKey) {
       this.inventoryKey = inventoryKey;
-      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(i => { const w = me.weapons[i]; return `<div class="hs${i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${esc(keyName(bindingOf(this.settings.bindings, `slot${i + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : ''}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
+      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(i => { const w = me.weapons[i]; return `<div class="hs${i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${i + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : ''}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
     }
     // Consumables: only what you carry, each with its count; the slot key stays visible.
     let carried = 0;
@@ -414,7 +416,7 @@ export class GameUI {
   private settingsModal() {
     const labels = { sensitivity: 'Sensibilidade do mouse', fov: 'Campo de visão', master: 'Volume geral', effects: 'Efeitos e combate', ambience: 'Ambiente', music: 'Música' };
     const ranges = (keys: (keyof typeof labels)[]) => keys.map(key => `<label class="slider-label">${labels[key]} <output>${this.settings[key]}</output><input type="range" data-setting="${key}" min="${key === 'fov' ? 60 : key === 'sensitivity' ? .2 : 0}" max="${key === 'fov' ? 105 : key === 'sensitivity' ? 3 : 1}" step="${key === 'fov' ? 1 : .05}" value="${this.settings[key]}"/></label>`).join('');
-    const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label>Limite de quadros<select id="frame-limit"><option value="60">60 FPS · Fluido</option><option value="30">30 FPS · Economia</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento (câmera e interface)</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label><label class="check-row"><input id="adaptive" type="checkbox" ${this.settings.adaptive ? 'checked' : ''}/><span>Ajuste automático dos bots no treino<small>Como na v1: fica mais manso se você vem perdendo e mais bravo se vem ganhando.</small></span></label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section><section><h3>INTERFACE E MIRA</h3><label class="slider-label">Tamanho da interface <output id="ui-scale-out">${Math.round(this.settings.uiScale * 100)}%</output><input type="range" id="ui-scale" min="80" max="120" step="5" value="${Math.round(this.settings.uiScale * 100)}"/></label><label>Cor da mira<select id="crosshair-color"><option value="white">Branca</option><option value="yellow">Amarela</option><option value="cyan">Ciano</option><option value="magenta">Magenta</option></select></label><label>Marcadores de acerto<select id="hit-palette"><option value="default">Padrão</option><option value="colorblind">Daltonismo</option></select></label><label class="check-row"><input id="show-fps" type="checkbox" ${this.settings.showFps ? 'checked' : ''}/> Mostrar FPS no mapa</label><button type="button" class="button secondary" id="replay-tutorial">${icon('info')} REVER O TUTORIAL</button></section></div><details class="bindings"><summary>PERSONALIZAR ${'fire' in DEFAULT_BINDINGS ? 'TECLAS E MOUSE' : 'TECLAS'}</summary>${this.bindingGroups()}<p class="form-note binding-note" role="status">Clique numa ação e aperte a nova tecla${'fire' in DEFAULT_BINDINGS ? ' ou botão do mouse' : ''}. <kbd>Esc</kbd> cancela.</p><button type="button" class="button secondary" id="reset-bindings">RESTAURAR PADRÃO</button></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
+    const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label>Limite de quadros<select id="frame-limit"><option value="60">60 FPS · Fluido</option><option value="30">30 FPS · Economia</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento (câmera e interface)</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label><label class="check-row"><input id="adaptive" type="checkbox" ${this.settings.adaptive ? 'checked' : ''}/><span>Ajuste automático dos bots no treino<small>Como na v1: fica mais manso se você vem perdendo e mais bravo se vem ganhando.</small></span></label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section><section><h3>INTERFACE E MIRA</h3><label class="slider-label">Tamanho da interface <output id="ui-scale-out">${Math.round(this.settings.uiScale * 100)}%</output><input type="range" id="ui-scale" min="80" max="120" step="5" value="${Math.round(this.settings.uiScale * 100)}"/></label><label>Cor da mira<select id="crosshair-color"><option value="white">Branca</option><option value="yellow">Amarela</option><option value="cyan">Ciano</option><option value="magenta">Magenta</option></select></label><label>Marcadores de acerto<select id="hit-palette"><option value="default">Padrão</option><option value="colorblind">Daltonismo</option></select></label><label class="check-row"><input id="show-fps" type="checkbox" ${this.settings.showFps ? 'checked' : ''}/> Mostrar FPS no mapa</label><button type="button" class="button secondary" id="replay-tutorial">${icon('info')} REVER O TUTORIAL</button></section></div><details class="bindings"${this.unboundCount() ? ' open' : ''}><summary>PERSONALIZAR TECLAS E MOUSE${this.unboundCount() ? ` · <span class="unbound-count">${this.unboundCount()} sem tecla</span>` : ''}</summary>${this.bindingGroups()}<p class="form-note binding-note" role="status">${this.unboundCount() ? `Algumas ações ficaram sem tecla. Clique nelas e escolha uma.` : 'Clique numa ação e aperte a nova tecla ou botão do mouse. <kbd>Esc</kbd> cancela.'}</p><button type="button" class="button secondary" id="reset-bindings">RESTAURAR PADRÃO</button></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
     dialog.querySelector<HTMLSelectElement>('#graphics')!.value = this.settings.graphics;
     dialog.querySelector<HTMLSelectElement>('#frame-limit')!.value = String(this.settings.frameLimit);
     dialog.querySelectorAll<HTMLInputElement>('[data-setting]').forEach(input => input.addEventListener('input', () => { const key = input.dataset.setting as keyof typeof labels; this.settings[key] = Number(input.value); input.parentElement!.querySelector('output')!.textContent = input.value; this.callbacks.settings(this.settings); }));
@@ -437,7 +439,7 @@ export class GameUI {
     // Rebinding: keyboard or mouse button; Esc cancels; a code already in use swaps with the other action.
     const keyCapture = new AbortController(); dialog.addEventListener('close', () => keyCapture.abort());
     let stopCapture: (() => void) | null = null;
-    const refresh = () => dialog.querySelectorAll<HTMLButtonElement>('[data-binding]').forEach(b => { b.textContent = keyName(bindingOf(this.settings.bindings, b.dataset.binding!)); b.classList.remove('capturing'); });
+    const refresh = () => dialog.querySelectorAll<HTMLButtonElement>('[data-binding]').forEach(b => { const code = bindingOf(this.settings.bindings, b.dataset.binding!); b.textContent = keyName(code); b.classList.toggle('unbound', !code); b.classList.remove('capturing'); });
     const note = dialog.querySelector<HTMLElement>('.binding-note')!;
     dialog.addEventListener('click', event => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-binding]'); if (!button) return;
@@ -445,15 +447,15 @@ export class GameUI {
       const action = button.dataset.binding!;
       // The chip keeps its size (no layout shift); the status line says what to do.
       button.textContent = '?'; button.classList.add('capturing');
-      note.textContent = `Aperte a nova tecla${'fire' in DEFAULT_BINDINGS ? ' ou botão' : ''} para ${BINDING_LABELS[action] ?? action}. Esc cancela.`;
+      note.textContent = `Aperte a nova tecla ou botão para ${BINDING_LABELS[action] ?? action}. Esc cancela.`;
       const finish = (code: string | null) => {
         stopCapture?.();
-        const fullModel = 'fire' in DEFAULT_BINDINGS;
-        if (code && isBindableCode(code, fullModel)) {
+        if (code && isBindableCode(code)) {
           const before = this.settings.bindings, swapped = Object.keys(before).find(other => other !== action && before[other] === code);
-          this.settings.bindings = remapBinding(before, action, code, fullModel); this.callbacks.settings(this.settings);
-          note.textContent = swapped ? `${BINDING_LABELS[action]} agora é ${keyName(code)}. ${BINDING_LABELS[swapped] ?? swapped} ficou com ${keyName(bindingOf(this.settings.bindings, swapped))}.` : `${BINDING_LABELS[action]} agora é ${keyName(code)}.`;
-        } else if (code) note.textContent = code.startsWith('Mouse') ? 'Botões do mouse ainda não podem ser usados aqui. Escolha uma tecla.' : 'Essa tecla fica reservada. Escolha outra.';
+          this.settings.bindings = remapBinding(before, action, code); this.callbacks.settings(this.settings);
+          const left = swapped ? bindingOf(this.settings.bindings, swapped) : '';
+          note.textContent = !swapped ? `${BINDING_LABELS[action]} agora é ${keyName(code)}.` : left ? `${BINDING_LABELS[action]} agora é ${keyName(code)}. ${BINDING_LABELS[swapped] ?? swapped} ficou com ${keyName(left)}.` : `${BINDING_LABELS[action]} agora é ${keyName(code)}. ${BINDING_LABELS[swapped] ?? swapped} ficou sem tecla.`;
+        } else if (code) note.textContent = 'Essa tecla fica reservada. Escolha outra.';
         refresh(); this.refreshKeyHints();
       };
       const onKey = (e: KeyboardEvent) => { e.preventDefault(); e.stopPropagation(); if (e.code === 'Escape') note.textContent = 'Troca cancelada.'; finish(e.code === 'Escape' ? null : e.code); };
@@ -462,7 +464,7 @@ export class GameUI {
       const noMenu = (e: Event) => e.preventDefault();
       const opts = { capture: true, signal: keyCapture.signal };
       document.addEventListener('keydown', onKey, opts);
-      const armMouse = window.setTimeout(() => { if (!('fire' in DEFAULT_BINDINGS)) { document.addEventListener('mousedown', onMouse, opts); return; } document.addEventListener('mousedown', onMouse, opts); document.addEventListener('contextmenu', noMenu, opts); }, 0);
+      const armMouse = window.setTimeout(() => { document.addEventListener('mousedown', onMouse, opts); document.addEventListener('contextmenu', noMenu, opts); }, 0);
       stopCapture = () => { clearTimeout(armMouse); document.removeEventListener('keydown', onKey, true); document.removeEventListener('mousedown', onMouse, true); document.removeEventListener('contextmenu', noMenu, true); stopCapture = null; };
     }, { signal: keyCapture.signal });
     dialog.querySelector('#reset-bindings')!.addEventListener('click', () => { stopCapture?.(); this.settings.bindings = { ...DEFAULT_BINDINGS }; this.callbacks.settings(this.settings); refresh(); this.refreshKeyHints(); note.textContent = 'Teclas de volta ao padrão.'; });
@@ -472,15 +474,16 @@ export class GameUI {
   private refreshKeyHints() {
     if (this.screen !== 'game') return;
     this.inventoryKey = '';
-    this.root.querySelectorAll<HTMLElement>('#consbar .cs').forEach((slot, i) => this.textOf(slot.querySelector('kbd')!, keyName(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i]))));
+    this.root.querySelectorAll<HTMLElement>('#consbar .cs').forEach((slot, i) => this.textOf(slot.querySelector('kbd')!, chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i]))));
     const mapKey = this.root.querySelector('#mapKey'); if (mapKey) this.textOf(mapKey, keyName(bindingOf(this.settings.bindings, 'map')));
     this.text('promptKey', keyName(bindingOf(this.settings.bindings, 'interact')));
   }
   // Remap list grouped for scanning; only actions the input layer reads (DEFAULT_BINDINGS) are listed, extras go last.
+  private unboundCount() { return unboundActions(this.settings.bindings, Object.keys(DEFAULT_BINDINGS)).length; }
   private bindingGroups() {
     const known = new Set(Object.keys(DEFAULT_BINDINGS)), listed = new Set(BINDING_GROUPS.flatMap(g => g.actions));
     const groups = [...BINDING_GROUPS.map(g => ({ title: g.title, actions: g.actions.filter(a => known.has(a)) })), { title: 'Outros', actions: [...known].filter(a => !listed.has(a)) }];
-    return groups.filter(g => g.actions.length).map(g => `<h4 class="binding-group">${g.title}</h4><div class="binding-grid">${g.actions.map(key => `<label>${esc(BINDING_LABELS[key] ?? key)}<button type="button" class="key-binding" data-binding="${key}" aria-label="${esc(BINDING_LABELS[key] ?? key)}: trocar tecla">${esc(keyName(bindingOf(this.settings.bindings, key)))}</button></label>`).join('')}</div>`).join('');
+    return groups.filter(g => g.actions.length).map(g => `<h4 class="binding-group">${g.title}</h4><div class="binding-grid">${g.actions.map(key => `<label>${esc(BINDING_LABELS[key] ?? key)}<button type="button" class="key-binding${bindingOf(this.settings.bindings, key) ? '' : ' unbound'}" data-binding="${key}" aria-label="${esc(BINDING_LABELS[key] ?? key)}: ${bindingOf(this.settings.bindings, key) ? 'trocar tecla' : 'sem tecla, escolher uma'}">${esc(keyName(bindingOf(this.settings.bindings, key)))}</button></label>`).join('')}</div>`).join('');
   }
   // Controls reference from the live bindings, so the help never lies after a remap.
   private controlsList(): [string, string][] {

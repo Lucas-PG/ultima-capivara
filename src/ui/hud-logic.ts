@@ -1,3 +1,4 @@
+import { BINDABLE_CODE } from '../settings';
 // Pure HUD rules shared by the UI and its tests: loading progress, tip rotation, interface scale and result formatting.
 
 // Loading copy (style bible §13.1): friendly pt-BR, never technical, in load order.
@@ -116,16 +117,15 @@ export const BINDING_GROUPS: readonly { title: string; actions: readonly string[
   { title: 'Interface', actions: ['scoreboard', 'map'] },
 ];
 export const CONSUMABLE_ACTIONS = ['useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] as const;
-// Esc stays reserved for the menu; everything else a player can reasonably press is bindable.
-// fullModel: settings.ts/input.ts read mouse buttons, Tab, Alt and every action (Brasa's binding model). Before it lands,
-// only the codes the current input layer persists and reads are offered, so the settings screen never promises a dead key.
-export const isBindableCode = (code: string, fullModel = true) => fullModel
-  ? /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Backquote|Arrow(Up|Down|Left|Right)|Mouse[0-4])$/.test(code)
-  : /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Space|Arrow(Up|Down|Left|Right))$/.test(code);
+// Esc stays reserved for the menu; the bindable codes are settings.ts BINDABLE_CODE (Brasa's binding model).
+export const isBindableCode = (code: string) => BINDABLE_CODE.test(code);
+// An empty string is an explicit 'unbound' (an old save whose key a new default would have doubled); only a missing
+// action falls back to its default.
 export const bindingOf = (bindings: Record<string, string>, action: string) => bindings[action] ?? BINDING_DEFAULTS[action] ?? '';
+export const unboundActions = (bindings: Record<string, string>, actions: readonly string[]) => actions.filter(action => !bindingOf(bindings, action));
 // Binding a code already used by another action swaps them, so no two actions ever share a key.
-export function remapBinding(bindings: Record<string, string>, action: string, code: string, fullModel = true): Record<string, string> {
-  if (!isBindableCode(code, fullModel)) return bindings;
+export function remapBinding(bindings: Record<string, string>, action: string, code: string): Record<string, string> {
+  if (!isBindableCode(code)) return bindings;
   const next = { ...bindings }, previous = bindingOf(bindings, action);
   for (const other of Object.keys(next)) if (other !== action && next[other] === code) next[other] = previous;
   next[action] = code;
@@ -134,6 +134,7 @@ export function remapBinding(bindings: Record<string, string>, action: string, c
 const MOUSE_LABELS = ['Mouse esq.', 'Mouse meio', 'Mouse dir.', 'Mouse 4', 'Mouse 5'];
 const ARROWS: Record<string, string> = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
 export function keyLabel(code: string): string {
+  if (!code) return 'Sem tecla';
   if (/^Mouse[0-4]$/.test(code)) return MOUSE_LABELS[Number(code.slice(5))];
   if (ARROWS[code]) return ARROWS[code];
   if (code === 'Backquote') return '\'';

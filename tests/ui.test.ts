@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_DEFAULTS, BINDING_GROUPS, bindingOf, isBindableCode, keyLabel, remapBinding, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_DEFAULTS, BINDING_GROUPS, bindingOf, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -198,15 +198,23 @@ describe('key remap covers every action', () => {
     for (const code of ['Mouse0', 'Mouse2', 'Mouse4', 'Digit7', 'Tab', 'AltLeft', 'KeyM']) expect(isBindableCode(code)).toBe(true);
     for (const code of ['Escape', 'F5', 'Mouse5', 'Enter']) expect(isBindableCode(code)).toBe(false);
     expect(remapBinding({ reload: 'KeyR' }, 'reload', 'Escape')).toEqual({ reload: 'KeyR' });
-    // Until the full binding model lands, only codes the current input layer persists and reads are accepted.
-    for (const code of ['Mouse1', 'Tab', 'AltLeft']) expect(isBindableCode(code, false)).toBe(false);
-    expect(isBindableCode('KeyF', false)).toBe(true);
-    expect(remapBinding({ crouch: 'KeyC' }, 'crouch', 'Mouse1', false)).toEqual({ crouch: 'KeyC' });
+
   });
   it('shows keys and mouse buttons in pt-BR and falls back to defaults for actions not stored yet', () => {
     expect([keyLabel('KeyQ'), keyLabel('Digit5'), keyLabel('Space'), keyLabel('ShiftLeft'), keyLabel('ControlRight'), keyLabel('Mouse0'), keyLabel('Mouse2'), keyLabel('ArrowUp')])
       .toEqual(['Q', '5', 'Espaço', 'Shift', 'Ctrl', 'Mouse esq.', 'Mouse dir.', '↑']);
     expect(bindingOf({ forward: 'KeyZ' }, 'forward')).toBe('KeyZ');
     expect(bindingOf({}, 'map')).toBe('KeyM');
+  });
+  // Brasa's loader leaves an action unbound ('') when an old save already uses its new default key.
+  it('shows unbound actions clearly and lets them be bound again', () => {
+    const saved = { slot3: '', useAcai: '', reload: 'Digit3' };
+    expect(bindingOf(saved, 'slot3')).toBe('');
+    expect(keyLabel(bindingOf(saved, 'slot3'))).toBe('Sem tecla');
+    expect(unboundActions(saved, ['slot3', 'useAcai', 'reload'])).toEqual(['slot3', 'useAcai']);
+    expect(remapBinding(saved, 'slot3', 'KeyZ').slot3).toBe('KeyZ');
+    // Taking a key from another action leaves that one unbound, never two actions on one key.
+    const taken = remapBinding(saved, 'slot3', 'Digit3');
+    expect([taken.slot3, taken.reload]).toEqual(['Digit3', '']);
   });
 });

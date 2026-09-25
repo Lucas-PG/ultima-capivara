@@ -333,3 +333,5 @@ body #victory #confetti{display:none}
 .modal .binding-note{min-height:1.5em;margin:14px 0 10px}
 .modal .binding-note kbd{font-size:11px;padding:0 5px}
 .modal .key-binding{min-width:96px;white-space:nowrap}
+.modal .key-binding.unbound{background:var(--paper);color:var(--red);border-style:dashed;font-size:12px}
+.modal .bindings .unbound-count{color:var(--red)}
