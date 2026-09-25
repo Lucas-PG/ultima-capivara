@@ -8,7 +8,7 @@ import { capybaraIsDead, disposeCapybaraAssets, preloadCapybaraAsset } from '../
 import { emptyInput } from '../src/shared/math';
 import type { ActorState, RenderFrame, WorldSnapshot } from '../src/shared/types';
 
-let view: AvatarView;
+let view: AvatarView, camera: THREE.PerspectiveCamera;
 beforeEach(async () => {
   const context = { measureText: () => ({ width: 160 }), scale() {}, strokeText() {}, fillText() {}, beginPath() {}, arc() {}, fill() {} };
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
@@ -16,7 +16,7 @@ beforeEach(async () => {
   vi.stubGlobal('createImageBitmap', async () => ({ width: 16, height: 16, close() {} }));
   const bytes = await readFile('public/models/capybara/capybara.glb');
   await preloadCapybaraAsset(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), ''));
-  const camera = new THREE.PerspectiveCamera(); camera.position.set(0, 1.6, 5); camera.lookAt(0, 1.6, 0);
+  camera = new THREE.PerspectiveCamera(); camera.position.set(0, 1.6, 5); camera.lookAt(0, 1.6, 0);
   view = new AvatarView(new THREE.Scene(), camera); view.resize(1280, 720);
 });
 afterEach(() => { view?.dispose(); disposeCapybaraAssets(); vi.unstubAllGlobals(); });
@@ -60,6 +60,14 @@ describe('authoritative character reactions', () => {
     h.advance(.1); expect(capybaraIsDead(h.visual.body)).toBe(false);
     h.actor.alive = true; h.actor.pos.x = 4; h.advance(1 / 60);
     expect(h.rig.rotation.z).toBe(0); expect(h.visual.group.visible).toBe(true);
+    expect(h.visual.group.position.x).toBe(4);
+  });
+  it('does not render the local corpse inside the camera before death-cam pullback', () => {
+    const h = harness(); h.frame.playerId = h.actor.id; camera.position.set(0, 1.62, 0);
+    view.react(h.actor.id, { kind: 'death', head: false, weapon: 'm4', from: null });
+    h.advance(.1); expect(h.visual.group.visible).toBe(false);
+    h.actor.alive = false; camera.position.set(0, 2, 3);
+    h.advance(.1); expect(h.visual.group.visible).toBe(true);
   });
   it('expires the corpse and accepts an observed dead-to-alive snapshot when an event was missed', () => {
     const h = harness(); h.actor.alive = false; h.advance(.8);

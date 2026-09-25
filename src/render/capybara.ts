@@ -347,7 +347,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   if (runtime.emoteTime > 0) {
     const time = 1.8 - runtime.emoteTime;
     const weight = THREE.MathUtils.smoothstep(time, 0, .2) * THREE.MathUtils.smoothstep(runtime.emoteTime, 0, .25);
-    for (let i = 0; i < arms.length; i++) arms[i].rotateZ((i === 0 ? -1 : 1) * weight * (.85 + .12 * Math.sin(time * 9)));
+    for (let i = 0; i < arms.length; i++) arms[i].rotateZ((i === 0 ? 1 : -1) * weight * (1.1 + .12 * Math.sin(time * 9)));
   }
   if (dead) {
     // A soft side flop around the feet, then a small settling bounce. No blood.

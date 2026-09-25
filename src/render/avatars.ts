@@ -138,6 +138,7 @@ export class AvatarView {
         if (!capybaraIsDead(visual.body)) reactCapybara(visual.body, { kind: 'death', head: false, weapon: 'fall', from: null });
       } else if (actor.alive) {
         if (visual.sawDead) this.respawn(actor.id);
+        if (visual.awaitingAlive) visual.initialized = false;
         visual.awaitingAlive = false;
       }
       const dead = capybaraIsDead(visual.body);
@@ -167,6 +168,9 @@ export class AvatarView {
       plate.head.x -= Math.sin(actor.yaw) * .04 * scale;
       plate.head.y += 1.6 * scale; plate.head.z -= Math.cos(actor.yaw) * .04 * scale;
       plate.distance = plate.head.distanceTo(this.camera.position);
+      // The local kill event can beat the dead snapshot and the camera pullback.
+      // Keep the corpse out of the camera until it has left the standing head.
+      if (dead && frame.playing && actor.id === viewed && plate.distance < .5) visual.group.visible = false;
       visual.targetable = !dead && actor.alive && actor.id !== viewed && actor.stage === 'ground' && plate.distance <= 60;
       if (visual.targetable) {
         const hit = nameplateHit(this.camera.position, this.forward, actor, visual.group.position);
