@@ -34,10 +34,13 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial) {
     shader.uniforms.characterRim = { value: rim };
     shader.fragmentShader = `uniform vec3 characterRim;\n${shader.fragmentShader}`.replace('#include <opaque_fragment>', `
       float rimAmount = pow(1.0 - saturate(dot(normalize(normal), normalize(vViewPosition))), 3.0);
-      outgoingLight += characterRim * (0.35 * rimAmount);
+      // Atlas/vertex albedo keeps dark eye, nose and mouth cavities dark.
+      // Evaluate before lighting so fur retains its rim on the shaded side.
+      float rimSurface = smoothstep(0.06, 0.18, dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
+      outgoingLight += characterRim * (0.35 * rimAmount * rimSurface);
       #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v1`;
+  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v2`;
   material.needsUpdate = true;
   return material;
 }
