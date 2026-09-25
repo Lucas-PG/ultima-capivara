@@ -77,13 +77,17 @@ export class GameUI {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
     this.drawMapBackground(); this.home();
-    // M toggles the island map over the match; it never touches pointer lock or movement input.
+    // The map binding (M by default) toggles the island map; it never touches pointer lock or movement input.
     document.addEventListener('keydown', event => {
       if (this.screen !== 'game' || event.repeat || event.target instanceof HTMLInputElement) return;
       if (event.code === bindingOf(this.settings.bindings, 'map')) { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
       else if (event.code === 'Escape' && this.mapOpen) this.toggleMap(false);
       else if (event.code === 'KeyH' && this.coach) this.finishOnboarding();
       else if ((event.code === 'ArrowRight' || event.code === 'ArrowLeft') && this.root.querySelector('#loadingOverlay')) this.showTip();
+    });
+    // The map may also sit on a mouse button (remap covers every action), so presses are matched the same way.
+    document.addEventListener('mousedown', event => {
+      if (this.screen === 'game' && `Mouse${event.button}` === bindingOf(this.settings.bindings, 'map')) { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
     });
     this.root.addEventListener('click', event => {
       const element = (event.target as HTMLElement).closest<HTMLElement>('[data-do],[data-mode]'); if (!element) return;
