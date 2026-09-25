@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import type { AvatarView } from '../../src/render/avatars';
 import type { RenderPipeline } from '../../src/render/pipeline';
 import { GameRenderer } from '../../src/render/renderer';
-import { preloadCapybaraAsset, createCapybaraHitboxOverlay } from '../../src/render/capybara';
+import { preloadCapybaraAsset, createCapybaraHitboxOverlay, setCapybaraExpression, type CapybaraExpression } from '../../src/render/capybara';
 import { createWorld } from '../../src/shared/world';
 import { terrainHeight } from '../../src/shared/terrain';
 import { DEFAULT_SETTINGS } from '../../src/settings';
@@ -19,7 +19,7 @@ const room = params.get('lighting') === 'interior' ? world.objects.find(object =
 const center = room ? { x: room.pos.x, z: room.pos.z + .8 } : { x: 0, z: -60 };
 const floor = room ? room.pos.y + .08 : terrainHeight(center.x, center.z);
 const actor: ActorState = {
-  id: 'capy-review', name: 'Capivara M0', color: params.get('color') || '#1FB5A8', bot: false, connected: true,
+  id: 'capy-review', name: 'Capivara M1', color: params.get('color') || '#1FB5A8', bot: false, connected: true,
   pos: { x: center.x, y: floor, z: center.z }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
   hp: 100, armor: 0, helmet: 0, alive: true, grounded: true, crouch: false, sprint: false, ads: false, stage: 'ground',
   kills: 0, deaths: 0, damage: 0, weapons: [], slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
@@ -40,17 +40,19 @@ const avatar = view.avatars.get(actor.id)!;
 avatar.label.visible = false;
 const hitboxes = createCapybaraHitboxOverlay(); avatar.group.add(hitboxes);
 
-function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number } = {}) {
+function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean } = {}) {
   const { angle = 'three-quarter', distance = 3, clip = 'idle', time = .3, overlay = false } = options;
+  setCapybaraExpression(avatar.body, options.expression || null);
   actor.velocity.z = clip === 'run' ? -6 : 0;
   actor.grounded = clip !== 'jump';
   for (let i = 0; i < Math.ceil(time * 30); i++) view.avatars.update(frame, 0, 0);
   avatar.label.visible = false; hitboxes.visible = overlay;
-  const azimuth = angle === 'side' ? Math.PI / 2 : angle === 'front' ? 0 : Math.PI / 4;
+  const azimuth = angle === 'side' ? Math.PI / 2 : angle === 'front' ? 0 : angle === 'back' ? Math.PI : Math.PI / 4;
   // The near paw advances toward the lens during run, requiring extra room at 1 m.
-  renderer.camera.fov = distance === 1 ? 120 : 60;
-  renderer.camera.position.set(center.x + Math.sin(azimuth) * distance, floor + .94, center.z - Math.cos(azimuth) * distance);
-  renderer.camera.lookAt(center.x, floor + .94, center.z);
+  renderer.camera.fov = options.head ? 42 : distance === 1 ? 120 : 60;
+  const focusY = options.head ? 1.6 : .94;
+  renderer.camera.position.set(center.x + Math.sin(azimuth) * distance, floor + focusY, center.z - Math.cos(azimuth) * distance);
+  renderer.camera.lookAt(center.x, floor + focusY, center.z);
   renderer.camera.updateProjectionMatrix();
   if (options.lod !== undefined) {
     const lod = avatar.body.getObjectByName('Capivara_LOD') as THREE.LOD;
@@ -64,4 +66,4 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
   return { name: avatar.body.name, children: avatar.body.children.length, triangles: stats.triangles };
 }
 (window as unknown as { capyReview: unknown }).capyReview = { shot, renderer, actor, avatar, ready: true };
-shot({ angle: params.get('angle') || 'three-quarter', distance: Number(params.get('distance') || 3), clip: params.get('clip') || 'idle', overlay: params.has('overlay') });
+shot({ angle: params.get('angle') || 'three-quarter', distance: Number(params.get('distance') || 3), clip: params.get('clip') || 'idle', overlay: params.has('overlay'), head: params.has('head'), expression: params.get('expression') as CapybaraExpression | null });

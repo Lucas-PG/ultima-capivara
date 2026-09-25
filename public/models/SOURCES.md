@@ -15,3 +15,11 @@ The `m700` FBX is from [Free Sniper Rifle M700 CC0 by Stein Games](https://stein
 No third-party model, texture, image, or animation was incorporated. See
 `capybara/metrics.json` for the three LOD budgets and `tools/blender/README.md`
 for reproduction and runtime integration.
+
+## Direction A M1 character refinement
+
+The current opt-in capybara adds original continuous head/muzzle geometry, a
+cloth bandana, olive vest and strap, short limbs, authored vertex colours,
+a white eye-emission mask and six facial clips. Pincel's Direction A bible and
+2026-09-24 review govern the work. It is a modelling draft, not approved final
+art. No external source geometry or texture is used.

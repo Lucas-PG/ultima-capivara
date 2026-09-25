@@ -1,4 +1,4 @@
-"""Original M0 capybara. Blender 5.0.1; metres, +Y forward, +Z up.
+"""Direction A capybara. Blender 5.0.1; metres, +Y forward, +Z up.
 Generated parts start as quad rings, receive subdivision, then budget decimation.
 Every LOD uses the same armature and flat 16 x 16 PNG palette atlas.
 """
@@ -33,12 +33,25 @@ image.pack()
 mat = bpy.data.materials.new('Capivara_palette')
 mat.use_nodes = True
 bsdf = mat.node_tree.nodes.get('Principled BSDF')
-bsdf.inputs['Roughness'].default_value = .83
+bsdf.inputs['Roughness'].default_value = .87
 bsdf.inputs['Specular IOR Level'].default_value = .22
 texture = mat.node_tree.nodes.new('ShaderNodeTexImage')
 texture.image = image
 texture.interpolation = 'Closest'
 mat.node_tree.links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
+# A shared emissive atlas lights only white eye glints, retaining one draw material.
+emission = bpy.data.images.new('capybara_eye_glints', width=16, height=16, alpha=False)
+emission.pixels = [v for y in range(16) for x in range(16) for v in ([1, 1, 1, 1] if x == 10 else [0, 0, 0, 1])]
+emission.filepath_raw = str(OUT / 'eye-glints.png')
+emission.file_format = 'PNG'
+emission.save()
+emission.pack()
+emission_node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+emission_node.image = emission
+emission_node.interpolation = 'Closest'
+mat.node_tree.links.new(emission_node.outputs['Color'], bsdf.inputs['Emission Color'])
+bsdf.inputs['Emission Strength'].default_value = 1
+
 
 # Coordinates are written in game space, converted to Blender only here.
 def V(p):
@@ -60,14 +73,16 @@ bone('root', (0, 0, 0), (0, .18, 0))
 bone('spine', (0, .6, 0), (0, 1.15, 0), 'root')
 bone('neck', (0, 1.15, 0), (0, 1.45, -.02), 'spine')
 bone('head', (0, 1.6, -.04), (0, 1.78, -.04), 'neck')
-bone('jaw', (0, 1.5, -.1), (0, 1.52, -.25), 'head')
+bone('jaw', (0, 1.505, -.244), (0, 1.55, -.244), 'head')
 bone('tail', (0, .62, .23), (0, .66, .29), 'spine')
 for s, side in [(-1, 'L'), (1, 'R')]:
     bone('ear_' + side, (s * .15, 1.755, .005), (s * .16, 1.815, .005), 'head')
-    bone('blink_' + side, (s * .137, 1.688, -.172), (s * .137, 1.72, -.172), 'head')
-    bone('thigh_' + side, (s * .137, .55, .01), (s * .137, .3, .01), 'root')
-    bone('shin_' + side, (s * .137, .3, .01), (s * .137, .09, -.02), 'thigh_' + side)
-    bone('foot_' + side, (s * .137, .09, -.02), (s * .137, .09, -.16), 'shin_' + side)
+    bone('blink_' + side, (s * .177, 1.681, -.098), (s * .177, 1.71, -.098), 'head')
+    bone('brow_' + side, (s * .16, 1.711, -.06), (s * .16, 1.743, -.06), 'head')
+    bone('mouth_' + side, (s * .073, 1.492, -.239), (s * .073, 1.522, -.239), 'jaw')
+    bone('thigh_' + side, (s * .137, .39, .01), (s * .137, .22, .01), 'root')
+    bone('shin_' + side, (s * .137, .22, .01), (s * .137, .08, -.04), 'thigh_' + side)
+    bone('foot_' + side, (s * .137, .08, -.04), (s * .137, .08, -.17), 'shin_' + side)
     # Forward hold matches the existing weapon socket at (.1, 1.05, -.4).
     hand = (s * .1, 1.045, -.39 if s == 1 else -.49)
     elbow = (s * .27, 1.00, -.19)
@@ -78,7 +93,7 @@ bpy.ops.object.mode_set(mode='OBJECT')
 rig.select_set(False)
 parts = []
 
-def mesh_part(name, verts, faces, color, weights):
+def mesh_part(name, verts, faces, color, weights, subdivide=True):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata([V(p) for p in verts], [], faces)
     mesh.update()
@@ -88,6 +103,9 @@ def mesh_part(name, verts, faces, color, weights):
     uv = mesh.uv_layers.new(name='Palette')
     for loop in uv.data:
         loop.uv = ((color + .5) / 16, .5)
+    vertex_color = mesh.color_attributes.new(name='Color', type='FLOAT_COLOR', domain='CORNER')
+    for item in vertex_color.data:
+        item.color = (1, 1, 1, 1)
     groups = {}
     for i, p in enumerate(verts):
         influences = weights(p) if callable(weights) else weights
@@ -99,19 +117,34 @@ def mesh_part(name, verts, faces, color, weights):
     for poly in mesh.polygons:
         poly.use_smooth = True
     bpy.context.view_layer.objects.active = obj
-    sub = obj.modifiers.new('Quad smoothing', 'SUBSURF')
-    sub.levels = 1
-    bpy.ops.object.modifier_apply(modifier=sub.name)
+    if subdivide:
+        sub = obj.modifiers.new('Quad smoothing', 'SUBSURF')
+        sub.levels = 1
+        bpy.ops.object.modifier_apply(modifier=sub.name)
     # Face, muzzle and ears stay inside the head hit sphere, with 6 mm clearance.
-    facial = {g.index for g in obj.vertex_groups if g.name == 'head' or g.name == 'jaw' or g.name.startswith(('ear_', 'blink_'))}
+    facial = {g.index for g in obj.vertex_groups if g.name == 'head' or g.name == 'jaw' or g.name.startswith(('ear_', 'blink_', 'brow_', 'mouth_'))}
     centre = V((0, 1.6, -.04))
     for vert in obj.data.vertices:
-        if sum(g.weight for g in vert.groups if g.group in facial) > .5:
+        if sum(g.weight for g in vert.groups if g.group in facial) > .5 or vert.co.z > 1.42:
             offset = vert.co - centre
             if offset.length > .244:
                 vert.co = centre + offset.normalized() * .244
     parts.append(obj)
     return obj
+
+def rounded_block(name, center, dimensions, color, weights, bevel=.02):
+    # Real flat faces with three bevel rings, not a squashed sphere.
+    bpy.ops.mesh.primitive_cube_add(size=1, location=V(center))
+    obj = bpy.context.object
+    obj.scale = (dimensions[0], dimensions[2], dimensions[1])
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    mod = obj.modifiers.new('Soft edges', 'BEVEL')
+    mod.width, mod.segments = bevel, 3
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+    verts = [(v.co.x, v.co.z, -v.co.y) for v in obj.data.vertices]
+    faces = [tuple(poly.vertices) for poly in obj.data.polygons]
+    bpy.data.objects.remove(obj, do_unlink=True)
+    return mesh_part(name, verts, faces, color, weights, subdivide=False)
 
 def blend(a, b, value):
     t = max(0, min(1, value))
@@ -157,7 +190,7 @@ def tube(name, points, radii, color, names):
 
 # Pear torso fits the normal .30 m body cylinder with animation clearance.
 # A continuous pear-to-neck surface avoids a stack-of-spheres silhouette.
-profile = [(.46, .04, .04), (.49, .14, .14), (.60, .235, .221), (.78, .281, .259), (.96, .283, .263), (1.12, .257, .224), (1.26, .209, .177), (1.35, .163, .143), (1.42, .122, .112), (1.45, .045, .045)]
+profile = [(.31, .035, .035), (.35, .14, .13), (.47, .238, .22), (.66, .288, .262), (.86, .282, .257), (1.06, .256, .222), (1.22, .239, .193), (1.36, .211, .165), (1.42, .163, .132), (1.45, .04, .04)]
 verts, faces = [], []
 for y, rx, rz in profile:
     for i in range(20):
@@ -168,27 +201,139 @@ for j in range(len(profile) - 1):
         a, b = j * 20 + i, j * 20 + (i + 1) % 20
         faces.append((a, b, b + 20, a + 20))
 faces.extend([tuple(reversed(range(20))), tuple((len(profile) - 1) * 20 + i for i in range(20))])
-mesh_part('Torso_pear', verts, faces, 0, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33))
-ellipsoid('Chest_cream', (0, .95, -.181), (.204, .285, .083), 4, {'spine': .9, 'neck': .1})
-# All facial surfaces fit sphere centred (0,1.6,-.04), radius .25.
-ellipsoid('Head', (0, 1.606, -.018), (.224, .214, .197), 0, {'head': 1}, square=.82)
-ellipsoid('Muzzle', (0, 1.553, -.168), (.172, .084, .089), 1, {'head': .86, 'jaw': .14}, square=.42)
-ellipsoid('Nose', (0, 1.578, -.248), (.088, .035, .023), 3, {'head': 1}, square=.55, segments=12, rings=6)
-ellipsoid('Lower_lip', (0, 1.498, -.206), (.094, .013, .028), 3, {'jaw': 1}, segments=12, rings=6)
+body_surface = mesh_part('Torso_pear', verts, faces, 0, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33))
+# Colour follows the actual surface, so the crisp belly cannot float or clip.
+for poly in body_surface.data.polygons:
+    center = sum((body_surface.data.vertices[v].co for v in poly.vertices), Vector()) / len(poly.vertices)
+    x, y, z = center.x, center.z, -center.y
+    belly = z < -.12 and (x / .192) ** 2 + ((y - .71) / .274) ** 2 <= 1
+    index = 1 if y > 1.22 else 0
+    for loop in poly.loop_indices:
+        body_surface.data.uv_layers.active.data[loop].uv = ((index + .5) / 16, .5)
+# Conforming oval with a one-centimetre colour transition at its edge.
+patch_verts, patch_faces, patch_mix = [], [], []
+for row, radius in enumerate([.001, .2, .4, .6, .8, .96, 1]):
+    for i in range(32):
+        angle = math.tau * i / 32
+        x, y = .192 * radius * math.cos(angle), .71 + .274 * radius * math.sin(angle)
+        hit, point, normal, face = body_surface.ray_cast(V((x, y, -1)), V((0, 0, 1)))
+        assert hit, (x, y)
+        point += V((0, 0, -.004))
+        patch_verts.append((point.x, point.z, -point.y))
+        patch_mix.append(0 if radius == 1 else 1)
+    if row:
+        for i in range(32):
+            a, b = (row - 1) * 32 + i, (row - 1) * 32 + (i + 1) % 32
+            patch_faces.append((a, b, b + 32, a + 32))
+patch = mesh_part('Belly_patch', patch_verts, patch_faces, 14, {'spine': 1}, subdivide=False)
+def linear_rgb(hex_color):
+    return tuple((v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4) for v in (int(hex_color[i:i + 2], 16) / 255 for i in (0, 2, 4)))
+for loop in patch.data.loops:
+    rgb = linear_rgb(PALETTE[4 if patch_mix[loop.vertex_index] else 0])
+    patch.data.color_attributes['Color'].data[loop.index].color = (*rgb, 1)
+# A single longitudinal quad surface joins cheeks and rectangular muzzle.
+# Forehead-to-nose is one gently descending line, without a box seam.
+head_profile = [(.168, .03, 1.59, .035), (.138, .103, 1.59, .12),
+                (.078, .178, 1.606, .172), (.018, .219, 1.61, .168),
+                (-.05, .214, 1.608, .154), (-.108, .188, 1.59, .144),
+                (-.15, .137, 1.588, .110), (-.205, .11, 1.583, .079),
+                (-.255, .107, 1.578, .064), (-.268, .084, 1.574, .049)]
+verts, faces = [], []
+segments = 32
+for z, rx, cy, ry in head_profile:
+    for i in range(segments):
+        a = math.tau * i / segments
+        shape = lambda v: math.copysign(abs(v) ** .72, v)
+        verts.append((rx * shape(math.cos(a)), cy + ry * shape(math.sin(a)), z))
+for row in range(len(head_profile) - 1):
+    for i in range(segments):
+        a, b = row * segments + i, row * segments + (i + 1) % segments
+        faces.append((a, b, b + segments, a + segments))
+faces += [tuple(reversed(range(segments))), tuple((len(head_profile) - 1) * segments + i for i in range(segments))]
+head_surface = mesh_part('Head_and_muzzle', verts, faces, 0, {'head': 1})
+# Broad painted value changes interpolate across vertices, avoiding jagged bands.
+base_rgb, light_rgb, shadow_rgb = [linear_rgb(PALETTE[i]) for i in [0, 1, 2]]
+for poly in head_surface.data.polygons:
+    for loop_index in poly.loop_indices:
+        vertex = head_surface.data.vertices[head_surface.data.loops[loop_index].vertex_index]
+        y = vertex.co.z
+        light = max(0, min(1, (y - 1.61) / .135))
+        shadow = max(0, min(1, (1.53 - y) / .085))
+        rgb = [base_rgb[i] * (1 - light) + light_rgb[i] * light for i in range(3)]
+        rgb = [rgb[i] * (1 - shadow) + shadow_rgb[i] * shadow for i in range(3)]
+        head_surface.data.uv_layers.active.data[loop_index].uv = (14.5 / 16, .5)
+        head_surface.data.color_attributes['Color'].data[loop_index].color = (*rgb, 1)
+# The dark nose pad occupies only the upper third of the furry muzzle.
+rounded_block('Nose_pad', (0, 1.614, -.27), (.19, .043, .012), 3, {'head': 1}, bevel=.012)
+for side in [-1, 1]:
+    ellipsoid('Nostril', (side * .055, 1.613, -.278), (.014, .009, .004), 9, {'head': 1}, segments=10, rings=6)
+ellipsoid('Mouth_opening', (0, 1.51, -.25), (.077, .024, .008), 3, {'head': 1}, segments=16, rings=8)
+rounded_block('Lower_jaw_fur', (0, 1.502, -.214), (.18, .05, .12), 0, {'jaw': 1}, bevel=.02)
 for s, side in [(-1, 'L'), (1, 'R')]:
-    ellipsoid('Eye_' + side, (s * .137, 1.688, -.172), (.035, .038, .020), 9, {'blink_' + side: 1}, segments=12, rings=8)
-    ellipsoid('Glint_' + side, (s * .137 - .009, 1.70, -.191), (.010, .011, .005), 10, {'blink_' + side: 1}, segments=8, rings=6)
-    ellipsoid('Ear_' + side, (s * .137, 1.75, .012), (.043, .045, .027), 0, {'ear_' + side: .88, 'head': .12}, segments=12, rings=8)
-    ellipsoid('Ear_inner_' + side, (s * .137, 1.754, -.009), (.026, .028, .012), 2, {'ear_' + side: 1}, segments=12, rings=6)
-    tube('Leg_' + side, [(s * .137, .56, .01), (s * .137, .48, .01), (s * .137, .33, .01), (s * .137, .22, -.008), (s * .137, .11, -.022)], [.075, .117, .103, .095, .066], 0, ['thigh_' + side, 'shin_' + side, 'foot_' + side])
-    ellipsoid('Foot_' + side, (s * .137, .075, -.065), (.12, .072, .159), 2, {'foot_' + side: 1}, square=.6)
+    ellipsoid('Eye_' + side, (s * .177, 1.681, -.098), (.021, .024, .014), 9, {'blink_' + side: 1}, segments=12, rings=8)
+    ellipsoid('Glint_' + side, (s * .177 - .006, 1.689, -.110), (.008, .009, .004), 10, {'blink_' + side: 1}, segments=8, rings=6)
+    tube('Brow_tuft_' + side, [(s * .14, 1.71, -.076), (s * .16, 1.718, -.06), (s * .177, 1.71, -.041)], [.003, .012, .003], 2, ['head', 'brow_' + side])
+    tube('Mouth_corner_' + side, [(s * .04, 1.517, -.265), (s * .071, 1.519, -.26), (s * .086, 1.525, -.25)], [.003, .004, .002], 9, ['jaw', 'mouth_' + side])
+    ellipsoid('Ear_' + side, (s * .124, 1.766, .042), (.046, .045, .028), 0, {'ear_' + side: .88, 'head': .12}, segments=12, rings=8)
+    ellipsoid('Ear_inner_' + side, (s * .124, 1.766, .019), (.029, .029, .01), 11, {'ear_' + side: 1}, segments=12, rings=6)
+    tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .01), (s * .137, .23, .01), (s * .137, .15, -.012), (s * .137, .08, -.04)], [.087, .12, .105, .093, .07], 0, ['thigh_' + side, 'shin_' + side, 'foot_' + side])
+    rounded_block('Foot_' + side, (s * .137, .061, -.045), (.225, .115, .25), 2, {'foot_' + side: 1}, bevel=.048)
     hand_z = -.39 if s == 1 else -.49
     tube('Arm_' + side, [(s * .225, 1.195, -.015), (s * .267, 1.12, -.08), (s * .27, 1.0, -.19), (s * .2, 1.016, (hand_z - .19) / 2), (s * .1, 1.045, hand_z)], [.056, .095, .084, .077, .065], 0, ['arm_' + side, 'forearm_' + side, 'paw_' + side])
-    ellipsoid('Paw_' + side, (s * .1, 1.045, hand_z - .014), (.089, .083, .103), 1, {'paw_' + side: 1}, square=.65)
-# Capybaras have no prominent external tail. Rig a tiny rump nub, kept in cylinder.
-ellipsoid('Tail_nub', (0, .66, .255), (.036, .03, .025), 0, {'tail': .8, 'spine': .2}, segments=10, rings=6)
-ellipsoid('Bandana_collar', (0, 1.324, -.006), (.192, .044, .171), 5, {'neck': 1})
-mesh_part('Bandana_point', [(-.13, 1.315, -.136), (.13, 1.315, -.136), (0, 1.11, -.272), (0, 1.29, -.184), (-.12, 1.31, -.127), (.12, 1.31, -.127), (0, 1.12, -.264)], [(0, 2, 3), (1, 3, 2), (0, 3, 1), (4, 5, 6), (0, 1, 5, 4), (1, 2, 6, 5), (2, 0, 4, 6)], 5, {'neck': .55, 'spine': .45})
+    ellipsoid('Paw_' + side, (s * .1, 1.045, hand_z - .014), (.092, .078, .11), 0, {'paw_' + side: 1}, square=.65)
+    # Three chunky fingers and a thumb, with dark animal pads.
+    for finger in [-1, 0, 1]:
+        ellipsoid('Finger_' + side, (s * .1 + finger * .049, 1.044, hand_z - .088), (.025, .032, .042), 0, {'paw_' + side: 1}, segments=10, rings=6)
+        ellipsoid('Claw_' + side, (s * .1 + finger * .049, 1.045, hand_z - .122), (.016, .016, .015), 3, {'paw_' + side: 1}, segments=8, rings=6)
+    ellipsoid('Thumb_' + side, (s * .1 - s * .082, 1.035, hand_z - .033), (.035, .044, .035), 0, {'paw_' + side: 1}, segments=10, rings=6)
+    ellipsoid('Paw_pad_' + side, (s * .1, .977, hand_z - .025), (.052, .016, .065), 3, {'paw_' + side: 1}, segments=12, rings=6)
+# No visible tail. Cloth band hugs the neck with a thin flat cross section.
+verts, faces = [], []
+for y, rx, rz in [(1.405, .178, .145), (1.412, .181, .146), (1.437, .158, .128), (1.443, .155, .126)]:
+    for i in range(32):
+        a = math.tau * i / 32
+        verts.append((rx * math.cos(a), y, -.007 + rz * math.sin(a)))
+for row in range(3):
+    for i in range(32):
+        a, b = row * 32 + i, row * 32 + (i + 1) % 32
+        faces.append((a, b, b + 32, a + 32))
+mesh_part('Bandana_band', verts, faces, 5, {'neck': 1})
+rounded_block('Bandana_knot', (-.105, 1.422, .115), (.065, .04, .025), 6, {'neck': 1}, bevel=.012)
+for side in [-1, 1]:
+    x = -.105 + side * .022
+    mesh_part('Bandana_tail', [(x, 1.414, .121), (x + .04, 1.414, .127), (x + side * .025, 1.29, .195), (x + side * .025 - .027, 1.315, .20)], [(0, 1, 2, 3)], 5, {'neck': .7, 'spine': .3}, subdivide=False)
+mesh_part('Bandana_point', [(-.13, 1.425, -.117), (.13, 1.425, -.117), (0, 1.12, -.268), (0, 1.395, -.164), (-.12, 1.42, -.113), (.12, 1.42, -.113), (0, 1.13, -.263)], [(0, 2, 3), (1, 3, 2), (0, 3, 1), (4, 5, 6), (0, 1, 5, 4), (1, 2, 6, 5), (2, 0, 4, 6)], 5, {'neck': .55, 'spine': .45})
+
+# Open-front olive vest, separated from fur by broad edges and trim.
+# A continuous wrap avoids box-shaped chest plates and leaves the belly exposed.
+rows = [(.864, .283, .261), (.878, .287, .263), (.92, .29, .26), (1.08, .266, .231), (1.24, .252, .212), (1.315, .23, .184)]
+verts, faces = [], []
+for y, rx, rz in rows:
+    for i in range(25):
+        a = -math.pi / 2 + .43 + (math.tau - .86) * i / 24
+        verts.append((rx * math.cos(a), y, .005 + rz * math.sin(a)))
+for row in range(len(rows) - 1):
+    for i in range(24):
+        a = row * 25 + i
+        # Open armholes instead of a cape over the shoulders.
+        if row < 3 or not (4 <= i <= 7 or 16 <= i <= 19):
+            faces.append((a, a + 1, a + 26, a + 25))
+mesh_part('Vest_wrap', verts, faces, 7, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33))
+for side in [-1, 1]:
+    rounded_block('Vest_pocket', (side * .149, 1.04, -.197), (.09, .125, .045), 7, {'spine': 1}, bevel=.014)
+    rounded_block('Pocket_flap', (side * .149, 1.087, -.218), (.095, .031, .013), 13, {'spine': 1}, bevel=.004)
+    tube('Vest_trim', [(side * .12, .90, -.222), (side * .114, 1.08, -.217), (side * .105, 1.26, -.195)], [.015, .015, .015], 5, ['spine', 'neck'])
+# A broad leather shoulder strap, all detail above the 3 cm readability cutoff.
+verts, faces = [], []
+for x, y, rx, rz in [(-.20, 1.31, .23, .20), (-.10, 1.21, .255, .223), (0, 1.11, .274, .24), (.10, 1.01, .28, .252), (.20, .91, .279, .253)]:
+    for sign in [-1, 1]:
+        xx = x + sign * .018
+        verts.append((xx, y + sign * .018, .005 - rz * math.sqrt(max(.01, 1 - (xx / rx) ** 2)) - .006))
+for row in range(4):
+    a = row * 2
+    faces.append((a, a + 1, a + 3, a + 2))
+mesh_part('Leather_strap', verts, faces, 8, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33), subdivide=False)
+rounded_block('Strap_buckle', (.02, 1.09, -.26), (.055, .06, .013), 12, {'spine': 1}, bevel=.008)
 
 bpy.ops.object.select_all(action='DESELECT')
 for obj in parts: obj.select_set(True)
@@ -214,6 +359,12 @@ for level, budget in enumerate([14000, 4800, 1400]):
     decimate = obj.modifiers.new('Triangle budget', 'DECIMATE')
     decimate.ratio = min(1, budget / source_tris)
     bpy.ops.object.modifier_apply(modifier=decimate.name)
+    # Decimation can collapse tiny closed caps into duplicate opposite faces.
+    # Remove them before export and require a valid mesh after that cleanup.
+    if obj.data.validate(verbose=False, clean_customdata=False):
+        print('Cleaned collapsed caps in ' + obj.name)
+    assert not obj.data.validate(verbose=False, clean_customdata=False), obj.name
+    obj.data.update()
     obj.parent = rig
     skin = obj.modifiers.new('Smooth skin', 'ARMATURE')
     skin.object = rig
@@ -224,7 +375,7 @@ bpy.data.objects.remove(base, do_unlink=True)
 # Explicit actions on one rig. Blink bones scale their small eye meshes; no morph
 # targets or per-instance face materials are required.
 rig.animation_data_create()
-for name, frames in [('idle', 120), ('run', 24), ('jump', 30)]:
+for name, frames in [('idle', 75), ('run', 24), ('jump', 30)]:
     action = bpy.data.actions.new(name)
     rig.animation_data.action = action
     action.use_fake_user = True
@@ -240,7 +391,7 @@ for name, frames in [('idle', 120), ('run', 24), ('jump', 30)]:
         if name == 'idle':
             rig.pose.bones['spine'].scale.x = 1 + .003 * math.sin(phase)
             rig.pose.bones['head'].rotation_euler.z = .025 * math.sin(phase)
-            blink = max(.04, 1 - max(0, 1 - abs(frame - 83) / 3))
+            blink = max(.04, 1 - max(0, 1 - abs(frame - 52) / 3))
             for side in ['L', 'R']:
                 rig.pose.bones['blink_' + side].scale.y = blink
                 rig.pose.bones['ear_' + side].rotation_euler.x = .04 * math.sin(phase + (0 if side == 'L' else 1))
@@ -262,6 +413,69 @@ for name, frames in [('idle', 120), ('run', 24), ('jump', 30)]:
             p.keyframe_insert('rotation_euler', frame=frame, group=p.name)
             p.keyframe_insert('location', frame=frame, group=p.name)
             p.keyframe_insert('scale', frame=frame, group=p.name)
+# Facial clips key only eyelids, brow tufts, ears and mouth. Skull and muzzle
+# have no tracks here. Runtime can blend these additively over locomotion,
+# referencing face_neutral through AnimationUtils.makeClipAdditive.
+face_parts = [p for p in rig.pose.bones if p.name.startswith(('blink_', 'brow_', 'ear_', 'mouth_')) or p.name == 'jaw']
+for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink']:
+    action = bpy.data.actions.new('face_' + expression)
+    action.use_fake_user = True
+    rig.animation_data.action = action
+    for frame in [0, 8]:
+        scene.frame_set(frame)
+        for p in face_parts:
+            p.rotation_euler = (0, 0, 0)
+            p.location = (0, 0, 0)
+            p.scale = (1, 1, 1)
+        for sign, side in [(-1, 'L'), (1, 'R')]:
+            lid = rig.pose.bones['blink_' + side]
+            brow = rig.pose.bones['brow_' + side]
+            ear = rig.pose.bones['ear_' + side]
+            mouth = rig.pose.bones['mouth_' + side]
+            if expression == 'determined':
+                lid.scale.y = .5
+                brow.rotation_euler.z = sign * .28
+                brow.location.y = -.006
+                ear.rotation_euler.x = -.10
+            elif expression == 'hit':
+                lid.scale.y = .22
+                lid.rotation_euler.z = sign * .38
+                brow.rotation_euler.z = -sign * .28
+                brow.location.y = .003
+                ear.rotation_euler.x = -.436
+                ear.location.y = -.014
+                ear.location.z = -.012
+                mouth.location.y = -.005 if side == 'L' else -.003
+                mouth.location.z = .005
+                rig.pose.bones['jaw'].location.y = -.016
+                rig.pose.bones['jaw'].location.z = .016
+                rig.pose.bones['jaw'].scale.y = 1.5
+            elif expression == 'stunned':
+                lid.scale.y = 1.25 if side == 'L' else 1.1
+                lid.scale.x = 1.16
+                brow.rotation_euler.z = sign * (.12 if side == 'L' else -.12)
+                ear.rotation_euler.z = sign * .12
+                ear.location.y = -.012
+                rig.pose.bones['jaw'].location.y = -.014
+                rig.pose.bones['jaw'].location.z = .022
+                rig.pose.bones['jaw'].scale.y = 1.8
+            elif expression == 'victory':
+                lid.scale.y = .42
+                lid.rotation_euler.z = -sign * .2
+                brow.location.y = .006
+                mouth.location.y = .026
+                ear.rotation_euler.x = .10
+                rig.pose.bones['jaw'].location.y = -.014
+                rig.pose.bones['jaw'].location.z = .022
+                rig.pose.bones['jaw'].scale.x = 1.12
+                rig.pose.bones['jaw'].scale.y = 1.65
+            elif expression == 'blink':
+                lid.scale.y = .04
+        for p in face_parts:
+            p.keyframe_insert('rotation_euler', frame=frame, group=p.name)
+            p.keyframe_insert('location', frame=frame, group=p.name)
+            p.keyframe_insert('scale', frame=frame, group=p.name)
+
 rig.animation_data.action = None
 scene.frame_set(0)
 for p in rig.pose.bones:
@@ -269,6 +483,6 @@ for p in rig.pose.bones:
     p.location = (0, 0, 0)
     p.scale = (1, 1, 1)
 scene.frame_start, scene.frame_end = 0, 120
-bpy.ops.export_scene.gltf(filepath=str(OUT / 'capybara.raw.glb'), export_format='GLB', export_animations=True, export_animation_mode='ACTIONS', export_nla_strips=False, export_frame_range=False, export_force_sampling=True, export_skins=True, export_influence_nb=4, export_yup=True, export_extras=True, export_cameras=False, export_lights=False)
+bpy.ops.export_scene.gltf(filepath=str(OUT / 'capybara.raw.glb'), export_format='GLB', export_vertex_color='NAME', export_vertex_color_name='Color', export_animations=True, export_animation_mode='ACTIONS', export_nla_strips=False, export_frame_range=False, export_force_sampling=True, export_skins=True, export_influence_nb=4, export_yup=True, export_extras=True, export_cameras=False, export_lights=False)
 (OUT / 'blender-report.json').write_text(json.dumps(report, indent=2) + '\n')
 print('CAPYBARA_REPORT ' + json.dumps(report))

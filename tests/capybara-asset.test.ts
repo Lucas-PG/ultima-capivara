@@ -1,8 +1,9 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { NodeIO, type Document } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
-import { Matrix4, Vector3 } from 'three';
+import { AnimationMixer, Matrix4, SkinnedMesh, Vector3 } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { readFile } from 'node:fs/promises';
 
 let asset: Document;
@@ -22,6 +23,10 @@ describe('shipped capybara asset contract', () => {
     }
     expect(root.listMaterials().length).toBeLessThanOrEqual(3);
     expect(root.listSkins()).toHaveLength(1);
+    // Painted fur must survive export; losing COLOR_0 turns the white carrier atlas into white fur.
+    const colors = root.listMeshes()[0].listPrimitives()[0].getAttribute('COLOR_0');
+    expect(colors).toBeDefined();
+    expect(Array.from({ length: colors!.getCount() }, (_, i) => colors!.getElement(i, [])).some(rgb => rgb.some(value => value > 0 && value < 1))).toBe(true);
     const png = root.listTextures()[0].getImage()!;
     const header = new DataView(png.buffer, png.byteOffset, png.byteLength);
     expect(header.getUint32(16)).toBeLessThanOrEqual(1024);
@@ -73,4 +78,46 @@ describe('shipped capybara asset contract', () => {
     const scale = blink.getSampler()!.getOutput()!;
     expect(Array.from(scale.getArray()!).some(value => value < .1)).toBe(true);
   });
+
+  it('keeps facial motion inside the head hitbox, including ears and mouth extremes', async () => {
+    const bytes = await readFile('public/models/capybara/capybara.glb');
+    // Image decoding is unnecessary for CPU skinning; the real exported meshes,
+    // skeleton, quantization and animation tracks are used without a GPU.
+    vi.stubGlobal('self', globalThis);
+    vi.stubGlobal('createImageBitmap', async () => ({ width: 16, height: 16, close() {} }));
+    let gltf;
+    try {
+      gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+    } finally { vi.unstubAllGlobals(); }
+    const meshes: SkinnedMesh[] = [];
+    gltf.scene.traverse(object => { if (object instanceof SkinnedMesh) meshes.push(object); });
+    const mixer = new AnimationMixer(gltf.scene), vertex = new Vector3();
+    const expressions = ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'];
+    for (const name of [...expressions.map(name => `face_${name}`), 'idle']) {
+      const clip = gltf.animations.find(clip => clip.name === name)!;
+      expect(clip, name).toBeDefined();
+      mixer.stopAllAction(); mixer.clipAction(clip).play();
+      let maximum = 0;
+      for (let sample = 0; sample < 8; sample++) {
+        mixer.setTime(clip.duration * sample / 8); gltf.scene.updateMatrixWorld(true);
+        for (const mesh of meshes) {
+          mesh.skeleton.update();
+          const indices = mesh.geometry.getAttribute('skinIndex'), weights = mesh.geometry.getAttribute('skinWeight');
+          for (let i = 0; i < indices.count; i++) {
+            let headWeight = 0;
+            for (let j = 0; j < 4; j++) {
+              const joint = mesh.skeleton.bones[indices.getComponent(i, j)];
+              if (/^(head|jaw|ear_|blink_|brow_|mouth_)/.test(joint.name)) headWeight += weights.getComponent(i, j);
+            }
+            if (headWeight < .5) continue;
+            mesh.getVertexPosition(i, vertex); vertex.applyMatrix4(mesh.matrixWorld);
+            maximum = Math.max(maximum, Math.hypot(vertex.x, vertex.y - 1.6, vertex.z + .04));
+          }
+        }
+      }
+      expect(maximum, name).toBeLessThanOrEqual(.25);
+    }
+    mixer.stopAllAction(); mixer.uncacheRoot(gltf.scene);
+  });
+
 });

@@ -8,7 +8,7 @@ import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const blender = process.env.BLENDER_BIN || '/Applications/Blender.app/Contents/MacOS/Blender';
-const result = spawnSync(blender, ['-b', '--python', 'tools/blender/capybara.py'], { cwd: root, stdio: 'inherit' });
+const result = spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', 'tools/blender/capybara.py'], { cwd: root, stdio: 'inherit' });
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
 await MeshoptEncoder.ready;

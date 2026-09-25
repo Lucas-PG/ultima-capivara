@@ -1,5 +1,5 @@
 {
-  "sourceTriangles": 21160,
+  "sourceTriangles": 29108,
   "palette": [
     "B8743A",
     "D39A47",
@@ -12,16 +12,16 @@
     "5A3A22",
     "1A120C",
     "FFFFFF",
-    "BA795B",
-    "F4DEB3",
-    "88904E",
-    "B8743A",
+    "9C5A3A",
+    "E9B44C",
+    "51532F",
+    "FFFFFF",
     "B8743A"
   ],
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 13998
+      "triangles": 13999
     },
     {
       "name": "Capybara_LOD1",
@@ -29,7 +29,7 @@
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 1400
+      "triangles": 1390
     }
   ],
   "hitbox": {
@@ -47,15 +47,21 @@
     }
   },
   "clips": [
+    "face_blink",
+    "face_determined",
+    "face_hit",
+    "face_neutral",
+    "face_stunned",
+    "face_victory",
     "idle",
     "jump",
     "run"
   ],
   "materials": 1,
   "skins": 1,
-  "joints": 22,
-  "bytes": 152220,
-  "rawBytes": 709756,
+  "joints": 26,
+  "bytes": 216980,
+  "rawBytes": 881848,
   "texture": {
     "format": "PNG",
     "width": 16,
