@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { timing } from './timing';
 import { damp } from '../shared/math';
 import { actorEye } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
@@ -146,6 +147,7 @@ export class CameraRig {
         this.blendFromPosition.copy(this.camera.position); this.blendFromQuaternion.copy(this.camera.quaternion);
         this.cameraBlend = 1; this.cameraBlendDuration = mode === 'fps' ? .6 : .8;
       }
+      if (this.cameraMode !== mode && timing.enabled) timing.record('camera-transition', timing.begin(), 0, mode, true);
       if (snap) this.cameraBlend = 0;
       // Handing off from the death cam to the spectated capybara eases instead of cutting.
       if (this.wasDeathCam && !this.settings.reducedMotion) {

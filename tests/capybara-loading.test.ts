@@ -6,6 +6,8 @@ import type { AssetEntry } from '../src/render/asset-manifest';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 
 const { loaderConstructor } = vi.hoisted(() => ({ loaderConstructor: vi.fn() }));
+vi.mock('../src/render/sky', () => ({ PaintedSky: class {} }));
+vi.mock('../src/render/timing-gpu', () => ({ instrumentMaterials: vi.fn(), instrumentGpu: vi.fn() }));
 vi.mock('../src/render/assets', () => ({ AssetLoader: loaderConstructor }));
 vi.mock('three', async original => ({ ...await original<typeof THREE>(), WebGLRenderer: vi.fn() }));
 
@@ -67,7 +69,7 @@ describe('capybara cosmetic colour contract', () => {
     const material = baseline.body.material as THREE.MeshStandardMaterial;
     expect(material.userData.toonCharacter).toBeUndefined();
     expect(material.roughness).toBe(.78);
-    expect(material.customProgramCacheKey()).not.toContain('ilha-dourada-character-v1');
+    expect(material.customProgramCacheKey()).not.toContain('ilha-dourada-character-v2');
     const original = baseline.body.geometry.getAttribute('color');
     const positions = baseline.body.geometry.getAttribute('position');
     const bones = baseline.body.geometry.getAttribute('skinIndex');
@@ -103,7 +105,7 @@ describe('capybara cosmetic colour contract', () => {
       const material = meshes[0].material as THREE.MeshStandardMaterial;
       expect(meshes.every(mesh => mesh.material === material)).toBe(true);
       expect(material.userData.toonCharacter).toBe(true);
-      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v1');
+      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v2');
       expect(material.vertexColors).toBe(true);
       expect(material.emissiveMap).toBe(sourceMaterial.emissiveMap);
       expect(material.emissive.getHexString()).toBe('ffffff');

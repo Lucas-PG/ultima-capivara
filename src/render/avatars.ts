@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applyCharacterStyle } from './materials';
 import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody } from './capybara';
 import { itemGeometry, itemMaterial } from './item-geometry';
 import { addEllipsoid } from './primitives';
@@ -26,6 +27,14 @@ function nameSprite(name: string): THREE.Sprite {
 export function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
   const { body, bones } = buildCapybaraBody(color);
+  // Include every preloaded LOD, preserving its own visibility and skinning.
+  body.traverse(object => {
+    if (!(object instanceof THREE.SkinnedMesh)) return;
+    object.layers.enable(1);
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      if (material instanceof THREE.MeshStandardMaterial) applyCharacterStyle(material);
+    }
+  });
   group.add(body);
   // The held weapon rides on the arms bone, so it aims with the paws.
   const weapon = new THREE.Mesh(new THREE.BufferGeometry(), itemMaterial);

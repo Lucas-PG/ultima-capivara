@@ -8,6 +8,7 @@ import { WEAPONS } from './shared/weapons';
 import { DEATH_CAM_SECONDS } from './shared/death-cam';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot, RenderFrame } from './shared/types';
 import type { GameRenderer } from './render/renderer';
+import { timing } from './render/timing';
 import { RoomSession } from './network/session';
 import { InputController } from './input';
 import { SoundEngine } from './audio';
@@ -208,6 +209,8 @@ function leave() {
 }
 function acceptSnapshot(next: WorldSnapshot) {
   if (next.matchId !== match || (snapshot && next.tick < snapshot.tick)) return;
+  timing.context(loading ? 'loading' : next.phase, next.tick, renderedFrames);
+  const snapshotAt = timing.begin();
   snapshot = next; receivedAt = performance.now();
   if (loading && !matchPreparation) {
     const preparingId = match;
@@ -246,6 +249,7 @@ function acceptSnapshot(next: WorldSnapshot) {
     playing = false; input.unlock(); worker?.terminate(); worker = null;
     ui.update(next, playerId, session.ping, false, fps, null);
   }
+  timing.end('snapshot', snapshotAt);
 }
 function acceptEvents(events: GameEvent[]) {
   for (const event of events) {
@@ -321,10 +325,13 @@ function frame(now: number) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - lastFrame) / 1000, .1); lastFrame = now;
   if (document.hidden || (loading && !readyToReveal)) return;
+  timing.context(loading ? 'loading' : snapshot?.phase ?? 'menu', snapshot?.tick ?? -1, renderedFrames);
   input.recoverRecoil(dt);
   const me = snapshot?.actors.find(a => a.id === playerId) || null;
   const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : me;
+  const audioAt = timing.begin();
   sound.update(listener, snapshot, dt, ui.screen !== 'game');
+  timing.end('audio', audioAt);
   // After the match ends the island keeps drawing behind the in-game victory overlay.
   const ended = !playing && snapshot?.phase === 'results';
   if ((!playing && !ended) || !snapshot || ui.screen !== 'game') return;
@@ -352,15 +359,22 @@ function frame(now: number) {
     if (!spectateId) cycleSpectator();
   }
   if (spectateId && !snapshot.actors.some(a => a.id === spectateId && a.alive)) cycleSpectator();
+  const interactionAt = timing.begin();
   interaction = closestInteraction();
+  timing.end('interaction', interactionAt);
   if (input.locked || dirtyFrame || ended || renderer?.deathCamActive) {
     renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt;
-    renderFrame.spectateId = spectateId; renderFrame.predicted = predicted?.pos; renderer?.update(renderFrame);
+    renderFrame.spectateId = spectateId; renderFrame.predicted = predicted?.pos;
+    const renderAt = timing.begin();
+    renderer?.update(renderFrame);
+    timing.end('render', renderAt);
     renderedFrames++; frameCount++; dirtyFrame = false;
     if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }
   if (now - fpsAt >= 1000) { fps = frameCount * 1000 / (now - fpsAt); frameCount = 0; fpsAt = now; }
+  const hudAt = timing.begin();
   ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction);
+  timing.end('hud', hudAt);
 }
 requestAnimationFrame(frame);
 document.querySelector('#loading')?.remove();
@@ -385,9 +399,10 @@ if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has(
 if (import.meta.env.DEV) {
   // Perf probe: frame intervals from an independent rAF loop plus long tasks.
   const intervals: number[] = [], longTasks: number[] = []; let lastTick = performance.now();
-  const tick = (now: number) => { intervals.push(now - lastTick); if (intervals.length > 1200) intervals.shift(); lastTick = now; requestAnimationFrame(tick); };
+  timing.observeLongTasks();
+  const tick = (now: number) => { timing.record('raf-gap', lastTick, now - lastTick); intervals.push(now - lastTick); if (intervals.length > 1200) intervals.shift(); lastTick = now; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
-  try { new PerformanceObserver(list => { for (const entry of list.getEntries()) longTasks.push(Math.round(entry.duration)); }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
+  try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
     inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length }),
     perf: () => {
@@ -396,6 +411,7 @@ if (import.meta.env.DEV) {
       return { frames: sorted.length, p50: pick(.5), p95: pick(.95), p99: pick(.99), max: +(sorted.at(-1) ?? 0).toFixed(1), over33: intervals.filter(t => t > 33.4).length,
         longTasks: [...longTasks], renderer: renderer?.stats, heapMB: heap ? Math.round(heap / 1048576) : null };
     },
-    resetPerf: () => { intervals.length = 0; longTasks.length = 0; },
+    timings: () => ({ ...timing.snapshot(), preset: settings.graphics, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } }),
+    resetPerf: () => { intervals.length = 0; longTasks.length = 0; timing.reset(); lastTick = performance.now(); },
   } });
 }

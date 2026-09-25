@@ -91,7 +91,7 @@ const pennant = (() => {
   return geometry;
 })();
 const groundRing = new THREE.TorusGeometry(.5, .055, 5, 16).rotateX(-Math.PI / 2);
-const roofPalette = ['#b9644b', '#b97655', '#8d7776', '#9e685e'];
+const roofPalette = ['#D0673F', '#B5532F', '#D0673F', '#B5532F'];
 const cream = '#f4dfad', wood = '#80563e', dark = '#523d3a', brass = '#d9aa5e';
 const roles: Record<string, { name: string; accent: string; pale: string }> = {
   home: { name: '', accent: '#83a49a', pale: '#ded0b4' },
@@ -156,16 +156,14 @@ export function buildProps(world: WorldSpec): { group: THREE.Group; dispose(): v
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotation),
       new THREE.Vector3(sx, sy, sz)));
     const tint = new THREE.Color(color);
-    const positions = g.getAttribute('position'), normals = g.getAttribute('normal');
+    const normals = g.getAttribute('normal');
     const colors = new Float32Array(g.getAttribute('position').count * 3);
     for (let i = 0; i < colors.length; i += 3) {
       const vertex = i / 3;
       const side = normals.getY(vertex) > .5 ? 1.065 : normals.getY(vertex) < -.5 ? .87 : .98;
-      const grain = 1 + (hash(Math.round(positions.getX(vertex) * 27),
-        Math.round((positions.getY(vertex) + positions.getZ(vertex)) * 23)) - .5) * .055;
-      colors[i] = tint.r * side * grain;
-      colors[i + 1] = tint.g * side * grain;
-      colors[i + 2] = tint.b * side * grain;
+      colors[i] = tint.r * side;
+      colors[i + 1] = tint.g * side;
+      colors[i + 2] = tint.b * side;
     }
     g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     bucket(opaque).push(g);
@@ -816,12 +814,12 @@ export function buildProps(world: WorldSpec): { group: THREE.Group; dispose(): v
     if (object.detail === 'crate') {
       const sx = object.scale.x, sy = object.scale.y, sz = object.scale.z;
       for (const level of [-.28, .28]) {
-        box('#bc8b5d', x, y + level * sy, z + sz * .507, sx * .94, .09, .035);
-        box('#bc8b5d', x + sx * .507, y + level * sy, z, .035, .09, sz * .94);
+        box('#7A5234', x, y + level * sy, z + sz * .507, sx * .94, .09, .035);
+        box('#7A5234', x + sx * .507, y + level * sy, z, .035, .09, sz * .94);
       }
-      for (const dx of [-.42, .42]) box('#d0a370', x + dx * sx, y, z + sz * .51, .09, sy * .88, .035);
-      for (const dz of [-.42, .42]) box('#d0a370', x + sx * .51, y, z + dz * sz, .035, sy * .88, .09);
-      box('#d5a677', x, y + sy * .507, z, sx * .93, .035, sz * .93);
+      for (const dx of [-.42, .42]) box('#9C6A42', x + dx * sx, y, z + sz * .51, .09, sy * .88, .035);
+      for (const dz of [-.42, .42]) box('#9C6A42', x + sx * .51, y, z + dz * sz, .035, sy * .88, .09);
+      box('#9C6A42', x, y + sy * .507, z, sx * .93, .035, sz * .93);
       continue;
     }
     const [, type, role] = object.detail.split(':');

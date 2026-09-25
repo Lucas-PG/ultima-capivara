@@ -39,9 +39,10 @@ describe('match avatar preparation', () => {
     const renderer = Object.assign(Object.create(GameRenderer.prototype), {
       disposed: false, warming: null, scene, avatars: view, camera: new THREE.PerspectiveCamera(),
       worldView: { group: new THREE.Group(), ...owned() },
+      sky: { group: new THREE.Group(), ...owned() }, storm: { mesh: new THREE.Mesh(), ...owned() },
       weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), revealAll: vi.fn(), ...owned() },
       environment: owned(), pipeline: owned(), assets: { ready: vi.fn().mockResolvedValue(undefined), ...owned() },
-      onProgress: vi.fn(), resize: vi.fn(), effects: { warm: vi.fn(), ...owned() }, storm: owned(),
+      onProgress: vi.fn(), resize: vi.fn(), effects: { warm: vi.fn(), ...owned() },
       gl: { compileAsync: compile, setRenderTarget: vi.fn(), shadowMap: { enabled: true }, ...owned() },
     }) as GameRenderer;
     const pending = warming ? Promise.allSettled([renderer.warmup()]) : null;
