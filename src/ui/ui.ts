@@ -450,6 +450,23 @@ export class GameUI {
     const snapshot = this.snapshot, me = snapshot?.actors.find(a => a.id === this.localId);
     return !!snapshot && !!me && !me.alive && snapshot.config.mode === 'battle-royale' && snapshot.phase === 'playing';
   }
+  setLoadingProgress(fraction: number, label?: string) {
+    const overlay = this.root.querySelector<HTMLElement>('#loadingOverlay');
+    const bar = overlay?.querySelector<HTMLElement>('.lbar');
+    const fill = bar?.querySelector<HTMLElement>('i');
+    if (!overlay || !bar || !fill || !Number.isFinite(fraction)) return;
+    const next = Math.max(0, Math.min(1, fraction));
+    if (next < Number(overlay.dataset.progress || 0)) return;
+    overlay.dataset.progress = String(next);
+    const percent = Math.round(next * 100);
+    bar.classList.add('determinate');
+    bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', 'Carregamento da ilha');
+    bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100'); bar.setAttribute('aria-valuenow', String(percent));
+    fill.style.width = `${percent}%`;
+    const status = overlay.querySelector('.lstatus');
+    if (status && (label !== undefined || next === 1)) status.textContent = next === 1 ? 'Pronto!' : label!.trim().replace(/(?:\.\.\.|…)$/, '').slice(0, 28);
+  }
+
   // Match loading screen: covers the scene until the island is loaded and the first real frame is drawn.
   setLoading(on: boolean) {
     clearInterval(this.tipTimer);
@@ -459,7 +476,7 @@ export class GameUI {
     const tips = ['Aperte M pra ver a ilha inteira.', 'Q e E espiam pelas quinas.', 'Fora da área segura, a tempestade tira vida a cada segundo.', 'Caixas de suprimentos guardam armas e equipamento.', 'Tab mostra o placar da turma.', 'No avião, Espaço salta. No ar, abre o paraquedas.'];
     let tip = Math.floor(Math.random() * tips.length);
     const overlay = document.createElement('div'); overlay.id = 'loadingOverlay';
-    overlay.innerHTML = `<div class="lcard stk"><div class="lcapy">${capybara(this.profile.color)}</div><h2>Carregando a ilha…</h2><div class="lbar"><i></i></div><p class="ltip"><b>Dica</b> <span>${tips[tip]}</span></p></div>`;
+    overlay.innerHTML = `<div class="lcard stk"><div class="lcapy">${capybara(this.profile.color)}</div><h2>Carregando a ilha…</h2><div class="lbar"><i></i></div><span class="lstatus" role="status"></span><p class="ltip"><b>Dica</b> <span>${tips[tip]}</span></p></div>`;
     this.root.appendChild(overlay);
     this.tipTimer = window.setInterval(() => { tip = (tip + 1) % tips.length; const line = overlay.querySelector('.ltip span'); if (line) line.textContent = tips[tip]; }, 2600);
   }
