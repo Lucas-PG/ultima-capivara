@@ -8,6 +8,7 @@ import { buildVegetation } from './vegetation';
 import { releaseAfterUpload } from './memory';
 import { buildProps } from './props';
 import { buildWallArt } from './wall-art';
+import { textSignMaterial, twoSidedTextSign } from './signage';
 import type { MapObject, Settings, WorldSpec } from '../shared/types';
 
 const c = (value: string | number) => new THREE.Color(value);
@@ -543,12 +544,15 @@ export class WorldScene {
         continue;
       }
       if (kind === 'sign') {
-        const material = new THREE.MeshBasicMaterial({ map: signTexture(detail || ''), side: THREE.DoubleSide });
-        const board = new THREE.Mesh(new THREE.PlaneGeometry(scale.x, scale.y * .62), material);
+        const material = textSignMaterial(signTexture(detail || ''));
+        const board = twoSidedTextSign(scale.x, scale.y * .62, material);
         board.position.set(pos.x, pos.y + .4, pos.z); board.rotation.y = rotation; this.group.add(board);
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, scale.y * .9, 6), new THREE.MeshStandardMaterial({ color: '#6e573d' }));
-        pole.position.set(pos.x, pos.y - scale.y * .27, pos.z); this.group.add(pole);
-        this.disposables.push(board.geometry, material, material.map!, pole.geometry, pole.material as THREE.Material);
+        const groundY = terrainHeight(pos.x, pos.z);
+        const boardBottom = board.position.y - scale.y * .31;
+        const poleHeight = boardBottom - groundY;
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, poleHeight, 6), new THREE.MeshStandardMaterial({ color: '#6e573d' }));
+        pole.position.set(pos.x, groundY + poleHeight / 2, pos.z); this.group.add(pole);
+        this.disposables.push((board.children[0] as THREE.Mesh).geometry, material, material.map!, pole.geometry, pole.material as THREE.Material);
         continue;
       }
       if (kind === 'lamp') {
