@@ -199,8 +199,8 @@ export function buildVegetation(world: WorldSpec) {
         if (far) {
           // Overlapping, solid frond ribbons retain the drooping near outline
           // without subpixel leaflets that break into dots at 60+ metres.
-          for (const [start, end, width] of [[0, .46, .23], [.27, .78, .26], [.58, 1, .20]] as const)
-            leaf(point(start), point(end), length * width, WORLD_PALETTE.palmMid, i + 1, .8);
+          for (const [start, end, width] of [[0, .46, .16], [.27, .78, .18], [.58, 1, .14]] as const)
+            leaf(point(start), point(end), length * width, WORLD_PALETTE.palmMid, i + 1, .6);
           continue;
         }
         for (let rib = 0; rib < 3; rib++) branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid, i + 1);
@@ -356,7 +356,7 @@ export function buildVegetation(world: WorldSpec) {
     if (farGeometry) {
       const far = makeInstances(farGeometry, objects.length, material, objects, cx, cz, templateHeight);
       far.receiveShadow = true;
-      node.addLevel(far, 65, .1);
+      node.addLevel(far, type === 'palm' ? 50 : 65, .1);
     }
     group.add(node);
   }
