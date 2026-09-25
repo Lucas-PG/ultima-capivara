@@ -120,3 +120,13 @@ describe('results screen', () => {
     for (const ms of [...panel.matchAll(/(\d*\.?\d+)s/g)].map(m => Number(m[1]) * 1000)) expect(RESULTS_ACTIONS_DELAY + ms).toBeLessThanOrEqual(700);
   });
 });
+
+describe('lobby warmup', () => {
+  // Forja's lazy renderer warms up when the lobby opens; the host must see a busy, disabled start instead of a dead button.
+  it('exposes setRoomLoading on GameUI and never lets the start button be enabled while loading', () => {
+    const code = readFileSync('src/ui/ui.ts', 'utf8');
+    expect(code).toMatch(/setRoomLoading\(fraction: number \| null\)/);
+    expect(code).toMatch(/allReady && !loading \? '' : 'disabled'/);
+    expect(code).toMatch(/Carregando a ilha/);
+  });
+});
