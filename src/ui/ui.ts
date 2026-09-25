@@ -3,7 +3,7 @@ import { clamp } from '../shared/math';
 import { rarityOf } from '../shared/rarity';
 import { ARENA } from '../shared/layout';
 import { terrainHeight } from '../shared/terrain';
-import { WEAPONS } from '../shared/weapons';
+import { shotSpread, WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
 
@@ -203,7 +203,13 @@ export class GameUI {
     const scoped = me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
     this.el('scope-overlay').hidden = !scoped;
     const speed = Math.hypot(me.velocity.x, me.velocity.z), cross = this.el('cross');
-    cross.style.setProperty('--g', `${(4 + (def ? me.ads ? def.adsSpread : def.spread : 1) * 3.2 + Math.min(speed, 6) * 1.1).toFixed(1)}px`);
+    const spread = weapon ? shotSpread(weapon.id, me.ads, speed, !me.grounded, me.shotHeat) : 0;
+    const height = document.querySelector<HTMLCanvasElement>('#game')?.clientHeight || window.innerHeight;
+    const scale = height / 1080;
+    const zoom = weapon?.id === 'sniper' ? 5.5 : weapon?.id === 'dmr' ? 2.9 : 1.25;
+    const fov = this.settings.fov / (me.ads ? zoom : 1) * Math.PI / 180;
+    const gap = clamp(Math.tan(spread * Math.PI / 360) * height / (2 * Math.tan(fov / 2)), 4 * scale, 48 * scale);
+    cross.style.setProperty('--g', `${gap.toFixed(1)}px`);
     cross.style.opacity = me.alive && me.stage === 'ground' && !scoped && !(me.sprint && speed > .5) ? '1' : '0';
     const prompt = this.el('prompt'); prompt.hidden = !interaction || !me.alive || me.stage !== 'ground';
     if (interaction) { this.text('promptTxt', interaction.name.startsWith('Abrir') ? interaction.name : `Pegar ${interaction.name}`); this.text('promptKey', keyName(this.settings.bindings.interact)); }

@@ -10,7 +10,7 @@ const actor: ActorState = {
   crouch: false, sprint: true, ads: false, stage: 'ground', kills: 0, deaths: 0, damage: 0,
   weapons: [{ id: 'pistol', ammo: 12, reserve: 36, rarity: 0 }], slot: 0,
   consumables: { bandage: 1, medkit: 0, guarana: 0, acai: 0, rapadura: 0 }, reloadUntil: 0,
-  useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 4,
+  useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 4, shotHeat: .32,
 };
 const snapshot: WorldSnapshot = {
   protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: 'a'.repeat(48), tick: 5, time: 1.2,
@@ -27,6 +27,7 @@ describe('network protocol', () => {
     expect(restored?.actors[0].velocity).toEqual({ x: .1, y: 0, z: -.2 });
     expect(restored?.actors[0].weapons).toEqual(actor.weapons);
     expect(restored?.actors[0].consumables).toEqual(actor.consumables);
+    expect(restored?.actors[0].shotHeat).toBe(.32);
     expect(restored?.loot).toEqual(snapshot.loot);
     expect(restored?.phase).toBe('playing');
   });
@@ -136,10 +137,11 @@ describe('network protocol', () => {
     tampered(f => { f.actors[0].pop(); });
     tampered(f => { f.actors[0][0] = 1; });
     tampered(f => { f.actors.pop(); });
-    tampered(f => { f.actors[0][25] = -1; });
-    tampered(f => { f.actors[0][25] = 1.5; });
-    tampered(f => { f.actors[0][25] = 100; });
-    tampered(f => { f.actors[0][26] = 10_001; });
+    tampered(f => { f.actors[0][25] = 121; });
+    tampered(f => { f.actors[0][26] = -1; });
+    tampered(f => { f.actors[0][26] = 1.5; });
+    tampered(f => { f.actors[0][26] = 100; });
+    tampered(f => { f.actors[0][27] = 10_001; });
     tampered((_, g) => { g[0].weapons[0].id = 'unknown' as any; });
   });
 

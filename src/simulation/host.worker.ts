@@ -16,7 +16,8 @@ let ticks = 0;
 self.onmessage = ({ data }: MessageEvent<Command>) => {
   try {
     if (data.type === 'init') {
-      simulation = new Simulation(data.world, data.config, data.players, data.matchId);
+      const seed = crypto.getRandomValues(new Uint32Array(1))[0];
+      simulation = new Simulation(data.world, data.config, data.players, data.matchId, seed);
       previous = performance.now(); accumulator = 0; ticks = 0;
       publish();
     } else if (data.type === 'stop') simulation = null;
