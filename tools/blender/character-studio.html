@@ -1,5 +1,5 @@
 <!-- Camera and bible A lighting match Pincel's M1 review setup. -->
-<!doctype html><html><body style="margin:0;background:#e9e4d8"><canvas id="c"></canvas>
+<!doctype html><html><head><link rel="icon" href="../../assets/favicon.svg"></head><body style="margin:0;background:#e9e4d8"><canvas id="c"></canvas>
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -36,7 +36,26 @@ mixer.update(t);
 if (q.get('sil')) model.traverse(o => { if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ color: '#1a120c' }); });
 const yaw = +(q.get('yaw') || 0) * Math.PI / 180, dist = +(q.get('d') || 4.2), ty = +(q.get('ty') || .95);
 cam.position.set(Math.sin(yaw) * dist, ty + +(q.get('cy') || 0), Math.cos(yaw) * dist); cam.lookAt(0, ty, 0);
-r.render(scene, cam);
+if (q.has('expressions')) {
+  const expressions = [
+    ['neutral', 'Neutro'], ['determined', 'Determinado'], ['hit', 'Dano'],
+    ['stunned', 'Atordoado'], ['victory', 'Vitória'], ['blink', 'Piscada'],
+  ];
+  const width = W / 3, height = H / 2;
+  cam.aspect = width / height; cam.updateProjectionMatrix();
+  r.setScissorTest(true);
+  expressions.forEach(([name, label], i) => {
+    const x = i % 3 * width, y = Math.floor(i / 3) * height;
+    mixer.stopAllAction(); mixer.clipAction(gltf.animations.find(clip => clip.name === `face_${name}`)).reset().play();
+    mixer.setTime(t);
+    r.setViewport(x, H - y - height, width, height); r.setScissor(x, H - y - height, width, height);
+    r.render(scene, cam);
+    const caption = document.createElement('div'); caption.textContent = label;
+    caption.style.cssText = `position:absolute;left:${x + 24}px;top:${y + 18}px;font:600 18px system-ui;color:#3a2418`;
+    document.body.append(caption);
+  });
+  r.setScissorTest(false);
+} else r.render(scene, cam);
 const box = new THREE.Box3().setFromObject(model); window.bounds = { min: box.min.toArray(), max: box.max.toArray() };
 window.ready = true;
 window.studio = { model, mixer, scene, camera:cam, renderer:r, clips:gltf.animations };

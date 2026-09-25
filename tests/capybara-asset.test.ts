@@ -107,7 +107,7 @@ describe('shipped capybara asset contract', () => {
             let headWeight = 0;
             for (let j = 0; j < 4; j++) {
               const joint = mesh.skeleton.bones[indices.getComponent(i, j)];
-              if (/^(head|jaw|ear_|blink_|brow_|mouth_)/.test(joint.name)) headWeight += weights.getComponent(i, j);
+              if (/^(head|jaw|ear_|blink_|glint_|brow_|mouth_)/.test(joint.name)) headWeight += weights.getComponent(i, j);
             }
             if (headWeight < .5) continue;
             mesh.getVertexPosition(i, vertex); vertex.applyMatrix4(mesh.matrixWorld);

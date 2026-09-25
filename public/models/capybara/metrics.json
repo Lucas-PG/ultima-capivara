@@ -1,5 +1,5 @@
 {
-  "sourceTriangles": 29108,
+  "sourceTriangles": 29060,
   "palette": [
     "B8743A",
     "D39A47",
@@ -25,11 +25,11 @@
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 4800
+      "triangles": 4799
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 1390
+      "triangles": 1391
     }
   ],
   "hitbox": {
@@ -59,9 +59,9 @@
   ],
   "materials": 1,
   "skins": 1,
-  "joints": 26,
-  "bytes": 216980,
-  "rawBytes": 881848,
+  "joints": 32,
+  "bytes": 238184,
+  "rawBytes": 902760,
   "texture": {
     "format": "PNG",
     "width": 16,

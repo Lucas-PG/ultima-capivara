@@ -78,6 +78,9 @@ bone('tail', (0, .62, .23), (0, .66, .29), 'spine')
 for s, side in [(-1, 'L'), (1, 'R')]:
     bone('ear_' + side, (s * .15, 1.755, .005), (s * .16, 1.815, .005), 'head')
     bone('blink_' + side, (s * .177, 1.681, -.098), (s * .177, 1.71, -.098), 'head')
+    for part in ['tip', 'peak']:
+        bone('blink_' + part + '_' + side, (s * .177, 1.681, -.098), (s * .177, 1.71, -.098), 'blink_' + side)
+    bone('glint_' + side, (s * .177 - .006, 1.689, -.110), (s * .177 - .006, 1.719, -.110), 'blink_' + side)
     bone('brow_' + side, (s * .16, 1.711, -.06), (s * .16, 1.743, -.06), 'head')
     bone('mouth_' + side, (s * .073, 1.492, -.239), (s * .073, 1.522, -.239), 'jaw')
     bone('thigh_' + side, (s * .137, .39, .01), (s * .137, .22, .01), 'root')
@@ -121,14 +124,16 @@ def mesh_part(name, verts, faces, color, weights, subdivide=True):
         sub = obj.modifiers.new('Quad smoothing', 'SUBSURF')
         sub.levels = 1
         bpy.ops.object.modifier_apply(modifier=sub.name)
-    # Face, muzzle and ears stay inside the head hit sphere, with 6 mm clearance.
-    facial = {g.index for g in obj.vertex_groups if g.name == 'head' or g.name == 'jaw' or g.name.startswith(('ear_', 'blink_', 'brow_', 'mouth_'))}
+    # Fur sits 4 mm behind facial linework, avoiding coincident surfaces at the hit sphere.
+    radius = .240 if obj.name in {'Head_and_muzzle', 'Lower_jaw_fur'} else .244
+    # Face, muzzle and ears stay inside the head hit sphere.
+    facial = {g.index for g in obj.vertex_groups if g.name == 'head' or g.name == 'jaw' or g.name.startswith(('ear_', 'blink_', 'glint_', 'brow_', 'mouth_'))}
     centre = V((0, 1.6, -.04))
     for vert in obj.data.vertices:
         if sum(g.weight for g in vert.groups if g.group in facial) > .5 or vert.co.z > 1.42:
             offset = vert.co - centre
-            if offset.length > .244:
-                vert.co = centre + offset.normalized() * .244
+            if offset.length > radius:
+                vert.co = centre + offset.normalized() * radius
     parts.append(obj)
     return obj
 
@@ -267,13 +272,24 @@ for poly in head_surface.data.polygons:
 rounded_block('Nose_pad', (0, 1.614, -.27), (.19, .043, .012), 3, {'head': 1}, bevel=.012)
 for side in [-1, 1]:
     ellipsoid('Nostril', (side * .055, 1.613, -.278), (.014, .009, .004), 9, {'head': 1}, segments=10, rings=6)
-ellipsoid('Mouth_opening', (0, 1.51, -.25), (.077, .024, .008), 3, {'head': 1}, segments=16, rings=8)
-rounded_block('Lower_jaw_fur', (0, 1.502, -.214), (.18, .05, .12), 0, {'jaw': 1}, bevel=.02)
+ellipsoid('Mouth_opening', (0, 1.508, -.22), (.058, .016, .004), 3, {'head': 1}, segments=16, rings=8)
+jaw_surface = rounded_block('Lower_jaw_fur', (0, 1.502, -.214), (.18, .05, .12), 0, {'jaw': 1}, bevel=.02)
+# One continuous lip follows the final rounded jaw surface instead of crossing it.
+lip_points = []
+for x, y in [(-.065, 1.519), (-.034, 1.516), (0, 1.514), (.034, 1.516), (.065, 1.519)]:
+    hit, point, normal, face = jaw_surface.ray_cast(V((x, y, -1)), V((0, 0, 1)))
+    assert hit, (x, y)
+    point += V((0, 0, -.0015))
+    lip_points.append((point.x, point.z, -point.y))
+tube('Mouth_line', lip_points, [.0015, .0025, .0025, .0025, .0015], 9, ['mouth_L', 'jaw', 'mouth_R'])
 for s, side in [(-1, 'L'), (1, 'R')]:
-    ellipsoid('Eye_' + side, (s * .177, 1.681, -.098), (.021, .024, .014), 9, {'blink_' + side: 1}, segments=12, rings=8)
-    ellipsoid('Glint_' + side, (s * .177 - .006, 1.689, -.110), (.008, .009, .004), 10, {'blink_' + side: 1}, segments=8, rings=6)
+    def lid_weights(point):
+        tip = .45 * max(0, 1 - abs((point[1] - 1.681) / .024))
+        peak = .45 * max(0, 1 - abs((point[0] - s * .177) / .021))
+        return {'blink_' + side: 1 - tip - peak, 'blink_tip_' + side: tip, 'blink_peak_' + side: peak}
+    ellipsoid('Eye_' + side, (s * .177, 1.681, -.098), (.021, .024, .014), 9, lid_weights, segments=12, rings=8)
+    ellipsoid('Glint_' + side, (s * .177 - .006, 1.689, -.110), (.008, .009, .004), 10, {'glint_' + side: 1}, segments=8, rings=6)
     tube('Brow_tuft_' + side, [(s * .14, 1.71, -.076), (s * .16, 1.718, -.06), (s * .177, 1.71, -.041)], [.003, .012, .003], 2, ['head', 'brow_' + side])
-    tube('Mouth_corner_' + side, [(s * .04, 1.517, -.265), (s * .071, 1.519, -.26), (s * .086, 1.525, -.25)], [.003, .004, .002], 9, ['jaw', 'mouth_' + side])
     ellipsoid('Ear_' + side, (s * .124, 1.766, .042), (.046, .045, .028), 0, {'ear_' + side: .88, 'head': .12}, segments=12, rings=8)
     ellipsoid('Ear_inner_' + side, (s * .124, 1.766, .019), (.029, .029, .01), 11, {'ear_' + side: 1}, segments=12, rings=6)
     tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .01), (s * .137, .23, .01), (s * .137, .15, -.012), (s * .137, .08, -.04)], [.087, .12, .105, .093, .07], 0, ['thigh_' + side, 'shin_' + side, 'foot_' + side])
@@ -416,7 +432,7 @@ for name, frames in [('idle', 75), ('run', 24), ('jump', 30)]:
 # Facial clips key only eyelids, brow tufts, ears and mouth. Skull and muzzle
 # have no tracks here. Runtime can blend these additively over locomotion,
 # referencing face_neutral through AnimationUtils.makeClipAdditive.
-face_parts = [p for p in rig.pose.bones if p.name.startswith(('blink_', 'brow_', 'ear_', 'mouth_')) or p.name == 'jaw']
+face_parts = [p for p in rig.pose.bones if p.name.startswith(('blink_', 'glint_', 'brow_', 'ear_', 'mouth_')) or p.name == 'jaw']
 for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink']:
     action = bpy.data.actions.new('face_' + expression)
     action.use_fake_user = True
@@ -429,6 +445,8 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
             p.scale = (1, 1, 1)
         for sign, side in [(-1, 'L'), (1, 'R')]:
             lid = rig.pose.bones['blink_' + side]
+            if expression in ['hit', 'victory', 'blink']:
+                rig.pose.bones['glint_' + side].scale = (.001, .001, .001)
             brow = rig.pose.bones['brow_' + side]
             ear = rig.pose.bones['ear_' + side]
             mouth = rig.pose.bones['mouth_' + side]
@@ -438,8 +456,9 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
                 brow.location.y = -.006
                 ear.rotation_euler.x = -.10
             elif expression == 'hit':
-                lid.scale.y = .22
-                lid.rotation_euler.z = sign * .38
+                lid.scale.x = .12
+                lid.scale.y = .72
+                rig.pose.bones['blink_tip_' + side].location.x = -sign * .33
                 brow.rotation_euler.z = -sign * .28
                 brow.location.y = .003
                 ear.rotation_euler.x = -.436
@@ -447,28 +466,25 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
                 ear.location.z = -.012
                 mouth.location.y = -.005 if side == 'L' else -.003
                 mouth.location.z = .005
-                rig.pose.bones['jaw'].location.y = -.016
-                rig.pose.bones['jaw'].location.z = .016
-                rig.pose.bones['jaw'].scale.y = 1.5
+                rig.pose.bones['jaw'].location.y = -.025
+                rig.pose.bones['jaw'].location.z = .025
             elif expression == 'stunned':
                 lid.scale.y = 1.25 if side == 'L' else 1.1
                 lid.scale.x = 1.16
                 brow.rotation_euler.z = sign * (.12 if side == 'L' else -.12)
                 ear.rotation_euler.z = sign * .12
                 ear.location.y = -.012
-                rig.pose.bones['jaw'].location.y = -.014
-                rig.pose.bones['jaw'].location.z = .022
-                rig.pose.bones['jaw'].scale.y = 1.8
+                rig.pose.bones['jaw'].location.y = -.027
+                rig.pose.bones['jaw'].location.z = .025
             elif expression == 'victory':
-                lid.scale.y = .42
-                lid.rotation_euler.z = -sign * .2
+                lid.scale.y = .14
+                rig.pose.bones['blink_peak_' + side].location.y = .22
                 brow.location.y = .006
                 mouth.location.y = .026
                 ear.rotation_euler.x = .10
-                rig.pose.bones['jaw'].location.y = -.014
-                rig.pose.bones['jaw'].location.z = .022
-                rig.pose.bones['jaw'].scale.x = 1.12
-                rig.pose.bones['jaw'].scale.y = 1.65
+                rig.pose.bones['jaw'].location.y = -.020
+                rig.pose.bones['jaw'].location.z = .020
+                rig.pose.bones['jaw'].scale.x = 1.08
             elif expression == 'blink':
                 lid.scale.y = .04
         for p in face_parts:
