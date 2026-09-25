@@ -69,18 +69,20 @@ export class CameraRig {
   readonly planeVelocity = new THREE.Vector3();
   private planeSample = { match: '', tick: -1, time: 0, at: 0, pos: new THREE.Vector3() };
   // Death cam (Brasa): after your elimination the view rises out of your eyes and frames the eliminator.
-  private deathCam: { start: number; duration: number; killerId: string | null; killerPos: THREE.Vector3 | null; victimEye: THREE.Vector3 } | null = null;
+  // `start` stays null while armed: the kill event can arrive before or after the snapshot that shows you dead.
+  private deathCam: { armedAt: number; start: number | null; duration: number; killerId: string | null; killerPos: THREE.Vector3 | null; victimEye: THREE.Vector3 } | null = null;
   private wasDeathCam = false;
   constructor(readonly camera: THREE.PerspectiveCamera, private readonly world: WorldSpec, private settings: Settings, private readonly avatars: AvatarView) {}
 
   // Timed on the renderer's clamped frame clock; cleared on respawn, spectating and a new match.
   startDeathCam(info: { victimEye: Vec3; killerId: string | null; killerPos: Vec3 | null; duration: number }) {
-    this.deathCam = { start: this.elapsed, duration: THREE.MathUtils.clamp(info.duration, 1.5, 2), killerId: info.killerId,
+    this.deathCam = { armedAt: this.elapsed, start: null, duration: THREE.MathUtils.clamp(info.duration, 1.5, 2), killerId: info.killerId,
       killerPos: info.killerPos ? new THREE.Vector3(info.killerPos.x, info.killerPos.y, info.killerPos.z) : null,
       victimEye: new THREE.Vector3(info.victimEye.x, info.victimEye.y, info.victimEye.z) };
   }
   clearDeathCam() { this.deathCam = null; this.wasDeathCam = false; }
-  get deathCamActive() { return !!this.deathCam && this.elapsed - this.deathCam.start < this.deathCam.duration; }
+  // Armed (waiting for the dead view) or running.
+  get deathCamActive() { return !!this.deathCam && (this.deathCam.start === null || this.elapsed - this.deathCam.start < this.deathCam.duration); }
 
   private poseDeathCam() {
     const cam = this.deathCam!, eye = cam.victimEye, look = this.lookTarget;
@@ -89,7 +91,7 @@ export class CameraRig {
     else if (cam.killerPos) look.copy(cam.killerPos).setY(cam.killerPos.y + 1.2);
     else look.copy(eye).setY(eye.y - 1.4);
     // Rise and back away from the eliminator over 0.45 s (a cut with reduced motion).
-    const k = this.settings.reducedMotion ? 1 : 1 - (1 - Math.min(1, (this.elapsed - cam.start) / .45)) ** 3;
+    const k = this.settings.reducedMotion ? 1 : 1 - (1 - Math.min(1, (this.elapsed - cam.start!) / .45)) ** 3;
     const away = this.direction.set(eye.x - look.x, 0, eye.z - look.z);
     if (away.lengthSq() < 1e-4) away.set(0, 0, 1);
     away.normalize();
@@ -126,8 +128,14 @@ export class CameraRig {
     let actor: ActorState | undefined;
     if (snapshot) for (const candidate of snapshot.actors) if (candidate.id === viewedId) { actor = candidate; break; }
     this.lastActor = actor;
-    if (frame.playing && actor && !actor.alive && viewedId === frame.playerId && this.deathCamActive) { this.poseDeathCam(); return; }
-    if (this.deathCam && (!frame.playing || actor?.alive || viewedId !== frame.playerId)) this.deathCam = null;
+    const cam = this.deathCam;
+    if (cam) {
+      const dead = frame.playing && !!actor && !actor.alive && viewedId === frame.playerId;
+      if (cam.start === null && dead) cam.start = this.elapsed;
+      // Drop it on spectating, the menu, a respawn after it ran, or a dead view that never arrived.
+      if (!frame.playing || viewedId !== frame.playerId || (cam.start !== null && actor?.alive) || (cam.start === null && this.elapsed - cam.armedAt > 3)) this.deathCam = null;
+      else if (dead && this.deathCamActive) { this.poseDeathCam(); return; }
+    }
     if (frame.playing && actor?.alive) {
       const own = viewedId === frame.playerId;
       const yaw = own ? frame.input.yaw : actor.yaw;

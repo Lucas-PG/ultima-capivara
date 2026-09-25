@@ -25,6 +25,42 @@ const run = (r: CameraRig, f: RenderFrame, seconds: number) => { for (let t = 0;
 const start = (r: CameraRig) => r.startDeathCam({ victimEye: { x: 0, y: terrainHeight(0, 0) + 1.62, z: 0 }, killerId: 'killer', killerPos: at(0, -20), duration: 1.8 });
 
 describe('death cam', () => {
+  it('waits for the dead snapshot when the reliable kill overtakes the snapshot channel', () => {
+    const r = rig();
+    r.update(frame(true), DEFAULT_SETTINGS, 0, 0);
+    start(r);
+    run(r, frame(true), .4);
+    expect(r.deathCamActive).toBe(true);
+    // The intermediate dead snapshot was dropped. Its replacement starts the full beat.
+    r.update(frame(false), DEFAULT_SETTINGS, .5, 0);
+    r.update(frame(false), DEFAULT_SETTINGS, 2.2, 0);
+    expect(r.deathCamActive).toBe(true);
+    expect(r.camera.position.y).toBeGreaterThan(terrainHeight(0, 0) + 2.5);
+    r.update(frame(false), DEFAULT_SETTINGS, 2.31, 0);
+    expect(r.deathCamActive).toBe(false);
+  });
+
+  it('starts normally when the dead snapshot arrives before the kill event', () => {
+    const r = rig();
+    r.update(frame(false), DEFAULT_SETTINGS, .3, 0);
+    start(r);
+    r.update(frame(false), DEFAULT_SETTINGS, .4, 0);
+    r.update(frame(false), DEFAULT_SETTINGS, 2.1, 0);
+    expect(r.deathCamActive).toBe(true);
+    r.update(frame(false), DEFAULT_SETTINGS, 2.21, 0);
+    expect(r.deathCamActive).toBe(false);
+  });
+
+  it('expires an armed kill if no dead snapshot arrives, without taking over the living camera', () => {
+    const r = rig();
+    r.update(frame(true), DEFAULT_SETTINGS, 0, 0);
+    const eye = r.camera.position.clone();
+    start(r);
+    run(r, frame(true), 3.1);
+    expect(r.deathCamActive).toBe(false);
+    expect(r.camera.position.distanceTo(eye)).toBeLessThan(1e-6);
+  });
+
   it('rises out of the victim and turns to frame the eliminator, then ends after its duration', () => {
     const r = rig();
     r.update(frame(true), DEFAULT_SETTINGS, 0, 0);
@@ -68,6 +104,7 @@ describe('death cam', () => {
   it('keeps its full beat on its own frame clock when frames are slow and clamped', () => {
     const r = rig();
     start(r);
+    r.update(frame(false), DEFAULT_SETTINGS, 0, 0);
     // 10 fps with the renderer's 0.05 s clamp: 1.8 s of camera clock takes 36 frames.
     const slow = frame(false, null, .05);
     for (let i = 0; i < 35; i++) r.update(slow, DEFAULT_SETTINGS, (r as any).elapsed + .05, 0);
