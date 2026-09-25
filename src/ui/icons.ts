@@ -28,7 +28,12 @@ export function icon(name: string, cls = '') { return `<svg class="icon ${cls}" 
 export const escapeHtml = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 // Capybara sticker: fur is always the capybara brown; the player colour is the bandana (style bible §3.7).
 // Painted UI sprites cut from the approved final-art sheets by scripts/build-ui-art.mjs.
-export const uiArt = (name: string) => `${import.meta.env.BASE_URL}assets/ui/${name}.webp`;
+// Absolute against the document: a relative url() inside a CSS custom property resolves
+// against the stylesheet that consumes it (dist/assets/), not the page.
+export const uiArt = (name: string) => {
+  const path = `${import.meta.env.BASE_URL}assets/ui/${name}.webp`;
+  return typeof document === 'undefined' ? path : new URL(path, document.baseURI).href;
+};
 export function capybara(color = '#1fb5a8') {
   const kit = /^#[0-9a-f]{6}$/i.test(color) ? color : '#1fb5a8';
   // Kit colours have a painted portrait with the bandana in that colour; wrapped in the same 80x80 SVG so every
