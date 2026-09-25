@@ -3,7 +3,7 @@ import { clamp } from './shared/math';
 
 export const DEFAULT_BINDINGS: Record<string, string> = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft',
-  jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', leanLeft: 'KeyQ', leanRight: 'KeyE',
+  jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', leanLeft: 'KeyQ', leanRight: 'KeyE', inspect: 'KeyI',
 };
 export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 1, fov: 78, graphics: 'medium', frameLimit: 60, reducedMotion: false,

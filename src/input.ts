@@ -15,6 +15,8 @@ export class InputController {
   private abort = new AbortController();
   onAction: (action: PlayerAction) => void = () => {};
   onInteract: () => void = () => {};
+  // Local-only weapon inspect (Tatu's first-person animation); cancelled by any combat action there.
+  onInspect: () => void = () => {};
   onPause: () => void = () => {};
   onCycle: (direction: 1 | -1) => void = () => {};
   private wheelAt = 0;
@@ -81,6 +83,7 @@ export class InputController {
     const binding = this.settings.bindings;
     if (event.code === binding.reload) this.onAction({ type: 'reload', id: ++this.actionId });
     if (event.code === binding.interact) this.onInteract();
+    if (event.code === binding.inspect) this.onInspect();
     if (event.code === binding.jump) { this.jumpPressedAt = performance.now(); this.onAction({ type: 'jump', id: ++this.actionId }); }
     if (/^Digit[1-4]$/.test(event.code)) this.onAction({ type: 'slot', id: ++this.actionId, slot: Number(event.code.slice(-1)) - 1 });
     const consumables = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'] as const;

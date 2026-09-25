@@ -38,4 +38,19 @@ describe('local input feel', () => {
     expect(input.sample(0).jump).toBe(false);
     clock.mockRestore();
   });
+  it('fires weapon inspect from its remappable key only, never from interact', () => {
+    const input = controller();
+    input.locked = true;
+    const inspect = vi.fn(), interact = vi.fn();
+    input.onInspect = inspect; input.onInteract = interact;
+    const press = (code: string) => (input as any).key({ code, repeat: false, preventDefault: () => {} }, true);
+    expect(DEFAULT_SETTINGS.bindings.inspect).toBe('KeyI');
+    press('KeyI');
+    expect(inspect).toHaveBeenCalledOnce(); expect(interact).not.toHaveBeenCalled();
+    press(DEFAULT_SETTINGS.bindings.interact);
+    expect(inspect).toHaveBeenCalledOnce();
+    input.setSettings({ ...DEFAULT_SETTINGS, bindings: { ...DEFAULT_SETTINGS.bindings, inspect: 'KeyG' } });
+    press('KeyI'); press('KeyG');
+    expect(inspect).toHaveBeenCalledTimes(2);
+  });
 });
