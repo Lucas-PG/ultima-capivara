@@ -21,3 +21,7 @@ A imagem é usada somente como capa estática. Nenhuma captura de gameplay é su
 A segunda revisão estudou [Esperança, da Blizzard](https://news.blizzard.com/en-us/article/23865963/voyage-to-esperanca-a-portuguese-city-built-on-tradition-brilliance-and-hope), para identidade dos bairros, interiores e sons locais; o [processo de iluminação de Overwatch](https://news.blizzard.com/en-us/article/23674944/environment-states-in-overwatch-2-behind-the-scenes-with-the-engineering-team), para contraste e custo de renderização; e [Garden Warfare, no portfólio do estúdio Mighty Canvas](https://mightycanvas.com/portfolio-items/plants-vs-zombies-garden-warfare/), para linguagem cartunesca e personagens legíveis.
 
 As aplicações locais foram fachadas identificáveis, piso com menos contraste que os alvos, detalhes de perto, equipamento azul-esverdeado nas capivaras, foco quente no forno e paisagem sonora por local. Nenhuma imagem, modelo, textura ou áudio desses jogos foi incorporado à distribuição.
+
+## GPU texture decoder
+
+`public/decoders/basis/basis_transcoder.js` and `basis_transcoder.wasm` are copied unmodified from the installed Three.js 0.186.0 `examples/jsm/libs/basis` distribution for local KTX2 loading. These are software dependencies, not art assets. The upstream Basis Universal Apache 2.0 license and Three.js decoder README are included in that directory. Source: https://github.com/BinomialLLC/basis_universal . No CDN is contacted by the loader.

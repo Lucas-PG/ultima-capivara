@@ -1,0 +1,78 @@
+import * as THREE from 'three';
+import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { ASSET_MANIFEST, type AssetEntry } from './asset-manifest';
+import { AssetProgress, type AssetProgressCallback } from './asset-progress';
+
+export class AssetLoader {
+  private readonly manager = new THREE.LoadingManager();
+  private readonly textures = new Map<string, THREE.Texture>();
+  private readonly models = new Map<string, Promise<GLTF>>();
+  private readonly pending: Promise<unknown>[] = [];
+  private readonly ktx: KTX2Loader;
+  private readonly gltfLoader: GLTFLoader;
+  private readonly progress: AssetProgress;
+  private readonly base = new URL(import.meta.env.BASE_URL, location.href);
+
+  constructor(gl: THREE.WebGLRenderer, onProgress: AssetProgressCallback = () => {}, manifest: readonly AssetEntry[] = ASSET_MANIFEST) {
+    this.progress = new AssetProgress(manifest, onProgress);
+    this.manager.onProgress = url => this.progress.finish(this.path(url));
+    this.manager.onError = url => this.progress.fail(this.path(url));
+    this.ktx = new KTX2Loader(this.manager).setTranscoderPath(`${import.meta.env.BASE_URL}decoders/basis/`).detectSupport(gl);
+    this.gltfLoader = new GLTFLoader(this.manager).setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(this.ktx);
+    this.manager.addHandler(/\.ktx2$/i, this.ktx);
+  }
+
+  private path(url: string) { return new URL(url, this.base).pathname.slice(this.base.pathname.length); }
+  private url(path: string) { return new URL(path, this.base).href; }
+  private bytes(path: string) { return (event: ProgressEvent) => this.progress.transfer(this.path(this.url(path)), event.loaded); }
+  private track<T>(promise: Promise<T>): Promise<T> {
+    this.pending.push(promise);
+    // Callers may wait until the whole scene is assembled before awaiting ready().
+    void promise.catch(() => {});
+    return promise;
+  }
+
+  texture(path: string): THREE.Texture {
+    const cached = this.textures.get(path); if (cached) return cached;
+    let texture!: THREE.Texture;
+    this.track(new Promise<void>((resolve, reject) => {
+      texture = new THREE.TextureLoader(this.manager).load(this.url(path), () => resolve(), undefined, reject);
+    }));
+    this.textures.set(path, texture); return texture;
+  }
+
+  hdr(path: string): THREE.DataTexture {
+    let texture!: THREE.DataTexture;
+    this.track(new Promise<void>((resolve, reject) => {
+      texture = new HDRLoader(this.manager).load(this.url(path), () => resolve(), this.bytes(path), reject);
+    }));
+    return texture;
+  }
+
+  gltf(path: string): Promise<GLTF> {
+    let promise = this.models.get(path);
+    if (!promise) { promise = this.track(this.gltfLoader.loadAsync(this.url(path), this.bytes(path))); this.models.set(path, promise); }
+    return promise;
+  }
+
+  fbx(path: string): Promise<THREE.Group> {
+    return this.track(import('three/addons/loaders/FBXLoader.js').then(({ FBXLoader }) =>
+      new FBXLoader(this.manager).loadAsync(this.url(path), this.bytes(path))));
+  }
+
+  ktx2(path: string): Promise<THREE.CompressedTexture> {
+    return this.track(this.ktx.loadAsync(this.url(path), this.bytes(path)));
+  }
+
+  async ready(): Promise<void> {
+    // Includes loads registered by model setup after a dynamic loader import.
+    let count = 0;
+    do { count = this.pending.length; await Promise.all(this.pending); } while (count !== this.pending.length);
+  }
+
+  get stats() { return this.progress.stats; }
+  dispose() { this.ktx.dispose(); }
+}

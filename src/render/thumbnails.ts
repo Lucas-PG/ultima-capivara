@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { WeaponId } from '../shared/types';
-import { itemGeometry } from './renderer';
+import { itemGeometry } from './item-geometry';
 
 // Hotbar thumbnails: every weapon's ground-loot model rendered once, three-quarter view, toon lit,
 // with a thick sticker outline stamped in 2D. Cached as data URLs; the WebGL context is released after.
