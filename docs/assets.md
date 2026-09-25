@@ -63,6 +63,10 @@ Prompt comum de J11 e J12: "Original premium production concept sheet, 16:9, at 
 
 `public/textures/terrain-color.png` é um mapa de cores procedural determinístico original, sem fotografia. Foi gerado localmente por `npx tsx scripts/generate-terrain-colors.ts` a partir de `src/shared/terrain.ts`, com ImageMagick apenas para codificar o PNG. Dimensão 1024x1024; 67.309 bytes. Quando altura ou paleta do terreno mudar, executar o script novamente e registrar o novo PNG no manifesto de recursos. Estradas e meio-fio de 0,4 m são máscaras analíticas no shader de solo, não fazem parte do PNG.
 
+## Placas da ilha M1, 25/09/2026
+
+`public/textures/island-signs.png` é um atlas original de 2048x512, 64.223 bytes, gerado por `npx tsx scripts/generate-signage.ts`. O script desenha os cinco nomes autorizados em Dela Gothic One, com papel `#F4E7C6`, tinta `#2B1B12` e bordas de cor por distrito. A fonte é `@fontsource/dela-gothic-one` 5.3.0, sob SIL Open Font License. A geometria da placa é local e tem 7 cm de espessura com chanfro; a mesma textura é aplicada a faces independentes voltadas para fora, para manter a leitura correta dos dois lados. Os pictogramas das lojas e pôsteres são desenhos originais em Canvas em `src/render/props.ts` e `src/render/wall-art.ts`.
+
 ## Referências de direção de arte
 
 A segunda revisão estudou [Esperança, da Blizzard](https://news.blizzard.com/en-us/article/23865963/voyage-to-esperanca-a-portuguese-city-built-on-tradition-brilliance-and-hope), para identidade dos bairros, interiores e sons locais; o [processo de iluminação de Overwatch](https://news.blizzard.com/en-us/article/23674944/environment-states-in-overwatch-2-behind-the-scenes-with-the-engineering-team), para contraste e custo de renderização; e [Garden Warfare, no portfólio do estúdio Mighty Canvas](https://mightycanvas.com/portfolio-items/plants-vs-zombies-garden-warfare/), para linguagem cartunesca e personagens legíveis.
