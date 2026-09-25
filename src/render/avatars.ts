@@ -123,7 +123,8 @@ export class AvatarView {
     this.camera.updateMatrixWorld(); this.camera.getWorldDirection(this.forward);
     this.up.setFromMatrixColumn(this.camera.matrixWorld, 1);
     let aimed: Avatar | null = null, nearest = Infinity;
-    for (const actor of actors) {
+    for (const state of actors) {
+      const actor = frame.remoteActors?.get(state.id) ?? state;
       const visual = this.ensureAvatar(actor);
       let winner = false;
       if (frame.snapshot!.phase === 'results') {
@@ -148,7 +149,7 @@ export class AvatarView {
         (!frame.playing || actor.id !== viewed || actor.stage !== 'ground' || this.cameraBlend > .35);
       const pos = actor.id === frame.playerId && frame.predicted ? frame.predicted : actor.pos;
       const target = this.target.copy(pos);
-      if (!visual.initialized || visual.group.position.distanceToSquared(target) > 144) visual.group.position.copy(target);
+      if (frame.remoteActors?.has(actor.id) || !visual.initialized || visual.group.position.distanceToSquared(target) > 144) visual.group.position.copy(target);
       else visual.group.position.lerp(target, Math.min(1, frame.dt * 14));
       visual.initialized = true;
       visual.group.rotation.y = actor.yaw;
