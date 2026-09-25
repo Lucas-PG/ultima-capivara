@@ -5,6 +5,7 @@ export interface AssetEntry { path: string; kind: 'texture' | 'hdr' | 'gltf' | '
 export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { path: 'textures/terrain-color.png', kind: 'texture', bytes: 67309, label: 'Cores da ilha' },
   { path: 'textures/island-signs.png', kind: 'texture', bytes: 64223, label: 'Placas da ilha' },
+  { path: 'textures/vfx-flipbooks.png', kind: 'texture', bytes: 371784, label: 'Efeitos pintados' },
   { path: 'models/service-pistol/service_pistol_1k.gltf', kind: 'gltf', bytes: 17614, label: 'Pistola' },
   { path: 'models/service-pistol/service_pistol.bin', kind: 'buffer', bytes: 1052048, label: 'Pistola' },
   { path: 'models/service-pistol/textures/service_pistol_diff_1k.jpg', kind: 'texture', bytes: 718216, label: 'Pistola' },
