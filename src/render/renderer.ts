@@ -11,6 +11,7 @@ import { CameraRig, makePlane } from './camera';
 import { LootView } from './loot';
 import { EffectsView } from './effects';
 import { StormView } from './storm';
+import { DEATH_CAM_SECONDS } from '../shared/death-cam';
 import { RenderPipeline, PRESETS } from './pipeline';
 import { itemGeometry } from './item-geometry';
 export { itemGeometry } from './item-geometry';
@@ -150,7 +151,7 @@ export class GameRenderer {
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
     // A new match starts with no marks, shells or effects from the previous one.
-    if (frame.snapshot && frame.snapshot.matchId !== this.effectsMatch) { this.effectsMatch = frame.snapshot.matchId; this.effects.clear(); }
+    if (frame.snapshot && frame.snapshot.matchId !== this.effectsMatch) { this.effectsMatch = frame.snapshot.matchId; this.effects.clear(); this.cameraRig.clearDeathCam(); }
     this.worldView.update(this.elapsed);
     this.cameraRig.updatePlanePath(frame.snapshot, dt, this.elapsed);
     this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed);
@@ -215,6 +216,12 @@ export class GameRenderer {
     const frame = this.lastFrame, viewed = frame?.spectateId || frame?.playerId;
     // A storm bite on the viewed capybara: attacker-less damage while outside the zone.
     if (event.type === 'damage' && !event.actor && event.target === viewed && this.stormAmount > .5) this.stormPulse = 1;
+    // Death cam only for your own elimination, never when a spectated capybara falls.
+    if (event.type === 'kill' && frame && event.target === frame.playerId && !frame.spectateId) {
+      const me = frame.snapshot?.actors.find(actor => actor.id === event.target);
+      if (me) this.cameraRig.startDeathCam({ victimEye: { x: me.pos.x, y: me.pos.y + 1.62, z: me.pos.z }, killerId: event.actor,
+        killerPos: event.from || null, duration: DEATH_CAM_SECONDS });
+    }
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
 

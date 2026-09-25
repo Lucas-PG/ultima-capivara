@@ -5,6 +5,7 @@ import { moveActor } from './shared/collision';
 import { clamp } from './shared/math';
 import { closestInteraction as findInteraction } from './shared/interaction';
 import { WEAPONS } from './shared/weapons';
+import { DEATH_CAM_SECONDS } from './shared/death-cam';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot, RenderFrame } from './shared/types';
 import { GameRenderer } from './render/renderer';
 import { RoomSession } from './network/session';
@@ -32,6 +33,8 @@ let worker: Worker | null = null;
 let snapshot: WorldSnapshot | null = null;
 let room: RoomState | null = null;
 let playerId = '', spectateId: string | null = null;
+// After your elimination the death cam frames the eliminator, then spectating follows them.
+let spectateAt = 0, lastKiller: string | null = null;
 let practiceConfig: RoomConfig | null = null;
 let predicted: ActorState | null = null;
 let pending: InputFrame[] = [];
@@ -155,7 +158,7 @@ function startPractice(config: RoomConfig, p: { name: string; color: string }) {
 }
 function stopMatch() {
   playing = false; input.unlock(); worker?.terminate(); worker = null;
-  snapshot = null; predicted = null; pending = []; spectateId = null; accumulator = 0; interaction = null;
+  snapshot = null; predicted = null; pending = []; spectateId = null; accumulator = 0; interaction = null; spectateAt = 0; lastKiller = null;
 }
 function leave() {
   stopMatch(); session.leave(); room = null; practiceConfig = null;
@@ -186,7 +189,7 @@ function acceptSnapshot(next: WorldSnapshot) {
     predicted = structuredClone(actor);
     if (next.phase === 'playing') for (const frame of pending) predict(frame);
     if (!actor.alive && lastAlive && next.config.mode === 'battle-royale') {
-      cycleSpectator();
+      spectateAt = performance.now() + DEATH_CAM_SECONDS * 1000;
     }
     if (lastStage !== actor.stage) pending = [];
     lastAlive = actor.alive; lastStage = actor.stage;
@@ -213,13 +216,14 @@ function acceptEvents(events: GameEvent[]) {
       input.applyRecoil(event.weapon);
     }
     if (event.type === 'notice') ui.toast(event.text);
+    if (event.type === 'kill' && event.target === playerId) lastKiller = event.actor;
   }
 }
 function sendAction(action: PlayerAction) {
   if (!playing || !snapshot) return;
   const me = snapshot.actors.find(a => a.id === playerId);
   if (!me?.alive && snapshot.config.mode === 'battle-royale') {
-    if (action.type === 'jump') cycleSpectator();
+    if (action.type === 'jump') { spectateAt = 0; cycleSpectator(); }
     return;
   }
   if (action.type === 'jump' && me?.stage === 'falling') action = { type: 'parachute', id: action.id };
@@ -296,6 +300,11 @@ function frame(now: number) {
   // every frame that arrives a fraction early. Never catch up after a stall.
   renderDeadline = Math.max(renderDeadline + interval, now + interval * .05);
   const renderDt = Math.min((now - lastRender) / 1000, .05); lastRender = now;
+  if (spectateAt && now >= spectateAt) {
+    spectateAt = 0;
+    spectateId = lastKiller && snapshot.actors.some(a => a.id === lastKiller && a.alive) ? lastKiller : null;
+    if (!spectateId) cycleSpectator();
+  }
   if (spectateId && !snapshot.actors.some(a => a.id === spectateId && a.alive)) cycleSpectator();
   interaction = closestInteraction();
   if (input.locked || dirtyFrame || ended) {

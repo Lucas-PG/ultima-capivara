@@ -68,7 +68,56 @@ export class CameraRig {
   readonly planePosition = new THREE.Vector3();
   readonly planeVelocity = new THREE.Vector3();
   private planeSample = { match: '', tick: -1, time: 0, at: 0, pos: new THREE.Vector3() };
+  // Death cam (Brasa): after your elimination the view rises out of your eyes and frames the eliminator.
+  private deathCam: { start: number; duration: number; killerId: string | null; killerPos: THREE.Vector3 | null; victimEye: THREE.Vector3 } | null = null;
+  private wasDeathCam = false;
   constructor(readonly camera: THREE.PerspectiveCamera, private readonly world: WorldSpec, private settings: Settings, private readonly avatars: AvatarView) {}
+
+  // Timed on the renderer's clamped frame clock; cleared on respawn, spectating and a new match.
+  startDeathCam(info: { victimEye: Vec3; killerId: string | null; killerPos: Vec3 | null; duration: number }) {
+    this.deathCam = { start: this.elapsed, duration: THREE.MathUtils.clamp(info.duration, 1.5, 2), killerId: info.killerId,
+      killerPos: info.killerPos ? new THREE.Vector3(info.killerPos.x, info.killerPos.y, info.killerPos.z) : null,
+      victimEye: new THREE.Vector3(info.victimEye.x, info.victimEye.y, info.victimEye.z) };
+  }
+  clearDeathCam() { this.deathCam = null; this.wasDeathCam = false; }
+  get deathCamActive() { return !!this.deathCam && this.elapsed - this.deathCam.start < this.deathCam.duration; }
+
+  private poseDeathCam() {
+    const cam = this.deathCam!, eye = cam.victimEye, look = this.lookTarget;
+    const killer = cam.killerId ? this.avatars.get(cam.killerId) : undefined;
+    if (killer?.group.visible) look.copy(killer.group.position).setY(killer.group.position.y + 1.2);
+    else if (cam.killerPos) look.copy(cam.killerPos).setY(cam.killerPos.y + 1.2);
+    else look.copy(eye).setY(eye.y - 1.4);
+    // Rise and back away from the eliminator over 0.45 s (a cut with reduced motion).
+    const k = this.settings.reducedMotion ? 1 : 1 - (1 - Math.min(1, (this.elapsed - cam.start) / .45)) ** 3;
+    const away = this.direction.set(eye.x - look.x, 0, eye.z - look.z);
+    if (away.lengthSq() < 1e-4) away.set(0, 0, 1);
+    away.normalize();
+    const end = this.target.copy(eye).addScaledVector(away, cam.killerId || cam.killerPos ? 2.2 : .8).setY(eye.y + (cam.killerId || cam.killerPos ? 1.6 : 3));
+    const position = this.position.copy(eye).lerp(end, k);
+    // Stay in front of walls between the eyes and the camera, and above the ground.
+    const reach = this.fpsPosition.subVectors(position, eye), length = reach.length();
+    if (length > 1e-3) {
+      reach.divideScalar(length);
+      let allowed = length;
+      for (const collider of this.world.colliders) {
+        if (Math.abs(collider.min.x - eye.x) > 4 && Math.abs(collider.max.x - eye.x) > 4) continue;
+        if (Math.abs(collider.min.z - eye.z) > 4 && Math.abs(collider.max.z - eye.z) > 4) continue;
+        const hit = segmentAabb(eye, reach, allowed, collider.min, collider.max);
+        if (hit < allowed) allowed = Math.max(0, hit - .2);
+      }
+      position.copy(eye).addScaledVector(reach, allowed);
+    }
+    position.y = Math.max(position.y, terrainHeight(position.x, position.z) + .4);
+    this.camera.position.copy(position);
+    this.camera.quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, look, this.camera.up));
+    // Narrow the view so a 2 m capybara fills about a quarter of the frame.
+    const distance = position.distanceTo(look);
+    const framed = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(2 * Math.atan(4 / Math.max(1, distance))), 32, this.settings.fov);
+    this.camera.fov = THREE.MathUtils.lerp(this.settings.fov, cam.killerId || cam.killerPos ? framed : this.settings.fov, k);
+    this.camera.updateProjectionMatrix();
+    this.wasDeathCam = true;
+  }
 
   update(frame: RenderFrame, settings: Settings, elapsed: number, adsAmount: number) {
     this.settings = settings; this.elapsed = elapsed; this.adsAmount = adsAmount;
@@ -77,6 +126,8 @@ export class CameraRig {
     let actor: ActorState | undefined;
     if (snapshot) for (const candidate of snapshot.actors) if (candidate.id === viewedId) { actor = candidate; break; }
     this.lastActor = actor;
+    if (frame.playing && actor && !actor.alive && viewedId === frame.playerId && this.deathCamActive) { this.poseDeathCam(); return; }
+    if (this.deathCam && (!frame.playing || actor?.alive || viewedId !== frame.playerId)) this.deathCam = null;
     if (frame.playing && actor?.alive) {
       const own = viewedId === frame.playerId;
       const yaw = own ? frame.input.yaw : actor.yaw;
@@ -88,6 +139,12 @@ export class CameraRig {
         this.cameraBlend = 1; this.cameraBlendDuration = mode === 'fps' ? .6 : .8;
       }
       if (snap) this.cameraBlend = 0;
+      // Handing off from the death cam to the spectated capybara eases instead of cutting.
+      if (this.wasDeathCam && !this.settings.reducedMotion) {
+        this.blendFromPosition.copy(this.camera.position); this.blendFromQuaternion.copy(this.camera.quaternion);
+        this.cameraBlend = 1; this.cameraBlendDuration = .6;
+      }
+      this.wasDeathCam = false;
       this.cameraMode = mode;
       const position = this.position, quaternion = this.quaternion;
       let fov = this.settings.fov;
@@ -152,7 +209,7 @@ export class CameraRig {
       }
       return;
     }
-    this.cameraInitialized = false; this.lastViewedId = null; this.cameraMode = null; this.cameraBlend = 0;
+    this.cameraInitialized = false; this.lastViewedId = null; this.cameraMode = null; this.cameraBlend = 0; this.wasDeathCam = false;
     // The menu is a slow scenic orbit over the village and the harbour.
     this.menuAngle += frame.dt * (this.settings.reducedMotion ? .035 : .09);
     const x = -48 + Math.sin(this.menuAngle) * 53, z = -29 + Math.cos(this.menuAngle) * 48;
