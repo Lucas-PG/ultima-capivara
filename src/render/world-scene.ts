@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { AssetLoader } from './assets';
+import { createToonMaterial, type ToonMaterialKind } from './materials';
 import { fbm, terrainHeight } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
@@ -32,11 +33,6 @@ const cliffFace = (() => {
 const thinCone = new THREE.ConeGeometry(.5, 1, 7);
 const bentBlade = new THREE.ConeGeometry(.055, .45, 3).translate(0, .225, 0);
 type Surface = 'earth' | 'sand' | 'plaster' | 'brick' | 'stone' | 'timber' | 'bark' | 'metal' | 'roof' | 'road' | 'leaf' | 'fabric';
-const surfaces: Surface[] = ['earth', 'sand', 'plaster', 'brick', 'stone', 'timber', 'bark', 'metal', 'roof', 'road', 'leaf', 'fabric'];
-const photoSurface: Record<Surface, string> = {
-  earth: 'grass', sand: 'sand', plaster: 'plaster', brick: 'brick', stone: 'stone', timber: 'timber',
-  bark: 'bark', metal: 'metal', roof: 'roof', road: 'road', leaf: 'grass', fabric: 'plaster',
-};
 const tileMeters: Record<Surface, number> = {
   earth: 2, sand: 2, plaster: 1.8, brick: 3, stone: 1.5, timber: 2, bark: 1.9,
   metal: 2, roof: 4, road: 2.3, leaf: 2, fabric: 2,
@@ -48,36 +44,6 @@ const hash = (x: number, y: number, salt: number) => {
   n = Math.imul(n ^ (n >>> 13), 1274126177);
   return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
 };
-// Legacy terrain grain: an almost-white noise multiplied over the vertex
-// colours, so the ground reads as flat cartoon colour with a hint of texture.
-function legacyDetailTexture(): THREE.CanvasTexture {
-  const size = 256, canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
-  const g = canvas.getContext('2d')!;
-  g.fillStyle = '#e6e6e6'; g.fillRect(0, 0, size, size);
-  for (let i = 0; i < size / 3; i++) {
-    const v = Math.random() < .5 ? 0 : 255;
-    g.fillStyle = `rgba(${v},${v},${v},${.04 * Math.random()})`;
-    g.beginPath(); g.arc(Math.random() * size, Math.random() * size, Math.random() * size * .12, 0, 7); g.fill();
-  }
-  const image = g.getImageData(0, 0, size, size), data = image.data;
-  for (let i = 0; i < data.length; i += 4) { const n = (Math.random() - .5) * 18; data[i] += n; data[i + 1] += n; data[i + 2] += n; }
-  g.putImageData(image, 0, 0);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 8;
-  return texture;
-}
-
-function surfaceTextures(surface: Surface, loader: AssetLoader): { color: THREE.Texture; normal: THREE.Texture; rough: THREE.Texture } {
-  const prefix = photoSurface[surface];
-  const load = (kind: string) => {
-    const texture = loader.texture(`textures/${prefix}-${kind}.webp`);
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = 4;
-    return texture;
-  };
-  const color = load('color'); color.colorSpace = THREE.SRGBColorSpace;
-  return { color, normal: load('normal'), rough: load('roughness') };
-}
 const boatHull = (() => {
   const shape = new THREE.Shape();
   shape.moveTo(-.5, -.32); shape.lineTo(-.4, .27); shape.quadraticCurveTo(0, .5, .4, .27);
@@ -259,7 +225,6 @@ export class WorldScene {
   readonly arenaBoundary = new THREE.Group();
   readonly water: THREE.Mesh;
   readonly mist: THREE.Mesh;
-  readonly skyTexture: THREE.DataTexture;
   private readonly waterNormals: THREE.CanvasTexture;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly cascadeTime = { value: 0 };
@@ -267,57 +232,18 @@ export class WorldScene {
   private reducedMotion = false;
   private readonly shore: THREE.Mesh;
   private readonly disposables: { dispose: () => void }[] = [];
-  private readonly surfaceMaterials: { material: THREE.MeshStandardMaterial; normal: THREE.Texture | null; rough: THREE.Texture | null }[] = [];
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.skyTexture = loader.hdr('textures/partly-cloudy-sky-1k.hdr');
-    this.skyTexture.mapping = THREE.EquirectangularReflectionMapping;
-    this.disposables.push(this.skyTexture);
-    const assetTextures = new Map<string, ReturnType<typeof surfaceTextures>>();
-    const textures = Object.fromEntries(surfaces.map(surface => {
-      const prefix = photoSurface[surface];
-      let value = assetTextures.get(prefix);
-      if (!value) { value = surfaceTextures(surface, loader); assetTextures.set(prefix, value); }
-      return [surface, value];
-    })) as Record<Surface, ReturnType<typeof surfaceTextures>>;
-    for (const value of assetTextures.values()) this.disposables.push(value.color, value.normal, value.rough);
     void loader.ready().then(onAssetsReady, () => {});
-    const materialFor = (surface: Surface) => {
-      const material = new THREE.MeshStandardMaterial({
-        vertexColors: true, map: surface === 'fabric' ? null : textures[surface].color,
-        normalMap: surface === 'fabric' ? null : textures[surface].normal,
-        normalScale: new THREE.Vector2(surface === 'plaster' ? .12 : surface === 'roof' ? .4 : .3,
-          surface === 'plaster' ? .12 : surface === 'roof' ? .4 : .3),
-        roughnessMap: surface === 'fabric' ? null : textures[surface].rough,
-        roughness: roughness[surface], metalness: surface === 'metal' ? .28 : .02,
-        side: surface === 'leaf' || surface === 'fabric' || surface === 'roof' ? THREE.DoubleSide : THREE.FrontSide,
-      });
-      // Cartoon look: photo textures only add a hint of grain over the flat
-      // vertex colours instead of carrying the whole surface.
-      if (surface !== 'plaster' && surface !== 'roof' && surface !== 'earth' && surface !== 'fabric') {
-        material.onBeforeCompile = shader => {
-          shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
-            vec3 grain = texture2D(map, vMapUv).rgb;
-            diffuseColor.rgb *= mix(vec3(1.0), grain * 1.4, .4);
-          `);
-        };
-      }
-      if (surface === 'plaster' || surface === 'roof') {
-        material.onBeforeCompile = shader => {
-          shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', surface === 'plaster' ? `
-            float plasterValue = dot(texture2D(map, vMapUv).rgb, vec3(.28, .59, .13));
-            diffuseColor.rgb *= mix(vec3(1.0), vec3(plasterValue), .17);
-          ` : `
-            vec3 clayTiles = texture2D(map, vMapUv).rgb;
-            diffuseColor.rgb *= mix(vec3(1.0), clayTiles * 1.3, .38);
-          `);
-        };
-      }
-      this.surfaceMaterials.push({ material, normal: material.normalMap, rough: material.roughnessMap });
-      return material;
+    const kinds: Record<Surface, ToonMaterialKind> = {
+      earth: 'terrain', sand: 'terrain', plaster: 'plaster', brick: 'stone', stone: 'stone',
+      timber: 'wood', bark: 'wood', metal: 'painted-metal', roof: 'stone', road: 'stone', leaf: 'foliage', fabric: 'fabric',
     };
-    const groundDetail = legacyDetailTexture(); this.disposables.push(groundDetail);
-    const groundMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, map: groundDetail, roughness: 1, metalness: 0 });
+    const materialFor = (surface: Surface) => createToonMaterial(kinds[surface], {
+      vertexColors: true, roughness: roughness[surface],
+      side: surface === 'leaf' || surface === 'fabric' || surface === 'roof' ? THREE.DoubleSide : THREE.FrontSide,
+    });
+    const groundMaterial = createToonMaterial('terrain', { vertexColors: true });
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
 
@@ -647,13 +573,6 @@ export class WorldScene {
     this.reducedMotion = settings.reducedMotion;
     this.mist.visible = settings.graphics === 'high';
     this.mist.material instanceof THREE.MeshBasicMaterial && (this.mist.material.opacity = settings.graphics === 'high' ? .025 : 0);
-    for (const { material, normal, rough } of this.surfaceMaterials) {
-      const nextNormal = settings.graphics === 'low' ? null : normal;
-      const nextRough = settings.graphics === 'low' ? null : rough;
-      if (material.normalMap !== nextNormal || material.roughnessMap !== nextRough) {
-        material.normalMap = nextNormal; material.roughnessMap = nextRough; material.needsUpdate = true;
-      }
-    }
     if (this.water.material instanceof THREE.MeshStandardMaterial) {
       const next = settings.graphics === 'low' ? null : this.waterNormals;
       if (this.water.material.normalMap !== next) { this.water.material.normalMap = next; this.water.material.needsUpdate = true; }

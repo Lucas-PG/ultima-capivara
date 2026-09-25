@@ -6,7 +6,7 @@
 - Áudio: gravações CC0 de disparos, passos e recargas, com síntese Web Audio para ambiente, feedback e fallback. O banco local ocupa cerca de 69 KB; origens, autores e transformações em [audio-sources.md](audio-sources.md).
 - Barlow e Barlow Condensed: fontes distribuídas por Fontsource, licença SIL Open Font License; pacotes fixados no lockfile. Licenças de fontes acompanham `public/licenses/`. O build também gera `dist/licenses/dependencies.md` com os avisos das dependências incluídas.
 - Menus ilustrados da padaria e do café e padrões de azulejos: arte original desenhada em Canvas em `src/render/wall-art.ts`, num atlas compartilhado. Vegetação usa geometria fechada e folhas individuais, sem o antigo atlas de cartões de folhas.
-- Texturas fotográficas de superfícies, folhas históricas e céu HDR: veja [public/textures/SOURCES.md](../public/textures/SOURCES.md) para URLs e licença por recurso.
+- Céu e nuvens pintados: desenho original em `src/render/sky.ts`, com gradiente, disco solar e oito cartões de nuvens. As superfícies usam cores de vértice e materiais planos de `src/render/materials.ts`. Mapas fotográficos e HDR foram removidos em M1; a proveniência histórica permanece em [public/textures/SOURCES.md](../public/textures/SOURCES.md).
 
 ## Prompt da capa
 

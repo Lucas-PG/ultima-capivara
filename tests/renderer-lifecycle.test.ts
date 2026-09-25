@@ -27,6 +27,8 @@ function harness(ready: Promise<void> = Promise.resolve()) {
     scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
     assets: { ready: vi.fn(() => ready), dispose: vi.fn() },
     weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), revealAll: vi.fn(), dispose: vi.fn() },
+    storm: { mesh: new THREE.Mesh(), dispose: vi.fn() },
+    sky: { group: new THREE.Group(), dispose: vi.fn() },
     worldView: { group: new THREE.Group(), dispose: vi.fn() },
     avatars: { prepare: vi.fn(), warmupWeapons: new THREE.Group(), dispose: vi.fn() },
     pipeline: { warmup: vi.fn(async () => {}), renderPost: vi.fn(), dispose: vi.fn() },

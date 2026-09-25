@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { timing } from './timing';
 import { instrumentGpu, instrumentMaterials } from './timing-gpu';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { PaintedSky } from './sky';
+import { PAINT } from './materials';
+import { StormView } from './storm';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec } from '../shared/types';
 import { AssetLoader } from './assets';
@@ -20,6 +22,7 @@ export class GameRenderer {
   readonly camera: THREE.PerspectiveCamera;
   private readonly gl: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
+  private readonly sky = new PaintedSky();
   private readonly worldView: WorldScene;
   private readonly weaponView: WeaponView;
   private readonly assets: AssetLoader;
@@ -30,10 +33,10 @@ export class GameRenderer {
   private readonly effects: EffectsView;
   private readonly pipeline: RenderPipeline;
   private readonly plane = makePlane();
-  private readonly zone: THREE.Mesh;
+  private readonly storm: StormView;
   private readonly propellers = this.plane.children.filter(child => child.name === 'propeller');
   private readonly sun: THREE.DirectionalLight;
-  private readonly interiorLight = new THREE.PointLight('#ffd09b', 0, 8, 2);
+  private readonly interiorLight = new THREE.PointLight(PAINT.interior, 0, 8, 2);
   private readonly litRooms: { x: number; y: number; z: number; w: number; d: number; bakery: boolean }[];
   private readonly environment: THREE.WebGLRenderTarget;
   private settings: Settings;
@@ -63,54 +66,33 @@ export class GameRenderer {
     this.weaponView = new WeaponView(this.assets, () => { if (!this.disposed) onAssetsReady(); });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     // Neutral keeps saturated cartoon colours; ACES washed them toward grey.
-    this.gl.toneMapping = THREE.NeutralToneMapping; this.gl.toneMappingExposure = 1.15;
+    this.gl.toneMapping = THREE.NeutralToneMapping; this.gl.toneMappingExposure = 1.1;
     this.gl.shadowMap.type = THREE.PCFShadowMap;
     const pmrem = new THREE.PMREMGenerator(this.gl);
-    const room = new RoomEnvironment();
-    this.environment = pmrem.fromScene(room, .035, .1, 100, { size: 128 });
-    room.dispose(); pmrem.dispose();
-    // The world is lit by sun + hemisphere only; image-based light at .14 cost a
-    // cube-map lookup per pixel for almost no visible change. The gun keeps it.
+    const skyScene = new THREE.Scene(); skyScene.add(this.sky.group);
+    this.environment = pmrem.fromScene(skyScene, .035, .1, 850, { size: 128 });
+    this.scene.add(this.sky.group); pmrem.dispose();
     this.weaponView.scene.environment = this.environment.texture;
-    this.weaponView.scene.environmentIntensity = .9;
-    this.scene.background = new THREE.Color('#bed9d1');
-    this.scene.fog = new THREE.Fog('#bcd3d2', 90, settings.graphics === 'low' ? 330 : 420);
+    this.weaponView.scene.environmentIntensity = .35;
+    this.scene.background = new THREE.Color(PAINT.fog);
+    this.scene.fog = new THREE.Fog(PAINT.fog, 110, 460);
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
     this.avatars = new AvatarView(this.scene, this.camera);
     this.cameraRig = new CameraRig(this.camera, world, settings, this.avatars);
-    this.scene.add(new THREE.HemisphereLight('#dcefff', '#9aab62', 1.2));
+    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.15));
     this.scene.add(this.interiorLight);
-    this.sun = new THREE.DirectionalLight('#ffe6bf', 2.3); this.sun.position.set(-55, 84, -38);
+    this.sun = new THREE.DirectionalLight(PAINT.sun, 2.7); this.sun.position.set(-70, 55, -30);
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 170;
     this.sun.shadow.bias = -.00035; this.sun.shadow.normalBias = .055;
     this.scene.add(this.sun, this.sun.target);
-    const haze = new THREE.Mesh(new THREE.SphereGeometry(640, 24, 12), new THREE.ShaderMaterial({
-      side: THREE.BackSide, depthWrite: false, fog: false,
-      vertexShader: 'varying vec3 vPosition;void main(){vPosition=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: 'varying vec3 vPosition;void main(){float h=normalize(vPosition).y;vec3 horizon=vec3(.95,.81,.64);vec3 middle=vec3(.68,.82,.80);vec3 top=vec3(.42,.65,.76);vec3 color=mix(horizon,middle,smoothstep(-.1,.3,h));color=mix(color,top,smoothstep(.25,.9,h));gl_FragColor=vec4(color,1.0);}',
-    }));
-    this.scene.add(haze);
     this.worldView = new WorldScene(world, settings, this.assets, () => {
-      if (this.disposed) return;
-      if (this.worldView.skyTexture.image?.data) {
-        this.scene.background = this.worldView.skyTexture;
-        this.scene.backgroundIntensity = .8;
-        haze.visible = false;
-      }
-      onAssetsReady();
+      if (!this.disposed) onAssetsReady();
     });
     this.scene.add(this.worldView.group);
     this.scene.add(this.plane); this.plane.visible = false;
-    const zoneMaterial = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color('#a77de0') } },
-      vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: 'uniform float uTime;uniform vec3 uColor;varying vec2 vUv;void main(){float band=.5+.5*sin(vUv.x*340.0+vUv.y*65.0-uTime*2.4);float fade=smoothstep(.0,.18,vUv.y)*(1.0-smoothstep(.7,1.0,vUv.y));gl_FragColor=vec4(uColor,(.10+.12*band)*fade);}',
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
-    });
-    this.zone = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 96, 1, true), zoneMaterial);
-    this.zone.frustumCulled = false; this.zone.renderOrder = 2; this.scene.add(this.zone);
+    this.storm = new StormView(this.scene);
     this.loot = new LootView(this.scene, world);
     this.effects = new EffectsView(this.scene);
     this.pipeline = new RenderPipeline(this.gl, PRESETS[settings.graphics].samples);
@@ -170,7 +152,7 @@ export class GameRenderer {
     if (room) {
       this.interiorLight.position.set(room.bakery ? room.x + room.w / 2 - 1.95 : room.x,
         room.y + (room.bakery ? .93 : 2.45), room.bakery ? room.z - room.d * .24 : room.z);
-      this.interiorLight.color.setHex(room.bakery ? 0xffae62 : 0xffdcaa);
+      this.interiorLight.color.set(PAINT.interior);
     }
     this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? room.bakery ? 4.3 : 4 : 0, 7, dt);
     const snapshot = frame.snapshot;
@@ -179,28 +161,25 @@ export class GameRenderer {
     if (snapshot) {
       const zone = snapshot.zone;
       this.worldView.arenaBoundary.visible = snapshot.config.mode === 'deathmatch';
-      // Like legacy, the storm wall is always up: a tall curtain at the safe
-      // edge that also hides the empty far sea.
-      this.zone.visible = frame.playing && snapshot.config.mode === 'battle-royale';
-      this.zone.position.set(zone.x, 70, zone.z); this.zone.scale.set(zone.radius, 170, zone.radius);
-      (this.zone.material as THREE.ShaderMaterial).uniforms.uTime.value = this.elapsed;
+      this.storm.update(zone, this.camera, this.elapsed, frame.playing && snapshot.config.mode === 'battle-royale');
       this.plane.visible = frame.playing && snapshot.config.mode === 'battle-royale' && this.hasPlanePassengers(snapshot);
       this.plane.position.copy(this.cameraRig.planePosition);
       // The nose (-Z) follows the flight path.
       if (this.cameraRig.planeVelocity.lengthSq() > 1) this.plane.rotation.y = Math.atan2(-this.cameraRig.planeVelocity.x, -this.cameraRig.planeVelocity.z);
       else this.plane.rotation.y = -Math.PI / 2;
       for (const propeller of this.propellers) propeller.rotation.z += dt * 34;
-    } else { this.zone.visible = false; this.plane.visible = false; this.worldView.arenaBoundary.visible = false; }
+    } else { this.storm.mesh.visible = false; this.plane.visible = false; this.worldView.arenaBoundary.visible = false; }
     // Thin the haze with altitude so the island stays readable from the plane.
     if (this.scene.fog instanceof THREE.Fog) {
-      const altitude = THREE.MathUtils.smoothstep(this.camera.position.y, 15, 110), far = this.settings.graphics === 'low' ? 330 : 420;
-      this.scene.fog.near = 90 * (1 + altitude); this.scene.fog.far = far * (1 + .35 * altitude);
+      const altitude = THREE.MathUtils.smoothstep(this.camera.position.y, 15, 110), far = 460;
+      this.scene.fog.near = 110 * (1 + altitude); this.scene.fog.far = far * (1 + .35 * altitude);
     }
     if (this.settings.graphics !== 'low') {
-      this.sun.position.set(this.camera.position.x - 55, 84, this.camera.position.z - 38);
+      this.sun.position.set(this.camera.position.x - 70, 55, this.camera.position.z - 30);
       this.sun.target.position.set(this.camera.position.x, 0, this.camera.position.z);
       this.sun.target.updateMatrixWorld();
     }
+    this.sky.update(this.camera, this.elapsed, this.settings.reducedMotion);
     const drawAt = timing.begin(), programs = timing.enabled ? this.gl.info.programs?.length ?? 0 : 0;
     this.pipeline.render(this.scene, this.camera, this.frameStats);
     timing.end('world-draw', drawAt);
@@ -341,7 +320,7 @@ export class GameRenderer {
     this.settings = settings;
     this.resolutionScale = 1; this.applyPreset(settings);
     this.worldView.setSettings(settings);
-    this.scene.fog = new THREE.Fog('#bcd3d2', 90, settings.graphics === 'low' ? 330 : 420);
+    this.scene.fog = new THREE.Fog(PAINT.fog, 110, 460);
     this.camera.fov = settings.fov; this.camera.updateProjectionMatrix(); this.resize();
   }
 
@@ -353,6 +332,8 @@ export class GameRenderer {
     this.disposed = true;
     this.scene.remove(this.worldView.group);
     this.worldView.dispose(); this.weaponView.dispose();
+    this.scene.remove(this.sky.group); this.sky.dispose();
+    this.scene.remove(this.storm.mesh); this.storm.dispose();
     this.environment.dispose(); this.pipeline.dispose(); this.assets.dispose();
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
     this.scene.traverse(object => {

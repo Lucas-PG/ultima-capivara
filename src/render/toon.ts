@@ -1,9 +1,6 @@
 import * as THREE from 'three';
 
-// A cartoon pass that keeps every existing material: direct light snaps to
-// the legacy MeshToonMaterial's four bands instead of a smooth
-// falloff. Textures, shadows, custom onBeforeCompile hooks and graphics
-// settings keep working because only the shared lighting chunk changes.
+// Direction A uses the same soft three-band diffuse ramp for standard materials.
 const LIT = 'float dotNL = saturate( dot( geometryNormal, directLight.direction ) );';
 const chunk = THREE.ShaderChunk.lights_physical_pars_fragment;
 if (!chunk.includes('toonCoord')) {
@@ -11,24 +8,36 @@ if (!chunk.includes('toonCoord')) {
   const at = chunk.indexOf(LIT, start);
   if (start >= 0 && at >= 0) {
     THREE.ShaderChunk.lights_physical_pars_fragment = chunk.slice(0, at) + `${LIT}
-	// Legacy MeshToonMaterial ramp (88/150/210/255) over dot * 0.5 + 0.5: the
-	// shadow side still gets a third of the sun, which keeps the island bright.
 	float toonCoord = dot( geometryNormal, directLight.direction ) * 0.5 + 0.5;
-	dotNL = 0.345 + smoothstep( 0.23, 0.27, toonCoord ) * 0.243 + smoothstep( 0.48, 0.52, toonCoord ) * 0.235 + smoothstep( 0.73, 0.77, toonCoord ) * 0.177;` + chunk.slice(at + LIT.length);
+	dotNL = 0.42 + smoothstep( 0.40, 0.46, toonCoord ) * 0.30 + smoothstep( 0.66, 0.72, toonCoord ) * 0.28;` + chunk.slice(at + LIT.length);
   }
 }
 
-// Ink outlines from depth discontinuities, a strong saturation lift, then the
+// Preserve a lavender light contribution under the sun's occlusion. This lifts
+// cast shadows without adding lights or flattening the three diffuse bands.
+const shadowTint = new THREE.Color('#B4C2EE'), sunTint = new THREE.Color('#FFD9A8');
+shadowTint.setRGB(shadowTint.r / sunTint.r * .55, shadowTint.g / sunTint.g * .55, shadowTint.b / sunTint.b * .55);
+const sunShadow = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
+if (!THREE.ShaderChunk.lights_fragment_begin.includes('paintedSunShadow')) {
+  THREE.ShaderChunk.lights_fragment_begin = THREE.ShaderChunk.lights_fragment_begin.replace(sunShadow, `
+    float paintedSunShadow = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;
+    directLight.color *= mix(vec3(${shadowTint.r.toFixed(6)},${shadowTint.g.toFixed(6)},${shadowTint.b.toFixed(6)}),vec3(1.0),paintedSunShadow);`);
+}
+
+// Ink outlines from depth discontinuities, the Direction A colour curve, then the
 // renderer's own tone mapping and output colour space.
 export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTexture) {
-  return new THREE.ShaderMaterial({
+  return new THREE.RawShaderMaterial({
     uniforms: {
-      tColor: { value: color }, tDepth: { value: depth },
-      texel: { value: new THREE.Vector2(1, 1) }, width: { value: 1.5 }, cn: { value: .07 }, cf: { value: 850 },
+      tColor: { value: color }, tDepth: { value: depth }, toneMappingExposure: { value: 1.1 },
+      texel: { value: new THREE.Vector2(1, 1) }, width: { value: 1.25 }, cn: { value: .07 }, cf: { value: 850 },
     },
     depthTest: false, depthWrite: false,
-    vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}',
-    fragmentShader: `uniform sampler2D tColor,tDepth;uniform vec2 texel;uniform float cn,cf,width;varying vec2 vUv;
+    vertexShader: 'precision highp float;attribute vec3 position;attribute vec2 uv;varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}',
+    fragmentShader: `precision highp float;
+      #include <tonemapping_pars_fragment>
+      #include <colorspace_pars_fragment>
+      uniform sampler2D tColor,tDepth;uniform vec2 texel;uniform float cn,cf,width;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
         vec3 c=texture2D(tColor,vUv).rgb;float d=texture2D(tDepth,vUv).x;
@@ -38,13 +47,13 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         float zl=L(min(min(d,a),min(b,min(e,f))));
         float lap=abs(a+b+e+f-4.0*d)*zl*zl*(cf-cn)/(cn*cf);
         // Far away only strong silhouettes keep their ink, so dense detail doesn't turn into noise.
-        float edge=smoothstep(.01+zl*.0005,.04+zl*.0012,lap/zl)*(1.0-smoothstep(55.0,150.0,zl))*step(d,.99999);
+        float edge=smoothstep(.035+zl*.0008,.085+zl*.0018,lap/zl)*(1.0-smoothstep(45.0,120.0,zl))*step(d,.99999);
         gl_FragColor=vec4(c,1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
+        gl_FragColor.rgb=NeutralToneMapping(gl_FragColor.rgb);
+        gl_FragColor=sRGBTransferOETF(gl_FragColor);
         float g=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
-        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.38),0.0,1.0);
-        gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.09,.075,.06),edge*.95);
+        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.12),0.0,1.0);
+        gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.227451,.141176,.094118),edge*.85);
       }`,
   });
 }
