@@ -112,8 +112,8 @@ def sleeve(name, parent, center, radius, length, color):
     return finish(obj, parent, color)
 
 
-def ellipsoid(name, parent, center, radii, color):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=8 if max(radii) < .03 else 12, ring_count=6 if max(radii) < .03 else 8, radius=1, location=V(center))
+def ellipsoid(name, parent, center, radii, color, detail=False):
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=20 if detail else 8 if max(radii) < .03 else 12, ring_count=12 if detail else 6 if max(radii) < .03 else 8, radius=1, location=V(center))
     obj = bpy.context.object
     obj.name = name
     obj.scale = (radii[0], radii[2], radii[1])
@@ -126,7 +126,7 @@ def ellipsoid(name, parent, center, radii, color):
 
 def link(name, parent, start, end, radius, color, end_radius=None):
     direction = V(end) - V(start)
-    bpy.ops.mesh.primitive_cone_add(vertices=10, radius1=radius, radius2=end_radius or radius, depth=direction.length, location=(V(start) + V(end)) / 2)
+    bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=radius, radius2=end_radius or radius, depth=direction.length, location=(V(start) + V(end)) / 2)
     obj = bpy.context.object
     obj.name = name
     obj.rotation_mode = 'QUATERNION'
@@ -203,15 +203,17 @@ def paw(parent, side, palm, elbow, vertical=False):
     link('Forearm', parent, tuple(e), tuple(wrist), .074, 13, .059)
     link('Forearm_light', parent, tuple(e + Vector((0, .046, 0))), tuple(wrist + Vector((0, .04, 0))), .025, 14, .016)
     link('Olive_cuff', parent, tuple(p.lerp(e, .25)), tuple(p.lerp(e, .43)), .077, 17, .077)
-    ellipsoid('Palm', parent, palm, (.07, .09, .062) if vertical else (.083, .066, .092), 13)
-    ellipsoid('Palm_pad', parent, (p.x, p.y - .055, p.z), (.051, .018, .057), 16)
+    ellipsoid('Palm', parent, palm, (.07, .09, .062) if vertical else (.083, .066, .092), 13, vertical)
+    ellipsoid('Palm_pad', parent, (p.x, p.y - .055, p.z), (.051, .018, .057), 16, vertical)
+    if vertical:
+        link('Teal_wrist_band', parent, tuple(p.lerp(e, .40)), tuple(p.lerp(e, .44)), .079, 5, .079)
     for i in [-1, 0, 1]:
         center = (p.x - .063, p.y + i * .047, p.z - .013) if vertical else (p.x + i * .044, p.y + .018, p.z - .07)
-        ellipsoid('Finger', parent, center, (.047, .025, .036) if vertical else (.026, .037, .048), 13)
+        ellipsoid('Finger', parent, center, (.047, .025, .036) if vertical else (.026, .037, .048), 13, vertical)
         claw = (center[0] - .035, center[1], center[2] + .014) if vertical else (center[0], center[1] + .004, center[2] - .042)
-        ellipsoid('Claw', parent, claw, (.018, .015, .016), 16)
+        ellipsoid('Claw', parent, claw, (.018, .015, .016), 16, vertical)
     thumb = (p.x - .034, p.y + .081, p.z + .025) if vertical else (p.x - side * .064, p.y + .035, p.z + .027)
-    ellipsoid('Thumb', parent, thumb, (.037, .04, .042), 14)
+    ellipsoid('Thumb', parent, thumb, (.037, .04, .042), 14, vertical)
     for i in [-1, 1]:
         ellipsoid('Wrist_tuft', parent, (wrist.x + i * .055, wrist.y, wrist.z), (.025, .026, .042), 13)
 
@@ -276,11 +278,10 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
                 sight_y = sights(body, -.48, .08, .09)
     elif weapon == 'machete':
         # Broad face lies in the screen-facing plane; the handle is gripped upright.
-        blade = profile('Broad_blade', body, [(-.045, .02), (-.16, .49), (-.14, .60), (-.065, .57), (.045, .02)], .023, 7, .008, 1)
+        blade = profile('Broad_blade', body, [(-.045, .02), (-.16, .49), (-.14, .60), (-.065, .57), (.045, .02)], .023, 7, .008, 24)
         blade.rotation_euler.z = math.pi / 2
         block('Wood_handle', body, (0, -.108, .01), (.073, .205, .068), 2, .015, 3)
-        block('Guard', body, (0, .005, .01), (.147, .035, .074), 0)
-        block('Handle_inlay', body, (0, -.102, .047), (.014, .055, .005), 5, .002)
+        block('Wood_guard', body, (0, .005, .01), (.127, .027, .074), 2, .009, 3)
         muzzle_x, muzzle_y, muzzle_z, sight_y = -.14, .60, 0, 0
     else:
         # Carved Y. Forks and coral bands form a silhouette no firearm shares.
@@ -295,8 +296,11 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         muzzle_z -= .008  # Front surface of the authored bore disc.
     # Teal accent and rarity stripe use the same atlas in all eight classes.
     side_x = .054 if weapon == 'pistol' else .041 if weapon == 'machete' else .049 if weapon == 'slingshot' else .062
-    block('Teal_signature', body, (side_x, -.034, .015), (.011, .023, .076), 5, .003)
-    block('Rarity_stripe', body, (side_x + .001, -.065, -.096), (.009, .034, .09), 9, .003)
+    if weapon == 'machete':
+        block('Rarity_stripe', body, (0, -.202, .046), (.055, .018, .004), 9, .001)
+    else:
+        block('Teal_signature', body, (side_x, -.034, .015), (.011, .023, .076), 5, .003)
+        block('Rarity_stripe', body, (side_x + .001, -.065, -.096), (.009, .034, .09), 9, .003)
     # Gold filigree is a separate optional group, enabled only on legendary variants.
     legendary = group(weapon + '_legendary', root)
     for side in [-1, 1]:

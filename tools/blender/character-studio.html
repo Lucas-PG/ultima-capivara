@@ -16,6 +16,18 @@ const ground = new THREE.Mesh(new THREE.CircleGeometry(3, 48), new THREE.MeshSta
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; if (!q.get('noground')) scene.add(ground);
 const cam = new THREE.PerspectiveCamera(+q.get('fov') || 30, W / H, .01, 500);
 const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}models/capybara/capybara.glb`);
+let pipeline;
+if (q.has('runtime')) {
+  const { applyCharacterStyle } = await import('../../src/render/materials');
+  const { RenderPipeline } = await import('../../src/render/pipeline');
+  pipeline = new RenderPipeline(r, 2); pipeline.resize();
+  const styled = new Map();
+  gltf.scene.traverse(o => {
+    if (!o.isMesh) return;
+    if (!styled.has(o.material)) styled.set(o.material, applyCharacterStyle(o.material.clone()));
+    o.material = styled.get(o.material);
+  });
+}
 const model = gltf.scene; model.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
 // Keep LOD0 only.
 const lods = []; model.traverse(o => { if (o.isMesh || o.isSkinnedMesh) lods.push(o); });
@@ -36,6 +48,7 @@ mixer.update(t);
 if (q.get('sil')) model.traverse(o => { if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ color: '#1a120c' }); });
 const yaw = +(q.get('yaw') || 0) * Math.PI / 180, dist = +(q.get('d') || 4.2), ty = +(q.get('ty') || .95);
 cam.position.set(Math.sin(yaw) * dist, ty + +(q.get('cy') || 0), Math.cos(yaw) * dist); cam.lookAt(0, ty, 0);
+const render = () => pipeline ? pipeline.render(scene, cam, {}) : r.render(scene, cam);
 if (q.has('expressions')) {
   const expressions = [
     ['neutral', 'Neutro'], ['determined', 'Determinado'], ['hit', 'Dano'],
@@ -49,15 +62,15 @@ if (q.has('expressions')) {
     mixer.stopAllAction(); mixer.clipAction(gltf.animations.find(clip => clip.name === `face_${name}`)).reset().play();
     mixer.setTime(t);
     r.setViewport(x, H - y - height, width, height); r.setScissor(x, H - y - height, width, height);
-    r.render(scene, cam);
+    render();
     const caption = document.createElement('div'); caption.textContent = label;
     caption.style.cssText = `position:absolute;left:${x + 24}px;top:${y + 18}px;font:600 18px system-ui;color:#3a2418`;
     document.body.append(caption);
   });
   r.setScissorTest(false);
-} else r.render(scene, cam);
+} else render();
 const box = new THREE.Box3().setFromObject(model); window.bounds = { min: box.min.toArray(), max: box.max.toArray() };
 window.ready = true;
 window.studio = { model, mixer, scene, camera:cam, renderer:r, clips:gltf.animations };
-addEventListener('beforeunload', () => r.dispose());
+addEventListener('beforeunload', () => { pipeline?.dispose(); r.dispose(); });
 </script></body></html>

@@ -7,6 +7,7 @@ import { WEAPON_HIP_POSES, WEAPON_VIEW_FOV, type WeaponHipPose } from '../../src
 import type { WeaponId } from '../../src/shared/types';
 
 const params = new URLSearchParams(location.search);
+if (params.has('runtime')) await import('../../src/render/toon');
 const gl = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas')!, alpha: true, antialias: true });
 gl.setPixelRatio(1); gl.setSize(innerWidth, innerHeight);
 gl.toneMapping = THREE.NeutralToneMapping; gl.toneMappingExposure = 1.1;
