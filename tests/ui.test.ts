@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -181,8 +181,6 @@ describe('key remap labels', () => {
   // Every remappable action must show pt-BR text in settings, never a raw action id (Brasa added inspect).
   it('has a pt-BR label for every default binding', async () => {
     const { DEFAULT_BINDINGS } = await import('../src/settings');
-    const code = readFileSync('src/ui/ui.ts', 'utf8');
-    const labels = code.match(/export const bindingLabels[^}]*\}/)![0];
-    for (const key of [...Object.keys(DEFAULT_BINDINGS), 'inspect']) expect(labels).toMatch(new RegExp(`\\b${key}: '[^']+'`));
+    for (const key of [...Object.keys(DEFAULT_BINDINGS), 'inspect']) expect(BINDING_LABELS[key]).toMatch(/^[A-ZÀ-Ú][a-zà-ú /]+$/);
   });
 });

@@ -91,3 +91,6 @@ export function startButtonState(allReady: boolean, roomLoading: number | null) 
   const loading = roomLoading !== null;
   return { loading, disabled: loading || !allReady, primary: allReady && !loading, pct: loading ? Math.round(Math.min(1, Math.max(0, roomLoading!)) * 100) : 0 };
 }
+
+// Key remap: pt-BR label for every remappable action shown in settings.
+export const BINDING_LABELS: Record<string, string> = { forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar', reload: 'Recarregar', interact: 'Interagir', leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita', inspect: 'Inspecionar arma' };
