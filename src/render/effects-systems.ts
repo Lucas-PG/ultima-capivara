@@ -8,6 +8,14 @@ import { ATLAS_COLUMNS, ATLAS_ROWS } from './effects-atlas';
 const FOG_PARS_VERTEX = '\n#include <fog_pars_vertex>\n';
 const FOG_PARS_FRAGMENT = '\n#include <fog_pars_fragment>\n';
 const INK = new THREE.Color('#3a2418');
+// Normal colour blending, but the card's coverage is added to the render
+// target's alpha, which everything else keeps at or below 1. The post pass
+// reads alpha above 1 as "effect here" and does not ink scene edges under it,
+// so a flash in front of a gun or a pow on a capybara is never painted over.
+const EFFECT_BLEND = {
+  blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+  blendEquationAlpha: THREE.AddEquation, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor,
+} as const;
 
 const ease = (t: number) => 1 - (1 - t) * (1 - t);
 const backOut = (t: number) => { const c = 1.9, u = t - 1; return 1 + (c + 1) * u * u * u + c * u * u; };
@@ -61,7 +69,7 @@ function cardMaterial(atlas: THREE.Texture): THREE.ShaderMaterial {
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
-    transparent: true, depthWrite: false, fog: true,
+    transparent: true, depthWrite: false, fog: true, ...EFFECT_BLEND,
   });
   material.uniforms.uAtlas.value = atlas;
   return material;
@@ -223,7 +231,7 @@ export class TracerSystem {
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,
-      transparent: true, depthWrite: false,
+      transparent: true, depthWrite: false, ...EFFECT_BLEND,
     });
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false; this.mesh.renderOrder = 3; this.mesh.visible = false;

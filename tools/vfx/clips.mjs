@@ -7,10 +7,10 @@ import { join } from 'node:path';
 
 const OUT = '/Users/lucas_gaspe/dev/capivara-team/reviews';
 const CLIPS = {
-  // A bot 16 m away engages: tell, strafing bursts, then a reload that sends it to cover.
-  'bot-duel-vila': { seed: 3, human: { x: -41, z: 14, yaw: Math.PI, pitch: -.02 }, bot: { x: -37, z: 30 }, every: 12, frames: 24 },
-  'bot-duel-porto': { seed: 5, human: { x: -70, z: -60, yaw: Math.PI / 2, pitch: -.02 }, bot: { x: -86, z: -62 }, every: 12, frames: 24 },
-  'bot-duel-mercadao': { seed: 8, human: { x: 44, z: -40, yaw: 0, pitch: -.02 }, bot: { x: 46, z: -56 }, every: 12, frames: 24 },
+  // A bot about 11 m away engages: alert tell, strafing bursts, then a reload that sends it to cover.
+  'bot-duel-vila': { seed: 3, human: { x: -41, z: 20, yaw: Math.PI, pitch: -.04 }, bot: { x: -38, z: 31 }, every: 12, frames: 36 },
+  'bot-duel-porto': { seed: 5, human: { x: -74, z: -60, yaw: Math.PI / 2, pitch: -.04 }, bot: { x: -86, z: -62 }, every: 12, frames: 36 },
+  'bot-duel-plaza': { seed: 8, human: { x: -30, z: 45, yaw: Math.PI, pitch: -.04 }, bot: { x: -27, z: 56 }, every: 12, frames: 36 },
 };
 const [name = 'all', width = '1280', height = '720'] = process.argv.slice(2);
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });

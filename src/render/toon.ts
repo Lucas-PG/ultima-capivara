@@ -33,7 +33,7 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     fragmentShader: `uniform sampler2D tColor,tDepth;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
-        vec3 c=texture2D(tColor,vUv).rgb;float d=texture2D(tDepth,vUv).x;
+        vec4 src=texture2D(tColor,vUv);vec3 c=src.rgb;float d=texture2D(tDepth,vUv).x;
         vec2 o=texel*width;
         float a=texture2D(tDepth,vUv+vec2(o.x,0.0)).x,b=texture2D(tDepth,vUv-vec2(o.x,0.0)).x;
         float e=texture2D(tDepth,vUv+vec2(0.0,o.y)).x,f=texture2D(tDepth,vUv-vec2(0.0,o.y)).x;
@@ -41,6 +41,8 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         float lap=abs(a+b+e+f-4.0*d)*zl*zl*(cf-cn)/(cn*cf);
         // Far away only strong silhouettes keep their ink, so dense detail doesn't turn into noise.
         float edge=smoothstep(.01+zl*.0005,.04+zl*.0012,lap/zl)*(1.0-smoothstep(55.0,150.0,zl))*step(d,.99999);
+        // VFX cards push alpha above 1 (Brasa): scene edges behind an effect are not inked over it.
+        edge*=1.0-clamp(src.a-1.0,0.0,1.0);
         gl_FragColor=vec4(c,1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

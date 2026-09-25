@@ -273,18 +273,22 @@ export class EffectsView {
   private flash(pos: THREE.Vector3, weapon: WeaponId, fp: boolean, ads: number) {
     const size = FLASH[weapon];
     if (!size) return;
+    // In third person the flash sits just in front of the barrel so the gun and paws never clip it.
+    if (!fp && this.frame) pos = this.t2.subVectors(this.frame.camera.position, pos).normalize().multiplyScalar(size.world * .6).add(pos);
+    // Third person only, spawned first so it draws under the flash: a small warm puff at the barrel.
+    // In first person it would sit in the sight line.
+    if (!fp) {
+      const smoke = this.cards.spawn();
+      smoke.pos.copy(pos); smoke.cell = CELL.puff; smoke.life = weapon === 'shotgun' || weapon === 'sniper' ? .42 : .3;
+      smoke.size0 = size.world * .4; smoke.size1 = size.world * .95; smoke.alpha = .6; smoke.rot = rand(-.5, .5); smoke.minPx = 5;
+      smoke.vel.set(rand(-.1, .1), .5, rand(-.1, .1)); smoke.drag = 2; smoke.fadeOut = .6;
+      smoke.color.copy(this.color.smoke); smoke.light.copy(this.color.cloudLight);
+    }
     const card = (fp ? this.fpCards : this.cards).spawn();
     card.pos.copy(pos); card.motion = Motion.Flash; card.cell = CELL.flashA;
     card.life = .05; card.fadeOut = .01; card.rot = rand(0, Math.PI * 2);
     card.size0 = card.size1 = (fp ? size.fp * (1 - ads * .4) : size.world) * rand(.9, 1.1);
     card.minPx = fp ? 0 : 14; card.maxPx = fp ? 1e5 : 70; card.color.copy(this.color.flash); card.light.copy(this.color.flashCore);
-    // Third person only: a small warm puff at the barrel. In first person it would sit in the sight line.
-    if (fp) return;
-    const smoke = this.cards.spawn();
-    smoke.pos.copy(pos); smoke.cell = CELL.puff; smoke.life = weapon === 'shotgun' || weapon === 'sniper' ? .42 : .3;
-    smoke.size0 = size.world * .4; smoke.size1 = size.world * .95; smoke.alpha = .6; smoke.rot = rand(-.5, .5); smoke.minPx = 5;
-    smoke.vel.set(rand(-.1, .1), .5, rand(-.1, .1)); smoke.drag = 2; smoke.fadeOut = .6;
-    smoke.color.copy(this.color.smoke); smoke.light.copy(this.color.cloudLight);
   }
 
   private pebble(from: THREE.Vector3, event: Extract<GameEvent, { type: 'shot' }>) {

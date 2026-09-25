@@ -149,11 +149,56 @@ const api = {
     const b = (sim as unknown as { actors: Map<string, { state: ActorState; brain: { mode: string; target: string | null } }> }).actors.get('bot-1')!;
     return { mode: b.brain.mode, target: b.brain.target, reloading: b.state.reloadUntil > 0, ammo: b.state.weapons[b.state.slot].ammo, pos: b.state.pos };
   },
-  glow() { return (window as unknown as { glowState: unknown }).glowState; },
+  flashAt(x: number, y: number, z: number, weapon: WeaponId) {
+    const fx = (renderer as unknown as { effects: { flash(p: THREE.Vector3, w: WeaponId, fp: boolean, ads: number): void } }).effects;
+    fx.flash(new THREE.Vector3(x, y, z), weapon, false, 0);
+  },
+  impactAt(x: number, y: number, z: number) {
+    const fx = (renderer as unknown as { effects: { impact(p: THREE.Vector3, s: string, n: THREE.Vector3, w: WeaponId, k: number): void } }).effects;
+    fx.impact(new THREE.Vector3(x, y, z), 'stone', new THREE.Vector3(0, 0, -1), 'm4', 1);
+  },
+  probeCard(x: number, y: number, z: number, fields: Record<string, number>) {
+    const fx = (renderer as unknown as { effects: { cards: { spawn(): Record<string, unknown> & { pos: THREE.Vector3; color: THREE.Color; light: THREE.Color } } } }).effects;
+    const c = fx.cards.spawn();
+    c.pos.set(x, y, z); c.cell = 4; c.life = 1; c.size0 = .5; c.size1 = .5; c.color.set('#ff0000'); c.light.set('#ffffff');
+    Object.assign(c, fields);
+  },
+  attrs(n: number) {
+    const cards = (renderer as unknown as { effects: { cards: { mesh: THREE.Mesh } } }).effects.cards;
+    const g = cards.mesh.geometry as THREE.InstancedBufferGeometry, pick = (name: string, size: number) => Array.from((g.getAttribute(name).array as Float32Array).slice(0, n * size)).map(v => +v.toFixed(3));
+    return { count: g.instanceCount, visible: cards.mesh.visible, pos: pick('aPos', 3), shape: pick('aShape', 4), misc: pick('aMisc', 4), color: pick('aColor', 3) };
+  },
+  avatarMaterials(id: string) {
+    const visual = (renderer as unknown as { avatars: { get(id: string): { group: THREE.Group } | undefined } }).avatars.get(id);
+    const out: unknown[] = [];
+    visual?.group.traverse(o => { const m = (o as THREE.Mesh).material as THREE.Material | undefined; if (m && (o as THREE.Mesh).visible) out.push({ name: o.name || o.type, type: m.type, transparent: m.transparent, depthWrite: m.depthWrite, depthTest: m.depthTest, renderOrder: o.renderOrder, opacity: (m as THREE.MeshBasicMaterial).opacity }); });
+    return out;
+  },
+  weaponBox(id: string) {
+    const visual = (renderer as unknown as { avatars: { get(id: string): { weapon: THREE.Mesh } | undefined } }).avatars.get(id)!;
+    visual.weapon.updateWorldMatrix(true, false);
+    const box = new THREE.Box3().setFromObject(visual.weapon);
+    const scale = new THREE.Vector3(); visual.weapon.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), scale);
+    return { min: box.min, max: box.max, scale };
+  },
+  rayHits(x: number, y: number, z: number) {
+    const r = renderer as unknown as { camera: THREE.PerspectiveCamera; scene: THREE.Scene };
+    const from = r.camera.position.clone(), dir = new THREE.Vector3(x, y, z).sub(from);
+    const ray = new THREE.Raycaster(from, dir.clone().normalize(), 0, dir.length() + 2);
+    const hits: THREE.Intersection[] = [];
+    r.scene.traverseVisible(o => { if ((o as THREE.Mesh).isMesh) try { o.raycast(ray, hits); } catch { /* skinned rigs */ } });
+    hits.sort((p, q) => p.distance - q.distance);
+    return hits.slice(0, 6).map(h => ({ d: +h.distance.toFixed(2), name: h.object.name || h.object.type, parent: h.object.parent?.type, visible: h.object.visible, mat: ((h.object as THREE.Mesh).material as THREE.Material)?.type }));
+  },
+  cardsDepthTest(on: boolean) { (renderer as unknown as { effects: { cards: { material: THREE.ShaderMaterial } } }).effects.cards.material.depthTest = on; },
+  weaponState(id: string) {
+    const visual = (renderer as unknown as { avatars: { get(id: string): { weapon: THREE.Mesh } | undefined } }).avatars.get(id)!;
+    const m = visual.weapon.material as THREE.Material;
+    return { transparent: m.transparent, depthTest: m.depthTest, depthWrite: m.depthWrite, renderOrder: visual.weapon.renderOrder, layers: visual.weapon.layers.mask, parent: visual.weapon.parent?.type, onBefore: String(visual.weapon.onBeforeRender).slice(0, 80), frustum: visual.weapon.frustumCulled, type: m.type, uuidShared: m.uuid };
+  },
+  hideWeapon(id: string) { const v = (renderer as unknown as { avatars: { get(id: string): { weapon: THREE.Mesh } | undefined } }).avatars.get(id)!; v.weapon.geometry = new THREE.BufferGeometry(); },
   debug() {
     const fx = (renderer as unknown as { effects: Record<string, { cards?: { life: number; age: number; cell: number; pos: unknown }[] }> }).effects;
-    const glow = (fx as unknown as { glow: { mesh: { visible: boolean; geometry: { instanceCount: number } } } }).glow;
-    (window as unknown as { glowState: unknown }).glowState = { visible: glow.mesh.visible, count: glow.mesh.geometry.instanceCount };
     return Object.fromEntries(Object.entries(fx).filter(([, v]) => v && v.cards).map(([k, v]) => [k, v.cards!.filter(c => c.life > 0).map(c => ({ cell: c.cell, age: +c.age.toFixed(3), life: c.life, pos: c.pos, size: [(c as unknown as { size0: number }).size0, (c as unknown as { size1: number }).size1] }))]));
   },
 };
