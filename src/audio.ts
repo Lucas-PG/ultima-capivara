@@ -58,6 +58,12 @@ export class SoundEngine {
   private distanceToStep = 0;
   private nextWildlife = 0;
   private nextMusic = 0;
+  private musicDucker: GainNode | null = null;
+  private duckUntil = 0;
+  private voiceAt = new Map<string, number>();
+  private voiceEnds: number[] = [];
+  private nextSpotCheck = 0;
+  private spottedActor: string | null = null;
   private phrase = 0;
   private reloadUntil = 0;
   private reloadGain: GainNode | null = null;
@@ -87,7 +93,9 @@ export class SoundEngine {
     const limiter = context.createDynamicsCompressor();
     limiter.threshold.value = -12; limiter.knee.value = 12; limiter.ratio.value = 8;
     limiter.attack.value = .003; limiter.release.value = .18;
-    effects.connect(master); ambience.connect(master); music.connect(master); master.connect(limiter); limiter.connect(context.destination);
+    const musicDucker = context.createGain(); musicDucker.gain.value = 1;
+    effects.connect(master); ambience.connect(master); music.connect(musicDucker); musicDucker.connect(master); master.connect(limiter); limiter.connect(context.destination);
+    this.musicDucker = musicDucker;
     this.buses = { master, effects, ambience, music };
     this.noiseBuffer = this.makeNoise(false);
     this.lowNoiseBuffer = this.makeNoise(true);
@@ -116,6 +124,7 @@ export class SoundEngine {
       const distance = Math.hypot(event.origin.x - listener.x, event.origin.y - listener.y, event.origin.z - listener.z);
       if (!own && distance > 250) return;
       const now = ctx.currentTime;
+      if (own || distance < 35) this.duckUntil = Math.max(this.duckUntil, now + 2);
       this.shots = this.shots.filter(end => end > now);
       if (this.shots.length >= 24 || (!own && this.shots.length >= 18)) return;
       this.shots.push(now + VOICES[event.weapon].length + (own ? 0 : distance / 343));
@@ -129,14 +138,19 @@ export class SoundEngine {
       const reloadSample = event.weapon === 'shotgun' ? 'reload-shell' : 'reload-mag';
       if (!this.playSample(reloadSample, output, .13, ctx.currentTime, .18)) this.metalClick(output, ctx.currentTime, 1200, .16);
     } else if (event.type === 'damage') {
+      this.duckUntil = Math.max(this.duckUntil, ctx.currentTime + 2);
+      const hurt = this.lastSnapshot?.actors.find(a => a.id === event.target);
+      if (hurt) this.voiceChirp('hurt', hurt.id, hurt.pos, listener, myId);
       if (event.target === myId) {
         this.noise(this.buses.effects, ctx.currentTime, .18, 'lowpass', 260, .12, .004);
         this.tone(this.buses.effects, ctx.currentTime, 95, 48, .18, .12, 'sine');
       } else if (event.actor === myId) {
         this.metalClick(this.buses.effects, ctx.currentTime, event.head ? 2550 : 1750, event.head ? .17 : .09);
       }
-    } else if (event.type === 'kill' && event.actor === myId) {
-      this.tone(this.buses.effects, ctx.currentTime, 470, 720, .16, .07, 'triangle');
+    } else if (event.type === 'kill') {
+      const eliminated = this.lastSnapshot?.actors.find(a => a.id === event.target);
+      if (eliminated) this.voiceChirp('elimination', eliminated.id, eliminated.pos, listener, myId);
+      if (event.actor === myId) this.tone(this.buses.effects, ctx.currentTime, 470, 720, .16, .07, 'triangle');
     } else if (event.type === 'pickup' && event.actor === myId) {
       this.metalClick(this.buses.effects, ctx.currentTime, 1200, .09);
       this.tone(this.buses.effects, ctx.currentTime, 520, 720, .12, .045, 'sine');
@@ -152,6 +166,8 @@ export class SoundEngine {
     const now = ctx.currentTime;
     this.updateAmbient(actor, menu, now);
     if (menu && this.settings.music > 0 && now >= this.nextMusic) this.menuPhrase(now);
+    if (!menu && actor?.alive && snapshot?.phase === 'playing' && this.settings.music > 0 && now >= this.nextMusic) this.matchPhrase(now);
+    this.musicDucker?.gain.setTargetAtTime(now < this.duckUntil ? .5 : 1, now, now < this.duckUntil ? .025 : .45);
     if (!actor || !snapshot || !Number.isFinite(dt) || dt <= 0) {
       this.lastPosition = null; this.lastActorId = null; this.lastStage = null; this.distanceToStep = 0;
       this.cancelReload();
@@ -159,6 +175,16 @@ export class SoundEngine {
     }
     this.placeListener({ x: actor.pos.x, y: actor.pos.y + 1.5, z: actor.pos.z }, actor.yaw);
     this.updateRemoteSteps(actor, snapshot);
+    if (now >= this.nextSpotCheck && actor.alive && actor.stage === 'ground') {
+      this.nextSpotCheck = now + .7;
+      const other = snapshot.actors.find(a => a.id !== actor.id && a.alive && a.stage === 'ground' && Math.hypot(a.pos.x - actor.pos.x, a.pos.z - actor.pos.z) < 24 &&
+        Math.cos(actor.yaw) * (actor.pos.z - a.pos.z) + Math.sin(actor.yaw) * (actor.pos.x - a.pos.x) > 0 &&
+        (!this.world || hasLineOfSight({ ...actor.pos, y: actor.pos.y + 1.5 }, { ...a.pos, y: a.pos.y + 1 }, this.world)));
+      if (other?.id !== this.spottedActor) {
+        this.spottedActor = other?.id || null;
+        if (other) this.voiceChirp('spot', actor.id, actor.pos, actor.pos, actor.id);
+      }
+    }
     this.updateReload(actor, snapshot, now);
     if (this.lastActorId !== actor.id) {
       this.lastActorId = actor.id; this.lastPosition = { ...actor.pos };
@@ -202,6 +228,7 @@ export class SoundEngine {
     this.spatialNodes.clear();
     void this.context?.close();
     this.context = null; this.buses = null; this.noiseBuffer = null; this.lowNoiseBuffer = null;
+    this.musicDucker = null; this.voiceAt.clear(); this.voiceEnds = []; this.spottedActor = null;
     this.samples = {};
   }
 
@@ -507,5 +534,28 @@ export class SoundEngine {
       this.tone(output, time, pitch * 2, pitch * 2, .55, .004, 'triangle');
     });
     this.nextMusic = now + 3.7 + (this.phrase % 3) * .28;
+  }
+  private matchPhrase(now: number) {
+    const output = this.buses!.music;
+    const notes = [146.83, 174.61, 220, 196];
+    const root = notes[this.phrase++ % notes.length];
+    this.tone(output, now, root / 2, root / 2, 2.1, .009, 'sine');
+    this.tone(output, now + 1.05, root, root * .997, .65, .006, 'triangle');
+    this.nextMusic = now + 4.2;
+  }
+  private voiceChirp(kind: 'hurt' | 'spot' | 'elimination', id: string, pos: Vec3, listener: Vec3, myId: string) {
+    const ctx = this.context!, now = ctx.currentTime;
+    if (now - (this.voiceAt.get(id) ?? -Infinity) < 2) return;
+    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
+    if (id !== myId && distance > 40) return;
+    this.voiceEnds = this.voiceEnds.filter(end => end > now);
+    if (id !== myId && this.voiceEnds.length >= 6) return;
+    this.voiceAt.set(id, now);
+    if (id !== myId) this.voiceEnds.push(now + .42);
+    const output = id === myId ? this.buses!.effects : this.spatial(pos, this.buses!.effects, distance);
+    const base = kind === 'hurt' ? 235 : kind === 'spot' ? 310 : 195;
+    const volume = kind === 'hurt' ? .045 : .036;
+    this.tone(output, now, base, base * (kind === 'spot' ? 1.28 : .76), .14, volume, 'triangle');
+    this.tone(output, now + .11, base * 1.4, base * (kind === 'spot' ? 1.65 : .85), .21, volume * .7, 'sine');
   }
 }

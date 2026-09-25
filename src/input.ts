@@ -1,5 +1,7 @@
 import type { InputFrame, PlayerAction, Settings } from './shared/types';
 import { clamp, emptyInput } from './shared/math';
+import { RECOIL } from './shared/weapons';
+import type { WeaponId } from './shared/types';
 
 export class InputController {
   readonly frame: InputFrame = emptyInput();
@@ -16,6 +18,11 @@ export class InputController {
   onPause: () => void = () => {};
   onCycle: (direction: 1 | -1) => void = () => {};
   private wheelAt = 0;
+  private jumpPressedAt = -Infinity;
+  private recoilPitch = 0;
+  private recoilYaw = 0;
+  private recoilShots = 0;
+  private recoilRecovery = .45;
   onLock: () => void = () => {};
   onError: (message: string) => void = () => {};
   constructor(private canvas: HTMLCanvasElement, private settings: Settings) {
@@ -74,7 +81,7 @@ export class InputController {
     const binding = this.settings.bindings;
     if (event.code === binding.reload) this.onAction({ type: 'reload', id: ++this.actionId });
     if (event.code === binding.interact) this.onInteract();
-    if (event.code === binding.jump) this.onAction({ type: 'jump', id: ++this.actionId });
+    if (event.code === binding.jump) { this.jumpPressedAt = performance.now(); this.onAction({ type: 'jump', id: ++this.actionId }); }
     if (/^Digit[1-4]$/.test(event.code)) this.onAction({ type: 'slot', id: ++this.actionId, slot: Number(event.code.slice(-1)) - 1 });
     const consumables = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'] as const;
     if (/^Digit[5-9]$/.test(event.code)) this.onAction({ type: 'consume', id: ++this.actionId, item: consumables[Number(event.code.slice(-1)) - 5] });
@@ -85,15 +92,31 @@ export class InputController {
     this.frame.clientTime = time;
     this.frame.moveX = Number(held('right')) - Number(held('left'));
     this.frame.moveZ = Number(held('forward')) - Number(held('back'));
-    this.frame.sprint = held('sprint'); this.frame.crouch = held('crouch'); this.frame.jump = held('jump');
+    this.frame.sprint = held('sprint'); this.frame.crouch = held('crouch'); this.frame.jump = held('jump') || this.locked && performance.now() - this.jumpPressedAt < 100;
     this.frame.lean = Number(held('leanRight')) - Number(held('leanLeft'));
     this.frame.ads = this.locked && (this.settings.adsToggle ? this.adsToggled : this.adsHeld);
     if (!this.locked) { this.frame.fire = false; delete this.frame.firePressId; }
     return { ...this.frame };
   }
   actionIdNext() { return ++this.actionId; }
+  applyRecoil(weapon: WeaponId) {
+    const recoil = RECOIL[weapon], scale = this.frame.ads ? .7 : 1;
+    const pitch = recoil.pitch * scale, yaw = recoil.yaw * (this.recoilShots++ % 2 ? 1 : -1) * scale;
+    this.frame.pitch = clamp(this.frame.pitch + pitch, -1.48, 1.48);
+    this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw + yaw), Math.cos(this.frame.yaw + yaw));
+    this.recoilPitch += pitch; this.recoilYaw += yaw; this.recoilRecovery = recoil.recovery;
+  }
+  recoverRecoil(dt: number) {
+    if (this.frame.fire || dt <= 0) return;
+    const fraction = 1 - Math.exp(-5 * dt / Math.max(.001, this.recoilRecovery));
+    const pitch = this.recoilPitch * fraction, yaw = this.recoilYaw * fraction;
+    this.frame.pitch = clamp(this.frame.pitch - pitch, -1.48, 1.48);
+    this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw - yaw), Math.cos(this.frame.yaw - yaw));
+    this.recoilPitch -= pitch; this.recoilYaw -= yaw;
+    if (this.recoilPitch < .00001) this.recoilShots = 0;
+  }
   reset(yaw = 0) { this.sequence = 0; this.actionId = 0; this.clear(); Object.assign(this.frame, emptyInput(), { yaw }); }
-  clear() { this.keys.clear(); this.frame.fire = false; delete this.frame.firePressId; this.frame.moveX = this.frame.moveZ = this.frame.lean = 0; this.adsHeld = this.adsToggled = false; this.scoreboard = false; }
+  clear() { this.keys.clear(); this.frame.fire = false; delete this.frame.firePressId; this.frame.moveX = this.frame.moveZ = this.frame.lean = 0; this.adsHeld = this.adsToggled = false; this.scoreboard = false; this.jumpPressedAt = -Infinity; this.recoilPitch = this.recoilYaw = this.recoilShots = 0; }
   setSettings(settings: Settings) { this.settings = settings; }
   async lock() {
     try { await this.canvas.requestPointerLock(); }

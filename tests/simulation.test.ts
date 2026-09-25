@@ -4,7 +4,7 @@ import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../src/shar
 import { terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
 import { inArena } from '../src/shared/layout';
-import { damageFalloff, shotSpread, WEAPONS } from '../src/shared/weapons';
+import { advanceAds, damageFalloff, shotSpread, WEAPONS } from '../src/shared/weapons';
 import { finiteTree } from '../src/network/codec';
 import type { ActorState, InputFrame, PlayerProfile, RoomConfig, WorldSpec } from '../src/shared/types';
 
@@ -46,10 +46,10 @@ describe('authoritative simulation', () => {
   });
 
   it('keeps the first settled shot accurate, widens bursts and movement, then recovers', () => {
-    expect(shotSpread('m4', true, 0, false, 0)).toBe(WEAPONS.m4.adsSpread);
-    expect(shotSpread('m4', true, 3.9, false, 0)).toBeGreaterThan(shotSpread('m4', true, 0, false, 0));
-    expect(shotSpread('m4', true, 0, true, 0)).toBeGreaterThan(shotSpread('m4', true, 3.9, false, 0));
-    expect(shotSpread('m4', true, 0, false, 1)).toBeGreaterThan(shotSpread('m4', true, 0, false, 0));
+    expect(shotSpread('m4', 1, 0, false, 0)).toBeCloseTo(WEAPONS.m4.adsSpread);
+    expect(shotSpread('m4', 1, 3.9, false, 0)).toBeGreaterThan(shotSpread('m4', 1, 0, false, 0));
+    expect(shotSpread('m4', 1, 0, true, 0)).toBeGreaterThan(shotSpread('m4', 1, 3.9, false, 0));
+    expect(shotSpread('m4', 1, 0, false, 1)).toBeGreaterThan(shotSpread('m4', 1, 0, false, 0));
     const sim = new Simulation(world(), config, [profiles[0]], 'spread-recovery', 7);
     advance(sim, 3.1);
     const actor = (sim as any).actors.get('a');
@@ -61,7 +61,7 @@ describe('authoritative simulation', () => {
     expect(actor.shotHeat).toBe(0);
   });
 
-  it('keeps burst heat when the player re-selects the same weapon slot', () => {
+  it('keeps burst heat on re-selecting the current slot and clears it on a real switch', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'same-slot', 23);
     advance(sim, 3.1);
     const actor = (sim as any).actors.get('a');
@@ -83,7 +83,8 @@ describe('authoritative simulation', () => {
     advance(sim, 3.1);
     const actor = (sim as any).actors.get('a');
     actor.state.weapons[0] = { id: 'm4', ammo: 2000, reserve: 0, rarity: 0 };
-    actor.state.slot = 0; actor.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
+    actor.state.slot = 0;
+    actor.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
     actor.state.yaw = actor.state.pitch = 0;
     const fire = () => {
       actor.nextShot = 0; actor.wasFiring = false;
@@ -116,6 +117,105 @@ describe('authoritative simulation', () => {
     expect(moving).toBeGreaterThan(settled * 1.1);
     expect(airborne).toBeGreaterThan(moving * 1.1);
     expect(recovered).toBeLessThan(burst * .9);
+  });
+
+  it('makes scoped accuracy arrive over the weapon transition instead of on button press', () => {
+    expect(advanceAds('m4', 0, true, 1 / 60)).toBeGreaterThan(0);
+    expect(advanceAds('m4', 0, true, 1 / 60)).toBeLessThan(1);
+    expect(advanceAds('sniper', 0, true, .16)).toBeLessThan(advanceAds('pistol', 0, true, .16));
+    const half = advanceAds('m4', 0, true, .11);
+    expect(shotSpread('m4', half, 0, false, 0)).toBeGreaterThan(WEAPONS.m4.adsSpread);
+    expect(shotSpread('m4', half, 0, false, 0)).toBeLessThan(WEAPONS.m4.spread);
+    expect(advanceAds('m4', 1, false, .22)).toBe(0);
+  });
+
+  it('records fired shots, distinct hit shots, headshots, chests and elapsed survival from the simulation', () => {
+    const sim = new Simulation(world(), config, profiles, 'match-stats', 7);
+    advance(sim, 3.1);
+    const shooter = (sim as any).actors.get('a'), target = (sim as any).actors.get('b');
+    shooter.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
+    target.state.pos = { x: 0, y: terrainHeight(0, -5), z: -5 };
+    target.state.protectionUntil = 0;
+    shooter.state.yaw = 0;
+    shooter.state.pitch = Math.atan2(target.state.pos.y + 1.6 - shooter.state.pos.y - 1.62, 5);
+    shooter.adsAmount = 1;
+    (sim as any).random = () => .5;
+    (sim as any).fire(shooter);
+    sim.action('a', { type: 'interact', id: 1, target: 'chest-1' });
+    advance(sim, 5);
+    (sim as any).finish();
+    const result = sim.snapshot().results.find(a => a.id === 'a')!;
+    expect(result).toMatchObject({ shots: 1, hits: 1, headshots: 1, chests: 1 });
+    expect(result.survived).toBeGreaterThanOrEqual(5);
+    expect(Number.isInteger(result.survived * 10)).toBe(true);
+  });
+
+  it('counts a shotgun blast once even when several pellets hit and freezes BR survival at elimination', () => {
+    const sim = new Simulation(world(), { ...config, mode: 'battle-royale', capacity: 3 }, [...profiles, { id: 'c', name: 'C', color: '#333333', ready: true, connected: true }], 'pellet-stats', 8);
+    advance(sim, 3.5);
+    const shooter = (sim as any).actors.get('a'), target = (sim as any).actors.get('b');
+    shooter.state.stage = target.state.stage = 'ground';
+    shooter.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
+    target.state.pos = { x: 0, y: terrainHeight(0, -5), z: -5 };
+    target.state.protectionUntil = 0;
+    shooter.state.weapons[0] = { id: 'shotgun', ammo: 6, reserve: 6, rarity: 0 };
+    shooter.state.slot = 0; shooter.adsAmount = 1;
+    shooter.state.yaw = 0;
+    shooter.state.pitch = Math.atan2(target.state.pos.y + 1.6 - shooter.state.pos.y - 1.62, 5);
+    (sim as any).random = () => .5;
+    (sim as any).fire(shooter);
+    expect(shooter.shots).toBe(1);
+    expect(shooter.hits).toBe(1);
+    expect(shooter.headshots).toBe(1);
+    if (target.state.alive) (sim as any).kill(target, shooter, 'shotgun');
+    const eliminatedAt = target.eliminatedAt;
+    advance(sim, .5);
+    (sim as any).finish();
+    const winner = sim.snapshot().results.find(a => a.id === 'a')!;
+    const eliminated = sim.snapshot().results.find(a => a.id === 'b')!;
+    expect(eliminated.survived).toBeCloseTo(Math.round((eliminatedAt - (sim as any).matchStartedAt) * 10) / 10, 1);
+    expect(winner.survived).toBeGreaterThan(eliminated.survived);
+  });
+
+  it('buffers a jump pressed just before landing for one tenth of a second', () => {
+    const sim = new Simulation(world(), config, [profiles[0]], 'jump-buffer', 5);
+    advance(sim, 3.1);
+    const actor = (sim as any).actors.get('a');
+    actor.state.pos.y = terrainHeight(actor.state.pos.x, actor.state.pos.z) + .01;
+    actor.state.velocity.y = -2; actor.state.grounded = false;
+    sim.action('a', { type: 'jump', id: 1 });
+    advance(sim, 1 / 60);
+    expect(actor.state.grounded).toBe(true);
+    advance(sim, 1 / 60);
+    expect(actor.state.velocity.y).toBeGreaterThan(6);
+    const expired = new Simulation(world(), config, [profiles[0]], 'expired-jump', 5);
+    advance(expired, 3.1);
+    const late = (expired as any).actors.get('a');
+    late.state.pos.y = terrainHeight(late.state.pos.x, late.state.pos.z) + 1;
+    late.state.velocity.y = 0; late.state.grounded = false;
+    expired.action('a', { type: 'jump', id: 1 });
+    advance(expired, .12);
+    expect(late.jumpQueued).toBe(false);
+  });
+
+  it('reconciles a replay of shared movement with the host after acceleration and jump inputs', () => {
+    const w = world();
+    const sim = new Simulation(w, config, [profiles[0]], 'reconcile', 10);
+    advance(sim, 3.1);
+    const predicted = structuredClone(sim.snapshot().actors[0]);
+    for (let i = 1; i <= 60; i++) {
+      const frame = input(i, { moveZ: 1, jump: i >= 20 && i <= 25, clientTime: sim.snapshot().time });
+      sim.input('a', frame);
+      sim.step(1 / 60);
+      moveActor(predicted, frame, w, 1 / 60);
+    }
+    const host = sim.snapshot().actors[0];
+    expect(predicted.pos.x).toBeCloseTo(host.pos.x, 5);
+    expect(predicted.pos.y).toBeCloseTo(host.pos.y, 5);
+    expect(predicted.pos.z).toBeCloseTo(host.pos.z, 5);
+    expect(predicted.velocity.x).toBeCloseTo(host.velocity.x, 5);
+    expect(predicted.velocity.y).toBeCloseTo(host.velocity.y, 5);
+    expect(predicted.velocity.z).toBeCloseTo(host.velocity.z, 5);
   });
 
   it('tapers short-range weapon damage without weakening close hits or marksman rifles', () => {
@@ -589,7 +689,7 @@ describe('authoritative simulation', () => {
     actor.weapons = [{ id: 'shotgun', ammo: 0, reserve: 6, rarity: 0 }];
     actor.slot = 0;
     sim.action('a', { type: 'reload', id: 1 });
-    advance(sim, .55);
+    advance(sim, .57);
     expect(actor.weapons[0].ammo).toBe(1);
     expect(actor.weapons[0].reserve).toBe(5);
     expect(actor.reloadUntil).toBeGreaterThan(sim.snapshot().time);
@@ -667,6 +767,7 @@ describe('authoritative simulation', () => {
       // The ray grazes the front of the head sphere: a hit facing -z (yaw 0), a miss facing +z.
       shooter.state.pos = { x: -5, y: terrainHeight(0, 0), z: -.27 };
       shooter.state.weapons[0] = { id: 'sniper', ammo: 5, reserve: 0, rarity: 0 };
+      shooter.adsAmount = 1;
       target.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
       target.state.yaw = Math.PI; target.state.protectionUntil = 0;
       target.history = [{ time: sim.snapshot().time - .18, pos: { ...target.state.pos }, crouch: false, yaw: 0 }];

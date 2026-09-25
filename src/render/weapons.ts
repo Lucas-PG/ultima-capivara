@@ -3,7 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { damp } from '../shared/math';
-import { WEAPONS } from '../shared/weapons';
+import { advanceAds, WEAPONS } from '../shared/weapons';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 
 const palette = {
@@ -698,7 +698,7 @@ export class WeaponView {
       if (weapon === 'shotgun') model.support.position.z += cycle * .11;
     }
     const goalAds = actor.ads && !reloading && !actor.sprint && weapon !== 'machete' ? 1 : 0;
-    this.ads = damp(this.ads, goalAds, 13, dt);
+    this.ads = advanceAds(weapon, this.ads, !!goalAds, dt);
     this.kick = damp(this.kick, 0, 18, dt);
     this.draw = damp(this.draw, 0, 7, dt);
     this.shotLife = Math.max(0, this.shotLife - dt);

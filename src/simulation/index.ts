@@ -2,7 +2,7 @@ import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
 import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
-import { damageFalloff, shotSpread, WEAPONS } from '../shared/weapons';
+import { advanceAds, coolShotHeat, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, ColliderGrid, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
@@ -33,8 +33,9 @@ const HIT_SHAPES = {
 } as const;
 interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
-  nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
-  brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; elimination: number;
+  nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; jumpQueuedUntil: number; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
+  brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number;
+  shots: number; hits: number; headshots: number; chests: number; eliminatedAt: number | null;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
 interface Projectile { owner: string; weapon: WeaponId; pos: Vec3; velocity: Vec3; life: number }
@@ -68,6 +69,7 @@ export class Simulation {
   private accumulator = 0;
   private eventId = 0;
   private phase: WorldSnapshot['phase'] = 'countdown';
+  private matchStartedAt = 0;
   private countdown = 3;
   private elimination = 0;
   private results: MatchResult[] = [];
@@ -152,7 +154,7 @@ export class Simulation {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, elimination: 0, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, shots: 0, hits: 0, headshots: 0, chests: 0, eliminatedAt: null, history: [] });
   }
 
   input(id: string, input: InputFrame) {
@@ -181,12 +183,12 @@ export class Simulation {
     actor.lastAction = action.id;
     const s = actor.state;
     if (!s.alive) return;
-    if (action.type === 'jump') { if (s.stage === 'plane') this.drop(actor); else if (s.stage === 'ground' && s.grounded) actor.jumpQueued = true; }
+    if (action.type === 'jump') { if (s.stage === 'plane') this.drop(actor); else if (s.stage === 'ground') { actor.jumpQueued = true; actor.jumpQueuedUntil = this.time + .1; } }
     else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) actor.triggerQueued = action; }
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
       if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot) {
-        s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; actor.shotHeat = s.shotHeat = 0;
+        s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0;
       }
     } else if (action.type === 'reload') this.startReload(actor);
     else if (action.type === 'consume') this.startConsume(actor, action.item);
@@ -229,7 +231,7 @@ export class Simulation {
     s.connected = false; actor.disconnectedAt = -Infinity;
     if (!s.alive) { s.respawnAt = 0; return; }
     s.alive = false; s.hp = 0; s.deaths++; s.respawnAt = 0; s.using = null; s.reloadUntil = 0; actor.jumpQueued = false; actor.triggerQueued = null;
-    actor.elimination = ++this.elimination;
+    actor.elimination = ++this.elimination; actor.eliminatedAt ??= this.time;
     this.emit({ type: 'notice', text: `${s.name} saiu da partida` });
   }
 
@@ -240,12 +242,12 @@ export class Simulation {
   }
   private fixedStep() {
     this.time += TICK; this.tick++;
-    if (this.phase === 'countdown') { this.countdown = Math.max(0, this.countdown - TICK); if (this.countdown <= 0) { this.phase = 'playing'; this.emit({ type: 'notice', text: 'A partida começou!' }); } return; }
+    if (this.phase === 'countdown') { this.countdown = Math.max(0, this.countdown - TICK); if (this.countdown <= 0) { this.phase = 'playing'; this.matchStartedAt = this.time; this.emit({ type: 'notice', text: 'A partida começou!' }); } return; }
     if (this.phase !== 'playing') return;
     if (this.config.mode === 'battle-royale') { this.updatePlane(); this.updateZone(); }
     for (const actor of this.actors.values()) {
       const s = actor.state;
-      if (actor.shotHeat > 0) actor.shotHeat = s.shotHeat = Math.max(0, actor.shotHeat - TICK * 2.4);
+      if (actor.shotHeat > 0) actor.shotHeat = s.shotHeat = coolShotHeat(actor.shotHeat, TICK);
       if (!s.connected && actor.disconnectedAt >= 0 && this.time - actor.disconnectedAt >= 30) this.forfeit(actor);
       if (!s.alive) { if (this.config.mode === 'deathmatch' && s.respawnAt && this.time >= s.respawnAt && s.connected) this.respawn(actor); continue; }
       if (s.stage === 'plane') {
@@ -267,13 +269,15 @@ export class Simulation {
       actor.triggerQueued = null;
       s.yaw = inp.yaw; s.pitch = inp.pitch;
       const before = actor.brain ? { x: s.pos.x, z: s.pos.z, h: terrainHeight(s.pos.x, s.pos.z) } : null;
-      moveActor(s, actor.jumpQueued ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1);
+      const queuedJump = actor.jumpQueued && this.time <= actor.jumpQueuedUntil;
+      const consumeQueuedJump = queuedJump && s.grounded;
+      moveActor(s, consumeQueuedJump ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1);
       if (before) {
         // Bots never wade into the pond or the sea, whatever their steering says.
         const h = terrainHeight(s.pos.x, s.pos.z);
         if (h < -.3 && h < before.h) { s.pos.x = before.x; s.pos.z = before.z; s.velocity.x = 0; s.velocity.z = 0; }
       }
-      actor.jumpQueued = false;
+      actor.jumpQueued = queuedJump && !consumeQueuedJump;
       if (this.config.mode === 'deathmatch') { s.pos.x = clamp(s.pos.x, ARENA.minX + .32, ARENA.maxX - .32); s.pos.z = clamp(s.pos.z, ARENA.minZ + .32, ARENA.maxZ - .32); }
       if (s.using && this.time >= s.useUntil) this.finishConsume(actor);
       if (s.reloadUntil && this.time >= s.reloadUntil) this.finishReload(actor);
@@ -283,6 +287,7 @@ export class Simulation {
         s.yaw = trigger.yaw; s.pitch = trigger.pitch; s.lean = trigger.lean; s.ads = trigger.ads;
         actor.wasFiring = false;
       }
+      actor.adsAmount = advanceAds(s.weapons[s.slot].id, actor.adsAmount, s.ads, TICK);
       if (s.alive && (inp.fire || trigger)) this.fire(actor, trigger?.clientTime, trigger?.id);
       if (!inp.fire) actor.wasFiring = false;
       if (inp.jump) actor.input.jump = false;
@@ -400,6 +405,7 @@ export class Simulation {
     if (!hasLineOfSight(center(s), { x: item.x, y: item.y + .5, z: item.z }, this.world)) return;
     if (chest) {
       this.openedChests.add(chest.id);
+      a.chests++;
       this.spillChest(chest, s);
       this.emit({ type: 'pickup', actor: s.id, item: chest.id });
       return;
@@ -463,12 +469,13 @@ export class Simulation {
     }
     a.wasFiring = true;
     if (!def.melee && w.ammo <= 0) { this.startReload(a); return; }
-    const spread = shotSpread(w.id, s.ads, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded, a.shotHeat);
-    if (!s.bot && !def.melee && !def.projectile) a.shotHeat = s.shotHeat = Math.min(1.2, a.shotHeat + (w.id === 'smg' ? .32 : w.id === 'm4' ? .3 : .12));
+    const spread = shotSpread(w.id, a.adsAmount, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded, a.shotHeat);
+    if (!s.bot && !def.melee && !def.projectile) a.shotHeat = s.shotHeat = Math.min(1.2, a.shotHeat + shotHeatGain(w.id));
     if (pressId !== undefined) a.lastShotPressId = Math.max(a.lastShotPressId, pressId);
     if (s.protectionUntil > this.time) s.protectionUntil = this.time;
     a.nextShot = this.time + 60 / def.rpm;
     if (!def.melee) w.ammo--;
+    a.shots++;
     const origin = center(s), forward = aim ? aim.dir : aimDirection(s.yaw, s.pitch);
     const range = w.id === 'pistol' || w.id === 'smg' ? 60 : w.id === 'slingshot' ? 25 : def.melee ? 0 : 90;
     if (range) this.alertBots(s.pos, range);
@@ -478,10 +485,10 @@ export class Simulation {
       this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: { x: origin.x + forward.x * 2, y: origin.y + forward.y * 2, z: origin.z + forward.z * 2 }, hit: false });
       return;
     }
-    const pellets = def.pellets || 1; let hit = false, endpoint = { x: origin.x + forward.x * def.range, y: origin.y + forward.y * def.range, z: origin.z + forward.z * def.range };
+    const pellets = def.pellets || 1; let hit = false, headHit = false, endpoint = { x: origin.x + forward.x * def.range, y: origin.y + forward.y * def.range, z: origin.z + forward.z * def.range };
     for (let n = 0; n < pellets; n++) {
       const direction = aim ? this.cone(forward, aim.cone + (pellets > 1 ? def.spread * DEG * .5 : 0))
-        : def.melee ? forward : norm({ x: forward.x + (this.random() - .5) * spread * DEG, y: forward.y + (this.random() - .5) * spread * DEG, z: forward.z + (this.random() - .5) * spread * DEG });
+        : def.melee ? forward : norm({ x: forward.x + (this.random() * 2 - 1) * spread * DEG, y: forward.y + (this.random() * 2 - 1) * spread * DEG, z: forward.z + (this.random() * 2 - 1) * spread * DEG });
       const wall = raycastWorld(origin, direction, def.range, this.world);
       let best = wall?.distance ?? def.range, victim: ActorRuntime | null = null, head = false;
       for (const other of this.actors.values()) {
@@ -493,11 +500,12 @@ export class Simulation {
         if (found) { best = found.distance; victim = other; head = found.head; }
       }
       if (victim) {
-        hit = true; endpoint = { x: origin.x + direction.x * best, y: origin.y + direction.y * best, z: origin.z + direction.z * best };
+        hit = true; headHit ||= head; endpoint = { x: origin.x + direction.x * best, y: origin.y + direction.y * best, z: origin.z + direction.z * best };
         const falloff = damageFalloff(w.id, best);
         this.damage(victim, def.damage * (head ? def.headMultiplier : 1) * (1 + w.rarity * .08) * falloff * (a.brain ? this.botDamage(a, victim) : 1), s.id, w.id, head);
       } else if (wall) endpoint = wall.point;
     }
+    if (hit) { a.hits++; if (headHit) a.headshots++; }
     this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: endpoint, hit });
   }
   private rayActor(origin: Vec3, d: Vec3, actor: ActorState, max: number, position = actor.pos, crouch = actor.crouch, yaw = actor.yaw, favoured = false): { distance: number; head: boolean } | null {
@@ -557,7 +565,7 @@ export class Simulation {
     if (!s.alive) return;
     s.alive = false; s.hp = 0; s.deaths++; s.using = null; s.reloadUntil = 0; target.jumpQueued = false; target.triggerQueued = null;
     if (killer && killer !== target) killer.state.kills++;
-    target.elimination = ++this.elimination;
+    target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
     if (this.config.mode === 'deathmatch') s.respawnAt = this.time + 3;
     this.emit({ type: 'kill', actor: killer?.state.id || null, target: s.id, weapon });
   }
@@ -568,7 +576,7 @@ export class Simulation {
     s.weapons = [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
     s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
-    a.input = emptyInput(); a.lastInputAt = -Infinity; a.lastShotPressId = -1; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = s.shotHeat = 0; a.boostUntil = 0; a.history = [];
+    a.input = emptyInput(); a.lastInputAt = -Infinity; a.lastShotPressId = -1; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; a.boostUntil = 0; a.history = [];
     if (a.brain) a.brain = createBrain(a.brain.elite, a.brain.skill, s.pos, a.brain.flank);
     this.emit({ type: 'respawn', actor: s.id });
   }
@@ -586,7 +594,11 @@ export class Simulation {
         const hit = this.rayActor(previous, dir, other.state, best, undefined, undefined, undefined, !!this.actors.get(p.owner)?.brain && !other.state.bot);
         if (hit) { best = hit.distance; victim = other; head = hit.head; }
       }
-      if (victim) this.damage(victim, WEAPONS[p.weapon].damage * (head ? WEAPONS[p.weapon].headMultiplier : 1), p.owner, p.weapon, head);
+      if (victim) {
+        const owner = this.actors.get(p.owner);
+        if (owner) { owner.hits++; if (head) owner.headshots++; }
+        this.damage(victim, WEAPONS[p.weapon].damage * (head ? WEAPONS[p.weapon].headMultiplier : 1), p.owner, p.weapon, head);
+      }
       if (victim || wall || p.pos.y < terrainHeight(p.pos.x, p.pos.z) || p.life <= 0) this.projectiles.splice(i, 1);
     }
   }
@@ -958,7 +970,9 @@ export class Simulation {
       const tied = this.config.mode === 'deathmatch' && prev && prev.kills === s.kills;
       const place = tied ? previousPlace : index + 1;
       previousPlace = place;
-      return { id: s.id, name: s.name, color: s.color, bot: s.bot, kills: s.kills, deaths: s.deaths, damage: s.damage, place, winner: place === 1 && (this.config.mode === 'deathmatch' || alive === 1) };
+      const livedUntil = this.config.mode === 'battle-royale' ? a.eliminatedAt ?? this.time : this.time;
+      return { id: s.id, name: s.name, color: s.color, bot: s.bot, kills: s.kills, deaths: s.deaths, damage: s.damage, place, winner: place === 1 && (this.config.mode === 'deathmatch' || alive === 1),
+        shots: a.shots, hits: a.hits, headshots: a.headshots, survived: Math.round(Math.max(0, livedUntil - this.matchStartedAt) * 10) / 10, chests: a.chests };
     });
     this.emit({ type: 'notice', text: 'Partida encerrada!' });
   }
