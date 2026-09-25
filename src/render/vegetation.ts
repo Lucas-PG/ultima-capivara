@@ -200,15 +200,15 @@ export function buildVegetation(world: WorldSpec) {
         // retained alone at distance, so the LOD swap loses only fine detail.
         for (const [start, end, width] of [[0, .46, .16], [.27, .78, .18], [.58, 1, .14]] as const)
           leaf(point(start), point(end), length * width, WORLD_PALETTE.palmMid, i + 1, .6);
-        if (far) continue;
-        for (let rib = 0; rib < 3; rib++) branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid, i + 1);
-        for (let n = 1; n <= 13; n++) {
+        if (!far) for (let rib = 0; rib < 3; rib++)
+          branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid, i + 1);
+        for (let n = far ? 2 : 1; n <= 13; n += far ? 3 : 1) {
           const t = n / 14, root = point(t);
           const blade = Math.sin(Math.PI * t) * length * .36;
           for (const side of [-1, 1]) {
             const tip = root.clone().addScaledVector(across, blade * side)
               .addScaledVector(direction, length * .14).add(new THREE.Vector3(0, -.1 - blade * .13, 0));
-            leaf(root, tip, .15 * Math.sin(Math.PI * t) + .026,
+            leaf(root, tip, (far ? .27 : .15) * Math.sin(Math.PI * t) + .026,
               (n + i) % 3 ? WORLD_PALETTE.palmMid : WORLD_PALETTE.palmLight, i + 1, .5);
           }
         }
