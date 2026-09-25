@@ -10,7 +10,7 @@ import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, Ro
 import type { GameRenderer } from './render/renderer';
 import { timing } from './render/timing';
 import { RoomSession } from './network/session';
-import { RemoteInterpolation } from './network/interpolation';
+import { RemoteInterpolation, shotClientTime } from './network/interpolation';
 import { InputController } from './input';
 import { SoundEngine } from './audio';
 import { loadProfile, loadSettings, saveProfile, saveSettings, loadAdapt, recordPlacement } from './settings';
@@ -27,6 +27,7 @@ const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
 const renderFrame: RenderFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
 const remoteInterpolation = new RemoteInterpolation();
+let renderedRemoteTime: number | null = null;
 let renderer: GameRenderer | null = null;
 // Load the 3D island on lobby entry or Practice, then reuse it until the page closes.
 // `loading` holds the loading screen until the first prepared frame.
@@ -201,7 +202,7 @@ function startPractice(config: RoomConfig, p: { name: string; color: string }) {
   void input.lock();
 }
 function stopMatch() {
-  remoteInterpolation.reset();
+  remoteInterpolation.reset(); renderedRemoteTime = null;
   playing = false; input.unlock(); worker?.terminate(); worker = null;
   snapshot = null; predicted = null; pending = []; spectateId = null; accumulator = 0; interaction = null; diedAt = 0; lastKiller = null; killSeen = false;
 }
@@ -280,6 +281,8 @@ function sendAction(action: PlayerAction) {
     return;
   }
   if (action.type === 'jump' && me?.stage === 'falling') action = { type: 'parachute', id: action.id };
+  if (action.type === 'trigger') action = { ...action, clientTime: shotClientTime(
+    snapshot.time + Math.min(.2, (performance.now() - receivedAt) / 1000), renderedRemoteTime) };
   if (practiceConfig) worker?.postMessage({ type: 'action', id: playerId, action });
   else session.sendAction(action);
 }
@@ -343,7 +346,7 @@ function frame(now: number) {
   accumulator = ended ? 0 : Math.min(accumulator + dt, .1);
   while (accumulator >= 1 / 60) {
     const time = snapshot.time + Math.min(.2, (now - receivedAt) / 1000);
-    const next = input.sample(time);
+    const next = input.sample(shotClientTime(time, renderedRemoteTime));
     if (practiceConfig) worker?.postMessage({ type: 'input', id: playerId, input: next });
     else session.sendInput(next);
     if (snapshot.phase === 'playing') { pending.push(next); if (pending.length > 120) pending.shift(); predict(next); }
@@ -374,6 +377,7 @@ function frame(now: number) {
     const renderAt = timing.begin();
     renderer?.update(renderFrame);
     timing.end('render', renderAt);
+    renderedRemoteTime = remoteInterpolation.time;
     renderedFrames++; frameCount++; dirtyFrame = false;
     if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }

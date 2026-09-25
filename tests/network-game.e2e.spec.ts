@@ -92,7 +92,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     console.log('Game multiplayer evidence:', JSON.stringify(evidence));
     expect(errors).toEqual([]);
     await controls(host, 'pause');
-    await host.locator('[data-do="leave"]').click();
+    await host.locator('#pause-panel [data-do="leave"]').click();
     await expect.poll(async () => (await inspect(guest)).room).toBeNull();
     await expect(guest.locator('#toast')).toContainText('O anfitrião fechou a sala.');
   } finally { await Promise.all(contexts.map(context => context.close())); }

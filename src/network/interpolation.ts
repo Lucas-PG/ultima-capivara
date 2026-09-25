@@ -112,3 +112,10 @@ export class RemoteInterpolation {
     return this.poses;
   }
 }
+
+/** Stamp both held fire and reliable clicks with the pose actually shown.
+ * Stale views fall back to now; the authority still enforces its 200 ms limit
+ * at execution, including transit and tick delay. */
+export function shotClientTime(now: number, rendered: number | null): number {
+  return rendered !== null && rendered <= now && now - rendered <= .2 ? rendered : now;
+}
