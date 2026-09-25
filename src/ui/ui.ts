@@ -58,6 +58,7 @@ export class GameUI {
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
   private lastPrey: { name: string; color: string } | null = null;
   private thumbs: Map<WeaponId, string> | null = null;
+  private readonly lifecycle = new AbortController();
   private mapOpen = false;
   private deathReleased = false;
   private tipTimer = 0;
@@ -78,6 +79,7 @@ export class GameUI {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
     document.documentElement.style.setProperty('--cover', `url("${publicUrl('assets/cover-v2.png')}")`);
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
+    window.addEventListener('pagehide', () => this.lifecycle.abort(), { once: true });
     this.drawMapBackground(); this.home();
     // M toggles the island map over the match; it never touches pointer lock or movement input.
     document.addEventListener('keydown', event => {
@@ -188,7 +190,7 @@ export class GameUI {
   }
   game(playerId: string) {
     this.lastBanner = ''; this.deathInfo = null; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null; this.deathReleased = false;
-    if (!this.thumbs) void import('../render/thumbnails').then(m => m.loadWeaponThumbnails()).then(map => { if (map.size) { this.thumbs = map; this.inventoryKey = ''; } });
+    if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
     this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
     const key = (code: string) => esc(keyName(code));
