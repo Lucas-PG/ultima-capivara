@@ -16,7 +16,7 @@
     "E9B44C",
     "51532F",
     "FFFFFF",
-    "B8743A"
+    "4A2C1C"
   ],
   "lods": [
     {
@@ -60,8 +60,8 @@
   "materials": 1,
   "skins": 1,
   "joints": 33,
-  "bytes": 241912,
-  "rawBytes": 905460,
+  "bytes": 242248,
+  "rawBytes": 905804,
   "texture": {
     "format": "PNG",
     "width": 16,

@@ -163,3 +163,13 @@ Current production-path captures reveal excessive rim on dark facial parts
 and overly orange fur. TATU-29 tracks that material issue with Forja. The far
 eye and the six expressions still require Pincel's verdict; no art gate is
 closed by these technical checks.
+
+The round 4 specular investigation found two independent contributors:
+Forja's dark-albedo rim mask (`e61e439`, locally `3feb4ea`) removes the new rim
+from dark atlas regions, while a dedicated 16x16 alpha mask in the GLB limits
+physical specular to the eyes and nose. Mouth and fur have alpha zero.
+Blender's glTF exporter reads this mask from alpha, not RGB; the asset test
+checks the exported pixels as well as the clone retaining the map. The model
+still shares one material. The white mouth rim is gone in
+`tatu-capy-m1-r4-masked-specular.png`; saturation and final M1 lighting remain
+open for the integrated Forja pipeline and Pincel's review.

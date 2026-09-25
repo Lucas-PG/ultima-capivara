@@ -30,7 +30,7 @@ function fixture(): GLTF {
   });
   scene.add(bones[0]); bones[0].add(...bones.slice(1));
   const skeleton = new THREE.Skeleton(bones);
-  const material = new THREE.MeshStandardMaterial();
+  const material = new THREE.MeshPhysicalMaterial();
   for (let i = 0; i < 3; i++) {
     const mesh = new THREE.SkinnedMesh(new THREE.BoxGeometry(), material);
     mesh.name = `Capybara_LOD${i}`; mesh.bind(skeleton); scene.add(mesh);
@@ -94,8 +94,9 @@ describe('capybara cosmetic colour contract', () => {
   it('changes only bandana atlas columns and shares one material across every LOD and matching actor', async () => {
     const capy = await import('../src/render/capybara');
     const source = fixture();
-    const sourceMaterial = (source.scene.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material as THREE.MeshStandardMaterial;
+    const sourceMaterial = (source.scene.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material as THREE.MeshPhysicalMaterial;
     sourceMaterial.vertexColors = true; sourceMaterial.emissive.set('#FFFFFF'); sourceMaterial.emissiveMap = new THREE.Texture();
+    sourceMaterial.specularIntensityMap = new THREE.Texture();
     await capy.preloadCapybaraAsset(async () => source);
     for (const color of colors) {
       const actor = capy.buildCapybaraBody(color), copy = capy.buildCapybaraBody(color);
@@ -106,6 +107,7 @@ describe('capybara cosmetic colour contract', () => {
       expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v2');
       expect(material.vertexColors).toBe(true);
       expect(material.emissiveMap).toBe(sourceMaterial.emissiveMap);
+      expect((material as THREE.MeshPhysicalMaterial).specularIntensityMap).toBe(sourceMaterial.specularIntensityMap);
       expect(material.emissive.getHexString()).toBe('ffffff');
       expect((copy.body.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material).toBe(material);
       const atlas = material.map as THREE.DataTexture, pixels = atlas.image.data!;

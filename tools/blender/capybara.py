@@ -39,6 +39,19 @@ texture = mat.node_tree.nodes.new('ShaderNodeTexImage')
 texture.image = image
 texture.interpolation = 'Closest'
 mat.node_tree.links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
+# Only the eyes and nose may catch a soft specular. Fur and mouth stay matte.
+specular = bpy.data.images.new('capybara_nose_eye_specular', width=16, height=16, alpha=True)
+specular.colorspace_settings.name = 'Non-Color'
+specular.alpha_mode = 'CHANNEL_PACKED'
+specular.pixels = [v for y in range(16) for x in range(16) for v in [1, 1, 1, .22 if x in [9, 15] else 0]]
+specular.filepath_raw = str(OUT / 'nose-eye-specular.png')
+specular.file_format = 'PNG'
+specular.save()
+specular.pack()
+specular_node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+specular_node.image = specular
+specular_node.interpolation = 'Closest'
+mat.node_tree.links.new(specular_node.outputs['Alpha'], bsdf.inputs['Specular IOR Level'])
 # A shared emissive atlas lights only white eye glints, retaining one draw material.
 emission = bpy.data.images.new('capybara_eye_glints', width=16, height=16, alpha=False)
 emission.pixels = [v for y in range(16) for x in range(16) for v in ([1, 1, 1, 1] if x == 10 else [0, 0, 0, 1])]
@@ -270,7 +283,7 @@ for poly in head_surface.data.polygons:
         head_surface.data.uv_layers.active.data[loop_index].uv = (14.5 / 16, .5)
         head_surface.data.color_attributes['Color'].data[loop_index].color = (*rgb, 1)
 # The dark nose pad occupies only the upper third of the furry muzzle.
-nose = rounded_block('Nose_pad', (0, 1.609, -.273), (.096, .043, .018), 3, {'head': 1}, bevel=.012)
+nose = rounded_block('Nose_pad', (0, 1.609, -.273), (.096, .043, .018), 15, {'head': 1}, bevel=.012)
 for vertex in nose.data.vertices:
     vertex.co.x *= .78 + .22 * max(0, min(1, (vertex.co.z - 1.5875) / .043))
 for side in [-1, 1]:
