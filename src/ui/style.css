@@ -126,3 +126,7 @@ body:not([data-screen=game]) .button{font-family:var(--display);font-weight:400;
 @media(max-width:700px){.hero-copy h1{--h1:50px}.lobby-intro h1{font-size:40px}.hero-copy .cover-top{margin-bottom:8px}.mode-copy h2{font-size:19px}.brand{font-size:11px;padding:3px 8px 3px 3px}.brand b{font-size:14px}.brand img{width:30px;height:30px}.nav-link{font-size:10px;padding:4px 8px}.topbar .icon-button{width:34px;height:34px}.hero-actions .button.warmup{font-size:17px;min-height:64px}.modal{padding:22px 18px;box-shadow:7px 7px 0 var(--ink)}.modal .form-grid,.modal .settings-grid{grid-template-columns:1fr}.modal .color-choice{width:22px;height:22px}.modal .color-picker{gap:8px;flex-wrap:wrap}.modal .profile-editor .capy-avatar{width:70px;height:70px}.modal-heading h2{font-size:30px}.modal .seg button{font-size:12px;min-height:44px}}
 
 .pause-panel .adapt-note{display:inline-block;margin:10px 0 0;padding:6px 12px;font-size:13px;background:var(--cream,#fff3d9);color:#1d1712;transform:rotate(-.6deg)}
+
+#loadingOverlay .lbar.determinate i{animation:none;transform:none;background:var(--red);transition:width 200ms ease-out}
+
+#loadingOverlay .lstatus{font-family:var(--body);font-size:16px;color:#6f5c40}
