@@ -120,3 +120,19 @@ FOV 78, with the exact asset SHA256. All eight hip poses pass at 720p/1080p:
 percent, zero occupied pixels within the 60 px crosshair radius. These numbers
 precede Forja's final FP compositing and do not certify animation clipping,
 HUD overlap, outline or the visual art gate.
+
+## Landing isolation, 2026-09-25
+
+The orchestrator permits this unfinished art to land only behind `capy=v3`
+and `weapons=v3`. The default path retains its previous character material
+(roughness .78, no new rim), weapon models, FOV, lighting and poses. Its only
+visual changes are the fixed fur/paw palette and bandana-only player tint
+from `2cae943`. Forja's later approved visual slice can style the legacy
+character through the agreed idempotent material API. Tests protect the
+default manifest, character material and first-person camera/light setup.
+
+Pincel's round 3 review approves the machete grip and measured footprint,
+but leaves the art gate open. Next round must narrow the nose pad, blend the
+jaw, recess the far eye, clarify hit/stunned expressions, flatten the bandana
+and lift the fur values. Machete wood/blade/paw values, smooth paw normals
+and the loose teal finger accent also need correction.

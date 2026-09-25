@@ -63,7 +63,11 @@ describe('capybara cosmetic colour contract', () => {
     vi.stubGlobal('location', { search: '' });
     const capy = await import('../src/render/capybara');
     const baseline = capy.buildCapybaraBody(colors[0]);
-    expect((baseline.body.material as THREE.Material).userData.toonCharacter).toBe(true);
+    // The default character keeps its approved lighting until Forja's visual gate.
+    const material = baseline.body.material as THREE.MeshStandardMaterial;
+    expect(material.userData.toonCharacter).toBeUndefined();
+    expect(material.roughness).toBe(.78);
+    expect(material.customProgramCacheKey()).not.toContain('ilha-dourada-character-v1');
     const original = baseline.body.geometry.getAttribute('color');
     const positions = baseline.body.geometry.getAttribute('position');
     const bones = baseline.body.geometry.getAttribute('skinIndex');
@@ -150,6 +154,10 @@ describe('capybara asset readiness', () => {
     expect(() => new GameRenderer({} as HTMLCanvasElement, { objects: [] } as unknown as WorldSpec, {} as Settings)).toThrow(stop);
     const manifest = loaderConstructor.mock.calls[0][2] as readonly AssetEntry[];
     const entries = manifest.filter(asset => asset.path.includes('capybara'));
+    if (!enabled) {
+      const { ASSET_MANIFEST } = await import('../src/render/asset-manifest');
+      expect(manifest).toEqual(ASSET_MANIFEST);
+    }
     expect(entries).toEqual(enabled ? [{
       path: 'models/capybara/capybara.glb', kind: 'glb',
       bytes: statSync('public/models/capybara/capybara.glb').size, label: 'Capivara',

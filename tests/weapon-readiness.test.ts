@@ -57,6 +57,11 @@ describe('required weapon model readiness', () => {
       expect(ready).toHaveBeenCalledOnce();
       expect(view.scene.getObjectByName('service_pistol_slide_a')).toBeDefined();
       expect(view.scene.getObjectByName('FRAME_LOD0001')).toBeInstanceOf(THREE.SkinnedMesh);
+      expect(view.camera.fov).toBe(58);
+      const lights = view.scene.children.filter(child => child instanceof THREE.Light);
+      expect(lights.map(light => [light.color.getHexString(), light.intensity])).toEqual([
+        ['e4ece6', .85], ['ffe6c4', 2.7], ['b9e3ea', 1.1],
+      ]);
     } finally { view.dispose(); }
   });
 });

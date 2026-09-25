@@ -25,7 +25,7 @@ export const WEAPON_MOUNT = new THREE.Vector3(.1, -.12, -.36);
 let sharedMaterial: THREE.MeshStandardMaterial | null = null;
 const capybaraMaterial = () => {
   if (!sharedMaterial) {
-    sharedMaterial = applyCharacterStyle(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .85, metalness: 0 }));
+    sharedMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .78, metalness: 0 });
     sharedMaterial.addEventListener('dispose', () => { sharedMaterial = null; });
   }
   return sharedMaterial;
