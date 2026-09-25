@@ -29,7 +29,9 @@ export class StormView {
           // Whole number of wisps around the ring, blended so the count can change without a seam or pop.
           float n=floor(uWisps),w=mix(wisp(n),wisp(n+1.0),fract(uWisps));
           float haze=.05*(1.0-smoothstep(3.0,20.0,vWorld.y))*smoothstep(50.0,90.0,d)*(1.0-smoothstep(260.0,380.0,d));
-          float a=max(near*(.16+.07*w)*mix(1.0,.6,uOutside),haze);
+          // High up the curtain thins so a close wall tints the skyline without painting the whole sky.
+          float lift=1.0-.55*smoothstep(20.0,70.0,vWorld.y-cameraPosition.y);
+          float a=max(near*(.16+.07*w)*lift*mix(1.0,.35,uOutside),haze);
           if(a<.004)discard;
           gl_FragColor=vec4(uColor,a);
         }`,

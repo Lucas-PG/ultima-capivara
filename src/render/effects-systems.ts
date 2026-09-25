@@ -32,9 +32,9 @@ export class Card {
   }
 }
 
-function cardMaterial(atlas: THREE.Texture, additive: boolean): THREE.ShaderMaterial {
+function cardMaterial(atlas: THREE.Texture): THREE.ShaderMaterial {
   const material = new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uAtlas: { value: null }, uPx: { value: .001 }, uInk: { value: INK }, uInkMix: { value: additive ? 0 : .92 } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uAtlas: { value: null }, uPx: { value: .001 }, uInk: { value: INK }, uInkMix: { value: .92 } }]),
     vertexShader: `attribute vec3 aPos;attribute vec4 aShape;attribute vec3 aColor;attribute vec3 aLight;attribute vec4 aMisc;attribute vec3 aAxis;
       uniform float uPx;varying vec2 vUv;varying vec3 vColor;varying vec3 vLight;varying float vAlpha;${FOG_PARS_VERTEX}
       void main(){
@@ -61,8 +61,7 @@ function cardMaterial(atlas: THREE.Texture, additive: boolean): THREE.ShaderMate
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
-    transparent: true, depthWrite: false, fog: !additive,
-    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    transparent: true, depthWrite: false, fog: true,
   });
   material.uniforms.uAtlas.value = atlas;
   return material;
@@ -98,13 +97,13 @@ export class CardSystem {
   private readonly attributes: THREE.InstancedBufferAttribute[];
   readonly material: THREE.ShaderMaterial;
 
-  constructor(atlas: THREE.Texture, capacity: number, additive: boolean, renderOrder: number) {
+  constructor(atlas: THREE.Texture, capacity: number, renderOrder: number) {
     this.geometry = quad(-.5, .5);
     this.aPos = dynamic(this.geometry, 'aPos', capacity, 3); this.aShape = dynamic(this.geometry, 'aShape', capacity, 4);
     this.aColor = dynamic(this.geometry, 'aColor', capacity, 3); this.aLight = dynamic(this.geometry, 'aLight', capacity, 3);
     this.aMisc = dynamic(this.geometry, 'aMisc', capacity, 4); this.aAxis = dynamic(this.geometry, 'aAxis', capacity, 3);
     this.geometry.instanceCount = 0;
-    this.material = cardMaterial(atlas, additive);
+    this.material = cardMaterial(atlas);
     this.attributes = [this.aPos, this.aShape, this.aColor, this.aLight, this.aMisc, this.aAxis];
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false; this.mesh.renderOrder = renderOrder; this.mesh.visible = false;

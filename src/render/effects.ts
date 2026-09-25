@@ -49,8 +49,8 @@ const SURFACES: Record<Surface, { puff: string; puffLight: string; bit: string; 
 
 // Flash size in metres (third person) and in first-person scene units.
 const FLASH: Partial<Record<WeaponId, { world: number; fp: number }>> = {
-  pistol: { world: .3, fp: .1 }, smg: { world: .28, fp: .09 }, m4: { world: .38, fp: .12 },
-  shotgun: { world: .55, fp: .18 }, dmr: { world: .42, fp: .13 }, sniper: { world: .55, fp: .17 },
+  pistol: { world: .42, fp: .16 }, smg: { world: .38, fp: .15 }, m4: { world: .5, fp: .19 },
+  shotgun: { world: .7, fp: .28 }, dmr: { world: .55, fp: .21 }, sniper: { world: .7, fp: .26 },
 };
 const TRACER_WIDTH: Partial<Record<WeaponId, number>> = { pistol: .018, smg: .016, m4: .02, shotgun: .016, dmr: .024, sniper: .028 };
 export const MARK_LIFE = 4;
@@ -65,12 +65,10 @@ const rand = (a: number, b: number) => a + Math.random() * (b - a);
 export class EffectsView {
   private readonly atlas = createEffectsAtlas();
   private readonly cards: CardSystem;
-  private readonly glow: CardSystem;
   private readonly tracers = new TracerSystem(64);
   private readonly decals: DecalSystem;
   private readonly casings: CasingSystem;
   private readonly fpCards: CardSystem;
-  private readonly fpGlow: CardSystem;
   private readonly fpCasings = new CasingSystem(12, false, null);
   private readonly systems: { update?: unknown; warm(on: boolean): void; clear(): void; dispose(): void }[];
   private readonly color = {} as Palette;
@@ -96,17 +94,15 @@ export class EffectsView {
       puff: new THREE.Color(s.puff), puffLight: new THREE.Color(s.puffLight), bit: new THREE.Color(s.bit),
       bitLight: new THREE.Color(s.bitLight), mark: new THREE.Color(s.mark), markLight: new THREE.Color(s.markLight),
     };
-    this.cards = new CardSystem(this.atlas, 720, false, 4);
-    this.glow = new CardSystem(this.atlas, 192, true, 5);
+    this.cards = new CardSystem(this.atlas, 900, 4);
     this.decals = new DecalSystem(this.atlas, 64);
     this.casings = new CasingSystem(64, true, (x, z, top) => this.groundAt(x, z, top));
-    this.fpCards = new CardSystem(this.atlas, 64, false, 10);
-    this.fpGlow = new CardSystem(this.atlas, 24, true, 11);
-    this.systems = [this.cards, this.glow, this.fpCards, this.fpGlow, this.tracers, this.decals, this.casings, this.fpCasings];
-    scene.add(this.decals.mesh, this.casings.mesh, this.tracers.mesh, this.cards.mesh, this.glow.mesh);
-    fpScene.add(this.fpCasings.mesh, this.fpCards.mesh, this.fpGlow.mesh);
+    this.fpCards = new CardSystem(this.atlas, 80, 10);
+    this.systems = [this.cards, this.fpCards, this.tracers, this.decals, this.casings, this.fpCasings];
+    scene.add(this.decals.mesh, this.casings.mesh, this.tracers.mesh, this.cards.mesh);
+    fpScene.add(this.fpCasings.mesh, this.fpCards.mesh);
     // Owned and disposed here, not by the scenes' generic disposal passes.
-    for (const mesh of [this.decals.mesh, this.casings.mesh, this.tracers.mesh, this.cards.mesh, this.glow.mesh, this.fpCasings.mesh, this.fpCards.mesh, this.fpGlow.mesh]) mesh.userData.effects = true;
+    for (const mesh of [this.decals.mesh, this.casings.mesh, this.tracers.mesh, this.cards.mesh, this.fpCasings.mesh, this.fpCards.mesh]) mesh.userData.effects = true;
     // Third-person barrel tips: the mean of the vertices at the front (-z) of each held model.
     for (const id of ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'slingshot', 'machete'] as WeaponId[]) {
       const geometry = itemGeometry('weapon', id), position = geometry.getAttribute('position');
@@ -148,9 +144,9 @@ export class EffectsView {
     for (const pebble of this.pebbles) if (pebble.card && pebble.card.life <= 0) pebble.card = null;
     const px = 2 * Math.tan(THREE.MathUtils.degToRad(frame.camera.fov) / 2) / Math.max(1, frame.viewportHeight);
     const fpPx = 2 * Math.tan(THREE.MathUtils.degToRad(frame.fpCamera.fov) / 2) / Math.max(1, frame.viewportHeight);
-    this.cards.update(dt, px, this.resolveAnchor); this.glow.update(dt, px, this.resolveAnchor);
+    this.cards.update(dt, px, this.resolveAnchor);
     this.tracers.update(dt, px); this.decals.update(dt); this.casings.update(dt);
-    this.fpCards.update(dt, fpPx, this.resolveAnchor); this.fpGlow.update(dt, fpPx, this.resolveAnchor); this.fpCasings.update(dt);
+    this.fpCards.update(dt, fpPx, this.resolveAnchor); this.fpCasings.update(dt);
   }
 
   event(event: GameEvent, avatars: AvatarView, weaponView: WeaponView, playerId: string | undefined, snapshot: WorldSnapshot | null = null): void {
@@ -183,7 +179,7 @@ export class EffectsView {
       const card = this.cards.spawn();
       card.anchor = event.actor; card.motion = Motion.Anchored; card.cell = CELL.alert;
       card.life = event.delay + .45; card.size0 = card.size1 = .5; card.pop = true; card.fadeOut = .2;
-      card.minPx = 24; card.maxPx = 46; card.color.copy(this.color.alert); card.light.copy(this.color.alertLight);
+      card.minPx = 30; card.maxPx = 52; card.color.copy(this.color.alert); card.light.copy(this.color.alertLight);
     } else if (event.type === 'respawn') {
       const pos = this.copyActor(snapshot, event.actor, this.a);
       if (pos) this.ring(pos, this.color.white, this.color.goldLight, 1.4);
@@ -268,11 +264,11 @@ export class EffectsView {
   private flash(pos: THREE.Vector3, weapon: WeaponId, fp: boolean, ads: number) {
     const size = FLASH[weapon];
     if (!size) return;
-    const card = (fp ? this.fpGlow : this.glow).spawn();
+    const card = (fp ? this.fpCards : this.cards).spawn();
     card.pos.copy(pos); card.motion = Motion.Flash; card.cell = CELL.flashA;
     card.life = .05; card.fadeOut = .01; card.rot = rand(0, Math.PI * 2);
     card.size0 = card.size1 = (fp ? size.fp * (1 - ads * .4) : size.world) * rand(.9, 1.1);
-    card.minPx = fp ? 0 : 7; card.color.copy(this.color.flash); card.light.copy(this.color.flashCore);
+    card.minPx = fp ? 0 : 14; card.maxPx = fp ? 1e5 : 70; card.color.copy(this.color.flash); card.light.copy(this.color.flashCore);
     // Third person only: a small warm puff at the barrel. In first person it would sit in the sight line.
     if (fp) return;
     const smoke = this.cards.spawn();
@@ -316,7 +312,7 @@ export class EffectsView {
     puff.size0 = .26 * k; puff.size1 = (surface === 'metal' ? .36 : .68) * k; puff.rot = rand(-.4, .4); puff.minPx = 10;
     puff.vel.copy(normal).multiplyScalar(.7); puff.vel.y += .35; puff.drag = 3; puff.fadeOut = .5;
     puff.color.copy(s.puff); puff.light.copy(s.puffLight);
-    const sparks = surface === 'metal', system = sparks ? this.glow : this.cards;
+    const sparks = surface === 'metal', system = this.cards;
     for (let i = 0; i < Math.round(spec.bits * scale); i++) {
       const bit = system.spawn();
       bit.pos.copy(pos).addScaledVector(normal, .03); bit.cell = spec.bitCell; bit.life = rand(.26, .42);
@@ -324,15 +320,15 @@ export class EffectsView {
       bit.vel.copy(this.t1).multiplyScalar(sparks ? rand(4, 7) : rand(2, 3.6)); bit.vel.y += sparks ? .5 : 1.4;
       bit.gravity = sparks ? 6 : surface === 'foliage' ? 4 : 10; bit.drag = surface === 'foliage' ? 2.5 : .6;
       bit.floor = floor; bit.bounce = .3;
-      bit.size0 = (sparks ? .12 : .09) * k; bit.size1 = bit.size0 * (sparks ? .5 : .8); bit.minPx = 4;
-      bit.stretch = sparks || spec.bitCell === CELL.splinter; bit.aspect = sparks ? 2.6 : spec.bitCell === CELL.splinter ? 2 : 1;
+      bit.size0 = (sparks ? .07 : .09) * k; bit.size1 = bit.size0 * (sparks ? .6 : .8); bit.minPx = sparks ? 5 : 4;
+      bit.stretch = sparks || spec.bitCell === CELL.splinter; bit.aspect = sparks ? 4 : spec.bitCell === CELL.splinter ? 2 : 1;
       bit.rot = rand(0, 6.3); bit.spin = sparks ? 0 : rand(-12, 12); bit.fadeOut = .3;
       bit.color.copy(s.bit); bit.light.copy(s.bitLight);
     }
     if (sparks) {
-      const star = this.glow.spawn();
+      const star = this.cards.spawn();
       star.pos.copy(pos).addScaledVector(normal, .04); star.cell = CELL.twinkle; star.life = .08; star.fadeOut = .5;
-      star.size0 = .22 * k; star.size1 = .1 * k; star.rot = rand(0, 1.5); star.color.copy(this.color.flash); star.light.copy(this.color.white);
+      star.size0 = .3 * k; star.size1 = .14 * k; star.minPx = 10; star.rot = rand(0, 1.5); star.color.copy(this.color.flash); star.light.copy(this.color.white);
     }
     const mark = (spec.markCell === CELL.hole ? .09 : .13) * big * (scale < 1 ? .8 : 1);
     this.decals.spawn(pos, normal, spec.markCell, mark, mark, MARK_LIFE, .3, .9, s.mark, s.markLight, rand(0, 6.3));
@@ -397,11 +393,11 @@ export class EffectsView {
 
   private sparkle(pos: THREE.Vector3, color: THREE.Color, light: THREE.Color, count: number, height: number) {
     for (let i = 0; i < count; i++) {
-      const card = this.glow.spawn();
+      const card = this.cards.spawn();
       card.center.set(pos.x, pos.y + .1, pos.z); card.motion = Motion.Orbit; card.radius = rand(.25, .5);
       card.rot = i / count * Math.PI * 2; card.spin = rand(3, 5); card.vel.set(0, height * rand(.8, 1.2), 0);
       card.cell = CELL.twinkle; card.life = rand(.55, .75); card.pop = true; card.fadeOut = .4;
-      card.size0 = .16; card.size1 = .08; card.minPx = 4; card.color.copy(color); card.light.copy(light);
+      card.size0 = .22; card.size1 = .1; card.minPx = 8; card.maxPx = 30; card.color.copy(color); card.light.copy(light);
     }
   }
 
@@ -442,7 +438,7 @@ export class EffectsView {
       card.center.set(pos.x, pos.y + .3 + rand(0, .6), pos.z); card.motion = Motion.Orbit; card.radius = rand(.4, .6);
       card.rot = i / count * Math.PI * 2 + rand(-.3, .3); card.spin = armor ? -2.5 : 2; card.vel.set(0, rand(.9, 1.4), 0);
       card.cell = armor ? CELL.shard : CELL.plus; card.life = rand(.7, .9); card.pop = true; card.fadeOut = .35;
-      card.size0 = .16; card.size1 = .12; card.minPx = 6; card.maxPx = 26; card.color.copy(color); card.light.copy(light);
+      card.size0 = .26; card.size1 = .2; card.minPx = 12; card.maxPx = 34; card.color.copy(color); card.light.copy(light);
     }
     if (armor || item === 'guarana') this.sparkle(pos, color, light, 6, 1.4);
     this.ring(pos, color, light, 1.2);
@@ -460,7 +456,7 @@ export class EffectsView {
   }
 
   private armorBreak(pos: THREE.Vector3, local: boolean) {
-    const star = this.glow.spawn();
+    const star = this.cards.spawn();
     star.pos.copy(pos); star.cell = CELL.twinkle; star.life = .12; star.size0 = .5; star.size1 = .3; star.minPx = 10; star.maxPx = 40;
     star.color.copy(this.color.armor); star.light.copy(this.color.white);
     const floor = this.groundAt(pos.x, pos.z, pos.y) + .03;
@@ -490,8 +486,8 @@ export class EffectsView {
   warm(on: boolean) { for (const system of this.systems) system.warm(on); }
 
   dispose() {
-    this.scene.remove(this.decals.mesh, this.casings.mesh, this.tracers.mesh, this.cards.mesh, this.glow.mesh);
-    this.fpScene.remove(this.fpCasings.mesh, this.fpCards.mesh, this.fpGlow.mesh);
+    this.scene.remove(this.decals.mesh, this.casings.mesh, this.tracers.mesh, this.cards.mesh);
+    this.fpScene.remove(this.fpCasings.mesh, this.fpCards.mesh);
     for (const system of this.systems) system.dispose();
     this.atlas.dispose();
   }

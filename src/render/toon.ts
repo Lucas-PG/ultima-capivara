@@ -48,7 +48,7 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.38*mix(1.0,.55,uStorm)),0.0,1.0);
         // Out in the storm: a violet edge that leaves the central half of the screen clean for aiming,
         // plus a brief stronger edge on each storm bite.
-        float sv=smoothstep(.55,1.35,length((vUv-.5)*2.0))*(uStorm*.3+uPulse*.42);
+        float sv=smoothstep(.55,1.35,length((vUv-.5)*2.0))*(uStorm*.3+uPulse*.6);
         gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.541,.302,1.0),sv);
         gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.09,.075,.06),edge*.95);
       }`,

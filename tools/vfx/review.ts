@@ -49,7 +49,7 @@ const api = {
     await renderer.warmup();
     return true;
   },
-  scene(next: SceneSpec) {
+  async scene(next: SceneSpec) {
     spec = next;
     const s = structuredClone(base), me = s.actors[0];
     s.phase = 'playing'; s.time = 60; s.countdown = 0; s.config.mode = next.mode || 'battle-royale';
@@ -60,6 +60,7 @@ const api = {
     s.actors = [me, ...(next.actors || []).map(a => actor(me, a))];
     for (const l of next.loot || []) { const item = s.loot.find(x => x.id === l.id); if (item) item.rarity = l.rarity; }
     snapshot = s;
+    await renderer?.prepareMatch(s);
     if (next.graphics && next.graphics !== settings.graphics) { settings.graphics = next.graphics; renderer?.setSettings(settings); }
     for (let i = 0; i < 40; i++) frame(1 / 60);
     return renderer?.stats;
@@ -94,8 +95,11 @@ const api = {
     return impact;
   },
   camera() { return renderer?.cameraPosition; },
+  glow() { return (window as unknown as { glowState: unknown }).glowState; },
   debug() {
     const fx = (renderer as unknown as { effects: Record<string, { cards?: { life: number; age: number; cell: number; pos: unknown }[] }> }).effects;
+    const glow = (fx as unknown as { glow: { mesh: { visible: boolean; geometry: { instanceCount: number } } } }).glow;
+    (window as unknown as { glowState: unknown }).glowState = { visible: glow.mesh.visible, count: glow.mesh.geometry.instanceCount };
     return Object.fromEntries(Object.entries(fx).filter(([, v]) => v && v.cards).map(([k, v]) => [k, v.cards!.filter(c => c.life > 0).map(c => ({ cell: c.cell, age: +c.age.toFixed(3), life: c.life, pos: c.pos, size: [(c as unknown as { size0: number }).size0, (c as unknown as { size1: number }).size1] }))]));
   },
 };
