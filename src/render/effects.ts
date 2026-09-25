@@ -293,7 +293,8 @@ export class EffectsView {
     card.pos.copy(pos); card.motion = Motion.Flash; card.cell = PAINT.flash;
     card.life = .05; card.fadeOut = .01; card.rot = rand(0, Math.PI * 2);
     card.size0 = card.size1 = (fp ? size.fp * (1 - ads * .4) : size.world) * rand(.9, 1.1);
-    card.minPx = fp ? 0 : 20; card.maxPx = fp ? 1e5 : 90; card.color.copy(this.white);
+    // The smallest painted frame is about 45% visible width after rotation and post-processing.
+    card.minPx = fp ? 0 : 28; card.maxPx = fp ? 1e5 : 90; card.color.copy(this.white);
   }
 
   private pebble(from: THREE.Vector3, event: Extract<GameEvent, { type: 'shot' }>) {
