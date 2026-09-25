@@ -8,6 +8,7 @@ import { WEAPONS } from './shared/weapons';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot, RenderFrame } from './shared/types';
 import type { GameRenderer } from './render/renderer';
 import { RoomSession } from './network/session';
+import { RemoteInterpolation } from './network/interpolation';
 import { InputController } from './input';
 import { SoundEngine } from './audio';
 import { loadProfile, loadSettings, saveProfile, saveSettings, loadAdapt, recordPlacement } from './settings';
@@ -23,6 +24,7 @@ let activeFrameLimit = settings.frameLimit;
 const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
 const renderFrame: RenderFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
+const remoteInterpolation = new RemoteInterpolation();
 let renderer: GameRenderer | null = null;
 // Load the 3D island on lobby entry or Practice, then reuse it until the page closes.
 // `loading` holds the loading screen until the first prepared frame.
@@ -68,6 +70,7 @@ const session = new RoomSession({
   input(id, frame) { worker?.postMessage({ type: 'input', id, input: frame }); },
   action(id, action) { worker?.postMessage({ type: 'action', id, action }); },
   player(player, status) { worker?.postMessage({ type: 'player', profile: player, status }); },
+  status: value => ui.setConnectionStatus(value),
   snapshot: acceptSnapshot,
   events: acceptEvents,
   error(message) { ui.toast(message, true); },
@@ -193,6 +196,7 @@ function startPractice(config: RoomConfig, p: { name: string; color: string }) {
   void input.lock();
 }
 function stopMatch() {
+  remoteInterpolation.reset();
   playing = false; input.unlock(); worker?.terminate(); worker = null;
   snapshot = null; predicted = null; pending = []; spectateId = null; accumulator = 0; interaction = null;
 }
@@ -205,6 +209,7 @@ function leave() {
 function acceptSnapshot(next: WorldSnapshot) {
   if (next.matchId !== match || (snapshot && next.tick < snapshot.tick)) return;
   snapshot = next; receivedAt = performance.now();
+  remoteInterpolation.push(next, playerId, receivedAt);
   if (loading && !matchPreparation) {
     const preparingId = match;
     matchPreparation = rendererReady!.then(() => {
@@ -343,12 +348,13 @@ function frame(now: number) {
   interaction = closestInteraction();
   if (input.locked || dirtyFrame || ended) {
     renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt;
+    renderFrame.remoteActors = remoteInterpolation.sample(now);
     renderFrame.spectateId = spectateId; renderFrame.predicted = predicted?.pos; renderer?.update(renderFrame);
     renderedFrames++; frameCount++; dirtyFrame = false;
     if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }
   if (now - fpsAt >= 1000) { fps = frameCount * 1000 / (now - fpsAt); frameCount = 0; fpsAt = now; }
-  ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction);
+  ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction, session.latencies);
 }
 requestAnimationFrame(frame);
 document.querySelector('#loading')?.remove();

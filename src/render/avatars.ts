@@ -98,7 +98,8 @@ export class AvatarView {
     for (const visual of this.ordered) visual.group.visible = false;
     if (!actors) return;
     const viewed = frame.spectateId || frame.playerId;
-    for (const actor of actors) {
+    for (const state of actors) {
+      const actor = frame.remoteActors?.get(state.id) ?? state;
       const visual = this.ensureAvatar(actor);
       // Everyone still in the plane rides inside it; the viewed capivara stays
       // visible in third person and while the camera eases into its eyes.
@@ -106,7 +107,7 @@ export class AvatarView {
         (!frame.playing || actor.id !== viewed || actor.stage !== 'ground' || this.cameraBlend > .35);
       const pos = actor.id === frame.playerId && frame.predicted ? frame.predicted : actor.pos;
       const target = this.target.copy(pos);
-      if (!visual.initialized || visual.group.position.distanceToSquared(target) > 144) visual.group.position.copy(target);
+      if (frame.remoteActors?.has(actor.id) || !visual.initialized || visual.group.position.distanceToSquared(target) > 144) visual.group.position.copy(target);
       else visual.group.position.lerp(target, Math.min(1, frame.dt * 14));
       visual.initialized = true;
       visual.group.rotation.y = actor.yaw;

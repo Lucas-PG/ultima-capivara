@@ -1,3 +1,4 @@
+import type { ConnectionStatus } from '../network/session';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type ActorState, type ConsumableId, type GameEvent, type MatchResult, type Mode, type RoomConfig, type RoomState, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../shared/types';
 import { clamp } from '../shared/math';
 import { rarityOf } from '../shared/rarity';
@@ -68,6 +69,13 @@ export class GameUI {
   private localId = '';
   private els = new Map<string, HTMLElement>();
   private scoreKey = '';
+  private networkStatus = '';
+  private latencies: Readonly<Record<string, number>> = {};
+  setConnectionStatus(status: ConnectionStatus) {
+    this.networkStatus = { idle: '', connecting: 'Conectando à sala', connected: 'Conectado', relay: 'Conectado por retransmissão', reconnecting: 'Reconectando à sala', closed: 'A sala fechou' }[status];
+    const line = this.root.querySelector('#connection-status');
+    if (line) line.textContent = this.networkStatus;
+  }
   private loadProgress = 0;
   private tipIndexTimer = 0;
   private toastItems: { text: string; el: HTMLElement; timer: number; at: number }[] = [];
@@ -155,7 +163,8 @@ export class GameUI {
     form.addEventListener('submit', async event => {
       event.preventDefault(); const data = new FormData(form);
       this.profile.name = String(data.get('nickname')).trim().slice(0, 18) || 'Capivara'; this.callbacks.profile(this.profile);
-      const button = form.querySelector<HTMLButtonElement>('[type="submit"]')!; button.disabled = true; button.textContent = 'CONECTANDO…';
+      const button = form.querySelector<HTMLButtonElement>('[type="submit"]')!; button.disabled = true; button.textContent = 'Conectando à sala';
+      form.querySelector('.form-error')!.textContent = '';
       try {
         if (kind === 'host') await this.callbacks.host({ ...this.profile }, { mode: data.get('mode') as Mode, capacity: Number(data.get('capacity')), duration: Number(data.get('duration')) as RoomConfig['duration'], difficulty: data.get('difficulty') as RoomConfig['difficulty'], bots: data.has('bots') });
         else await this.callbacks.join({ ...this.profile }, String(data.get('code')).trim().toUpperCase());
@@ -167,7 +176,7 @@ export class GameUI {
   private lobby() {
     const room = this.room!; this.screen = 'lobby'; this.els.clear(); document.body.dataset.screen = 'lobby';
     const me = room.players.find(p => p.id === room.myId), allReady = room.players.every(p => p.ready && p.connected);
-    this.root.innerHTML = `${this.header(true)}<main class="lobby-content"><section class="lobby-intro"><p class="eyebrow">ENCONTRO MARCADO.</p><h1>SUA TURMA.<br><em>SUA ILHA.</em></h1><p>A melhor confusão começa com os amigos certos.</p><div class="invite-card"><div><span>CÓDIGO DA SALA</span><strong>${esc(room.code)}</strong></div><button class="button secondary" data-do="copy">${icon('link')} COPIAR LINK</button></div><div class="lobby-rules"><span>${icon(room.config.mode === 'battle-royale' ? 'crown' : 'bolt')} ${modeName(room.config.mode)}</span><p>${room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : `Você tem ${room.config.duration / 60} minutos. Elimine, reapareça e termine no topo.`}</p><small>${room.config.bots ? 'BOTS COMPLETAM A TURMA' : 'SOMENTE AMIGOS'} · ${room.config.capacity} VAGAS</small></div></section><section class="roster-panel"><div class="section-heading"><span>QUEM VAI PRA ILHA</span><small>${room.players.length}/${room.config.capacity}</small></div><div class="roster">${room.players.map(player => `<div class="player-row ${player.id === room.myId ? 'you' : ''}">${capybara(player.color)}<div><strong>${esc(player.name)} ${player.id === room.myId ? '<small>VOCÊ</small>' : ''}</strong><span>${player.id === room.hostId ? 'CRIADOR DA SALA' : 'NA TURMA'}</span></div><b class="ready-status ${player.ready && player.connected ? 'ready' : ''}">${!player.connected ? 'RECONECTANDO' : player.ready ? `${icon('check')} PRONTO` : 'PREPARANDO'}</b></div>`).join('')}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')} O próximo lugar pode ser do seu amigo.</div>` : ''}</div><div class="lobby-bottom"><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width" data-do="ready">${icon('check')} ${me?.ready ? 'ESTOU PRONTO · CANCELAR' : 'ESTOU PRONTO'}</button>${room.isHost ? this.startButton(allReady) : '<p>Quem criou a sala começa quando a turma estiver pronta.</p>'}<small>${room.isHost ? 'Mantenha esta aba aberta enquanto a turma joga.' : 'Seu jogo está pronto. Só falta a turma.'}</small></div></section></main>`;
+    this.root.innerHTML = `${this.header(true)}<main class="lobby-content"><section class="lobby-intro"><p class="eyebrow">ENCONTRO MARCADO.</p><h1>SUA TURMA.<br><em>SUA ILHA.</em></h1><p>A melhor confusão começa com os amigos certos.</p><div class="invite-card"><div><span>CÓDIGO DA SALA</span><strong>${esc(room.code)}</strong></div><button class="button secondary" data-do="copy">${icon('link')} COPIAR LINK</button></div><div class="lobby-rules"><span>${icon(room.config.mode === 'battle-royale' ? 'crown' : 'bolt')} ${modeName(room.config.mode)}</span><p>${room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : `Você tem ${room.config.duration / 60} minutos. Elimine, reapareça e termine no topo.`}</p><small>${room.config.bots ? 'BOTS COMPLETAM A TURMA' : 'SOMENTE AMIGOS'} · ${room.config.capacity} VAGAS</small></div></section><section class="roster-panel"><div class="section-heading"><span>QUEM VAI PRA ILHA</span><small>${room.players.length}/${room.config.capacity}</small></div><div class="roster">${room.players.map(player => `<div class="player-row ${player.id === room.myId ? 'you' : ''}">${capybara(player.color)}<div><strong>${esc(player.name)} ${player.id === room.myId ? '<small>VOCÊ</small>' : ''}</strong><span>${player.id === room.hostId ? 'CRIADOR DA SALA' : 'NA TURMA'}</span></div><b class="ready-status ${player.ready && player.connected ? 'ready' : ''}">${!player.connected ? 'RECONECTANDO' : player.ready ? `${icon('check')} PRONTO` : 'PREPARANDO'}</b></div>`).join('')}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')} O próximo lugar pode ser do seu amigo.</div>` : ''}</div><div class="lobby-bottom"><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width" data-do="ready">${icon('check')} ${me?.ready ? 'ESTOU PRONTO · CANCELAR' : 'ESTOU PRONTO'}</button>${room.isHost ? this.startButton(allReady) : '<p>Quem criou a sala começa quando a turma estiver pronta.</p>'}<small>${room.isHost ? 'Mantenha esta aba aberta enquanto a turma joga.' : 'Seu jogo está pronto. Só falta a turma.'}</small><p id="connection-status" role="status">${esc(this.networkStatus)}</p></div></section></main>`;
   }
   // Host start button: while the island warms up it is disabled, labelled and shows real progress (setRoomLoading).
   private startButton(allReady: boolean) {
@@ -213,7 +222,8 @@ export class GameUI {
       + `</div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
     this.applyHudPrefs();
   }
-  update(snapshot: WorldSnapshot, playerId: string, ping: number, scoreboard: boolean, fps: number, interaction: { id: string; name: string } | null) {
+  update(snapshot: WorldSnapshot, playerId: string, ping: number, scoreboard: boolean, fps: number, interaction: { id: string; name: string } | null, latencies: Readonly<Record<string, number>> = {}) {
+    this.latencies = latencies;
     this.snapshot = snapshot; this.localId = playerId;
     if (snapshot.phase === 'results') { if (this.lastResults !== snapshot.matchId) { this.lastResults = snapshot.matchId; if (this.screen !== 'game' || !this.root.querySelector('#hud')) this.game(playerId); this.victory(snapshot); } return; }
     if (this.screen !== 'game') this.game(playerId);
@@ -240,7 +250,7 @@ export class GameUI {
     const nearest = this.world.districts.reduce((a, b) => Math.hypot(a.x - me.pos.x, a.z - me.pos.z) < Math.hypot(b.x - me.pos.x, b.z - me.pos.z) ? a : b);
     this.text('mapTab', me.stage === 'plane' ? 'Ilha' : nearest.name);
     // Only live information on the HUD: ping when online, FPS only when the player asked for it.
-    const net = [ping ? `${Math.round(ping)} ms` : '', this.settings.showFps ? `${Math.round(fps)} fps` : ''].filter(Boolean).join(' · ');
+    const net = [this.networkStatus === 'Reconectando à sala' || this.networkStatus === 'Conectado por retransmissão' ? this.networkStatus : '', this.room && !this.room.isHost ? `${Math.round(ping)} ms` : '', this.settings.showFps ? `${Math.round(fps)} fps` : ''].filter(Boolean).join(' · ');
     this.show('hud-ping', !!net); if (net) this.text('hud-ping', net);
     const hp = Math.max(0, me.hp), vitals = this.el('vitals'), shielded = t < me.protectionUntil;
     this.style(this.el('hpBar'), 'width', `${hp.toFixed(0)}%`); this.style(this.el('armBar'), 'width', `${clamp(me.armor, 0, 100).toFixed(0)}%`);
@@ -313,7 +323,7 @@ export class GameUI {
     const score = this.el('scoreboard'); this.show('scoreboard', scoreboard);
     if (scoreboard) {
       // Rebuild the table only when a row changes, never on every HUD tick.
-      const key = snapshot.actors.map(a => `${a.id}:${a.kills}:${a.deaths}:${Math.round(a.damage)}:${a.alive ? 1 : 0}`).join('|');
+      const key = snapshot.actors.map(a => `${a.id}:${a.kills}:${a.deaths}:${Math.round(a.damage)}:${a.alive ? 1 : 0}:${this.latencies[a.id] ?? ''}:${a.connected}`).join('|');
       if (key !== this.scoreKey) { this.scoreKey = key; score.innerHTML = `<div class="scoreboard-content"><p class="eyebrow">${modeName(snapshot.config.mode)}</p><h2>A TURMA NA ILHA</h2>${this.scoreTable(snapshot)}</div>`; }
     }
     const plane = snapshot.plane;
@@ -349,7 +359,7 @@ export class GameUI {
   }
   private scoreTable(snapshot: WorldSnapshot) {
     const actors = [...snapshot.actors].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
-    return `<table class="score-table"><thead><tr><th>CAPIVARA</th><th>ELIM.</th><th>MORTES</th><th>DANO</th></tr></thead><tbody>${actors.map((a, i) => `<tr class="${a.id === this.localId ? 'you' : ''}"><td><span class="rank">${i + 1}</span><i style="background:${/^#[a-f0-9]{6}$/i.test(a.color) ? a.color : '#bd8956'}"></i>${esc(a.name)}${a.bot ? '<small>BOT</small>' : a.id === this.localId ? '<small>VOCÊ</small>' : ''}</td><td>${a.kills}</td><td>${a.deaths}</td><td>${Math.round(a.damage)}</td></tr>`).join('')}</tbody></table>`;
+    return `<table class="score-table"><thead><tr><th>CAPIVARA</th><th>ELIM.</th><th>MORTES</th><th>DANO</th>${this.room ? '<th>Ping</th>' : ''}</tr></thead><tbody>${actors.map((a, i) => `<tr class="${a.id === this.localId ? 'you' : ''}"><td><span class="rank">${i + 1}</span><i style="background:${/^#[a-f0-9]{6}$/i.test(a.color) ? a.color : '#bd8956'}"></i>${esc(a.name)}${a.bot ? '<small>BOT</small>' : a.id === this.localId ? '<small>VOCÊ</small>' : ''}</td><td>${a.kills}</td><td>${a.deaths}</td><td>${Math.round(a.damage)}</td>${this.room ? `<td data-player-ping="${esc(a.id)}" style="font-variant-numeric:tabular-nums;white-space:nowrap">${a.bot ? 'Bot' : !a.connected ? 'Sem conexão' : this.latencies[a.id] === undefined ? 'A medir' : `${Math.round(this.latencies[a.id])} ms`}</td>` : ''}</tr>`).join('')}</tbody></table>`;
   }
   // Results over the live island: a stamped placement, then stats, awards, the board and the next step.
   private victory(snapshot: WorldSnapshot) {

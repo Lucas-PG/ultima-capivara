@@ -10,7 +10,9 @@ const KEEPALIVE_MS = 3_000;
 const INPUTS_PER_SECOND = 90;
 const ACTIONS_PER_SECOND = 20;
 type Profile = { name: string; color: string };
-type Guest = { profile: PlayerProfile; token: string; conn: DataConnection | null; game: RTCDataChannel | null;
+export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'relay' | 'reconnecting' | 'closed';
+
+type Guest = { pingAt: number | null; rtt: number | null; profile: PlayerProfile; token: string; conn: DataConnection | null; game: RTCDataChannel | null;
   expires: ReturnType<typeof setTimeout> | null; lastInput: number; actions: Set<number>; inputBudget: number;
   actionBudget: number; budgetAt: number; lastFrame: number; lastResync: number; channelId: number | null; gameReady: boolean; gameCompression: boolean };
 
@@ -97,7 +99,7 @@ function same(a: unknown, b: unknown) { return JSON.stringify(a) === JSON.string
 
 export class RoomSession {
   private peer: Peer | null = null;
-  private callbacks: SessionCallbacks;
+  private callbacks: SessionCallbacks & { status?: (status: ConnectionStatus) => void };
   private roomValue: RoomState | null = null;
   private guests = new Map<string, Guest>();
   private hostConn: DataConnection | null = null;
@@ -118,6 +120,10 @@ export class RoomSession {
   private lastEventId = 0;
   private lastResync = 0;
   private pingValue = 0;
+  private pingAt: number | null = null;
+  private latencyValues: Record<string, number> = {};
+  private statusValue: ConnectionStatus = 'idle';
+  private recoveryDeadline: ReturnType<typeof setTimeout> | null = null;
   private localInput = -1;
   private localActions = new Set<number>();
   private closing = false;
@@ -125,9 +131,25 @@ export class RoomSession {
   private rejoinUntil = 0;
   private reconnecting = false;
 
-  constructor(callbacks: SessionCallbacks) { this.callbacks = callbacks; }
+  constructor(callbacks: SessionCallbacks & { status?: (status: ConnectionStatus) => void }) { this.callbacks = callbacks; }
   get state(): RoomState | null { return this.roomValue ? structuredClone(this.roomValue) : null; }
   get ping(): number { return this.pingValue; }
+  get latencies(): Readonly<Record<string, number>> { return this.latencyValues; }
+  get connectionStatus(): ConnectionStatus { return this.statusValue; }
+  private status(value: ConnectionStatus) {
+    if (this.statusValue === value) return;
+    this.statusValue = value; this.callbacks.status?.(value);
+  }
+  private async inspectRoute(conn: DataConnection) {
+    try {
+      const stats = await conn.peerConnection?.getStats();
+      if (conn !== this.hostConn || !conn.open || this.reconnecting || !stats) return;
+      let pair: any;
+      stats.forEach(report => { if (report.type === 'transport' && report.selectedCandidatePairId) pair = stats.get(report.selectedCandidatePairId); });
+      if (!pair) stats.forEach(report => { if (report.type === 'candidate-pair' && report.nominated && report.state === 'succeeded') pair = report; });
+      if (pair) this.status(stats.get(pair.localCandidateId)?.candidateType === 'relay' || stats.get(pair.remoteCandidateId)?.candidateType === 'relay' ? 'relay' : 'connected');
+    } catch { /* Stats are advisory; keep the working connection. */ }
+  }
 
   private emitRoom() { this.callbacks.room(this.state); }
   private fail(message: string) { this.callbacks.error(message); }
@@ -148,7 +170,7 @@ export class RoomSession {
   async host(profile: Profile, config: RoomConfig = DEFAULT_CONFIG): Promise<void> {
     if (this.peer || this.roomValue) throw new Error('Você já está em uma sala.');
     if (!validProfile(profile) || !validConfig(config)) throw new Error('Nome, cor ou configurações da sala inválidos.');
-    this.closing = false;
+    this.closing = false; this.status('connecting');
     let lastError: Error = new Error('Não foi possível criar um código de sala.');
     for (let attempt = 0; attempt < 8; attempt++) {
       const roomCode = code();
@@ -158,7 +180,7 @@ export class RoomSession {
       catch (error) {
         lastError = peerError(error); peer.destroy(); this.peer = null;
         if ((error as any)?.type === 'unavailable-id') continue;
-        throw lastError;
+        this.status('idle'); throw lastError;
       }
       const id = `p-${token().slice(0, 12)}`;
       this.roomValue = { code: roomCode, myId: id, hostId: id, isHost: true, phase: 'lobby',
@@ -167,25 +189,33 @@ export class RoomSession {
       peer.on('error', e => { if (!this.closing) this.fail(peerError(e).message); });
       peer.on('disconnected', () => { if (!this.closing && !peer.destroyed) try { peer.reconnect(); } catch {} });
       this.heartbeat = setInterval(() => this.pingGuests(), KEEPALIVE_MS);
-      this.emitRoom();
+      this.status('connected'); this.emitRoom();
       return;
     }
-    throw lastError;
+    this.status('idle'); throw lastError;
   }
 
   async join(roomCode: string, profile: Profile): Promise<void> {
     if (this.peer || this.roomValue) throw new Error('Você já está em uma sala.');
     if (!/^[A-HJ-NP-Z2-9]{6}$/.test(roomCode) || !validProfile(profile)) throw new Error('Código da sala, nome ou cor inválidos.');
-    this.closing = false;
+    this.closing = false; this.status('connecting');
     const peer = this.makePeer(); this.peer = peer;
     try { await this.whenOpen(peer); }
-    catch (error) { peer.destroy(); this.peer = null; throw peerError(error); }
-    peer.on('error', e => { if (!this.closing) this.fail(peerError(e).message); });
+    catch (error) { peer.destroy(); this.peer = null; this.status('idle'); throw peerError(error); }
+    this.watchGuestPeer(peer);
     peer.on('disconnected', () => { if (!this.closing && !peer.destroyed) try { peer.reconnect(); } catch {} });
     this.rejoinUntil = Date.now() + GRACE_MS;
     try { await this.connectGuest(roomCode, profile); }
     catch (error) { this.leave(); throw error; }
     this.heartbeat = setInterval(() => this.pingHost(), KEEPALIVE_MS);
+  }
+
+  private watchGuestPeer(peer: Peer) {
+    peer.on('error', error => {
+      if (this.closing || this.peer !== peer) return;
+      if (this.joining) { this.joining.reject(peerError(error)); this.joining = null; this.hostConn?.close(); }
+      else if (!this.reconnecting) this.fail(peerError(error).message);
+    });
   }
 
   private connectGuest(roomCode: string, profile: Profile): Promise<void> {
@@ -201,11 +231,11 @@ export class RoomSession {
         reject: (error: Error) => { clearTimeout(timeout); reject(error); },
       };
       this.joining = pending;
-      timeout = setTimeout(() => { if (this.joining === pending) { this.joining = null; pending.reject(new Error('A sala demorou a responder.')); conn.close(); } }, 10_000);
+      timeout = setTimeout(() => { if (this.joining === pending) { this.joining = null; pending.reject(new Error('A sala demorou a responder. Tente novamente.')); conn.close(); } }, 10_000);
       conn.on('open', () => {
-        const prior = sessionStorage.getItem(storageKey(roomCode));
+        if (this.closing || this.hostConn !== conn) { conn.close(); return; }
         let resume: string | null = null;
-        try { resume = prior ? JSON.parse(prior).token : null; } catch {}
+        try { const prior = sessionStorage.getItem(storageKey(roomCode)); resume = prior ? JSON.parse(prior).token : null; } catch {}
         send(conn, packet('hello', { profile, resume }));
       });
       conn.on('data', raw => this.onGuestControl(conn, raw));
@@ -247,7 +277,7 @@ export class RoomSession {
         send(conn, packet('reject', { reason: 'A sala está cheia.' })); setTimeout(() => conn.close(), 100); return false;
       }
       const id = `p-${token().slice(0, 12)}`;
-      guest = { profile: { id, name: profile.name.trim(), color: profile.color, ready: false, connected: true }, token: token(),
+      guest = { pingAt: null, rtt: null, profile: { id, name: profile.name.trim(), color: profile.color, ready: false, connected: true }, token: token(),
         conn, game: null, expires: null, lastInput: -1, actions: new Set(), inputBudget: 0, actionBudget: 0,
         budgetAt: Date.now(), lastFrame: 0, lastResync: 0, channelId: null, gameReady: false, gameCompression: false };
       this.guests.set(id, guest);
@@ -258,7 +288,7 @@ export class RoomSession {
       const oldConn = guest.conn, oldGame = guest.game;
       guest.conn = conn; guest.game = null; guest.gameReady = false; guest.gameCompression = false;
       oldGame?.close(); if (oldConn && oldConn !== conn) oldConn.close();
-      guest.token = token();
+      guest.token = token(); guest.pingAt = null; guest.rtt = null;
       guest.lastInput = -1; guest.actions.clear();
       guest.inputBudget = guest.actionBudget = 0; guest.budgetAt = Date.now();
       guest.profile.connected = true;
@@ -268,7 +298,7 @@ export class RoomSession {
     if (room.phase !== 'lobby' && this.matchId) send(conn, packet('start', { config: room.config, players: room.players, matchId: this.matchId }));
     this.sendBaseline(guest);
     this.setupGame(guest);
-    this.broadcastRoom();
+    this.broadcastRoom(); this.pingGuests();
     return true;
   }
 
@@ -277,6 +307,7 @@ export class RoomSession {
     if (!room?.isHost || this.closing) return;
     const guest = [...this.guests.values()].find(g => g.conn === conn);
     if (!guest) return;
+    delete this.latencyValues[guest.profile.id]; guest.pingAt = null; guest.rtt = null;
     guest.conn = null; guest.game?.close(); guest.game = null; guest.gameReady = false; guest.gameCompression = false; guest.profile.connected = false;
     this.callbacks.player({ ...guest.profile }, 'disconnect');
     this.broadcastRoom();
@@ -324,6 +355,8 @@ export class RoomSession {
         if (m.resumed === true) { this.localInput = -1; this.localActions.clear(); }
         this.rejoinUntil = Date.now() + GRACE_MS;
         this.reconnecting = false;
+        if (this.recoveryDeadline) clearTimeout(this.recoveryDeadline); this.recoveryDeadline = null;
+        this.status('connected'); this.pingHost(); void this.inspectRoute(conn);
         this.emitRoom(); this.joining?.resolve(); this.joining = null;
         break;
       }
@@ -352,8 +385,16 @@ export class RoomSession {
       } break;
       case 'channel': if (Number.isInteger(m.id)) this.setupGuestGame(conn, m.id as number); break;
       case 'game-ready': if (m.id === this.hostGame?.id) this.hostGameReady = true; break;
-      case 'pong': if (Number.isFinite(m.at)) this.pingValue = Math.max(0, Date.now() - (m.at as number)); break;
+      case 'pong': if (this.pingAt !== null && m.at === this.pingAt) { this.pingValue = Math.max(0, performance.now() - this.pingAt); this.pingAt = null; } break;
       case 'ping': if (Number.isFinite(m.at)) send(conn, packet('pong', { at: m.at })); break;
+      case 'latency': if (m.data && typeof m.data === 'object' && !Array.isArray(m.data) && this.roomValue) {
+        const values: Record<string, number> = {};
+        for (const player of this.roomValue.players) {
+          const value = (m.data as Record<string, unknown>)[player.id];
+          if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= GRACE_MS) values[player.id] = value;
+        }
+        this.latencyValues = values;
+      } break;
       case 'closed': this.finish(String(m.reason || 'O anfitrião fechou a sala.')); break;
     }
   }
@@ -397,7 +438,11 @@ export class RoomSession {
       case 'action': this.acceptAction(guest, m); break;
       case 'resync': if (Date.now() - guest.lastResync > 1000) { guest.lastResync = Date.now(); this.sendBaseline(guest); } break;
       case 'ping': if (Number.isFinite(m.at)) send(conn, packet('pong', { at: m.at })); break;
-      case 'pong': if (Number.isFinite(m.at)) this.pingValue = Math.max(0, Date.now() - (m.at as number)); break;
+      case 'pong': if (guest.pingAt !== null && m.at === guest.pingAt) {
+        guest.rtt = Math.max(0, performance.now() - guest.pingAt); guest.pingAt = null;
+        this.latencyValues = { ...this.latencyValues, [this.roomValue.hostId]: 0, [guest.profile.id]: Math.round(guest.rtt) };
+        for (const g of this.guests.values()) send(g.conn, packet('latency', { data: this.latencyValues }));
+      } break;
       case 'game-ready': if (m.id === guest.channelId) { guest.gameReady = true; guest.gameCompression = m.compression === true; } break;
     }
   }
@@ -526,25 +571,31 @@ export class RoomSession {
     this.emitRoom();
     for (const g of this.guests.values()) send(g.conn, packet('room', { room }));
   }
-  private pingGuests() { for (const g of this.guests.values()) if (g.conn?.open) send(g.conn, packet('ping', { at: Date.now() })); }
-  private pingHost() { if (this.hostConn?.open) send(this.hostConn, packet('ping', { at: Date.now() })); }
+  private pingGuests() { for (const g of this.guests.values()) if (g.conn?.open) {
+    g.pingAt = performance.now(); send(g.conn, packet('ping', { at: g.pingAt }));
+  } }
+  private pingHost() { if (this.hostConn?.open) {
+    this.pingAt = performance.now(); send(this.hostConn, packet('ping', { at: this.pingAt })); void this.inspectRoute(this.hostConn);
+  } }
   private scheduleReconnect(code: string, profile: Profile) {
     this.hostGame?.close(); this.hostGame = null; this.hostGameReady = false;
-    if (this.retryTimer || this.closing) return;
-    if (!this.reconnecting) { this.reconnecting = true; this.rejoinUntil = Date.now() + GRACE_MS; }
+    if (this.reconnecting || this.closing) return;
+    this.reconnecting = true; this.rejoinUntil = Date.now() + GRACE_MS; this.status('reconnecting');
+    this.recoveryDeadline = setTimeout(() => this.finish('A sala fechou ou a conexão foi perdida. Entre novamente para tentar.'), GRACE_MS);
     const attempt = async () => {
       this.retryTimer = null;
-      if (this.closing || Date.now() > this.rejoinUntil) { this.finish('A conexão com o anfitrião foi perdida.'); return; }
+      if (this.closing || Date.now() > this.rejoinUntil) { this.finish('A sala fechou ou a conexão foi perdida. Entre novamente para tentar.'); return; }
       try {
         if (!this.peer || this.peer.destroyed || this.peer.disconnected) {
-          this.peer?.destroy(); this.peer = this.makePeer(); await this.whenOpen(this.peer);
+          this.peer?.destroy(); this.peer = this.makePeer(); this.watchGuestPeer(this.peer); await this.whenOpen(this.peer);
         }
+        if (this.closing || !this.reconnecting) return;
         await this.connectGuest(code, profile);
-      } catch { if (!this.closing) this.retryTimer = setTimeout(attempt, 1000); }
+      } catch { if (!this.closing && this.reconnecting) this.retryTimer = setTimeout(attempt, 1000); }
     };
     this.retryTimer = setTimeout(attempt, 500);
   }
-  private finish(reason: string) { this.leave(); this.callbacks.closed(reason); }
+  private finish(reason: string) { this.leave(); this.status('closed'); this.callbacks.closed(reason); }
   leave() {
     if (this.closing) return;
     this.closing = true;
@@ -553,6 +604,8 @@ export class RoomSession {
     if (room?.isHost) for (const g of peers) send(g.conn, packet('closed', { reason: 'O anfitrião fechou a sala.' }));
     if (this.heartbeat) clearInterval(this.heartbeat);
     if (this.retryTimer) clearTimeout(this.retryTimer);
+    if (this.recoveryDeadline) clearTimeout(this.recoveryDeadline);
+    this.heartbeat = this.retryTimer = this.recoveryDeadline = null; this.reconnecting = false;
     if (this.joining) { this.joining.reject(new Error('Você saiu da sala.')); this.joining = null; }
     for (const g of peers) if (g.expires) clearTimeout(g.expires);
     const ownPeer = this.peer, ownConn = this.hostConn, ownGame = this.hostGame;
@@ -565,6 +618,9 @@ export class RoomSession {
     this.guests.clear();
     this.peer = null; this.hostConn = null; this.hostGame = null; this.roomValue = null;
     this.current = null; this.matchId = ''; this.localInput = -1; this.localActions.clear();
+    this.lastTick = -1; this.lastEventId = 0; this.lastResync = 0; this.lastCompressedFrame = null;
+    this.worldData = this.gearData = null; this.worldJson = this.gearJson = ''; this.worldRev = this.gearRev = 0;
+    this.pingValue = 0; this.pingAt = null; this.latencyValues = {}; this.status('idle');
     this.callbacks.room(null);
   }
 }
