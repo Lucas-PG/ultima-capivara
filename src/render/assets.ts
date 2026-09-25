@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { timing } from './timing';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
@@ -23,6 +24,13 @@ export class AssetLoader {
     this.ktx = new KTX2Loader(this.manager).setTranscoderPath(`${import.meta.env.BASE_URL}decoders/basis/`).detectSupport(gl);
     this.gltfLoader = new GLTFLoader(this.manager).setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(this.ktx);
     this.manager.addHandler(/\.ktx2$/i, this.ktx);
+    if (timing.enabled) this.gltfLoader.register(parser => {
+      let started = -1;
+      return { name: 'CapivaraParseTiming',
+        beforeRoot: () => { started = timing.begin(); return null; },
+        afterRoot: () => { timing.end('gltf-parse-wall', started, parser.options.path, true); return null; },
+      };
+    });
   }
 
   private path(url: string) { return new URL(url, this.base).pathname.slice(this.base.pathname.length); }
@@ -38,8 +46,9 @@ export class AssetLoader {
   texture(path: string): THREE.Texture {
     const cached = this.textures.get(path); if (cached) return cached;
     let texture!: THREE.Texture;
+    const started = timing.begin();
     this.track(new Promise<void>((resolve, reject) => {
-      texture = new THREE.TextureLoader(this.manager).load(this.url(path), () => resolve(), undefined, reject);
+      texture = new THREE.TextureLoader(this.manager).load(this.url(path), () => { timing.end('texture-ready-wall', started, path, true); resolve(); }, undefined, reject);
     }));
     this.textures.set(path, texture); return texture;
   }

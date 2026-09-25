@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { timing } from './timing';
+import { instrumentGpu, instrumentMaterials } from './timing-gpu';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec } from '../shared/types';
@@ -56,6 +58,7 @@ export class GameRenderer {
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
+    instrumentGpu(this.gl);
     this.assets = new AssetLoader(this.gl, this.onProgress);
     this.weaponView = new WeaponView(this.assets, () => { if (!this.disposed) onAssetsReady(); });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -127,7 +130,11 @@ export class GameRenderer {
 
   private applyPixelRatio() {
     const ratio = Math.min(window.devicePixelRatio || 1, PRESETS[this.settings.graphics].dpr) * this.resolutionScale;
-    if (Math.abs(this.gl.getPixelRatio() - ratio) > .01) { this.gl.setPixelRatio(ratio); this.pipeline.resize(); }
+    if (Math.abs(this.gl.getPixelRatio() - ratio) > .01) {
+      const resizeAt = timing.begin();
+      this.gl.setPixelRatio(ratio); this.pipeline.resize();
+      timing.end('resolution-change', resizeAt, '', true);
+    }
   }
 
   // Like legacy PERF: if frames keep arriving late, render fewer pixels (down to
@@ -153,7 +160,9 @@ export class GameRenderer {
     this.worldView.update(this.elapsed);
     this.cameraRig.updatePlanePath(frame.snapshot, dt, this.elapsed);
     this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed);
+    const cameraAt = timing.begin();
     this.cameraRig.update(frame, this.settings, this.elapsed, this.weaponView.adsAmount);
+    timing.end('camera', cameraAt);
     this.loot.update(frame.snapshot, this.elapsed); this.effects.update(dt);
     let room: typeof this.litRooms[number] | undefined;
     for (const candidate of this.litRooms) if (Math.abs(this.camera.position.x - candidate.x) < candidate.w / 2 &&
@@ -192,11 +201,16 @@ export class GameRenderer {
       this.sun.target.position.set(this.camera.position.x, 0, this.camera.position.z);
       this.sun.target.updateMatrixWorld();
     }
+    const drawAt = timing.begin(), programs = timing.enabled ? this.gl.info.programs?.length ?? 0 : 0;
     this.pipeline.render(this.scene, this.camera, this.frameStats);
+    timing.end('world-draw', drawAt);
+    if (timing.enabled && (this.gl.info.programs?.length ?? 0) > programs) timing.record('shader-program-created', drawAt, 0, 'world', true);
     const held = viewed?.weapons[viewed.slot]?.id;
     const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
     if (frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35) {
+      const fpAt = timing.begin();
       this.gl.autoClear = false; this.gl.clearDepth(); this.gl.render(this.weaponView.scene, this.weaponView.camera); this.gl.autoClear = true;
+      timing.end('first-person-draw', fpAt);
       this.frameStats.drawCalls += this.gl.info.render.calls;
       this.frameStats.triangles += this.gl.info.render.triangles;
     }
@@ -272,20 +286,31 @@ export class GameRenderer {
     }
     this.scene.add(this.avatars.warmupWeapons);
     reveal(this.scene); this.weaponView.revealAll(true); reveal(this.weaponView.scene);
+    instrumentMaterials(this.scene); instrumentMaterials(this.weaponView.scene);
     const shadows = this.gl.shadowMap.enabled;
     try {
       // Compile world programs against the same linear target as normal frames.
       this.gl.setRenderTarget(target);
+      const compileWorldAt = timing.begin();
       await this.gl.compileAsync(this.scene, this.camera);
+      timing.end('shader-compile-world', compileWorldAt, '', true);
       this.requireActive();
+      const uploadWorldAt = timing.begin();
       this.gl.render(this.scene, this.camera);
+      timing.end('warmup-upload-world', uploadWorldAt, '', true);
       if (reportProgress) this.onProgress(.96, 'Afiando as armas');
       // First-person and post shaders target the canvas, with output colour and tone mapping.
       this.gl.setRenderTarget(null);
+      const compileFpAt = timing.begin();
       await this.gl.compileAsync(this.weaponView.scene, this.weaponView.camera);
+      timing.end('shader-compile-first-person', compileFpAt, '', true);
       this.requireActive();
+      const uploadFpAt = timing.begin();
       this.gl.render(this.weaponView.scene, this.weaponView.camera);
+      timing.end('warmup-upload-first-person', uploadFpAt, '', true);
+      const postAt = timing.begin();
       await this.pipeline.warmup();
+      timing.end('shader-compile-post', postAt, '', true);
       this.requireActive();
       this.pipeline.renderPost();
     } finally {
