@@ -169,3 +169,13 @@ describe('lobby warmup', () => {
     expect(code).toMatch(/Carregando a ilha/);
   });
 });
+
+describe('key remap labels', () => {
+  // Every remappable action must show pt-BR text in settings, never a raw action id (Brasa added inspect).
+  it('has a pt-BR label for every default binding', async () => {
+    const { DEFAULT_BINDINGS } = await import('../src/settings');
+    const code = readFileSync('src/ui/ui.ts', 'utf8');
+    const labels = code.match(/export const bindingLabels[^}]*\}/)![0];
+    for (const key of [...Object.keys(DEFAULT_BINDINGS), 'inspect']) expect(labels).toMatch(new RegExp(`\\b${key}: '[^']+'`));
+  });
+});

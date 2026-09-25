@@ -38,7 +38,7 @@ const ONBOARD_KEY = 'uc-onboarded';
 const nextTip = tipBag(TIPS);
 // Damage direction: a 40° arc on a 140 px ring around the crosshair.
 const DAMAGE_ARC = '<svg viewBox="-160 -160 320 320" aria-hidden="true"><path d="M-47.9-131.6A140 140 0 0 1 47.9-131.6" fill="none" stroke="#16120e" stroke-width="16" stroke-linecap="round"/><path d="M-47.9-131.6A140 140 0 0 1 47.9-131.6" fill="none" stroke="#e5412d" stroke-width="9" stroke-linecap="round"/></svg>';
-const bindingLabels: Record<string, string> = { forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar', reload: 'Recarregar', interact: 'Interagir', leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita' };
+export const bindingLabels: Record<string, string> = { forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar', reload: 'Recarregar', interact: 'Interagir', leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita', inspect: 'Inspecionar arma' };
 
 export class GameUI {
   screen: 'home' | 'lobby' | 'game' | 'results' = 'home';
