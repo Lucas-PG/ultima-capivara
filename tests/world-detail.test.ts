@@ -107,6 +107,8 @@ describe('terrain colour regions', () => {
     expect(terrainColor(49, -128, terrainHeight(49, -128), 0)).toBe(WORLD_PALETTE.sandWet);
     expect(terrainColor(30, -120, terrainHeight(30, -120), 0)).toBe(WORLD_PALETTE.sand);
     expect(terrainColor(62, -120, terrainHeight(62, -120), 0)).toBe(WORLD_PALETTE.sandLight);
+    expect([WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass])
+      .toContain(terrainColor(22.6, -124.93, terrainHeight(22.6, -124.93), 0));
     expect(terrainColor(-110, -90, 4, .8)).toBe(WORLD_PALETTE.rock);
     expect(terrainColor(-50, 6, 4, .8)).toBe(WORLD_PALETTE.rock);
     expect(brightness(WORLD_PALETTE.road)).toBeLessThan(brightness(WORLD_PALETTE.grass) - 45);

@@ -292,7 +292,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = new THREE.MeshStandardMaterial({ map: groundColors, roughness: 1, metalness: 0 });
-    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-slope-v3';
+    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-slope-v4';
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -353,7 +353,7 @@ export class WorldScene {
         }
       `).replace('#include <map_fragment>', `
         #include <map_fragment>
-        if (vTerrainSlope >= 0.58) {
+        if (vTerrainSlope >= 0.54) {
           float grassPatch = terrainFbm(vTerrainXZ / 36.0 + vec2(7.0, 3.0));
           float dryPatch = terrainFbm(vTerrainXZ / 48.0 + vec2(-4.0, 9.0));
           vec3 paintedGrass = dryPatch > 0.24 ? terrainDryGrass :
@@ -369,8 +369,8 @@ export class WorldScene {
           vec3 paintedSand = terrainFbm(vec2(warpedX / 24.0 + 3.0, warpedZ / 24.0 - 8.0)) > 0.0 ?
             terrainSandLight : terrainSand;
           vec3 paintedSlope = mix(paintedGrass, paintedSand,
-            max(1.0 - step(0.8, vTerrainWorldY), smoothstep(-1.0, 1.0, beachEdge)));
-          diffuseColor.rgb = mix(diffuseColor.rgb, paintedSlope, smoothstep(0.58, 0.62, vTerrainSlope));
+            max(1.0 - step(0.79, vTerrainWorldY), smoothstep(-1.0, 1.0, beachEdge)));
+          diffuseColor.rgb = mix(diffuseColor.rgb, paintedSlope, smoothstep(0.54, 0.6, vTerrainSlope));
         }
         float distanceToRoad = 1e6;
         for (int road = 0; road < 5; road++)

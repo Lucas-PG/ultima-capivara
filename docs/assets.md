@@ -35,6 +35,8 @@ Cada prompt incluiu esta instrução comum: "Use case: stylized-concept. Asset t
 
 Ferramenta: ImageGen integrada, geração original sem imagens externas. Os dez marcos e as duas pranchas de kit foram salvos em `/Users/lucas_gaspe/dev/capivara-team/reviews/jangada-m1-*.png`, 1672x941. Conceitos para modelagem, não recursos distribuídos pelo jogo. Direção A "Ilha Dourada", conforme `style-bible.md` §3 e §8.
 
+Pincel aprovou as doze pranchas como alvos de modelagem. A seção "Approved M1 concept constraints" do plano Jangada na pasta compartilhada de reviews corrige a escala da capivara, alturas, cobertura e textos dos prompts históricos abaixo; essas correções prevalecem na implementação.
+
 Prompt comum de J2 a J10: "Original professional 16:9 environment concept sheet, at least 1600x900, for Direction A Ilha Dourada, an original hand-painted Brazilian tropical cartoon shooter. Neutral warm #E9E4D8 sheet background. Main 75% panel is an eye-level 1.6 m hero view of the landmark with a small cinnamon capybara wearing olive vest and turquoise bandana for scale. Top-right inset is a legible top-down footprint sketch with cover locations and main/flanking route arrows. Bottom-right inset is an isolated high-contrast silhouette labelled 'SILHUETA 120 m'. All labels in natural pt-BR clean hand-lettering, no English. Palette: grass #6FAE45 #8CC453, dry #B0CC5E, earth #C99A62 only on paths, stone #BBAE98, sand #F2D9A0, water #2EC4B6; foliage #86BD4F #5FA544 #3F8A4A; terracotta roofs #C76A43, whitewash #F3E6CF, turquoise trim #2A9D8F. Warm upper-left sunlight, soft three-band painterly light, lavender shadow #6B5B95, thin warm silhouette outline #3A2418. Architectural shapes chunky and believable, legible at 30, 60, 120 m. No photo texture, grime, microdetail, cypress, pine, brands or watermark." A frase específica abaixo foi acrescentada ao fim desse prompt.
 
 | Arquivo | Complemento do prompt |
@@ -59,7 +61,7 @@ Prompt comum de J11 e J12: "Original premium production concept sheet, 16:9, at 
 
 ## Mapa de cores do terreno, 24/09/2026
 
-`public/textures/terrain-color.png` é um mapa de cores procedural determinístico original, sem fotografia. Foi gerado localmente por `npx tsx scripts/generate-terrain-colors.ts` a partir de `src/shared/terrain.ts`, com ImageMagick apenas para codificar o PNG. Dimensão 1024x1024; 67.585 bytes. Quando altura ou paleta do terreno mudar, executar o script novamente e registrar o novo PNG no manifesto de recursos. Estradas e meio-fio de 0,4 m são máscaras analíticas no shader de solo, não fazem parte do PNG.
+`public/textures/terrain-color.png` é um mapa de cores procedural determinístico original, sem fotografia. Foi gerado localmente por `npx tsx scripts/generate-terrain-colors.ts` a partir de `src/shared/terrain.ts`, com ImageMagick apenas para codificar o PNG. Dimensão 1024x1024; 67.378 bytes. Quando altura ou paleta do terreno mudar, executar o script novamente e registrar o novo PNG no manifesto de recursos. Estradas e meio-fio de 0,4 m são máscaras analíticas no shader de solo, não fazem parte do PNG.
 
 ## Referências de direção de arte
 

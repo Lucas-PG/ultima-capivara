@@ -92,7 +92,7 @@ export function terrainHeight(x: number, z: number): number {
 }
 
 // Broad, discrete colour regions keep the island readable from the ground and
-// the plane. The renderer paints these values directly into terrain vertices.
+// the plane. The offline bake writes them into the terrain colour map.
 export const WORLD_PALETTE = {
   grass: '#6FAE45', grassLight: '#8CC453', dryGrass: '#B0CC5E',
   earth: '#C99A62', rock: '#BBAE98', rockTop: '#A89F92',
@@ -124,7 +124,9 @@ export function terrainColor(x: number, z: number, y: number, slope: number,
   const coast = Math.max(Math.abs(x), Math.abs(z)) * .65 + Math.hypot(x, z) * .35 > 112;
   const lakeEdge = Math.hypot(x - LAKE[0], z - LAKE[1]) < LAKE[2] * 1.8;
   if (slope > .6 && !beach && (coast || lakeEdge)) return WORLD_PALETTE.rock;
-  if (beach || y < .8) {
+  // The beach pad sits at 0.8 m. A threshold at that exact height alternates
+  // grass and sand across tiny floating-point differences between mesh cells.
+  if (beach || y < .79) {
     const wetWidth = 3 + fbm(x / 12 + 51, z / 12 - 7) * 3;
     const nearWater = includeWet && (terrainHeight(x + wetWidth, z) < .1 || terrainHeight(x - wetWidth, z) < .1 ||
       terrainHeight(x, z + wetWidth) < .1 || terrainHeight(x, z - wetWidth) < .1);
