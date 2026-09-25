@@ -37,6 +37,7 @@ export class RenderPipeline {
     this.fpTarget.depthTexture = new THREE.DepthTexture(1, 1);
     this.fpMaterial = createOutlineMaterial(this.fpTarget.texture, this.fpTarget.depthTexture);
     this.fpMaterial.uniforms.transparentBackground.value = 1;
+    this.fpMaterial.transparent = true;
     this.fpMaterial.uniforms.ink.value.set(.168627, .105882, .070588);
     const fpQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.fpMaterial);
     fpQuad.frustumCulled = false; this.fpScene.add(fpQuad);
@@ -103,6 +104,11 @@ export class RenderPipeline {
   }
 
   beginFirstPersonWarmup() { this.gl.setRenderTarget(this.fpTarget); }
+
+  // Storm exposure (0..1) and the decaying pulse of the latest storm bite.
+  setScreenFeedback(storm: number, pulse: number) {
+    this.postMaterial.uniforms.uStorm.value = storm; this.postMaterial.uniforms.uPulse.value = pulse;
+  }
 
   async warmup(scene?: THREE.Scene, camera?: THREE.PerspectiveCamera) {
     for (const post of [this.postScene, this.aaScene, this.fpScene]) {
