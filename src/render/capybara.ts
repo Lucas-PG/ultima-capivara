@@ -7,6 +7,7 @@ import { releaseAfterUpload } from './memory';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import palette from './capybara-palette.json';
+import { applyCharacterStyle } from './materials';
 
 // Bone layout shared with GameRenderer.updateAvatars():
 // 0 root · 1 torso (pivots at the hips) · 2 head · 3 arms + held weapon (shoulders)
@@ -24,7 +25,7 @@ export const WEAPON_MOUNT = new THREE.Vector3(.1, -.12, -.36);
 let sharedMaterial: THREE.MeshStandardMaterial | null = null;
 const capybaraMaterial = () => {
   if (!sharedMaterial) {
-    sharedMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .78, metalness: 0 });
+    sharedMaterial = applyCharacterStyle(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .85, metalness: 0 }));
     sharedMaterial.addEventListener('dispose', () => { sharedMaterial = null; });
   }
   return sharedMaterial;
@@ -234,7 +235,7 @@ function characterMaterial(source: THREE.MeshStandardMaterial, color: string): T
   atlas.colorSpace = THREE.SRGBColorSpace;
   atlas.magFilter = atlas.minFilter = THREE.NearestFilter;
   atlas.generateMipmaps = false; atlas.needsUpdate = true;
-  const material = source.clone(); material.map = atlas;
+  const material = applyCharacterStyle(source.clone()); material.map = atlas;
   material.name = `Capivara_bandana_${tint.getHexString()}`;
   material.addEventListener('dispose', () => { atlas.dispose(); characterMaterials.delete(key); });
   characterMaterials.set(key, material);

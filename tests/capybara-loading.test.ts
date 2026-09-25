@@ -63,6 +63,7 @@ describe('capybara cosmetic colour contract', () => {
     vi.stubGlobal('location', { search: '' });
     const capy = await import('../src/render/capybara');
     const baseline = capy.buildCapybaraBody(colors[0]);
+    expect((baseline.body.material as THREE.Material).userData.toonCharacter).toBe(true);
     const original = baseline.body.geometry.getAttribute('color');
     const positions = baseline.body.geometry.getAttribute('position');
     const bones = baseline.body.geometry.getAttribute('skinIndex');
@@ -88,12 +89,20 @@ describe('capybara cosmetic colour contract', () => {
 
   it('changes only bandana atlas columns and shares one material across every LOD and matching actor', async () => {
     const capy = await import('../src/render/capybara');
-    await capy.preloadCapybaraAsset(async () => fixture());
+    const source = fixture();
+    const sourceMaterial = (source.scene.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material as THREE.MeshStandardMaterial;
+    sourceMaterial.vertexColors = true; sourceMaterial.emissive.set('#FFFFFF'); sourceMaterial.emissiveMap = new THREE.Texture();
+    await capy.preloadCapybaraAsset(async () => source);
     for (const color of colors) {
       const actor = capy.buildCapybaraBody(color), copy = capy.buildCapybaraBody(color);
       const meshes = (actor.body.getObjectByName('Capivara_LOD') as THREE.LOD).levels.map(level => level.object as THREE.SkinnedMesh);
       const material = meshes[0].material as THREE.MeshStandardMaterial;
       expect(meshes.every(mesh => mesh.material === material)).toBe(true);
+      expect(material.userData.toonCharacter).toBe(true);
+      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v1');
+      expect(material.vertexColors).toBe(true);
+      expect(material.emissiveMap).toBe(sourceMaterial.emissiveMap);
+      expect(material.emissive.getHexString()).toBe('ffffff');
       expect((copy.body.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material).toBe(material);
       const atlas = material.map as THREE.DataTexture, pixels = atlas.image.data!;
       expect(atlas.colorSpace).toBe(THREE.SRGBColorSpace);
