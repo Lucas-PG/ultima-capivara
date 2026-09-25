@@ -90,7 +90,7 @@ export class GameRenderer {
     this.sun = new THREE.DirectionalLight(PAINT.sun, 2.7); this.sun.position.set(-70, 55, -30);
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 170;
-    this.sun.shadow.bias = -.00035; this.sun.shadow.normalBias = .055;
+    this.sun.shadow.bias = -.00035; this.sun.shadow.normalBias = .12;
     this.scene.add(this.sun, this.sun.target);
     this.worldView = new WorldScene(world, settings, this.assets, () => {
       if (!this.disposed) onAssetsReady();

@@ -14,7 +14,9 @@ describe('painted shoreline', () => {
     ] } as WorldSpec;
     const water = new PaintedWater(world, terrain), material = water.mesh.material as THREE.ShaderMaterial;
     const depth = material.uniforms.depthField.value as THREE.DataTexture;
-    expect([...depth.image.data!]).toEqual([0, 0, 128, 255]);
+    const width = depth.image.width, padding = (width - 2) / 2;
+    const sample = (x: number, z: number) => depth.image.data![(padding + z) * width + padding + x];
+    expect([sample(0, 0), sample(1, 0), sample(0, 1), sample(1, 1)]).toEqual([0, 0, 128, 255]);
     expect(water.contacts.count).toBe(1);
     const clock = material.uniforms.uTime;
     water.update(12, false); expect(clock.value).toBe(12);

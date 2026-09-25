@@ -53,6 +53,8 @@ export class LootView {
   private readonly color = new THREE.Color();
   private readonly haloColor = new THREE.Color();
   private readonly drops: DropVisual[] = [];
+  private readonly beamLimits = new Map<string, number>();
+  private readonly beamCeilings: { x: number; z: number; y: number; halfWidth: number; halfDepth: number }[];
   private readonly weaponBatches: Partial<Record<WeaponId, LootBatch>> = {};
   private elapsed = 0;
   private readonly lootBatches = new Map<string, LootBatch>();
@@ -65,6 +67,10 @@ export class LootView {
   private readonly chestLids: THREE.InstancedMesh;
   private readonly chestGlints: THREE.InstancedMesh;
   constructor(private readonly scene: THREE.Scene, world: WorldSpec) {
+    this.beamCeilings = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
+      .map(object => ({ x: object.pos.x, z: object.pos.z, y: object.pos.y + (object.kind === 'roof' ? 0 : 2.95),
+        halfWidth: object.scale.x / 2, halfDepth: object.scale.z / 2 }));
+    for (const item of world.loot) if (item.kind === 'weapon') this.beamHeight(item);
     const counts = new Map<string, number>();
     for (const item of world.loot) counts.set(lootKey(item), (counts.get(lootKey(item)) || 0) + 1);
     for (const [key, count] of counts) this.lootBatch(key, count);
@@ -86,6 +92,17 @@ export class LootView {
     this.chestGlints = new THREE.InstancedMesh(new THREE.SphereGeometry(.08, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd38a', transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false }), world.chests.length);
     for (const mesh of [this.chestBases, this.chestLids, this.chestGlints]) { mesh.frustumCulled = false; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(mesh); }
     world.chests.forEach((spec, index) => { const visual = { index, open: 0, pos: spec }; this.chestList.push({ id: spec.id, visual }); });
+  }
+
+  private beamHeight(item: LootSpawn) {
+    let limit = this.beamLimits.get(item.id);
+    if (limit !== undefined) return limit;
+    const base = item.y + .05;
+    limit = Infinity;
+    for (const ceiling of this.beamCeilings) if (ceiling.y > base && Math.abs(item.x - ceiling.x) <= ceiling.halfWidth &&
+      Math.abs(item.z - ceiling.z) <= ceiling.halfDepth) limit = Math.min(limit, Math.max(0, ceiling.y - base - .08));
+    this.beamLimits.set(item.id, limit);
+    return limit;
   }
 
   private lootBatch(key: string, count = 0): LootBatch {
@@ -143,7 +160,7 @@ export class LootView {
       this.temp.position.set(x, y, z); this.temp.rotation.set(0, 0, 0); this.temp.scale.setScalar((1.35 + tier * .22) * landed); this.temp.updateMatrix();
       this.lootHalos.setMatrixAt(halos, this.temp.matrix); this.lootHalos.setColorAt(halos++, tier ? color : this.haloColor.copy(color).multiplyScalar(.55));
       if (!tier) continue;
-      this.temp.position.set(x, item.y + .05, z); this.temp.scale.set(1, (2 + tier * 1.1) * landed, 1); this.temp.updateMatrix();
+      this.temp.position.set(x, item.y + .05, z); this.temp.scale.set(1, Math.min(2 + tier * 1.1, this.beamHeight(item)) * landed, 1); this.temp.updateMatrix();
       this.lootBeams.setMatrixAt(beams, this.temp.matrix); this.lootBeams.setColorAt(beams++, color);
     }
     for (let i = this.drops.length - 1; i >= 0; i--) if (!this.drops[i].seen) { this.dropStarts.delete(this.drops[i].id); this.drops.splice(i, 1); }

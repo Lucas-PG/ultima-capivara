@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { terrainHeight } from '../shared/terrain';
 import type { WorldSpec } from '../shared/types';
 
 const WATER = { shallow: '#2EC4B6', middle: '#1FB0AE', deep: '#0E7C86', foam: '#F4FBF6' } as const;
@@ -11,16 +12,39 @@ export class PaintedWater {
   private readonly time = { value: 0 };
 
   constructor(world: WorldSpec, terrain: THREE.BufferGeometry) {
-    // Reuse the rendered terrain grid, so the shoreline follows that exact mesh
-    // without a second terrain generation or another asynchronous resource.
-    const positions = terrain.getAttribute('position'), side = Math.round(Math.sqrt(positions.count));
-    const values = new Uint8Array(positions.count);
-    for (let i = 0; i < values.length; i++) values[i] = Math.round(THREE.MathUtils.clamp((LEVEL - positions.getY(i)) / DEPTH_RANGE, 0, 1) * 255);
+    // Keep the exact rendered samples at the shore, but extend the bathymetry
+    // beyond its square boundary using the shared coast. Distance to dry land
+    // deepens the offshore shelf organically, including outside the height grid.
+    const positions = terrain.getAttribute('position'), terrainSide = Math.round(Math.sqrt(positions.count));
+    const stride = world.size / (terrainSide - 1), padding = Math.ceil(100 / stride), side = terrainSide + padding * 2;
+    const fieldSize = (side - 1) * stride, depths = new Float32Array(side * side), distance = new Float32Array(side * side);
+    for (let z = 0; z < side; z++) for (let x = 0; x < side; x++) {
+      const tx = x - padding, tz = z - padding, i = z * side + x;
+      const height = tx >= 0 && tz >= 0 && tx < terrainSide && tz < terrainSide
+        ? positions.getY(tz * terrainSide + tx) : terrainHeight(x * stride - fieldSize / 2, z * stride - fieldSize / 2);
+      depths[i] = Math.max(0, LEVEL - height); distance[i] = depths[i] > 0 ? 1e6 : 0;
+    }
+    // Two chamfer sweeps, once during loading. No per-frame coast queries.
+    for (let z = 0; z < side; z++) for (let x = 0; x < side; x++) {
+      const i = z * side + x;
+      if (x) distance[i] = Math.min(distance[i], distance[i - 1] + 1);
+      if (z) distance[i] = Math.min(distance[i], distance[i - side] + 1,
+        x ? distance[i - side - 1] + Math.SQRT2 : 1e6, x + 1 < side ? distance[i - side + 1] + Math.SQRT2 : 1e6);
+    }
+    for (let z = side - 1; z >= 0; z--) for (let x = side - 1; x >= 0; x--) {
+      const i = z * side + x;
+      if (x + 1 < side) distance[i] = Math.min(distance[i], distance[i + 1] + 1);
+      if (z + 1 < side) distance[i] = Math.min(distance[i], distance[i + side] + 1,
+        x ? distance[i + side - 1] + Math.SQRT2 : 1e6, x + 1 < side ? distance[i + side + 1] + Math.SQRT2 : 1e6);
+    }
+    const values = new Uint8Array(depths.length);
+    for (let i = 0; i < values.length; i++) values[i] = Math.round(THREE.MathUtils.clamp(
+      Math.max(depths[i], Math.max(0, distance[i] * stride - 6) * .16) / DEPTH_RANGE, 0, 1) * 255);
     this.depth = new THREE.DataTexture(values, side, side, THREE.RedFormat);
     this.depth.minFilter = this.depth.magFilter = THREE.LinearFilter; this.depth.needsUpdate = true;
     const material = new THREE.ShaderMaterial({
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
-        depthField: { value: this.depth }, grid: { value: side }, islandSize: { value: world.size }, uTime: this.time,
+        depthField: { value: this.depth }, grid: { value: side }, islandSize: { value: fieldSize }, uTime: this.time,
         shallow: { value: new THREE.Color(WATER.shallow) }, middle: { value: new THREE.Color(WATER.middle) },
         deep: { value: new THREE.Color(WATER.deep) }, foam: { value: new THREE.Color(WATER.foam) },
       }]),
@@ -38,14 +62,12 @@ export class PaintedWater {
         void main(){
           vec2 uv=vWorld.xz/islandSize+.5;
           vec2 sampleUV=(uv*(grid-1.0)+.5)/grid;
-          float sampledDepth=texture2D(depthField,sampleUV).r*12.0;
-          float beyond=max(0.0,max(abs(vWorld.x),abs(vWorld.z))-islandSize*.5);
-          float depth=sampledDepth+beyond*.35;
+          float depth=texture2D(depthField,sampleUV).r*12.0;
           vec2 stepUV=vec2(1.0/grid,0.0);
           float dx=texture2D(depthField,sampleUV+stepUV).r-texture2D(depthField,sampleUV-stepUV).r;
           float dz=texture2D(depthField,sampleUV+stepUV.yx).r-texture2D(depthField,sampleUV-stepUV.yx).r;
           float slope=length(vec2(dx,dz))*12.0*(grid-1.0)/(2.0*islandSize);
-          float shoreDistance=depth/max(.015,beyond>0.0?.35:slope);
+          float shoreDistance=depth/max(.015,slope);
           vec3 color=mix(shallow,middle,smoothstep(.3,3.0,depth));
           color=mix(color,deep,smoothstep(3.0,10.0,depth));
           float broadWave=.5+.5*sin(vWorld.x*.18+vWorld.z*.12-uTime*.4);
