@@ -62,6 +62,7 @@ export class SoundEngine {
   private duckUntil = 0;
   private voiceAt = new Map<string, number>();
   private voiceEnds: number[] = [];
+  private pendingHurt = new Set<string>();
   private nextSpotCheck = 0;
   private spottedActor: string | null = null;
   private phrase = 0;
@@ -138,9 +139,17 @@ export class SoundEngine {
       const reloadSample = event.weapon === 'shotgun' ? 'reload-shell' : 'reload-mag';
       if (!this.playSample(reloadSample, output, .13, ctx.currentTime, .18)) this.metalClick(output, ctx.currentTime, 1200, .16);
     } else if (event.type === 'damage') {
-      this.duckUntil = Math.max(this.duckUntil, ctx.currentTime + 2);
+      if (event.actor === myId || event.target === myId || Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z) < 35)
+        this.duckUntil = Math.max(this.duckUntil, ctx.currentTime + 2);
       const hurt = this.lastSnapshot?.actors.find(a => a.id === event.target);
-      if (hurt) this.voiceChirp('hurt', hurt.id, hurt.pos, listener, myId);
+      // Damage and kill arrive in the same batch. A microtask lets elimination take the actor's voice slot.
+      if (hurt && !this.pendingHurt.has(hurt.id)) {
+        this.pendingHurt.add(hurt.id);
+        queueMicrotask(() => {
+          if (!this.pendingHurt.delete(hurt.id) || this.disposed || this.context !== ctx) return;
+          this.voiceChirp('hurt', hurt.id, hurt.pos, listener, myId);
+        });
+      }
       if (event.target === myId) {
         this.noise(this.buses.effects, ctx.currentTime, .18, 'lowpass', 260, .12, .004);
         this.tone(this.buses.effects, ctx.currentTime, 95, 48, .18, .12, 'sine');
@@ -148,6 +157,7 @@ export class SoundEngine {
         this.metalClick(this.buses.effects, ctx.currentTime, event.head ? 2550 : 1750, event.head ? .17 : .09);
       }
     } else if (event.type === 'kill') {
+      this.pendingHurt.delete(event.target);
       const eliminated = this.lastSnapshot?.actors.find(a => a.id === event.target);
       if (eliminated) this.voiceChirp('elimination', eliminated.id, eliminated.pos, listener, myId);
       if (event.actor === myId) this.tone(this.buses.effects, ctx.currentTime, 470, 720, .16, .07, 'triangle');
@@ -228,7 +238,7 @@ export class SoundEngine {
     this.spatialNodes.clear();
     void this.context?.close();
     this.context = null; this.buses = null; this.noiseBuffer = null; this.lowNoiseBuffer = null;
-    this.musicDucker = null; this.voiceAt.clear(); this.voiceEnds = []; this.spottedActor = null;
+    this.musicDucker = null; this.voiceAt.clear(); this.voiceEnds = []; this.pendingHurt.clear(); this.spottedActor = null;
     this.samples = {};
   }
 

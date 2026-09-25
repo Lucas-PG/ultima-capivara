@@ -34,6 +34,30 @@ describe('audio mix and capybara chirps', () => {
     expect(audio.tone).toHaveBeenCalledTimes(14);
   });
 
+  it('ducks only nearby or player combat and gives lethal hits the elimination voice slot', async () => {
+    const audio = new SoundEngine(DEFAULT_SETTINGS) as any;
+    audio.context = { currentTime: 1, state: 'running' };
+    audio.buses = { effects: {} };
+    audio.placeListener = vi.fn();
+    audio.voiceChirp = vi.fn();
+    const here = { x: 0, y: 0, z: 0 }, far = { x: 100, y: 0, z: 0 };
+    audio.lastSnapshot = { actors: [
+      { id: 'far', pos: far }, { id: 'near', pos: here }, { id: 'lethal', pos: here },
+    ] };
+    audio.event({ id: 1, type: 'damage', actor: 'enemy', target: 'far', amount: 10, head: false, pos: far }, here, 0, 'self');
+    await Promise.resolve();
+    expect(audio.duckUntil).toBe(0);
+    audio.event({ id: 2, type: 'damage', actor: 'enemy', target: 'near', amount: 10, head: false, pos: here }, here, 0, 'self');
+    await Promise.resolve();
+    expect(audio.duckUntil).toBe(3);
+    expect(audio.voiceChirp).toHaveBeenCalledWith('hurt', 'near', here, here, 'self');
+    audio.event({ id: 3, type: 'damage', actor: 'enemy', target: 'lethal', amount: 100, head: false, pos: here }, here, 0, 'self');
+    audio.event({ id: 4, type: 'kill', actor: 'enemy', target: 'lethal', weapon: 'smg' }, here, 0, 'self');
+    await Promise.resolve();
+    expect(audio.voiceChirp).not.toHaveBeenCalledWith('hurt', 'lethal', here, here, 'self');
+    expect(audio.voiceChirp).toHaveBeenCalledWith('elimination', 'lethal', here, here, 'self');
+  });
+
   it('plays a sparse in-match bed and ducks it by about 6 dB for nearby combat', () => {
     const audio = new SoundEngine(DEFAULT_SETTINGS) as any;
     const gain = { setTargetAtTime: vi.fn() };
