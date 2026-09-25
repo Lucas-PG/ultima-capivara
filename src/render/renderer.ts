@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec, type ZoneState } from '../shared/types';
+import { AssetLoader } from './assets';
+import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
 import { AvatarView, avatar, BOT_COLOR } from './avatars';
@@ -21,6 +23,8 @@ export class GameRenderer {
   private readonly scene = new THREE.Scene();
   private readonly worldView: WorldScene;
   private readonly weaponView: WeaponView;
+  private readonly assets: AssetLoader;
+  private readonly onProgress: AssetProgressCallback;
   private readonly avatars: AvatarView;
   private readonly cameraRig: CameraRig;
   private readonly loot: LootView;
@@ -31,6 +35,7 @@ export class GameRenderer {
   private stormAmount = 0;
   private stormPulse = 0;
   private effectsMatch = '';
+  private readonly propellers = this.plane.children.filter(child => child.name === 'propeller');
   private readonly sun: THREE.DirectionalLight;
   private readonly interiorLight = new THREE.PointLight('#ffd09b', 0, 8, 2);
   private readonly litRooms: { x: number; y: number; z: number; w: number; d: number; bakery: boolean }[];
@@ -46,15 +51,19 @@ export class GameRenderer {
   private slowFor = 0;
   private fastFor = 0;
   private warming: Promise<void> | null = null;
+  private preparation: Promise<void> = Promise.resolve();
+  private disposed = false;
 
-  constructor(canvas: HTMLCanvasElement, world: WorldSpec, settings: Settings, onAssetsReady: () => void = () => {}) {
+  constructor(canvas: HTMLCanvasElement, world: WorldSpec, settings: Settings, onAssetsReady: () => void = () => {}, onProgress: AssetProgressCallback = () => {}) {
+    this.onProgress = (fraction, label) => { if (!this.disposed) onProgress(fraction, label); };
     this.settings = settings;
     this.litRooms = world.objects.filter(object => object.detail === 'prop:house:bakery' || object.detail === 'prop:house:cafe')
       .map(object => ({ ...object.pos, w: object.scale.x, d: object.scale.z, bakery: object.detail!.endsWith('bakery') }));
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
-    this.weaponView = new WeaponView(onAssetsReady);
+    this.assets = new AssetLoader(this.gl, this.onProgress);
+    this.weaponView = new WeaponView(this.assets, () => { if (!this.disposed) onAssetsReady(); });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     // Neutral keeps saturated cartoon colours; ACES washed them toward grey.
     this.gl.toneMapping = THREE.NeutralToneMapping; this.gl.toneMappingExposure = 1.15;
@@ -86,7 +95,8 @@ export class GameRenderer {
       fragmentShader: 'varying vec3 vPosition;void main(){float h=normalize(vPosition).y;vec3 horizon=vec3(.95,.81,.64);vec3 middle=vec3(.68,.82,.80);vec3 top=vec3(.42,.65,.76);vec3 color=mix(horizon,middle,smoothstep(-.1,.3,h));color=mix(color,top,smoothstep(.25,.9,h));gl_FragColor=vec4(color,1.0);}',
     }));
     this.scene.add(haze);
-    this.worldView = new WorldScene(world, settings, () => {
+    this.worldView = new WorldScene(world, settings, this.assets, () => {
+      if (this.disposed) return;
       if (this.worldView.skyTexture.image?.data) {
         this.scene.background = this.worldView.skyTexture;
         this.scene.backgroundIntensity = .8;
@@ -135,6 +145,7 @@ export class GameRenderer {
   }
 
   update(frame: RenderFrame): void {
+    if (this.disposed) return;
     this.adaptResolution();
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
@@ -145,18 +156,20 @@ export class GameRenderer {
     this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed);
     this.cameraRig.update(frame, this.settings, this.elapsed, this.weaponView.adsAmount);
     this.loot.update(frame.snapshot, this.elapsed);
-    const room = this.litRooms.find(room => Math.abs(this.camera.position.x - room.x) < room.w / 2 &&
-      Math.abs(this.camera.position.z - room.z) < room.d / 2 && this.camera.position.y < room.y + 3.1);
+    let room: typeof this.litRooms[number] | undefined;
+    for (const candidate of this.litRooms) if (Math.abs(this.camera.position.x - candidate.x) < candidate.w / 2 &&
+      Math.abs(this.camera.position.z - candidate.z) < candidate.d / 2 && this.camera.position.y < candidate.y + 3.1) { room = candidate; break; }
     if (room) {
       this.interiorLight.position.set(room.bakery ? room.x + room.w / 2 - 1.95 : room.x,
         room.y + (room.bakery ? .93 : 2.45), room.bakery ? room.z - room.d * .24 : room.z);
-      this.interiorLight.color.set(room.bakery ? '#ffae62' : '#ffdcaa');
+      this.interiorLight.color.setHex(room.bakery ? 0xffae62 : 0xffdcaa);
     }
     this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? room.bakery ? 4.3 : 4 : 0, 7, dt);
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), snapshot?.time || 0);
-    const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && ['sniper', 'dmr'].includes(viewed.weapons[viewed.slot]?.id || '');
+    const held = viewed?.weapons[viewed.slot]?.id;
+    const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
     const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35);
     this.effects.update(dt, { camera: this.camera, fpCamera: this.weaponView.camera, avatars: this.avatars, firstPerson, viewportHeight: this.lastSize.height });
     if (snapshot) {
@@ -166,12 +179,12 @@ export class GameRenderer {
       this.storm.update(zone, this.camera, this.elapsed, br);
       const exposed = br && viewed?.alive && viewed.stage !== 'plane' ? StormView.exposure(zone, viewed.pos.x, viewed.pos.z) : 0;
       this.stormAmount = damp(this.stormAmount, exposed, 5, dt);
-      this.plane.visible = frame.playing && snapshot.config.mode === 'battle-royale' && snapshot.actors.some(a => a.stage === 'plane');
+      this.plane.visible = frame.playing && snapshot.config.mode === 'battle-royale' && this.hasPlanePassengers(snapshot);
       this.plane.position.copy(this.cameraRig.planePosition);
       // The nose (-Z) follows the flight path.
       if (this.cameraRig.planeVelocity.lengthSq() > 1) this.plane.rotation.y = Math.atan2(-this.cameraRig.planeVelocity.x, -this.cameraRig.planeVelocity.z);
       else this.plane.rotation.y = -Math.PI / 2;
-      this.plane.children.filter(child => child.name === 'propeller').forEach(child => { child.rotation.z += dt * 34; });
+      for (const propeller of this.propellers) propeller.rotation.z += dt * 34;
     } else { this.storm.update(ZONE_NONE, this.camera, this.elapsed, false); this.stormAmount = 0; this.plane.visible = false; this.worldView.arenaBoundary.visible = false; }
     this.stormPulse = Math.max(0, this.stormPulse - dt / .45);
     this.pipeline.setScreenFeedback(this.stormAmount, this.settings.reducedMotion ? this.stormPulse * .5 : this.stormPulse);
@@ -193,6 +206,11 @@ export class GameRenderer {
     }
   }
 
+  private hasPlanePassengers(snapshot: NonNullable<RenderFrame['snapshot']>) {
+    for (const actor of snapshot.actors) if (actor.stage === 'plane') return true;
+    return false;
+  }
+
   event(event: GameEvent): void {
     const frame = this.lastFrame, viewed = frame?.spectateId || frame?.playerId;
     // A storm bite on the viewed capybara: attacker-less damage while outside the zone.
@@ -200,24 +218,42 @@ export class GameRenderer {
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
 
-  // Menu-time preload: waits for the world's textures (and sky) to arrive, then compiles every
-  // shader of the world and first-person scenes so the first match frame doesn't stall.
-  // Never rejects; gives up waiting after 15 s so a slow network can't block the game.
-  warmup(): Promise<void> {
+  // Asset failures keep the loading screen from promising a ready match.
+  // There is no timeout that silently defers work until landing or a weapon swap.
+  private requireActive() {
+    if (this.disposed) throw new Error('Renderer disposed before match preparation completed');
+  }
+
+  async warmup(): Promise<void> {
+    this.requireActive();
     this.warming ||= (async () => {
-      const textures = () => { const list: THREE.Texture[] = []; this.scene.traverse(object => { const mats = (object as THREE.Mesh).material; for (const mat of Array.isArray(mats) ? mats : mats ? [mats] : []) for (const value of Object.values(mat)) if (value instanceof THREE.Texture) list.push(value); }); return list; };
-      const loaded = (texture: THREE.Texture) => { const image = texture.image as { complete?: boolean; data?: unknown; width?: number } | null; return !!image && image.complete !== false && (image.data !== undefined || (image.width ?? 0) > 0); };
-      const started = performance.now();
-      while (performance.now() - started < 15000 && !(this.worldView.skyTexture.image && textures().every(loaded))) await new Promise(resolve => setTimeout(resolve, 120));
-      await Promise.race([this.weaponView.assets, new Promise(resolve => setTimeout(resolve, Math.max(0, 15000 - (performance.now() - started))))]);
-      try {
-        this.resize();
-        await this.gl.compileAsync(this.scene, this.camera);
-        await this.gl.compileAsync(this.weaponView.scene, this.weaponView.camera);
-        this.uploadEverything();
-      } catch { /* compiling lazily on the first frame still works */ }
+      this.requireActive();
+      await this.weaponView.assets;
+      this.requireActive();
+      await this.assets.ready();
+      this.requireActive();
+      this.onProgress(.9, 'Pintando a ilha');
+      await import('./thumbnails').then(module => { this.requireActive(); return module.loadWeaponThumbnails(); });
+      this.requireActive();
+      this.resize();
+      await this.uploadEverything();
+      this.requireActive();
+      this.onProgress(.98, 'Chamando a turma');
     })();
     return this.warming;
+  }
+
+  prepareMatch(snapshot: NonNullable<RenderFrame['snapshot']>): Promise<void> {
+    this.preparation = this.preparation.then(async () => {
+      this.requireActive();
+      await this.warmup();
+      this.requireActive();
+      this.avatars.prepare(snapshot.actors);
+      await this.uploadEverything(false);
+      this.requireActive();
+      this.onProgress(1, 'Pronto!');
+    });
+    return this.preparation;
   }
 
   // One offscreen frame with culling off, every LOD level and weapon model shown
@@ -225,12 +261,13 @@ export class GameRenderer {
   // program variant (incl. shadow depth), so nothing stalls mid-match; the old
   // landing hitch was the first-person scene, far LODs and chests compiling and
   // uploading on the frame you touched the ground.
-  private uploadEverything() {
+  private async uploadEverything(reportProgress = true) {
+    this.requireActive();
     const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
     const culled: THREE.Object3D[] = [], hidden: THREE.Object3D[] = [], lods: THREE.LOD[] = [];
     const reveal = (root: THREE.Object3D) => root.traverse(object => {
       if (object.frustumCulled) { culled.push(object); object.frustumCulled = false; }
-      if (!object.visible) { hidden.push(object); object.visible = true; }
+      if (!object.visible && !(object instanceof THREE.Light)) { hidden.push(object); object.visible = true; }
       if (object instanceof THREE.LOD) { lods.push(object); object.autoUpdate = false; }
     });
     // Stand-in capybaras (one per fur colour, with gun, parachute and name tag)
@@ -240,23 +277,33 @@ export class GameRenderer {
       stand.weapon.geometry = itemGeometry('weapon', 'm4'); stand.group.position.copy(this.camera.position);
       this.scene.add(stand.group);
     }
+    this.scene.add(this.avatars.warmupWeapons);
     this.effects.warm(true);
     reveal(this.scene); this.weaponView.revealAll(true); reveal(this.weaponView.scene);
     const shadows = this.gl.shadowMap.enabled;
     try {
+      // Compile world programs against the same linear target as normal frames.
       this.gl.setRenderTarget(target);
+      await this.gl.compileAsync(this.scene, this.camera);
+      this.requireActive();
       this.gl.render(this.scene, this.camera);
-      this.gl.render(this.weaponView.scene, this.weaponView.camera);
+      if (reportProgress) this.onProgress(.96, 'Afiando as armas');
+      // First-person and post shaders target the canvas, with output colour and tone mapping.
       this.gl.setRenderTarget(null);
+      await this.gl.compileAsync(this.weaponView.scene, this.weaponView.camera);
+      this.requireActive();
+      this.gl.render(this.weaponView.scene, this.weaponView.camera);
+      await this.pipeline.warmup();
+      this.requireActive();
       this.pipeline.renderPost();
     } finally {
-      this.gl.setRenderTarget(null); this.gl.shadowMap.enabled = shadows;
+      if (!this.disposed) { this.gl.setRenderTarget(null); this.gl.shadowMap.enabled = shadows; }
       culled.forEach(object => { object.frustumCulled = true; });
       hidden.forEach(object => { object.visible = false; });
       lods.forEach(lod => { lod.autoUpdate = true; });
       this.weaponView.revealAll(false);
       this.effects.warm(false);
-      target.dispose();
+      target.dispose(); this.scene.remove(this.avatars.warmupWeapons);
       for (const stand of stands) {
         this.scene.remove(stand.group); stand.weapon.geometry.dispose(); stand.body.skeleton.dispose();
         stand.group.traverse(object => { if (object instanceof THREE.Sprite) { object.material.map?.dispose(); object.material.dispose(); } });
@@ -266,6 +313,7 @@ export class GameRenderer {
   }
 
   resize(): void {
+    if (this.disposed) return;
     const canvas = this.gl.domElement;
     const width = Math.max(1, canvas.clientWidth || window.innerWidth), height = Math.max(1, canvas.clientHeight || window.innerHeight);
     if (width === this.lastSize.width && height === this.lastSize.height) return;
@@ -285,9 +333,11 @@ export class GameRenderer {
   get cameraPosition(): Vec3 { return { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }; }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.scene.remove(this.worldView.group);
     this.worldView.dispose(); this.weaponView.dispose();
-    this.environment.dispose(); this.pipeline.dispose(); this.effects.dispose(); this.storm.dispose();
+    this.environment.dispose(); this.pipeline.dispose(); this.assets.dispose(); this.effects.dispose(); this.storm.dispose();
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
     this.scene.traverse(object => {
       if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite || object instanceof THREE.Line)) return;

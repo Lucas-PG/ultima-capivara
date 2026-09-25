@@ -270,7 +270,7 @@ describe('authoritative simulation', () => {
   });
 
   it('fires one pistol round for a quick trigger press after the release frame arrives', () => {
-    const sim = new Simulation(world(), config, [profiles[0]], 'quick-trigger');
+    const sim = new Simulation(world(), config, [profiles[0]], 'quick-trigger', 21);
     advance(sim, 3.1);
     sim.action('a', { type: 'slot', id: 1, slot: 1 });
     const press = { type: 'trigger' as const, id: 2, yaw: Math.PI / 2, pitch: 0, lean: 0, ads: true, clientTime: sim.snapshot().time };

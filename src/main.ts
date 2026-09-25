@@ -1,11 +1,11 @@
 import './ui/style.css';
 import { createWorld } from './shared/world';
 import { ARENA } from './shared/layout';
-import { actorEye, hasLineOfSight, moveActor } from './shared/collision';
-import { clamp, distance } from './shared/math';
+import { moveActor } from './shared/collision';
+import { clamp } from './shared/math';
+import { closestInteraction as findInteraction } from './shared/interaction';
 import { WEAPONS } from './shared/weapons';
-import { rarityOf } from './shared/rarity';
-import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot } from './shared/types';
+import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot, RenderFrame } from './shared/types';
 import { GameRenderer } from './render/renderer';
 import { RoomSession } from './network/session';
 import { InputController } from './input';
@@ -22,9 +22,12 @@ if (requestedFps === 30 || requestedFps === 60) settings.frameLimit = requestedF
 let activeFrameLimit = settings.frameLimit;
 const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
+const renderFrame: RenderFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
 let renderer: GameRenderer | null = null;
 // One renderer for the page's lifetime, warmed up on the menu; `loading` holds the match's loading screen until the first real frame.
 let rendererReady: Promise<void> | null = null, loading = false, readyToReveal = false;
+let matchPreparation: Promise<void> | null = null;
+let loadFraction = 0, loadLabel = 'Desenhando a ilha';
 let worker: Worker | null = null;
 let snapshot: WorldSnapshot | null = null;
 let room: RoomState | null = null;
@@ -39,6 +42,7 @@ let fps = 0, frameCount = 0, fpsAt = performance.now();
 let renderedFrames = 0;
 let dirtyFrame = true;
 let interaction: { id: string; name: string } | null = null;
+const interactionResult = { id: '', name: '' };
 let adaptRecorded = '';
 
 const session = new RoomSession({
@@ -91,7 +95,14 @@ const ui = new GameUI(world, settings, profile, {
 });
 
 function ensureRenderer() {
-  if (!renderer) { renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }); rendererReady = renderer.warmup(); }
+  if (!renderer) { renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }, (fraction) => {
+    loadFraction = fraction;
+    loadLabel = fraction < .15 ? 'Desenhando a ilha' : fraction < .3 ? 'Plantando os coqueiros' :
+      fraction < .45 ? 'Enchendo o mar' : fraction < .6 ? 'Escondendo os baús' :
+      fraction < .75 ? 'Engraxando as armas' : fraction < .9 ? 'Chamando a turma' :
+      fraction < 1 ? 'Carregando o avião' : 'Pronto!';
+    ui.setLoadingProgress(fraction, loadLabel);
+  }); rendererReady = renderer.warmup(); void rendererReady.catch(() => {}); }
   renderer.resize();
 }
 function beginMatch(id: string, matchId: string) {
@@ -105,11 +116,20 @@ function beginMatch(id: string, matchId: string) {
   playerId = id; match = matchId; playing = true; dirtyFrame = true;
   lastEvent = 0; initializedPose = false; lastAlive = true; lastStage = '';
   input.reset(); ui.closeModal(); ui.game(id); ui.setPaused(!input.locked);
-  loading = true; readyToReveal = false; ui.setLoading(true);
-  void rendererReady?.then(() => { if (match === matchId) { readyToReveal = true; dirtyFrame = true; } });
+  loading = true; readyToReveal = false; matchPreparation = null; ui.setLoading(true);
+  ui.setLoadingProgress(Math.min(.98, loadFraction), loadFraction >= .98 ? 'Carregando o avião' : loadLabel);
   return true;
 }
 function startWorker(config: RoomConfig, players: PlayerProfile[], matchId: string) {
+  void rendererReady?.then(() => {
+    if (!playing || match !== matchId) return;
+    startReadyWorker(config, players, matchId);
+  }).catch(() => {
+    if (match !== matchId) return;
+    leave(); ui.toast('Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
+  });
+}
+function startReadyWorker(config: RoomConfig, players: PlayerProfile[], matchId: string) {
   worker?.terminate();
   worker = new Worker(new URL('./simulation/host.worker.ts', import.meta.url), { type: 'module' });
   worker.onmessage = ({ data }) => {
@@ -146,6 +166,15 @@ function leave() {
 function acceptSnapshot(next: WorldSnapshot) {
   if (next.matchId !== match || (snapshot && next.tick < snapshot.tick)) return;
   snapshot = next; receivedAt = performance.now();
+  if (loading && !matchPreparation) {
+    const preparingId = match;
+    matchPreparation = renderer!.prepareMatch(next).then(() => {
+      if (playing && match === preparingId) { readyToReveal = true; dirtyFrame = true; }
+    }).catch(() => {
+      if (match !== preparingId) return;
+      leave(); ui.toast('Não foi possível preparar a partida. Recarregue a página e tente novamente.', true);
+    });
+  }
   const actor = next.actors.find(a => a.id === playerId);
   if (actor) {
     if (!initializedPose || (!lastAlive && actor.alive)) {
@@ -212,20 +241,7 @@ function cycleSpectator() {
   spectateId = alive[(index + 1) % alive.length]?.id || null; dirtyFrame = true;
 }
 function closestInteraction() {
-  const me = predicted;
-  if (!snapshot || !me?.alive || me.stage !== 'ground') return null;
-  const eye = { ...me.pos, y: me.pos.y + actorEye(me) };
-  const options: { id: string; name: string; distance: number }[] = [];
-  const candidates = [
-    ...snapshot.loot.filter(l => l.active).map(l => ({ ...l, name: l.weapon ? `${WEAPONS[l.weapon].name} ${rarityOf(l.rarity).name.toLowerCase()}` : ({ weapon: 'Arma', ammo: 'Munição', armor: 'Colete', helmet: 'Capacete', bandage: 'Bandagem', medkit: 'Kit médico', guarana: 'Guaraná', acai: 'Açaí', rapadura: 'Rapadura' }[l.kind] || 'Equipamento') })),
-    ...world.chests.filter(c => !snapshot!.openedChests.includes(c.id)).map(c => ({ ...c, name: 'Abrir caixa de suprimentos' })),
-  ];
-  for (const candidate of candidates) {
-    const dist = distance(me.pos, candidate);
-    if (dist <= 3 && hasLineOfSight(eye, { ...candidate, y: candidate.y + .5 }, world)) options.push({ id: candidate.id, name: candidate.name, distance: dist });
-  }
-  options.sort((a, b) => a.distance - b.distance);
-  return options[0] || null;
+  return findInteraction(world, snapshot, predicted, interactionResult);
 }
 input.onAction = sendAction;
 input.onCycle = direction => {
@@ -239,7 +255,7 @@ input.onPause = () => { if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 window.addEventListener('resize', () => { renderer?.resize(); dirtyFrame = true; });
-window.addEventListener('pagehide', () => { session.leave(); worker?.terminate(); sound.dispose(); renderer?.dispose(); });
+window.addEventListener('pagehide', () => { stopMatch(); session.leave(); sound.dispose(); renderer?.dispose(); });
 window.addEventListener('pageshow', event => {
   // pagehide releases the match and audio hardware. A restored page must create
   // fresh resources instead of reviving references to a terminated Worker.
@@ -256,7 +272,7 @@ document.addEventListener('visibilitychange', () => {
 function frame(now: number) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - lastFrame) / 1000, .1); lastFrame = now;
-  if (document.hidden) return;
+  if (document.hidden || (loading && !readyToReveal)) return;
   input.recoverRecoil(dt);
   const me = snapshot?.actors.find(a => a.id === playerId) || null;
   const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : me;
@@ -283,7 +299,8 @@ function frame(now: number) {
   if (spectateId && !snapshot.actors.some(a => a.id === spectateId && a.alive)) cycleSpectator();
   interaction = closestInteraction();
   if (input.locked || dirtyFrame || ended) {
-    renderer?.update({ snapshot, playerId, input: input.frame, dt: renderDt, playing: true, spectateId, predicted: predicted?.pos });
+    renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt;
+    renderFrame.spectateId = spectateId; renderFrame.predicted = predicted?.pos; renderer?.update(renderFrame);
     renderedFrames++; frameCount++; dirtyFrame = false;
     if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }

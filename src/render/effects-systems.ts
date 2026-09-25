@@ -58,6 +58,8 @@ function cardMaterial(atlas: THREE.Texture, additive: boolean): THREE.ShaderMate
       void main(){vec4 t=texture2D(uAtlas,vUv);float a=t.a*vAlpha;if(a<.01)discard;
         vec3 c=mix(vColor,vLight,t.r);c=mix(c,uInk,t.g*uInkMix);gl_FragColor=vec4(c,a);
         #include <fog_fragment>
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }`,
     transparent: true, depthWrite: false, fog: !additive,
     blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
@@ -218,7 +220,10 @@ export class TracerSystem {
         }`,
       fragmentShader: `varying float vAcross;varying float vAlong;varying float vAlpha;varying vec3 vColor;varying vec3 vLight;
         void main(){float core=1.0-smoothstep(.3,.45,abs(vAcross));float a=vAlpha*smoothstep(0.0,.4,vAlong)*(1.0-smoothstep(.85,1.0,abs(vAcross)));
-          if(a<.01)discard;gl_FragColor=vec4(mix(vColor,vLight,core),a);}`,
+          if(a<.01)discard;gl_FragColor=vec4(mix(vColor,vLight,core),a);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
       transparent: true, depthWrite: false,
     });
     this.mesh = new THREE.Mesh(this.geometry, this.material);
@@ -311,6 +316,8 @@ export class DecalSystem {
         void main(){vec4 t=texture2D(uAtlas,vUv);float a=t.a*vAlpha;if(a<.01)discard;
           gl_FragColor=vec4(mix(mix(vColor,vLight,t.r),vec3(.227,.141,.094),t.g*.9),a);
           #include <fog_fragment>
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
         }`,
       transparent: true, depthWrite: false, fog: true, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,

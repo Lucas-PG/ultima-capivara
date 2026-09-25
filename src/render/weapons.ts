@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import type { AssetLoader } from './assets';
 import { damp } from '../shared/math';
 import { advanceAds, WEAPONS } from '../shared/weapons';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
@@ -488,7 +488,7 @@ export class WeaponView {
   private disposed = false;
   private furColor = '';
 
-  constructor(onAssetsReady: () => void = () => {}) {
+  constructor(private readonly loader: AssetLoader, onAssetsReady: () => void = () => {}) {
     this.scene.add(new THREE.HemisphereLight('#e4ece6', '#5e5147', .85));
     const key = new THREE.DirectionalLight('#ffe6c4', 2.7); key.position.set(-1.4, 2.4, 2.2); this.scene.add(key);
     const rim = new THREE.DirectionalLight('#b9e3ea', 1.1); rim.position.set(1.8, .9, -1.6); this.scene.add(rim);
@@ -510,13 +510,12 @@ export class WeaponView {
         sightY: body.userData.sightY || 0, hipX: id === 'pistol' ? .23 : id === 'machete' ? .25 : id === 'slingshot' ? .23 : id === 'smg' ? .20 : .18,
         adsZ: id === 'pistol' ? -.36 : id === 'machete' ? -.32 : id === 'slingshot' ? -.33 : -.29 };
     }
-    // `assets` settles once every imported model has loaded (or failed), so the
-    // renderer's warm-up can compile and upload them before the first match.
-    let pending = (pistolFallback ? 1 : 0) + (sniperFallback ? 1 : 0), settle = () => {};
-    this.assets = pending ? new Promise<void>(resolve => { settle = resolve; }) : Promise.resolve();
-    const ready = () => { onAssetsReady(); if (--pending <= 0) settle(); };
-    if (pistolFallback) this.loadPistol(pistolFallback, ready);
-    if (sniperFallback) this.loadSniper(sniperFallback, ready);
+    this.assets = Promise.all([
+      pistolFallback ? this.loadPistol(pistolFallback) : Promise.resolve(),
+      sniperFallback ? this.loadSniper(sniperFallback) : Promise.resolve(),
+    ]).then(() => { onAssetsReady(); });
+    void this.assets.catch(() => {});
+
   }
 
   readonly assets: Promise<void>;
@@ -527,102 +526,92 @@ export class WeaponView {
     for (const [id, model] of Object.entries(this.models) as [WeaponId, Model][]) model.group.visible = on || id === this.active;
   }
 
-  private loadPistol(fallback: THREE.Group, onAssetsReady: () => void) {
-    const url = `${import.meta.env.BASE_URL}models/service-pistol/service_pistol_1k.gltf`;
-    new GLTFLoader().load(url, gltf => {
-      if (this.disposed) { disposeImported(gltf.scene); return; }
-      const names = ['service_pistol_pistol_a', 'service_pistol_slide_a', 'service_pistol_hammer_a',
-        'service_pistol_trigger_a', 'service_pistol_magazine_loaded'];
-      const nodes = names.map(name => gltf.scene.getObjectByName(name));
-      if (nodes.some(node => !node)) { disposeImported(gltf.scene); onAssetsReady(); return; }
-      const [frame, slide, hammer, trigger, loadedMagazine] = nodes as THREE.Object3D[];
-      const modelRoot = new THREE.Group();
-      modelRoot.rotation.y = Math.PI / 2;
-      modelRoot.scale.setScalar(1.7);
-      modelRoot.position.y = -.06;
-      for (const part of [frame, hammer, trigger]) modelRoot.add(part);
-      const slideMotion = new THREE.Group(); slideMotion.userData.gltfSlide = true;
-      slideMotion.add(slide); modelRoot.add(slideMotion);
-      loadedMagazine.position.set(0, 0, 0);
-      const magazineMotion = new THREE.Group();
-      magazineMotion.position.set(-.005, -.03, 0);
-      magazineMotion.userData.restY = -.03;
-      magazineMotion.userData.travel = .11;
-      magazineMotion.add(loadedMagazine); modelRoot.add(magazineMotion);
-      modelRoot.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = true; });
-      addOutlines(modelRoot);
-      const pistol = this.models.pistol;
-      pistol.group.remove(fallback);
-      fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
-      pistol.group.add(modelRoot);
-      pistol.magazine = magazineMotion;
-      pistol.action = slideMotion;
-      pistol.sightY = .074;
-      pistol.eject.position.set(.038, .046, -.07);
-      onAssetsReady();
-    }, undefined, () => { if (!this.disposed) onAssetsReady(); });
+  private async loadPistol(fallback: THREE.Group) {
+    const gltf = await this.loader.gltf('models/service-pistol/service_pistol_1k.gltf');
+    if (this.disposed) { disposeImported(gltf.scene); return; }
+    const names = ['service_pistol_pistol_a', 'service_pistol_slide_a', 'service_pistol_hammer_a',
+      'service_pistol_trigger_a', 'service_pistol_magazine_loaded'];
+    const nodes = names.map(name => gltf.scene.getObjectByName(name));
+    const missing = names.filter((_, index) => !nodes[index]);
+    if (missing.length) {
+      disposeImported(gltf.scene);
+      throw new Error(`models/service-pistol/service_pistol_1k.gltf: missing required nodes ${missing.join(', ')}`);
+    }
+    const [frame, slide, hammer, trigger, loadedMagazine] = nodes as THREE.Object3D[];
+    const modelRoot = new THREE.Group();
+    modelRoot.rotation.y = Math.PI / 2;
+    modelRoot.scale.setScalar(1.7);
+    modelRoot.position.y = -.06;
+    for (const part of [frame, hammer, trigger]) modelRoot.add(part);
+    const slideMotion = new THREE.Group(); slideMotion.userData.gltfSlide = true;
+    slideMotion.add(slide); modelRoot.add(slideMotion);
+    loadedMagazine.position.set(0, 0, 0);
+    const magazineMotion = new THREE.Group();
+    magazineMotion.position.set(-.005, -.03, 0);
+    magazineMotion.userData.restY = -.03;
+    magazineMotion.userData.travel = .11;
+    magazineMotion.add(loadedMagazine); modelRoot.add(magazineMotion);
+    modelRoot.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = true; });
+    addOutlines(modelRoot);
+    const pistol = this.models.pistol;
+    pistol.group.remove(fallback);
+    fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
+    pistol.group.add(modelRoot);
+    pistol.magazine = magazineMotion;
+    pistol.action = slideMotion;
+    pistol.sightY = .074;
+    pistol.eject.position.set(.038, .046, -.07);
   }
 
-  private async loadSniper(fallback: THREE.Group, onAssetsReady: () => void) {
-    try {
-      const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
-      if (this.disposed) return;
-      const manager = new THREE.LoadingManager();
-      const base = `${import.meta.env.BASE_URL}models/m700/`;
-      const loader = new THREE.TextureLoader(manager);
-      const color = loader.load(`${base}color.webp`);
-      color.colorSpace = THREE.SRGBColorSpace;
-      const normal = loader.load(`${base}normal.webp`);
-      const metalness = loader.load(`${base}metalness.webp`);
-      const ao = loader.load(`${base}ao.webp`);
-      const roughness = loader.load(`${base}roughness.webp`);
-      const maps = [color, normal, metalness, ao, roughness];
-      let installed = false;
-      manager.onLoad = () => {
-        if (!installed) maps.forEach(map => map.dispose());
-        if (!this.disposed) onAssetsReady();
-      };
-      new FBXLoader(manager).load(`${base}m700.fbx`, fbx => {
-        if (this.disposed) { disposeImported(fbx); return; }
-        const main = fbx.getObjectByName('FRAME_LOD0001');
-        if (!(main instanceof THREE.SkinnedMesh)) { disposeImported(fbx); return; }
-        const material = new THREE.MeshStandardMaterial({
-          map: color, normalMap: normal, normalScale: new THREE.Vector2(.7, -.7),
-          metalnessMap: metalness, aoMap: ao, roughnessMap: roughness,
-          metalness: 1, roughness: 1, aoMapIntensity: .65,
-        });
-        const originals = new Set<THREE.Material>();
-        fbx.traverse(object => {
-          if (!(object instanceof THREE.Mesh)) return;
-          const mesh = object as THREE.Mesh;
-          for (const old of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) originals.add(old);
-          mesh.material = Array.isArray(mesh.material) ? mesh.material.map(() => material) : material;
-          if (mesh.geometry.hasAttribute('uv') && !mesh.geometry.hasAttribute('uv2'))
-            mesh.geometry.setAttribute('uv2', mesh.geometry.getAttribute('uv').clone());
-          mesh.castShadow = true;
-        });
-        originals.forEach(old => old.dispose());
-        const modelRoot = new THREE.Group();
-        modelRoot.rotation.y = Math.PI;
-        modelRoot.scale.setScalar(.0115);
-        modelRoot.position.z = .05;
-        modelRoot.add(fbx);
-        const sniper = this.models.sniper;
-        sniper.group.remove(fallback);
-        fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
-        sniper.group.add(modelRoot);
-        const optic = scope(sniper.group, .15, -.18, .42, .049);
-        addOutlines(modelRoot); addOutlines(optic);
-        sniper.sightY = .15;
-        sniper.muzzle.position.set(0, -.045, -.81);
-        sniper.eject.position.set(.055, -.025, -.10);
-        const bolt = main.skeleton.bones.find(bone => bone.name === 'BOLT');
-        const magazine = main.skeleton.bones.find(bone => bone.name === 'MAGAZINE');
-        if (bolt) { bolt.userData.fbxBolt = true; bolt.userData.restY = bolt.position.y; sniper.action = bolt; }
-        if (magazine) { magazine.userData.fbxMagazine = true; magazine.userData.restZ = magazine.position.z; sniper.magazine = magazine; }
-        installed = true;
-      }, undefined, () => { if (!this.disposed) onAssetsReady(); });
-    } catch { if (!this.disposed) onAssetsReady(); }
+  private async loadSniper(fallback: THREE.Group) {
+    const base = 'models/m700/';
+    const color = this.loader.texture(`${base}color.webp`);
+    color.colorSpace = THREE.SRGBColorSpace;
+    const normal = this.loader.texture(`${base}normal.webp`);
+    const metalness = this.loader.texture(`${base}metalness.webp`);
+    const ao = this.loader.texture(`${base}ao.webp`);
+    const roughness = this.loader.texture(`${base}roughness.webp`);
+    const fbx = await this.loader.fbx(`${base}m700.fbx`);
+    if (this.disposed) { disposeImported(fbx); return; }
+    const main = fbx.getObjectByName('FRAME_LOD0001');
+    if (!(main instanceof THREE.SkinnedMesh)) {
+      disposeImported(fbx);
+      throw new Error(`${base}m700.fbx: required node FRAME_LOD0001 must be a SkinnedMesh`);
+    }
+    const material = new THREE.MeshStandardMaterial({
+      map: color, normalMap: normal, normalScale: new THREE.Vector2(.7, -.7),
+      metalnessMap: metalness, aoMap: ao, roughnessMap: roughness,
+      metalness: 1, roughness: 1, aoMapIntensity: .65,
+    });
+    const originals = new Set<THREE.Material>();
+    fbx.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const mesh = object as THREE.Mesh;
+      for (const old of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) originals.add(old);
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(() => material) : material;
+      if (mesh.geometry.hasAttribute('uv') && !mesh.geometry.hasAttribute('uv2'))
+        mesh.geometry.setAttribute('uv2', mesh.geometry.getAttribute('uv').clone());
+      mesh.castShadow = true;
+    });
+    originals.forEach(old => old.dispose());
+    const modelRoot = new THREE.Group();
+    modelRoot.rotation.y = Math.PI;
+    modelRoot.scale.setScalar(.0115);
+    modelRoot.position.z = .05;
+    modelRoot.add(fbx);
+    const sniper = this.models.sniper;
+    sniper.group.remove(fallback);
+    fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
+    sniper.group.add(modelRoot);
+    const optic = scope(sniper.group, .15, -.18, .42, .049);
+    addOutlines(modelRoot); addOutlines(optic);
+    sniper.sightY = .15;
+    sniper.muzzle.position.set(0, -.045, -.81);
+    sniper.eject.position.set(.055, -.025, -.10);
+    const bolt = main.skeleton.bones.find(bone => bone.name === 'BOLT');
+    const magazine = main.skeleton.bones.find(bone => bone.name === 'MAGAZINE');
+    if (bolt) { bolt.userData.fbxBolt = true; bolt.userData.restY = bolt.position.y; sniper.action = bolt; }
+    if (magazine) { magazine.userData.fbxMagazine = true; magazine.userData.restZ = magazine.position.z; sniper.magazine = magazine; }
   }
 
   shot(id: WeaponId) {

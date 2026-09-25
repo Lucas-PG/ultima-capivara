@@ -16,7 +16,7 @@ export class RenderPipeline {
   private readonly postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
   constructor(private readonly gl: THREE.WebGLRenderer, samples: number) {
-    this.postTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: samples });
+    this.postTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples });
     this.postTarget.depthTexture = new THREE.DepthTexture(1, 1);
     this.postMaterial = createOutlineMaterial(this.postTarget.texture, this.postTarget.depthTexture);
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.postMaterial); quad.frustumCulled = false; this.postScene.add(quad);
@@ -40,6 +40,8 @@ export class RenderPipeline {
     this.postMaterial.uniforms.cn.value = camera.near; this.postMaterial.uniforms.cf.value = camera.far;
     this.gl.setRenderTarget(null); this.gl.render(this.postScene, this.postCamera);
   }
+
+  async warmup() { await this.gl.compileAsync(this.postScene, this.postCamera); }
 
   // Storm exposure (0..1) and the decaying pulse of the latest storm bite.
   setScreenFeedback(storm: number, pulse: number) {
