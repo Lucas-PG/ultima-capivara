@@ -3,11 +3,12 @@ import { clamp } from '../shared/math';
 import { rarityOf } from '../shared/rarity';
 import { ARENA } from '../shared/layout';
 import { terrainHeight } from '../shared/terrain';
-import { shotSpread, WEAPONS } from '../shared/weapons';
+import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
 import { accuracyText, cleanLabel, formatSurvived, hudScale, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
+import { CrosshairSpread } from './crosshair';
 
 export interface UICallbacks {
   host(profile: Profile, config: RoomConfig): Promise<void>; join(profile: Profile, code: string): Promise<void>;
@@ -70,6 +71,7 @@ export class GameUI {
   private toastItems: { text: string; el: HTMLElement; timer: number; at: number }[] = [];
   private coach: { step: string; visibleAt: number | null; startPos: { x: number; z: number } | null } | null = null;
   private onboarded = false;
+  private readonly crosshairSpread = new CrosshairSpread();
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
@@ -284,16 +286,14 @@ export class GameUI {
     this.updateCoach(snapshot, me, interaction);
     this.drawMap(snapshot, me);
   }
-  // Crosshair gap matches the authoritative cone (Brasa's shotSpread) projected with the current FOV and ADS zoom.
+  // Crosshair gap and tick fade come from Brasa's CrosshairSpread (authoritative cone, local shot heat, ADS fade).
   // The crosshair is not scaled by --ui: its gap is a real screen-space angle.
-  private crosshairGap(me: ActorState, _now: number): number {
-    const weapon = me.weapons[me.slot], speed = Math.hypot(me.velocity.x, me.velocity.z);
-    const spread = weapon ? shotSpread(weapon.id, me.ads, speed, !me.grounded, me.shotHeat) : 0;
+  private crosshairGap(me: ActorState, now: number): number {
     const height = document.querySelector<HTMLCanvasElement>('#game')?.clientHeight || window.innerHeight;
-    const scale = height / 1080;
-    const zoom = weapon?.id === 'sniper' ? 5.5 : weapon?.id === 'dmr' ? 2.9 : 1.25;
-    const fov = this.settings.fov / (me.ads ? zoom : 1) * Math.PI / 180;
-    return clamp(Math.tan(spread * Math.PI / 360) * height / (2 * Math.tan(fov / 2)), 4 * scale, 48 * scale);
+    const gap = this.crosshairSpread.gap(me, this.settings, height, now);
+    const opacity = String(this.crosshairSpread.ticksOpacity);
+    this.el('cross').querySelectorAll<HTMLElement>('i:not(.d)').forEach(tick => this.style(tick, 'opacity', opacity));
+    return gap;
   }
   // Interaction prompt: the item name takes its rarity colour, with a mini icon.
   private updatePrompt(me: ActorState, interaction: { id: string; name: string } | null) {
@@ -410,6 +410,7 @@ export class GameUI {
     this.openModal('INSTINTO DE SOBREVIVÊNCIA.', `<div class="how-grid"><div>${icon('users')}<h3>CHAME A TURMA</h3><p>Crie uma sala e compartilhe o link. Quem cria mantém o jogo aberto. Sem cadastro, sem instalação.</p></div><div>${icon('crown')}<h3>ÚLTIMA DE PÉ</h3><p>Salte do avião, abra baús e encontre armas. A tempestade fecha a ilha. Sobreviva até o fim.</p></div><div>${icon('bolt')}<h3>CORRERIA</h3><p>Mais eliminações vence. Você reaparece depois de cair, pronto para voltar à luta.</p></div></div><div class="controls-grid">${[['W A S D','MOVER'],['MOUSE','OLHAR'],['M1 / M2','ATIRAR / MIRAR'],['ESPAÇO','PULAR / PARAQUEDAS'],['SHIFT','CORRER'],['C','AGACHAR'],['Q / E','ESPIAR'],['F','PEGAR / ABRIR'],['R','RECARREGAR'],['1–4','TROCAR ARMA'],['5–9','USAR CONSUMÍVEL'],['TAB','PLACAR'],['M','MAPA DA ILHA']].map(([key, text]) => `<span><kbd>${key}</kbd> ${text}</span>`).join('')}</div>`);
   }
   event(event: GameEvent) {
+    if (event.type === 'shot' && event.actor === this.localId) this.crosshairSpread.onShot(event.weapon, performance.now());
     if (event.type === 'notice') this.toast(event.text);
     if (this.screen !== 'game' || !this.root.querySelector('#hud')) return;
     const find = (id: string | null) => id ? this.snapshot?.actors.find(a => a.id === id) : undefined;

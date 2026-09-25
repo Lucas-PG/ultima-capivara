@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/simulation';
 import { DIFFICULTY, adaptDifficulty } from '../src/simulation/bots';
 import { terrainHeight } from '../src/shared/terrain';
+import { WEAPONS } from '../src/shared/weapons';
 import { createWorld } from '../src/shared/world';
 import type { ActorState, Difficulty, GameEvent, InputFrame, WorldSpec } from '../src/shared/types';
 
@@ -59,7 +60,8 @@ describe('legacy bot behaviour', () => {
     const k = .45 * DIFFICULTY.normal.dmg;
     const hits = events.filter(e => e.event.type === 'damage' && e.event.actor === 'bot-1').map(e => (e.event as Extract<GameEvent, { type: 'damage' }>));
     expect(hits.length).toBeGreaterThan(0);
-    for (const hit of hits) expect([17 * k, 17 * 1.8 * k].some(v => Math.abs(hit.amount - Math.round(v * 10) / 10) < .11)).toBe(true);
+    for (const hit of hits) expect([WEAPONS.smg.damage * k, WEAPONS.smg.damage * WEAPONS.smg.headMultiplier * k]
+      .some(v => Math.abs(hit.amount - Math.round(v * 10) / 10) < .11)).toBe(true);
   });
 
   it('fires automatic weapons in short bursts separated by pauses', () => {
