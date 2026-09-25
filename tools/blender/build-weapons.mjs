@@ -1,0 +1,27 @@
+import { spawnSync } from 'node:child_process';
+import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { NodeIO } from '@gltf-transform/core';
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { dedup, prune, meshopt } from '@gltf-transform/functions';
+import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
+
+const root = fileURLToPath(new URL('../../', import.meta.url));
+const blender = process.env.BLENDER_BIN || '/Applications/Blender.app/Contents/MacOS/Blender';
+const result = spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', 'tools/blender/weapons.py'], { cwd: root, stdio: 'inherit' });
+if (result.error) throw result.error;
+if (result.status !== 0) process.exit(result.status || 1);
+await MeshoptEncoder.ready;
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
+const document = await io.read(`${root}/output/weapons/weapons.raw.glb`);
+await document.transform(dedup(), prune({ keepLeaves: true }), meshopt({ encoder: MeshoptEncoder, level: 'high', quantizePosition: 16 }), dedup());
+await mkdir(`${root}/public/models/weapons`, { recursive: true });
+const path = `${root}/public/models/weapons/painted-weapons.glb`;
+await io.write(path, document);
+const report = JSON.parse(await readFile(`${root}/output/weapons/blender-report.json`, 'utf8'));
+report.bytes = (await stat(path)).size;
+report.materials = document.getRoot().listMaterials().length;
+report.texture = { format: 'PNG', width: 32, height: 32 };
+if (report.materials > 2 || report.weapons.some(weapon => weapon.trianglesWithPaws > 10000)) throw new Error('First-person asset budget exceeded');
+await writeFile(`${root}/public/models/weapons/metrics.json`, JSON.stringify(report, null, 2) + '\n');
+console.log(JSON.stringify(report, null, 2));
