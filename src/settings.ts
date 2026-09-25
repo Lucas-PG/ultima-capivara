@@ -8,6 +8,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
 export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 1, fov: 78, graphics: 'medium', frameLimit: 60, reducedMotion: false,
   master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
+  showFps: false, uiScale: 1, crosshairColor: 'white', hitPalette: 'default',
 };
 const STORAGE_KEY = 'uc-v2-settings';
 export function loadSettings(): Settings {
@@ -24,6 +25,10 @@ export function loadSettings(): Settings {
     if (typeof value.reducedMotion === 'boolean') result.reducedMotion = value.reducedMotion;
     if (typeof value.adsToggle === 'boolean') result.adsToggle = value.adsToggle;
     if (typeof value.adaptive === 'boolean') result.adaptive = value.adaptive;
+    if (typeof value.showFps === 'boolean') result.showFps = value.showFps;
+    if (typeof value.uiScale === 'number' && Number.isFinite(value.uiScale)) result.uiScale = clamp(value.uiScale, .8, 1.2);
+    if (['white', 'yellow', 'cyan', 'magenta'].includes(value.crosshairColor)) result.crosshairColor = value.crosshairColor;
+    if (value.hitPalette === 'default' || value.hitPalette === 'colorblind') result.hitPalette = value.hitPalette;
     if (value.bindings && typeof value.bindings === 'object') for (const key of Object.keys(DEFAULT_BINDINGS)) {
       if (typeof value.bindings[key] === 'string' && /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Space|Arrow(Up|Down|Left|Right))$/.test(value.bindings[key])) result.bindings[key] = value.bindings[key];
     }
@@ -33,7 +38,7 @@ export function loadSettings(): Settings {
 export function saveSettings(settings: Settings) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch { /* Ephemeral browser mode. */ } }
 export function loadProfile(): { name: string; color: string } {
   try { const color = localStorage.getItem('uc-color') || ''; return { name: (localStorage.getItem('uc-nick') || '').replace(/[\x00-\x1f\x7f<>]/g, '').slice(0, 18), color: PLAYER_COLORS.includes(color) ? color : PLAYER_COLORS[0] }; }
-  catch { return { name: '', color: '#bd8956' }; }
+  catch { return { name: '', color: PLAYER_COLORS[0] }; }
 }
 export function saveProfile(name: string, color: string) { try { localStorage.setItem('uc-nick', name); localStorage.setItem('uc-color', color); } catch { /* Optional persistence. */ } }
 

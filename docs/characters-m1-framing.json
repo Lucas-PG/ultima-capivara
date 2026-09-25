@@ -1,0 +1,409 @@
+{
+  "stage": "Model layer before final FP postprocessing and animation review",
+  "date": "2026-09-25",
+  "assetSha256": "6ecd5ef27aac575e6822512bb76b9db715d2bcb0636ef407dcd3306fa46be1a9",
+  "measurements": [
+    {
+      "weapon": "pistol",
+      "viewport": [
+        1280,
+        720
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.23,
+        "y": -0.07,
+        "z": -0.34,
+        "scale": 1
+      },
+      "occupied": 182012,
+      "coverage": 0.19749565972222222,
+      "bounds": {
+        "x": 763,
+        "y": 267,
+        "width": 517,
+        "height": 453
+      },
+      "boundingCoverage": 0.25412434895833336,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "smg",
+      "viewport": [
+        1280,
+        720
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.04,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 174938,
+      "coverage": 0.18981987847222223,
+      "bounds": {
+        "x": 713,
+        "y": 280,
+        "width": 567,
+        "height": 440
+      },
+      "boundingCoverage": 0.270703125,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "m4",
+      "viewport": [
+        1280,
+        720
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.07,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 173955,
+      "coverage": 0.18875325520833333,
+      "bounds": {
+        "x": 711,
+        "y": 247,
+        "width": 569,
+        "height": 473
+      },
+      "boundingCoverage": 0.2920323350694444,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "shotgun",
+      "viewport": [
+        1280,
+        720
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.035,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 168842,
+      "coverage": 0.1832052951388889,
+      "bounds": {
+        "x": 704,
+        "y": 296,
+        "width": 576,
+        "height": 424
+      },
+      "boundingCoverage": 0.265,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "dmr",
+      "viewport": [
+        1280,
+        720
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.07,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 170095,
+      "coverage": 0.18456488715277777,
+      "bounds": {
+        "x": 708,
+        "y": 259,
+        "width": 572,
+        "height": 461
+      },
+      "boundingCoverage": 0.28612413194444447,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "sniper",
+      "viewport": [
+        1280,
+        720
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.07,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 182257,
+      "coverage": 0.19776150173611112,
+      "bounds": {
+        "x": 703,
+        "y": 222,
+        "width": 577,
+        "height": 498
+      },
+      "boundingCoverage": 0.3117903645833333,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "machete",
+      "viewport": [
+        1280,
+        720
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.18,
+        "y": 0,
+        "z": -0.35,
+        "scale": 1,
+        "pitch": -0.8
+      },
+      "occupied": 179314,
+      "coverage": 0.1945681423611111,
+      "bounds": {
+        "x": 653,
+        "y": 116,
+        "width": 627,
+        "height": 604
+      },
+      "boundingCoverage": 0.4109244791666667,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "slingshot",
+      "viewport": [
+        1280,
+        720
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.04,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 176639,
+      "coverage": 0.19166558159722222,
+      "bounds": {
+        "x": 723,
+        "y": 196,
+        "width": 536,
+        "height": 524
+      },
+      "boundingCoverage": 0.30475694444444446,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "pistol",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.23,
+        "y": -0.07,
+        "z": -0.34,
+        "scale": 1
+      },
+      "occupied": 409557,
+      "coverage": 0.19751012731481482,
+      "bounds": {
+        "x": 1144,
+        "y": 400,
+        "width": 776,
+        "height": 680
+      },
+      "boundingCoverage": 0.2544753086419753,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "smg",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.04,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 393489,
+      "coverage": 0.18976128472222223,
+      "bounds": {
+        "x": 1070,
+        "y": 420,
+        "width": 850,
+        "height": 660
+      },
+      "boundingCoverage": 0.27054398148148145,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "m4",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.07,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 391304,
+      "coverage": 0.18870756172839506,
+      "bounds": {
+        "x": 1066,
+        "y": 370,
+        "width": 854,
+        "height": 710
+      },
+      "boundingCoverage": 0.2924093364197531,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "shotgun",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.035,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 379635,
+      "coverage": 0.18308015046296297,
+      "bounds": {
+        "x": 1055,
+        "y": 445,
+        "width": 865,
+        "height": 635
+      },
+      "boundingCoverage": 0.2648895640432099,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "dmr",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.07,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 382612,
+      "coverage": 0.18451581790123456,
+      "bounds": {
+        "x": 1062,
+        "y": 389,
+        "width": 858,
+        "height": 691
+      },
+      "boundingCoverage": 0.2859172453703704,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "sniper",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.07,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 409787,
+      "coverage": 0.19762104552469137,
+      "bounds": {
+        "x": 1055,
+        "y": 333,
+        "width": 865,
+        "height": 747
+      },
+      "boundingCoverage": 0.31161024305555557,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "machete",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.18,
+        "y": 0,
+        "z": -0.35,
+        "scale": 1,
+        "pitch": -0.8
+      },
+      "occupied": 403173,
+      "coverage": 0.1944314236111111,
+      "bounds": {
+        "x": 979,
+        "y": 175,
+        "width": 941,
+        "height": 905
+      },
+      "boundingCoverage": 0.4106891396604938,
+      "crosshairPixels": 0,
+      "pass": true
+    },
+    {
+      "weapon": "slingshot",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "fov": 78,
+      "pose": {
+        "x": 0.3,
+        "y": -0.04,
+        "z": -0.53,
+        "scale": 1
+      },
+      "occupied": 397138,
+      "coverage": 0.1915210262345679,
+      "bounds": {
+        "x": 1085,
+        "y": 295,
+        "width": 804,
+        "height": 785
+      },
+      "boundingCoverage": 0.304369212962963,
+      "crosshairPixels": 0,
+      "pass": true
+    }
+  ]
+}
