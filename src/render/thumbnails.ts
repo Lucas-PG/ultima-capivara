@@ -11,13 +11,17 @@ let pending: Promise<Map<WeaponId, string>> | null = null;
 
 export const weaponThumbnail = (id: WeaponId) => cache.get(id);
 
-export function loadWeaponThumbnails(): Promise<Map<WeaponId, string>> {
+export function loadWeaponThumbnails(signal?: AbortSignal): Promise<Map<WeaponId, string>> {
+  if (signal?.aborted) return Promise.resolve(cache);
   pending ||= new Promise(resolve => {
+    const finish = () => { signal?.removeEventListener('abort', cancel); resolve(cache); };
+    const cancel = () => { window.clearTimeout(timer); pending = null; finish(); };
     // Yield first so the match's own renderer and HUD come up before this extra context.
-    window.setTimeout(() => {
-      try { render(); } catch { /* thumbnails are decorative; the HUD falls back to silhouettes */ }
-      resolve(cache);
+    const timer = window.setTimeout(() => {
+      try { if (!signal?.aborted) render(); } catch { /* thumbnails are decorative; the HUD falls back to silhouettes */ }
+      finish();
     }, 250);
+    signal?.addEventListener('abort', cancel, { once: true });
   });
   return pending;
 }
