@@ -21,7 +21,10 @@ const model = gltf.scene; model.traverse(o => { if (o.isMesh) { o.castShadow = t
 const lods = []; model.traverse(o => { if (o.isMesh || o.isSkinnedMesh) lods.push(o); });
 window.meshes = lods.map(o => o.name);
 const lod = q.get('lod') || '0';
-model.traverse(o => { if ((o.isMesh || o.isSkinnedMesh) && /lod\s*[12]/i.test(o.name) && lod === '0') o.visible = false; });
+model.traverse(o => {
+  const level = /LOD([012])$/.exec(o.name);
+  if (level) o.visible = level[1] === lod;
+});
 scene.add(model);
 window.clips = gltf.animations.map(a => a.name);
 const mixer = new THREE.AnimationMixer(model);
@@ -36,6 +39,6 @@ cam.position.set(Math.sin(yaw) * dist, ty + +(q.get('cy') || 0), Math.cos(yaw) *
 r.render(scene, cam);
 const box = new THREE.Box3().setFromObject(model); window.bounds = { min: box.min.toArray(), max: box.max.toArray() };
 window.ready = true;
-window.studio = { model, mixer, scene, camera:cam, renderer:r };
+window.studio = { model, mixer, scene, camera:cam, renderer:r, clips:gltf.animations };
 addEventListener('beforeunload', () => r.dispose());
 </script></body></html>
