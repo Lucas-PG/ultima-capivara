@@ -83,3 +83,31 @@ Brasa retains ownership of the separate outside-zone screen-feedback integration
 
 All screenshots, palette/shadow checks and final performance dispositions are
 pending review. This document records implementation, not an art approval.
+
+## Slice 3: persistent character ink and first-person AA
+
+Avatar construction marks every preloaded skinned LOD on reserved layer 1 and
+applies the clone-safe character material hook. A white character mask compares
+its fragment depth against the actual world depth texture, discarding occluded
+surfaces and fragments beyond 150 m. Only the visible silhouette receives
+#2B1B12 ink; scenery retains its separate 45 to 120 m fade. No hidden-character
+outline is intended. Mask rendering restores camera layers, scene background,
+material override and shadow state even if rendering fails.
+
+First person now draws to its own linear colour/depth target. Its warm ink and
+output transform composite over the world before the common FXAA pass. Warmup
+uses the new linear target and submits the skinned mask variants under the
+loading overlay. Frame counts include world, shadows, mask, first person and all
+post draws. The mask costs one additional draw per visible character skin.
+
+The directional shadow anchor now snaps to texels in light space, keeping the
+sun direction fixed as the camera moves. There are no cascades or cascade seams.
+Further acne, contact and motion review still belongs to the visual gate.
+
+Local shader smoke at Medium/1280x720 passed with the legacy character, rim,
+mask and first-person composite. World-only evidence is in
+`output/playwright/m1-{outline,capy}-wip.png`; these are diagnostic poses, not the
+matched Pincel approval set. The standalone preview's only console error was an
+unrequested favicon.ico 404, with zero shader errors or warnings. Counts were
+427 calls/941,480 triangles without a remote character and 433/971,794 with one.
+These counts exceed the final budget; Jangada's world batching is still required.

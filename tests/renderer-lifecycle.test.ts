@@ -31,7 +31,7 @@ function harness(ready: Promise<void> = Promise.resolve()) {
     sky: { group: new THREE.Group(), dispose: vi.fn() },
     worldView: { group: new THREE.Group(), dispose: vi.fn() },
     avatars: { prepare: vi.fn(), warmupWeapons: new THREE.Group(), dispose: vi.fn() },
-    pipeline: { warmup: vi.fn(async () => {}), renderPost: vi.fn(), dispose: vi.fn() },
+    pipeline: { beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), dispose: vi.fn() },
     environment: { dispose: vi.fn() }, onProgress: vi.fn(), resize: vi.fn(),
     gl: { setRenderTarget: vi.fn(), compileAsync: vi.fn(async () => {}), render: vi.fn(), dispose: vi.fn(), shadowMap: { enabled: true } },
   };

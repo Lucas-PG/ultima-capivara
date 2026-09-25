@@ -36,6 +36,11 @@ export class GameRenderer {
   private readonly storm: StormView;
   private readonly propellers = this.plane.children.filter(child => child.name === 'propeller');
   private readonly sun: THREE.DirectionalLight;
+  private readonly sunOffset = new THREE.Vector3(-70, 55, -30);
+  private readonly shadowDirection = this.sunOffset.clone().normalize();
+  private readonly shadowRight = new THREE.Vector3(0, 1, 0).cross(this.shadowDirection).normalize();
+  private readonly shadowUp = this.shadowDirection.clone().cross(this.shadowRight);
+  private readonly shadowAnchor = new THREE.Vector3();
   private readonly interiorLight = new THREE.PointLight(PAINT.interior, 0, 8, 2);
   private readonly litRooms: { x: number; y: number; z: number; w: number; d: number; bakery: boolean }[];
   private readonly environment: THREE.WebGLRenderTarget;
@@ -175,24 +180,26 @@ export class GameRenderer {
       this.scene.fog.near = 110 * (1 + altitude); this.scene.fog.far = far * (1 + .35 * altitude);
     }
     if (this.settings.graphics !== 'low') {
-      this.sun.position.set(this.camera.position.x - 70, 55, this.camera.position.z - 30);
-      this.sun.target.position.set(this.camera.position.x, 0, this.camera.position.z);
+      // Snap in light space so camera movement does not slide the shadow texels.
+      const texel = 2 * PRESETS[this.settings.graphics].shadowReach / this.sun.shadow.mapSize.x;
+      this.shadowAnchor.set(this.camera.position.x, 0, this.camera.position.z);
+      const right = Math.round(this.shadowAnchor.dot(this.shadowRight) / texel) * texel;
+      const up = Math.round(this.shadowAnchor.dot(this.shadowUp) / texel) * texel;
+      const depth = this.shadowAnchor.dot(this.shadowDirection);
+      this.shadowAnchor.copy(this.shadowRight).multiplyScalar(right).addScaledVector(this.shadowUp, up).addScaledVector(this.shadowDirection, depth);
+      this.sun.target.position.copy(this.shadowAnchor);
+      this.sun.position.copy(this.shadowAnchor).add(this.sunOffset);
       this.sun.target.updateMatrixWorld();
     }
     this.sky.update(this.camera, this.elapsed, this.settings.reducedMotion);
     const drawAt = timing.begin(), programs = timing.enabled ? this.gl.info.programs?.length ?? 0 : 0;
-    this.pipeline.render(this.scene, this.camera, this.frameStats);
-    timing.end('world-draw', drawAt);
-    if (timing.enabled && (this.gl.info.programs?.length ?? 0) > programs) timing.record('shader-program-created', drawAt, 0, 'world', true);
     const held = viewed?.weapons[viewed.slot]?.id;
     const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
-    if (frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35) {
-      const fpAt = timing.begin();
-      this.gl.autoClear = false; this.gl.clearDepth(); this.gl.render(this.weaponView.scene, this.weaponView.camera); this.gl.autoClear = true;
-      timing.end('first-person-draw', fpAt);
-      this.frameStats.drawCalls += this.gl.info.render.calls;
-      this.frameStats.triangles += this.gl.info.render.triangles;
-    }
+    const firstPerson = frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35;
+    this.pipeline.render(this.scene, this.camera, this.frameStats,
+      firstPerson ? this.weaponView.scene : undefined, firstPerson ? this.weaponView.camera : undefined);
+    timing.end('world-draw', drawAt);
+    if (timing.enabled && (this.gl.info.programs?.length ?? 0) > programs) timing.record('shader-program-created', drawAt, 0, 'frame', true);
   }
 
   private hasPlanePassengers(snapshot: NonNullable<RenderFrame['snapshot']>) {
@@ -278,8 +285,8 @@ export class GameRenderer {
       this.gl.render(this.scene, this.camera);
       timing.end('warmup-upload-world', uploadWorldAt, '', true);
       if (reportProgress) this.onProgress(.96, 'Afiando as armas');
-      // First-person and post shaders target the canvas, with output colour and tone mapping.
-      this.gl.setRenderTarget(null);
+      // First person now uses a linear target before shared output and AA.
+      this.pipeline.beginFirstPersonWarmup();
       const compileFpAt = timing.begin();
       await this.gl.compileAsync(this.weaponView.scene, this.weaponView.camera);
       timing.end('shader-compile-first-person', compileFpAt, '', true);
@@ -288,7 +295,7 @@ export class GameRenderer {
       this.gl.render(this.weaponView.scene, this.weaponView.camera);
       timing.end('warmup-upload-first-person', uploadFpAt, '', true);
       const postAt = timing.begin();
-      await this.pipeline.warmup();
+      await this.pipeline.warmup(this.scene, this.camera);
       timing.end('shader-compile-post', postAt, '', true);
       this.requireActive();
       this.pipeline.renderPost();

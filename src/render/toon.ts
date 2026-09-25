@@ -30,6 +30,8 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
   return new THREE.RawShaderMaterial({
     uniforms: {
       tColor: { value: color }, tDepth: { value: depth }, toneMappingExposure: { value: 1.1 },
+      tCharacter: { value: color }, characterEnabled: { value: 0 }, transparentBackground: { value: 0 },
+      ink: { value: new THREE.Vector3(.227451, .141176, .094118) },
       texel: { value: new THREE.Vector2(1, 1) }, width: { value: 1.25 }, cn: { value: .07 }, cf: { value: 850 },
     },
     depthTest: false, depthWrite: false,
@@ -37,10 +39,11 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     fragmentShader: `precision highp float;
       #include <tonemapping_pars_fragment>
       #include <colorspace_pars_fragment>
-      uniform sampler2D tColor,tDepth;uniform vec2 texel;uniform float cn,cf,width;varying vec2 vUv;
+      uniform sampler2D tColor,tDepth,tCharacter;uniform vec3 ink;uniform float characterEnabled,transparentBackground;uniform vec2 texel;uniform float cn,cf,width;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
         vec3 c=texture2D(tColor,vUv).rgb;float d=texture2D(tDepth,vUv).x;
+        if(transparentBackground>.5 && d>=.999999)discard;
         vec2 o=texel*width;
         float a=texture2D(tDepth,vUv+vec2(o.x,0.0)).x,b=texture2D(tDepth,vUv-vec2(o.x,0.0)).x;
         float e=texture2D(tDepth,vUv+vec2(0.0,o.y)).x,f=texture2D(tDepth,vUv-vec2(0.0,o.y)).x;
@@ -53,7 +56,14 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         gl_FragColor=sRGBTransferOETF(gl_FragColor);
         float g=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
         gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.12),0.0,1.0);
-        gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.227451,.141176,.094118),edge*.85);
+        gl_FragColor.rgb=mix(gl_FragColor.rgb,ink,edge*.85);
+        if(characterEnabled>.5){
+          vec2 co=texel*max(1.0,width*1.2);
+          float center=texture2D(tCharacter,vUv).r;
+          float around=min(min(texture2D(tCharacter,vUv+vec2(co.x,0.0)).r,texture2D(tCharacter,vUv-vec2(co.x,0.0)).r),
+            min(texture2D(tCharacter,vUv+vec2(0.0,co.y)).r,texture2D(tCharacter,vUv-vec2(0.0,co.y)).r));
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.168627,.105882,.070588),clamp(center-around,0.0,1.0));
+        }
       }`,
   });
 }
