@@ -22,8 +22,8 @@ M0 keeps a single approved fur palette. Cosmetic colours, clothing variants and
 additional clips are M1. The model is original scripted geometry.
 
 Integration hooks authorized by Forja: `preloadCapybaraAsset` in renderer warmup,
-`updateCapybaraBody` inside poseAvatar. Move those calls to AvatarView when the
-renderer split integrates. `preloadCapybaraAsset` accepts the shared loader's
+`updateCapybaraBody` inside AvatarView.poseAvatar in `src/render/avatars.ts`.
+The renderer split was merged locally from `v2-renan` and the pose hook migrated. `preloadCapybaraAsset` accepts the shared loader's
 `gltf` function so the final asset manifest/progress system can own downloads.
 
 API references used: [Blender GLB export](https://docs.blender.org/api/main/bpy.ops.export_scene.html),

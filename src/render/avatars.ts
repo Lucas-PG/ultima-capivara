@@ -1,0 +1,144 @@
+import * as THREE from 'three';
+import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody } from './capybara';
+import { itemGeometry, itemMaterial } from './item-geometry';
+import { addEllipsoid } from './primitives';
+import type { ActorState, RenderFrame, Vec3, WeaponId } from '../shared/types';
+
+const v = (p: Vec3) => new THREE.Vector3(p.x, p.y, p.z);
+export const BOT_COLOR = '#ae825e';
+interface Avatar {
+  group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
+  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; phase: number; initialized: boolean;
+}
+function nameSprite(name: string): THREE.Sprite {
+  const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = 'rgba(35,39,36,.63)'; ctx.roundRect(6, 7, 500, 82, 26); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,238,194,.6)'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#f8ebcc'; ctx.font = 'bold 39px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(name.slice(0, 22), 256, 48);
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false }));
+  sprite.scale.set(2.1, .39, 1); sprite.position.y = 2.03; return sprite;
+}
+
+export function avatar(color: string, name: string): Avatar {
+  const group = new THREE.Group();
+  const { body, bones } = buildCapybaraBody(color);
+  group.add(body);
+  // The held weapon rides on the arms bone, so it aims with the paws.
+  const weapon = new THREE.Mesh(new THREE.BufferGeometry(), itemMaterial);
+  weapon.position.copy(WEAPON_MOUNT); weapon.castShadow = true; bones[CAPY_BONES.arms].add(weapon);
+  const chute = new THREE.Group(); group.add(chute);
+  addEllipsoid(chute, '#e6c280', 0, 3.65, 0, 1.9, .32, 1.18);
+  for (const x of [-1.6, 1.6]) for (const z of [-.9, .9]) {
+    const start = new THREE.Vector3(x, 3.65, z), end = new THREE.Vector3(x * .15, 1.25, z * .15);
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
+  }
+  const label = nameSprite(name); label.position.y = 2.2; group.add(label);
+  return { group, body, bones, weapon, weaponId: null, chute, label, phase: 0, initialized: false };
+}
+
+export class AvatarView {
+  private readonly visuals = new Map<string, Avatar>();
+  private elapsed = 0;
+  private cameraBlend = 0;
+  constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.PerspectiveCamera) {}
+  get(id: string) { return this.visuals.get(id); }
+  dispose() { this.visuals.forEach(visual => visual.body.skeleton.dispose()); }
+
+  private ensureAvatar(actor: ActorState): Avatar {
+    let visual = this.visuals.get(actor.id);
+    if (!visual) { visual = avatar(actor.color, actor.name); this.visuals.set(actor.id, visual); this.scene.add(visual.group); }
+    return visual;
+  }
+
+  update(frame: RenderFrame, cameraBlend: number, elapsed: number) {
+    this.cameraBlend = cameraBlend; this.elapsed = elapsed;
+    const actors = frame.snapshot?.actors || [];
+    const seen = new Set<string>();
+    const viewed = frame.spectateId || frame.playerId;
+    for (const actor of actors) {
+      seen.add(actor.id);
+      const visual = this.ensureAvatar(actor);
+      // Everyone still in the plane rides inside it; the viewed capivara stays
+      // visible in third person and while the camera eases into its eyes.
+      visual.group.visible = actor.alive && actor.stage !== 'plane' &&
+        (!frame.playing || actor.id !== viewed || actor.stage !== 'ground' || this.cameraBlend > .35);
+      const pos = actor.id === frame.playerId && frame.predicted ? frame.predicted : actor.pos;
+      const target = v(pos);
+      if (!visual.initialized || visual.group.position.distanceToSquared(target) > 144) visual.group.position.copy(target);
+      else visual.group.position.lerp(target, Math.min(1, frame.dt * 14));
+      visual.initialized = true;
+      visual.group.rotation.y = actor.yaw;
+      visual.group.scale.setScalar(1);
+      visual.bones[CAPY_BONES.armor].scale.setScalar(actor.armor > 0 ? 1 : .0001);
+      visual.bones[CAPY_BONES.helmet].scale.setScalar(actor.helmet > 0 ? 1 : .0001);
+      visual.chute.visible = actor.stage === 'parachute';
+      visual.label.visible = actor.alive && actor.id !== viewed && visual.group.position.distanceToSquared(this.camera.position) < 24 * 24;
+      this.poseAvatar(visual, actor, frame.dt);
+      const held = actor.weapons[actor.slot]?.id || null;
+      if (held !== visual.weaponId) {
+        visual.weapon.geometry.dispose();
+        visual.weapon.geometry = held ? itemGeometry('weapon', held) : new THREE.BufferGeometry();
+        visual.weaponId = held;
+      }
+      visual.weapon.visible = actor.stage === 'ground' && !!held;
+    }
+    for (const [id, visual] of this.visuals) if (!seen.has(id)) visual.group.visible = false;
+  }
+
+  // Upright cartoon pose: two-leg walk, knee-bend crouch, aim with head and
+  // arms, belly-down freefall and dangling legs under the parachute.
+  private poseAvatar(visual: Avatar, actor: ActorState, dt: number) {
+    const b = visual.bones, B = CAPY_BONES;
+    for (const bone of b) { bone.rotation.set(0, 0, 0); bone.position.copy(bone.userData.rest as THREE.Vector3); }
+    const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
+    visual.phase += dt * Math.min(13, speed * 2.1);
+    visual.group.rotation.set(0, actor.yaw, 0);
+    if (updateCapybaraBody(visual.body, actor, dt)) {
+      if (actor.crouch) visual.group.scale.setScalar(1.3 / 1.8);
+      return;
+    }
+    const pitch = THREE.MathUtils.clamp(actor.pitch, -1, 1);
+    if (actor.stage === 'falling') {
+      // Belly down around the body's centre, paws forward, legs trailing.
+      const tilt = new THREE.Euler(-1.25, 0, Math.sin(visual.phase * .3 + this.elapsed * 2) * .06), centre = new THREE.Vector3(0, .9, 0);
+      b[B.root].rotation.copy(tilt); b[B.root].position.copy(centre).sub(centre.clone().applyEuler(tilt));
+      b[B.arms].rotation.x = .75; b[B.head].rotation.x = .7;
+      const kick = Math.sin(this.elapsed * 5) * .15;
+      b[B.thighL].rotation.x = -.35 + kick; b[B.thighR].rotation.x = -.35 - kick;
+      b[B.shinL].rotation.x = -.5; b[B.shinR].rotation.x = -.5;
+      return;
+    }
+    if (actor.stage === 'parachute') {
+      // Paws up on the lines, legs swinging loosely.
+      b[B.arms].rotation.x = 2.75; b[B.head].rotation.x = .15;
+      const sway = Math.sin(this.elapsed * 2.2) * .18;
+      b[B.thighL].rotation.x = .12 + sway; b[B.thighR].rotation.x = .12 - sway;
+      b[B.shinL].rotation.x = -.25 - sway * .5; b[B.shinR].rotation.x = -.25 + sway * .5;
+      return;
+    }
+    const walk = actor.grounded ? Math.min(1, speed / 5) : 0;
+    const step = Math.sin(visual.phase);
+    if (actor.crouch) {
+      // The simulation's crouch is the standing hit shape scaled by 1.3 / 1.8
+      // from the feet, so the crouched capivara is drawn exactly that way.
+      visual.group.scale.setScalar(1.3 / 1.8);
+      const creep = step * .35 * walk;
+      b[B.thighL].rotation.x = creep; b[B.thighR].rotation.x = -creep;
+    } else {
+      b[B.thighL].rotation.x = step * .65 * walk; b[B.thighR].rotation.x = -step * .65 * walk;
+      b[B.shinL].rotation.x = -Math.max(0, -Math.cos(visual.phase)) * .8 * walk;
+      b[B.shinR].rotation.x = -Math.max(0, Math.cos(visual.phase)) * .8 * walk;
+      b[B.root].position.y = Math.abs(Math.cos(visual.phase)) * .045 * walk;
+      b[B.torso].rotation.z = step * .05 * walk;
+      if (!actor.grounded) { b[B.thighL].rotation.x = .5; b[B.shinL].rotation.x = -.9; b[B.thighR].rotation.x = -.15; b[B.shinR].rotation.x = -.3; }
+    }
+    const lean = b[B.torso].rotation.x;
+    // Hit volumes do not lean, so the body only hints at it.
+    b[B.torso].rotation.z += -actor.lean * .05;
+    b[B.head].rotation.x = pitch * .55 - lean;
+    b[B.arms].rotation.x = pitch - lean + (actor.sprint ? -.55 : 0);
+  }
+
+}
