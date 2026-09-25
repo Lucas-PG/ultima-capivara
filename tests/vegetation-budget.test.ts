@@ -5,6 +5,32 @@ import { buildVegetation } from '../src/render/vegetation';
 import { createWorld } from '../src/shared/world';
 
 describe('vegetation rendering budget', () => {
+  it('keeps distant coconut crowns drooping and close to the near silhouette', () => {
+    const vegetation = buildVegetation(createWorld());
+    try {
+      const palm = vegetation.group.children.find(node => node.name.startsWith('vegetation:palm:')) as THREE.LOD;
+      const outline = (mesh: THREE.InstancedMesh) => {
+        const position = mesh.geometry.getAttribute('position'), frond = mesh.geometry.getAttribute('palmFrond');
+        let minY = Infinity, maxY = -Infinity, minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        for (let i = 0; i < position.count; i++) {
+          if (frond.getX(i) < .5) continue;
+          const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
+          minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+          minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        }
+        return { minY, maxY, width: Math.max(maxX - minX, maxZ - minZ) };
+      };
+      const near = outline(palm.levels[0].object as THREE.InstancedMesh);
+      const far = outline(palm.levels[1].object as THREE.InstancedMesh);
+      const height = (palm.levels[1].object as THREE.InstancedMesh).geometry.getAttribute('plantTemplate').getX(0);
+      expect((far.maxY - far.minY) / far.width).toBeGreaterThanOrEqual(.4);
+      expect((height * .91 - far.minY) / (far.width / 2)).toBeGreaterThanOrEqual(.35);
+      expect(Math.abs(far.minY - near.minY)).toBeLessThan(.15);
+      expect(Math.abs(far.width / near.width - 1)).toBeLessThan(.12);
+    } finally { vegetation.dispose(); }
+  });
+
   it('preserves legacy loot, chest and spawn placement when vegetation gains colliders', () => {
     const world = createWorld();
     // Baselines from c5a4a3a, before the instancing pass. A content pass that
@@ -33,6 +59,7 @@ describe('vegetation rendering budget', () => {
       expect(present.has(type), `${type} should have a placed specimen`).toBe(true);
     const instances: THREE.InstancedMesh[] = [];
     let disposed = 0;
+    const palmLeans = new Set<number>(), palmDirections = new Set<number>();
     try {
       const cells = vegetation.group.children.filter((node): node is THREE.LOD => node instanceof THREE.LOD);
       const matrix = new THREE.Matrix4();
@@ -63,6 +90,15 @@ describe('vegetation rendering budget', () => {
           } else {
             const collider = trunk(object.pos.x, object.pos.z);
             expect(collider, `missing trunk collider for ${object.id}`).toBeDefined();
+            if (type === 'palm') {
+              const height = Math.hypot(matrix.elements[4], matrix.elements[5], matrix.elements[6]);
+              expect(height * templateHeight).toBeCloseTo(object.scale.y, 3);
+              const lean = THREE.MathUtils.radToDeg(Math.acos(matrix.elements[5] / height));
+              expect(lean).toBeGreaterThanOrEqual(2.9);
+              expect(lean).toBeLessThanOrEqual(12.1);
+              palmLeans.add(Math.round(lean));
+              palmDirections.add(Math.floor((Math.atan2(matrix.elements[4], matrix.elements[6]) + Math.PI) / (Math.PI / 2)));
+            }
             const templateRadius = type === 'palm' ? .13 + templateHeight * .009 :
               type === 'banana' ? .13 : .15 + templateHeight * .015;
             const visualRadius = templateRadius * Math.hypot(matrix.elements[0], matrix.elements[2]);
@@ -72,6 +108,8 @@ describe('vegetation rendering budget', () => {
       }
       expect(nearCount).toBe(world.objects.filter(object =>
         object.kind === 'tree' || object.kind === 'palm' || object.kind === 'grass').length);
+      expect(palmLeans.size).toBeGreaterThan(6);
+      expect(palmDirections.size).toBeGreaterThanOrEqual(4);
       const shadows = vegetation.group.children.filter((node): node is THREE.InstancedMesh =>
         node instanceof THREE.InstancedMesh && node.castShadow);
       instances.push(...shadows);

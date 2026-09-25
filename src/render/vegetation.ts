@@ -16,14 +16,17 @@ export function buildVegetation(world: WorldSpec) {
     shader.uniforms.uBreeze = breeze;
     shader.vertexShader = `uniform float uBreeze;
       attribute vec3 plantTemplate;
-      attribute float crownCenter;\n${shader.vertexShader}`.replace(
+      attribute float crownCenter;
+      attribute float palmFrond;\n${shader.vertexShader}`.replace(
       '#include <beginnormal_vertex>', `#include <beginnormal_vertex>
         #ifdef USE_INSTANCING
           if (plantTemplate.y > 0.5) {
-            float normalHeightScale = instanceMatrix[1].y;
+            float normalHeightScale = length(instanceMatrix[1].xyz);
             float normalRadialScale = length(instanceMatrix[0].xyz);
             float normalTemplateHeight = plantTemplate.x;
-            float normalCrownScale = plantTemplate.y > 1.5 ? normalHeightScale :
+            float palmVariation = .85 + .3 * fract(sin(dot(instanceMatrix[3].xz,
+              vec2(41.37, 17.61))) * 43758.5453);
+            float normalCrownScale = plantTemplate.y > 1.5 ? normalHeightScale * palmVariation :
               max(1.6, plantTemplate.z * normalTemplateHeight * normalHeightScale) /
               max(1.6, plantTemplate.z * normalTemplateHeight);
             float normalCrownBlend = smoothstep(normalTemplateHeight * .45,
@@ -40,10 +43,12 @@ export function buildVegetation(world: WorldSpec) {
         #ifdef USE_INSTANCING
           phase = instanceMatrix[3].x * .17 + instanceMatrix[3].z * .11;
           if (plantTemplate.y > 0.5) {
-            float heightScale = instanceMatrix[1].y;
+            float heightScale = length(instanceMatrix[1].xyz);
             float radialScale = length(instanceMatrix[0].xyz);
             float templateHeight = plantTemplate.x;
-            float crownScale = plantTemplate.y > 1.5 ? heightScale :
+            float palmVariation = .85 + .3 * fract(sin(dot(instanceMatrix[3].xz,
+              vec2(41.37, 17.61))) * 43758.5453);
+            float crownScale = plantTemplate.y > 1.5 ? heightScale * palmVariation :
               max(1.6, plantTemplate.z * templateHeight * heightScale) /
               max(1.6, plantTemplate.z * templateHeight);
             float crownBlend = smoothstep(templateHeight * .45, templateHeight * .75, position.y);
@@ -51,6 +56,12 @@ export function buildVegetation(world: WorldSpec) {
             if (crownCenter > 0.0)
               transformed.y = crownCenter + (transformed.y - crownCenter) *
                 crownScale / max(heightScale, .001);
+            if (plantTemplate.y > 1.5 && palmFrond > .5) {
+              float variant = floor(fract(sin(dot(instanceMatrix[3].xz,
+                vec2(12.9898, 78.233))) * 43758.5453) * 3.0);
+              if (palmFrond > 9.5 - variant)
+                transformed = vec3(0.0, plantTemplate.x * .91, 0.0);
+            }
           }
         #endif
         float gust = sin(uBreeze * 1.3 + position.x * .63 + position.z * .41 + phase);
@@ -100,21 +111,24 @@ export function buildVegetation(world: WorldSpec) {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3)); return geometry;
   };
   const piece = (base: THREE.BufferGeometry, color: string | THREE.Color, position: THREE.Vector3,
-    scale: THREE.Vector3, material = 0, rotation = new THREE.Quaternion()) => {
+    scale: THREE.Vector3, material = 0, rotation = new THREE.Quaternion(), frond = 0) => {
     const geometry = base.index ? base.toNonIndexed() : base.clone();
     geometry.applyMatrix4(matrix.compose(position, rotation, scale));
     geometry.setAttribute('crownCenter', new THREE.Float32BufferAttribute(
       new Array<number>(geometry.getAttribute('position').count).fill(material === 1 ? position.y : 0), 1));
+    geometry.setAttribute('palmFrond', new THREE.Float32BufferAttribute(
+      new Array<number>(geometry.getAttribute('position').count).fill(frond), 1));
     stash(tint(geometry, color), material, position.x, position.z);
   };
-  const branch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, color: string) => {
+  const branch = (from: THREE.Vector3, to: THREE.Vector3, radius: number, color: string, frond = 0) => {
     const delta = to.clone().sub(from);
     piece(stem, color, from.clone().lerp(to, .5), new THREE.Vector3(radius, delta.length(), radius),
-      0, new THREE.Quaternion().setFromUnitVectors(up, delta.normalize()));
+      0, new THREE.Quaternion().setFromUnitVectors(up, delta.normalize()), frond);
   };
-  const leaf = (base: THREE.Vector3, tip: THREE.Vector3, width: number, color: string | THREE.Color) => {
+  const leaf = (base: THREE.Vector3, tip: THREE.Vector3, width: number, color: string | THREE.Color,
+    frond = 0, vertical = 0) => {
     const axis = tip.clone().sub(base);
-    const side = new THREE.Vector3(-axis.z, .03, axis.x).normalize().multiplyScalar(width);
+    const side = new THREE.Vector3(-axis.z, .03 + axis.length() * vertical, axis.x).normalize().multiplyScalar(width);
     const mid = base.clone().lerp(tip, .46).add(new THREE.Vector3(0, width * .18, 0));
     const left = mid.clone().add(side), right = mid.clone().sub(side);
     const ridge = mid.clone().add(new THREE.Vector3(0, width * .24, 0));
@@ -122,6 +136,7 @@ export function buildVegetation(world: WorldSpec) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(points.flatMap(p => [p.x, p.y, p.z]), 3));
     g.setAttribute('crownCenter', new THREE.Float32BufferAttribute(new Array<number>(points.length).fill(base.y), 1));
+    g.setAttribute('palmFrond', new THREE.Float32BufferAttribute(new Array<number>(points.length).fill(frond), 1));
     g.computeVertexNormals(); stash(tint(g, color), 1, base.x, base.z);
   };
   const species = (object: MapObject) => object.kind === 'tree' ?
@@ -180,16 +195,23 @@ export function buildVegetation(world: WorldSpec) {
         const direction = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
         const across = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
         const point = (t: number) => top.clone().addScaledVector(direction, length * t)
-          .add(new THREE.Vector3(0, Math.sin(t * Math.PI) * .65 - t * t * 1.0 + (i % 2) * .15, 0));
-        if (!far) for (let rib = 0; rib < 3; rib++) branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid);
-        for (let n = far ? 2 : 1; n <= 13; n += far ? 3 : 1) {
+          .add(new THREE.Vector3(0, Math.sin(t * Math.PI) * .65 - t * t * 2.7 + (i % 2) * .15, 0));
+        if (far) {
+          // Overlapping, solid frond ribbons retain the drooping near outline
+          // without subpixel leaflets that break into dots at 60+ metres.
+          for (const [start, end, width] of [[0, .46, .23], [.27, .78, .26], [.58, 1, .20]] as const)
+            leaf(point(start), point(end), length * width, WORLD_PALETTE.palmMid, i + 1, .8);
+          continue;
+        }
+        for (let rib = 0; rib < 3; rib++) branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid, i + 1);
+        for (let n = 1; n <= 13; n++) {
           const t = n / 14, root = point(t);
           const blade = Math.sin(Math.PI * t) * length * .36;
           for (const side of [-1, 1]) {
             const tip = root.clone().addScaledVector(across, blade * side)
               .addScaledVector(direction, length * .14).add(new THREE.Vector3(0, -.1 - blade * .13, 0));
-            leaf(root, tip, (.15 * Math.sin(Math.PI * t) + .026) * (far ? 2.2 : 1),
-              (n + i) % 3 ? WORLD_PALETTE.palmMid : WORLD_PALETTE.palmLight);
+            leaf(root, tip, .15 * Math.sin(Math.PI * t) + .026,
+              (n + i) % 3 ? WORLD_PALETTE.palmMid : WORLD_PALETTE.palmLight, i + 1, .5);
           }
         }
       }
@@ -281,7 +303,8 @@ export function buildVegetation(world: WorldSpec) {
   }
   const instanceMatrix = new THREE.Matrix4();
   const instancePosition = new THREE.Vector3(), instanceScale = new THREE.Vector3();
-  const instanceRotation = new THREE.Quaternion();
+  const instanceRotation = new THREE.Quaternion(), yawRotation = new THREE.Quaternion();
+  const leanAxis = new THREE.Vector3();
   const instances: THREE.InstancedMesh[] = [];
   const makeInstances = (geometry: THREE.BufferGeometry, count: number, material: THREE.Material,
     objects: MapObject[], cx: number, cz: number, templateHeight: number, shadow = false) => {
@@ -303,7 +326,16 @@ export function buildVegetation(world: WorldSpec) {
       // Most authored landmark trees have no rotation. Give each a stable
       // orientation so instancing does not reveal identical neighbouring crowns.
       const rotation = object.rotation ?? hash(Math.round(object.pos.x * 100), Math.round(object.pos.z * 100)) * Math.PI * 2;
-      instanceRotation.setFromAxisAngle(up, rotation);
+      yawRotation.setFromAxisAngle(up, rotation);
+      if (object.kind === 'palm') {
+        const salt = Math.round(object.pos.x * 100) ^ Math.round(object.pos.z * 100);
+        const coast = object.pos.y < 2.2;
+        const direction = coast ? Math.atan2(-object.pos.z, -object.pos.x) +
+          (hash(salt, 3) - .5) * .7 : hash(salt, 4) * Math.PI * 2;
+        const lean = THREE.MathUtils.degToRad(3 + hash(salt, 5) * 9);
+        leanAxis.set(Math.sin(direction), 0, -Math.cos(direction));
+        instanceRotation.setFromAxisAngle(leanAxis, lean).multiply(yawRotation);
+      } else instanceRotation.copy(yawRotation);
       mesh.setMatrixAt(index, instanceMatrix.compose(instancePosition, instanceRotation, instanceScale));
     });
     mesh.instanceMatrix.needsUpdate = true;
