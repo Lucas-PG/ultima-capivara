@@ -69,13 +69,16 @@ describe('authoritative simulation', () => {
     actor.nextShot = 0; actor.wasFiring = false;
     (sim as any).fire(actor);
     const heat = actor.shotHeat;
+    actor.adsAmount = 1;
     expect(heat).toBeGreaterThan(.3);
     sim.action('a', { type: 'slot', id: 1, slot: 0 });
     expect(actor.shotHeat).toBe(heat);
     expect(actor.state.shotHeat).toBe(heat);
+    expect(actor.adsAmount).toBe(1);
     sim.action('a', { type: 'slot', id: 2, slot: 1 });
     expect(actor.shotHeat).toBe(0);
     expect(actor.state.shotHeat).toBe(0);
+    expect(actor.adsAmount).toBe(0);
   });
 
   it('widens real seeded shot rays with burst, movement and airtime, then narrows after cooling', () => {

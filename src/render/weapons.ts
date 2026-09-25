@@ -669,7 +669,7 @@ export class WeaponView {
     const weapon = actor.weapons[actor.slot]?.id || 'pistol';
     if (weapon !== this.active) {
       this.models[this.active].group.visible = false; this.active = weapon; this.models[this.active].group.visible = true;
-      this.draw = 1; this.kick = 0; this.reloadEnd = 0;
+      this.draw = 1; this.kick = 0; this.reloadEnd = 0; this.ads = 0;
     }
     const model = this.models[this.active]; model.group.visible = true;
     const reloading = actor.reloadUntil > simulationTime;
