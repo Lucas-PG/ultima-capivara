@@ -221,7 +221,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => 'terrain-ground-road-rock-albedo-v6';
+    groundMaterial.customProgramCacheKey = () => 'terrain-ground-grass-response-v7';
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -345,6 +345,11 @@ export class WorldScene {
         morroPaint = mix(morroPaint, terrainMorroJoint, joint * 0.55);
         diffuseColor.rgb = mix(diffuseColor.rgb, morroPaint,
           morroFace * (1.0 - asphaltMask - curbMask));
+        // Counter the warm sun's yellow shift only on painted grass, before
+        // lighting. Broad colour weights preserve filtered sand/grass edges.
+        float grassResponse = smoothstep(1.0, 1.45, diffuseColor.g / max(diffuseColor.r, 0.001)) *
+          smoothstep(1.1, 2.0, diffuseColor.g / max(diffuseColor.b, 0.001));
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(1.0, 1.20, 2.40), grassResponse);
       `);
     };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
