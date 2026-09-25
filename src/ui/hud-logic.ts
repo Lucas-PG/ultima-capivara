@@ -66,3 +66,10 @@ export const ELIMINATED_ACTIONS = [
 
 // Results: the rematch/menu actions become visible and clickable this soon after the match ends (quality bar: at most 400 ms).
 export const RESULTS_ACTIONS_DELAY = 300;
+
+// Lobby start button (host): while the island warms up it is disabled and busy with real progress;
+// otherwise it is enabled only when everyone is ready and connected.
+export function startButtonState(allReady: boolean, roomLoading: number | null) {
+  const loading = roomLoading !== null;
+  return { loading, disabled: loading || !allReady, primary: allReady && !loading, pct: loading ? Math.round(Math.min(1, Math.max(0, roomLoading!)) * 100) : 0 };
+}

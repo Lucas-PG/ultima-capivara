@@ -7,7 +7,7 @@ import { closestInteraction as findInteraction } from './shared/interaction';
 import { WEAPONS } from './shared/weapons';
 import { DEATH_CAM_SECONDS } from './shared/death-cam';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot, RenderFrame } from './shared/types';
-import { GameRenderer } from './render/renderer';
+import type { GameRenderer } from './render/renderer';
 import { RoomSession } from './network/session';
 import { InputController } from './input';
 import { SoundEngine } from './audio';
@@ -25,8 +25,13 @@ const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
 const renderFrame: RenderFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
 let renderer: GameRenderer | null = null;
-// One renderer for the page's lifetime, warmed up on the menu; `loading` holds the match's loading screen until the first real frame.
+// Load the 3D island on lobby entry or Practice, then reuse it until the page closes.
+// `loading` holds the loading screen until the first prepared frame.
 let rendererReady: Promise<void> | null = null, loading = false, readyToReveal = false;
+let rendererWarmed = false, lobbyLoad = 0;
+let pageDisposed = false;
+class RendererUnavailableError extends Error {}
+const rendererUnavailableMessage = 'Não foi possível iniciar o gráfico 3D. Ative a aceleração de hardware e tente novamente.';
 let matchPreparation: Promise<void> | null = null;
 let loadFraction = 0, loadLabel = 'Desenhando a ilha';
 let worker: Worker | null = null;
@@ -51,10 +56,12 @@ let adaptRecorded = '';
 
 const session = new RoomSession({
   room(next) {
-    const returned = next?.phase === 'lobby' && room?.phase !== 'lobby';
+    const returned = next?.phase === 'lobby' && (room?.phase !== 'lobby' || room.code !== next.code);
     room = next;
     if (returned) stopMatch();
     ui.setRoom(next);
+    if (returned) warmLobby();
+    else if (next?.phase !== 'lobby') { lobbyLoad++; ui.setRoomLoading(null); }
   },
   start(config, players, matchId) {
     if (!room) return;
@@ -76,10 +83,17 @@ const ui = new GameUI(world, settings, profile, {
   async join(p, code) { await sound.unlock(); await session.join(code, p); },
   practice: startPractice,
   ready: value => session.ready(value),
-  start() {
-    try { ensureRenderer(); }
-    catch { ui.toast('O gráfico 3D não está disponível. Ative a aceleração de hardware antes de começar.', true); return; }
-    void sound.unlock(); session.start(); if (playing) void input.lock();
+  async start() {
+    const startingRoom = room?.code;
+    void sound.unlock(); ensureRenderer();
+    try { await rendererReady; }
+    catch (error) {
+      if (!pageDisposed) ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
+        'Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
+      return;
+    }
+    if (pageDisposed || !room?.isHost || room.code !== startingRoom) return;
+    session.start(); if (playing) void input.lock();
   },
   leave,
   rematch() {
@@ -99,24 +113,48 @@ const ui = new GameUI(world, settings, profile, {
 });
 
 function ensureRenderer() {
-  if (!renderer) { renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }, (fraction) => {
-    loadFraction = fraction;
-    loadLabel = fraction < .15 ? 'Desenhando a ilha' : fraction < .3 ? 'Plantando os coqueiros' :
-      fraction < .45 ? 'Enchendo o mar' : fraction < .6 ? 'Escondendo os baús' :
-      fraction < .75 ? 'Engraxando as armas' : fraction < .9 ? 'Chamando a turma' :
-      fraction < 1 ? 'Carregando o avião' : 'Pronto!';
-    ui.setLoadingProgress(fraction, loadLabel);
-  }); rendererReady = renderer.warmup(); void rendererReady.catch(() => {}); }
-  renderer.resize();
+  if (!rendererReady) {
+    rendererReady = (async () => {
+      const { GameRenderer } = await import('./render/renderer');
+      // Let the loading screen paint before constructing the world, including
+      // when the engine modules already live in the browser cache.
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (pageDisposed) throw new Error('Page closed before renderer initialization');
+      try { renderer = new GameRenderer(canvas, world, settings, () => { dirtyFrame = true; }, (fraction) => {
+        loadFraction = fraction;
+        loadLabel = fraction < .15 ? 'Desenhando a ilha' : fraction < .3 ? 'Plantando os coqueiros' :
+          fraction < .45 ? 'Enchendo o mar' : fraction < .6 ? 'Escondendo os baús' :
+          fraction < .75 ? 'Engraxando as armas' : fraction < .9 ? 'Chamando a turma' :
+          fraction < 1 ? 'Carregando o avião' : 'Pronto!';
+        ui.setLoadingProgress(fraction, loadLabel);
+        if (room?.phase === 'lobby' && !rendererWarmed) ui.setRoomLoading(fraction);
+      }); } catch (error) { throw new RendererUnavailableError('Renderer construction failed', { cause: error }); }
+      renderer.resize();
+      await renderer.warmup();
+      rendererWarmed = true;
+    })();
+    void rendererReady.catch(() => {});
+  }
+  renderer?.resize();
+}
+function warmLobby() {
+  const request = ++lobbyLoad;
+  if (rendererWarmed) { ui.setRoomLoading(null); return; }
+  ui.setRoomLoading(0);
+  ensureRenderer();
+  ui.setRoomLoading(loadFraction);
+  void rendererReady!.then(() => {
+    if (!pageDisposed && request === lobbyLoad) ui.setRoomLoading(null);
+  }).catch(error => {
+    if (pageDisposed || request !== lobbyLoad || room?.phase !== 'lobby') return;
+    ui.setRoomLoading(null);
+    ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
+      'Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
+  });
 }
 function beginMatch(id: string, matchId: string) {
   stopMatch();
-  try { ensureRenderer(); }
-  catch {
-    leave();
-    ui.toast('Não foi possível iniciar o gráfico 3D. Ative a aceleração de hardware e tente novamente.', true);
-    return false;
-  }
+  ensureRenderer();
   playerId = id; match = matchId; playing = true; dirtyFrame = true;
   lastEvent = 0; initializedPose = false; lastAlive = true; lastStage = '';
   input.reset(); ui.closeModal(); ui.game(id); ui.setPaused(!input.locked);
@@ -128,9 +166,10 @@ function startWorker(config: RoomConfig, players: PlayerProfile[], matchId: stri
   void rendererReady?.then(() => {
     if (!playing || match !== matchId) return;
     startReadyWorker(config, players, matchId);
-  }).catch(() => {
-    if (match !== matchId) return;
-    leave(); ui.toast('Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
+  }).catch(error => {
+    if (match !== matchId || pageDisposed) return;
+    leave(); ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
+      'Não foi possível carregar a ilha. Recarregue a página e tente novamente.', true);
   });
 }
 function startReadyWorker(config: RoomConfig, players: PlayerProfile[], matchId: string) {
@@ -172,11 +211,15 @@ function acceptSnapshot(next: WorldSnapshot) {
   snapshot = next; receivedAt = performance.now();
   if (loading && !matchPreparation) {
     const preparingId = match;
-    matchPreparation = renderer!.prepareMatch(next).then(() => {
+    matchPreparation = rendererReady!.then(() => {
+      if (!playing || match !== preparingId || pageDisposed) return;
+      return renderer!.prepareMatch(next);
+    }).then(() => {
       if (playing && match === preparingId) { readyToReveal = true; dirtyFrame = true; }
-    }).catch(() => {
-      if (match !== preparingId) return;
-      leave(); ui.toast('Não foi possível preparar a partida. Recarregue a página e tente novamente.', true);
+    }).catch(error => {
+      if (match !== preparingId || pageDisposed) return;
+      leave(); ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
+        'Não foi possível preparar a partida. Recarregue a página e tente novamente.', true);
     });
   }
   const actor = next.actors.find(a => a.id === playerId);
@@ -260,7 +303,7 @@ input.onPause = () => { if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 window.addEventListener('resize', () => { renderer?.resize(); dirtyFrame = true; });
-window.addEventListener('pagehide', () => { stopMatch(); session.leave(); sound.dispose(); renderer?.dispose(); });
+window.addEventListener('pagehide', () => { pageDisposed = true; stopMatch(); session.leave(); sound.dispose(); renderer?.dispose(); });
 window.addEventListener('pageshow', event => {
   // pagehide releases the match and audio hardware. A restored page must create
   // fresh resources instead of reviving references to a terminated Worker.
@@ -319,9 +362,6 @@ function frame(now: number) {
 }
 requestAnimationFrame(frame);
 document.querySelector('#loading')?.remove();
-// Build and warm the 3D island while the player is still on the menu, after the first paint.
-const preload = () => { try { ensureRenderer(); } catch { /* reported when a match starts */ } };
-if (typeof requestIdleCallback === 'function') requestIdleCallback(preload, { timeout: 2500 }); else setTimeout(preload, 800);
 const invitation = new URLSearchParams(location.search).get('sala');
 if (invitation && /^[A-Z0-9]{6}$/i.test(invitation)) ui.roomModal('join', invitation.toUpperCase());
 

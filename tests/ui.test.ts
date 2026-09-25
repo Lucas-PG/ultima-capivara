@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, publicUrl, startButtonState, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -118,5 +118,22 @@ describe('results screen', () => {
     const css = readFileSync('src/ui/style.css', 'utf8');
     const panel = css.match(/#victory \.vpanel\{[^}]*transition:([^;}]*)/)?.[1] || '';
     for (const ms of [...panel.matchAll(/(\d*\.?\d+)s/g)].map(m => Number(m[1]) * 1000)) expect(RESULTS_ACTIONS_DELAY + ms).toBeLessThanOrEqual(700);
+  });
+});
+
+describe('lobby warmup', () => {
+  // Forja's lazy renderer warms up in the lobby; the host must never be able to start while it loads.
+  it('disables the start button while loading, whatever the readiness', () => {
+    for (const fraction of [0, .42, 1]) for (const allReady of [true, false])
+      expect(startButtonState(allReady, fraction)).toEqual({ loading: true, disabled: true, primary: false, pct: Math.round(fraction * 100) });
+  });
+  it('restores the normal readiness rule once loading is cleared', () => {
+    expect(startButtonState(true, null)).toEqual({ loading: false, disabled: false, primary: true, pct: 0 });
+    expect(startButtonState(false, null)).toEqual({ loading: false, disabled: true, primary: false, pct: 0 });
+  });
+  it('rounds and clamps the progress percentage', () => {
+    expect(startButtonState(true, .426).pct).toBe(43);
+    expect(startButtonState(true, 1.4).pct).toBe(100);
+    expect(startButtonState(true, -.2).pct).toBe(0);
   });
 });
