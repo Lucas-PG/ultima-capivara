@@ -7,7 +7,7 @@ Use `BLENDER_BIN` para outra localização do executável.
 ## Entrega
 
 - GLB Meshopt de 152.220 bytes, atlas PNG 16 x 16, um material, um skin de 22 ossos.
-- LOD0: 14.000 triângulos; LOD1: 4.800; LOD2: 1.400. Trocas em 12 e 28 m.
+- LOD0: 13.998 triângulos; LOD1: 4.800; LOD2: 1.400. Trocas em 12 e 28 m.
 - `idle`, com respiração, orelhas e piscada; `run`; `jump` no lugar.
 - Malhas e clips compartilhados entre instâncias. AnimationMixer e pose por ator;
   os três LODs de uma instância compartilham o mesmo skeleton.
@@ -20,6 +20,13 @@ Use `BLENDER_BIN` para outra localização do executável.
 O script de geração verifica os budgets e grava `public/models/capybara/metrics.json`.
 Os três testes em `tests/capybara-asset.test.ts` verificam o arquivo distribuído,
 compressão, budgets, skin, pesos, hitboxes em repouso e dados de animação/piscada.
+
+A geração dupla final produziu arquivos idênticos, SHA-256
+`e0a0d1a2e36cc26b3f3341f5283e82d26cb65f29b463f042c8406476861892f4`.
+Formiga executou `check`, os 64 testes e `build` no commit e195441: todos passaram.
+Logs locais: `output/characters/reproducibility.log` e `verification.log`.
+Uma amostragem de 24 frames do ciclo run no renderer encontrou y mínimo dos pés
+em +0,00114 m: não atravessam o chão.
 
 ## Integração
 
@@ -42,15 +49,16 @@ incluída como uma tela do produto. `capyHitboxes` liga o overlay na partida;
 a fixture também permite alterná-lo em `window.capyReview.shot`.
 
 Capturas em `/Users/lucas_gaspe/dev/capivara-team/reviews/tatu-capy-v0-*.png`:
-frente, lado e 3/4, idle/run, 1 m e 20 m; hero 3 m, overlays e LOD2 a 30 m.
+rodada final em 1600 x 900: frente, lado e 3/4, idle/run, 1 m e 20 m; hero 3 m, overlays e LOD2 a 30 m.
 Em 1 m a lente abre para 100 graus para conter o corpo inteiro; 20/30 m usam
 60 graus. A primeira rodada na área do Posto tinha obstruções em 20 m; a
 rodada final coloca o ator na clareira (0, -60), com o cenário preservado.
 
 ## Review do Pincel, 24/09/2026
 
-Os três conceitos foram aprovados como meta, com preferência do diretor por A,
-Ilha Dourada. Originais preservados em `docs/concepts/` e no diretório compartilhado
+Os três conceitos foram revisados, com preferência do diretor por A,
+Ilha Dourada. Em seguida o orquestrador travou A como direção oficial; B e C
+foram descartados como direções de produção e ficam apenas no arquivo de exploração. Originais preservados em `docs/concepts/` e no diretório compartilhado
 de reviews. A ferramenta gerou 1672 x 941 apesar do pedido de 1600 x 900; Pincel
 revisou e aprovou os originais. Prompts integrais e data em `docs/assets.md`.
 
@@ -59,7 +67,13 @@ visual para M1**: o diretor identificou leitura de ursinho/lontra. Nesta prova
 foram ajustados o pescoço contínuo, a bandana visível e o nivelamento dos pés da
 corrida. A revisão visual completa seguirá o sheet A e a style bible.
 
-Plano para M1, sujeito ao gate de direção do usuário:
+A style bible publicada ao fim da rodada foi lida integralmente. As seções
+3.7, 9 e 10 mantêm esse aceite técnico e formalizam as metas de M1. Também
+exigem cor de jogador apenas na bandana/acabamento do colete, roughness mínimo
+0,85 e rim light para legibilidade. Esses pontos entram na revisão visual M1,
+sem alterar a aprovação técnica M0 já dada pelo diretor.
+
+Plano para M1, seguindo a direção A oficialmente travada:
 
 1. Focinho em bloco retangular arredondado, frente quase plana e proporção
    largura:altura:profundidade 1:0,8:1,1, ocupando cerca de 45% da cabeça.

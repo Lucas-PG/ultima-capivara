@@ -17,7 +17,8 @@ embedded; there are no remote assets, photo textures, or normal maps.
   The simulation's player-favouring bot hitboxes intentionally remain smaller.
   Hands holding the weapon are outside the body hit cylinder, as before.
 
-The palette and silhouette follow Pincel's provisional brief dated 2026-09-24.
+The M0 proof follows Pincel's brief dated 2026-09-24. Direction A is now locked;
+the shared style bible, sections 3.7, 9 and 10, governs M1 refinement.
 M0 keeps a single approved fur palette. Cosmetic colours, clothing variants and
 additional clips are M1. The model is original scripted geometry.
 
