@@ -37,7 +37,9 @@ describe('painted weapons shipped asset contract', () => {
     expect(materials[0].getNormalTexture()).toBeNull();
     expect(materials[0].getMetallicRoughnessTexture()).toBeNull();
     expect(materials[0].getBaseColorTexture()).toBeDefined();
-    expect(asset.getRoot().listTextures()).toHaveLength(1);
+    expect(asset.getRoot().listTextures()).toHaveLength(2);
+    expect(materials[0].getEmissiveTexture()?.getSize()).toEqual([32, 32]);
+    for (const channel of materials[0].getEmissiveFactor()) expect(channel).toBeCloseTo(.35, 6);
   });
 
   it('puts firearm muzzle anchors ahead of the receiver and keeps sight anchors centred', () => {

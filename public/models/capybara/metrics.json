@@ -1,8 +1,8 @@
 {
-  "sourceTriangles": 28888,
+  "sourceTriangles": 31742,
   "palette": [
-    "B8743A",
-    "D39A47",
+    "A27C5C",
+    "C19D62",
     "7A4424",
     "4A2C1C",
     "E8C08A",
@@ -25,11 +25,11 @@
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 4798
+      "triangles": 4799
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 1390
+      "triangles": 1389
     }
   ],
   "hitbox": {
@@ -59,9 +59,9 @@
   ],
   "materials": 1,
   "skins": 1,
-  "joints": 33,
-  "bytes": 242248,
-  "rawBytes": 905804,
+  "joints": 35,
+  "bytes": 256192,
+  "rawBytes": 1071604,
   "texture": {
     "format": "PNG",
     "width": 16,

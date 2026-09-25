@@ -18,12 +18,20 @@ const cam = new THREE.PerspectiveCamera(+q.get('fov') || 30, W / H, .01, 500);
 const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}models/capybara/capybara.glb`);
 let pipeline;
 if (q.has('runtime')) {
+  const { PaintedSky } = await import('../../src/render/sky');
+  const sky = new PaintedSky(), skyScene = new THREE.Scene(); skyScene.add(sky.group);
+  const pmrem = new THREE.PMREMGenerator(r);
+  const environment = pmrem.fromScene(skyScene, .035, .1, 850, { size: 128 });
+  scene.environment = environment.texture; scene.environmentIntensity = .35; pmrem.dispose();
+  addEventListener('beforeunload', () => { sky.dispose(); environment.dispose(); });
+  sun.position.set(-70, 55, -30);
   const { applyCharacterStyle } = await import('../../src/render/materials');
   const { RenderPipeline } = await import('../../src/render/pipeline');
   pipeline = new RenderPipeline(r, 2); pipeline.resize();
   const styled = new Map();
   gltf.scene.traverse(o => {
     if (!o.isMesh) return;
+    o.layers.enable(1);
     if (!styled.has(o.material)) styled.set(o.material, applyCharacterStyle(o.material.clone()));
     o.material = styled.get(o.material);
   });
@@ -56,18 +64,20 @@ if (q.has('expressions')) {
   ];
   const width = W / 3, height = H / 2;
   cam.aspect = width / height; cam.updateProjectionMatrix();
-  r.setScissorTest(true);
+  r.setSize(width, height); pipeline?.resize();
   expressions.forEach(([name, label], i) => {
     const x = i % 3 * width, y = Math.floor(i / 3) * height;
     mixer.stopAllAction(); mixer.clipAction(gltf.animations.find(clip => clip.name === `face_${name}`)).reset().play();
     mixer.setTime(t);
-    r.setViewport(x, H - y - height, width, height); r.setScissor(x, H - y - height, width, height);
     render();
+    const frame = document.createElement('img'); frame.src = r.domElement.toDataURL();
+    frame.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px`;
+    document.body.append(frame);
     const caption = document.createElement('div'); caption.textContent = label;
     caption.style.cssText = `position:absolute;left:${x + 24}px;top:${y + 18}px;font:600 18px system-ui;color:#3a2418`;
     document.body.append(caption);
   });
-  r.setScissorTest(false);
+  r.domElement.hidden = true;
 } else render();
 const box = new THREE.Box3().setFromObject(model); window.bounds = { min: box.min.toArray(), max: box.max.toArray() };
 window.ready = true;

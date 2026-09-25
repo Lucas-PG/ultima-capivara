@@ -3,6 +3,7 @@ Generated parts start as quad rings, receive subdivision, then budget decimation
 Every LOD uses the same armature and flat 16 x 16 PNG palette atlas.
 """
 import bpy
+import bmesh
 import json
 import math
 import os
@@ -87,14 +88,15 @@ bone('spine', (0, .6, 0), (0, 1.15, 0), 'root')
 bone('neck', (0, 1.15, 0), (0, 1.45, -.02), 'spine')
 bone('head', (0, 1.6, -.04), (0, 1.78, -.04), 'neck')
 bone('jaw', (0, 1.535, -.21), (0, 1.58, -.21), 'head')
-bone('mouth_cavity', (0, 1.54, -.263), (0, 1.57, -.263), 'head')
+bone('mouth_cavity', (0, 1.535, -.263), (0, 1.565, -.263), 'head')
 bone('tail', (0, .62, .23), (0, .66, .29), 'spine')
 for s, side in [(-1, 'L'), (1, 'R')]:
     bone('ear_' + side, (s * .15, 1.755, .005), (s * .16, 1.815, .005), 'head')
-    bone('blink_' + side, (s * .13, 1.666, -.12), (s * .13, 1.71, -.12), 'head')
+    bone('socket_' + side, (s * .13, 1.654, -.12), (s * .13, 1.698, -.12), 'head')
+    bone('blink_' + side, (s * .13, 1.654, -.12), (s * .13, 1.698, -.12), 'head')
     for part in ['tip', 'peak']:
-        bone('blink_' + part + '_' + side, (s * .13, 1.666, -.12), (s * .13, 1.71, -.12), 'blink_' + side)
-    bone('glint_' + side, (s * .13 - .006, 1.674, -.132), (s * .13 - .006, 1.719, -.132), 'blink_' + side)
+        bone('blink_' + part + '_' + side, (s * .13, 1.654, -.12), (s * .13, 1.698, -.12), 'blink_' + side)
+    bone('glint_' + side, (s * .13 - .006, 1.662, -.132), (s * .13 - .006, 1.707, -.132), 'blink_' + side)
     bone('brow_' + side, (s * .13, 1.704, -.10), (s * .13, 1.736, -.10), 'head')
     bone('mouth_' + side, (s * .073, 1.492, -.239), (s * .073, 1.522, -.239), 'jaw')
     bone('thigh_' + side, (s * .137, .39, .01), (s * .137, .22, .01), 'root')
@@ -141,7 +143,7 @@ def mesh_part(name, verts, faces, color, weights, subdivide=True):
     # Fur sits 4 mm behind facial linework, avoiding coincident surfaces at the hit sphere.
     radius = .240 if obj.name == 'Head_and_muzzle' else .244
     # Face, muzzle and ears stay inside the head hit sphere.
-    facial = {g.index for g in obj.vertex_groups if g.name == 'head' or g.name == 'jaw' or g.name.startswith(('ear_', 'blink_', 'glint_', 'brow_', 'mouth_'))}
+    facial = {g.index for g in obj.vertex_groups if g.name == 'head' or g.name == 'jaw' or g.name.startswith(('ear_', 'blink_', 'socket_', 'glint_', 'brow_', 'mouth_'))}
     centre = V((0, 1.6, -.04))
     for vert in obj.data.vertices:
         if sum(g.weight for g in vert.groups if g.group in facial) > .5 or vert.co.z > 1.42:
@@ -166,6 +168,8 @@ def rounded_block(name, center, dimensions, color, weights, bevel=.02):
     return mesh_part(name, verts, faces, color, weights, subdivide=False)
 
 def blend(a, b, value):
+    if a == b:
+        return {a: 1}
     t = max(0, min(1, value))
     return {a: 1 - t, b: t}
 
@@ -252,11 +256,11 @@ for loop in patch.data.loops:
     patch.data.color_attributes['Color'].data[loop.index].color = (*rgb, 1)
 # A single longitudinal quad surface joins cheeks and rectangular muzzle.
 # Forehead-to-nose is one gently descending line, without a box seam.
-head_profile = [(.168, .03, 1.59, .035), (.138, .103, 1.59, .12),
-                (.078, .178, 1.606, .172), (.018, .219, 1.61, .168),
-                (-.05, .214, 1.608, .154), (-.108, .188, 1.59, .144),
-                (-.15, .137, 1.588, .110), (-.205, .11, 1.583, .079),
-                (-.255, .107, 1.578, .064), (-.268, .084, 1.574, .049)]
+head_profile = [(.168, .03, 1.58, .035), (.138, .100, 1.58, .11),
+                (.078, .174, 1.598, .16), (.018, .214, 1.60, .158),
+                (-.05, .208, 1.597, .144), (-.108, .182, 1.58, .134),
+                (-.17, .142, 1.574, .106), (-.225, .116, 1.568, .079),
+                (-.274, .107, 1.561, .063), (-.281, .084, 1.557, .048)]
 verts, faces = [], []
 segments = 32
 for z, rx, cy, ry in head_profile:
@@ -270,6 +274,56 @@ for row in range(len(head_profile) - 1):
         faces.append((a, b, b + segments, a + segments))
 faces += [tuple(reversed(range(segments))), tuple((len(head_profile) - 1) * segments + i for i in range(segments))]
 head_surface = mesh_part('Head_and_muzzle', verts, faces, 0, lambda p: blend('head', 'jaw', max(0, (1.56 - p[1]) / .055) * max(0, min(1, (-p[2] - .06) / .1))))
+# Keep an untouched reference for attaching the recessed features to the fur.
+reference = head_surface.copy()
+reference.data = head_surface.data.copy()
+scene.collection.objects.link(reference)
+bm = bmesh.new()
+bm.from_mesh(head_surface.data)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+bm.to_mesh(head_surface.data)
+bm.free()
+
+def fur_point(x, y):
+    hit, point, normal, face = reference.ray_cast(V((x, y, -1)), V((0, 0, 1)))
+    assert hit, ('face surface', x, y)
+    return point
+
+def recess(x, y, width, height, depth, name):
+    point = fur_point(x, y)
+    # A shallow subtraction creates a real concave surface behind the fur rim.
+    centre = point + V((0, 0, -depth * .42))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=1, location=centre)
+    cutter = bpy.context.object
+    cutter.scale = (width, depth, height)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    bpy.context.view_layer.objects.active = head_surface
+    cut = head_surface.modifiers.new(name, 'BOOLEAN')
+    cut.operation, cut.solver, cut.object = 'DIFFERENCE', 'EXACT', cutter
+    bpy.ops.object.modifier_apply(modifier=cut.name)
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    return point
+
+mouth_point = recess(0, 1.535, .037, .017, .029, 'Recessed mouth')
+for side in [-1, 1]:
+    recess(side * .13, 1.654, .028, .035, .035, 'Recessed eye')
+# The mouth rim and cavity close together; neutral has no dark oval decal.
+for group in list(head_surface.vertex_groups):
+    head_surface.vertex_groups.remove(group)
+for name in ['head', 'jaw', 'mouth_cavity', 'socket_L', 'socket_R']:
+    head_surface.vertex_groups.new(name=name)
+for vertex in head_surface.data.vertices:
+    x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
+    distance = ((x / .047) ** 2 + ((y - 1.535) / .028) ** 2) ** .5
+    mouth_weight = max(0, min(1, (1.65 - distance) / .45)) if z < -.225 else 0
+    jaw_weight = max(0, min(1, (1.56 - y) / .055)) * max(0, min(1, (-z - .06) / .1)) * (1 - mouth_weight)
+    eye_side = 'L' if x < 0 else 'R'
+    eye_distance = (((abs(x) - .13) / .028) ** 2 + ((y - 1.654) / .035) ** 2) ** .5
+    eye_weight = max(0, min(1, (1.4 - eye_distance) / .3)) if z < -.11 else 0
+    for name, weight in [('head', max(0, 1 - jaw_weight - mouth_weight - eye_weight)), ('jaw', jaw_weight), ('mouth_cavity', mouth_weight), ('socket_' + eye_side, eye_weight)]:
+        if weight > 0:
+            head_surface.vertex_groups[name].add([vertex.index], weight, 'REPLACE')
+
 # Broad painted value changes interpolate across vertices, avoiding jagged bands.
 base_rgb, light_rgb, shadow_rgb = [linear_rgb(PALETTE[i]) for i in [0, 1, 2]]
 for poly in head_surface.data.polygons:
@@ -280,45 +334,47 @@ for poly in head_surface.data.polygons:
         shadow = max(0, min(1, (1.53 - y) / .085))
         rgb = [base_rgb[i] * (1 - light) + light_rgb[i] * light for i in range(3)]
         rgb = [rgb[i] * (1 - shadow) + shadow_rgb[i] * shadow for i in range(3)]
+        x, z = vertex.co.x, -vertex.co.y
+        mouth_distance = (x / .038) ** 2 + ((y - 1.535) / .019) ** 2
+        if mouth_distance < 1.06 and z < -.235:
+            depth = max(0, min(1, (z + mouth_point.y) / .015))
+            wine, back = linear_rgb('6B2E2A'), linear_rgb('351917')
+            rgb = [wine[i] * (1 - depth) + back[i] * depth for i in range(3)]
         head_surface.data.uv_layers.active.data[loop_index].uv = (14.5 / 16, .5)
         head_surface.data.color_attributes['Color'].data[loop_index].color = (*rgb, 1)
 # The dark nose pad occupies only the upper third of the furry muzzle.
-nose = rounded_block('Nose_pad', (0, 1.609, -.273), (.096, .043, .018), 15, {'head': 1}, bevel=.012)
+nose = rounded_block('Nose_pad', (0, 1.595, -.275), (.096, .043, .018), 15, {'head': 1}, bevel=.012)
 for vertex in nose.data.vertices:
-    vertex.co.x *= .78 + .22 * max(0, min(1, (vertex.co.z - 1.5875) / .043))
+    vertex.co.x *= .78 + .22 * max(0, min(1, (vertex.co.z - 1.5735) / .043))
 for side in [-1, 1]:
-    ellipsoid('Nostril', (side * .022, 1.606, -.281), (.01, .007, .004), 9, {'head': 1}, segments=10, rings=6)
-mouth_opening = ellipsoid('Mouth_opening', (0, 1.54, -.263), (.052, .017, .003), 3, {'mouth_cavity': 1}, segments=20, rings=10)
-for vertex in mouth_opening.data.vertices:
-    x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
-    hit, point, normal, face = head_surface.ray_cast(V((x, y, -1)), V((0, 0, 1)))
-    assert hit, ('mouth surface', x, y)
-    vertex.co = point + V((0, 0, -.0025 + (z + .263) * .08))
-# One continuous lip follows the furry muzzle and moves with the jaw.
-lip_points = []
-for x, y in [(-.057, 1.543), (-.03, 1.54), (0, 1.538), (.03, 1.54), (.057, 1.543)]:
-    hit, point, normal, face = head_surface.ray_cast(V((x, y, -1)), V((0, 0, 1)))
-    assert hit, (x, y)
-    point += V((0, 0, -.0015))
-    lip_points.append((point.x, point.z, -point.y))
-tube('Mouth_line', lip_points, [.0015, .0025, .0025, .0025, .0015], 9, ['mouth_L', 'jaw', 'mouth_R'])
+    ellipsoid('Nostril', (side * .022, 1.592, -.281), (.01, .007, .004), 9, {'head': 1}, segments=10, rings=6)
+# A fur-coloured lower lip and fine wine rim articulate the actual cavity.
+for name, angles, radius, color in [('Lower_lip', range(180, 361, 30), .003, 0), ('Lip_line', range(0, 361, 30), .0012, 3)]:
+    points = []
+    for angle in angles:
+        a = math.radians(angle)
+        x, y = .034 * math.cos(a), 1.535 + .015 * math.sin(a)
+        point = fur_point(x, y) + V((0, 0, -.0008))
+        points.append((point.x, point.z, -point.y))
+    tube(name, points, [radius] * len(points), color, ['mouth_cavity', 'mouth_cavity'])
 for s, side in [(-1, 'L'), (1, 'R')]:
     def lid_weights(point):
-        tip = .45 * max(0, 1 - abs((point[1] - 1.666) / .024))
+        tip = .45 * max(0, 1 - abs((point[1] - 1.654) / .024))
         peak = .45 * max(0, 1 - abs((point[0] - s * .13) / .021))
         return {'blink_' + side: 1 - tip - peak, 'blink_tip_' + side: tip, 'blink_peak_' + side: peak}
-    eye = ellipsoid('Eye_' + side, (s * .13, 1.666, -.12), (.021, .024, .014), 9, lid_weights, segments=12, rings=8)
-    glint = ellipsoid('Glint_' + side, (s * .13 - .006, 1.674, -.132), (.008, .009, .004), 10, {'glint_' + side: 1}, segments=8, rings=6)
-    for patch, centre_z, relief in [(eye, -.12, .0015), (glint, -.132, .0025)]:
+    eye = ellipsoid('Eye_' + side, (s * .13, 1.654, -.12), (.021, .024, .014), 9, lid_weights, segments=12, rings=8)
+    glint = ellipsoid('Glint_' + side, (s * .13 - .006, 1.662, -.132), (.007, .008, .003), 10, {'glint_' + side: 1}, segments=16, rings=10)
+    for patch, centre_z, relief in [(eye, -.12, -.012), (glint, -.132, -.0095)]:
         for vertex in patch.data.vertices:
             x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
-            hit, point, normal, face = head_surface.ray_cast(V((x, y, -1)), V((0, 0, 1)))
-            assert hit, ('eye surface', x, y)
-            vertex.co = point + V((0, 0, -relief + (z - centre_z) * .12))
+            point = fur_point(s * .13, 1.654)
+            # A recessed oval lies on one plane, so enlarged pupils cannot fold
+            # into two curved patches when they cross the cheek's slope.
+            vertex.co = point + V((x - s * .13, y - 1.654, -relief + (z - centre_z) * .12))
     brow = tube('Brow_tuft_' + side, [(s * .11, 1.704, -.10), (s * .13, 1.710, -.10), (s * .15, 1.704, -.10)], [.002, .006, .002], 2, ['brow_' + side, 'head'])
     for vertex in brow.data.vertices:
         x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
-        hit, point, normal, face = head_surface.ray_cast(V((x, y, -1)), V((0, 0, 1)))
+        hit, point, normal, face = reference.ray_cast(V((x, y, -1)), V((0, 0, 1)))
         assert hit, ('brow surface', x, y)
         vertex.co = point + V((0, 0, -.0025 + (z + .10) * .12))
     ellipsoid('Ear_' + side, (s * .124, 1.766, .042), (.046, .045, .028), 0, {'ear_' + side: .88, 'head': .12}, segments=12, rings=8)
@@ -334,6 +390,7 @@ for s, side in [(-1, 'L'), (1, 'R')]:
         ellipsoid('Claw_' + side, (s * .1 + finger * .049, 1.045, hand_z - .122), (.016, .016, .015), 3, {'paw_' + side: 1}, segments=8, rings=6)
     ellipsoid('Thumb_' + side, (s * .1 - s * .082, 1.035, hand_z - .033), (.035, .044, .035), 0, {'paw_' + side: 1}, segments=10, rings=6)
     ellipsoid('Paw_pad_' + side, (s * .1, .977, hand_z - .025), (.052, .016, .065), 3, {'paw_' + side: 1}, segments=12, rings=6)
+bpy.data.objects.remove(reference, do_unlink=True)
 # No visible tail. Cloth band hugs the neck with a thin flat cross section.
 verts, faces = [], []
 for y in [1.408, 1.416, 1.425, 1.433]:
@@ -468,7 +525,7 @@ for name, frames in [('idle', 75), ('run', 24), ('jump', 30)]:
 # Facial clips key only eyelids, brow tufts, ears and mouth. Skull and muzzle
 # have no tracks here. Runtime can blend these additively over locomotion,
 # referencing face_neutral through AnimationUtils.makeClipAdditive.
-face_parts = [p for p in rig.pose.bones if p.name.startswith(('blink_', 'glint_', 'brow_', 'ear_', 'mouth_')) or p.name == 'jaw']
+face_parts = [p for p in rig.pose.bones if p.name.startswith(('blink_', 'socket_', 'glint_', 'brow_', 'ear_', 'mouth_')) or p.name == 'jaw']
 for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink']:
     action = bpy.data.actions.new('face_' + expression)
     action.use_fake_user = True
@@ -506,8 +563,9 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
                 rig.pose.bones['jaw'].location.y = -.015
                 rig.pose.bones['jaw'].location.z = .005
             elif expression == 'stunned':
-                lid.scale.y = 1.65 if side == 'L' else 1.35
-                lid.scale.x = 1.30 if side == 'L' else 1.16
+                lid.scale.y = 1.50 if side == 'R' else .65
+                lid.scale.x = 1.22 if side == 'R' else .82
+                rig.pose.bones['socket_' + side].scale = lid.scale.copy()
                 brow.rotation_euler.z = sign * (.12 if side == 'L' else -.12)
                 ear.rotation_euler.z = sign * .36
                 ear.location.y = -.025

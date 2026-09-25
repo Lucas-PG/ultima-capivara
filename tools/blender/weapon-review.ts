@@ -12,9 +12,22 @@ const gl = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas')!, 
 gl.setPixelRatio(1); gl.setSize(innerWidth, innerHeight);
 gl.toneMapping = THREE.NeutralToneMapping; gl.toneMappingExposure = 1.1;
 gl.setClearColor(0, 0);
+const { RenderPipeline } = await import('../../src/render/pipeline');
+const pipeline = params.has('runtime') ? new RenderPipeline(gl, 2) : null;
+pipeline?.resize();
+const background = new THREE.Scene(); background.background = new THREE.Color('#e9e4d8');
 const scene = new THREE.Scene();
 scene.add(new THREE.HemisphereLight('#B4C2EE', '#C9A66B', 1.15));
 const sun = new THREE.DirectionalLight('#FFD9A8', 2.7); sun.position.set(-7, 5.5, 3); scene.add(sun);
+if (pipeline) {
+  const { PaintedSky } = await import('../../src/render/sky');
+  const sky = new PaintedSky(), skyScene = new THREE.Scene(); skyScene.add(sky.group);
+  const pmrem = new THREE.PMREMGenerator(gl);
+  const environment = pmrem.fromScene(skyScene, .035, .1, 850, { size: 128 });
+  scene.environment = environment.texture;
+  addEventListener('beforeunload', () => { sky.dispose(); environment.dispose(); });
+  scene.environmentIntensity = .35; pmrem.dispose();
+}
 const camera = new THREE.PerspectiveCamera(WEAPON_VIEW_FOV, innerWidth / innerHeight, .01, 20);
 const set = new PaintedWeaponSet();
 await set.preload(url => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url));
@@ -40,7 +53,8 @@ function shot(options: { weapon?: WeaponId; pose?: Partial<WeaponHipPose>; rarit
   }
   model.group.getObjectByName(`${current}_right_paw`)!.visible = options.paws !== false;
   model.support.visible = options.paws !== false;
-  gl.render(scene, camera);
+  if (pipeline) pipeline.render(background, camera, { drawCalls: 0, triangles: 0 }, scene, camera);
+  else gl.render(scene, camera);
   document.querySelector<HTMLElement>('#caption')!.hidden = params.has('clean');
   document.querySelector<HTMLElement>('#aim')!.hidden = !!options.angle;
   document.querySelector('#caption')!.textContent = `${current} · FOV ${camera.fov}° · ${innerWidth} × ${innerHeight}`;
@@ -69,8 +83,8 @@ function measure() {
 
 (window as unknown as { weaponReview: unknown }).weaponReview = { shot, measure, models, set, ready: true };
 shot({ weapon: (params.get('weapon') || 'm4') as WeaponId, angle: params.get('angle') || undefined });
-addEventListener('beforeunload', () => { set.dispose(); gl.dispose(); });
+addEventListener('beforeunload', () => { set.dispose(); pipeline?.dispose(); gl.dispose(); });
 addEventListener('resize', () => {
   gl.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix(); gl.render(scene, camera);
+  camera.updateProjectionMatrix(); pipeline?.resize(); shot({ weapon: current, pose });
 });

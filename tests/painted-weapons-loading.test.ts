@@ -5,7 +5,7 @@ import { PaintedWeaponSet, PAINTED_WEAPON_IDS } from '../src/render/painted-weap
 
 function fixture() {
   const scene = new THREE.Group(), geometry = new THREE.BoxGeometry(), map = new THREE.Texture();
-  const material = new THREE.MeshStandardMaterial({ map });
+  const material = new THREE.MeshStandardMaterial({ map, emissiveMap: new THREE.Texture() });
   for (const id of PAINTED_WEAPON_IDS) {
     const root = new THREE.Group(); root.name = id; scene.add(root);
     for (const part of ['body', 'right_paw', 'left_paw', 'muzzle', 'eject', 'sight', 'magazine', 'action', 'legendary']) {
@@ -60,9 +60,10 @@ describe('painted weapon readiness and ownership', () => {
     expect(common.legendary.visible).toBe(false); expect(rare.legendary.visible).toBe(false); expect(legendary.legendary.visible).toBe(true);
     const mesh = (model: typeof common) => model.group.getObjectByProperty('isMesh', true) as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
     expect(mesh(common).geometry).toBe(mesh(rare).geometry);
+    expect(mesh(common).material.emissiveMap).toBe(source.material.emissiveMap);
     const pixels = (model: typeof common) => (mesh(model).material.map as THREE.DataTexture).image.data!;
-    expect(Array.from(pixels(common).slice(13 * 4, 14 * 4))).toEqual([184, 116, 58, 255]);
-    expect(Array.from(pixels(rare).slice(13 * 4, 14 * 4))).toEqual([184, 116, 58, 255]);
+    expect(Array.from(pixels(common).slice(13 * 4, 14 * 4))).toEqual([162, 124, 92, 255]);
+    expect(Array.from(pixels(rare).slice(13 * 4, 14 * 4))).toEqual([162, 124, 92, 255]);
     expect(Array.from(pixels(rare).slice(9 * 4, 10 * 4))).toEqual([63, 169, 245, 255]);
     set.dispose();
   });

@@ -15,7 +15,7 @@ const world = createWorld();
 const renderer = new GameRenderer(document.querySelector('canvas')!, world, { ...DEFAULT_SETTINGS, fov: 60 });
 await renderer.warmup();
 const room = params.get('lighting') === 'interior' ? world.objects.find(object => object.detail === 'prop:house:bakery') : undefined;
-const center = room ? { x: room.pos.x, z: room.pos.z + .8 } : { x: 0, z: -60 };
+const center = room ? { x: room.pos.x, z: room.pos.z + .8 } : { x: Number(params.get('x') || 0), z: Number(params.get('z') || -60) };
 const floor = room ? room.pos.y + .08 : terrainHeight(center.x, center.z);
 const actor: ActorState = {
   id: 'capy-review', name: 'Capivara M1', color: params.get('color') || '#1FB5A8', bot: false, connected: true,

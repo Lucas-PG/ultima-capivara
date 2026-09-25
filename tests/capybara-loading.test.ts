@@ -10,6 +10,8 @@ vi.mock('../src/render/assets', () => ({ AssetLoader: loaderConstructor }));
 vi.mock('three', async original => ({ ...await original<typeof THREE>(), WebGLRenderer: vi.fn() }));
 
 // Exercise the real warmup gate without allocating a browser or GPU.
+vi.mock('../src/render/sky', () => ({ PaintedSky: class {} }));
+vi.mock('../src/render/timing-gpu', () => ({ instrumentGpu: vi.fn(), instrumentMaterials: vi.fn() }));
 vi.mock('../src/render/world-scene', () => ({ WorldScene: class {} }));
 vi.mock('../src/render/thumbnails', () => ({ loadWeaponThumbnails: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../src/render/weapons', () => ({ WeaponView: class {} }));
@@ -113,7 +115,7 @@ describe('capybara cosmetic colour contract', () => {
       const atlas = material.map as THREE.DataTexture, pixels = atlas.image.data!;
       expect(atlas.colorSpace).toBe(THREE.SRGBColorSpace);
       const hexAt = (column: number) => Array.from(pixels.slice(column * 4, column * 4 + 3)).map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
-      expect([0, 1, 2, 3, 4].map(hexAt)).toEqual(['B8743A', 'D39A47', '7A4424', '4A2C1C', 'E8C08A']);
+      expect([0, 1, 2, 3, 4].map(hexAt)).toEqual(['A27C5C', 'C19D62', '7A4424', '4A2C1C', 'E8C08A']);
       expect(hexAt(5)).toBe(color.slice(1).toUpperCase());
       if (color === '#1FB5A8') expect(hexAt(6)).toBe('12877E');
       expect(hexAt(7)).toBe('6E7040');

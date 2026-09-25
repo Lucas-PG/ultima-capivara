@@ -30,6 +30,21 @@ texture = material.node_tree.nodes.new('ShaderNodeTexImage')
 texture.image = image
 texture.interpolation = 'Closest'
 material.node_tree.links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
+# Painted blade edge retains a cool, light value under the warm island sun.
+# The rest of the shared weapon/paw material remains non-emissive.
+emission = bpy.data.images.new('Painted_blade_edge', width=32, height=32, alpha=False)
+emission.pixels = [v for y in range(32) for x in range(32) for v in
+                   ([232 / 255, 238 / 255, 242 / 255, 1] if x == 24 else [0, 0, 0, 1])]
+emission.filepath_raw = str(OUT / 'blade-edge.png')
+emission.file_format = 'PNG'
+emission.save()
+emission.pack()
+emission_node = material.node_tree.nodes.new('ShaderNodeTexImage')
+emission_node.image = emission
+emission_node.interpolation = 'Closest'
+material.node_tree.links.new(emission_node.outputs['Color'], bsdf.inputs['Emission Color'])
+bsdf.inputs['Emission Strength'].default_value = .35
+
 
 
 def V(p):
@@ -113,7 +128,7 @@ def sleeve(name, parent, center, radius, length, color):
 
 
 def ellipsoid(name, parent, center, radii, color, detail=False):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=20 if detail else 8 if max(radii) < .03 else 12, ring_count=12 if detail else 6 if max(radii) < .03 else 8, radius=1, location=V(center))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=32 if detail else 8 if max(radii) < .03 else 12, ring_count=20 if detail else 6 if max(radii) < .03 else 8, radius=1, location=V(center))
     obj = bpy.context.object
     obj.name = name
     obj.scale = (radii[0], radii[2], radii[1])
@@ -199,11 +214,12 @@ def scope(parent, front=-.41, length=.35, radius=.05):
 def paw(parent, side, palm, elbow, vertical=False):
     # Three rounded fingers and an opposable thumb. Fixed brown fur and dark pads.
     p, e = Vector(palm), Vector(elbow)
+    existing_parts = set(parent.children)
     wrist = p.lerp(e, .28)
     link('Forearm', parent, tuple(e), tuple(wrist), .074, 13, .059)
     link('Forearm_light', parent, tuple(e + Vector((0, .046, 0))), tuple(wrist + Vector((0, .04, 0))), .025, 14, .016)
     link('Olive_cuff', parent, tuple(p.lerp(e, .25)), tuple(p.lerp(e, .43)), .077, 17, .077)
-    ellipsoid('Palm', parent, palm, (.07, .09, .062) if vertical else (.083, .066, .092), 13, vertical)
+    ellipsoid('Palm', parent, palm, (.076, .087, .065) if vertical else (.083, .066, .092), 13, vertical)
     ellipsoid('Palm_pad', parent, (p.x, p.y - .055, p.z), (.051, .018, .057), 16, vertical)
     if vertical:
         link('Teal_wrist_band', parent, tuple(p.lerp(e, .40)), tuple(p.lerp(e, .44)), .079, 5, .079)
@@ -216,6 +232,33 @@ def paw(parent, side, palm, elbow, vertical=False):
     ellipsoid('Thumb', parent, thumb, (.037, .04, .042), 14, vertical)
     for i in [-1, 1]:
         ellipsoid('Wrist_tuft', parent, (wrist.x + i * .055, wrist.y, wrist.z), (.025, .026, .042), 13)
+
+
+    if vertical:
+        # Fuse the palm, knuckles and thumb into one padded organic silhouette.
+        # Separate overlapping spheres made the fingers read as flat wedges.
+        fur_parts = [obj for obj in parent.children if obj not in existing_parts and
+                     obj.name.split('.')[0] in ['Palm', 'Finger', 'Thumb', 'Wrist_tuft']]
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in fur_parts:
+            obj.select_set(True)
+        bpy.context.view_layer.objects.active = fur_parts[0]
+        bpy.ops.object.join()
+        palm_mesh = bpy.context.object
+        palm_mesh.name = 'Continuous_paw'
+        remesh = palm_mesh.modifiers.new('Rounded paw union', 'REMESH')
+        remesh.mode, remesh.voxel_size, remesh.use_smooth_shade = 'VOXEL', .0045, True
+        bpy.ops.object.modifier_apply(modifier=remesh.name)
+        smooth = palm_mesh.modifiers.new('Soft palm', 'SMOOTH')
+        smooth.factor, smooth.iterations = .7, 3
+        bpy.ops.object.modifier_apply(modifier=smooth.name)
+        palm_mesh.data.calc_loop_triangles()
+        decimate = palm_mesh.modifiers.new('Paw budget', 'DECIMATE')
+        decimate.ratio = min(1, 3500 / len(palm_mesh.data.loop_triangles))
+        bpy.ops.object.modifier_apply(modifier=decimate.name)
+        finish(palm_mesh, parent, 13)
+        for face in palm_mesh.data.polygons:
+            face.use_smooth = True
 
 
 report = {'palette': PALETTE, 'weapons': []}
@@ -297,7 +340,9 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
     # Teal accent and rarity stripe use the same atlas in all eight classes.
     side_x = .054 if weapon == 'pistol' else .041 if weapon == 'machete' else .049 if weapon == 'slingshot' else .062
     if weapon == 'machete':
-        block('Rarity_stripe', body, (0, -.202, .046), (.055, .018, .004), 9, .001)
+        # Rarity is a cloth band around the wrist, never a floating handle decal.
+        p, e = Vector((.075, -.12, .04)), Vector((.26, -.48, -.10))
+        link('Rarity_wrist_band', right, tuple(p.lerp(e, .27)), tuple(p.lerp(e, .31)), .079, 9, .079)
     else:
         block('Teal_signature', body, (side_x, -.034, .015), (.011, .023, .076), 5, .003)
         block('Rarity_stripe', body, (side_x + .001, -.065, -.096), (.009, .034, .09), 9, .003)
