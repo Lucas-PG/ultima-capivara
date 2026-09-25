@@ -81,7 +81,7 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
         sprint: false, ads: false, stage: 'ground', kills: 0, deaths: 0, damage: 0,
         weapons: [{ id: 'm4', ammo: 25, reserve: 90, rarity: 2 }, { id: 'pistol', ammo: 12, reserve: 36, rarity: 0 }],
         slot: 0, consumables: { bandage: 2, medkit: 1, guarana: 1, acai: 0, rapadura: 0 },
-        reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0 };
+        reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, shotHeat: 0 };
       const actors = [actor, ...Array.from({ length: 20 }, (_, n) => ({ ...actor, id: `bot-${n}`,
         name: `Bot ${n}`, bot: true, pos: { x: n * 2, y: 0, z: -n } }))];
       const loot = Array.from({ length: 240 }, (_, n) => ({ id: `loot-${n}`, kind: 'ammo', x: n, y: 0,
