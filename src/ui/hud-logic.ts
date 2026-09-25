@@ -92,5 +92,50 @@ export function startButtonState(allReady: boolean, roomLoading: number | null) 
   return { loading, disabled: loading || !allReady, primary: allReady && !loading, pct: loading ? Math.round(Math.min(1, Math.max(0, roomLoading!)) * 100) : 0 };
 }
 
-// Key remap: pt-BR label for every remappable action shown in settings.
-export const BINDING_LABELS: Record<string, string> = { forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar', reload: 'Recarregar', interact: 'Interagir', leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita', inspect: 'Inspecionar arma' };
+// Key remap (quality bar: remapping covers every action). Codes are KeyboardEvent.code, or 'Mouse' + button index.
+// Defaults mirror settings.ts DEFAULT_BINDINGS once Brasa's full binding model lands; until then they are the fallback
+// for actions input.ts still reads as fixed keys, so every HUD hint shows the key that actually works.
+export const BINDING_DEFAULTS: Record<string, string> = {
+  forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft', jump: 'Space', crouch: 'KeyC', leanLeft: 'KeyQ', leanRight: 'KeyE',
+  fire: 'Mouse0', ads: 'Mouse2', reload: 'KeyR', interact: 'KeyF', inspect: 'KeyI',
+  slot1: 'Digit1', slot2: 'Digit2', slot3: 'Digit3', slot4: 'Digit4',
+  useBandage: 'Digit5', useMedkit: 'Digit6', useGuarana: 'Digit7', useAcai: 'Digit8', useRapadura: 'Digit9',
+  scoreboard: 'Tab', map: 'KeyM',
+};
+export const BINDING_LABELS: Record<string, string> = {
+  forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar',
+  leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita', fire: 'Atirar', ads: 'Mirar', reload: 'Recarregar', interact: 'Pegar / abrir',
+  inspect: 'Inspecionar arma', slot1: 'Arma 1', slot2: 'Arma 2', slot3: 'Arma 3', slot4: 'Arma 4',
+  useBandage: 'Usar bandagem', useMedkit: 'Usar kit médico', useGuarana: 'Tomar guaraná', useAcai: 'Tomar açaí', useRapadura: 'Comer rapadura',
+  scoreboard: 'Placar', map: 'Mapa da ilha',
+};
+export const BINDING_GROUPS: readonly { title: string; actions: readonly string[] }[] = [
+  { title: 'Movimento', actions: ['forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'leanLeft', 'leanRight'] },
+  { title: 'Combate', actions: ['fire', 'ads', 'reload', 'interact', 'inspect'] },
+  { title: 'Armas e curas', actions: ['slot1', 'slot2', 'slot3', 'slot4', 'useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] },
+  { title: 'Interface', actions: ['scoreboard', 'map'] },
+];
+export const CONSUMABLE_ACTIONS = ['useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] as const;
+// Esc stays reserved for the menu; everything else a player can reasonably press is bindable.
+// fullModel: settings.ts/input.ts read mouse buttons, Tab, Alt and every action (Brasa's binding model). Before it lands,
+// only the codes the current input layer persists and reads are offered, so the settings screen never promises a dead key.
+export const isBindableCode = (code: string, fullModel = true) => fullModel
+  ? /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Backquote|Arrow(Up|Down|Left|Right)|Mouse[0-4])$/.test(code)
+  : /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Space|Arrow(Up|Down|Left|Right))$/.test(code);
+export const bindingOf = (bindings: Record<string, string>, action: string) => bindings[action] ?? BINDING_DEFAULTS[action] ?? '';
+// Binding a code already used by another action swaps them, so no two actions ever share a key.
+export function remapBinding(bindings: Record<string, string>, action: string, code: string, fullModel = true): Record<string, string> {
+  if (!isBindableCode(code, fullModel)) return bindings;
+  const next = { ...bindings }, previous = bindingOf(bindings, action);
+  for (const other of Object.keys(next)) if (other !== action && next[other] === code) next[other] = previous;
+  next[action] = code;
+  return next;
+}
+const MOUSE_LABELS = ['Mouse esq.', 'Mouse meio', 'Mouse dir.', 'Mouse 4', 'Mouse 5'];
+const ARROWS: Record<string, string> = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+export function keyLabel(code: string): string {
+  if (/^Mouse[0-4]$/.test(code)) return MOUSE_LABELS[Number(code.slice(5))];
+  if (ARROWS[code]) return ARROWS[code];
+  if (code === 'Backquote') return '\'';
+  return code.replace(/^Key/, '').replace(/^Digit/, '').replace(/(Left|Right)$/, '').replace('Space', 'Espaço').replace('Control', 'Ctrl');
+}

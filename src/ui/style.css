@@ -326,3 +326,10 @@ body #victory #confetti{display:none}
 .button.room-loading .rl-label{font-size:14px}
 .button.room-loading .rl-bar{display:block;width:70%;height:8px;border:2px solid var(--ink);border-radius:4px;background:var(--paper-2);overflow:hidden}
 .button.room-loading .rl-bar i{display:block;height:100%;background:var(--onca);transition:width .2s ease-out}
+
+/* Key remap: grouped list, the capturing button pulses in the accent, the status line announces swaps. */
+.modal .binding-group{font-family:var(--display);font-weight:400;font-size:14px;color:var(--ink);margin:18px 0 8px}
+.modal .key-binding.capturing{background:var(--paper);outline:3px solid #1fb5a8;outline-offset:2px;animation:rm-pulse .8s ease-in-out infinite}
+.modal .binding-note{min-height:1.5em;margin:14px 0 10px}
+.modal .binding-note kbd{font-size:11px;padding:0 5px}
+.modal .key-binding{min-width:96px;white-space:nowrap}

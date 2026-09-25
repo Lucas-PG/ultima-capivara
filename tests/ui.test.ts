@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_DEFAULTS, BINDING_GROUPS, bindingOf, isBindableCode, keyLabel, remapBinding, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -177,10 +177,36 @@ describe('lobby warmup', () => {
   });
 });
 
-describe('key remap labels', () => {
-  // Every remappable action must show pt-BR text in settings, never a raw action id (Brasa added inspect).
-  it('has a pt-BR label for every default binding', async () => {
+describe('key remap covers every action', () => {
+  // Quality bar: remapping covers everything (slots, curas, placar, mapa, atirar, mirar were fixed keys).
+  it('labels, groups and defaults every action exactly once, including everything settings.ts binds', async () => {
     const { DEFAULT_BINDINGS } = await import('../src/settings');
-    for (const key of [...Object.keys(DEFAULT_BINDINGS), 'inspect']) expect(BINDING_LABELS[key]).toMatch(/^[A-ZÀ-Ú][a-zà-ú /]+$/);
+    const grouped = BINDING_GROUPS.flatMap(g => g.actions);
+    expect(new Set(grouped).size).toBe(grouped.length);
+    for (const action of new Set([...grouped, ...Object.keys(DEFAULT_BINDINGS)])) {
+      expect(BINDING_LABELS[action]).toMatch(/^[A-ZÀ-Ú][a-zà-ú0-9 /]+$/);
+      expect(isBindableCode(BINDING_DEFAULTS[action] ?? DEFAULT_BINDINGS[action])).toBe(true);
+    }
+    for (const action of ['fire', 'ads', 'slot1', 'slot4', 'useBandage', 'useRapadura', 'scoreboard', 'map']) expect(grouped).toContain(action);
+  });
+  it('swaps instead of letting two actions share a key', () => {
+    const next = remapBinding({ reload: 'KeyR', interact: 'KeyF' }, 'reload', 'KeyF');
+    expect(next).toEqual({ reload: 'KeyF', interact: 'KeyR' });
+    expect(new Set(Object.values(remapBinding({ ...BINDING_DEFAULTS }, 'map', 'Tab'))).size).toBe(Object.keys(BINDING_DEFAULTS).length);
+  });
+  it('accepts mouse buttons, digits and Tab but keeps Esc for the menu', () => {
+    for (const code of ['Mouse0', 'Mouse2', 'Mouse4', 'Digit7', 'Tab', 'AltLeft', 'KeyM']) expect(isBindableCode(code)).toBe(true);
+    for (const code of ['Escape', 'F5', 'Mouse5', 'Enter']) expect(isBindableCode(code)).toBe(false);
+    expect(remapBinding({ reload: 'KeyR' }, 'reload', 'Escape')).toEqual({ reload: 'KeyR' });
+    // Until the full binding model lands, only codes the current input layer persists and reads are accepted.
+    for (const code of ['Mouse1', 'Tab', 'AltLeft']) expect(isBindableCode(code, false)).toBe(false);
+    expect(isBindableCode('KeyF', false)).toBe(true);
+    expect(remapBinding({ crouch: 'KeyC' }, 'crouch', 'Mouse1', false)).toEqual({ crouch: 'KeyC' });
+  });
+  it('shows keys and mouse buttons in pt-BR and falls back to defaults for actions not stored yet', () => {
+    expect([keyLabel('KeyQ'), keyLabel('Digit5'), keyLabel('Space'), keyLabel('ShiftLeft'), keyLabel('ControlRight'), keyLabel('Mouse0'), keyLabel('Mouse2'), keyLabel('ArrowUp')])
+      .toEqual(['Q', '5', 'Espaço', 'Shift', 'Ctrl', 'Mouse esq.', 'Mouse dir.', '↑']);
+    expect(bindingOf({ forward: 'KeyZ' }, 'forward')).toBe('KeyZ');
+    expect(bindingOf({}, 'map')).toBe('KeyM');
   });
 });
