@@ -10,7 +10,7 @@ export const BOT_COLOR = '#ae825e';
 interface Avatar {
   color: string; name: string;
   group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
-  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; phase: number; initialized: boolean;
+  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; initialized: boolean;
 }
 function nameSprite(name: string): THREE.Sprite {
   const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
@@ -45,7 +45,7 @@ export function avatar(color: string, name: string): Avatar {
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
   }
   const label = nameSprite(name); label.position.y = 2.2; group.add(label);
-  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, phase: 0, initialized: false };
+  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, initialized: false };
 }
 
 export class AvatarView {
@@ -54,10 +54,6 @@ export class AvatarView {
   private readonly ordered: Avatar[] = [];
   private readonly weapons = new Map<WeaponId | null, THREE.BufferGeometry>();
   private readonly target = new THREE.Vector3();
-  private readonly tilt = new THREE.Euler();
-  private readonly centre = new THREE.Vector3(0, .9, 0);
-  private readonly rotatedCentre = new THREE.Vector3();
-  private elapsed = 0;
   private cameraBlend = 0;
   constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.PerspectiveCamera) {
     this.weapons.set(null, new THREE.BufferGeometry());
@@ -102,7 +98,7 @@ export class AvatarView {
   }
 
   update(frame: RenderFrame, cameraBlend: number, elapsed: number) {
-    this.cameraBlend = cameraBlend; this.elapsed = elapsed;
+    this.cameraBlend = cameraBlend;
     const actors = frame.snapshot?.actors;
     for (const visual of this.ordered) visual.group.visible = false;
     if (!actors) return;
@@ -134,58 +130,10 @@ export class AvatarView {
     }
   }
 
-  // Upright cartoon pose: two-leg walk, knee-bend crouch, aim with head and
-  // arms, belly-down freefall and dangling legs under the parachute.
   private poseAvatar(visual: Avatar, actor: ActorState, dt: number) {
-    const b = visual.bones, B = CAPY_BONES;
-    for (const bone of b) { bone.rotation.set(0, 0, 0); bone.position.copy(bone.userData.rest as THREE.Vector3); }
-    const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
-    visual.phase += dt * Math.min(13, speed * 2.1);
-    visual.group.rotation.set(0, actor.yaw, 0);
-    if (updateCapybaraBody(visual.body, actor, dt)) {
-      if (actor.crouch) visual.group.scale.setScalar(1.3 / 1.8);
-      return;
-    }
-    const pitch = THREE.MathUtils.clamp(actor.pitch, -1, 1);
-    if (actor.stage === 'falling') {
-      // Belly down around the body's centre, paws forward, legs trailing.
-      const tilt = this.tilt.set(-1.25, 0, Math.sin(visual.phase * .3 + this.elapsed * 2) * .06), centre = this.centre;
-      b[B.root].rotation.copy(tilt); b[B.root].position.copy(centre).sub(this.rotatedCentre.copy(centre).applyEuler(tilt));
-      b[B.arms].rotation.x = .75; b[B.head].rotation.x = .7;
-      const kick = Math.sin(this.elapsed * 5) * .15;
-      b[B.thighL].rotation.x = -.35 + kick; b[B.thighR].rotation.x = -.35 - kick;
-      b[B.shinL].rotation.x = -.5; b[B.shinR].rotation.x = -.5;
-      return;
-    }
-    if (actor.stage === 'parachute') {
-      // Paws up on the lines, legs swinging loosely.
-      b[B.arms].rotation.x = 2.75; b[B.head].rotation.x = .15;
-      const sway = Math.sin(this.elapsed * 2.2) * .18;
-      b[B.thighL].rotation.x = .12 + sway; b[B.thighR].rotation.x = .12 - sway;
-      b[B.shinL].rotation.x = -.25 - sway * .5; b[B.shinR].rotation.x = -.25 + sway * .5;
-      return;
-    }
-    const walk = actor.grounded ? Math.min(1, speed / 5) : 0;
-    const step = Math.sin(visual.phase);
-    if (actor.crouch) {
-      // The simulation's crouch is the standing hit shape scaled by 1.3 / 1.8
-      // from the feet, so the crouched capivara is drawn exactly that way.
-      visual.group.scale.setScalar(1.3 / 1.8);
-      const creep = step * .35 * walk;
-      b[B.thighL].rotation.x = creep; b[B.thighR].rotation.x = -creep;
-    } else {
-      b[B.thighL].rotation.x = step * .65 * walk; b[B.thighR].rotation.x = -step * .65 * walk;
-      b[B.shinL].rotation.x = -Math.max(0, -Math.cos(visual.phase)) * .8 * walk;
-      b[B.shinR].rotation.x = -Math.max(0, Math.cos(visual.phase)) * .8 * walk;
-      b[B.root].position.y = Math.abs(Math.cos(visual.phase)) * .045 * walk;
-      b[B.torso].rotation.z = step * .05 * walk;
-      if (!actor.grounded) { b[B.thighL].rotation.x = .5; b[B.shinL].rotation.x = -.9; b[B.thighR].rotation.x = -.15; b[B.shinR].rotation.x = -.3; }
-    }
-    const lean = b[B.torso].rotation.x;
-    // Hit volumes do not lean, so the body only hints at it.
-    b[B.torso].rotation.z += -actor.lean * .05;
-    b[B.head].rotation.x = pitch * .55 - lean;
-    b[B.arms].rotation.x = pitch - lean + (actor.sprint ? -.55 : 0);
+    for (const bone of visual.bones) { bone.rotation.set(0, 0, 0); bone.position.copy(bone.userData.rest as THREE.Vector3); }
+    updateCapybaraBody(visual.body, actor, dt);
+    // Match the simulation's crouched hit shape, scaled from the feet.
+    if (actor.crouch) visual.group.scale.setScalar(1.3 / 1.8);
   }
-
 }

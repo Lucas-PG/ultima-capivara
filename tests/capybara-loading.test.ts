@@ -55,43 +55,11 @@ async function warmupHarness(load = vi.fn(async () => fixture())) {
 
 beforeEach(() => {
   vi.resetModules(); vi.useFakeTimers();
-  vi.stubGlobal('location', { search: '?capy=v3' });
+  vi.stubGlobal('location', { search: '' });
 });
 
 describe('capybara cosmetic colour contract', () => {
   const colors = ['#1FB5A8', '#E76F51', '#FFC23D', '#3D6FB6', '#A468FF', '#F28DB2', '#8CC453', '#F4F1E8', '#bd8956'];
-
-  it('keeps procedural fur fixed for new and legacy profile colours', async () => {
-    vi.stubGlobal('location', { search: '' });
-    const capy = await import('../src/render/capybara');
-    const baseline = capy.buildCapybaraBody(colors[0]);
-    // The default character keeps its approved lighting until Forja's visual gate.
-    const material = baseline.body.material as THREE.MeshStandardMaterial;
-    expect(material.userData.toonCharacter).toBeUndefined();
-    expect(material.roughness).toBe(.78);
-    expect(material.customProgramCacheKey()).not.toContain('ilha-dourada-character-');
-    const original = baseline.body.geometry.getAttribute('color');
-    const positions = baseline.body.geometry.getAttribute('position');
-    const bones = baseline.body.geometry.getAttribute('skinIndex');
-    const baseFur = new THREE.Color('#B8743A');
-    expect(Array.from({ length: original.count }, (_, i) => i).some(i =>
-      Math.abs(original.getX(i) - baseFur.r) < 1e-6 && Math.abs(original.getY(i) - baseFur.g) < 1e-6 && Math.abs(original.getZ(i) - baseFur.b) < 1e-6)).toBe(true);
-    for (const color of colors.slice(1)) {
-      const actor = capy.buildCapybaraBody(color), tint = actor.body.geometry.getAttribute('color');
-      let changed = 0;
-      for (let i = 0; i < tint.count; i++) {
-        if (tint.getX(i) === original.getX(i) && tint.getY(i) === original.getY(i) && tint.getZ(i) === original.getZ(i)) continue;
-        changed++;
-        // Identity colours stay confined to cloth around the neck, never head/paws/belly.
-        expect(bones.getX(i)).toBe(capy.CAPY_BONES.torso);
-        expect(positions.getY(i)).toBeGreaterThanOrEqual(1.039);
-        expect(positions.getY(i)).toBeLessThanOrEqual(1.446);
-      }
-      expect(changed).toBeGreaterThan(0);
-      actor.body.skeleton.dispose();
-    }
-    baseline.body.skeleton.dispose(); capy.disposeCapybaraAssets();
-  });
 
   it('changes only bandana atlas columns and shares one material across every LOD and matching actor', async () => {
     const capy = await import('../src/render/capybara');
@@ -150,22 +118,18 @@ afterEach(() => {
 });
 
 describe('capybara asset readiness', () => {
-  it.each([false, true])('registers the exact optional asset size only with opt-in = %s', async enabled => {
-    vi.stubGlobal('location', { search: enabled ? '?capy=v3' : '' });
+  it.each(['', '?capy=v3', '?capy=legacy'])('registers the required character asset for URL %s', async search => {
+    vi.stubGlobal('location', { search });
     const { GameRenderer } = await import('../src/render/renderer');
     const stop = new Error('Manifest captured before GPU setup');
     loaderConstructor.mockClear().mockImplementation(function () { throw stop; });
     expect(() => new GameRenderer({} as HTMLCanvasElement, { objects: [] } as unknown as WorldSpec, {} as Settings)).toThrow(stop);
     const manifest = loaderConstructor.mock.calls[0][2] as readonly AssetEntry[];
     const entries = manifest.filter(asset => asset.path.includes('capybara'));
-    if (!enabled) {
-      const { ASSET_MANIFEST } = await import('../src/render/asset-manifest');
-      expect(manifest).toEqual(ASSET_MANIFEST);
-    }
-    expect(entries).toEqual(enabled ? [{
+    expect(entries).toEqual([{
       path: 'models/capybara/capybara.glb', kind: 'glb',
       bytes: statSync('public/models/capybara/capybara.glb').size, label: 'Capivara',
-    }] : []);
+    }]);
   });
 
   it('replaces only legacy weapon assets in the optional painted manifest', async () => {
@@ -185,7 +149,7 @@ describe('capybara asset readiness', () => {
     expect(manifest.some(asset => asset.path === 'models/capybara/capybara.glb')).toBe(true);
   });
 
-  it('keeps warmup pending beyond 15 seconds and creates only the final opted-in avatar', async () => {
+  it('keeps warmup pending beyond 15 seconds and creates only the final avatar', async () => {
     const capy = await import('../src/render/capybara');
     let finish!: (asset: GLTF) => void;
     const load = vi.fn(() => new Promise<GLTF>(resolve => { finish = resolve; }));
@@ -246,16 +210,18 @@ describe('capybara asset readiness', () => {
     expect(load).toHaveBeenCalledWith('/ilha/models/capybara/capybara.glb');
   });
 
-  it('does not request the optional asset with the flag disabled', async () => {
+  it('requires the GLB on the default URL and never constructs procedural art', async () => {
     vi.stubGlobal('location', { search: '' });
     const capy = await import('../src/render/capybara');
     const load = vi.fn(async () => fixture());
     const { renderer, upload } = await warmupHarness(load);
     await renderer.warmup();
     expect(upload).toHaveBeenCalledOnce();
-    expect(load).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledOnce();
     const avatar = capy.buildCapybaraBody('#bd8956');
-    expect(avatar.body.name).not.toBe('Capivara_v3');
+    expect(avatar.body.name).toBe('Capivara_v3');
+    expect(avatar.body.geometry.getAttribute('position')).toBeUndefined();
+    expect(avatar.body.getObjectByName('Capybara_LOD0')).toBeInstanceOf(THREE.SkinnedMesh);
     avatar.body.skeleton.dispose();
   });
 });

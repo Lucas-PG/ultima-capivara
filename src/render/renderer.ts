@@ -4,7 +4,7 @@ import { instrumentGpu, instrumentMaterials } from './timing-gpu';
 import { PaintedSky } from './sky';
 import { PAINT } from './materials';
 import { StormView } from './storm';
-import { capybaraV3Enabled, disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
+import { disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec } from '../shared/types';
 import { AssetLoader } from './assets';
@@ -77,9 +77,9 @@ export class GameRenderer {
       ...ASSET_MANIFEST.filter(asset => !asset.path.startsWith('models/service-pistol/') && !asset.path.startsWith('models/m700/')),
       { path: 'models/weapons/painted-weapons.glb', kind: 'glb', bytes: weaponMetrics.bytes, label: 'Armas da ilha' },
     ] : ASSET_MANIFEST;
-    const manifest: readonly AssetEntry[] = capybaraV3Enabled() ? [...weaponManifest, {
+    const manifest: readonly AssetEntry[] = [...weaponManifest, {
       path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
-    }] : weaponManifest;
+    }];
     this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
     this.weaponView = new WeaponView(this.assets, () => { if (!this.disposed) onAssetsReady(); });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
