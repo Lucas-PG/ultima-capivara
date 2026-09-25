@@ -261,4 +261,23 @@ describe('legacy bot behaviour', () => {
       }
     }
   });
+  it('keeps investigating one gunshot instead of flipping between two alternating shooters', () => {
+    const { sim, bot } = duel(40, 'normal', 0, 13);
+    const alert = (sim as any).alertBots.bind(sim);
+    const at = (x: number, z: number) => ({ x, y: terrainHeight(x, z), z });
+    const near = at(bot.state.pos.x + 20, bot.state.pos.z), other = at(bot.state.pos.x - 22, bot.state.pos.z);
+    alert(near, 60);
+    expect(bot.brain.hearPos).toEqual(near);
+    alert(other, 60);
+    expect(bot.brain.hearPos).toEqual(near);
+    // A clearly closer shot takes over at once.
+    const close = at(bot.state.pos.x, bot.state.pos.z + 6);
+    alert(close, 60);
+    expect(bot.brain.hearPos).toEqual(close);
+    // After the lock expires the latest sound wins again.
+    collect(sim, 1.6, 1 / 60);
+    bot.brain.sees = false;
+    alert(other, 60);
+    expect(bot.brain.hearPos).toEqual(other);
+  });
 });

@@ -689,8 +689,15 @@ export class Simulation {
   private alertBots(pos: Vec3, range: number) {
     for (const other of this.actors.values()) {
       const b = other.brain;
-      if (!b || !other.state.alive || b.sees || Math.hypot(other.state.pos.x - pos.x, other.state.pos.y - pos.y, other.state.pos.z - pos.z) >= range) continue;
-      b.alertUntil = this.time + 3; b.hearPos = { ...pos };
+      if (!b || !other.state.alive || b.sees) continue;
+      const d = Math.hypot(other.state.pos.x - pos.x, other.state.pos.y - pos.y, other.state.pos.z - pos.z);
+      if (d >= range) continue;
+      b.alertUntil = this.time + 3;
+      // Stay with the sound being investigated for 1.5 s unless a clearly closer one rings out;
+      // two nearby duellists no longer flip a listener's heading shot by shot.
+      const current = b.hearPos ? Math.hypot(other.state.pos.x - b.hearPos.x, other.state.pos.z - b.hearPos.z) : Infinity;
+      if (b.hearPos && this.time < b.hearLock && d > current * .7) continue;
+      b.hearPos = { ...pos }; b.hearLock = this.time + 1.5;
     }
   }
   private botEye(s: ActorState): Vec3 { return center(s); }
