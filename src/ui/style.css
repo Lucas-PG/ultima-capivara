@@ -257,3 +257,10 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 #victory .vactions .wait{display:flex;align-items:center;gap:8px;height:48px;padding:0 14px;font-size:14px;border:3px dashed var(--ink);border-radius:4px}
 #victory .vactions .wait svg{width:18px;height:18px}
 #victory .button:focus-visible{outline:3px solid #1fb5a8;outline-offset:3px}
+/* When the results panel slides in, the placement stamp steps up and shrinks so the last-prey sticker stays visible. */
+#victory .vcard{transition:top .35s ease-out,scale .35s ease-out,translate .35s ease-out}
+/* scale applies after the centring translate(-50%,-50%), so it drifts by (1 - .78) x 50%: translate compensates. */
+#victory:has(.vpanel.show) .vcard{top:17%;scale:.78;translate:-11% -11%}
+#victory .vstats span{white-space:nowrap}
+#victory .vstats div{flex:1 1 0;min-width:0}
+@media(max-height:800px){#victory:has(.vpanel.show) .vcard{top:18.5%;scale:.7;translate:-15% -15%}}
