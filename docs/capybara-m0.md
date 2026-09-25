@@ -112,3 +112,17 @@ dispensados. Os dois defeitos novos de loader ficam no M0 e foram corrigidos,
 com testes de intenção. Review independente do diff solicitado à Sentinela.
 A nova matriz 720p/1080p, exterior/interior e os sweeps de estabilidade/perf de
 produção ainda não estão cobertos pela evidência de M0.
+
+## Dependência de cores M1
+
+O commit M1 seguinte separa a cor de perfil da pelagem nos dois caminhos.
+Qualquer cor, inclusive hexes de sessões antigas, passa a tingir somente a
+bandana. Pelagem base/luz/sombra/barriga ficam em B8743A/D39A47/7A4424/E8C08A.
+O GLB mantém um material por ator/LOD, com atlas 16 x 16 compartilhado por cor;
+os slots de roupa são 5 e 6. Não existe ainda acabamento de colete no GLB v0.
+Patas em primeira pessoa também deixam de seguir actor.color. Grão/material e
+enquadramento legados continuam nas tarefas TATU-08 e TATU-11 de M1.
+
+O helper de descarte é chamado no encerramento do renderer, nunca ao remover um
+ator. Testes de intenção verificam as oito cores novas e um valor legado,
+isolamento das cores fora da bandana, compartilhamento, descarte e carga tardia.

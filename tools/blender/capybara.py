@@ -19,7 +19,7 @@ for data in (bpy.data.actions, bpy.data.materials, bpy.data.images):
         data.remove(item)
 scene = bpy.context.scene
 scene.render.fps = 30
-PALETTE = ['B8743A', 'D39A47', '7A4424', '4A2C1C', 'E8C08A', '1FB5A8', '12877E', '6E7040', '5A3A22', '1A120C', 'FFFFFF', 'BA795B', 'F4DEB3', '88904E', 'B8743A', 'B8743A']
+PALETTE = json.loads((ROOT / 'src/render/capybara-palette.json').read_text())
 image = bpy.data.images.new('capybara_palette', width=16, height=16, alpha=False)
 pixels = []
 for y in range(16):

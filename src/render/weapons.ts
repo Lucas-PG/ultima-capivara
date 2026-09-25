@@ -18,9 +18,9 @@ const palette = {
   brass: new THREE.MeshStandardMaterial({ color: '#e0b265', metalness: .35, roughness: .38 }),
   shellRed: new THREE.MeshStandardMaterial({ color: '#c24635', metalness: .1, roughness: .56 }),
   blue: new THREE.MeshStandardMaterial({ color: '#2e5d5f', metalness: .12, roughness: .66 }),
-  skin: new THREE.MeshStandardMaterial({ color: '#a8703f', roughness: .95 }),
-  skinLight: new THREE.MeshStandardMaterial({ color: '#d6a877', roughness: .95 }),
-  skinShade: new THREE.MeshStandardMaterial({ color: '#6e4a31', roughness: .95 }),
+  skin: new THREE.MeshStandardMaterial({ color: '#B8743A', roughness: .95 }),
+  skinLight: new THREE.MeshStandardMaterial({ color: '#D39A47', roughness: .95 }),
+  skinShade: new THREE.MeshStandardMaterial({ color: '#7A4424', roughness: .95 }),
   sleeve: new THREE.MeshStandardMaterial({ color: '#3a9c98', roughness: .85 }),
   cuff: new THREE.MeshStandardMaterial({ color: '#2c7773', roughness: .85 }),
   tape: new THREE.MeshStandardMaterial({ color: '#e7d3a6', roughness: .9 }),
@@ -491,7 +491,6 @@ export class WeaponView {
   private shotLife = 0;
   private reloadEnd = 0;
   private disposed = false;
-  private furColor = '';
 
   constructor(onAssetsReady: () => void = () => {}) {
     this.scene.add(new THREE.HemisphereLight('#e4ece6', '#5e5147', .85));
@@ -659,13 +658,6 @@ export class WeaponView {
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number) {
     this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
     if (!actor || !this.holder.visible) { this.flash.visible = false; return; }
-    if (actor.color && actor.color !== this.furColor) {
-      this.furColor = actor.color;
-      const fur = new THREE.Color(actor.color);
-      palette.skin.color.copy(fur).lerp(new THREE.Color('#5a3f2c'), .1);
-      palette.skinLight.color.copy(fur).lerp(new THREE.Color('#f0d3a8'), .45);
-      palette.skinShade.color.copy(fur).lerp(new THREE.Color('#3f2a1d'), .45);
-    }
     const weapon = actor.weapons[actor.slot]?.id || 'pistol';
     if (weapon !== this.active) {
       this.models[this.active].group.visible = false; this.active = weapon; this.models[this.active].group.visible = true;

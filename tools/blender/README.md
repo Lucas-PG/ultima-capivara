@@ -19,8 +19,11 @@ embedded; there are no remote assets, photo textures, or normal maps.
 
 The M0 proof follows Pincel's brief dated 2026-09-24. Direction A is now locked;
 the shared style bible, sections 3.7, 9 and 10, governs M1 refinement.
-M0 keeps a single approved fur palette. Cosmetic colours, clothing variants and
-additional clips are M1. The model is original scripted geometry.
+Fur remains fixed across cosmetic colours, including legacy profile colours.
+`src/render/capybara-palette.json` is shared by Blender and runtime. Atlas columns
+5 and 6 hold bandana base/shadow; only these columns vary per player. Each colour
+shares one 16 x 16 texture and material across actors and LODs. Clothing variants
+and additional clips are M1. The model is original scripted geometry.
 
 Integration hooks authorized by Forja: `preloadCapybaraAsset` in renderer warmup,
 `updateCapybaraBody` inside AvatarView.poseAvatar in `src/render/avatars.ts`.
@@ -29,6 +32,8 @@ The renderer split was merged locally from `v2-renan` and the pose hook migrated
 Warmup must await the preload without a success timeout. Errors propagate and
 opt-in avatar construction requires a ready asset; no asynchronous body swap.
 Land together with Forja's main readiness/error gate. URLs use Vite BASE_URL.
+`disposeCapybaraAssets()` releases all character caches once at renderer disposal,
+after per-avatar skeletons. It also cancels late preload completion.
 
 API references used: [Blender GLB export](https://docs.blender.org/api/main/bpy.ops.export_scene.html),
 [glTF Transform meshopt](https://github.com/donmccurdy/glTF-Transform/blob/main/packages/functions/src/meshopt.ts).

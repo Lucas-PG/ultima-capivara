@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { preloadCapybaraAsset } from './capybara';
+import { disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec } from '../shared/types';
@@ -295,6 +295,7 @@ export class GameRenderer {
     textures.forEach(texture => texture.dispose());
     this.avatars.dispose();
     materials.forEach(mat => mat.dispose());
+    disposeCapybaraAssets();
     this.gl.dispose();
   }
 }

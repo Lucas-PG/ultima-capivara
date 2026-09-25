@@ -6,6 +6,7 @@ import type { ActorState } from '../shared/types';
 import { releaseAfterUpload } from './memory';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import palette from './capybara-palette.json';
 
 // Bone layout shared with GameRenderer.updateAvatars():
 // 0 root · 1 torso (pivots at the hips) · 2 head · 3 arms + held weapon (shoulders)
@@ -29,7 +30,7 @@ const capybaraMaterial = () => {
   return sharedMaterial;
 };
 
-// Geometry is built once per fur colour and shared by every capybara wearing it
+// Geometry is built once per bandana colour and shared by every capybara wearing it
 // (all bots share one); each avatar only owns its skeleton. Building 21 bodies
 // on the first snapshot used to stall the first match frame.
 const geometryCache = new Map<string, THREE.BufferGeometry>();
@@ -38,10 +39,11 @@ function capybaraGeometry(color: string): THREE.BufferGeometry {
   const cached = geometryCache.get(color);
   if (cached) return cached;
   // Flat, vivid cartoon colours: few tones, no fine texture to shimmer.
-  const fur = new THREE.Color(color); fur.offsetHSL(0, .06, .02);
-  const dark = fur.clone().lerp(new THREE.Color('#4a3223'), .42);
-  const muzzle = fur.clone().lerp(new THREE.Color('#f0cf9f'), .35);
-  const belly = fur.clone().lerp(new THREE.Color('#f3d8ac'), .45);
+  const fur = new THREE.Color('#B8743A');
+  const dark = new THREE.Color('#7A4424');
+  const muzzle = new THREE.Color('#D39A47');
+  const belly = new THREE.Color('#E8C08A');
+  const bandana = new THREE.Color(color), bandanaShade = shadeBandana(bandana);
   const blush = muzzle.clone().lerp(new THREE.Color('#ee8a7c'), .45);
   const earInner = fur.clone().lerp(new THREE.Color('#e3a393'), .55);
   // Resolution tuned for 21 capybaras on screen: the toon ramp and ink
@@ -78,7 +80,7 @@ function capybaraGeometry(color: string): THREE.BufferGeometry {
       new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize()),
       new THREE.Vector3(radius, direction.length(), radius)), bone);
   };
-  const ring = (tint: string, bone: number, y: number, z: number, rx: number, rz: number, tube: number, height: number) => {
+  const ring = (tint: THREE.Color | string, bone: number, y: number, z: number, rx: number, rz: number, tube: number, height: number) => {
     const torus = new THREE.TorusGeometry(1, tube, 6, 20);
     add(torus, tint, place(0, y, z, rx, rz, height, new THREE.Euler(Math.PI / 2, 0, 0)), bone);
     torus.dispose();
@@ -101,11 +103,11 @@ function capybaraGeometry(color: string): THREE.BufferGeometry {
   ball(fur, torso, 0, .9, 0, .3, .42, .28);
   ball(belly, torso, 0, .85, -.15, .22, .29, .12);
   // Teal collar and bandana: the squad colour, always on.
-  ring('#35a39c', torso, 1.27, 0, .2, .18, .35, .25);
+  ring(bandana, torso, 1.27, 0, .2, .18, .35, .25);
   const cone = new THREE.ConeGeometry(.5, 1, 4);
-  add(cone, '#4fc0b5', place(0, 1.14, -.19, .24, .2, .08, new THREE.Euler(-.2, Math.PI / 4, Math.PI)), torso);
+  add(cone, bandana, place(0, 1.14, -.19, .24, .2, .08, new THREE.Euler(-.2, Math.PI / 4, Math.PI)), torso);
   cone.dispose();
-  ball('#2a8781', torso, 0, 1.22, -.21, .045, .04, .035);
+  ball(bandanaShade, torso, 0, 1.22, -.21, .045, .04, .035);
   // Leather belt with a buckle and a side holster.
   ring('#6d4a31', torso, .72, 0, .26, .23, .15, .4);
   block('#e2b05e', torso, 0, .72, -.27, .09, .07, .035);
@@ -197,7 +199,7 @@ export function buildCapybaraBody(color: string): { body: THREE.SkinnedMesh; bon
   }
   for (const bone of bones) bone.userData.rest = bone.position.clone();
   body.add(root); body.bind(new THREE.Skeleton(bones));
-  if (capybaraV3Enabled()) installCharacter(body, bones);
+  if (capybaraV3Enabled()) installCharacter(body, bones, color);
   // The geometry is shared: it is released with the renderer, not per avatar.
   return { body, bones, dispose: () => {} };
 }
@@ -207,7 +209,37 @@ export const CAPYBARA_ASSET_URL = `${import.meta.env.BASE_URL}models/capybara/ca
 export const capybaraV3Enabled = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('capy') === 'v3';
 let characterAsset: GLTF | null = null;
 let characterLoading: Promise<void> | null = null;
+let characterGeneration = 0;
 const characterInstances = new WeakMap<THREE.SkinnedMesh, CharacterInstance>();
+const characterMaterials = new Map<string, THREE.MeshStandardMaterial>();
+
+function shadeBandana(color: THREE.Color): THREE.Color {
+  const base = new THREE.Color('#1FB5A8'), shade = new THREE.Color('#12877E');
+  return color.clone().multiply(new THREE.Color(shade.r / base.r, shade.g / base.g, shade.b / base.b));
+}
+
+function characterMaterial(source: THREE.MeshStandardMaterial, color: string): THREE.MeshStandardMaterial {
+  const tint = new THREE.Color(color), key = `${source.uuid}:${tint.getHexString()}`;
+  const cached = characterMaterials.get(key);
+  if (cached) return cached;
+  // The same authored atlas drives Blender and runtime. Only cloth columns change.
+  const colors = palette.map(hex => parseInt(hex, 16));
+  colors[5] = tint.getHex(); colors[6] = shadeBandana(tint).getHex();
+  const pixels = new Uint8Array(16 * 16 * 4);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const hex = colors[x], offset = (y * 16 + x) * 4;
+    pixels.set([hex >> 16 & 255, hex >> 8 & 255, hex & 255, 255], offset);
+  }
+  const atlas = new THREE.DataTexture(pixels, 16, 16);
+  atlas.colorSpace = THREE.SRGBColorSpace;
+  atlas.magFilter = atlas.minFilter = THREE.NearestFilter;
+  atlas.generateMipmaps = false; atlas.needsUpdate = true;
+  const material = source.clone(); material.map = atlas;
+  material.name = `Capivara_bandana_${tint.getHexString()}`;
+  material.addEventListener('dispose', () => { atlas.dispose(); characterMaterials.delete(key); });
+  characterMaterials.set(key, material);
+  return material;
+}
 interface CharacterInstance {
   scene: THREE.Group; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>;
   active: string; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
@@ -217,8 +249,13 @@ interface CharacterInstance {
 export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Promise<void> {
   if (!capybaraV3Enabled()) return Promise.resolve();
   if (!characterLoading) {
+    const generation = characterGeneration;
     characterLoading = (async () => {
       const asset = await (load ? load(CAPYBARA_ASSET_URL) : new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(CAPYBARA_ASSET_URL));
+      if (generation !== characterGeneration) {
+        disposeCharacterSource(asset);
+        throw new Error('Carregamento da capivara cancelado após descarte.');
+      }
       for (const name of ['root', 'head', 'arm_L', 'arm_R']) {
         if (!(asset.scene.getObjectByName(name) instanceof THREE.Bone)) throw new Error(`Capivara v3 inválida: osso ${name}.`);
       }
@@ -232,8 +269,6 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
         if (!(object instanceof THREE.SkinnedMesh)) return;
         object.castShadow = true; object.receiveShadow = true;
         object.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
-        // Renderer disposal invalidates the cache so a subsequent match reloads.
-        object.geometry.addEventListener('dispose', () => { characterAsset = null; characterLoading = null; });
       });
       characterAsset = asset;
     })();
@@ -241,7 +276,32 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
   return characterLoading;
 }
 
-function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[]): void {
+function disposeCharacterSource(asset: GLTF): void {
+  const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>(), skeletons = new Set<THREE.Skeleton>();
+  asset.scene.traverse(object => {
+    if (!(object instanceof THREE.SkinnedMesh)) return;
+    geometries.add(object.geometry); skeletons.add(object.skeleton);
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      materials.add(material);
+      for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+    }
+  });
+  geometries.forEach(geometry => geometry.dispose()); skeletons.forEach(skeleton => skeleton.dispose());
+  materials.forEach(material => material.dispose()); textures.forEach(texture => texture.dispose());
+}
+
+/** Renderer-level cleanup, after per-avatar skeleton disposal. Never call for one actor. */
+export function disposeCapybaraAssets(): void {
+  characterGeneration++;
+  if (characterAsset) disposeCharacterSource(characterAsset);
+  characterAsset = null; characterLoading = null;
+  characterMaterials.forEach(material => material.dispose());
+  geometryCache.forEach(geometry => geometry.dispose());
+  sharedMaterial?.dispose();
+}
+
+function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], color: string): void {
   if (!characterAsset || characterInstances.has(body)) return;
   const scene = cloneSkeleton(characterAsset.scene) as THREE.Group;
   const meshes: THREE.SkinnedMesh[] = [];
@@ -252,6 +312,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[]): v
   // Quantization uses a scene-wide grid, so all LODs retain one shared skin.
   for (let i = 0; i < meshes.length; i++) {
     const mesh = meshes[i];
+    mesh.material = characterMaterial(mesh.material as THREE.MeshStandardMaterial, color);
     if (mesh.skeleton !== skeleton) mesh.skeleton.dispose();
     mesh.skeleton = skeleton;
     lod.addLevel(mesh, [0, 12, 28][i], .1);
