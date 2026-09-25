@@ -93,6 +93,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     expect(errors).toEqual([]);
     await controls(host, 'pause');
     await host.locator('#pause-panel [data-do="leave"]').click();
+    await host.locator('dialog #exit').click();
     await expect.poll(async () => (await inspect(guest)).room).toBeNull();
     await expect(guest.locator('#toast')).toContainText('O anfitrião fechou a sala.');
   } finally { await Promise.all(contexts.map(context => context.close())); }
