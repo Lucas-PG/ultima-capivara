@@ -187,11 +187,13 @@ export class Simulation {
     if (action.type === 'trigger' && (![action.yaw, action.pitch, action.lean, action.clientTime].every(Number.isFinite) ||
       Math.abs(action.yaw) > Math.PI * 1000 || Math.abs(action.pitch) > Math.PI / 2 + .01 ||
       Math.abs(action.lean) > 1 || typeof action.ads !== 'boolean' ||
-      action.clientTime < this.time - 1 || action.clientTime > this.time + 1)) return;
+      action.clientTime > this.time + 1)) return;
     actor.lastAction = action.id;
     const s = actor.state;
     if (!s.alive) return;
     if (action.type === 'jump') { if (s.stage === 'plane') this.drop(actor); else if (s.stage === 'ground') { actor.jumpQueued = true; actor.jumpQueuedUntil = this.time + .1; } }
+    // Old client clocks may still submit a new click. fire() bounds rewind at
+    // execution and uses current targets outside that window; cadence stays authoritative.
     else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) actor.triggerQueued = action; }
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
@@ -598,7 +600,9 @@ export class Simulation {
     s.weapons = [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
     s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
-    a.input = emptyInput(); a.lastInputAt = -Infinity; a.lastShotPressId = -1; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; a.boostUntil = 0; a.history = [];
+    // Press IDs survive respawn just like lastAction/lastSeq; a delayed reliable
+    // copy of a held shot must not fire again in the new life. Reconnect resets IDs.
+    a.input = emptyInput(); a.lastInputAt = -Infinity; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; a.boostUntil = 0; a.history = [];
     if (a.brain) a.brain = createBrain(a.brain.elite, a.brain.skill, s.pos, a.brain.flank);
     this.emit({ type: 'respawn', actor: s.id });
   }
