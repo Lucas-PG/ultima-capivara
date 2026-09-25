@@ -185,3 +185,7 @@ Text clean readable hand lettering: title "Tempestade com distância"; panel A "
 - Water: the concept horizon drifts toward royal blue; authored water must stay shallow `#2EC4B6`, mid `#1FB0AE`, deep/horizon `#0E7C86`, then fog `#F2DCB6`. Remove invented horizon mountains; use open sea or actual island headlands.
 - Storm: at 150 m show only soft horizon haze. At 10 m, the boundary surface tints only geometry behind it at about 20 percent. Foreground objects inside the safe zone retain their colours. The outside-zone vignette must leave the central 50 percent clear for aiming.
 - Review implementation at hilltop, porto/praia, and storm 150 m/10 m/outside poses. Concepts are approved direction references, not evidence that the runtime implementation is complete.
+
+## VFX flipbooks (F2), shipped atlas
+
+`public/textures/vfx-flipbooks.png` (1024x512, 148,876 bytes) is built from Forja's approved generated original (`reviews/final-art/vfx-flipbooks.png`, 1774x887; prompt, date and approval recorded with Forja's commit 685ac6a) by `node tools/vfx/build-flipbooks.mjs <original>`: each of the 14 painted cells is recentred and scaled into a 104 px safe circle inside a 128 px cell, resampled with 4x4 supersampling in premultiplied alpha, and alpha <= 5 is cleared. The original stays unchanged. Order: muzzle flash x3, pow x2, gold headshot star, fur tuft x2, wood chip x2, splinter, dust puff x2 and generic chip (neutral grey, tinted per surface in the shader).

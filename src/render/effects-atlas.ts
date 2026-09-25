@@ -11,6 +11,13 @@ export const CELL = {
   twinkle: 16, alert: 17, hole: 18, scuff: 19,
 } as const;
 export const ATLAS_COLUMNS = 8, ATLAS_ROWS = 4;
+// Hand-painted flipbook cells (public/textures/vfx-flipbooks.png, Forja's approved F2
+// sheet, built by tools/vfx/build-flipbooks.mjs). Card cells from 32 up sample it in
+// its own colours; `dust` and `chip` are painted in neutral grey and tinted per surface.
+export const PAINTED_URL = 'textures/vfx-flipbooks.png';
+export const PAINT = {
+  flash: 32, pow: 35, star: 37, fur: 38, wood: 40, splinter: 42, dust: 43, chip: 45,
+} as const;
 
 const SIZE = 128;
 const INK = 'rgb(0,255,0)', BODY = 'rgb(0,0,0)', LIGHT = 'rgb(255,0,0)';

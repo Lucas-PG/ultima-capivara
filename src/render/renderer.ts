@@ -123,7 +123,7 @@ export class GameRenderer {
     this.scene.add(this.plane); this.plane.visible = false;
     this.storm = new StormView(this.scene);
     this.loot = new LootView(this.scene, world);
-    this.effects = new EffectsView(this.scene, world, this.weaponView.scene);
+    this.effects = new EffectsView(this.scene, world, this.weaponView.scene, this.assets);
     this.pipeline = new RenderPipeline(this.gl, PRESETS[settings.graphics].samples);
     this.applyPreset(settings);
     this.resize();

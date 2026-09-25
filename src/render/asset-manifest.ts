@@ -36,6 +36,7 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { path: 'textures/road-normal.webp', kind: 'texture', bytes: 113334, label: 'Texturas da ilha' },
   { path: 'textures/road-roughness.webp', kind: 'texture', bytes: 12708, label: 'Texturas da ilha' },
   { path: 'textures/partly-cloudy-sky-1k.hdr', kind: 'hdr', bytes: 1366191, label: 'Céu' },
+  { path: 'textures/vfx-flipbooks.png', kind: 'texture', bytes: 148876, label: 'Efeitos pintados' },
   { path: 'models/service-pistol/service_pistol_1k.gltf', kind: 'gltf', bytes: 17614, label: 'Pistola' },
   { path: 'models/service-pistol/service_pistol.bin', kind: 'buffer', bytes: 1052048, label: 'Pistola' },
   { path: 'models/service-pistol/textures/service_pistol_diff_1k.jpg', kind: 'texture', bytes: 718216, label: 'Pistola' },

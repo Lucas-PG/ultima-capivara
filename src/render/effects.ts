@@ -4,7 +4,8 @@ import { terrainHeight } from '../shared/terrain';
 import type { Collider, ConsumableId, GameEvent, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
 import type { WeaponView } from './weapons';
-import { CELL, createEffectsAtlas } from './effects-atlas';
+import { CELL, PAINT, PAINTED_URL, createEffectsAtlas } from './effects-atlas';
+import type { AssetLoader } from './assets';
 import { Card, CardSystem, CasingSystem, DecalSystem, Motion, TracerSystem } from './effects-systems';
 import { itemGeometry } from './item-geometry';
 
@@ -29,10 +30,10 @@ export interface EffectsFrame {
 
 // One palette table (bible §3, §11). Values are the authored sRGB hexes.
 const HEX = {
-  flash: '#ffb84d', flashCore: '#ffe7a3',
+  // Muzzle flash, pow, fur, stars and chips come painted from the F2 flipbook sheet.
+  flash: '#ffb84d',
   tracer: '#ffe3a1', tracerCore: '#fff4e2', tracerHostile: '#ff6b4a',
-  pow: '#fff4e2', powCore: '#ffb84d', fur: '#d39a47', furLight: '#e8c08a', gold: '#ffc23d', goldLight: '#ffe7a3',
-  cloud: '#f3e6cf', cloudLight: '#fff4e2', smoke: '#f3e6cf',
+  gold: '#ffc23d', goldLight: '#ffe7a3', cloudLight: '#fff4e2',
   heal: '#3aa35a', healLight: '#8cc453', armor: '#2f9df4', armorLight: '#bfd8e6', boost: '#e9b44c', boostLight: '#ffe7a3',
   alert: '#e5412d', alertLight: '#ffc23d', white: '#f4fbf6',
   pebble: '#bbae98', pebbleLight: '#d8c8aa',
@@ -66,6 +67,8 @@ const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class EffectsView {
   private readonly atlas = createEffectsAtlas();
+  private readonly painted: THREE.Texture;
+  private readonly white = new THREE.Color('#ffffff');
   private readonly cards: CardSystem;
   private readonly tracers = new TracerSystem(64);
   private readonly decals: DecalSystem;
@@ -92,16 +95,18 @@ export class EffectsView {
   private readonly u2 = new THREE.Vector3();
   private readonly tint = new THREE.Color();
 
-  constructor(private readonly scene: THREE.Scene, private readonly world: WorldSpec, private readonly fpScene: THREE.Scene) {
+  constructor(private readonly scene: THREE.Scene, private readonly world: WorldSpec, private readonly fpScene: THREE.Scene, assets: AssetLoader) {
+    // Loaded through the asset gate, so the match never starts before the painted cards decode.
+    this.painted = assets.texture(PAINTED_URL); this.painted.colorSpace = THREE.SRGBColorSpace; this.painted.anisotropy = 4;
     for (const [key, hex] of Object.entries(HEX)) this.color[key as keyof typeof HEX] = new THREE.Color(hex);
     for (const [key, s] of Object.entries(SURFACES)) this.surface[key as Surface] = {
       puff: new THREE.Color(s.puff), puffLight: new THREE.Color(s.puffLight), bit: new THREE.Color(s.bit),
       bitLight: new THREE.Color(s.bitLight), mark: new THREE.Color(s.mark), markLight: new THREE.Color(s.markLight),
     };
-    this.cards = new CardSystem(this.atlas, 900, 4);
+    this.cards = new CardSystem(this.atlas, this.painted, 900, 4);
     this.decals = new DecalSystem(this.atlas, 64);
     this.casings = new CasingSystem(64, true, (x, z, top) => this.groundAt(x, z, top));
-    this.fpCards = new CardSystem(this.atlas, 80, 10);
+    this.fpCards = new CardSystem(this.atlas, this.painted, 80, 10);
     this.systems = [this.cards, this.fpCards, this.tracers, this.decals, this.casings, this.fpCasings];
     scene.add(this.decals.mesh, this.casings.mesh, this.tracers.mesh, this.cards.mesh);
     fpScene.add(this.fpCasings.mesh, this.fpCards.mesh);
@@ -279,16 +284,16 @@ export class EffectsView {
     // In first person it would sit in the sight line.
     if (!fp) {
       const smoke = this.cards.spawn();
-      smoke.pos.copy(pos); smoke.cell = CELL.puff; smoke.life = weapon === 'shotgun' || weapon === 'sniper' ? .42 : .3;
+      smoke.pos.copy(pos); smoke.cell = PAINT.dust + (Math.random() < .5 ? 0 : 1); smoke.life = weapon === 'shotgun' || weapon === 'sniper' ? .42 : .3;
       smoke.size0 = size.world * .4; smoke.size1 = size.world * .95; smoke.alpha = .6; smoke.rot = rand(-.5, .5); smoke.minPx = 5;
       smoke.vel.set(rand(-.1, .1), .5, rand(-.1, .1)); smoke.drag = 2; smoke.fadeOut = .6;
-      smoke.color.copy(this.color.smoke); smoke.light.copy(this.color.cloudLight);
+      smoke.color.copy(this.color.cloudLight);
     }
     const card = (fp ? this.fpCards : this.cards).spawn();
-    card.pos.copy(pos); card.motion = Motion.Flash; card.cell = CELL.flashA;
+    card.pos.copy(pos); card.motion = Motion.Flash; card.cell = PAINT.flash;
     card.life = .05; card.fadeOut = .01; card.rot = rand(0, Math.PI * 2);
     card.size0 = card.size1 = (fp ? size.fp * (1 - ads * .4) : size.world) * rand(.9, 1.1);
-    card.minPx = fp ? 0 : 14; card.maxPx = fp ? 1e5 : 70; card.color.copy(this.color.flash); card.light.copy(this.color.flashCore);
+    card.minPx = fp ? 0 : 14; card.maxPx = fp ? 1e5 : 70; card.color.copy(this.white);
   }
 
   private pebble(from: THREE.Vector3, event: Extract<GameEvent, { type: 'shot' }>) {
@@ -315,16 +320,16 @@ export class EffectsView {
         drop.size0 = .12 * k; drop.size1 = .08 * k; drop.minPx = 5; drop.color.copy(s.bit); drop.light.copy(s.bitLight);
       }
       const mist = this.cards.spawn();
-      mist.pos.copy(pos); mist.cell = CELL.puff; mist.life = .38; mist.size0 = .18 * k; mist.size1 = .55 * k; mist.alpha = .7; mist.minPx = 8;
-      mist.vel.set(0, .6, 0); mist.color.copy(s.puff); mist.light.copy(s.puffLight);
+      mist.pos.copy(pos); mist.cell = PAINT.dust; mist.life = .38; mist.size0 = .18 * k; mist.size1 = .55 * k; mist.alpha = .7; mist.minPx = 8;
+      mist.vel.set(0, .6, 0); mist.color.copy(s.puffLight);
       return;
     }
     const floor = this.groundAt(pos.x, pos.z, pos.y + .05) + .01;
     const puff = this.cards.spawn();
-    puff.pos.copy(pos).addScaledVector(normal, .06); puff.cell = CELL.puff; puff.life = rand(.34, .44);
+    puff.pos.copy(pos).addScaledVector(normal, .06); puff.cell = PAINT.dust + (Math.random() < .5 ? 0 : 1); puff.life = rand(.34, .44);
     puff.size0 = .26 * k; puff.size1 = (surface === 'metal' ? .36 : .68) * k; puff.rot = rand(-.4, .4); puff.minPx = 10;
     puff.vel.copy(normal).multiplyScalar(.7); puff.vel.y += .35; puff.drag = 3; puff.fadeOut = .5;
-    puff.color.copy(s.puff); puff.light.copy(s.puffLight);
+    puff.color.copy(s.puffLight);
     const sparks = surface === 'metal', system = this.cards;
     for (let i = 0; i < Math.round(spec.bits * scale); i++) {
       const bit = system.spawn();
@@ -337,6 +342,9 @@ export class EffectsView {
       bit.stretch = sparks || spec.bitCell === CELL.splinter; bit.aspect = sparks ? 4 : spec.bitCell === CELL.splinter ? 2 : 1;
       bit.rot = rand(0, 6.3); bit.spin = sparks ? 0 : rand(-12, 12); bit.fadeOut = .3;
       bit.color.copy(s.bit); bit.light.copy(s.bitLight);
+      // Painted chips: wood in its own colours, generic chips tinted with the surface.
+      if (spec.bitCell === CELL.splinter) { bit.cell = i % 3 === 2 ? PAINT.splinter : PAINT.wood + (i % 2); bit.stretch = false; bit.aspect = 1; bit.size0 *= 1.3; bit.size1 *= 1.3; bit.color.copy(this.white); }
+      else if (spec.bitCell === CELL.chip) { bit.cell = PAINT.chip; bit.color.copy(s.bitLight); }
     }
     if (sparks) {
       const star = this.cards.spawn();
@@ -353,21 +361,21 @@ export class EffectsView {
     const pos = this.t2.copy(at);
     if (this.frame) pos.add(this.t1.subVectors(this.frame.camera.position, at).normalize().multiplyScalar(.32));
     const pow = this.cards.spawn();
-    pow.pos.copy(pos); pow.cell = CELL.pow; pow.life = .14; pow.fadeOut = .4; pow.rot = rand(0, 6.3);
+    pow.pos.copy(pos); pow.cell = PAINT.pow + (Math.random() < .5 ? 0 : 1); pow.life = .14; pow.fadeOut = .4; pow.rot = rand(0, 6.3);
     pow.size0 = .24; pow.size1 = .32; pow.minPx = 12; pow.maxPx = 34; pow.pop = true;
-    pow.color.copy(this.color.pow); pow.light.copy(this.color.powCore);
+    pow.color.copy(this.white);
     for (let i = 0; i < 3; i++) {
       const tuft = this.cards.spawn();
-      tuft.pos.copy(pos); tuft.cell = CELL.tuft; tuft.life = rand(.34, .46); tuft.rot = rand(0, 6.3); tuft.spin = rand(-8, 8);
+      tuft.pos.copy(pos); tuft.cell = PAINT.fur + (i % 2); tuft.life = rand(.34, .46); tuft.rot = rand(0, 6.3); tuft.spin = rand(-8, 8);
       tuft.vel.set(rand(-1.6, 1.6), rand(1, 2.4), rand(-1.6, 1.6)); tuft.gravity = 5; tuft.drag = 2.2;
       tuft.size0 = .09; tuft.size1 = .07; tuft.minPx = 5; tuft.maxPx = 18;
-      tuft.color.copy(this.color.fur); tuft.light.copy(this.color.furLight);
+      tuft.color.copy(this.white);
     }
     if (!head) return;
     const star = this.cards.spawn();
-    star.pos.copy(pos); star.cell = CELL.star; star.life = .42; star.fadeOut = .35; star.pop = true;
+    star.pos.copy(pos); star.cell = PAINT.star; star.life = .42; star.fadeOut = .35; star.pop = true;
     star.vel.set(0, 1.4, 0); star.drag = 2; star.spin = 5; star.size0 = .22; star.size1 = .26; star.minPx = 16; star.maxPx = 40;
-    star.color.copy(this.color.gold); star.light.copy(this.color.goldLight);
+    star.color.copy(this.white);
   }
 
   // Comedic, bloodless elimination (bible §9.3): a cartoon "poof" that hides the
@@ -376,25 +384,25 @@ export class EffectsView {
     for (let i = 0; i < 7; i++) {
       const cloud = this.cards.spawn(), angle = i / 7 * Math.PI * 2;
       cloud.pos.set(pos.x + Math.cos(angle) * .3, pos.y + .45 + (i % 3) * .45, pos.z + Math.sin(angle) * .3);
-      cloud.cell = CELL.puff; cloud.life = rand(.55, .7); cloud.fadeOut = .45; cloud.pop = true; cloud.rot = rand(-.5, .5);
+      cloud.cell = PAINT.dust + (i % 2); cloud.life = rand(.55, .7); cloud.fadeOut = .45; cloud.pop = true; cloud.rot = rand(-.5, .5);
       cloud.vel.set(Math.cos(angle) * 1.4, rand(.3, .8), Math.sin(angle) * 1.4); cloud.drag = 3.2;
       cloud.size0 = .55; cloud.size1 = .85; cloud.minPx = 20;
-      cloud.color.copy(this.color.cloud); cloud.light.copy(this.color.cloudLight);
+      cloud.color.copy(this.color.cloudLight);
     }
     const floor = this.groundAt(pos.x, pos.z, pos.y + .5) + .05;
     for (let i = 0; i < 6; i++) {
       const star = this.cards.spawn();
-      star.pos.set(pos.x, pos.y + 1.2, pos.z); star.cell = CELL.star; star.life = rand(.6, .8); star.fadeOut = .3;
+      star.pos.set(pos.x, pos.y + 1.2, pos.z); star.cell = PAINT.star; star.life = rand(.6, .8); star.fadeOut = .3;
       star.vel.set(rand(-2.4, 2.4), rand(3, 4.5), rand(-2.4, 2.4)); star.gravity = 9; star.spin = rand(-7, 7);
       star.floor = floor; star.bounce = .35;
-      star.size0 = .2; star.size1 = .16; star.minPx = 10; star.color.copy(this.color.gold); star.light.copy(this.color.goldLight);
+      star.size0 = .2; star.size1 = .16; star.minPx = 10; star.color.copy(this.white);
     }
     for (let i = 0; i < 3; i++) {
       const dizzy = this.cards.spawn();
       dizzy.center.set(pos.x, pos.y + 1.75, pos.z); dizzy.motion = Motion.Orbit; dizzy.radius = .32;
       dizzy.rot = i / 3 * Math.PI * 2; dizzy.spin = 7; dizzy.life = 1.1; dizzy.fadeIn = .15; dizzy.fadeOut = .3;
-      dizzy.cell = CELL.star; dizzy.size0 = dizzy.size1 = .14; dizzy.minPx = 9;
-      dizzy.color.copy(this.color.gold); dizzy.light.copy(this.color.goldLight);
+      dizzy.cell = PAINT.star; dizzy.size0 = dizzy.size1 = .14; dizzy.minPx = 9;
+      dizzy.color.copy(this.white);
     }
   }
 
@@ -425,13 +433,13 @@ export class EffectsView {
       this.ring(at, this.color.gold, this.color.goldLight, 2.2);
       for (let i = 0; i < 3; i++) {
         const star = this.cards.spawn();
-        star.pos.set(at.x, at.y + .7, at.z); star.cell = CELL.star; star.life = .7; star.fadeOut = .35; star.pop = true;
+        star.pos.set(at.x, at.y + .7, at.z); star.cell = PAINT.star; star.life = .7; star.fadeOut = .35; star.pop = true;
         star.vel.set(rand(-1.2, 1.2), rand(2.6, 3.4), rand(-1.2, 1.2)); star.gravity = 6; star.spin = rand(-6, 6);
-        star.size0 = .2; star.size1 = .16; star.minPx = 6; star.color.copy(this.color.gold); star.light.copy(this.color.goldLight);
+        star.size0 = .2; star.size1 = .16; star.minPx = 6; star.color.copy(this.white);
       }
       const puff = this.cards.spawn();
-      puff.pos.set(at.x, at.y + .6, at.z); puff.cell = CELL.puff; puff.life = .4; puff.size0 = .3; puff.size1 = .7; puff.alpha = .8;
-      puff.color.copy(this.surface.wood.puff); puff.light.copy(this.surface.wood.puffLight);
+      puff.pos.set(at.x, at.y + .6, at.z); puff.cell = PAINT.dust; puff.life = .4; puff.size0 = .3; puff.size1 = .7; puff.alpha = .8;
+      puff.color.copy(this.surface.wood.puffLight);
       return;
     }
     const color = this.rarity[rarity], light = this.tint.copy(color).lerp(this.color.white, .55);

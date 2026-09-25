@@ -40,11 +40,11 @@ export class Card {
   }
 }
 
-function cardMaterial(atlas: THREE.Texture): THREE.ShaderMaterial {
+function cardMaterial(atlas: THREE.Texture, painted: THREE.Texture): THREE.ShaderMaterial {
   const material = new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uAtlas: { value: null }, uPx: { value: .001 }, uInk: { value: INK }, uInkMix: { value: .92 } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uAtlas: { value: null }, uPainted: { value: null }, uPx: { value: .001 }, uInk: { value: INK }, uInkMix: { value: .92 } }]),
     vertexShader: `attribute vec3 aPos;attribute vec4 aShape;attribute vec3 aColor;attribute vec3 aLight;attribute vec4 aMisc;attribute vec3 aAxis;
-      uniform float uPx;varying vec2 vUv;varying vec3 vColor;varying vec3 vLight;varying float vAlpha;${FOG_PARS_VERTEX}
+      uniform float uPx;varying vec2 vUv;varying vec3 vColor;varying vec3 vLight;varying float vAlpha;varying float vPainted;${FOG_PARS_VERTEX}
       void main(){
         vec4 mvPosition=viewMatrix*vec4(aPos,1.0);
         float px=uPx*max(.05,-mvPosition.z);
@@ -58,20 +58,24 @@ function cardMaterial(atlas: THREE.Texture): THREE.ShaderMaterial {
         vec2 c=position.xy*size;
         mvPosition.xy+=vec2(c.x*dir.x-c.y*dir.y,c.x*dir.y+c.y*dir.x);
         gl_Position=projectionMatrix*mvPosition;
-        vUv=(vec2(mod(aShape.w,${ATLAS_COLUMNS}.0),${ATLAS_ROWS - 1}.0-floor(aShape.w/${ATLAS_COLUMNS}.0))+uv)/vec2(${ATLAS_COLUMNS}.0,${ATLAS_ROWS}.0);
+        vPainted=step(31.5,aShape.w);float cell=aShape.w-32.0*vPainted;
+        vUv=(vec2(mod(cell,${ATLAS_COLUMNS}.0),${ATLAS_ROWS - 1}.0-floor(cell/${ATLAS_COLUMNS}.0))+uv)/vec2(${ATLAS_COLUMNS}.0,${ATLAS_ROWS}.0);
         vColor=aColor;vLight=aLight;vAlpha=aMisc.x;
         #include <fog_vertex>
       }`,
-    fragmentShader: `uniform sampler2D uAtlas;uniform vec3 uInk;uniform float uInkMix;varying vec2 vUv;varying vec3 vColor;varying vec3 vLight;varying float vAlpha;${FOG_PARS_FRAGMENT}
-      void main(){vec4 t=texture2D(uAtlas,vUv);float a=t.a*vAlpha;if(a<.01)discard;
-        vec3 c=mix(vColor,vLight,t.r);c=mix(c,uInk,t.g*uInkMix);gl_FragColor=vec4(c,a);
+    fragmentShader: `uniform sampler2D uAtlas,uPainted;uniform vec3 uInk;uniform float uInkMix;varying vec2 vUv;varying vec3 vColor;varying vec3 vLight;varying float vAlpha;varying float vPainted;${FOG_PARS_FRAGMENT}
+      void main(){vec3 c;float a;
+        // Painted cells keep their own colours, multiplied by the tint (white for fixed-colour art).
+        if(vPainted>.5){vec4 p=texture2D(uPainted,vUv);a=p.a*vAlpha;c=p.rgb*vColor;}
+        else{vec4 t=texture2D(uAtlas,vUv);a=t.a*vAlpha;c=mix(mix(vColor,vLight,t.r),uInk,t.g*uInkMix);}
+        if(a<.01)discard;gl_FragColor=vec4(c,a);
         #include <fog_fragment>
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
     transparent: true, depthWrite: false, fog: true, ...EFFECT_BLEND,
   });
-  material.uniforms.uAtlas.value = atlas;
+  material.uniforms.uAtlas.value = atlas; material.uniforms.uPainted.value = painted;
   return material;
 }
 
@@ -105,13 +109,13 @@ export class CardSystem {
   private readonly attributes: THREE.InstancedBufferAttribute[];
   readonly material: THREE.ShaderMaterial;
 
-  constructor(atlas: THREE.Texture, capacity: number, renderOrder: number) {
+  constructor(atlas: THREE.Texture, painted: THREE.Texture, capacity: number, renderOrder: number) {
     this.geometry = quad(-.5, .5);
     this.aPos = dynamic(this.geometry, 'aPos', capacity, 3); this.aShape = dynamic(this.geometry, 'aShape', capacity, 4);
     this.aColor = dynamic(this.geometry, 'aColor', capacity, 3); this.aLight = dynamic(this.geometry, 'aLight', capacity, 3);
     this.aMisc = dynamic(this.geometry, 'aMisc', capacity, 4); this.aAxis = dynamic(this.geometry, 'aAxis', capacity, 3);
     this.geometry.instanceCount = 0;
-    this.material = cardMaterial(atlas);
+    this.material = cardMaterial(atlas, painted);
     this.attributes = [this.aPos, this.aShape, this.aColor, this.aLight, this.aMisc, this.aAxis];
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false; this.mesh.renderOrder = renderOrder; this.mesh.visible = false;
