@@ -2,7 +2,7 @@ import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
 import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
-import { WEAPONS } from '../shared/weapons';
+import { damageFalloff, shotSpread, WEAPONS } from '../shared/weapons';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, ColliderGrid, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
@@ -34,7 +34,7 @@ const HIT_SHAPES = {
 interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
-  brain: BotBrain | null; boostUntil: number; hot: number; elimination: number;
+  brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; elimination: number;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
 interface Projectile { owner: string; weapon: WeaponId; pos: Vec3; velocity: Vec3; life: number }
@@ -81,7 +81,7 @@ export class Simulation {
   private zoneStart: Vec3 = { x: 0, y: 0, z: 0 };
   private zoneStartRadius = 190;
 
-  constructor(world: WorldSpec, config: RoomConfig, players: PlayerProfile[], matchId: string, seed = 1) {
+  constructor(world: WorldSpec, config: RoomConfig, players: PlayerProfile[], matchId: string, seed = crypto.getRandomValues(new Uint32Array(1))[0]) {
     this.world = world;
     this.grid = new ColliderGrid(world);
     this.config = { ...config };
@@ -152,7 +152,7 @@ export class Simulation {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, elimination: 0, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, elimination: 0, history: [] });
   }
 
   input(id: string, input: InputFrame) {
@@ -185,7 +185,7 @@ export class Simulation {
     else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) actor.triggerQueued = action; }
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
-      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length) { s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; }
+      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length) { s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; actor.shotHeat = 0; }
     } else if (action.type === 'reload') this.startReload(actor);
     else if (action.type === 'consume') this.startConsume(actor, action.item);
     else if (action.type === 'interact') this.interact(actor, action.target);
@@ -243,6 +243,7 @@ export class Simulation {
     if (this.config.mode === 'battle-royale') { this.updatePlane(); this.updateZone(); }
     for (const actor of this.actors.values()) {
       const s = actor.state;
+      actor.shotHeat = Math.max(0, actor.shotHeat - TICK * 2.4);
       if (!s.connected && actor.disconnectedAt >= 0 && this.time - actor.disconnectedAt >= 30) this.forfeit(actor);
       if (!s.alive) { if (this.config.mode === 'deathmatch' && s.respawnAt && this.time >= s.respawnAt && s.connected) this.respawn(actor); continue; }
       if (s.stage === 'plane') {
@@ -460,6 +461,8 @@ export class Simulation {
     }
     a.wasFiring = true;
     if (!def.melee && w.ammo <= 0) { this.startReload(a); return; }
+    const spread = shotSpread(w.id, s.ads, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded, a.shotHeat);
+    if (!s.bot && !def.melee && !def.projectile) a.shotHeat = Math.min(1.2, a.shotHeat + (w.id === 'smg' ? .32 : w.id === 'm4' ? .3 : .12));
     if (pressId !== undefined) a.lastShotPressId = Math.max(a.lastShotPressId, pressId);
     if (s.protectionUntil > this.time) s.protectionUntil = this.time;
     a.nextShot = this.time + 60 / def.rpm;
@@ -475,9 +478,8 @@ export class Simulation {
     }
     const pellets = def.pellets || 1; let hit = false, endpoint = { x: origin.x + forward.x * def.range, y: origin.y + forward.y * def.range, z: origin.z + forward.z * def.range };
     for (let n = 0; n < pellets; n++) {
-      const spread = (s.ads ? def.adsSpread : def.spread) * Math.PI / 180;
       const direction = aim ? this.cone(forward, aim.cone + (pellets > 1 ? def.spread * DEG * .5 : 0))
-        : def.melee ? forward : norm({ x: forward.x + (this.random() - .5) * spread, y: forward.y + (this.random() - .5) * spread, z: forward.z + (this.random() - .5) * spread });
+        : def.melee ? forward : norm({ x: forward.x + (this.random() - .5) * spread * DEG, y: forward.y + (this.random() - .5) * spread * DEG, z: forward.z + (this.random() - .5) * spread * DEG });
       const wall = raycastWorld(origin, direction, def.range, this.world);
       let best = wall?.distance ?? def.range, victim: ActorRuntime | null = null, head = false;
       for (const other of this.actors.values()) {
@@ -490,7 +492,7 @@ export class Simulation {
       }
       if (victim) {
         hit = true; endpoint = { x: origin.x + direction.x * best, y: origin.y + direction.y * best, z: origin.z + direction.z * best };
-        const falloff = w.id === 'shotgun' ? best <= 8 ? 1 : clamp(1 - (best - 8) / 30, .2, 1) : 1;
+        const falloff = damageFalloff(w.id, best);
         this.damage(victim, def.damage * (head ? def.headMultiplier : 1) * (1 + w.rarity * .08) * falloff * (a.brain ? this.botDamage(a, victim) : 1), s.id, w.id, head);
       } else if (wall) endpoint = wall.point;
     }
@@ -564,7 +566,7 @@ export class Simulation {
     s.weapons = [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
     s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
-    a.input = emptyInput(); a.lastInputAt = -Infinity; a.lastShotPressId = -1; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.boostUntil = 0; a.history = [];
+    a.input = emptyInput(); a.lastInputAt = -Infinity; a.lastShotPressId = -1; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = 0; a.boostUntil = 0; a.history = [];
     if (a.brain) a.brain = createBrain(a.brain.elite, a.brain.skill, s.pos, a.brain.flank);
     this.emit({ type: 'respawn', actor: s.id });
   }

@@ -4,6 +4,7 @@ import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../src/shar
 import { terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
 import { inArena } from '../src/shared/layout';
+import { damageFalloff, shotSpread, WEAPONS } from '../src/shared/weapons';
 import { finiteTree } from '../src/network/codec';
 import type { ActorState, InputFrame, PlayerProfile, RoomConfig, WorldSpec } from '../src/shared/types';
 
@@ -31,6 +32,62 @@ function advance(sim: Simulation, seconds: number) {
 }
 
 describe('authoritative simulation', () => {
+  it('uses a fresh match seed by default and repeats exactly with an injected seed', () => {
+    const mode = { ...config, mode: 'battle-royale' as const };
+    const one = new Simulation(world(), mode, [profiles[0]], 'seed');
+    const two = new Simulation(world(), mode, [profiles[0]], 'seed');
+    expect([one.snapshot().plane.x, one.snapshot().plane.z]).not.toEqual([two.snapshot().plane.x, two.snapshot().plane.z]);
+    const fixedOne = new Simulation(world(), mode, [profiles[0]], 'seed', 12345);
+    const fixedTwo = new Simulation(world(), mode, [profiles[0]], 'seed', 12345);
+    expect(fixedOne.snapshot()).toEqual(fixedTwo.snapshot());
+    advance(fixedOne, 4);
+    advance(fixedTwo, 4);
+    expect(fixedOne.snapshot()).toEqual(fixedTwo.snapshot());
+  });
+
+  it('keeps the first settled shot accurate, widens bursts and movement, then recovers', () => {
+    expect(shotSpread('m4', true, 0, false, 0)).toBe(WEAPONS.m4.adsSpread);
+    expect(shotSpread('m4', true, 3.9, false, 0)).toBeGreaterThan(shotSpread('m4', true, 0, false, 0));
+    expect(shotSpread('m4', true, 0, true, 0)).toBeGreaterThan(shotSpread('m4', true, 3.9, false, 0));
+    expect(shotSpread('m4', true, 0, false, 1)).toBeGreaterThan(shotSpread('m4', true, 0, false, 0));
+    const sim = new Simulation(world(), config, [profiles[0]], 'spread-recovery', 7);
+    advance(sim, 3.1);
+    const actor = (sim as any).actors.get('a');
+    for (let i = 0; i < 6; i++) { send(sim, 'a', i + 1, { fire: true }); advance(sim, .05); }
+    expect(sim.drainEvents().filter(e => e.type === 'shot').length).toBeGreaterThan(2);
+    expect(actor.shotHeat).toBeGreaterThan(.2);
+    send(sim, 'a', 7, { fire: false });
+    advance(sim, .6);
+    expect(actor.shotHeat).toBe(0);
+  });
+
+  it('tapers short-range weapon damage without weakening close hits or marksman rifles', () => {
+    expect(damageFalloff('smg', 18)).toBe(1);
+    expect(damageFalloff('smg', 39)).toBeCloseTo(.825);
+    expect(damageFalloff('smg', 80)).toBe(.65);
+    expect(damageFalloff('pistol', 90)).toBe(.7);
+    expect(damageFalloff('m4', 140)).toBe(.8);
+    expect(damageFalloff('shotgun', 38)).toBeCloseTo(.2);
+    expect(damageFalloff('dmr', 190)).toBe(1);
+    expect(damageFalloff('sniper', 240)).toBe(1);
+    const sim = new Simulation(world(), config, profiles, 'falloff-hit', 7);
+    advance(sim, 5.1);
+    const attacker = (sim as any).actors.get('a');
+    const target = (sim as any).actors.get('b');
+    target.state.pos = { x: 0, y: terrainHeight(0, -39), z: -39 };
+    target.state.protectionUntil = 0;
+    attacker.state.yaw = 0;
+    attacker.state.pitch = Math.atan2(target.state.pos.y + 1 - attacker.state.pos.y - 1.62, 39);
+    attacker.state.ads = true;
+    (sim as any).random = () => .5;
+    (sim as any).fire(attacker);
+    const hit = sim.drainEvents().find(e => e.type === 'damage' && e.target === 'b');
+    expect(hit?.type).toBe('damage');
+    if (hit?.type !== 'damage') return;
+    expect(hit.amount).toBeGreaterThan(13);
+    expect(hit.amount).toBeLessThan(15);
+  });
+
   it('fires one pistol round for a quick trigger press after the release frame arrives', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'quick-trigger');
     advance(sim, 3.1);
