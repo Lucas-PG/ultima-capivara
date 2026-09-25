@@ -196,13 +196,11 @@ export function buildVegetation(world: WorldSpec) {
         const across = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
         const point = (t: number) => top.clone().addScaledVector(direction, length * t)
           .add(new THREE.Vector3(0, Math.sin(t * Math.PI) * .65 - t * t * 2.7 + (i % 2) * .15, 0));
-        if (far) {
-          // Overlapping, solid frond ribbons retain the drooping near outline
-          // without subpixel leaflets that break into dots at 60+ metres.
-          for (const [start, end, width] of [[0, .46, .16], [.27, .78, .18], [.58, 1, .14]] as const)
-            leaf(point(start), point(end), length * width, WORLD_PALETTE.palmMid, i + 1, .6);
-          continue;
-        }
+        // The same connected silhouette sits below the close leaflets and is
+        // retained alone at distance, so the LOD swap loses only fine detail.
+        for (const [start, end, width] of [[0, .46, .16], [.27, .78, .18], [.58, 1, .14]] as const)
+          leaf(point(start), point(end), length * width, WORLD_PALETTE.palmMid, i + 1, .6);
+        if (far) continue;
         for (let rib = 0; rib < 3; rib++) branch(point(rib / 3), point((rib + 1) / 3), .022, WORLD_PALETTE.palmMid, i + 1);
         for (let n = 1; n <= 13; n++) {
           const t = n / 14, root = point(t);
