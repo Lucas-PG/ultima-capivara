@@ -1,0 +1,125 @@
+{
+  "palette": [
+    "3B4A57",
+    "7F93A3",
+    "9C5B32",
+    "C07A45",
+    "4A3F38",
+    "1FB5A8",
+    "FFC23D",
+    "C9D3DA",
+    "E76F51",
+    "C9C2B2",
+    "3FA9F5",
+    "A468FF",
+    "FFB81C",
+    "B8743A",
+    "D39A47",
+    "7A4424",
+    "4A2C1C",
+    "6E7040",
+    "51532F",
+    "E8C08A",
+    "12877E",
+    "5A3A22",
+    "E9B44C",
+    "1A120C",
+    "3B4A57",
+    "3B4A57",
+    "3B4A57",
+    "3B4A57",
+    "3B4A57",
+    "3B4A57",
+    "3B4A57",
+    "3B4A57"
+  ],
+  "weapons": [
+    {
+      "id": "pistol",
+      "trianglesWithPaws": 7452,
+      "muzzle": [
+        0,
+        0.025,
+        -0.312
+      ],
+      "sightY": 0.1225
+    },
+    {
+      "id": "smg",
+      "trianglesWithPaws": 7800,
+      "muzzle": [
+        0,
+        0,
+        -0.628
+      ],
+      "sightY": 0.1245
+    },
+    {
+      "id": "m4",
+      "trianglesWithPaws": 8404,
+      "muzzle": [
+        0,
+        0,
+        -0.918
+      ],
+      "sightY": 0.1845
+    },
+    {
+      "id": "shotgun",
+      "trianglesWithPaws": 7692,
+      "muzzle": [
+        0,
+        0,
+        -1.008
+      ],
+      "sightY": 0.10450000000000001
+    },
+    {
+      "id": "dmr",
+      "trianglesWithPaws": 8292,
+      "muzzle": [
+        0,
+        0,
+        -1.048
+      ],
+      "sightY": 0.169
+    },
+    {
+      "id": "sniper",
+      "trianglesWithPaws": 8504,
+      "muzzle": [
+        0,
+        0,
+        -1.238
+      ],
+      "sightY": 0.169
+    },
+    {
+      "id": "machete",
+      "trianglesWithPaws": 3288,
+      "muzzle": [
+        -0.14,
+        0.6,
+        0
+      ],
+      "sightY": 0
+    },
+    {
+      "id": "slingshot",
+      "trianglesWithPaws": 6600,
+      "muzzle": [
+        0,
+        0.24,
+        -0.12
+      ],
+      "sightY": 0.24
+    }
+  ],
+  "bytes": 431344,
+  "materials": 1,
+  "texture": {
+    "format": "PNG",
+    "width": 32,
+    "height": 32
+  }
+}

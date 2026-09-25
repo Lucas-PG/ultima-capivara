@@ -19,18 +19,26 @@ export function buildWallArt(world: WorldSpec) {
       ctx.fillStyle = `rgba(240,229,192,${.02 + (n % 5) * .006})`;
       ctx.fillRect((n * 73.17) % 512, (n * 131.73) % 512, 1 + n % 3, 1);
     }
-    ctx.textAlign = 'center'; ctx.fillStyle = '#f2ddb0';
-    ctx.font = 'italic 22px Georgia, serif'; ctx.fillText(index ? 'café, prosa & sombra' : 'feito à mão, desde 1958', 256, 55);
-    ctx.font = 'bold 38px Georgia, serif'; ctx.fillText(index ? 'CAFÉ DA VILA' : 'FORNADA DO DIA', 256, 102, 452);
+    ctx.fillStyle = '#f2ddb0';
+    if (index) {
+      ctx.fillRect(211, 58, 80, 51);
+      ctx.strokeStyle = '#f2ddb0'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(296, 77, 23, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+      ctx.fillRect(196, 114, 120, 7);
+    } else {
+      ctx.beginPath(); ctx.ellipse(256, 98, 100, 45, 0, Math.PI, 0); ctx.lineTo(356, 108);
+      ctx.quadraticCurveTo(256, 145, 156, 108); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#33463b'; ctx.lineWidth = 5;
+      for (const offset of [-46, 0, 46]) { ctx.beginPath(); ctx.moveTo(256 + offset - 12, 82); ctx.lineTo(256 + offset + 8, 113); ctx.stroke(); }
+    }
     ctx.strokeStyle = '#acbd98'; ctx.beginPath(); ctx.moveTo(65, 122); ctx.quadraticCurveTo(256, 134, 447, 122); ctx.stroke();
-    const items = index ? ['Café coado', 'Cappuccino', 'Chocolate quente', 'Bolo de cenoura'] : ['Pão de queijo', 'Broa de milho', 'Sonho de goiabada', 'Café coado'];
-    const prices = index ? ['5', '9', '8', '7'] : ['4', '6', '7', '5'];
-    items.forEach((item, row) => {
+    for (let row = 0; row < 4; row++) {
       const y = 178 + row * 50;
-      ctx.font = '25px Georgia, serif'; ctx.fillStyle = '#f3e8cd'; ctx.textAlign = 'left'; ctx.fillText(item, 47, y);
-      ctx.font = 'italic 23px Georgia, serif'; ctx.textAlign = 'right'; ctx.fillText(prices[row], 462, y);
+      ctx.fillStyle = '#f3e8cd';
+      ctx.beginPath(); ctx.arc(69, y - 8, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(91, y - 14, 244 - row * 19, 10);
+      ctx.fillRect(424, y - 14, 27, 10);
       ctx.strokeStyle = '#72836a'; ctx.setLineDash([2, 6]); ctx.beginPath(); ctx.moveTo(47, y + 13); ctx.lineTo(462, y + 13); ctx.stroke(); ctx.setLineDash([]);
-    });
+    }
     // Small capybara seal, surrounded by two sprigs.
     ellipse(256, 416, 41, 31, '#d3aa6e'); ellipse(227, 390, 9, 12, '#d3aa6e'); ellipse(286, 390, 9, 12, '#d3aa6e');
     ellipse(256, 430, 32, 15, '#e7c68d'); ellipse(239, 407, 3, 4, '#294239'); ellipse(273, 407, 3, 4, '#294239');
@@ -38,7 +46,7 @@ export function buildWallArt(world: WorldSpec) {
     for (const side of [-1, 1]) for (let leaf = 0; leaf < 5; leaf++) {
       ellipse(256 + side * (69 + leaf * 12), 434 - leaf * 8, 8, 3, '#a4b28b');
     }
-    ctx.fillStyle = '#c8caa5'; ctx.font = '14px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillText('BOM DIA. A CASA É SUA.', 256, 474);
+    ctx.fillStyle = '#c8caa5'; ctx.fillRect(184, 466, 144, 5);
     ctx.restore();
   }
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;

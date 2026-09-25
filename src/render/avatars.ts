@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { applyCharacterStyle } from './materials';
-import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody } from './capybara';
+import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody } from './capybara';
 import { itemGeometry, itemMaterial } from './item-geometry';
 import { addEllipsoid } from './primitives';
 import { WEAPONS } from '../shared/weapons';
@@ -72,7 +72,11 @@ export class AvatarView {
     for (const actor of actors) this.ensureAvatar(actor);
   }
   get(id: string) { return this.visuals.get(id); }
-  dispose() { this.visuals.forEach(visual => visual.body.skeleton.dispose()); this.weapons.forEach(geometry => geometry.dispose()); }
+  dispose() {
+    for (const [id, visual] of this.visuals) this.removeAvatar(id, visual);
+    this.warmupWeapons.removeFromParent(); this.warmupWeapons.clear();
+    this.weapons.forEach(geometry => geometry.dispose()); this.weapons.clear();
+  }
 
   private removeAvatar(id: string, visual: Avatar) {
     this.scene.remove(visual.group); this.visuals.delete(id);
@@ -138,6 +142,10 @@ export class AvatarView {
     const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
     visual.phase += dt * Math.min(13, speed * 2.1);
     visual.group.rotation.set(0, actor.yaw, 0);
+    if (updateCapybaraBody(visual.body, actor, dt)) {
+      if (actor.crouch) visual.group.scale.setScalar(1.3 / 1.8);
+      return;
+    }
     const pitch = THREE.MathUtils.clamp(actor.pitch, -1, 1);
     if (actor.stage === 'falling') {
       // Belly down around the body's centre, paws forward, legs trailing.
