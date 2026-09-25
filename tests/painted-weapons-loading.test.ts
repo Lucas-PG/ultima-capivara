@@ -61,6 +61,9 @@ describe('painted weapon readiness and ownership', () => {
     const mesh = (model: typeof common) => model.group.getObjectByProperty('isMesh', true) as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
     expect(mesh(common).geometry).toBe(mesh(rare).geometry);
     expect(mesh(common).material.emissiveMap).toBe(source.material.emissiveMap);
+    expect(mesh(common).material.emissiveMap!.minFilter).toBe(THREE.NearestFilter);
+    expect(mesh(common).material.emissiveMap!.magFilter).toBe(THREE.NearestFilter);
+    expect(mesh(common).material.emissiveMap!.generateMipmaps).toBe(false);
     const pixels = (model: typeof common) => (mesh(model).material.map as THREE.DataTexture).image.data!;
     expect(Array.from(pixels(common).slice(13 * 4, 14 * 4))).toEqual([162, 124, 92, 255]);
     expect(Array.from(pixels(rare).slice(13 * 4, 14 * 4))).toEqual([162, 124, 92, 255]);

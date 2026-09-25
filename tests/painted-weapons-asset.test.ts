@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { NodeIO, type Document, type Node } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
+import { Matrix4, Vector3 } from 'three';
 import { PAINTED_WEAPON_IDS } from '../src/render/painted-weapons';
 
 let asset: Document;
@@ -40,6 +41,27 @@ describe('painted weapons shipped asset contract', () => {
     expect(asset.getRoot().listTextures()).toHaveLength(2);
     expect(materials[0].getEmissiveTexture()?.getSize()).toEqual([32, 32]);
     for (const channel of materials[0].getEmissiveFactor()) expect(channel).toBeCloseTo(.35, 6);
+  });
+
+  it('restricts the emissive atlas column to the machete blade, never paws or other weapons', () => {
+    let edgeVertices = 0;
+    for (const node of asset.getRoot().listNodes()) {
+      const matrix = new Matrix4().fromArray(node.getWorldMatrix());
+      for (const primitive of node.getMesh()?.listPrimitives() || []) {
+        const uv = primitive.getAttribute('TEXCOORD_0')!, positions = primitive.getAttribute('POSITION')!;
+        for (let i = 0; i < uv.getCount(); i++) {
+          if (Math.floor(uv.getElement(i, [])[0] * 32) !== 24) continue;
+          edgeVertices++;
+          expect(node.getName()).toBe('machete_body_mesh');
+          const vertex = new Vector3().fromArray(positions.getElement(i, [])).applyMatrix4(matrix);
+          // The blade starts above the wooden guard; the grip and paws sit below it.
+          expect(vertex.y).toBeGreaterThanOrEqual(.019);
+          expect(vertex.y).toBeLessThanOrEqual(.603);
+          expect(Math.abs(vertex.z)).toBeLessThanOrEqual(.013);
+        }
+      }
+    }
+    expect(edgeVertices).toBeGreaterThan(0);
   });
 
   it('puts firearm muzzle anchors ahead of the receiver and keeps sight anchors centred', () => {
