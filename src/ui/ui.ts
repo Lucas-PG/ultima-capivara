@@ -567,10 +567,14 @@ export class GameUI {
       }
     } else { ctx.strokeStyle = '#e5412d'; ctx.lineWidth = 3; ctx.strokeRect(X(ARENA.minX), Z(ARENA.minZ), (ARENA.maxX - ARENA.minX) * scale, (ARENA.maxZ - ARENA.minZ) * scale); }
     ctx.save(); ctx.font = `${full ? 26 : 23}px "Dela Gothic One","Arial Black",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = full ? 7 : 5; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#fff4d6';
+    // Labels clamped to the edge must never overlap: a label that would collide with one already drawn is skipped.
+    const placed: [number, number, number, number][] = [];
     for (const district of this.world.districts) {
       const x = X(district.x), y = Z(district.z); if (x < -60 || y < -20 || x > size + 60 || y > size + 20) continue;
       const label = district.name.toUpperCase(), w = ctx.measureText(label).width / 2 + 6, lx = clamp(x, w, size - w), ly = clamp(y, 14, size - 14);
-      ctx.strokeText(label, lx, ly); ctx.fillText(label, lx, ly);
+      const box: [number, number, number, number] = [lx - w, ly - 15, lx + w, ly + 15];
+      if (placed.some(o => box[0] < o[2] && box[2] > o[0] && box[1] < o[3] && box[3] > o[1])) continue;
+      placed.push(box); ctx.strokeText(label, lx, ly); ctx.fillText(label, lx, ly);
     }
     ctx.restore();
     ctx.save(); ctx.translate(X(actor.pos.x), Z(actor.pos.z)); ctx.rotate(-actor.yaw); const k = full ? 1.5 : 1.25; ctx.scale(k, k);
