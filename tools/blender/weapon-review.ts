@@ -12,8 +12,7 @@ const gl = new THREE.WebGLRenderer({ canvas: document.querySelector('canvas')!, 
 gl.setPixelRatio(1); gl.setSize(innerWidth, innerHeight);
 gl.toneMapping = THREE.NeutralToneMapping; gl.toneMappingExposure = 1.1;
 gl.setClearColor(0, 0);
-const { RenderPipeline } = await import('../../src/render/pipeline');
-const pipeline = params.has('runtime') ? new RenderPipeline(gl, 2) : null;
+const pipeline = params.has('runtime') ? new (await import('../../src/render/pipeline')).RenderPipeline(gl, 2) : null;
 pipeline?.resize();
 const background = new THREE.Scene(); background.background = new THREE.Color('#e9e4d8');
 const scene = new THREE.Scene();
@@ -38,6 +37,10 @@ let current: WeaponId = 'm4';
 let pose: WeaponHipPose = { ...WEAPON_HIP_POSES[current] };
 
 function shot(options: { weapon?: WeaponId; pose?: Partial<WeaponHipPose>; rarity?: number; ads?: boolean; angle?: string; paws?: boolean } = {}) {
+  if (gl.domElement.width !== innerWidth || gl.domElement.height !== innerHeight) {
+    gl.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix(); pipeline?.resize();
+  }
   current = options.weapon || current;
   for (const [id, model] of Object.entries(models)) model.group.visible = id === current;
   const model = models[current];
