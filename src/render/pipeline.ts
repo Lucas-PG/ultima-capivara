@@ -5,11 +5,13 @@ import { timing } from './timing';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
 // Graphics presets. The outline pass is the art style, so it runs on every
-// preset; what scales is resolution, MSAA inside it, and shadows.
+// preset; what scales is resolution and shadows. Final FXAA covers every preset.
+// World depth stays single-sampled: resolving even two samples across overlapping
+// R6 skin parts rejects mask pixels at the chin/bandana seam (TATU40).
 export const PRESETS = {
   low: { dpr: .75, samples: 0, shadows: false, shadowReach: 0, interior: false },
   medium: { dpr: 1, samples: 0, shadows: true, shadowReach: 32, interior: true },
-  high: { dpr: 1.25, samples: 2, shadows: true, shadowReach: 42, interior: true },
+  high: { dpr: 1.25, samples: 0, shadows: true, shadowReach: 42, interior: true },
 } as const;
 
 export class RenderPipeline {
