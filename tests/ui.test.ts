@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { readFileSync, statSync } from 'node:fs';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -140,5 +140,22 @@ describe('hud layout cost', () => {
       const code = readFileSync(file, 'utf8').replace(/\/\/.*$/gm, '');
       expect(code).not.toMatch(/\.(offsetWidth|offsetHeight|clientHeight|clientWidth|scrollHeight|innerText)\b|getBoundingClientRect\(|getComputedStyle\(/);
     }
+  });
+});
+
+describe('menu download budget', () => {
+  // Sentinela measured 6.48 MiB before the menu; the 2.5 MB PNG cover and unused font families were the UI's share.
+  it('serves the cover as AVIF/WebP sized to the screen, and a tiny blurred one to the loading screen', () => {
+    const url = (f: string) => `/ilha/${f}`;
+    expect(coverImageSet(1280, 1, url).cover).toContain('/ilha/assets/cover-1672.avif');
+    expect(coverImageSet(800, 1, url).cover).toContain('/ilha/assets/cover-960.avif');
+    expect(coverImageSet(800, 2, url).cover).toContain('cover-1672');
+    expect(coverImageSet(1920, 1, url).blur).toContain('cover-blur-480.webp');
+    for (const f of ['cover-1672', 'cover-960', 'cover-blur-480']) for (const ext of ['avif', 'webp'])
+      expect(statSync(`public/assets/${f}.${ext}`).size).toBeLessThan(f === 'cover-1672' ? 260_000 : 120_000);
+  });
+  it('never references the PNG master or the unused Barlow families from the stylesheet', () => {
+    const css = readFileSync('src/ui/style.css', 'utf8');
+    expect(css).not.toMatch(/cover-v2\.png|@fontsource\/barlow|'Barlow/);
   });
 });

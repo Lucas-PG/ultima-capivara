@@ -6,7 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, weaponIcon } from './icons';
-import { accuracyText, cleanLabel, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
+import { accuracyText, cleanLabel, coverImageSet, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -75,7 +75,6 @@ export class GameUI {
   private readonly crosshairSpread = new CrosshairSpread();
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
-    document.documentElement.style.setProperty('--cover', `url("${publicUrl('assets/cover-v2.png')}")`);
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
     this.drawMapBackground(); this.home();
     // M toggles the island map over the match; it never touches pointer lock or movement input.
@@ -553,6 +552,9 @@ export class GameUI {
   private reducedMotion() { return this.settings.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches; }
   // Interface size and aim colours follow the settings; the HUD scales from its 1600x900 layout.
   applyHudPrefs() {
+    // The cover follows the screen width (desktop vs small); both variants are tiny compared to the PNG master.
+    const art = coverImageSet(innerWidth, devicePixelRatio || 1), root = document.documentElement.style;
+    if (root.getPropertyValue('--cover') !== art.cover) { root.setProperty('--cover', art.cover); root.setProperty('--cover-blur', art.blur); }
     const body = document.body.style, [hit, head, kill] = HIT_PALETTES[this.settings.hitPalette];
     body.setProperty('--ui', String(hudScale(innerWidth, innerHeight, this.settings.uiScale)));
     body.setProperty('--xc', CROSSHAIR_COLORS[this.settings.crosshairColor]);

@@ -76,3 +76,11 @@ export function killCardParts(killer: string | null | undefined, weaponName: str
   if (!killer || !weaponName) return null;
   return { killer, weapon: weaponName, distance: Number.isFinite(distance) ? `${Math.max(0, Math.round(distance!))} m` : null };
 }
+
+// Menu cover: AVIF with a WebP fallback (scripts/build-cover.mjs), sized to the screen's device pixels so small
+// screens never download the desktop art. The loading screen blurs its backdrop, so it gets the tiny soft variant.
+export function coverImageSet(cssWidth: number, dpr = 1, url: (file: string) => string = file => publicUrl(file)) {
+  const name = cssWidth * dpr > 1100 ? 'cover-1672' : 'cover-960';
+  const set = (n: string) => `image-set(url("${url(`assets/${n}.avif`)}") type("image/avif"), url("${url(`assets/${n}.webp`)}") type("image/webp"))`;
+  return { cover: set(name), blur: set('cover-blur-480') };
+}
