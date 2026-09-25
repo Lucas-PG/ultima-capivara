@@ -376,7 +376,7 @@ export class EffectsView {
     if (!head) return;
     const star = this.cards.spawn();
     star.pos.copy(pos); star.cell = PAINT.star; star.life = .24; star.fadeOut = .3; star.pop = true;
-    star.vel.set(0, .5, 0); star.drag = 2; star.spin = 3; star.size0 = .55; star.size1 = .6; star.minPx = 38; star.maxPx = 96;
+    star.vel.set(0, .5, 0); star.drag = 2; star.spin = 3; star.size0 = .55; star.size1 = .6; star.minPx = 46; star.maxPx = 96;
     star.color.copy(this.white);
   }
 
