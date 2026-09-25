@@ -31,7 +31,7 @@ export class CrosshairSpread {
     }
     const dt = this.lastAt ? clamp((now - this.lastAt) / 1000, 0, .25) : 0;
     this.lastAt = now;
-    if (weapon) this.adsAmount = advanceAds(weapon, this.adsAmount, me.ads, dt);
+    if (weapon) this.adsAmount = advanceAds(weapon, this.adsAmount, me.ads && !me.sprint && !me.reloadUntil && weapon !== 'machete', dt);
     this.heat = coolShotHeat(this.heat, dt);
     // Fresh host heat corrects local shot prediction without waiting for another trigger.
     if (me.shotHeat > this.serverHeat + .01) this.heat = me.shotHeat;
@@ -48,7 +48,7 @@ export class CrosshairSpread {
     if (!this.gapValue || target >= this.gapValue || settings.reducedMotion) this.gapValue = target;
     else this.gapValue = target + (this.gapValue - target) * Math.exp(-dt / .12);
 
-    const opacity = weapon !== 'sniper' && weapon !== 'dmr' && this.adsAmount > .5 ? 0 : 1;
+    const opacity = weapon !== 'sniper' && weapon !== 'dmr' && weapon !== 'machete' && this.adsAmount > .5 ? 0 : 1;
     if (settings.reducedMotion) this.ticksOpacity = opacity;
     else if (opacity !== this.fadeTo) {
       this.fadeFrom = this.ticksOpacity;

@@ -39,4 +39,16 @@ it('projects burst beyond still spread, ADS inside hip spread, and fades only ir
   spread.gap(me, settings, 900, 3000);
   spread.gap(me, settings, 900, 3090);
   expect(spread.ticksOpacity).toBe(0);
+
+  spread.reset();
+  me.sprint = true;
+  const sprintHip = spread.gap(me, settings, 900, 4000);
+  expect(spread.gap(me, settings, 900, 4200)).toBe(sprintHip);
+  expect(spread.ticksOpacity).toBe(1);
+  spread.reset();
+  me.sprint = false;
+  me.weapons[0] = { id: 'machete', ammo: 0, reserve: 0, rarity: 0 };
+  spread.gap(me, settings, 900, 5000);
+  spread.gap(me, settings, 900, 5200);
+  expect(spread.ticksOpacity).toBe(1);
 });

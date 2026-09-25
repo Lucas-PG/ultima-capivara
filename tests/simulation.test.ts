@@ -129,6 +129,27 @@ describe('authoritative simulation', () => {
     expect(advanceAds('m4', 1, false, .22)).toBe(0);
   });
 
+  it('does not grant ADS accuracy while sprinting, reloading, or holding a machete', () => {
+    const sim = new Simulation(world(), config, [profiles[0]], 'ads-eligibility', 7);
+    advance(sim, 3.1);
+    const actor = (sim as any).actors.get('a');
+    actor.adsAmount = 1;
+    send(sim, 'a', 1, { sprint: true, moveZ: 1 });
+    advance(sim, .25);
+    expect(actor.adsAmount).toBe(0);
+    send(sim, 'a', 2, { ads: true });
+    advance(sim, .1);
+    expect(actor.adsAmount).toBeGreaterThan(0);
+    actor.state.reloadUntil = sim.snapshot().time + 1;
+    advance(sim, .1);
+    expect(actor.adsAmount).toBeLessThan(1e-6);
+    actor.state.reloadUntil = 0;
+    sim.action('a', { type: 'slot', id: 1, slot: 2 });
+    send(sim, 'a', 3, { ads: true });
+    advance(sim, .25);
+    expect(actor.adsAmount).toBe(0);
+  });
+
   it('records fired shots, distinct hit shots, headshots, chests and elapsed survival from the simulation', () => {
     const sim = new Simulation(world(), config, profiles, 'match-stats', 7);
     advance(sim, 3.1);

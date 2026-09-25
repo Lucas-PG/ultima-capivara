@@ -287,7 +287,8 @@ export class Simulation {
         s.yaw = trigger.yaw; s.pitch = trigger.pitch; s.lean = trigger.lean; s.ads = trigger.ads;
         actor.wasFiring = false;
       }
-      actor.adsAmount = advanceAds(s.weapons[s.slot].id, actor.adsAmount, s.ads, TICK);
+      const weaponId = s.weapons[s.slot].id;
+      actor.adsAmount = advanceAds(weaponId, actor.adsAmount, s.ads && !s.sprint && !s.reloadUntil && weaponId !== 'machete', TICK);
       if (s.alive && (inp.fire || trigger)) this.fire(actor, trigger?.clientTime, trigger?.id);
       if (!inp.fire) actor.wasFiring = false;
       if (inp.jump) actor.input.jump = false;
