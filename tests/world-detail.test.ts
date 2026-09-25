@@ -17,6 +17,17 @@ describe('crafted village and port', () => {
     expect(world.objects.filter(object => object.detail === 'prop:cart').length).toBeGreaterThanOrEqual(2);
   });
 
+  it('places the Mercadão board at eye level clear of the roof and entrance route', () => {
+    const sign = world.objects.find(object => object.kind === 'sign' && object.detail === 'MERCADÃO')!;
+    const [mx, mz] = [56, -21], roofFront = mz + (13 + 1.4) / 2;
+    const groundY = terrainHeight(sign.pos.x, sign.pos.z);
+    const boardCenter = sign.pos.y + .4;
+    expect(sign.pos.z - roofFront).toBeGreaterThanOrEqual(1);
+    expect(Math.abs(sign.pos.x - mx)).toBeGreaterThan(2);
+    expect(boardCenter - sign.scale.y * .31 - groundY).toBeGreaterThanOrEqual(1.6);
+    expect(boardCenter + sign.scale.y * .31 - groundY).toBeLessThanOrEqual(2.4);
+  });
+
   it('keeps both doorways and the center aisle traversable in every arena house', () => {
     // The front and rear doors are combat routes. Large fixtures must leave a
     // player-width aisle between each threshold and the center of the room.

@@ -271,7 +271,9 @@ export function createWorld(): WorldSpec {
       for (const [dx, kind, weapon] of [[-4.5, 'weapon', 'm4'], [-2.5, 'armor', undefined], [-.5, 'weapon', 'smg'], [1.5, 'helmet', undefined],
         [3.5, 'weapon', 'shotgun'], [5.5, 'medkit', undefined]] as const) item(mx + dx, mz, kind, weapon, y);
       for (const dx of [-6, 6]) item(mx + dx, mz + 5, 'ammo', undefined, y);
-      obj('sign', mx, y + 6.4, mz + d / 2 + .9, 5.4, 2.6, .2, '#eccb8b', 'MERCADÃO');
+      // Keep this freestanding board beside the approach, outside the roof eave.
+      const signX = mx - w / 2 + 2.7, signZ = mz + d / 2 + 3.5;
+      obj('sign', signX, ground(signX, signZ) + 1.6, signZ, 3.4, 1.29, .2, '#eccb8b', 'MERCADÃO');
     }
     for (const [x, z, kind] of [[52, -30, 'bench'], [36, -42, 'planter'], [72, -42, 'planter'], [58, -44, 'cart'], [88, -28, 'bench']] as const) streetDetail(x, z, kind, '#d6b070');
     for (const [x, z] of [[46, -44], [70, -44], [60, -60]] as const) item(x, z, 'weapon', 'm4');
