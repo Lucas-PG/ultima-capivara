@@ -6,6 +6,8 @@ import type { AssetEntry } from '../src/render/asset-manifest';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 
 const { loaderConstructor } = vi.hoisted(() => ({ loaderConstructor: vi.fn() }));
+vi.mock('../src/render/sky', () => ({ PaintedSky: class {} }));
+vi.mock('../src/render/timing-gpu', () => ({ instrumentMaterials: vi.fn(), instrumentGpu: vi.fn() }));
 vi.mock('../src/render/assets', () => ({ AssetLoader: loaderConstructor }));
 vi.mock('three', async original => ({ ...await original<typeof THREE>(), WebGLRenderer: vi.fn() }));
 
