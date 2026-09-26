@@ -71,6 +71,19 @@ describe('river island gameplay integrity', () => {
     }
   });
 
+  it('supports the full fort foundations so beach paths cannot cut under the towers', () => {
+    const fort = world.pieces!.filter(p => /^fort_(wall|tower)$/.test(p.piece) && Math.hypot(p.x - FORTE[0], p.z - FORTE[1]) < 23);
+    expect(fort.length).toBeGreaterThanOrEqual(12);
+    for (const piece of fort) {
+      const [width, depth] = KIT_PIECES[piece.piece].footprint;
+      for (const dx of [-.5, 0, .5]) for (const dz of [-.5, 0, .5]) {
+        const x = piece.x + dx * width * Math.cos(piece.yaw) + dz * depth * Math.sin(piece.yaw);
+        const z = piece.z + dz * depth * Math.cos(piece.yaw) - dx * width * Math.sin(piece.yaw);
+        expect(Math.abs(terrainHeight(x, z) - piece.y), `floating foundation ${piece.id} at ${x},${z}`).toBeLessThan(.2);
+      }
+    }
+  });
+
   it('marks each arena edge with real pieces while leaving its gates traversable', () => {
     const boundaries = world.pieces!.filter(p => world.arenaBoundary!.includes(p.id));
     expect(boundaries.length).toBeGreaterThanOrEqual(12);

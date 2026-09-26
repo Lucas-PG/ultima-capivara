@@ -22,7 +22,7 @@ declare global { interface Window { __capyQA?: QaApi } }
 const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -23, 0, 0],
-  river: [4, 22, .28, -.03], forteBeach: [49, -88, .92, .08],
+  river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
   capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
 };
 const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {

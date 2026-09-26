@@ -7,6 +7,7 @@ import { createToonMaterial, type ToonMaterialKind } from './materials';
 import { terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
+import { createIslandBackdrop } from './island-backdrop';
 import { GroundCover } from './ground-cover';
 import { createKit, type KitScene } from './kit';
 import { releaseAfterUpload } from './memory';
@@ -116,7 +117,7 @@ const hipRoof = roofGeometry('hip');
 const gableRoof = roofGeometry('gable');
 
 function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
-  const size = world.size, steps = 150, stride = size / steps;
+  const size = world.size, steps = Math.round(world.size / 2), stride = size / steps;
   const positions: number[] = [], uvs: number[] = [], slopes: number[] = [], indices: number[] = [];
   for (let iz = 0; iz <= steps; iz++) for (let ix = 0; ix <= steps; ix++) {
     const x = -size / 2 + ix * stride, z = -size / 2 + iz * stride, y = terrainHeight(x, z);
@@ -332,6 +333,7 @@ export class WorldScene {
     };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
+    const backdrop = createIslandBackdrop(world); this.group.add(backdrop.mesh); this.disposables.push(backdrop);
 
     this.paintedWater = new PaintedWater(world, ground.geometry);
     this.water = this.paintedWater.mesh;
@@ -467,7 +469,7 @@ export class WorldScene {
     };
     for (const object of world.objects) {
       const { kind, pos, scale, color, detail, rotation = 0 } = object;
-      if (detail?.startsWith('prop:') || kind === 'palm' || kind === 'tree' || kind === 'grass') continue;
+      if (detail?.startsWith('prop:') || detail === 'distant-island' || kind === 'palm' || kind === 'tree' || kind === 'grass') continue;
       if (detail === 'waterfall') {
         const geometry = new THREE.PlaneGeometry(scale.x, scale.y, 6, 12);
         const vertices = geometry.getAttribute('position');
