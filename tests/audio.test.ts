@@ -161,6 +161,20 @@ describe('ground contact audio', () => {
     remote.grounded = false; update(audio, local, [remote]);
     expect(audio.mudSound).toHaveBeenCalledOnce();
   });
+
+  it('does not replay a bath-entry plop when the listener merely approaches an already soaking capy', () => {
+    const audio = engine(), local = actor(), remote = actor('remote');
+    remote.soaking = true; remote.pos.x = 20;
+    update(audio, local, [remote]); expect(audio.mudSound).not.toHaveBeenCalled();
+    remote.pos.x = 4; update(audio, local, [remote]);
+    expect(audio.mudSound.mock.calls[0][2]).toBe(false);
+    remote.pos.x = 20; update(audio, local, [remote]);
+    remote.pos.x = 4; update(audio, local, [remote]);
+    expect(audio.mudSound.mock.calls.map((call: unknown[]) => call[2])).toEqual([false, false]);
+    remote.soaking = false; update(audio, local, [remote]);
+    remote.soaking = true; update(audio, local, [remote]);
+    expect(audio.mudSound.mock.calls[2][2]).toBe(true);
+  });
 });
 
 describe('audio mix and capybara chirps', () => {

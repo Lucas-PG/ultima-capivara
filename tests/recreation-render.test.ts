@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { expect, it, vi } from 'vitest';
 import { RecreationView } from '../src/render/recreation';
 import { KIT_PIECES } from '../src/shared/kit-collision';
@@ -9,7 +10,16 @@ function fixture() {
   const scene = new THREE.Group(), material = new THREE.MeshStandardMaterial({ map: new THREE.Texture() });
   for (const kind of ['mud_bath', 'trampoline']) for (let lod = 0; lod < 3; lod++) {
     const deck = KIT_PIECES[kind].colliders[0]; if (deck.type !== 'cylinder') throw new Error('Expected authored deck');
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(deck.radius, deck.radius, deck.height, 32 >> lod).translate(0, deck.y, 0), material);
+    let geometry: THREE.BufferGeometry = new THREE.CylinderGeometry(deck.radius, deck.radius, deck.height, 32 >> lod).translate(0, deck.y, 0);
+    if (kind === 'mud_bath') {
+      const uv = geometry.getAttribute('uv');
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, .1, .35);
+      const stone = new THREE.BoxGeometry(.55, .26, .33).translate(1.88, .13, 0), stoneUv = stone.getAttribute('uv');
+      for (let i = 0; i < stoneUv.count; i++) stoneUv.setXY(i, .6, .85);
+      const fill = geometry; geometry = mergeGeometries([geometry, stone])!;
+      fill.dispose(); stone.dispose();
+    }
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `${kind}_LOD${lod}`; scene.add(mesh);
   }
   const world = { pieces: [
@@ -35,13 +45,33 @@ it('loads one shared kit and keeps authored transformed play surfaces and gamepl
   h.view.group.updateMatrixWorld(true);
   const bath = h.view.group.getObjectByName('recreation:bath')!;
   const surface = bath.getObjectByName('Lama viva')!;
-  expect(surface.getWorldPosition(new THREE.Vector3()).y).toBeCloseTo(h.world.mudBaths![0].y + .025 * 1.25);
+  expect(surface.getWorldPosition(new THREE.Vector3()).y).toBeCloseTo(h.world.mudBaths![0].y);
   expect(bath.rotation.y).toBe(Math.PI / 2); expect(bath.scale.x).toBe(1.25);
   const sourceDeck = h.source.getObjectByName('trampoline_LOD0') as THREE.Mesh;
   const softDeck = h.view.group.getObjectByName('trampoline_LOD0') as THREE.Mesh;
   expect(softDeck.geometry.index!.count).toBeGreaterThan(sourceDeck.geometry.index!.count);
   expect(softDeck.geometry.index!.count / 3).toBeLessThan(2000);
   expect(h.world).toEqual(before); h.view.dispose();
+});
+
+it('removes the solid mud wall, preserves the rim, and keeps the entire authored support disk flat', async () => {
+  const h = fixture(); await h.view.ready;
+  const rim = h.view.group.getObjectByName('mud_bath_LOD0') as THREE.Mesh;
+  expect(rim.geometry.index!.count).toBe(36);
+  const mud = h.view.group.getObjectByName('Lama viva') as THREE.Mesh;
+  const positions = mud.geometry.getAttribute('position'), normals = mud.geometry.getAttribute('normal');
+  const definition = KIT_PIECES.mud_bath, deck = definition.colliders[0];
+  if (deck.type !== 'cylinder') throw new Error('Expected authored support disk');
+  let edge = 0;
+  for (let i = 0; i < positions.count; i++) {
+    const radius = Math.hypot(positions.getX(i), positions.getZ(i));
+    if (radius <= deck.radius + .001) expect(positions.getY(i)).toBeCloseTo(0, 5);
+    else { edge++; expect(positions.getY(i)).toBeLessThan(0); expect(positions.getY(i) + mud.position.y).toBeGreaterThan(0); }
+    expect(normals.getY(i)).toBeGreaterThan(0);
+  }
+  expect(edge).toBeGreaterThan(64);
+  expect(mud.position.y).toBe(definition.interaction!.surfaceY);
+  h.view.dispose();
 });
 
 it('uses predicted grounded bath contact for body rings and removes it as soon as the capy leaves', async () => {

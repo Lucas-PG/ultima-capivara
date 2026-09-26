@@ -84,6 +84,7 @@ export class SoundEngine {
   private disposed = false;
   private remoteSteps = new Map<string, { pos: Vec3; travelled: number; grounded: boolean; swimming: boolean; velocityY: number }>();
   private mudVoices = new Map<string, { next: number; end: number; channel: GainNode | null }>();
+  private soakingActors = new Set<string>();
 
   constructor(settings: Settings, private world?: WorldSpec) {
     this.settings = { ...settings };
@@ -611,21 +612,23 @@ export class SoundEngine {
   private clearMudVoices() {
     for (const voice of this.mudVoices.values()) voice.channel?.disconnect();
     this.mudVoices.clear();
+    this.soakingActors.clear();
   }
 
   private updateSoaking(listener: ActorState, snapshot: WorldSnapshot, now: number) {
     if (!listener.alive || snapshot.phase !== 'playing') { this.clearMudVoices(); return; }
-    const heard = new Set<string>();
+    const heard = new Set<string>(), soaking = new Set<string>();
     for (const actor of [listener, ...snapshot.actors]) {
       const own = actor === listener;
       // Local prediction wins over a delayed snapshot, including cancellation.
       if (!own && actor.id === listener.id) continue;
       if (!actor.soaking || !actor.alive || !actor.grounded || actor.swimming || actor.stage !== 'ground') continue;
+      soaking.add(actor.id);
       const distance = Math.hypot(actor.pos.x - listener.pos.x, actor.pos.y - listener.pos.y, actor.pos.z - listener.pos.z);
       if (!own && (distance > 12 || heard.size >= 4)) continue;
       heard.add(actor.id);
       let voice = this.mudVoices.get(actor.id);
-      const entering = !voice;
+      const entering = !this.soakingActors.has(actor.id);
       if (!voice) { voice = { next: now, end: now, channel: null }; this.mudVoices.set(actor.id, voice); }
       if (voice.channel && now >= voice.end) { voice.channel.disconnect(); voice.channel = null; }
       if (now < voice.next) continue;
@@ -639,6 +642,7 @@ export class SoundEngine {
     for (const [id, voice] of this.mudVoices) if (!heard.has(id)) {
       voice.channel?.disconnect(); this.mudVoices.delete(id);
     }
+    this.soakingActors = soaking;
   }
 
   private mudSound(output: AudioNode, now: number, entering: boolean, volume: number) {
