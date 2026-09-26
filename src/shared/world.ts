@@ -340,6 +340,13 @@ export function createWorld(): WorldSpec {
   obj('box', cascadeX, (top + low) / 2, cascadeZ, 6, top - low, .22, '#87c2c7', 'waterfall', Math.PI / 2);
   detail('cliff_rock_tall', -118, -18, Math.PI / 2, 1.2, ground(-118, -18) - 4.5);
   detail('cliff_ledge', -112, 2, Math.PI / 2, 1.1, ground(-112, 2) - 2);
+  for (const [index, x] of [-104, -98, -92].entries()) {
+    const river = riverSample(x, -5);
+    for (const side of [-1, 1]) {
+      const z = river.z + side * (river.width / 2 + 3.6), height = 2.4 + index % 2 * .65;
+      rockLayer('cliff_rock_low', x, z, side * Math.PI / 2 + index * .21, ground(x, z) - height * .55, height);
+    }
+  }
   sign(-86, -15, 'MIRANTE');
   // Boardwalks offer a dry second route around the estuary.
   for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
