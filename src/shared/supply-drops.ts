@@ -51,6 +51,7 @@ export function clearSupplyLanding(world: WorldSpec, point: Vec3): boolean {
     if (waterAt(x + dx, z + dz) || Math.abs(terrainHeight(x + dx, z + dz) - y) > .1) return false;
   if ([...(world.mudBaths ?? []), ...(world.trampolines ?? [])].some(site => Math.hypot(x - site.x, z - site.z) < site.radius + 4)) return false;
   if (world.chests.some(chest => Math.hypot(x - chest.x, z - chest.z) < 3)) return false;
+  if (world.loot.some(loot => Math.hypot(x - loot.x, z - loot.z) < 2)) return false;
   const margin = 1.25;
   if (colliderGrid(world).query(x - margin, z - margin, x + margin, z + margin).some(c =>
     c.min.x < x + margin && c.max.x > x - margin && c.min.z < z + margin && c.max.z > z - margin &&

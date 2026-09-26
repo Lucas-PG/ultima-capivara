@@ -135,6 +135,7 @@ describe('reachable supply landing sites', () => {
       found.add(`${point.x},${point.z}`);
       expect(graph.points.some(node => node.x === point.x && node.z === point.z && node.y === point.y)).toBe(true);
       expect(Math.hypot(point.x - zone.nextX, point.z - zone.nextZ)).toBeLessThanOrEqual(zone.nextRadius - 8);
+      expect(world.loot.every(loot => Math.hypot(point.x - loot.x, point.z - loot.z) >= 2)).toBe(true);
       expect(point.y).toBeCloseTo(terrainHeight(point.x, point.z));
       for (const dx of [-.65, 0, .65]) for (const dz of [-.65, 0, .65]) {
         expect(waterAt(point.x + dx, point.z + dz)).toBeNull();
@@ -158,6 +159,22 @@ describe('reachable supply landing sites', () => {
     world.mudBaths = []; world.navigation!.points.push(ground(80)); world.navigation!.links.push([]);
     const zone = { nextX: 80, nextZ: -20, nextRadius: 12 } as ZoneState;
     expect(chooseSupplyLanding(world, zone, rng(1))).toBeNull();
+  });
+
+  it('skips sites within two metres of authored loot without moving pickups', () => {
+    const { world } = fixture(), point = ground(0);
+    expect(clearSupplyLanding(world, point)).toBe(true);
+    // The rio-9 bandage was only .723 m from the crate, competing at its feet.
+    world.loot = [{ id: 'nearby-bandage', kind: 'bandage', ...point, x: point.x + .41722, z: point.z + .59024 }];
+    expect(clearSupplyLanding(world, point)).toBe(false);
+    for (const distance of [1.99, 2, 2.01]) {
+      world.loot[0] = { ...world.loot[0], x: point.x + distance, z: point.z };
+      expect(clearSupplyLanding(world, point), `loot clearance ${distance}`).toBe(distance >= 2);
+    }
+    world.loot = world.navigation!.points.map((pos, index) => ({ ...pos, id: `bandage-${index}`, kind: 'bandage' }));
+    const before = structuredClone(world.loot);
+    expect(chooseSupplyLanding(world, { nextX: 16, nextZ: -20, nextRadius: 40 } as ZoneState, rng(1))).toBeNull();
+    expect(world.loot).toEqual(before);
   });
 
   it('keeps the full authored canopy clear of overhead geometry at release', () => {
