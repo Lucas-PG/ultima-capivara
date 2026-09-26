@@ -1,7 +1,7 @@
 // Cuts the approved final-art sheets (reviews/final-art: a real alpha original, or a magenta #FF00FF background) into one small sprite per
 // cell for the UI: keyed to alpha with a soft edge and magenta despill, trimmed, padded to a square, resized,
 // then encoded as WebP (every supported browser decodes it; AVIF would save well under 1 KiB per sprite). Keying runs in headless Chromium (canvas) so the result
-// is identical on every machine; encoding needs ffmpeg and cwebp on PATH, like scripts/build-cover.mjs.
+// is identical on every machine; encoding needs ffmpeg, ImageMagick and cwebp on PATH, like scripts/build-cover.mjs.
 // Usage: node scripts/build-ui-art.mjs
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
@@ -74,6 +74,10 @@ try {
     execFileSync('cwebp', ['-quiet', '-q', '80', '-m', '6', '-sharp_yuv', half, '-o', join(OUT, `${name}.webp`)]);
     console.log(name, `${(statSync(join(OUT, `${name}.webp`)).size / 1024).toFixed(1)} KiB webp`);
   }
+  // Corrente uses a separate original painting at the same dimensions and quality as the pair above.
+  const corrente = join(tmp, 'mode-corrente.png');
+  execFileSync('magick', ['tools/art/ui-source/mode-corrente.png', '-resize', '960x640', corrente]);
+  execFileSync('cwebp', ['-quiet', '-q', '80', '-m', '6', '-sharp_yuv', corrente, '-o', join(OUT, 'mode-corrente.webp')]);
   // Player portraits: key the magenta, then recolour the green bandana to each kit colour keeping its two shade steps.
   const portrait = join(tmp, 'portrait.png');
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', join(ART, 'capy-portrait-bandana-key.png'), '-pix_fmt', 'rgba', portrait]);
