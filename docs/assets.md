@@ -509,3 +509,46 @@ Fresh native game captures cover all eight held and dropped weapons, the legenda
 Original fixed-root choreography in `tools/blender/character_emotes.py` adds the optional `boing` clip, lasting exactly 1.05 seconds. A compact anticipation opens into raised, outward-facing paws before the physical apex, with a lifted head and a soft return. The runtime starts it once per authoritative launch sequence while the actor is rising and blends into the existing fall on descent. Late arrivals enter at their matching rise time. No physical movement, hitbox or actor-root transform changes. All 35 joints and the previous 24 clips remain; the three mesh LODs retain 19,800 / 4,786 / 1,298 triangles. The compressed GLB is 1,870,184 bytes.
 
 The review fixture warms a grounded actor before advancing actual movement and presentation together, keeping launch sequence numbers distinct across consecutive poses. Tests cover the shipped raised-paw silhouette, fixed root, duration, runtime blend, repeated launch review and legacy fallback. Native trampoline captures use 1280x720 and 1920x1080; front, three-quarter and side sheets compare the unchanged character geometry against the approved turnaround. The playful launch is delivered; the softer muzzle, two-tone clothing and first-person paw rebuild remain open. No external animation, generated image or paid service was used. Balloon badge polish is deferred and is excluded from this checkpoint.
+
+### Painted tropical foliage atlas, 2026-09-26
+
+Original bitmap generated with Codex's built-in image generation tool, then refined with the same built-in tool. No downloaded art, paid API, account or external asset was used. The selected original is `tools/art/ui-source/foliage-atlas.png` (1254 by 1254 RGBA, 1,800,082 bytes). Its built-in output was `/Users/lucas_gaspe/.codex/generated_images/01a0dbb6-fe91-7aa0-a0b5-5e5070bdc805/exec-65fde1d2-1aa1-454d-b0ed-336973368d70.png`; the first draft used as its reference was `exec-becbbf58-d419-4d65-9612-af0bbdffbb1a.png` in the same directory.
+
+`node scripts/build-foliage-atlas.mjs` mechanically exports the requested `public/textures/foliage-atlas.png`: 2048 by 2048, RGBA8, sixteen equal 512-pixel cells, 2,953,375 bytes. The generated source did not honor exact dimensions or fully opaque interiors. Export therefore thresholds its matte at 128, removes disconnected speckles smaller than eight source pixels, fits each unchanged painting inside a 440-pixel box, bottom-aligns it with a 36-pixel transparent guard, and resamples with antialiasing. No leaf shape or colour is procedurally invented. The exported PNG contains 2,570,413 fully transparent pixels, 1,511,638 opaque pixels and 112,253 antialiased edge pixels. Exact bounds, order, dimensions, source bytes and SHA-256 are recorded in `tools/art/foliage-atlas.metrics.json`.
+
+Top-left tile order is emerald broadleaf, lime broadleaf, mangrove/guava, yellow ipê; pink ipê, bougainvillea, coconut frond, palm fan; banana, monstera, clover, wildflowers; grass, fallen leaves, fern, shadow broadleaf. These are original painted game approximations of the requested species. Asset checks decode the actual PNG and protect transparent guards, opaque interiors, antialiased silhouettes, dimensions and documented file identity. The atlas has no runtime consumer in this isolated checkpoint; Cena owns tree integration, alpha testing, mipmaps and the combined in-game walk-through/performance gate.
+
+Initial built-in generation prompt:
+
+```text
+Use case: stylized-concept. Create ONE production foliage texture atlas for the original painted tropical cartoon game Última Capivara. Output exactly 2048 x 2048 pixels, RGBA PNG with a genuinely transparent background, not a checkerboard illustration. This is one atlas asset, not a poster. The canvas is an exact 4 by 4 grid of sixteen equal 512 x 512 pixel cells. No visible grid, labels, numbers, borders, text, ground, backdrop, cast shadows, glow, or white outlines. Each cell contains ONE isolated botanical cluster fully inside its own cell with at least 32 transparent pixels of padding on all four sides. No object may cross cell boundaries. Leave genuine holes and gaps between leaves completely alpha 0. Leaves and stems themselves must be opaque, with antialiased silhouette edges only. Root or stem base sits near bottom-center within the safe padding.
+Style: original natural tropical painterly cartoon matching warm hand-painted game cover art. Rounded organic leaves with readable veins, visible brushwork, lively green hue variation, soft restrained warm highlights and cool green shadows. Rich but natural emerald, olive and teal greens. Avoid flat vector shapes, photoreal cutouts, low-poly facets and heavily baked lighting. Readable separated leafy silhouettes when reduced to tiny tree cards.
+Exact top-left reading order, one subject per cell:
+ROW 1, left to right:
+0: emerald broadleaf twig with 5 to 7 oval pointed leaves, visible small branching stems.
+1: lighter olive/lime broadleaf twig, 5 to 7 leaves with varied angles.
+2: elongated glossy mangrove/guava leaf spray with a branching stem.
+3: golden yellow ipe trumpet flower cluster with a few small green leaves.
+ROW 2:
+4: pink ipe trumpet flower cluster with a few green leaves.
+5: magenta and coral bougainvillea papery bract cluster.
+6: one full arched coconut palm frond, root bottom-center, tapered tip near top, clearly separated slender leaflets.
+7: a shorter feathered palm leaflet fan.
+ROW 3:
+8: one long banana leaf blade with a few natural tears, root bottom-center, broad green blade and central rib.
+9: one split and fenestrated monstera leaf, root bottom-center, transparent holes and deep edge splits.
+10: a small clover patch of rounded three-part leaves, isolated without soil.
+11: tiny cream and yellow wildflower sprigs with small green leaves.
+ROW 4:
+12: a dense soft grass fan, root bottom-center, separate curved blades and pointed tips.
+13: three fallen ochre/russet leaves, clearly separated, no ground or shadow.
+14: one curved fern frond with delicate separated leaflets.
+15: a cool shadow-green broadleaf twig with 5 to 7 leaves.
+Prioritize the precise regular grid, botanical variety, truly transparent gaps, and 32px tile padding. No capybaras, characters, containers or decorative scene elements.
+```
+
+Built-in refinement prompt, referencing the first draft:
+
+```text
+Edit this foliage atlas only to enforce clean atlas spacing and alpha. Keep exactly the same sixteen botanical subjects, painted style, colours and top-left reading order. Recompose as a precisely aligned 4x4 regular grid on a square 2048x2048 transparent RGBA canvas. Every subject must fit ENTIRELY within the CENTRAL 70% of its cell, leaving at least 15% of cell width/height completely transparent on ALL FOUR SIDES. Each cell is exactly one quarter of canvas width and height. Do not crop the whole sheet to content. Keep outer transparent margins too. No parts or stray pixels may cross the central subject box or cell boundaries. Do not add or remove species. All gaps/holes between leaves must be fully transparent alpha0, leaves themselves opaque, antialiased edges only. Remove the bright green, pink, yellow and red edge-fringe speckles around silhouettes; edges must have the actual leaf/flower color with no chroma-key halo. No background, cast shadow, checkerboard pixels, grid lines, labels, white stroke or text. This is a production GPU texture atlas, so exact even spacing and clean transparency matter more than filling the sheet.
+```

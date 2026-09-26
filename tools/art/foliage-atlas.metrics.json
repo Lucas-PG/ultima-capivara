@@ -1,0 +1,185 @@
+{
+  "source": "tools/art/ui-source/foliage-atlas.png",
+  "sourceDimensions": [
+    1254,
+    1254
+  ],
+  "sourceBytes": 1800082,
+  "output": "public/textures/foliage-atlas.png",
+  "dimensions": [
+    2048,
+    2048
+  ],
+  "channels": "RGBA8",
+  "bytes": 2953375,
+  "sha256": "b59588bbf42591f4758609e219092f99bef8ca59772798a4c7613ccd4aa7a0a9",
+  "tileSize": 512,
+  "minimumPadding": 36,
+  "alpha": {
+    "transparent": 2570413,
+    "opaque": 1511638,
+    "antialiased": 112253
+  },
+  "tiles": [
+    {
+      "index": 0,
+      "name": "emerald-broadleaf",
+      "bounds": [
+        36,
+        58,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 1,
+      "name": "lime-broadleaf",
+      "bounds": [
+        36,
+        62,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 2,
+      "name": "mangrove-guava",
+      "bounds": [
+        36,
+        64,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 3,
+      "name": "yellow-ipe",
+      "bounds": [
+        36,
+        55,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 4,
+      "name": "pink-ipe",
+      "bounds": [
+        36,
+        38,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 5,
+      "name": "bougainvillea",
+      "bounds": [
+        36,
+        49,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 6,
+      "name": "coconut-frond",
+      "bounds": [
+        59,
+        36,
+        452,
+        476
+      ]
+    },
+    {
+      "index": 7,
+      "name": "palm-fan",
+      "bounds": [
+        36,
+        55,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 8,
+      "name": "banana",
+      "bounds": [
+        122,
+        36,
+        390,
+        476
+      ]
+    },
+    {
+      "index": 9,
+      "name": "monstera",
+      "bounds": [
+        37,
+        36,
+        474,
+        476
+      ]
+    },
+    {
+      "index": 10,
+      "name": "clover",
+      "bounds": [
+        36,
+        71,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 11,
+      "name": "wildflowers",
+      "bounds": [
+        49,
+        36,
+        462,
+        476
+      ]
+    },
+    {
+      "index": 12,
+      "name": "grass",
+      "bounds": [
+        36,
+        62,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 13,
+      "name": "fallen-leaves",
+      "bounds": [
+        36,
+        94,
+        476,
+        476
+      ]
+    },
+    {
+      "index": 14,
+      "name": "fern",
+      "bounds": [
+        55,
+        36,
+        457,
+        476
+      ]
+    },
+    {
+      "index": 15,
+      "name": "shadow-broadleaf",
+      "bounds": [
+        36,
+        66,
+        476,
+        476
+      ]
+    }
+  ]
+}
