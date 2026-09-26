@@ -71,6 +71,9 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
     expect(await host.evaluate(() => (window as any).net.actions[0])).toEqual([
       guestId, { type: 'trigger', id: 1, yaw: .4, pitch: -.1, lean: 0, ads: true, clientTime: 1 },
     ]);
+    await guest.evaluate(() => (window as any).session.sendAction({ type: 'emote', id: 2, emote: 'wave' }));
+    await expect.poll(() => host.evaluate(() => (window as any).net.actions.length)).toBe(2);
+    expect(await host.evaluate(() => (window as any).net.actions[1])).toEqual([guestId, { type: 'emote', id: 2, emote: 'wave' }]);
     const baselineBytes = await host.evaluate(async () => {
       const typesUrl = '/src/shared/types.ts';
       const { PROTOCOL_VERSION, WORLD_VERSION } = await import(typesUrl);
@@ -79,7 +82,7 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
       const actor: ActorState = { id: s.state.myId, name: 'Host', color: '#1fb5a8', bot: false, connected: true,
         pos: { x: 1.23, y: 0, z: 2.34 }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0,
         lean: 0, hp: 100, armor: 0, helmet: 0, alive: true, grounded: true, crouch: false,
-        sprint: false, ads: false, swimming: false, wetUntil: 0, stage: 'ground', kills: 0, deaths: 0, damage: 0,
+        sprint: false, ads: false, swimming: false, wetUntil: 0, emote: 'wave', emoteUntil: 4, stage: 'ground', kills: 0, deaths: 0, damage: 0,
         weapons: [{ id: 'm4', ammo: 25, reserve: 90, rarity: 2 }, { id: 'pistol', ammo: 12, reserve: 36, rarity: 0 }],
         slot: 0, consumables: { bandage: 2, medkit: 1, guarana: 1, acai: 0, rapadura: 0 },
         reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, shotHeat: 0 };
@@ -105,6 +108,8 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
     expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].weapons[0].ammo)).toBe(25);
     expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].swimming)).toBe(false);
     expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].wetUntil)).toBe(0);
+    expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].emote)).toBe('wave');
+    expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].emoteUntil)).toBe(4);
 
     const beforeRecovery = await guest.evaluate(() => (window as any).net.snapshots.length as number);
     const recoveryStarted = Date.now();
