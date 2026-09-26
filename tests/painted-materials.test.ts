@@ -4,16 +4,17 @@ import { applyCharacterStyle, createToonMaterial } from '../src/render/materials
 
 describe('painted character material contract', () => {
   it('preserves imported maps, vertex colours and prior shader hooks after bandana cloning', () => {
-    const map = new THREE.Texture(), emissiveMap = new THREE.Texture();
-    const source = new THREE.MeshStandardMaterial({ map, emissiveMap, vertexColors: true, emissive: '#FFF4E2' });
+    const map = new THREE.Texture(), emissiveMap = new THREE.Texture(), normalMap = new THREE.Texture(), roughnessMap = new THREE.Texture();
+    const source = new THREE.MeshStandardMaterial({ map, emissiveMap, normalMap, roughnessMap, vertexColors: true, emissive: '#FFF4E2' });
     applyCharacterStyle(source);
     const clone = source.clone(), previous = vi.fn();
     clone.onBeforeCompile = previous; clone.customProgramCacheKey = () => 'atlas-variant';
-    applyCharacterStyle(clone);
+    applyCharacterStyle(clone, 4);
     const shader = { uniforms: {}, fragmentShader: THREE.ShaderLib.standard.fragmentShader } as THREE.WebGLProgramParametersWithUniforms;
     clone.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
     expect(previous).toHaveBeenCalledOnce();
     expect(clone.map).toBe(map); expect(clone.emissiveMap).toBe(emissiveMap); expect(clone.vertexColors).toBe(true);
+    expect(clone.normalMap).toBe(normalMap); expect(clone.roughnessMap).toBe(roughnessMap);
     expect(clone.emissive.equals(source.emissive)).toBe(true);
     expect(shader.fragmentShader).toContain('outgoingLight += characterRim');
     expect(clone.customProgramCacheKey()).toContain('atlas-variant');
