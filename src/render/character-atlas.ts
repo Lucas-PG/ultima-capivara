@@ -3,12 +3,15 @@ import * as THREE from 'three';
 export const CHARACTER_ATLAS_SIZE = 1024;
 export const CHARACTER_FUR_TILES = [0, 1, 2, 4, 14] as const;
 export type BandanaPattern = 'leaves' | 'waves' | 'diamonds';
+const paintedPatterns = new Map<BandanaPattern, { shade: Float32Array; print: Float32Array }>();
 
 // The 4x4 tile order matches capybara-palette.json and the Blender surface maps.
 // Tile 14 stays neutral so the authored face and belly vertex colours survive.
-export function createPaintedCharacterAtlas(colors: readonly number[], pattern: BandanaPattern = 'leaves'): THREE.DataTexture {
+function surfacePaint(pattern: BandanaPattern) {
+  const cached = paintedPatterns.get(pattern);
+  if (cached) return cached;
   const size = CHARACTER_ATLAS_SIZE, tileSize = size / 4;
-  const pixels = new Uint8Array(size * size * 4);
+  const painted = { shade: new Float32Array(size * size), print: new Float32Array(size * size) };
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const tile = Math.floor(x / tileSize) + Math.floor(y / tileSize) * 4;
     const u = (x % tileSize + .5) / tileSize, v = (y % tileSize + .5) / tileSize;
@@ -34,11 +37,23 @@ export function createPaintedCharacterAtlas(colors: readonly number[], pattern: 
     } else if (tile === 8) shade *= .92 + .035 * Math.sin(u * 155 + Math.sin(v * 31));
     else if (tile === 15) shade *= .96 + .018 * Math.sin(u * 110) * Math.cos(v * 98);
     if ([3, 9, 10].includes(tile)) shade = 1;
-    const hex = colors[tile] ?? colors[0], offset = (y * size + x) * 4;
-    const painted = shade * (1 - print);
-    pixels[offset] = Math.min(255, Math.round((hex >> 16 & 255) * painted + 244 * print));
-    pixels[offset + 1] = Math.min(255, Math.round((hex >> 8 & 255) * painted + 232 * print));
-    pixels[offset + 2] = Math.min(255, Math.round((hex & 255) * painted + 189 * print));
+    painted.shade[y * size + x] = shade * (1 - print); painted.print[y * size + x] = print;
+  }
+  paintedPatterns.set(pattern, painted);
+  return painted;
+}
+
+export function createPaintedCharacterAtlas(colors: readonly number[], pattern: BandanaPattern = 'leaves'): THREE.DataTexture {
+  const size = CHARACTER_ATLAS_SIZE, tileSize = size / 4, paint = surfacePaint(pattern);
+  const pixels = new Uint8Array(size * size * 4);
+  // Actor colours reuse the authored strand field; only the final tint is rebuilt.
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const tile = Math.floor(x / tileSize) + Math.floor(y / tileSize) * 4;
+    const i = y * size + x, offset = i * 4, hex = colors[tile] ?? colors[0];
+    const shade = paint.shade[i], print = paint.print[i];
+    pixels[offset] = Math.min(255, Math.round((hex >> 16 & 255) * shade + 244 * print));
+    pixels[offset + 1] = Math.min(255, Math.round((hex >> 8 & 255) * shade + 232 * print));
+    pixels[offset + 2] = Math.min(255, Math.round((hex & 255) * shade + 189 * print));
     pixels[offset + 3] = 255;
   }
   const texture = new THREE.DataTexture(pixels, size, size);
