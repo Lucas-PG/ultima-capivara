@@ -1,7 +1,7 @@
 import type { MapObject, Vec3 } from './types';
 
 export interface PlantStemSection { a: Vec3; b: Vec3; radiusBottom: number; radiusTop: number }
-export const PLANT_CELL_SIZE = 16;
+export const PLANT_CELL_SIZE = 24;
 export const PLANT_TEMPLATE_HEIGHT = { tree: 8, palm: 9 } as const;
 
 export function plantHash(n: number, salt: number) {
