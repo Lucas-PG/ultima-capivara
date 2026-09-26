@@ -3,6 +3,7 @@ import { terrainHeight } from './terrain';
 import { boundaryFeedback } from './bounds';
 import { colliderGrid } from './collider-grid';
 import { waterAt } from './water';
+import { emoteInput } from './emotes';
 import type { ActorState, Collider, InputFrame, Mode, Vec3, WorldSpec } from './types';
 
 const RADIUS = .32;
@@ -87,9 +88,10 @@ export function clearSpawn(pos: Vec3, world: WorldSpec): boolean {
 export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec, dt: number, speedMultiplier = 1, mode?: Mode): ActorState {
   if (actor.stage !== 'ground' || !actor.alive || !Number.isFinite(dt) || dt <= 0) return actor;
   const p = actor.pos;
+  if (actor.emote && (emoteInput(input) || !actor.grounded || actor.swimming)) { actor.emote = null; actor.emoteUntil = 0; }
   const water = waterAt(p.x, p.z);
   actor.swimming = !!water && water.depth >= SWIM_DEPTH && p.y <= water.surfaceY - SWIM_DEPTH + .05;
-  actor.crouch = !actor.swimming && (input.crouch || (actor.crouch && !hasHeadroom(p, world, 1.8)));
+  actor.crouch = !actor.swimming && (actor.emote === 'sit' || actor.emote === 'chill' || input.crouch || (actor.crouch && !hasHeadroom(p, world, 1.8)));
   actor.sprint = !actor.swimming && input.sprint && !actor.crouch && !input.ads && input.moveZ > 0;
   actor.ads = !actor.swimming && input.ads;
   actor.lean = actor.swimming || actor.sprint ? 0 : clamp(input.lean, -1, 1);
@@ -138,6 +140,7 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
   if (floating) {
     p.y = Math.max(ground, nextWater.surfaceY - SWIM_DRAFT); actor.velocity.y = 0; actor.grounded = false;
     actor.crouch = actor.sprint = actor.ads = false; actor.lean = 0;
+    actor.emote = null; actor.emoteUntil = 0;
     const pistol = actor.weapons.findIndex(w => w.id === 'pistol');
     if (pistol >= 0 && actor.slot !== pistol) { actor.slot = pistol; actor.reloadUntil = 0; actor.shotHeat = 0; }
   } else if (p.y <= ground) { p.y = ground; actor.velocity.y = 0; actor.grounded = true; }

@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 export const WORLD_VERSION = 'ilha-v3-rio-4';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -7,6 +7,7 @@ export type Mode = 'battle-royale' | 'deathmatch';
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'results';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'slingshot';
+export type EmoteId = 'wave' | 'dance' | 'victory' | 'sit' | 'chill';
 export type ConsumableId = 'bandage' | 'medkit' | 'guarana' | 'acai' | 'rapadura';
 export interface Vec3 { x: number; y: number; z: number }
 export interface RoomConfig { mode: Mode; capacity: number; bots: boolean; difficulty: Difficulty; duration: 300 | 480 | 600; adapt?: number /* practice only: legacy adaptive difficulty in [-1, 1] */ }
@@ -36,6 +37,7 @@ export type PlayerAction =
   | { type: 'consume'; id: number; item: ConsumableId }
   | { type: 'parachute'; id: number }
   | { type: 'jump'; id: number }
+  | { type: 'emote'; id: number; emote: EmoteId | null }
   | { type: 'trigger'; id: number; yaw: number; pitch: number; lean: number; ads: boolean; clientTime: number };
 export interface WeaponState { id: WeaponId; ammo: number; reserve: number; rarity: number }
 export interface ActorState {
@@ -44,6 +46,7 @@ export interface ActorState {
   hp: number; armor: number; helmet: number; alive: boolean; grounded: boolean;
   crouch: boolean; sprint: boolean; ads: boolean;
   swimming: boolean; wetUntil: number;
+  emote: EmoteId | null; emoteUntil: number;
   stage: 'plane' | 'falling' | 'parachute' | 'ground';
   kills: number; deaths: number; damage: number;
   weapons: WeaponState[]; slot: number;
