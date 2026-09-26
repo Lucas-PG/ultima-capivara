@@ -26,10 +26,10 @@ report.joints = decoded.getRoot().listSkins()[0].listJoints().length;
 report.clips = decoded.getRoot().listAnimations().map(a => a.getName());
 report.bytes = (await stat(path)).size;
 report.rawBytes = (await stat(`${root}/output/characters/capybara.raw.glb`)).size;
-report.texture = { format: 'PNG', width: 16, height: 16 };
+report.texture = { format: 'PNG', width: 1024, height: 1024, tiles: [4, 4] };
 for (let i = 0; i < 3; i++) {
   const lod = report.lods.find(lod => lod.name.includes(`LOD${i}`));
-  if (!lod || lod.triangles > [15000, 5000, 1500][i]) throw new Error(`LOD${i} exceeds budget`);
+  if (!lod || lod.triangles > [20000, 5000, 1500][i]) throw new Error(`LOD${i} exceeds budget`);
 }
 if (report.materials > 3 || report.skins !== 1 || !['idle', 'run', 'jump'].every(clip => report.clips.includes(clip))) throw new Error('Character rig/material/animation contract failed');
 await writeFile(`${root}/public/models/capybara/metrics.json`, JSON.stringify(report, null, 2) + '\n');

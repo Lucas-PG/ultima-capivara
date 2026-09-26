@@ -29,10 +29,12 @@ if (q.has('runtime')) {
   const { RenderPipeline, PRESETS } = await import('../../src/render/pipeline');
   pipeline = new RenderPipeline(r, PRESETS.high.samples); pipeline.resize();
   const styled = new Map();
+  let atlasColumns = 16;
+  gltf.scene.traverse(o => { if (o.userData.paintAtlas === '4x4') atlasColumns = 4; });
   gltf.scene.traverse(o => {
     if (!o.isMesh) return;
     o.layers.enable(1);
-    if (!styled.has(o.material)) styled.set(o.material, applyCharacterStyle(o.material.clone()));
+    if (!styled.has(o.material)) styled.set(o.material, applyCharacterStyle(o.material.clone(), atlasColumns));
     o.material = styled.get(o.material);
   });
 }

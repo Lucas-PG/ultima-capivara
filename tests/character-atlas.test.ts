@@ -20,7 +20,8 @@ describe('painted character cosmetic atlas', () => {
       else unrelatedChanges += Number(changed);
       if (tile === 0) furValues.add(a[i]);
     }
-    expect(furValues.size).toBeGreaterThan(15);
+    // Restrained fine strands still vary visibly without broad wood-like bands.
+    expect(furValues.size).toBeGreaterThan(8);
     expect(bandanaChanges).toBeGreaterThan(1000); expect(unrelatedChanges).toBe(0);
     base.dispose(); alternate.dispose();
   });

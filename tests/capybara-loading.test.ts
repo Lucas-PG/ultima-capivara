@@ -111,7 +111,8 @@ describe('capybara cosmetic colour contract', () => {
         }
         const furValues = new Set<number>();
         for (let x = 0; x < 256; x++) furValues.add(pixels[x * 4]);
-        expect(furValues.size).toBeGreaterThan(15);
+        // Fine restrained fur has fewer luminance steps than the broad old bands.
+        expect(furValues.size).toBeGreaterThan(8);
         expect(material.customProgramCacheKey()).toContain('character-v3:4');
       } else {
         expect([atlas.image.width, atlas.image.height]).toEqual([16, 16]);
