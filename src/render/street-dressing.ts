@@ -134,6 +134,11 @@ export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
       for (let i = 0; i < 5; i++) for (const z of [-.18,.18]) box(-.84+i*.08,1.08,z,.025,.24,.022,'#C1A46B');
       for (const z of [-.18,.18]) beam([-.87,1.2,z],[-.49,1.2,z],.017,'#D5B987');
       add(new THREE.CylinderGeometry(.07,.07,.3,8).rotateZ(Math.PI/2).translate(-.68,1.05,0),'#D9A46C');
+    } else if (kind === 'buoy') {
+      orb(0, .08, 0, .19, '#D78768');
+      add(new THREE.CylinderGeometry(.14, .16, .13, 10).translate(0, .17, 0), '#F4E3B6');
+      add(new THREE.TorusGeometry(.06, .018, 5, 10).translate(0, .33, 0), '#665F43');
+      cable([[0, .32, 0], [.4, .07, .3], [1, .025, .35], [1.7, .03, .1]], .011, '#C1AD80');
     } else if (kind.startsWith('panel:')) {
       const index = Math.max(0, LABELS.indexOf(kind.slice(6))), geometry = new THREE.PlaneGeometry(1.5, 1.5);
       const uv = geometry.getAttribute('uv');
