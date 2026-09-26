@@ -5,10 +5,10 @@ import { ROADS } from '../shared/layout';
 import type { Settings, WorldSpec } from '../shared/types';
 import { createToonMaterial } from './materials';
 
-const CELL = 24, CANDIDATES = 2000;
+const CELL = 24, CANDIDATES = 2600;
 export const GROUND_COVER = {
   low: { fraction: 0, distance: 0 },
-  medium: { fraction: .8, distance: 32 },
+  medium: { fraction: .85, distance: 32 },
   high: { fraction: 1, distance: 35 },
 } as const;
 const grassy = new Set<string>([WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass]);
@@ -18,31 +18,62 @@ const hash = (x: number, z: number, salt: number) => {
   return ((n ^ n >>> 16) >>> 0) / 4294967296;
 };
 
-// Short curved ribbons, three orientations, with a broad painted base and a
-// sunlit tapered tip. No alpha atlas, transparent sorting or texture downloads.
+// Short plain blades carry the lawn; small painted fans break up the roots.
+// Both share one instanced draw and the same wind and distance fade.
 function blades() {
-  const positions: number[] = [], colors: number[] = [], indices: number[] = [];
-  const base = new THREE.Color('#79A94F'), tip = new THREE.Color('#BDD27F'), color = new THREE.Color();
-  for (let blade = 0; blade < 7; blade++) {
-    const angle = blade * 2.39996, ca = Math.cos(angle), sa = Math.sin(angle), offset = positions.length / 3;
-    for (let row = 0; row < 3; row++) {
-      const t = row / 2, width = .021 * (1 - t) + .001, bend = t * t * .075;
-      color.copy(base).lerp(tip, t * t);
+  const positions: number[] = [], colors: number[] = [], indices: number[] = [], uv: number[] = [], masks: number[] = [];
+  for (let fan = 0; fan < 5; fan++) {
+    const angle = fan * 2.399, ca = Math.cos(angle), sa = Math.sin(angle), offset = positions.length / 3;
+    const spread = .19 * Math.sqrt(fan / 4);
+    for (let row = 0; row < 2; row++) {
+      const t = row, bend = t * .022;
       for (const side of [-1, 1]) {
-        positions.push(ca * width * side + sa * bend + ca * .15, t * (.12 + blade * .016), sa * width * side - ca * bend + sa * .15);
-        colors.push(color.r, color.g, color.b);
+        positions.push(ca * .13 * side + sa * (spread + bend), t * (.09 + fan * .007), sa * .13 * side - ca * (spread + bend));
+        const shade = .93 + .07 * t; colors.push(shade, shade, shade * .97); masks.push(1);
+        uv.push((side < 0 ? .012 : .988) / 4, 1 - (3.988 - t * .976) / 4);
       }
-      if (row < 2) { const a = offset + row * 2; indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     }
+    indices.push(offset, offset + 1, offset + 2, offset + 1, offset + 3, offset + 2);
+  }
+  const base = new THREE.Color(WORLD_PALETTE.grass), tip = new THREE.Color(WORLD_PALETTE.grassLight);
+  for (let blade = 0; blade < 3; blade++) {
+    const angle = blade * 2.399, ca = Math.cos(angle), sa = Math.sin(angle), offset = positions.length / 3;
+    const radius = .07 + hash(blade, 0, 20) * .20, height = .12 + hash(blade, 0, 21) * .10;
+    for (let row = 0; row < 2; row++) for (const side of [-1, 1]) {
+      const width = row ? .0015 : .010, bend = row * .055;
+      positions.push(ca * radius + sa * width * side + ca * bend, row * height, sa * radius - ca * width * side + sa * bend);
+      const c = row ? tip : base; colors.push(c.r, c.g, c.b); masks.push(0); uv.push(0, 0);
+    }
+    indices.push(offset, offset + 1, offset + 2, offset + 1, offset + 3, offset + 2);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.setAttribute('paintMask', new THREE.Float32BufferAttribute(masks, 1));
   geometry.setIndex(indices); geometry.computeVertexNormals();
   const normals = geometry.getAttribute('normal');
   for (let i = 0; i < normals.count; i++) normals.setXYZ(i, 0, 1, 0);
-  geometry.computeBoundingSphere();
-  return geometry;
+  geometry.computeBoundingSphere(); return geometry;
+}
+
+function groundCard(tile: number, width: number, height: number, flat = false) {
+  const geometry = new THREE.PlaneGeometry(width, height, flat ? 2 : 1, 2);
+  if (flat) geometry.rotateX(-Math.PI / 2).translate(0, .027, 0);
+  else {
+    geometry.translate(0, height / 2, 0);
+    const position = geometry.getAttribute('position');
+    for (let i = 0; i < position.count; i++)
+      position.setZ(i, (position.getY(i) / height) ** 2 * height * .22);
+  }
+  const uv = geometry.getAttribute('uv'), normals = geometry.getAttribute('normal');
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (tile % 4 + .012 + uv.getX(i) * .976) / 4,
+      1 - (Math.floor(tile / 4) + .988 - uv.getY(i) * .976) / 4);
+    normals.setXYZ(i, 0, 1, 0);
+  }
+  geometry.setAttribute('paintMask', new THREE.Float32BufferAttribute(new Array(uv.count).fill(1), 1));
+  return tint(geometry, '#F2F4DF');
 }
 
 function tint(geometry: THREE.BufferGeometry, color: string) {
@@ -53,17 +84,10 @@ function tint(geometry: THREE.BufferGeometry, color: string) {
 }
 
 function groundDetails() {
-  const flower: THREE.BufferGeometry[] = [];
-  flower.push(tint(new THREE.CylinderGeometry(.009, .012, .22, 4).translate(0, .11, 0), '#6F9D43'));
-  for (let i = 0; i < 5; i++) {
-    const angle = i * Math.PI * 2 / 5;
-    flower.push(tint(new THREE.SphereGeometry(1, 6, 3).scale(.055, .014, .032).rotateY(-angle)
-      .translate(Math.cos(angle) * .043, .23, Math.sin(angle) * .043), '#FFE6A0'));
-  }
-  flower.push(tint(new THREE.SphereGeometry(.025, 6, 3).scale(1, .45, 1).translate(0, .244, 0), '#E9A647'));
-  const bloom = mergeGeometries(flower)!; flower.forEach(g => g.dispose());
+  const flower = groundCard(11, .28, .18), crossed = flower.clone().rotateY(Math.PI / 2);
+  const bloom = mergeGeometries([flower, crossed])!; flower.dispose(); crossed.dispose();
   const pebble = tint(new THREE.IcosahedronGeometry(.11, 0).scale(1.4, .45, 1).translate(0, .035, 0), '#B9AE8F');
-  const leaf = tint(new THREE.SphereGeometry(1, 5, 3).scale(.18, .017, .057).rotateY(.6).translate(0, .025, 0), '#B4B866');
+  const leaf = groundCard(13, .34, .26, true), clover = groundCard(10, .40, .33, true);
   const shell = new THREE.SphereGeometry(1, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2);
   const shellVertices = shell.getAttribute('position');
   for (let i = 0; i < shellVertices.count; i++) {
@@ -71,7 +95,15 @@ function groundDetails() {
     shellVertices.setXYZ(i, x * .09 * ridge, shellVertices.getY(i) * .028, z * .115 * ridge);
   }
   shell.computeVertexNormals(); tint(shell, '#EADCC7');
-  return [bloom, pebble, leaf, shell].map(geometry => {
+  const understory = (tile: number, width: number, height: number) => {
+    const cards = Array.from({ length: 3 }, (_, i) => groundCard(tile, width, height)
+      .rotateY(i * Math.PI * 2 / 3));
+    const plant = mergeGeometries(cards)!; cards.forEach(card => card.dispose()); return plant;
+  };
+  const fern = understory(14, .36, .43), monstera = understory(9, .38, .44);
+  return [bloom, pebble, leaf, shell, clover, fern, monstera].map(geometry => {
+    if (!geometry.getAttribute('paintMask')) geometry.setAttribute('paintMask',
+      new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count), 1));
     if (!geometry.index) return geometry;
     const flat = geometry.toNonIndexed(); geometry.dispose(); return flat;
   });
@@ -80,24 +112,57 @@ function groundDetails() {
 export class GroundCover {
   readonly group = new THREE.Group();
   private readonly geometry = blades();
-  private readonly material = createToonMaterial('foliage', { vertexColors: true, side: THREE.DoubleSide, roughness: 1 });
-  private readonly detailMaterial = createToonMaterial('foliage', { vertexColors: true, roughness: 1 });
+  private readonly material = createToonMaterial('foliage', { vertexColors: true, side: THREE.DoubleSide, roughness: 1, alphaTest: .4 });
+  private readonly detailMaterial = createToonMaterial('foliage', { vertexColors: true, roughness: 1, side: THREE.DoubleSide, alphaTest: .4 });
   private readonly time = { value: 0 };
   private readonly eye = { value: new THREE.Vector3() };
   private readonly reach = { value: 38 };
   private readonly cells: { x: number; z: number; blades: THREE.InstancedMesh; details: THREE.Mesh | null; count: number }[] = [];
   private quality: Settings['graphics'] = 'medium';
 
-  constructor(world: WorldSpec) {
+  constructor(world: WorldSpec, atlas?: THREE.Texture) {
+    this.material.map = this.detailMaterial.map = atlas ?? null;
+    const detailCompile = this.detailMaterial.onBeforeCompile;
+    this.detailMaterial.onBeforeCompile = (shader, renderer) => {
+      detailCompile.call(this.detailMaterial, shader, renderer);
+      shader.vertexShader = `attribute float paintMask;varying float vCoverPaint;\n${shader.vertexShader}`
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCoverPaint=paintMask;');
+      shader.fragmentShader = `varying float vCoverPaint;\n${shader.fragmentShader}`
+        .replace('#include <map_fragment>', `
+          #ifdef USE_MAP
+            diffuseColor *= mix(vec4(1.0),texture2D(map,vMapUv),vCoverPaint);
+          #endif`)
+        .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+          if (vCoverPaint > .5) { normal *= faceDirection; nonPerturbedNormal = normal; }`)
+        .replace('#include <alphatest_fragment>', `
+          #ifdef USE_ALPHATEST
+            float threshold = mix(alphaTest, .2, smoothstep(10.0, 26.0, length(vViewPosition)) * vCoverPaint);
+            if (diffuseColor.a < threshold) discard;
+          #endif`);
+    };
+    this.detailMaterial.customProgramCacheKey = () => 'botanical-ground-patches-v2';
     this.group.name = 'ground-cover';
-    this.material.onBeforeCompile = shader => {
+    const coverCompile = this.material.onBeforeCompile;
+    this.material.onBeforeCompile = (shader, renderer) => {
+      coverCompile.call(this.material, shader, renderer);
       shader.uniforms.coverTime = this.time; shader.uniforms.coverEye = this.eye; shader.uniforms.coverReach = this.reach;
-      shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal *= gl_FrontFacing ? 1.0 : -1.0;');
-      shader.vertexShader = 'uniform float coverTime,coverReach;uniform vec3 coverEye;\n' + shader.vertexShader;
+      shader.fragmentShader = 'varying float vCoverPaint;\n' + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+        #ifdef USE_MAP
+          diffuseColor *= mix(vec4(1.0), texture2D(map, vMapUv), vCoverPaint);
+        #endif`).replace('#include <normal_fragment_begin>',
+        '#include <normal_fragment_begin>\n normal *= faceDirection; nonPerturbedNormal = normal;')
+        .replace('#include <alphatest_fragment>', `
+          #ifdef USE_ALPHATEST
+            float threshold = mix(alphaTest, .18, smoothstep(12.0, 32.0, length(vViewPosition)));
+            if (diffuseColor.a < threshold) discard;
+          #endif`);
+      shader.vertexShader = 'attribute float paintMask;varying float vCoverPaint;uniform float coverTime,coverReach;uniform vec3 coverEye;\n' + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
         #include <begin_vertex>
+        vCoverPaint=paintMask;
         vec3 root=(modelMatrix*instanceMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;
-        float fade=1.0-smoothstep(coverReach*.64,coverReach,length(root.xz-coverEye.xz));
+        float fade=1.0-smoothstep(coverReach*.78,coverReach,length(root.xz-coverEye.xz));
         float tip=position.y/.24;
         float wind=sin(coverTime*1.65+root.x*.31+root.z*.19)*.022+sin(coverTime*2.4+root.z*.63)*.008;
         transformed.x+=wind*tip*tip;
@@ -105,14 +170,23 @@ export class GroundCover {
         transformed*=fade;
       `);
     };
-    this.material.customProgramCacheKey = () => 'painted-ground-cover-v3';
+    this.material.customProgramCacheKey = () => 'painted-ground-cover-v6';
     const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3();
-    const up = new THREE.Vector3(0, 1, 0), detailShapes = groundDetails();
+    const up = new THREE.Vector3(0, 1, 0), groundNormal = new THREE.Vector3(), tilt = new THREE.Quaternion(), detailShapes = groundDetails();
+    const alignToGround = (x: number, z: number, yaw: number) => {
+      groundNormal.set(-(terrainHeight(x + .12, z) - terrainHeight(x - .12, z)) / .24, 1,
+        -(terrainHeight(x, z + .12) - terrainHeight(x, z - .12)) / .24).normalize();
+      tilt.setFromUnitVectors(up, groundNormal);
+      rotation.setFromAxisAngle(up, yaw).premultiply(tilt);
+    };
+    const trees = world.objects.filter(object => object.kind === 'tree' && object.scale.y >= 2.5);
     const dunes = world.objects.filter(object => object.detail === 'dune-grass');
     const paving = world.objects.filter(o => o.detail === 'prop:plaza' || o.detail === 'floor' || o.detail === 'courtyard' || o.detail === 'path' || o.detail?.includes('pavement'));
     for (let cz = -6; cz < 6; cz++) for (let cx = -6; cx < 6; cx++) {
       const x0 = cx * CELL, z0 = cz * CELL, points: { x: number; y: number; z: number; seed: number }[] = [];
       const shore: { x: number; y: number; z: number; seed: number }[] = [];
+      const nearbyTrees = trees.filter(tree => tree.pos.x + tree.scale.y * .32 > x0 && tree.pos.x - tree.scale.y * .32 < x0 + CELL &&
+        tree.pos.z + tree.scale.y * .32 > z0 && tree.pos.z - tree.scale.y * .32 < z0 + CELL);
       const colliders = world.colliders.filter(c => c.min.x < x0 + CELL + .3 && c.max.x > x0 - .3 && c.min.z < z0 + CELL + .3 && c.max.z > z0 - .3);
       for (let i = 0; i < CANDIDATES; i++) {
         const x = x0 + hash(cx * CANDIDATES + i, cz, 1) * CELL, z = z0 + hash(cx, cz * CANDIDATES + i, 2) * CELL;
@@ -125,6 +199,10 @@ export class GroundCover {
         if (ROADS.some(([x0, z0, x1, z1]) => x > x0 - .35 && x < x1 + .35 && z > z0 - .35 && z < z1 + .35)) continue;
         if (paving.some(o => Math.abs(x - o.pos.x) < o.scale.x / 2 + .15 && Math.abs(z - o.pos.z) < o.scale.z / 2 + .15)) continue;
         if (colliders.some(c => c.min.y < y + .45 && c.max.y > y - .05 && x > c.min.x - .2 && x < c.max.x + .2 && z > c.min.z - .2 && z < c.max.z + .2)) continue;
+        const roadEdge = ROADS.some(([a, b, c, d]) => Math.hypot(Math.max(a - x, 0, x - c), Math.max(b - z, 0, z - d)) < 1.5);
+        const plazaEdge = paving.some(o => Math.hypot(Math.max(0, Math.abs(x - o.pos.x) - o.scale.x / 2),
+          Math.max(0, Math.abs(z - o.pos.z) - o.scale.z / 2)) < 1.2);
+        if (!roadEdge && !plazaEdge && hash(cx * CANDIDATES + i, cz, 17) > .68) continue;
         points.push({ x, y, z, seed: hash(cx * CANDIDATES + i, cz, 3) });
       }
       if (!points.length && !shore.length) continue;
@@ -134,12 +212,26 @@ export class GroundCover {
       const details: THREE.BufferGeometry[] = [];
       for (let i = 0; i < points.length; i++) {
         const point = points[i], size = .8 + point.seed * .3;
-        position.set(point.x - x0, point.y - .015, point.z - z0); rotation.setFromAxisAngle(up, point.seed * Math.PI * 2); scale.set(size, size, size);
+        position.set(point.x - x0, point.y - .015, point.z - z0); alignToGround(point.x, point.z, point.seed * Math.PI * 2); scale.set(size, size, size);
         matrix.compose(position, rotation, scale); mesh.setMatrixAt(i, matrix);
-        if (i % 151 === 0) details.push(detailShapes[i % 3].clone().applyMatrix4(matrix));
+        const underTree = (i % 13 === 0 || i % 131 === 0) && nearbyTrees.some(tree =>
+          Math.hypot(point.x - tree.pos.x, point.z - tree.pos.z) < tree.scale.y * .32);
+        const clover = hash(Math.floor(point.x / 3), Math.floor(point.z / 3), 12) > .72;
+        const type = underTree && i % 131 === 0 ? point.seed > .5 ? 5 : 6 :
+          underTree && i % 13 === 0 ? 2 : clover && i % 7 === 0 ? 4 : i % 127 === 0 ? 0 : -1;
+        if (type >= 0) {
+          const detail = detailShapes[type].clone().applyMatrix4(matrix);
+          if (type === 2 || type === 4) {
+            // Ground paintings follow the real heightfield across slope seams.
+            const vertices = detail.getAttribute('position');
+            for (let v = 0; v < vertices.count; v++)
+              vertices.setY(v, terrainHeight(vertices.getX(v) + x0, vertices.getZ(v) + z0) + .014);
+          }
+          details.push(detail);
+        }
       }
       for (const point of shore) {
-        position.set(point.x - x0, point.y + .006, point.z - z0); rotation.setFromAxisAngle(up, point.seed * Math.PI * 2);
+        position.set(point.x - x0, point.y + .006, point.z - z0); alignToGround(point.x, point.z, point.seed * Math.PI * 2);
         scale.setScalar(.7 + point.seed * 1.3); matrix.compose(position, rotation, scale);
         details.push(detailShapes[point.seed > .45 ? 3 : 1].clone().applyMatrix4(matrix));
       }
