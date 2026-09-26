@@ -83,6 +83,7 @@ export class SoundEngine {
   private localReloadEnd = -Infinity;
   private disposed = false;
   private remoteSteps = new Map<string, { pos: Vec3; travelled: number; grounded: boolean; swimming: boolean; velocityY: number }>();
+  private mudVoices = new Map<string, { next: number; end: number; channel: GainNode | null }>();
 
   constructor(settings: Settings, private world?: WorldSpec) {
     this.settings = { ...settings };
@@ -253,10 +254,12 @@ export class SoundEngine {
     if (!actor || !snapshot || menu || !Number.isFinite(dt) || dt <= 0) {
       this.lastPosition = null; this.lastActorId = null; this.lastGrounded = false; this.lastSwimming = false; this.distanceToStep = 0;
       this.remoteSteps.clear();
+      this.clearMudVoices();
       this.cancelReload();
       return;
     }
     this.placeListener({ x: actor.pos.x, y: actor.pos.y + 1.5, z: actor.pos.z }, actor.yaw);
+    this.updateSoaking(actor, snapshot, now);
     this.updateRemoteSteps(actor, snapshot);
     if (now >= this.nextSpotCheck && actor.alive && actor.stage === 'ground') {
       this.nextSpotCheck = now + .7;
@@ -302,13 +305,14 @@ export class SoundEngine {
 
   setHidden(hidden: boolean): void {
     if (!this.context || this.disposed) return;
-    if (hidden) void this.context.suspend();
+    if (hidden) { this.clearMudVoices(); void this.context.suspend(); }
     else void this.context.resume();
   }
 
   dispose(): void {
     this.disposed = true;
     this.cancelReload();
+    this.clearMudVoices();
     for (const source of this.ambientSources) { try { source.stop(); } catch { /* already stopped */ } source.disconnect(); }
     if (this.stormLfo) { try { this.stormLfo.lfo.stop(); } catch { /* already stopped */ } this.stormLfo.lfo.disconnect(); this.stormLfo = null; }
     this.ambientSources = [];
@@ -591,6 +595,49 @@ export class SoundEngine {
     for (let i = 0; i < 3; i++) {
       const delay = .08 + i * .085, pitch = 420 + i * 135;
       this.tone(output, now + delay, pitch, pitch * .6, .06, .023 * volume, 'sine');
+    }
+  }
+
+  private clearMudVoices() {
+    for (const voice of this.mudVoices.values()) voice.channel?.disconnect();
+    this.mudVoices.clear();
+  }
+
+  private updateSoaking(listener: ActorState, snapshot: WorldSnapshot, now: number) {
+    if (!listener.alive || snapshot.phase !== 'playing') { this.clearMudVoices(); return; }
+    const heard = new Set<string>();
+    for (const actor of [listener, ...snapshot.actors]) {
+      const own = actor === listener;
+      // Local prediction wins over a delayed snapshot, including cancellation.
+      if (!own && actor.id === listener.id) continue;
+      if (!actor.soaking || !actor.alive || !actor.grounded || actor.swimming || actor.stage !== 'ground') continue;
+      const distance = Math.hypot(actor.pos.x - listener.pos.x, actor.pos.y - listener.pos.y, actor.pos.z - listener.pos.z);
+      if (!own && (distance > 12 || heard.size >= 4)) continue;
+      heard.add(actor.id);
+      let voice = this.mudVoices.get(actor.id);
+      const entering = !voice;
+      if (!voice) { voice = { next: now, end: now, channel: null }; this.mudVoices.set(actor.id, voice); }
+      if (voice.channel && now >= voice.end) { voice.channel.disconnect(); voice.channel = null; }
+      if (now < voice.next) continue;
+      const channel = this.context!.createGain();
+      channel.connect(own ? this.buses!.effects : this.spatial(actor.pos, this.buses!.effects, distance));
+      voice.channel = channel; voice.end = now + .32;
+      // Schedule one small sound, never a catch-up burst after a paused frame.
+      voice.next = now + 1.8 + (actor.pos.x * .17 + actor.pos.z * .31 + now * .19) % 1 * .5;
+      this.mudSound(channel, now, entering, own ? 1 : .42);
+    }
+    for (const [id, voice] of this.mudVoices) if (!heard.has(id)) {
+      voice.channel?.disconnect(); this.mudVoices.delete(id);
+    }
+  }
+
+  private mudSound(output: AudioNode, now: number, entering: boolean, volume: number) {
+    if (entering) {
+      this.noise(output, now, .22, 'lowpass', 380, .055 * volume, .025, true);
+      this.tone(output, now, 180, 58, .2, .048 * volume, 'sine');
+    } else {
+      this.tone(output, now, 145, 220, .08, .019 * volume, 'sine');
+      this.tone(output, now + .065, 285, 85, .11, .016 * volume, 'sine');
     }
   }
 
