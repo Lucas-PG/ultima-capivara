@@ -13,7 +13,7 @@ export interface KitScene {
 export const KIT_ASSET_PATH = 'models/kit/kit.glb';
 const CELL_SIZE = 40;
 const PLANT_CELL_SIZE = 8;
-const FURNITURE_CELL_SIZE = 12;
+const FURNITURE_CELL_SIZE = 8;
 const FAR_LOD = 32;
 const SOFT_LANDSCAPE = new Set(['bush_cluster', 'hedge']);
 const ROOM_FURNITURE = new Set(['bed', 'interior_counter', 'table', 'chair', 'shelf_pottery', 'rug',

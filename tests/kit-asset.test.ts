@@ -195,7 +195,7 @@ describe('island kit geometry and traversal contract', () => {
     ]);
     await kit.ready; scene.updateMatrixWorld(true);
     const furniture = scene.getObjectByName('kit:furniture:0:0') as THREE.LOD;
-    const upperFurniture = scene.getObjectByName('kit:furniture:1:0') as THREE.LOD;
+    const upperFurniture = scene.getObjectByName('kit:furniture:2:0') as THREE.LOD;
     const house = scene.getObjectByName('kit:solid:0:0') as THREE.LOD;
     expect(furniture.levels).toHaveLength(3); expect(upperFurniture.levels).toHaveLength(3);
     const move = (distance: number) => {
