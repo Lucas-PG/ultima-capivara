@@ -1,10 +1,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { LootSpawn, WeaponId } from '../shared/types';
 
 export const itemMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .66, metalness: .16, side: THREE.DoubleSide });
 const pawnSphere = new THREE.SphereGeometry(1, 12, 8);
 const pawnBox = new THREE.BoxGeometry(1, 1, 1);
+const pawnRoundedBox = new RoundedBoxGeometry(1, 1, 1, 2, .1);
+const pawnGuard = new THREE.TorusGeometry(1, .13, 5, 14);
 const pawnCylinder = new THREE.CylinderGeometry(.5, .5, 1, 12);
 // Half cylinder rotated by Euler(0, 0, PI / 2): curved side up, axis along X.
 const pawnDome = new THREE.CylinderGeometry(1, 1, 1, 10, 1, false, 0, Math.PI);
@@ -44,18 +47,38 @@ export function itemGeometry(kind: LootSpawn['kind'], weapon: WeaponId = 'pistol
         b('#584638', side * .15, .14, -.13, .012, .014, .20);
       }
       b('#6c513b', 0, .14, -.23, .12, .025, .075);
+    } else if (small) {
+      // A compact slide over an angled grip, with the muzzle inside the slide.
+      // The former shared rifle recipe left a long exposed barrel on pistols.
+      add(pawnRoundedBox, '#536C78', 0, .025, -.012, .085, .076, .245);
+      add(pawnRoundedBox, '#35474C', 0, -.019, .012, .077, .042, .207);
+      add(pawnRoundedBox, '#8C694C', 0, -.1, .077, .069, .145, .076, new THREE.Euler(-.24, 0, 0));
+      b('#B49061', 0, -.174, .094, .075, .012, .075);
+      tube('#ABB8B6', 0, .018, -.137, .021, .014);
+      tube('#223537', 0, .018, -.146, .014, .005);
+      b('#A9B8B7', 0, .067, -.021, .038, .004, .205);
+      for (const side of [-1, 1]) {
+        for (let i = 0; i < 5; i++) b('#A0B1AD', side * .043, .023, .041 + i * .011, .003, .043, .004);
+        b('#414F48', side * .035, -.1, .082, .004, .072, .042);
+        b('#C6AE73', side * .039, -.093, .083, .003, .026, .021);
+      }
+      add(pawnGuard, '#364B50', 0, -.067, -.015, .035, .037, .035, new THREE.Euler(0, Math.PI / 2, 0));
+      b('#B2ADA0', 0, -.052, .002, .008, .035, .006);
+      b('#263A40', 0, .071, -.101, .013, .015, .016);
+      for (const side of [-1, 1]) b('#263A40', side * .024, .07, .084, .016, .013, .018);
+      b('#A1C48A', 0, .08, -.101, .005, .003, .01);
     } else {
       const compact = weapon === 'smg', shotgun = weapon === 'shotgun', sniper = weapon === 'sniper', dmr = weapon === 'dmr';
-      const front = small ? .23 : compact ? .47 : shotgun ? .72 : sniper ? .85 : dmr ? .72 : .62;
+      const front = compact ? .47 : shotgun ? .72 : sniper ? .85 : dmr ? .72 : .62;
       const color = shotgun ? '#8d6645' : sniper ? '#687861' : compact ? '#557b87' : '#59645b';
-      b('#414b4d', 0, 0, -.02, small ? .10 : .13, small ? .09 : .12, small ? .24 : .38);
-      b(color, 0, -.017, -.25, small ? .085 : .13, small ? .065 : .10, small ? .11 : .28);
-      tube('#657174', 0, .012, -.28 - front * .42, small ? .015 : shotgun ? .026 : .019, front);
-      tube('#343e40', 0, .012, -.28 - front * .86, small ? .024 : .031, .045);
-      b(small ? '#424747' : color, 0, -.04, small ? .13 : .23, small ? .10 : .12, small ? .095 : .14, small ? .11 : .22);
+      b('#414b4d', 0, 0, -.02, .13, .12, .38);
+      b(color, 0, -.017, -.25, .13, .10, .28);
+      tube('#657174', 0, .012, -.28 - front * .42, shotgun ? .026 : .019, front);
+      tube('#343e40', 0, .012, -.28 - front * .86, .031, .045);
+      b(color, 0, -.04, .23, .12, .14, .22);
       b('#3a4140', 0, -.145, .09, .075, .18, .07);
-      if (!shotgun) b('#556469', 0, -.145, -.07, .075, small ? .10 : .18, .088);
-      if (!small) b('#292f31', 0, -.085, .33, .14, .19, .04);
+      if (!shotgun) b('#556469', 0, -.145, -.07, .075, .18, .088);
+      b('#292f31', 0, -.085, .33, .14, .19, .04);
       if (shotgun) {
         b('#a5784d', 0, -.055, -.45, .13, .08, .20);
         tube('#526064', 0, -.055, -.45, .014, .48);
@@ -135,4 +158,3 @@ export function chestGeometry(lid: boolean): THREE.BufferGeometry {
   }
   return mergeParts(parts);
 }
-
