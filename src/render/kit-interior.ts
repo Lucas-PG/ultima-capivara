@@ -66,6 +66,14 @@ export function kitInteriorLight(material: THREE.MeshStandardMaterial, model: TH
           vec3 worldNormal = inverseTransformDirection(normal, viewMatrix);
           vec2 edge = kitRoomBounds.xy - abs(p.xz);
           float inside = smoothstep(0.0, 0.12, min(edge.x, edge.y));
+          #ifdef USE_MAP
+            vec2 paintTile = floor(clamp(vMapUv, vec2(0.0), vec2(.99999)) * 4.0);
+            float paintIndex = paintTile.x + paintTile.y * 4.0;
+            float floorPaint = float(abs(paintIndex - 5.0) < .1 || abs(paintIndex - 14.0) < .1);
+            float floorBounce = inside * floorPaint * (1.0 - smoothstep(.015, .035, abs(p.y - kitRoomBounds.z)))
+              * smoothstep(.65, .95, worldNormal.y) * kitRoomAmount;
+            diffuseColor.rgb *= mix(vec3(1.0), vec3(1.08, 1.025, .91), floorBounce);
+          #endif
           kitCeiling = inside * (1.0 - smoothstep(0.03, 0.12, abs(p.y - kitRoomBounds.w)))
             * (1.0 - smoothstep(-0.85, -0.45, worldNormal.y)) * kitRoomAmount;
           // A pale limewash response on the underside only. Painted grain and

@@ -576,7 +576,7 @@ This is the isolated stair repair approved by the director. Connected walking su
 
 Original renderer code derives window rectangles from the existing house glass vertices in atlas tile 10 and room heights from the same authored floor and wall metadata. One shared kit material projects a soft four-pane sun patch onto existing floors and lifts only the underside ceiling tone, retaining painted variation and contact shading. Rotation and scale follow each placed house. The response fades at room entrances and remains off outside the house or above its roof. Medium and Low use the same cheap surface treatment, with no new geometry, draw, texture, light or shadow map. No external asset was added.
 
-This isolated source candidate awaits its reserved native walkthrough, matched Medium/Low captures and full gate. It does not change furnishing, windows, authoritative contacts, or the separately queued trunk colliders. No visual acceptance or landable claim is made before that review.
+The material also adds a modest warm bounce to existing wood and stone floor atlas tiles, bounded to the authored floor height. Rugs, pictures and furniture colour schemes retain their existing palette. This isolated source candidate awaits its reserved native walkthrough, matched Medium/Low captures, upper-barracks readability review and full gate. It does not change furnishing, windows, authoritative contacts, or the separately queued trunk colliders. No visual acceptance or landable claim is made before that review.
 
 ### Fort, lighthouse and furnished interiors, 2026-09-26
 
