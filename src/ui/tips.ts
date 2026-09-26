@@ -44,3 +44,11 @@ export const TIPS: readonly string[] = [
 export function fillTip(tip: string, keys: Record<string, string>) {
   return tip.replace(/\{(\w+)\}/g, (match, name: string) => keys[name] ?? match);
 }
+
+export function tipCategory(tip: string) {
+  if (/guaraná|açaí|bandagem|rapadura|curas|kit médico/i.test(tip)) return { label: 'Fôlego extra', icon: 'heart' };
+  if (/tiro|arma|doze|sniper|mira|recarreg|luneta|munição|estiling|silêncio/i.test(tip)) return { label: 'Instinto de combate', icon: 'crosshair' };
+  if (/tempestade|ilha inteira|avião|paraquedas|no ar|mercadão|farol|área segura/i.test(tip)) return { label: 'Conheça a ilha', icon: 'globe' };
+  if (/turma|sala|placar|correria|última|glória/i.test(tip)) return { label: 'Jogue junto', icon: 'users' };
+  return { label: 'Vida de capivara', icon: 'leaf' };
+}
