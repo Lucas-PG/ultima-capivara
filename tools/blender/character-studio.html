@@ -10,24 +10,23 @@ const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antial
 r.setSize(W, H); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.NeutralToneMapping; r.toneMappingExposure = 1.1;
 r.shadowMap.enabled = true;
 const scene = new THREE.Scene(); scene.background = new THREE.Color(q.get('bg') || '#e9e4d8');
-scene.add(new THREE.HemisphereLight('#b4c2ee', '#c9a66b', 1.15));
+const hemisphere = new THREE.HemisphereLight('#b4c2ee', '#c9a66b', 1.15); scene.add(hemisphere);
 const sun = new THREE.DirectionalLight('#ffd9a8', 2.7); sun.position.set(-3, 4, 3); sun.castShadow = true; scene.add(sun);
 const ground = new THREE.Mesh(new THREE.CircleGeometry(3, 48), new THREE.MeshStandardMaterial({ color: '#8cc453', roughness: 1 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; if (!q.get('noground')) scene.add(ground);
-const cam = new THREE.PerspectiveCamera(+q.get('fov') || 30, W / H, .01, 500);
+const cam = q.has('ortho') ? new THREE.OrthographicCamera(-W / H, W / H, 1, -1, .01, 500) : new THREE.PerspectiveCamera(+q.get('fov') || 30, W / H, .01, 500);
 const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}models/capybara/capybara.glb`);
 let pipeline;
 if (q.has('runtime')) {
-  const { PaintedSky } = await import('../../src/render/sky');
-  const sky = new PaintedSky(), skyScene = new THREE.Scene(); skyScene.add(sky.group);
-  const pmrem = new THREE.PMREMGenerator(r);
-  const environment = pmrem.fromScene(skyScene, .035, .1, 850, { size: 128 });
-  scene.environment = environment.texture; scene.environmentIntensity = .35; pmrem.dispose();
-  addEventListener('beforeunload', () => { sky.dispose(); environment.dispose(); });
-  sun.position.set(-70, 55, -30);
-  const { applyCharacterStyle } = await import('../../src/render/materials');
+  // Match the character scene's direct and hemisphere light. Only the game's
+  // first-person scene uses a PMREM sky reflection, so this sheet does not add it.
+  const { applyCharacterStyle, PAINT } = await import('../../src/render/materials');
+  sun.position.set(-70, 32, -30); sun.color.set(PAINT.sun); sun.intensity = 3.5;
+  hemisphere.color.set(PAINT.hemisphereSky); hemisphere.groundColor.set(PAINT.hemisphereGround); hemisphere.intensity = .88;
   const { RenderPipeline, PRESETS } = await import('../../src/render/pipeline');
-  pipeline = new RenderPipeline(r, PRESETS.high.samples); pipeline.resize();
+  // Orthographic sheets share the runtime materials and light, but avoid the
+  // perspective-only depth reconstruction used by the game post-processing.
+  if (!q.has('ortho')) { pipeline = new RenderPipeline(r, PRESETS.high.samples); pipeline.resize(); }
   const styled = new Map();
   let atlasColumns = 16;
   gltf.scene.traverse(o => { if (o.userData.paintAtlas === '4x4') atlasColumns = 4; });
@@ -51,13 +50,31 @@ scene.add(model);
 window.clips = gltf.animations.map(a => a.name);
 const mixer = new THREE.AnimationMixer(model);
 const clipName = q.get('clip'); const t = +(q.get('t') || 0);
-const idle = gltf.animations.find(a => /idle/i.test(a.name));
+const idle = gltf.animations.find(a => a.name === 'idle');
 if (clipName) { const c = gltf.animations.find(a => a.name === clipName); if (c) { mixer.clipAction(c).play(); } }
 else if (idle && !q.get('rest')) mixer.clipAction(idle).play();
 mixer.update(t);
+if (q.has('relaxed')) {
+  // Use the same unarmed arm targets as capybara.ts for the model-sheet review.
+  for (const [side, sign] of [['L', -1], ['R', 1]]) {
+    model.updateMatrixWorld(true);
+    const arm = model.getObjectByName(`arm_${side}`), forearm = model.getObjectByName(`forearm_${side}`), paw = model.getObjectByName(`paw_${side}`);
+    const shoulder = arm.getWorldPosition(new THREE.Vector3()), elbow = forearm.getWorldPosition(new THREE.Vector3());
+    const target = new THREE.Vector3(sign * .297, .944, -.065);
+    const swing = new THREE.Quaternion().setFromUnitVectors(elbow.clone().sub(shoulder).normalize(), target.sub(shoulder).normalize());
+    const parent = arm.parent.getWorldQuaternion(new THREE.Quaternion());
+    arm.quaternion.premultiply(parent.clone().invert().multiply(swing).multiply(parent));
+    model.updateMatrixWorld(true);
+    const elbowNow = forearm.getWorldPosition(new THREE.Vector3()), hand = paw.getWorldPosition(new THREE.Vector3());
+    const open = new THREE.Quaternion().setFromUnitVectors(hand.sub(elbowNow).normalize(), new THREE.Vector3(sign * .313, .769, -.265).sub(elbowNow).normalize());
+    const forearmParent = forearm.parent.getWorldQuaternion(new THREE.Quaternion());
+    forearm.quaternion.premultiply(forearmParent.clone().invert().multiply(open).multiply(forearmParent));
+  }
+}
 if (q.get('sil')) model.traverse(o => { if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ color: '#1a120c' }); });
-const yaw = +(q.get('yaw') || 0) * Math.PI / 180, dist = +(q.get('d') || 4.2), ty = +(q.get('ty') || .95);
-cam.position.set(Math.sin(yaw) * dist, ty + +(q.get('cy') || 0), Math.cos(yaw) * dist); cam.lookAt(0, ty, 0);
+const yaw = +(q.get('yaw') || 0) * Math.PI / 180, dist = +(q.get('d') || 4.2), ty = +(q.get('ty') || .95), tz = +(q.get('tz') || 0);
+cam.position.set(Math.sin(yaw) * dist, ty + +(q.get('cy') || 0), tz + Math.cos(yaw) * dist); cam.lookAt(0, ty, tz);
+cam.zoom = +(q.get('zoom') || 1); cam.updateProjectionMatrix();
 const render = () => pipeline ? pipeline.render(scene, cam, {}) : r.render(scene, cam);
 if (q.has('expressions')) {
   const expressions = [
@@ -81,8 +98,19 @@ if (q.has('expressions')) {
   });
   r.domElement.hidden = true;
 } else render();
-const box = new THREE.Box3().setFromObject(model); window.bounds = { min: box.min.toArray(), max: box.max.toArray() };
+// Measure the actual posed visible mesh, rather than its rest-pose bounds or
+// hidden lower LODs. Camera and gameplay reviewers use the same actor origin.
+model.updateMatrixWorld(true);
+const box = new THREE.Box3(), point = new THREE.Vector3();
+model.traverseVisible(o => {
+  if (!o.isMesh) return;
+  o.skeleton?.update();
+  for (let i = 0; i < o.geometry.attributes.position.count; i++) {
+    o.getVertexPosition(i, point); point.applyMatrix4(o.matrixWorld); box.expandByPoint(point);
+  }
+});
+window.bounds = { min: box.min.toArray(), max: box.max.toArray(), head: model.getObjectByName('head').getWorldPosition(point).toArray() };
 window.ready = true;
-window.studio = { model, mixer, scene, camera:cam, renderer:r, clips:gltf.animations };
+window.studio = { model, mixer, scene, camera:cam, renderer:r, render, clips:gltf.animations, selectedClip:clipName || 'idle' };
 addEventListener('beforeunload', () => { pipeline?.dispose(); r.dispose(); });
 </script></body></html>

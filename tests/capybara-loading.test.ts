@@ -167,7 +167,7 @@ describe('capybara cosmetic colour contract', () => {
       } else {
         expect([atlas.image.width, atlas.image.height]).toEqual([16, 16]);
         const hexAt = (column: number) => Array.from(pixels.slice(column * 4, column * 4 + 3)).map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
-        expect([0, 1, 2, 3, 4].map(hexAt)).toEqual(['A27C5C', 'C19D62', '7A4424', '4A2C1C', 'E8C08A']);
+        expect([0, 1, 2, 3, 4].map(hexAt)).toEqual(['B5834F', 'D1A15E', '754929', '4A2C1C', 'DBB17B']);
         expect(hexAt(5)).toBe(color.slice(1).toUpperCase());
         if (color === '#1FB5A8') expect(hexAt(6)).toBe('12877E');
         expect(hexAt(7)).toBe('6E7040');

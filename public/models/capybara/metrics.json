@@ -1,12 +1,12 @@
 {
-  "sourceTriangles": 62130,
-  "nearDetailTriangles": 1640,
+  "sourceTriangles": 90042,
+  "nearDetailTriangles": 2132,
   "palette": [
-    "A27C5C",
-    "C19D62",
-    "7A4424",
+    "B5834F",
+    "D1A15E",
+    "754929",
     "4A2C1C",
-    "E8C08A",
+    "DBB17B",
     "1FB5A8",
     "12877E",
     "6E7040",
@@ -22,15 +22,15 @@
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 18798
+      "triangles": 19799
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 4793
+      "triangles": 4794
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 1361
+      "triangles": 1311
     }
   ],
   "hitbox": {
@@ -49,8 +49,10 @@
   },
   "clips": [
     "backpedal",
+    "chill",
     "crouch_idle",
     "crouch_walk",
+    "dance",
     "death",
     "face_blink",
     "face_determined",
@@ -64,20 +66,50 @@
     "land",
     "reload_tp",
     "run",
+    "sit",
     "strafe_l",
     "strafe_r",
-    "walk"
+    "victory",
+    "walk",
+    "wave"
   ],
   "locomotionSpeed": {
     "walk": 3.9,
     "run": 6.4,
     "crouch_walk": 2.1
   },
+  "emotes": {
+    "wave": {
+      "seconds": 3,
+      "loop": false,
+      "inPlace": true
+    },
+    "dance": {
+      "seconds": 8,
+      "loop": true,
+      "inPlace": true
+    },
+    "victory": {
+      "seconds": 4,
+      "loop": false,
+      "inPlace": true
+    },
+    "sit": {
+      "seconds": 12,
+      "loop": true,
+      "inPlace": true
+    },
+    "chill": {
+      "seconds": 12,
+      "loop": true,
+      "inPlace": true
+    }
+  },
   "materials": 1,
   "skins": 1,
   "joints": 35,
-  "bytes": 1592540,
-  "rawBytes": 2675488,
+  "bytes": 1868920,
+  "rawBytes": 3275576,
   "texture": {
     "format": "PNG",
     "width": 1024,
