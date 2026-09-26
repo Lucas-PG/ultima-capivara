@@ -897,3 +897,37 @@ body.reduce-motion .beach-hut :is(.arriving,.ready-wiggle){animation:none}body.r
 @media(max-width:560px){.beach-hut .roster{grid-template-columns:1fr}.beach-hut .section-heading>span{font-size:13px}.beach-hut .section-heading small{font-size:12px}.lobby-action-row{grid-template-columns:1fr}.ready-control{padding-bottom:0}.beach-hut .lobby-intro h1{font-size:34px}.lobby-mascot{width:88px;height:88px;top:-66px;right:8px}.room-dialog{padding:20px 16px}.room-dialog .profile-editor{gap:12px;padding:10px}.room-dialog .profile-editor .capy-avatar{width:62px;height:62px}.room-dialog .code-input{letter-spacing:6px}}
 @media(min-width:901px) and (max-height:800px){.room-dialog .modal-heading .eyebrow{display:none}.room-dialog .modal-heading{margin-bottom:15px}.room-dialog .modal-mascot{width:62px;height:62px;margin:-10px 6px -10px auto}.room-dialog .profile-editor{margin-bottom:14px}.room-dialog .profile-inputs input{height:44px}.room-dialog .color-picker{margin-top:9px}.room-dialog .check-row{margin-top:14px}.room-dialog .form-note{margin:12px 0;padding:8px 10px}.room-dialog .form-grid{gap:14px 20px}.room-dialog .form-error:empty{display:none}}
 @media(min-width:901px) and (max-height:800px){.beach-hut .empty-seat{min-height:62px;padding:8px 12px}}
+
+/* Tab is a shared paper scoreboard hung on a wooden frame, with the full roster in view. */
+body[data-screen=game] #scoreboard{background:#3020109c;padding:22px;backdrop-filter:none}
+body[data-screen=game] #scoreboard .scoreboard-content{width:min(1120px,96vw);max-height:94dvh;overflow:auto;padding:20px 23px 15px;background:var(--paper);border:5px solid var(--brown);border-radius:24px;box-shadow:0 8px 0 var(--brown),0 22px 44px #24120866;transform:none;color:var(--brown)}
+#scoreboard .score-heading{display:flex;align-items:center;justify-content:space-between;gap:22px;margin-bottom:12px}
+body[data-screen=game] #scoreboard h2{display:inline-block;margin:8px 0 0;padding:9px 18px 12px;background:var(--wood);border:3px solid var(--brown);border-radius:13px;box-shadow:0 4px 0 var(--brown);font-family:var(--heading);font-size:27px;line-height:1.15;color:var(--cream);text-shadow:var(--ol-b2);transform:rotate(-.6deg)}
+body[data-screen=game] #scoreboard .eyebrow{display:table;margin:0;background:#2f897e;border:2px solid var(--brown);border-radius:6px;box-shadow:2px 2px 0 var(--brown);font-family:var(--sans);font-size:12px;font-weight:800;letter-spacing:.8px;transform:none}
+#scoreboard .score-heading>img{width:94px;height:94px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 3px 0 #3a241833)}
+#scoreboard .score-rule{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:14px;line-height:1.35;margin:10px 0 14px;padding:9px 12px;background:#eed5a9;border:2px solid #c6a174;border-radius:10px}
+#scoreboard .score-rule b{white-space:nowrap;padding:3px 9px;background:var(--candy-gold);border:2px solid var(--brown);border-radius:999px;font-size:13px}
+#scoreboard .score-columns{display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
+#scoreboard .score-columns.split{grid-template-columns:repeat(2,minmax(0,1fr))}
+#scoreboard .score-table{table-layout:fixed;font-family:var(--sans);color:var(--brown);font-size:13px}
+#scoreboard .score-table th{font-size:12px;font-weight:800;letter-spacing:0;padding:6px 5px;color:var(--brown-2);border-bottom:3px solid var(--brown);width:13%}
+#scoreboard .score-table th:first-child{width:auto}
+#scoreboard .score-table th:has(+th:last-child),#scoreboard .score-table th:last-child{width:14%}
+#scoreboard .score-table td{padding:4px 5px;height:39px;border-bottom:1px dashed #b3966b;font-size:13px;font-weight:700;line-height:1.2;white-space:nowrap}
+#scoreboard .score-table .you{color:var(--brown);background:#f8d572a8;outline:2px solid #a8782f;outline-offset:-2px}
+#scoreboard .score-table .eliminated{color:#735c48;background:#cbb99b24}
+#scoreboard .score-player{display:flex;align-items:center;gap:7px;min-width:0}
+#scoreboard .rank{flex:0 0 19px;width:19px;color:var(--brown-2);font-size:12px;text-align:center}
+#scoreboard .score-portrait{flex:0 0 27px;width:27px;height:27px;display:block}
+#scoreboard .score-portrait .capy-avatar{width:27px;height:27px;border:1.5px solid var(--brown);border-radius:50%;background:#f4d49f}
+#scoreboard .score-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;font-size:13px;line-height:1.25}
+#scoreboard .score-name small{display:block;margin:1px 0 0;font-size:12px;font-weight:600;letter-spacing:.2px;color:var(--brown-2)}
+#scoreboard .score-state{font-size:12px;padding:2px 5px;border-radius:6px;border:1.5px solid #3a241866}
+#scoreboard .score-state.alive{color:#295e35;background:#bee0a7}.score-state.out{color:#73523a;background:#dcc6a4}
+#scoreboard [data-player-ping]{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+#scoreboard .score-foot{display:flex;align-items:center;gap:8px;border-top:2px dashed #b3966b;margin-top:14px;padding-top:12px;font-family:var(--sans);font-size:12px}
+#scoreboard .score-foot>b{margin-left:auto;display:flex;align-items:center;gap:6px;font-weight:700}
+#scoreboard .score-you{font-size:12px;font-weight:800;background:#f8d572;border:2px solid #a8782f;border-radius:5px;padding:2px 5px}
+#scoreboard .score-foot kbd{color:var(--brown);background:var(--paper);border:2px solid var(--brown);border-radius:6px;box-shadow:0 2px 0 var(--brown);font-size:12px}
+@media(max-height:800px){body[data-screen=game] #scoreboard .scoreboard-content{padding:14px 18px 12px}#scoreboard .score-heading{margin-bottom:7px}#scoreboard .score-heading>img{width:70px;height:70px}body[data-screen=game] #scoreboard h2{font-size:24px;padding:7px 14px 9px}#scoreboard .score-rule{font-size:13px;padding:6px 10px;margin:8px 0 10px}#scoreboard .score-table td{height:34px;padding:2px 4px}#scoreboard .score-portrait,#scoreboard .score-portrait .capy-avatar{width:25px;height:25px;flex-basis:25px}#scoreboard .score-foot{margin-top:10px;padding-top:9px}}
+@media(max-width:800px){#scoreboard .score-columns.split{grid-template-columns:1fr}#scoreboard .score-heading>img{display:none}#scoreboard .score-rule{align-items:flex-start}#scoreboard .score-foot>span:not(.score-you){display:none}body[data-screen=game] #scoreboard h2{font-size:21px}#scoreboard .score-columns{gap:16px}}
