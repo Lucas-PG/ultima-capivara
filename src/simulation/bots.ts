@@ -1,5 +1,4 @@
-import { terrainHeight } from '../shared/terrain';
-import type { Collider, Difficulty, Vec3, WeaponId, WorldSpec } from '../shared/types';
+import type { Difficulty, Vec3, WeaponId } from '../shared/types';
 
 // Bot behaviour follows the legacy single-file build (reference/legacy.html,
 // "bots" section): the same difficulty table, per-weapon ranges and cadence,
@@ -60,84 +59,4 @@ export function createBrain(elite: boolean, skill: number, pos: Vec3, flank: num
 
 export const angleDiff = (from: number, to: number) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
 
-// A uniform grid over the static colliders so the many short bot probes and
-// sight checks do not scan all ~3000 boxes. Rebuilt when colliders are added.
-export class ColliderGrid {
-  private cells = new Map<number, number[]>();
-  private built = -1;
-  private marks = new Int32Array(0);
-  private stamp = 0;
-  // Collider hit by the last ray() call, when the nearest hit was a box.
-  lastHit: Collider | null = null;
-  constructor(private readonly world: WorldSpec, private readonly size = 6) {}
-
-  private key(ix: number, iz: number) { return (ix + 2048) * 4096 + iz + 2048; }
-  private ensure() {
-    const colliders = this.world.colliders;
-    if (this.built === colliders.length) return;
-    this.cells.clear(); this.built = colliders.length; this.marks = new Int32Array(colliders.length); this.stamp = 0;
-    colliders.forEach((c, index) => {
-      for (let ix = Math.floor(c.min.x / this.size); ix <= Math.floor(c.max.x / this.size); ix++)
-        for (let iz = Math.floor(c.min.z / this.size); iz <= Math.floor(c.max.z / this.size); iz++) {
-          const k = this.key(ix, iz), list = this.cells.get(k);
-          if (list) list.push(index); else this.cells.set(k, [index]);
-        }
-    });
-  }
-
-  near(minX: number, minZ: number, maxX: number, maxZ: number): Collider[] {
-    this.ensure();
-    const found: Collider[] = [], stamp = ++this.stamp;
-    for (let ix = Math.floor(minX / this.size); ix <= Math.floor(maxX / this.size); ix++)
-      for (let iz = Math.floor(minZ / this.size); iz <= Math.floor(maxZ / this.size); iz++)
-        for (const index of this.cells.get(this.key(ix, iz)) || []) {
-          if (this.marks[index] === stamp) continue;
-          this.marks[index] = stamp; found.push(this.world.colliders[index]);
-        }
-    return found;
-  }
-
-  // Distance to the first collider or terrain hit along a unit direction, or null.
-  ray(o: Vec3, d: Vec3, max: number): number | null {
-    this.ensure();
-    const S = this.size, stamp = ++this.stamp;
-    let best = max, bestIndex = -1;
-    let ix = Math.floor(o.x / S), iz = Math.floor(o.z / S);
-    const stepX = d.x > 0 ? 1 : -1, stepZ = d.z > 0 ? 1 : -1;
-    let tMaxX = Math.abs(d.x) > 1e-9 ? ((ix + (stepX > 0 ? 1 : 0)) * S - o.x) / d.x : Infinity;
-    let tMaxZ = Math.abs(d.z) > 1e-9 ? ((iz + (stepZ > 0 ? 1 : 0)) * S - o.z) / d.z : Infinity;
-    const dX = Math.abs(d.x) > 1e-9 ? S / Math.abs(d.x) : Infinity, dZ = Math.abs(d.z) > 1e-9 ? S / Math.abs(d.z) : Infinity;
-    let t = 0;
-    for (let guard = 0; guard < 400; guard++) {
-      for (const index of this.cells.get(this.key(ix, iz)) || []) {
-        if (this.marks[index] === stamp) continue;
-        this.marks[index] = stamp;
-        const c = this.world.colliders[index];
-        let low = 0, high = best;
-        for (const axis of ['x', 'y', 'z'] as const) {
-          const dd = d[axis], oo = o[axis];
-          if (Math.abs(dd) < 1e-9) { if (oo < c.min[axis] || oo > c.max[axis]) { low = Infinity; break; } continue; }
-          const a = (c.min[axis] - oo) / dd, b = (c.max[axis] - oo) / dd;
-          low = Math.max(low, Math.min(a, b)); high = Math.min(high, Math.max(a, b));
-          if (low > high) break;
-        }
-        if (low <= high && low < best) { best = low; bestIndex = index; }
-      }
-      if (tMaxX < tMaxZ) { t = tMaxX; tMaxX += dX; ix += stepX; } else { t = tMaxZ; tMaxZ += dZ; iz += stepZ; }
-      if (t > best || t > max) break;
-    }
-    const step = best > 6 ? 2 : .5;
-    for (let s = step; s <= best; s += step) {
-      const x = o.x + d.x * s, y = o.y + d.y * s, z = o.z + d.z * s;
-      if (y < terrainHeight(x, z) - .02) { this.lastHit = null; return s; }
-    }
-    this.lastHit = bestIndex >= 0 && best < max ? this.world.colliders[bestIndex] : null;
-    return best < max ? best : null;
-  }
-
-  sees(a: Vec3, b: Vec3): boolean {
-    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L = Math.hypot(dx, dy, dz);
-    if (L < 1e-6) return true;
-    return this.ray(a, { x: dx / L, y: dy / L, z: dz / L }, L - .05) === null;
-  }
-}
+export { ColliderGrid } from '../shared/collider-grid';
