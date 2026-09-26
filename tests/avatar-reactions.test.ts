@@ -37,6 +37,28 @@ function harness() {
 }
 
 describe('authoritative character reactions', () => {
+  it('squashes then stretches a trampoline capy around the feet without moving its actor, and clears the cue', () => {
+    const h = harness(); h.actor.grounded = false; h.actor.velocity.y = 12;
+    const state = structuredClone(h.actor), root = h.visual.group.position.clone();
+    view.bounce(h.actor.id); h.advance(.05);
+    expect(h.visual.body.scale.y).toBeLessThan(.92);
+    expect(h.visual.body.scale.x * h.visual.body.scale.y * h.visual.body.scale.z).toBeCloseTo(1);
+    h.visual.group.updateMatrixWorld(true);
+    expect(h.visual.body.localToWorld(new THREE.Vector3()).distanceTo(root)).toBeLessThan(1e-6);
+    h.advance(.17);
+    expect(h.visual.body.scale.y).toBeGreaterThan(1.1);
+    expect(h.visual.group.scale.toArray()).toEqual([1, 1, 1]);
+    expect(h.visual.group.position.equals(root)).toBe(true); expect(h.actor).toEqual(state);
+    h.advance(.4); expect(h.visual.body.scale.toArray()).toEqual([1, 1, 1]);
+    view.bounce(h.actor.id); h.advance(.05); view.respawn(h.actor.id);
+    expect(h.visual.body.scale.toArray()).toEqual([1, 1, 1]);
+    view.bounce(h.actor.id); h.snapshot.matchId = 'after-bounce'; h.advance(1 / 60);
+    expect(h.visual.body.scale.toArray()).toEqual([1, 1, 1]);
+    view.bounce(h.actor.id); view.update(h.frame, 0, 1, true);
+    expect(h.visual.body.scale.toArray()).toEqual([1, 1, 1]);
+    h.advance(.1); expect(h.visual.body.scale.toArray()).toEqual([1, 1, 1]);
+  });
+
   it('simplifies a distant held pistol without changing its socket and avoids LOD flicker', () => {
     const h = harness(); h.actor.weapons = [{ id: 'pistol', ammo: 12, reserve: 24, rarity: 0 }];
     h.advance(1 / 60);
