@@ -47,21 +47,36 @@
     }
   },
   "clips": [
+    "backpedal",
+    "crouch_idle",
+    "crouch_walk",
+    "death",
     "face_blink",
     "face_determined",
     "face_hit",
     "face_neutral",
     "face_stunned",
     "face_victory",
+    "fall",
     "idle",
     "jump",
-    "run"
+    "land",
+    "reload_tp",
+    "run",
+    "strafe_l",
+    "strafe_r",
+    "walk"
   ],
+  "locomotionSpeed": {
+    "walk": 3.9,
+    "run": 6.4,
+    "crouch_walk": 2.1
+  },
   "materials": 1,
   "skins": 1,
   "joints": 35,
-  "bytes": 256004,
-  "rawBytes": 1006256,
+  "bytes": 416340,
+  "rawBytes": 1204256,
   "texture": {
     "format": "PNG",
     "width": 16,
