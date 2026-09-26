@@ -1,4 +1,4 @@
-import { PLAYER_COLORS } from '../shared/types';
+import { PLAYER_COLORS, type EmoteId } from '../shared/types';
 const paths: Record<string, string> = {
   box: '<path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M3 13h18"/><rect x="10.5" y="11.5" width="3" height="3.5" rx=".8"/>',
   play: '<path d="m9 5 12 7-12 7z"/>',
@@ -40,6 +40,16 @@ export const uiArt = (name: string) => {
   const path = `${import.meta.env.BASE_URL}assets/ui/${name}.webp`;
   return typeof document === 'undefined' ? path : new URL(path, document.baseURI).href;
 };
+// Original painted-sticker silhouettes describe the gesture, rather than an unrelated item.
+const EMOTE_DRAWINGS: Partial<Record<EmoteId, string>> = {
+  sit: '<ellipse cx="40" cy="72" rx="28" ry="4" fill="#3a241822" stroke="none"/><path d="m23 34-8 34q0 4 6 4l13-35m14 0 12 35q6 0 6-4l-8-34" fill="#a66737"/><path d="M27 55h28" fill="none"/><path d="M12 26q1-9 28-9t28 9v12q-1 9-28 9T12 38Z" fill="#bf8344"/><ellipse cx="40" cy="26" rx="28" ry="10" fill="#f1c575"/><path d="M22 24q17-4 35 0M28 30q12 2 23-1" stroke="#bb8347" stroke-width="2" fill="none"/>',
+  chill: '<ellipse cx="40" cy="72" rx="34" ry="4" fill="#3a241822" stroke="none"/><path d="m9 70 3-48h7l-2 48m46 0-2-48h7l3 48" fill="#b57a42"/><path d="m15 30 5 4m40 0 6-4" fill="none"/><path d="M20 34q21 14 40 0-2 30-23 30Q23 61 20 34Z" fill="#36baaa"/><path d="M22 36q18 18 36 2M26 48q13 15 28 1" fill="none" stroke="#fff1d6" stroke-width="3"/><path d="M32 18h11L32 29h11M50 7h14L50 21h14" fill="none" stroke="#3a2418" stroke-width="4"/>',
+  dance: '<path d="M23 22v23m0-22 17-6v22" fill="none" stroke-width="5"/><ellipse cx="17" cy="46" rx="8" ry="6" fill="#ffc23d"/><ellipse cx="34" cy="40" rx="8" ry="6" fill="#ffc23d"/><path d="m52 16 8 4m2 10 8 2M10 14l-4-5" stroke="#e2623a" fill="none"/><path d="M27 53q9-7 14 1l3 13q-4 9-18 2-7-4 1-16Z" fill="#e2623a"/><path d="M52 43q8-5 13 4l5 12q0 9-14 5-10-3-4-21Z" fill="#1fb5a8"/><path d="m29 58 5-2m22-7 5 2" stroke="#fff1d6" fill="none"/>',
+};
+export function emoteIcon(id: EmoteId) {
+  const drawing = EMOTE_DRAWINGS[id];
+  return drawing ? `<svg class="emote-art" viewBox="0 0 80 80" stroke="#3a2418" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${drawing}</svg>` : `<img src="${uiArt(id === 'wave' ? 'capy-wave' : 'capy-win')}" alt="" draggable="false">`;
+}
 export function capybara(color = '#1fb5a8') {
   const kit = /^#[0-9a-f]{6}$/i.test(color) ? color : '#1fb5a8';
   // Kit colours have a painted portrait with the bandana in that colour; wrapped in the same 80x80 SVG so every
