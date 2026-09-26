@@ -13,8 +13,11 @@ export interface KitScene {
 export const KIT_ASSET_PATH = 'models/kit/kit.glb';
 const CELL_SIZE = 40;
 const PLANT_CELL_SIZE = 8;
+const FURNITURE_CELL_SIZE = 8;
 const FAR_LOD = 32;
 const SOFT_LANDSCAPE = new Set(['bush_cluster', 'hedge']);
+const ROOM_FURNITURE = new Set(['bed', 'interior_counter', 'table', 'chair', 'shelf_pottery', 'rug',
+  'wardrobe', 'sofa', 'potted_plant', 'hammock', 'stove', 'wall_picture']);
 type Definition = { footprint: number[]; height: number; colliders: { type: string; x: number; y: number; z: number; width?: number; height: number; depth?: number; radius?: number; yaw?: number }[] };
 const definitions: Record<string, Definition> = pieces;
 
@@ -37,7 +40,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   placements: readonly KitPlacement[], quality = 'medium'): KitScene {
   const root = new THREE.Group(); root.name = 'Ilha_modular'; scene.add(root);
   const cells = new Map<string, { origin: THREE.Vector3; placements: KitPlacement[]; lod: THREE.LOD;
-    landscape: boolean; fades: boolean; material?: THREE.MeshStandardMaterial }>();
+    landscape: boolean; furniture: boolean; fades: boolean; material?: THREE.MeshStandardMaterial }>();
   const geometries = new Set<THREE.BufferGeometry>();
   const temporaryMaterials = new Set<THREE.Material>();
   let disposed = false;
@@ -49,14 +52,17 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
     // Flower beds retain visible borders at distance because they have collision.
     const fades = SOFT_LANDSCAPE.has(placement.piece) && definitions[placement.piece]?.colliders.length === 0;
     const landscape = fades || placement.piece === 'flower_bed';
-    const size = landscape ? PLANT_CELL_SIZE : CELL_SIZE;
+    // Room props use their authored simplification before tiny bevels reach a
+    // pixel. They remain opaque and visible wherever solid collision exists.
+    const furniture = ROOM_FURNITURE.has(placement.piece);
+    const size = landscape ? PLANT_CELL_SIZE : furniture ? FURNITURE_CELL_SIZE : CELL_SIZE;
     const cx = Math.floor(placement.x / size), cz = Math.floor(placement.z / size);
-    const key = `${fades ? 'plants' : landscape ? 'flowers' : 'solid'}:${cx}:${cz}`;
+    const key = `${fades ? 'plants' : landscape ? 'flowers' : furniture ? 'furniture' : 'solid'}:${cx}:${cz}`;
     let cell = cells.get(key);
     if (!cell) {
       const origin = new THREE.Vector3((cx + .5) * size, 0, (cz + .5) * size);
       const lod = new THREE.LOD(); lod.name = `kit:${key}`; lod.position.copy(origin); lod.autoUpdate = false;
-      root.add(lod); cell = { origin, placements: [], lod, landscape, fades }; cells.set(key, cell);
+      root.add(lod); cell = { origin, placements: [], lod, landscape, furniture, fades }; cells.set(key, cell);
     }
     cell.placements.push(placement);
   }
@@ -83,7 +89,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   temporaryMaterials.add(placeholderMaterial);
   const fallbackSources = new Map<string, THREE.BufferGeometry>();
   for (const cell of cells.values()) {
-    if (cell.landscape) {
+    if (cell.landscape || cell.furniture) {
       cell.origin.set(0, 0, 0);
       for (const p of cell.placements) cell.origin.add(new THREE.Vector3(p.x, p.y, p.z));
       cell.origin.divideScalar(cell.placements.length); cell.lod.position.copy(cell.origin);
@@ -94,7 +100,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
       return source.clone().applyMatrix4(place(placement, cell.origin));
     });
     const geometry = mergeGeometries(parts)!; parts.forEach(part => part.dispose()); geometries.add(geometry);
-    const mesh = new THREE.Mesh(geometry, placeholderMaterial); mesh.castShadow = !cell.landscape; mesh.receiveShadow = true;
+    const mesh = new THREE.Mesh(geometry, placeholderMaterial); mesh.castShadow = !cell.landscape && !cell.furniture; mesh.receiveShadow = true;
     cell.lod.addLevel(mesh, 0);
   }
   fallbackSources.forEach(source => source.dispose());
@@ -154,9 +160,9 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         if (!geometry) throw new Error('Não foi possível montar as peças da ilha.');
         geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
         const mesh = new THREE.Mesh(geometry, cell.material ?? sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
-        mesh.castShadow = !cell.landscape; mesh.receiveShadow = true;
-        const near = cell.landscape ? (quality === 'low' ? 9 : 14) : quality === 'low' ? 24 : FAR_LOD;
-        const far = cell.landscape ? (quality === 'low' ? 20 : 27) : quality === 'low' ? 65 : 90;
+        mesh.castShadow = !cell.landscape && !cell.furniture; mesh.receiveShadow = true;
+        const near = cell.furniture ? (quality === 'low' ? 8 : 12) : cell.landscape ? (quality === 'low' ? 9 : 14) : quality === 'low' ? 24 : FAR_LOD;
+        const far = cell.furniture || cell.landscape ? (quality === 'low' ? 20 : 27) : quality === 'low' ? 65 : 90;
         cell.lod.addLevel(mesh, level === 2 ? far : level ? near : 0, .12);
       }
     }
