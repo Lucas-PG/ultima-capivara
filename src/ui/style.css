@@ -367,7 +367,8 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 #loadingOverlay.out{opacity:0}
 #loadingOverlay>:not(.lbg){zoom:var(--ui,1)}
 #loadingOverlay .lbg{position:absolute;inset:-3%;background:linear-gradient(0deg,rgba(36,18,8,.78),rgba(36,18,8,.3) 36%,rgba(36,18,8,0) 60%),var(--arrival) center 30%/cover}
-#loadingOverlay .lcard{position:absolute;left:50%;bottom:214px;translate:-50% 0;width:740px;max-width:calc(100vw / var(--ui,1) - 40px);padding:22px 30px 18px;border:4px solid var(--brown);border-radius:24px;background:var(--paper);box-shadow:0 8px 0 var(--brown),0 26px 44px -14px rgba(0,0,0,.6);rotate:-1deg;animation:toon-pop .35s var(--spring) both}
+#loadingOverlay .lcard{position:absolute;left:50%;bottom:214px;translate:-50% 0;width:740px;max-width:calc(100vw / var(--ui,1) - 40px);padding:22px 30px 18px;border:4px solid var(--brown);border-radius:24px;background:var(--paper);box-shadow:0 8px 0 var(--brown),0 26px 44px -14px rgba(0,0,0,.6);rotate:-1deg;transform-origin:50% 0;animation:load-flip .32s var(--spring) .05s both}
+@keyframes load-flip{from{opacity:0;transform:perspective(900px) rotateX(-72deg) translateY(-24px)}to{opacity:1;transform:none}}
 /* Two strips of tape hold the note to the screen. */
 #loadingOverlay .lcard::before,#loadingOverlay .lcard::after{content:"";position:absolute;top:-16px;width:92px;height:28px;background:rgba(255,236,190,.78);border:2px solid rgba(58,36,24,.25);box-shadow:0 2px 4px rgba(0,0,0,.2)}
 #loadingOverlay .lcard::before{left:40px;rotate:-7deg}
@@ -649,3 +650,43 @@ body[data-screen=home] .topbar nav{margin-left:0}
 @media(max-width:700px){.board-mascot{display:none}.menu-board{rotate:0deg}.title-screen .mode-card,.title-screen .mode-card:nth-child(2){rotate:0deg}}
 body.reduce-motion .title-screen .logo-lockup,body.reduce-motion .board-mascot,body.reduce-motion .hero-facts .burst,body.reduce-motion .title-screen .logo-lockup:hover h1{animation:none!important}
 @media(prefers-reduced-motion:reduce){body .title-screen .logo-lockup,body .board-mascot,body .hero-facts .burst,body .title-screen .logo-lockup:hover h1{animation:none!important}}
+
+/* Home to loading: the overlay fades up, the paper note flips down onto the screen and the tip sign slides up. */
+#loadingOverlay{animation:rm-in .2s ease-out}
+#loadingOverlay .ltipbox{animation:load-rise .3s var(--spring) .12s both}
+#loadingOverlay .lfoot{animation:rm-in .3s ease-out .15s both}
+@keyframes load-rise{from{opacity:0;transform:translateY(60px) rotate(-2deg)}to{opacity:1;transform:none}}
+body.reduce-motion #loadingOverlay .ltipbox{animation:rm-in .2s ease-out both!important}
+@media(prefers-reduced-motion:reduce){body #loadingOverlay .ltipbox{animation:rm-in .2s ease-out both!important}}
+/* HUD: the minimap sits on a small wooden board and the weapon card wears a wooden nameplate, like the home board. */
+#hud #mapWrap{padding:6px;background:var(--wood);border:3px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink),inset 0 2px 0 rgba(255,220,170,.35)}
+#hud #minimap{border:2.5px solid var(--ink);border-radius:10px}
+#hud #mapWrap .tab{top:-13px;left:12px}
+#hud #mapWrap .net{right:-6px;bottom:-12px}
+#hud #ammoBox .wrow{margin:-8px -14px 6px;padding:6px 14px 7px;background:var(--wood);border-bottom:3px solid var(--ink);border-radius:13px 13px 0 0;box-shadow:inset 0 2px 0 rgba(255,220,170,.35)}
+#hud #ammoBox .wname{color:var(--cream);text-shadow:var(--ol-b2),0 2px 0 var(--ink)}
+#hud #ammoBox .mode{background:var(--cream);color:var(--ink);border:2px solid var(--ink)}
+/* Pause: the title-screen language over the dimmed island. */
+body[data-screen=game] #pause-panel{background:linear-gradient(90deg,rgba(36,18,8,.9),rgba(36,18,8,.66) 50%,rgba(36,18,8,.12))}
+body[data-screen=game] #pause-panel::before{background:repeating-conic-gradient(from 0deg at 20% 30%,rgba(255,194,61,.07) 0 5deg,transparent 5deg 12deg)}
+body[data-screen=game] #pause-panel::after{display:none}
+#pause-panel .mc{gap:14px}
+#pause-panel .eyebrow{align-self:flex-start;margin:0;padding:6px 24px;font-size:13px;letter-spacing:.3px;transform:rotate(-2deg)}
+#pause-panel h1{font-size:clamp(56px,7vw,96px);color:var(--cream);text-shadow:4px 0 0 var(--brown),-4px 0 0 var(--brown),0 4px 0 var(--brown),0 -4px 0 var(--brown),3px 3px 0 var(--brown),-3px -3px 0 var(--brown),3px -3px 0 var(--brown),-3px 3px 0 var(--brown),0 9px 0 var(--brown);transform:rotate(-3deg);animation:logo-drop .45s var(--spring) both}
+#pause-panel .pboard{position:relative;align-self:flex-start;display:flex;flex-direction:column;gap:12px;width:min(480px,100%);padding:16px 16px 18px;border:4px solid var(--brown);border-radius:22px;background:var(--wood);box-shadow:0 8px 0 var(--brown),0 22px 34px -12px rgba(0,0,0,.6),inset 0 3px 0 rgba(255,220,170,.35),inset 0 -5px 0 rgba(60,28,10,.3);rotate:-.8deg}
+#pause-panel .pboard .board-mascot{width:112px;height:112px;top:-84px;right:-30px}
+#pause-panel .play{align-self:stretch;font-size:26px;padding:16px 28px;border:4px solid var(--brown);border-radius:20px;background:var(--candy-gold);color:var(--brown);box-shadow:0 7px 0 var(--brown),inset 0 4px 0 rgba(255,255,255,.55),inset 0 -6px 0 rgba(150,60,10,.3);transform:none;transition:transform .18s var(--spring),box-shadow .15s}
+#pause-panel .play:hover{transform:translateY(-3px);animation:toon-wobble .35s var(--spring);box-shadow:0 10px 0 var(--brown),inset 0 4px 0 rgba(255,255,255,.55),inset 0 -6px 0 rgba(150,60,10,.3)}
+#pause-panel .play:active{animation:none;transform:translateY(4px) scale(1.02,.95);box-shadow:0 1px 0 var(--brown)}
+#pause-panel .mrow{gap:12px}
+#pause-panel .mrow button{flex:1;font-size:15px;padding:10px 14px;border:3px solid var(--brown);border-radius:16px;background:var(--candy-teal);color:var(--cream);text-shadow:var(--ol-b2);box-shadow:0 5px 0 var(--brown),var(--gloss);transition:transform .18s var(--spring),box-shadow .15s}
+#pause-panel .mrow button.quit{background:var(--candy-terra)}
+#pause-panel .mrow button:hover{transform:translateY(-3px) rotate(-1deg)}
+#pause-panel .mrow button:active{translate:0 0;transform:translateY(4px) scale(1.02,.95);box-shadow:0 1px 0 var(--brown)}
+#pause-panel .quick,#pause-panel .set{border-radius:16px;transform:none}
+#pause-panel kbd.kc{border-radius:8px;background:var(--candy-gold);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.5)}
+#pause-panel .set input[type=range]{accent-color:var(--terra)}
+#pause-panel #lockErr{color:var(--gold);text-shadow:0 2px 0 var(--brown)}
+body.reduce-motion #pause-panel h1,body.reduce-motion #pause-panel .board-mascot{animation:none!important}
+@media(prefers-reduced-motion:reduce){body #pause-panel h1,body #pause-panel .board-mascot{animation:none!important}}
+@media(max-width:640px){#hud #ammoBox .wrow{margin:-3px -9px 3px;padding:3px 9px}#hud #mapWrap{padding:3px}}
