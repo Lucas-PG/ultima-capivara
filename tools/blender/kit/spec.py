@@ -36,7 +36,10 @@ class Piece:
 
     def metadata(self):
         high = max((p['center'][1] + (max(p['radius'], p['top']) if p.get('axis', 'y') != 'y' else p.get('size', [0, p.get('height', 0), 0])[1] / 2) for p in self.parts if 'center' in p), default=0)
-        return dict(footprint=[self.width, self.depth], height=round(high, 4), colliders=self.colliders)
+        data = dict(footprint=[self.width, self.depth], height=round(high, 4), colliders=self.colliders)
+        if hasattr(self, 'interaction'):
+            data['interaction'] = self.interaction
+        return data
 
 
 def window(p, x, y, z, width=1.4, height=1.55, side=1, shutter=2):
@@ -247,6 +250,8 @@ for side in [-1, 1]:
 
 from extensions import extend
 extend(Piece, building, roof, window)
+from recreation import add_recreation
+add_recreation(Piece)
 
 
 def write_metadata():
