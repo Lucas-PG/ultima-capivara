@@ -158,10 +158,14 @@ export class GroundCover {
 
   setQuality(quality: Settings['graphics']) {
     this.quality = quality; this.group.visible = quality !== 'low'; this.reach.value = GROUND_COVER[quality].distance;
-    for (const cell of this.cells) cell.blades.count = Math.floor(cell.count * GROUND_COVER[quality].fraction);
+    for (const cell of this.cells) {
+      cell.blades.count = Math.floor(cell.count * GROUND_COVER[quality].fraction);
+      if (quality === 'low') { cell.blades.visible = false; if (cell.details) cell.details.visible = false; }
+    }
   }
 
   update(camera: THREE.Camera, time: number, reducedMotion: boolean) {
+    if (this.quality === 'low') return;
     this.time.value = reducedMotion ? 0 : time; this.eye.value.copy(camera.position);
     const reach = GROUND_COVER[this.quality].distance;
     for (const cell of this.cells) {

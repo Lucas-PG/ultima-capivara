@@ -12,6 +12,7 @@ import { timing } from './render/timing';
 import { RoomSession } from './network/session';
 import { RemoteInterpolation, shotClientTime } from './network/interpolation';
 import { InputController } from './input';
+import { InputClock } from './input-clock';
 import { SoundEngine } from './audio';
 import { loadProfile, loadSettings, saveProfile, saveSettings, loadAdapt, recordPlacement } from './settings';
 import { GameUI } from './ui/ui';
@@ -21,6 +22,10 @@ const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 let settings = loadSettings(), profile = loadProfile();
 let savedFrameLimit = settings.frameLimit;
 const requestedFps = Number(new URLSearchParams(location.search).get('fps'));
+// The network smoke still renders the real scene, but software GL must not
+// monopolize the page between transport assertions. Absent from normal builds.
+const networkQaFps = import.meta.env.VITE_QA === '1' &&
+  new URLSearchParams(location.search).get('networkFps') === '2' ? 2 : null;
 if (requestedFps === 30 || requestedFps === 60) settings.frameLimit = requestedFps;
 let activeFrameLimit = settings.frameLimit;
 const input = new InputController(canvas, settings);
@@ -51,7 +56,7 @@ let predicted: ActorState | null = null;
 let pending: InputFrame[] = [];
 let receivedAt = 0, lastEvent = 0, match = '', playing = false;
 let lastAlive = true, lastStage = '', initializedPose = false;
-let accumulator = 0, lastFrame = performance.now(), lastRender = 0, renderDeadline = 0;
+let lastFrame = performance.now(), lastRender = 0, renderDeadline = 0;
 let fps = 0, frameCount = 0, fpsAt = performance.now();
 let renderedFrames = 0;
 let dirtyFrame = true;
@@ -206,7 +211,7 @@ function stopMatch() {
   localPresentation.clear(); renderFrame.localActor = undefined;
   remoteInterpolation.reset(); renderedRemoteTime = null;
   playing = false; input.unlock(); worker?.terminate(); worker = null;
-  snapshot = null; predicted = null; pending = []; spectateId = null; accumulator = 0; interaction = null; diedAt = 0; lastKiller = null; killSeen = false;
+  snapshot = null; predicted = null; pending = []; spectateId = null; inputClock.reset(); interaction = null; diedAt = 0; lastKiller = null; killSeen = false;
 }
 function leave() {
   stopMatch(); session.leave(); room = null; practiceConfig = null;
@@ -315,6 +320,18 @@ input.onInteract = () => { interaction = closestInteraction(); if (interaction) 
 input.onPause = () => { if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
+const inputClock = new InputClock(
+  () => (!document.hidden || input.locked) && playing && !!snapshot && ui.screen === 'game' && (!loading || readyToReveal),
+  now => {
+    const time = snapshot!.time + Math.min(.2, (now - receivedAt) / 1000);
+    const next = input.sample(shotClientTime(time, renderedRemoteTime));
+    if (practiceConfig) worker?.postMessage({ type: 'input', id: playerId, input: next });
+    else session.sendInput(next);
+    if (snapshot!.phase === 'playing') {
+      pending.push(next); if (pending.length > 120) pending.shift(); predict(next);
+      if (predicted) localPresentation.tick(predicted);
+    }
+  });
 const resizeGame = () => {
   renderer?.resize(); dirtyFrame = true;
   requestAnimationFrame(() => renderer?.resize());
@@ -323,14 +340,14 @@ window.addEventListener('resize', resizeGame);
 window.visualViewport?.addEventListener('resize', resizeGame);
 document.addEventListener('fullscreenchange', resizeGame);
 document.addEventListener('pointerlockchange', resizeGame);
-window.addEventListener('pagehide', () => { pageDisposed = true; stopMatch(); session.leave(); sound.dispose(); renderer?.dispose(); });
+window.addEventListener('pagehide', () => { pageDisposed = true; stopMatch(); inputClock.dispose(); session.leave(); sound.dispose(); renderer?.dispose(); });
 window.addEventListener('pageshow', event => {
   // pagehide releases the match and audio hardware. A restored page must create
   // fresh resources instead of reviving references to a terminated Worker.
   if (event.persisted) location.reload();
 });
 document.addEventListener('visibilitychange', () => {
-  lastFrame = performance.now(); accumulator = 0;
+  lastFrame = performance.now(); inputClock.reset();
   sound.setHidden(document.hidden);
   if (document.hidden) { input.clear(); input.unlock(); }
 });
@@ -352,19 +369,7 @@ function frame(now: number) {
   // After the match ends the island keeps drawing behind the in-game victory overlay.
   const ended = !playing && snapshot?.phase === 'results';
   if ((!playing && !ended) || !snapshot || ui.screen !== 'game') return;
-  accumulator = ended ? 0 : Math.min(accumulator + dt, .1);
-  while (accumulator >= 1 / 60) {
-    const time = snapshot.time + Math.min(.2, (now - receivedAt) / 1000);
-    const next = input.sample(shotClientTime(time, renderedRemoteTime));
-    if (practiceConfig) worker?.postMessage({ type: 'input', id: playerId, input: next });
-    else session.sendInput(next);
-    if (snapshot.phase === 'playing') {
-      pending.push(next); if (pending.length > 120) pending.shift(); predict(next);
-      if (predicted) localPresentation.tick(predicted);
-    }
-    accumulator -= 1 / 60;
-  }
-  const activeLimit = input.locked ? settings.frameLimit : ended ? 30 : 10;
+  const activeLimit = networkQaFps ?? (input.locked ? settings.frameLimit : ended ? 30 : 10);
   const interval = 1000 / activeLimit;
   if (now < renderDeadline - .5) return;
   // Keep the cadence across small rAF timing variations instead of dropping
@@ -386,7 +391,7 @@ function frame(now: number) {
     renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt;
     renderFrame.remoteActors = remoteInterpolation.sample(now);
     renderFrame.simulationTime = snapshot.time + Math.min(.2, (now - receivedAt) / 1000);
-    renderFrame.localActor = predicted ? localPresentation.sample(predicted, input.frame, accumulator * 60, renderDt, renderFrame.simulationTime) : undefined;
+    renderFrame.localActor = predicted ? localPresentation.sample(predicted, input.frame, inputClock.fraction(now), renderDt, renderFrame.simulationTime) : undefined;
     renderFrame.spectateId = spectateId; renderFrame.predicted = renderFrame.localActor?.pos;
     const renderAt = timing.begin();
     renderer?.update(renderFrame);
@@ -434,6 +439,7 @@ if (import.meta.env.DEV) {
   try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
     inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length,
+      clientInput: { ...input.frame, locked: input.locked }, renderState: { loading, readyToReveal, hidden: document.hidden },
       network: { status: session.connectionStatus, latencies: session.latencies, interpolationDelayMs: remoteInterpolation.delay * 1000 },
       remoteActors: [...(renderFrame.remoteActors?.values() ?? [])].map(actor => ({ id: actor.id, pos: { ...actor.pos }, yaw: actor.yaw })) }),
     perf: () => {
