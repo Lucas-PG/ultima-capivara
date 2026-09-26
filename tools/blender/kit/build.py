@@ -41,7 +41,21 @@ def V(p):
 
 def make_part(part, level=0):
     shape = part['shape']
-    if shape == 'box':
+    if shape == 'surface':
+        return [V(p) for p in part['vertices']], part['faces']
+    if shape == 'rock':
+        bm = bmesh.new()
+        points = [bm.verts.new(V(p)) for p in part['vertices']]
+        for face in part['faces']:
+            bm.faces.new([points[i] for i in face])
+        bm.normal_update()
+        bmesh.ops.bevel(bm, geom=list(bm.edges), offset=part['bevel'],
+                        segments=[3, 2, 1][level], affect='EDGES', profile=.5)
+        bm.verts.index_update()
+        vertices = [v.co.copy() for v in bm.verts]
+        faces = [[v.index for v in f.verts] for f in bm.faces]
+        bm.free()
+    elif shape == 'box':
         bm = bmesh.new()
         bmesh.ops.create_cube(bm, size=1)
         w, h, d = part['size']
@@ -103,7 +117,7 @@ for name, piece in PIECES.items():
     parent['origin'] = 'bottom-centre'
     lod_metrics = []
     for level in [0, 1, 2]:
-        vertices, faces, tiles, paint_uv, smooth_faces = [], [], [], [], []
+        vertices, faces, tiles, paint_uv, smooth_faces, tints = [], [], [], [], [], []
         for part in piece.parts:
             if level and part.get('detail'):
                 continue
@@ -112,9 +126,16 @@ for name, piece in PIECES.items():
             vertices.extend(vv)
             faces.extend([[i + offset for i in face] for face in ff])
             tiles.extend([part['tile']] * len(ff))
-            smooth_faces.extend([part['shape'] == 'orb' and not name.startswith('cliff_')] * len(ff))
+            smooth_faces.extend([part['shape'] == 'orb' or part['shape'] == 'rock'] * len(ff))
+            tints.extend([part.get('tint', [1, 1, 1])] * len(ff))
             for face_index, face in enumerate(ff):
-                if part['shape'] == 'cylinder' and part['axis'] == 'y' and part['tile'] in [6, 14] and face_index >= 2:
+                if part['shape'] == 'rock':
+                    normal = (vv[face[1]] - vv[face[0]]).cross(vv[face[2]] - vv[face[0]]).normalized()
+                    axes = [0, 1] if abs(normal.z) > .6 else [1, 2] if abs(normal.x) > .6 else [0, 2]
+                    bounds = [(min(v[a] for v in vv), max(v[a] for v in vv)) for a in axes]
+                    paint_uv.append({offset + v: tuple((vv[v][a] - lo) / max(.05, hi - lo)
+                                                       for a, (lo, hi) in zip(axes, bounds)) for v in face})
+                elif part['shape'] == 'cylinder' and part['axis'] == 'y' and part['tile'] in [6, 14] and face_index >= 2:
                     step = (face_index - 2) % 8
                     coords = [(step / 8, 0), ((step + 1) / 8, 0), ((step + 1) / 8, 1), (step / 8, 1)]
                     paint_uv.append({offset + v: coord for v, coord in zip(face, coords)})
@@ -132,7 +153,7 @@ for name, piece in PIECES.items():
         # Adding a custom-data layer invalidates Blender RNA layer references.
         uv = mesh.uv_layers.get('Atlas')
         bvh = BVHTree.FromPolygons(vertices, faces, all_triangles=False)
-        for poly, tile, authored_uv, smooth in zip(mesh.polygons, tiles, paint_uv, smooth_faces):
+        for poly, tile, authored_uv, smooth, tint in zip(mesh.polygons, tiles, paint_uv, smooth_faces, tints):
             col, row = tile % 4, tile // 4
             normal = poly.normal.normalized()
             rotation = Vector((0, 0, 1)).rotation_difference(normal)
@@ -161,34 +182,43 @@ for name, piece in PIECES.items():
                 if authored_uv:
                     uu, vv = authored_uv[mesh.loops[loop_index].vertex_index]
                 uv.data[loop_index].uv = ((col + .06 + .88 * uu) / 4, 1 - (row + .06 + .88 * vv) / 4)
-                color.data[loop_index].color = (ao * .78, ao * .87, ao * .98, 1) if name.startswith('cliff_') and tile in [6, 14] else (ao, ao, ao, 1)
+                strata = 1 - .025 * (1 + math.sin(pos.z * 2.3 + pos.x * .35)) if name.startswith('cliff_') and tile == 14 else 1
+                color.data[loop_index].color = (*[ao * strata * channel for channel in tint], 1)
             poly.use_smooth = smooth
         # Rounded fruit and plants share continuous contact values across faces.
-        totals, counts = [0.0] * len(mesh.vertices), [0] * len(mesh.vertices)
+        totals, counts = [[0.0, 0.0, 0.0] for _ in mesh.vertices], [0] * len(mesh.vertices)
         for poly in mesh.polygons:
             if not poly.use_smooth:
                 continue
             for loop in poly.loop_indices:
                 vertex = mesh.loops[loop].vertex_index
-                totals[vertex] += color.data[loop].color[0]
+                for channel in range(3):
+                    totals[vertex][channel] += color.data[loop].color[channel]
                 counts[vertex] += 1
         for poly in mesh.polygons:
             if poly.use_smooth:
                 for loop in poly.loop_indices:
                     vertex = mesh.loops[loop].vertex_index
-                    shade = totals[vertex] / max(1, counts[vertex])
-                    color.data[loop].color = (shade, shade, shade, 1)
+                    shade = [value / max(1, counts[vertex]) for value in totals[vertex]]
+                    color.data[loop].color = (*shade, 1)
         # Collapse hidden bevel rings before tile silhouettes. Three LOD budgets
         # bound complete houses, not each submesh, while keeping one atlas draw.
         obj.data.calc_loop_triangles()
         budget = [12000, 2900, 780][level]
         if name in ['church', 'market_hall', 'warehouse']:
             budget = [15000, 3500, 900][level]
+        if name.startswith('cliff_'):
+            budget = [3400, 1250, 600][level]
         if len(obj.data.loop_triangles) > budget:
             bpy.context.view_layer.objects.active = obj
             modifier = obj.modifiers.new('Distance triangle budget', 'DECIMATE')
             modifier.ratio = (budget - 12) / len(obj.data.loop_triangles)
             bpy.ops.object.modifier_apply(modifier=modifier.name)
+        if name.startswith('cliff_'):
+            bpy.context.view_layer.objects.active = obj
+            normals = obj.modifiers.new('Broad stone planes and soft chipped edges', 'WEIGHTED_NORMAL')
+            normals.keep_sharp, normals.weight = True, 40
+            bpy.ops.object.modifier_apply(modifier=normals.name)
         # Decimation can create zero-area triangles at merged UV seams. Clean
         # those degeneracies, then require the exported mesh to validate cleanly.
         obj.data.validate(verbose=False, clean_customdata=False)
