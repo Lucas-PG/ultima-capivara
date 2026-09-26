@@ -137,7 +137,9 @@ body[data-screen=lobby] #cover-art,body[data-screen=results] #cover-art{backgrou
 .hero-copy .eyebrow{transform:rotate(-2deg);transform-origin:left center}
 /* Hero: a game-logo title with a thick brown outline and a chunky drop. */
 h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98;color:var(--cream);text-shadow:4px 0 0 var(--brown),-4px 0 0 var(--brown),0 4px 0 var(--brown),0 -4px 0 var(--brown),3px 3px 0 var(--brown),-3px -3px 0 var(--brown),3px -3px 0 var(--brown),-3px 3px 0 var(--brown),0 9px 0 var(--brown),0 16px 24px rgba(0,0,0,.35)}
-.hero-copy h1{font-size:clamp(52px,6vw,96px);transform:rotate(-2deg);transform-origin:left center}
+.hero-copy h1{--h:clamp(52px,6vw,96px);font-size:var(--h);transform:rotate(-2deg);transform-origin:left center}
+/* The v2 title sticker, back as a taped paper stamp beside ÚLTIMA. */
+.hero-copy h1 .title-stamp{left:calc(var(--h) * 5.1);top:calc(var(--h) * .12);margin:0;padding:7px 10px;border:3px solid var(--brown);border-radius:10px;background:var(--paper);box-shadow:0 4px 0 var(--brown);font-family:var(--heading);font-size:12px;letter-spacing:.3px;line-height:1.15;color:var(--terra);text-shadow:none;transform:rotate(8deg);animation:toon-pop .4s var(--spring) .2s both}
 .hero-copy h1 em,.lobby-intro h1 em,.results-hero h1 em{color:var(--gold)}
 .lobby-intro h1{font-size:clamp(42px,4.6vw,64px)}
 .hero-description{font-family:var(--sans);font-size:17px;font-weight:700;line-height:1.5;color:var(--cream);text-shadow:0 2px 0 var(--brown),0 0 14px rgba(36,18,8,.9)}
@@ -267,8 +269,8 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 .modal .controls-grid kbd{font-size:12px;min-width:86px}
 .modal .button{height:56px;font-size:17px}
 .modal .form-error{color:#c0392b!important;font-size:14px;font-weight:700}
-@media(max-height:800px) and (min-width:1000px){.topbar{height:72px}.home-content{gap:14px;min-height:calc(100dvh - 119px)}.hero-copy{padding-top:10px}.hero-copy .eyebrow{margin-bottom:8px}.hero-copy h1{font-size:clamp(50px,4.8vh + 2vw,80px)}.hero-description{font-size:15px;margin:12px 0 14px}.hero-facts{margin-top:10px}.section-heading{margin-bottom:10px}.hero-actions{gap:12px}.hero-actions .button.warmup{min-height:58px;font-size:22px}.mode-section{padding-bottom:10px}.home-footer{height:40px}.hero-facts>span{padding:2px 10px 2px 7px}.hero-actions .button.warmup>.icon:first-child{width:42px;height:42px;padding:10px 8px 10px 12px}.button{height:48px}.mode-copy{padding:10px 14px 10px}.mode-copy h2{font-size:20px;margin:3px 0}.mode-art{width:98px}.mode-meta{margin-top:6px}}
-@media(max-width:700px){.hero-copy h1{font-size:50px}.lobby-intro h1{font-size:40px}.mode-copy h2{font-size:19px}.brand{font-size:11px;padding:3px 10px 3px 3px}.brand b{font-size:14px}.brand img{width:30px;height:30px}.nav-link{font-size:12px;padding:5px 10px}.topbar .icon-button{width:36px;height:36px}.hero-actions .button.warmup{font-size:20px;min-height:66px}.modal{padding:22px 18px}.modal .form-grid,.modal .settings-grid{grid-template-columns:1fr}.modal .color-choice{width:22px;height:22px}.modal .color-picker{gap:8px;flex-wrap:wrap}.modal .profile-editor .capy-avatar{width:70px;height:70px}.modal-heading h2{font-size:24px}.modal .seg button{font-size:12px}}
+@media(max-height:800px) and (min-width:1000px){.topbar{height:72px}.home-content{gap:14px;min-height:calc(100dvh - 119px)}.hero-copy{padding-top:10px}.hero-copy .eyebrow{margin-bottom:8px}.hero-copy h1{--h:clamp(50px,4.8vh + 2vw,80px)}.hero-description{font-size:15px;margin:12px 0 14px}.hero-facts{margin-top:10px}.section-heading{margin-bottom:10px}.hero-actions{gap:12px}.hero-actions .button.warmup{min-height:58px;font-size:22px}.mode-section{padding-bottom:10px}.home-footer{height:40px}.hero-facts>span{padding:2px 10px 2px 7px}.hero-actions .button.warmup>.icon:first-child{width:42px;height:42px;padding:10px 8px 10px 12px}.button{height:48px}.mode-copy{padding:10px 14px 10px}.mode-copy h2{font-size:20px;margin:3px 0}.mode-art{width:98px}.mode-meta{margin-top:6px}}
+@media(max-width:700px){.hero-copy h1{--h:50px}.hero-copy h1 .title-stamp{font-size:12px;padding:5px 8px}.lobby-intro h1{font-size:40px}.mode-copy h2{font-size:19px}.brand{font-size:11px;padding:3px 10px 3px 3px}.brand b{font-size:14px}.brand img{width:30px;height:30px}.nav-link{font-size:12px;padding:5px 10px}.topbar .icon-button{width:36px;height:36px}.hero-actions .button.warmup{font-size:20px;min-height:66px}.modal{padding:22px 18px}.modal .form-grid,.modal .settings-grid{grid-template-columns:1fr}.modal .color-choice{width:22px;height:22px}.modal .color-picker{gap:8px;flex-wrap:wrap}.modal .profile-editor .capy-avatar{width:70px;height:70px}.modal-heading h2{font-size:24px}.modal .seg button{font-size:12px}}
 
 .pause-panel .adapt-note{display:inline-block;margin:10px 0 0;padding:6px 12px;font-size:13px;background:var(--cream,#fff3d9);color:#1d1712;transform:rotate(-.6deg)}
 
@@ -462,7 +464,7 @@ body.hud-narrow #hud #coach{bottom:250px}
 @keyframes rm-flash{0%{opacity:1}100%{opacity:0}}
 @keyframes rm-pulse{50%{opacity:.72}}
 body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{transition-property:opacity,color,background-color,border-color,outline-color!important;scroll-behavior:auto!important}
-body.reduce-motion #loadingOverlay .lcard,body.reduce-motion #cover-art,body.reduce-motion .menu-motes i,body.reduce-motion .modal[open],body.reduce-motion .boot-screen i,body.reduce-motion #loadingOverlay .lbg,body.reduce-motion #loadingOverlay .lcapy,body.reduce-motion #loadingOverlay .lbar i,body.reduce-motion #loadingOverlay .lbar.determinate i,body.reduce-motion #victory .vrays,body.reduce-motion #hud #hOut{animation:none!important}
+body.reduce-motion .hero-copy h1 .title-stamp,body.reduce-motion #loadingOverlay .lcard,body.reduce-motion #cover-art,body.reduce-motion .menu-motes i,body.reduce-motion .modal[open],body.reduce-motion .boot-screen i,body.reduce-motion #loadingOverlay .lbg,body.reduce-motion #loadingOverlay .lcapy,body.reduce-motion #loadingOverlay .lbar i,body.reduce-motion #loadingOverlay .lbar.determinate i,body.reduce-motion #victory .vrays,body.reduce-motion #hud #hOut{animation:none!important}
 body.reduce-motion #loadingOverlay .lbar i{width:100%;opacity:.35}
 body.reduce-motion #loadingOverlay .lbar.determinate i{opacity:1}
 body.reduce-motion #hud .fd{animation:rm-in .2s ease-out,rm-out .35s ease-in 3.8s forwards!important}
@@ -473,7 +475,7 @@ body.reduce-motion #hud #vitals.low{animation:rm-pulse .6s ease-in-out infinite!
 body.reduce-motion #victory #confetti,body.reduce-motion .menu-motes{display:none}
 @media(prefers-reduced-motion:reduce){
 body *,body *::before,body *::after{transition-property:opacity,color,background-color,border-color,outline-color!important;scroll-behavior:auto!important}
-body #loadingOverlay .lcard,body #cover-art,body .menu-motes i,body .modal[open],body .boot-screen i,body #loadingOverlay .lbg,body #loadingOverlay .lcapy,body #loadingOverlay .lbar i,body #loadingOverlay .lbar.determinate i,body #victory .vrays,body #hud #hOut{animation:none!important}
+body .hero-copy h1 .title-stamp,body #loadingOverlay .lcard,body #cover-art,body .menu-motes i,body .modal[open],body .boot-screen i,body #loadingOverlay .lbg,body #loadingOverlay .lcapy,body #loadingOverlay .lbar i,body #loadingOverlay .lbar.determinate i,body #victory .vrays,body #hud #hOut{animation:none!important}
 body #loadingOverlay .lbar i{width:100%;opacity:.35}
 body #loadingOverlay .lbar.determinate i{opacity:1}
 body #hud .fd{animation:rm-in .2s ease-out,rm-out .35s ease-in 3.8s forwards!important}
