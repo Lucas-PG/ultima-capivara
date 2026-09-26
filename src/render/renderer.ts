@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { timing } from './timing';
 import { instrumentGpu, instrumentMaterials } from './timing-gpu';
 import { PaintedSky } from './sky';
+import { AmbientLife } from './ambient-life';
 import { PAINT } from './materials';
 import { preloadNameplateFont } from './nameplates';
 import { disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
@@ -37,6 +38,7 @@ export class GameRenderer {
   private readonly gl: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly sky = new PaintedSky();
+  private readonly ambientLife = new AmbientLife();
   private readonly worldView: WorldScene;
   private readonly weaponView: WeaponView;
   private readonly assets: AssetLoader;
@@ -54,7 +56,7 @@ export class GameRenderer {
   private effectsMatch = '';
   private readonly propellers = this.plane.children.filter(child => child.name === 'propeller');
   private readonly sun: THREE.DirectionalLight;
-  private readonly sunOffset = new THREE.Vector3(-70, 55, -30);
+  private readonly sunOffset = new THREE.Vector3(-70, 32, -30);
   private readonly shadowDirection = this.sunOffset.clone().normalize();
   private readonly shadowRight = new THREE.Vector3(0, 1, 0).cross(this.shadowDirection).normalize();
   private readonly shadowUp = this.shadowDirection.clone().cross(this.shadowRight);
@@ -116,14 +118,14 @@ export class GameRenderer {
     this.weaponView.scene.environment = this.environment.texture;
     this.weaponView.scene.environmentIntensity = .35;
     this.scene.background = new THREE.Color(PAINT.fog);
-    this.scene.fog = new THREE.Fog(PAINT.fog, 42, 300);
+    this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
     this.avatars = new AvatarView(this.scene, this.camera, world);
     this.cameraRig = new CameraRig(this.camera, world, settings, this.avatars);
-    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.15));
+    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .88));
     this.scene.add(this.interiorLight);
-    this.sun = new THREE.DirectionalLight(PAINT.sun, 2.7); this.sun.position.set(-70, 55, -30);
+    this.sun = new THREE.DirectionalLight(PAINT.sun, 3.5); this.sun.position.set(-70, 32, -30);
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 170;
     this.sun.shadow.bias = -.00035; this.sun.shadow.normalBias = .12;
@@ -131,7 +133,7 @@ export class GameRenderer {
     this.worldView = new WorldScene(world, settings, this.assets, () => {
       if (!this.disposed) onAssetsReady();
     });
-    this.scene.add(this.worldView.group);
+    this.scene.add(this.worldView.group, this.ambientLife.points);
     this.scene.add(this.plane); this.plane.visible = false;
     this.storm = new StormView(this.scene);
     this.loot = new LootView(this.scene, world);
@@ -197,6 +199,7 @@ export class GameRenderer {
     const cameraAt = timing.begin();
     this.cameraRig.update(frame, this.settings, this.elapsed, this.weaponView.adsAmount);
     this.worldView.update(this.elapsed, this.camera);
+    this.ambientLife.update(this.camera, this.elapsed, this.settings, this.gl.getPixelRatio());
     timing.end('camera', cameraAt);
     this.loot.update(frame.snapshot, this.elapsed);
     let room: typeof this.litRooms[number] | undefined;
@@ -210,7 +213,7 @@ export class GameRenderer {
     this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? 9 : 0, 7, dt);
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
-    this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0);
+    this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0, this.camera.quaternion);
     const held = viewed?.weapons[viewed.slot]?.id;
     const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
     const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35);
@@ -412,7 +415,7 @@ export class GameRenderer {
     this.settings = settings;
     this.resolutionScale = 1; this.applyPreset(settings);
     this.worldView.setSettings(settings);
-    this.scene.fog = new THREE.Fog(PAINT.fog, 42, 300);
+    this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
     this.camera.fov = settings.fov; this.camera.updateProjectionMatrix(); this.resize();
   }
 
@@ -426,7 +429,7 @@ export class GameRenderer {
     if (this.disposed) return;
     this.disposed = true;
     this.scene.remove(this.worldView.group);
-    this.worldView.dispose(); this.weaponView.dispose();
+    this.worldView.dispose(); this.ambientLife.dispose(); this.weaponView.dispose();
     this.scene.remove(this.sky.group); this.sky.dispose();
     this.scene.remove(this.storm.mesh); this.storm.dispose();
     this.environment.dispose(); this.pipeline.dispose(); this.assets.dispose(); this.effects.dispose();

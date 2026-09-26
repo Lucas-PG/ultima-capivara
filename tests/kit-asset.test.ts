@@ -20,10 +20,10 @@ beforeAll(async () => {
 });
 
 describe('island kit geometry and traversal contract', () => {
-  it('ships every collision piece with two real LODs, a shared atlas and baked shading', () => {
+  it('ships every collision piece with three real LODs, a shared atlas and baked shading', () => {
     expect(document.getRoot().listMaterials()).toHaveLength(1);
     for (const [id, definition] of Object.entries(metadata)) {
-      for (let lod = 0; lod < 2; lod++) {
+      for (let lod = 0; lod < 3; lod++) {
         const node = document.getRoot().listNodes().find(node => node.getName() === `${id}_LOD${lod}`);
         expect(node, `${id} LOD${lod}`).toBeDefined();
         const primitive = node!.getMesh()!.listPrimitives()[0];
@@ -36,6 +36,8 @@ describe('island kit geometry and traversal contract', () => {
           }
         }
         expect(primitive.getIndices()!.getCount()).toBeGreaterThan(12);
+        if (id.startsWith('house_')) expect(primitive.getIndices()!.getCount() / 3, `${id} LOD${lod} budget`).toBeLessThanOrEqual([12000, 3000, 800][lod]);
+        if (['flower_bed', 'bush_cluster', 'hedge'].includes(id)) expect(primitive.getIndices()!.getCount() / 3, `${id} landscape budget`).toBeLessThanOrEqual([12000, 3000, 800][lod]);
       }
       expect(definition.height, id).toBeGreaterThan(0);
       for (const collider of definition.colliders) {
@@ -58,6 +60,31 @@ describe('island kit geometry and traversal contract', () => {
     expect(deck.depth).toBe(16);
   });
 
+  it('aligns the rotated tower merlons with their authored collision corners', () => {
+    asset.scene.updateMatrixWorld(true);
+    const tower = asset.scene.getObjectByName('fort_tower_LOD0')!;
+    const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
+    for (const c of metadata.fort_tower.colliders) {
+      if (c.type !== 'box') continue;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const local = new THREE.Vector3(sx * c.width! * .43, 0, sz * c.depth! * .43).applyAxisAngle(new THREE.Vector3(0, 1, 0), c.yaw || 0);
+        ray.set(new THREE.Vector3(c.x + local.x, 10, c.z + local.z), down);
+        const hit = ray.intersectObject(tower, false)[0];
+        expect(hit, `merlon at ${c.x},${c.z}`).toBeDefined();
+        expect(hit.point.y).toBeGreaterThan(c.y + c.height / 2 - .06);
+      }
+    }
+  });
+
+  it('keeps the outward rock shell visible in front of its inscribed solid bands', () => {
+    asset.scene.updateMatrixWorld(true);
+    const rock = asset.scene.getObjectByName('cliff_rock_LOD0')!;
+    const ray = new THREE.Raycaster(new THREE.Vector3(0, 2.75, 10), new THREE.Vector3(0, 0, -1));
+    const hit = ray.intersectObject(rock, false)[0];
+    expect(hit).toBeDefined();
+    expect(hit.point.z).toBeGreaterThan(3.44);
+  });
+
   it('preserves metre scale after meshopt decoding, placement, rotation and cell merging', async () => {
     const scene = new THREE.Scene();
     const kit = createKit(scene, { gltf: async () => asset } as unknown as AssetLoader,
@@ -65,7 +92,7 @@ describe('island kit geometry and traversal contract', () => {
     await kit.ready; scene.updateMatrixWorld(true);
     const meshes: THREE.Mesh[] = [];
     scene.traverse(object => { if (object instanceof THREE.Mesh) meshes.push(object); });
-    expect(meshes).toHaveLength(2);
+    expect(meshes).toHaveLength(3);
     const bounds = new THREE.Box3().setFromObject(meshes[0]);
     const center = bounds.getCenter(new THREE.Vector3()), size = bounds.getSize(new THREE.Vector3());
     expect(center.x).toBeCloseTo(43, 0); expect(center.z).toBeCloseTo(-22, 0);

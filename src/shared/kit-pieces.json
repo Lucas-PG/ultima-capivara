@@ -130,10 +130,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.2589285714285716,
+        "y": 3.317857142857143,
         "z": 0,
         "width": 7.7,
-        "height": 0.11785714285714285,
+        "height": 0.2357142857142857,
         "depth": 6.7,
         "yaw": 0,
         "material": "stone"
@@ -141,21 +141,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.3767857142857145,
-        "z": 0,
-        "width": 7.15,
-        "height": 0.11785714285714285,
-        "depth": 6.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 3.4946428571428574,
+        "y": 3.553571428571429,
         "z": 0,
         "width": 6.6000000000000005,
-        "height": 0.11785714285714285,
+        "height": 0.2357142857142857,
         "depth": 6.7,
         "yaw": 0,
         "material": "stone"
@@ -163,21 +152,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.6125000000000003,
-        "z": 0,
-        "width": 6.05,
-        "height": 0.11785714285714285,
-        "depth": 6.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 3.730357142857143,
+        "y": 3.7892857142857146,
         "z": 0,
         "width": 5.5,
-        "height": 0.11785714285714285,
+        "height": 0.2357142857142857,
         "depth": 6.7,
         "yaw": 0,
         "material": "stone"
@@ -185,21 +163,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.848214285714286,
-        "z": 0,
-        "width": 4.949999999999999,
-        "height": 0.11785714285714285,
-        "depth": 6.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 3.9660714285714285,
+        "y": 4.025,
         "z": 0,
         "width": 4.3999999999999995,
-        "height": 0.11785714285714285,
+        "height": 0.2357142857142857,
         "depth": 6.7,
         "yaw": 0,
         "material": "stone"
@@ -207,21 +174,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.083928571428571,
-        "z": 0,
-        "width": 3.85,
-        "height": 0.11785714285714285,
-        "depth": 6.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.201785714285714,
+        "y": 4.260714285714286,
         "z": 0,
         "width": 3.3000000000000003,
-        "height": 0.11785714285714285,
+        "height": 0.2357142857142857,
         "depth": 6.7,
         "yaw": 0,
         "material": "stone"
@@ -229,21 +185,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.319642857142857,
-        "z": 0,
-        "width": 2.7499999999999996,
-        "height": 0.11785714285714285,
-        "depth": 6.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.4375,
+        "y": 4.496428571428572,
         "z": 0,
         "width": 2.1999999999999997,
-        "height": 0.11785714285714285,
+        "height": 0.2357142857142857,
         "depth": 6.7,
         "yaw": 0,
         "material": "stone"
@@ -251,32 +196,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.555357142857143,
-        "z": 0,
-        "width": 1.6500000000000001,
-        "height": 0.11785714285714285,
-        "depth": 6.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.673214285714286,
+        "y": 4.732142857142858,
         "z": 0,
         "width": 1.1000000000000003,
-        "height": 0.11785714285714285,
-        "depth": 6.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.791071428571429,
-        "z": 0,
-        "width": 0.5499999999999998,
-        "height": 0.11785714285714285,
+        "height": 0.2357142857142857,
         "depth": 6.7,
         "yaw": 0,
         "material": "stone"
@@ -645,10 +568,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 6.4515625000000005,
+        "y": 6.503125000000001,
         "z": 0,
         "width": 8.7,
-        "height": 0.103125,
+        "height": 0.20625,
         "depth": 7.7,
         "yaw": 0,
         "material": "stone"
@@ -656,21 +579,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 6.5546875,
-        "z": 0,
-        "width": 8.15625,
-        "height": 0.103125,
-        "depth": 7.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 6.6578125,
+        "y": 6.7093750000000005,
         "z": 0,
         "width": 7.612499999999999,
-        "height": 0.103125,
+        "height": 0.20625,
         "depth": 7.7,
         "yaw": 0,
         "material": "stone"
@@ -678,21 +590,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 6.760937500000001,
-        "z": 0,
-        "width": 7.06875,
-        "height": 0.103125,
-        "depth": 7.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 6.8640625,
+        "y": 6.915625,
         "z": 0,
         "width": 6.5249999999999995,
-        "height": 0.103125,
+        "height": 0.20625,
         "depth": 7.7,
         "yaw": 0,
         "material": "stone"
@@ -700,21 +601,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 6.9671875000000005,
-        "z": 0,
-        "width": 5.981249999999999,
-        "height": 0.103125,
-        "depth": 7.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 7.0703125,
+        "y": 7.121875,
         "z": 0,
         "width": 5.4375,
-        "height": 0.103125,
+        "height": 0.20625,
         "depth": 7.7,
         "yaw": 0,
         "material": "stone"
@@ -722,21 +612,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 7.1734375,
-        "z": 0,
-        "width": 4.89375,
-        "height": 0.103125,
-        "depth": 7.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 7.276562500000001,
+        "y": 7.328125,
         "z": 0,
         "width": 4.35,
-        "height": 0.103125,
+        "height": 0.20625,
         "depth": 7.7,
         "yaw": 0,
         "material": "stone"
@@ -744,21 +623,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 7.3796875,
-        "z": 0,
-        "width": 3.8062499999999995,
-        "height": 0.103125,
-        "depth": 7.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 7.4828125000000005,
+        "y": 7.534375000000001,
         "z": 0,
         "width": 3.2624999999999997,
-        "height": 0.103125,
+        "height": 0.20625,
         "depth": 7.7,
         "yaw": 0,
         "material": "stone"
@@ -766,21 +634,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 7.5859375,
-        "z": 0,
-        "width": 2.71875,
-        "height": 0.103125,
-        "depth": 7.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 7.6890625,
+        "y": 7.7406250000000005,
         "z": 0,
         "width": 2.175,
-        "height": 0.103125,
+        "height": 0.20625,
         "depth": 7.7,
         "yaw": 0,
         "material": "stone"
@@ -788,32 +645,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 7.792187500000001,
-        "z": 0,
-        "width": 1.6312499999999999,
-        "height": 0.103125,
-        "depth": 7.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 7.8953125,
+        "y": 7.946875,
         "z": 0,
         "width": 1.0875,
-        "height": 0.103125,
-        "depth": 7.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 7.9984375000000005,
-        "z": 0,
-        "width": 0.54375,
-        "height": 0.103125,
+        "height": 0.20625,
         "depth": 7.7,
         "yaw": 0,
         "material": "stone"
@@ -951,10 +786,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.25,
+        "y": 3.3000000000000003,
         "z": 0,
         "width": 10.7,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -962,21 +797,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.35,
-        "z": 0,
-        "width": 10.165,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 3.45,
+        "y": 3.5,
         "z": 0,
         "width": 9.629999999999999,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -984,21 +808,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.5500000000000003,
-        "z": 0,
-        "width": 9.094999999999999,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 3.6500000000000004,
+        "y": 3.7,
         "z": 0,
         "width": 8.56,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -1006,21 +819,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.75,
-        "z": 0,
-        "width": 8.024999999999999,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 3.85,
+        "y": 3.9000000000000004,
         "z": 0,
         "width": 7.489999999999999,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -1028,21 +830,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.95,
-        "z": 0,
-        "width": 6.955,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.050000000000001,
+        "y": 4.1000000000000005,
         "z": 0,
         "width": 6.419999999999999,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -1050,21 +841,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.15,
-        "z": 0,
-        "width": 5.885,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.25,
+        "y": 4.300000000000001,
         "z": 0,
         "width": 5.35,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -1072,21 +852,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.3500000000000005,
-        "z": 0,
-        "width": 4.8149999999999995,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.45,
+        "y": 4.5,
         "z": 0,
         "width": 4.28,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -1094,21 +863,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.550000000000001,
-        "z": 0,
-        "width": 3.7449999999999997,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.65,
+        "y": 4.7,
         "z": 0,
         "width": 3.2100000000000004,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -1116,21 +874,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.75,
-        "z": 0,
-        "width": 2.675,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.8500000000000005,
+        "y": 4.9,
         "z": 0,
         "width": 2.1399999999999992,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -1138,32 +885,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.95,
-        "z": 0,
-        "width": 1.6050000000000002,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 5.050000000000001,
+        "y": 5.1000000000000005,
         "z": 0,
         "width": 1.0699999999999996,
-        "height": 0.1,
-        "depth": 16.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 5.15,
-        "z": 0,
-        "width": 0.5350000000000005,
-        "height": 0.1,
+        "height": 0.2,
         "depth": 16.7,
         "yaw": 0,
         "material": "stone"
@@ -1378,10 +1103,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.232258064516129,
+        "y": 3.2625,
         "z": 0,
         "width": 16.7,
-        "height": 0.06451612903225806,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1389,10 +1114,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.296774193548387,
+        "y": 3.3875,
         "z": 0,
-        "width": 16.161290322580644,
-        "height": 0.06451612903225806,
+        "width": 15.65625,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1400,10 +1125,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.361290322580645,
+        "y": 3.5125,
         "z": 0,
-        "width": 15.62258064516129,
-        "height": 0.06451612903225806,
+        "width": 14.612499999999999,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1411,10 +1136,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.425806451612903,
+        "y": 3.6375,
         "z": 0,
-        "width": 15.083870967741934,
-        "height": 0.06451612903225806,
+        "width": 13.56875,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1422,10 +1147,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.490322580645161,
+        "y": 3.7625,
         "z": 0,
-        "width": 14.54516129032258,
-        "height": 0.06451612903225806,
+        "width": 12.524999999999999,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1433,10 +1158,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.5548387096774197,
+        "y": 3.8875,
         "z": 0,
-        "width": 14.006451612903225,
-        "height": 0.06451612903225806,
+        "width": 11.48125,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1444,10 +1169,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.6193548387096777,
+        "y": 4.0125,
         "z": 0,
-        "width": 13.46774193548387,
-        "height": 0.06451612903225806,
+        "width": 10.4375,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1455,10 +1180,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.6838709677419357,
+        "y": 4.1375,
         "z": 0,
-        "width": 12.929032258064515,
-        "height": 0.06451612903225806,
+        "width": 9.393749999999999,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1466,10 +1191,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.7483870967741937,
+        "y": 4.2625,
         "z": 0,
-        "width": 12.390322580645162,
-        "height": 0.06451612903225806,
+        "width": 8.35,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1477,10 +1202,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.8129032258064517,
+        "y": 4.3875,
         "z": 0,
-        "width": 11.851612903225806,
-        "height": 0.06451612903225806,
+        "width": 7.3062499999999995,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1488,10 +1213,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.8774193548387097,
+        "y": 4.5125,
         "z": 0,
-        "width": 11.312903225806453,
-        "height": 0.06451612903225806,
+        "width": 6.262499999999999,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1499,10 +1224,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 3.941935483870968,
+        "y": 4.6375,
         "z": 0,
-        "width": 10.774193548387096,
-        "height": 0.06451612903225806,
+        "width": 5.21875,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1510,10 +1235,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.006451612903226,
+        "y": 4.7625,
         "z": 0,
-        "width": 10.235483870967741,
-        "height": 0.06451612903225806,
+        "width": 4.175,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1521,10 +1246,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.070967741935484,
+        "y": 4.8875,
         "z": 0,
-        "width": 9.696774193548386,
-        "height": 0.06451612903225806,
+        "width": 3.1312499999999996,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1532,10 +1257,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.135483870967742,
+        "y": 5.0125,
         "z": 0,
-        "width": 9.15806451612903,
-        "height": 0.06451612903225806,
+        "width": 2.0875,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -1543,175 +1268,10 @@
       {
         "type": "box",
         "x": 0,
-        "y": 4.2,
+        "y": 5.1375,
         "z": 0,
-        "width": 8.619354838709677,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.264516129032258,
-        "z": 0,
-        "width": 8.080645161290322,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.329032258064516,
-        "z": 0,
-        "width": 7.541935483870968,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.393548387096774,
-        "z": 0,
-        "width": 7.003225806451612,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.458064516129032,
-        "z": 0,
-        "width": 6.4645161290322575,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.52258064516129,
-        "z": 0,
-        "width": 5.925806451612903,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.587096774193548,
-        "z": 0,
-        "width": 5.387096774193549,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.651612903225807,
-        "z": 0,
-        "width": 4.848387096774193,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.716129032258065,
-        "z": 0,
-        "width": 4.309677419354839,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.780645161290323,
-        "z": 0,
-        "width": 3.770967741935484,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.845161290322581,
-        "z": 0,
-        "width": 3.2322580645161296,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.909677419354839,
-        "z": 0,
-        "width": 2.6935483870967736,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 4.974193548387097,
-        "z": 0,
-        "width": 2.1548387096774193,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 5.038709677419355,
-        "z": 0,
-        "width": 1.6161290322580648,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 5.103225806451613,
-        "z": 0,
-        "width": 1.0774193548387105,
-        "height": 0.06451612903225806,
-        "depth": 12.7,
-        "yaw": 0,
-        "material": "stone"
-      },
-      {
-        "type": "box",
-        "x": 0,
-        "y": 5.167741935483871,
-        "z": 0,
-        "width": 0.5387096774193544,
-        "height": 0.06451612903225806,
+        "width": 1.04375,
+        "height": 0.125,
         "depth": 12.7,
         "yaw": 0,
         "material": "stone"
@@ -2319,6 +1879,3131 @@
         "width": 1.16,
         "height": 1.2,
         "depth": 1.16,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "barrel": {
+    "footprint": [
+      1.05,
+      1.05
+    ],
+    "height": 1.235,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.57,
+        "z": 0,
+        "radius": 0.44,
+        "height": 1.14,
+        "material": "wood"
+      }
+    ]
+  },
+  "bush_cluster": {
+    "footprint": [
+      3.6,
+      2.6
+    ],
+    "height": 1.1358,
+    "colliders": []
+  },
+  "hedge": {
+    "footprint": [
+      4.0,
+      1.5
+    ],
+    "height": 1.1358,
+    "colliders": []
+  },
+  "flower_bed": {
+    "footprint": [
+      3.2,
+      1.7
+    ],
+    "height": 0.5449,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.08,
+        "z": 0,
+        "width": 3,
+        "height": 0.16,
+        "depth": 1.5,
+        "yaw": 0,
+        "material": "earth"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.14,
+        "z": -0.76,
+        "width": 3.15,
+        "height": 0.2,
+        "depth": 0.12,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.14,
+        "z": 0.76,
+        "width": 3.15,
+        "height": 0.2,
+        "depth": 0.12,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.52,
+        "y": 0.14,
+        "z": 0,
+        "width": 0.12,
+        "height": 0.2,
+        "depth": 1.55,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.52,
+        "y": 0.14,
+        "z": 0,
+        "width": 0.12,
+        "height": 0.2,
+        "depth": 1.55,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "house_medium": {
+    "footprint": [
+      9.7,
+      7.7
+    ],
+    "height": 5.075,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.055,
+        "z": 0,
+        "width": 9,
+        "height": 0.11,
+        "depth": 7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.75,
+        "y": 1.6,
+        "z": -3.5,
+        "width": 3.5,
+        "height": 3.2,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 2.75,
+        "y": 1.6,
+        "z": -3.5,
+        "width": 3.5,
+        "height": 3.2,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 2.925,
+        "z": -3.5,
+        "width": 2,
+        "height": 0.5500000000000003,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.04,
+        "z": -3.63,
+        "width": 2,
+        "height": 0.08,
+        "depth": 0.44,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.75,
+        "y": 1.6,
+        "z": 3.5,
+        "width": 3.5,
+        "height": 3.2,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 2.75,
+        "y": 1.6,
+        "z": 3.5,
+        "width": 3.5,
+        "height": 3.2,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 2.925,
+        "z": 3.5,
+        "width": 2,
+        "height": 0.5500000000000003,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.04,
+        "z": 3.63,
+        "width": 2,
+        "height": 0.08,
+        "depth": 0.44,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -4.5,
+        "y": 1.6,
+        "z": 0,
+        "width": 0.28,
+        "height": 3.2,
+        "depth": 7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 4.5,
+        "y": 1.6,
+        "z": 0,
+        "width": 0.28,
+        "height": 3.2,
+        "depth": 7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.291666666666667,
+        "z": 0,
+        "width": 9.7,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.475,
+        "z": 0,
+        "width": 8.622222222222222,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.6583333333333337,
+        "z": 0,
+        "width": 7.544444444444444,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.841666666666667,
+        "z": 0,
+        "width": 6.466666666666667,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.025,
+        "z": 0,
+        "width": 5.388888888888888,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.208333333333334,
+        "z": 0,
+        "width": 4.311111111111111,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.391666666666667,
+        "z": 0,
+        "width": 3.2333333333333334,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.575,
+        "z": 0,
+        "width": 2.1555555555555554,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.758333333333333,
+        "z": 0,
+        "width": 1.0777777777777782,
+        "height": 0.18333333333333332,
+        "depth": 7.7,
+        "yaw": 0,
+        "material": "stone"
+      }
+    ]
+  },
+  "warehouse": {
+    "footprint": [
+      14.7,
+      10.7
+    ],
+    "height": 5.425,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.055,
+        "z": 0,
+        "width": 14,
+        "height": 0.11,
+        "depth": 10,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -4.0,
+        "y": 1.6,
+        "z": -5.0,
+        "width": 6.0,
+        "height": 3.2,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 4.0,
+        "y": 1.6,
+        "z": -5.0,
+        "width": 6.0,
+        "height": 3.2,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 2.925,
+        "z": -5.0,
+        "width": 2,
+        "height": 0.5500000000000003,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.04,
+        "z": -5.13,
+        "width": 2,
+        "height": 0.08,
+        "depth": 0.44,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -4.0,
+        "y": 1.6,
+        "z": 5.0,
+        "width": 6.0,
+        "height": 3.2,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 4.0,
+        "y": 1.6,
+        "z": 5.0,
+        "width": 6.0,
+        "height": 3.2,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 2.925,
+        "z": 5.0,
+        "width": 2,
+        "height": 0.5500000000000003,
+        "depth": 0.28,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.04,
+        "z": 5.13,
+        "width": 2,
+        "height": 0.08,
+        "depth": 0.44,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -7.0,
+        "y": 1.6,
+        "z": 0,
+        "width": 0.28,
+        "height": 3.2,
+        "depth": 10,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 7.0,
+        "y": 1.6,
+        "z": 0,
+        "width": 0.28,
+        "height": 3.2,
+        "depth": 10,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.271428571428572,
+        "z": 0,
+        "width": 14.7,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.4142857142857146,
+        "z": 0,
+        "width": 13.65,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.5571428571428574,
+        "z": 0,
+        "width": 12.6,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.7,
+        "z": 0,
+        "width": 11.549999999999999,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.842857142857143,
+        "z": 0,
+        "width": 10.5,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.9857142857142858,
+        "z": 0,
+        "width": 9.45,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.128571428571429,
+        "z": 0,
+        "width": 8.399999999999999,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.271428571428571,
+        "z": 0,
+        "width": 7.35,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.414285714285715,
+        "z": 0,
+        "width": 6.3,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.557142857142857,
+        "z": 0,
+        "width": 5.249999999999999,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.7,
+        "z": 0,
+        "width": 4.199999999999999,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.842857142857143,
+        "z": 0,
+        "width": 3.15,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.985714285714286,
+        "z": 0,
+        "width": 2.1000000000000005,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 5.128571428571428,
+        "z": 0,
+        "width": 1.0499999999999994,
+        "height": 0.14285714285714285,
+        "depth": 10.7,
+        "yaw": 0,
+        "material": "stone"
+      }
+    ]
+  },
+  "fort_gate": {
+    "footprint": [
+      10,
+      3
+    ],
+    "height": 6.45,
+    "colliders": [
+      {
+        "type": "box",
+        "x": -3.5,
+        "y": 2.7,
+        "z": 0,
+        "width": 3,
+        "height": 5.4,
+        "depth": 3,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -3.5,
+        "y": 0.25,
+        "z": 0,
+        "width": 3.2,
+        "height": 0.24,
+        "depth": 3.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -3.5,
+        "y": 4.9,
+        "z": 0,
+        "width": 3.2,
+        "height": 0.24,
+        "depth": 3.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -3.5,
+        "y": 5.5,
+        "z": 0,
+        "width": 3.2,
+        "height": 0.24,
+        "depth": 3.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -4.4,
+        "y": 6.0,
+        "z": -0.95,
+        "width": 0.7,
+        "height": 0.9,
+        "depth": 0.6,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.6,
+        "y": 6.0,
+        "z": -0.95,
+        "width": 0.7,
+        "height": 0.9,
+        "depth": 0.6,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 3.5,
+        "y": 2.7,
+        "z": 0,
+        "width": 3,
+        "height": 5.4,
+        "depth": 3,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 3.5,
+        "y": 0.25,
+        "z": 0,
+        "width": 3.2,
+        "height": 0.24,
+        "depth": 3.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 3.5,
+        "y": 4.9,
+        "z": 0,
+        "width": 3.2,
+        "height": 0.24,
+        "depth": 3.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 3.5,
+        "y": 5.5,
+        "z": 0,
+        "width": 3.2,
+        "height": 0.24,
+        "depth": 3.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 2.6,
+        "y": 6.0,
+        "z": -0.95,
+        "width": 0.7,
+        "height": 0.9,
+        "depth": 0.6,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 4.4,
+        "y": 6.0,
+        "z": -0.95,
+        "width": 0.7,
+        "height": 0.9,
+        "depth": 0.6,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.75,
+        "z": 0,
+        "width": 4,
+        "height": 1.3,
+        "depth": 3,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 5.5,
+        "z": 0,
+        "width": 4,
+        "height": 0.24,
+        "depth": 3.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.03,
+        "y": 1.65,
+        "z": 1.3,
+        "width": 0.13,
+        "height": 3.3,
+        "depth": 2.5,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 2.03,
+        "y": 1.65,
+        "z": 1.3,
+        "width": 0.13,
+        "height": 3.3,
+        "depth": 2.5,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "lighthouse": {
+    "footprint": [
+      7,
+      7
+    ],
+    "height": 14.74,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.2,
+        "z": 0,
+        "radius": 3.25,
+        "height": 0.4,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.275,
+        "z": 0,
+        "radius": 2.5,
+        "height": 1.75,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 3.025,
+        "z": 0,
+        "radius": 2.35,
+        "height": 1.75,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 4.775,
+        "z": 0,
+        "radius": 2.2,
+        "height": 1.75,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 6.525,
+        "z": 0,
+        "radius": 2.05,
+        "height": 1.75,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 8.275,
+        "z": 0,
+        "radius": 1.9,
+        "height": 1.75,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 10.025,
+        "z": 0,
+        "radius": 1.75,
+        "height": 1.75,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 11.0,
+        "z": 0,
+        "radius": 2.25,
+        "height": 0.3,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 12.1,
+        "z": 0,
+        "radius": 1.4,
+        "height": 2.0,
+        "material": "stone"
+      }
+    ]
+  },
+  "beach_kiosk": {
+    "footprint": [
+      6.8,
+      5.8
+    ],
+    "height": 4.725,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.14,
+        "z": 0,
+        "width": 6.4,
+        "height": 0.28,
+        "depth": 5.4,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -2.9,
+        "y": 1.75,
+        "z": -2.4,
+        "width": 0.24,
+        "height": 3.5,
+        "depth": 0.24,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -2.9,
+        "y": 1.75,
+        "z": 2.4,
+        "width": 0.24,
+        "height": 3.5,
+        "depth": 0.24,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 2.9,
+        "y": 1.75,
+        "z": -2.4,
+        "width": 0.24,
+        "height": 3.5,
+        "depth": 0.24,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 2.9,
+        "y": 1.75,
+        "z": 2.4,
+        "width": 0.24,
+        "height": 3.5,
+        "depth": 0.24,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.5714285714285716,
+        "z": 0,
+        "width": 6.8,
+        "height": 0.14285714285714285,
+        "depth": 5.8,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.7142857142857144,
+        "z": 0,
+        "width": 5.828571428571429,
+        "height": 0.14285714285714285,
+        "depth": 5.8,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 3.857142857142857,
+        "z": 0,
+        "width": 4.857142857142857,
+        "height": 0.14285714285714285,
+        "depth": 5.8,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.0,
+        "z": 0,
+        "width": 3.8857142857142852,
+        "height": 0.14285714285714285,
+        "depth": 5.8,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.142857142857142,
+        "z": 0,
+        "width": 2.9142857142857146,
+        "height": 0.14285714285714285,
+        "depth": 5.8,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.285714285714286,
+        "z": 0,
+        "width": 1.9428571428571426,
+        "height": 0.14285714285714285,
+        "depth": 5.8,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 4.428571428571429,
+        "z": 0,
+        "width": 0.9714285714285718,
+        "height": 0.14285714285714285,
+        "depth": 5.8,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.65,
+        "y": 0.92,
+        "z": 0,
+        "width": 0.56,
+        "height": 1.28,
+        "depth": 4.5,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -2.65,
+        "y": 1.62,
+        "z": 0,
+        "width": 0.92,
+        "height": 0.16,
+        "depth": 4.7,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 2.65,
+        "y": 0.92,
+        "z": 0,
+        "width": 0.56,
+        "height": 1.28,
+        "depth": 4.5,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 2.65,
+        "y": 1.62,
+        "z": 0,
+        "width": 0.92,
+        "height": 0.16,
+        "depth": 4.7,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.5,
+        "y": 0.55,
+        "z": -1.2,
+        "radius": 0.13,
+        "height": 1.1,
+        "material": "wood"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.5,
+        "y": 1.12,
+        "z": -1.2,
+        "radius": 0.36,
+        "height": 0.16,
+        "material": "wood"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.5,
+        "y": 0.55,
+        "z": 1.2,
+        "radius": 0.13,
+        "height": 1.1,
+        "material": "wood"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.5,
+        "y": 1.12,
+        "z": 1.2,
+        "radius": 0.36,
+        "height": 0.16,
+        "material": "wood"
+      },
+      {
+        "type": "cylinder",
+        "x": 3.5,
+        "y": 0.55,
+        "z": -1.2,
+        "radius": 0.13,
+        "height": 1.1,
+        "material": "wood"
+      },
+      {
+        "type": "cylinder",
+        "x": 3.5,
+        "y": 1.12,
+        "z": -1.2,
+        "radius": 0.36,
+        "height": 0.16,
+        "material": "wood"
+      },
+      {
+        "type": "cylinder",
+        "x": 3.5,
+        "y": 0.55,
+        "z": 1.2,
+        "radius": 0.13,
+        "height": 1.1,
+        "material": "wood"
+      },
+      {
+        "type": "cylinder",
+        "x": 3.5,
+        "y": 1.12,
+        "z": 1.2,
+        "radius": 0.36,
+        "height": 0.16,
+        "material": "wood"
+      }
+    ]
+  },
+  "fountain": {
+    "footprint": [
+      5.4,
+      5.4
+    ],
+    "height": 3.315,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.1,
+        "z": 0,
+        "radius": 2.7,
+        "height": 0.2,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.35,
+        "z": 0,
+        "radius": 2.48,
+        "height": 0.5,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.62,
+        "z": 0,
+        "radius": 2.55,
+        "height": 0.2,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.2,
+        "z": 0,
+        "radius": 0.48,
+        "height": 1.0,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.76,
+        "z": 0,
+        "radius": 0.68,
+        "height": 0.16,
+        "material": "stone"
+      }
+    ]
+  },
+  "river_wall": {
+    "footprint": [
+      8,
+      1.2
+    ],
+    "height": 2.34,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 1.1,
+        "z": 0,
+        "width": 8,
+        "height": 2.2,
+        "depth": 1.0,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 2.22,
+        "z": 0,
+        "width": 8.2,
+        "height": 0.24,
+        "depth": 1.2,
+        "yaw": 0,
+        "material": "stone"
+      }
+    ]
+  },
+  "river_steps": {
+    "footprint": [
+      4.0,
+      4.8
+    ],
+    "height": 3.095,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.09,
+        "z": -2.1999999999999997,
+        "width": 4,
+        "height": 0.18,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.18,
+        "z": -1.7999999999999998,
+        "width": 4,
+        "height": 0.36,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.27,
+        "z": -1.4,
+        "width": 4,
+        "height": 0.54,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.36,
+        "z": -0.9999999999999998,
+        "width": 4,
+        "height": 0.72,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.44999999999999996,
+        "z": -0.5999999999999999,
+        "width": 4,
+        "height": 0.8999999999999999,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.54,
+        "z": -0.19999999999999973,
+        "width": 4,
+        "height": 1.08,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.63,
+        "z": 0.20000000000000018,
+        "width": 4,
+        "height": 1.26,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.72,
+        "z": 0.6000000000000001,
+        "width": 4,
+        "height": 1.44,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.8099999999999999,
+        "z": 1.0000000000000004,
+        "width": 4,
+        "height": 1.6199999999999999,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.8999999999999999,
+        "z": 1.4000000000000004,
+        "width": 4,
+        "height": 1.7999999999999998,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.99,
+        "z": 1.8000000000000003,
+        "width": 4,
+        "height": 1.98,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 1.08,
+        "z": 2.2000000000000006,
+        "width": 4,
+        "height": 2.16,
+        "depth": 0.4,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.12,
+        "y": 0.9,
+        "z": -2.2,
+        "width": 0.2,
+        "height": 1.15,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.12,
+        "y": 1.44,
+        "z": -1.0000000000000002,
+        "width": 0.2,
+        "height": 1.15,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.12,
+        "y": 1.98,
+        "z": 0.19999999999999973,
+        "width": 0.2,
+        "height": 1.15,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": -2.12,
+        "y": 2.52,
+        "z": 1.3999999999999995,
+        "width": 0.2,
+        "height": 1.15,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 2.12,
+        "y": 0.9,
+        "z": -2.2,
+        "width": 0.2,
+        "height": 1.15,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 2.12,
+        "y": 1.44,
+        "z": -1.0000000000000002,
+        "width": 0.2,
+        "height": 1.15,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 2.12,
+        "y": 1.98,
+        "z": 0.19999999999999973,
+        "width": 0.2,
+        "height": 1.15,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "stone"
+      },
+      {
+        "type": "box",
+        "x": 2.12,
+        "y": 2.52,
+        "z": 1.3999999999999995,
+        "width": 0.2,
+        "height": 1.15,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "stone"
+      }
+    ]
+  },
+  "fence": {
+    "footprint": [
+      4,
+      0.45
+    ],
+    "height": 1.93,
+    "colliders": [
+      {
+        "type": "box",
+        "x": -1.85,
+        "y": 0.88,
+        "z": 0,
+        "width": 0.2,
+        "height": 1.76,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.85,
+        "y": 0.88,
+        "z": 0,
+        "width": 0.2,
+        "height": 1.76,
+        "depth": 0.2,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.57,
+        "z": 0,
+        "width": 3.8,
+        "height": 0.13,
+        "depth": 0.12,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 1.3,
+        "z": 0,
+        "width": 3.8,
+        "height": 0.13,
+        "depth": 0.12,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.705,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.395,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.085,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.775,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.46499999999999997,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.155,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.155,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.46499999999999997,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.775,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.085,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.395,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.705,
+        "y": 0.9,
+        "z": 0.06,
+        "width": 0.12,
+        "height": 1.35,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "fence_gate": {
+    "footprint": [
+      4,
+      2.3
+    ],
+    "height": 2.27,
+    "colliders": [
+      {
+        "type": "box",
+        "x": -1.45,
+        "y": 1.0,
+        "z": 0,
+        "width": 0.3,
+        "height": 2,
+        "depth": 0.3,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.35,
+        "y": 0.4,
+        "z": 0.78,
+        "width": 0.15,
+        "height": 0.15,
+        "depth": 1.55,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.35,
+        "y": 1.3,
+        "z": 0.78,
+        "width": 0.15,
+        "height": 0.15,
+        "depth": 1.55,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.35,
+        "y": 0.88,
+        "z": 0.12,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.35,
+        "y": 0.88,
+        "z": 0.42,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.35,
+        "y": 0.88,
+        "z": 0.72,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.35,
+        "y": 0.88,
+        "z": 1.02,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.35,
+        "y": 0.88,
+        "z": 1.3199999999999998,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.45,
+        "y": 1.0,
+        "z": 0,
+        "width": 0.3,
+        "height": 2,
+        "depth": 0.3,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.35,
+        "y": 0.4,
+        "z": 0.78,
+        "width": 0.15,
+        "height": 0.15,
+        "depth": 1.55,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.35,
+        "y": 1.3,
+        "z": 0.78,
+        "width": 0.15,
+        "height": 0.15,
+        "depth": 1.55,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.35,
+        "y": 0.88,
+        "z": 0.12,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.35,
+        "y": 0.88,
+        "z": 0.42,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.35,
+        "y": 0.88,
+        "z": 0.72,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.35,
+        "y": 0.88,
+        "z": 1.02,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.35,
+        "y": 0.88,
+        "z": 1.3199999999999998,
+        "width": 0.1,
+        "height": 1.4,
+        "depth": 0.15,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "cliff_rock": {
+    "footprint": [
+      7,
+      7
+    ],
+    "height": 5.5,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.34375,
+        "z": 0,
+        "radius": 0.05,
+        "height": 0.6875,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.03125,
+        "z": 0,
+        "radius": 2.301803640626194,
+        "height": 0.6875,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.71875,
+        "z": 0,
+        "radius": 3.0137684051698463,
+        "height": 0.6875,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 2.40625,
+        "z": 0,
+        "radius": 3.3694955112004528,
+        "height": 0.6875,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 3.09375,
+        "z": 0,
+        "radius": 3.3694955112004528,
+        "height": 0.6875,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 3.78125,
+        "z": 0,
+        "radius": 3.0137684051698463,
+        "height": 0.6875,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 4.46875,
+        "z": 0,
+        "radius": 2.301803640626194,
+        "height": 0.6875,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 5.15625,
+        "z": 0,
+        "radius": 0.05,
+        "height": 0.6875,
+        "material": "stone"
+      }
+    ]
+  },
+  "cliff_rock_low": {
+    "footprint": [
+      9,
+      6
+    ],
+    "height": 3.08,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.1668333333333334,
+        "z": 0,
+        "radius": 0.025,
+        "height": 0.3336666666666668,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.5005000000000002,
+        "z": 0,
+        "radius": 2.059865820872806,
+        "height": 0.33366666666666667,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.8341666666666667,
+        "z": 0,
+        "radius": 2.60554706731619,
+        "height": 0.33366666666666667,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.1678333333333335,
+        "z": 0,
+        "radius": 2.60554706731619,
+        "height": 0.3336666666666668,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.5015000000000003,
+        "z": 0,
+        "radius": 2.059865820872806,
+        "height": 0.3336666666666668,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.8351666666666668,
+        "z": 0,
+        "radius": 0.025,
+        "height": 0.33366666666666656,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.08,
+        "y": 1.4989333333333335,
+        "z": -0.48,
+        "radius": 0.025,
+        "height": 0.28746666666666676,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.08,
+        "y": 1.7864,
+        "z": -0.48,
+        "radius": 1.6435099634623456,
+        "height": 0.28746666666666665,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.08,
+        "y": 2.0738666666666665,
+        "z": -0.48,
+        "radius": 2.07889393668845,
+        "height": 0.28746666666666665,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.08,
+        "y": 2.3613333333333335,
+        "z": -0.48,
+        "radius": 2.07889393668845,
+        "height": 0.28746666666666676,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.08,
+        "y": 2.6488,
+        "z": -0.48,
+        "radius": 1.6435099634623456,
+        "height": 0.28746666666666654,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.08,
+        "y": 2.9362666666666666,
+        "z": -0.48,
+        "radius": 0.025,
+        "height": 0.28746666666666676,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.79,
+        "y": 0.1078,
+        "z": 0.8400000000000001,
+        "radius": 0.025,
+        "height": 0.2156,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.79,
+        "y": 0.3234,
+        "z": 0.8400000000000001,
+        "radius": 1.314807970769876,
+        "height": 0.2156,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.79,
+        "y": 0.539,
+        "z": 0.8400000000000001,
+        "radius": 1.6631151493507597,
+        "height": 0.2156,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.79,
+        "y": 0.7546,
+        "z": 0.8400000000000001,
+        "radius": 1.6631151493507597,
+        "height": 0.2156,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.79,
+        "y": 0.9702000000000001,
+        "z": 0.8400000000000001,
+        "radius": 1.314807970769876,
+        "height": 0.2156,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.79,
+        "y": 1.1858,
+        "z": 0.8400000000000001,
+        "radius": 0.025,
+        "height": 0.2156,
+        "material": "stone"
+      }
+    ]
+  },
+  "cliff_rock_tall": {
+    "footprint": [
+      7,
+      6
+    ],
+    "height": 7.48,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.4051666666666667,
+        "z": 0,
+        "radius": 0.025,
+        "height": 0.8103333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.2155,
+        "z": 0,
+        "radius": 2.059865820872806,
+        "height": 0.8103333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 2.0258333333333334,
+        "z": 0,
+        "radius": 2.60554706731619,
+        "height": 0.8103333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 2.8361666666666667,
+        "z": 0,
+        "radius": 2.60554706731619,
+        "height": 0.8103333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 3.6465,
+        "z": 0,
+        "radius": 2.059865820872806,
+        "height": 0.8103333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 4.456833333333334,
+        "z": 0,
+        "radius": 0.025,
+        "height": 0.8103333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0.84,
+        "y": 3.6402666666666663,
+        "z": -0.48,
+        "radius": 0.025,
+        "height": 0.6981333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0.84,
+        "y": 4.3384,
+        "z": -0.48,
+        "radius": 1.6435099634623451,
+        "height": 0.6981333333333335,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0.84,
+        "y": 5.036533333333334,
+        "z": -0.48,
+        "radius": 2.07889393668845,
+        "height": 0.6981333333333335,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0.84,
+        "y": 5.734666666666667,
+        "z": -0.48,
+        "radius": 2.07889393668845,
+        "height": 0.6981333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0.84,
+        "y": 6.4328,
+        "z": -0.48,
+        "radius": 1.6435099634623451,
+        "height": 0.6981333333333337,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0.84,
+        "y": 7.130933333333334,
+        "z": -0.48,
+        "radius": 0.025,
+        "height": 0.6981333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.17,
+        "y": 0.2617999999999998,
+        "z": 0.8400000000000001,
+        "radius": 0.025,
+        "height": 0.5235999999999998,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.17,
+        "y": 0.7853999999999999,
+        "z": 0.8400000000000001,
+        "radius": 1.0993255533381463,
+        "height": 0.5236000000000001,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.17,
+        "y": 1.309,
+        "z": 0.8400000000000001,
+        "radius": 1.3905490554293851,
+        "height": 0.5236000000000001,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.17,
+        "y": 1.8325999999999998,
+        "z": 0.8400000000000001,
+        "radius": 1.3905490554293851,
+        "height": 0.5235999999999998,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.17,
+        "y": 2.3562,
+        "z": 0.8400000000000001,
+        "radius": 1.0993255533381465,
+        "height": 0.5236000000000001,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -2.17,
+        "y": 2.8798,
+        "z": 0.8400000000000001,
+        "radius": 0.025,
+        "height": 0.5236000000000001,
+        "material": "stone"
+      }
+    ]
+  },
+  "cliff_ledge": {
+    "footprint": [
+      12,
+      7
+    ],
+    "height": 4.84,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.26216666666666666,
+        "z": 0,
+        "radius": 0.025,
+        "height": 0.5243333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.7865,
+        "z": 0,
+        "radius": 2.403176791018274,
+        "height": 0.5243333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.310833333333333,
+        "z": 0,
+        "radius": 3.039804911868889,
+        "height": 0.5243333333333331,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.8351666666666664,
+        "z": 0,
+        "radius": 3.039804911868889,
+        "height": 0.5243333333333335,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 2.3594999999999997,
+        "z": 0,
+        "radius": 2.403176791018274,
+        "height": 0.5243333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 2.883833333333333,
+        "z": 0,
+        "radius": 0.025,
+        "height": 0.5243333333333329,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.44,
+        "y": 2.3554666666666666,
+        "z": -0.56,
+        "radius": 0.025,
+        "height": 0.4517333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.44,
+        "y": 2.8072,
+        "z": -0.56,
+        "radius": 1.9174282907060691,
+        "height": 0.45173333333333343,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.44,
+        "y": 3.2589333333333332,
+        "z": -0.56,
+        "radius": 2.4253762594698576,
+        "height": 0.45173333333333343,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.44,
+        "y": 3.7106666666666666,
+        "z": -0.56,
+        "radius": 2.4253762594698576,
+        "height": 0.4517333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.44,
+        "y": 4.1624,
+        "z": -0.56,
+        "radius": 1.9174282907060691,
+        "height": 0.45173333333333354,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 1.44,
+        "y": 4.614133333333333,
+        "z": -0.56,
+        "radius": 0.025,
+        "height": 0.4517333333333333,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.7199999999999998,
+        "y": 0.1694,
+        "z": 0.9800000000000001,
+        "radius": 0.025,
+        "height": 0.3388,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.7199999999999998,
+        "y": 0.5082,
+        "z": 0.9800000000000001,
+        "radius": 1.5339426325648555,
+        "height": 0.3388,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.7199999999999998,
+        "y": 0.847,
+        "z": 0.9800000000000001,
+        "radius": 1.9403010075758862,
+        "height": 0.3388,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.7199999999999998,
+        "y": 1.1858,
+        "z": 0.9800000000000001,
+        "radius": 1.9403010075758862,
+        "height": 0.3388,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.7199999999999998,
+        "y": 1.5246,
+        "z": 0.9800000000000001,
+        "radius": 1.5339426325648555,
+        "height": 0.3388,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": -3.7199999999999998,
+        "y": 1.8634,
+        "z": 0.9800000000000001,
+        "radius": 0.025,
+        "height": 0.3388,
+        "material": "stone"
+      }
+    ]
+  },
+  "boat": {
+    "footprint": [
+      3.4,
+      7
+    ],
+    "height": 3.1,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.22,
+        "z": 0,
+        "width": 1.5,
+        "height": 0.35,
+        "depth": 5.2,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.4726749999999998,
+        "y": 0.69,
+        "z": -2.97,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.8056749999999999,
+        "y": 0.69,
+        "z": -2.43,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.072075,
+        "y": 0.69,
+        "z": -1.8900000000000001,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.271875,
+        "y": 0.69,
+        "z": -1.35,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.4050749999999999,
+        "y": 0.69,
+        "z": -0.81,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.471675,
+        "y": 0.69,
+        "z": -0.27,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.471675,
+        "y": 0.69,
+        "z": 0.27,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.4050749999999999,
+        "y": 0.69,
+        "z": 0.81,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.271875,
+        "y": 0.69,
+        "z": 1.35,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.072075,
+        "y": 0.69,
+        "z": 1.8900000000000001,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.8056749999999999,
+        "y": 0.69,
+        "z": 2.43,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.4726749999999998,
+        "y": 0.69,
+        "z": 2.97,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.4726749999999998,
+        "y": 0.69,
+        "z": -2.97,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.8056749999999999,
+        "y": 0.69,
+        "z": -2.43,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.072075,
+        "y": 0.69,
+        "z": -1.8900000000000001,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.271875,
+        "y": 0.69,
+        "z": -1.35,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.4050749999999999,
+        "y": 0.69,
+        "z": -0.81,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.471675,
+        "y": 0.69,
+        "z": -0.27,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.471675,
+        "y": 0.69,
+        "z": 0.27,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.4050749999999999,
+        "y": 0.69,
+        "z": 0.81,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.271875,
+        "y": 0.69,
+        "z": 1.35,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.072075,
+        "y": 0.69,
+        "z": 1.8900000000000001,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.8056749999999999,
+        "y": 0.69,
+        "z": 2.43,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.4726749999999998,
+        "y": 0.69,
+        "z": 2.97,
+        "width": 0.19,
+        "height": 1.15,
+        "depth": 0.56,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.88,
+        "z": -1.8,
+        "width": 2.4,
+        "height": 0.14,
+        "depth": 0.42,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.88,
+        "z": 0,
+        "width": 2.4,
+        "height": 0.14,
+        "depth": 0.42,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.88,
+        "z": 1.8,
+        "width": 2.4,
+        "height": 0.14,
+        "depth": 0.42,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 1.7,
+        "z": 0.7,
+        "width": 0.12,
+        "height": 2.8,
+        "depth": 0.12,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "interior_counter": {
+    "footprint": [
+      2.8,
+      0.9
+    ],
+    "height": 1.55,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.53,
+        "z": 0,
+        "width": 2.6,
+        "height": 1.06,
+        "depth": 0.76,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 1.12,
+        "z": 0,
+        "width": 2.8,
+        "height": 0.14,
+        "depth": 0.9,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "bed": {
+    "footprint": [
+      1.6,
+      2.5
+    ],
+    "height": 1.225,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.3,
+        "z": 0,
+        "width": 1.55,
+        "height": 0.28,
+        "depth": 2.4,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.53,
+        "z": 0,
+        "width": 1.48,
+        "height": 0.22,
+        "depth": 2.28,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.7,
+        "y": 0.3,
+        "z": -1.1,
+        "width": 0.14,
+        "height": 0.6,
+        "depth": 0.14,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -0.7,
+        "y": 0.3,
+        "z": 1.1,
+        "width": 0.14,
+        "height": 0.6,
+        "depth": 0.14,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.7,
+        "y": 0.3,
+        "z": -1.1,
+        "width": 0.14,
+        "height": 0.6,
+        "depth": 0.14,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0.7,
+        "y": 0.3,
+        "z": 1.1,
+        "width": 0.14,
+        "height": 0.6,
+        "depth": 0.14,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.9,
+        "z": 1.16,
+        "width": 1.57,
+        "height": 0.65,
+        "depth": 0.12,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "bench": {
+    "footprint": [
+      2.4,
+      0.9
+    ],
+    "height": 1.5,
+    "colliders": [
+      {
+        "type": "box",
+        "x": -0.85,
+        "y": 0.34,
+        "z": -0.3,
+        "width": 0.13,
+        "height": 0.68,
+        "depth": 0.13,
+        "yaw": 0,
+        "material": "metal"
+      },
+      {
+        "type": "box",
+        "x": -0.85,
+        "y": 0.34,
+        "z": 0.3,
+        "width": 0.13,
+        "height": 0.68,
+        "depth": 0.13,
+        "yaw": 0,
+        "material": "metal"
+      },
+      {
+        "type": "box",
+        "x": -0.85,
+        "y": 0.84,
+        "z": -0.34,
+        "width": 0.13,
+        "height": 1.32,
+        "depth": 0.13,
+        "yaw": 0,
+        "material": "metal"
+      },
+      {
+        "type": "box",
+        "x": 0.85,
+        "y": 0.34,
+        "z": -0.3,
+        "width": 0.13,
+        "height": 0.68,
+        "depth": 0.13,
+        "yaw": 0,
+        "material": "metal"
+      },
+      {
+        "type": "box",
+        "x": 0.85,
+        "y": 0.34,
+        "z": 0.3,
+        "width": 0.13,
+        "height": 0.68,
+        "depth": 0.13,
+        "yaw": 0,
+        "material": "metal"
+      },
+      {
+        "type": "box",
+        "x": 0.85,
+        "y": 0.84,
+        "z": -0.34,
+        "width": 0.13,
+        "height": 1.32,
+        "depth": 0.13,
+        "yaw": 0,
+        "material": "metal"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.71,
+        "z": -0.28,
+        "width": 2.4,
+        "height": 0.14,
+        "depth": 0.24,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.71,
+        "z": 0,
+        "width": 2.4,
+        "height": 0.14,
+        "depth": 0.24,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.71,
+        "z": 0.28,
+        "width": 2.4,
+        "height": 0.14,
+        "depth": 0.24,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 1.02,
+        "z": -0.34,
+        "width": 2.4,
+        "height": 0.23,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 1.3,
+        "z": -0.34,
+        "width": 2.4,
+        "height": 0.23,
+        "depth": 0.1,
+        "yaw": 0,
+        "material": "wood"
+      }
+    ]
+  },
+  "planter": {
+    "footprint": [
+      1.7,
+      1.7
+    ],
+    "height": 1.39,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.4,
+        "z": 0,
+        "radius": 0.64,
+        "height": 0.8,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.83,
+        "z": 0,
+        "radius": 0.76,
+        "height": 0.15,
+        "material": "stone"
+      }
+    ]
+  },
+  "lamp_post": {
+    "footprint": [
+      1.2,
+      1.2
+    ],
+    "height": 4.57,
+    "colliders": [
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 0.14,
+        "z": 0,
+        "radius": 0.4,
+        "height": 0.28,
+        "material": "stone"
+      },
+      {
+        "type": "cylinder",
+        "x": 0,
+        "y": 1.92,
+        "z": 0,
+        "radius": 0.085,
+        "height": 3.56,
+        "material": "metal"
+      }
+    ]
+  },
+  "market_stall": {
+    "footprint": [
+      3.8,
+      2.6
+    ],
+    "height": 2.8,
+    "colliders": [
+      {
+        "type": "box",
+        "x": 0,
+        "y": 0.48,
+        "z": 0,
+        "width": 3.5,
+        "height": 0.96,
+        "depth": 1.45,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 0,
+        "y": 1.04,
+        "z": 0,
+        "width": 3.65,
+        "height": 0.16,
+        "depth": 1.55,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.7,
+        "y": 1.4,
+        "z": -0.8,
+        "width": 0.14,
+        "height": 2.8,
+        "depth": 0.14,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": -1.7,
+        "y": 1.4,
+        "z": 0.8,
+        "width": 0.14,
+        "height": 2.8,
+        "depth": 0.14,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.7,
+        "y": 1.4,
+        "z": -0.8,
+        "width": 0.14,
+        "height": 2.8,
+        "depth": 0.14,
+        "yaw": 0,
+        "material": "wood"
+      },
+      {
+        "type": "box",
+        "x": 1.7,
+        "y": 1.4,
+        "z": 0.8,
+        "width": 0.14,
+        "height": 2.8,
+        "depth": 0.14,
         "yaw": 0,
         "material": "wood"
       }

@@ -1,11 +1,11 @@
 {
   "palette": [
-    "3B4A57",
-    "7F93A3",
-    "9C5B32",
-    "C07A45",
-    "4A3F38",
-    "1FB5A8",
+    "293B43",
+    "8C9899",
+    "8D5430",
+    "C18A4F",
+    "3A342E",
+    "258F86",
     "FFC23D",
     "B4D1EC",
     "E76F51",
@@ -13,10 +13,10 @@
     "3FA9F5",
     "A468FF",
     "FFB81C",
-    "A27C5C",
-    "C19D62",
-    "7A4424",
-    "4A2C1C",
+    "B27B45",
+    "DBAB67",
+    "805131",
+    "3A2418",
     "6E7040",
     "51532F",
     "E8C08A",
@@ -25,9 +25,9 @@
     "E9B44C",
     "1A120C",
     "D3EBFF",
-    "3B4A57",
-    "3B4A57",
-    "3B4A57",
+    "38251F",
+    "376A79",
+    "E9DEBD",
     "3B4A57",
     "3B4A57",
     "3B4A57",
@@ -36,7 +36,7 @@
   "weapons": [
     {
       "id": "pistol",
-      "trianglesWithPaws": 7188,
+      "trianglesWithPaws": 39678,
       "muzzle": [
         0,
         0.025,
@@ -46,7 +46,7 @@
     },
     {
       "id": "smg",
-      "trianglesWithPaws": 7536,
+      "trianglesWithPaws": 39682,
       "muzzle": [
         0,
         0,
@@ -56,7 +56,7 @@
     },
     {
       "id": "m4",
-      "trianglesWithPaws": 8140,
+      "trianglesWithPaws": 39676,
       "muzzle": [
         0,
         0,
@@ -66,7 +66,7 @@
     },
     {
       "id": "shotgun",
-      "trianglesWithPaws": 7428,
+      "trianglesWithPaws": 39684,
       "muzzle": [
         0,
         0,
@@ -76,7 +76,7 @@
     },
     {
       "id": "dmr",
-      "trianglesWithPaws": 8028,
+      "trianglesWithPaws": 17894,
       "muzzle": [
         0,
         0,
@@ -86,7 +86,7 @@
     },
     {
       "id": "sniper",
-      "trianglesWithPaws": 8264,
+      "trianglesWithPaws": 17892,
       "muzzle": [
         0,
         0,
@@ -96,7 +96,7 @@
     },
     {
       "id": "machete",
-      "trianglesWithPaws": 9396,
+      "trianglesWithPaws": 16644,
       "muzzle": [
         -0.14,
         0.6,
@@ -106,7 +106,7 @@
     },
     {
       "id": "slingshot",
-      "trianglesWithPaws": 6000,
+      "trianglesWithPaws": 16400,
       "muzzle": [
         0,
         0.24,
@@ -115,11 +115,11 @@
       "sightY": 0.24
     }
   ],
-  "bytes": 431492,
+  "bytes": 4483880,
   "materials": 1,
   "texture": {
     "format": "PNG",
-    "width": 32,
-    "height": 32
+    "width": 1024,
+    "height": 1024
   }
 }
