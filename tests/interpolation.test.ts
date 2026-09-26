@@ -15,7 +15,7 @@ function snapshot(time: number, patch: Partial<ActorState> = {}): WorldSnapshot 
   return { protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: 'a'.repeat(48), tick: Math.round(time * 60), time,
     phase: 'playing', config: DEFAULT_CONFIG, countdown: 0, remaining: 300, actors: [
       { ...actor, pos: { x: time * 4, y: 0, z: 0 }, ...patch }, { ...actor, id: 'local' }],
-    loot: [], openedChests: [], results: [], plane: { x: 0, y: 30, z: 0 },
+    loot: [], openedChests: [], supplyDrops: [], results: [], plane: { x: 0, y: 30, z: 0 },
     zone: { x: 0, z: 0, radius: 100, nextRadius: 90, nextX: 0, nextZ: 0, phase: 1, shrinking: false, timeLeft: 60, damage: 1 } };
 }
 

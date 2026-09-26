@@ -53,6 +53,7 @@ async function warmupHarness(load = vi.fn(async () => fixture())) {
   const renderer = Object.assign(Object.create(GameRenderer.prototype), {
     disposed: false, warming: null, assets, onProgress: vi.fn(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
     worldView: { skyTexture: { image: { data: [] } } },
+    supplyDrops: { ready: Promise.resolve() },
     weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera() },
     gl: { compileAsync: vi.fn().mockResolvedValue(undefined) }, resize: vi.fn(), uploadEverything: upload,
   }) as InstanceType<typeof GameRenderer>;
@@ -217,6 +218,19 @@ describe('capybara asset readiness', () => {
     }]);
   });
 
+  it.each(['', '?weapons=legacy'])('counts the complete authored delivery download for URL %s', async search => {
+    vi.stubGlobal('location', { search });
+    const { GameRenderer } = await import('../src/render/renderer');
+    const stop = new Error('Manifest captured before GPU setup');
+    loaderConstructor.mockClear().mockImplementation(function () { throw stop; });
+    expect(() => new GameRenderer({} as HTMLCanvasElement, { objects: [] } as unknown as WorldSpec, {} as Settings)).toThrow(stop);
+    const manifest = loaderConstructor.mock.calls[0][2] as readonly AssetEntry[];
+    expect(manifest.filter(asset => asset.path.startsWith('models/supply-drop/'))).toEqual([{
+      path: 'models/supply-drop/supply-drop.glb', kind: 'glb',
+      bytes: statSync('public/models/supply-drop/supply-drop.glb').size, label: 'Entrega do Tucano',
+    }]);
+  });
+
   it('replaces only legacy weapon assets in the optional painted manifest', async () => {
     vi.stubGlobal('location', { search: '?capy=v3&weapons=v3' });
     const { GameRenderer } = await import('../src/render/renderer');
@@ -268,6 +282,17 @@ describe('capybara asset readiness', () => {
     expect(upload).not.toHaveBeenCalled();
     expect(warning).not.toHaveBeenCalled();
     expect(() => capy.buildCapybaraBody('#bd8956')).toThrow('ainda não está pronta');
+  });
+
+  it('keeps match readiness behind the authored delivery asset barrier', async () => {
+    const { renderer, upload } = await warmupHarness();
+    let finish!: () => void;
+    Object.assign(renderer, { supplyDrops: { ready: new Promise<void>(resolve => { finish = resolve; }) } });
+    let ready = false;
+    const warmup = renderer.warmup().then(() => { ready = true; });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ready).toBe(false); expect(upload).not.toHaveBeenCalled();
+    finish(); await warmup; expect(ready).toBe(true); expect(upload).toHaveBeenCalledOnce();
   });
 
   it.each(['bone', 'clip', 'LOD'])('rejects malformed %s assets and releases every fetched resource', async defect => {

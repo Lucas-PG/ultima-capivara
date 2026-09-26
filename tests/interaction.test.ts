@@ -13,7 +13,7 @@ describe('interaction selection', () => {
   it('preserves stable nearest ties, skips inactive loot and opened chests', () => {
     const map = world(), me = actor(), result = { id: '', name: '' };
     map.chests.push({ id: 'chest', x: -1, y: 100, z: 0 });
-    const snapshot = { loot: [loot('first', 1), loot('second', 0, 1)], openedChests: [] as string[] };
+    const snapshot = { loot: [loot('first', 1), loot('second', 0, 1)], openedChests: [] as string[], supplyDrops: [], time: 0 };
     expect(closestInteraction(map, snapshot, me, result)?.id).toBe('first');
     snapshot.loot[0].active = false;
     expect(closestInteraction(map, snapshot, me, result)?.id).toBe('second');
@@ -25,7 +25,7 @@ describe('interaction selection', () => {
 
   it('requires a live grounded actor and includes exactly three metres in 3D', () => {
     const map = world(), me = actor(), result = { id: '', name: '' };
-    const snapshot = { loot: [loot('edge', 3)], openedChests: [] };
+    const snapshot = { loot: [loot('edge', 3)], openedChests: [], supplyDrops: [], time: 0 };
     expect(closestInteraction(map, snapshot, me, result)?.id).toBe('edge');
     snapshot.loot[0].y += .01;
     expect(closestInteraction(map, snapshot, me, result)).toBeNull();
@@ -41,14 +41,14 @@ describe('interaction selection', () => {
   it('selects a farther visible item instead of a nearer item behind a wall', () => {
     const map = world(), me = actor(), result = { id: '', name: '' };
     map.colliders.push({ id: 'wall', min: { x: .8, y: 99, z: -.3 }, max: { x: 1.2, y: 103, z: .3 }, material: 'stone' });
-    const snapshot = { loot: [loot('hidden', 1.3), loot('visible', 0, 2)], openedChests: [] };
+    const snapshot = { loot: [loot('hidden', 1.3), loot('visible', 0, 2)], openedChests: [], supplyDrops: [], time: 0 };
     expect(closestInteraction(map, snapshot, me, result)?.id).toBe('visible');
   });
 
   it('reuses caller storage and refreshes weapon rarity and consumable labels', () => {
     const map = world(), me = actor(), result = { id: '', name: '' }, item = loot('item', 1);
     item.kind = 'weapon'; item.weapon = 'pistol'; item.rarity = 2;
-    const snapshot = { loot: [item], openedChests: [] };
+    const snapshot = { loot: [item], openedChests: [], supplyDrops: [], time: 0 };
     expect(closestInteraction(map, snapshot, me, result)).toBe(result);
     expect(result.name).toBe('Pistola épica');
     item.rarity = 99;

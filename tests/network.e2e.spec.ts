@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { ActorState } from '../src/shared/types';
 
 const url = 'http://127.0.0.1:5174/testfixtures/net.html';
-const config = { mode: 'corrente', capacity: 2, bots: true, difficulty: 'normal', duration: 480 };
+const config = { mode: 'battle-royale', capacity: 2, bots: true, difficulty: 'normal', duration: 480 };
 
 test('host and guest exchange lobby, gameplay, recovery, and close over local PeerJS', async ({ browser }) => {
   test.setTimeout(90_000);
@@ -16,12 +16,12 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
       const moduleUrl = '/src/network/session.ts';
       const { RoomSession } = await import(moduleUrl);
       const w = window as any;
-      w.net = { rooms: [], starts: [], inputs: [], actions: [], players: [], snapshots: [], closed: [], statuses: [] };
+      w.net = { rooms: [], starts: [], inputs: [], actions: [], players: [], snapshots: [], events: [], closed: [], statuses: [] };
       w.session = new RoomSession({
         room: (v: unknown) => w.net.rooms.push(v), start: (...v: unknown[]) => w.net.starts.push(v),
         input: (...v: unknown[]) => w.net.inputs.push(v), action: (...v: unknown[]) => w.net.actions.push(v),
         player: (...v: unknown[]) => w.net.players.push(v), snapshot: (v: unknown) => w.net.snapshots.push(v),
-        status: (v: unknown) => w.net.statuses.push(v), events: () => {}, error: (v: unknown) => { throw new Error(String(v)); }, closed: (v: unknown) => w.net.closed.push(v),
+        status: (v: unknown) => w.net.statuses.push(v), events: (v: unknown[]) => w.net.events.push(...v), error: (v: unknown) => { throw new Error(String(v)); }, closed: (v: unknown) => w.net.closed.push(v),
       });
       await w.session.host({ name: 'Host', color: '#1fb5a8' }, settings);
       return w.session.state.code as string;
@@ -30,12 +30,12 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
       const moduleUrl = '/src/network/session.ts';
       const { RoomSession } = await import(moduleUrl);
       const w = window as any;
-      w.net = { rooms: [], starts: [], inputs: [], actions: [], players: [], snapshots: [], closed: [], statuses: [] };
+      w.net = { rooms: [], starts: [], inputs: [], actions: [], players: [], snapshots: [], events: [], closed: [], statuses: [] };
       w.session = new RoomSession({
         room: (v: unknown) => w.net.rooms.push(v), start: (...v: unknown[]) => w.net.starts.push(v),
         input: (...v: unknown[]) => w.net.inputs.push(v), action: (...v: unknown[]) => w.net.actions.push(v),
         player: (...v: unknown[]) => w.net.players.push(v), snapshot: (v: unknown) => w.net.snapshots.push(v),
-        status: (v: unknown) => w.net.statuses.push(v), events: () => {}, error: (v: unknown) => { throw new Error(String(v)); }, closed: (v: unknown) => w.net.closed.push(v),
+        status: (v: unknown) => w.net.statuses.push(v), events: (v: unknown[]) => w.net.events.push(...v), error: (v: unknown) => { throw new Error(String(v)); }, closed: (v: unknown) => w.net.closed.push(v),
       });
       try { await w.session.join(code, { name: 'Guest', color: '#e76f51' }); }
       catch (error) { return `ERROR:${String(error)}`; }
@@ -92,13 +92,16 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
         z: n, active: true, rarity: 0, respawnAt: 0 }));
       const snapshot = { protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: s.matchId, tick: 1, time: 1,
         phase: 'playing', config: s.state.config, countdown: 0, remaining: 479, actors,
-        loot, openedChests: [], zone: { x: 0, z: 0, radius: 100, nextRadius: 90, nextX: 0,
+        loot, openedChests: [], supplyDrops: [{ id: 'supply-1', pos: { x: 8, y: 2.2, z: -20 }, district: 'vila', heading: 1,
+          announcedAt: 0, releaseAt: 5, landsAt: 17, opened: false }], zone: { x: 0, z: 0, radius: 100, nextRadius: 90, nextX: 0,
           nextZ: 0, phase: 1, shrinking: false, timeLeft: 60, damage: 1 }, results: [],
         plane: { x: 0, y: 30, z: 0 } };
       const moduleUrl = '/src/network/codec.ts';
       const { worldPart, packet } = await import(moduleUrl);
       const bytes = new TextEncoder().encode(JSON.stringify(packet('base', { rev: 1, data: worldPart(snapshot) }))).length;
-      s.publish(snapshot, []);
+      w.snapshot = snapshot;
+      const drop = snapshot.supplyDrops[0];
+      s.publish(snapshot, [{ type: 'supply', id: 1, drop: drop.id, pos: drop.pos, district: drop.district, stage: 'incoming' }]);
       return bytes;
     });
     expect(baselineBytes).toBeGreaterThan(16_300);
@@ -110,8 +113,11 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
     expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].wetUntil)).toBe(0);
     expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].emote)).toBe('wave');
     expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].emoteUntil)).toBe(4);
-    expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).config.mode)).toBe('corrente');
+    expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).config.mode)).toBe('battle-royale');
     expect(await guest.evaluate(() => (window as any).net.snapshots.at(-1).actors[0].weaponLevel)).toBe(2);
+    await expect.poll(() => guest.evaluate(() => (window as any).net.events.filter((event: any) => event.type === 'supply').length)).toBe(1);
+    await host.evaluate(() => { const w = window as any; w.snapshot.time = 11; w.snapshot.tick++; w.session.publish(w.snapshot, []); });
+    await expect.poll(() => guest.evaluate(() => (window as any).net.snapshots.at(-1)?.time)).toBe(11);
 
     const beforeRecovery = await guest.evaluate(() => (window as any).net.snapshots.length as number);
     const recoveryStarted = Date.now();
@@ -122,6 +128,20 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
     expect(Date.now() - recoveryStarted).toBeLessThan(30_000);
     expect(await guest.evaluate(() => (window as any).net.statuses)).toContain('reconnecting');
     await expect.poll(() => guest.evaluate(() => (window as any).net.snapshots.length)).toBeGreaterThan(beforeRecovery);
+    const recoveredDrop = await guest.evaluate(async () => {
+      const path = '/src/shared/supply-drops.ts', { supplyDropPhase, supplyDropPosition } = await import(path);
+      const snapshot = (window as any).net.snapshots.at(-1), drop = snapshot.supplyDrops[0];
+      return { phase: supplyDropPhase(drop, snapshot.time), pos: supplyDropPosition(drop, snapshot.time), count: snapshot.supplyDrops.length };
+    });
+    expect(recoveredDrop).toEqual({ phase: 'descending', pos: { x: 8, y: 18.2, z: -20 }, count: 1 });
+    await host.evaluate(() => {
+      const w = window as any, drop = w.snapshot.supplyDrops[0];
+      drop.opened = true; w.snapshot.time = 18; w.snapshot.tick++;
+      const event = { type: 'supply', id: 2, drop: drop.id, pos: drop.pos, district: drop.district, stage: 'opened' };
+      w.session.publish(w.snapshot, [event]); w.session.publish(w.snapshot, [event]);
+    });
+    await expect.poll(() => guest.evaluate(() => (window as any).net.snapshots.at(-1)?.supplyDrops[0].opened)).toBe(true);
+    await expect.poll(() => guest.evaluate(() => (window as any).net.events.filter((event: any) => event.type === 'supply' && event.stage === 'opened').length)).toBe(1);
     await guest.evaluate(() => {
       const w = window as any;
       w.session.sendInput({ seq: 1, moveX: 0, moveZ: 1, yaw: 0, pitch: 0, sprint: false,
