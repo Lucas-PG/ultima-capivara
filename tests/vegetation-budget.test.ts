@@ -120,6 +120,10 @@ describe('vegetation rendering budget', () => {
       expect(palmDirections.size).toBeGreaterThanOrEqual(4);
       const shadows = vegetation.group.children.filter((node): node is THREE.InstancedMesh =>
         node instanceof THREE.InstancedMesh && node.castShadow);
+      for (const mesh of shadows) for (let index = 0; index < mesh.count; index++) {
+        mesh.getMatrixAt(index, matrix);
+        expect(Math.hypot(matrix.elements[4], matrix.elements[5], matrix.elements[6])).toBeGreaterThanOrEqual(2.5);
+      }
       instances.push(...shadows);
       for (const mesh of instances) mesh.addEventListener('dispose', () => disposed++);
       const shadowTriangles = shadows.reduce((count, mesh) => count +

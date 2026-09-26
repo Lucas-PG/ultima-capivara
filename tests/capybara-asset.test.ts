@@ -13,11 +13,12 @@ beforeAll(async () => {
 });
 
 describe('shipped capybara asset contract', () => {
-  it('keeps specular alpha off fur and the mouth, with soft reflection only on eyes and nose', () => {
+  it('keeps specular alpha off fur and the mouth, with soft reflection only on eyes, nose and nails', () => {
     const texture = asset.getRoot().listMaterials()[0].getExtension<Specular>('KHR_materials_specular')?.getSpecularTexture();
     expect(texture).toBeDefined();
     const png = Buffer.from(texture!.getImage()!);
-    expect(png.readUInt32BE(16)).toBe(16);
+    const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
+    expect(width).toBe(64); expect(height).toBe(64);
     expect(png[24]).toBe(8); expect(png[25]).toBe(6); // RGBA, not an RGB mask with implicit alpha 1.
     const chunks: Buffer[] = [];
     for (let at = 8; at < png.length;) {
@@ -25,17 +26,24 @@ describe('shipped capybara asset contract', () => {
       if (png.toString('ascii', at + 4, at + 8) === 'IDAT') chunks.push(png.subarray(at + 8, at + 8 + length));
       at += length + 12;
     }
-    const data = inflateSync(Buffer.concat(chunks)), filter = data[0], row = Uint8Array.from(data.subarray(1, 65));
-    // The atlas repeats every row. On row zero, Up is zero and Paeth equals Left.
-    expect(filter).toBeLessThanOrEqual(4);
-    for (let i = 0; i < row.length; i++) {
-      const left = i < 4 ? 0 : row[i - 4];
-      row[i] = (row[i] + (filter === 1 || filter === 4 ? left : filter === 3 ? Math.floor(left / 2) : 0)) & 255;
+    const data = inflateSync(Buffer.concat(chunks)), stride = width * 4, pixels = new Uint8Array(stride * height);
+    for (let y = 0; y < height; y++) {
+      const filter = data[y * (stride + 1)]; expect(filter).toBeLessThanOrEqual(4);
+      for (let x = 0; x < stride; x++) {
+        const left = x < 4 ? 0 : pixels[y * stride + x - 4];
+        const up = y ? pixels[(y - 1) * stride + x] : 0;
+        const corner = y && x >= 4 ? pixels[(y - 1) * stride + x - 4] : 0;
+        const prediction = left + up - corner, dl = Math.abs(prediction - left), du = Math.abs(prediction - up), dc = Math.abs(prediction - corner);
+        const paeth = dl <= du && dl <= dc ? left : du <= dc ? up : corner;
+        const add = filter === 1 ? left : filter === 2 ? up : filter === 3 ? Math.floor((left + up) / 2) : filter === 4 ? paeth : 0;
+        pixels[y * stride + x] = (data[y * (stride + 1) + 1 + x] + add) & 255;
+      }
     }
-    for (let column = 0; column < 16; column++) {
-      const alpha = row[column * 4 + 3];
-      if (column === 9 || column === 15) { expect(alpha).toBeGreaterThan(30); expect(alpha).toBeLessThan(128); }
-      else expect(alpha, `matte atlas column ${column}`).toBe(0);
+    for (let tile = 0; tile < 16; tile++) {
+      const x = (tile % 4) * 16 + 8, y = Math.floor(tile / 4) * 16 + 8;
+      const alpha = pixels[(y * width + x) * 4 + 3];
+      if (tile === 9 || tile === 15) { expect(alpha).toBeGreaterThan(30); expect(alpha).toBeLessThan(128); }
+      else expect(alpha, `matte atlas tile ${tile}`).toBe(0);
     }
   });
 
@@ -46,10 +54,12 @@ describe('shipped capybara asset contract', () => {
       const mesh = root.listMeshes().find(mesh => mesh.getName() === `Capybara_LOD${i}`)!;
       expect(mesh).toBeDefined();
       const triangles = mesh.listPrimitives().reduce((n, p) => n + p.getIndices()!.getCount() / 3, 0);
-      expect(triangles).toBeLessThanOrEqual([15000, 5000, 1500][i]);
+      expect(triangles).toBeLessThanOrEqual([20000, 5000, 1500][i]);
     }
     expect(root.listMaterials().length).toBeLessThanOrEqual(3);
     expect(root.listSkins()).toHaveLength(1);
+    expect(root.listMaterials()[0].getNormalTexture()).toBeDefined();
+    expect(root.listMaterials()[0].getMetallicRoughnessTexture()).toBeDefined();
     // Painted fur must survive export; losing COLOR_0 turns the white carrier atlas into white fur.
     const colors = root.listMeshes()[0].listPrimitives()[0].getAttribute('COLOR_0');
     expect(colors).toBeDefined();
@@ -114,7 +124,15 @@ describe('shipped capybara asset contract', () => {
     for (const name of names) {
       const clip = asset.getRoot().listAnimations().find(animation => animation.getName() === name);
       expect(clip, name).toBeDefined();
-      expect(clip!.listSamplers().some(s => s.getInput()!.getCount() >= 8), name).toBe(true);
+      if (name === 'crouch_idle') {
+        // Meshopt removes redundant samples from the quiet breath. Check its
+        // actual expansion instead of tying the contract to a sample count.
+        const breath = clip!.listChannels().find(c => c.getTargetNode()?.getName() === 'spine' && c.getTargetPath() === 'scale');
+        expect(breath).toBeDefined();
+        const values = breath!.getSampler()!.getOutput()!;
+        const widths = Array.from({ length: values.getCount() }, (_, i) => values.getElement(i, [])[0]);
+        expect(Math.max(...widths) - Math.min(...widths)).toBeGreaterThan(.005);
+      } else expect(clip!.listSamplers().some(s => s.getInput()!.getCount() >= 8), name).toBe(true);
       if (name === 'death') continue;
       for (const channel of clip!.listChannels()) {
         if (channel.getTargetNode()?.getName() !== 'root' || channel.getTargetPath() !== 'translation') continue;

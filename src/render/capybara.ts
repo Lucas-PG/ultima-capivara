@@ -7,6 +7,7 @@ import type { ActorState } from '../shared/types';
 import type { AvatarReaction } from './effects';
 import palette from './capybara-palette.json';
 import { applyCharacterStyle } from './materials';
+import { createPaintedCharacterAtlas } from './character-atlas';
 
 // Bone layout shared with GameRenderer.updateAvatars():
 // 0 root · 1 torso (pivots at the hips) · 2 head · 3 arms + held weapon (shoulders)
@@ -59,6 +60,7 @@ export function buildCapybaraBody(color: string): { body: THREE.SkinnedMesh; bon
 // Geometry, atlas, and clips are shared; poses are private.
 export const CAPYBARA_ASSET_URL = `${import.meta.env.BASE_URL}models/capybara/capybara.glb`;
 let characterAsset: GLTF | null = null;
+let characterAtlasColumns: 4 | 16 = 16;
 let characterHeadTop = 1.85;
 /** Rest-pose crown, measured once from the loaded mesh rather than the hit sphere. */
 export function capybaraHeadTop(): number { return characterHeadTop; }
@@ -76,19 +78,23 @@ function characterMaterial(source: THREE.MeshStandardMaterial, color: string): T
   const tint = new THREE.Color(color), key = `${source.uuid}:${tint.getHexString()}`;
   const cached = characterMaterials.get(key);
   if (cached) return cached;
-  // The same authored atlas drives Blender and runtime. Only cloth columns change.
+  // The same authored atlas drives Blender and runtime. Only bandana colours change.
   const colors = palette.map(hex => parseInt(hex, 16));
   colors[5] = tint.getHex(); colors[6] = shadeBandana(tint).getHex();
-  const pixels = new Uint8Array(16 * 16 * 4);
-  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-    const hex = colors[x], offset = (y * 16 + x) * 4;
-    pixels.set([hex >> 16 & 255, hex >> 8 & 255, hex & 255, 255], offset);
+  let atlas: THREE.DataTexture;
+  if (characterAtlasColumns === 4) atlas = createPaintedCharacterAtlas(colors);
+  else {
+    const pixels = new Uint8Array(16 * 16 * 4);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const hex = colors[x], offset = (y * 16 + x) * 4;
+      pixels.set([hex >> 16 & 255, hex >> 8 & 255, hex & 255, 255], offset);
+    }
+    atlas = new THREE.DataTexture(pixels, 16, 16);
+    atlas.colorSpace = THREE.SRGBColorSpace;
+    atlas.magFilter = atlas.minFilter = THREE.NearestFilter;
+    atlas.generateMipmaps = false; atlas.needsUpdate = true;
   }
-  const atlas = new THREE.DataTexture(pixels, 16, 16);
-  atlas.colorSpace = THREE.SRGBColorSpace;
-  atlas.magFilter = atlas.minFilter = THREE.NearestFilter;
-  atlas.generateMipmaps = false; atlas.needsUpdate = true;
-  const material = applyCharacterStyle(source.clone()); material.map = atlas;
+  const material = applyCharacterStyle(source.clone(), characterAtlasColumns); material.map = atlas;
   material.name = `Capivara_bandana_${tint.getHexString()}`;
   material.addEventListener('dispose', () => { atlas.dispose(); characterMaterials.delete(key); });
   characterMaterials.set(key, material);
@@ -122,7 +128,9 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
         for (let i = 0; i < 3; i++) {
           if (!(asset.scene.getObjectByName(`Capybara_LOD${i}`) instanceof THREE.SkinnedMesh)) throw new Error(`Capivara v3 inválida: LOD ${i}.`);
         }
+        let paintedAtlas = false;
         asset.scene.traverse(object => {
+          if (object.userData.paintAtlas === '4x4') paintedAtlas = true;
           if (!(object instanceof THREE.SkinnedMesh)) return;
           object.castShadow = true; object.receiveShadow = true;
           object.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
@@ -132,6 +140,7 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
         source.skeleton.update();
         const bounds = new THREE.Box3().setFromObject(source, true);
         if (Number.isFinite(bounds.max.y)) characterHeadTop = bounds.max.y;
+        characterAtlasColumns = paintedAtlas ? 4 : 16;
         characterAsset = asset;
       } catch (error) {
         disposeCharacterSource(asset);
@@ -161,7 +170,7 @@ function disposeCharacterSource(asset: GLTF): void {
 export function disposeCapybaraAssets(): void {
   characterGeneration++;
   if (characterAsset) disposeCharacterSource(characterAsset);
-  characterAsset = null; characterLoading = null;
+  characterAsset = null; characterLoading = null; characterAtlasColumns = 16;
   characterMaterials.forEach(material => material.dispose());
 }
 

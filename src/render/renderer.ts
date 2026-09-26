@@ -37,7 +37,7 @@ export class GameRenderer {
   readonly camera: THREE.PerspectiveCamera;
   private readonly gl: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly sky = new PaintedSky();
+  private readonly sky: PaintedSky;
   private readonly ambientLife = new AmbientLife();
   private readonly worldView: WorldScene;
   private readonly weaponView: WeaponView;
@@ -106,6 +106,7 @@ export class GameRenderer {
       path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
     }];
     this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
+    this.sky = new PaintedSky(this.assets);
     this.weaponView = new WeaponView(this.assets, () => { if (!this.disposed) onAssetsReady(); });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     // Neutral keeps saturated cartoon colours; ACES washed them toward grey.
@@ -113,7 +114,11 @@ export class GameRenderer {
     this.gl.shadowMap.type = THREE.PCFShadowMap;
     const pmrem = new THREE.PMREMGenerator(this.gl);
     const skyScene = new THREE.Scene(); skyScene.add(this.sky.group);
+    // Reflections use the continuous sky and sun. The asynchronously loaded
+    // cloud atlas is revealed only in the world, after the asset barrier.
+    this.sky.clouds.visible = false;
     this.environment = pmrem.fromScene(skyScene, .035, .1, 850, { size: 128 });
+    this.sky.clouds.visible = true;
     this.scene.add(this.sky.group); pmrem.dispose();
     this.weaponView.scene.environment = this.environment.texture;
     this.weaponView.scene.environmentIntensity = .35;
