@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_MIN_SCALE, HUD_MIN_TEXT, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_CENTRED_WIDTH, HUD_MIN_SCALE, HUD_MIN_TEXT, hudNarrow, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -71,6 +71,16 @@ describe('hud', () => {
     const rules = css.match(/(?:#hud|#loadingOverlay|#victory)[^{}]*\{[^}]*\}/g) || [];
     const small = rules.filter(rule => [...rule.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].some(m => Number(m[1]) < HUD_MIN_TEXT));
     expect(small).toEqual([]);
+  });
+  // The user saw the health card run into the weapon slots in a narrower window: the scale floor stops the HUD from
+  // shrinking there, so the layout must change instead.
+  it('moves the vitals aside whenever centred vitals would meet the weapon slots', () => {
+    for (const [w, h] of [[1024, 640], [1100, 900], [960, 1000], [1280, 1024]]) for (const size of [.8, 1, 1.2])
+      expect(hudNarrow(w, hudScale(w, h, size))).toBe(w / hudScale(w, h, size) < HUD_CENTRED_WIDTH);
+    expect(hudNarrow(1024, hudScale(1024, 640))).toBe(true);
+    for (const [w, h] of [[1280, 720], [1366, 768], [1600, 900], [1920, 1080], [2560, 1440]]) expect(hudNarrow(w, hudScale(w, h))).toBe(false);
+    // Phones keep their own stacked layout.
+    expect(hudNarrow(600, hudScale(600, 900))).toBe(false);
   });
   it('formats result stats in pt-BR', () => {
     expect(formatSurvived(125.4)).toBe('2:05');

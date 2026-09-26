@@ -8,7 +8,7 @@ import { boundaryFeedback } from '../shared/bounds';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon } from './icons';
-import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, tipCategory, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
@@ -690,7 +690,9 @@ export class GameUI {
     const art = coverImageSet(innerWidth, devicePixelRatio || 1), root = document.documentElement.style;
     if (root.getPropertyValue('--cover') !== art.cover) { root.setProperty('--cover', art.cover); root.setProperty('--cover-blur', art.blur); }
     const body = document.body.style, [hit, head, kill] = HIT_PALETTES[this.settings.hitPalette];
-    body.setProperty('--ui', String(hudScale(innerWidth, innerHeight, this.settings.uiScale)));
+    const scale = hudScale(innerWidth, innerHeight, this.settings.uiScale);
+    body.setProperty('--ui', String(scale)); body.setProperty('--hud-w', (innerWidth / scale).toFixed(0));
+    document.body.classList.toggle('hud-narrow', hudNarrow(innerWidth, scale));
     body.setProperty('--xc', CROSSHAIR_COLORS[this.settings.crosshairColor]);
     body.setProperty('--hit', hit); body.setProperty('--hithead', head); body.setProperty('--hitkill', kill);
     document.body.classList.toggle('reduce-motion', this.settings.reducedMotion);
