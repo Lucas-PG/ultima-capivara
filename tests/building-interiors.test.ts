@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildingRole, buildingRooms } from '../src/shared/building-interiors';
+import { buildingRole, buildingRooms, roomVariant } from '../src/shared/building-interiors';
 import { clearSpawn } from '../src/shared/collision';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { createWorld } from '../src/shared/world';
@@ -14,6 +14,20 @@ const local = (building: KitPlacement, item: KitPlacement) => {
 };
 
 describe('lived-in rooms preserve ordinary access', () => {
+  it('varies coordinated room paint by stable lot and gives homes warm finished floors', () => {
+    const houses = pieces.filter(piece => /^house_(small|tall)$/.test(piece.piece));
+    expect(new Set(houses.map(roomVariant)).size).toBe(3);
+    for (const house of houses) {
+      const variant = roomVariant(house);
+      expect(roomVariant({ ...house, id: 'unrelated-world-order' } as KitPlacement)).toBe(variant);
+      const accents = pieces.filter(piece => piece.id.startsWith(`${house.id}:interior:`) &&
+        ['rug', 'wall_picture'].includes(piece.piece));
+      expect(accents.length).toBeGreaterThanOrEqual(2);
+      for (const accent of accents) expect(accent.paintVariant, accent.id).toBe(variant);
+      expect(house.interiorFloor, house.id).toBe(['clinic', 'workshop', 'fishmonger'].includes(buildingRole(house)) ? 'warm-tile' : 'wood');
+    }
+  });
+
   it('gives every room useful furniture supported by its actual floor, without burying pieces in walls or stairs', () => {
     let count = 0;
     for (const building of pieces) for (const room of buildingRooms(building)) {

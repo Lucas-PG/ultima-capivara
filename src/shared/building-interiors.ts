@@ -21,6 +21,13 @@ export function buildingRole(building: KitPlacement): HouseRole | 'barracks' {
   return [...HOUSES, ...MORRO_LOTS].find(lot => lot.x === building.x && lot.z === building.z)?.role ?? 'barracks';
 }
 
+// Lot coordinates remain stable when unrelated world pieces are added. Do not
+// consume the gameplay random sequence or derive a room from its generated ID.
+export function roomVariant(building: Pick<KitPlacement, 'x' | 'z'>): 0 | 1 | 2 {
+  const seed = Math.imul(Math.round(building.x * 10), 73856093) ^ Math.imul(Math.round(building.z * 10), 19349663);
+  return ((seed >>> 0) % 3) as 0 | 1 | 2;
+}
+
 export function interiorPlacements(building: KitPlacement): KitPlacement[] {
   const rooms = buildingRooms(building), result: KitPlacement[] = [], scale = building.scale ?? 1;
   const cosine = Math.cos(building.yaw), sine = Math.sin(building.yaw);
@@ -28,7 +35,8 @@ export function interiorPlacements(building: KitPlacement): KitPlacement[] {
     if (!KIT_PIECES[piece]) return;
     result.push({ id: `${building.id}:interior:${room.id}:${piece}-${result.length}`, piece,
       x: building.x + (x * cosine + z * sine) * scale, y: building.y + (room.y + lift) * scale,
-      z: building.z + (z * cosine - x * sine) * scale, yaw: building.yaw + yaw, scale: scale * size });
+      z: building.z + (z * cosine - x * sine) * scale, yaw: building.yaw + yaw, scale: scale * size,
+      ...(['rug', 'wall_picture'].includes(piece) ? { paintVariant: roomVariant(building) } : {}) });
   };
   for (const room of rooms) {
     const role = buildingRole(building);

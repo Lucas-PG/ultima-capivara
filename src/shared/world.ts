@@ -5,7 +5,7 @@ import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
 import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
-import { buildingRooms, interiorPlacements } from './building-interiors';
+import { buildingRole, buildingRooms, interiorPlacements } from './building-interiors';
 import { buildBuildingRoutes, buildingPoint } from './building-access';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 
@@ -656,6 +656,8 @@ export function createWorld(): WorldSpec {
     if (!target) throw new Error(`Sem margem livre para a árvore ${plant.id}.`);
     plant.pos = target;
   }
+  for (const building of pieces) if (building.piece === 'house_small' || building.piece === 'house_tall')
+    building.interiorFloor = ['clinic', 'workshop', 'fishmonger'].includes(buildingRole(building)) ? 'warm-tile' : 'wood';
   for (const building of [...pieces]) for (const furniture of interiorPlacements(building)) {
     pieces.push(furniture); colliders.push(...kitColliders(furniture));
   }
