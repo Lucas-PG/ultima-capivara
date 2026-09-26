@@ -21,12 +21,42 @@ async function controls(page: Page, action: 'activate' | 'pause' | 'fire' | 'key
   }, { action, code, down });
 }
 
+async function traceInputs(page: Page, label: string, samples: unknown[]) {
+  await page.exposeFunction('__inputEvidence', (batch: unknown[]) => {
+    samples.push(...batch.map(sample => ({ page: label, receivedAt: Date.now(), sample })));
+  });
+  await page.evaluate(async () => {
+    const w = window as any;
+    const modules = ['/src/input.ts', '/src/network/session.ts'];
+    const [{ InputController }, { RoomSession }] = await Promise.all(modules.map(path => import(/* @vite-ignore */ path)));
+    const batch: unknown[] = [];
+    setInterval(() => { if (batch.length) void w.__inputEvidence(batch.splice(0)); }, 250);
+    const record = (stage: string, input: any, extra = {}) => batch.push({
+      stage, at: performance.now(), seq: input?.seq, moveX: input?.moveX, moveZ: input?.moveZ, clientTime: input?.clientTime, ...extra,
+    });
+    const sample = InputController.prototype.sample;
+    InputController.prototype.sample = function (this: any, time: number) {
+      const frame = sample.call(this, time);
+      record('sample', frame, { keys: [...this.keys], locked: this.locked, hidden: document.hidden }); return frame;
+    };
+    const send = RoomSession.prototype.sendInput;
+    RoomSession.prototype.sendInput = function (this: any, input: any) { record('send', input); return send.call(this, input); };
+    const prototype = RoomSession.prototype as any, accept = prototype.acceptInput;
+    prototype.acceptInput = function (this: any, guest: any, message: any) {
+      const result = accept.call(this, guest, message);
+      record('receive', message.data, { guest: guest.profile.id, accepted: guest.lastInput === message.data?.seq,
+        serverTime: w.__capivara.inspect().snapshot?.time }); return result;
+    };
+  });
+}
+
 test('two game contexts join, replicate movement and shots, show RTT, and recover the same player', async ({ browser }, info) => {
   test.skip(info.project.name !== 'chromium', 'Rendered multiplayer smoke is the Chromium gate.');
   test.setTimeout(180_000);
   const contexts = await Promise.all([browser.newContext({ viewport: { width: 1280, height: 720 } }), browser.newContext({ viewport: { width: 1280, height: 720 } })]);
   const errors: string[] = [];
   const closeProgress: unknown[] = [];
+  const inputEvidence: unknown[] = [];
   try {
     for (const context of contexts) await context.addInitScript(() => {
       if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
@@ -35,6 +65,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     const [host, guest] = await Promise.all(contexts.map(context => context.newPage()));
     for (const page of [host, guest]) page.on('pageerror', error => errors.push(error.message));
     await host.goto(gameAddress());
+    await traceInputs(host, 'host', inputEvidence);
     await host.locator('[data-do="host"]').click();
     await host.locator('[name="nickname"]').fill('Ponte Host');
     await host.getByRole('button', { name: 'Correria', exact: true }).click();
@@ -43,6 +74,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await expect(host.locator('.invite-card strong')).toHaveText(/^[A-Z2-9]{6}$/);
     const code = await host.locator('.invite-card strong').innerText();
     await guest.goto(gameAddress(code));
+    await traceInputs(guest, 'guest', inputEvidence);
     await guest.locator('[name="nickname"]').fill('Ponte Guest');
     await guest.locator('#room-form [type="submit"]').click();
     await expect(guest.locator('#connection-status')).toHaveText(/Conectado/);
@@ -116,6 +148,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await expect.poll(async () => (await inspect(guest)).room).toBeNull();
     await expect(guest.locator('#toast')).toContainText('O anfitrião fechou a sala.');
   } finally {
+    await info.attach('input-evidence', { body: JSON.stringify(inputEvidence, null, 2), contentType: 'application/json' });
     await info.attach('host-close-progress', { body: JSON.stringify(closeProgress, null, 2), contentType: 'application/json' });
     await Promise.all(contexts.map(context => context.close()));
   }

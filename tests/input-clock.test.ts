@@ -1,7 +1,32 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { InputClock } from '../src/input-clock';
+import { InputController } from '../src/input';
+import { DEFAULT_SETTINGS } from '../src/settings';
+import { installNetworkInput } from './network-game-hook';
 
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+it('sends injected QA movement through the real key state beyond 120 unacknowledged samples', () => {
+  vi.useFakeTimers();
+  const document = new EventTarget(), window = new EventTarget();
+  class KeyEvent extends Event {
+    readonly code: string; readonly repeat = false;
+    constructor(type: string, init: { code: string; bubbles?: boolean }) { super(type, init); this.code = init.code; }
+  }
+  vi.stubGlobal('document', document); vi.stubGlobal('window', window); vi.stubGlobal('KeyboardEvent', KeyEvent);
+  const input = new InputController(new EventTarget() as HTMLCanvasElement, DEFAULT_SETTINGS);
+  installNetworkInput(input);
+  const qa = (window as any).__networkQA, send = vi.fn();
+  const clock = new InputClock(() => input.locked, now => send(input.sample(now / 1000)));
+  qa.activate(); qa.key('KeyW', true);
+  vi.advanceTimersByTime(3000);
+  expect(send.mock.calls.length).toBeGreaterThanOrEqual(179);
+  expect(send.mock.calls.every(([frame]) => frame.moveZ === 1 && frame.moveX === 0)).toBe(true);
+  expect(send.mock.calls.at(-1)![0].seq).toBeGreaterThan(120);
+  qa.key('KeyW', false); expect(input.sample(3).moveZ).toBe(0); vi.advanceTimersByTime(40);
+  expect(send.mock.calls.at(-1)![0].moveZ).toBe(0);
+  clock.dispose(); input.dispose();
+});
 
 it('keeps sending beyond the replay window without animation frames or acknowledgments', () => {
   vi.useFakeTimers();
