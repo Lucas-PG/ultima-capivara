@@ -89,36 +89,41 @@ export class PaintedWater {
         float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
         float noise(vec2 p){vec2 cell=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
           return mix(mix(hash(cell),hash(cell+vec2(1,0)),f.x),mix(hash(cell+vec2(0,1)),hash(cell+vec2(1,1)),f.x),f.y);}
+        float paintedRipple(vec2 p){
+          vec2 cell=floor(p),f=fract(p);float seed=hash(cell);
+          float x=(f.x-.5)*2.0,center=.3+hash(cell+vec2(7.1,2.3))*.32;
+          float edge=f.y-center-.14*x*x;
+          float stroke=1.0-smoothstep(.015,.015+max(.025,fwidth(p.y)*1.1),abs(edge));
+          return stroke*(1.0-smoothstep(.35,.85,abs(x)))*smoothstep(.35,.65,seed);
+        }
         void main(){
           vec2 uv=vWorld.xz/islandSize+.5;
           vec2 sampleUV=(uv*(grid-1.0)+.5)/grid;
           vec4 field=texture2D(depthField,sampleUV);
           float depth=field.r*12.0,shoreDistance=field.a*16.0;
-          vec2 flow=field.gb*2.0-1.0,along=normalize(flow+vec2(.001)),across=vec2(-along.y,along.x);
+          vec2 flow=field.gb*2.0-1.0;
           vec2 p=vWorld.xz-flow*uTime*.45;
           float brush=noise(p*.31),wash=noise(p*.071+vec2(9.0,3.0));
-          float phase=dot(p,along)*3.2+sin(dot(p,across)*1.1)*.7+brush*.85;
-          float crossPhase=dot(p,across)*2.4+sin(dot(p,along)*.72);
+          float phase=dot(p,vec2(2.1,1.3))+brush*1.7;
+          float crossPhase=dot(p,vec2(-.9,2.6))+wash*.9;
           float distanceToEye=distance(vWorld,cameraPosition);
           float detailFade=1.0-smoothstep(24.0,95.0,distanceToEye);
           vec3 color=mix(shallow,middle,smoothstep(.12,1.15,depth));
           color=mix(color,deep,smoothstep(.8,3.4,depth));
           color*=.88+wash*.2+brush*.08;
-          vec2 slope=along*cos(phase)*.065+across*cos(crossPhase)*.035;
+          float waveFilter=1.0-smoothstep(.5,2.0,max(fwidth(phase),fwidth(crossPhase)));
+          vec2 slope=vec2(cos(phase)*.065,cos(crossPhase)*.045)*waveFilter;
           vec3 waterNormal=normalize(vec3(-slope.x,1.0,-slope.y));
           vec3 viewDirection=normalize(cameraPosition-vWorld);
           float fresnel=.06+.55*pow(1.0-max(0.0,dot(viewDirection,waterNormal)),3.0);
           vec3 reflection=mix(sky,horizonColor,pow(1.0-max(0.0,viewDirection.y),5.0));
-          reflection*=.88+.12*sin(phase*.35+wash);
+          reflection*=.82+wash*.15+brush*.1;
           color=mix(color,reflection,fresnel);
-          float width=max(fwidth(phase)*1.25,.055);
-          float ribbons=(1.0-smoothstep(.07,.07+width,abs(sin(phase))))*smoothstep(.48,.82,brush);
-          color=mix(color,foam,ribbons*.16*detailFade);
+          float ribbons=paintedRipple(p*vec2(.72,1.55));
+          color=mix(color,foam,ribbons*.13*detailFade);
           if(uDetail>.5){
-            float finePhase=phase*1.73+crossPhase*.53;
-            float fineWidth=max(.05,fwidth(finePhase)*1.5);
-            float fine=(1.0-smoothstep(.025,.025+fineWidth,abs(sin(finePhase))))*smoothstep(.57,.82,wash);
-            color=mix(color,foam,fine*.095*detailFade);
+            float fine=paintedRipple(p*vec2(1.6,3.2)+vec2(9.3,6.7));
+            color=mix(color,foam,fine*.06*detailFade);
             float caustic=pow(.5+.5*sin(phase*.8)*cos(crossPhase*.7),8.0);
             color+=foam*caustic*.075*(1.0-smoothstep(.3,1.5,depth))*detailFade;
           }
@@ -134,7 +139,7 @@ export class PaintedWater {
           // Dissolve into the sky haze before the far clip or the ocean mesh edge.
           // At the 120 m plane view this spans about 50 pixels at 1080p.
           float horizon=1.0-smoothstep(500.0,750.0,distanceToEye);
-          float absorption=.3+.67*(1.0-exp(-depth*.9));
+          float absorption=.18+.8*(1.0-exp(-depth*1.7));
           float alpha=smoothstep(0.0,.1,depth)*absorption;
           gl_FragColor=vec4(color,max(alpha,bank*lace*.62)*horizon);
           #include <fog_fragment>
