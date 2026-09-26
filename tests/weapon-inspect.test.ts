@@ -3,7 +3,7 @@ import { Spring } from '../src/render/spring';
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import type { ActorState, WeaponId } from '../src/shared/types';
-import { createReloadPose, MELEE_SECONDS, MELEE_CONTACT } from '../src/shared/weapon-presentation';
+import { MELEE_SECONDS, MELEE_CONTACT } from '../src/shared/weapon-presentation';
 
 beforeAll(() => {
   const noop = () => {};
@@ -29,7 +29,6 @@ async function harness() {
     lastYaw: undefined, lastPitch: 0, grounded: true, swimming: false, swimPose: 0, verticalSpeed: 0, sprintPose: 0, holster: 0,
     gait: 0, breathingTime: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], disposed: false,
     inspectTime: -1, inspectAllowed: false, restPosition: new THREE.Vector3(), restRotation: new THREE.Euler(),
-    reloadPose: createReloadPose(), reloadTarget: createReloadPose(), palm: new THREE.Vector3(), palmRotated: new THREE.Vector3(),
     bobAmount: 0, wallPose: 0, meleeTime: MELEE_SECONDS, meleeSide: -1, meleeHit: false, meleeStop: 0,
     meleePose: {}, smear, trailBase: new THREE.Vector3(), trailTip: new THREE.Vector3(), lastTrailBase: new THREE.Vector3(), lastTrailTip: new THREE.Vector3(),
   }) as InstanceType<typeof WeaponView>;
@@ -103,9 +102,6 @@ describe('first-person inspect', () => {
     expect(model.support.position.y).toBeLessThan(-.1);
     h.actor.reloadUntil = 0;
     h.view.update(h.actor, 1 / 60, DEFAULT_SETTINGS, 0, .71);
-    // Cancel smoothly from the held magazine instead of teleporting the paw.
-    expect(model.magazine.position.y).toBeLessThan(-.05);
-    for (let i = 0; i < 30; i++) h.step();
     expect(model.magazine.position.y).toBe(0);
     expect(model.support.position.length()).toBe(0);
     h.view.shot('pistol'); h.step();
@@ -134,20 +130,6 @@ describe('first-person inspect', () => {
     const segment = [...view.smear.geometry.getAttribute('position').array];
     h.step(0);
     expect([...view.smear.geometry.getAttribute('position').array]).toEqual(segment);
-  });
-
-  it('loads a painted shotgun through its support paw even though it has no detachable magazine alias', async () => {
-    const h = await harness(), view = h.view as any, model = view.models.pistol;
-    model.magazine = new THREE.Group(); model.magazine.name = 'shotgun_magazine';
-    model.painted = {}; model.rarity = 0;
-    const shell = new THREE.Object3D(); shell.name = 'reload-prop'; model.support.add(shell);
-    view.models.shotgun = model; view.active = 'shotgun';
-    h.actor.weapons[0].id = 'shotgun'; h.actor.reloadUntil = 2;
-    h.view.update(h.actor, 1 / 60, DEFAULT_SETTINGS, 0, 1.63);
-    expect(model.support.position.y).toBeLessThan(-.1);
-    expect(model.magazine.position.length()).toBe(0); expect(shell.visible).toBe(true);
-    h.view.update(h.actor, 1 / 60, DEFAULT_SETTINGS, 0, 2);
-    expect(model.support.position.length()).toBe(0); expect(shell.visible).toBe(false);
   });
 
   it('suppresses melee trail, hit-stop and camera kick in reduced motion and resets on hide', async () => {

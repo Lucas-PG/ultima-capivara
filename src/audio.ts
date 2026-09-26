@@ -2,7 +2,6 @@ import { clamp } from './shared/math';
 import { terrainHeight } from './shared/terrain';
 import { hasLineOfSight } from './shared/collision';
 import { WEAPONS } from './shared/weapons';
-import { RELOAD_CUES } from './shared/weapon-presentation';
 import type { ActorState, ConsumableId, GameEvent, Settings, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from './shared/types';
 
 type AudioBuses = { master: GainNode; effects: GainNode; ambience: GainNode; music: GainNode };
@@ -264,7 +263,7 @@ export class SoundEngine {
     }
   }
 
-  update(actor: ActorState | null, snapshot: WorldSnapshot | null, dt: number, menu: boolean, simulationTime = snapshot?.time ?? 0): void {
+  update(actor: ActorState | null, snapshot: WorldSnapshot | null, dt: number, menu: boolean): void {
     const ctx = this.context;
     this.lastSnapshot = snapshot;
     if (!ctx || !this.buses || ctx.state !== 'running' || this.disposed) return;
@@ -303,7 +302,7 @@ export class SoundEngine {
         if (other) this.voiceChirp('spot', actor.id, actor.pos, actor.pos, actor.id);
       }
     }
-    this.updateReload(actor, snapshot, now, simulationTime);
+    this.updateReload(actor, snapshot, now);
     if (!actor.alive) { this.lastActorId = null; this.lastPosition = null; this.distanceToStep = 0; return; }
     const grounded = actor.grounded && actor.stage === 'ground' && !actor.swimming;
     if (this.lastActorId !== actor.id) {
@@ -694,8 +693,8 @@ export class SoundEngine {
     if (sand) this.noise(output, now + .035, .11, 'highpass', 1150, volume * .18, .008);
   }
 
-  private updateReload(actor: ActorState, snapshot: WorldSnapshot, now: number, simulationTime = snapshot.time) {
-    const remaining = actor.reloadUntil - simulationTime;
+  private updateReload(actor: ActorState, snapshot: WorldSnapshot, now: number) {
+    const remaining = actor.reloadUntil - snapshot.time;
     if (remaining <= 0) { if (this.reloadUntil) this.cancelReload(); return; }
     if (actor.reloadUntil === this.reloadUntil) return;
     this.cancelReload();
@@ -711,23 +710,16 @@ export class SoundEngine {
       const offset = at - elapsed;
       if (offset >= -.03) fn(now + Math.max(0, offset));
     };
-    const cues = RELOAD_CUES[weapon.id];
     if (weapon.id === 'shotgun') {
-      schedule(duration * cues.grab, t => this.metalClick(channel, t, 780, .12));
-      schedule(duration * cues.seat, t => { if (!this.playSample('reload-shell', channel, .14, t, .12)) this.metalClick(channel, t, 1150, .17); });
-      schedule(duration * cues.close, t => this.metalClick(channel, t, 1600, .10));
-    } else if (weapon.id === 'slingshot') {
-      schedule(duration * cues.grab, t => this.noise(channel, t, .08, 'lowpass', 900, .05, .01));
-      schedule(duration * cues.seat, t => this.tone(channel, t, 480, 240, .055, .06, 'triangle'));
+      schedule(.06, t => this.metalClick(channel, t, 780, .12));
+      schedule(duration * .64, t => { if (!this.playSample('reload-shell', channel, .14, t, .18)) this.metalClick(channel, t, 1150, .17); });
+      schedule(duration * .92, t => this.metalClick(channel, t, 1600, .13));
     } else {
-      schedule(duration * cues.grab, t => this.metalClick(channel, t, 900, .1));
-      schedule(duration * cues.out, t => this.noise(channel, t, .12, 'bandpass', 610, .09, .008));
-      schedule(duration * cues.seat, t => {
-        if (!this.playSample('reload-mag', channel, .16, t, .18)) this.metalClick(channel, t, 1200, .17);
-        this.tone(channel, t, 390, 170, .09, .07, 'triangle');
-      });
-      schedule(duration * cues.rack, t => this.noise(channel, t, .065, 'bandpass', 1100, .045, .006));
-      schedule(duration * cues.close, t => this.metalClick(channel, t, weapon.id === 'sniper' ? 900 : 1800, .17));
+      schedule(.08, t => this.metalClick(channel, t, 900, .1));
+      schedule(duration * .27, t => this.noise(channel, t, .12, 'bandpass', 610, .09, .008));
+      schedule(duration * .58, t => { if (!this.playSample('reload-mag', channel, .16, t, .18)) this.metalClick(channel, t, 1200, .17); });
+      schedule(duration * .68, t => this.tone(channel, t, 390, 170, .09, .07, 'triangle'));
+      schedule(duration * .88, t => this.metalClick(channel, t, weapon.id === 'sniper' ? 900 : 1800, .17));
     }
     this.localReloadEnd = now + remaining;
   }

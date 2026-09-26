@@ -8,8 +8,8 @@ import { damp } from '../shared/math';
 import { Spring } from './spring';
 import { PAINT } from './materials';
 import { advanceAds, WEAPONS } from '../shared/weapons';
-import { createReloadPose, sampleReload, sampleMelee, smoothPose, weaponShotDuration, SUPPORT_PALM,
-  MELEE_SECONDS, MELEE_CONTACT, MELEE_HIT_STOP, type MeleePose, type ReloadPose } from '../shared/weapon-presentation';
+import { sampleMelee, smoothPose, weaponShotDuration,
+  MELEE_SECONDS, MELEE_CONTACT, MELEE_HIT_STOP, type MeleePose } from '../shared/weapon-presentation';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 
 const palette = {
@@ -410,7 +410,7 @@ function arms(group: THREE.Group, id: WeaponId): THREE.Group {
   return support;
 }
 
-interface Model { group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; magazine?: THREE.Object3D; discardedMagazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Object3D; triggerFinger?: THREE.Object3D; gripFingers?: THREE.Object3D; sightY: number; hipX: number; adsZ: number; painted?: PaintedWeaponModel; rarity?: number }
+interface Model { group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; magazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Object3D; triggerFinger?: THREE.Object3D; gripFingers?: THREE.Object3D; sightY: number; hipX: number; adsZ: number; painted?: PaintedWeaponModel; rarity?: number }
 
 function disposeImported(root: THREE.Object3D) {
   const geometry = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
@@ -440,7 +440,6 @@ export class WeaponView {
   private readonly models = {} as Record<WeaponId, Model>;
   private readonly painted = paintedWeaponsEnabled() ? new PaintedWeaponSet() : null;
   private readonly warmupVariants = new THREE.Group();
-  private readonly reloadProps: THREE.Mesh[] = [];
   private active: WeaponId = 'pistol';
   private ads = 0;
   private kick = 0;
@@ -462,10 +461,6 @@ export class WeaponView {
   private breathingTime = 0;
   private shotLife = 0;
   private reloadEnd = 0;
-  private readonly reloadPose = createReloadPose();
-  private readonly reloadTarget = createReloadPose();
-  private readonly palm = new THREE.Vector3();
-  private readonly palmRotated = new THREE.Vector3();
   private bobAmount = 0;
   private wallPose = 0;
   private meleeTime = MELEE_SECONDS;
@@ -529,11 +524,7 @@ export class WeaponView {
   // Warm-up only: show every model at once so one render compiles and uploads all of them.
   revealAll(on: boolean) {
     this.holder.visible = on; this.warmupVariants.visible = on;
-    for (const [id, model] of Object.entries(this.models) as [WeaponId, Model][]) {
-      model.group.visible = on || id === this.active;
-      if (model.discardedMagazine) model.discardedMagazine.visible = on;
-    }
-    for (const prop of this.reloadProps) prop.visible = on;
+    for (const [id, model] of Object.entries(this.models) as [WeaponId, Model][]) model.group.visible = on || id === this.active;
   }
 
   private async loadPainted() {
@@ -544,30 +535,6 @@ export class WeaponView {
       const painted = set.create(id);
       this.models[id] = { ...painted, painted, rarity: 0, hipX: WEAPON_HIP_POSES[id].x, adsZ: -.4 };
       painted.group.visible = false; this.holder.add(painted.group);
-      if (painted.magazine.name === 'mag') {
-        // Share the authored geometry/material, with one extra rigid instance
-        // only during an exchange. Source disposal still owns those resources.
-        const discarded = painted.magazine.clone(true);
-        discarded.name = 'discarded-magazine'; discarded.visible = false;
-        delete discarded.userData.partRole;
-        painted.magazine.parent!.add(discarded);
-        this.models[id].discardedMagazine = discarded;
-      }
-      if (id === 'shotgun' || id === 'slingshot') {
-        // One original prop stays in the support paw until its seating contact.
-        const prop = id === 'shotgun'
-          ? new THREE.Mesh(new THREE.CylinderGeometry(.019, .019, .072, 10), palette.shellRed)
-          : new THREE.Mesh(new THREE.IcosahedronGeometry(.022, 1), palette.steel);
-        prop.name = 'reload-prop'; prop.visible = false;
-        prop.userData.reloadProp = true; this.reloadProps.push(prop);
-        const anchor = SUPPORT_PALM[id]; prop.position.set(anchor[0] + .042, anchor[1] + .028, anchor[2]);
-        prop.rotation.x = Math.PI / 2; painted.support.add(prop);
-        if (id === 'shotgun') {
-          const rim = new THREE.Mesh(new THREE.CylinderGeometry(.021, .021, .015, 10), palette.brass);
-          rim.userData.reloadProp = true; this.reloadProps.push(rim);
-          rim.position.y = -.03; prop.add(rim);
-        }
-      }
       for (let rarity = 1; rarity < 4; rarity++) this.warmupVariants.add(set.create(id, rarity).group);
     }
   }
@@ -709,7 +676,7 @@ export class WeaponView {
       this.meleeTime = MELEE_SECONDS; this.meleeSide = -1; this.meleeStop = 0; this.meleeHit = false; this.smear.visible = false;
       this.shotLife = 0; this.reloadEnd = 0; this.ads = 0; this.draw = 0; this.holster = 0;
       this.recoil.reset(); this.recoilYaw.reset(); this.swayX.reset(); this.swayY.reset();
-      sampleReload(this.active, 0, this.reloadPose); sampleMelee(MELEE_SECONDS, this.meleeSide, this.meleePose);
+      sampleMelee(MELEE_SECONDS, this.meleeSide, this.meleePose);
       return;
     }
     const requested = actor.weapons[actor.slot]?.id || 'pistol';
@@ -718,7 +685,7 @@ export class WeaponView {
       if (this.holster >= 1) {
         this.models[this.active].group.visible = false; this.active = requested; this.models[this.active].group.visible = true;
         this.draw = 1; this.holster = 0; this.recoil.reset(); this.recoilYaw.reset(); this.reloadEnd = 0; this.ads = 0;
-        sampleReload(requested, 0, this.reloadPose); this.meleeTime = MELEE_SECONDS; this.meleeStop = 0;
+        this.meleeTime = MELEE_SECONDS; this.meleeStop = 0;
       }
     } else this.holster = damp(this.holster, 0, 20, dt);
     const weapon = this.active;
@@ -731,54 +698,32 @@ export class WeaponView {
     this.inspectAllowed = requested === weapon && !actor.swimming && !actor.ads && !actor.sprint && !reloading &&
       this.shotLife <= 0 && (weapon !== 'machete' || this.meleeTime >= MELEE_SECONDS);
     if (!this.inspectAllowed) this.cancelInspect();
-    if (reloading) this.reloadEnd = actor.reloadUntil;
+    if (reloading && actor.reloadUntil > this.reloadEnd) this.reloadEnd = actor.reloadUntil;
     const duration = WEAPONS[weapon].reload || 1;
     const progress = reloading ? THREE.MathUtils.clamp(1 - (this.reloadEnd - simulationTime) / duration, 0, 1) : 0;
-    const namedReload = !!model.painted || (model.magazine?.name === 'mag' && model.support.name === 'grip_l');
-    sampleReload(weapon, progress, this.reloadTarget);
-    for (const key of Object.keys(this.reloadPose) as (keyof ReloadPose)[]) {
-      if (key === 'hideMagazine' || key === 'showDiscard') {
-        this.reloadPose[key] = reloading && this.reloadTarget[key]; continue;
-      }
-      // A cancelled reload recovers from the current pose; completion itself
-      // reaches exact rest at its authoritative deadline, without a trailing lag.
-      this.reloadPose[key] = reloading ? this.reloadTarget[key] : this.reloadEnd > 0 && simulationTime >= this.reloadEnd ? 0 : damp(this.reloadPose[key], 0, 32, dt);
-      if (Math.abs(this.reloadPose[key]) < .00001) this.reloadPose[key] = 0;
-    }
-    if (!reloading && simulationTime >= this.reloadEnd) this.reloadEnd = 0;
-    const reload = this.reloadPose, magazineMotion = model.discardedMagazine ? Math.min(1, -reload.mag / .85) : Math.sin(Math.PI * progress) ** 2;
+    const namedReload = model.magazine?.name === 'mag' && model.support.name === 'grip_l';
+    const ease = (x: number) => { const t = THREE.MathUtils.clamp(x, 0, 1); return t * t * (3 - 2 * t); };
+    const withdraw = ease((progress - .12) / .17), insert = ease((progress - .53) / .19);
+    const magazineMotion = reloading ? namedReload ? withdraw * (1 - insert) : Math.sin(Math.PI * progress) : 0;
+    const chamber = reloading && namedReload ? Math.sin(Math.PI * ease((progress - .78) / .16)) : 0;
     if (model.magazine) {
-      model.magazine.visible = !model.discardedMagazine || !reload.hideMagazine;
       if (model.magazine.userData.fbxMagazine) {
         model.magazine.position.z = model.magazine.userData.restZ - magazineMotion * .09;
       } else {
-        model.magazine.position.y = (model.magazine.userData.restY || 0) + (namedReload ? reload.mag : -magazineMotion * (model.magazine.userData.travel || .2));
-        model.magazine.rotation.z = 0;
+        model.magazine.position.y = (model.magazine.userData.restY || 0) - magazineMotion * (model.magazine.userData.travel || (namedReload ? .29 : .2));
+        model.magazine.rotation.z = -magazineMotion * .25;
       }
     }
-    if (model.discardedMagazine) {
-      model.discardedMagazine.visible = reload.showDiscard;
-      model.discardedMagazine.position.set(0, reload.discardY, reload.discardZ);
-      model.discardedMagazine.rotation.set(0, 0, reload.discardRoll);
-    }
-    if (namedReload) {
-      model.support.rotation.set(reload.handPitch, 0, reload.handRoll);
-      this.palm.fromArray(SUPPORT_PALM[weapon]); this.palmRotated.copy(this.palm).applyEuler(model.support.rotation);
-      model.support.position.copy(this.palm).sub(this.palmRotated).add(this.palmRotated.set(reload.handX, reload.handY, reload.handZ));
-    } else {
-      model.support.position.set(magazineMotion * .055, -magazineMotion * .055, magazineMotion * .11);
-      model.support.rotation.x = -magazineMotion * .25;
-    }
-    const prop = model.support.getObjectByName?.('reload-prop');
-    if (prop) { prop.visible = reloading && reload.prop > .01; prop.scale.setScalar(1); for (const child of prop.children) child.visible = true; }
+    model.support.position.set(magazineMotion * .055, -magazineMotion * (namedReload ? .17 : .055), magazineMotion * .11 + chamber * .035);
+    model.support.rotation.x = -magazineMotion * .25;
     if (model.action) {
       const baseZ = model.painted ? 0 : weapon === 'shotgun' ? -.43 : weapon === 'pistol' ? 0 : .014;
       const total = weaponShotDuration(weapon);
       const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
       if (model.action.userData.fbxBolt) model.action.position.y = model.action.userData.restY + cycle * .07;
       else if (model.action.userData.gltfSlide) model.action.position.x = -cycle * .027;
-      else model.action.position.z = baseZ + cycle * (weapon === 'shotgun' ? .11 : .045) + reload.action;
-      if (!model.action.userData.fbxBolt) model.action.rotation.z = (weapon === 'sniper' ? -cycle * .6 : 0) + reload.actionRoll;
+      else model.action.position.z = baseZ + (cycle + chamber) * (weapon === 'shotgun' ? .11 : .045);
+      if (!model.action.userData.fbxBolt) model.action.rotation.z = weapon === 'sniper' ? -cycle * .6 : 0;
       if (weapon === 'shotgun') model.support.position.z += cycle * .11;
     }
     const goalAds = actor.ads && !actor.swimming && !reloading && !actor.sprint && weapon !== 'machete' ? 1 : 0;
@@ -824,11 +769,11 @@ export class WeaponView {
     const swimBob = Math.sin(this.breathingTime * 2.1) * .009 * motion * this.swimPose;
     const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, ads) + this.swimPose * (weapon === 'pistol' ? .035 : -.18) + swimBob;
     this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, ads) + Math.sin(this.gait) * bob * .4 + swayX * motion * (1 - ads * .85),
-      hipY + breath + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - lower * 1.05 + (swayY + landing) * motion - sprint * .08 - wall * .12 + reload.lift - reload.bump * .012,
-      THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, ads) + this.kick * .8 + wall * .08 + sprint * .07 - reload.forward - reload.bump * .009);
-    this.holder.rotation.set((pose?.pitch ?? 0) * (1 - ads) + this.kick * 1.1 + lower * .65 + swayY * motion + reload.pitch + sprint * .16,
+      hipY + breath + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - lower * 1.05 + (swayY + landing) * motion - sprint * .08 - wall * .12 - magazineMotion * .045,
+      THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, ads) + this.kick * .8 + wall * .08 + sprint * .07);
+    this.holder.rotation.set((pose?.pitch ?? 0) * (1 - ads) + this.kick * 1.1 + lower * .65 + swayY * motion + magazineMotion * .24 + sprint * .16,
       THREE.MathUtils.lerp(pose?.yaw ?? (pose ? 0 : .24), 0, ads) + wall * .28 + yawKick + swayX * motion,
-      THREE.MathUtils.lerp(pose?.roll ?? (pose ? 0 : -.055), 0, ads) + Math.sin(this.gait) * bob * 1.7 + reload.roll + breath * .8 + swimBob * 1.2);
+      THREE.MathUtils.lerp(pose?.roll ?? (pose ? 0 : -.055), 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13 + breath * .8 + swimBob * 1.2);
     this.updateMelee(weapon, dt, settings.reducedMotion);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.rotation);
     if (this.inspectTime >= 0) {
@@ -887,8 +832,6 @@ export class WeaponView {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
-    for (const prop of this.reloadProps) prop.geometry.dispose();
-    this.reloadProps.length = 0;
     this.painted?.dispose();
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();

@@ -5,7 +5,7 @@ import { Spring } from '../src/render/spring';
 import { Simulation } from '../src/simulation';
 import { terrainHeight } from '../src/shared/terrain';
 import type { WorldSpec } from '../src/shared/types';
-import { createReloadPose, MELEE_SECONDS } from '../src/shared/weapon-presentation';
+import { MELEE_SECONDS } from '../src/shared/weapon-presentation';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -31,7 +31,6 @@ it('starts a newly selected weapon at hip even if the previous sight was fully a
     recoil: new Spring(), recoilYaw: new Spring(), swayX: new Spring(), swayY: new Spring(), land: new Spring(),
     lastYaw: undefined, lastPitch: 0, grounded: true, swimming: false, swimPose: 0, verticalSpeed: 0, sprintPose: 0, holster: 0,
     gait: 0, breathingTime: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], furColor: actor.color,
-    reloadPose: createReloadPose(), reloadTarget: createReloadPose(), palm: new THREE.Vector3(), palmRotated: new THREE.Vector3(),
     bobAmount: 0, wallPose: 0, meleeTime: MELEE_SECONDS, meleeSide: -1, meleeHit: false, meleeStop: 0,
     meleePose: {}, smear: { visible: false },
   });

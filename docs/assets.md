@@ -511,11 +511,11 @@ Original fixed-root choreography in `tools/blender/character_emotes.py` adds the
 The review fixture warms a grounded actor before advancing actual movement and presentation together, keeping launch sequence numbers distinct across consecutive poses. Tests cover the shipped raised-paw silhouette, fixed root, duration, runtime blend, repeated launch review and legacy fallback. Native trampoline captures use 1280x720 and 1920x1080; front, three-quarter and side sheets compare the unchanged character geometry against the approved turnaround. The playful launch is delivered; the softer muzzle, two-tone clothing and first-person paw rebuild remain open. No external animation, generated image or paid service was used. Balloon badge polish is deferred and is excluded from this checkpoint.
 
 
-### First-person reload and blade motion, 2026-09-26
+### First-person blade motion and transitions, 2026-09-26
 
-Original runtime curves in `src/shared/weapon-presentation.ts` animate the existing painted semantic parts around Oficina's authored palm anchors. Quintic contact phases and synthesized reload cues share the authoritative duration. A small procedural shell and stone use original cylinder/icosahedron geometry and existing project materials, with no external texture or asset. The alternating machete uses a bounded two-triangle translucent trail and the existing pooled impact atlas. No downloaded reference, paid service, generated bitmap, rig, collider or gameplay timing changed.
+Original runtime curves in `src/shared/weapon-presentation.ts` provide an alternating machete wind-up, arc, follow-through and recovery, a bounded two-triangle translucent trail, and the existing pooled impact atlas. Equip/holster, sprint and wall transitions ease into place. No downloaded reference, paid service, generated bitmap, rig, collider or gameplay timing changed.
 
-Eight-frame runtime strips review each reload, both swing directions, confirmed contact and equip/sprint/ADS/landing transitions. Current oversized paw geometry remains the previous reviewed asset; Oficina's separate skin-palm, slimmer-sight and curved-blade export is still pending.
+The endgame fallback preserves the verified reload transforms and sound schedule from 50136d5. Revised magazine exchange, shell/stone props and per-weapon reload curves are excluded. Runtime motion strips and the combined gate remain required on Oficina's final paw asset before landing.
 
 ### Painted tropical foliage atlas, 2026-09-26
 
