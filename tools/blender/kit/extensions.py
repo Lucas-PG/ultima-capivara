@@ -144,7 +144,9 @@ def extend(Piece, building, roof, window):
         p.box(0, top + .025, -2.4 + (i + .5) * .4, 4.08, .05, .39, 14)
     for x in [-2.12, 2.12]:
         for i in range(4):
-            p.box(x, .9 + .54 * i, -2.2 + 1.2 * i, .2, 1.15, .2, 15, True)
+            tread_top, rail_top = .18 + .54 * i, 1.475 + .54 * i
+            p.box(x, (tread_top + rail_top) / 2, -2.2 + 1.2 * i,
+                  .2, rail_top - tread_top, .2, 15, True)
         p.beam((x, 1.48, -2.35), (x, 3.25, 2.3), .12, 5)
     p = Piece('fence', 4, .45)
     for x in [-1.85, 1.85]:

@@ -21,11 +21,13 @@ scene.add(new THREE.HemisphereLight('#B4C2EE', '#C9A66B', 1.15));
 const sun = new THREE.DirectionalLight('#FFD9A8', 2.7); sun.position.set(-7, 5.5, 3); scene.add(sun);
 if (pipeline) {
   const { PaintedSky } = await import('../../src/render/sky');
-  const sky = new PaintedSky(), skyScene = new THREE.Scene(); skyScene.add(sky.group);
+  const { AssetLoader } = await import('../../src/render/assets');
+  const assets = new AssetLoader(gl), sky = new PaintedSky(assets), skyScene = new THREE.Scene(); skyScene.add(sky.group);
+  await assets.ready();
   const pmrem = new THREE.PMREMGenerator(gl);
   const environment = pmrem.fromScene(skyScene, .035, .1, 850, { size: 128 });
   scene.environment = environment.texture;
-  addEventListener('beforeunload', () => { sky.dispose(); environment.dispose(); });
+  addEventListener('beforeunload', () => { sky.dispose(); environment.dispose(); assets.dispose(); });
   scene.environmentIntensity = .35; pmrem.dispose();
 }
 const camera = new THREE.PerspectiveCamera(WEAPON_VIEW_FOV, innerWidth / innerHeight, .01, 20);
@@ -47,7 +49,8 @@ function shot(options: { weapon?: WeaponId; pose?: Partial<WeaponHipPose>; rarit
   const model = models[current];
   set.setRarity(model, options.rarity ?? 0);
   pose = { ...WEAPON_HIP_POSES[current], ...options.pose };
-  holder.position.set(pose.x, pose.y, pose.z); holder.scale.setScalar(pose.scale); holder.rotation.set(options.ads ? 0 : pose.pitch ?? 0, 0, 0);
+  holder.position.set(pose.x, pose.y, pose.z); holder.scale.setScalar(pose.scale);
+  holder.rotation.set(options.ads ? 0 : pose.pitch ?? 0, options.ads ? 0 : pose.yaw ?? 0, options.ads ? 0 : pose.roll ?? 0);
   camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0);
   if (options.ads) holder.position.set(0, -model.sightY * pose.scale, -.4);
   if (options.angle) {
