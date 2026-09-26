@@ -637,7 +637,7 @@ export class WorldScene {
       this.group.add(mesh); this.disposables.push(merged);
     }
     buckets.clear();
-    const vegetation = this.vegetation = buildVegetation({ ...world, objects: world.objects.filter(object => object.kind !== 'grass') }), props = buildProps(world), wallArt = buildWallArt(world);
+    const vegetation = this.vegetation = buildVegetation({ ...world, objects: world.objects.filter(object => object.kind !== 'grass' || object.detail === 'reeds') }), props = buildProps(world), wallArt = buildWallArt(world);
     this.group.add(vegetation.group, props.group, wallArt.group);
     this.disposables.push(vegetation, props, wallArt);
     this.groundCover = new GroundCover(world); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
