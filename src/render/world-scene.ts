@@ -652,10 +652,16 @@ export class WorldScene {
       this.group.add(mesh); this.disposables.push(merged);
     }
     buckets.clear();
-    const vegetation = this.vegetation = buildVegetation({ ...world, objects: world.objects.filter(object => object.kind !== 'grass' || object.detail === 'reeds' || object.detail === 'crop') }), props = buildProps(world), wallArt = buildWallArt(world);
+    const foliageAtlas = loader.texture('textures/foliage-atlas.webp');
+    foliageAtlas.colorSpace = THREE.SRGBColorSpace;
+    foliageAtlas.minFilter = THREE.LinearMipmapLinearFilter;
+    foliageAtlas.magFilter = THREE.LinearFilter;
+    this.disposables.push(foliageAtlas);
+    const vegetation = this.vegetation = buildVegetation({ ...world, objects: world.objects.filter(object => object.kind !== 'grass' ||
+      ['reeds', 'crop', 'fern', 'monstera', 'ground-litter'].includes(object.detail || '')) }, foliageAtlas), props = buildProps(world), wallArt = buildWallArt(world);
     this.group.add(vegetation.group, props.group, wallArt.group);
     this.disposables.push(vegetation, props, wallArt);
-    this.groundCover = new GroundCover(world); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
+    this.groundCover = new GroundCover(world, foliageAtlas); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
     const fountain = world.objects.find(object => object.detail === 'prop:plaza');
     if (fountain) {
       const waterGeometry = new THREE.RingGeometry(.73, 1.85, 48, 3).rotateX(-Math.PI / 2);
@@ -728,6 +734,7 @@ export class WorldScene {
   setSettings(settings: Settings) {
     this.reducedMotion = settings.reducedMotion;
     this.groundCover.setQuality(settings.graphics);
+    this.vegetation.setQuality(settings.graphics);
     this.waterfalls.setQuality(settings.graphics);
     this.paintedWater.setQuality(settings.graphics);
     this.recreation.setQuality(settings.graphics);
