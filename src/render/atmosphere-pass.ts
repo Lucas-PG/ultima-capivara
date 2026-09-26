@@ -17,16 +17,20 @@ export class AtmospherePass {
     this.material = new THREE.ShaderMaterial({
       uniforms: { tColor: { value: color }, tDepth: { value: depth },
         inverseProjection: { value: new THREE.Matrix4() }, projectionScale: { value: new THREE.Vector2() },
-        texel: { value: new THREE.Vector2(1, 1) }, sunScreen: { value: new THREE.Vector3() } },
+        texel: { value: new THREE.Vector2(1, 1) }, depthTexel: { value: new THREE.Vector2(1, 1) }, sunScreen: { value: new THREE.Vector3() } },
       depthTest: false, depthWrite: false, toneMapped: false,
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
       fragmentShader: `
         varying vec2 vUv;
-        uniform sampler2D tColor,tDepth;
+        uniform sampler2D tColor;
+        uniform highp sampler2D tDepth;
         uniform mat4 inverseProjection;
-        uniform vec2 projectionScale,texel; uniform vec3 sunScreen;
+        uniform vec2 projectionScale,texel,depthTexel; uniform vec3 sunScreen;
         vec3 viewPosition(vec2 uv){
-          vec4 p=inverseProjection*vec4(uv*2.0-1.0,texture2D(tDepth,uv).r*2.0-1.0,1.0);
+          // Depth is nearest sampled. Reconstruct its actual pixel centre,
+          // including off-grid hemisphere taps, instead of a neighbouring ray.
+          vec2 pixel=(floor(uv/depthTexel)+.5)*depthTexel;
+          vec4 p=inverseProjection*vec4(pixel*2.0-1.0,texture2D(tDepth,pixel).r*2.0-1.0,1.0);
           return p.xyz/p.w;
         }
         vec3 bright(vec2 uv){
@@ -52,7 +56,9 @@ export class AtmospherePass {
             vec2 sampleUv=vUv+direction*radius*(.24+fi*.105);
             vec3 delta=viewPosition(clamp(sampleUv,texel,1.0-texel))-p;
             float distance=length(delta);
-            float horizon=max(0.0,dot(n,delta)/max(distance,.0001)-.08);
+            // A world-space bias rejects reconstruction error and the tiny
+            // blade/root contacts that otherwise stripe shallow ground planes.
+            float horizon=max(0.0,(dot(n,delta)-max(.035,-p.z*.0015))/max(distance,.03)-.12);
             float within=step(0.0,sampleUv.x)*step(sampleUv.x,1.0)*step(0.0,sampleUv.y)*step(sampleUv.y,1.0);
             ao+=horizon*(1.0-smoothstep(.12,1.15,distance))*within;
             // Two footprint sizes keep tiny emissive trims and broad sunlit
@@ -82,6 +88,7 @@ export class AtmospherePass {
   resize(width: number, height: number) {
     this.target.setSize(Math.max(1, Math.ceil(width / 2)), Math.max(1, Math.ceil(height / 2)));
     this.material.uniforms.texel.value.set(1 / this.target.width, 1 / this.target.height);
+    this.material.uniforms.depthTexel.value.set(1 / Math.max(1, width), 1 / Math.max(1, height));
   }
 
   render(gl: THREE.WebGLRenderer, camera: THREE.PerspectiveCamera) {

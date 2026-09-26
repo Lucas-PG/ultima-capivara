@@ -43,7 +43,7 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     fragmentShader: `precision highp float;
       #include <tonemapping_pars_fragment>
       #include <colorspace_pars_fragment>
-      uniform sampler2D tColor,tDepth,tCharacter,tAtmosphere;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY,atmosphereEnabled,bloomStrength;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse;varying vec2 vUv;
+      uniform sampler2D tColor,tCharacter,tAtmosphere;uniform highp sampler2D tDepth;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY,atmosphereEnabled,bloomStrength;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
         vec4 src=texture2D(tColor,vUv);vec3 c=src.rgb;float d=texture2D(tDepth,vUv).x;
