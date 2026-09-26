@@ -276,6 +276,9 @@ export function createWorld(): WorldSpec {
     // Two low masses finish the eastern cliff toe above the beach route.
     rockLayer('cliff_rock_tall', 26, -80, 1.3, ground(26, -80) - 7 * .95, 7);
     rockLayer('cliff_rock_low', 27.5, -90, 1.3, ground(27.5, -90) - 3 * .7, 3);
+    // The beach route now goes around this face. A broad ledge can reach its
+    // middle without cutting across a walking aisle or covering the fort wall.
+    rockLayer('cliff_ledge', 25.5, -85.5, 1.1, ground(25.5, -85.5) - 9.9, 11);
   }
   for (const [x, z] of [[50, -96], [43, -110], [64, -111]] as const) {
     obj('cylinder', x, ground(x, z) + .045, z, 4.7, .05, 3.3, '#69B9AD', 'water');
