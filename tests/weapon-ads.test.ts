@@ -5,6 +5,7 @@ import { Spring } from '../src/render/spring';
 import { Simulation } from '../src/simulation';
 import { terrainHeight } from '../src/shared/terrain';
 import type { WorldSpec } from '../src/shared/types';
+import { MELEE_SECONDS } from '../src/shared/weapon-presentation';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -30,6 +31,8 @@ it('starts a newly selected weapon at hip even if the previous sight was fully a
     recoil: new Spring(), recoilYaw: new Spring(), swayX: new Spring(), swayY: new Spring(), land: new Spring(),
     lastYaw: undefined, lastPitch: 0, grounded: true, swimming: false, swimPose: 0, verticalSpeed: 0, sprintPose: 0, holster: 0,
     gait: 0, breathingTime: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], furColor: actor.color,
+    bobAmount: 0, wallPose: 0, meleeTime: MELEE_SECONDS, meleeSide: -1, meleeHit: false, meleeStop: 0,
+    meleePose: {}, smear: { visible: false },
   });
   view.update(actor, 1 / 60, DEFAULT_SETTINGS, 0, 0);
   expect(view.weapon).toBe('smg');

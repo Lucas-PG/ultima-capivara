@@ -510,6 +510,13 @@ Original fixed-root choreography in `tools/blender/character_emotes.py` adds the
 
 The review fixture warms a grounded actor before advancing actual movement and presentation together, keeping launch sequence numbers distinct across consecutive poses. Tests cover the shipped raised-paw silhouette, fixed root, duration, runtime blend, repeated launch review and legacy fallback. Native trampoline captures use 1280x720 and 1920x1080; front, three-quarter and side sheets compare the unchanged character geometry against the approved turnaround. The playful launch is delivered; the softer muzzle, two-tone clothing and first-person paw rebuild remain open. No external animation, generated image or paid service was used. Balloon badge polish is deferred and is excluded from this checkpoint.
 
+
+### First-person blade motion and transitions, 2026-09-26
+
+Original runtime curves in `src/shared/weapon-presentation.ts` provide an alternating machete wind-up, arc, follow-through and recovery, a bounded two-triangle translucent trail, and the existing pooled impact atlas. Equip/holster, sprint and wall transitions ease into place. No downloaded reference, paid service, generated bitmap, rig, collider or gameplay timing changed.
+
+The endgame fallback preserves the verified reload transforms and sound schedule from 50136d5. Revised magazine exchange, shell/stone props and per-weapon reload curves are excluded. Runtime motion strips and the combined gate remain required on Oficina's final paw asset before landing.
+
 ### Painted tropical foliage atlas, 2026-09-26
 
 Original bitmap generated with Codex's built-in image generation tool, then refined with the same built-in tool. No downloaded art, paid API, account or external asset was used. The selected original is `tools/art/ui-source/foliage-atlas.png` (1254 by 1254 RGBA, 1,800,082 bytes). Its built-in output was `/Users/lucas_gaspe/.codex/generated_images/01a0dbb6-fe91-7aa0-a0b5-5e5070bdc805/exec-65fde1d2-1aa1-454d-b0ed-336973368d70.png`; the first draft used as its reference was `exec-becbbf58-d419-4d65-9612-af0bbdffbb1a.png` in the same directory.
@@ -562,6 +569,7 @@ The renderer uses padded tile UVs, anisotropic mip filtering, opaque alpha-teste
 Native Metal review on the Apple M2 compares the same 3 m, 15 m, 60 m, underside, plaza and Morro cameras. The director approved the corrected leaf scale, full flowering crown and distant silhouettes. The fixed Medium plaza at 1280x720, DPR 1 and 16 actors measures 1,554,665 triangles, 271 draws, 60.00 FPS and 17.1 ms p95 across exactly 180 draws/180 RAFs; Low measures 879,488 triangles, 181 draws and 59.99 FPS. Neither sample has a frame over 33 ms or a browser error. The compressed atlas decodes with no guard leaks. These are short warm samples, not a long-session benchmark.
 
 Real walking circles the plaza ipê and traverses the repaired tailor house up and down without jumping or position corrections after the entrance. The existing single indoor fill now follows upper floor slabs from kit metadata, improving stair and room readability on Medium and Low without new lights or shadow maps. Window-light patches, ceiling tone and furniture remain separate follow-ups. Trunk rendering and the exported tapered/leaned stem API share geometry; Mapa's authoritative trunk collider/navigation consumer remains pending. New collision or gameplay behavior is not claimed here. Overall cover parity remains open.
+
 ### Connected tall-house stairs and walking surfaces, 2026-09-26
 
 Original geometry in `tools/blender/kit/spec.py` repairs the tall house with eight deep wooden treads, a clear starter approach, an open stairwell and a visible upper landing. The landing closes the former 0.75 m lateral gap and meets the room floor at 3.22 m. Each flight post rests on its tread; the upper guard rests on the room slab. Floors, entrances, route points and tread indices are exported alongside the collision shapes from the same authored primitives. No movement physics or invisible support was added. The world version is `ilha-v3-rio-7`.
