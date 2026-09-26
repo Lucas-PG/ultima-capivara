@@ -261,6 +261,8 @@ describe('river island gameplay integrity', () => {
   });
 
   it('exposes the fort stone faces instead of burying their geometry inside the smooth skirt', () => {
+    for (const piece of world.pieces!.filter(piece => piece.piece.startsWith('cliff_')))
+      expect(piece.y, `${piece.id} needs a terrain anchor instead of a floating base`).toBeLessThanOrEqual(terrainHeight(piece.x, piece.z) + .15);
     const pieces = new Set(world.pieces!.filter(piece => piece.piece.startsWith('cliff_')).map(piece => piece.id));
     const stone = { ...world, colliders: world.colliders.filter(collider => pieces.has(collider.pieceId!)) };
     const origin = { x: FORTE[0], y: terrainHeight(FORTE[0], FORTE[1] + 49) + 1.62, z: FORTE[1] + 49 };

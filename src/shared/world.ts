@@ -378,7 +378,11 @@ export function createWorld(): WorldSpec {
       const piece = slope > 1.25 ? 'cliff_rock_tall' : 'cliff_rock_low';
       const height = Math.min(12, 4.6 + slope * 3.2) + Math.sin(x * .37 + z * .13) * .4;
       chosen.add(candidate);
-      if (!rockLayer(piece, x + Math.sin(yaw) * 1.7, z + Math.cos(yaw) * 1.7, yaw, y - height * .48, height)) return false;
+      const faceX = x + Math.sin(yaw) * 1.7, faceZ = z + Math.cos(yaw) * 1.7;
+      // Projecting a face downhill can cross a sharp terrace break. Keep its
+      // base rooted at the new position rather than suspended over the cut.
+      const bottom = Math.min(y - height * .48, ground(faceX, faceZ) - .25);
+      if (!rockLayer(piece, faceX, faceZ, yaw, bottom, height)) return false;
       formations++; return true;
     };
     slopes.forEach((area, zone) => {
