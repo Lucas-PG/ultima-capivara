@@ -14,11 +14,11 @@
     {
       "id": "house_tall",
       "triangles": [
-        11964,
-        2880,
-        538
+        11916,
+        2802,
+        648
       ],
-      "colliders": 40
+      "colliders": 44
     },
     {
       "id": "church",
@@ -336,5 +336,5 @@
       "colliders": 29
     }
   ],
-  "bytes": 5800840
+  "bytes": 5797736
 }

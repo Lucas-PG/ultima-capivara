@@ -17,7 +17,7 @@ class Piece:
         PIECES[name] = self
 
     def box(self, x, y, z, w, h, d, tile=0, solid=False, material='stone', bevel=.035, detail=False, yaw=0, roll=0):
-        self.parts.append(dict(shape='box', center=[x, y, z], size=[w, h, d], tile=tile, bevel=bevel, detail=detail, yaw=yaw, roll=roll))
+        self.parts.append(dict(shape='box', center=[x, y, z], size=[w, h, d], tile=tile, bevel=bevel, detail=detail, yaw=yaw, roll=roll, solid=solid))
         if solid:
             assert not roll, 'Sloping decoration cannot create an axis-aligned collider'
             self.colliders.append(dict(type='box', x=x, y=y, z=z, width=w, height=h, depth=d, yaw=yaw, material=material))
@@ -155,18 +155,19 @@ def building(name, width, depth, floors=1, color=1, roof_tile=4):
         landing_index = len(p.colliders)
         p.box(-2.725, 3.13, 2.87, 2.15, .18, .94, 5, True, 'wood', bevel=.015)
         # Slender solid posts guard the flight without entering its centre aisle.
+        rail_x = stair_x + .58
         for i in range(count):
             tread = p.colliders[treads[i]]
             y, z = tread['y'] + tread['height'] / 2, tread['z']
-            p.box(stair_x + .70, y + .49, z, .10, .98, .10, 7, True, 'wood', bevel=.012)
+            p.box(rail_x, y + .49, z, .10, .98, .10, 7, True, 'wood', bevel=.012)
             if i < count - 1:
                 next_tread = p.colliders[treads[i + 1]]
                 yy = next_tread['y'] + next_tread['height'] / 2
-                p.beam((stair_x + .70, y + .98, z), (stair_x + .70, yy + .98, next_tread['z']), .11, 5)
+                p.beam((rail_x, y + .98, z), (rail_x, yy + .98, next_tread['z']), .11, 5)
         for z in [-2.85, -1.65, -.45, .75, 2.15]:
-            p.box(-1.78, top + .49, z, .10, .98, .10, 7, True, 'wood', bevel=.012)
+            p.box(-1.66, top + .49, z, .10, .98, .10, 7, True, 'wood', bevel=.012)
         for y in [top + .43, top + .98]:
-            p.box(-1.78, y, -.35, .11, .10, 5.10, 5, True, 'wood', bevel=.015)
+            p.box(-1.66, y, -.35, .11, .10, 5.10, 5, True, 'wood', bevel=.015)
 
         def floor_record(index, name):
             solid = p.colliders[index]
