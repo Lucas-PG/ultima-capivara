@@ -12,7 +12,7 @@ export interface KitScene {
 }
 export const KIT_ASSET_PATH = 'models/kit/kit.glb';
 const CELL_SIZE = 40;
-const FAR_LOD = 52;
+const FAR_LOD = 32;
 type Definition = { footprint: number[]; height: number; colliders: { type: string; x: number; y: number; z: number; width?: number; height: number; depth?: number; radius?: number; yaw?: number }[] };
 const definitions: Record<string, Definition> = pieces;
 
@@ -136,7 +136,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
         const mesh = new THREE.Mesh(geometry, sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
         mesh.castShadow = mesh.receiveShadow = true;
-        cell.lod.addLevel(mesh, level === 2 ? (quality === 'low' ? 80 : 118) : level ? (quality === 'low' ? 32 : FAR_LOD) : 0, .12);
+        cell.lod.addLevel(mesh, level === 2 ? (quality === 'low' ? 65 : 90) : level ? (quality === 'low' ? 24 : FAR_LOD) : 0, .12);
       }
     }
     sourceGeometry.forEach(geometry => geometry.dispose());

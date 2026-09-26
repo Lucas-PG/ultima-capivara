@@ -1,4 +1,4 @@
-"""Build the modular island kit, two LODs and vertex-baked ambient occlusion."""
+"""Build the modular island kit, three LODs and vertex-baked ambient occlusion."""
 import bpy
 import bmesh
 import math
@@ -39,7 +39,7 @@ def V(p):
     return Vector((p[0], -p[2], p[1]))
 
 
-def make_part(part):
+def make_part(part, level=0):
     shape = part['shape']
     if shape == 'box':
         bm = bmesh.new()
@@ -70,7 +70,7 @@ def make_part(part):
         faces = [list(reversed(range(n))), list(range(n, 2 * n))]
         faces += [[i, (i + 1) % n, (i + 1) % n + n, i + n] for i in range(n)]
     elif shape == 'orb':
-        n, rings = 8, 5
+        n, rings = (6, 3) if level == 2 else (8, 5) if level == 1 else (8, 4) if max(part['size']) < .18 else (12, 8)
         vertices = []
         w, h, d = part['size']
         for j in range(rings + 1):
@@ -78,7 +78,7 @@ def make_part(part):
             for i in range(n):
                 a = math.tau * i / n
                 vertices.append(V((part['center'][0] + w * .5 * math.cos(a) * math.cos(b), part['center'][1] + h * .5 * math.sin(b), part['center'][2] + d * .5 * math.sin(a) * math.cos(b))))
-        faces = [[j * n + i, j * n + (i + 1) % n, (j + 1) * n + (i + 1) % n, (j + 1) * n + i] for j in range(rings) for i in range(n)]
+        faces = [[j * n + i, (j + 1) * n + i, (j + 1) * n + (i + 1) % n, j * n + (i + 1) % n] for j in range(rings) for i in range(n)]
     else:
         a, b = V(part['a']), V(part['b'])
         direction = b - a
@@ -103,15 +103,16 @@ for name, piece in PIECES.items():
     parent['origin'] = 'bottom-centre'
     lod_metrics = []
     for level in [0, 1, 2]:
-        vertices, faces, tiles, paint_uv = [], [], [], []
+        vertices, faces, tiles, paint_uv, smooth_faces = [], [], [], [], []
         for part in piece.parts:
             if level and part.get('detail'):
                 continue
-            vv, ff = make_part(part)
+            vv, ff = make_part(part, level)
             offset = len(vertices)
             vertices.extend(vv)
             faces.extend([[i + offset for i in face] for face in ff])
             tiles.extend([part['tile']] * len(ff))
+            smooth_faces.extend([part['shape'] == 'orb' and not name.startswith('cliff_')] * len(ff))
             for face_index, face in enumerate(ff):
                 if part['shape'] == 'cylinder' and part['axis'] == 'y' and part['tile'] in [6, 14] and face_index >= 2:
                     step = (face_index - 2) % 8
@@ -131,7 +132,7 @@ for name, piece in PIECES.items():
         # Adding a custom-data layer invalidates Blender RNA layer references.
         uv = mesh.uv_layers.get('Atlas')
         bvh = BVHTree.FromPolygons(vertices, faces, all_triangles=False)
-        for poly, tile, authored_uv in zip(mesh.polygons, tiles, paint_uv):
+        for poly, tile, authored_uv, smooth in zip(mesh.polygons, tiles, paint_uv, smooth_faces):
             col, row = tile % 4, tile // 4
             normal = poly.normal.normalized()
             rotation = Vector((0, 0, 1)).rotation_difference(normal)
@@ -160,8 +161,23 @@ for name, piece in PIECES.items():
                 if authored_uv:
                     uu, vv = authored_uv[mesh.loops[loop_index].vertex_index]
                 uv.data[loop_index].uv = ((col + .06 + .88 * uu) / 4, 1 - (row + .06 + .88 * vv) / 4)
-                color.data[loop_index].color = (ao, ao, ao, 1)
-            poly.use_smooth = False
+                color.data[loop_index].color = (ao * .78, ao * .87, ao * .98, 1) if name.startswith('cliff_') and tile in [6, 14] else (ao, ao, ao, 1)
+            poly.use_smooth = smooth
+        # Rounded fruit and plants share continuous contact values across faces.
+        totals, counts = [0.0] * len(mesh.vertices), [0] * len(mesh.vertices)
+        for poly in mesh.polygons:
+            if not poly.use_smooth:
+                continue
+            for loop in poly.loop_indices:
+                vertex = mesh.loops[loop].vertex_index
+                totals[vertex] += color.data[loop].color[0]
+                counts[vertex] += 1
+        for poly in mesh.polygons:
+            if poly.use_smooth:
+                for loop in poly.loop_indices:
+                    vertex = mesh.loops[loop].vertex_index
+                    shade = totals[vertex] / max(1, counts[vertex])
+                    color.data[loop].color = (shade, shade, shade, 1)
         # Collapse hidden bevel rings before tile silhouettes. Three LOD budgets
         # bound complete houses, not each submesh, while keeping one atlas draw.
         obj.data.calc_loop_triangles()

@@ -3,6 +3,44 @@ import math
 
 
 def extend(Piece, building, roof, window):
+    p = Piece('barrel', 1.05, 1.05)
+    p.cylinder(0, .57, 0, .44, 1.14, 5, True, 'wood', sides=20)
+    for i in range(5):
+        r = .44 + .055 * math.sin((i + .5) / 5 * math.pi)
+        p.cylinder(0, (i + .5) * .228, 0, r, .228, 5, sides=20)
+    for y, r in [(.13, .467), (.38, .497), (.82, .497), (1.05, .467)]:
+        p.cylinder(0, y, 0, r, .058, 9, sides=20)
+    p.cylinder(0, 1.16, 0, .45, .08, 7, sides=20)
+    for z in [-.23, 0, .23]:
+        p.box(0, 1.206, z, .64, .02, .014, 5, detail=True)
+    p.cylinder(.15, 1.22, .10, .07, .03, 5, sides=10)
+    for name, width, depth, count in [('bush_cluster', 3.6, 2.6, 7), ('hedge', 4.0, 1.5, 9)]:
+        p = Piece(name, width, depth)
+        for i in range(count):
+            x = (i / (count - 1) - .5) * (width - 1.1)
+            z = math.sin(i * 2.4) * (depth - 1.1) * .42
+            h = .78 + math.sin(i * 1.7) * .16
+            p.orb(x, h * .60, z, 1.25, h, 1.1, 12, False)
+            p.orb(x + .14, h * .94, z - .05, .66, h * .54, .65, 12, False)
+            for j in range(3):
+                a = i * 2.4 + j * 2.1
+                p.orb(x + math.sin(a) * .47, h * .48, z + math.cos(a) * .42, .32, .20, .26, 12)
+    p = Piece('flower_bed', 3.2, 1.7)
+    p.box(0, .08, 0, 3, .16, 1.5, 7, True, 'earth', bevel=.06)
+    for z in [-.76, .76]:
+        p.box(0, .14, z, 3.15, .20, .12, 5, True, 'wood')
+    for x in [-1.52, 1.52]:
+        p.box(x, .14, 0, .12, .20, 1.55, 5, True, 'wood')
+    for i in range(18):
+        x = ((i % 6) - 2.5) * .46
+        z = (i // 6 - 1) * .43
+        h = .36 + .16 * math.sin(i * 2.1) ** 2
+        p.orb(x, .25, z, .46, .25, .43, 12, i % 3 != 0)
+        p.beam((x, .20, z), (x + .035, h, z), .026, 12, detail=True)
+        for petal in range(5):
+            a = math.tau * petal / 5
+            p.orb(x + math.sin(a) * .085, h, z + math.cos(a) * .085, .12, .052, .12, 1 if i % 3 else 11)
+        p.orb(x, h + .03, z, .07, .045, .07, 3, i % 3 != 0)
     building('house_medium', 9, 7, color=3)
     building('warehouse', 14, 10, color=0, roof_tile=8)
     p = Piece('fort_gate', 10, 3)
@@ -135,21 +173,28 @@ def extend(Piece, building, roof, window):
         a = math.tau * i / 5
         p.orb(math.sin(a) * 2.0, 1.0, math.cos(a) * 2.0, 2.4, 2.0, 2.4, 6, False)
 
-    # Layered formations share visible cylindrical ledges and rounded stone shells.
-    # The slab collision comes directly from those same ledges, never a slope wall.
+    # Broad irregular boulder shells replace repeated full-width slab stacks.
+    # Inscribed visible solid bands provide collision within each rounded shell.
     for name, width, depth, levels in [('cliff_rock_low', 9, 6, 3), ('cliff_rock_tall', 7, 6, 8), ('cliff_ledge', 12, 7, 5)]:
         p = Piece(name, width, depth)
-        for level in range(levels):
-            y = .48 + level * .88
-            w = width * (1 - level / (levels + 3) * .55)
-            d = depth * (1 - level / (levels + 4) * .40)
-            shift = math.sin(level * 1.7) * .35
-            p.box(shift, y, math.cos(level) * .18, w, .96, d, 14 if level % 3 else 6, True, bevel=.18)
-            p.orb(shift + w * .20, y + .2, d * .1, w * .65, 1.28, d * .85, 14, False)
-            p.orb(shift - w * .30, y + .12, -d * .10, w * .48, 1.18, d * .70, 6, False)
-            for chip in range(4):
-                x = shift + (chip - 1.5) * w * .20
-                p.box(x, y + .46, d / 2 - .10, w * .17, .08, .21, 6, bevel=.025, detail=True)
+        height = (levels - 1) * .88 + 1.32
+        shells = [(0, height * .325, 0, width * .96, height * .65, depth * .94),
+                  (width * .12, height * .72, -depth * .08, width * .69, height * .56, depth * .75),
+                  (-width * .31, height * .21, depth * .14, width * .43, height * .42, depth * .60)]
+        for sx, sy, sz, w, h, d in shells:
+            p.orb(sx, sy, sz, w, h, d, 14, False)
+            for band in range(6):
+                lo, hi = -h / 2 + band * h / 6, -h / 2 + (band + 1) * h / 6
+                extreme = max(abs(lo), abs(hi)) / (h / 2)
+                radius = max(.025, min(w, d) * .49 * math.sqrt(max(0, 1 - extreme * extreme)))
+                p.cylinder(sx, sy + (lo + hi) / 2, sz, radius, hi - lo, 14, True, sides=16)
+        for seam in range(3):
+            y = height * (.23 + seam * .22)
+            x = math.sin(seam * 2.1) * width * .20
+            p.box(x, y, depth * .34 - seam * .19, width * (.28 + seam * .05), .16, .65, 6, bevel=.07)
+        for moss in range(4):
+            p.orb(width * .12 + math.sin(moss * 2.4) * width * .14, height * .96, -depth * .08 + math.cos(moss * 2.4) * depth * .09,
+                  width * .18, .16, depth * .16, 12, False)
 
     p = Piece('boat', 3.4, 7)
     # Hollow plank hull, shaped ribs and thwarts, with a traversable open interior.
