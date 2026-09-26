@@ -6,7 +6,10 @@ import { EMOTES, EMOTE_IDS } from '../../src/shared/emotes';
 import { closestInteraction } from '../../src/shared/interaction';
 import { mudBathAt } from '../../src/shared/recreation';
 import { chooseSupplyLanding, SUPPLY_APPROACH_SECONDS, SUPPLY_DESCENT_SECONDS } from '../../src/shared/supply-drops';
-import { walkableSegment } from '../../src/shared/navigation';
+import { walkableHeight, walkableSegment } from '../../src/shared/navigation';
+import { KIT_PIECES } from '../../src/shared/kit-collision';
+import { buildingPoint, routesToFloor } from '../helpers/building-paths';
+import { walkTraversal } from '../helpers/traversal-probe';
 import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
@@ -25,6 +28,7 @@ type QaApi = {
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   names(): string[];
   motion(weapon: WeaponId, action: 'reload' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land', seconds: number): Promise<void>;
+  walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
 };
 
 declare global { interface Window { __capyQA?: QaApi } }
@@ -33,6 +37,7 @@ const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 
 const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
 const TRAMPOLINE_POSES = ['trampolineBounce', 'trampolineAir'];
 const SUPPLY_POSES = ['supplyIncoming', 'supplyDescending', 'supplyLanded', 'supplyOpened'];
+const BUILDING_POSES = ['houseGround', 'houseStairBottom', 'houseStairTop', 'houseUpper'];
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
@@ -62,7 +67,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
   const names = [...Object.keys(VIEWS), ...WEAPONS.flatMap(id => [`fp-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
-    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES,
+    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES,
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
@@ -129,6 +134,23 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     me.pos = { x, y: bath?.y ?? spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
+    if (BUILDING_POSES.includes(name)) {
+      const piece = deps.world.pieces!.find(piece => piece.piece === 'house_tall')!;
+      const access = KIT_PIECES[piece.piece].traversal!;
+      const local = routesToFloor(access, name === 'houseGround' ? 'ground-room' : 'upper-room')[0];
+      const stair = access.routes.find(route => route.id === 'stairs')!;
+      const stop = name === 'houseStairBottom' ? stair.points[2] : name === 'houseStairTop' ? stair.points.at(-1)! : local.at(-1)!;
+      const end = local.findIndex(point => point.every((value, axis) => Math.abs(value - stop[axis]) < .001));
+      const route = local.slice(0, end + 1).map(point => buildingPoint(piece, point));
+      route[0].y = walkableHeight(route[0].x, route[0].z, deps.world);
+      const walked = walkTraversal(deps.world, me, route);
+      if (!walked.ok) throw new Error(`Building review cannot walk to ${name}: ${walked.reason}`);
+      Object.assign(me, walked.actor);
+      me.velocity = { x: 0, y: 0, z: 0 };
+      yaw = piece.yaw + (name === 'houseStairBottom' ? Math.PI : name === 'houseStairTop' ? .2 : name === 'houseGround' ? 1.1 : -.5);
+      pitch = name === 'houseStairBottom' ? .2 : name === 'houseStairTop' ? -.45 : -.12;
+      me.yaw = yaw; me.pitch = pitch;
+    }
     const weaponReview = /^(?:fp|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
     me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : weaponReview || 'pistol', ammo: 12, reserve: 50, rarity: 0 }];
     me.slot = 0;
@@ -310,5 +332,35 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     },
     stats() { return { ...(renderer?.stats || { drawCalls: 0, triangles: 0 }), renderedFrames }; },
     names: () => names,
+    async walkBuilding(pieceId, direction = 'up') {
+      if (!renderer) throw new Error('Call start first');
+      if (looping) throw new Error('Stop the QA loop before walking a building');
+      await pose('houseGround');
+      const piece = deps.world.pieces!.find(piece => piece.id === pieceId);
+      if (!piece) throw new Error(`Unknown building: ${pieceId}`);
+      const access = KIT_PIECES[piece.piece].traversal;
+      if (!access) throw new Error(`No generated access contract: ${pieceId}`);
+      const upper = [...access.floors].sort((a, b) => b.y - a.y).find(floor => floor.id.endsWith('room'))!;
+      const route = routesToFloor(access, upper.id)[0].map(point => buildingPoint(piece, point));
+      route[0].y = walkableHeight(route[0].x, route[0].z, deps.world);
+      if (direction === 'down') route.reverse();
+      const me = current!.actors[0], frames: typeof me[] = [];
+      let ticks = 0;
+      const result = walkTraversal(deps.world, me, route, actor => {
+        if (++ticks % 3 === 0) frames.push(structuredClone(actor));
+      });
+      if (!result.ok) throw new Error(`${pieceId} ${direction}: ${result.reason}`);
+      frames.push(result.actor);
+      for (const actor of frames) {
+        Object.assign(me, actor); me.pitch = -.08;
+        current!.time += 3 / 60;
+        deps.input.frame.yaw = me.yaw; deps.input.frame.pitch = me.pitch;
+        renderer.update({ snapshot: current!, playerId: me.id, input: deps.input.frame,
+          dt: 3 / 60, playing: true, spectateId: null });
+        renderedFrames++;
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      }
+      return { ok: true, ticks: result.ticks, position: { ...me.pos } };
+    },
   };
 }
