@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 export const WORLD_VERSION = 'ilha-v3-rio-2';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -43,6 +43,7 @@ export interface ActorState {
   pos: Vec3; velocity: Vec3; yaw: number; pitch: number; lean: number;
   hp: number; armor: number; helmet: number; alive: boolean; grounded: boolean;
   crouch: boolean; sprint: boolean; ads: boolean;
+  swimming: boolean; wetUntil: number;
   stage: 'plane' | 'falling' | 'parachute' | 'ground';
   kills: number; deaths: number; damage: number;
   weapons: WeaponState[]; slot: number;
@@ -87,6 +88,7 @@ export type GameEvent =
   | { type: 'pickup'; id: number; actor: string; item: string }
   | { type: 'reload'; id: number; actor: string; weapon: WeaponId }
   | { type: 'respawn'; id: number; actor: string }
+  | { type: 'water'; id: number; actor: string; pos: Vec3; entering: boolean }
   | { type: 'use'; id: number; actor: string; item: ConsumableId }
   // A slow projectile (slingshot stone) struck the world after its flight.
   | { type: 'impact'; id: number; actor: string; weapon: WeaponId; pos: Vec3; surface: Surface; normal: Vec3 }
