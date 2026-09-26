@@ -525,3 +525,56 @@ body #victory #confetti{display:none}
 .modal .how-grid .picon{width:52px;height:52px;padding:6px;background:var(--cream)}
 #loadingOverlay .ltip-icon .picon{width:34px;height:34px}
 #loadingOverlay .lmode .picon{width:22px;height:22px}
+
+/* HUD, cartoon direction: the v2 sticker cards evolved with grainy paper, rounder corners, glossy candy bars and
+   slots, a rarity glow on the weapon card and a springy ammo tick. Compact, and nothing new near the crosshair. */
+body[data-screen=game] .stk{background:var(--paper);border-radius:12px}
+#hud #topL .cell+.cell{border-left:2.5px dashed rgba(58,36,24,.25)}
+#hud #mapWrap{border-radius:14px;overflow:hidden}
+#hud #mapWrap .tab{border-radius:999px;background:var(--candy-gold);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.5)}
+#hud #mapWrap .net{border-radius:999px}
+#hud #bigmap .frame{border-radius:18px;overflow:hidden}
+#hud #bigmap .tab{border-radius:999px;background:var(--candy-gold)}
+#hud .fd{border-radius:999px;background:var(--paper)}
+#hud .fd.me{background:var(--candy-gold)}
+#hud .fd.bad{background:var(--candy-terra)}
+#hud kbd{border-radius:8px;background:var(--candy-gold);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.5)}
+#hud #prompt{border-radius:999px}
+#hud #promptItem{border-radius:999px}
+#hud #reload{border-radius:999px;background:var(--candy-gold);box-shadow:0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.55)}
+#hud .cbar .bar{border-radius:999px;overflow:hidden}
+#hud .cbar .bar div{background:var(--candy-gold)}
+#hud #use .bar div{background:linear-gradient(180deg,#9be88c,#3aa35a 55%,#2d7f46)}
+/* Vitals: glossy candy fills over a recessed track, with a pale chip that trails behind a hit. */
+#hud #vitals{border-radius:16px}
+#hud #vitals .bar{border-radius:999px;background:#f0d9ad;box-shadow:inset 0 3px 0 rgba(58,36,24,.18)}
+#hud #vitals .bar div{border-radius:999px;background-image:linear-gradient(180deg,rgba(255,255,255,.55) 0 30%,rgba(255,255,255,0) 32%);box-shadow:inset 0 -3px 0 rgba(60,20,10,.25);transition:width .22s var(--spring)}
+#hud #vitals .bar .chip{position:absolute;inset:0 auto 0 0;border-radius:999px;background:#fff6dc;transition:width .5s ease-in .35s}
+#hud #hpBar{background-color:#f0553f}
+#hud #armBar{background-color:#2fa8e8}
+#hud #vitals .bar.seg::after{z-index:1}
+#hud #helm,#hud #prot{border-radius:999px}
+#hud #stance{border-radius:12px}
+#hud #stance.active{background:var(--candy-gold)}
+/* Weapon card: the rarity colour rings the card and glows; the magazine count bounces on every shot and reload. */
+#hud #ammoBox{border-radius:16px;box-shadow:4px 4px 0 var(--ink),0 0 0 3px color-mix(in srgb,var(--rc,#c9c2b2) 85%,#fff),0 0 26px 2px color-mix(in srgb,var(--rc,#c9c2b2) 60%,transparent)}
+#hud .rar{border-radius:999px;background:var(--rc,#c9c2b2);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.45)}
+#hud .mode{border-radius:999px}
+#hud .ammo b{display:inline-block;transform-origin:50% 85%}
+#hud .ammo b.tick{animation:hud-tick .22s var(--spring)}
+@keyframes hud-tick{0%{transform:scale(1.14,.86) translateY(3px)}60%{transform:scale(.96,1.06) translateY(-3px)}100%{transform:none}}
+/* Weapon slots: glossy candy tiles in their rarity colour; the held slot bounces up. */
+#hud .hs{border-radius:14px;box-shadow:3px 3px 0 var(--ink),inset 0 4px 0 rgba(255,255,255,.4),inset 0 -5px 0 rgba(0,0,0,.14);transition:transform .22s var(--spring),box-shadow .15s}
+#hud .hs::before{border-radius:12px}
+#hud .hs kbd{border-radius:7px}
+#hud .hs.on{transform:translateY(-10px) rotate(-2deg);outline:0;box-shadow:5px 5px 0 var(--ink),0 0 0 3px var(--gold),0 0 18px 2px rgba(255,194,61,.6),inset 0 4px 0 rgba(255,255,255,.4),inset 0 -5px 0 rgba(0,0,0,.14)}
+#hud .hs.empty{border-radius:14px}
+#hud .cs{border-radius:12px;background:var(--paper)}
+#hud .cs.use{background:linear-gradient(180deg,#9be88c,#3aa35a)}
+#hud #coach{border-radius:16px}
+#hud #coach .ck{border-radius:999px}
+/* Toasts: paper stickers with the brown outline. */
+.toast-item{border-radius:999px;background:var(--paper);font-family:var(--sans);font-weight:800}
+.toast-item.error{background:#ffe1d4}
+body.reduce-motion #hud .ammo b.tick{animation:none!important}
+@media(prefers-reduced-motion:reduce){body #hud .ammo b.tick{animation:none!important}}

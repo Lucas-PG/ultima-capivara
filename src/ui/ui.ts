@@ -252,7 +252,7 @@ export class GameUI {
       + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden role="group" aria-label="Você foi eliminada"><div class="btns">${ELIMINATED_ACTIONS.map(a => `<button type="button" class="${a.primary ? 'go' : 'alt'}" data-do="${a.do}">${a.primary ? icon('eye') : icon('back')} ${a.label}</button>`).join('')}</div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste<span class="esc"> · <kbd>Esc</kbd> solta o mouse pra clicar</span></span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="leave">${icon('back')} Voltar ao menu</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
       + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
-      + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
+      + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><i class="chip" id="armChip" style="width:0"></i><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><i class="chip" id="hpChip"></i><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
       + `<div id="stance" class="stk">${HUD_ART.stance}<b id="stanceTxt" hidden>Em pé</b></div>`
       + `<div id="wpnbox"><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
       + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
@@ -291,15 +291,20 @@ export class GameUI {
     const net = [this.networkStatus === 'Reconectando à sala' || this.networkStatus === 'Conectado por retransmissão' ? this.networkStatus : '', this.room && !this.room.isHost ? `${Math.round(ping)} ms` : '', this.settings.showFps ? `${Math.round(fps)} fps` : ''].filter(Boolean).join(' · ');
     this.show('hud-ping', !!net); if (net) this.text('hud-ping', net);
     const hp = Math.max(0, me.hp), vitals = this.el('vitals'), shielded = t < me.protectionUntil;
-    this.style(this.el('hpBar'), 'width', `${hp.toFixed(0)}%`); this.style(this.el('armBar'), 'width', `${clamp(me.armor, 0, 100).toFixed(0)}%`);
+    // Each bar has a pale chip behind it that follows after a beat, so damage leaves a short trail.
+    const hpWidth = `${hp.toFixed(0)}%`, armWidth = `${clamp(me.armor, 0, 100).toFixed(0)}%`;
+    this.style(this.el('hpBar'), 'width', hpWidth); this.style(this.el('hpChip'), 'width', hpWidth);
+    this.style(this.el('armBar'), 'width', armWidth); this.style(this.el('armChip'), 'width', armWidth);
     this.text('hpTxt', Math.ceil(hp)); this.text('armTxt', Math.ceil(me.armor));
     this.toggle(vitals, 'low', me.alive && hp < 30); this.toggle(vitals, 'boost', shielded); this.show('prot', shielded);
     this.show('helm', me.helmet > 0); if (me.helmet > 0) this.text('helmTxt', Math.ceil(me.helmet));
     this.toggle(this.el('vign'), 'low', me.alive && hp < 30);
     const weapon = me.weapons[me.slot], def = weapon ? WEAPONS[weapon.id] : null, rarity = rarityOf(weapon?.rarity);
-    this.text('wName', def ? def.name : 'Desarmada'); this.text('wRar', rarity.name); this.style(this.el('wRar'), '--rc', rarity.color); this.show('wRar', !!weapon);
+    this.text('wName', def ? def.name : 'Desarmada'); this.text('wRar', rarity.name); this.style(this.el('ammoBox'), '--rc', rarity.color); this.show('wRar', !!weapon);
     this.text('wMode', weapon ? fireMode(weapon.id) : '–');
-    this.text('aMag', !weapon || !def ? 0 : def.melee ? '∞' : weapon.ammo); this.text('aRes', !weapon || !def || def.melee ? '' : `/ ${weapon.reserve}`);
+    const mag = this.el('aMag'), magText = String(!weapon || !def ? 0 : def.melee ? '∞' : weapon.ammo);
+    // The magazine count ticks on every shot and reload; a weapon swap just changes the number.
+    if (mag.textContent !== magText) { const tick = mag.dataset.slot === String(me.slot); mag.textContent = magText; mag.dataset.slot = String(me.slot); if (tick) this.restartAnimation(mag, 'tick'); } this.text('aRes', !weapon || !def || def.melee ? '' : `/ ${weapon.reserve}`);
     this.toggle(this.el('ammo'), 'low', !!weapon && !!def && !def.melee && weapon.ammo <= Math.ceil(def.magazine * .2));
     const inventoryKey = JSON.stringify([me.weapons.map(w => [w.id, w.rarity, w.ammo]), me.slot]);
     if (this.inventoryKey !== inventoryKey) {
