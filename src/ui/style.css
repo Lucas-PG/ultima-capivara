@@ -72,7 +72,7 @@ body[data-screen=game] .score-table,#victory .score-table{font-family:var(--body
 #victory{position:fixed;inset:0;z-index:9;display:grid;place-items:center;overflow:hidden;pointer-events:none}#victory::after{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(22,18,14,.5) 30%,transparent 33%) 0 0/10px 10px;opacity:.12}
 /* A soft ink scrim behind the stamp and the panel keeps the hierarchy readable over the burst. */
 #victory::before{content:"";position:absolute;inset:0;z-index:0;background:radial-gradient(ellipse 60% 55% at 50% 45%,rgba(22,18,14,.42),rgba(22,18,14,.12) 70%,transparent)}
-#victory .vrays{opacity:.42;position:absolute;left:50%;top:30%;width:260vmax;height:260vmax;margin:-130vmax 0 0 -130vmax;background:repeating-conic-gradient(from 0deg,rgba(255,184,28,.55) 0 7deg,rgba(229,65,45,.35) 7deg 14deg);animation:hud-spin 14s linear infinite,hud-vin .5s ease-out;-webkit-mask-image:radial-gradient(circle,#000 18%,transparent 60%);mask-image:radial-gradient(circle,#000 18%,transparent 60%)}#victory.lost .vrays{background:repeating-conic-gradient(from 0deg,rgba(22,18,14,.55) 0 7deg,rgba(229,65,45,.22) 7deg 14deg)}@keyframes hud-spin{to{transform:rotate(360deg)}}@keyframes hud-vin{from{opacity:0}}
+#victory .vrays{opacity:.42;position:absolute;left:50%;top:30%;width:260vmax;height:260vmax;margin:-130vmax 0 0 -130vmax;background:repeating-conic-gradient(from 0deg,rgba(255,184,28,.55) 0 7deg,rgba(229,65,45,.35) 7deg 14deg);animation:hud-spin 14s linear 1,hud-vin .5s ease-out;-webkit-mask-image:radial-gradient(circle,#000 18%,transparent 60%);mask-image:radial-gradient(circle,#000 18%,transparent 60%)}#victory.lost .vrays{background:repeating-conic-gradient(from 0deg,rgba(22,18,14,.55) 0 7deg,rgba(229,65,45,.22) 7deg 14deg)}@keyframes hud-spin{to{transform:rotate(360deg)}}@keyframes hud-vin{from{opacity:0}}
 #victory .vcard{position:absolute;left:50%;top:30%;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;transform:translate(-50%,-50%) rotate(-4deg);animation:hud-vpop .7s cubic-bezier(.2,1.7,.35,1) both .15s}@keyframes hud-vpop{from{transform:translate(-50%,-50%) rotate(-4deg) scale(.1);opacity:0}to{transform:translate(-50%,-50%) rotate(-4deg) scale(1);opacity:1}}
 #victory .vnum{font-family:var(--display);font-size:clamp(64px,15vw,150px);line-height:.9;color:var(--paper);text-shadow:var(--ol),10px 10px 0 var(--red),14px 14px 0 var(--ink)}#victory .vtitle{font-family:var(--display);font-size:clamp(30px,6.5vw,76px);line-height:1;color:var(--onca);text-shadow:var(--ol),7px 7px 0 var(--ink);white-space:nowrap;text-align:center}#victory.lost .vtitle{color:var(--paper);font-size:clamp(26px,5.5vw,64px);text-shadow:var(--ol),7px 7px 0 var(--red),9px 9px 0 var(--ink)}
 #victory .vsub{font-family:var(--body);font-size:15px;color:var(--ink);background:var(--paper);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:5px 16px;transform:rotate(3deg);margin-top:8px;white-space:nowrap}#victory .vlast{display:flex;align-items:center;gap:10px;font-family:var(--body);font-size:14px;color:var(--ink);background:var(--onca);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:4px 14px 4px 6px;transform:rotate(-2deg);margin-top:6px}#victory .vlast b{font-family:var(--display);font-weight:400}#victory .vlast .pt svg{width:40px;height:40px;display:block}
@@ -101,6 +101,8 @@ body{--ink:#3a2418}
 #app,.modal{font-family:var(--sans)}
 #cover-art{background:linear-gradient(90deg,rgba(36,18,8,.8),rgba(36,18,8,.42) 36%,rgba(36,18,8,0) 62%),linear-gradient(0deg,rgba(30,16,8,.85),rgba(30,16,8,0) 42%),var(--cover) center/cover;transform-origin:62% 40%}
 body[data-screen=home] #cover-art{animation:toon-drift 32s ease-in-out infinite alternate}
+/* Decorative motion only runs while its screen is in view: a dialog over the menu pauses the drift and the sparkles. */
+body:has(dialog[open]) #cover-art,body:has(dialog[open]) .menu-motes i{animation-play-state:paused}
 @keyframes toon-drift{from{transform:scale(1.01)}to{transform:scale(1.07) translate(-1%,-.5%)}}
 body[data-screen=lobby] #cover-art,body[data-screen=results] #cover-art{background-image:linear-gradient(90deg,rgba(36,18,8,.86),rgba(36,18,8,.6)),var(--cover)}
 /* Sparkles drifting up through the sunset. */
@@ -223,7 +225,7 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 /* Dialogs: a cream paper card with a wooden sign for the title. */
 .modal{color-scheme:light;color:var(--brown);background:var(--paper);border:4px solid var(--brown);border-radius:26px;box-shadow:0 10px 0 var(--brown),0 36px 70px -20px rgba(0,0,0,.6);padding:30px 32px;max-width:720px}
 .modal[open]{animation:toon-pop .3s var(--spring)}
-.modal::backdrop{background:rgba(36,18,8,.58);backdrop-filter:blur(4px)}
+.modal::backdrop{background:rgba(36,18,8,.66);backdrop-filter:none}
 .modal-heading{margin-bottom:24px}
 .modal-heading .eyebrow,.modal .eyebrow{color:var(--cream);margin-bottom:12px;transform:rotate(-1.5deg)}
 .modal-heading h2{display:inline-block;padding:10px 20px 12px;border:3px solid var(--brown);border-radius:14px;background:var(--wood);box-shadow:0 5px 0 var(--brown),inset 0 2px 0 rgba(255,220,170,.35),inset 0 -3px 0 rgba(60,28,10,.3);font-family:var(--heading);font-weight:400;font-size:30px;letter-spacing:.4px;line-height:1.05;color:var(--cream);text-shadow:var(--ol-b2),0 3px 0 var(--brown);transform:rotate(-1deg)}
@@ -364,8 +366,7 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 #loadingOverlay{position:fixed;inset:0;z-index:20;overflow:hidden;background:#2a160a;font-family:var(--sans);color:var(--brown);transition:opacity .35s ease-in}
 #loadingOverlay.out{opacity:0}
 #loadingOverlay>:not(.lbg){zoom:var(--ui,1)}
-#loadingOverlay .lbg{position:absolute;inset:-3%;background:linear-gradient(0deg,rgba(36,18,8,.78),rgba(36,18,8,.3) 36%,rgba(36,18,8,0) 60%),var(--arrival) center 30%/cover;animation:load-kb 24s ease-in-out infinite alternate}
-@keyframes load-kb{from{transform:scale(1.01)}to{transform:scale(1.07) translate(-1%,.6%)}}
+#loadingOverlay .lbg{position:absolute;inset:-3%;background:linear-gradient(0deg,rgba(36,18,8,.78),rgba(36,18,8,.3) 36%,rgba(36,18,8,0) 60%),var(--arrival) center 30%/cover}
 #loadingOverlay .lcard{position:absolute;left:50%;bottom:214px;translate:-50% 0;width:740px;max-width:calc(100vw / var(--ui,1) - 40px);padding:22px 30px 18px;border:4px solid var(--brown);border-radius:24px;background:var(--paper);box-shadow:0 8px 0 var(--brown),0 26px 44px -14px rgba(0,0,0,.6);rotate:-1deg;animation:toon-pop .35s var(--spring) both}
 /* Two strips of tape hold the note to the screen. */
 #loadingOverlay .lcard::before,#loadingOverlay .lcard::after{content:"";position:absolute;top:-16px;width:92px;height:28px;background:rgba(255,236,190,.78);border:2px solid rgba(58,36,24,.25);box-shadow:0 2px 4px rgba(0,0,0,.2)}
@@ -382,10 +383,9 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 #loadingOverlay .lcapy{position:absolute;left:-54px;bottom:-12px;width:108px;height:108px;display:block;transform-origin:50% 8%;filter:drop-shadow(0 6px 0 rgba(58,36,24,.35));animation:load-sway 2.4s ease-in-out infinite alternate}
 @keyframes load-sway{from{transform:rotate(-6deg) translateY(-4px)}to{transform:rotate(6deg) translateY(4px)}}
 #loadingOverlay .lbar{position:relative;height:26px;border:3px solid var(--brown);border-radius:999px;background:#f0d9ad;box-shadow:inset 0 3px 0 rgba(58,36,24,.18),0 3px 0 var(--brown);overflow:hidden}
-#loadingOverlay .lbar i{position:relative;display:block;height:100%;width:34%;border-right:3px solid var(--brown);border-radius:999px;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.28) 0 10px,transparent 10px 20px),var(--candy-gold);box-shadow:inset 0 3px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(150,60,10,.3);animation:load-slide 1.2s ease-in-out infinite alternate,load-stripes .9s linear infinite}
-#loadingOverlay .lbar.determinate i{transition:width .45s var(--spring);animation:load-stripes .9s linear infinite}
+#loadingOverlay .lbar i{position:relative;display:block;height:100%;width:34%;border-right:3px solid var(--brown);border-radius:999px;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.28) 0 10px,transparent 10px 20px),var(--candy-gold);box-shadow:inset 0 3px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(150,60,10,.3);animation:load-slide 1.2s ease-in-out infinite alternate}
+#loadingOverlay .lbar.determinate i{transition:width .45s var(--spring);animation:none}
 @keyframes load-slide{from{transform:translateX(-20%)}to{transform:translateX(200%)}}
-@keyframes load-stripes{to{background-position:28px 0,0 0}}
 #loadingOverlay .lstatus{display:block;margin-top:12px;font-size:15px;font-weight:800;color:var(--brown-2);min-height:1.5em}
 /* Tip on a wooden sign, nailed at both ends. */
 #loadingOverlay .ltipbox{position:absolute;left:50%;bottom:86px;translate:-50% 0;width:780px;max-width:calc(100vw / var(--ui,1) - 40px);display:flex;align-items:center;gap:16px;padding:14px 16px 14px 22px;border:4px solid var(--brown);border-radius:18px;background:var(--wood);box-shadow:0 7px 0 var(--brown),0 22px 36px -14px rgba(0,0,0,.6),inset 0 3px 0 rgba(255,220,170,.35),inset 0 -4px 0 rgba(60,28,10,.3);rotate:.8deg}
@@ -591,7 +591,7 @@ body.reduce-motion #hud .ammo b.tick{animation:none!important}
 #hud #spec button:active,#hud #dmQuit button:active{translate:0 4px;scale:1.02 .95;box-shadow:0 1px 0 var(--ink)}
 #hud #dmQuit{border-radius:16px}
 #victory .vmascot{width:150px;height:150px;margin-bottom:-18px;filter:drop-shadow(0 6px 0 rgba(58,36,24,.45));animation:toon-pop .45s var(--spring) both}
-#victory.won .vmascot{animation:toon-pop .45s var(--spring) both,toon-hop 1.6s ease-in-out .5s infinite}
+#victory.won .vmascot{animation:toon-pop .45s var(--spring) both,toon-hop 1.6s ease-in-out .5s 3}
 @keyframes toon-hop{0%,100%{translate:0 0}30%{translate:0 -10px}50%{translate:0 0}}
 #victory .vpanel{border-radius:22px;background:var(--paper)}
 #victory .vstats div{border-radius:14px;background:#f7e2b8;box-shadow:3px 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.5)}

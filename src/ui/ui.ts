@@ -40,6 +40,8 @@ const CROSSHAIR_COLORS: Record<Settings['crosshairColor'], string> = { white: '#
 const HIT_PALETTES: Record<Settings['hitPalette'], [string, string, string]> = { default: ['#ffffff', '#ffc23d', '#e5412d'], colorblind: ['#ffffff', '#3fd8ff', '#ff4fd8'] };
 const ONBOARD_KEY = 'uc-onboarded';
 const nextTip = tipBag(TIPS);
+// Dev and QA builds only: ?calm turns off decorative motion (same as the reduced-motion setting) for perf probes.
+const CALM = (import.meta.env.DEV || import.meta.env.VITE_QA === '1') && typeof location !== 'undefined' && new URLSearchParams(location.search).has('calm');
 // Damage direction: a 40° arc on a 140 px ring around the crosshair.
 const DAMAGE_ARC = '<svg viewBox="-160 -160 320 320" aria-hidden="true"><path d="M-47.9-131.6A140 140 0 0 1 47.9-131.6" fill="none" stroke="#16120e" stroke-width="16" stroke-linecap="round"/><path d="M-47.9-131.6A140 140 0 0 1 47.9-131.6" fill="none" stroke="#e5412d" stroke-width="9" stroke-linecap="round"/></svg>';
 
@@ -87,6 +89,7 @@ export class GameUI {
   private readonly crosshairSpread = new CrosshairSpread();
   private uiAudio: AudioContext | null = null;
   private uiSoundAt = 0;
+  private uiAudioIdle = 0;
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
@@ -147,6 +150,8 @@ export class GameUI {
       gain.gain.exponentialRampToValueAtTime(.0001, at + .09);
       tone.connect(gain); gain.connect(context.destination); tone.start(at); tone.stop(at + .1);
       tone.onended = () => { tone.disconnect(); gain.disconnect(); };
+      // Suspend the context once the menu goes quiet so no audio thread keeps running under the match.
+      clearTimeout(this.uiAudioIdle); this.uiAudioIdle = window.setTimeout(() => { if (context.state === 'running') void context.suspend(); }, 1500);
     } catch { /* Unsupported or blocked audio never prevents a menu action. */ }
   }
   private header(back = false) {
@@ -698,7 +703,7 @@ export class GameUI {
     if (running.length) running.forEach(animation => { animation.cancel(); animation.play(); });
     else { element.classList.remove(cls); requestAnimationFrame(() => element.classList.add(cls)); }
   }
-  private reducedMotion() { return this.settings.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  private reducedMotion() { return CALM || this.settings.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches; }
   // Interface size and aim colours follow the settings; the HUD scales from its 1600x900 layout.
   applyHudPrefs() {
     // The cover follows the screen width (desktop vs small); both variants are tiny compared to the PNG master.
@@ -712,7 +717,7 @@ export class GameUI {
     document.body.classList.toggle('hud-narrow', hudNarrow(innerWidth, scale));
     body.setProperty('--xc', CROSSHAIR_COLORS[this.settings.crosshairColor]);
     body.setProperty('--hit', hit); body.setProperty('--hithead', head); body.setProperty('--hitkill', kill);
-    document.body.classList.toggle('reduce-motion', this.settings.reducedMotion);
+    document.body.classList.toggle('reduce-motion', CALM || this.settings.reducedMotion);
   }
   private text(id: string, value: string | number) { const element = this.el(id); if (element) this.textOf(element, value); }
   private textOf(element: Element, value: string | number) { if (element.textContent !== String(value)) element.textContent = String(value); }
