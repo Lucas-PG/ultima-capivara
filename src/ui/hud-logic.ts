@@ -104,13 +104,13 @@ export const BINDING_LABELS: Record<string, string> = {
   leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita', fire: 'Atirar', ads: 'Mirar', reload: 'Recarregar', interact: 'Pegar / abrir',
   inspect: 'Inspecionar arma', slot1: 'Arma 1', slot2: 'Arma 2', slot3: 'Arma 3', slot4: 'Arma 4',
   useBandage: 'Usar bandagem', useMedkit: 'Usar kit médico', useGuarana: 'Tomar guaraná', useAcai: 'Tomar açaí', useRapadura: 'Comer rapadura',
-  scoreboard: 'Placar', map: 'Mapa da ilha',
+  scoreboard: 'Placar', map: 'Mapa da ilha', emote: 'Gestos (segurar)',
 };
 export const BINDING_GROUPS: readonly { title: string; actions: readonly string[] }[] = [
   { title: 'Movimento', actions: ['forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'leanLeft', 'leanRight'] },
   { title: 'Combate', actions: ['fire', 'ads', 'reload', 'interact', 'inspect'] },
   { title: 'Armas e curas', actions: ['slot1', 'slot2', 'slot3', 'slot4', 'useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] },
-  { title: 'Interface', actions: ['scoreboard', 'map'] },
+  { title: 'Interface', actions: ['scoreboard', 'map', 'emote'] },
 ];
 export const CONSUMABLE_ACTIONS = ['useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] as const;
 // Esc stays reserved for the menu; the bindable codes are settings.ts BINDABLE_CODE (Brasa's binding model).

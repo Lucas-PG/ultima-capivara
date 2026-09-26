@@ -6,7 +6,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', leanLeft: 'KeyQ', leanRight: 'KeyE', inspect: 'KeyI',
   fire: 'Mouse0', ads: 'Mouse2', slot1: 'Digit1', slot2: 'Digit2', slot3: 'Digit3', slot4: 'Digit4',
   useBandage: 'Digit5', useMedkit: 'Digit6', useGuarana: 'Digit7', useAcai: 'Digit8', useRapadura: 'Digit9',
-  scoreboard: 'Tab', map: 'KeyM',
+  scoreboard: 'Tab', map: 'KeyM', emote: 'KeyB',
 };
 // Keys by KeyboardEvent.code, mouse buttons as 'Mouse' + event.button. Escape stays reserved for the menu.
 export const BINDABLE_CODE = /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Backquote|Arrow(Up|Down|Left|Right)|Mouse[0-4])$/;
