@@ -2,6 +2,7 @@ import { actorEye, hasLineOfSight } from './collision';
 import { distance } from './math';
 import { RARITY } from './rarity';
 import { WEAPONS } from './weapons';
+import { mudBathAt } from './recreation';
 import type { ActorState, LootState, Vec3, WeaponId, WorldSnapshot, WorldSpec } from './types';
 
 export interface Interaction { id: string; name: string }
@@ -15,6 +16,10 @@ const eye: Vec3 = { x: 0, y: 0, z: 0 }, target: Vec3 = { x: 0, y: 0, z: 0 };
 // and select directly instead of constructing/sorting every candidate each frame.
 export function closestInteraction(world: WorldSpec, snapshot: Pick<WorldSnapshot, 'loot' | 'openedChests'> | null, actor: ActorState | null, result: Interaction): Interaction | null {
   if (!snapshot || !actor?.alive || actor.stage !== 'ground') return null;
+  const bath = actor.grounded && !actor.swimming && mudBathAt(actor.pos, world);
+  if (bath && actor.emote !== 'sit' && actor.emote !== 'chill') {
+    result.id = bath.id; result.name = 'Sentar no banho de lama'; return result;
+  }
   eye.x = actor.pos.x; eye.y = actor.pos.y + actorEye(actor); eye.z = actor.pos.z;
   let nearestDistance = Infinity, nearestId: string | null = null, nearestLoot: LootState | null = null;
   for (let i = 0; i < snapshot.loot.length; i++) {

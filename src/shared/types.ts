@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 export const WORLD_VERSION = 'ilha-v3-rio-5';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -47,7 +47,7 @@ export interface ActorState {
   hp: number; armor: number; helmet: number; alive: boolean; grounded: boolean;
   crouch: boolean; sprint: boolean; ads: boolean;
   swimming: boolean; wetUntil: number;
-  emote: EmoteId | null; emoteUntil: number;
+  emote: EmoteId | null; emoteUntil: number; soaking: boolean;
   stage: 'plane' | 'falling' | 'parachute' | 'ground';
   kills: number; deaths: number; damage: number; weaponLevel: number;
   weapons: WeaponState[]; slot: number;
