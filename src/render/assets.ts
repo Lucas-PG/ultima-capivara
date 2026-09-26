@@ -108,7 +108,7 @@ export class AssetLoader {
     root.traverse(object => {
       if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite || object instanceof THREE.Line)) return;
       for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) {
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap', 'specularIntensityMap', 'specularColorMap']) {
           const texture = (material as unknown as Record<string, unknown>)[key];
           if (!(texture instanceof THREE.Texture) || seen.has(texture)) continue;
           seen.add(texture);
