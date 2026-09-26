@@ -13,3 +13,15 @@ it('keeps the visible remote pistol compact and distinct from a long gun within 
   expect(Array.from(pistol.getAttribute('normal').array).every(Number.isFinite)).toBe(true);
   pistol.dispose(); rifle.dispose();
 });
+
+it('removes subpixel pistol detail at distance while preserving its compact silhouette', () => {
+  const near = itemGeometry('weapon', 'pistol'), far = itemGeometry('weapon', 'pistol', 'far');
+  try {
+    near.computeBoundingBox(); far.computeBoundingBox();
+    expect(far.getAttribute('position').count).toBeLessThan(near.getAttribute('position').count * .5);
+    expect(far.boundingBox!.min.distanceTo(near.boundingBox!.min)).toBeLessThan(.008);
+    expect(far.boundingBox!.max.distanceTo(near.boundingBox!.max)).toBeLessThan(.008);
+    expect(far.getAttribute('color').count).toBe(far.getAttribute('position').count);
+    expect(Array.from(far.getAttribute('normal').array).every(Number.isFinite)).toBe(true);
+  } finally { near.dispose(); far.dispose(); }
+});
