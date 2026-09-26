@@ -96,6 +96,16 @@ describe('seeded bot personality without combat concessions', () => {
     expect(shot!.time - alert!.time).toBeLessThan(1.5);
   });
 
+  it('does not offer a stationary gesture to a distant visible sniper', () => {
+    const { sim, bot, player } = celebrating();
+    player.state.pos = { ...bot.state.pos, x: bot.state.pos.x + 100 };
+    player.state.weapons = [{ id: 'sniper', ammo: 5, reserve: 15, rarity: 0 }]; player.state.slot = 0;
+    bot.brain.thinkAt = 0;
+    sim.step(1 / 60);
+    expect(bot.state.emote).toBeNull(); expect(bot.brain.leisure).toBeNull();
+    expect(bot.brain.target).toBeNull();
+  });
+
   it('walks to a nearby mud bath and heals only through seated contact, then leaves', () => {
     const { sim, bot } = fixture(7, 'bath'); bot.state.hp = 60;
     let seated = false;

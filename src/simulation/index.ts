@@ -1009,9 +1009,10 @@ export class Simulation {
       const t = other.state;
       if (t.id === s.id || !t.alive || t.stage !== 'ground') return false;
       const distance = Math.hypot(t.pos.x - s.pos.x, t.pos.z - s.pos.z);
+      const threatRange = t.bot ? 75 : t.weapons.reduce((range, weapon) => Math.max(range, WEAPONS[weapon.id].range), 75);
       // This conservative all-direction check only suppresses leisure. It does
       // not reveal targets to the combat brain or bypass its reaction time.
-      return distance < 28 || distance < 75 && this.botCanSee(s, t);
+      return distance < 28 || distance < threatRange && this.botCanSee(s, t);
     })) { this.stopBotLeisure(a); return false; }
     if (b.leisure && (now >= b.leisure.until || b.leisure.kind === 'bath' && s.hp >= 85)) {
       this.stopBotLeisure(a); return false;
