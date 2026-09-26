@@ -9,19 +9,22 @@ export class AtmospherePass {
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly quad: THREE.Mesh;
   enabled = true;
+  private readonly sun = new THREE.Vector3();
+  private readonly view = new THREE.Vector3();
+  private readonly sunDirection = new THREE.Vector3(-70, 32, -30).normalize();
 
   constructor(color: THREE.Texture, depth: THREE.DepthTexture) {
     this.material = new THREE.ShaderMaterial({
       uniforms: { tColor: { value: color }, tDepth: { value: depth },
         inverseProjection: { value: new THREE.Matrix4() }, projectionScale: { value: new THREE.Vector2() },
-        texel: { value: new THREE.Vector2(1, 1) } },
+        texel: { value: new THREE.Vector2(1, 1) }, sunScreen: { value: new THREE.Vector3() } },
       depthTest: false, depthWrite: false, toneMapped: false,
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
       fragmentShader: `
         varying vec2 vUv;
         uniform sampler2D tColor,tDepth;
         uniform mat4 inverseProjection;
-        uniform vec2 projectionScale,texel;
+        uniform vec2 projectionScale,texel; uniform vec3 sunScreen;
         vec3 viewPosition(vec2 uv){
           vec4 p=inverseProjection*vec4(uv*2.0-1.0,texture2D(tDepth,uv).r*2.0-1.0,1.0);
           return p.xyz/p.w;
@@ -58,6 +61,16 @@ export class AtmospherePass {
           }
           ao=clamp(ao*.7,0.0,.62)*(1.0-smoothstep(48.0,85.0,-p.z));
           if(texture2D(tDepth,vUv).r>.99999)ao=0.0;
+          // Depth silhouettes interrupt a short radial integration toward the
+          // sun, creating shafts only where the canopy actually opens.
+          float shafts=0.0; vec2 ray=(sunScreen.xy-vUv)*.025;
+          for(int i=0;i<12;i++){
+            vec2 uv=vUv+ray*float(i+1);
+            float inside=step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0);
+            shafts+=step(.99995,texture2D(tDepth,uv).r)*inside*(1.0-float(i)/14.0);
+          }
+          shafts*=sunScreen.z*exp(-length(vUv-sunScreen.xy)*3.5)*.055;
+          glow+=vec3(1.0,.66,.3)*shafts;
           gl_FragColor=vec4(glow,1.0-ao);
         }
       `,
@@ -75,6 +88,10 @@ export class AtmospherePass {
     if (!this.enabled) return;
     this.material.uniforms.inverseProjection.value.copy(camera.projectionMatrixInverse);
     this.material.uniforms.projectionScale.value.set(camera.projectionMatrix.elements[0] * .5, camera.projectionMatrix.elements[5] * .5);
+    this.sun.copy(camera.position).addScaledVector(this.sunDirection, 500).project(camera);
+    camera.getWorldDirection(this.view);
+    this.material.uniforms.sunScreen.value.set(this.sun.x * .5 + .5, this.sun.y * .5 + .5,
+      Math.max(0, this.view.dot(this.sunDirection)));
     gl.setRenderTarget(this.target); gl.render(this.scene, this.camera);
   }
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { timing } from './timing';
+import { Spring } from './spring';
 import { damp } from '../shared/math';
 import { actorEye } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
@@ -57,6 +58,11 @@ export class CameraRig {
   private readonly rotation = new THREE.Euler(0, 0, 0, 'YXZ');
   private elapsed = 0;
   private adsAmount = 0;
+  private readonly eyeHeight = new Spring();
+  private readonly landing = new Spring();
+  private grounded = true;
+  private verticalSpeed = 0;
+  private gait = 0;
   // Plane: third-person orbit. Drop: chase camera. Ground: first person.
   // Switching modes eases from the last pose instead of cutting.
   private cameraMode: CameraMode | null = null;
@@ -150,7 +156,7 @@ export class CameraRig {
         this.cameraBlend = 1; this.cameraBlendDuration = mode === 'fps' ? .6 : .8;
       }
       if (this.cameraMode !== mode && timing.enabled) timing.record('camera-transition', timing.begin(), 0, mode, true);
-      if (snap) this.cameraBlend = 0;
+      if (snap) { this.cameraBlend = 0; this.eyeHeight.reset(actorEye(actor)); this.landing.reset(); this.grounded = actor.grounded; }
       // Handing off from the death cam to the spectated capybara eases instead of cutting.
       if (this.wasDeathCam && !this.settings.reducedMotion) {
         this.blendFromPosition.copy(this.camera.position); this.blendFromQuaternion.copy(this.camera.quaternion);
@@ -177,8 +183,19 @@ export class CameraRig {
       } else {
         const predicted = own && frame.predicted ? frame.predicted : actor.pos;
         const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
-        const bob = this.settings.reducedMotion ? 0 : actor.grounded ? Math.sin(this.elapsed * (actor.sprint ? 15 : 10)) * Math.min(speed / 8, 1) * (actor.sprint ? .035 : .018) : 0;
-        const target = this.target.copy(predicted).setY(predicted.y + actorEye(actor) + bob);
+        const dt = Math.max(0, Math.min(frame.dt, .05));
+        this.gait += speed * dt * 2.5;
+        if (actor.grounded && !this.grounded) this.landing.impulse(-Math.min(3.2, Math.max(.6, -this.verticalSpeed * .28)));
+        if (!actor.grounded && this.grounded && actor.velocity.y > 0) this.landing.impulse(.65);
+        this.grounded = actor.grounded; this.verticalSpeed = actor.velocity.y;
+        const eye = this.eyeHeight.update(actorEye(actor), 23, dt);
+        const impact = this.landing.update(0, 17, dt);
+        const bob = settings.reducedMotion ? 0 : actor.grounded ? Math.sin(this.gait) * Math.min(speed / 8, 1) * .017 : 0;
+        const target = this.target.copy(predicted).setY(predicted.y + eye + bob + (settings.reducedMotion ? 0 : impact));
+        // Keep the visual crouch transition below any actual low ceiling.
+        for (const solid of this.world.colliders) if (predicted.x > solid.min.x - .06 && predicted.x < solid.max.x + .06 &&
+          predicted.z > solid.min.z - .06 && predicted.z < solid.max.z + .06 && solid.min.y > predicted.y + .5)
+          target.y = Math.min(target.y, solid.min.y - .08);
         const leanDistance = actor.lean * .24;
         if (Math.abs(leanDistance) > .001) {
           const leanDir = this.direction.set(Math.cos(yaw) * Math.sign(leanDistance), 0, -Math.sin(yaw) * Math.sign(leanDistance));

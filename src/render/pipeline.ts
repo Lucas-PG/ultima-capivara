@@ -6,8 +6,8 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { AtmospherePass } from './atmosphere-pass';
 
-// Graphics presets. The outline pass is the art style, so it runs on every
-// preset; what scales is resolution and shadows. Final FXAA covers every preset.
+// Full-resolution character silhouettes stay thin. Medium/High use SMAA;
+// Low uses FXAA and omits ambient occlusion and bloom.
 // World depth stays single-sampled: resolving even two samples across overlapping
 // R6 skin parts rejects mask pixels at the chin/bandana seam (TATU40).
 export const PRESETS = {

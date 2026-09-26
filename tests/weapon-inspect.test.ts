@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Spring } from '../src/render/spring';
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import type { ActorState, WeaponId } from '../src/shared/types';
@@ -21,6 +22,8 @@ async function harness() {
   };
   const view = Object.assign(Object.create(WeaponView.prototype), {
     holder, scene, models: { pistol: model(), smg: model() }, active: 'pistol', ads: 0, draw: 0, kick: 0, reloadEnd: 0,
+    recoil: new Spring(), recoilYaw: new Spring(), swayX: new Spring(), swayY: new Spring(), land: new Spring(),
+    lastYaw: undefined, lastPitch: 0, grounded: true, verticalSpeed: 0, sprintPose: 0, holster: 0,
     gait: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], disposed: false,
     inspectTime: -1, inspectAllowed: false, restPosition: new THREE.Vector3(), restRotation: new THREE.Euler(),
   }) as InstanceType<typeof WeaponView>;
