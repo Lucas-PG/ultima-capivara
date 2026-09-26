@@ -447,6 +447,8 @@ Cena painted water, September 2026: original procedural shaders use the rendered
 
 Mud soaking audio is synthesized locally from short filtered noise and sine tones. One low plop marks the authoritative soaking transition, with sparse soft bubbles while soaking remains active. Local presentation overrides a delayed snapshot; cancellation disconnects the current voice. Remote sounds are spatialized only within 12 m, and at most four bath voices are active. No recording, download or external source is used.
 
+Trampoline launch feedback reuses the original pooled painted dust atlas. Each authoritative contact bends its matching mat and starts its painted ripple, five small dust cards and a short synthesized spring cue. Low uses two cards; reduced motion suppresses dust and mat motion. Remote cues are distance-limited. There are no extra downloads, shadow submissions or gameplay impulses in this presentation layer. Visual acceptance awaits the trampoline feature gate.
+
 ### Cover-derived capybara and authored social clips, 2026-09-26
 
 Original geometry in `tools/blender/capybara.py` follows the approved turnaround above: a rounded tapered skull, broad dark nose pad, high layered eyes and lids, curved padded digits, flat four-toed feet, short olive sleeves, continuous cargo shorts and a lower, fuller torso. The later director review requested a softer lower belly than the initial concept prompt. Hidden skin is removed beneath garments, and cuff skinning follows the actual upper-arm and thigh joints. A narrow fur band separates the shortened vest from the belt. The original fur field in `character_paint.py` and `character-atlas.ts` uses longer, staggered fine strokes; the 4x4 atlas semantics and cosmetic recolouring contract are unchanged.

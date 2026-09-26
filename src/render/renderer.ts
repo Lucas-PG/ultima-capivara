@@ -290,6 +290,7 @@ export class GameRenderer {
         killerPos: event.from || null, duration: DEATH_CAM_SECONDS });
     }
     if (event.type === 'respawn') this.avatars.respawn(event.actor);
+    if (event.type === 'bounce') this.worldView.bounce(event.pos);
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
 
