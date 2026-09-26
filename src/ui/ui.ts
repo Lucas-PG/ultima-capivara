@@ -5,7 +5,7 @@ import { rarityOf } from '../shared/rarity';
 import { ARENA } from '../shared/layout';
 import { terrainHeight } from '../shared/terrain';
 import { boundaryFeedback } from '../shared/bounds';
-import { WEAPONS } from '../shared/weapons';
+import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon, emoteIcon } from './icons';
 import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
@@ -24,7 +24,7 @@ export interface UICallbacks {
   settings(settings: Settings): void; profile(profile: Profile): void;
 }
 type Profile = { name: string; color: string };
-export const modeName = (mode: Mode) => mode === 'battle-royale' ? 'ÚLTIMA DE PÉ' : 'CORRERIA';
+export const modeName = (mode: Mode) => mode === 'battle-royale' ? 'ÚLTIMA DE PÉ' : mode === 'corrente' ? 'CORRENTE' : 'CORRERIA';
 const clock = (seconds: number) => { const s = Math.max(0, Math.ceil(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const keyName = (code: string) => keyLabel(code);
 // Tiny HUD key chips show a dash for an unbound action (Settings spells out 'Sem tecla').
@@ -182,9 +182,10 @@ export class GameUI {
       <div class="menu-board"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><div class="hero-actions"><button class="button primary warmup" data-do="practice">${icon('play')}<span>JOGAR AGORA<small>Treino com bots · sem esperar</small></span>${icon('arrow')}</button>
       <button class="button secondary" data-do="host">${icon('plus')} CRIAR SALA</button><button class="button secondary" data-do="join">${icon('users')} ENTRAR NA SALA</button></div></div>
       <div class="hero-facts"><span>${icon('users')} Até 16 amigos</span><span>${icon('globe')} No navegador</span><b class="burst">100%<br>GRÁTIS</b></div></section>
-      <section class="mode-section" aria-label="Escolha o modo"><div class="section-heading"><span>ESCOLHA SUA AVENTURA</span><small>02 MODOS DE JOGO</small></div><div class="mode-grid">
+      <section class="mode-section" aria-label="Escolha o modo"><div class="section-heading"><span>ESCOLHA SUA AVENTURA</span><small>03 MODOS DE JOGO</small></div><div class="mode-grid">
       <button class="mode-card royale${mode('battle-royale')}" data-mode="battle-royale"><div class="mode-art painted" style="--art:url(${uiArt('mode-royale')})"><span class="mode-index">01</span></div><div class="mode-copy"><span class="mode-tag">BATTLE ROYALE</span><h2>ÚLTIMA DE PÉ</h2><p>Uma ilha. Uma vida.<br>Sobreviva até o fim.</p><span class="mode-meta">${icon('users')} ATÉ 21 BICHOS <b class="selection-mark">${icon('check')}</b></span></div></button>
       <button class="mode-card deathmatch${mode('deathmatch')}" data-mode="deathmatch"><div class="mode-art painted" style="--art:url(${uiArt('mode-correria')})"><span class="mode-index">02</span></div><div class="mode-copy"><span class="mode-tag">COMBATE POR TEMPO</span><h2>CORRERIA</h2><p>Caiu? Volta pra disputa.<br>Mais eliminações, mais glória.</p><span class="mode-meta">${icon('clock')} 8 MINUTOS <b class="selection-mark">${icon('check')}</b></span></div></button>
+      <button class="mode-card corrente${mode('corrente')}" data-mode="corrente"><div class="mode-art">${weaponIcon('pistol')}${icon('crown')}${weaponIcon('machete')}<span class="mode-index">03</span></div><div class="mode-copy"><span class="mode-tag">SEQUÊNCIA DE ARMAS</span><h2>CORRENTE</h2><p>Uma eliminação. Nova arma.<br>Feche a sequência no facão.</p><span class="mode-meta">${icon('crown')} ${CORRENTE_LADDER.length} ARMAS ATÉ A GLÓRIA <b class="selection-mark">${icon('check')}</b></span></div></button>
       </div></section></main><footer class="home-footer"><span>${icon('leaf')} FEITO PARA JOGAR JUNTO.</span><span>ILHA DAS CAPIVARAS <i>22° S / 43° O</i></span><button data-do="how">CONTROLES ${icon('mouse')}</button></footer>`;
   }
   // Short <select>s become segmented toggles; the hidden select stays the source of truth for forms and listeners.
@@ -216,9 +217,10 @@ export class GameUI {
     return `<div class="profile-editor"><div id="profile-avatar">${capybara(this.profile.color)}</div><div class="profile-inputs"><label for="nickname">COMO A TURMA TE CHAMA?</label><input id="nickname" name="nickname" maxlength="18" required placeholder="Seu apelido" autocomplete="nickname" value="${esc(this.profile.name)}"/><div class="color-picker" aria-label="Cor da capivara">${PLAYER_COLORS.map(color => `<button type="button" aria-label="Cor ${color}" data-color="${color}" style="--swatch:${color}" class="color-choice ${color === this.profile.color ? 'selected' : ''}"></button>`).join('')}</div></div></div>`;
   }
   roomModal(kind: 'host' | 'join', code = '') {
-    const dialog = this.openModal(kind === 'host' ? 'A TURMA COMEÇA AQUI.' : 'SUA TURMA TE ESPERA.', `<form id="room-form">${this.profileFields()}${kind === 'host' ? `<div class="form-grid"><label>MODO<select name="mode"><option value="battle-royale" ${this.selectedMode === 'battle-royale' ? 'selected' : ''}>Última de pé · Battle royale</option><option value="deathmatch" ${this.selectedMode === 'deathmatch' ? 'selected' : ''}>Correria · Combate por tempo</option></select></label><label>VAGAS PARA AMIGOS<select name="capacity"><option>2</option><option>4</option><option selected>8</option><option>12</option><option>16</option></select></label><label>DURAÇÃO DA CORRERIA<select name="duration"><option value="300">5 minutos</option><option value="480" selected>8 minutos</option><option value="600">10 minutos</option></select></label><label>NÍVEL DOS BOTS<select name="difficulty"><option value="easy">Tranquilo</option><option value="normal" selected>Na medida</option><option value="hard">Sem dó</option></select></label></div><label class="check-row"><input type="checkbox" name="bots" checked/><span>Completar a turma com bots<small>21 bichos no battle royale; pelo menos 8 na Correria.</small></span></label><p class="form-note">${icon('info')} Quem cria a sala mantém esta aba aberta durante a partida.</p>` : `<label for="join-code">CÓDIGO DA SALA</label><input id="join-code" class="code-input" name="code" maxlength="6" minlength="6" required placeholder="ABC123" autocomplete="off" spellcheck="false" value="${esc(code)}"/><p class="form-note">${icon('link')} Peça o código ou o link para quem criou a sala.</p>`}<p class="form-error" role="alert"></p><button class="button primary full-width" type="submit">${kind === 'host' ? 'CRIAR MINHA SALA' : 'ENTRAR NA SALA'} ${icon('arrow')}</button></form>`);
+    const dialog = this.openModal(kind === 'host' ? 'A TURMA COMEÇA AQUI.' : 'SUA TURMA TE ESPERA.', `<form id="room-form">${this.profileFields()}${kind === 'host' ? `<div class="form-grid"><label>MODO<select name="mode"><option value="battle-royale" ${this.selectedMode === 'battle-royale' ? 'selected' : ''}>Última de pé · Battle royale</option><option value="deathmatch" ${this.selectedMode === 'deathmatch' ? 'selected' : ''}>Correria · Combate por tempo</option><option value="corrente" ${this.selectedMode === 'corrente' ? 'selected' : ''}>Corrente · Sequência de armas</option></select></label><label>VAGAS PARA AMIGOS<select name="capacity"><option>2</option><option>4</option><option selected>8</option><option>12</option><option>16</option></select></label><label>DURAÇÃO DA CORRERIA<select name="duration"><option value="300">5 minutos</option><option value="480" selected>8 minutos</option><option value="600">10 minutos</option></select></label><label>NÍVEL DOS BOTS<select name="difficulty"><option value="easy">Tranquilo</option><option value="normal" selected>Na medida</option><option value="hard">Sem dó</option></select></label></div><label class="check-row"><input type="checkbox" name="bots" checked/><span>Completar a turma com bots<small>21 bichos no battle royale; pelo menos 8 nos outros modos.</small></span></label><p class="form-note">${icon('info')} Quem cria a sala mantém esta aba aberta durante a partida.</p>` : `<label for="join-code">CÓDIGO DA SALA</label><input id="join-code" class="code-input" name="code" maxlength="6" minlength="6" required placeholder="ABC123" autocomplete="off" spellcheck="false" value="${esc(code)}"/><p class="form-note">${icon('link')} Peça o código ou o link para quem criou a sala.</p>`}<p class="form-error" role="alert"></p><button class="button primary full-width" type="submit">${kind === 'host' ? 'CRIAR MINHA SALA' : 'ENTRAR NA SALA'} ${icon('arrow')}</button></form>`);
     dialog.querySelectorAll<HTMLElement>('[data-color]').forEach(button => button.addEventListener('click', () => { this.profile.color = button.dataset.color!; dialog.querySelectorAll('[data-color]').forEach(b => b.classList.toggle('selected', b === button)); dialog.querySelector('#profile-avatar')!.innerHTML = capybara(this.profile.color); }));
     const form = dialog.querySelector<HTMLFormElement>('form')!;
+    if (kind === 'host') { const mode = form.querySelector<HTMLSelectElement>('[name=mode]')!, duration = form.querySelector<HTMLSelectElement>('[name=duration]')!; const updateDuration = () => { duration.closest('label')!.hidden = mode.value !== 'deathmatch'; }; mode.addEventListener('change', updateDuration); updateDuration(); }
     form.addEventListener('submit', async event => {
       event.preventDefault(); const data = new FormData(form);
       this.profile.name = String(data.get('nickname')).trim().slice(0, 18) || 'Capivara'; this.callbacks.profile(this.profile);
@@ -235,7 +237,7 @@ export class GameUI {
   private lobby() {
     const room = this.room!; this.screen = 'lobby'; this.els.clear(); document.body.dataset.screen = 'lobby';
     const me = room.players.find(p => p.id === room.myId), allReady = room.players.every(p => p.ready && p.connected);
-    this.root.innerHTML = `${this.header(true)}<main class="lobby-content"><section class="lobby-intro"><p class="eyebrow">ENCONTRO MARCADO.</p><h1>SUA TURMA.<br><em>SUA ILHA.</em></h1><p>A melhor confusão começa com os amigos certos.</p><div class="invite-card"><div><span>CÓDIGO DA SALA</span><strong>${esc(room.code)}</strong></div><button class="button secondary" data-do="copy">${icon('link')} COPIAR LINK</button></div><div class="lobby-rules"><span>${icon(room.config.mode === 'battle-royale' ? 'crown' : 'bolt')} ${modeName(room.config.mode)}</span><p>${room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : `Você tem ${room.config.duration / 60} minutos. Elimine, reapareça e termine no topo.`}</p><small>${room.config.bots ? 'BOTS COMPLETAM A TURMA' : 'SOMENTE AMIGOS'} · ${room.config.capacity} VAGAS</small></div></section><section class="roster-panel"><div class="section-heading"><span>QUEM VAI PRA ILHA</span><small>${room.players.length}/${room.config.capacity}</small></div><div class="roster">${room.players.map(player => `<div class="player-row ${player.id === room.myId ? 'you' : ''}">${capybara(player.color)}<div><strong>${esc(player.name)} ${player.id === room.myId ? '<small>VOCÊ</small>' : ''}</strong><span>${player.id === room.hostId ? 'CRIADOR DA SALA' : 'NA TURMA'}</span></div><b class="ready-status ${player.ready && player.connected ? 'ready' : ''}">${!player.connected ? 'RECONECTANDO' : player.ready ? `${icon('check')} PRONTO` : 'PREPARANDO'}</b></div>`).join('')}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')} O próximo lugar pode ser do seu amigo.</div>` : ''}</div><div class="lobby-bottom"><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width" data-do="ready">${icon('check')} ${me?.ready ? 'ESTOU PRONTO · CANCELAR' : 'ESTOU PRONTO'}</button>${room.isHost ? this.startButton(allReady) : '<p>Quem criou a sala começa quando a turma estiver pronta.</p>'}<small>${room.isHost ? 'Mantenha esta aba aberta enquanto a turma joga.' : 'Seu jogo está pronto. Só falta a turma.'}</small><p id="connection-status" role="status">${esc(this.networkStatus)}</p></div></section></main>`;
+    this.root.innerHTML = `${this.header(true)}<main class="lobby-content"><section class="lobby-intro"><p class="eyebrow">ENCONTRO MARCADO.</p><h1>SUA TURMA.<br><em>SUA ILHA.</em></h1><p>A melhor confusão começa com os amigos certos.</p><div class="invite-card"><div><span>CÓDIGO DA SALA</span><strong>${esc(room.code)}</strong></div><button class="button secondary" data-do="copy">${icon('link')} COPIAR LINK</button></div><div class="lobby-rules"><span>${icon(room.config.mode === 'battle-royale' ? 'crown' : 'bolt')} ${modeName(room.config.mode)}</span><p>${room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : room.config.mode === 'corrente' ? 'Cada eliminação traz a próxima arma. Avance pela sequência e vença com o facão final.' : `Você tem ${room.config.duration / 60} minutos. Elimine, reapareça e termine no topo.`}</p><small>${room.config.bots ? 'BOTS COMPLETAM A TURMA' : 'SOMENTE AMIGOS'} · ${room.config.capacity} VAGAS</small></div></section><section class="roster-panel"><div class="section-heading"><span>QUEM VAI PRA ILHA</span><small>${room.players.length}/${room.config.capacity}</small></div><div class="roster">${room.players.map(player => `<div class="player-row ${player.id === room.myId ? 'you' : ''}">${capybara(player.color)}<div><strong>${esc(player.name)} ${player.id === room.myId ? '<small>VOCÊ</small>' : ''}</strong><span>${player.id === room.hostId ? 'CRIADOR DA SALA' : 'NA TURMA'}</span></div><b class="ready-status ${player.ready && player.connected ? 'ready' : ''}">${!player.connected ? 'RECONECTANDO' : player.ready ? `${icon('check')} PRONTO` : 'PREPARANDO'}</b></div>`).join('')}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')} O próximo lugar pode ser do seu amigo.</div>` : ''}</div><div class="lobby-bottom"><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width" data-do="ready">${icon('check')} ${me?.ready ? 'ESTOU PRONTO · CANCELAR' : 'ESTOU PRONTO'}</button>${room.isHost ? this.startButton(allReady) : '<p>Quem criou a sala começa quando a turma estiver pronta.</p>'}<small>${room.isHost ? 'Mantenha esta aba aberta enquanto a turma joga.' : 'Seu jogo está pronto. Só falta a turma.'}</small><p id="connection-status" role="status">${esc(this.networkStatus)}</p></div></section></main>`;
   }
   // Host start button: while the island warms up it is disabled, labelled and shows real progress (setRoomLoading).
   private startButton(allReady: boolean) {
@@ -270,6 +272,7 @@ export class GameUI {
     const key = (code: string) => esc(keyName(code));
     this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><span>×</span></div>`
       + `<div id="topL" class="stk"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
+      + `<div id="ladder" hidden><div class="ladder-heading"><b>CORRENTE</b><span id="ladderStep">1 / ${CORRENTE_LADDER.length}</span></div><div class="ladder-track" aria-hidden="true">${CORRENTE_LADDER.map((_, i) => `<i id="ladder-${i}"></i>`).join('')}</div><span id="ladderNext"></span></div>`
       + `<div id="safe" class="stk" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="stk" hidden>Na tempestade! −<span id="hDps">1</span>/s</div>`
       + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
       + `<div id="matchMoment" hidden aria-live="polite"><strong id="momentTitle"></strong><small id="momentDetail"></small></div>`
@@ -295,15 +298,27 @@ export class GameUI {
     const now = performance.now(); if (now - this.hudTime < 75) return; this.hudTime = now;
     const br = snapshot.config.mode === 'battle-royale', t = snapshot.time, zone = snapshot.zone, jump = keyName(this.settings.bindings.jump);
     const alive = snapshot.actors.filter(a => a.alive).length;
-    this.text('hAliveK', br ? 'Bichos na ilha' : 'Na correria'); this.text('hAlive', br ? alive : snapshot.actors.length); this.text('hKills', me.kills);
+    this.text('hAliveK', br ? 'Bichos na ilha' : snapshot.config.mode === 'corrente' ? 'Na corrente' : 'Na correria'); this.text('hAlive', br ? alive : snapshot.actors.length); this.text('hKills', me.kills);
     const zoneChip = this.el('hZoneChip'), finalStorm = zone.phase >= STORM_PHASES;
     this.toggle(zoneChip, 'time', !br);
-    this.toggle(zoneChip, 'closing', br ? zone.shrinking || finalStorm : snapshot.remaining <= 30);
-    this.text('hZoneK', br ? finalStorm ? 'Última tempestade' : zone.shrinking ? 'Tempestade avançando' : 'Tempestade em' : 'Tempo restante');
-    this.text('hZoneT', br ? finalStorm ? '0:00' : clock(zone.timeLeft) : clock(snapshot.remaining));
+    this.toggle(zoneChip, 'closing', br ? zone.shrinking || finalStorm : snapshot.config.mode === 'deathmatch' && snapshot.remaining <= 30);
+    this.text('hZoneK', br ? finalStorm ? 'Última tempestade' : zone.shrinking ? 'Tempestade avançando' : 'Tempestade em' : snapshot.config.mode === 'corrente' ? 'Líder precisa de' : 'Tempo restante');
+    this.text('hZoneT', br ? finalStorm ? '0:00' : clock(zone.timeLeft) : snapshot.config.mode === 'corrente' ? `${Math.max(1, Math.ceil(snapshot.remaining))} ${snapshot.remaining === 1 ? 'elim.' : 'elims.'}` : clock(snapshot.remaining));
     this.show('hDots', br);
     if (br) this.el('hDots').querySelectorAll('i').forEach((dot, i) => this.toggle(dot, 'on', i < Math.min(zone.phase + (zone.shrinking ? 1 : 0), STORM_PHASES)));
-    this.show('hRankChip', !br); if (!br) this.text('hRank', `#${snapshot.actors.filter(a => a.kills > me.kills).length + 1}`);
+    this.show('hRankChip', !br); if (!br) this.text('hRank', `#${snapshot.actors.filter(a => snapshot.config.mode === 'corrente' ? a.weaponLevel > me.weaponLevel : a.kills > me.kills).length + 1}`);
+    const corrente = snapshot.config.mode === 'corrente', ladder = this.el('ladder'); this.show('ladder', corrente && me.alive);
+    if (corrente) {
+      const level = Math.max(0, Math.min(CORRENTE_LADDER.length - 1, me.weaponLevel)), final = level === CORRENTE_LADDER.length - 1;
+      this.text('ladderStep', `${level + 1} / ${CORRENTE_LADDER.length}`);
+      this.text('ladderNext', final ? 'Uma eliminação de facão para vencer!' : `Próxima: ${WEAPONS[CORRENTE_LADDER[level + 1]].name}`);
+      this.toggle(ladder, 'final', final);
+      if (ladder.dataset.level !== String(level)) {
+        if (ladder.dataset.level !== undefined) this.restartAnimation(ladder, 'upgrade');
+        ladder.dataset.level = String(level);
+        CORRENTE_LADDER.forEach((_, i) => { this.toggle(this.el(`ladder-${i}`), 'done', i < level); this.toggle(this.el(`ladder-${i}`), 'current', i === level); });
+      }
+    }
     const outside = br && me.alive && me.stage === 'ground' && Math.hypot(me.pos.x - zone.x, me.pos.z - zone.z) > zone.radius;
     this.show('hOut', outside); if (outside) this.text('hDps', Math.round(zone.damage));
     this.toggle(this.el('storm'), 'on', outside);
@@ -399,7 +414,7 @@ export class GameUI {
     const score = this.el('scoreboard'); this.show('scoreboard', scoreboard);
     if (scoreboard) {
       // Rebuild the table only when a row changes, never on every HUD tick.
-      const key = snapshot.actors.map(a => `${a.id}:${a.kills}:${a.deaths}:${Math.round(a.damage)}:${a.alive ? 1 : 0}:${this.latencies[a.id] ?? ''}:${a.connected}`).join('|');
+      const key = snapshot.actors.map(a => `${a.id}:${a.weaponLevel}:${a.kills}:${a.deaths}:${Math.round(a.damage)}:${a.alive ? 1 : 0}:${this.latencies[a.id] ?? ''}:${a.connected}`).join('|');
       if (key !== this.scoreKey) { this.scoreKey = key; score.innerHTML = `<div class="scoreboard-content"><p class="eyebrow">${modeName(snapshot.config.mode)}</p><h2>A TURMA NA ILHA</h2>${this.scoreTable(snapshot)}</div>`; }
     }
     const plane = snapshot.plane;
@@ -434,8 +449,8 @@ export class GameUI {
     this.style(this.el('prompt'), '--ic', color); this.text('promptKey', keyName(this.settings.bindings.interact));
   }
   private scoreTable(snapshot: WorldSnapshot) {
-    const actors = [...snapshot.actors].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
-    return `<table class="score-table"><thead><tr><th>CAPIVARA</th><th>ELIM.</th><th>MORTES</th><th>DANO</th>${this.room ? '<th>Ping</th>' : ''}</tr></thead><tbody>${actors.map((a, i) => `<tr class="${a.id === this.localId ? 'you' : ''}"><td><span class="rank">${i + 1}</span><i style="background:${/^#[a-f0-9]{6}$/i.test(a.color) ? a.color : '#bd8956'}"></i>${esc(a.name)}${a.bot ? '<small>BOT</small>' : a.id === this.localId ? '<small>VOCÊ</small>' : ''}</td><td>${a.kills}</td><td>${a.deaths}</td><td>${Math.round(a.damage)}</td>${this.room ? `<td data-player-ping="${esc(a.id)}" style="font-variant-numeric:tabular-nums;white-space:nowrap">${a.bot ? 'Bot' : !a.connected ? 'Sem conexão' : this.latencies[a.id] === undefined ? 'A medir' : `${Math.round(this.latencies[a.id])} ms`}</td>` : ''}</tr>`).join('')}</tbody></table>`;
+    const actors = [...snapshot.actors].sort((a, b) => (snapshot.config.mode === 'corrente' ? b.weaponLevel - a.weaponLevel : b.kills - a.kills) || a.deaths - b.deaths);
+    return `<table class="score-table"><thead><tr><th>CAPIVARA</th><th>${snapshot.config.mode === 'corrente' ? 'ARMA' : 'ELIM.'}</th><th>MORTES</th><th>DANO</th>${this.room ? '<th>Ping</th>' : ''}</tr></thead><tbody>${actors.map((a, i) => `<tr class="${a.id === this.localId ? 'you' : ''}"><td><span class="rank">${i + 1}</span><i style="background:${/^#[a-f0-9]{6}$/i.test(a.color) ? a.color : '#bd8956'}"></i>${esc(a.name)}${a.bot ? '<small>BOT</small>' : a.id === this.localId ? '<small>VOCÊ</small>' : ''}</td><td>${snapshot.config.mode === 'corrente' ? `${a.weaponLevel + 1}/${CORRENTE_LADDER.length}` : a.kills}</td><td>${a.deaths}</td><td>${Math.round(a.damage)}</td>${this.room ? `<td data-player-ping="${esc(a.id)}" style="font-variant-numeric:tabular-nums;white-space:nowrap">${a.bot ? 'Bot' : !a.connected ? 'Sem conexão' : this.latencies[a.id] === undefined ? 'A medir' : `${Math.round(this.latencies[a.id])} ms`}</td>` : ''}</tr>`).join('')}</tbody></table>`;
   }
   // Results over the live island: a stamped placement, then stats, awards, the board and the next step.
   private victory(snapshot: WorldSnapshot) {
@@ -443,7 +458,7 @@ export class GameUI {
     const hud = this.el('hud'); hud.classList.add('ended'); this.el('pause-panel').hidden = true; this.el('scoreboard').hidden = true; this.coach = null; this.show('coach', false);
     const br = snapshot.config.mode === 'battle-royale', results = snapshot.results as ResultStats[], winners = results.filter(r => r.winner), won = winners.some(r => r.id === this.localId);
     const me = results.find(r => r.id === this.localId), place = me?.place ?? results.length, names = winners.map(w => esc(w.name)).join(' e ');
-    const title = won ? br ? 'Última Capivara!' : 'Dona da correria!' : 'Boa partida!';
+    const title = won ? br ? 'Última Capivara!' : snapshot.config.mode === 'corrente' ? 'Fechou a corrente!' : 'Dona da correria!' : 'Boa partida!';
     const sub = won ? br ? `Última capivara de pé entre ${results.length}` : `${winners.length > 1 ? 'Vitória dividida · ' : ''}${me?.kills ?? 0} presas` : `Você ficou em ${ordinal(place)} de ${results.length}`;
     const champion = winners.find(w => w.id === this.localId) ?? winners[0], championName = winners.length > 1 ? `${champion?.name ?? 'A turma'} + ${winners.length - 1}` : champion?.name ?? 'A turma';
     const prey = this.lastPrey ? `<div class="vlast"><span class="pt">${capybara(this.lastPrey.color)}</span><span>Última presa: <b>${esc(this.lastPrey.name)}</b></span></div>` : '';
@@ -636,7 +651,7 @@ export class GameUI {
       [list('slot1', 'slot2', 'slot3', 'slot4'), 'TROCAR ARMA'], [list(...CONSUMABLE_ACTIONS), 'USAR CURA'], [b('scoreboard'), 'PLACAR'], [b('map'), 'MAPA DA ILHA'], [b('emote'), 'GESTOS (SEGURAR)']];
   }
   private howModal() {
-    this.openModal('INSTINTO DE SOBREVIVÊNCIA.', `<div class="how-grid"><div>${icon('users')}<h3>CHAME A TURMA</h3><p>Crie uma sala e compartilhe o link. Quem cria mantém o jogo aberto. Sem cadastro, sem instalação.</p></div><div>${icon('crown')}<h3>ÚLTIMA DE PÉ</h3><p>Salte do avião, abra baús e encontre armas. A tempestade fecha a ilha. Sobreviva até o fim.</p></div><div>${icon('bolt')}<h3>CORRERIA</h3><p>Mais eliminações vence. Você reaparece depois de cair, pronto para voltar à luta.</p></div></div><div class="controls-grid">${this.controlsList().map(([keys, text]) => `<span><kbd>${esc(keys)}</kbd> ${text}</span>`).join('')}</div>`);
+    this.openModal('INSTINTO DE SOBREVIVÊNCIA.', `<div class="how-grid"><div>${icon('users')}<h3>CHAME A TURMA</h3><p>Crie uma sala e compartilhe o link. Quem cria mantém o jogo aberto. Sem cadastro, sem instalação.</p></div><div>${icon('crown')}<h3>ÚLTIMA DE PÉ</h3><p>Salte do avião, abra baús e encontre armas. A tempestade fecha a ilha. Sobreviva até o fim.</p></div><div>${icon('bolt')}<h3>CORRERIA</h3><p>Mais eliminações vence. Você reaparece depois de cair, pronto para voltar à luta.</p></div><div>${icon('crown')}<h3>CORRENTE</h3><p>Cada eliminação troca sua arma. Seja a primeira a completar a sequência com o facão.</p></div></div><div class="controls-grid">${this.controlsList().map(([keys, text]) => `<span><kbd>${esc(keys)}</kbd> ${text}</span>`).join('')}</div>`);
   }
   event(event: GameEvent) {
     if (event.type === 'shot' && event.actor === this.localId) this.crosshairSpread.onShot(event.weapon, performance.now());
@@ -875,7 +890,7 @@ export class GameUI {
       + `<div class="ltrack"><div class="lbar" role="progressbar" aria-label="Carregamento da ilha" aria-valuemin="0" aria-valuemax="100"><i><img class="lcapy" src="${uiArt('capy-parachute-v3')}" alt="" draggable="false"/></i></div></div>`
       + `<span class="lstatus" role="status">${loadingLabel(0)}</span></div>`
       + `<div class="ltipbox"><span class="ltip-icon" aria-hidden="true">${icon('leaf')}</span><div><b class="dica">Dica da ilha</b><p class="ltip" aria-live="polite"></p></div><button type="button" class="lnext" data-do="next-tip" aria-label="Próxima dica">${icon('arrow')}</button></div>`
-      + `<div class="lfoot"><span class="lmode">${icon(mode === 'battle-royale' ? 'crown' : 'bolt')} ${mode === 'battle-royale' ? 'Última de Pé' : 'Correria'} · Ilha das Capivaras</span>`
+      + `<div class="lfoot"><span class="lmode">${icon(mode === 'battle-royale' ? 'crown' : 'bolt')} ${modeName(mode)} · Ilha das Capivaras</span>`
       + `<span class="lkeys"><span><kbd>${esc([b.forward, b.left, b.back, b.right].map(keyName).join(' '))}</kbd> andar</span><span><kbd>Mouse</kbd> mirar</span><span><kbd>${esc(keyName(b.jump))}</kbd> saltar</span></span></div>`;
     this.root.appendChild(overlay);
     this.showTip(true);
@@ -923,7 +938,7 @@ export class GameUI {
     if (finished) { this.coachDone(); return; }
     const k = (code: string) => `<kbd>${esc(keyName(code))}</kbd>`, br = snapshot.config.mode === 'battle-royale';
     const text: Record<string, string> = {
-      intro: br ? '<b>Objetivo:</b> ser a última capivara de pé. Pegue armas, abra baús e fuja da tempestade.' : '<b>Objetivo:</b> fazer mais eliminações até o tempo acabar. Caiu, volta.',
+      intro: br ? '<b>Objetivo:</b> ser a última capivara de pé. Pegue armas, abra baús e fuja da tempestade.' : snapshot.config.mode === 'corrente' ? '<b>Objetivo:</b> uma eliminação por arma. Termine a sequência com o facão para vencer. Caiu, volta na mesma etapa.' : '<b>Objetivo:</b> fazer mais eliminações até o tempo acabar. Caiu, volta.',
       plane: `${k(b.jump)} salta do avião. Aperte ${k(bindingOf(this.settings.bindings, 'map'))} e escolha onde cair.`,
       chute: `${k(b.jump)} abre o paraquedas. Segure a direção pra planar.`,
       move: `${k(b.forward)}${k(b.left)}${k(b.back)}${k(b.right)} anda, o mouse olha e ${k(b.sprint)} corre.`,
@@ -935,7 +950,7 @@ export class GameUI {
   }
   private coachDone() {
     const coach = this.coach; if (!coach || !this.snapshot) return;
-    const order = this.snapshot.config.mode === 'battle-royale' ? ['intro', 'plane', 'chute', 'move', 'loot', 'storm'] : ['intro', 'move', 'loot'];
+    const order = this.snapshot.config.mode === 'battle-royale' ? ['intro', 'plane', 'chute', 'move', 'loot', 'storm'] : this.snapshot.config.mode === 'corrente' ? ['intro', 'move'] : ['intro', 'move', 'loot'];
     const next = order[order.indexOf(coach.step) + 1];
     if (!next) { this.finishOnboarding(); return; }
     this.coach = { step: next, visibleAt: null, startPos: null }; this.show('coach', false);

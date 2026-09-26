@@ -113,7 +113,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     if (name === 'results') {
       s.phase = 'results'; s.results = [{ id: me.id, name: me.name, color: me.color, bot: false, kills: 1, deaths: 0, damage: 100, place: 1, winner: true,
-        shots: 3, hits: 1, headshots: 0, survived: 30, chests: 0 }];
+        shots: 3, hits: 1, headshots: 0, survived: 30, chests: 0, longestShot: 12.4 }];
     }
     // The asset pipeline added match-specific avatar uploads after the initial
     // renderer warmup. Wait for those uploads before taking a fixed frame.

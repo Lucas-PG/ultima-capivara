@@ -1,5 +1,7 @@
 import type { WeaponId } from './types';
 
+export const CORRENTE_LADDER = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'slingshot', 'machete'] as const satisfies readonly WeaponId[];
+
 export interface WeaponDefinition {
   name: string; shortName: string; description: string; ammo: string | null;
   magazine: number; damage: number; rpm: number; reload: number; range: number;
