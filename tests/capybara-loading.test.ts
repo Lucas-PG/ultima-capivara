@@ -218,6 +218,19 @@ describe('capybara asset readiness', () => {
     }]);
   });
 
+  it.each(['', '?weapons=legacy'])('counts the complete authored delivery download for URL %s', async search => {
+    vi.stubGlobal('location', { search });
+    const { GameRenderer } = await import('../src/render/renderer');
+    const stop = new Error('Manifest captured before GPU setup');
+    loaderConstructor.mockClear().mockImplementation(function () { throw stop; });
+    expect(() => new GameRenderer({} as HTMLCanvasElement, { objects: [] } as unknown as WorldSpec, {} as Settings)).toThrow(stop);
+    const manifest = loaderConstructor.mock.calls[0][2] as readonly AssetEntry[];
+    expect(manifest.filter(asset => asset.path.startsWith('models/supply-drop/'))).toEqual([{
+      path: 'models/supply-drop/supply-drop.glb', kind: 'glb',
+      bytes: statSync('public/models/supply-drop/supply-drop.glb').size, label: 'Entrega do Tucano',
+    }]);
+  });
+
   it('replaces only legacy weapon assets in the optional painted manifest', async () => {
     vi.stubGlobal('location', { search: '?capy=v3&weapons=v3' });
     const { GameRenderer } = await import('../src/render/renderer');

@@ -13,6 +13,7 @@ import { ASSET_MANIFEST, type AssetEntry } from './asset-manifest';
 import capybaraMetrics from '../../public/models/capybara/metrics.json';
 import weaponMetrics from '../../public/models/weapons/metrics.json';
 import kitMetrics from '../../public/models/kit/metrics.json';
+import supplyMetrics from '../../public/models/supply-drop/metrics.json';
 import { KIT_PIECES } from '../shared/kit-collision';
 import { KIT_ASSET_PATH } from './kit';
 import { paintedWeaponsEnabled } from './painted-weapons';
@@ -22,7 +23,7 @@ import { WeaponView } from './weapons';
 import { AvatarView, avatar, BOT_COLOR } from './avatars';
 import { CameraRig, makePlane } from './camera';
 import { LootView } from './loot';
-import { SupplyDropView } from './supply-drops';
+import { SupplyDropView, SUPPLY_ASSET_PATH } from './supply-drops';
 import { EffectsView, type EffectsFrame } from './effects';
 import { StormView } from './storm';
 import { DEATH_CAM_SECONDS } from '../shared/death-cam';
@@ -106,6 +107,8 @@ export class GameRenderer {
       path: KIT_ASSET_PATH, kind: 'glb' as const, bytes: kitMetrics.bytes, label: 'Casas e caminhos da ilha',
     }] : []), {
       path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
+    }, {
+      path: SUPPLY_ASSET_PATH, kind: 'glb', bytes: supplyMetrics.bytes, label: 'Entrega do Tucano',
     }];
     this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
     this.sky = new PaintedSky(this.assets);
