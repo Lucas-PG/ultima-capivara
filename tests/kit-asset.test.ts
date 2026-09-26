@@ -184,4 +184,40 @@ describe('island kit geometry and traversal contract', () => {
     move(3); expect(plants.visible).toBe(true); expect(plants.getCurrentLevel()).toBe(0);
     kit.dispose(); expect(scene.children).toHaveLength(0);
   });
+
+  it('keeps window bounce inside the rotated house and follows each authored floor without extra lights', async () => {
+    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
+    const placement = { piece: 'house_tall', x: 43, y: 2, z: -22, yaw: Math.PI / 2, scale: 1.3 };
+    const kit = createKit(scene, { gltf: async () => asset } as unknown as AssetLoader, [placement]);
+    await kit.ready;
+    const lod = scene.getObjectByName('kit:solid:1:-1') as THREE.LOD;
+    const material = (lod.levels[0].object as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader,
+      fragmentShader: THREE.ShaderLib.standard.fragmentShader } as THREE.WebGLProgramParametersWithUniforms;
+    material.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+    const move = (x: number, y: number, z: number) => {
+      camera.position.set(x, y, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), placement.yaw)
+        .multiplyScalar(placement.scale).add(new THREE.Vector3(placement.x, placement.y, placement.z));
+      kit.update(camera);
+    };
+    move(0, 1.7, 0);
+    expect(shader.uniforms.kitRoomAmount.value).toBe(1);
+    const bounds = shader.uniforms.kitRoomBounds.value as THREE.Vector4;
+    expect(bounds.z).toBeCloseTo(.11); expect(bounds.w).toBeCloseTo(3.04);
+    move(0, 4.9, 0);
+    expect(bounds.z).toBeCloseTo(3.22); expect(bounds.w).toBeCloseTo(6.4);
+    const local = camera.position.clone().applyMatrix4(shader.uniforms.kitRoomInverse.value);
+    expect(local.x).toBeCloseTo(0); expect(local.y).toBeCloseTo(4.9); expect(local.z).toBeCloseTo(0);
+    const windows = shader.uniforms.kitWindowRects.value as THREE.Vector4[];
+    for (const window of windows) {
+      expect(Math.abs((window.x + window.z) / 2)).toBeCloseTo(2.56, 1);
+      expect(window.z - window.x).toBeCloseTo(1.45, 1);
+      expect((window.y + window.w) / 2).toBeCloseTo(4.98, 1);
+    }
+    move(5, 4.9, 0); expect(shader.uniforms.kitRoomAmount.value).toBe(0);
+    move(0, 7, 0); expect(shader.uniforms.kitRoomAmount.value).toBe(0);
+    let lights = 0; scene.traverse(object => { if (object instanceof THREE.Light) lights++; });
+    expect(lights).toBe(0); expect(lod.levels).toHaveLength(3);
+    kit.dispose(); expect(scene.children).toHaveLength(0);
+  });
 });

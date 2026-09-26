@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { AssetLoader } from './assets';
 import pieces from '../shared/kit-pieces.json';
 import { createToonMaterial } from './materials';
+import { kitInteriorLight } from './kit-interior';
 
 export interface KitPlacement { piece: string; x: number; y: number; z: number; yaw: number; scale?: number }
 export interface KitScene {
@@ -42,6 +43,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   const temporaryMaterials = new Set<THREE.Material>();
   let disposed = false;
   let releaseSource: (() => void) | undefined;
+  let updateInterior: ((camera: THREE.Camera) => void) | undefined;
   for (const placement of placements) {
     if (![placement.x, placement.y, placement.z, placement.yaw, placement.scale ?? 1].every(Number.isFinite) || (placement.scale ?? 1) <= 0)
       throw new Error(`Posição de peça inválida: ${placement.piece}.`);
@@ -116,8 +118,10 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
     if (disposed) { releaseSource(); return; }
     asset.scene.updateMatrixWorld(true);
     // The kit owns this model for the scene lifetime; all cells share its material.
-    const sourceMaterial = (asset.scene.getObjectByProperty('isMesh', true) as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    const sourceMaterial = ((asset.scene.getObjectByProperty('isMesh', true) as THREE.Mesh).material as THREE.MeshStandardMaterial).clone();
+    sourceMaterials.add(sourceMaterial);
     sourceMaterial.roughness = Math.max(.85, sourceMaterial.roughness); sourceMaterial.metalness = 0;
+    updateInterior = kitInteriorLight(sourceMaterial, asset.scene, placements);
     const sourceGeometry = new Map<string, THREE.BufferGeometry>();
     for (const id of new Set(placements.map(placement => placement.piece))) {
       for (let level = 0; level < 3; level++) {
@@ -171,6 +175,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
     update(camera) {
       if (disposed) return;
       camera.getWorldPosition(eye);
+      updateInterior?.(camera);
       for (const cell of cells.values()) {
         if (cell.fades) {
           cell.lod.getWorldPosition(center);
