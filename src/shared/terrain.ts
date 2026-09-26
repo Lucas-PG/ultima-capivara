@@ -105,13 +105,19 @@ export function beachDistance(x: number, z: number): number {
   const crescent = Math.min(x - 23, 36 - Math.hypot((x - 34) / 1.3, z + 101));
   return Math.max(south, crescent);
 }
+// The walking route continues across the beach, but its paving fades into
+// the painted sand. Both the road and its curb use this continuous weight.
+export function roadPaintWeight(x: number, z: number, y: number): number {
+  return 1 - ease((beachDistance(x, z) + 1) / 3) * (1 - ease((y - 2.5) / .75));
+}
 export function terrainColor(x: number, z: number, y: number, slope: number,
   includeRoads = true, includeBeach = true, includeWet = true): string {
   const road = (margin: number) => ROADS.some(([x0, z0, x1, z1]) =>
     x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
   if (y < -.2) return WORLD_PALETTE.mud;
-  if (includeRoads && road(0) && y > .3) return WORLD_PALETTE.road;
-  if (includeRoads && road(.4) && y > .3) return WORLD_PALETTE.curb;
+  const paved = includeRoads && y > .3 && roadPaintWeight(x, z, y) >= .5;
+  if (paved && road(0)) return WORLD_PALETTE.road;
+  if (paved && road(.4)) return WORLD_PALETTE.curb;
   const beach = includeBeach && beachDistance(x, z) > 0 && y < 3;
   if (slope > .8 && !beach) return WORLD_PALETTE.rock;
   if (beach || y < .8) {
