@@ -15,8 +15,8 @@ if (!chunk.includes('paintedWrap')) {
 
 // Preserve a lavender light contribution under the sun's occlusion. This lifts
 // cast shadows without adding another light.
-const shadowTint = new THREE.Color('#C9B2D6'), sunTint = new THREE.Color('#FFD9A8');
-shadowTint.setRGB(shadowTint.r / sunTint.r * .3, shadowTint.g / sunTint.g * .3, shadowTint.b / sunTint.b * .3);
+const shadowTint = new THREE.Color('#7397B1'), sunTint = new THREE.Color('#FFC47E');
+shadowTint.setRGB(shadowTint.r / sunTint.r * .23, shadowTint.g / sunTint.g * .23, shadowTint.b / sunTint.b * .23);
 const sunShadow = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
 if (!THREE.ShaderChunk.lights_fragment_begin.includes('paintedSunShadow')) {
   THREE.ShaderChunk.lights_fragment_begin = THREE.ShaderChunk.lights_fragment_begin.replace(sunShadow, `
@@ -31,7 +31,7 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     uniforms: {
       uStorm: { value: 0 }, uPulse: { value: 0 },
       tColor: { value: color }, tDepth: { value: depth }, toneMappingExposure: { value: 1.1 },
-      tAtmosphere: { value: color }, atmosphereEnabled: { value: 0 }, bloomStrength: { value: .065 },
+      tAtmosphere: { value: color }, atmosphereEnabled: { value: 0 }, bloomStrength: { value: .12 },
       tCharacter: { value: color }, characterEnabled: { value: 0 }, transparentBackground: { value: 0 },
       suppressWater: { value: 0 }, cameraWorldY: { value: 0 },
       cameraUpRow: { value: new THREE.Vector3() }, inverseProjectionScale: { value: new THREE.Vector2() },

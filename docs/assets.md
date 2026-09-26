@@ -306,3 +306,9 @@ The Phase A style-v3 brief supersedes the earlier flat-palette and toon constrai
 The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms budget. They add machined panel recesses, fasteners, serrations, grip stippling, magazine ribs, muzzle collars, shaped fingers, fused palms, cloth sleeve cuffs and a vertex contact-occlusion bake. Original palette-derived painted grain, fur strands and fabric weave are authored by the deterministic equations shared between `tools/blender/weapons.py` and `src/render/weapon-atlas.ts`. This 1024x256 painted colour atlas and the roughness atlas replace the old flat 32x32 colour texture. One material is retained; runtime rarity tint regenerates only colour choices while preserving surface detail. No photographic texture, downloaded asset or paid API was used.
 
 Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.
+
+Cena's v3 renderer adds original canvas-painted cloud silhouettes and brush washes,
+procedural metre-scale sand ripples and continuous triplanar rock colour, ribbed
+shell geometry, GPU pollen, water glints and depth-occluded sunlight shafts. These
+are generated locally from authored equations and geometry, with no external
+downloads or paid services. The lighting reference is `public/assets/cover-v2.png`.

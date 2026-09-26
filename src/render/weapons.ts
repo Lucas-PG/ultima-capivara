@@ -5,6 +5,7 @@ import type { AssetLoader } from './assets';
 import { PaintedWeaponSet, PAINTED_WEAPON_IDS, paintedWeaponsEnabled, type PaintedWeaponModel } from './painted-weapons';
 import { WEAPON_HIP_POSES, WEAPON_VIEW_FOV } from './weapon-framing';
 import { damp } from '../shared/math';
+import { Spring } from './spring';
 import { advanceAds, WEAPONS } from '../shared/weapons';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 
@@ -437,6 +438,17 @@ export class WeaponView {
   private active: WeaponId = 'pistol';
   private ads = 0;
   private kick = 0;
+  private readonly recoil = new Spring();
+  private readonly recoilYaw = new Spring();
+  private readonly swayX = new Spring();
+  private readonly swayY = new Spring();
+  private readonly land = new Spring();
+  private lastYaw: number | undefined;
+  private lastPitch = 0;
+  private grounded = true;
+  private verticalSpeed = 0;
+  private sprintPose = 0;
+  private holster = 0;
   private draw = 0;
   private gait = 0;
   private shotLife = 0;
@@ -606,7 +618,8 @@ export class WeaponView {
 
   shot(id: WeaponId) {
     this.cancelInspect(); this.inspectAllowed = false;
-    this.kick = Math.min(.15, this.kick + (id === 'sniper' ? .12 : id === 'shotgun' ? .095 : id === 'machete' ? .07 : id === 'pistol' ? .055 : .034));
+    this.recoil.impulse(id === 'sniper' ? 4.4 : id === 'shotgun' ? 3.6 : id === 'pistol' ? 2.5 : 1.65);
+    this.recoilYaw.impulse((Math.random() - .5) * .55);
     this.shotLife = id === 'machete' ? .48 : id === 'shotgun' ? .42 : id === 'sniper' ? .58 : .2;
   }
 
@@ -617,34 +630,41 @@ export class WeaponView {
 
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number) {
     this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
-    if (!actor || !this.holder.visible) { this.cancelInspect(); this.inspectAllowed = false; return; }
-    const weapon = actor.weapons[actor.slot]?.id || 'pistol';
-    if (weapon !== this.active) {
-      this.cancelInspect();
-      this.models[this.active].group.visible = false; this.active = weapon; this.models[this.active].group.visible = true;
-      this.draw = 1; this.kick = 0; this.reloadEnd = 0; this.ads = 0;
-    }
+    if (!actor || !this.holder.visible) { this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined; this.land.reset(); return; }
+    const requested = actor.weapons[actor.slot]?.id || 'pistol';
+    if (requested !== this.active) {
+      this.cancelInspect(); this.holster = Math.min(1, this.holster + dt / .11);
+      if (this.holster >= 1) {
+        this.models[this.active].group.visible = false; this.active = requested; this.models[this.active].group.visible = true;
+        this.draw = 1; this.holster = 0; this.recoil.reset(); this.recoilYaw.reset(); this.reloadEnd = 0; this.ads = 0;
+      }
+    } else this.holster = 0;
+    const weapon = this.active;
     const model = this.models[this.active]; model.group.visible = true;
     const rarity = actor.weapons[actor.slot]?.rarity ?? 0;
     if (model.painted && rarity !== model.rarity) {
       this.painted!.setRarity(model.painted, rarity); model.rarity = rarity;
     }
-    const reloading = actor.reloadUntil > simulationTime;
+    const reloading = requested === weapon && actor.reloadUntil > simulationTime;
     this.inspectAllowed = !actor.ads && !actor.sprint && !reloading && this.shotLife <= 0;
     if (!this.inspectAllowed) this.cancelInspect();
     if (reloading && actor.reloadUntil > this.reloadEnd) this.reloadEnd = actor.reloadUntil;
     const duration = WEAPONS[weapon].reload || 1;
     const progress = reloading ? THREE.MathUtils.clamp(1 - (this.reloadEnd - simulationTime) / duration, 0, 1) : 0;
-    const magazineMotion = reloading ? Math.sin(Math.PI * progress) : 0;
+    const namedReload = model.magazine?.name === 'mag' && model.support.name === 'grip_l';
+    const ease = (x: number) => { const t = THREE.MathUtils.clamp(x, 0, 1); return t * t * (3 - 2 * t); };
+    const withdraw = ease((progress - .12) / .17), insert = ease((progress - .53) / .19);
+    const magazineMotion = reloading ? namedReload ? withdraw * (1 - insert) : Math.sin(Math.PI * progress) : 0;
+    const chamber = reloading && namedReload ? Math.sin(Math.PI * ease((progress - .78) / .16)) : 0;
     if (model.magazine) {
       if (model.magazine.userData.fbxMagazine) {
         model.magazine.position.z = model.magazine.userData.restZ - magazineMotion * .09;
       } else {
-        model.magazine.position.y = (model.magazine.userData.restY || 0) - magazineMotion * (model.magazine.userData.travel || .2);
+        model.magazine.position.y = (model.magazine.userData.restY || 0) - magazineMotion * (model.magazine.userData.travel || (namedReload ? .29 : .2));
         model.magazine.rotation.z = -magazineMotion * .25;
       }
     }
-    model.support.position.set(magazineMotion * .012, -magazineMotion * .055, magazineMotion * .11);
+    model.support.position.set(magazineMotion * .055, -magazineMotion * (namedReload ? .17 : .055), magazineMotion * .11 + chamber * .035);
     model.support.rotation.x = -magazineMotion * .25;
     if (model.action) {
       const baseZ = model.painted ? 0 : weapon === 'shotgun' ? -.43 : weapon === 'pistol' ? 0 : .014;
@@ -652,29 +672,42 @@ export class WeaponView {
       const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
       if (model.action.userData.fbxBolt) model.action.position.y = model.action.userData.restY + cycle * .07;
       else if (model.action.userData.gltfSlide) model.action.position.x = -cycle * .027;
-      else model.action.position.z = baseZ + cycle * (weapon === 'shotgun' ? .11 : .045);
+      else model.action.position.z = baseZ + (cycle + chamber) * (weapon === 'shotgun' ? .11 : .045);
       if (!model.action.userData.fbxBolt) model.action.rotation.z = weapon === 'sniper' ? -cycle * .6 : 0;
       if (weapon === 'shotgun') model.support.position.z += cycle * .11;
     }
     const goalAds = actor.ads && !reloading && !actor.sprint && weapon !== 'machete' ? 1 : 0;
     this.ads = advanceAds(weapon, this.ads, !!goalAds, dt);
-    this.kick = damp(this.kick, 0, 18, dt);
+    this.kick = this.recoil.update(0, 24, dt);
+    const yawKick = this.recoilYaw.update(0, 27, dt);
+    const yaw = actor.yaw || 0, pitch = actor.pitch || 0;
+    const yawDelta = this.lastYaw === undefined ? 0 : Math.atan2(Math.sin(yaw - this.lastYaw), Math.cos(yaw - this.lastYaw));
+    const pitchDelta = this.lastYaw === undefined ? 0 : pitch - this.lastPitch;
+    this.lastYaw = yaw; this.lastPitch = pitch;
+    const swayX = this.swayX.update(THREE.MathUtils.clamp(-yawDelta / Math.max(dt, .001) * .012, -.055, .055), 20, dt);
+    const swayY = this.swayY.update(THREE.MathUtils.clamp(pitchDelta / Math.max(dt, .001) * .01, -.04, .04), 20, dt);
+    if (actor.grounded && !this.grounded) this.land.impulse(-Math.min(3, Math.max(.6, -this.verticalSpeed * .25)));
+    if (!actor.grounded && this.grounded && actor.velocity.y > 0) this.land.impulse(.6);
+    this.grounded = actor.grounded; this.verticalSpeed = actor.velocity.y;
+    const landing = this.land.update(0, 17, dt);
+    const motion = settings.reducedMotion ? 0 : 1;
     this.draw = damp(this.draw, 0, 7, dt);
     this.shotLife = Math.max(0, this.shotLife - dt);
     const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
-    this.gait += dt * (actor.sprint ? 14 : speed > .4 ? 10 : 2);
+    this.gait += speed * dt * 2.5;
     const bob = settings.reducedMotion ? 0 : Math.min(speed / 7, 1) * (actor.sprint ? .027 : .012);
-    const sprint = actor.sprint ? 1 : 0;
+    const sprint = this.sprintPose = damp(this.sprintPose, actor.sprint ? 1 : 0, 12, dt);
+    const ads = this.ads * this.ads * (3 - 2 * this.ads);
     const pose = model.painted ? WEAPON_HIP_POSES[weapon] : null;
     const modelScale = pose?.scale ?? .72;
     this.holder.scale.setScalar(modelScale);
-    const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, this.ads);
-    this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, this.ads) + Math.sin(this.gait) * bob * .4,
-      hipY + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - this.draw * .16 - sprint * .08 - closeWall * .12 - magazineMotion * .045,
-      THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, this.ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
-    this.holder.rotation.set((pose?.pitch ?? 0) * (1 - this.ads) + this.kick * 1.1 + this.draw * .38 + magazineMotion * .24 + sprint * .16,
-      THREE.MathUtils.lerp(pose ? 0 : .24, 0, this.ads) + closeWall * .28,
-      THREE.MathUtils.lerp(pose ? 0 : -.055, 0, this.ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13);
+    const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, ads);
+    this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, ads) + Math.sin(this.gait) * bob * .4 + swayX * motion * (1 - ads * .85),
+      hipY + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - (this.draw + this.holster) * .34 + (swayY + landing) * motion - sprint * .08 - closeWall * .12 - magazineMotion * .045,
+      THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
+    this.holder.rotation.set((pose?.pitch ?? 0) * (1 - ads) + this.kick * 1.1 + (this.draw + this.holster) * .65 + swayY * motion + magazineMotion * .24 + sprint * .16,
+      THREE.MathUtils.lerp(pose ? 0 : .24, 0, ads) + closeWall * .28 + yawKick + swayX * motion,
+      THREE.MathUtils.lerp(pose ? 0 : -.055, 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.rotation);
     if (this.inspectTime >= 0) {
       this.inspectTime += dt;
@@ -692,7 +725,7 @@ export class WeaponView {
   }
 
   resize(width: number, height: number) { this.camera.aspect = width / Math.max(1, height); this.camera.updateProjectionMatrix(); }
-  get adsAmount() { return this.ads; }
+  get adsAmount() { return this.ads * this.ads * (3 - 2 * this.ads); }
   get weapon() { return this.active; }
   dispose() {
     if (this.disposed) return;

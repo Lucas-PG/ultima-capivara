@@ -77,7 +77,12 @@ export class PaintedWater {
           float glint=(1.0-smoothstep(.07,.12,abs(local.x)))*(1.0-smoothstep(.012,.025,abs(local.y)));
           glint*=step(.82,hash(floor(cell)))*smoothstep(.55,.95,.5+.5*sin(uTime*.7+hash(floor(cell))*6.28));
           glint*=1.0-smoothstep(20.0,60.0,distance(vWorld,cameraPosition));
-          color=mix(color,foam,glint*.35);
+          color=mix(color,foam,glint*.55);
+          vec3 waterNormal=normalize(vec3(sin(vWorld.x*.72+uTime*.8)*.035,1.0,cos(vWorld.z*.81-uTime*.7)*.035));
+          vec3 sunDirection=normalize(vec3(-70.0,32.0,-30.0));
+          vec3 halfDirection=normalize(normalize(cameraPosition-vWorld)+sunDirection);
+          float sunlight=pow(max(0.0,dot(waterNormal,halfDirection)),220.0);
+          color+=vec3(1.0,.75,.38)*sunlight*1.8+foam*glint*.7;
           // Dissolve into the sky haze before the far clip or the ocean mesh edge.
           // At the 120 m plane view this spans about 50 pixels at 1080p.
           float horizon=1.0-smoothstep(500.0,750.0,distance(vWorld,cameraPosition));

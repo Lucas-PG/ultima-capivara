@@ -229,7 +229,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v9:${ROADS.length}`;
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v10:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -314,14 +314,23 @@ export class WorldScene {
         float coastalRock = smoothstep(110.0, 113.0, coastRadius);
         float rockMask = max(smoothstep(1.03, 1.13, vTerrainSlope),
           coastalRock * smoothstep(0.55, 0.7, vTerrainSlope));
-        float irregular = sin(vTerrainXZ.x * 0.52 + sin(vTerrainXZ.y * 0.18)) * 0.12 +
-          sin(vTerrainXZ.y * 0.47) * 0.08;
-        float stratum = mod(floor((vTerrainWorldY + irregular) / 1.2), 2.0);
-        float topBand = 1.0 - smoothstep(0.7, 1.0, vTerrainSlope);
-        vec3 rockPaint = mix(terrainRockPaint, terrainRockTop, topBand) * mix(0.94, 1.06, stratum);
+        vec3 terrainPoint=vec3(vTerrainXZ.x,vTerrainWorldY,vTerrainXZ.y);
+        vec3 triWeights=abs(normalize(cross(dFdx(terrainPoint),dFdy(terrainPoint))));
+        triWeights/=max(dot(triWeights,vec3(1.0)),.001);
+        float rockWash=dot(triWeights,vec3(terrainFbm(terrainPoint.yz/3.5),terrainFbm(terrainPoint.xz/3.5),terrainFbm(terrainPoint.xy/3.5)));
+        vec3 rockPaint=mix(terrainRockPaint,terrainRockTop,smoothstep(-.3,.3,rockWash))*(.97+rockWash*.1);
         diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
-        // Counter the warm sun's yellow shift only on painted grass, before
-        // lighting. Broad colour weights preserve filtered sand/grass edges.
+        // Fine sand detail is expressed in metres, independent of the colour
+        // map resolution. Filter the ripples analytically at grazing distance.
+        float sandRatio=diffuseColor.r/max(diffuseColor.b,.001);
+        float sandMask=smoothstep(1.35,1.9,sandRatio)*(1.0-smoothstep(.4,.7,vTerrainSlope))*(1.0-asphaltMask-curbMask);
+        float ripplePhase=dot(vTerrainXZ,vec2(5.8,2.7))+terrainFbm(vTerrainXZ/2.0)*2.8;
+        float ripple=sin(ripplePhase)*(1.0-smoothstep(.5,2.5,fwidth(ripplePhase)));
+        float sandWash=terrainFbm(vTerrainXZ/4.0)*.08+terrainFbm(vTerrainXZ/.8)*.025;
+        float wet=1.0-smoothstep(.02,.65,vTerrainWorldY);
+        vec3 sandPaint=diffuseColor.rgb*(1.0+sandWash+ripple*.035)*(1.0-wet*.2);
+        diffuseColor.rgb=mix(diffuseColor.rgb,sandPaint,sandMask);
+        // Broad paint weights preserve filtered sand/grass edges.
         float grassResponse = smoothstep(1.0, 1.45, diffuseColor.g / max(diffuseColor.r, 0.001)) *
           smoothstep(1.1, 2.0, diffuseColor.g / max(diffuseColor.b, 0.001));
         float paintedPatch=terrainFbm(vTerrainXZ/8.0+vec2(3.0,9.0));
@@ -329,7 +338,8 @@ export class WorldScene {
         vec3 variedGrass=diffuseColor.rgb*(.93+paintedPatch*.16);
         variedGrass=mix(variedGrass,variedGrass*vec3(1.13,1.015,.82),dryFleck*.5);
         diffuseColor.rgb=mix(diffuseColor.rgb,variedGrass,grassResponse);
-      `);
+      `).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor=mix(roughnessFactor,.24,sandMask*wet);`);
     };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
@@ -625,7 +635,7 @@ export class WorldScene {
       this.group.add(mesh); this.disposables.push(merged);
     }
     buckets.clear();
-    const vegetation = this.vegetation = buildVegetation(world), props = buildProps(world), wallArt = buildWallArt(world);
+    const vegetation = this.vegetation = buildVegetation({ ...world, objects: world.objects.filter(object => object.kind !== 'grass') }), props = buildProps(world), wallArt = buildWallArt(world);
     this.group.add(vegetation.group, props.group, wallArt.group);
     this.disposables.push(vegetation, props, wallArt);
     this.groundCover = new GroundCover(world); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
