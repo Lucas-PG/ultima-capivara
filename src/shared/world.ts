@@ -140,10 +140,22 @@ export function createWorld(): WorldSpec {
   sign(-40, -41, 'VILA'); sign(39, -9, 'MERCADÃO'); sign(-21, 37, 'POSTO');
   // Three crossings have a continuous deck level with the banks.
   for (const [x, z] of BRIDGES) place('bridge_stone', x, z, 0, 1, 1.75);
+  // Submerged lower treads meet the bed; the upper treads meet the quay.
+  // Openings remain part of the visible wall layout, with no water blockers.
+  const riverSteps = KIT_PIECES.river_steps;
+  const riverEntries = riverSteps ? [{ x: -13, side: -1 }, { x: 27, side: 1 }] : [];
+  for (const { x, side } of riverEntries) {
+    const sample = riverSample(x, 10), z = sample.z + side * (sample.width / 2 + 1.2);
+    const scale = 1.5, treadTop = Math.max(...riverSteps.colliders.map(shape =>
+      shape.type === 'box' && shape.width >= riverSteps.footprint[0] * .9 ? shape.y + shape.height / 2 : 0)) * scale;
+    const landing = ground(x, z + side * riverSteps.footprint[1] * scale / 2);
+    detail('river_steps', x, z, side < 0 ? Math.PI : 0, scale, landing - treadTop);
+  }
   for (let x = -51; x < 57; x += 4) {
     if (BRIDGES.some(([bx]) => Math.abs(x - bx) < 6)) continue;
     const sample = riverSample(x, 10);
     for (const side of [-1, 1]) {
+      if (riverEntries.some(entry => entry.side === side && Math.abs(x - entry.x) < 4.7)) continue;
       const z = sample.z + side * (sample.width / 2 + 5.4);
       if (KIT_PIECES.river_wall) detail('river_wall', x, z, 0, .5, ground(x, z) - .12);
       else place('fort_wall', x, z, 0, .42, ground(x, z) - .2, 'river-wall');
@@ -230,7 +242,7 @@ export function createWorld(): WorldSpec {
     ].entries()) {
       const ox = Math.sin(yaw), oz = Math.cos(yaw);
       const height = 13.2 + index % 4 * .55, twist = Math.sin(index * 2.7 + .4) * .22;
-      rockLayer('cliff_rock_tall', x + ox * 2.6, z + oz * 2.6, yaw + twist, fortY - .15 - height, height);
+      rockLayer('cliff_rock_tall', x + ox * 5.5, z + oz * 5.5, yaw + twist, fortY - .15 - height, height);
       rockLayer('cliff_ledge', x + ox * 3.4 + Math.cos(index) * .8, z + oz * 3.4,
         yaw - twist * .7, 2.1 + index % 2 * 1.5, 4 + index % 3 * .65);
       rockLayer('cliff_rock_low', x + ox * (6.5 + index % 2 * .6), z + oz * (6.5 + index % 2 * .6),
@@ -246,9 +258,10 @@ export function createWorld(): WorldSpec {
       detail('cliff_rock', x, z, 0, scale, bottom);
     // Two staggered courses fit between the summit ramp and its lower approach.
     // Their tops stay below the route, while the faces reach the visible toe.
-    for (const [x, z, bottom, height, yaw] of [[10.5, -75, .6, 9, .15], [12, -78, 7, 7, -.12],
-      [-6, -75, .5, 9, -.17], [-7, -78, 8, 6.5, .12]])
+    for (const [x, z, bottom, height, yaw] of [[10.5, -72.7, .6, 9, .15], [-6, -72.5, .5, 9, -.17]])
       rockLayer('cliff_rock_tall', x, z, yaw, bottom, height);
+    rockLayer('cliff_ledge', -8.5, -75.5, .06, 8.8, 6.1);
+    rockLayer('cliff_ledge', 16, -75.5, -.08, 8.6, 6.2);
   }
   for (const [x, z] of [[50, -96], [43, -110], [64, -111]] as const) {
     obj('cylinder', x, ground(x, z) + .045, z, 4.7, .05, 3.3, '#69B9AD', 'water');
