@@ -120,8 +120,9 @@ def chunk(piece, center, size, seed, yaw=0):
                                         width=w * ratio, height=hy * 2, depth=d * ratio,
                                         yaw=0, material='stone'))
 
-    # Moss follows the real upward-facing fracture planes. Its torn perimeter
-    # stays inset from each rounded edge, with a few short grass shoots above it.
+    # The Blender pass paints moss directly into upward stone faces, so LOD
+    # simplification cannot reveal floating or intersecting overlay triangles.
+    # Short grass shoots are rooted on those same authored fracture planes.
     upward = sorted([(face, plane) for face, plane in zip(faces, planes) if plane[0][1] > .55],
                     key=lambda item: sum(points[i][1] for i in item[0]) / len(item[0]), reverse=True)
     for patch, (face, (normal, _)) in enumerate(upward[:3]):
@@ -131,9 +132,6 @@ def chunk(piece, center, size, seed, yaw=0):
             for step in range(3):
                 point = add(points[i], mul(sub(points[face[(edge + 1) % len(face)]], points[i]), step / 3))
                 border.append(add(add(middle, mul(sub(point, middle), .57 + rng.random() * .25)), mul(normal, .012)))
-        vertices = [add(middle, mul(normal, .015)), *border]
-        surface(piece, vertices, [(0, i + 1, (i + 1) % len(border) + 1) for i in range(len(border))],
-                12, detail=False, tint=[.69, .79, .58])
         for tuft in range(3 if patch == 0 else 1):
             root = add(middle, mul(sub(border[tuft % len(border)], middle), .42))
             for blade in range(3):

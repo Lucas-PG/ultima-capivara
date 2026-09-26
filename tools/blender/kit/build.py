@@ -183,7 +183,13 @@ for name, piece in PIECES.items():
                     uu, vv = authored_uv[mesh.loops[loop_index].vertex_index]
                 uv.data[loop_index].uv = ((col + .06 + .88 * uu) / 4, 1 - (row + .06 + .88 * vv) / 4)
                 strata = 1 - .025 * (1 + math.sin(pos.z * 2.3 + pos.x * .35)) if name.startswith('cliff_') and tile == 14 else 1
-                color.data[loop_index].color = (*[ao * strata * channel for channel in tint], 1)
+                if name.startswith('cliff_') and tile == 14:
+                    upward = max(0, min(1, (normal.z - .35) / .5))
+                    moss = upward * (.57 + .23 * math.sin(pos.x * 1.4 + pos.y * .9) + .12 * math.cos(pos.y * 2.3))
+                    paint = [channel * (1 - moss) + green * moss for channel, green in zip(tint, [.34, .52, .26])]
+                else:
+                    paint = tint
+                color.data[loop_index].color = (*[ao * strata * channel for channel in paint], 1)
             poly.use_smooth = smooth
         # Rounded fruit and plants share continuous contact values across faces.
         totals, counts = [[0.0, 0.0, 0.0] for _ in mesh.vertices], [0] * len(mesh.vertices)
