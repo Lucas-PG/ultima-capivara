@@ -69,6 +69,30 @@ describe('painted weapons shipped asset contract', () => {
     }
   });
 
+  it('keeps small skin-covered palms and four digits at the authored reload anchors', () => {
+    for (const id of PAINTED_WEAPON_IDS) for (const side of id === 'machete' ? ['right'] : ['right', 'left']) {
+      const paw = asset.getRoot().listNodes().find(node => node.getName() === `${id}_${side}_paw`)!;
+      expect(paw.getExtras().digitCount, `${id}/${side}`).toBe(4);
+      const anchor = new Vector3().fromArray(paw.getExtras().gripAnchor as number[]);
+      let skin = 0, furAtPalm = 0;
+      paw.traverse(node => {
+        const matrix = new Matrix4().fromArray(node.getWorldMatrix());
+        for (const primitive of node.getMesh()?.listPrimitives() || []) {
+          const uv = primitive.getAttribute('TEXCOORD_0')!, positions = primitive.getAttribute('POSITION')!;
+          for (let i = 0; i < positions.getCount(); i++) {
+            const point = new Vector3().fromArray(positions.getElement(i, [])).applyMatrix4(matrix);
+            if (point.distanceTo(anchor) > .07) continue;
+            const tile = Math.floor(uv.getElement(i, [])[0] * 32);
+            if (tile >= 28) skin++;
+            if (tile >= 13 && tile <= 15) furAtPalm++;
+          }
+        }
+      });
+      expect(skin, `${id}/${side} palm has its own grey-brown skin surface`).toBeGreaterThan(30);
+      expect(furAtPalm, `${id}/${side} fur begins above the wrist`).toBe(0);
+    }
+  });
+
   it('restricts the emissive atlas column to the machete blade, never paws or other weapons', () => {
     let edgeVertices = 0;
     for (const node of asset.getRoot().listNodes()) {

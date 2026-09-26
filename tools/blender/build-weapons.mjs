@@ -19,6 +19,34 @@ await mkdir(`${root}/public/models/weapons`, { recursive: true });
 const path = `${root}/public/models/weapons/painted-weapons.glb`;
 await io.write(path, document);
 const report = JSON.parse(await readFile(`${root}/output/weapons/blender-report.json`, 'utf8'));
+// Decoded bounds give animation/framing callers the actual exported surface.
+const exported = await io.read(path);
+function bounds(node) {
+  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+  node.traverse(part => {
+    const matrix = part.getWorldMatrix();
+    for (const primitive of part.getMesh()?.listPrimitives() || []) {
+      const positions = primitive.getAttribute('POSITION');
+      for (let i = 0; i < positions.getCount(); i++) {
+        const [x, y, z] = positions.getElement(i, []);
+        for (let axis = 0; axis < 3; axis++) {
+          const value = matrix[axis] * x + matrix[axis + 4] * y + matrix[axis + 8] * z + matrix[axis + 12];
+          min[axis] = Math.min(min[axis], value); max[axis] = Math.max(max[axis], value);
+        }
+      }
+    }
+  });
+  return { min, max };
+}
+for (const weapon of report.weapons) {
+  const node = exported.getRoot().listNodes().find(node => node.getName() === weapon.id);
+  weapon.bounds = bounds(node);
+  weapon.bodyBounds = bounds(exported.getRoot().listNodes().find(node => node.getName() === `${weapon.id}_body`));
+  weapon.pawBounds = Object.fromEntries(['right', 'left'].flatMap(side => {
+    const paw = exported.getRoot().listNodes().find(node => node.getName() === `${weapon.id}_${side}_paw`);
+    return paw ? [[side, bounds(paw)]] : [];
+  }));
+}
 report.bytes = (await stat(path)).size;
 report.materials = document.getRoot().listMaterials().length;
 report.texture = { format: 'PNG', width: 1024, height: 1024 };
