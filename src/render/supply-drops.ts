@@ -123,7 +123,10 @@ export class SupplyDropView {
       delivery.chute.position.copy(position); delivery.chute.rotation.copy(delivery.crate.rotation);
       const opening = reduced ? 1 : THREE.MathUtils.smoothstep(sinceRelease, 0, .32);
       const folding = THREE.MathUtils.smoothstep(sinceLanding, 0, 1.2);
-      delivery.chute.scale.set(opening * (1 - folding * .5), opening * (1 - folding * .98), opening * (1 - folding * .5));
+      // Gather the released cloth above the .78 m lid. Collapsing toward the
+      // bottom-centred root drove the canopy through the crate and the ground.
+      delivery.chute.position.y += folding * .8;
+      delivery.chute.scale.setScalar(opening * (1 - folding * .98));
       delivery.flare.position.copy(drop.pos); delivery.flare.visible = phase !== 'opened';
       const distance = camera.position.distanceToSquared(drop.pos);
       delivery.smoke.visible = !reduced && distance < 120 * 120;
