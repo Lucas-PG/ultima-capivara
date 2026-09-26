@@ -356,11 +356,11 @@ export function createWorld(): WorldSpec {
   for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
   sign(90, 65, 'MANGUE');
   if (KIT_PIECES.cliff_rock_low && KIT_PIECES.cliff_rock_tall) {
-    // Spend the same formation budget across visible slope faces. A north-first
-    // scan exhausted it before reaching the town-facing terraces and waterfall.
+    // Six former scatter slots now fund the authored fort and western cuts.
+    // Keep the same total formation budget while improving the hero views.
     const slopes = [
-      { x: -65, z: -40, radius: 34, count: 26 }, { x: -104, z: -7, radius: 23, count: 12 },
-      { x: 55, z: -77, radius: 32, count: 5 }, { x: -70, z: 65, radius: 42, count: 5 },
+      { x: -65, z: -40, radius: 34, count: 22 }, { x: -104, z: -7, radius: 23, count: 12 },
+      { x: 55, z: -77, radius: 32, count: 3 }, { x: -70, z: 65, radius: 42, count: 5 },
       { x: 4, z: 111, radius: 26, count: 4 },
     ];
     const candidates: { x: number; z: number; y: number; slope: number; yaw: number; zone: number; score: number }[] = [];
@@ -394,7 +394,7 @@ export function createWorld(): WorldSpec {
       for (const candidate of candidates) if (candidate.zone === zone && count < area.count && formation(candidate)) count++;
     });
     for (const candidate of candidates) {
-      if (formations >= 52) break;
+      if (formations >= 46) break;
       if (!chosen.has(candidate)) formation(candidate);
     }
     // Authored ledges fill the visible cuts between the coarser scattered
