@@ -3,7 +3,9 @@ import { terrainHeight } from '../shared/terrain';
 import type { WorldSpec } from '../shared/types';
 
 const WATER = { shallow: '#2EC4B6', middle: '#1FB0AE', deep: '#0E7C86', foam: '#F4FBF6' } as const;
-const LEVEL = -.05, DEPTH_RANGE = 12;
+import { WATER_LEVEL as LEVEL, WATER_HALF_SIZE } from '../shared/water';
+
+const DEPTH_RANGE = 12;
 
 export class PaintedWater {
   readonly mesh: THREE.Mesh;
@@ -92,7 +94,7 @@ export class PaintedWater {
     });
     // UniformsUtils clones values; restore the shared clock for both materials.
     material.uniforms.uTime = this.time; material.uniforms.depthField.value = this.depth;
-    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), material);
+    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(WATER_HALF_SIZE * 2, WATER_HALF_SIZE * 2), material);
     this.mesh.rotation.x = -Math.PI / 2; this.mesh.position.y = LEVEL; this.mesh.renderOrder = 1;
 
     const contacts = world.colliders.filter(collider => collider.material !== 'earth' && collider.min.y <= LEVEL && collider.max.y > LEVEL);

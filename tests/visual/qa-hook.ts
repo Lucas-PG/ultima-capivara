@@ -1,5 +1,7 @@
 import { Simulation } from '../../src/simulation';
 import { terrainHeight } from '../../src/shared/terrain';
+import { moveActor } from '../../src/shared/collision';
+import { emptyInput } from '../../src/shared/math';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
 import type { GameUI } from '../../src/ui/ui';
@@ -25,6 +27,7 @@ const VIEWS: Record<string, [number, number, number, number]> = {
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
   vilaStreet: [-40, -38, Math.PI - .3, .03],
   capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
+  swimWaterline: [-60, 2, 0, .04], swimRemote: [-60, 2, 0, .04], swimExit: [-60, 2, Math.PI, .12],
 };
 const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {
   vila: [-1, -10, .48, .02], centro: [36, -6, .42, .02],
@@ -77,6 +80,31 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const bot = structuredClone(me); bot.id = 'bot-qa'; bot.name = 'Capivara'; bot.bot = true;
       bot.pos = { x, y: me.pos.y, z: z - 2 }; bot.yaw = name === 'capyFront' ? Math.PI : Math.PI / 2;
       s.actors.push(bot);
+    }
+    if (name.startsWith('swim')) {
+      // Use the real island collision and water sampling, including the shore
+      // transition. A guessed floating height would hide integration defects.
+      const settle = (actor: typeof me) => {
+        actor.yaw = 0;
+        for (let i = 0; i < 60; i++) moveActor(actor, emptyInput(), deps.world, 1 / 60);
+        if (!actor.swimming) throw new Error('O ponto de revisão precisa estar dentro do rio.');
+        actor.wetUntil = s.time + 8;
+      };
+      settle(me);
+      if (name === 'swimExit') {
+        for (let i = 0; i < 300; i++) moveActor(me, { ...emptyInput(), moveZ: 1 }, deps.world, 1 / 60);
+        if (me.swimming || !me.grounded) throw new Error('A revisão precisa sair do rio pela margem.');
+        me.velocity = { x: 0, y: 0, z: 0 };
+        const wet = structuredClone(me); wet.id = 'bot-qa-wet'; wet.name = 'Capivara'; wet.bot = true;
+        wet.pos.x += 1; wet.pos.z += 2; wet.pos.y = terrainHeight(wet.pos.x, wet.pos.z); wet.yaw = 0;
+        s.actors.push(wet);
+      } else if (name === 'swimRemote') {
+        const swimmer = structuredClone(me); swimmer.id = 'bot-qa-swimmer'; swimmer.name = 'Capivara'; swimmer.bot = true;
+        swimmer.pos.x -= .5; swimmer.pos.z -= 2.2; swimmer.pos.y = terrainHeight(swimmer.pos.x, swimmer.pos.z);
+        settle(swimmer); swimmer.yaw = Math.PI; swimmer.velocity.z = .8;
+        s.actors.push(swimmer);
+      }
+      me.yaw = yaw; me.pitch = pitch;
     }
     if (name === 'results') {
       s.phase = 'results'; s.results = [{ id: me.id, name: me.name, color: me.color, bot: false, kills: 1, deaths: 0, damage: 100, place: 1, winner: true,
