@@ -305,3 +305,9 @@ wildflowers, low-poly pebbles and fallen leaves directly from geometry. No image
 prompt, external source or download is used. Placement follows the shared terrain
 palette and collision data; blade wind and fading run on the GPU. Low disables
 the entire layer. Authored by Cena for Phase A.
+
+Cena's v3 renderer adds original canvas-painted cloud silhouettes and brush washes,
+procedural metre-scale sand ripples and continuous triplanar rock colour, ribbed
+shell geometry, GPU pollen, water glints and depth-occluded sunlight shafts. These
+are generated locally from authored equations and geometry, with no external
+downloads or paid services. The lighting reference is `public/assets/cover-v2.png`.
