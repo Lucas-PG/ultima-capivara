@@ -70,6 +70,7 @@ export class GameRenderer {
   private lastSize = { width: 1, height: 1 };
   private frameStats = { drawCalls: 0, triangles: 0 };
   private resolutionScale = 1;
+  private lastDeviceRatio = 0;
   private frameInterval = 16.7;
   private lastUpdateAt = 0;
   private slowFor = 0;
@@ -187,6 +188,7 @@ export class GameRenderer {
 
   update(frame: PresentationFrame): void {
     if (this.disposed) return;
+    if (this.lastDeviceRatio !== (window.devicePixelRatio || 1) || this.lastSize.width !== window.innerWidth || this.lastSize.height !== window.innerHeight) this.resize();
     this.adaptResolution();
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
@@ -398,8 +400,13 @@ export class GameRenderer {
   resize(): void {
     if (this.disposed) return;
     const canvas = this.gl.domElement;
-    const width = Math.max(1, canvas.clientWidth || window.innerWidth), height = Math.max(1, canvas.clientHeight || window.innerHeight);
-    if (width === this.lastSize.width && height === this.lastSize.height) return;
+    const width = Math.max(1, window.innerWidth), height = Math.max(1, window.innerHeight);
+    // CSS pixels belong to the viewport; DPR belongs only to GPU attachments.
+    // Never feed a stale canvas layout back into the next drawing-buffer size.
+    canvas.style.width = '100vw'; canvas.style.height = '100vh';
+    const dpr = window.devicePixelRatio || 1;
+    if (width === this.lastSize.width && height === this.lastSize.height && dpr === this.lastDeviceRatio) return;
+    this.lastDeviceRatio = dpr; this.applyPixelRatio();
     this.lastSize = { width, height }; this.gl.setSize(width, height, false); this.pipeline.resize();
     this.camera.aspect = width / height; this.camera.updateProjectionMatrix(); this.weaponView.resize(width, height); this.avatars.resize(width, height);
   }

@@ -315,7 +315,14 @@ input.onInteract = () => { interaction = closestInteraction(); if (interaction) 
 input.onPause = () => { if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
-window.addEventListener('resize', () => { renderer?.resize(); dirtyFrame = true; });
+const resizeGame = () => {
+  renderer?.resize(); dirtyFrame = true;
+  requestAnimationFrame(() => renderer?.resize());
+};
+window.addEventListener('resize', resizeGame);
+window.visualViewport?.addEventListener('resize', resizeGame);
+document.addEventListener('fullscreenchange', resizeGame);
+document.addEventListener('pointerlockchange', resizeGame);
 window.addEventListener('pagehide', () => { pageDisposed = true; stopMatch(); session.leave(); sound.dispose(); renderer?.dispose(); });
 window.addEventListener('pageshow', event => {
   // pagehide releases the match and audio hardware. A restored page must create
