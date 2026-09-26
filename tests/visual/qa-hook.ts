@@ -99,8 +99,12 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       });
       if (!direction) throw new Error('A câmera da entrega precisa de uma aproximação livre.');
       x = supply.x + direction[0] * distance; z = supply.z + direction[1] * distance;
-      yaw = Math.atan2(x - supply.x, z - supply.z);
-      pitch = Math.atan2(supply.y + (close ? .5 : name === 'supplyIncoming' ? 34 : 14) - terrainHeight(x, z) - 1.62, distance);
+      // At the middle of its approach the eastbound carrier is still 30 m
+      // behind the landing point. The observer remains on the same dry ground.
+      const targetX = supply.x - (name === 'supplyIncoming' ? SUPPLY_APPROACH_SECONDS / 2 * 12 : 0);
+      yaw = Math.atan2(x - targetX, z - supply.z);
+      pitch = Math.atan2(supply.y + (close ? .5 : name === 'supplyIncoming' ? 34 : 14) - terrainHeight(x, z) - 1.62,
+        Math.hypot(x - targetX, z - supply.z));
     }
     const s = structuredClone(base), me = s.actors[0];
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;

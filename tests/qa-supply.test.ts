@@ -24,6 +24,12 @@ it('reviews every delivery phase at one real dry landing with a valid landed pro
     const snapshot = frame!.snapshot!, drop = snapshot.supplyDrops[0];
     expect(snapshot.config.mode).toBe('battle-royale'); expect(clearSupplyLanding(world, drop.pos)).toBe(true);
     expect(supplyDropPhase(drop, snapshot.time)).toBe(phase);
+    if (phase === 'incoming') {
+      const observer = snapshot.actors[0], shift = (snapshot.time - drop.releaseAt) * 12;
+      const heading = Math.atan2(observer.pos.x - drop.pos.x - Math.sin(drop.heading) * shift,
+        observer.pos.z - drop.pos.z - Math.cos(drop.heading) * shift);
+      expect(observer.yaw).toBeCloseTo(heading, 10);
+    }
     if (phase === 'descending') expect(supplyDropPosition(drop, snapshot.time).y).toBeGreaterThan(drop.pos.y + 8);
     expect(interaction?.id === drop.id).toBe(phase === 'landed');
     if (phase === 'opened') expect(snapshot.loot.some(item => item.id === 'supply-qa-weapon' && item.rarity === 3)).toBe(true);
