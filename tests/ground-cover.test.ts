@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import { GroundCover } from '../src/render/ground-cover';
 import { createWorld } from '../src/shared/world';
 import { ROADS } from '../src/shared/layout';
+import { terrainHeight } from '../src/shared/terrain';
 
 it('keeps grass away from roads and solids, culls distant cells and disables it on Low', () => {
   const world = createWorld(), cover = new GroundCover(world), camera = new THREE.PerspectiveCamera();
@@ -22,6 +23,21 @@ it('keeps grass away from roads and solids, culls distant cells and disables it 
       }
     }
     expect(violations).toEqual([]);
+    let groundedPaint = 0, minClearance = Infinity, maxClearance = -Infinity;
+    for (const node of cover.group.children) if (node instanceof THREE.Mesh && !(node instanceof THREE.InstancedMesh)) {
+      const position = node.geometry.getAttribute('position'), uv = node.geometry.getAttribute('uv');
+      const paint = node.geometry.getAttribute('paintMask');
+      for (let i = 0; i < position.count; i++) {
+        const tile = Math.floor(uv.getX(i) * 4) + Math.floor((1 - uv.getY(i)) * 4) * 4;
+        if (paint.getX(i) < .5 || tile !== 10 && tile !== 13) continue;
+        const clearance = position.getY(i) + node.position.y - terrainHeight(position.getX(i) + node.position.x,
+          position.getZ(i) + node.position.z);
+        minClearance = Math.min(minClearance, clearance); maxClearance = Math.max(maxClearance, clearance); groundedPaint++;
+      }
+    }
+    expect(groundedPaint).toBeGreaterThan(100);
+    expect(minClearance, 'clover and fallen leaves must remain visible above the floor').toBeGreaterThan(.01);
+    expect(maxClearance, 'ground paintings must not float over slopes').toBeLessThan(.018);
     camera.position.set(-35, 4, 61); cover.setQuality('medium'); cover.update(camera, 1, false);
     const visible = cover.group.children.filter(node => node.visible);
     expect(visible.length).toBeGreaterThan(0); expect(visible.length).toBeLessThan(48);
