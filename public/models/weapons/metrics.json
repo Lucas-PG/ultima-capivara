@@ -36,7 +36,7 @@
   "weapons": [
     {
       "id": "pistol",
-      "trianglesWithPaws": 39678,
+      "trianglesWithPaws": 39690,
       "muzzle": [
         0,
         0.025,
@@ -46,7 +46,7 @@
     },
     {
       "id": "smg",
-      "trianglesWithPaws": 39682,
+      "trianglesWithPaws": 39688,
       "muzzle": [
         0,
         0,
@@ -56,7 +56,7 @@
     },
     {
       "id": "m4",
-      "trianglesWithPaws": 39676,
+      "trianglesWithPaws": 39680,
       "muzzle": [
         0,
         0,
@@ -66,7 +66,7 @@
     },
     {
       "id": "shotgun",
-      "trianglesWithPaws": 39684,
+      "trianglesWithPaws": 39692,
       "muzzle": [
         0,
         0,
@@ -115,7 +115,7 @@
       "sightY": 0.24
     }
   ],
-  "bytes": 4483880,
+  "bytes": 4699092,
   "materials": 1,
   "texture": {
     "format": "PNG",

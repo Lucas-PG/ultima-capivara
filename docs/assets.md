@@ -333,6 +333,8 @@ Original 1024x1024 painted colour and tangent normal atlases add directional fur
 
 Review against the cover at 1920x1080: the M4 visibly carries wood grain, machined edges, watch, cuff, fur breakup and shaped support fingers. The full cover-level fur density and richer character face/gear are still open for the subsequent capybara iteration. Existing world houses still need the remaining decorative cracks, wall decals, balcony/door hardware and street vehicle dressing.
 
+The support-grip follow-up replaces the SMG, M4 and shotgun's hidden fingers with four separate curved fingers wrapped along the handguard or pump. Knuckles and nails sit on the visible upper side, the palm is smaller, and short fur fins remain around the wrist rather than obscuring the fingers. The existing `grip_fingers` and `trigger_finger` nodes stay at identity rest transforms. All eight weapons remain within 40,000 triangles, with one material and the same 1024-square colour/normal atlas contract.
+
 ### Street frontage placement follow-up
 
 Original source-authored shop corner brackets, brass suspension rings and street-facing capybara panels in `src/render/street-dressing.ts`. Side-wall murals, laundry, bicycles and planting rotate with the house fronts. No external assets or image generation used. Shop brackets sit outside the kit's front windows and door openings.
