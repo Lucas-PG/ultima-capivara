@@ -12,6 +12,7 @@ const actor: ActorState = {
   weapons: [{ id: 'pistol', ammo: 12, reserve: 36, rarity: 0 }], slot: 0,
   consumables: { bandage: 1, medkit: 0, guarana: 0, acai: 0, rapadura: 0 }, reloadUntil: 0,
   useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 4, shotHeat: .32, swimming: false, wetUntil: 0,
+  emote: null, emoteUntil: 0,
 };
 const snapshot: WorldSnapshot = {
   protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: 'a'.repeat(48), tick: 5, time: 1.2,
@@ -141,10 +142,14 @@ describe('network protocol', () => {
     tampered(f => { f.actors[0][25] = 121; });
     tampered(f => { f.actors[0][26] = -1; });
     tampered(f => { f.actors[0][26] = 1.5; });
-    tampered(f => { f.actors[0][27] = -1; });
+    tampered(f => { f.actors[0][27] = -2; });
     tampered(f => { f.actors[0][27] = 1.5; });
     tampered(f => { f.actors[0][27] = 100; });
-    tampered(f => { f.actors[0][28] = 10_001; });
+    tampered(f => { f.actors[0][28] = -1; });
+    tampered(f => { f.actors[0][29] = -1; });
+    tampered(f => { f.actors[0][29] = 1.5; });
+    tampered(f => { f.actors[0][29] = 100; });
+    tampered(f => { f.actors[0][30] = 10_001; });
     tampered((_, g) => { g[0].weapons[0].id = 'unknown' as any; });
   });
 
