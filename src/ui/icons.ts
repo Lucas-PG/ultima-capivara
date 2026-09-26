@@ -24,7 +24,13 @@ const paths: Record<string, string> = {
   mouse: '<rect x="6" y="2" width="12" height="20" rx="6"/><path d="M12 2v7"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/>',
 };
-export function icon(name: string, cls = '') { return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.leaf}</svg>`; }
+// Painted cartoon icons (Oficina, public/assets/ui/icon-*.webp) replace the line glyphs they exist for; small functional
+// glyphs (arrows, check, close, link) stay as strokes.
+const PAINTED: Record<string, string> = { play: 'play', plus: 'plus', users: 'users', settings: 'gear', crown: 'crown', clock: 'clock', heart: 'heart', shield: 'shield', globe: 'globe', leaf: 'leaf', crosshair: 'crosshair', eye: 'eye' };
+export function icon(name: string, cls = '') {
+  if (PAINTED[name]) return `<img class="icon picon ${cls}" src="${uiArt(`icon-${PAINTED[name]}`)}" alt="" aria-hidden="true" draggable="false">`;
+  return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.leaf}</svg>`;
+}
 export const escapeHtml = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 // Capybara sticker: fur is always the capybara brown; the player colour is the bandana (style bible §3.7).
 // Painted UI sprites cut from the approved final-art sheets by scripts/build-ui-art.mjs.

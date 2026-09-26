@@ -341,6 +341,7 @@ The four cliff pieces are rebuilt from original irregular convex stone chunks in
 
 Collision boxes are inscribed directly against the same authored hull half-spaces, eroded by the bevel radius. No separate cylinder cores are rendered. The exported metadata retains the four piece IDs, bottom origins, footprint dimensions and stone material. Asset tests raycast every collider face against all three exported LODs to ensure no collision surface protrudes beyond visible stone. This iteration uses no external assets or services.
 
+
 ### Cartoon UI icon and material art, 2026-09-25
 
 Original artwork generated with the built-in Codex image tool for Vitrine's B-interface cartoon direction. No external art, paid API, account, font or trademark was used. Full source PNGs are retained in `tools/art/ui-source/`. Runtime files in `public/assets/ui/` are twelve `icon-*.webp` images at 128x128 with real alpha, centred inside an 8px transparent inset (2,552 to 5,660 bytes each); `wood-plank.webp` at 512x192 (12,590 bytes, opaque); and `paper-cream.webp` at 512x512 (11,404 bytes, opaque). The icon names are play, plus, users, gear, crown, clock, heart, shield, globe, leaf, crosshair and eye. Mechanical cropping, sizing and WebP encoding use ImageMagick quality 86 for icons and 88 for textures. Alpha corners, dimensions and byte caps were checked on every final file.
