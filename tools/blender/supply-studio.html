@@ -1,0 +1,31 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="icon" href="../../assets/favicon.svg"><title>Entrega do Tucano: estudo do modelo</title></head><body style="margin:0"><canvas id="c"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+const q = new URLSearchParams(location.search), width = 1920, height = 1080;
+const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+renderer.setSize(width,height); renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.NeutralToneMapping; renderer.toneMappingExposure=1.1;
+const scene = new THREE.Scene(); scene.background=new THREE.Color('#dddaca');
+scene.add(new THREE.HemisphereLight('#b4c2ee','#c9a66b',1.15));
+const sun=new THREE.DirectionalLight('#ffd9a8',2.7); sun.position.set(-3,4,5);scene.add(sun);
+const asset=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('/models/supply-drop/supply-drop.glb');
+const group=new THREE.Group(); scene.add(group);
+const lod=q.get('lod')||'0', part=q.get('part')||'assembly';
+for(const kind of ['carrier','crate','chute']){
+  if(part!=='assembly'&&part!==kind)continue;
+  if(part==='assembly'&&kind==='chute')continue;
+  const root=asset.scene.getObjectByName(`drop_${kind}_LOD${lod}`);
+  const clone=root.clone(true); if(part==='assembly'&&kind==='carrier')clone.position.y+=1.2;
+  group.add(clone);
+}
+group.updateMatrixWorld(true);
+const box=new THREE.Box3().setFromObject(group), center=box.getCenter(new THREE.Vector3()), size=box.getSize(new THREE.Vector3());
+const camera=new THREE.PerspectiveCamera(32,width/height,.01,200);
+const yaw=+(q.get('yaw')||30)*Math.PI/180, distance=Math.max(size.y,size.x*.8,size.z)*2.0;
+camera.position.copy(center).add(new THREE.Vector3(Math.sin(yaw)*distance,distance*.12,Math.cos(yaw)*distance));camera.lookAt(center);
+renderer.render(scene,camera);
+window.ready=true;window.supplyStudio={renderer,scene,camera,group,bounds:{min:box.min.toArray(),max:box.max.toArray()},triangles:renderer.info.render.triangles};
+addEventListener('beforeunload',()=>renderer.dispose());
+</script></body></html>
