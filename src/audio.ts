@@ -58,7 +58,7 @@ export class SoundEngine {
   private lastSnapshot: WorldSnapshot | null = null;
   private lastPosition: Vec3 | null = null;
   private lastActorId: string | null = null;
-  private lastStage: ActorState['stage'] | null = null;
+  private lastGrounded = false;
   private lastVelocityY = 0;
   private distanceToStep = 0;
   private nextWildlife = 0;
@@ -81,7 +81,7 @@ export class SoundEngine {
   private reloadGain: GainNode | null = null;
   private localReloadEnd = -Infinity;
   private disposed = false;
-  private remoteSteps = new Map<string, { pos: Vec3; travelled: number }>();
+  private remoteSteps = new Map<string, { pos: Vec3; travelled: number; grounded: boolean; velocityY: number }>();
 
   constructor(settings: Settings, private world?: WorldSpec) {
     this.settings = { ...settings };
@@ -229,8 +229,9 @@ export class SoundEngine {
         this.nextHeart = now + interval;
       }
     } else this.nextHeart = Math.max(this.nextHeart, now);
-    if (!actor || !snapshot || !Number.isFinite(dt) || dt <= 0) {
-      this.lastPosition = null; this.lastActorId = null; this.lastStage = null; this.distanceToStep = 0;
+    if (!actor || !snapshot || menu || !Number.isFinite(dt) || dt <= 0) {
+      this.lastPosition = null; this.lastActorId = null; this.lastGrounded = false; this.distanceToStep = 0;
+      this.remoteSteps.clear();
       this.cancelReload();
       return;
     }
@@ -247,18 +248,20 @@ export class SoundEngine {
       }
     }
     this.updateReload(actor, snapshot, now);
+    if (!actor.alive) { this.lastActorId = null; this.lastPosition = null; this.distanceToStep = 0; return; }
+    const grounded = actor.grounded && actor.stage === 'ground';
     if (this.lastActorId !== actor.id) {
       this.lastActorId = actor.id; this.lastPosition = { ...actor.pos };
-      this.lastStage = actor.stage; this.lastVelocityY = actor.velocity.y; this.distanceToStep = 0;
+      this.lastGrounded = grounded; this.lastVelocityY = actor.velocity.y; this.distanceToStep = 0;
       return;
     }
-    if (this.lastStage !== 'ground' && actor.stage === 'ground') {
-      this.footstep(actor.pos, Math.abs(this.lastVelocityY) > 12 ? .27 : .13, true);
+    // Ordinary jumps keep stage='ground'. Contact, not stage, owns the cadence.
+    if (!this.lastGrounded && grounded) {
+      this.footstep(actor.pos, .09 + clamp(-this.lastVelocityY, 0, 18) * .01, true);
       this.distanceToStep = 0;
-    }
-    if (this.lastPosition && actor.alive && actor.stage === 'ground' && this.lastStage === 'ground') {
+    } else if (this.lastPosition && grounded && this.lastGrounded && Math.hypot(actor.velocity.x, actor.velocity.z) > .1) {
       const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
-      if (travelled < 2) this.distanceToStep += travelled;
+      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
       const stride = actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
       if (this.distanceToStep >= stride) {
         this.distanceToStep %= stride;
@@ -268,8 +271,8 @@ export class SoundEngine {
           this.tone(this.buses.effects, now + .04, 77, 52, .1, .018, 'triangle');
         }
       }
-    }
-    this.lastPosition = { ...actor.pos }; this.lastStage = actor.stage; this.lastVelocityY = actor.velocity.y;
+    } else this.distanceToStep = 0;
+    this.lastPosition = { ...actor.pos }; this.lastGrounded = grounded; this.lastVelocityY = actor.velocity.y;
   }
 
   setHidden(hidden: boolean): void {
@@ -524,22 +527,28 @@ export class SoundEngine {
   }
 
   private updateRemoteSteps(listener: ActorState, snapshot: WorldSnapshot) {
-    const nearby = snapshot.actors.filter(a => a.id !== listener.id && a.alive && a.grounded && a.stage === 'ground')
+    // Keep airborne neighbours in the history so a snapshot touchdown sounds
+    // once, without carrying their in-air travel into the next walking stride.
+    const nearby = snapshot.actors.filter(a => a.id !== listener.id && a.alive && a.stage !== 'plane')
       .map(actor => ({ actor, distance: Math.hypot(actor.pos.x - listener.pos.x, actor.pos.y - listener.pos.y, actor.pos.z - listener.pos.z) }))
       .filter(item => item.distance < (item.actor.crouch ? 7 : 28)).sort((a, b) => a.distance - b.distance).slice(0, 6);
     const seen = new Set<string>();
     for (const { actor, distance } of nearby) {
       seen.add(actor.id);
-      const prior = this.remoteSteps.get(actor.id) || { pos: { ...actor.pos }, travelled: 0 };
+      const grounded = actor.grounded && actor.stage === 'ground';
+      const prior = this.remoteSteps.get(actor.id) || { pos: { ...actor.pos }, travelled: 0, grounded, velocityY: actor.velocity.y };
+      const landing = !prior.grounded && grounded, fallSpeed = Math.max(0, -prior.velocityY);
       const moved = Math.hypot(actor.pos.x - prior.pos.x, actor.pos.z - prior.pos.z);
-      prior.travelled = moved < 2 ? prior.travelled + moved : 0;
+      prior.travelled = grounded && prior.grounded && Math.hypot(actor.velocity.x, actor.velocity.z) > .1 && moved < 2 ? prior.travelled + moved : 0;
+      prior.grounded = grounded; prior.velocityY = actor.velocity.y;
       prior.pos = { ...actor.pos }; this.remoteSteps.set(actor.id, prior);
       const stride = actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
-      if (prior.travelled < stride) continue;
+      if (!landing && prior.travelled < stride) continue;
       prior.travelled %= stride;
       const occluded = this.world && !hasLineOfSight({ ...listener.pos, y: listener.pos.y + 1.5 }, { ...actor.pos, y: actor.pos.y + 1 }, this.world);
       const output = this.spatial(actor.pos, this.buses!.effects, distance);
-      this.footstep(actor.pos, (actor.crouch ? .06 : actor.sprint ? .24 : .16) * (occluded ? .35 : 1), false, output);
+      const volume = landing ? .12 + clamp(fallSpeed, 0, 18) * .012 : actor.crouch ? .06 : actor.sprint ? .24 : .16;
+      this.footstep(actor.pos, volume * (occluded ? .35 : 1), landing, output);
     }
     for (const id of this.remoteSteps.keys()) if (!seen.has(id)) this.remoteSteps.delete(id);
   }
@@ -547,7 +556,10 @@ export class SoundEngine {
   private footstep(position: Vec3, volume: number, landing: boolean, output: AudioNode = this.buses!.effects) {
     const ctx = this.context!, now = ctx.currentTime;
     const sampleId = `footstep-${this.footstepIndex++ % 6}` as SampleId;
-    if (this.playSample(sampleId, output, volume * (landing ? .8 : .68), now, .2)) return;
+    if (this.playSample(sampleId, output, volume * (landing ? .8 : .68), now, .2)) {
+      if (landing) this.tone(output, now, 110, 45, .17, volume * .42, 'sine');
+      return;
+    }
     const x = position.x, z = position.z;
     const dock = x > -91 && x < -56 && z > -86 && z < -48;
     const town = Math.hypot(x + 42, z + 12) < 32 || Math.hypot(x + 5, z + 48) < 17;
