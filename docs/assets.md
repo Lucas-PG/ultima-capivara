@@ -473,7 +473,7 @@ Exact prompt:
 
 ### Worn island paving, 2026-09-26
 
-Original procedural ground paint in `src/render/world-scene.ts` gives the walkable town roads warm, staggered stone courses with rounded corners, quiet per-stone washes and worn edges. Derivative filtering removes the joints before they form a distant checker pattern. The shared `roadPaintWeight` in `src/shared/terrain.ts` blends paving and curb into beach sand and removes both from steep terrace cuts. Terrain heights, road layout, collision and recreation contacts are unchanged. No external textures, image generation, new meshes or added draw calls are used.
+Original procedural ground paint in `src/render/world-scene.ts` gives the walkable town roads warm, staggered stone courses with rounded corners, quiet per-stone washes and worn edges. Soft narrow joints, painted grain and six-millimetre visual bevel relief catch the existing light without changing the walk surface. Derivative filtering removes the joints and relief before they form a distant checker pattern. The shared `roadPaintWeight` in `src/shared/terrain.ts` blends paving and curb into beach sand and removes both from steep terrace cuts. Terrain heights, road layout, collision and recreation contacts are unchanged. No external textures, image generation, new meshes or added draw calls are used.
 
 ### Long-headed capybara silhouette, toes and field gear, 2026-09-26
 
