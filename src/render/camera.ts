@@ -4,6 +4,7 @@ import { Spring } from './spring';
 import { damp } from '../shared/math';
 import { actorEye } from '../shared/collision';
 import { colliderGrid } from '../shared/collider-grid';
+import { capybaraHasClip } from './capybara';
 import { terrainHeight } from '../shared/terrain';
 import type { ActorState, RenderFrame, Settings, Vec3, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
@@ -131,14 +132,18 @@ export class CameraRig {
 
   private poseEmote(actor: ActorState, position: THREE.Vector3, quaternion: THREE.Quaternion) {
     const seated = actor.emote === 'sit' || actor.emote === 'chill';
-    const look = this.lookTarget.copy(actor.pos).setY(actor.pos.y + (seated ? .78 : 1.02));
+    const loaf = actor.emote === 'chill' && capybaraHasClip('chill');
+    // The authored loaf spans local Z [-1.236,.169], with its head at Y .311.
+    // Frame that low, forward body rather than the standing root or seat height.
+    const look = this.lookTarget.copy(actor.pos).setY(actor.pos.y + (loaf ? .16 : seated ? .78 : 1.02));
+    if (loaf) { look.x -= Math.sin(actor.yaw) * .53; look.z -= Math.cos(actor.yaw) * .53; }
     const distance = seated ? 2.45 : 3.05;
     let best = -1;
     // Prefer the face and free paw. In a narrow room choose the clear side
     // instead of pulling the camera through a wall or into the capybara.
     for (const offset of [.38, -.38, Math.PI]) {
       const angle = actor.yaw + offset;
-      const end = this.target.set(look.x - Math.sin(angle) * distance, look.y + .38, look.z - Math.cos(angle) * distance);
+      const end = this.target.set(look.x - Math.sin(angle) * distance, look.y + (loaf ? .48 : .38), look.z - Math.cos(angle) * distance);
       end.y = Math.max(end.y, terrainHeight(end.x, end.z) + .25);
       const direction = this.direction.subVectors(end, look), length = direction.length();
       direction.divideScalar(length);
@@ -200,7 +205,8 @@ export class CameraRig {
         position.set(this.planePosition.x + Math.sin(yaw) * reach, this.planePosition.y + 4 - Math.sin(orbitPitch) * 26, this.planePosition.z + Math.cos(yaw) * reach);
         quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(this.planePosition).setY(this.planePosition.y + 1), this.camera.up));
       } else if (mode === 'emote') {
-        this.poseEmote(actor, position, quaternion); fov = Math.min(settings.fov, 58);
+        this.poseEmote(actor, position, quaternion);
+        fov = Math.min(settings.fov, actor.emote === 'chill' && capybaraHasClip('chill') ? 52 : 58);
       } else if (mode === 'chase') {
         const body = this.avatars.get(actor.id)?.group.position || this.target.copy(actor.pos);
         const chute = actor.stage === 'parachute', distance = chute ? 7.5 : 6;

@@ -1,10 +1,14 @@
 import * as THREE from 'three';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { CameraRig } from '../src/render/camera';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import { emptyInput } from '../src/shared/math';
 import { terrainHeight } from '../src/shared/terrain';
 import type { ActorState, RenderFrame, WorldSpec } from '../src/shared/types';
+import { capybaraHasClip } from '../src/render/capybara';
+
+vi.mock('../src/render/capybara', () => ({ capybaraHasClip: vi.fn(() => false) }));
+afterEach(() => vi.mocked(capybaraHasClip).mockReturnValue(false));
 
 function fixture(blocked = false, reducedMotion = false) {
   const y = terrainHeight(-1, -10);
@@ -37,4 +41,24 @@ it('uses a clear alternate side when a wall blocks the preferred face view', () 
   const h = fixture(true, true); h.step(); h.actor.emote = 'dance'; h.actor.emoteUntil = 18; h.step();
   expect(h.camera.position.z).toBeGreaterThan(h.actor.pos.z + 2);
   expect(h.rig.cameraBlend).toBe(0);
+});
+
+it('keeps the authored loaf face and forepaws above the bottom HUD while preserving the root', () => {
+  vi.mocked(capybaraHasClip).mockReturnValue(true);
+  const h = fixture(false, true), root = { ...h.actor.pos };
+  h.actor.emote = 'chill'; h.actor.emoteUntil = 22; h.actor.crouch = true; h.step(60);
+  h.camera.updateMatrixWorld();
+  for (const point of [[0, .311, -.998], [-.35, -.013, -1.236], [.35, -.013, -1.236], [0, .574, -.45]]) {
+    const projected = new THREE.Vector3(...point).add(new THREE.Vector3(root.x, root.y, root.z)).project(h.camera);
+    expect(Math.abs(projected.x)).toBeLessThan(.75);
+    expect(projected.y).toBeGreaterThan(-.5); expect(projected.y).toBeLessThan(.7);
+  }
+  expect(h.actor.pos).toEqual(root);
+  expect(h.camera.fov).toBeCloseTo(52, 2);
+});
+
+it('retains collider avoidance for the low forward loaf camera', () => {
+  vi.mocked(capybaraHasClip).mockReturnValue(true);
+  const h = fixture(true, true); h.actor.emote = 'chill'; h.actor.emoteUntil = 22; h.actor.crouch = true; h.step();
+  expect(h.camera.position.z).toBeGreaterThan(h.actor.pos.z);
 });

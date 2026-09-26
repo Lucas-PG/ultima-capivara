@@ -65,6 +65,7 @@ let characterAtlasColumns: 4 | 16 = 16;
 let characterHeadTop = 1.85;
 /** Rest-pose crown, measured once from the loaded mesh rather than the hit sphere. */
 export function capybaraHeadTop(): number { return characterHeadTop; }
+export function capybaraHasClip(name: string): boolean { return !!characterAsset?.animations.some(clip => clip.name === name); }
 let characterLoading: Promise<void> | null = null;
 let characterGeneration = 0;
 const characterInstances = new WeakMap<THREE.SkinnedMesh, CharacterInstance>();
