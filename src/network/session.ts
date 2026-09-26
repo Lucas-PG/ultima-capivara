@@ -43,7 +43,7 @@ function validRoom(v: unknown): v is RoomState {
 }
 export function validConfig(v: unknown): v is RoomConfig {
   const c = v as RoomConfig;
-  return !!c && (c.mode === 'battle-royale' || c.mode === 'deathmatch') &&
+  return !!c && (c.mode === 'battle-royale' || c.mode === 'deathmatch' || c.mode === 'corrente') &&
     Number.isInteger(c.capacity) && c.capacity >= 1 && c.capacity <= MAX_PLAYERS &&
     typeof c.bots === 'boolean' && ['easy', 'normal', 'hard'].includes(c.difficulty) &&
     [300, 480, 600].includes(c.duration);

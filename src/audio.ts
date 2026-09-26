@@ -145,6 +145,20 @@ export class SoundEngine {
       const output = own ? this.buses.effects : this.spatial(event.origin, this.remoteFire || this.buses.effects, distance);
       this.weapon(event.weapon, output, own ? 1 : .72, now + (own ? 0 : distance / 343));
       if (event.surface && !event.hit) this.impactSound(event.surface, event.end, listener, own);
+    } else if (event.type === 'upgrade') {
+      const own = event.actor === myId, actor = this.lastSnapshot?.actors.find(candidate => candidate.id === event.actor);
+      if (!own && !actor) return;
+      const distance = actor ? Math.hypot(actor.pos.x - listener.x, actor.pos.y - listener.y, actor.pos.z - listener.z) : 0;
+      if (!own && distance > 24) return;
+      const output = own ? this.buses.effects : this.spatial(actor!.pos, this.buses.effects, distance);
+      const base = 440 * 2 ** (clamp(event.level, 0, 7) / 24), volume = own ? .045 : .018;
+      const notes = event.level === 7 ? [1, 1.25, 1.5, 2] : [1, 1.25, 1.5];
+      if (own) this.duckRemoteFire(ctx.currentTime);
+      notes.forEach((ratio, index) => {
+        const pitch = base * ratio, time = ctx.currentTime + .05 + index * .085;
+        this.tone(output, time, pitch, pitch, .3, volume, 'triangle');
+        this.tone(output, time, pitch * 2, pitch * 2, .16, volume * .2, 'sine');
+      });
     } else if (event.type === 'water') {
       const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
       if (distance > 32) return;

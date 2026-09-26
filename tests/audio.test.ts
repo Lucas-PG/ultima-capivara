@@ -222,6 +222,18 @@ describe('combat feedback audio', () => {
   }
   const here = { x: 0, y: 0, z: 0 };
 
+  it('celebrates a local ladder upgrade and keeps distant upgrades out of the mix', () => {
+    const audio = engine();
+    audio.event({ id: 1, type: 'upgrade', actor: 'self', weapon: 'm4', level: 2 }, here, 0, 'self');
+    const notes = audio.tone.mock.calls.filter((call: unknown[]) => call[6] === 'triangle');
+    expect(notes).toHaveLength(3);
+    expect(notes[1][1]).toBeGreaterThan(notes[0][1]); expect(notes[2][2]).toBeGreaterThan(notes[1][2]);
+    audio.lastSnapshot = { actors: [{ id: 'far', pos: { x: 100, y: 0, z: 0 } }] };
+    audio.tone.mockClear();
+    audio.event({ id: 2, type: 'upgrade', actor: 'far', weapon: 'machete', level: 7 }, here, 0, 'self');
+    expect(audio.tone).not.toHaveBeenCalled();
+  });
+
   it('routes other players\' gunfire under a bus that local hit confirms duck by 6 dB for a quarter second', () => {
     const audio = engine();
     audio.event({ id: 1, type: 'shot', actor: 'enemy', weapon: 'm4', origin: { x: 50, y: 0, z: 0 }, end: here, hit: false }, here, 0, 'self');

@@ -7,7 +7,7 @@ import { PAINT } from './materials';
 import { preloadNameplateFont } from './nameplates';
 import { disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
 import { damp } from '../shared/math';
-import { PLAYER_COLORS, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec, type ZoneState } from '../shared/types';
+import { PLAYER_COLORS, isArenaMode, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec, type ZoneState } from '../shared/types';
 import { AssetLoader } from './assets';
 import { ASSET_MANIFEST, type AssetEntry } from './asset-manifest';
 import capybaraMetrics from '../../public/models/capybara/metrics.json';
@@ -230,7 +230,7 @@ export class GameRenderer {
     this.effects.update(dt, this.effectsFrame, snapshot?.actors, frame.simulationTime ?? snapshot?.time ?? 0, frame.localActor);
     if (snapshot) {
       const zone = snapshot.zone;
-      this.worldView.arenaBoundary.visible = snapshot.config.mode === 'deathmatch';
+      this.worldView.arenaBoundary.visible = isArenaMode(snapshot.config.mode);
       const br = frame.playing && snapshot.config.mode === 'battle-royale';
       this.storm.update(zone, this.camera, this.elapsed, br);
       const exposed = br && viewed?.alive && viewed.stage !== 'plane' ? StormView.exposure(zone, viewed.pos.x, viewed.pos.z) : 0;
