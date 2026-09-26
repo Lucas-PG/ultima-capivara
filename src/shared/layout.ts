@@ -54,8 +54,21 @@ export interface HouseLot {
   x: number; z: number; w: number; d: number; role: HouseRole;
   material: 'stone' | 'wood'; piece: 'house_small' | 'house_tall'; yaw?: number;
 }
-const home = (x: number, z: number, role: HouseRole = 'home', tall = false, yaw = 0): HouseLot =>
-  ({ x, z, w: tall ? 8 : 7, d: tall ? 7 : 6, role, material: 'stone', piece: tall ? 'house_tall' : 'house_small', yaw });
+function streetFacing(x: number, z: number) {
+  let distance = Infinity, yaw = 0;
+  for (const [x0, z0, x1, z1] of ROADS) {
+    const horizontal = x1 - x0 > z1 - z0;
+    const px = horizontal ? Math.max(x0, Math.min(x1, x)) : (x0 + x1) / 2;
+    const pz = horizontal ? (z0 + z1) / 2 : Math.max(z0, Math.min(z1, z));
+    const gap = Math.hypot(px - x, pz - z);
+    if (gap < distance) { distance = gap; yaw = Math.round(Math.atan2(px - x, pz - z) / (Math.PI / 2)) * Math.PI / 2; }
+  }
+  return yaw;
+}
+const home = (x: number, z: number, role: HouseRole = 'home', tall = false, yaw = streetFacing(x, z)): HouseLot => {
+  const width = tall ? 8 : 7, depth = tall ? 7 : 6, turned = Math.abs(Math.sin(yaw)) > .5;
+  return { x, z, w: turned ? depth : width, d: turned ? width : depth, role, material: 'stone', piece: tall ? 'house_tall' : 'house_small', yaw };
+};
 export const HOUSES: readonly HouseLot[] = [
   home(-43, -29, 'bakery'), home(-29, -29, 'tailor', true),
   home(-44, -13, 'cafe'), home(-28, -9, 'home'), home(10, -13, 'clinic', true),

@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BRIDGES, CHURCH, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance } from './layout';
+import { ARENA, ARENA_CENTER, BRIDGES, CHURCH, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { SIGN_ART } from './signage';
 import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
@@ -8,6 +8,19 @@ import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPl
 
 const ground = terrainHeight;
 const p = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
+const faceToward = (x: number, z: number, targetX: number, targetZ: number) => Math.atan2(targetX - x, targetZ - z);
+function pathApproach(x: number, z: number) {
+  let distance = Infinity, point = { x, z };
+  const paths = [...NAV_ROUTES, ...ROADS.map(([x0, z0, x1, z1]) => x1 - x0 > z1 - z0 ?
+    [[x0, (z0 + z1) / 2], [x1, (z0 + z1) / 2]] : [[(x0 + x1) / 2, z0], [(x0 + x1) / 2, z1]])];
+  for (const path of paths) for (let i = 1; i < path.length; i++) {
+    const [ax, az] = path[i - 1], [bx, bz] = path[i], dx = bx - ax, dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    const px = ax + t * dx, pz = az + t * dz, gap = Math.hypot(x - px, z - pz);
+    if (gap < distance) { distance = gap; point = { x: px, z: pz }; }
+  }
+  return point;
+}
 
 export function createWorld(): WorldSpec {
   const random = rng(0x51a7cafe);
@@ -45,8 +58,18 @@ export function createWorld(): WorldSpec {
   // A missing dressing piece is omitted, never replaced by invisible collision.
   const detail = (piece: string, x: number, z: number, yaw = 0, scale = 1, y = ground(x, z)) =>
     KIT_PIECES[piece] ? place(piece, x, z, yaw, scale, y) : null;
+  const lotPoint = (h: HouseLot, x: number, z: number) => {
+    const c = Math.cos(h.yaw ?? 0), s = Math.sin(h.yaw ?? 0);
+    return { x: h.x + x * c + z * s, z: h.z + z * c - x * s };
+  };
+  const lotPiece = (piece: string, h: HouseLot, x: number, z: number, yaw = 0, scale = 1, y = ground(h.x, h.z)) => {
+    const point = lotPoint(h, x, z);
+    return detail(piece, point.x, point.z, (h.yaw ?? 0) + yaw, scale, y);
+  };
   const sign = (x: number, z: number, label: string) => {
-    if (SIGN_ART.some(art => art.label === label)) obj('sign', x, ground(x, z) + 1.6, z, 3.8, 1.2, .16, '#eccb8b', label);
+    const approach = pathApproach(x, z);
+    if (SIGN_ART.some(art => art.label === label)) obj('sign', x, ground(x, z) + 1.6, z, 3.8, 1.2, .16, '#eccb8b', label,
+      faceToward(x, z, approach.x, approach.z));
   };
   const roadAt = (x: number, z: number, margin = 0) => ROADS.some(([x0, z0, x1, z1]) =>
     x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
@@ -68,27 +91,31 @@ export function createWorld(): WorldSpec {
 
   // Vila: narrow side streets open onto a church square and a covered market.
   for (const h of [...HOUSES, ...MORRO_LOTS]) {
-    const y = ground(h.x, h.z);
+    const y = ground(h.x, h.z), width = h.piece === 'house_tall' ? 8 : 7, depth = h.piece === 'house_tall' ? 7 : 6;
     place(h.piece, h.x, h.z, h.yaw ?? 0, 1, y, h.role);
     // Furnish the wall bays, preserving the opposing doors and the tall-house stair.
     if (h.piece === 'house_tall') {
-      detail('interior_counter', h.x + h.w / 2 - 1.7, h.z - h.d / 2 + .75, 0, 1, y + .11);
-      detail('bed', h.x + h.w / 2 - 1.15, h.z + .8, 0, 1, y + .11);
+      lotPiece('interior_counter', h, width / 2 - 1.7, -depth / 2 + .75, 0, 1, y + .11);
+      lotPiece('bed', h, width / 2 - 1.15, .8, 0, 1, y + .11);
     } else {
-      detail('interior_counter', h.x - h.w / 2 + .75, h.z - .4, Math.PI / 2, 1, y + .11);
-      if (['home', 'fisher', 'clinic'].includes(h.role)) detail('bed', h.x + h.w / 2 - 1.15, h.z + .5, 0, 1, y + .11);
-      else detail('bench', h.x + h.w / 2 - .7, h.z + .1, Math.PI / 2, 1, y + .11);
+      lotPiece('interior_counter', h, -width / 2 + .75, -.4, Math.PI / 2, 1, y + .11);
+      if (['home', 'fisher', 'clinic'].includes(h.role)) lotPiece('bed', h, width / 2 - 1.15, .5, 0, 1, y + .11);
+      else lotPiece('bench', h, width / 2 - .7, .1, -Math.PI / 2, 1, y + .11);
     }
   }
   const shopNames = { bakery: 'PADARIA', cafe: 'CAFÉ DA VILA', tailor: 'ATELIÊ', fishmonger: 'PEIXE FRESCO', workshop: 'OFICINA', kiosk: 'ARMAZÉM', home: 'BOM DIA', fisher: 'PEIXE FRESCO', clinic: 'CAPIVARAS' };
   for (const [index, h] of [...HOUSES, ...MORRO_LOTS].entries()) {
-    const y = ground(h.x, h.z);
-    obj('box', h.x + h.w / 2 + .16, y + 1.75, h.z - .5, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, Math.PI / 2);
-    if (index % 2 === 0) obj('box', h.x, y, h.z + h.d / 2 + 1.25, 1, 1, 1, '#FFFFFF', 'prop:street-laundry');
-    if (index % 3 === 0) obj('box', h.x + h.w / 2 + 1.15, y, h.z + 1.1, 1, 1, 1,
-      index % 2 ? '#BD765A' : '#65A29C', 'prop:street-bike', Math.PI / 2);
+    const y = ground(h.x, h.z), width = h.piece === 'house_tall' ? 8 : 7, depth = h.piece === 'house_tall' ? 7 : 6;
+    const mural = lotPoint(h, width / 2 + .17, -.5), shop = lotPoint(h, -width / 2 - .75, depth / 2 + .45);
+    const laundry = lotPoint(h, 0, depth / 2 + 1.25), bike = lotPoint(h, width / 2 + 1.15, 1.1);
+    obj('box', mural.x, y + 1.75, mural.z, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, (h.yaw ?? 0) + Math.PI / 2);
+    if (!['home', 'fisher'].includes(h.role)) obj('box', shop.x, y + 2.45, shop.z, 1, 1, 1, '#FFFFFF',
+      `prop:street-shop:${shopNames[h.role]}`, h.yaw ?? 0);
+    if (index % 2 === 0) obj('box', laundry.x, y, laundry.z, 1, 1, 1, '#FFFFFF', 'prop:street-laundry', h.yaw ?? 0);
+    if (index % 3 === 0) obj('box', bike.x, y, bike.z, 1, 1, 1,
+      index % 2 ? '#BD765A' : '#65A29C', 'prop:street-bike', (h.yaw ?? 0) + Math.PI / 2);
     for (const side of [-1, 1]) {
-      const x = h.x + side * (h.w / 2 + .75), z = h.z + h.d / 2 + 1;
+      const { x, z } = lotPoint(h, side * (width / 2 + .75), depth / 2 + 1);
       if (!occupied(x, z, .6) && !roadAt(x, z, .5)) detail('planter', x, z, 0, .8);
     }
   }
@@ -101,10 +128,14 @@ export function createWorld(): WorldSpec {
   pavement(...PLAZA, 18, 17);
   pavement(...MERCADAO, 18, 14, '#cdb790');
   detail('fountain', PLAZA[0], PLAZA[1]);
-  for (const [x, z] of [[-17, -24], [-3, -18], [-17, -17], [35, -10]] as const) detail('bench', x, z);
+  for (const [x, z] of [[-17, -24], [-3, -18], [-17, -17]] as const)
+    detail('bench', x, z, faceToward(x, z, ...PLAZA));
+  detail('bench', 35, -10, Math.PI);
   for (const [x, z] of [[-19, -28], [-1, -28], [-19, -13], [-1, -13], [21, -10], [37, -10]] as const) detail('planter', x, z);
   for (const [x, z] of [[-19, -30], [-1, -30], [-19, -11], [1, -14], [20, -10], [39, -11]] as const) detail('lamp_post', x, z);
-  for (const [x, z] of [[24, -23], [34, -23], [24, -16], [34, -16], [-34, 39]] as const) detail('market_stall', x, z);
+  for (const [x, z] of [[24, -23], [34, -23], [24, -16], [34, -16]] as const)
+    detail('market_stall', x, z, z < MERCADAO[1] ? 0 : Math.PI);
+  detail('market_stall', -34, 39, Math.PI);
   sign(-40, -41, 'VILA'); sign(39, -9, 'MERCADÃO'); sign(-21, 37, 'POSTO');
   // Three crossings have a continuous deck level with the banks.
   for (const [x, z] of BRIDGES) place('bridge_stone', x, z, 0, 1, 1.75);
@@ -242,8 +273,8 @@ export function createWorld(): WorldSpec {
 
   // Long southern beach and a lighthouse at the final cape.
   for (const x of [-45, -30, -14, 25, 40]) {
-    if (KIT_PIECES.beach_kiosk) detail('beach_kiosk', x, 109);
-    else place('house_small', x, 109, 0, .7, ground(x, 109), 'beach-kiosk');
+    if (KIT_PIECES.beach_kiosk) detail('beach_kiosk', x, 109, Math.PI);
+    else place('house_small', x, 109, Math.PI, .7, ground(x, 109), 'beach-kiosk');
     for (const dx of [-3, 3]) {
       obj('cone', x + dx, ground(x + dx, 117) + 2, 117, 2.8, .65, 2.8, dx < 0 ? '#e89a78' : '#83bcb1', 'umbrella');
       obj('cylinder', x + dx, ground(x + dx, 117) + 1, 117, .06, 2, .06, '#a8865e', 'umbrella-pole');
@@ -290,13 +321,14 @@ export function createWorld(): WorldSpec {
 
   // Planting frames the facades while the doors retain a wide central aisle.
   for (const h of [...HOUSES, ...MORRO_LOTS]) {
+    const width = h.piece === 'house_tall' ? 8 : 7, depth = h.piece === 'house_tall' ? 7 : 6;
     for (const side of [-1, 1]) {
       const flowers = KIT_PIECES.flower_bed;
-      const x = h.x + side * (1.4 + (flowers?.footprint[0] ?? 2.4) / 2), z = h.z + h.d / 2 + 1.7;
-      if (!roadAt(x, z, 1) && !occupied(x, z, .5)) detail('flower_bed', x, z);
+      const { x, z } = lotPoint(h, side * (1.4 + (flowers?.footprint[0] ?? 2.4) / 2), depth / 2 + 1.7);
+      if (!roadAt(x, z, 1) && !occupied(x, z, .5)) detail('flower_bed', x, z, h.yaw ?? 0);
     }
     if (h.role === 'home' || h.role === 'fisher') {
-      const x = h.x - h.w / 2 - 2, z = h.z - 1;
+      const { x, z } = lotPoint(h, -width / 2 - 2, -1);
       if (!roadAt(x, z, 1) && !occupied(x, z, .8)) detail('bush_cluster', x, z, 0, .85);
     }
   }
@@ -308,7 +340,7 @@ export function createWorld(): WorldSpec {
     for (const side of [-1, 1]) {
       const z = sample.z + side * (sample.width / 2 + 8.4);
       if (BRIDGES.some(([bx]) => Math.abs(x - bx) < 6) || occupied(x, z, 1.4) || roadAt(x, z, 1.2)) continue;
-      detail('bench', x, z, side > 0 ? 0 : Math.PI);
+      detail('bench', x, z, faceToward(x, z, sample.x, sample.z));
       detail('planter', x + 2.3, z);
       detail('bush_cluster', x - 2.4, z, 0, .8);
     }
@@ -353,6 +385,13 @@ export function createWorld(): WorldSpec {
   });
   const paved = (x: number, z: number) => objects.some(o => o.detail === 'courtyard' &&
     Math.abs(x - o.pos.x) < o.scale.x / 2 + 1.4 && Math.abs(z - o.pos.z) < o.scale.z / 2 + 1.4);
+  // Buried cliff solids should not erase the jungle above them. Keep roots on
+  // terrain and reject only geometry that actually rises through the planting.
+  const plantBlocked = (x: number, z: number, margin: number) => {
+    const y = ground(x, z);
+    return colliders.some(c => c.max.y > y + .3 && c.min.y < y + 2 &&
+      x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
+  };
   const tree = (x: number, z: number, height: number, kind: 'tree' | 'palm' = 'tree', species = 'foliage') => {
     obj(kind, x, ground(x, z) - .08, z, 1.1, height, 1.1, '#5FA544', species, random() * Math.PI * 2);
     planted.push({ x, z });
@@ -367,7 +406,7 @@ export function createWorld(): WorldSpec {
     const [width, depth] = KIT_PIECES[rock.piece].footprint, size = rock.scale ?? 1;
     for (const side of [-1, 1]) {
       const x = rock.x + side * (width * size / 2 + .7), z = rock.z + depth * size * .28, y = ground(x, z);
-      if (y < .7 || occupied(x, z, .35) || roadAt(x, z, 1) || routeDistance(x, z) < 2.5 ||
+      if (y < .7 || plantBlocked(x, z, .35) || roadAt(x, z, 1) || routeDistance(x, z) < 2.5 ||
         Math.abs(ground(x + 1, z) - y) > 1 || blocksHeroView(x, z)) continue;
       tree(x, z, 1.15 + random() * .55); shrubs++;
     }
@@ -378,22 +417,45 @@ export function createWorld(): WorldSpec {
     if (occupied(x, z, 1) || routeDistance(x, z) < 2.5) continue;
     tree(x, z, 4.5 + random() * 3, 'tree', 'mangrove');
   }
-  for (const [gx, gz] of [[-110, -85], [-88, -85], [-69, -88], [-45, -77], [-28, -79], [34, -65],
+  for (const [gx, gz] of [[-106, -87], [-89, -79], [-76, -77], [-61, -82], [-46, -69], [-64, -59], [-82, -38], [-111, -32],
+    [-110, -85], [-88, -85], [-69, -88], [-45, -77], [-28, -79], [34, -65],
     [48, -77], [67, -65], [-111, -25], [-73, 39], [-69, 61], [80, 85], [29, 87], [73, 98], [-72, 96]]) {
     for (let i = 0; i < 10; i++) {
       const angle = i * 2.4, radius = 1.7 + Math.sqrt(i) * 2.1;
       const x = gx + Math.cos(angle) * radius, z = gz + Math.sin(angle) * radius, y = ground(x, z);
-      if (y < .8 || occupied(x, z, 3) || roadAt(x, z, 2) || routeDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) ||
+      if (y < .8 || plantBlocked(x, z, 1.7) || roadAt(x, z, 2) || routeDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) ||
         planted.some(t => Math.hypot(t.x - x, t.z - z) < 3.4)) continue;
       tree(x, z, 7.3 + random() * 3.4, y < 1.4 ? 'palm' : 'tree');
     }
   }
   for (let i = 0; i < 7000 && planted.length < 360; i++) {
     const x = -123 + random() * 246, z = -122 + random() * 244, y = ground(x, z);
-    if (y < .6 || occupied(x, z, 2.8) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 ||
+    if (y < .6 || plantBlocked(x, z, 1.7) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 ||
       riverDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) || planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 20)) continue;
     const palm = y < 2 || z > 94 || (x > 25 && z < -85) || random() < .12;
     tree(x, z, (palm ? 7 : 5.5) + random() * 3, palm ? 'palm' : 'tree');
+  }
+  if (KIT_PIECES.bush_cluster) {
+    const patches: PointLike[] = [], foliageRandom = rng(0x71f03a);
+    const understory = (x: number, z: number, scale: number) => {
+      const y = ground(x, z);
+      if (y < .7 || roadAt(x, z, 1.5) || routeDistance(x, z) < 2.4 || paved(x, z) || plantBlocked(x, z, .8) ||
+        patches.some(point => Math.hypot(point.x - x, point.z - z) < 2.5)) return;
+      place('bush_cluster', x, z, foliageRandom() * Math.PI * 2, scale, y - .12, 'undergrowth');
+      patches.push({ x, z });
+    };
+    // Overlapping high, middle and low foliage bands give the western ridge a
+    // broken green silhouette and cover the bare apron beneath the canopy.
+    for (const [gx, gz] of [[-106, -82], [-89, -76], [-76, -81], [-60, -75], [-48, -64], [-68, -57], [-82, -37], [-109, -27]])
+      for (let i = 0; i < 11; i++) {
+        const angle = i * 2.399, radius = 2 + Math.sqrt(i) * 2.05;
+        understory(gx + Math.cos(angle) * radius, gz + Math.sin(angle) * radius, .9 + foliageRandom() * .55);
+      }
+    // District fringes frame the routes without growing into their clear aisle.
+    for (const district of districts) for (let i = 0; i < 10; i++) {
+      const angle = i * 2.399 + district.x * .04, radius = district.radius * (.68 + i % 3 * .12);
+      understory(district.x + Math.cos(angle) * radius, district.z + Math.sin(angle) * radius, .8 + foliageRandom() * .45);
+    }
   }
   for (let i = 0; i < 160; i++) {
     const x = -120 + random() * 240, z = -120 + random() * 240, y = ground(x, z);
@@ -419,14 +481,30 @@ export function createWorld(): WorldSpec {
       if (!seen.has(next)) { seen.add(next); component.push(next); }
     if (component.length > mainRoutes.length) mainRoutes = component;
   }
+  // A dry farm terrace can lie inside Correria while its only ramp leaves the
+  // arena. Pickups within the arena must join its own connected route component.
+  const townSeen = new Set<number>();
+  let townRoutes: number[] = [];
+  for (const start of mainRoutes) {
+    const point = graph.points[start];
+    if (townSeen.has(start) || !inArena(point.x, point.z, .5)) continue;
+    const component = [start]; townSeen.add(start);
+    for (let i = 0; i < component.length; i++) for (const next of graph.links[component[i]]) {
+      const point = graph.points[next];
+      if (townSeen.has(next) || !inArena(point.x, point.z, .5)) continue;
+      townSeen.add(next); component.push(next);
+    }
+    if (component.length > townRoutes.length) townRoutes = component;
+  }
   const clear = (x: number, z: number, radius = .75) => {
     const y = walkableHeight(x, z, world);
     if (y < .55 || Math.abs(x) > 120 || Math.abs(z) > 120) return false;
     if (Math.hypot(ground(x + .6, z) - ground(x - .6, z), ground(x, z + .6) - ground(x, z - .6)) / 1.2 > .6) return false;
     if (!colliders.every(c => y >= c.max.y - .015 || y + 1.8 <= c.min.y ||
       x + radius <= c.min.x || x - radius >= c.max.x || z + radius <= c.min.z || z - radius >= c.max.z)) return false;
-    return mainRoutes.some(index => Math.hypot(graph.points[index].x - x, graph.points[index].z - z) < 10 &&
-      walkableSegment(world, { x, z }, graph.points[index]));
+    const arena = inArena(x, z, .5), routes = arena ? townRoutes : mainRoutes;
+    return routes.some(index => Math.hypot(graph.points[index].x - x, graph.points[index].z - z) < 10 &&
+      walkableSegment(world, { x, z }, graph.points[index], arena));
   };
   const used: PointLike[] = [];
   const nearby = (x: number, z: number, maxRadius: number) => {
@@ -441,9 +519,10 @@ export function createWorld(): WorldSpec {
     const pos = nearby(x, z, 10); if (pos) loot.push({ id: id('loot'), ...pos, kind, ...(kind === 'weapon' ? { weapon: weapon ?? 'pistol' } : {}) });
   };
   for (const h of [...HOUSES, ...MORRO_LOTS]) {
-    pickup(h.x, h.z + 1.5, 'weapon', random() < .45 ? 'smg' : 'pistol');
-    pickup(h.x, h.z - 1.5, 'ammo');
-    const pos = nearby(h.x + 2.1, h.z + 1.1, 10); if (pos) chests.push({ id: id('chest'), ...pos });
+    const front = lotPoint(h, 0, 1.5), back = lotPoint(h, 0, -1.5), bay = lotPoint(h, 2.1, 1.1);
+    pickup(front.x, front.z, 'weapon', random() < .45 ? 'smg' : 'pistol');
+    pickup(back.x, back.z, 'ammo');
+    const pos = nearby(bay.x, bay.z, 10); if (pos) chests.push({ id: id('chest'), ...pos });
   }
   for (const [x, z, weapon] of [[-7, -90, 'sniper'], [12, -92, 'dmr'], [28, -20, 'm4'], [24, -17, 'shotgun'],
     [-105, -76, 'sniper'], [65, 61, 'shotgun'], [102, -14, 'm4'], [12, 110, 'dmr']] as const) pickup(x, z, 'weapon', weapon);
@@ -471,7 +550,7 @@ export function createWorld(): WorldSpec {
   }
   for (const d of districts) for (let i = 0; i < 5; i++) {
     const angle = i * Math.PI * 2 / 5, pos = nearby(d.x + Math.cos(angle) * d.radius * .6, d.z + Math.sin(angle) * d.radius * .6, 14);
-    if (pos) spawns.push({ ...pos, mode: 'battle-royale', yaw: angle + Math.PI });
+    if (pos) spawns.push({ ...pos, mode: 'battle-royale', district: d.id, yaw: Math.atan2(pos.x - d.x, pos.z - d.z) });
   }
   return world;
 }
