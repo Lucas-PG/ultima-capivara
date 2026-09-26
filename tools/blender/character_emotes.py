@@ -68,9 +68,9 @@ def add_emotes(rig, scene, report, contact_leg):
         bone.rotation_euler = bone.rotation_euler.to_quaternion().slerp(local, weight).to_euler('XYZ')
 
     specs = [('wave', 3, False), ('dance', 8, True), ('victory', 4, False),
-             ('sit', 12, True), ('chill', 12, True)]
+             ('sit', 12, True), ('chill', 12, True), ('boing', 1.05, False)]
     for name, seconds, loop in specs:
-        frames = seconds * scene.render.fps
+        frames = round(seconds * scene.render.fps)
         action = bpy.data.actions.new(name)
         action.use_fake_user = True
         action['loop'] = loop
@@ -91,6 +91,9 @@ def add_emotes(rig, scene, report, contact_leg):
                 bone.scale = (1, 1, 1)
             rig.pose.bones['mouth_cavity'].scale.y = .18
             envelope = 1 if loop else ease(t / .16) * (1 - ease((t - .82) / .18))
+            elapsed = t * seconds
+            tuck = ease(elapsed / .10) * (1 - ease((elapsed - .18) / .20))
+            star = ease((elapsed - .12) / .23) * (1 - ease((elapsed - .74) / .25))
             spine = rig.pose.bones['spine']
             spine.scale.x = 1 + .003 * math.sin(phase)
             if name == 'dance':
@@ -121,6 +124,18 @@ def add_emotes(rig, scene, report, contact_leg):
             elif name == 'victory':
                 spine.rotation_euler.x = -.025 * envelope
                 spine.scale.y = 1 + .018 * math.sin(phase * 2) * envelope
+            elif name == 'boing':
+                # The host owns all flight and the renderer already supplies
+                # contact squash. Only an airborne tuck opens into a happy star.
+                spine.rotation_euler.x = -.035 * tuck + .025 * star
+                rig.pose.bones['head'].rotation_euler.x = -.065 * star
+                rig.pose.bones['jaw'].rotation_euler.x = .045 * star
+                rig.pose.bones['mouth_cavity'].scale.y = .18 + .12 * star
+                for sign, side in [(-1, 'L'), (1, 'R')]:
+                    rig.pose.bones['thigh_' + side].rotation_euler.x = .65 * tuck - .12 * star
+                    rig.pose.bones['thigh_' + side].rotation_euler.z = sign * .38 * star
+                    rig.pose.bones['shin_' + side].rotation_euler.x = -1.10 * tuck - .23 * star
+                    rig.pose.bones['foot_' + side].rotation_euler.x = .30 * tuck + .15 * star
 
             for sign, side in [(-1, 'L'), (1, 'R')]:
                 rest_elbow = (sign * .31, .96, -.055)
@@ -143,6 +158,11 @@ def add_emotes(rig, scene, report, contact_leg):
                 elif name == 'chill':
                     elbow = (sign * .32, .19, -.74)
                     hand = (sign * .25, .056 + .002 * math.sin(phase), -.96)
+                elif name == 'boing':
+                    elbow = point(rest_elbow, (sign * .30, 1.10, -.20), tuck)
+                    hand = point(rest_hand, (sign * .17, 1.28, -.33), tuck)
+                    elbow = point(elbow, (sign * .42, 1.24, -.045), star)
+                    hand = point(hand, (sign * .46, 1.50, -.17), star)
                 arms(side, elbow, hand)
                 if name in ['wave', 'victory']:
                     rig.pose.bones['paw_' + side].rotation_euler.y = sign * .20 * envelope
@@ -152,6 +172,8 @@ def add_emotes(rig, scene, report, contact_leg):
                     paw_direction(side, (0, 1, 0), (-sign, 0, 0), clap)
                 elif name == 'chill':
                     paw_direction(side, (0, 0, -1), (0, -1, 0))
+                elif name == 'boing':
+                    paw_direction(side, (sign * .30, 1, 0), (0, 0, -1), star)
                 rig.pose.bones['ear_' + side].rotation_euler.x = .022 * math.sin(phase + (0 if sign < 0 else .4))
                 if name == 'chill':
                     rig.pose.bones['blink_' + side].scale.y = .12 + .012 * math.sin(phase)
@@ -176,4 +198,5 @@ def add_emotes(rig, scene, report, contact_leg):
                 bone.keyframe_insert('scale', frame=frame, group=bone.name)
         report['clips'].append(name)
     report['emotes'] = {name: dict(seconds=seconds, loop=loop, inPlace=True)
-                        for name, seconds, loop in specs}
+                        for name, seconds, loop in specs if name != 'boing'}
+    report['bounce'] = dict(clip='boing', seconds=1.05, starAt=.35, inPlace=True)
