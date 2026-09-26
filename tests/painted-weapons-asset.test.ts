@@ -30,6 +30,19 @@ describe('painted weapons shipped asset contract', () => {
     }
   });
 
+  it('keeps reload-part aliases at identity under the existing weapon groups', () => {
+    for (const id of ['pistol', 'smg', 'm4', 'dmr', 'sniper']) {
+      for (const role of ['mag', id === 'pistol' ? 'slide' : 'bolt', 'grip_l']) {
+        const node = asset.getRoot().listNodes().find(node => node.getName() === `${id}_${role}`);
+        expect(node, `${id}/${role}`).toBeDefined();
+        expect(node!.getExtras().partRole).toBe(role);
+        expect(node!.getTranslation()).toEqual([0, 0, 0]);
+        expect(node!.getRotation()).toEqual([0, 0, 0, 1]);
+        expect(node!.listChildren().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it('uses a shared painted atlas without photographic surface maps', () => {
     const materials = asset.getRoot().listMaterials();
     expect(materials).toHaveLength(1);

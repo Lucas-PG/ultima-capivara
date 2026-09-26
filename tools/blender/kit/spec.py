@@ -35,7 +35,7 @@ class Piece:
         self.parts.append(dict(shape='beam', a=a, b=b, width=width, depth=depth or width, tile=tile, detail=detail))
 
     def metadata(self):
-        high = max((p['center'][1] + (p.get('size', [0, p.get('height', 0), 0])[1]) / 2 for p in self.parts if 'center' in p), default=0)
+        high = max((p['center'][1] + (max(p['radius'], p['top']) if p.get('axis', 'y') != 'y' else p.get('size', [0, p.get('height', 0), 0])[1] / 2) for p in self.parts if 'center' in p), default=0)
         return dict(footprint=[self.width, self.depth], height=round(high, 4), colliders=self.colliders)
 
 

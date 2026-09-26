@@ -369,6 +369,18 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
     for part in [body, magazine, action, right, left, legendary]:
         if part:
             merge_group(part, part.name + '_mesh')
+    # Identity child pivots preserve legacy groups and expose semantic reload parts.
+    # Runtime normalizes partRole names per cloned weapon because GLTFLoader
+    # gives globally duplicated node names numeric suffixes.
+    roles = [(magazine, 'mag'), (action, 'slide' if weapon == 'pistol' else 'bolt'), (left, 'grip_l')]
+    for parent, role in roles:
+        if parent and parent.children:
+            visible = list(parent.children)
+            alias = group(weapon + '_' + role, parent)
+            alias['partRole'] = role
+            alias['motionAxis'] = '-Y' if role == 'mag' else '+Z' if role in ['slide', 'bolt'] else '-Y'
+            for child in visible:
+                child.parent = alias
     meshes = [o for o in root.children_recursive if o.type == 'MESH']
     triangles = 0
     for mesh in meshes:
