@@ -17,7 +17,7 @@ class Piece:
         PIECES[name] = self
 
     def box(self, x, y, z, w, h, d, tile=0, solid=False, material='stone', bevel=.035, detail=False, yaw=0, roll=0):
-        self.parts.append(dict(shape='box', center=[x, y, z], size=[w, h, d], tile=tile, bevel=bevel, detail=detail, yaw=yaw, roll=roll))
+        self.parts.append(dict(shape='box', center=[x, y, z], size=[w, h, d], tile=tile, bevel=bevel, detail=detail, yaw=yaw, roll=roll, solid=solid))
         if solid:
             assert not roll, 'Sloping decoration cannot create an axis-aligned collider'
             self.colliders.append(dict(type='box', x=x, y=y, z=z, width=w, height=h, depth=d, yaw=yaw, material=material))
@@ -39,6 +39,8 @@ class Piece:
         data = dict(footprint=[self.width, self.depth], height=round(high, 4), colliders=self.colliders)
         if hasattr(self, 'interaction'):
             data['interaction'] = self.interaction
+        if hasattr(self, 'traversal'):
+            data['traversal'] = self.traversal
         return data
 
 
@@ -137,12 +139,59 @@ def building(name, width, depth, floors=1, color=1, roof_tile=4):
         for yy in [.6, 1.8, height - .5]:
             p.cylinder(x + math.copysign(.22, x), yy, -depth / 2 + .4, .078, .045, 9, sides=8, detail=True)
     if floors > 1:
-        # Stair opening on left; landing and second room remain walkable.
+        # A real starter landing leaves room to turn before the first riser.
+        # Eight deep treads stay within the shared 0.45 m walking step limit.
+        # The upper landing closes the former 0.75 m gap beside the flight.
+        upper_index = len(p.colliders)
         p.box(1.0, 3.13, 0, width - 2.5, .18, depth - .3, 5, True, 'wood')
-        count = 20
+        count, bottom, top = 8, .11, 3.22
+        stair_x, start_z, run = -width / 2 + .85, -2.4, 4.8
+        treads = []
         for i in range(count):
-            top = (i + 1) * 3.04 / count
-            p.box(-width / 2 + .85, top / 2, -depth / 2 + .45 + (i + .5) * (depth - 1) / count, 1.3, top, (depth - 1) / count, 5, True, 'wood', bevel=.01)
+            tread_top = bottom + (i + 1) * (top - bottom) / count
+            z = start_z + (i + .5) * run / count
+            treads.append(len(p.colliders))
+            p.box(stair_x, tread_top / 2, z, 1.3, tread_top, run / count, 5, True, 'wood', bevel=.01)
+        landing_index = len(p.colliders)
+        p.box(-2.725, 3.13, 2.87, 2.15, .18, .94, 5, True, 'wood', bevel=.015)
+        # Slender solid posts guard the flight without entering its centre aisle.
+        rail_x = stair_x + .58
+        for i in range(count):
+            tread = p.colliders[treads[i]]
+            y, z = tread['y'] + tread['height'] / 2, tread['z']
+            p.box(rail_x, y + .49, z, .10, .98, .10, 7, True, 'wood', bevel=.012)
+            if i < count - 1:
+                next_tread = p.colliders[treads[i + 1]]
+                yy = next_tread['y'] + next_tread['height'] / 2
+                p.beam((rail_x, y + .98, z), (rail_x, yy + .98, next_tread['z']), .11, 5)
+        for z in [-2.85, -1.65, -.45, .75, 2.15]:
+            p.box(-1.66, top + .49, z, .10, .98, .10, 7, True, 'wood', bevel=.012)
+        for y in [top + .43, top + .98]:
+            p.box(-1.66, y, -.35, .11, .10, 5.10, 5, True, 'wood', bevel=.015)
+
+        def floor_record(index, name):
+            solid = p.colliders[index]
+            return dict(id=name, bounds=[solid['x'] - solid['width'] / 2, solid['z'] - solid['depth'] / 2,
+                                       solid['x'] + solid['width'] / 2, solid['z'] + solid['depth'] / 2],
+                        y=solid['y'] + solid['height'] / 2)
+
+        ground_floor = floor_record(0, 'ground-room')
+        upper_floor = floor_record(upper_index, 'upper-room')
+        landing = floor_record(landing_index, 'upper-landing')
+        ascent = [[0, bottom, 0], [0, bottom, -2.9], [stair_x, bottom, -2.9]]
+        ascent += [[p.colliders[i]['x'], p.colliders[i]['y'] + p.colliders[i]['height'] / 2,
+                    p.colliders[i]['z']] for i in treads]
+        ascent += [[stair_x, landing['y'], landing['bounds'][3] - .49], [-2.725, landing['y'], 2.85]]
+        p.traversal = dict(
+            floors=[ground_floor, upper_floor, landing],
+            entrances=[dict(id='back', point=[0, bottom, -depth / 2 - .7]),
+                       dict(id='front', point=[0, bottom, depth / 2 + .7])],
+            routes=[dict(id='back-entry', **{'from': 'back', 'to': 'ground-room'}, points=[[0, bottom, -depth / 2 + .5], [0, bottom, 0]]),
+                    dict(id='front-entry', **{'from': 'front', 'to': 'ground-room'}, points=[[0, bottom, depth / 2 - .5], [0, bottom, 0]]),
+                    dict(id='stairs', **{'from': 'ground-room', 'to': 'upper-landing'}, points=ascent),
+                    dict(id='upper-room', **{'from': 'upper-landing', 'to': 'upper-room'},
+                         points=[[-2.725, top, 2.85], [-1.25, top, 2.85], [1, top, 2.85], [1, top, 0]])],
+            stairs=[dict(id='main-flight', **{'from': 'ground-room', 'to': 'upper-landing'}, colliderIndices=treads)])
     roof(p, width + .7, depth + .7, height, 1.65 if width < 10 else 2.0, roof_tile)
     return p
 

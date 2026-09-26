@@ -118,11 +118,16 @@ for name, piece in PIECES.items():
     lod_metrics = []
     for level in [0, 1, 2]:
         vertices, faces, tiles, paint_uv, smooth_faces, tints = [], [], [], [], [], []
+        structural_vertices = []
         for part in piece.parts:
             if level and part.get('detail'):
                 continue
+            if level == 2 and hasattr(piece, 'traversal') and part.get('solid'):
+                part = dict(part, bevel=0)
             vv, ff = make_part(part, level)
             offset = len(vertices)
+            if hasattr(piece, 'traversal') and part.get('solid'):
+                structural_vertices.extend(range(offset, offset + len(vv)))
             vertices.extend(vv)
             faces.extend([[i + offset for i in face] for face in ff])
             tiles.extend([part['tile']] * len(ff))
@@ -219,6 +224,14 @@ for name, piece in PIECES.items():
             bpy.context.view_layer.objects.active = obj
             modifier = obj.modifiers.new('Distance triangle budget', 'DECIMATE')
             modifier.ratio = (budget - 12) / len(obj.data.loop_triangles)
+            if hasattr(piece, 'traversal'):
+                # Keep the authored floors and wall joins before spending
+                # the remaining far-LOD budget on window and trim details.
+                group = obj.vertex_groups.new(name='Simplify decoration before walking surfaces')
+                group.add(list(range(len(obj.data.vertices))), 1.0, 'REPLACE')
+                group.add(structural_vertices, 0.0, 'REPLACE')
+                modifier.vertex_group = group.name
+                modifier.vertex_group_factor = 1000
             bpy.ops.object.modifier_apply(modifier=modifier.name)
         if name.startswith('cliff_'):
             bpy.context.view_layer.objects.active = obj
