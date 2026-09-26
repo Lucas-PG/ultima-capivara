@@ -268,6 +268,17 @@ body:not([data-screen=game]) .button{font-family:var(--display);font-weight:400;
 #hud #vitals{transform:translateX(-50%)}
 #hud #ammoBox{--r:0deg}
 #hud #mapWrap{transform:none}
+/* Bottom row fit: the consumables sit clear above the vitals, and windows too narrow for centred vitals (hud-narrow,
+   set from hudNarrow in hud-logic.ts) stack vitals, posture and consumables on the left so nothing meets the weapon slots. */
+@media(min-width:641px){
+#hud #consbar{bottom:137px}
+body.hud-narrow #hud #vitals{left:20px;transform:none;width:min(420px,calc(var(--hud-w,1600) * 1px - 423px))}
+body.hud-narrow #hud #vitals.low{animation-name:hud-lowhp-left}
+body.hud-narrow #hud #stance{bottom:137px}
+body.hud-narrow #hud #consbar{left:20px;transform:none;bottom:193px}
+body.hud-narrow #hud #coach{bottom:250px}
+}
+@keyframes hud-lowhp-left{50%{transform:scale(1.02)}}
 
 /* Eliminated in battle royale: watching and leaving always sit side by side; the exit is calm paper, never a red alarm. */
 #hud #spec .btns button{display:inline-flex;align-items:center;gap:8px}
