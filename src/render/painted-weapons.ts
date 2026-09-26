@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createPaintedWeaponAtlas } from './weapon-atlas';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { WeaponId } from '../shared/types';
 import { RARITY } from '../shared/rarity';
@@ -65,14 +66,7 @@ export class PaintedWeaponSet {
       for (const rarity of RARITY) {
         const colors = palette.map(hex => parseInt(hex, 16));
         colors[9] = parseInt(rarity.color.slice(1), 16);
-        const pixels = new Uint8Array(32 * 32 * 4);
-        for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-          const hex = colors[x];
-          pixels.set([hex >> 16 & 255, hex >> 8 & 255, hex & 255, 255], (y * 32 + x) * 4);
-        }
-        const atlas = new THREE.DataTexture(pixels, 32, 32);
-        atlas.colorSpace = THREE.SRGBColorSpace; atlas.magFilter = atlas.minFilter = THREE.NearestFilter;
-        atlas.generateMipmaps = false; atlas.needsUpdate = true;
+        const atlas = createPaintedWeaponAtlas(colors);
         const material = mesh.material.clone(); material.map = atlas;
         this.atlases.push(atlas); this.materials.push(material);
       }
@@ -95,8 +89,8 @@ export class PaintedWeaponSet {
     });
     const get = (part: string) => group.getObjectByName(`${id}_${part}`)!;
     const sight = get('sight');
-    const model = { group, muzzle: get('muzzle'), eject: get('eject'), magazine: get('magazine'), action: get('action'),
-      support: get('left_paw') || new THREE.Group(), sightY: sight.position.y, legendary: get('legendary') };
+    const model = { group, muzzle: get('muzzle'), eject: get('eject'), magazine: group.getObjectByName('mag') || get('magazine'), action: group.getObjectByName('slide') || group.getObjectByName('bolt') || get('action'),
+      support: group.getObjectByName('grip_l') || get('left_paw') || new THREE.Group(), sightY: sight.position.y, legendary: get('legendary') };
     this.setRarity(model, rarity); this.instances.add(group);
     return model;
   }

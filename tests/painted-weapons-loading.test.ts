@@ -65,9 +65,15 @@ describe('painted weapon readiness and ownership', () => {
     expect(mesh(common).material.emissiveMap!.magFilter).toBe(THREE.NearestFilter);
     expect(mesh(common).material.emissiveMap!.generateMipmaps).toBe(false);
     const pixels = (model: typeof common) => (mesh(model).material.map as THREE.DataTexture).image.data!;
-    expect(Array.from(pixels(common).slice(13 * 4, 14 * 4))).toEqual([162, 124, 92, 255]);
-    expect(Array.from(pixels(rare).slice(13 * 4, 14 * 4))).toEqual([162, 124, 92, 255]);
-    expect(Array.from(pixels(rare).slice(9 * 4, 10 * 4))).toEqual([63, 169, 245, 255]);
+    const texel = (model: typeof common, column: number) => {
+      const offset = (128 * 1024 + column * 32 + 16) * 4;
+      return Array.from(pixels(model).slice(offset, offset + 4));
+    };
+    expect(texel(common, 13)).toEqual(texel(rare, 13));
+    const fur = texel(common, 13); expect(fur[0]).toBeGreaterThan(fur[1]); expect(fur[1]).toBeGreaterThan(fur[2]);
+    const blue = texel(rare, 9); expect(blue[2]).toBeGreaterThan(blue[1]); expect(blue[1]).toBeGreaterThan(blue[0]);
+    expect(texel(common, 9)).not.toEqual(blue);
+    expect((mesh(common).material.map as THREE.DataTexture).image.width).toBe(1024);
     set.dispose();
   });
 
