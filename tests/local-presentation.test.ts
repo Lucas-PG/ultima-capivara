@@ -10,9 +10,15 @@ const actor = (): ActorState => ({
   stage: 'ground', kills: 0, deaths: 0, damage: 0, weapons: [{ id: 'pistol', ammo: 4, reserve: 20, rarity: 0 }], slot: 0,
   consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 }, reloadUntil: 0, useUntil: 0,
   using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, shotHeat: 0, swimming: false, wetUntil: 0,
+  emote: null, emoteUntil: 0,
 });
 
 describe('local presentation without simulation changes', () => {
+  it('does not restore weapon poses while an authoritative emote is still active', () => {
+    const state = actor(), view = new LocalPresentation(); state.emote = 'wave'; state.emoteUntil = 4;
+    expect(view.sample(state, { ...emptyInput(), ads: true, lean: 1, sprint: true, moveZ: 1 }, 1, .016, 1))
+      .toMatchObject({ emote: 'wave', ads: false, sprint: false, lean: 0 });
+  });
   it('keeps the predicted swimming restrictions even with live aim, sprint and lean held', () => {
     const state = actor(), view = new LocalPresentation(); state.swimming = true; state.grounded = false;
     const before = structuredClone(state);

@@ -1,4 +1,5 @@
 import Peer, { type DataConnection, type PeerOptions } from 'peerjs';
+import { isEmote } from '../shared/emotes';
 import { DEFAULT_CONFIG, MAX_PLAYERS, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION,
   type GameEvent, type InputFrame, type PlayerAction, type PlayerProfile, type RoomConfig,
   type RoomState, type SessionCallbacks, type WorldSnapshot } from '../shared/types';
@@ -60,6 +61,7 @@ export function validAction(v: unknown): v is PlayerAction {
   const a = v as PlayerAction;
   if (!a || !Number.isSafeInteger(a.id) || a.id < 0) return false;
   switch (a.type) {
+    case 'emote': return a.emote === null || isEmote(a.emote);
     case 'reload': case 'parachute': case 'jump': return true;
     case 'trigger': return [a.yaw, a.pitch, a.lean, a.clientTime].every(Number.isFinite) &&
       Math.abs(a.yaw) <= Math.PI * 1000 && Math.abs(a.pitch) <= Math.PI / 2 + .01 &&

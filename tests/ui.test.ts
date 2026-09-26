@@ -194,10 +194,10 @@ describe('key remap covers every action', () => {
     const grouped = BINDING_GROUPS.flatMap(g => g.actions);
     expect(new Set(grouped).size).toBe(grouped.length);
     for (const action of new Set([...grouped, ...Object.keys(DEFAULT_BINDINGS)])) {
-      expect(BINDING_LABELS[action]).toMatch(/^[A-ZÀ-Ú][a-zà-ú0-9 /]+$/);
+      expect(BINDING_LABELS[action]).toMatch(/^[A-ZÀ-Ú][a-zà-ú0-9 /()]+$/);
       expect(isBindableCode(DEFAULT_BINDINGS[action])).toBe(true);
     }
-    for (const action of ['fire', 'ads', 'slot1', 'slot4', 'useBandage', 'useRapadura', 'scoreboard', 'map']) expect(grouped).toContain(action);
+    for (const action of ['fire', 'ads', 'slot1', 'slot4', 'useBandage', 'useRapadura', 'scoreboard', 'map', 'emote']) expect(grouped).toContain(action);
   });
   it('swaps instead of letting two actions share a key', () => {
     const next = remapBinding({ reload: 'KeyR', interact: 'KeyF' }, 'reload', 'KeyF');

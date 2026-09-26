@@ -53,10 +53,11 @@ describe('first-person inspect', () => {
     expect(h.holder.position.distanceTo(position)).toBeLessThan(.007);
     expect(h.holder.rotation.y).toBeCloseTo(rotation.y);
   });
-  it.each(['ads', 'sprint', 'reload', 'switch', 'death', 'air'] as const)('combat state %s cancels inspection', async state => {
+  it.each(['ads', 'sprint', 'reload', 'switch', 'death', 'air', 'emote'] as const)('combat state %s cancels inspection', async state => {
     const h = await harness(); h.step(); h.view.inspect();
     for (let i = 0; i < 48; i++) h.step();
     if (state === 'ads') h.actor.ads = true;
+    if (state === 'emote') { h.actor.emote = 'wave'; h.actor.emoteUntil = 4; }
     if (state === 'sprint') h.actor.sprint = true;
     if (state === 'reload') h.actor.reloadUntil = 3;
     if (state === 'switch') h.actor.slot = 1;
