@@ -225,7 +225,8 @@ export class GameRenderer {
     this.effectsFrame.firstPerson = firstPerson;
     this.effectsFrame.viewportHeight = this.lastSize.height;
     this.effectsFrame.reducedMotion = this.settings.reducedMotion;
-    this.effects.update(dt, this.effectsFrame);
+    this.effectsFrame.lowQuality = this.settings.graphics === 'low';
+    this.effects.update(dt, this.effectsFrame, snapshot?.actors, frame.simulationTime ?? snapshot?.time ?? 0, frame.localActor);
     if (snapshot) {
       const zone = snapshot.zone;
       this.worldView.arenaBoundary.visible = snapshot.config.mode === 'deathmatch';

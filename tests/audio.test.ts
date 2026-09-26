@@ -9,11 +9,11 @@ describe('ground contact audio', () => {
     audio.buses = { effects: {} };
     audio.updateAmbient = vi.fn(); audio.updateStorm = vi.fn(); audio.updateReload = vi.fn();
     audio.placeListener = vi.fn(); audio.spatial = vi.fn((_pos, output) => output);
-    audio.footstep = vi.fn(); audio.nextSpotCheck = Infinity;
+    audio.footstep = vi.fn(); audio.waterSound = vi.fn(); audio.nextSpotCheck = Infinity;
     return audio;
   }
   function actor(id = 'self') {
-    return { id, alive: true, hp: 100, stage: 'ground', grounded: true, crouch: false, sprint: false,
+    return { id, alive: true, hp: 100, stage: 'ground', grounded: true, swimming: false, crouch: false, sprint: false,
       pos: { x: 0, y: 0, z: 0 }, velocity: { x: 3, y: 0, z: 0 }, yaw: 0 };
   }
   function update(audio: any, local: ReturnType<typeof actor>, remotes: ReturnType<typeof actor>[] = []) {
@@ -86,6 +86,35 @@ describe('ground contact audio', () => {
     local.alive = true; local.grounded = true; update(audio, local);
     local.grounded = false; update(audio, local); update(audio, actor('spectated'));
     expect(audio.footstep).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('uses swim strokes and a quiet shore exit instead of steps or landing (remote: %s)', remote => {
+    const audio = engine(), local = actor(), swimmer = remote ? actor('remote') : local;
+    if (remote) local.velocity.x = 0;
+    const others = remote ? [swimmer] : [];
+    update(audio, local, others);
+    swimmer.swimming = true; swimmer.grounded = false;
+    update(audio, local, others);
+    for (let i = 0; i < 8; i++) { swimmer.pos.x += .5; update(audio, local, others); }
+    expect(audio.footstep).not.toHaveBeenCalled();
+    expect(audio.waterSound).toHaveBeenCalledTimes(2);
+    expect(audio.waterSound.mock.calls.every((call: unknown[]) => call[2] === null)).toBe(true);
+    swimmer.swimming = false; swimmer.grounded = true; update(audio, local, others);
+    expect(audio.footstep).not.toHaveBeenCalled();
+    for (let i = 0; i < 4; i++) { swimmer.pos.x += .5; update(audio, local, others); }
+    expect(audio.footstep).toHaveBeenCalledOnce();
+    expect(audio.footstep.mock.calls[0][2]).toBe(false);
+  });
+
+  it('sounds each water transition once and spatializes nearby remote splashes', () => {
+    const audio = engine(), local = actor();
+    audio.event({ type: 'water', id: 1, actor: local.id, pos: local.pos, entering: true }, local.pos, 0, local.id);
+    audio.event({ type: 'water', id: 2, actor: 'remote', pos: { x: 4, y: -.05, z: 0 }, entering: false }, local.pos, 0, local.id);
+    for (let i = 0; i < 10; i++) update(audio, local);
+    expect(audio.waterSound.mock.calls.map((call: unknown[]) => call[2])).toEqual([true, false]);
+    expect(audio.spatial).toHaveBeenCalledOnce();
+    audio.event({ type: 'water', id: 3, actor: 'far', pos: { x: 100, y: -.05, z: 0 }, entering: true }, local.pos, 0, local.id);
+    expect(audio.waterSound).toHaveBeenCalledTimes(2);
   });
 
   it('adds a landing thud even when recorded footstep samples are loaded', () => {

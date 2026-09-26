@@ -67,6 +67,24 @@ beforeEach(() => {
 describe('capybara cosmetic colour contract', () => {
   const colors = ['#1FB5A8', '#E76F51', '#FFC23D', '#3D6FB6', '#A468FF', '#F28DB2', '#8CC453', '#F4F1E8', '#bd8956'];
 
+  it('treads water from idle instead of playing an airborne clip and preserves the physical actor', async () => {
+    const capy = await import('../src/render/capybara'), source = fixture();
+    source.animations.find(clip => clip.name === 'jump')!.tracks = [new THREE.NumberKeyframeTrack('head.position[y]', [0, 1], [.9, .9])];
+    await capy.preloadCapybaraAsset(async () => source);
+    const avatar = capy.buildCapybaraBody('#1FB5A8');
+    const state = { pos: { x: -60, y: -1.15, z: 2 }, velocity: { x: 0, y: 0, z: 1 }, grounded: false,
+      swimming: true, stage: 'ground', crouch: false, sprint: false, ads: false, yaw: 0, pitch: 0, slot: 0,
+      reloadUntil: 0, weapons: [{ id: 'pistol' }] } as any;
+    const before = structuredClone(state);
+    for (let i = 0; i < 90; i++) capy.updateCapybaraBody(avatar.body, state, 1 / 60, i / 60);
+    expect(avatar.body.getObjectByName('head')!.position.y).toBeCloseTo(0);
+    expect(state).toEqual(before);
+    const paw = avatar.body.getObjectByName('arm_L')!.quaternion.clone();
+    for (let i = 0; i < 18; i++) capy.updateCapybaraBody(avatar.body, state, 1 / 60, 2);
+    expect(paw.angleTo(avatar.body.getObjectByName('arm_L')!.quaternion)).toBeGreaterThan(.03);
+    avatar.body.skeleton.dispose(); capy.disposeCapybaraAssets();
+  });
+
   it.each([false, true])('preserves fur and gear through recolouring and shares every LOD material (painted atlas: %s)', async painted => {
     const capy = await import('../src/render/capybara');
     const source = fixture();
