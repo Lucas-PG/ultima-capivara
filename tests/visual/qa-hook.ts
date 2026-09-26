@@ -2,6 +2,7 @@ import { Simulation } from '../../src/simulation';
 import { terrainHeight } from '../../src/shared/terrain';
 import { moveActor } from '../../src/shared/collision';
 import { emptyInput } from '../../src/shared/math';
+import { EMOTES, EMOTE_IDS } from '../../src/shared/emotes';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
 import type { GameUI } from '../../src/ui/ui';
@@ -45,7 +46,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   const base = fixture.snapshot();
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let preparedIdentities = '';
-  const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), 'scope',
+  const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'scope',
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
@@ -69,6 +70,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
     me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : name.startsWith('fp-') ? name.slice(3) as WeaponId : 'pistol', ammo: 12, reserve: 50, rarity: 0 }];
     me.slot = 0;
+    const emote = EMOTE_IDS.find(id => name === `emote-${id}`);
+    if (emote) { me.emote = emote; me.emoteUntil = s.time + EMOTES[emote].duration; me.crouch = emote === 'sit' || emote === 'chill'; }
     s.actors = [me];
     for (let i = 1; i < actorCount; i++) {
       const bot = structuredClone(me), angle = i * Math.PI * 2 / (actorCount - 1), radius = 12 + i % 4 * 4;
