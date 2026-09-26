@@ -3,7 +3,8 @@ export interface AssetEntry { path: string; kind: 'texture' | 'hdr' | 'gltf' | '
 // File sizes weight completion events for image loads that have no byte callback.
 // The manifest test checks these sizes against the shipped files.
 export const ASSET_MANIFEST: readonly AssetEntry[] = [
-  { path: 'textures/terrain-color.png', kind: 'texture', bytes: 500081, label: 'Cores da ilha' },
+  { path: 'textures/terrain-color.png', kind: 'texture', bytes: 500101, label: 'Cores da ilha' },
+  { path: 'textures/clouds-painted-v4.png', kind: 'texture', bytes: 894096, label: 'Nuvens pintadas' },
   { path: 'textures/island-signs.png', kind: 'texture', bytes: 64223, label: 'Placas da ilha' },
   { path: 'textures/vfx-flipbooks.png', kind: 'texture', bytes: 148876, label: 'Efeitos pintados' },
   { path: 'models/service-pistol/service_pistol_1k.gltf', kind: 'gltf', bytes: 17614, label: 'Pistola' },

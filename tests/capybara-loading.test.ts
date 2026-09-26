@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import type { Settings, WorldSpec } from '../src/shared/types';
 import type { AssetEntry } from '../src/render/asset-manifest';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
@@ -66,32 +67,61 @@ beforeEach(() => {
 describe('capybara cosmetic colour contract', () => {
   const colors = ['#1FB5A8', '#E76F51', '#FFC23D', '#3D6FB6', '#A468FF', '#F28DB2', '#8CC453', '#F4F1E8', '#bd8956'];
 
-  it('changes only bandana atlas columns and shares one material across every LOD and matching actor', async () => {
+  it.each([false, true])('preserves fur and gear through recolouring and shares every LOD material (painted atlas: %s)', async painted => {
     const capy = await import('../src/render/capybara');
     const source = fixture();
+    if (painted) source.scene.children[0].userData.paintAtlas = '4x4';
     const sourceMaterial = (source.scene.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material as THREE.MeshPhysicalMaterial;
     sourceMaterial.vertexColors = true; sourceMaterial.emissive.set('#FFFFFF'); sourceMaterial.emissiveMap = new THREE.Texture();
-    sourceMaterial.specularIntensityMap = new THREE.Texture();
+    sourceMaterial.normalMap = new THREE.Texture(); sourceMaterial.roughnessMap = new THREE.Texture();
+    sourceMaterial.specularIntensityMap = new THREE.Texture(); sourceMaterial.specularColorMap = new THREE.Texture();
     await capy.preloadCapybaraAsset(async () => source);
+    let baseTiles: string[] = [];
     for (const color of colors) {
       const actor = capy.buildCapybaraBody(color), copy = capy.buildCapybaraBody(color);
       const meshes = (actor.body.getObjectByName('Capivara_LOD') as THREE.LOD).levels.map(level => level.object as THREE.SkinnedMesh);
       const material = meshes[0].material as THREE.MeshStandardMaterial;
       expect(meshes.every(mesh => mesh.material === material)).toBe(true);
       expect(material.userData.toonCharacter).toBe(true);
-      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v2');
+      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v3');
       expect(material.vertexColors).toBe(true);
       expect(material.emissiveMap).toBe(sourceMaterial.emissiveMap);
+      expect(material.normalMap).toBe(sourceMaterial.normalMap); expect(material.roughnessMap).toBe(sourceMaterial.roughnessMap);
       expect((material as THREE.MeshPhysicalMaterial).specularIntensityMap).toBe(sourceMaterial.specularIntensityMap);
+      expect((material as THREE.MeshPhysicalMaterial).specularColorMap).toBe(sourceMaterial.specularColorMap);
       expect(material.emissive.getHexString()).toBe('ffffff');
       expect((copy.body.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material).toBe(material);
       const atlas = material.map as THREE.DataTexture, pixels = atlas.image.data!;
       expect(atlas.colorSpace).toBe(THREE.SRGBColorSpace);
-      const hexAt = (column: number) => Array.from(pixels.slice(column * 4, column * 4 + 3)).map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
-      expect([0, 1, 2, 3, 4].map(hexAt)).toEqual(['A27C5C', 'C19D62', '7A4424', '4A2C1C', 'E8C08A']);
-      expect(hexAt(5)).toBe(color.slice(1).toUpperCase());
-      if (color === '#1FB5A8') expect(hexAt(6)).toBe('12877E');
-      expect(hexAt(7)).toBe('6E7040');
+      if (painted) {
+        expect([atlas.image.width, atlas.image.height]).toEqual([1024, 1024]);
+        expect(atlas.generateMipmaps).toBe(true); expect(atlas.minFilter).toBe(THREE.LinearMipmapLinearFilter);
+        const tiles = Array.from({ length: 16 }, (_, tile) => {
+          const hash = createHash('sha256');
+          for (let y = 0; y < 256; y++) {
+            const row = ((Math.floor(tile / 4) * 256 + y) * 1024 + tile % 4 * 256) * 4;
+            hash.update(pixels.subarray(row, row + 256 * 4));
+          }
+          return hash.digest('hex');
+        });
+        if (!baseTiles.length) baseTiles = tiles;
+        else for (let tile = 0; tile < 16; tile++) {
+          if (tile === 5 || tile === 6) expect(tiles[tile]).not.toBe(baseTiles[tile]);
+          else expect(tiles[tile], `Unchanged painted tile ${tile}`).toBe(baseTiles[tile]);
+        }
+        const furValues = new Set<number>();
+        for (let x = 0; x < 256; x++) furValues.add(pixels[x * 4]);
+        // Fine restrained fur has fewer luminance steps than the broad old bands.
+        expect(furValues.size).toBeGreaterThan(8);
+        expect(material.customProgramCacheKey()).toContain('character-v3:4');
+      } else {
+        expect([atlas.image.width, atlas.image.height]).toEqual([16, 16]);
+        const hexAt = (column: number) => Array.from(pixels.slice(column * 4, column * 4 + 3)).map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+        expect([0, 1, 2, 3, 4].map(hexAt)).toEqual(['A27C5C', 'C19D62', '7A4424', '4A2C1C', 'E8C08A']);
+        expect(hexAt(5)).toBe(color.slice(1).toUpperCase());
+        if (color === '#1FB5A8') expect(hexAt(6)).toBe('12877E');
+        expect(hexAt(7)).toBe('6E7040');
+      }
       const disposed = vi.fn(); material.addEventListener('dispose', disposed);
       actor.body.skeleton.dispose(); copy.body.skeleton.dispose();
       expect(disposed).not.toHaveBeenCalled();

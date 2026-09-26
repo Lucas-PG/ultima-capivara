@@ -1,55 +1,17 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import type { AssetLoader } from './assets';
 
 const SKY = {
   top: '#376FAD', middle: '#8BB6D1', horizon: '#FFC380', fog: '#DBC2AE',
   cloud: '#FFE5B4', warm: '#FFC679', shade: '#7D829F', sun: '#FFF1C9',
 } as const;
 
-// Original low-frequency painted cloud card. One shared atlas, fixed world-facing
-// cards, no camera-facing billboards or alpha-test thresholds that pop in motion.
-function cloudTexture(sunSides: number[]) {
-  const canvas = document.createElement('canvas'); canvas.width = 2048; canvas.height = 1024;
-  const ctx = canvas.getContext('2d')!;
-  let state = 9183;
-  const random = () => { state = (Math.imul(state, 1664525) + 1013904223) | 0; return (state >>> 0) / 4294967296; };
-  sunSides.forEach((sunSide, index) => {
-    ctx.save(); ctx.translate(index % 4 * 512, Math.floor(index / 4) * 512);
-    const lobes: { x: number; y: number; rx: number; ry: number }[] = [];
-    for (let i = 0; i < 28; i++) {
-      const x = 72 + i / 27 * 365, envelope = Math.sin(i / 27 * Math.PI);
-      lobes.push({ x, y: 346 - envelope * (45 + random() * 77), rx: 25 + random() * 39, ry: 24 + envelope * (20 + random() * 48) });
-    }
-    // Overlapping rounded volumes carry broad painted light and coloured
-    // undersides. Fine brush dabs stay inside the cloud silhouette.
-    ctx.beginPath();
-    for (const lobe of lobes) { ctx.moveTo(lobe.x + lobe.rx, lobe.y); ctx.ellipse(lobe.x, lobe.y, lobe.rx, lobe.ry, 0, 0, Math.PI * 2); }
-    const body = ctx.createLinearGradient(0, 125, 0, 400);
-    body.addColorStop(0, '#FFECCA'); body.addColorStop(.45, '#F6CFAB'); body.addColorStop(.8, '#BBA8B4'); body.addColorStop(1, '#8590AA');
-    ctx.fillStyle = body; ctx.fill(); ctx.clip();
-    for (const lobe of lobes) {
-      const litX = lobe.x + sunSide * lobe.rx * .35, litY = lobe.y - lobe.ry * .48;
-      const gradient = ctx.createRadialGradient(litX, litY, 0, litX, litY, lobe.rx * 1.4);
-      gradient.addColorStop(0, 'rgba(255,242,204,.68)'); gradient.addColorStop(.6, 'rgba(255,220,169,.16)'); gradient.addColorStop(1, 'rgba(255,220,169,0)');
-      ctx.fillStyle = gradient; ctx.fillRect(lobe.x - lobe.rx * 2, lobe.y - lobe.ry * 2, lobe.rx * 4, lobe.ry * 4);
-    }
-    ctx.globalCompositeOperation = 'source-atop';
-    for (let i = 0; i < 480; i++) {
-      const x = random() * 512, y = 150 + random() * 240;
-      ctx.fillStyle = i % 3 ? 'rgba(255,221,170,.055)' : 'rgba(92,103,153,.035)';
-      ctx.beginPath(); ctx.ellipse(x, y, 4 + random() * 19, 1 + random() * 4, -.18, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.globalCompositeOperation = 'source-over'; ctx.restore();
-  });
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  texture.name = 'painted-cumulus-three-silhouettes'; return texture;
-}
-
 export class PaintedSky {
   readonly group = new THREE.Group();
-  private readonly clouds: THREE.Mesh;
-  private readonly texture: THREE.CanvasTexture;
-  constructor() {
+  readonly clouds: THREE.Mesh;
+  private readonly texture: THREE.Texture;
+  constructor(assets: AssetLoader) {
     const viewport = new THREE.Vector4();
     const dome = new THREE.Mesh(new THREE.SphereGeometry(600, 32, 16), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -82,20 +44,24 @@ export class PaintedSky {
     dome.renderOrder = -1000; dome.frustumCulled = false; this.group.add(dome);
     const geometries: THREE.BufferGeometry[] = [];
     const transform = new THREE.Object3D(), sunDirection = new THREE.Vector3(-70, 32, -30).normalize();
-    const right = new THREE.Vector3(), sunSides: number[] = [];
+    const right = new THREE.Vector3();
     for (let i = 0; i < 8; i++) {
       const angle = i * Math.PI / 4 + [.17, -.11, .08, -.15, .12, -.06, .19, -.08][i];
       const scale = [.8, 1.25, .65, 1.4, .95, 1.1, .7, 1.2][i], height = [205, 280, 225, 310, 190, 265, 230, 295][i];
       transform.position.set(Math.cos(angle) * 470, height, Math.sin(angle) * 470);
       transform.lookAt(0, height * .45, 0); transform.rotateY([.09, -.16, .18, -.08, .13, -.2, .05, -.11][i]);
       transform.updateMatrix();
-      sunSides.push(right.setFromMatrixColumn(transform.matrix, 0).dot(sunDirection));
+      const sunSide = right.setFromMatrixColumn(transform.matrix, 0).dot(sunDirection);
       const card = new THREE.PlaneGeometry(245 * scale, 245 * scale), uv = card.getAttribute('uv');
-      for (let v = 0; v < uv.count; v++) uv.setXY(v, (uv.getX(v) + i % 4) / 4, (uv.getY(v) + 1 - Math.floor(i / 4)) / 2);
+      // The atlas is lit from the upper left. Mirror each fixed card toward the
+      // real sun; keep the painted billows stationary as the camera turns.
+      for (let v = 0; v < uv.count; v++) uv.setXY(v, ((sunSide > 0 ? 1 - uv.getX(v) : uv.getX(v)) + i % 4) / 4,
+        (uv.getY(v) + 1 - Math.floor(i / 4)) / 2);
       geometries.push(card.applyMatrix4(transform.matrix));
     }
     const geometry = mergeGeometries(geometries)!; geometries.forEach(part => part.dispose());
-    this.texture = cloudTexture(sunSides);
+    this.texture = assets.texture('textures/clouds-painted-v4.png');
+    this.texture.colorSpace = THREE.SRGBColorSpace; this.texture.name = 'painted-cumulus-billows';
     const material = new THREE.MeshBasicMaterial({ map: this.texture, transparent: true, depthWrite: false, fog: false });
     this.clouds = new THREE.Mesh(geometry, material); this.clouds.renderOrder = -999; this.clouds.frustumCulled = false;
     this.group.add(this.clouds);

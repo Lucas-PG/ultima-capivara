@@ -236,6 +236,32 @@ def fur_fin(parent, start, tip, color):
     finish(obj, parent, color)
 
 
+def curled_finger(parent, points):
+    vertices, faces = [], []
+    path = [Vector(p) for p in points]
+    for row, center in enumerate(path):
+        direction = (path[min(row + 1, len(path) - 1)] - path[max(0, row - 1)]).normalized()
+        side = direction.cross(Vector((0, 0, 1))).normalized()
+        across = direction.cross(side).normalized()
+        taper = [.65, 1, 1, .88, .50][row]
+        for i in range(16):
+            angle = math.tau * i / 16
+            vertices.append(V(center + side * (math.cos(angle) * .020 * taper) + across * (math.sin(angle) * .0175 * taper)))
+    for row in range(len(path) - 1):
+        for i in range(16):
+            a, b = row * 16 + i, row * 16 + (i + 1) % 16
+            faces.append((a, b, b + 16, a + 16))
+    faces.extend([tuple(reversed(range(16))), tuple((len(path) - 1) * 16 + i for i in range(16))])
+    mesh = bpy.data.meshes.new('Curled_support_finger')
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new('Curled_support_finger', mesh)
+    bpy.context.collection.objects.link(obj)
+    finish(obj, parent, 13)
+    for face in mesh.polygons:
+        face.use_smooth = True
+
+
 def merge_group(parent, name):
     meshes = [obj for obj in parent.children if obj.type == 'MESH']
     if not meshes:
@@ -297,7 +323,9 @@ def scope(parent, front=-.41, length=.35, radius=.05):
 def paw(parent, side, palm, elbow, vertical=False):
     # Four rounded fingers, articulated knuckles and a separate wrapping thumb.
     p, e = Vector(palm), Vector(elbow)
-    hero = parent.name.split('_')[0] in ['pistol', 'smg', 'm4', 'shotgun']
+    weapon = parent.name.split('_')[0]
+    hero = weapon in ['pistol', 'smg', 'm4', 'shotgun']
+    support = side == -1 and weapon in ['smg', 'm4', 'shotgun']
     existing_parts = set(parent.children)
     wrist = p.lerp(e, .28)
     link('Forearm', parent, tuple(e), tuple(wrist), .084 if hero else .074, 13, .067 if hero else .059)
@@ -325,13 +353,13 @@ def paw(parent, side, palm, elbow, vertical=False):
         block('Watch_glass', parent, tuple(watch + Vector((0, .018, 0))), (.032, .006, .043), 26, .005)
         block('Watch_hand', parent, tuple(watch + Vector((0, .022, -.004))), (.003, .002, .023), 19, .001)
         # Tapered low-cost fur fins break the silhouette without transparent sorting.
-        for i in range(120):
+        for i in range(72):
             a = i * 2.399963
-            t = .03 + (i % 17) / 17 * .49
+            t = .24 + (i % 17) / 17 * .30
             center = p.lerp(e, t) + Vector((math.cos(a) * .067, .006, math.sin(a) * .065))
-            tip = center + Vector((math.cos(a) * .009, -.009, math.sin(a) * .009))
+            tip = center + Vector((math.cos(a) * .0045, -.006, math.sin(a) * .0045))
             fur_fin(parent, tuple(center), tuple(tip), 14 if i % 4 == 0 else 13)
-    ellipsoid('Palm', parent, palm, (.076, .087, .065) if vertical else (.068, .057, .073), 13, vertical)
+    ellipsoid('Palm', parent, palm, (.076, .087, .065) if vertical else (.052, .045, .064) if support else (.068, .057, .073), 13, vertical)
     ellipsoid('Palm_pad', parent, (p.x, p.y - .055, p.z), (.051, .018, .057), 14, vertical)
     if vertical:
         link('Teal_wrist_band', parent, tuple(p.lerp(e, .40)), tuple(p.lerp(e, .44)), .079, 5, .079)
@@ -339,6 +367,17 @@ def paw(parent, side, palm, elbow, vertical=False):
     if grip_fingers != parent:
         grip_fingers['partRole'] = 'grip_fingers'
     for i in [-1.5, -.5, .5, 1.5]:
+        if support:
+            # Four separate curls run along the handguard, exposing knuckles and
+            # nails on its camera-facing side instead of hiding behind the palm.
+            z = p.z + i * .052
+            path = [(p.x - .012, p.y - .012, z), (p.x - .050, p.y + .029, z),
+                    (p.x - .050, p.y + .078, z - .002), (p.x - .023, p.y + .112, z - .004),
+                    (p.x + .011, p.y + .111, z - .007)]
+            curled_finger(grip_fingers, path)
+            ellipsoid('Support_knuckle', grip_fingers, path[2], (.022, .022, .019), 15)
+            ellipsoid('Support_nail', grip_fingers, (p.x - .015, p.y + .128, z - .004), (.023, .0065, .017), 25, True)
+            continue
         center = (p.x - .063, p.y + i * .047, p.z - .013) if vertical else (p.x + i * .044, p.y + .018, p.z - .07)
         if hero:
             center = (p.x - side * .035, p.y + .005 + i * .037, p.z - .050)
@@ -361,8 +400,7 @@ def paw(parent, side, palm, elbow, vertical=False):
 
 
     if vertical or hero:
-        # Fuse the palm, knuckles and thumb into one padded organic silhouette.
-        # Separate overlapping spheres made the fingers read as flat wedges.
+        # Fuse only the palm, thumb and wrist. The four grip fingers stay distinct.
         fur_parts = [obj for obj in parent.children if obj not in existing_parts and
                      obj.name.split('.')[0] in ['Palm', 'Thumb', 'Wrist_tuft']]
         bpy.ops.object.select_all(action='DESELECT')
@@ -616,11 +654,15 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
     else:
         support_z = -.47 if weapon == 'shotgun' else -.40 if weapon in ['dmr', 'sniper'] else -.37 if weapon == 'm4' else -.34
         paw(right, 1, (.072, -.177, .092), (.29, -.48, .10))
-        paw(left, -1, (-.074, -.11, support_z), (-.15, -.40, .14))
+        paw(left, -1, (-.074, -.15 if weapon == 'shotgun' else -.11, support_z), (-.15, -.40, .14))
     group(weapon + '_muzzle', root, (muzzle_x, muzzle_y, muzzle_z))
     group(weapon + '_eject', root, (.079, -.024, -.075))
     group(weapon + '_sight', root, (0, sight_y, .07))
     personal_details(weapon, body, right)
+    finger_nodes = [node for node in root.children_recursive if node.type == 'EMPTY' and
+                    node.get('partRole') in ['trigger_finger', 'grip_fingers']]
+    for node in finger_nodes:
+        merge_group(node, node.name + '_mesh')
     for part in [body, magazine, action, right, left, legendary]:
         if part:
             merge_group(part, part.name + '_mesh')
