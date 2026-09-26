@@ -929,7 +929,7 @@ body[data-screen=game] #scoreboard .eyebrow{display:table;margin:0;background:#2
 #scoreboard .score-name small{display:block;margin:1px 0 0;font-size:12px;font-weight:600;letter-spacing:.2px;color:var(--brown-2)}
 #scoreboard .score-state{font-size:12px;padding:2px 5px;border-radius:6px;border:1.5px solid #3a241866}
 #scoreboard .score-state.alive{color:#295e35;background:#bee0a7}.score-state.out{color:#73523a;background:#dcc6a4}
-#scoreboard [data-player-ping]{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+#scoreboard .score-table [data-player-ping]{font-size:12px;white-space:normal;overflow-wrap:anywhere}
 #scoreboard .score-foot{display:flex;align-items:center;gap:8px;border-top:2px dashed #b3966b;margin-top:14px;padding-top:12px;font-family:var(--sans);font-size:12px}
 #scoreboard .score-foot>b{margin-left:auto;display:flex;align-items:center;gap:6px;font-weight:700}
 #scoreboard .score-you{font-size:12px;font-weight:800;background:#f8d572;border:2px solid #a8782f;border-radius:5px;padding:2px 5px}
