@@ -93,6 +93,20 @@ describe('Entrega do Tucano authority', () => {
     expect(closestInteraction(world, sim.snapshot(), actors[0], { id: '', name: '' })).toBeNull();
   });
 
+  it('offers the delivery prompt only after touchdown and within three metres in 3D', () => {
+    const { sim, world, actors, drop } = delivered(), snapshot = sim.snapshot(), actor = actors[0];
+    actor.pos = { ...drop.pos };
+    for (const time of [drop.announcedAt, drop.releaseAt, drop.landsAt - 1 / 60])
+      expect(closestInteraction(world, { ...snapshot, time }, actor, { id: '', name: '' })).toBeNull();
+    for (const axis of ['x', 'y', 'z'] as const) for (const distance of [0, 2.99, 3.01]) {
+      actor.pos = { ...drop.pos, [axis]: drop.pos[axis] + distance };
+      const target = closestInteraction(world, { ...snapshot, time: drop.landsAt }, actor, { id: '', name: '' });
+      expect(target?.id === drop.id, `${axis} distance ${distance}`).toBe(distance <= 3);
+    }
+    actor.pos = { ...drop.pos }; drop.opened = true;
+    expect(closestInteraction(world, { ...snapshot, supplyDrops: [drop] }, actor, { id: '', name: '' })).toBeNull();
+  });
+
   it('reconstructs identical descent and claim state from a reliable reconnect baseline', () => {
     const { sim, actors, drop } = delivered();
     const snapshot = sim.snapshot(), reliable = JSON.parse(JSON.stringify(worldPart(snapshot)));
