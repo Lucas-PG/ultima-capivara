@@ -45,8 +45,8 @@ function blades() {
 }
 
 function groundCard(tile: number, width: number, height: number, flat = false) {
-  const geometry = new THREE.PlaneGeometry(width, height, 1, flat ? 1 : 2);
-  if (flat) geometry.rotateX(-Math.PI / 2).translate(0, .012, 0);
+  const geometry = new THREE.PlaneGeometry(width, height, flat ? 2 : 1, 2);
+  if (flat) geometry.rotateX(-Math.PI / 2).translate(0, .027, 0);
   else {
     geometry.translate(0, height / 2, 0);
     const position = geometry.getAttribute('position');
@@ -197,7 +197,16 @@ export class GroundCover {
         const clover = hash(Math.floor(point.x / 3), Math.floor(point.z / 3), 12) > .72;
         const type = underTree && i % 131 === 0 ? point.seed > .5 ? 5 : 6 :
           underTree && i % 13 === 0 ? 2 : clover && i % 7 === 0 ? 4 : i % 127 === 0 ? 0 : -1;
-        if (type >= 0) details.push(detailShapes[type].clone().applyMatrix4(matrix));
+        if (type >= 0) {
+          const detail = detailShapes[type].clone().applyMatrix4(matrix);
+          if (type === 2 || type === 4) {
+            // Ground paintings follow the real heightfield across slope seams.
+            const vertices = detail.getAttribute('position');
+            for (let v = 0; v < vertices.count; v++)
+              vertices.setY(v, terrainHeight(vertices.getX(v) + x0, vertices.getZ(v) + z0) + .014);
+          }
+          details.push(detail);
+        }
       }
       for (const point of shore) {
         position.set(point.x - x0, point.y + .006, point.z - z0); alignToGround(point.x, point.z, point.seed * Math.PI * 2);
