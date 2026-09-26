@@ -5,14 +5,14 @@
     1254
   ],
   "sourceBytes": 1800082,
-  "output": "public/textures/foliage-atlas.png",
+  "output": "public/textures/foliage-atlas.webp",
   "dimensions": [
     2048,
     2048
   ],
   "channels": "RGBA8",
-  "bytes": 2953375,
-  "sha256": "b59588bbf42591f4758609e219092f99bef8ca59772798a4c7613ccd4aa7a0a9",
+  "bytes": 495674,
+  "sha256": "36943982cd4478d92bb96c9241c49f26cc38326758fe42bcde510d165ef67af5",
   "tileSize": 512,
   "minimumPadding": 36,
   "alpha": {
@@ -181,5 +181,13 @@
         476
       ]
     }
-  ]
+  ],
+  "packed": "tools/art/foliage-atlas-packed.png",
+  "packedBytes": 2953375,
+  "packedSha256": "b59588bbf42591f4758609e219092f99bef8ca59772798a4c7613ccd4aa7a0a9",
+  "compression": {
+    "rgbQuality": 90,
+    "losslessAlpha": true,
+    "sharpYuv": true
+  }
 }

@@ -3,7 +3,8 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-const source = 'tools/art/ui-source/foliage-atlas.png', output = 'public/textures/foliage-atlas.png';
+const source = 'tools/art/ui-source/foliage-atlas.png', packed = 'tools/art/foliage-atlas-packed.png';
+const output = 'public/textures/foliage-atlas.webp';
 const names = ['emerald-broadleaf', 'lime-broadleaf', 'mangrove-guava', 'yellow-ipe', 'pink-ipe', 'bougainvillea', 'coconut-frond', 'palm-fan', 'banana', 'monstera', 'clover', 'wildflowers', 'grass', 'fallen-leaves', 'fern', 'shadow-broadleaf'];
 const run = args => execFileSync('magick', args, { maxBuffer: 40 * 1024 * 1024 });
 const [width, height] = run(['identify', '-format', '%w %h', source]).toString().split(' ').map(Number);
@@ -41,9 +42,14 @@ for (let tile = 0; tile < 16; tile++) {
   tiles.push({ index: tile, name: names[tile], bounds: [ox, oy, ox + rw, oy + rh] });
 }
 mkdirSync('public/textures', { recursive: true });
-execFileSync('magick', ['-size', '2048x2048', '-depth', '8', 'rgba:-', '-strip', `PNG32:${output}`], { input: atlas });
+execFileSync('magick', ['-size', '2048x2048', '-depth', '8', 'rgba:-', '-strip', `PNG32:${packed}`], { input: atlas });
+// WebP stores alpha losslessly. Only the painted RGB uses quality compression.
+execFileSync('cwebp', ['-q', '90', '-alpha_q', '100', '-m', '6', '-sharp_yuv', packed, '-o', output]);
 const alpha = { transparent: 0, opaque: 0, antialiased: 0 };
 for (let at = 3; at < atlas.length; at += 4) alpha[atlas[at] === 0 ? 'transparent' : atlas[at] === 255 ? 'opaque' : 'antialiased']++;
 const file = readFileSync(output);
-writeFileSync('tools/art/foliage-atlas.metrics.json', JSON.stringify({ source, sourceDimensions: [width, height], sourceBytes: readFileSync(source).length, output, dimensions: [2048, 2048], channels: 'RGBA8', bytes: file.length, sha256: createHash('sha256').update(file).digest('hex'), tileSize: 512, minimumPadding: 36, alpha, tiles }, null, 2) + '\n');
+writeFileSync('tools/art/foliage-atlas.metrics.json', JSON.stringify({ source, sourceDimensions: [width, height], sourceBytes: readFileSync(source).length,
+  packed, packedBytes: readFileSync(packed).length, packedSha256: createHash('sha256').update(readFileSync(packed)).digest('hex'),
+  output, dimensions: [2048, 2048], channels: 'RGBA8', bytes: file.length, sha256: createHash('sha256').update(file).digest('hex'),
+  compression: { rgbQuality: 90, losslessAlpha: true, sharpYuv: true }, tileSize: 512, minimumPadding: 36, alpha, tiles }, null, 2) + '\n');
 console.log(JSON.stringify({ bytes: file.length, alpha, tiles }));

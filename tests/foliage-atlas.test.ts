@@ -3,15 +3,24 @@ import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 
-const png = readFileSync('public/textures/foliage-atlas.png');
+const png = readFileSync('tools/art/foliage-atlas-packed.png');
+const webp = readFileSync('public/textures/foliage-atlas.webp');
 const metrics = JSON.parse(readFileSync('tools/art/foliage-atlas.metrics.json', 'utf8'));
 
 describe('painted foliage atlas sampling contract', () => {
-  it('ships the documented 2048-square RGBA8 atlas in the agreed species order', () => {
+  it('ships the complete 2048-square alpha atlas below the download budget', () => {
+    expect(webp.toString('ascii', 0, 4)).toBe('RIFF');
+    expect(webp.toString('ascii', 8, 16)).toBe('WEBPVP8X');
+    expect(webp[20] & 16).toBe(16);
+    expect(webp.readUIntLE(24, 3) + 1).toBe(2048);
+    expect(webp.readUIntLE(27, 3) + 1).toBe(2048);
+    expect(webp.length).toBeLessThan(800000);
+    expect(metrics.sha256).toBe(createHash('sha256').update(webp).digest('hex'));
+    expect(metrics.bytes).toBe(webp.length);
     expect(png.readUInt32BE(16)).toBe(2048); expect(png.readUInt32BE(20)).toBe(2048);
     expect(png[24]).toBe(8); expect(png[25]).toBe(6); expect(png[28]).toBe(0);
-    expect(metrics.sha256).toBe(createHash('sha256').update(png).digest('hex'));
-    expect(metrics.bytes).toBe(png.length);
+    expect(metrics.packedSha256).toBe(createHash('sha256').update(png).digest('hex'));
+    expect(metrics.packedBytes).toBe(png.length);
     expect(metrics.tiles.map((t: { name: string }) => t.name)).toEqual(['emerald-broadleaf', 'lime-broadleaf', 'mangrove-guava', 'yellow-ipe', 'pink-ipe', 'bougainvillea', 'coconut-frond', 'palm-fan', 'banana', 'monstera', 'clover', 'wildflowers', 'grass', 'fallen-leaves', 'fern', 'shadow-broadleaf']);
   });
   it('keeps every tile guard transparent and painted interiors opaque, with antialiased edges', () => {
