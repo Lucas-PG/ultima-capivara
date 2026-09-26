@@ -1,0 +1,87 @@
+{
+  "materials": 1,
+  "atlas": "public/textures/kit/painted-atlas.jpg",
+  "pieces": [
+    {
+      "id": "house_small",
+      "triangles": [
+        29288,
+        4828
+      ],
+      "colliders": 25
+    },
+    {
+      "id": "house_tall",
+      "triangles": [
+        46052,
+        8154
+      ],
+      "colliders": 48
+    },
+    {
+      "id": "church",
+      "triangles": [
+        55684,
+        5908
+      ],
+      "colliders": 38
+    },
+    {
+      "id": "market_hall",
+      "triangles": [
+        65144,
+        7438
+      ],
+      "colliders": 46
+    },
+    {
+      "id": "fort_wall",
+      "triangles": [
+        1836,
+        954
+      ],
+      "colliders": 8
+    },
+    {
+      "id": "fort_tower",
+      "triangles": [
+        3392,
+        1762
+      ],
+      "colliders": 16
+    },
+    {
+      "id": "bridge_stone",
+      "triangles": [
+        5940,
+        1404
+      ],
+      "colliders": 15
+    },
+    {
+      "id": "dock_wood",
+      "triangles": [
+        4212,
+        168
+      ],
+      "colliders": 7
+    },
+    {
+      "id": "container",
+      "triangles": [
+        6588,
+        616
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "crate",
+      "triangles": [
+        996,
+        516
+      ],
+      "colliders": 1
+    }
+  ],
+  "bytes": 5195328
+}

@@ -1,0 +1,165 @@
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import type { AssetLoader } from './assets';
+import pieces from '../shared/kit-pieces.json';
+import { createToonMaterial } from './materials';
+
+export interface KitPlacement { piece: string; x: number; y: number; z: number; yaw: number; scale?: number }
+export interface KitScene {
+  ready: Promise<void>;
+  update(camera: THREE.Camera, time?: number): void;
+  dispose(): void;
+}
+export const KIT_ASSET_PATH = 'models/kit/kit.glb';
+const CELL_SIZE = 40;
+const FAR_LOD = 52;
+type Definition = { footprint: number[]; height: number; colliders: { type: string; x: number; y: number; z: number; width?: number; height: number; depth?: number; radius?: number; yaw?: number }[] };
+const definitions: Record<string, Definition> = pieces;
+
+// Quantized attributes must become floats BEFORE any matrix transform. Writing
+// metre coordinates back into normalized Int16 attributes wraps their values.
+function editableGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
+  const geometry = source.clone();
+  for (const name of Object.keys(geometry.attributes)) {
+    const attribute = geometry.getAttribute(name);
+    const array = new Float32Array(attribute.count * attribute.itemSize);
+    for (let i = 0; i < attribute.count; i++) for (let c = 0; c < attribute.itemSize; c++)
+      array[i * attribute.itemSize + c] = attribute.getComponent(i, c);
+    geometry.setAttribute(name, new THREE.BufferAttribute(array, attribute.itemSize));
+  }
+  return geometry;
+}
+
+/** Shared atlas, one merged draw per visible cell, authored near/distant geometry. */
+export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
+  placements: readonly KitPlacement[], quality = 'medium'): KitScene {
+  const root = new THREE.Group(); root.name = 'Ilha_modular'; scene.add(root);
+  const cells = new Map<string, { origin: THREE.Vector3; placements: KitPlacement[]; lod: THREE.LOD }>();
+  const geometries = new Set<THREE.BufferGeometry>();
+  const temporaryMaterials = new Set<THREE.Material>();
+  let disposed = false;
+  let releaseSource: (() => void) | undefined;
+  for (const placement of placements) {
+    if (![placement.x, placement.y, placement.z, placement.yaw, placement.scale ?? 1].every(Number.isFinite) || (placement.scale ?? 1) <= 0)
+      throw new Error(`Posição de peça inválida: ${placement.piece}.`);
+    const cx = Math.floor(placement.x / CELL_SIZE), cz = Math.floor(placement.z / CELL_SIZE), key = `${cx}:${cz}`;
+    let cell = cells.get(key);
+    if (!cell) {
+      const origin = new THREE.Vector3((cx + .5) * CELL_SIZE, 0, (cz + .5) * CELL_SIZE);
+      const lod = new THREE.LOD(); lod.name = `kit:${key}`; lod.position.copy(origin); lod.autoUpdate = false;
+      root.add(lod); cell = { origin, placements: [], lod }; cells.set(key, cell);
+    }
+    cell.placements.push(placement);
+  }
+  const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), axis = new THREE.Vector3(0, 1, 0), scale = new THREE.Vector3();
+  const position = new THREE.Vector3();
+  const place = (placement: KitPlacement, origin: THREE.Vector3) => {
+    position.set(placement.x, placement.y, placement.z).sub(origin);
+    rotation.setFromAxisAngle(axis, placement.yaw); scale.setScalar(placement.scale ?? 1);
+    return matrix.compose(position, rotation, scale);
+  };
+  const placeholder = (id: string): THREE.BufferGeometry => {
+    const def = definitions[id];
+    const parts: THREE.BufferGeometry[] = [];
+    // Metadata placeholders preserve open doors and walkable decks during loading.
+    for (const c of def?.colliders || []) {
+      const geometry = c.type === 'cylinder' ? new THREE.CylinderGeometry(c.radius, c.radius, c.height, 12) :
+        new THREE.BoxGeometry(c.width, c.height, c.depth);
+      geometry.rotateY(c.yaw || 0); geometry.translate(c.x, c.y, c.z); parts.push(geometry);
+    }
+    const merged = parts.length ? mergeGeometries(parts)! : new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0);
+    parts.forEach(part => part.dispose()); return merged;
+  };
+  const placeholderMaterial = createToonMaterial('plaster', { color: '#D5B68B' });
+  temporaryMaterials.add(placeholderMaterial);
+  const fallbackSources = new Map<string, THREE.BufferGeometry>();
+  for (const cell of cells.values()) {
+    const parts = cell.placements.map(placement => {
+      let source = fallbackSources.get(placement.piece);
+      if (!source) { source = placeholder(placement.piece); fallbackSources.set(placement.piece, source); }
+      return source.clone().applyMatrix4(place(placement, cell.origin));
+    });
+    const geometry = mergeGeometries(parts)!; parts.forEach(part => part.dispose()); geometries.add(geometry);
+    const mesh = new THREE.Mesh(geometry, placeholderMaterial); mesh.castShadow = mesh.receiveShadow = true;
+    cell.lod.addLevel(mesh, 0);
+  }
+  fallbackSources.forEach(source => source.dispose());
+
+  const ready = placements.length ? assets.gltf(KIT_ASSET_PATH).then(asset => {
+    const sourceGeometries = new Set<THREE.BufferGeometry>(), sourceMaterials = new Set<THREE.Material>(), sourceTextures = new Set<THREE.Texture>();
+    asset.scene.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      sourceGeometries.add(object.geometry);
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+        sourceMaterials.add(material);
+        for (const value of Object.values(material)) if (value instanceof THREE.Texture) sourceTextures.add(value);
+      }
+    });
+    releaseSource = () => {
+      sourceGeometries.forEach(geometry => geometry.dispose());
+      sourceMaterials.forEach(material => material.dispose()); sourceTextures.forEach(texture => texture.dispose());
+    };
+    if (disposed) { releaseSource(); return; }
+    asset.scene.updateMatrixWorld(true);
+    // The kit owns this model for the scene lifetime; all cells share its material.
+    const sourceMaterial = (asset.scene.getObjectByProperty('isMesh', true) as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    sourceMaterial.roughness = Math.max(.85, sourceMaterial.roughness); sourceMaterial.metalness = 0;
+    const sourceGeometry = new Map<string, THREE.BufferGeometry>();
+    for (const id of new Set(placements.map(placement => placement.piece))) {
+      for (let level = 0; level < 2; level++) {
+        const mesh = asset.scene.getObjectByName(`${id}_LOD${level}`) as THREE.Mesh | undefined;
+        if (mesh?.isMesh) sourceGeometry.set(`${id}:${level}`, editableGeometry(mesh.geometry).applyMatrix4(mesh.matrixWorld));
+      }
+    }
+    for (const cell of cells.values()) {
+      for (const entry of cell.lod.levels) {
+        const geometry = (entry.object as THREE.Mesh).geometry;
+        geometry.dispose(); geometries.delete(geometry);
+      }
+      cell.lod.clear(); cell.lod.levels.length = 0;
+      for (let level = 0; level < 2; level++) {
+        const parts: THREE.BufferGeometry[] = [];
+        for (const placement of cell.placements) {
+          const source = sourceGeometry.get(`${placement.piece}:${level}`) || sourceGeometry.get(`${placement.piece}:0`);
+          if (!source) {
+            // Future piece IDs can be placed before their mesh lands.
+            const geometry = placeholder(placement.piece);
+            const count = geometry.getAttribute('position').count;
+            geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 4).fill(.82), 4));
+            geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(count * 2).fill(.12), 2));
+            parts.push(geometry.applyMatrix4(place(placement, cell.origin)));
+          } else parts.push(source.clone().applyMatrix4(place(placement, cell.origin)));
+        }
+        const geometry = mergeGeometries(parts);
+        parts.forEach(part => part.dispose());
+        if (!geometry) throw new Error('Não foi possível montar as peças da ilha.');
+        geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
+        const mesh = new THREE.Mesh(geometry, sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
+        mesh.castShadow = mesh.receiveShadow = true;
+        cell.lod.addLevel(mesh, level ? (quality === 'low' ? 38 : FAR_LOD) : 0, .12);
+      }
+    }
+    sourceGeometry.forEach(geometry => geometry.dispose());
+    temporaryMaterials.forEach(material => material.dispose()); temporaryMaterials.clear();
+  }) : Promise.resolve();
+  // Let the caller's readiness barrier report failure without an unhandled rejection.
+  void ready.catch(() => {});
+  return {
+    ready,
+    update(camera) {
+      if (disposed) return;
+      for (const cell of cells.values()) {
+        // LOD handles distance and hysteresis; Three frustum-culls cell geometry.
+        cell.lod.update(camera);
+      }
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true; root.removeFromParent();
+      geometries.forEach(geometry => geometry.dispose()); geometries.clear();
+      temporaryMaterials.forEach(material => material.dispose()); temporaryMaterials.clear();
+      releaseSource?.();
+      cells.clear();
+    },
+  };
+}
