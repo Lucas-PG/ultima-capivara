@@ -10,8 +10,11 @@ import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shar
 import { WORLD_PALETTE, roadPaintWeight, terrainColor, terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
 import { waterAt } from '../src/shared/water';
+import { floorRoute } from './helpers/floor-route';
 
 const world = createWorld();
+const walkingEntrance = (point: { x: number; y: number; z: number }) =>
+  point.y > walkableHeight(point.x, point.z, world) + .45 ? floorRoute(world, point)?.points[0] ?? point : point;
 const spawnActor = new Simulation(world, { mode: 'deathmatch', capacity: 2, bots: false, difficulty: 'normal', duration: 300 },
   [{ id: 'player', name: 'P', color: '#fff', ready: true, connected: true }], 'spawn-escape', 1).snapshot().actors[0];
 function walkFrom(spawn: SpawnPoint, yaw: number, mode: Mode) {
@@ -54,7 +57,8 @@ describe('river island gameplay integrity', () => {
     expect(world.chests.length).toBeGreaterThanOrEqual(50);
     for (const point of [...world.spawns, ...world.loot, ...world.chests]) {
       expect(clearSpawn(point, world), JSON.stringify(point)).toBe(true);
-      expect(point.y).toBeCloseTo(walkableHeight(point.x, point.z, world), 3);
+      if (point.y > walkableHeight(point.x, point.z, world) + .45) expect(floorRoute(world, point), JSON.stringify(point)).toBeDefined();
+      else expect(point.y).toBeCloseTo(walkableHeight(point.x, point.z, world), 3);
       expect(point.y).toBeGreaterThan(.5);
     }
     for (const spawn of world.spawns.filter(s => s.mode === 'deathmatch')) expect(inArena(spawn.x, spawn.z, 3)).toBe(true);
@@ -103,7 +107,8 @@ describe('river island gameplay integrity', () => {
     expect(benches.length).toBeGreaterThan(10);
     for (const bench of benches) {
       const house = [...HOUSES, ...MORRO_LOTS].find(h => Math.abs(bench.x - h.x) < h.w / 2 && Math.abs(bench.z - h.z) < h.d / 2);
-      const target = house ? house : Math.hypot(bench.x - PLAZA[0], bench.z - PLAZA[1]) < 12 ? { x: PLAZA[0], z: PLAZA[1] } :
+      const church = world.pieces!.find(piece => piece.piece === 'church' && bench.id.startsWith(`${piece.id}:interior:`));
+      const target = church ? { x: bench.x, z: church.z - 6.5 } : house ? house : Math.hypot(bench.x - PLAZA[0], bench.z - PLAZA[1]) < 12 ? { x: PLAZA[0], z: PLAZA[1] } :
         Math.hypot(bench.x - MERCADAO[0], bench.z - MERCADAO[1]) < 14 ? { x: bench.x, z: MERCADAO[1] } : riverSample(bench.x, bench.z);
       const dx = target.x - bench.x, dz = target.z - bench.z;
       expect((Math.sin(bench.yaw) * dx + Math.cos(bench.yaw) * dz) / Math.hypot(dx, dz),
@@ -327,9 +332,11 @@ describe('river island gameplay integrity', () => {
     }
     components.sort((a, b) => b.length - a.length);
     const connected = new Set(components[0]);
-    for (const point of [...world.spawns, ...world.loot, ...world.chests])
-      expect(components[0].some(index => Math.hypot(graph.points[index].x - point.x, graph.points[index].z - point.z) < 10 &&
-        walkableSegment(world, point, graph.points[index])), `unreachable point ${JSON.stringify(point)}`).toBe(true);
+    for (const point of [...world.spawns, ...world.loot, ...world.chests]) {
+      const entrance = walkingEntrance(point);
+      expect(components[0].some(index => Math.hypot(graph.points[index].x - entrance.x, graph.points[index].z - entrance.z) < 10 &&
+        walkableSegment(world, entrance, graph.points[index])), `unreachable point ${JSON.stringify(point)}`).toBe(true);
+    }
     for (const district of world.districts) {
       const approaches = graph.points.filter((point, i) => connected.has(i) &&
         Math.hypot(point.x - district.x, point.z - district.z) < district.radius * .8);
@@ -364,8 +371,11 @@ describe('river island gameplay integrity', () => {
     }
     const points = [...world.spawns.filter(p => p.mode === 'deathmatch'),
       ...world.loot.filter(p => inArena(p.x, p.z, .5)), ...world.chests.filter(p => inArena(p.x, p.z, .5))];
-    for (const point of points) expect(queue.some(index => Math.hypot(graph.points[index].x - point.x, graph.points[index].z - point.z) < 10 &&
-      walkableSegment(world, point, graph.points[index], true)), `town route leaves arena at ${JSON.stringify(point)}`).toBe(true);
+    for (const point of points) {
+      const entrance = walkingEntrance(point);
+      expect(queue.some(index => Math.hypot(graph.points[index].x - entrance.x, graph.points[index].z - entrance.z) < 10 &&
+        walkableSegment(world, entrance, graph.points[index], true)), `town route leaves arena at ${JSON.stringify(point)}`).toBe(true);
+    }
   });
 
   it('places the market sign outside its frontage and central doorway', () => {

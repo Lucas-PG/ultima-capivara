@@ -10,9 +10,11 @@ import { walkableHeight, walkableSegment } from '../../src/shared/navigation';
 import { KIT_PIECES } from '../../src/shared/kit-collision';
 import { buildingPoint, routesToFloor } from '../helpers/building-paths';
 import { walkTraversal } from '../helpers/traversal-probe';
+import { placedBuildingRoutes } from '../helpers/placed-building-routes';
+import { buildingRole } from '../../src/shared/building-interiors';
 import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
-import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
+import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
 import type { GameUI } from '../../src/ui/ui';
 import type { InputController } from '../../src/input';
@@ -27,6 +29,7 @@ type QaApi = {
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   names(): string[];
+  buildings(): { id: string; piece: string; role: string }[];
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
 };
 
@@ -37,6 +40,11 @@ const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
 const TRAMPOLINE_POSES = ['trampolineBounce', 'trampolineAir'];
 const SUPPLY_POSES = ['supplyIncoming', 'supplyDescending', 'supplyLanded', 'supplyOpened'];
 const BUILDING_POSES = ['houseGround', 'houseStairBottom', 'houseStairTop', 'houseUpper'];
+const ACCESS_POSES = ['fortStairBottom', 'fortStairTop', 'fortWallNorth', 'lighthouseGround',
+  'lighthouseStairBottom', 'lighthouseStairTop', 'lighthouseBalcony', 'dockStairBottom', 'dockStairTop', 'dockPorto', 'dockMangue'];
+const ROOM_POSES = ['home', 'bakery', 'cafe', 'tailor', 'clinic', 'fisher', 'fishmonger', 'workshop', 'kiosk',
+  'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
+  'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks'].map(role => `room-${role}`);
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
@@ -65,8 +73,9 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
+  let placedRoutes: Map<string, Vec3[]> | undefined;
   const names = [...Object.keys(VIEWS), ...WEAPONS.flatMap(id => [`fp-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
-    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES,
+    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES, ...ACCESS_POSES, ...ROOM_POSES,
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
@@ -146,8 +155,52 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       if (!walked.ok) throw new Error(`Building review cannot walk to ${name}: ${walked.reason}`);
       Object.assign(me, walked.actor);
       me.velocity = { x: 0, y: 0, z: 0 };
-      yaw = piece.yaw + (name === 'houseStairBottom' ? Math.PI : name === 'houseStairTop' ? .2 : name === 'houseGround' ? 1.1 : -.5);
+      yaw = piece.yaw + (name === 'houseStairBottom' ? Math.PI : name === 'houseStairTop' ? .2 : name === 'houseGround' ? 1.1 : -2.1);
       pitch = name === 'houseStairBottom' ? .2 : name === 'houseStairTop' ? -.45 : -.12;
+      me.yaw = yaw; me.pitch = pitch;
+    }
+    if (ACCESS_POSES.includes(name)) {
+      const kind = name.startsWith('lighthouse') ? 'lighthouse' : name.startsWith('dockStair') ? 'dock_steps' :
+        name.startsWith('dock') ? 'dock_wood' : name === 'fortWallNorth' ? 'fort_wall' : 'fort_stairs';
+      const piece = deps.world.pieces!.filter(piece => piece.piece === kind)
+        .filter(piece => !name.startsWith('dock') || kind === 'dock_steps' || (name === 'dockMangue' ? piece.z > 30 : piece.z < 0))
+        .sort((a, b) => kind === 'fort_wall' ? a.z - b.z || a.x - b.x : a.x - b.x || a.z - b.z)[0];
+      if (!piece) throw new Error(`Missing access piece for ${name}`);
+      const floor = kind === 'dock_steps' ? 'upper-landing' : kind === 'dock_wood' ? 'deck' : name === 'fortStairBottom' ? 'foot' : name === 'fortStairTop' ? 'landing' :
+        name === 'fortWallNorth' ? 'wall-walk' : name === 'lighthouseGround' || name === 'lighthouseStairBottom' ? 'ground-room' : 'balcony-back';
+      placedRoutes ??= placedBuildingRoutes(deps.world, me);
+      let route = placedRoutes.get(`${piece.id}/${floor}`);
+      if (!route) throw new Error(`No ground route for ${name}`);
+      if (name === 'dockStairBottom') route = route.slice(0, 2);
+      if (name === 'lighthouseGround') {
+        const entry = KIT_PIECES[piece.piece].traversal!.routes.find(route => route.id === 'entry')!;
+        const stop = buildingPoint(piece, entry.points[2]);
+        const end = route.findIndex(point => Math.hypot(point.x - stop.x, point.y - stop.y, point.z - stop.z) < .001);
+        if (end < 0) throw new Error('Lighthouse review lost its furnished entrance');
+        route = route.slice(0, end + 1);
+      }
+      const walked = walkTraversal(deps.world, me, route);
+      if (!walked.ok) throw new Error(`Access review cannot walk to ${name}: ${walked.reason}`);
+      Object.assign(me, walked.actor); me.velocity = { x: 0, y: 0, z: 0 };
+      yaw = name === 'fortStairBottom' || name === 'lighthouseBalcony' ? 0 :
+        name === 'lighthouseGround' ? piece.yaw + 1.65 : name === 'lighthouseStairBottom' ? 1.5 : name === 'lighthouseStairTop' ? 2.35 : Math.PI;
+      if (name.startsWith('dock')) yaw = name === 'dockStairBottom' ? -Math.PI / 2 : name === 'dockStairTop' ? Math.PI / 2 : -.6;
+      pitch = name === 'lighthouseGround' ? -.35 : name === 'lighthouseStairBottom' ? -.28 : name === 'lighthouseStairTop' ? -.8 :
+        name === 'dockStairBottom' ? -.3 : name.endsWith('Bottom') ? .24 : name.endsWith('Top') ? -.48 : -.08;
+      me.yaw = yaw; me.pitch = pitch;
+    }
+    if (ROOM_POSES.includes(name)) {
+      const upper = name.startsWith('room-upper-'), role = name.slice(upper ? 11 : 5);
+      const piece = deps.world.pieces!.find(piece => ['church', 'market_hall', 'warehouse', 'beach_kiosk'].includes(role) ?
+        piece.piece === role : (upper ? piece.piece === 'house_tall' : piece.piece.startsWith('house_')) && buildingRole(piece) === role);
+      if (!piece) throw new Error(`Missing furnished building for ${name}`);
+      placedRoutes ??= placedBuildingRoutes(deps.world, me);
+      const route = placedRoutes.get(`${piece.id}/${upper ? 'upper-room' : 'ground-room'}`);
+      if (!route) throw new Error(`No ground entrance for ${name}`);
+      const walked = walkTraversal(deps.world, me, route);
+      if (!walked.ok) throw new Error(`Room review cannot walk to ${name}: ${walked.reason}`);
+      Object.assign(me, walked.actor); me.velocity = { x: 0, y: 0, z: 0 };
+      yaw = piece.yaw + (upper ? -2.1 : role === 'church' ? -.3 : -1.2); pitch = -.18;
       me.yaw = yaw; me.pitch = pitch;
     }
     const weaponReview = /^(?:fp|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
@@ -284,6 +337,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     },
     stats() { return { ...(renderer?.stats || { drawCalls: 0, triangles: 0 }), renderedFrames }; },
     names: () => names,
+    buildings: () => deps.world.pieces!.filter(piece => KIT_PIECES[piece.piece].traversal)
+      .map(piece => ({ id: piece.id, piece: piece.piece, role: buildingRole(piece) })),
     async walkBuilding(pieceId, direction = 'up') {
       if (!renderer) throw new Error('Call start first');
       if (looping) throw new Error('Stop the QA loop before walking a building');
@@ -292,9 +347,11 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       if (!piece) throw new Error(`Unknown building: ${pieceId}`);
       const access = KIT_PIECES[piece.piece].traversal;
       if (!access) throw new Error(`No generated access contract: ${pieceId}`);
-      const upper = [...access.floors].sort((a, b) => b.y - a.y).find(floor => floor.id.endsWith('room'))!;
-      const route = routesToFloor(access, upper.id)[0].map(point => buildingPoint(piece, point));
-      route[0].y = walkableHeight(route[0].x, route[0].z, deps.world);
+      const upper = access.floors.find(floor => floor.id === 'upper-room') ?? [...access.floors].sort((a, b) => b.y - a.y)[0];
+      placedRoutes ??= placedBuildingRoutes(deps.world, current!.actors[0]);
+      const groundRoute = placedRoutes.get(`${piece.id}/${upper.id}`);
+      if (!groundRoute) throw new Error(`No ground route to ${pieceId}/${upper.id}`);
+      const route = [...groundRoute];
       if (direction === 'down') route.reverse();
       const me = current!.actors[0], frames: typeof me[] = [];
       let ticks = 0;

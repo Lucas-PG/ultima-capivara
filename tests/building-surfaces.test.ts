@@ -49,6 +49,23 @@ describe('building floors agree with the visible exported mesh', () => {
     }
   });
 
+  it('keeps room furniture feet visible at every LOD and soft decorations non-solid', () => {
+    const ray = new THREE.Raycaster(), up = new THREE.Vector3(0, 1, 0);
+    for (const id of ['table', 'chair', 'shelf_pottery', 'wardrobe', 'sofa', 'hammock', 'stove', 'bed', 'interior_counter']) {
+      const definition = KIT_PIECES[id];
+      const feet = definition.colliders.filter(shape => shape.y - shape.height / 2 < .01);
+      expect(feet.length, `${id} needs actual support`).toBeGreaterThan(0);
+      for (const foot of feet) for (let lod = 0; lod < 3; lod++) {
+        const bottom = foot.y - foot.height / 2;
+        ray.set(new THREE.Vector3(foot.x, bottom - .04, foot.z), up); ray.far = .09;
+        const hit = ray.intersectObject(asset!.scene.getObjectByName(`${id}_LOD${lod}`)!, false)[0];
+        expect(hit, `${id} LOD${lod} has collision without a visible foot`).toBeDefined();
+        expect(Math.abs(hit.point.y - bottom)).toBeLessThan(.035);
+      }
+    }
+    for (const id of ['rug', 'potted_plant', 'wall_picture']) expect(KIT_PIECES[id].colliders, id).toHaveLength(0);
+  });
+
   for (const [id, definition] of Object.entries(KIT_PIECES)) {
     if (!definition.traversal) continue;
     it(`supports every usable floor sample in ${id} with visible geometry and collision`, () => {

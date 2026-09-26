@@ -6,7 +6,7 @@ export type KitShape = (ShapeBase & { type: 'box'; width: number; depth: number;
   (ShapeBase & { type: 'cylinder'; radius: number });
 export interface KitTraversal {
   floors: { id: string; bounds: [number, number, number, number]; y: number }[];
-  entrances: { id: string; point: [number, number, number] }[];
+  entrances: { id: string; point: [number, number, number]; platform?: boolean }[];
   routes: { id: string; from: string; to: string; points: [number, number, number][] }[];
   stairs: { id: string; from: string; to: string; colliderIndices: number[] }[];
 }
@@ -14,6 +14,7 @@ export interface KitPiece {
   footprint: [number, number]; height: number; colliders: KitShape[];
   interaction?: { surfaceY: number; radius: number };
   traversal?: KitTraversal;
+  frontClearance?: number;
 }
 export const KIT_PIECES = definitions as unknown as Record<string, KitPiece>;
 
