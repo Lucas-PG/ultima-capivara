@@ -45,6 +45,7 @@ export class AvatarView {
   private readonly visuals = new Map<string, Avatar>();
   private readonly ordered: Avatar[] = [];
   private readonly weapons = new Map<WeaponId | null, THREE.BufferGeometry>();
+  private readonly distantPistol = itemGeometry('weapon', 'pistol', 'far');
   private readonly target = new THREE.Vector3();
   private cameraBlend = 0;
   private matchId: string | null = null;
@@ -60,6 +61,7 @@ export class AvatarView {
       const geometry = itemGeometry('weapon', id); this.weapons.set(id, geometry);
       this.warmupWeapons.add(new THREE.Mesh(geometry, itemMaterial));
     }
+    this.warmupWeapons.add(new THREE.Mesh(this.distantPistol, itemMaterial));
   }
   prepare(actors: readonly ActorState[]) {
     const ids = new Set(actors.map(actor => actor.id));
@@ -83,6 +85,7 @@ export class AvatarView {
     for (const [id, visual] of this.visuals) this.removeAvatar(id, visual);
     this.warmupWeapons.removeFromParent(); this.warmupWeapons.clear();
     this.weapons.forEach(geometry => geometry.dispose()); this.weapons.clear();
+    this.distantPistol.dispose();
   }
 
   private removeAvatar(id: string, visual: Avatar) {
@@ -163,10 +166,10 @@ export class AvatarView {
       visual.chute.visible = !dead && actor.stage === 'parachute';
       this.poseAvatar(visual, actor, frame.dt, simulationTime);
       const held = actor.weapons[actor.slot]?.id || null;
-      if (held !== visual.weaponId) {
-        visual.weapon.geometry = this.weapons.get(held)!;
-        visual.weaponId = held;
-      }
+      const weaponDistance = visual.group.position.distanceToSquared(this.camera.position);
+      const distantWeapon = held === 'pistol' && weaponDistance > (visual.weapon.geometry === this.distantPistol ? 12 * 12 : 14 * 14);
+      visual.weapon.geometry = distantWeapon ? this.distantPistol : this.weapons.get(held)!;
+      visual.weaponId = held;
       visual.weapon.visible = !dead && !emoting && actor.stage === 'ground' && !!held;
       const plate = visual.plate, scale = visual.group.scale.y;
       plate.head.copy(visual.group.position);
