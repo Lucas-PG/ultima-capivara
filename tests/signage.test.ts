@@ -6,10 +6,11 @@ import { createWorld } from '../src/shared/world';
 
 describe('island text signs', () => {
   it('uses only the five approved place names', () => {
-    const actual = createWorld().objects.filter(object => object.kind === 'sign').map(object => object.detail);
+    const world = createWorld();
+    const actual = world.objects.filter(object => object.kind === 'sign').map(object => object.detail);
     expect(new Set(actual)).toEqual(new Set(SIGN_ART.map(sign => sign.label)));
-    const mirante = createWorld().objects.find(object => object.detail === 'MIRANTE')!;
-    const waterfall = createWorld().districts.find(district => district.id === 'cachoeira')!;
+    const mirante = world.objects.find(object => object.detail === 'MIRANTE')!;
+    const waterfall = world.districts.find(district => district.id === 'cachoeira')!;
     expect(Math.hypot(mirante.pos.x - waterfall.x, mirante.pos.z - waterfall.z)).toBeLessThan(30);
     expect(SIGN_ART.find(sign => sign.label === 'MIRANTE')?.accent).toBe('#E9B44C');
   });

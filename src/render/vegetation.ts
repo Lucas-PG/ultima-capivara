@@ -92,7 +92,9 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
           sin(vPlantPaint.y * 21.0 + sin(vPlantPaint.z * 17.0)),
           sin(vPlantPaint.z * 23.0 + sin(vPlantPaint.x * 19.0)),
           sin(vPlantPaint.x * 22.0 + sin(vPlantPaint.y * 18.0)));
-        normal = normalize(normal + vLeafMask * leafGrain * .17);
+        // Fade subpixel grain before it aliases into bright moving flecks.
+        float grainVisibility = 1.0 - smoothstep(.035, .12, length(fwidth(vPlantPaint)));
+        normal = normalize(normal + vLeafMask * leafGrain * .035 * grainVisibility);
       `).replace('#include <opaque_fragment>', `
         #if NUM_DIR_LIGHTS > 0
           vec3 leafSun = normalize(directionalLights[0].direction);
@@ -105,7 +107,7 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
         #include <opaque_fragment>
       `);
   };
-  material.customProgramCacheKey = () => 'painted-fluffy-foliage-v3';
+  material.customProgramCacheKey = () => 'painted-fluffy-foliage-v4';
   // Smooth overlapping branch sections retain the original collision radius.
   const stem = new THREE.CylinderGeometry(.95, 1, 1, 10, 1, true);
   const lumpy = (segments: number, rings: number) => {
