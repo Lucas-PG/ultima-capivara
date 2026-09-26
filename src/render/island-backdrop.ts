@@ -8,16 +8,16 @@ function ridgeHeight(island: MapObject, u: number, v: number, seed: number) {
   const radius = Math.hypot(u + warp, v * .96 - warp);
   const coast = smooth((1.02 - radius) / .34);
   const spine = Math.sin(u * 5 + seed) * .13 + fbm(u * 6, seed) * .07;
-  const ridge = Math.max(0, 1 - Math.abs(v - spine) / .58);
-  const peaks = .38 + .5 * Math.exp(-((u + .22) ** 2) / .032) + .36 * Math.exp(-((u - .37) ** 2) / .05);
-  const folds = fbm(u * 7 + seed, v * 6 - seed) * .12 * ridge;
-  return -6 + island.scale.y * Math.max(0, .13 + Math.pow(ridge, 1.55) * peaks * .83 + folds) * coast;
+  const ridge = Math.max(0, 1 - Math.abs(v - spine) / .94);
+  const peaks = .36 + .32 * Math.exp(-((u + .22) ** 2) / .17) + .21 * Math.exp(-((u - .37) ** 2) / .24);
+  const folds = fbm(u * 7 + seed, v * 6 - seed) * .075 * ridge;
+  return -6 + island.scale.y * Math.max(0, .1 + Math.pow(ridge, 1.1) * peaks * .69 + folds) * coast;
 }
 
 /** One inexpensive, smoothly shaded layer of offshore jungle ridges. */
 export function createIslandBackdrop(world: Pick<WorldSpec, 'objects'>) {
   const positions: number[] = [], colors: number[] = [], uvs: number[] = [], indices: number[] = [];
-  const forest = new THREE.Color('#315C52'), foliage = new THREE.Color(), rock = new THREE.Color('#A99F89');
+  const forest = new THREE.Color('#315A43'), foliage = new THREE.Color(), rock = new THREE.Color('#77866A');
   const shoreline = new THREE.Color('#B7B18D'), color = new THREE.Color();
   const steps = 24, row = steps + 1;
   const islands = world.objects.filter(object => object.detail === 'distant-island');
@@ -31,8 +31,8 @@ export function createIslandBackdrop(world: Pick<WorldSpec, 'objects'>) {
         (ridgeHeight(island, u + .012, v, seed) - ridgeHeight(island, u - .012, v, seed)) / (island.scale.x * .012),
         (ridgeHeight(island, u, v + .012, seed) - ridgeHeight(island, u, v - .012, seed)) / (island.scale.z * .012));
       const wash = smooth((fbm(u * 5 + seed, v * 4) + .3) / .6);
-      color.copy(forest).lerp(foliage, .18 + wash * .5);
-      color.lerp(rock, smooth((slope - 1.1) / 1.5) * smooth((y / island.scale.y - .18) / .34));
+      color.copy(forest).lerp(foliage, .12 + wash * .25);
+      color.lerp(rock, smooth((slope - 1.1) / 1.5) * smooth((y / island.scale.y - .18) / .34) * .24);
       if (y < 2) color.lerp(shoreline, smooth((2 - y) / 3));
       positions.push(island.pos.x + u * island.scale.x / 2, y, island.pos.z + v * island.scale.z / 2);
       colors.push(color.r, color.g, color.b); uvs.push(ix / steps * 3, iz / steps * 3);
