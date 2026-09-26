@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 3;
-export const WORLD_VERSION = 'ilha-v3-rio-2';
+export const WORLD_VERSION = 'ilha-v3-rio-3';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
