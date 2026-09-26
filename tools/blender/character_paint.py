@@ -2,6 +2,7 @@
 import numpy as np
 
 FUR = [0, 1, 2, 4, 14]
+math_tau = np.pi * 2
 
 
 def samples(tile, u, v):
@@ -9,11 +10,16 @@ def samples(tile, u, v):
     height = np.zeros_like(u)
     printed = np.zeros_like(u)
     if tile in FUR:
-        flow = u * 460 + np.sin(v * 39) * 1.8 + np.sin(v * 117 + u * 37) * .5
-        strand = np.maximum(0, np.sin(flow)) ** 4
-        short = .1 + .9 * np.maximum(0, np.sin(v * 143 + u * 57)) ** 6
-        shade = .975 + .075 * strand * short + .012 * np.sin(u * 117 + v * 38)
-        height = strand * short * .06
+        x = (u + .012 * np.sin(v * 9)) * 78
+        stagger = np.sin(np.floor(x) * 73.13) * 39.2
+        y = v * 26 + stagger - np.floor(stagger)
+        seed = np.sin(np.floor(x) * 12.9898 + np.floor(y) * 78.233) * 43758.5453
+        seed -= np.floor(seed)
+        along = y - np.floor(y)
+        across = x - np.floor(x) - (.23 + seed * .5 + .08 * np.sin(along * math_tau))
+        strand = np.exp(-(across / .17) ** 2) * np.maximum(0, np.sin(along * np.pi)) ** 1.2
+        shade = .97 + .022 * np.sin(u * 13 + v * 8) + strand * np.where(seed > .42, .16, -.10)
+        height = strand * .035
     elif tile in [5, 6, 7, 13]:
         height = np.sin(u * 420) * np.cos(v * 420) * .025
         shade *= .96 + height * .88
