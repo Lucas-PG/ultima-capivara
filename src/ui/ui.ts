@@ -162,7 +162,7 @@ export class GameUI {
     const mode = (m: Mode) => `${this.selectedMode === m ? ' selected' : ''}" aria-pressed="${this.selectedMode === m}`;
     this.root.innerHTML = `${this.header()}<div class="menu-motes" aria-hidden="true">${'<i></i>'.repeat(12)}</div>
       <main class="home-content title-screen"><section class="hero-copy"><div class="logo-lockup"><p class="eyebrow"><span></span> A ILHA É NOSSA.</p>
-      <h1><span class="logo-top">ÚLTIMA</span><em>CAPIVARA</em><span class="title-stamp">SÓ UMA<br>FICA DE PÉ.</span></h1></div><p class="hero-description">Chame a turma e escolha seu canto da ilha.<br>O resto é instinto de sobrevivência.</p>
+      <h1><span class="logo-top">ÚLTIMA</span><em>CAPIVARA</em><span class="title-stamp">SÓ UMA<br>FICA DE PÉ.</span></h1></div><p class="hero-description">Chame a turma. O resto é instinto de sobrevivência.</p>
       <div class="menu-board"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><div class="hero-actions"><button class="button primary warmup" data-do="practice">${icon('play')}<span>JOGAR AGORA<small>Treino com bots · sem esperar</small></span>${icon('arrow')}</button>
       <button class="button secondary" data-do="host">${icon('plus')} CRIAR SALA</button><button class="button secondary" data-do="join">${icon('users')} ENTRAR NA SALA</button></div></div>
       <div class="hero-facts"><span>${icon('users')} Até 16 amigos</span><span>${icon('globe')} No navegador</span><b class="burst">100%<br>GRÁTIS</b></div></section>
