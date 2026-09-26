@@ -60,7 +60,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
-  const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
+  const names = [...Object.keys(VIEWS), ...WEAPONS.flatMap(id => [`fp-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES,
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
@@ -88,9 +88,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (MUD_POSES.includes(name) && !bath) throw new Error('A revisão precisa de um banho de lama no mapa.');
     if (TRAMPOLINE_POSES.includes(name) && !trampoline) throw new Error('A revisão precisa de um trampolim no mapa.');
     if (SUPPLY_POSES.includes(name) && !supply) throw new Error('A revisão precisa de uma entrega em solo seco e acessível.');
-    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
+    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name.startsWith('tp-') ? 'capySide' : name] || VIEWS.plaza;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
+    if (name.startsWith('world-')) pitch = -.5;
     if (supply) {
       const close = name === 'supplyLanded' || name === 'supplyOpened';
       const observer = (close ? [2.4] : [18, 16, 20]).flatMap(distance =>
@@ -127,7 +128,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     me.pos = { x, y: bath?.y ?? spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
-    me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : name.startsWith('fp-') ? name.slice(3) as WeaponId : 'pistol', ammo: 12, reserve: 50, rarity: 0 }];
+    const weaponReview = /^(?:fp|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
+    me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : weaponReview || 'pistol', ammo: 12, reserve: 50, rarity: 0 }];
     me.slot = 0;
     const emote = EMOTE_IDS.find(id => name === `emote-${id}`);
     if (emote) { me.emote = emote; me.emoteUntil = s.time + EMOTES[emote].duration; me.crouch = emote === 'sit' || emote === 'chill'; }
@@ -153,10 +155,16 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       bot.pos = { x: bx, y: terrainHeight(bx, bz), z: bz }; bot.yaw = angle + Math.PI;
       s.actors.push(bot);
     }
-    if (name === 'capyFront' || name === 'capySide') {
+    if (name === 'capyFront' || name === 'capySide' || name.startsWith('tp-')) {
       const bot = structuredClone(me); bot.id = 'bot-qa'; bot.name = 'Capivara'; bot.bot = true;
       bot.pos = { x, y: me.pos.y, z: z - 2 }; bot.yaw = name === 'capyFront' ? Math.PI : Math.PI / 2;
       s.actors.push(bot);
+    }
+    if (name.startsWith('world-') && weaponReview) {
+      s.loot.forEach(item => { item.active = false; });
+      const lx = x - Math.sin(yaw) * 1.8, lz = z - Math.cos(yaw) * 1.8;
+      s.loot.push({ id: 'painted-weapon-review', kind: 'weapon', weapon: weaponReview, rarity: 3,
+        x: lx, y: terrainHeight(lx, lz), z: lz, active: true, respawnAt: 0 });
     }
     if (name.startsWith('swim')) {
       // Use the real island collision and water sampling, including the shore

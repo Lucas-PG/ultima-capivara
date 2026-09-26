@@ -74,6 +74,7 @@ describe('match avatar preparation', () => {
     collect(source); collect(scene);
     // Held weapon material is owned by the world's item renderer, not by capybara assets.
     resources.delete(view.get('first')!.weapon.material as THREE.Material);
+    resources.delete((view.get('first')!.weapon.material as THREE.MeshStandardMaterial).map!);
     const disposals = [...resources].map(resource => vi.spyOn(resource, 'dispose'));
     renderer.dispose(); renderer.dispose();
     finishCompile();
