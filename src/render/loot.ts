@@ -4,6 +4,7 @@ import { RARITY } from '../shared/rarity';
 import { WEAPONS } from '../shared/weapons';
 import type { LootSpawn, RenderFrame, Vec3, WeaponId, WorldSpec } from '../shared/types';
 import { itemGeometry, itemMaterial, chestGeometry } from './item-geometry';
+import { worldWeaponMaterial } from './world-weapons';
 
 interface ChestVisual { index: number; open: number; pos: Vec3 }
 interface DropVisual { id: string; start: number; seen: boolean }
@@ -56,7 +57,7 @@ export class LootView {
   private readonly beamLimits = new Map<string, number>();
   private readonly beamCeilings: { x: number; z: number; y: number; halfWidth: number; halfDepth: number }[];
   private readonly weaponBatches: Partial<Record<WeaponId, LootBatch>> = {};
-  private readonly distantPistols: LootBatch;
+  private readonly distantWeapons: Partial<Record<WeaponId, LootBatch>> = {};
   private elapsed = 0;
   private readonly lootBatches = new Map<string, LootBatch>();
   private readonly lootRings: THREE.InstancedMesh;
@@ -82,7 +83,8 @@ export class LootView {
     // Every kind a chest can spill gets its batch now, so opening one never builds meshes mid-match.
     for (const kind of ['ammo', 'armor', 'helmet', 'bandage', 'medkit', 'guarana', 'acai', 'rapadura'] as const) this.lootBatch(kind);
     for (const weapon of Object.keys(WEAPONS) as WeaponId[]) this.lootBatch(`weapon:${weapon}`);
-    this.distantPistols = this.lootBatch('weapon:pistol:far', counts.get('weapon:pistol') ?? 0);
+    for (const weapon of Object.keys(WEAPONS) as WeaponId[])
+      this.distantWeapons[weapon] = this.lootBatch(`weapon:${weapon}:far`, counts.get(`weapon:${weapon}`) ?? 0);
     const weapons = world.loot.filter(item => item.kind === 'weapon').length + 48;
     this.lootRings = new THREE.InstancedMesh(new THREE.TorusGeometry(.47, .035, 4, 16), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .58 }), world.loot.length + 96);
     this.lootHalos = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), glowHalo(), weapons);
@@ -116,7 +118,7 @@ export class LootView {
     if (!batch) {
       const [kind, weapon, detail] = key.split(':') as [LootSpawn['kind'], WeaponId | undefined, 'far' | undefined];
       const capacity = count + DROP_SLOTS;
-      const mesh = new THREE.InstancedMesh(itemGeometry(kind, weapon, detail), itemMaterial, capacity);
+      const mesh = new THREE.InstancedMesh(itemGeometry(kind, weapon, detail), kind === 'weapon' ? worldWeaponMaterial() : itemMaterial, capacity);
       mesh.name = `loot:${key}`;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; mesh.count = 0;
       this.scene.add(mesh); batch = { mesh, capacity, used: 0 }; this.lootBatches.set(key, batch); this.batches.push(batch);
@@ -134,9 +136,9 @@ export class LootView {
     for (const drop of this.drops) drop.seen = false;
     if (show) for (const item of snapshot!.loot) {
       if (!item.active) continue;
-      const distantPistol = camera && item.kind === 'weapon' && (item.weapon || 'pistol') === 'pistol' &&
+      const distantWeapon = camera && item.kind === 'weapon' &&
         (item.x - camera.position.x) ** 2 + (item.y - camera.position.y) ** 2 + (item.z - camera.position.z) ** 2 > 14 * 14;
-      const batch = distantPistol ? this.distantPistols : item.kind === 'weapon' ? this.weaponBatches[item.weapon || 'pistol']! : this.lootBatches.get(item.kind)!;
+      const batch = distantWeapon ? this.distantWeapons[item.weapon || 'pistol']! : item.kind === 'weapon' ? this.weaponBatches[item.weapon || 'pistol']! : this.lootBatches.get(item.kind)!;
       const index = batch.used;
       if (index >= batch.capacity || rings >= this.lootRings.instanceMatrix.count) continue;
       batch.used++;

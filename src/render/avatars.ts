@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { applyCharacterStyle } from './materials';
 import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
-import { itemGeometry, itemMaterial } from './item-geometry';
+import { itemGeometry } from './item-geometry';
+import { worldWeaponMaterial } from './world-weapons';
 import { addEllipsoid } from './primitives';
 import { WEAPONS } from '../shared/weapons';
 import type { AvatarReaction } from './effects';
@@ -29,7 +30,7 @@ export function avatar(color: string, name: string): Avatar {
   });
   group.add(body);
   // The held weapon rides on the arms bone, so it aims with the paws.
-  const weapon = new THREE.Mesh(new THREE.BufferGeometry(), itemMaterial);
+  const weapon = new THREE.Mesh(new THREE.BufferGeometry(), worldWeaponMaterial());
   weapon.position.copy(WEAPON_MOUNT); weapon.castShadow = true; bones[CAPY_BONES.arms].add(weapon);
   const chute = new THREE.Group(); group.add(chute);
   addEllipsoid(chute, '#e6c280', 0, 3.65, 0, 1.9, .32, 1.18);
@@ -46,7 +47,7 @@ export class AvatarView {
   private readonly visuals = new Map<string, Avatar>();
   private readonly ordered: Avatar[] = [];
   private readonly weapons = new Map<WeaponId | null, THREE.BufferGeometry>();
-  private readonly distantPistol = itemGeometry('weapon', 'pistol', 'far');
+  private readonly distantWeapons = new Map<WeaponId, THREE.BufferGeometry>();
   private readonly target = new THREE.Vector3();
   private cameraBlend = 0;
   private matchId: string | null = null;
@@ -60,9 +61,10 @@ export class AvatarView {
     this.weapons.set(null, new THREE.BufferGeometry());
     for (const id of Object.keys(WEAPONS) as WeaponId[]) {
       const geometry = itemGeometry('weapon', id); this.weapons.set(id, geometry);
-      this.warmupWeapons.add(new THREE.Mesh(geometry, itemMaterial));
+      this.warmupWeapons.add(new THREE.Mesh(geometry, worldWeaponMaterial()));
+      const far = itemGeometry('weapon', id, 'far'); this.distantWeapons.set(id, far);
+      this.warmupWeapons.add(new THREE.Mesh(far, worldWeaponMaterial()));
     }
-    this.warmupWeapons.add(new THREE.Mesh(this.distantPistol, itemMaterial));
   }
   prepare(actors: readonly ActorState[]) {
     const ids = new Set(actors.map(actor => actor.id));
@@ -91,7 +93,7 @@ export class AvatarView {
     for (const [id, visual] of this.visuals) this.removeAvatar(id, visual);
     this.warmupWeapons.removeFromParent(); this.warmupWeapons.clear();
     this.weapons.forEach(geometry => geometry.dispose()); this.weapons.clear();
-    this.distantPistol.dispose();
+    this.distantWeapons.forEach(geometry => geometry.dispose()); this.distantWeapons.clear();
   }
 
   private removeAvatar(id: string, visual: Avatar) {
@@ -184,8 +186,9 @@ export class AvatarView {
       visual.body.scale.set(width, stretch, width);
       const held = actor.weapons[actor.slot]?.id || null;
       const weaponDistance = visual.group.position.distanceToSquared(this.camera.position);
-      const distantWeapon = held === 'pistol' && weaponDistance > (visual.weapon.geometry === this.distantPistol ? 12 * 12 : 14 * 14);
-      visual.weapon.geometry = distantWeapon ? this.distantPistol : this.weapons.get(held)!;
+      const distant = held ? this.distantWeapons.get(held)! : null;
+      const distantWeapon = distant && weaponDistance > (visual.weapon.geometry === distant ? 12 * 12 : 14 * 14);
+      visual.weapon.geometry = distantWeapon ? distant : this.weapons.get(held)!;
       visual.weaponId = held;
       visual.weapon.visible = !dead && !emoting && actor.stage === 'ground' && !!held;
       const plate = visual.plate, scale = visual.group.scale.y;

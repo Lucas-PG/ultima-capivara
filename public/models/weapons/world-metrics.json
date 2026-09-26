@@ -1,0 +1,57 @@
+{
+  "source": "painted-weapons.glb",
+  "sourceSha256": "9e3507cd013358c264d263b56fcdbfcb58bed1334c8383c68e98507e7ab619fe",
+  "forward": "-Z",
+  "material": "shared painted atlas with authored contact shading",
+  "weapons": {
+    "pistol": {
+      "sourceTriangles": 12744,
+      "scale": 0.7,
+      "near": 1400,
+      "far": 280
+    },
+    "smg": {
+      "sourceTriangles": 13254,
+      "scale": 0.88,
+      "near": 1700,
+      "far": 320
+    },
+    "m4": {
+      "sourceTriangles": 15672,
+      "scale": 0.84,
+      "near": 2190,
+      "far": 380
+    },
+    "shotgun": {
+      "sourceTriangles": 13034,
+      "scale": 0.84,
+      "near": 1900,
+      "far": 350
+    },
+    "dmr": {
+      "sourceTriangles": 5846,
+      "scale": 0.84,
+      "near": 1900,
+      "far": 360
+    },
+    "sniper": {
+      "sourceTriangles": 6016,
+      "scale": 0.84,
+      "near": 2000,
+      "far": 380
+    },
+    "machete": {
+      "sourceTriangles": 580,
+      "scale": 0.9,
+      "near": 580,
+      "far": 180
+    },
+    "slingshot": {
+      "sourceTriangles": 1588,
+      "scale": 0.8,
+      "near": 850,
+      "far": 240
+    }
+  },
+  "bundledBytes": 1661460
+}
