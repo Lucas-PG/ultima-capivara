@@ -3,18 +3,23 @@ import { createOutlineMaterial } from './toon';
 import { CharacterMask } from './character-mask';
 import { timing } from './timing';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { AtmospherePass } from './atmosphere-pass';
 
 // Graphics presets. The outline pass is the art style, so it runs on every
 // preset; what scales is resolution and shadows. Final FXAA covers every preset.
 // World depth stays single-sampled: resolving even two samples across overlapping
 // R6 skin parts rejects mask pixels at the chin/bandana seam (TATU40).
 export const PRESETS = {
-  low: { dpr: .75, samples: 0, shadows: false, shadowReach: 0, interior: true },
-  medium: { dpr: 1, samples: 0, shadows: true, shadowReach: 32, interior: true },
-  high: { dpr: 1.25, samples: 0, shadows: true, shadowReach: 42, interior: true },
+  low: { dpr: .75, samples: 0, shadows: false, shadowReach: 0, shadowSize: 1024, interior: true, atmosphere: false, smaa: false },
+  medium: { dpr: 1.5, samples: 0, shadows: true, shadowReach: 36, shadowSize: 1024, interior: true, atmosphere: true, smaa: true },
+  high: { dpr: 2, samples: 0, shadows: true, shadowReach: 64, shadowSize: 2048, interior: true, atmosphere: true, smaa: true },
 } as const;
 
 export class RenderPipeline {
+  private readonly atmosphere: AtmospherePass;
+  private readonly smaa = new SMAAPass();
+  private useSmaa = false;
   private readonly mask: CharacterMask;
   private readonly fpTarget: THREE.WebGLRenderTarget;
   private readonly fpMaterial: THREE.ShaderMaterial;
@@ -32,6 +37,7 @@ export class RenderPipeline {
   constructor(private readonly gl: THREE.WebGLRenderer, samples: number) {
     this.postTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples });
     this.postTarget.depthTexture = new THREE.DepthTexture(1, 1);
+    this.atmosphere = new AtmospherePass(this.postTarget.texture, this.postTarget.depthTexture);
     this.mask = new CharacterMask(this.postTarget.depthTexture);
     this.fpTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
     this.fpTarget.depthTexture = new THREE.DepthTexture(1, 1);
@@ -49,6 +55,7 @@ export class RenderPipeline {
     const aaQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.aaMaterial);
     aaQuad.frustumCulled = false; this.aaScene.add(aaQuad);
     this.postMaterial = createOutlineMaterial(this.postTarget.texture, this.postTarget.depthTexture);
+    this.postMaterial.uniforms.tAtmosphere.value = this.atmosphere.target.texture;
     this.postMaterial.uniforms.tCharacter.value = this.mask.target.texture;
     this.postMaterial.uniforms.characterEnabled.value = 1;
     this.postMaterial.uniforms.suppressWater.value = 1;
@@ -59,9 +66,16 @@ export class RenderPipeline {
     if (this.postTarget.samples !== samples) { this.postTarget.samples = samples; this.postTarget.dispose(); }
   }
 
+  setQuality(preset: typeof PRESETS[keyof typeof PRESETS]) {
+    this.atmosphere.enabled = preset.atmosphere;
+    this.postMaterial.uniforms.atmosphereEnabled.value = Number(preset.atmosphere);
+    this.useSmaa = preset.smaa;
+  }
+
   resize() {
     const size = this.gl.getDrawingBufferSize(new THREE.Vector2());
     this.postTarget.setSize(Math.max(1, size.x), Math.max(1, size.y));
+    this.atmosphere.resize(size.x, size.y); this.smaa.setSize(Math.max(1, size.x), Math.max(1, size.y));
     this.mask.resize(Math.max(1, size.x), Math.max(1, size.y));
     this.fpTarget.setSize(Math.max(1, size.x), Math.max(1, size.y));
     this.fpMaterial.uniforms.texel.value.set(1 / Math.max(1, size.x), 1 / Math.max(1, size.y));
@@ -78,6 +92,7 @@ export class RenderPipeline {
     stats.drawCalls = this.gl.info.render.calls; stats.triangles = this.gl.info.render.triangles;
     this.mask.render(this.gl, scene, camera);
     stats.drawCalls += this.gl.info.render.calls; stats.triangles += this.gl.info.render.triangles;
+    if (this.atmosphere.enabled) { this.atmosphere.render(this.gl, camera); stats.drawCalls++; stats.triangles += 2; }
     this.postMaterial.uniforms.cameraWorldY.value = camera.position.y;
     const matrix = camera.matrixWorld.elements;
     this.postMaterial.uniforms.cameraUpRow.value.set(matrix[1], matrix[5], matrix[9]);
@@ -99,8 +114,15 @@ export class RenderPipeline {
       stats.drawCalls++; stats.triangles += 2;
       timing.end('first-person-draw', started);
     }
-    this.gl.setRenderTarget(null); this.gl.render(this.aaScene, this.postCamera);
-    stats.drawCalls++; stats.triangles += 2;
+    this.renderAA();
+    stats.drawCalls += this.useSmaa ? 3 : 1; stats.triangles += this.useSmaa ? 6 : 2;
+  }
+
+  private renderAA() {
+    if (this.useSmaa) {
+      this.smaa.renderToScreen = true;
+      this.smaa.render(this.gl, this.postTarget, this.aaTarget, 0, false);
+    } else { this.gl.setRenderTarget(null); this.gl.render(this.aaScene, this.postCamera); }
   }
 
   beginFirstPersonWarmup() { this.gl.setRenderTarget(this.fpTarget); }
@@ -111,7 +133,11 @@ export class RenderPipeline {
   }
 
   async warmup(scene?: THREE.Scene, camera?: THREE.PerspectiveCamera) {
-    for (const post of [this.postScene, this.aaScene, this.fpScene]) {
+    // r186 renamed these implementation fields before @types/three caught up.
+    // Decode its bundled lookup images while the loading screen is still up.
+    const smaa = this.smaa as unknown as { _areaTexture: THREE.Texture; _searchTexture: THREE.Texture };
+    await Promise.all([smaa._areaTexture, smaa._searchTexture].map(texture => (texture.image as HTMLImageElement).decode()));
+    for (const post of [this.postScene, this.aaScene, this.fpScene, this.atmosphere.scene]) {
       if (this.disposed) throw new Error('Pipeline disposed during warmup');
       await this.gl.compileAsync(post, this.postCamera);
     }
@@ -121,17 +147,19 @@ export class RenderPipeline {
       // while the loading overlay still covers the canvas.
       this.gl.initRenderTarget(this.postTarget);
       this.mask.render(this.gl, scene, camera);
+      this.atmosphere.render(this.gl, camera);
     }
   }
 
   renderPost() {
     this.postMaterial.uniforms.toneMappingExposure.value = this.gl.toneMappingExposure;
     this.gl.setRenderTarget(this.aaTarget); this.gl.render(this.postScene, this.postCamera);
-    this.gl.setRenderTarget(null); this.gl.render(this.aaScene, this.postCamera);
+    this.renderAA();
   }
 
   dispose() {
     this.disposed = true;
+    this.atmosphere.dispose(); this.smaa.dispose();
     this.mask.dispose(); this.fpTarget.dispose(); this.fpMaterial.dispose();
     this.fpScene.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
     this.aaTarget.dispose(); this.aaMaterial.dispose();

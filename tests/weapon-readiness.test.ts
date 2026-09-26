@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PAINTED_WEAPON_IDS, PAINTED_WEAPON_URL } from '../src/render/painted-weapons';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import type { ActorState } from '../src/shared/types';
@@ -41,6 +41,7 @@ function fixtures(invalid?: 'pistol' | 'sniper') {
 }
 
 describe('required weapon model readiness', () => {
+  beforeEach(() => vi.stubGlobal('location', { search: '?weapons=legacy' }));
   it.each([
     ['pistol', /service-pistol\/service_pistol_1k\.gltf: missing required nodes service_pistol_slide_a/],
     ['sniper', /m700\/m700\.fbx: required node FRAME_LOD0001 must be a SkinnedMesh/],
@@ -69,7 +70,7 @@ describe('required weapon model readiness', () => {
 
 describe('painted first-person integration', () => {
   it('loads only the shared set, prewarms every rarity, aligns ADS and disposes sources once', async () => {
-    vi.stubGlobal('location', { search: '?weapons=v3' });
+    vi.stubGlobal('location', { search: '' });
     const source = new THREE.Group(), geometry = new THREE.BoxGeometry(), material = new THREE.MeshStandardMaterial({ map: new THREE.Texture() });
     for (const id of PAINTED_WEAPON_IDS) {
       const root = new THREE.Object3D(); root.name = id; source.add(root);

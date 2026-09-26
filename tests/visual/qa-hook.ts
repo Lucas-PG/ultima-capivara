@@ -21,14 +21,17 @@ declare global { interface Window { __capyQA?: QaApi } }
 
 const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
 const VIEWS: Record<string, [number, number, number, number]> = {
-  plaza: [-35, 61, -.7, 0], bakery: [-77, 34, .4, 0],
-  capyFront: [-35, 61, 0, 0], capySide: [-35, 61, 0, 0],
+  plaza: [-1, -10, .48, .02], bakery: [-43, -23, 0, 0],
+  river: [4, 22, .28, -.03], forteBeach: [49, -88, .92, .08],
+  capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
 };
 const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {
-  cachoeira: [100, 0, 0, 0],
-  porto: [-70, -31, 0, 0],
-  posto: [-12, -44, Math.PI, 0],
-  farol: [108, 40, Math.PI, 0],
+  vila: [-1, -10, .48, .02], centro: [36, -6, .42, .02],
+  forte: [4, -80, 0, .12], cachoeira: [-83, -5, 1.42, .08],
+  morro: [-54, -39, 1.4, .12], porto: [78, -23, -1.84, 0],
+  posto: [-22, 38, Math.PI, 0], farol: [3, 98, Math.PI, .25],
+  praia: [-31, 95, Math.PI, 0], fazenda: [47, 80, -.63, 0],
+  mangue: [86, 54, -1.2, 0], lagoa: [-66, 17, .9, -.08],
 };
 
 export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputController; settings: Settings; begin(): Promise<GameRenderer> }) {

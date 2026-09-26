@@ -283,3 +283,13 @@ The painted atlas was generated with the built-in Codex image-generation tool at
 Capybara motion remains original scripted animation on the existing 35-joint rig. Existing idle, run, jump and six facial clips remain; directional walk, strafe, backpedal, crouch, fall, landing, reload and death clips are added in `tools/blender/capybara.py`. Gaits are in-place with planted contact segments and eased swing recovery. Nominal runtime speed references are 3.9 m/s walk, 6.4 m/s run and 2.1 m/s crouch; authoritative movement and hit shapes are unchanged.
 
 Painted weapons retain the established component groups. Visible moving geometry now sits below identity alias pivots `<id>_mag`, `<id>_slide` or `<id>_bolt`, and `<id>_grip_l`, with `partRole` extras. Runtime normalizes these names on each cloned weapon to avoid GLTFLoader's global duplicate-name suffixes. Magazine withdrawal is local -Y; bolt and slide travel is +Z. The tube-fed shotgun and non-firearms retain their appropriate existing mechanisms.
+## Phase A island terrain, 2026-09-25
+
+`public/textures/terrain-color.png` is an original procedural colour map for the redesigned 260 m river island. It is generated locally by `npx tsx scripts/generate-terrain-colors.ts` from `src/shared/layout.ts` and `src/shared/terrain.ts`, with the existing painted island palette. The authored layout follows the Phase A brief: northern fort and crescent beach, central Vila river town, western hillside/waterfall, eastern port, southern beach/lighthouse, estuary mangroves and inland fields. No external assets, paid services or image generation were used for this map texture. The kit models and their collision manifest are generated from Oficina's original Blender geometry; their asset provenance is recorded with that kit delivery.
+# Phase A ground cover
+
+`src/render/ground-cover.ts` creates original curved grass ribbons, five-petal
+wildflowers, low-poly pebbles and fallen leaves directly from geometry. No image
+prompt, external source or download is used. Placement follows the shared terrain
+palette and collision data; blade wind and fading run on the GPU. Low disables
+the entire layer. Authored by Cena for Phase A.

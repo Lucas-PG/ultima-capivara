@@ -54,10 +54,9 @@ describe('impact events', () => {
   });
 
   it('ends a shot over the sea on the water surface, not on the seabed', () => {
-    let z = -100;
-    while (terrainHeight(0, z - 12) > -1) z -= 1;
-    const shot = shoot(flat(), { x: 0, z }, 0, -.12);
-    expect(terrainHeight(0, z)).toBeGreaterThan(-.05);
+    const x = -30, z = 114;
+    const shot = shoot(flat(), { x, z }, Math.PI, -.12);
+    expect(terrainHeight(x, z)).toBeGreaterThan(-.05);
     expect(shot.surface).toBe('water');
     expect(shot.end.y).toBeCloseTo(-.05, 3);
     expect(terrainHeight(shot.end.x, shot.end.z)).toBeLessThan(shot.end.y);

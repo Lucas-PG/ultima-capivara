@@ -7,6 +7,8 @@ import { createToonMaterial, type ToonMaterialKind } from './materials';
 import { terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
+import { GroundCover } from './ground-cover';
+import { createKit, type KitScene } from './kit';
 import { releaseAfterUpload } from './memory';
 import { buildProps } from './props';
 import { buildWallArt } from './wall-art';
@@ -172,14 +174,19 @@ export class WorldScene {
   readonly group = new THREE.Group();
   readonly arenaBoundary = new THREE.Group();
   readonly water: THREE.Mesh;
+  readonly ready: Promise<void>;
+  private readonly kit: KitScene;
   private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly cascadeTime = { value: 0 };
   private readonly vegetation: ReturnType<typeof buildVegetation>;
+  private readonly groundCover: GroundCover;
   private reducedMotion = false;
   private readonly disposables: { dispose: () => void }[] = [];
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
+    this.kit = createKit(this.group, loader, world.pieces ?? [], settings.graphics);
+    this.ready = this.kit.ready; this.disposables.push(this.kit);
     const signAtlas = loader.texture('textures/island-signs.png');
     signAtlas.colorSpace = THREE.SRGBColorSpace;
     signAtlas.minFilter = THREE.LinearMipmapLinearFilter;
@@ -221,7 +228,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => 'terrain-ground-grass-response-v7';
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v9:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -253,7 +260,7 @@ export class WorldScene {
         varying float vTerrainSlope;
         varying vec2 vTerrainXZ;
         varying float vTerrainWorldY;
-        uniform vec4 terrainRoads[5];
+        uniform vec4 terrainRoads[${ROADS.length}];
         uniform vec3 terrainAsphalt;
         uniform vec3 terrainCurb;
         uniform vec3 terrainGrass;
@@ -288,27 +295,8 @@ export class WorldScene {
         }
       `).replace('#include <map_fragment>', `
         #include <map_fragment>
-        if (vTerrainSlope >= 0.54) {
-          float grassPatch = terrainFbm(vTerrainXZ / 36.0 + vec2(7.0, 3.0));
-          float dryPatch = terrainFbm(vTerrainXZ / 48.0 + vec2(-4.0, 9.0));
-          vec3 paintedGrass = dryPatch > 0.24 ? terrainDryGrass :
-            (grassPatch > 0.0 ? terrainGrassLight : terrainGrass);
-          float left = 24.0 + terrainFbm(vec2(vTerrainXZ.y / 12.0 + 11.0, 2.0)) * 5.0;
-          float right = 74.0 + terrainFbm(vec2(vTerrainXZ.y / 12.0 + 29.0, 2.0)) * 5.0;
-          float sea = -132.0 + terrainFbm(vec2(vTerrainXZ.x / 12.0 + 17.0, 4.0)) * 5.0;
-          float inland = -104.0 + terrainFbm(vec2(vTerrainXZ.x / 12.0 + 37.0, 4.0)) * 5.0;
-          float beachEdge = min(min(vTerrainXZ.x - left, right - vTerrainXZ.x),
-            min(vTerrainXZ.y - sea, inland - vTerrainXZ.y));
-          float warpedX = vTerrainXZ.x + terrainFbm(vTerrainXZ / 12.0 + vec2(41.0, 9.0)) * 4.0;
-          float warpedZ = vTerrainXZ.y + terrainFbm(vTerrainXZ / 12.0 + vec2(-7.0, 33.0)) * 4.0;
-          vec3 paintedSand = terrainFbm(vec2(warpedX / 24.0 + 3.0, warpedZ / 24.0 - 8.0)) > 0.0 ?
-            terrainSandLight : terrainSand;
-          vec3 paintedSlope = mix(paintedGrass, paintedSand,
-            max(1.0 - step(0.79, vTerrainWorldY), smoothstep(-1.0, 1.0, beachEdge)));
-          diffuseColor.rgb = mix(diffuseColor.rgb, paintedSlope, smoothstep(0.54, 0.6, vTerrainSlope));
-        }
         float distanceToRoad = 1e6;
-        for (int road = 0; road < 5; road++)
+        for (int road = 0; road < ${ROADS.length}; road++)
           distanceToRoad = min(distanceToRoad, terrainRectDistance(vTerrainXZ, terrainRoads[road]));
         float edgeWidth = max(fwidth(distanceToRoad), 0.002);
         float asphaltMask = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
@@ -331,25 +319,15 @@ export class WorldScene {
         float topBand = 1.0 - smoothstep(0.7, 1.0, vTerrainSlope);
         vec3 rockPaint = mix(terrainRockPaint, terrainRockTop, topBand) * mix(0.94, 1.06, stratum);
         diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
-        // The Morro shelves are built retaining faces: distinct plaster/stone
-        // courses and narrow joints give a readable scale at walking distance.
-        float morroArea = step(-38.0, vTerrainXZ.x) * step(vTerrainXZ.x, 12.0) *
-          step(64.0, vTerrainXZ.y) * step(vTerrainXZ.y, 120.0);
-        float morroFace = morroArea * smoothstep(0.6, 0.7, vTerrainSlope);
-        float course = vTerrainWorldY + irregular;
-        float jointDistance = min(mod(course, 1.2), 1.2 - mod(course, 1.2));
-        float jointWidth = max(fwidth(course), 0.015);
-        float joint = 1.0 - smoothstep(0.025 + jointWidth, 0.065 + jointWidth, jointDistance);
-        vec3 morroPaint = mix(terrainMorroMid, terrainMorroLight,
-          mod(floor(course / 1.2), 2.0));
-        morroPaint = mix(morroPaint, terrainMorroJoint, joint * 0.55);
-        diffuseColor.rgb = mix(diffuseColor.rgb, morroPaint,
-          morroFace * (1.0 - asphaltMask - curbMask));
         // Counter the warm sun's yellow shift only on painted grass, before
         // lighting. Broad colour weights preserve filtered sand/grass edges.
         float grassResponse = smoothstep(1.0, 1.45, diffuseColor.g / max(diffuseColor.r, 0.001)) *
           smoothstep(1.1, 2.0, diffuseColor.g / max(diffuseColor.b, 0.001));
-        diffuseColor.rgb *= mix(vec3(1.0), vec3(1.0, 1.20, 2.40), grassResponse);
+        float paintedPatch=terrainFbm(vTerrainXZ/8.0+vec2(3.0,9.0));
+        float dryFleck=smoothstep(.12,.4,terrainFbm(vTerrainXZ/18.0+vec2(13.0,2.0)));
+        vec3 variedGrass=diffuseColor.rgb*(.93+paintedPatch*.16);
+        variedGrass=mix(variedGrass,variedGrass*vec3(1.13,1.015,.82),dryFleck*.5);
+        diffuseColor.rgb=mix(diffuseColor.rgb,variedGrass,grassResponse);
       `);
     };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
@@ -496,7 +474,9 @@ export class WorldScene {
         for (let i = 0; i < vertices.count; i++) vertices.setZ(i, Math.sin(vertices.getX(i) * 3 + vertices.getY(i) * 5) * .035);
         geometry.computeVertexNormals();
         const cascade = new THREE.Mesh(geometry, cascadeSheet);
-        cascade.position.set(pos.x, pos.y, pos.z + scale.z * .5 + .03);
+        const front = scale.z * .5 + .03;
+        cascade.rotation.y = rotation;
+        cascade.position.set(pos.x + Math.sin(rotation) * front, pos.y, pos.z + Math.cos(rotation) * front);
         this.group.add(cascade); this.disposables.push(geometry);
         continue;
       }
@@ -620,23 +600,6 @@ export class WorldScene {
         }
       }
     }
-    // Vila's long road gets a low chamfered lip. Keep a crossing open beside
-    // the plaza; paint sits above the analytic asphalt without a collider.
-    for (let x = -108; x < 10; x += 2) {
-      const center = x + 1;
-      if (center > -39 && center < -23) continue;
-      for (const [edge, side] of [[41.5, -1], [48.5, 1]] as const) {
-        const z = edge + side * .2;
-        add('stone', chamferBox, WORLD_PALETTE.curb, center, terrainHeight(center, z) + .035,
-          z, 1.99, .08, .32);
-      }
-    }
-    for (let x = -38; x <= -24; x += 1.2) for (const z of [43.35, 46.65]) {
-      add('road', box, '#F4E7C6', x, terrainHeight(x, z) + .032, z, .42, .012, 3.04);
-    }
-    for (let x = -101; x <= -49; x += 13) {
-      add('road', box, '#F4E7C6', x, terrainHeight(x, 45) + .03, 45, 3.1, .01, .16);
-    }
     if (glassPanels.length) {
       const glazing = mergeGeometries(glassPanels, false);
       glassPanels.forEach(panel => panel.dispose());
@@ -663,6 +626,7 @@ export class WorldScene {
     const vegetation = this.vegetation = buildVegetation(world), props = buildProps(world), wallArt = buildWallArt(world);
     this.group.add(vegetation.group, props.group, wallArt.group);
     this.disposables.push(vegetation, props, wallArt);
+    this.groundCover = new GroundCover(world); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
     const fountain = world.objects.find(object => object.detail === 'prop:plaza');
     if (fountain) {
       const waterGeometry = new THREE.RingGeometry(.73, 1.85, 48, 3).rotateX(-Math.PI / 2);
@@ -695,7 +659,7 @@ export class WorldScene {
       if (jetGeometry) { this.group.add(new THREE.Mesh(jetGeometry, jetMaterial)); this.disposables.push(jetGeometry); }
       if (splashGeometry) { this.group.add(new THREE.Mesh(splashGeometry, splashMaterial)); this.disposables.push(splashGeometry); }
     }
-    this.addArenaBoundary();
+    if (!world.pieces?.length) this.addArenaBoundary();
     this.group.add(this.arenaBoundary);
     this.setSettings(settings);
   }
@@ -734,9 +698,11 @@ export class WorldScene {
 
   setSettings(settings: Settings) {
     this.reducedMotion = settings.reducedMotion;
+    this.groundCover.setQuality(settings.graphics);
   }
 
-  update(time: number) {
+  update(time: number, camera?: THREE.Camera) {
+    if (camera) { this.kit.update(camera, time); this.groundCover.update(camera, time, this.reducedMotion); }
     this.vegetation.update(this.reducedMotion ? 0 : time);
     this.cascadeTime.value = time;
     this.paintedWater.update(time, this.reducedMotion);

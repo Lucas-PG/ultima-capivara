@@ -180,55 +180,7 @@ function batchRigidParts(group: THREE.Group) {
     const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = true; group.add(mesh);
   }
 }
-// Ink outlines for the viewmodel (the world's outline pass does not cover it):
-// inverted hulls pushed out along smoothed normals by a constant screen width.
-const outlineMaterial = new THREE.ShaderMaterial({
-  uniforms: { thickness: { value: .0026 }, ink: { value: new THREE.Color('#1b1510') } },
-  side: THREE.BackSide,
-  vertexShader: `#include <common>
-    #include <skinning_pars_vertex>
-    uniform float thickness;
-    void main() {
-      #include <beginnormal_vertex>
-      #include <skinbase_vertex>
-      #include <skinnormal_vertex>
-      #include <begin_vertex>
-      #include <skinning_vertex>
-      vec4 mv = modelViewMatrix * vec4(transformed, 1.0);
-      mv.xyz += normalize(normalMatrix * objectNormal) * thickness * -mv.z;
-      gl_Position = projectionMatrix * mv;
-    }`,
-  fragmentShader: 'uniform vec3 ink; void main() { gl_FragColor = vec4(ink, 1.0); \n#include <colorspace_fragment>\n }',
-});
-function hullGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
-  const bare = new THREE.BufferGeometry();
-  for (const name of ['position', 'skinIndex', 'skinWeight']) {
-    const attribute = source.getAttribute(name);
-    if (attribute) bare.setAttribute(name, attribute);
-  }
-  if (source.index) bare.setIndex(source.index);
-  const hull = mergeVertices(bare, 1e-4);
-  hull.computeVertexNormals();
-  return hull;
-}
-function addOutlines(root: THREE.Object3D) {
-  const meshes: THREE.Mesh[] = [];
-  root.traverse(object => {
-    if (!(object instanceof THREE.Mesh) || object.userData.outline) return;
-    const materials = Array.isArray(object.material) ? object.material : [object.material];
-    if (materials.some(material => material.transparent || material === outlineMaterial)) return;
-    const type = object.geometry.type;
-    if (type === 'CircleGeometry' || type === 'PlaneGeometry') return;
-    meshes.push(object);
-  });
-  for (const mesh of meshes) {
-    const geometry = hullGeometry(mesh.geometry);
-    const hull = mesh instanceof THREE.SkinnedMesh ? new THREE.SkinnedMesh(geometry, outlineMaterial) : new THREE.Mesh(geometry, outlineMaterial);
-    if (hull instanceof THREE.SkinnedMesh && mesh instanceof THREE.SkinnedMesh) hull.bind(mesh.skeleton, mesh.bindMatrix);
-    hull.userData.outline = true; hull.frustumCulled = false; hull.castShadow = false;
-    mesh.add(hull);
-  }
-}
+
 const magazine = (parent: THREE.Object3D, x: number, y: number, z: number, height: number, material: Mat) => {
   const group = new THREE.Group(); group.position.set(x, y, z); parent.add(group);
   group.userData.restY = y;
@@ -511,7 +463,7 @@ export class WeaponView {
       const group = id === 'pistol' || id === 'sniper' ? new THREE.Group() : body;
       if (group !== body) group.add(body);
       const support = arms(group, id); group.visible = false; this.holder.add(group);
-      batchRigidParts(group); addOutlines(group);
+      batchRigidParts(group);
       const muzzle = new THREE.Object3D(); muzzle.position.set(0, id === 'pistol' ? .005 : id === 'slingshot' ? .23 : -.044,
         id === 'pistol' ? -.30 : id === 'shotgun' ? -.95 : id === 'machete' ? -.75 : id === 'slingshot' ? -.36 : body.userData.muzzleZ || -.85);
       const eject = new THREE.Object3D(); eject.position.set(id === 'pistol' ? .06 : .083, -.03, -.045);
@@ -577,7 +529,7 @@ export class WeaponView {
     magazineMotion.userData.travel = .11;
     magazineMotion.add(loadedMagazine); modelRoot.add(magazineMotion);
     modelRoot.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = true; });
-    addOutlines(modelRoot);
+
     const pistol = this.models.pistol;
     pistol.group.remove(fallback);
     fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
@@ -629,7 +581,7 @@ export class WeaponView {
     fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
     sniper.group.add(modelRoot);
     const optic = scope(sniper.group, .15, -.18, .42, .049);
-    addOutlines(modelRoot); addOutlines(optic);
+
     sniper.sightY = .15;
     sniper.muzzle.position.set(0, -.045, -.81);
     sniper.eject.position.set(.055, -.025, -.10);
@@ -766,7 +718,7 @@ export class WeaponView {
     materials.forEach(value => value.dispose());
     textures.forEach(value => value.dispose());
     for (const material of Object.values(palette)) material.dispose();
-    outlineMaterial.dispose();
+
     furGrain.dispose(); woodGrain.dispose(); polymerGrain.dispose(); metalGrain.dispose(); scopeLensMap.dispose();
   }
 }

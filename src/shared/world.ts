@@ -1,614 +1,291 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, CHURCH, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, PLAZA, ROADS, TOWERS } from './layout';
-import { WORLD_VERSION, type ChestSpec, type Collider, type District, type LootSpawn, type MapObject, type SpawnPoint, type Vec3, type WeaponId, type WorldSpec } from './types';
+import { ARENA, ARENA_CENTER, BRIDGES, CHURCH, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance } from './layout';
+import { KIT_PIECES, kitColliders } from './kit-collision';
+import { SIGN_ART } from './signage';
+import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
+import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type SpawnPoint, type Vec3, type WeaponId, type WorldSpec } from './types';
 
-const ground = (x: number, z: number) => terrainHeight(x, z);
+const ground = terrainHeight;
 const p = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
 
 export function createWorld(): WorldSpec {
-  const random = rng(0x5eed1e5);
-  const objects: MapObject[] = [];
-  const colliders: Collider[] = [];
-  const deferredDecorations: MapObject[] = [];
-  const decor = (kind: MapObject['kind'], x: number, y: number, z: number,
-    sx: number, sy: number, sz: number, color: string, detail: string) => {
-    deferredDecorations.push({ id: `decor-${deferredDecorations.length + 1}`, kind,
-      pos: p(x, y, z), scale: p(sx, sy, sz), color, detail });
-  };
-  // Deferred trunks leave the legacy random placement and its IDs unchanged.
-  const deferredTrunks: { prefix: string; min: Vec3; max: Vec3; material: Collider['material'] }[] = [];
-  const loot: LootSpawn[] = [];
-  const chests: ChestSpec[] = [];
-  const spawns: SpawnPoint[] = [];
+  const random = rng(0x51a7cafe);
+  const pieces: KitPlacement[] = [], objects: MapObject[] = [], colliders: Collider[] = [], walkways: Collider[] = [];
+  const loot: LootSpawn[] = [], chests: ChestSpec[] = [], spawns: SpawnPoint[] = [], arenaBoundary: string[] = [];
+  const districts: District[] = [
+    { id: 'forte', name: 'Forte', x: 4, z: -99, radius: 25, color: '#c47c57' },
+    { id: 'vila', name: 'Vila', x: -22, z: -18, radius: 32, color: '#e39973' },
+    { id: 'centro', name: 'Centro', x: 29, z: -20, radius: 25, color: '#c59aaa' },
+    { id: 'morro', name: 'Morro', x: -87, z: -53, radius: 29, color: '#c88465' },
+    { id: 'cachoeira', name: 'Cachoeira', x: -104, z: -8, radius: 19, color: '#7db7bd' },
+    { id: 'porto', name: 'Porto', x: 97, z: -9, radius: 25, color: '#638caf' },
+    { id: 'praia', name: 'Praia', x: -26, z: 104, radius: 30, color: '#e9c47d' },
+    { id: 'farol', name: 'Farol', x: 3, z: 113, radius: 14, color: '#d86c53' },
+    { id: 'mangue', name: 'Mangue', x: 101, z: 52, radius: 22, color: '#617c56' },
+    { id: 'fazenda', name: 'Fazenda', x: 62, z: 63, radius: 25, color: '#d7b671' },
+    { id: 'posto', name: 'Posto', x: -22, z: 43, radius: 16, color: '#e6a34f' },
+    { id: 'lagoa', name: 'Lagoa', x: -76, z: 11, radius: 15, color: '#77a5a0' },
+  ];
   let sequence = 0;
   const id = (prefix: string) => `${prefix}-${++sequence}`;
-  const districts: District[] = [
-    { id: 'morro', name: 'Morro', x: -10, z: 92, radius: 34, color: '#b56949' },
-    { id: 'praia', name: 'Praia', x: 49, z: -113, radius: 27, color: '#e9c47d' },
-    { id: 'mangue', name: 'Mangue', x: -114, z: -78, radius: 22, color: '#617c56' },
-    { id: 'cachoeira', name: 'Cachoeira', x: 102, z: -22, radius: 26, color: '#7db7bd' },
-    { id: 'vila', name: 'Vila', x: -55, z: 46, radius: 38, color: '#e39973' },
-    { id: 'centro', name: 'Centro', x: 54, z: -36, radius: 30, color: '#ac9aba' },
-    { id: 'porto', name: 'Porto', x: -70, z: -70, radius: 36, color: '#638caf' },
-    { id: 'fazenda', name: 'Fazenda', x: 62, z: 67, radius: 26, color: '#d7b671' },
-    { id: 'posto', name: 'Posto', x: -10, z: -24, radius: 17, color: '#e6a34f' },
-    { id: 'lagoa', name: 'Lagoa', x: -34, z: 6, radius: 20, color: '#77a5a0' },
-    { id: 'forte', name: 'Forte', x: -28, z: -108, radius: 16, color: '#c2402e' },
-    { id: 'farol', name: 'Farol', x: 110, z: 70, radius: 14, color: '#d8392b' },
-  ];
-  const obj = (kind: MapObject['kind'], x: number, y: number, z: number, sx: number, sy: number, sz: number, color: string, detail?: string, rotation?: number) => {
-    objects.push({ id: id(kind), kind, pos: p(x, y, z), scale: p(sx, sy, sz), color, detail, rotation });
+  const obj = (kind: MapObject['kind'], x: number, y: number, z: number, sx: number, sy: number, sz: number, color: string, detail: string, rotation = 0) => {
+    objects.push({ id: id(detail), kind, pos: p(x, y, z), scale: p(sx, sy, sz), color, detail, rotation });
   };
-  const solid = (x: number, y: number, z: number, sx: number, sy: number, sz: number, color: string, material: Collider['material'], detail?: string, kind: MapObject['kind'] = 'box') => {
-    const key = id('solid');
-    objects.push({ id: key, kind, pos: p(x, y, z), scale: p(sx, sy, sz), color, detail });
-    colliders.push({ id: key, min: p(x - sx / 2, y - sy / 2, z - sz / 2), max: p(x + sx / 2, y + sy / 2, z + sz / 2), material });
+  const place = (piece: string, x: number, z: number, yaw = 0, scale = 1, y = ground(x, z), label = piece) => {
+    const instance: KitPlacement = { id: id(`kit-${label}`), piece, x, y, z, yaw, ...(scale === 1 ? {} : { scale }) };
+    pieces.push(instance);
+    const shapes = kitColliders(instance);
+    colliders.push(...shapes);
+    if (piece === 'bridge_stone' || piece === 'dock_wood')
+      walkways.push(...shapes.filter(c => c.max.y - c.min.y < .7 * scale && c.max.x - c.min.x > 2 && c.max.z - c.min.z > 2));
+    return instance;
   };
-  const addRoof = (x: number, y: number, z: number, sx: number, sy: number, sz: number, color: string, detail: string, material: Collider['material'] = 'wood') => {
-    obj('roof', x, y, z, sx, sy, sz, color, detail);
-    const key = objects[objects.length - 1].id;
-    const bands = Math.ceil(sy / .18);
-    const addBand = (x0: number, x1: number, z0: number, z1: number, top: number) => {
-      if (x1 <= x0 || z1 <= z0) return;
-      colliders.push({ id: `${key}-step-${colliders.length}`, min: p(x0, y - .02, z0), max: p(x1, top, z1), material });
-    };
-    for (let i = 0; i < bands; i++) {
-      const outerX = sx / 2 * (1 - i / bands), innerX = sx / 2 * (1 - (i + 1) / bands);
-      const top = y + sy * (i + 1) / bands;
-      if (detail === 'hip') {
-        const outerZ = sz / 2 * (1 - i / bands), innerZ = sz / 2 * (1 - (i + 1) / bands);
-        addBand(x - outerX, x - innerX, z - outerZ, z + outerZ, top);
-        addBand(x + innerX, x + outerX, z - outerZ, z + outerZ, top);
-        addBand(x - innerX, x + innerX, z - outerZ, z - innerZ, top);
-        addBand(x - innerX, x + innerX, z + innerZ, z + outerZ, top);
-      } else {
-        addBand(x - outerX, x - innerX, z - sz / 2, z + sz / 2, top);
-        addBand(x + innerX, x + outerX, z - sz / 2, z + sz / 2, top);
-      }
-    }
+  // Optional pieces are supplied by the same Blender manifest as the core kit.
+  // A missing dressing piece is omitted, never replaced by invisible collision.
+  const detail = (piece: string, x: number, z: number, yaw = 0, scale = 1, y = ground(x, z)) =>
+    KIT_PIECES[piece] ? place(piece, x, z, yaw, scale, y) : null;
+  const sign = (x: number, z: number, label: string) => {
+    if (SIGN_ART.some(art => art.label === label)) obj('sign', x, ground(x, z) + 1.6, z, 3.8, 1.2, .16, '#eccb8b', label);
   };
-  const level = (x: number, z: number, sx: number, sz: number, color: string, detail = 'path') => {
-    // Roads follow the shared height field; the simulation still walks on terrain.
-    const steps = Math.max(1, Math.ceil(Math.max(sx, sz) / 7));
-    for (let i = 0; i < steps; i++) {
-      const alongX = sx >= sz;
-      const cx = x + (alongX ? (i + .5 - steps / 2) * sx / steps : 0);
-      const cz = z + (alongX ? 0 : (i + .5 - steps / 2) * sz / steps);
-      obj('box', cx, ground(cx, cz) + .025, cz, alongX ? sx / steps + .08 : sx, .035, alongX ? sz : sz / steps + .08, color, detail);
-    }
-  };
-  const wallX = (x0: number, x1: number, z: number, base: number, height: number, openings: { at: number; width: number; sill: number; head: number }[], color: string, material: Collider['material']) => {
-    let cursor = x0;
-    for (const opening of openings.sort((a, b) => a.at - b.at)) {
-      const left = opening.at - opening.width / 2;
-      const right = opening.at + opening.width / 2;
-      if (left > cursor) solid((cursor + left) / 2, base + height / 2, z, left - cursor, height, .24, color, material, 'wall');
-      if (opening.sill > 0) solid(opening.at, base + opening.sill / 2, z, opening.width, opening.sill, .24, color, material, 'wall');
-      if (opening.head < height) solid(opening.at, base + (opening.head + height) / 2, z, opening.width, height - opening.head, .24, color, material, 'wall');
-      cursor = right;
-    }
-    if (cursor < x1) solid((cursor + x1) / 2, base + height / 2, z, x1 - cursor, height, .24, color, material, 'wall');
-  };
-  const wallZ = (z0: number, z1: number, x: number, base: number, height: number, openings: { at: number; width: number; sill: number; head: number }[], color: string, material: Collider['material']) => {
-    let cursor = z0;
-    for (const opening of openings.sort((a, b) => a.at - b.at)) {
-      const left = opening.at - opening.width / 2;
-      const right = opening.at + opening.width / 2;
-      if (left > cursor) solid(x, base + height / 2, (cursor + left) / 2, .24, height, left - cursor, color, material, 'wall');
-      if (opening.sill > 0) solid(x, base + opening.sill / 2, opening.at, .24, opening.sill, opening.width, color, material, 'wall');
-      if (opening.head < height) solid(x, base + (opening.head + height) / 2, opening.at, .24, height - opening.head, opening.width, color, material, 'wall');
-      cursor = right;
-    }
-    if (cursor < z1) solid(x, base + height / 2, (cursor + z1) / 2, .24, height, z1 - cursor, color, material, 'wall');
-  };
-  const door = (at: number, width = 2) => ({ at, width, sill: 0, head: 2.45 });
-  const window = (at: number, width = 1.4) => ({ at, width, sill: .85, head: 2.2 });
-  const windowTrimX = (x: number, z: number, y: number, width = 1.4) => {
-    for (const dx of [-width / 2, width / 2]) obj('box', x + dx, y + 1.52, z, .095, 1.47, .3, '#efdfbc', 'window-frame');
-    for (const yy of [.82, 2.22]) obj('box', x, y + yy, z, width + .15, .09, .3, '#efdfbc', 'window-frame');
-    obj('box', x, y + 1.48, z, width + .04, .055, .3, '#9a7356', 'window-cross');
-    for (const dx of [-width / 2 - .18, width / 2 + .18]) obj('box', x + dx, y + 1.53, z, .28, 1.28, .1, '#7e9279', 'shutter');
-  };
-  const doorTrimX = (x: number, z: number, y: number, width = 2) => {
-    for (const dx of [-width / 2, width / 2]) obj('box', x + dx, y + 1.23, z, .1, 2.45, .3, '#e8d7b6', 'door-frame');
-    obj('box', x, y + 2.46, z, width + .15, .1, .3, '#e8d7b6', 'door-frame');
-  };
-  const windowTrimZ = (x: number, z: number, y: number) => {
-    for (const dz of [-.7, .7]) obj('box', x, y + 1.52, z + dz, .3, 1.47, .09, '#efdfbc', 'window-frame');
-    for (const yy of [.82, 2.22]) obj('box', x, y + yy, z, .3, .09, 1.55, '#efdfbc', 'window-frame');
-  };
-  const chest = (x: number, z: number, y = ground(x, z)) => chests.push({ id: id('chest'), x, y: Math.max(y, ground(x, z)), z });
-  const item = (x: number, z: number, kind: LootSpawn['kind'], weapon?: WeaponId, y = ground(x, z)) =>
-    loot.push({ id: id('loot'), x, y: Math.max(y, ground(x, z)), z, kind, ...(kind === 'weapon' && weapon ? { weapon } : {}) });
-  const crate = (x: number, z: number, size = 1.25, y = ground(x, z)) => solid(x, y + size / 2, z, size, size, size, '#8c633e', 'wood', 'crate');
-  const barrel = (x: number, z: number, y = ground(x, z)) => {
-    obj('barrel', x, y + .55, z, .46, 1.1, .46, '#497b8b', 'rust');
-    colliders.push({ id: id('barrel'), min: p(x - .42, y, z - .42), max: p(x + .42, y + 1.1, z + .42), material: 'metal' });
-  };
-  const specimenTree = (x: number, z: number, height: number, detail: string) => {
+  const roadAt = (x: number, z: number, margin = 0) => ROADS.some(([x0, z0, x1, z1]) =>
+    x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
+  const occupied = (x: number, z: number, margin: number) => colliders.some(c =>
+    x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
+  const pavement = (x: number, z: number, width: number, depth: number, color = '#d5c1a0') => {
     const y = ground(x, z);
-    obj('tree', x, y - .1, z, 1.4, height, 1.4, '#5FA544', detail);
-    colliders.push({ id: id('trunk'), min: p(x - .24, y - .5, z - .24),
-      max: p(x + .24, y + Math.min(3, height * .6), z + .24), material: 'wood' });
+    obj('box', x, y + .026, z, width, .035, depth, color, 'courtyard');
+    // Broad stone courses and a double border keep the plaza legible at a distance.
+    for (let xx = x - width / 2 + 1; xx < x + width / 2; xx += 2)
+      obj('box', xx, y + .047, z, .035, .012, depth - .25, '#a69b85', 'paving-joint');
+    for (let zz = z - depth / 2 + 1; zz < z + depth / 2; zz += 2)
+      obj('box', x, y + .048, zz, width - .25, .012, .035, '#ac9f87', 'paving-joint');
+    for (const side of [-1, 1]) {
+      obj('box', x + side * (width / 2 - .18), y + .055, z, .22, .06, depth, '#f0dfbb', 'paving-trim');
+      obj('box', x, y + .055, z + side * (depth / 2 - .18), width, .06, .22, '#f0dfbb', 'paving-trim');
+    }
   };
-  const streetDetail = (x: number, z: number, kind: string, color: string) => {
+
+  // Vila: narrow side streets open onto a church square and a covered market.
+  for (const h of [...HOUSES, ...MORRO_LOTS]) place(h.piece, h.x, h.z, h.yaw ?? 0, 1, ground(h.x, h.z), h.role);
+  place('church', ...CHURCH);
+  place('market_hall', ...MERCADAO);
+  pavement(...PLAZA, 18, 17);
+  pavement(...MERCADAO, 18, 14, '#cdb790');
+  detail('fountain', PLAZA[0], PLAZA[1]);
+  for (const [x, z] of [[-17, -24], [-3, -18], [-17, -17], [35, -10]] as const) detail('bench', x, z);
+  for (const [x, z] of [[-19, -28], [-1, -28], [-19, -13], [-1, -13], [21, -10], [37, -10]] as const) detail('planter', x, z);
+  for (const [x, z] of [[24, -23], [34, -23], [24, -16], [34, -16], [-34, 39]] as const) detail('market_stall', x, z);
+  sign(-40, -41, 'VILA'); sign(39, -9, 'MERCADÃO'); sign(-21, 37, 'POSTO');
+  // Three crossings have a continuous deck level with the banks.
+  for (const [x, z] of BRIDGES) place('bridge_stone', x, z, 0, 1, 1.75);
+  for (let x = -51; x < 57; x += 4) {
+    if (BRIDGES.some(([bx]) => Math.abs(x - bx) < 6)) continue;
+    const sample = riverSample(x, 10);
+    for (const side of [-1, 1]) {
+      const z = sample.z + side * (sample.width / 2 + 5.4);
+      if (KIT_PIECES.river_wall) detail('river_wall', x, z);
+      else place('fort_wall', x, z, 0, .42, ground(x, z) - .2, 'river-wall');
+    }
+  }
+  for (const [x, z] of [[-29, 7], [19, 13], [55, 25]] as const) {
+    detail('boat', x, z, Math.PI / 2, .8, -.15);
+    if (!KIT_PIECES.boat) obj('boat', x, .05, z, 4.2, 1.1, 1.7, '#e6c17d', 'fishing');
+  }
+  // Entry markers sit beside open routes, so the warning has visible context.
+  for (const [x, z, yaw] of [
+    [-48, ARENA.minZ, 0], [-32, ARENA.minZ, 0], [-16, ARENA.minZ, 0], [21, ARENA.minZ, 0], [38, ARENA.minZ, 0], [54, ARENA.minZ, 0],
+    [-49, ARENA.maxZ, 0], [-13, ARENA.maxZ, 0], [7, ARENA.maxZ, 0], [27, ARENA.maxZ, 0], [46, ARENA.maxZ, 0],
+    [ARENA.minX, -49, Math.PI / 2], [ARENA.minX, -25, Math.PI / 2], [ARENA.minX, 18, Math.PI / 2], [ARENA.minX, 44, Math.PI / 2],
+    [ARENA.maxX, -48, Math.PI / 2], [ARENA.maxX, -17, Math.PI / 2], [ARENA.maxX, 39, Math.PI / 2], [ARENA.maxX, 51, Math.PI / 2],
+  ]) {
+    if (occupied(x, z, 2.5)) continue;
+    const piece = KIT_PIECES.fence ? 'fence' : 'fort_wall';
+    const placed = place(piece, x, z, yaw, piece === 'fence' ? 1 : .5, ground(x, z), 'arena');
+    arenaBoundary.push(placed.id);
+  }
+
+  // Forte: red-capped towers frame two open gates above a crescent beach.
+  const [fx, fz] = FORTE, fortY = ground(fx, fz);
+  for (const side of [-1, 1]) {
+    for (const dx of [-8, 8]) place('fort_wall', fx + dx, fz + side * 12, 0, 1, fortY);
+    for (const dz of [-8, 0, 8]) if (!(side === 1 && dz === 8)) place('fort_wall', fx + side * 12, fz + dz, Math.PI / 2, 1, fortY);
+  }
+  for (const dx of [-12, 12]) for (const dz of [-12, 12]) place('fort_tower', fx + dx, fz + dz, 0, 1, fortY);
+  detail('fort_gate', fx, fz + 12, 0, 1, fortY);
+  detail('fort_gate', fx, fz - 12, 0, 1, fortY);
+  place('house_tall', fx, fz - 2, 0, 1, fortY);
+  pavement(fx, fz + 5, 13, 10, '#c9b994');
+  for (const [x, z, scale] of [[25, -109, 2], [27, -98, 1.4], [32, -89, 1.2], [66, -111, 1], [58, -119, .7]] as const)
+    detail('cliff_rock', x, z, 0, scale);
+  detail('boat', 48, -108, Math.PI / 2, 1.2, ground(48, -108) - .18);
+  if (!KIT_PIECES.boat) obj('boat', 48, ground(48, -108) + .2, -108, 7.2, 2, 2.9, '#9c7660', 'wreck');
+  for (const [x, z] of [[57, -116], [65, -102], [35, -116]] as const) {
+    obj('cylinder', x, ground(x, z) + .045, z, 3.1, .07, 2.4, '#82b6ad', 'water');
+    for (const dx of [-2, 2]) detail('cliff_rock', x + dx, z, 0, .36);
+  }
+  sign(21, -82, 'FORTE');
+
+  // Porto: an open warehouse court, stacked containers and piers out to sea.
+  if (KIT_PIECES.warehouse) detail('warehouse', 100, -12);
+  else place('market_hall', 100, -12, 0, 1, ground(100, -12), 'warehouse');
+  for (const [x, z, yaw, stack] of [[90, -29, 0, 0], [103, -29, 0, 1], [113, -18, Math.PI / 2, 1],
+    [90, 1, Math.PI / 2, 0], [113, 3, Math.PI / 2, 0], [101, 13, 0, 1]] as const) {
+    const y = ground(x, z); place('container', x, z, yaw, 1, y);
+    if (stack) place('container', x, z, yaw, 1, y + KIT_PIECES.container.height);
+  }
+  for (const z of [-22, -7, 9]) for (const x of [120, 130]) place('dock_wood', x, z, Math.PI / 2, 1, 1.08);
+  detail('boat', 125, -15, Math.PI / 2, 1.1, -.05);
+  detail('boat', 128, 2, Math.PI / 2, .9, -.05);
+  detail('crane', 113, -29);
+  sign(78, -28, 'PORTO');
+
+  // Fazenda and Morro retain warm, recognisable silhouettes above the valley.
+  if (KIT_PIECES.barn) detail('barn', 71, 57);
+  else place('market_hall', 71, 57, 0, .85, ground(71, 57), 'barn');
+  detail('windmill', 83, 48); detail('radio_mast', -104, -78);
+  for (let x = 46; x <= 69; x += 3) {
+    obj('box', x, ground(x, 70) + .025, 70, .8, .04, 8, '#b48d57', 'field-row');
+    for (let z = 67; z <= 73; z += 2) obj('grass', x, ground(x, z), z, .7, .4, .7, '#b0cc5e', 'crop');
+  }
+  sign(49, 79, 'FAZENDA'); sign(-91, -33, 'MORRO');
+
+  // Long southern beach and a lighthouse at the final cape.
+  for (const x of [-45, -30, -14, 25, 40]) {
+    if (KIT_PIECES.beach_kiosk) detail('beach_kiosk', x, 109);
+    else place('house_small', x, 109, 0, .7, ground(x, 109), 'beach-kiosk');
+    for (const dx of [-3, 3]) {
+      obj('cone', x + dx, ground(x + dx, 117) + 2, 117, 2.8, .65, 2.8, dx < 0 ? '#e89a78' : '#83bcb1', 'umbrella');
+      obj('cylinder', x + dx, ground(x + dx, 117) + 1, 117, .06, 2, .06, '#a8865e', 'umbrella-pole');
+    }
+  }
+  if (KIT_PIECES.lighthouse) detail('lighthouse', ...FAROL);
+  else place('fort_tower', ...FAROL, 0, 1.5);
+  sign(-42, 92, 'PRAIA'); sign(13, 107, 'FAROL');
+
+  // Water falls from the western ridge into the river's blue-green feeder pool.
+  const cascadeX = -109, cascadeZ = -9, low = -.05, top = Math.max(9, ground(-114, -15));
+  obj('box', cascadeX, (top + low) / 2, cascadeZ, 6, top - low, .22, '#87c2c7', 'waterfall', Math.PI / 2);
+  detail('cliff_rock', -112, -15, 0, 2.5);
+  detail('cliff_rock', -112, -3, 0, 1.8);
+  sign(-86, -15, 'MIRANTE');
+  // Boardwalks offer a dry second route around the estuary.
+  for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
+  sign(90, 65, 'MANGUE');
+
+  // Cover is placed deliberately in courtyards, then scattered away from the
+  // navigation corridors. Every solid comes from an actual kit mesh.
+  for (const [x, z] of [[-35, -18], [-25, -18], [17, -25], [43, -30], [-36, 48], [-4, 36], [19, 41],
+    [52, 48], [-49, -48], [12, -49], [7, -88], [12, -105], [89, -6], [108, 20]] as const) {
+    if (!occupied(x, z, 1.2)) place('crate', x, z);
+  }
+  for (let i = 0, placed = 0; i < 1000 && placed < 65; i++) {
+    const x = Math.round(-111 + random() * 222), z = Math.round(-113 + random() * 226);
     const y = ground(x, z);
-    obj('box', x, y, z, 1, 0, 1, color, `prop:${kind}`);
-    const [sx, sy, sz] = kind.startsWith('stall:') ? [2.45, .9, 1.16] :
-      kind === 'bench' ? [2.08, .8, .82] : kind === 'cart' ? [1.82, 1.1, 1.1] : [1.34, .8, 1.34];
-    colliders.push({ id: id('street-fixture'), min: p(x - sx / 2, y, z - sz / 2),
-      max: p(x + sx / 2, y + sy, z + sz / 2), material: 'wood' });
-  };
-  const house = (x: number, z: number, w: number, d: number, color: string, roof: string, material: Collider['material'] = 'stone', role = 'home', stocked = true) => {
-    const y = ground(x, z);
-    const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
-    obj('box', x, y + .04, z, w - .2, .08, d - .2, '#E2C7A0', 'floor');
-    wallX(x0, x1, z1, y, 3, [door(x - w * .18), window(x + w * .25)], color, material);
-    wallX(x0, x1, z0, y, 3, [door(x + w * .2), window(x - w * .24)], color, material);
-    wallZ(z0, z1, x0, y, 3, [window(z)], color, material);
-    wallZ(z0, z1, x1, y, 3, [window(z)], color, material);
-    for (const zz of [z0, z1]) {
-      windowTrimX(zz === z1 ? x + w * .25 : x - w * .24, zz, y);
-      doorTrimX(zz === z1 ? x - w * .18 : x + w * .2, zz, y);
-    }
-    windowTrimZ(x0, z, y); windowTrimZ(x1, z, y);
-    addRoof(x, y + 3.1, z, w + .65, 1.8, d + .65, roof, 'hip', material);
-    obj('box', x, y + 2.8, z1 + .05, w + .4, .12, .15, '#efe2be', 'eave');
-    for (const zz of [z0 - .27, z1 + .27]) obj('box', x, y + 3.12, zz, w + .7, .09, .09, '#533f3d', 'roof-edge');
-    for (const xx of [x0 - .27, x1 + .27]) obj('box', xx, y + 3.12, z, .09, .09, d + .7, '#533f3d', 'roof-edge');
-    // A single marker supplies the renderer with the building's full room and
-    // frontage design. The main furniture has matching simulation colliders.
-    obj('box', x, y, z, w, 0, d, color, `prop:house:${role}`);
-    const fixture = (fx: number, fz: number, sx: number, sy: number, sz: number) =>
-      colliders.push({ id: id('fixture'), min: p(fx - sx / 2, y, fz - sz / 2), max: p(fx + sx / 2, y + sy, fz + sz / 2), material: 'wood' });
-    const bed = role === 'home' || role === 'fisher' || role === 'clinic';
-    fixture(x + w * .28, z + d * .11, bed ? 1.6 : 1.36, bed ? .75 : 1.03, bed ? 1.9 : 1.43);
-    fixture(x - w * .33, z - d * .17, .88, role === 'workshop' ? 1.04 : .94, 1.86);
-    if (role === 'bakery') fixture(x + w / 2 - .83, z - d * .24, 1.28, 2.24, 1.86);
-    if (role === 'cafe') fixture(x - w * .12, z - d * .12, .94, .8, .94);
-    if (!stocked) return;
-    chest(x - w * .34, z + d * .28, y);
-    // Small casinhas are full of furniture, so their pickups wait by the doors.
-    const small = w < 6.5;
-    item(small ? x - w * .18 : x, small ? z + d / 2 - .7 : z + .7, 'weapon', random() > .65 ? 'smg' : 'pistol', y);
-    item(small ? x + w * .2 : x + .4, small ? z - d / 2 + .7 : z - .7, 'ammo', undefined, y);
-  };
-  const warehouse = (x: number, z: number, w: number, d: number, color: string) => {
-    const y = ground(x, z), x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
-    obj('box', x, y + .06, z, w, .12, d, '#8e8b7c', 'floor');
-    wallX(x0, x1, z1, y, 6, [{ at: x - w * .23, width: 4.4, sill: 0, head: 4.5 }, door(x + w * .31)], color, 'metal');
-    wallX(x0, x1, z0, y, 6, [{ at: x + w * .18, width: 4.4, sill: 0, head: 4.5 }], color, 'metal');
-    wallZ(z0, z1, x0, y, 6, [door(z), { at: z + d * .3, width: 1.7, sill: 3.7, head: 5 }], color, 'metal');
-    wallZ(z0, z1, x1, y, 6, [door(z)], color, 'metal');
-    addRoof(x, y + 6.08, z, w + .9, 1.5, d + .9, '#6d6c6d', 'gable', 'metal');
-    for (const [cx, cz, paint] of [[x - 4, z - 2, '#416f94'], [x + 4, z - 2, '#b4533d'], [x + 3, z + 2, '#d1a748']] as const) {
-      solid(cx, y + 1.25, cz, 5, 2.5, 2.3, paint, 'metal', 'container');
-      obj('box', cx, y + 2.4, cz, 5.05, .07, 2.35, '#d2d5ce', 'container-rib');
-    }
-    for (const [cx, cz] of [[x - 7, z + 3], [x - 5.5, z + 3], [x + 7, z + 3]]) crate(cx, cz, 1.25, y);
-    chest(x - w * .35, z + d * .35, y);
-    chest(x + w * .34, z - d * .34, y);
-    item(x, z, 'weapon', 'm4', y);
-    item(x - 1, z + 3.8, 'armor', undefined, y);
-  };
-  const stairs = (x0: number, x1: number, z: number, y: number, rise: number, count: number, color: string) => {
-    const step = (x1 - x0) / count;
-    for (let i = 0; i < count; i++) {
-      const x = x0 + (i + .5) * step;
-      solid(x, y + (i + 1) * rise / 2, z, step + .02, (i + 1) * rise, 1.5, color, 'stone', 'stair');
-    }
-  };
-  const tower = (x: number, z: number, color: string) => {
-    const y = ground(x, z), w = 11, d = 10;
-    for (let floor = 0; floor < 2; floor++) {
-      const by = y + floor * 3.2;
-      wallX(x - w / 2, x + w / 2, z + d / 2, by, 3.2, floor ? [window(x - 2), window(x + 2)] : [door(x), window(x + 3)], color, 'stone');
-      wallX(x - w / 2, x + w / 2, z - d / 2, by, 3.2, floor ? [window(x - 2), window(x + 2)] : [door(x + 2)], color, 'stone');
-      wallZ(z - d / 2, z + d / 2, x - w / 2, by, 3.2, floor ? [door(z + 2.1), window(z - 1.5)] : [window(z)], color, 'stone');
-      wallZ(z - d / 2, z + d / 2, x + w / 2, by, 3.2, [window(z)], color, 'stone');
-    }
-    // The open exterior staircase connects the street to a balcony and upper doorway.
-    stairs(x - 9.5, x - 5.5, z + 2.1, y, 3.2 / 12, 12, '#a49a89');
-    solid(x - 5.3, y + 3.15, z + 2.1, 1.5, .17, 2.6, '#ad9e85', 'stone', 'balcony');
-    solid(x, y + 3.24, z, 10.7, .13, 9.7, '#a49a89', 'stone', 'floor');
-    addRoof(x, y + 6.5, z, 11.6, 1.5, 10.6, '#635566', 'hip', 'stone');
-    crate(x + 2.5, z + 2.8, 1, y);
-    chest(x + 3.7, z - 3.5, y);
-    item(x - 1, z, 'weapon', 'dmr', y);
-  };
-
-  // ---- Island plan: legacy layout (layout.ts) built with the detailed v2 kit ----
-  const onRoad = (x: number, z: number, m = 0) => ROADS.some(([x0, z0, x1, z1]) => x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m);
-  const clear = (x: number, z: number, radius: number) => colliders.some(c => x > c.min.x - radius && x < c.max.x + radius && z > c.min.z - radius && z < c.max.z + radius);
-  const rectClear = (x0: number, z0: number, x1: number, z1: number, m: number) =>
-    !colliders.some(c => x0 - m < c.max.x && x1 + m > c.min.x && z0 - m < c.max.z && z1 + m > c.min.z);
-  const rectRoad = (x0: number, z0: number, x1: number, z1: number, m: number) =>
-    ROADS.some(([rx0, rz0, rx1, rz1]) => x0 - m < rx1 && x1 + m > rx0 && z0 - m < rz1 && z1 + m > rz0);
-  const baseFor = (x0: number, z0: number, x1: number, z1: number) =>
-    Math.min(ground(x0, z0), ground(x1, z0), ground(x0, z1), ground(x1, z1), ground((x0 + x1) / 2, (z0 + z1) / 2)) - .06;
-  // Legacy findSpot(): free, dry, fairly flat ground away from roads.
-  const findSpot = (w: number, d: number, m: number, road = false, area?: readonly [number, number, number, number], maxRelief = 1.3) => {
-    for (let k = 0; k < 60; k++) {
-      const x = area ? area[0] + random() * (area[2] - area[0]) : -116 + random() * 232;
-      const z = area ? area[1] + random() * (area[3] - area[1]) : -116 + random() * 232;
-      const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
-      if (!rectClear(x0, z0, x1, z1, m) || (!road && rectRoad(x0, z0, x1, z1, 1))) continue;
-      const hs = [ground(x0, z0), ground(x1, z0), ground(x0, z1), ground(x1, z1)];
-      if (Math.min(...hs) < .7 || Math.max(...hs) - Math.min(...hs) > maxRelief) continue;
-      return { x, z, x0, x1, z0, z1, y: baseFor(x0, z0, x1, z1) };
-    }
-    return null;
-  };
-  const pick = <T,>(list: readonly T[]) => list[Math.floor(random() * list.length)];
-  const sign = (x: number, z: number, label: string) => obj('sign', x, ground(x, z) + 2.3, z, 3.8, 2.5, .2, '#eccb8b', label);
-
-  // Houses on their own levelled lots.
-  const palette = [
-    ['#F3E6CF', '#D0673F'], ['#F3E6CF', '#D0673F'], ['#F6D8A8', '#B5532F'],
-    ['#F3E6CF', '#D0673F'], ['#F3E6CF', '#D0673F'], ['#F2C1A9', '#B5532F'],
-    ['#F3E6CF', '#D0673F'], ['#F3E6CF', '#D0673F'], ['#CFE3D2', '#B5532F'],
-    ['#F3E6CF', '#D0673F'],
-  ] as const;
-  HOUSES.forEach((h, i) => { const [c, r] = palette[i % palette.length]; house(h.x, h.z, h.w, h.d, c, r, h.material, h.role); });
-
-  // Vila: the two legacy rows plus Lucas's plaza (fountain, stalls, bunting) and the church tower.
-  {
-    const [px, pz] = PLAZA, y = ground(px, pz);
-    obj('box', px, y + .02, pz, 18, .035, 17, '#bfa987', 'courtyard');
-    obj('box', px, y, pz, 18, 0, 17, '#bfa987', 'prop:plaza');
-    colliders.push({ id: id('fountain'), min: p(px - 2.25, y, pz - 2.25), max: p(px + 2.25, y + 1.25, pz + 2.25), material: 'stone' });
-    for (const [dx, dz, kind] of [[5, 11, 'planter'], [8, -6, 'bench'], [-6, -5, 'cart'], [-1, -7.5, 'stall:produce']] as const)
-      streetDetail(px + dx, pz + dz, kind, '#dba876');
-    for (const [dx, dz] of [[-7, -1], [7, -1], [-2, -7], [-2, 7]]) crate(px + dx, pz + dz);
-    item(px - 3, pz, 'medkit');
-    const [cx, cz] = CHURCH;
-    tower(cx, cz, '#e5d3b2');
-    obj('cone', cx, ground(cx, cz) + 9.2, cz, 1.2, 2.5, 1.2, '#b56853', 'steeple');
-    for (const [x, z] of [[-104, 45], [-60, 45]] as const) obj('box', x, ground(x, z), z, 3.2, 0, 14, '#d6bd92', 'prop:alley');
-    sign(-106, 39, 'VILA');
+    if (y < .85 || routeDistance(x, z) < 3 || roadAt(x, z, 1) || occupied(x, z, 2)) continue;
+    if (Math.abs(ground(x + 1, z) - ground(x - 1, z)) > .4 || Math.abs(ground(x, z + 1) - ground(x, z - 1)) > .4) continue;
+    const piece = KIT_PIECES.cliff_rock && i % 3 === 0 ? 'cliff_rock' : 'crate';
+    place(piece, x, z, i % 2 ? Math.PI / 2 : 0, piece === 'crate' ? 1 : .7 + random() * .5); placed++;
   }
-
-  // Centro: four two-storey blocks around the east road and a covered market.
-  {
-    for (const [i, [x, z]] of TOWERS.entries()) tower(x, z, ['#b29a9a', '#a4a8aa', '#c1b29a', '#d0b6a9'][i % 4]);
-    // Mercadão: an open market hall under a big red roof, stalls in two rows
-    // and the best loot density on the island.
-    {
-      const [mx, mz] = MERCADAO, y = ground(mx, mz), w = 16, d = 13;
-      obj('box', mx, y + .06, mz, w, .12, d, '#c9b38a', 'floor');
-      for (let i = 0; i <= 4; i++) for (const zz of [mz - d / 2, mz + d / 2]) solid(mx - w / 2 + i * w / 4, y + 2.3, zz, .45, 4.6, .45, '#c2402e', 'stone', 'market-post');
-      for (const xx of [mx - w / 2, mx + w / 2]) solid(xx, y + 2.3, mz, .45, 4.6, .45, '#c2402e', 'stone', 'market-post');
-      for (const xx of [mx - w / 2, mx + w / 2]) for (const zz of [mz - d / 2 + 2.2, mz + d / 2 - 2.2]) solid(xx, y + .55, zz, .3, 1.1, 3, '#e8d5b0', 'stone', 'ruin');
-      addRoof(mx, y + 4.6, mz, w + 1.4, 2.4, d + 1.4, '#d8492f', 'gable', 'metal');
-      for (const [dx, dz, kind] of [[-5, -3, 'stall:produce'], [0, -3, 'stall:fish'], [5, -3, 'stall:produce'], [-5, 3, 'stall:fish'], [0, 3, 'stall:produce'], [5, 3, 'stall:fish']] as const)
-        streetDetail(mx + dx, mz + dz, kind, '#dba876');
-      chest(mx - 6.6, mz, y); chest(mx + 6.6, mz, y); chest(mx, mz - 5.4, y);
-      for (const [dx, kind, weapon] of [[-4.5, 'weapon', 'm4'], [-2.5, 'armor', undefined], [-.5, 'weapon', 'smg'], [1.5, 'helmet', undefined],
-        [3.5, 'weapon', 'shotgun'], [5.5, 'medkit', undefined]] as const) item(mx + dx, mz, kind, weapon, y);
-      for (const dx of [-6, 6]) item(mx + dx, mz + 5, 'ammo', undefined, y);
-      // Keep this freestanding board beside the approach, outside the roof eave.
-      const signX = mx - w / 2 + 2.7, signZ = mz + d / 2 + 3.5;
-      obj('sign', signX, ground(signX, signZ) + 1.6, signZ, 3.4, 1.29, .2, '#eccb8b', 'MERCADÃO');
-    }
-    for (const [x, z, kind] of [[52, -30, 'bench'], [36, -42, 'planter'], [72, -42, 'planter'], [58, -44, 'cart'], [88, -28, 'bench']] as const) streetDetail(x, z, kind, '#d6b070');
-    for (const [x, z] of [[46, -44], [70, -44], [60, -60]] as const) item(x, z, 'weapon', 'm4');
-  }
-
-  // Porto: warehouse, container yard (legacy positions), fish houses, harbour, piers and boats.
-  {
-    warehouse(-70, -60, 25, 15, '#82949d');
-    house(-44, -72, 9, 7, '#d3bfa0', '#685a61', 'wood', 'fisher');
-    house(-54, -90, 8, 7, '#a8c1b8', '#80595b', 'wood', 'fishmonger');
-    house(-92, -84, 8, 7, '#dbbc90', '#865c50', 'wood', 'workshop');
-    const containerColors = ['#a94f3c', '#497ca1', '#dfad55', '#4d896c', '#c96a34'];
-    for (const [x, z, along, c, stack] of [[-104, -78, 'z', 0, 1], [-86, -76, 'x', 1, 0], [-40, -84, 'z', 2, 1], [-40, -60, 'z', 3, 0],
-      [-100, -50, 'z', 4, 0], [-45, -46, 'x', 0, 1], [-80, -30, 'x', 1, 0], [-68, -98, 'x', 2, 0], [-92, -38, 'z', 3, 1],
-      [-54, -36, 'x', 4, 0], [-102, -66, 'z', 0, 0]] as const) {
-      const [sx, sz] = along === 'x' ? [6.1, 2.44] : [2.44, 6.1], y = baseFor(x - sx / 2, z - sz / 2, x + sx / 2, z + sz / 2);
-      solid(x, y + 1.3, z, sx, 2.6, sz, containerColors[c], 'metal', 'container');
-      if (stack) solid(x, y + 3.9, z, sx, 2.6, sz, containerColors[(c + 2) % 5], 'metal', 'container');
-    }
-    for (const [x, z, kind] of [[-52, -102, 'stall:fish'], [-60, -102, 'stall:fish'], [-38, -96, 'cart'], [-58, -46, 'planter']] as const)
-      streetDetail(x, z, kind, '#7db8b4');
-    obj('box', -76, ground(-76, -104), -104, 26, 0, 12, '#9bb7ad', 'prop:harbor');
-    // Piers reach past the shoreline into open water.
-    for (const x of [-88, -76, -64]) {
-      for (const z of [-114, -122, -130]) obj('box', x, .32, z, 2.6, .26, 8.1, '#8c6942', 'pier');
-      for (const z of [-117, -127]) solid(x, -.2, z, .26, 2.4, .26, '#6e5137', 'wood', 'post');
-    }
-    for (const [x, z] of [[-82, -134], [-70, -137], [-94, -128]]) obj('boat', x, .25, z, 5.2, 1.4, 2.2, '#f1cb80', 'fishing');
-    solid(-100, ground(-100, -100) + 4.8, -100, .55, 9.6, .55, '#d39c54', 'metal', 'crane');
-    obj('box', -95, ground(-100, -100) + 9.3, -100, 11, .45, .5, '#d39c54', 'crane-arm');
-    for (const [x, z] of [[-48, -104], [-58, -108], [-90, -106]]) { barrel(x, z); crate(x + 1.7, z); }
-    item(-99, -72, 'weapon', 'shotgun');
-    item(-60, -104, 'armor');
-    chest(-66, -106);
-    sign(-104, -32, 'PORTO');
-  }
-
-  // Posto: kiosk, forecourt canopy and pumps by the west road, truck at the kerb.
-  {
-    const cx = -12, cz = -28, y = ground(cx, cz);
-    house(cx, -15, 10, 8, '#e9d3ad', '#ae694b', 'stone', 'kiosk');
-    obj('box', cx, y, cz, 19, 0, 10, '#ecc491', 'prop:forecourt');
-    obj('box', cx, y + 4.35, cz, 20, .35, 12, '#e8c496', 'canopy');
-    for (const x of [cx - 8, cx + 8]) for (const z of [cz - 5, cz + 5]) solid(x, ground(x, z) + 2.1, z, .34, 4.2, .34, '#b65543', 'metal', 'canopy-post');
-    for (const x of [cx - 4, cx + 4]) {
-      solid(x, ground(x, cz) + .85, cz, .9, 1.7, .7, '#d4583d', 'metal', 'pump');
-      obj('box', x, ground(x, cz) + 1.25, cz + .39, .54, .4, .05, '#b4d4ca', 'pump-glass');
-    }
-    obj('box', 3, ground(3, -22) + 1.1, -22, 5.5, 2.2, 2.3, '#86a6ab', 'truck');
-    colliders.push({ id: id('truck'), min: p(.25, ground(3, -22), -23.15), max: p(5.75, ground(3, -22) + 2.2, -20.85), material: 'metal' });
-    for (const x of [1.4, 4.7]) for (const z of [-23.1, -20.9]) obj('cylinder', x, ground(x, z) + .25, z, .65, .5, .65, '#343b3b', 'wheel');
-    for (const [x, z, kind] of [[-22, -18, 'planter'], [-2, -12, 'bench'], [-22, -12, 'cart']] as const) streetDetail(x, z, kind, '#d6b070');
-    barrel(4, -32); crate(4, -35);
-    item(cx, cz + 2, 'guarana');
-  }
-
-  // Fazenda: barn, silo, orchard south of the farm road, fences with a road gap.
-  {
-    warehouse(62, 57, 16, 12, '#945a4a');
-    obj('cylinder', 77, ground(77, 53) + 4, 53, 2.4, 8, 2.4, '#b2b9b9', 'silo');
-    obj('sphere', 77, ground(77, 53) + 8.3, 53, 2.4, 1, 2.4, '#c6ccca', 'silo-cap');
-    colliders.push({ id: id('silo'), min: p(74.6, ground(77, 53), 50.6), max: p(79.4, ground(77, 53) + 8, 55.4), material: 'metal' });
-    for (const x of [48, 55, 62, 69, 76]) for (const z of [78, 84]) {
-      const px = x + (random() - .5) * 1.4, py = ground(px, z);
-      obj('tree', px, py, z, 2, 6, 2, '#708d4b', 'orchard');
-      deferredTrunks.push({ prefix: 'trunk', min: p(px - .24, py - .5, z - .24),
-        max: p(px + .24, py + 3, z + .24), material: 'wood' });
-    }
-    for (const z of [48, 86]) for (let x = 45.6; x < 80; x += 3.2) obj('box', x, ground(x, z) + .6, z, 2.8, .12, .13, '#9e7950', 'fence');
-    for (const x of [44, 80]) for (let z = 49.6; z < 86; z += 3.2) if (z < 64 || z > 74) obj('box', x, ground(x, z) + .6, z, .13, .12, 2.8, '#9e7950', 'fence');
-    for (let i = 0; i < 8; i++) {
-      const s = findSpot(1.4, 1.2, 1, false, [46, 64, 78, 76]);
-      if (s) solid(s.x, s.y + .6, s.z, 1.4, 1.2, 1.2, '#d8b45a', 'wood', 'hay');
-    }
-    item(72, 62, 'weapon', 'shotgun');
-    chest(50, 62);
-  }
-
-  // Morro: terraced casinhas on the south hill, a radio mast at the top.
-  {
-    const walls = ['#F3E6CF', '#F3E6CF', '#F6D8A8', '#F3E6CF', '#F3E6CF', '#F2C1A9'];
-    for (const lot of MORRO_LOTS) house(lot.x, lot.z, 5.2, 4.4, pick(walls),
-      Math.abs(Math.round(lot.x * 17 + lot.z * 13)) % 10 < 3 ? '#B5532F' : '#D0673F',
-      'wood', 'home', random() < .4);
-    solid(16, ground(16, 100) + 7, 100, .45, 14, .45, '#b1b8b3', 'metal', 'radio-mast');
-    obj('sphere', 16, ground(16, 100) + 14, 100, .55, .55, .55, '#e6ad6a', 'beacon');
-    item(12, 96, 'weapon', 'sniper');
-  }
-
-  // Praia: thatched kiosks and parasols on the levelled north beach.
-  {
-    for (const x of [32, 44, 56, 68]) {
-      addRoof(x, ground(x, -110) + 2.5, -110, 5.4, 1.4, 4.2, '#D8BC94', 'thatch');
-      // Painted soffit clears the 2.2 m doorway and gives the shade a warm surface.
-      decor('box', x, ground(x, -110) + 2.45, -110, 5.05, .09, 3.85, '#D8B99A', 'kiosk-soffit');
-      for (const dx of [-2.2, 2.2]) for (const dz of [-1.6, 1.6]) solid(x + dx, ground(x, -110) + 1.25, -110 + dz, .12, 2.5, .12, '#8A5E3C', 'wood', 'kiosk-post');
-      // The accent board meets the soffit edge without overlapping the roof
-      // volume, which previously made a pink/magenta depth-fighting smear.
-      decor('box', x, ground(x, -108) + 2.44, -107.85, 5.4, .12, .1, '#F28DB2', 'kiosk-trim');
-      crate(x, -110);
-      obj('cone', x + 4.4, ground(x + 4.4, -119) + 2.1, -119, 1.8, .6, 1.8, pick(['#da8062', '#7aafaa', '#e5b96e']), 'umbrella');
-      obj('cylinder', x + 4.4, ground(x + 4.4, -119) + 1.05, -119, .07, 2.1, .07, '#80694a', 'umbrella-pole');
-    }
-    obj('boat', 82, .1, -128, 5, 1.5, 2, '#d0af72', 'canoe');
-    item(50, -112, 'guarana');
-    chest(38, -108);
-    sign(22, -104, 'PRAIA');
-  }
-
-  // Mangue: shallow water, mangroves and a boardwalk to the stilt shack.
-  {
-    for (let z = -98; z <= -58; z += 4) obj('box', -110, Math.max(ground(-110, z), -.05) + .12, z, 2.4, .22, 3.8, '#997850', 'boardwalk');
-    for (let i = 0; i < 46; i++) {
-      const x = -125 + random() * 21, z = -100 + random() * 42;
-      if (Math.abs(x + 110) < 2.2) continue;
-      const y = ground(x, z), height = 5 + random() * 4;
-      obj('tree', x, y, z, 1.2, height, 1.2, '#507b5a', 'mangrove');
-      deferredTrunks.push({ prefix: 'mangrove-trunk', min: p(x - .25, y - .5, z - .25),
-        max: p(x + .25, y + Math.min(3, height * .6), z + .25), material: 'wood' });
-    }
-    item(-106, -57, 'bandage');
-  }
-
-  // Lagoa: rowboats on the pond, reeds on the shallow rim.
-  {
-    for (const [x, z] of [[-38, 3], [-29, 9], [-33, -2], [-40, 10]]) obj('boat', x, Math.max(ground(x, z), -.05) + .1, z, 4.5, 1, 1.9, '#a97c51', 'rowboat');
-    for (let i = 0; i < 60; i++) {
-      const x = -58 + random() * 48, z = -18 + random() * 48, y = ground(x, z);
-      if (y < -.35 || y > .95) continue;
-      obj('grass', x, y, z, .8, 1.6, .8, '#94a967', 'reeds');
-    }
-    chest(-54, 8);
-    item(-16, 10, 'acai');
-  }
-
-  // Cachoeira: the cascade drops off the hill's south face into a real pool.
-  {
-    // A rock face on the steep south slope; the cascade spills into a basin below.
-    const x = 100, top = ground(x, -19) + .4, low = ground(x, -13.5), height = Math.max(2.4, top - low);
-    solid(x, low + height / 2, -16.6, 5.2, height, 1.9, '#777f76', 'stone', 'cliff');
-    solid(x - 2.3, low + .65, -15.3, 1.5, 1.3, 1.5, '#798577', 'stone', 'cliff', 'rock');
-    solid(x + 2.1, low + .7, -15.3, 1.3, 1.4, 1.4, '#697568', 'stone', 'cliff', 'rock');
-    obj('box', x, low + height / 2, -15.6, 3.2, height, .22, '#87c2c7', 'waterfall');
-    obj('box', x, low + .055, -13, 4.7, .07, 3.5, '#609b9b', 'water');
-    for (const bx of [93, 97, 103, 107]) obj('box', bx, ground(bx, -9) + .16, -9, 3.7, .3, 2, '#a49b83', 'bridge-stone');
-    for (const [rx, rz, size] of [[91, -24, 3.3], [110, -20, 4.4], [115, -40, 3.8], [94, -40, 2.8]] as const) {
-      obj('rock', rx, ground(rx, rz) + size * .28, rz, size, size * .55, size, '#7f8583', 'cliff');
-      colliders.push({ id: id('rock'), min: p(rx - size * .42, ground(rx, rz), rz - size * .42), max: p(rx + size * .42, ground(rx, rz) + size * .5, rz + size * .42), material: 'stone' });
-    }
-    item(108, -30, 'weapon', 'dmr');
-    sign(88, -8, 'MIRANTE');
-  }
-
-  // Forte: stone walls with a gate, four red-capped corner towers and a keep
-  // on the north headland. Long sightlines, sniper loot.
-  {
-    const [fx, fz] = FORTE, y = ground(fx, fz), half = 11, h = 4.4, stone = '#b8ad97';
-    wallX(fx - half, fx + half, fz + half, y, h, [door(fx, 3.4)], stone, 'stone');
-    wallX(fx - half, fx + half, fz - half, y, h, [door(fx + 5, 2)], stone, 'stone');
-    wallZ(fz - half, fz + half, fx - half, y, h, [window(fz - 4), window(fz + 4)], stone, 'stone');
-    wallZ(fz - half, fz + half, fx + half, y, h, [door(fz, 2.4)], stone, 'stone');
-    for (let t = -half + 1; t < half; t += 2.2) for (const [mx, mz, sx, sz] of [[fx + t, fz - half, .9, .5], [fx + t, fz + half, .9, .5], [fx - half, fz + t, .5, .9], [fx + half, fz + t, .5, .9]] as const)
-      if (Math.abs(t) > 2 || (mz === fz - half || mx === fx - half)) obj('box', mx, y + h + .3, mz, sx, .6, sz, stone, 'merlon');
-    for (const [cx, cz] of [[fx - half, fz - half], [fx + half, fz - half], [fx - half, fz + half], [fx + half, fz + half]]) {
-      solid(cx, y + 3.6, cz, 4, 7.2, 4, '#a89c86', 'stone', 'fort-tower');
-      obj('cone', cx, y + 8.4, cz, 2.8, 2.4, 2.8, '#c2402e', 'steeple');
-    }
-    tower(fx, fz - 1, '#cbbd9f');
-    solid(fx + 4, y + 9.5, fz + 3, .16, 6, .16, '#6e5137', 'wood', 'post');
-    obj('box', fx + 5, y + 11.6, fz + 3, 1.9, 1.1, .05, '#d8392b', 'flag');
-    item(fx - 6, fz + 6, 'weapon', 'sniper'); item(fx + 6, fz + 6, 'weapon', 'dmr');
-    item(fx - 6, fz - 7, 'armor'); item(fx + 7, fz - 7, 'helmet'); item(fx, fz + 8, 'ammo');
-    chest(fx - 8.5, fz + 8.5, y); chest(fx + 8.5, fz - 8.5, y);
-  }
-
-  // Farol: a red-and-white lighthouse on the south-east hill with the keeper's hut.
-  {
-    const [lx, lz] = FAROL, y = ground(lx, lz);
-    solid(lx, y + .6, lz, 6, 1.2, 6, '#c9c0a8', 'stone', 'plinth');
-    for (let i = 0; i < 6; i++) obj('cylinder', lx, y + 2.3 + i * 2.2, lz, 2.3 - i * .12, 2.2, 2.3 - i * .12, i % 2 ? '#f4efe4' : '#d8392b', 'lighthouse');
-    colliders.push({ id: id('farol'), min: p(lx - 1.2, y, lz - 1.2), max: p(lx + 1.2, y + 15.4, lz + 1.2), material: 'stone' });
-    obj('box', lx, y + 14.5, lz, 3.8, .2, 3.8, '#3a3f44', 'balcony');
-    obj('cylinder', lx, y + 15.4, lz, 1.4, 1.6, 1.4, '#ffe9a8', 'lamp-glass');
-    obj('cone', lx, y + 16.8, lz, 1.9, 1.3, 1.9, '#d8392b', 'steeple');
-    item(lx + 4, lz - 3, 'weapon', 'dmr'); item(lx - 4, lz - 3, 'armor');
-    chest(lx + 3.5, lz + 3.5, y);
-  }
-
-  // Legacy cover scattered across the island: sandbags, barriers, fences, cars, ruins, crates.
-  const sandbags = () => {
-    const along = random() < .5, s = findSpot(along ? 3.2 : .7, along ? .7 : 3.2, 1.5);
-    if (s) {
-      const width = s.x1 - s.x0, depth = s.z1 - s.z0;
-      solid(s.x, s.y + .55, s.z, width, 1.1, depth, '#D8C8AA', 'stone', 'sandbag');
-      decor('box', s.x, s.y + 1.06, s.z, width - .02, .08, depth - .02, '#BBAE98', 'sandbag-cap');
-    }
-  };
-  const barrier = () => {
-    const along = random() < .5, s = findSpot(along ? 3 : .6, along ? .6 : 3, 1.2, random() < .4);
-    if (s) solid(s.x, s.y + .43, s.z, s.x1 - s.x0, .85, s.z1 - s.z0, '#d9d3c4', 'stone', 'barrier');
-  };
-  const fence = () => {
-    const along = random() < .5, s = findSpot(along ? 4 : .12, along ? .12 : 4, 1);
-    if (s) solid(s.x, s.y + .65, s.z, s.x1 - s.x0, 1.3, s.z1 - s.z0, '#9e7950', 'wood', 'fence');
-  };
-  const carColors = ['#d23b2c', '#2f6fbe', '#efe8d6', '#3f8a3c', '#e8b52f'];
-  const car = (roadSide: boolean) => {
-    let s: ReturnType<typeof findSpot> = null, along = random() < .5;
-    if (roadSide) {
-      const [x0, z0, x1, z1] = pick(ROADS), horizontal = x1 - x0 > z1 - z0; along = horizontal;
-      for (let k = 0; k < 20 && !s; k++) {
-        const x = horizontal ? x0 + 5 + random() * (x1 - x0 - 10) : x0 + 1.2 + random() * (x1 - x0 - 2.4);
-        const z = horizontal ? z0 + 1.2 + random() * (z1 - z0 - 2.4) : z0 + 5 + random() * (z1 - z0 - 10);
-        const w = along ? 4.3 : 1.9, d = along ? 1.9 : 4.3;
-        const heights = [ground(x - w / 2, z - d / 2), ground(x + w / 2, z - d / 2),
-          ground(x - w / 2, z + d / 2), ground(x + w / 2, z + d / 2)];
-        if (rectClear(x - w / 2, z - d / 2, x + w / 2, z + d / 2, 1.5) && Math.max(...heights) - Math.min(...heights) <= .35)
-          s = { x, z, x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, y: baseFor(x - w / 2, z - d / 2, x + w / 2, z + d / 2) };
-      }
-    } else s = findSpot(along ? 4.3 : 1.9, along ? 1.9 : 4.3, 1.5, false, undefined, .35);
-    if (!s) return;
-    const w = s.x1 - s.x0, d = s.z1 - s.z0, paint = pick(carColors);
-    solid(s.x, s.y + .73, s.z, w, .78, d, paint, 'metal', 'car');
-    obj('box', s.x + (along ? .2 : 0), s.y + 1.42, s.z + (along ? 0 : .2), along ? 2.2 : 1.6, .6, along ? 1.6 : 2.2, '#2a2f36', 'car-cabin');
-    for (const a of [-1, 1]) for (const b of [-1, 1]) {
-      const wx = s.x + (along ? a * w * .32 : b * w * .5), wz = s.z + (along ? b * d * .5 : a * d * .32);
-      obj('cylinder', wx, ground(wx, wz) + .23, wz, .6, .46, .6, '#262a2b', 'wheel');
-    }
-  };
-  const ruin = () => {
-    const s = findSpot(6, .3, 2); if (!s) return;
-    const a = 1.8 + random() * 1.2, ha = 1.3 + random() * 1.3, hb = 1 + random() * 1.2;
-    const paint = pick(['#D8C8AA', '#BBAE98', '#C8704E']);
-    solid(s.x0 + a / 2, s.y + ha / 2, s.z, a, ha, .3, paint, 'stone', 'ruin');
-    solid((s.x0 + a + 1.2 + s.x1) / 2, s.y + hb / 2, s.z, s.x1 - s.x0 - a - 1.2, hb, .3, paint, 'stone', 'ruin');
-    solid(s.x0 + a + .6, s.y + .25, s.z, 1.2, .5, .3, paint, 'stone', 'ruin');
-    decor('box', s.x0 + a / 2, s.y + ha - .04, s.z, a - .02, .08, .29, '#9E8F7A', 'ruin-cap');
-    decor('box', (s.x0 + a + 1.2 + s.x1) / 2, s.y + hb - .04, s.z,
-      s.x1 - s.x0 - a - 1.22, .08, .29, '#9E8F7A', 'ruin-cap');
-  };
-  const crates = () => {
-    const s = findSpot(2.6, 1.3, 1.5); if (!s) return;
-    crate(s.x0 + .6, s.z, 1.2, s.y); crate(s.x1 - .6, s.z, 1.2, s.y);
-    if (random() < .5) crate(s.x0 + .9, s.z, 1.1, s.y + 1.2);
-  };
-  for (let i = 0; i < 34; i++) sandbags();
-  for (let i = 0; i < 22; i++) barrier();
-  for (let i = 0; i < 24; i++) fence();
-  for (let i = 0; i < 10; i++) car(true);
-  for (let i = 0; i < 8; i++) car(false);
-  for (let i = 0; i < 14; i++) ruin();
-  for (let i = 0; i < 24; i++) crates();
-
-  // Trees (legacy density, v2 models): spaced out, off roads and lots; palms by the shore.
-  const planted: { x: number; z: number }[] = [];
-  const nearPickup = (x: number, z: number, radius: number) =>
-    loot.some(point => Math.hypot(point.x - x, point.z - z) < radius) ||
-    chests.some(point => Math.hypot(point.x - x, point.z - z) < radius);
-  for (let tries = 0; planted.length < 380 && tries < 9000; tries++) {
-    const x = -120 + random() * 240, z = -120 + random() * 240, y = ground(x, z);
-    if (y < .9 || clear(x, z, 2.5) || nearPickup(x, z, 1.2) || onRoad(x, z, 2) ||
-      planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 14)) continue;
+  // Plants are decorative, with no independently authored trunk boxes.
+  const planted: PointLike[] = [];
+  const tree = (x: number, z: number, height: number, kind: 'tree' | 'palm' = 'tree', species = 'foliage') => {
+    obj(kind, x, ground(x, z) - .08, z, 1.1, height, 1.1, '#5FA544', species, random() * Math.PI * 2);
     planted.push({ x, z });
-    const kind = y < 2.2 || random() < .18 ? 'palm' : 'tree', scale = .75 + random() * .75;
-    const height = (kind === 'palm' ? 7 + random() * 3 : 5 + random() * 3) * scale;
-    obj(kind, x, y - .1, z, 1.4 * scale, height, 1.4 * scale, kind === 'palm' ? '#477348' : '#58793f', 'foliage', random() * Math.PI * 2);
-    colliders.push({ id: id('trunk'), min: p(x - .22 * scale, y - .5, z - .22 * scale), max: p(x + .22 * scale, y + 3 * scale, z + .22 * scale), material: 'wood' });
+  };
+  tree(-20, -21, 8.4, 'tree', 'ipe-yellow'); tree(47, -31, 8, 'tree', 'ipe-pink');
+  tree(-63, -55, 9.2, 'tree', 'flamboyant'); tree(77, 78, 4.8, 'tree', 'banana'); tree(-60, 84, 5.2, 'tree', 'banana');
+  for (const x of [45, 52, 59, 66, 73]) for (const z of [83, 89]) tree(x, z, 5.5, 'tree', 'orchard');
+  for (let i = 0; i < 34; i++) {
+    const x = 84 + random() * 35, z = 40 + random() * 29;
+    if (occupied(x, z, 1) || routeDistance(x, z) < 2.5) continue;
+    tree(x, z, 4.5 + random() * 3, 'tree', 'mangrove');
   }
-  for (let i = 0, n = 0; i < 260 && n < 70; i++) {
-    const x = -118 + random() * 236, z = -118 + random() * 236, y = ground(x, z);
-    if (y < .5 || clear(x, z, 2.5) || nearPickup(x, z, 2.5) || onRoad(x, z, 1.5)) continue;
-    const sx = 1 + random() * 1.6, sy = .7 + random() * 1.1, sz = 1 + random() * 1.4; n++;
-    obj('rock', x, y + sy * .3, z, sx, sy, sz, '#8b8b7f', 'field', random() * Math.PI);
-    colliders.push({ id: id('rock'), min: p(x - sx * .62, y - .5, z - sz * .62), max: p(x + sx * .62, y + sy * 1.1, z + sz * .62), material: 'stone' });
+  for (let i = 0; i < 7000 && planted.length < 360; i++) {
+    const x = -123 + random() * 246, z = -122 + random() * 244, y = ground(x, z);
+    if (y < .6 || occupied(x, z, 2.8) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 ||
+      riverDistance(x, z) < 3 || planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 20)) continue;
+    const palm = y < 2 || z > 94 || (x > 25 && z < -85) || random() < .12;
+    tree(x, z, (palm ? 7 : 5.5) + random() * 3, palm ? 'palm' : 'tree');
   }
-  for (let i = 0; i < 145; i++) {
-    const x = -123 + random() * 246, z = -123 + random() * 246;
-    if (ground(x, z) < .4 || clear(x, z, 1.4) || onRoad(x, z, .5)) continue;
-    const s = .35 + random() * 1.1;
-    obj('grass', x, ground(x, z), z, s, s * 1.1, s, '#a2a46b', 'tuft');
+  for (let i = 0; i < 160; i++) {
+    const x = -120 + random() * 240, z = -120 + random() * 240, y = ground(x, z);
+    if (y < .3 || occupied(x, z, 1) || roadAt(x, z, .5) || routeDistance(x, z) < 1.5) continue;
+    obj('grass', x, y, z, .5, .4, .5, '#9CC756', 'tuft');
   }
   for (const [x0, z0, x1, z1] of ROADS) {
     const horizontal = x1 - x0 > z1 - z0;
-    for (let t = 12; t < (horizontal ? x1 - x0 : z1 - z0) - 6; t += 26) {
-      const x = horizontal ? x0 + t : x1 + 1.2, z = horizontal ? z1 + 1.2 : z0 + t;
-      if (!clear(x, z, 1)) obj('lamp', x, ground(x, z), z, .16, 4.4, .16, '#c1ab78', 'street');
+    for (let along = 9; along < (horizontal ? x1 - x0 : z1 - z0) - 4; along += 18) {
+      const x = horizontal ? x0 + along : x1 + 1, z = horizontal ? z1 + 1 : z0 + along;
+      if (occupied(x, z, .8)) continue;
+      if (!detail('lamp_post', x, z)) obj('lamp', x, ground(x, z), z, .12, 4.2, .12, '#c1ab78', 'street');
     }
   }
 
-  // Spawns: Correria points spread over the arena, battle royale rings around districts.
-  const safe = (x: number, z: number) => ground(x, z) > .8 && !clear(x, z, 1.25);
-  const dm: { x: number; z: number }[] = [];
-  for (let i = 0; i < 600 && dm.length < 24; i++) {
-    const x = ARENA.minX + 6 + random() * (ARENA.maxX - ARENA.minX - 12), z = ARENA.minZ + 6 + random() * (ARENA.maxZ - ARENA.minZ - 12);
-    if (!safe(x, z) || dm.some(s => Math.hypot(s.x - x, s.z - z) < 12)) continue;
-    dm.push({ x, z });
-    spawns.push({ x, y: ground(x, z), z, mode: 'deathmatch', yaw: Math.atan2(-(ARENA_CENTER.x - x), -(ARENA_CENTER.z - z)) });
+  const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary };
+  const graph = world.navigation = buildNavigation(world), seen = new Set<number>();
+  let mainRoutes: number[] = [];
+  for (let start = 0; start < graph.points.length; start++) {
+    if (seen.has(start)) continue;
+    const component = [start]; seen.add(start);
+    for (let i = 0; i < component.length; i++) for (const next of graph.links[component[i]])
+      if (!seen.has(next)) { seen.add(next); component.push(next); }
+    if (component.length > mainRoutes.length) mainRoutes = component;
   }
-  for (const d of districts) for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2, radius = d.radius * .75;
-    const x = Math.round(d.x + Math.cos(a) * radius), z = Math.round(d.z + Math.sin(a) * radius);
-    if (safe(x, z)) spawns.push({ x, y: ground(x, z), z, mode: 'battle-royale', yaw: a + Math.PI });
+  const clear = (x: number, z: number, radius = .75) => {
+    const y = walkableHeight(x, z, world);
+    if (y < .55 || Math.abs(x) > 120 || Math.abs(z) > 120) return false;
+    if (Math.hypot(ground(x + .6, z) - ground(x - .6, z), ground(x, z + .6) - ground(x, z - .6)) / 1.2 > .6) return false;
+    if (!colliders.every(c => y >= c.max.y - .015 || y + 1.8 <= c.min.y ||
+      x + radius <= c.min.x || x - radius >= c.max.x || z + radius <= c.min.z || z - radius >= c.max.z)) return false;
+    return mainRoutes.some(index => Math.hypot(graph.points[index].x - x, graph.points[index].z - z) < 10 &&
+      walkableSegment(world, { x, z }, graph.points[index]));
+  };
+  const used: PointLike[] = [];
+  const nearby = (x: number, z: number, maxRadius: number) => {
+    for (let ring = 0; ring <= maxRadius; ring += 1.5) for (let k = 0; k < (ring ? 16 : 1); k++) {
+      const a = k / 16 * Math.PI * 2, px = x + Math.cos(a) * ring, pz = z + Math.sin(a) * ring;
+      if (!clear(px, pz) || used.some(o => Math.hypot(px - o.x, pz - o.z) < 1.5)) continue;
+      used.push({ x: px, z: pz }); return p(px, walkableHeight(px, pz, world), pz);
+    }
+    return null;
+  };
+  const pickup = (x: number, z: number, kind: LootSpawn['kind'], weapon?: WeaponId) => {
+    const pos = nearby(x, z, 10); if (pos) loot.push({ id: id('loot'), ...pos, kind, ...(kind === 'weapon' ? { weapon: weapon ?? 'pistol' } : {}) });
+  };
+  for (const h of [...HOUSES, ...MORRO_LOTS]) {
+    pickup(h.x, h.z + 1.5, 'weapon', random() < .45 ? 'smg' : 'pistol');
+    pickup(h.x, h.z - 1.5, 'ammo');
+    const pos = nearby(h.x + 2.1, h.z + 1.1, 10); if (pos) chests.push({ id: id('chest'), ...pos });
   }
-  for (let i = 0, n = 0; i < 400 && n < 80; i++) {
-    const x = Math.round(-115 + random() * 230), z = Math.round(-115 + random() * 230);
-    if (!safe(x, z) || districts.some(d => Math.hypot(x - d.x, z - d.z) < d.radius * .45)) continue;
-    n++;
-    const kind = random() < .22 ? 'weapon' : pick(['ammo', 'bandage', 'rapadura', 'armor', 'guarana'] as const);
-    item(x, z, kind, pick(['m4', 'pistol', 'smg'] as const));
+  for (const [x, z, weapon] of [[-7, -90, 'sniper'], [12, -92, 'dmr'], [28, -20, 'm4'], [24, -17, 'shotgun'],
+    [-105, -76, 'sniper'], [65, 61, 'shotgun'], [102, -14, 'm4'], [12, 110, 'dmr']] as const) pickup(x, z, 'weapon', weapon);
+  const kinds = ['ammo', 'bandage', 'armor', 'guarana', 'rapadura', 'medkit', 'helmet', 'acai'] as const;
+  // Outdoor caches keep plane landings spread across the whole island. A
+  // town-only loot pool would funnel bots onto the same few roof-free spots.
+  for (let z = -102; z <= 104; z += 28) for (let x = -102; x <= 104; x += 28) {
+    if (colliders.some(c => x > c.min.x - 3 && x < c.max.x + 3 && z > c.min.z - 3 && z < c.max.z + 3 && c.max.y > ground(x, z) + 2)) continue;
+    pickup(x, z, 'ammo');
   }
-  for (const trunk of deferredTrunks) colliders.push({ id: id(trunk.prefix), min: trunk.min,
-    max: trunk.max, material: trunk.material });
-  // Place landmark trees after loot and spawns; they cannot perturb the legacy RNG.
-  specimenTree(-37, 60, 8.6, 'ipe-yellow');
-  specimenTree(93, -45, 7.8, 'ipe-pink');
-  specimenTree(-42, 80, 8.4, 'flamboyant');
-  specimenTree(30, -102, 4.8, 'banana');
-  specimenTree(83, 82, 5.2, 'banana');
-
-  objects.push(...deferredDecorations);
-  return { version: WORLD_VERSION, size: 260, colliders, objects, spawns, loot, chests, districts };
+  for (let i = 0; loot.length < 192 && i < 1800; i++) {
+    const d = districts[i % districts.length], a = random() * Math.PI * 2, r = Math.sqrt(random()) * d.radius;
+    pickup(d.x + Math.cos(a) * r, d.z + Math.sin(a) * r, kinds[i % kinds.length]);
+  }
+  for (let i = 0; chests.length < 58 && i < 600; i++) {
+    const d = districts[i % districts.length], a = random() * Math.PI * 2, r = 5 + random() * d.radius * .6;
+    const pos = nearby(d.x + Math.cos(a) * r, d.z + Math.sin(a) * r, 8);
+    if (pos) chests.push({ id: id('chest'), ...pos });
+  }
+  for (let i = 0; spawns.length < 24 && i < 4000; i++) {
+    const x = ARENA.minX + 7 + random() * (ARENA.maxX - ARENA.minX - 14);
+    const z = ARENA.minZ + 7 + random() * (ARENA.maxZ - ARENA.minZ - 14);
+    if (!clear(x, z, 1.3) || spawns.some(s => Math.hypot(s.x - x, s.z - z) < 13)) continue;
+    spawns.push({ x, y: walkableHeight(x, z, world), z, mode: 'deathmatch', yaw: Math.atan2(-(ARENA_CENTER.x - x), -(ARENA_CENTER.z - z)) });
+  }
+  for (const d of districts) for (let i = 0; i < 5; i++) {
+    const angle = i * Math.PI * 2 / 5, pos = nearby(d.x + Math.cos(angle) * d.radius * .6, d.z + Math.sin(angle) * d.radius * .6, 14);
+    if (pos) spawns.push({ ...pos, mode: 'battle-royale', yaw: angle + Math.PI });
+  }
+  return world;
 }
+interface PointLike { x: number; z: number }

@@ -16,9 +16,11 @@ export class AssetLoader {
   private readonly ktx: KTX2Loader;
   private readonly gltfLoader: GLTFLoader;
   private readonly progress: AssetProgress;
+  private readonly anisotropy: number;
   private readonly base = new URL(import.meta.env.BASE_URL, location.href);
 
   constructor(gl: THREE.WebGLRenderer, onProgress: AssetProgressCallback = () => {}, manifest: readonly AssetEntry[] = ASSET_MANIFEST) {
+    this.anisotropy = gl.capabilities?.getMaxAnisotropy() ?? 1;
     this.progress = new AssetProgress(manifest, onProgress);
     this.manager.onProgress = url => {
       const path = this.path(url);
@@ -96,6 +98,29 @@ export class AssetLoader {
     // Includes loads registered by model setup after a dynamic loader import.
     let count = 0;
     do { count = this.pending.length; await Promise.all(this.pending); } while (count !== this.pending.length);
+  }
+
+  // Run after all authored and procedural materials exist, before GPU warmup.
+  // Palette lookup tables encode discrete colours, not a spatial image: their
+  // nearest sampling must survive or fur and emissive swatches bleed together.
+  prepareTextures(root: THREE.Object3D) {
+    const seen = new Set<THREE.Texture>();
+    root.traverse(object => {
+      if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite || object instanceof THREE.Line)) return;
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) {
+          const texture = (material as unknown as Record<string, unknown>)[key];
+          if (!(texture instanceof THREE.Texture) || seen.has(texture)) continue;
+          seen.add(texture);
+          const palette = texture.minFilter === THREE.NearestFilter && texture.magFilter === THREE.NearestFilter && texture.image?.width <= 64;
+          if (palette) continue;
+          texture.anisotropy = this.anisotropy; texture.magFilter = THREE.LinearFilter;
+          texture.generateMipmaps = !(texture instanceof THREE.CompressedTexture);
+          texture.minFilter = texture.generateMipmaps || texture.mipmaps?.length ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+          texture.needsUpdate = true;
+        }
+      }
+    });
   }
 
   get stats() { return this.progress.stats; }
