@@ -537,7 +537,8 @@ body[data-screen=game] .stk{background:var(--paper);border-radius:12px}
 #hud #minimap{border-radius:10px}
 #hud #mapWrap .tab{border-radius:999px;background:var(--candy-gold);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.5)}
 #hud #mapWrap .net{border-radius:999px}
-#hud #bigmap .frame{border-radius:18px;overflow:hidden}
+#hud #bigmap .frame{border-radius:18px;overflow:visible;padding:6px;background:var(--wood)}
+#hud #bigmap canvas{border-radius:8px;border:2px solid var(--brown)}
 #hud #bigmap .tab{border-radius:999px;background:var(--candy-gold)}
 #hud .fd{border-radius:999px;background:var(--paper)}
 #hud .fd.me{background:var(--candy-gold)}

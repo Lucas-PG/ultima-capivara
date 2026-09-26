@@ -915,5 +915,7 @@ export class GameUI {
   toggleMap(open = !this.mapOpen) {
     if (this.screen !== 'game') return; const big = this.root.querySelector<HTMLElement>('#bigmap'); if (!big) return;
     this.mapOpen = open && !this.root.querySelector('#hud.ended'); big.hidden = !this.mapOpen; this.hudTime = 0;
+    const actor = this.snapshot?.actors.find(a => a.id === this.localId);
+    if (this.mapOpen && this.snapshot && actor) this.drawMap(this.snapshot, actor);
   }
 }

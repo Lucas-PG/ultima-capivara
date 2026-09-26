@@ -126,7 +126,7 @@ for name, piece in PIECES.items():
             vertices.extend(vv)
             faces.extend([[i + offset for i in face] for face in ff])
             tiles.extend([part['tile']] * len(ff))
-            smooth_faces.extend([part['shape'] == 'orb' or part['shape'] == 'rock'] * len(ff))
+            smooth_faces.extend([part['shape'] in ['orb', 'rock'] or part.get('smooth', False)] * len(ff))
             tints.extend([part.get('tint', [1, 1, 1])] * len(ff))
             for face_index, face in enumerate(ff):
                 if part['shape'] == 'rock':
