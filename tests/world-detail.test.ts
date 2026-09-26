@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearSpawn, hasLineOfSight, moveActor, raycastWorld, SWIM_DRAFT } from '../src/shared/collision';
+import { actorEye, clearSpawn, hasLineOfSight, moveActor, raycastWorld, SWIM_DRAFT, TRAMPOLINE_IMPULSE } from '../src/shared/collision';
 import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
@@ -81,11 +81,21 @@ describe('river island gameplay integrity', () => {
       expect(spawn, `${district.id} needs a composed arrival`).toBeDefined();
       const [x, z] = DISTRICT_ARRIVALS[district.id];
       expect(Math.hypot(spawn.x - x, spawn.z - z), `${district.id} lost its authored approach`).toBeLessThanOrEqual(6.001);
+      const nearest = world.districts.reduce((a, b) => Math.hypot(a.x - spawn.x, a.z - spawn.z) < Math.hypot(b.x - spawn.x, b.z - spawn.z) ? a : b);
+      expect(nearest.id, `${district.id} arrival must announce the district being entered`).toBe(district.id);
       const eye = { x: spawn.x, y: spawn.y + 1.62, z: spawn.z };
       expect(hasLineOfSight(eye, { x: eye.x - Math.sin(spawn.yaw) * 5, y: eye.y, z: eye.z - Math.cos(spawn.yaw) * 5 }, world),
         `${district.id} opens against a wall or a bare terrace`).toBe(true);
       expect(walkFrom(spawn, spawn.yaw, 'battle-royale'), `${district.id} must open onto a usable approach`).toBeGreaterThan(.5);
     }
+  });
+
+  it('frames the whole lighthouse above its arrival instead of cropping the lantern', () => {
+    const arrival = world.spawns.find(point => point.district === 'farol')!;
+    const lighthouse = world.pieces!.find(piece => piece.piece === 'lighthouse')!;
+    const top = lighthouse.y + KIT_PIECES.lighthouse.height * (lighthouse.scale ?? 1);
+    const distance = Math.hypot(lighthouse.x - arrival.x, lighthouse.z - arrival.z);
+    expect(Math.atan2(top - arrival.y - actorEye(spawnActor), distance)).toBeLessThan(Math.PI / 6);
   });
 
   it('orients seats toward the fountain, a river walk or the interior aisle', () => {
@@ -212,6 +222,44 @@ describe('river island gameplay integrity', () => {
     }
   });
 
+  it('keeps the six play spots accessible, clear overhead and tied to visible contact surfaces', () => {
+    for (const [piece, sites] of [['mud_bath', world.mudBaths ?? []], ['trampoline', world.trampolines ?? []]] as const) {
+      const interaction = KIT_PIECES[piece]?.interaction;
+      expect(sites.length).toBe(interaction ? 3 : 0);
+      if (!interaction) continue;
+      for (const site of sites) {
+        const placed = world.pieces!.find(instance => instance.id === site.id)!;
+        expect(placed.piece).toBe(piece);
+        expect(site.y).toBeCloseTo(placed.y + interaction.surfaceY * (placed.scale ?? 1), 5);
+        expect(site.radius).toBeCloseTo(interaction.radius * (placed.scale ?? 1), 5);
+        expect(walkableHeight(site.x, site.z, world)).toBeCloseTo(site.y, 3);
+        const edge = Math.max(...KIT_PIECES[piece].footprint) * (placed.scale ?? 1) / 2;
+        for (let i = 0; i < 16; i++) {
+          const angle = i * Math.PI / 8;
+          const ground = terrainHeight(site.x + Math.sin(angle) * edge, site.z + Math.cos(angle) * edge);
+          expect(ground, `${site.id} must not be buried across its contact surface`).toBeLessThan(site.y - .01);
+          expect(ground, `${site.id} must rest on its ground across the full footprint`).toBeGreaterThan(placed.y - .15);
+        }
+        const reach = Math.max(...KIT_PIECES[piece].footprint) * (placed.scale ?? 1) / 2 + .9;
+        const from = { x: site.x + Math.sin(placed.yaw) * reach, z: site.z + Math.cos(placed.yaw) * reach };
+        const actor = structuredClone(spawnActor);
+        actor.pos = { ...from, y: walkableHeight(from.x, from.z, world) }; actor.yaw = placed.yaw;
+        actor.velocity = { x: 0, y: 0, z: 0 }; actor.stage = 'ground'; actor.grounded = true;
+        // The shared round actor footprint steps over the low pad rim. A
+        // navigation-cell square can conservatively reject its outer corners.
+        for (let tick = 0; tick < 180 && Math.hypot(actor.pos.x - site.x, actor.pos.z - site.z) >= site.radius - .1; tick++)
+          moveActor(actor, { ...emptyInput(), moveZ: 1, yaw: actor.yaw }, world, 1 / 60, 1, 'battle-royale');
+        expect(Math.hypot(actor.pos.x - site.x, actor.pos.z - site.z), `${site.id} must have a walk-in entrance`).toBeLessThan(site.radius - .1);
+        expect(actor.pos.y).toBeGreaterThanOrEqual(site.y - .05);
+        expect(hasLineOfSight({ x: site.x, y: site.y + .5, z: site.z },
+          { x: site.x, y: site.y + 8, z: site.z }, world), `${site.id} needs open sky`).toBe(true);
+        for (const point of [...world.spawns, ...world.loot, ...world.chests])
+          expect(Math.hypot(point.x - site.x, point.z - site.z), `${site.id} must remain free of spawns and pickups`).toBeGreaterThan(site.radius + .5);
+      }
+    }
+    for (const pad of world.trampolines ?? []) expect(pad.impulse).toBe(TRAMPOLINE_IMPULSE);
+  });
+
   it('supports the full fort foundations so beach paths cannot cut under the towers', () => {
     const fort = world.pieces!.filter(p => /^fort_(wall|tower)$/.test(p.piece) && Math.hypot(p.x - FORTE[0], p.z - FORTE[1]) < 23);
     expect(fort.length).toBeGreaterThanOrEqual(12);
@@ -228,6 +276,8 @@ describe('river island gameplay integrity', () => {
   });
 
   it('exposes the fort stone faces instead of burying their geometry inside the smooth skirt', () => {
+    for (const piece of world.pieces!.filter(piece => piece.piece.startsWith('cliff_')))
+      expect(piece.y, `${piece.id} needs a terrain anchor instead of a floating base`).toBeLessThanOrEqual(terrainHeight(piece.x, piece.z) + .15);
     const pieces = new Set(world.pieces!.filter(piece => piece.piece.startsWith('cliff_')).map(piece => piece.id));
     const stone = { ...world, colliders: world.colliders.filter(collider => pieces.has(collider.pieceId!)) };
     const origin = { x: FORTE[0], y: terrainHeight(FORTE[0], FORTE[1] + 49) + 1.62, z: FORTE[1] + 49 };

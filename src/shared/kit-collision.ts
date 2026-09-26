@@ -4,7 +4,10 @@ import type { Collider, KitPlacement } from './types';
 interface ShapeBase { x: number; y: number; z: number; height: number; material?: Collider['material'] }
 export type KitShape = (ShapeBase & { type: 'box'; width: number; depth: number; yaw?: number }) |
   (ShapeBase & { type: 'cylinder'; radius: number });
-export interface KitPiece { footprint: [number, number]; height: number; colliders: KitShape[] }
+export interface KitPiece {
+  footprint: [number, number]; height: number; colliders: KitShape[];
+  interaction?: { surfaceY: number; radius: number };
+}
 export const KIT_PIECES = definitions as unknown as Record<string, KitPiece>;
 
 // Existing movement uses axis-aligned boxes. Cardinal solids remain exact;
