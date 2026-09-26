@@ -479,7 +479,8 @@ export function createWorld(): WorldSpec {
   }
   // Plants are decorative, with no independently authored trunk boxes.
   const planted: PointLike[] = [];
-  const blocksHeroView = (x: number, z: number) => [[-1, -10, -10, -40, 4.8], [60, -86, 4, -99, 4.2]].some(([ax, az, bx, bz, width]) => {
+  const blocksHeroView = (x: number, z: number) => [[-1, -10, -10, -40, 4.8], [36, -6, 29, -20, 2.7],
+    [60, -86, 4, -99, 4.2]].some(([ax, az, bx, bz, width]) => {
     const dx = bx - ax, dz = bz - az, t = ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz);
     return t >= 0 && t <= 1 && Math.hypot(x - ax - dx * t, z - az - dz * t) < width;
   });

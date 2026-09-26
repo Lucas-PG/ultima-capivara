@@ -14,7 +14,7 @@ export const LAKE = [-92, -1, 12] as const; // Cachoeira feeder pool.
 export const DISTRICT_ARRIVALS: Readonly<Record<string, readonly [number, number, number, number]>> = {
   forte: [4, -78, 4, -99], vila: [-1, -10, -10, -34], centro: [36, -6, 29, -20],
   morro: [-97, -66, -95, -35], cachoeira: [-83, -13, -109, -9], porto: [111, 17, 100, -8],
-  praia: [-31, 95, -28, 109], farol: [0, 106, 3, 113], mangue: [114, 52, 92, 52],
+  praia: [-36, 95, -30, 109], farol: [0, 96, 3, 113], mangue: [114, 52, 92, 52],
   fazenda: [53, 78, 70, 60], posto: [-25, 37, -22, 47], lagoa: [-65, 9, -94, -2],
 };
 
