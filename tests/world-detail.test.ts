@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearSpawn, hasLineOfSight, moveActor, raycastWorld, SWIM_DRAFT, TRAMPOLINE_IMPULSE } from '../src/shared/collision';
+import { actorEye, clearSpawn, hasLineOfSight, moveActor, raycastWorld, SWIM_DRAFT, TRAMPOLINE_IMPULSE } from '../src/shared/collision';
 import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
@@ -88,6 +88,14 @@ describe('river island gameplay integrity', () => {
         `${district.id} opens against a wall or a bare terrace`).toBe(true);
       expect(walkFrom(spawn, spawn.yaw, 'battle-royale'), `${district.id} must open onto a usable approach`).toBeGreaterThan(.5);
     }
+  });
+
+  it('frames the whole lighthouse above its arrival instead of cropping the lantern', () => {
+    const arrival = world.spawns.find(point => point.district === 'farol')!;
+    const lighthouse = world.pieces!.find(piece => piece.piece === 'lighthouse')!;
+    const top = lighthouse.y + KIT_PIECES.lighthouse.height * (lighthouse.scale ?? 1);
+    const distance = Math.hypot(lighthouse.x - arrival.x, lighthouse.z - arrival.z);
+    expect(Math.atan2(top - arrival.y - actorEye(spawnActor), distance)).toBeLessThan(Math.PI / 6);
   });
 
   it('orients seats toward the fountain, a river walk or the interior aisle', () => {
@@ -225,6 +233,13 @@ describe('river island gameplay integrity', () => {
         expect(site.y).toBeCloseTo(placed.y + interaction.surfaceY * (placed.scale ?? 1), 5);
         expect(site.radius).toBeCloseTo(interaction.radius * (placed.scale ?? 1), 5);
         expect(walkableHeight(site.x, site.z, world)).toBeCloseTo(site.y, 3);
+        const edge = Math.max(...KIT_PIECES[piece].footprint) * (placed.scale ?? 1) / 2;
+        for (let i = 0; i < 16; i++) {
+          const angle = i * Math.PI / 8;
+          const ground = terrainHeight(site.x + Math.sin(angle) * edge, site.z + Math.cos(angle) * edge);
+          expect(ground, `${site.id} must not be buried across its contact surface`).toBeLessThan(site.y - .01);
+          expect(ground, `${site.id} must rest on its ground across the full footprint`).toBeGreaterThan(placed.y - .15);
+        }
         const reach = Math.max(...KIT_PIECES[piece].footprint) * (placed.scale ?? 1) / 2 + .9;
         const from = { x: site.x + Math.sin(placed.yaw) * reach, z: site.z + Math.cos(placed.yaw) * reach };
         const actor = structuredClone(spawnActor);
