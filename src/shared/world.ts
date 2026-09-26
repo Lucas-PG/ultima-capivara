@@ -5,7 +5,7 @@ import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
 import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
-import { buildingRooms, interiorPlacements } from './building-interiors';
+import { buildingRole, buildingRooms, groundRoomPoint, interiorPlacements } from './building-interiors';
 import { buildBuildingRoutes, buildingPoint } from './building-access';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 
@@ -98,19 +98,23 @@ export function createWorld(): WorldSpec {
   // Vila: narrow side streets open onto a church square and a covered market.
   for (const h of [...HOUSES, ...MORRO_LOTS]) {
     const y = ground(h.x, h.z), width = h.piece === 'house_tall' ? 8 : 7, depth = h.piece === 'house_tall' ? 7 : 6;
-    place(h.piece, h.x, h.z, h.yaw ?? 0, 1, y, h.role);
+    const house = place(h.piece, h.x, h.z, h.yaw ?? 0, 1, y, h.role);
+    const furnish = (piece: string, x: number, z: number, yaw = 0) => {
+      const point = groundRoomPoint(house, x, z, yaw);
+      lotPiece(piece, h, point.x, point.z, point.yaw, 1, y + .11);
+    };
     // Furnish the wall bays, preserving the opposing doors and the tall-house stair.
     if (h.piece === 'house_tall') {
-      lotPiece('interior_counter', h, width / 2 - 1.7, -depth / 2 + .75, 0, 1, y + .11);
-      if (h.role === 'clinic') lotPiece('bed', h, width / 2 - 1.15, .8, 0, 1, y + .11);
-      else if (h.role === 'tailor') lotPiece('wardrobe', h, 3.4, .1, -Math.PI / 2, 1, y + .11);
-      else if (h.role === 'workshop') lotPiece('table', h, 2.65, .1, -Math.PI / 2, 1, y + .11);
-      else lotPiece('sofa', h, 3.25, .1, -Math.PI / 2, 1, y + .11);
+      furnish('interior_counter', width / 2 - 1.7, -depth / 2 + .75);
+      if (h.role === 'clinic') furnish('bed', width / 2 - 1.15, .8);
+      else if (h.role === 'tailor') furnish('wardrobe', 3.4, .1, -Math.PI / 2);
+      else if (h.role === 'workshop') furnish('table', 2.65, .1, -Math.PI / 2);
+      else furnish('sofa', 3.25, .1, -Math.PI / 2);
     } else {
-      lotPiece('interior_counter', h, -width / 2 + .75, -.4, Math.PI / 2, 1, y + .11);
-      if (h.role === 'fisher') lotPiece('hammock', h, 2.65, .5, -Math.PI / 2, 1, y + .11);
-      else if (['home', 'clinic'].includes(h.role)) lotPiece('bed', h, width / 2 - 1.15, .5, 0, 1, y + .11);
-      else lotPiece('bench', h, width / 2 - .7, .1, -Math.PI / 2, 1, y + .11);
+      furnish('interior_counter', -width / 2 + .75, -.4, Math.PI / 2);
+      if (h.role === 'fisher') furnish('hammock', 2.65, .5, -Math.PI / 2);
+      else if (['home', 'clinic'].includes(h.role)) furnish('bed', width / 2 - 1.15, .5);
+      else furnish('table', 2.65, .1, -Math.PI / 2);
     }
   }
   const shopNames = { bakery: 'PADARIA', cafe: 'CAFÉ DA VILA', tailor: 'ATELIÊ', fishmonger: 'PEIXE FRESCO', workshop: 'OFICINA', kiosk: 'ARMAZÉM', home: 'BOM DIA', fisher: 'PEIXE FRESCO', clinic: 'CAPIVARAS' };
@@ -656,6 +660,8 @@ export function createWorld(): WorldSpec {
     if (!target) throw new Error(`Sem margem livre para a árvore ${plant.id}.`);
     plant.pos = target;
   }
+  for (const building of pieces) if (building.piece === 'house_small' || building.piece === 'house_tall')
+    building.interiorFloor = ['clinic', 'workshop', 'fishmonger'].includes(buildingRole(building)) ? 'warm-tile' : 'wood';
   for (const building of [...pieces]) for (const furniture of interiorPlacements(building)) {
     pieces.push(furniture); colliders.push(...kitColliders(furniture));
   }

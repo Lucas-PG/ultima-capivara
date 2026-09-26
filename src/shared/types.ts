@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 9;
-export const WORLD_VERSION = 'ilha-v3-rio-8';
+export const WORLD_VERSION = 'ilha-v3-rio-9';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
@@ -57,7 +57,11 @@ export interface ActorState {
   respawnAt: number; protectionUntil: number; lastInput: number; shotHeat: number;
 }
 export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth'; pieceId?: string }
-export interface KitPlacement extends Vec3 { id: string; piece: string; yaw: number; scale?: number }
+export interface KitPlacement extends Vec3 {
+  id: string; piece: string; yaw: number; scale?: number;
+  paintVariant?: 0 | 1 | 2;
+  interiorFloor?: 'wood' | 'warm-tile';
+}
 export interface NavigationGraph { points: Vec3[]; links: number[][] }
 export interface BuildingRoute { id: string; pieceId: string; floorId: string; points: Vec3[] }
 export interface MapObject {

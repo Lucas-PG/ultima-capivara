@@ -11,7 +11,7 @@ import { KIT_PIECES } from '../../src/shared/kit-collision';
 import { buildingPoint, routesToFloor } from '../helpers/building-paths';
 import { walkTraversal } from '../helpers/traversal-probe';
 import { placedBuildingRoutes } from '../helpers/placed-building-routes';
-import { buildingRole } from '../../src/shared/building-interiors';
+import { buildingRole, buildingRooms, roomVariant } from '../../src/shared/building-interiors';
 import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
@@ -45,7 +45,8 @@ const ACCESS_POSES = ['fortStairBottom', 'fortStairTop', 'fortWallNorth', 'light
   'lighthouseStairBottom', 'lighthouseStairTop', 'lighthouseBalcony', 'dockStairBottom', 'dockStairTop', 'dockPorto', 'dockMangue'];
 const ROOM_POSES = ['home', 'bakery', 'cafe', 'tailor', 'clinic', 'fisher', 'fishmonger', 'workshop', 'kiosk',
   'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
-  'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks'].map(role => `room-${role}`);
+  'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks',
+  'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2'].map(role => `room-${role}`);
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
@@ -107,17 +108,29 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
     if (name.startsWith('world-')) pitch = -.5;
+    const s = structuredClone(base), me = s.actors[0];
+    s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
+    if (spawn) s.config.mode = 'battle-royale';
     if (supply) {
+      s.config.mode = 'battle-royale'; s.remaining = 8;
+      const district = [...deps.world.districts].sort((a, b) => Math.hypot(a.x - supply.x, a.z - supply.z) - Math.hypot(b.x - supply.x, b.z - supply.z))[0];
+      const announcedAt = 45, releaseAt = announcedAt + SUPPLY_APPROACH_SECONDS, landsAt = releaseAt + SUPPLY_DESCENT_SECONDS;
+      s.time = name === 'supplyIncoming' ? announcedAt + 2.5 : name === 'supplyDescending' ? releaseAt + 7 : landsAt + 1;
+      const drop = { id: 'supply-1', pos: supply, district: district?.id ?? '', heading: Math.PI / 2,
+        announcedAt, releaseAt, landsAt, opened: false };
+      s.supplyDrops = [drop];
       const close = name === 'supplyLanded' || name === 'supplyOpened';
+      const prospective = close ? { ...s, time: landsAt + 1 } : s;
       const observer = (close ? [2.4] : [18, 16, 20]).flatMap(distance =>
         [[0, 1], [1, 0], [0, -1], [-1, 0]].map(([dx, dz]) => {
           const x = supply.x + dx * distance, z = supply.z + dz * distance;
           return { x, y: terrainHeight(x, z), z };
         })).find(to => {
-        // A nearby ordinary chest prompt must not look like an airborne claim.
+        // Check the actual prompt and eye-to-crate LOS, not only a walkable path.
         const actor = { ...base.actors[0], pos: to, stage: 'ground' as const, grounded: true };
+        const interaction = closestInteraction(deps.world, prospective, actor, { id: '', name: '' });
         return !waterAt(to.x, to.z) && walkableSegment(deps.world, supply, to) &&
-          (close || !closestInteraction(deps.world, base, actor, { id: '', name: '' }));
+          (close ? interaction?.id === drop.id : !interaction);
       });
       if (!observer) throw new Error('A câmera da entrega precisa de uma aproximação livre.');
       x = observer.x; z = observer.z;
@@ -127,17 +140,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       yaw = Math.atan2(x - targetX, z - supply.z);
       pitch = Math.atan2(supply.y + (close ? .5 : name === 'supplyIncoming' ? 34 : 14) - terrainHeight(x, z) - 1.62,
         Math.hypot(x - targetX, z - supply.z));
-    }
-    const s = structuredClone(base), me = s.actors[0];
-    s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
-    if (spawn) s.config.mode = 'battle-royale';
-    if (supply) {
-      s.config.mode = 'battle-royale'; s.remaining = 8;
-      const district = [...deps.world.districts].sort((a, b) => Math.hypot(a.x - supply.x, a.z - supply.z) - Math.hypot(b.x - supply.x, b.z - supply.z))[0];
-      const announcedAt = 45, releaseAt = announcedAt + SUPPLY_APPROACH_SECONDS, landsAt = releaseAt + SUPPLY_DESCENT_SECONDS;
-      s.time = name === 'supplyIncoming' ? announcedAt + 2.5 : name === 'supplyDescending' ? releaseAt + 7 : landsAt + 1;
-      s.supplyDrops = [{ id: 'supply-1', pos: supply, district: district?.id ?? '', heading: Math.PI / 2,
-        announcedAt, releaseAt, landsAt, opened: name === 'supplyOpened' }];
+      drop.opened = name === 'supplyOpened';
       if (name === 'supplyOpened') s.loot.push({ id: 'supply-qa-weapon', kind: 'weapon', weapon: 'm4', rarity: 3, active: true, respawnAt: 0,
         x: supply.x - .9, y: terrainHeight(supply.x - .9, supply.z), z: supply.z, from: { ...supply, y: supply.y + .6 }, spawnedAt: s.time - .7 });
     }
@@ -191,17 +194,21 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       me.yaw = yaw; me.pitch = pitch;
     }
     if (ROOM_POSES.includes(name)) {
-      const upper = name.startsWith('room-upper-'), role = name.slice(upper ? 11 : 5);
-      const piece = deps.world.pieces!.find(piece => ['church', 'market_hall', 'warehouse', 'beach_kiosk'].includes(role) ?
+      const upper = name.startsWith('room-upper-'), requested = /-([012])$/.exec(name)?.[1];
+      const role = name.slice(upper ? 11 : 5).replace(/-[012]$/, '');
+      const piece = deps.world.pieces!.filter(piece => requested === undefined || roomVariant(piece) === Number(requested))
+        .find(piece => ['church', 'market_hall', 'warehouse', 'beach_kiosk'].includes(role) ?
         piece.piece === role : (upper ? piece.piece === 'house_tall' : piece.piece.startsWith('house_')) && buildingRole(piece) === role);
       if (!piece) throw new Error(`Missing furnished building for ${name}`);
       placedRoutes ??= placedBuildingRoutes(deps.world, me);
       const route = placedRoutes.get(`${piece.id}/${upper ? 'upper-room' : 'ground-room'}`);
       if (!route) throw new Error(`No ground entrance for ${name}`);
-      const walked = walkTraversal(deps.world, me, route);
+      const floor = buildingRooms(piece).find(floor => floor.id === (upper ? 'upper-room' : 'ground-room'))!;
+      const reviewPoint = buildingPoint(piece, [upper ? 1 : 0, floor.y, floor.bounds[3] - .6]);
+      const walked = walkTraversal(deps.world, me, [...route, reviewPoint]);
       if (!walked.ok) throw new Error(`Room review cannot walk to ${name}: ${walked.reason}`);
       Object.assign(me, walked.actor); me.velocity = { x: 0, y: 0, z: 0 };
-      yaw = piece.yaw + (upper ? -2.1 : role === 'church' ? -.3 : -1.2); pitch = -.18;
+      yaw = piece.yaw + (upper ? -.12 : 0); pitch = -.15;
       me.yaw = yaw; me.pitch = pitch;
     }
     const weaponReview = /^(?:fp|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
