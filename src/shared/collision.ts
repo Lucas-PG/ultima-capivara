@@ -10,6 +10,7 @@ const STEP = .45;
 export const SWIM_DEPTH = 1.05;
 export const SWIM_DRAFT = 1.1;
 export const SWIM_SPEED = 2.5;
+export const TRAMPOLINE_IMPULSE = 12;
 export const actorHeight = (actor: ActorState) => actor.crouch ? 1.3 : 1.8;
 // Standing eye sits in the head volume; crouched, the head centre drops to ~1.14 m.
 export const actorEye = (actor: ActorState) => actor.crouch ? 1.17 : 1.62;
@@ -116,7 +117,7 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     const cx = clamp(p.x, c.min.x, c.max.x), cz = clamp(p.z, c.min.z, c.max.z);
     const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
     if (d2 >= RADIUS * RADIUS) continue;
-    if (actor.grounded && c.max.y - p.y <= STEP && hasHeadroom({ x: p.x, y: c.max.y, z: p.z }, world, height)) { p.y = Math.max(p.y, c.max.y); continue; }
+    if ((actor.grounded || actor.swimming) && c.max.y - p.y <= STEP && hasHeadroom({ x: p.x, y: c.max.y, z: p.z }, world, height)) { p.y = Math.max(p.y, c.max.y); continue; }
     if (d2 > 1e-9) { const k = (RADIUS - Math.sqrt(d2)) / Math.sqrt(d2); p.x += dx * k; p.z += dz * k; }
     else { const ex = Math.min(p.x - c.min.x, c.max.x - p.x), ez = Math.min(p.z - c.min.z, c.max.z - p.z); if (ex < ez) p.x = p.x - c.min.x < c.max.x - p.x ? c.min.x - RADIUS : c.max.x + RADIUS; else p.z = p.z - c.min.z < c.max.z - p.z ? c.min.z - RADIUS : c.max.z + RADIUS; }
     // A solid can push the actor into a new cell. Resume in source order at
