@@ -842,12 +842,16 @@ export class WeaponView {
     this.models.machete.muzzle.getWorldPosition(this.trailTip);
     this.trailBase.set(0, .07, .01).applyMatrix4(this.models.machete.group.matrixWorld);
     if (!reducedMotion && pose.smear > .01 && this.meleeStop <= 0) {
-      const position = this.smear.geometry.getAttribute('position');
-      const points = [this.lastTrailBase, this.lastTrailTip, this.trailTip, this.lastTrailBase, this.trailTip, this.trailBase];
-      points.forEach((p, i) => position.setXYZ(i, p.x, p.y, p.z)); position.needsUpdate = true;
+      // A paused redraw must retain the previous swept segment, not collapse
+      // its two endpoints onto the same pose.
+      if (dt > 0) {
+        const position = this.smear.geometry.getAttribute('position');
+        const points = [this.lastTrailBase, this.lastTrailTip, this.trailTip, this.lastTrailBase, this.trailTip, this.trailBase];
+        points.forEach((p, i) => position.setXYZ(i, p.x, p.y, p.z)); position.needsUpdate = true;
+      }
       this.smear.material.opacity = pose.smear * .27; this.smear.visible = true;
     }
-    this.lastTrailBase.copy(this.trailBase); this.lastTrailTip.copy(this.trailTip);
+    if (dt > 0) { this.lastTrailBase.copy(this.trailBase); this.lastTrailTip.copy(this.trailTip); }
   }
 
   cameraFeedback(camera: THREE.Camera, reducedMotion: boolean) {

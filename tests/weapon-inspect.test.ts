@@ -131,6 +131,9 @@ describe('first-person inspect', () => {
     for (let i = 0; i < 9; i++) h.step();
     expect(view.meleeTime).toBeGreaterThan(MELEE_CONTACT);
     expect(view.smear.visible).toBe(true);
+    const segment = [...view.smear.geometry.getAttribute('position').array];
+    h.step(0);
+    expect([...view.smear.geometry.getAttribute('position').array]).toEqual(segment);
   });
 
   it('loads a painted shotgun through its support paw even though it has no detachable magazine alias', async () => {

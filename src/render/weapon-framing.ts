@@ -11,6 +11,6 @@ export const WEAPON_HIP_POSES: Record<WeaponId, WeaponHipPose> = {
   shotgun: { x: .28, y: -.16, z: -.65, scale: .9 },
   dmr: { x: .28, y: -.17, z: -.67, scale: .9 },
   sniper: { x: .28, y: -.17, z: -.67, scale: .9 },
-  machete: { x: .18, y: 0, z: -.35, scale: 1, pitch: -.8 },
+  machete: { x: .28, y: -.30, z: -.65, scale: .8, pitch: -.5 },
   slingshot: { x: .27, y: -.16, z: -.65, scale: .9 },
 };

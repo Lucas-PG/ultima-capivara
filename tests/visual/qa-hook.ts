@@ -261,10 +261,11 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       frame(0, false, false); // Reset transient motion, then establish a dry, still grip.
       for (let i = 0; i < 30; i++) frame(1 / 60);
       const advance = (duration: number) => {
-        let elapsed = 0;
+        const end = s.time + duration; let elapsed = 0;
         while (elapsed < duration - 1e-8) {
           const dt = Math.min(1 / 120, duration - elapsed); elapsed += dt; s.time += dt; frame(dt);
         }
+        s.time = end;
       };
       const swing = () => {
         const origin = { x: me.pos.x, y: me.pos.y + 1.55, z: me.pos.z };
@@ -285,7 +286,17 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         me.grounded = false; me.velocity.y = -10; frame(1 / 60);
         me.grounded = true; me.velocity.y = 0;
       }
-      advance(seconds); frame(0, true);
+      advance(seconds);
+      if (action === 'reload' && seconds >= WEAPON_DEFS[weapon].reload) {
+        // Complete the displayed fixture too. These strips review the pose;
+        // authoritative inventory completion has separate simulation intents.
+        me.reloadUntil = 0; me.weapons[0].ammo = weapon === 'shotgun' ? 1 : WEAPON_DEFS[weapon].magazine;
+        me.weapons[0].reserve -= me.weapons[0].ammo;
+      }
+      frame(0, true);
+      // The game HUD deliberately updates at a lower cadence. Let the pose's
+      // earlier HUD write expire before capturing this action's ammo/progress.
+      await new Promise(resolve => setTimeout(resolve, 80));
       deps.ui.update(s, me.id, 0, false, 60, null);
     },
     quality(quality) { if (!renderer) throw new Error('Call start first'); deps.settings.graphics = quality; renderer.setSettings(deps.settings); draw(); },

@@ -79,7 +79,10 @@ export function sampleReload(id: WeaponId, progress: number, out: ReloadPose): R
     out.prop = 0;
   }
   out.bump = pulse(p, cue.seat - .025, cue.seat, cue.seat + .045);
-  out.lift = hold * (shell ? .035 : id === 'pistol' ? .17 : pebble ? .06 : .10);
+  // Raise the receiver with the withdrawing magazine so the grasp remains
+  // above the bottom HUD. Ease it back down as the magazine seats.
+  out.lift = hold * (shell ? .055 : id === 'pistol' ? .17 : pebble ? .06 : .10) +
+    (single ? 0 : withdraw * (id === 'pistol' ? .16 : .18));
   out.pitch = hold * (shell ? .16 : id === 'pistol' ? .17 : .12);
   out.roll = hold * (shell ? -.32 : id === 'pistol' ? -.26 : -.19);
   return out;
