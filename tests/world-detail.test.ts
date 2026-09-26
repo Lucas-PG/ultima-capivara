@@ -298,6 +298,16 @@ describe('river island gameplay integrity', () => {
     expect(covered / samples).toBeGreaterThan(.4);
   });
 
+  it('connects the beach approach to the fort gate without climbing the terrace face', () => {
+    const route = NAV_ROUTES.find(points => points.some(([x, z]) => x === 51 && z === -101))!;
+    expect(route).toBeDefined();
+    const [x, z] = route[0];
+    expect(walkableSegment(world, { x, z }, { x: FORTE[0], z: FORTE[1] + 12 })).toBe(true);
+    for (let i = 1; i < route.length; i++)
+      expect(walkableSegment(world, { x: route[i - 1][0], z: route[i - 1][1] },
+        { x: route[i][0], z: route[i][1] }), `unwalkable fort approach segment ${i}`).toBe(true);
+  });
+
   it('marks each arena edge with real pieces while leaving its gates traversable', () => {
     const boundaries = world.pieces!.filter(p => world.arenaBoundary!.includes(p.id));
     expect(boundaries.length).toBeGreaterThanOrEqual(12);

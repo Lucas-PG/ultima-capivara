@@ -273,8 +273,7 @@ export function createWorld(): WorldSpec {
       [-1.2, -64.6, 2.1, -.37], [9.1, -64.8, 2.3, .43],
       [-11, -70, 3.4, .35], [17.5, -69.6, 3.1, -.38],
     ]) rockLayer('cliff_rock_low', x, z, yaw, ground(x, z) - height * .55, height);
-    // The east approach crosses this face. These two masses sit below its
-    // walking aisle and cover the exposed lower shoulders from the beach.
+    // Two low masses finish the eastern cliff toe above the beach route.
     rockLayer('cliff_rock_tall', 26, -80, 1.3, ground(26, -80) - 7 * .95, 7);
     rockLayer('cliff_rock_low', 27.5, -90, 1.3, ground(27.5, -90) - 3 * .7, 3);
   }
