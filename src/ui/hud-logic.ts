@@ -70,6 +70,14 @@ export const ELIMINATED_ACTIONS = [
   { do: 'leave', label: 'Voltar ao menu', primary: false },
 ] as const;
 
+// Kind one-liners: the death card still explains what happened, without teasing the player.
+export const ELIMINATION_LINES = [
+  'Foi de base... acontece.', 'Capivara também cansa.', 'Pausa técnica para um cochilo.',
+  'A grama estava tão confortável.', 'Uma soneca. Depois, revanche.', 'Respira. A próxima é sua.',
+  'Foi buscar um lanchinho.', 'Hoje a rede chamou primeiro.', 'Até capivara precisa de intervalo.',
+  'Os planos eram bons. A ilha improvisou.',
+] as const;
+
 // Results: the rematch/menu actions become visible and clickable this soon after the match ends (quality bar: at most 400 ms).
 export const RESULTS_ACTIONS_DELAY = 300;
 
