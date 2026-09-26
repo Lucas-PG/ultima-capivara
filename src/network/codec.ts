@@ -1,5 +1,5 @@
 import { PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type WorldSnapshot } from '../shared/types';
-import { WEAPONS } from '../shared/weapons';
+import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
 import { EMOTE_IDS } from '../shared/emotes';
 
 export const MAX_CONTROL_BYTES = 512_000;
@@ -9,7 +9,7 @@ const q = (n: number, scale = 100) => Math.round(n * scale) / scale;
 const qi = (n: number, scale = 100) => Math.round(n * scale);
 const stages = ['plane', 'falling', 'parachute', 'ground'] as const;
 const items = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'] as const;
-const ACTOR_FIELDS = 29;
+const ACTOR_FIELDS = 30;
 
 export function finiteTree(value: unknown, depth = 0): boolean {
   if (depth > 24) return false;
@@ -106,7 +106,7 @@ export function actorFrame(a: ActorState, index: number): number[] {
     qi(a.yaw, 1000), qi(a.pitch, 1000), qi(a.lean), qi(a.hp), qi(a.armor), qi(a.helmet), flags,
     stages.indexOf(a.stage), a.kills, a.deaths, qi(a.damage), a.slot, qi(a.reloadUntil), qi(a.useUntil),
     a.using ? items.indexOf(a.using) : -1, qi(a.respawnAt), qi(a.protectionUntil), a.lastInput, qi(a.shotHeat), qi(a.wetUntil),
-    a.emote ? EMOTE_IDS.indexOf(a.emote) : -1, qi(a.emoteUntil),
+    a.emote ? EMOTE_IDS.indexOf(a.emote) : -1, qi(a.emoteUntil), a.weaponLevel,
     ...a.weapons.flatMap(w => [w.ammo, w.reserve])];
 }
 
@@ -126,14 +126,14 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
     !fast.zone || typeof fast.zone !== 'object' || typeof fast.zone.shrinking !== 'boolean' ||
     !['x', 'z', 'radius', 'nextRadius', 'nextX', 'nextZ', 'phase', 'timeLeft', 'damage'].every(k => Number.isFinite(fast.zone[k])) ||
     !fast.plane || !['x', 'y', 'z'].every(k => Number.isFinite(fast.plane[k])) ||
-    !world.config || !['battle-royale', 'deathmatch'].includes(world.config.mode) ||
+    !world.config || !['battle-royale', 'deathmatch', 'corrente'].includes(world.config.mode) ||
     !Number.isInteger(world.config.capacity) || world.config.capacity < 1 || world.config.capacity > 16 ||
     !plainTextTree(world) || !plainTextTree(gear)) return null;
   const actors: ActorState[] = [];
   for (const tuple of fast.actors) {
     if (!Array.isArray(tuple) || !tuple.every(Number.isFinite)) return null;
     const [index, px, py, pz, vx, vy, vz, yaw, pitch, lean, hp, armor, helmet, flags, stage, kills, deaths,
-      damage, slot, reloadUntil, useUntil, using, respawnAt, protectionUntil, lastInput, shotHeat, wetUntil, emote, emoteUntil] = tuple;
+      damage, slot, reloadUntil, useUntil, using, respawnAt, protectionUntil, lastInput, shotHeat, wetUntil, emote, emoteUntil, weaponLevel] = tuple;
     if (!Number.isSafeInteger(index) || index !== actors.length) return null;
     const profile = world.actors[index], kit = gear[index];
     if (!profile || !kit || profile.id !== kit.id || !stages[stage] || (using !== -1 && !items[using])) return null;
@@ -149,6 +149,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       !Number.isSafeInteger(slot) || slot < 0 || slot >= kit.weapons.length ||
       ![kills, deaths, lastInput, shotHeat, wetUntil, emoteUntil].every(n => Number.isSafeInteger(n) && n >= 0) || shotHeat > 120 ||
       !Number.isInteger(emote) || emote < -1 || emote >= EMOTE_IDS.length ||
+      !Number.isInteger(weaponLevel) || weaponLevel < 0 || weaponLevel >= CORRENTE_LADDER.length ||
       !kit.weapons.every((w: any, i: number) => Number.isSafeInteger(tuple[ACTOR_FIELDS + i * 2]) &&
         tuple[ACTOR_FIELDS + i * 2] >= 0 && tuple[ACTOR_FIELDS + i * 2] <= WEAPONS[w.id as keyof typeof WEAPONS].magazine &&
         Number.isSafeInteger(tuple[ACTOR_FIELDS + 1 + i * 2]) && tuple[ACTOR_FIELDS + 1 + i * 2] >= 0 && tuple[ACTOR_FIELDS + 1 + i * 2] <= 10_000)) return null;
@@ -160,7 +161,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       connected: !!(flags & 1), alive: !!(flags & 2), grounded: !!(flags & 4),
       crouch: !!(flags & 8), sprint: !!(flags & 16), ads: !!(flags & 32), swimming: !!(flags & 64), wetUntil: wetUntil / 100, stage: stages[stage],
       emote: emote === -1 ? null : EMOTE_IDS[emote], emoteUntil: emoteUntil / 100,
-      kills, deaths, damage: damage / 100, slot, weapons, consumables: kit.consumables,
+      kills, deaths, damage: damage / 100, weaponLevel, slot, weapons, consumables: kit.consumables,
       reloadUntil: reloadUntil / 100, useUntil: useUntil / 100, using: using === -1 ? null : items[using],
       respawnAt: respawnAt / 100, protectionUntil: protectionUntil / 100, lastInput, shotHeat: shotHeat / 100 });
   }
