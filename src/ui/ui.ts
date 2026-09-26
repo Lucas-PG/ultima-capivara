@@ -75,6 +75,7 @@ export class GameUI {
   private momentStage: ActorState['stage'] | null = null;
   private firstStormBeat = 0;
   private momentTimer = 0;
+  private supplyNotice: string | null = null;
   private deathInfo: { place: number; line: string; card: string | null; until: number } | null = null;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
@@ -293,7 +294,7 @@ export class GameUI {
   }
   game(playerId: string) {
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
-    clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0;
+    clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0; this.supplyNotice = null;
     this.lastBanner = ''; this.deathInfo = null; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null; this.deathReleased = false;
     if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
@@ -687,9 +688,15 @@ export class GameUI {
     if (event.type === 'shot' && event.actor === this.localId) this.crosshairSpread.onShot(event.weapon, performance.now());
     if (event.type === 'notice' && event.text !== 'A partida começou!' && !(event.text === 'A tempestade está fechando!' && this.snapshot?.zone.phase === 0)) this.toast(event.text);
     if (this.screen !== 'game' || !this.root.querySelector('#hud')) return;
-    if (event.type === 'supply' && event.stage !== 'opened' && this.snapshot?.phase === 'playing') {
-      const district = this.world.districts.find(d => d.id === event.district)?.name || 'Ilha';
-      this.showMoment(event.stage === 'incoming' ? 'Entrega do Tucano!' : 'Entrega no chão!', event.stage === 'incoming' ? `A caminho · ${district}` : `${district} · abra a caixa`, 'delivery');
+    if (event.type === 'supply') {
+      if (event.stage === 'opened' && this.supplyNotice === event.drop) {
+        this.supplyNotice = null;
+        if (this.el('matchMoment').dataset.kind === 'delivery') { clearTimeout(this.momentTimer); this.show('matchMoment', false); }
+      } else if (event.stage !== 'opened' && this.snapshot?.phase === 'playing') {
+        const district = this.world.districts.find(d => d.id === event.district)?.name || 'Ilha';
+        this.supplyNotice = event.drop;
+        this.showMoment(event.stage === 'incoming' ? 'Entrega do Tucano!' : 'Entrega no chão!', event.stage === 'incoming' ? `A caminho · ${district}` : `${district} · abra a caixa`, 'delivery');
+      }
     }
     const find = (id: string | null) => id ? this.snapshot?.actors.find(a => a.id === id) : undefined;
     if (event.type === 'damage') {
