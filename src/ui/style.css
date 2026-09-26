@@ -701,3 +701,10 @@ body.reduce-motion #pause-panel h1,body.reduce-motion #pause-panel .board-mascot
 #hud .fd .wi svg{width:42px;height:14px}
 #hud .fd b{flex:0 1 auto;min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis}
 #hud .fd em{flex:none}
+
+/* Swimming is a quiet posture cue, away from the crosshair and interaction prompt. */
+#hud #stance .swim-icon{display:none}
+#hud #stance.swimming{background:var(--candy-teal);color:var(--brown);box-shadow:3px 3px 0 var(--brown),var(--gloss)}
+#hud #stance.swimming>svg{display:none}
+#hud #stance.swimming>.swim-icon{display:block;width:36px;height:36px}
+#hud #stance.swimming b{font-family:var(--sans);font-weight:800;font-size:15px}
