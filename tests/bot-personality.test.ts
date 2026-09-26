@@ -204,9 +204,18 @@ describe('seeded bot personality without combat concessions', () => {
         bot.brain = createBrain(false, 2, bot.state.pos, 1);
         sim.step(1 / 60);
         if (bot.brain.leisure?.kind !== kind) { attempts.push({ seed, initial: bot.brain.leisure, pos: bot.state.pos }); continue; }
-        advance(sim, 5, () => { used ||= kind === 'bath' ? bot.state.soaking : bot.state.bounceSeq > 0; });
+        for (let tick = 0; tick < 5 * 60; tick++) {
+          sim.step(1 / 60);
+          used ||= kind === 'bath' ? bot.state.soaking : bot.state.bounceSeq > 0;
+          // End this visit at its grounded exit. Later random roaming can
+          // legitimately cross the pad again, independently of leisure.
+          if (kind === 'trampoline' && used && bot.state.grounded && !bot.brain.leisure &&
+            Math.hypot(bot.state.pos.x - site.x, bot.state.pos.z - site.z) > site.radius + 1) break;
+        }
         if (kind === 'trampoline' && used) {
           expect(bot.state.bounceSeq, site.id).toBe(1);
+          expect(bot.state.grounded, site.id).toBe(true);
+          expect(bot.brain.leisure, site.id).toBeNull();
           expect(Math.hypot(bot.state.pos.x - site.x, bot.state.pos.z - site.z), site.id).toBeGreaterThan(site.radius + 1);
         }
         attempts.push({ seed, end: bot.brain.leisure, pos: bot.state.pos, grounded: bot.state.grounded, swimming: bot.state.swimming });

@@ -23,7 +23,7 @@ class Piece:
             self.colliders.append(dict(type='box', x=x, y=y, z=z, width=w, height=h, depth=d, yaw=yaw, material=material))
 
     def cylinder(self, x, y, z, radius, height, tile=6, solid=False, material='stone', top=None, sides=12, detail=False, axis='y'):
-        self.parts.append(dict(shape='cylinder', center=[x, y, z], radius=radius, top=radius if top is None else top, height=height, tile=tile, sides=sides, detail=detail, axis=axis))
+        self.parts.append(dict(shape='cylinder', center=[x, y, z], radius=radius, top=radius if top is None else top, height=height, tile=tile, sides=sides, detail=detail, axis=axis, solid=solid))
         if solid:
             assert axis == 'y' and (top is None or top == radius)
             self.colliders.append(dict(type='cylinder', x=x, y=y, z=z, radius=radius, height=height, material=material))
@@ -36,11 +36,22 @@ class Piece:
 
     def metadata(self):
         high = max((p['center'][1] + (max(p['radius'], p['top']) if p.get('axis', 'y') != 'y' else p.get('size', [0, p.get('height', 0), 0])[1] / 2) for p in self.parts if 'center' in p), default=0)
+        for part in self.parts:
+            if part['shape'] != 'beam':
+                continue
+            a, b = part['a'], part['b']
+            length = math.dist(a, b)
+            # The export's minimal rotation maps the beam's X/Z cross-section
+            # into this exact vertical extent, including sloping handrails.
+            half = (abs(b[0] - a[0]) * part['width'] + abs(b[2] - a[2]) * part['depth']) / (2 * length)
+            high = max(high, max(a[1], b[1]) + half)
         data = dict(footprint=[self.width, self.depth], height=round(high, 4), colliders=self.colliders)
         if hasattr(self, 'interaction'):
             data['interaction'] = self.interaction
         if hasattr(self, 'traversal'):
             data['traversal'] = self.traversal
+        if hasattr(self, 'front_clearance'):
+            data['frontClearance'] = self.front_clearance
         return data
 
 
@@ -267,14 +278,17 @@ for x in [-3.25, 3.25]:
 for i in range(30):
     p.box(0, .46, (i - 14.5) * .52, 6.1, .026, .48, 14 if i % 3 else 6, bevel=.01, detail=True)
 p = Piece('dock_wood', 6, 12)
-p.box(0, .18, 0, 6, .36, 12, 5, True, 'wood')
+# The origin is the foot of a real pile. Mapa aligns the generated deck top
+# with the quay; the timber continues below the water into the seabed.
+dock_lift = 6.0
+p.box(0, dock_lift + .18, 0, 6, .36, 12, 5, True, 'wood')
 for i in range(30):
-    p.box(0, .38, (i - 14.5) * .40, 6, .06, .37, 5 if i % 4 else 7, bevel=.02, detail=True)
+    p.box(0, dock_lift + .38, (i - 14.5) * .40, 6, .06, .37, 5 if i % 4 else 7, bevel=.02, detail=True)
 for x in [-2.8, 2.8]:
     for z in [-5.7, 0, 5.7]:
-        p.cylinder(x, .75, z, .18, 1.5, 7, True, 'wood', sides=10)
+        p.cylinder(x, (dock_lift + 1.5) / 2, z, .18, dock_lift + 1.5, 7, True, 'wood', sides=10)
         for yy in [1.12, 1.20, 1.28]:
-            p.cylinder(x, yy, z, .20, .045, 11, sides=10, detail=True)
+            p.cylinder(x, dock_lift + yy, z, .20, .045, 11, sides=10, detail=True)
 p = Piece('container', 6, 2.8)
 p.box(0, 1.4, 0, 6, 2.8, 2.8, 8, True, 'metal', bevel=.08)
 for z in [-1.43, 1.43]:
@@ -301,6 +315,12 @@ from extensions import extend
 extend(Piece, building, roof, window)
 from recreation import add_recreation
 add_recreation(Piece)
+from access import add_dock_steps, add_flat_access, add_fort_access
+add_fort_access(Piece, PIECES)
+add_flat_access(PIECES)
+add_dock_steps(Piece)
+from interiors import add_interiors
+add_interiors(Piece)
 
 
 def write_metadata():
