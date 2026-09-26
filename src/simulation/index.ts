@@ -67,6 +67,7 @@ export class Simulation {
   private readonly matchId: string;
   private readonly random: () => number;
   private readonly supplyRandom: () => number;
+  private readonly personalityRandom: () => number;
   private readonly supplyDrops: SupplyDropState[] = [];
   private readonly supplyRewards = new Map<string, { weapon: WeaponId; rarity: number }>();
   private readonly landedSupply = new Set<string>();
@@ -111,6 +112,7 @@ export class Simulation {
     this.matchId = matchId;
     this.random = rng(seed);
     this.supplyRandom = rng(seed ^ 0x74756361);
+    this.personalityRandom = rng(seed ^ 0x63617079);
     // Snapshots must not carry undefined fields: finiteTree() rejects them and the
     // host would stop publishing. Non-weapon spawns may come with `weapon: undefined`.
     this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: weapon === 'slingshot' ? 3 : Math.floor(this.random() * 4), respawnAt: 0 }));
@@ -680,6 +682,7 @@ export class Simulation {
     }
     target.lastHurt = this.time;
     const brain = target.brain;
+    if (brain) { this.stopBotLeisure(target); brain.celebrateUntil = 0; brain.leisureAt = Math.max(brain.leisureAt, this.time + 35); }
     if (brain && attacker) {
       // Legacy hurt(): remember the attacker, get alert toward them and rethink soon.
       brain.lastAttacker = attacker.state.id; brain.hurtUntil = this.time + 1.5; brain.recentDmg += damage;
@@ -696,7 +699,12 @@ export class Simulation {
     if (!s.alive) return;
     s.alive = false; s.hp = 0; s.deaths++; s.using = null; s.reloadUntil = 0; target.jumpQueued = false; target.triggerQueued = null;
     this.cancelEmote(s); s.bounceProtected = false;
-    if (killer && killer !== target) killer.state.kills++;
+    if (killer && killer !== target) {
+      killer.state.kills++;
+      if (killer.brain && this.time >= killer.brain.leisureAt && this.personalityRandom() < .4) {
+        killer.brain.celebrateAt = this.time + 3; killer.brain.celebrateUntil = this.time + 9;
+      }
+    }
     target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
     if (isArenaMode(this.config.mode)) s.respawnAt = this.time + 3;
     const from = killer && killer !== target ? killer.state.pos : null;
@@ -960,7 +968,72 @@ export class Simulation {
       const d = Math.hypot(c.x - s.pos.x, c.z - s.pos.z);
       if (d < bd && Math.abs(c.y - s.pos.y) < LEVEL) { bd = d; best = { id: c.id, kind: 'chest', pos: { x: c.x, y: c.y, z: c.z } }; }
     }
+    if (!dm && (value < 33 || s.armor < 100)) for (const drop of this.supplyDrops) {
+      if (drop.opened || this.time < drop.landsAt || ignored(drop.id)) continue;
+      const d = Math.hypot(drop.pos.x - s.pos.x, drop.pos.z - s.pos.z);
+      if (d < bd && Math.abs(drop.pos.y - s.pos.y) < LEVEL) { bd = d; best = { id: drop.id, kind: 'supply', pos: { ...drop.pos } }; }
+    }
     return best;
+  }
+  private stopBotLeisure(a: ActorRuntime) {
+    const b = a.brain!;
+    if (!b.leisure) return;
+    b.leisure = null; b.goal = null; b.via = null; b.routeFor = null;
+    this.cancelEmote(a.state);
+  }
+  // Leisure never grants immunity, better aim or free healing. It uses the same
+  // emote/contact mechanics as a human, and leaves combat perception running.
+  private botLeisure(a: ActorRuntime, rethink: boolean): boolean {
+    const s = a.state, b = a.brain!, now = this.time;
+    if (!b.leisure && (now < b.leisureScanAt || now < b.leisureAt)) return false;
+    if (!b.leisure) b.leisureScanAt = now + 2 + this.personalityRandom();
+    if (b.leisure?.kind === 'trampoline' && s.bounceSeq !== b.leisure.bounceSeq) {
+      // Keep the approach direction through one bounce, then leave the pad.
+      const dx = -Math.sin(s.yaw), dz = -Math.cos(s.yaw);
+      this.stopBotLeisure(a);
+      const goal = groundPoint(s.pos.x + dx * 7, s.pos.z + dz * 7);
+      if (walkableSegment(this.world, s.pos, goal, isArenaMode(this.config.mode))) b.goal = goal;
+      return false;
+    }
+    const unsafe = b.sees || now < b.alertUntil || now - b.lastSeenAt < 5 || now - a.lastHurt < 6 ||
+      now < a.nextShot + 2 || b.mode === 'cover' || !!this.zoneNeed(s) || s.swimming || !s.grounded || !!s.using || !!s.reloadUntil;
+    if (unsafe) { this.stopBotLeisure(a); return false; }
+    if ((!b.leisure || rethink) && [...this.actors.values()].some(other => {
+      const t = other.state;
+      if (t.id === s.id || !t.alive || t.stage !== 'ground') return false;
+      const distance = Math.hypot(t.pos.x - s.pos.x, t.pos.z - s.pos.z);
+      // This conservative all-direction check only suppresses leisure. It does
+      // not reveal targets to the combat brain or bypass its reaction time.
+      return distance < 28 || distance < 75 && this.botCanSee(s, t);
+    })) { this.stopBotLeisure(a); return false; }
+    if (b.leisure && (now >= b.leisure.until || b.leisure.kind === 'bath' && s.hp >= 85)) {
+      this.stopBotLeisure(a); return false;
+    }
+    if (!b.leisure && now >= b.leisureAt) {
+      if (now >= b.celebrateAt && now < b.celebrateUntil && s.hp >= 65) {
+        b.celebrateUntil = 0;
+        this.startEmote(a, this.personalityRandom() < .5 ? 'wave' : 'dance');
+        b.leisure = { kind: 'celebrate', pos: { ...s.pos }, until: now + 1.8, bounceSeq: s.bounceSeq };
+      } else {
+        const hurt = s.hp < 75 && this.heals(s) === 0;
+        const sites = hurt ? this.world.mudBaths : !b.loot && s.hp >= 85 ? this.world.trampolines : undefined;
+        const sc = this.safeCircle();
+        const site = sites?.filter(point => Math.hypot(point.x - s.pos.x, point.z - s.pos.z) < (hurt ? 14 : 8) &&
+          (isArenaMode(this.config.mode) ? this.inArena(point) : Math.hypot(point.x - sc.x, point.z - sc.z) < sc.r - 8) &&
+          !waterAt(point.x, point.z) && walkableSegment(this.world, s.pos, point, isArenaMode(this.config.mode)))
+          .sort((p, q) => Math.hypot(p.x - s.pos.x, p.z - s.pos.z) - Math.hypot(q.x - s.pos.x, q.z - s.pos.z))[0];
+        if (site && (hurt || this.personalityRandom() < .35))
+          b.leisure = { kind: hurt ? 'bath' : 'trampoline', pos: { x: site.x, y: site.y, z: site.z }, until: now + (hurt ? 12 : 6), bounceSeq: s.bounceSeq };
+      }
+      if (b.leisure) { b.leisureAt = now + 40 + this.personalityRandom() * 20; b.via = null; b.routeFor = null; }
+    }
+    if (b.leisure?.kind === 'bath' && !s.emote && mudBathAt(s.pos, this.world)) this.startEmote(a, 'chill');
+    if (b.leisure && s.emote) {
+      a.input = { ...emptyInput(), seq: this.tick, clientTime: now, yaw: s.yaw, pitch: s.pitch };
+      b.face = s.yaw; b.stuckAt = now; b.lastPos = { ...s.pos };
+      return true;
+    }
+    return false;
   }
   private findCover(s: ActorState, threat: ActorState): Vec3 | null {
     let best: Vec3 | null = null, score = Infinity;
@@ -1048,7 +1121,8 @@ export class Simulation {
     b.zoneGoal = this.zoneNeed(s);
     if (!best && !b.zoneGoal && b.mode !== 'cover') {
       const loot = b.loot;
-      if (loot && (loot.kind === 'item' ? !this.loot.some(l => l.id === loot.id && l.active) : this.openedChests.has(loot.id))) b.loot = null;
+      if (loot && (loot.kind === 'item' ? !this.loot.some(l => l.id === loot.id && l.active) : loot.kind === 'supply' ?
+        !this.supplyDrops.some(drop => drop.id === loot.id && !drop.opened) : this.openedChests.has(loot.id))) b.loot = null;
       if (!b.loot && this.time - b.lootScanAt > 1.2) { b.lootScanAt = this.time; b.loot = this.findLoot(s); }
     }
   }
@@ -1060,10 +1134,12 @@ export class Simulation {
     if (slot !== s.slot && !s.reloadUntil) s.slot = slot;
     const w = s.weapons[s.slot], def = WEAPONS[w.id], bw = BOT_WEAPON[w.id];
     if (def.ammo && w.reserve < def.magazine) w.reserve = AMMO[w.id];
-    if (now >= b.thinkAt) { b.thinkAt = now + this.rnd(.15, .25); this.botThink(a); }
+    const rethink = now >= b.thinkAt;
+    if (rethink) { b.thinkAt = now + this.rnd(.15, .25); this.botThink(a); }
     const target = b.target ? this.actors.get(b.target) : undefined, t = target?.state;
     const fighting = !!(t && t.alive && b.sees && t.stage === 'ground' && t.protectionUntil <= now);
     b.trackT = fighting ? b.trackT + dt : Math.max(0, b.trackT - dt * 2);
+    if (this.botLeisure(a, rethink)) return;
     let mx = 0, mz = 0, speed = 0, face = s.yaw, crouch = false, jump = false, pitch = s.pitch * Math.exp(-4 * dt);
     const atCover = b.mode === 'cover' && !!b.coverPt && Math.hypot(b.coverPt.x - s.pos.x, b.coverPt.z - s.pos.z) <= .7;
     if (s.using) {
@@ -1098,13 +1174,14 @@ export class Simulation {
       }
     } else {
       if (b.mode === 'fight') b.mode = 'roam';
-      let g: Vec3 | null = null, run = false, kind: 'zone' | 'chase' | 'hear' | 'loot' | 'goal' = 'goal';
+      let g: Vec3 | null = null, run = false, kind: 'zone' | 'chase' | 'hear' | 'loot' | 'leisure' | 'goal' = 'goal';
       if (b.zoneGoal) { g = b.zoneGoal; run = true; kind = 'zone'; }
       else if (b.lastSeen && now - b.lastSeenAt < 5) {
         // Push the last sighting, flanking to one side for the first seconds.
         const px = -(b.lastSeen.z - s.pos.z), pz = b.lastSeen.x - s.pos.x, pl = Math.hypot(px, pz) || 1, k = now - b.lastSeenAt < 2.5 ? 6 * b.flank : 0;
         g = { x: b.lastSeen.x + px / pl * k, y: b.lastSeen.y, z: b.lastSeen.z + pz / pl * k }; run = true; kind = 'chase';
       } else if (now < b.alertUntil && b.hearPos) { g = b.hearPos; kind = 'hear'; }
+      else if (b.leisure) { g = b.leisure.pos; kind = 'leisure'; }
       else if (b.loot) {
         g = b.loot.pos; kind = 'loot';
         const door = this.approach(b.loot.id, b.loot.pos);
@@ -1129,12 +1206,17 @@ export class Simulation {
       if (b.via && Math.hypot(b.via.x - s.pos.x, b.via.z - s.pos.z) < 1) { b.lastVia = b.via; b.via = null; b.routeAt = now; }
       // Loot that stays out of reach (behind walls with no door found) is dropped for a while.
       if (kind === 'loot' && b.loot) {
-        if (b.lootFor !== b.loot.id) { b.lootFor = b.loot.id; b.lootSince = now; }
+        if (b.lootFor !== b.loot.id) {
+          b.lootFor = b.loot.id; b.lootSince = now;
+          // Turning toward a newly spilled item is not a failed route to the
+          // previous chest. Give this target its own movement observation.
+          b.stuckAt = now; b.lastPos = { ...s.pos }; b.pressT = 0;
+        }
         else if (now - b.lootSince > 8) { b.ignore.set(b.loot.id, now + 30); b.loot = null; b.via = null; }
       }
       const step = b.via || g, dist = Math.hypot(g.x - s.pos.x, g.z - s.pos.z);
       const dx = step.x - s.pos.x, dz = step.z - s.pos.z, stepDist = Math.hypot(dx, dz) || 1;
-      if (dist < 1.3) {
+      if (dist < (kind === 'leisure' ? .45 : 1.3)) {
         if (kind === 'goal') b.goal = null;
         else if (kind === 'hear') { b.hearPos = null; b.alertUntil = -1; }
         else if (kind === 'loot' && b.loot && g !== b.loot.pos) b.routeAt = now; // at the doorway: next step is the item
