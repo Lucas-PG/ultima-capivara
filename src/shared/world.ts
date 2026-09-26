@@ -273,6 +273,10 @@ export function createWorld(): WorldSpec {
       [-1.2, -64.6, 2.1, -.37], [9.1, -64.8, 2.3, .43],
       [-11, -70, 3.4, .35], [17.5, -69.6, 3.1, -.38],
     ]) rockLayer('cliff_rock_low', x, z, yaw, ground(x, z) - height * .55, height);
+    // The east approach crosses this face. These two masses sit below its
+    // walking aisle and cover the exposed lower shoulders from the beach.
+    rockLayer('cliff_rock_tall', 26, -80, 1.3, ground(26, -80) - 7 * .95, 7);
+    rockLayer('cliff_rock_low', 27.5, -90, 1.3, ground(27.5, -90) - 3 * .7, 3);
   }
   for (const [x, z] of [[50, -96], [43, -110], [64, -111]] as const) {
     obj('cylinder', x, ground(x, z) + .045, z, 4.7, .05, 3.3, '#69B9AD', 'water');
@@ -393,6 +397,12 @@ export function createWorld(): WorldSpec {
       if (formations >= 52) break;
       if (!chosen.has(candidate)) formation(candidate);
     }
+    // Authored ledges fill the visible cuts between the coarser scattered
+    // formations. Their source solids retain the road and doorway clearances.
+    for (const [piece, x, z, yaw, height] of [
+      ['cliff_ledge', -80, -47, 1.15, 4.8], ['cliff_rock_tall', -95, -22, .8, 6.8],
+      ['cliff_ledge', -96, -18, 1.3, 4.6], ['cliff_rock_low', -89, -34, 1.5, 3.4],
+    ] as const) rockLayer(piece, x, z, yaw, ground(x, z) - height * .65, height);
   }
   // Offshore silhouettes supply a second and third landscape layer. They are
   // scenery beyond the ocean current, with no hidden collision in the sea.
