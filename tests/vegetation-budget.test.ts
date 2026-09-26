@@ -17,10 +17,16 @@ describe('vegetation rendering budget', () => {
       for (const node of vegetation.group.children.filter((child): child is THREE.LOD => child instanceof THREE.LOD)) {
         const near = node.levels[0].object as THREE.InstancedMesh;
         const uv = near.geometry.getAttribute('uv'), leaf = near.geometry.getAttribute('leafDetail');
-        let cards = 0;
+        const position = near.geometry.getAttribute('position');
+        let cards = 0, largestSprigEdge = 0;
         for (let face = 0; face < uv.count; face += 3) {
           if (leaf.getZ(face) < 1.5) continue;
           cards++;
+          for (let edge = 0; edge < 3; edge++) {
+            const a = face + edge, b = face + (edge + 1) % 3;
+            largestSprigEdge = Math.max(largestSprigEdge, Math.hypot(position.getX(a) - position.getX(b),
+              position.getY(a) - position.getY(b), position.getZ(a) - position.getZ(b)));
+          }
           const tile = Math.floor(uv.getX(face) * 4) + Math.floor((1 - uv.getY(face)) * 4) * 4;
           for (let vertex = face; vertex < face + 3; vertex++) {
             expect(Math.floor(uv.getX(vertex) * 4) + Math.floor((1 - uv.getY(vertex)) * 4) * 4).toBe(tile);
@@ -29,6 +35,8 @@ describe('vegetation rendering budget', () => {
           }
         }
         expect(cards).toBeGreaterThan(50);
+        if (!node.name.startsWith('vegetation:palm:') && !node.name.startsWith('vegetation:banana:'))
+          expect(largestSprigEdge, 'near crowns need small sprigs, not head-sized individual leaves').toBeLessThan(.75);
         camera.position.copy(node.position); camera.updateMatrixWorld();
         vegetation.setQuality('low'); node.update(camera);
         expect(node.levels[0].object.visible).toBe(false);

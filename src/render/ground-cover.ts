@@ -5,10 +5,10 @@ import { ROADS } from '../shared/layout';
 import type { Settings, WorldSpec } from '../shared/types';
 import { createToonMaterial } from './materials';
 
-const CELL = 24, CANDIDATES = 2000;
+const CELL = 24, CANDIDATES = 2600;
 export const GROUND_COVER = {
   low: { fraction: 0, distance: 0 },
-  medium: { fraction: .8, distance: 32 },
+  medium: { fraction: .85, distance: 32 },
   high: { fraction: 1, distance: 35 },
 } as const;
 const grassy = new Set<string>([WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass]);
@@ -18,26 +18,39 @@ const hash = (x: number, z: number, salt: number) => {
   return ((n ^ n >>> 16) >>> 0) / 4294967296;
 };
 
-// Three bent leaf cards carry dense painted fans. Alpha testing writes solid
-// depth without sorting; full-resolution SMAA smooths their silhouettes.
+// Short plain blades carry the lawn; small painted fans break up the roots.
+// Both share one instanced draw and the same wind and distance fade.
 function blades() {
-  const positions: number[] = [], colors: number[] = [], indices: number[] = [], uv: number[] = [];
-  for (let fan = 0; fan < 3; fan++) {
-    const angle = fan * Math.PI / 3, ca = Math.cos(angle), sa = Math.sin(angle), offset = positions.length / 3;
-    for (let row = 0; row < 3; row++) {
-      const t = row / 2, bend = t * t * .045;
+  const positions: number[] = [], colors: number[] = [], indices: number[] = [], uv: number[] = [], masks: number[] = [];
+  for (let fan = 0; fan < 5; fan++) {
+    const angle = fan * 2.399, ca = Math.cos(angle), sa = Math.sin(angle), offset = positions.length / 3;
+    const spread = .19 * Math.sqrt(fan / 4);
+    for (let row = 0; row < 2; row++) {
+      const t = row, bend = t * .022;
       for (const side of [-1, 1]) {
-        positions.push(ca * .34 * side + sa * bend, t * (.23 + fan * .024), sa * .34 * side - ca * bend);
-        const shade = .88 + .12 * t; colors.push(shade, shade, shade * .96);
+        positions.push(ca * .13 * side + sa * (spread + bend), t * (.09 + fan * .007), sa * .13 * side - ca * (spread + bend));
+        const shade = .93 + .07 * t; colors.push(shade, shade, shade * .97); masks.push(1);
         uv.push((side < 0 ? .012 : .988) / 4, 1 - (3.988 - t * .976) / 4);
       }
-      if (row < 2) { const a = offset + row * 2; indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     }
+    indices.push(offset, offset + 1, offset + 2, offset + 1, offset + 3, offset + 2);
+  }
+  const base = new THREE.Color(WORLD_PALETTE.grass), tip = new THREE.Color(WORLD_PALETTE.grassLight);
+  for (let blade = 0; blade < 3; blade++) {
+    const angle = blade * 2.399, ca = Math.cos(angle), sa = Math.sin(angle), offset = positions.length / 3;
+    const radius = .07 + hash(blade, 0, 20) * .20, height = .12 + hash(blade, 0, 21) * .10;
+    for (let row = 0; row < 2; row++) for (const side of [-1, 1]) {
+      const width = row ? .0015 : .010, bend = row * .055;
+      positions.push(ca * radius + sa * width * side + ca * bend, row * height, sa * radius - ca * width * side + sa * bend);
+      const c = row ? tip : base; colors.push(c.r, c.g, c.b); masks.push(0); uv.push(0, 0);
+    }
+    indices.push(offset, offset + 1, offset + 2, offset + 1, offset + 3, offset + 2);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.setAttribute('paintMask', new THREE.Float32BufferAttribute(masks, 1));
   geometry.setIndex(indices); geometry.computeVertexNormals();
   const normals = geometry.getAttribute('normal');
   for (let i = 0; i < normals.count; i++) normals.setXYZ(i, 0, 1, 0);
@@ -71,10 +84,10 @@ function tint(geometry: THREE.BufferGeometry, color: string) {
 }
 
 function groundDetails() {
-  const flower = groundCard(11, .46, .28), crossed = flower.clone().rotateY(Math.PI / 2);
+  const flower = groundCard(11, .28, .18), crossed = flower.clone().rotateY(Math.PI / 2);
   const bloom = mergeGeometries([flower, crossed])!; flower.dispose(); crossed.dispose();
   const pebble = tint(new THREE.IcosahedronGeometry(.11, 0).scale(1.4, .45, 1).translate(0, .035, 0), '#B9AE8F');
-  const leaf = groundCard(13, .62, .48, true), clover = groundCard(10, .75, .62, true);
+  const leaf = groundCard(13, .34, .26, true), clover = groundCard(10, .40, .33, true);
   const shell = new THREE.SphereGeometry(1, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2);
   const shellVertices = shell.getAttribute('position');
   for (let i = 0; i < shellVertices.count; i++) {
@@ -87,7 +100,7 @@ function groundDetails() {
       .rotateY(i * Math.PI * 2 / 3));
     const plant = mergeGeometries(cards)!; cards.forEach(card => card.dispose()); return plant;
   };
-  const fern = understory(14, .48, .52), monstera = understory(9, .51, .56);
+  const fern = understory(14, .36, .43), monstera = understory(9, .38, .44);
   return [bloom, pebble, leaf, shell, clover, fern, monstera].map(geometry => {
     if (!geometry.getAttribute('paintMask')) geometry.setAttribute('paintMask',
       new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count), 1));
@@ -133,16 +146,21 @@ export class GroundCover {
     this.material.onBeforeCompile = (shader, renderer) => {
       coverCompile.call(this.material, shader, renderer);
       shader.uniforms.coverTime = this.time; shader.uniforms.coverEye = this.eye; shader.uniforms.coverReach = this.reach;
-      shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>',
+      shader.fragmentShader = 'varying float vCoverPaint;\n' + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+        #ifdef USE_MAP
+          diffuseColor *= mix(vec4(1.0), texture2D(map, vMapUv), vCoverPaint);
+        #endif`).replace('#include <normal_fragment_begin>',
         '#include <normal_fragment_begin>\n normal *= faceDirection; nonPerturbedNormal = normal;')
         .replace('#include <alphatest_fragment>', `
           #ifdef USE_ALPHATEST
             float threshold = mix(alphaTest, .18, smoothstep(12.0, 32.0, length(vViewPosition)));
             if (diffuseColor.a < threshold) discard;
           #endif`);
-      shader.vertexShader = 'uniform float coverTime,coverReach;uniform vec3 coverEye;\n' + shader.vertexShader;
+      shader.vertexShader = 'attribute float paintMask;varying float vCoverPaint;uniform float coverTime,coverReach;uniform vec3 coverEye;\n' + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
         #include <begin_vertex>
+        vCoverPaint=paintMask;
         vec3 root=(modelMatrix*instanceMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;
         float fade=1.0-smoothstep(coverReach*.78,coverReach,length(root.xz-coverEye.xz));
         float tip=position.y/.24;
@@ -152,7 +170,7 @@ export class GroundCover {
         transformed*=fade;
       `);
     };
-    this.material.customProgramCacheKey = () => 'painted-ground-cover-v5';
+    this.material.customProgramCacheKey = () => 'painted-ground-cover-v6';
     const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3();
     const up = new THREE.Vector3(0, 1, 0), groundNormal = new THREE.Vector3(), tilt = new THREE.Quaternion(), detailShapes = groundDetails();
     const alignToGround = (x: number, z: number, yaw: number) => {
@@ -181,6 +199,10 @@ export class GroundCover {
         if (ROADS.some(([x0, z0, x1, z1]) => x > x0 - .35 && x < x1 + .35 && z > z0 - .35 && z < z1 + .35)) continue;
         if (paving.some(o => Math.abs(x - o.pos.x) < o.scale.x / 2 + .15 && Math.abs(z - o.pos.z) < o.scale.z / 2 + .15)) continue;
         if (colliders.some(c => c.min.y < y + .45 && c.max.y > y - .05 && x > c.min.x - .2 && x < c.max.x + .2 && z > c.min.z - .2 && z < c.max.z + .2)) continue;
+        const roadEdge = ROADS.some(([a, b, c, d]) => Math.hypot(Math.max(a - x, 0, x - c), Math.max(b - z, 0, z - d)) < 1.5);
+        const plazaEdge = paving.some(o => Math.hypot(Math.max(0, Math.abs(x - o.pos.x) - o.scale.x / 2),
+          Math.max(0, Math.abs(z - o.pos.z) - o.scale.z / 2)) < 1.2);
+        if (!roadEdge && !plazaEdge && hash(cx * CANDIDATES + i, cz, 17) > .68) continue;
         points.push({ x, y, z, seed: hash(cx * CANDIDATES + i, cz, 3) });
       }
       if (!points.length && !shore.length) continue;

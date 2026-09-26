@@ -95,7 +95,15 @@ export function buildVegetation(world: WorldSpec, atlas?: THREE.Texture) {
       varying vec3 vLeafDetail;
 ${shader.fragmentShader}`.replace('#include <map_fragment>', `
         #ifdef USE_MAP
-          vec4 paintedLeaf = texture2D(map, vMapUv);
+          vec2 leafUv = vMapUv;
+          vec2 leafDx = dFdx(vMapUv), leafDy = dFdy(vMapUv);
+          if (vLeafDetail.y > 1.5) {
+            // Four small painted sprigs share a curved crown card. Explicit
+            // gradients keep tile repeats from selecting a blurry seam mip.
+            leafUv = (floor(vMapUv * 4.0) + .012 + fract(vMapUv * 8.0) * .976) / 4.0;
+            leafDx *= 1.952; leafDy *= 1.952;
+          }
+          vec4 paintedLeaf = textureGrad(map, leafUv, leafDx, leafDy);
           diffuseColor *= mix(vec4(1.0), paintedLeaf, step(1.5, vLeafDetail.z));
         #endif
       `).replace('#include <color_fragment>', `#include <color_fragment>
@@ -124,6 +132,11 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
         #ifdef USE_ALPHATEST
           // Mip averaging covers less than a full pixel at the distant crown.
           // Keep painted leaves present without expanding fully clear gaps.
+          if (vLeafDetail.z > 1.5) {
+            vec3 cardFace = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition)));
+            float facing = abs(dot(cardFace, normalize(vViewPosition)));
+            diffuseColor.a *= smoothstep(.08, .35, facing) * smoothstep(.35, 1.15, length(vViewPosition));
+          }
           float leafThreshold = mix(alphaTest, .14,
             smoothstep(18.0, 65.0, length(vViewPosition)) * step(1.5, vLeafDetail.z));
           if (diffuseColor.a < leafThreshold) discard;
@@ -152,7 +165,7 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
         #include <opaque_fragment>
       `);
   };
-  material.customProgramCacheKey = () => 'painted-botanical-cards-v8';
+  material.customProgramCacheKey = () => 'painted-botanical-cards-v10';
   // Smooth overlapping branch sections retain the original collision radius.
   const stem = new THREE.CylinderGeometry(.95, 1, 1, 10, 1, true);
   const twig = new THREE.CylinderGeometry(.48, 1, 1, 5, 1, true);
@@ -256,7 +269,7 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
       const t = row / segments, center = path((t - rootAlong) / (1 - rootAlong));
       for (let col = 0; col < 3; col++) {
         const across = col - 1, point = center.clone().addScaledVector(side, across * width * .5 - rootAcross)
-          .addScaledVector(facing, (1 - across * across) * Math.sin(t * Math.PI) * width * .1);
+          .addScaledVector(facing, (1 - across * across) * (.45 + .55 * Math.sin(t * Math.PI)) * width * .1);
         vertices.push(point.x, point.y, point.z);
         const n = volumeCenter ? point.clone().sub(volumeCenter).multiply(new THREE.Vector3(1, 1.6, 1))
           .normalize().multiplyScalar(.9).addScaledVector(normal, .1).normalize() :
@@ -277,7 +290,7 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
       .fill(Math.max(.01, volumeCenter?.y ?? path(.5).y)), 1));
     geometry.setAttribute('palmFrond', new THREE.Float32BufferAttribute(new Array(vertices.length / 3).fill(frond), 1));
     const detail = new Float32Array(vertices.length);
-    for (let i = 2; i < detail.length; i += 3) detail[i] = 2;
+    for (let i = 0; i < detail.length; i += 3) { detail[i + 1] = volumeCenter ? 2 : 1; detail[i + 2] = 2; }
     geometry.setAttribute('leafDetail', new THREE.BufferAttribute(detail, 3));
     geometry.setIndex(indices);
     const flat = geometry.toNonIndexed(); geometry.dispose();
@@ -339,8 +352,6 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
         const point = (t: number) => top.clone().addScaledVector(direction, length * t)
           .add(new THREE.Vector3(0, Math.sin(t * Math.PI) * .65 - t * t * 2.7 + (i % 2) * .15, 0));
         paintedSpray(point, length * .88, 6, (i % 2 ? 1 : -1) * .2, i + 1, distant ? 3 : far ? 4 : 7);
-        if (!far) for (let rib = 0; rib < 4; rib++)
-          branch(point(rib / 4), point((rib + 1) / 4), .016, PLANT_PAINT.palmMid, i + 1);
       }
       for (let i = 0; i < (far ? 0 : 5); i++) {
         const angle = i * 1.25;
@@ -355,9 +366,7 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
         const angle = i * Math.PI * 2 / 7, reach = h * .46;
         const point = (t: number) => crown.clone().add(new THREE.Vector3(Math.cos(angle) * reach * t,
           Math.sin(t * Math.PI) * h * .14 - t * t * h * .15, Math.sin(angle) * reach * t));
-        paintedSpray(point, reach * .65, 8, (i % 2 ? 1 : -1) * .17, 0, distant ? 2 : far ? 3 : 5);
-        if (!far) for (let rib = 0; rib < 3; rib++)
-          branch(point(rib / 3), point((rib + 1) / 3), .014, PLANT_PAINT.foliageCore);
+        paintedSpray(point, reach * .65, 8, (i % 2 ? 1 : -1) * .17, 0, distant ? 1 : far ? 2 : 5);
       }
       continue;
     }
@@ -380,36 +389,35 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
         outer ? Math.cos(angle) * radius * (broad ? .8 : .57) : Math.cos(angle) * .35,
         h * (broad ? .78 : outer ? .71 : .88) + hash(seed, cluster) * .22,
         outer ? Math.sin(angle) * radius * (broad ? .8 : .57) : Math.sin(angle) * .35));
-      if (!distant) {
+      if (!distant || cluster < 3) {
         const fork = trunkTop.clone().lerp(center, .54).add(new THREE.Vector3(0, -.12 * radius, 0));
         branch(trunkTop, fork, trunkRadius * .55, PLANT_PAINT.trunk);
         branch(fork, center, trunkRadius * .28, PLANT_PAINT.trunk);
       }
-      const size = new THREE.Vector3(radius * (broad ? .76 : .69), radius * (broad ? .28 : .49), radius * (broad ? .76 : .66));
-      const packets = distant ? 3 : far ? 5 : 8;
+      const size = new THREE.Vector3(radius * (broad ? .76 : .69), radius * (broad ? .28 : .49), radius * (broad ? .76 : .66))
+        .multiplyScalar(.72 + hash(seed, cluster + 44) * .20);
+      const packets = distant ? 16 : far ? 28 : 64;
       for (let packet = 0; packet < packets; packet++) {
-        const a = angle + (packet - 1) * Math.PI * 2 / (packets - 1);
-        const offset = packet === 0 ? new THREE.Vector3(0, .08, 0) :
-          new THREE.Vector3(Math.cos(a) * .68, Math.sin(a * 3 + cluster) * .28, Math.sin(a) * .68);
+        // Small sprigs occupy the same crown envelope at every LOD. The far
+        // pair merges neighboring leaves instead of reverting to solid lobes.
+        const a = angle + packet * 2.399, v = 1 - 2 * (packet + .5) / packets;
+        const ring = Math.sqrt(1 - v * v);
+        const offset = new THREE.Vector3(Math.cos(a) * ring, v * .9, Math.sin(a) * ring);
         const position = center.clone().add(offset.multiply(size));
-        const spread = distant ? .68 : far ? .60 : .47;
-        const reach = radius * spread, direction = new THREE.Vector3(Math.cos(a), .25 + hash(seed + cluster, packet + 12) * .5, Math.sin(a));
-        const start = position.clone().addScaledVector(direction, -reach * .46);
-        const end = position.clone().addScaledVector(direction, reach * .54);
-        if (!far) branch(center, start.clone().lerp(end, .25), .027, PLANT_PAINT.trunk);
+        const reach = radius * (distant ? .29 : far ? .23 : .175);
+        const direction = new THREE.Vector3(Math.cos(a), .2 + v * .42, Math.sin(a)).normalize();
+        if (!far && packet % 6 === 0)
+          branch(center, position.clone().addScaledVector(direction, -reach * .35), .009, PLANT_PAINT.trunk);
         const tile = flowering && cluster % 3 !== 1 ? key === 'ipe-yellow' ? 3 : 4 :
           broad && packet % 4 === 0 ? 5 : mangrove ? 2 : (packet + cluster) % 3 === 0 ? 1 : packet % 3 === 0 ? 15 : 0;
-        // Two interleaved sprays show distinct leaves from both above and below.
-        // The distant silhouette uses one broad pair without tiny geometry.
-        const layers = far ? 2 : 3;
-        for (let layer = 0; layer < layers; layer++) {
-          const axis = direction.clone().applyAxisAngle(up, (layer - (layers - 1) * .5) * .7);
+        for (let layer = 0; layer < 2; layer++) {
+          const axis = direction.clone().applyAxisAngle(up, (layer - .5) * .9);
           const root = position.clone().addScaledVector(axis, -reach * .5);
           const tip = root.clone().addScaledVector(axis, reach);
           const path = (t: number) => root.clone().lerp(tip, t).add(new THREE.Vector3(0, Math.sin(t * Math.PI) * reach * .13, 0));
           paintedSpray(path, reach * (broad ? 1.12 : .94), tile,
-            (layer - (layers - 1) * .5) * .65 + (hash(seed + packet, layer) - .5) * .3,
-            0, distant ? 1 : far ? 2 : 3, crownVolume);
+            (layer - .5) * 1.55 + (hash(seed + packet, layer) - .5) * .35,
+            0, 1, crownVolume);
         }
       }
       if (!far && orchard && cluster < 5) {

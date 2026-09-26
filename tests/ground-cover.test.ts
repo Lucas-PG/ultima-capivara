@@ -10,6 +10,20 @@ it('keeps grass away from roads and solids, culls distant cells and disables it 
   try {
     const matrix = new THREE.Matrix4();
     const violations: { x: number; z: number; reason: string }[] = [];
+    const grass = cover.group.children.find(node => node instanceof THREE.InstancedMesh) as THREE.InstancedMesh;
+    const positions = grass.geometry.getAttribute('position'), masks = grass.geometry.getAttribute('paintMask');
+    const indices = grass.geometry.index!;
+    let plainVertices = 0;
+    for (let i = 0; i < masks.count; i++) if (masks.getX(i) < .5) plainVertices++;
+    expect(plainVertices, 'short plain blades must remain mixed with painted root tufts').toBeGreaterThan(0);
+    for (let face = 0; face < indices.count; face += 3) {
+      if (masks.getX(indices.getX(face)) < .5) continue;
+      for (let edge = 0; edge < 3; edge++) {
+        const a = indices.getX(face + edge), b = indices.getX(face + (edge + 1) % 3);
+        expect(Math.hypot(positions.getX(a) - positions.getX(b), positions.getY(a) - positions.getY(b),
+          positions.getZ(a) - positions.getZ(b)), 'painted grass tufts must stay small at eye level').toBeLessThan(.31);
+      }
+    }
     for (const node of cover.group.children) if (node instanceof THREE.InstancedMesh) {
       // All roots in this draw belong to its 24 m cell. The furnished island
       // has thousands of colliders; distant solids cannot intersect these roots.
