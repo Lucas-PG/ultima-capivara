@@ -416,7 +416,7 @@ export class GameUI {
     const title = won ? br ? 'Última de pé!' : 'Dona da correria!' : br ? 'Não foi dessa vez' : winners.length ? `${names} ${winners.length > 1 ? 'levaram' : 'levou'}` : 'Ninguém levou';
     const sub = won ? br ? `Última capivara de pé entre ${results.length}` : `${winners.length > 1 ? 'Vitória dividida · ' : ''}${me?.kills ?? 0} presas` : `Você ficou em ${ordinal(place)} de ${results.length}`;
     const prey = this.lastPrey ? `<div class="vlast"><span class="pt">${capybara(this.lastPrey.color)}</span><span>Última presa: <b>${esc(this.lastPrey.name)}</b></span></div>` : '';
-    const stat = (value: string | number, label: string) => `<div><b>${value}</b><span>${label}</span></div>`;
+    const stat = (value: string | number, label: string) => `<div><b${typeof value === 'number' ? ` data-count="${value}"` : ''}>${value}</b><span>${label}</span></div>`;
     const stats = me ? [stat(me.kills, 'Eliminações'), stat(Math.round(me.damage), 'Dano'),
       me.shots !== undefined && me.hits !== undefined ? stat(accuracyText(me.hits, me.shots), 'Precisão') : '',
       me.headshots !== undefined ? stat(me.headshots, 'Na cachola') : '',
@@ -431,7 +431,7 @@ export class GameUI {
     if (me && !top.includes(me)) top.push(me);
     const rows = top.map(r => `<tr class="${r.id === this.localId ? 'you' : ''}"><td><span class="rank">${r.place}</span><i style="background:${/^#[a-f0-9]{6}$/i.test(r.color) ? r.color : PLAYER_COLORS[0]}"></i>${esc(r.name)}${r.bot ? '<small>BOT</small>' : r.id === this.localId ? '<small>VOCÊ</small>' : ''}</td><td>${r.kills}</td><td>${Math.round(r.damage)}</td></tr>`).join('');
     const layer = document.createElement('div'); layer.id = 'victory'; layer.className = won ? 'won' : 'lost';
-    layer.innerHTML = `<div class="vrays"></div><div class="vcard"><div class="vnum">#${won ? 1 : place}</div><div class="vtitle">${title}</div><div class="vsub">${sub}</div>${prey}</div>`
+    layer.innerHTML = `<div class="vrays"></div><div class="vcard"><div class="vportrait">${capybara(me?.color ?? this.profile.color)}</div><div class="vnum">#${won ? 1 : place}</div><div class="vtitle">${title}</div><div class="vsub">${sub}</div>${prey}</div>`
       + `<div class="vpanel stk" id="vpanel" role="region" aria-label="Resultado da partida"><div class="vstats">${stats}</div>${awards ? `<div class="vawards">${awards}</div>` : ''}`
       + `<div class="vboard"><table class="score-table"><thead><tr><th>CAPIVARA</th><th>ELIM.</th><th>DANO</th></tr></thead><tbody>${rows}</tbody></table></div>`
       + `<div class="vactions">${primary}<button class="button secondary" data-do="leave">${icon('back')} Voltar ao menu</button></div></div>`
@@ -444,9 +444,19 @@ export class GameUI {
     }
     // Quality bar: nothing may block input for more than 400 ms. The panel slides in under the stamp while it plays,
     // and its actions are focusable and clickable from 300 ms on.
-    window.setTimeout(() => { const panel = layer.querySelector<HTMLElement>('#vpanel'); panel?.classList.add('show'); panel?.querySelector<HTMLElement>('.button')?.focus({ preventScroll: true }); }, RESULTS_ACTIONS_DELAY);
+    window.setTimeout(() => { const panel = layer.querySelector<HTMLElement>('#vpanel'); panel?.classList.add('show'); panel?.querySelector<HTMLElement>('.button')?.focus({ preventScroll: true }); if (panel && !this.reducedMotion()) this.countUp(panel); }, RESULTS_ACTIONS_DELAY);
   }
   // Paused mid-match: the first version's comic menu over the frozen island, with the quick settings inline.
+  // Result stats count up from zero as the panel arrives and bounce when they land; the markup already holds the final values.
+  private countUp(panel: HTMLElement) {
+    const counters = [...panel.querySelectorAll<HTMLElement>('[data-count]')], start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / 700), eased = 1 - (1 - t) ** 3;
+      counters.forEach(counter => this.textOf(counter, Math.round(Number(counter.dataset.count) * eased)));
+      if (t < 1 && panel.isConnected) requestAnimationFrame(step); else counters.forEach(counter => counter.classList.add('done'));
+    };
+    requestAnimationFrame(step);
+  }
   setPaused(paused: boolean) {
     if (this.screen !== 'game') return; const panel = this.el('pause-panel'); panel.hidden = !paused || this.deadInRoyale();
     if (panel.hidden) return;
