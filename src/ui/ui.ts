@@ -85,10 +85,20 @@ export class GameUI {
   private roomLoading: number | null = null;
   private pendingToasts: { message: string; error: boolean }[] = [];
   private readonly crosshairSpread = new CrosshairSpread();
+  private uiAudio: AudioContext | null = null;
+  private uiSoundAt = 0;
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
-    window.addEventListener('pagehide', () => this.lifecycle.abort(), { once: true });
+    window.addEventListener('pagehide', () => { this.lifecycle.abort(); void this.uiAudio?.close(); }, { once: true });
+    // Quiet, original UI notes. Audio starts only on an intentional press and follows the sound settings.
+    document.addEventListener('pointerover', event => {
+      const button = (event.target as Element).closest('button');
+      if (button && !button.contains(event.relatedTarget as Node | null) && !button.disabled) this.playUiSound(false);
+    }, { signal: this.lifecycle.signal });
+    document.addEventListener('click', event => {
+      if ((event.target as Element).closest('button:not(:disabled)')) this.playUiSound(true);
+    }, { signal: this.lifecycle.signal });
     this.drawMapBackground(); this.home();
     // The map binding (M by default) toggles the island map; it never touches pointer lock or movement input.
     document.addEventListener('keydown', event => {
@@ -122,23 +132,49 @@ export class GameUI {
       }
     });
   }
+  private playUiSound(click: boolean) {
+    const volume = this.settings.master * this.settings.effects, now = performance.now();
+    if (!volume || document.hidden || (!click && (!this.uiAudio || now - this.uiSoundAt < 65))) return;
+    try {
+      if (!this.uiAudio) this.uiAudio = new AudioContext();
+      const context = this.uiAudio;
+      if (context.state === 'suspended') { if (!click) return; void context.resume(); }
+      this.uiSoundAt = now;
+      const tone = context.createOscillator(), gain = context.createGain(), at = context.currentTime;
+      tone.type = 'sine'; tone.frequency.setValueAtTime(click ? 740 : 520, at);
+      tone.frequency.exponentialRampToValueAtTime(click ? 1100 : 660, at + .045);
+      gain.gain.setValueAtTime(0, at); gain.gain.linearRampToValueAtTime(volume * (click ? .065 : .024), at + .006);
+      gain.gain.exponentialRampToValueAtTime(.0001, at + .09);
+      tone.connect(gain); gain.connect(context.destination); tone.start(at); tone.stop(at + .1);
+      tone.onended = () => { tone.disconnect(); gain.disconnect(); };
+    } catch { /* Unsupported or blocked audio never prevents a menu action. */ }
+  }
   private header(back = false) {
-    return `<header class="topbar"><button class="brand" data-do="home" aria-label="Tela inicial"><img src="./assets/favicon.svg" alt=""/><span>ÚLTIMA<br><b>CAPIVARA</b></span></button><nav>${back ? `<button class="nav-link" data-do="leave">${icon('back')} VOLTAR</button>` : '<span class="nav-link active">JOGAR</span><button class="nav-link" data-do="how">COMO JOGAR</button>'}<button class="icon-button" data-do="settings" aria-label="Configurações">${icon('settings')}</button></nav><div class="edition"><span class="live-dot"></span> EDIÇÃO ILHA <b>V2</b></div></header>`;
+    return `<header class="topbar"><button class="brand" data-do="home" aria-label="Tela inicial"><img src="./assets/favicon.svg" alt=""/><span>ÚLTIMA<br><b>CAPIVARA</b></span></button><nav>${back ? `<button class="nav-link" data-do="leave">${icon('back')} VOLTAR</button>` : '<span class="nav-link active">JOGAR</span><button class="nav-link" data-do="how">COMO JOGAR</button>'}<button class="icon-button" data-do="settings" aria-label="Configurações">${icon('settings')}</button></nav><div class="edition"><span class="live-dot"></span> EDIÇÃO ILHA <b>GRÁTIS</b></div></header>`;
   }
   home() {
     this.screen = 'home'; this.lastResults = ''; this.els.clear(); this.coach = null; document.body.dataset.screen = 'home';
     const mode = (m: Mode) => `${this.selectedMode === m ? ' selected' : ''}" aria-pressed="${this.selectedMode === m}`;
-    this.root.innerHTML = `${this.header()}<main class="home-content"><section class="hero-copy"><div class="cover-top"><span class="issue">Edição 02</span><span class="price">Grátis</span></div><p class="eyebrow"><span></span> A ILHA É NOSSA.</p><h1>ÚLTIMA<br><em>CAPIVARA</em><span class="title-stamp">SÓ UMA<br>FICA DE PÉ.</span></h1><p class="hero-description">Chame a turma. Escolha seu lugar na ilha.<br>O resto é instinto de sobrevivência.</p><div class="hero-actions"><button class="button primary warmup" data-do="practice">${icon('crosshair')} AQUECER COM OS BOTS ${icon('arrow')}<small>Joga na hora, sem sala</small></button><button class="button secondary" data-do="host">${icon('plus')} CRIAR SALA</button><button class="button secondary" data-do="join">${icon('users')} ENTRAR</button></div><div class="hero-facts"><span>${icon('users')} ATÉ 16 AMIGOS</span><i></i><span>${icon('globe')} NO NAVEGADOR</span><i></i><span>100% GRÁTIS</span></div></section><section class="mode-section" aria-label="Escolha o modo"><div class="section-heading"><span>ESCOLHA SUA CONFUSÃO</span><small>02 MODOS DE JOGO</small></div><div class="mode-grid"><button class="mode-card royale${mode('battle-royale')}" data-mode="battle-royale"><div class="mode-art painted" style="--art:url(${uiArt('mode-royale')})"><span class="mode-index">01</span></div><div class="mode-copy"><span class="mode-tag">BATTLE ROYALE</span><h2>ÚLTIMA DE PÉ</h2><p>Uma ilha. Uma vida. Nenhuma segunda chance.</p><span class="mode-meta">${icon('users')} ATÉ 21 BICHOS <b class="selection-mark">${icon('check')}</b></span></div></button><button class="mode-card deathmatch${mode('deathmatch')}" data-mode="deathmatch"><div class="mode-art painted" style="--art:url(${uiArt('mode-correria')})"><span class="mode-index">02</span></div><div class="mode-copy"><span class="mode-tag">COMBATE POR TEMPO</span><h2>CORRERIA</h2><p>Caiu? Volta. Mais eliminações, mais glória.</p><span class="mode-meta">${icon('clock')} 8 MINUTOS <b class="selection-mark">${icon('check')}</b></span></div></button></div></section></main><footer class="home-footer"><span>${icon('leaf')} FEITO PARA JOGAR JUNTO.</span><span>ILHA DAS CAPIVARAS <i>22° S / 43° O</i></span><button data-do="how">CONTROLES ${icon('mouse')}</button></footer>`;
+    this.root.innerHTML = `${this.header()}<div class="menu-motes" aria-hidden="true">${'<i></i>'.repeat(12)}</div>
+      <main class="home-content"><section class="hero-copy"><p class="eyebrow"><span></span> A ILHA É NOSSA.</p>
+      <h1>ÚLTIMA<br><em>CAPIVARA</em></h1><p class="hero-description">Sua turma. Uma ilha. Só uma fica de pé.<br>O resto é instinto de sobrevivência.</p>
+      <div class="hero-actions"><button class="button primary warmup" data-do="practice">${icon('play')}<span>JOGAR AGORA<small>Treino com bots · sem esperar</small></span>${icon('arrow')}</button>
+      <button class="button secondary" data-do="host">${icon('plus')} CRIAR SALA</button><button class="button secondary" data-do="join">${icon('users')} ENTRAR NA SALA</button></div>
+      <div class="hero-facts"><span>${icon('users')} Até 16 amigos</span><i></i><span>${icon('globe')} No navegador</span><i></i><span>100% grátis</span></div></section>
+      <section class="mode-section" aria-label="Escolha o modo"><div class="section-heading"><span>ESCOLHA SUA AVENTURA</span><small>02 MODOS DE JOGO</small></div><div class="mode-grid">
+      <button class="mode-card royale${mode('battle-royale')}" data-mode="battle-royale"><div class="mode-art painted" style="--art:url(${uiArt('mode-royale')})"><span class="mode-index">01</span></div><div class="mode-copy"><span class="mode-tag">BATTLE ROYALE</span><h2>ÚLTIMA DE PÉ</h2><p>Uma ilha. Uma vida.<br>Sobreviva até o fim.</p><span class="mode-meta">${icon('users')} ATÉ 21 BICHOS <b class="selection-mark">${icon('check')}</b></span></div></button>
+      <button class="mode-card deathmatch${mode('deathmatch')}" data-mode="deathmatch"><div class="mode-art painted" style="--art:url(${uiArt('mode-correria')})"><span class="mode-index">02</span></div><div class="mode-copy"><span class="mode-tag">COMBATE POR TEMPO</span><h2>CORRERIA</h2><p>Caiu? Volta pra disputa.<br>Mais eliminações, mais glória.</p><span class="mode-meta">${icon('clock')} 8 MINUTOS <b class="selection-mark">${icon('check')}</b></span></div></button>
+      </div></section></main><footer class="home-footer"><span>${icon('leaf')} FEITO PARA JOGAR JUNTO.</span><span>ILHA DAS CAPIVARAS <i>22° S / 43° O</i></span><button data-do="how">CONTROLES ${icon('mouse')}</button></footer>`;
   }
-  // Short <select>s become sticker segmented toggles; the hidden select stays the source of truth for forms and listeners.
+  // Short <select>s become segmented toggles; the hidden select stays the source of truth for forms and listeners.
   private segmentize(root: HTMLElement) {
     root.querySelectorAll<HTMLSelectElement>('select:not(.seg-source)').forEach(select => {
       if (select.options.length > 4) return;
       const seg = document.createElement('div'); seg.className = 'seg';
       for (const option of Array.from(select.options)) {
         const button = document.createElement('button'); button.type = 'button'; button.textContent = (option.textContent || option.value).split(' · ')[0];
-        button.classList.toggle('on', option.value === select.value);
-        button.addEventListener('click', () => { select.value = option.value; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === button)); select.dispatchEvent(new Event('change', { bubbles: true })); });
+        button.classList.toggle('on', option.value === select.value); button.setAttribute('aria-pressed', String(option.value === select.value));
+        button.addEventListener('click', () => { select.value = option.value; seg.querySelectorAll('button').forEach(b => { b.classList.toggle('on', b === button); b.setAttribute('aria-pressed', String(b === button)); }); select.dispatchEvent(new Event('change', { bubbles: true })); });
         seg.append(button);
       }
       select.classList.add('seg-source'); select.after(seg);
@@ -146,7 +182,8 @@ export class GameUI {
   }
   private openModal(title: string, content: string) {
     this.closeModal(); const dialog = document.createElement('dialog'); dialog.className = 'modal';
-    dialog.innerHTML = `<div class="modal-heading"><div><p class="eyebrow">ÚLTIMA CAPIVARA</p><h2>${title}</h2></div><button class="icon-button close-modal" aria-label="Fechar">${icon('close')}</button></div>${content}`;
+    dialog.setAttribute('aria-labelledby', 'modal-title');
+    dialog.innerHTML = `<div class="modal-heading"><div><p class="eyebrow">ÚLTIMA CAPIVARA</p><h2 id="modal-title">${title}</h2></div><button class="icon-button close-modal" aria-label="Fechar">${icon('close')}</button></div>${content}`;
     document.body.append(dialog); this.modal = dialog;
     requestAnimationFrame(() => this.segmentize(dialog));
     dialog.querySelector('.close-modal')!.addEventListener('click', () => this.closeModal());
@@ -434,6 +471,7 @@ export class GameUI {
     const labels = { sensitivity: 'Sensibilidade do mouse', fov: 'Campo de visão', master: 'Volume geral', effects: 'Efeitos e combate', ambience: 'Ambiente', music: 'Música' };
     const ranges = (keys: (keyof typeof labels)[]) => keys.map(key => `<label class="slider-label">${labels[key]} <output>${this.settings[key]}</output><input type="range" data-setting="${key}" min="${key === 'fov' ? 60 : key === 'sensitivity' ? .2 : 0}" max="${key === 'fov' ? 105 : key === 'sensitivity' ? 3 : 1}" step="${key === 'fov' ? 1 : .05}" value="${this.settings[key]}"/></label>`).join('');
     const dialog = this.openModal('DO SEU JEITO.', `<div class="settings-grid"><section><h3>MOUSE E IMAGEM</h3>${ranges(['sensitivity', 'fov'])}<label>Qualidade gráfica<select id="graphics"><option value="low">Leve</option><option value="medium">Equilibrada</option><option value="high">Caprichada</option></select></label><label>Limite de quadros<select id="frame-limit"><option value="60">60 FPS · Fluido</option><option value="30">30 FPS · Economia</option></select></label><label class="check-row"><input id="reduced-motion" type="checkbox" ${this.settings.reducedMotion ? 'checked' : ''}/> Reduzir movimento (câmera e interface)</label><label class="check-row"><input id="ads-toggle" type="checkbox" ${this.settings.adsToggle ? 'checked' : ''}/> Alternar mira com um clique</label><label class="check-row"><input id="adaptive" type="checkbox" ${this.settings.adaptive ? 'checked' : ''}/><span>Ajuste automático dos bots no treino<small>Como na v1: fica mais manso se você vem perdendo e mais bravo se vem ganhando.</small></span></label></section><section><h3>O SOM DA ILHA</h3>${ranges(['master', 'effects', 'ambience', 'music'])}</section><section><h3>INTERFACE E MIRA</h3><label class="slider-label">Tamanho da interface <output id="ui-scale-out">${Math.round(this.settings.uiScale * 100)}%</output><input type="range" id="ui-scale" min="80" max="120" step="5" value="${Math.round(this.settings.uiScale * 100)}"/></label><label>Cor da mira<select id="crosshair-color"><option value="white">Branca</option><option value="yellow">Amarela</option><option value="cyan">Ciano</option><option value="magenta">Magenta</option></select></label><label>Marcadores de acerto<select id="hit-palette"><option value="default">Padrão</option><option value="colorblind">Daltonismo</option></select></label><label class="check-row"><input id="show-fps" type="checkbox" ${this.settings.showFps ? 'checked' : ''}/> Mostrar FPS no mapa</label><button type="button" class="button secondary" id="replay-tutorial">${icon('info')} REVER O TUTORIAL</button></section></div><details class="bindings"${this.unboundCount() ? ' open' : ''}><summary>PERSONALIZAR TECLAS E MOUSE${this.unboundCount() ? ` · <span class="unbound-count">${this.unboundCount()} sem tecla</span>` : ''}</summary>${this.bindingGroups()}<p class="form-note binding-note" role="status">${this.unboundCount() ? `Algumas ações ficaram sem tecla. Clique nelas e escolha uma.` : 'Clique numa ação e aperte a nova tecla ou botão do mouse. <kbd>Esc</kbd> cancela.'}</p><button type="button" class="button secondary" id="reset-bindings">RESTAURAR PADRÃO</button></details><p class="form-note">As preferências ficam salvas neste navegador.</p><button class="button primary full-width" id="save-settings">TUDO CERTO ${icon('check')}</button>`);
+    dialog.classList.add('settings-modal');
     dialog.querySelector<HTMLSelectElement>('#graphics')!.value = this.settings.graphics;
     dialog.querySelector<HTMLSelectElement>('#frame-limit')!.value = String(this.settings.frameLimit);
     dialog.querySelectorAll<HTMLInputElement>('[data-setting]').forEach(input => input.addEventListener('input', () => { const key = input.dataset.setting as keyof typeof labels; this.settings[key] = Number(input.value); input.parentElement!.querySelector('output')!.textContent = input.value; this.callbacks.settings(this.settings); }));
