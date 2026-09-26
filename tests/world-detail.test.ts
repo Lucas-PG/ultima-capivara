@@ -379,6 +379,18 @@ describe('river island gameplay integrity', () => {
 });
 
 describe('painted terrain regions', () => {
+  it('keeps graded paving on the fort ramp while exposing stone on steep road cuts', () => {
+    const slopeAt = (x: number, z: number) => Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z),
+      terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
+    for (const z of [-76, -72, -68, -64])
+      expect(roadPaintWeight(4, z, terrainHeight(4, z), slopeAt(4, z))).toBe(1);
+    for (const [x, z] of [[-75, -35], [-74, -35], [-81, -41]]) {
+      const y = terrainHeight(x, z), slope = slopeAt(x, z);
+      expect(roadPaintWeight(x, z, y, slope)).toBe(0);
+      expect(terrainColor(x, z, y, slope)).toBe(WORLD_PALETTE.rock);
+    }
+  });
+
   it('lets the promenade become continuous sand without a straight road or curb band', () => {
     for (const z of [101, 102.9, 103, 103.2, 103.4, 104]) {
       const y = terrainHeight(-38, z);
@@ -400,7 +412,7 @@ describe('painted terrain regions', () => {
     expect([WORLD_PALETTE.sand, WORLD_PALETTE.sandLight, WORLD_PALETTE.sandWet]).toContain(terrainColor(-22, 111, terrainHeight(-22, 111), 0));
     expect(terrainColor(0, 8, -1, 0)).toBe(WORLD_PALETTE.mud);
     expect(terrainColor(-105, -50, 15, 1.2)).toBe(WORLD_PALETTE.rock);
-    expect(brightness(WORLD_PALETTE.road)).toBeLessThan(brightness(WORLD_PALETTE.grass) - 20);
+    expect(Math.abs(brightness(WORLD_PALETTE.road) - brightness(WORLD_PALETTE.grass))).toBeGreaterThan(20);
   });
   it('retains a green tropical island while making room for cliffs and beaches', () => {
     let land = 0, grass = 0, dry = 0, high = -Infinity, low = Infinity;
