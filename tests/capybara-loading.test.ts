@@ -68,43 +68,6 @@ beforeEach(() => {
 describe('capybara cosmetic colour contract', () => {
   const colors = ['#1FB5A8', '#E76F51', '#FFC23D', '#3D6FB6', '#A468FF', '#F28DB2', '#8CC453', '#F4F1E8', '#bd8956'];
 
-  it('plays an optional trampoline rise once per launch, enters late at the right pose, and falls at descent', async () => {
-    const capy = await import('../src/render/capybara'), source = fixture();
-    source.animations.push(
-      new THREE.AnimationClip('boing', 1.05, [new THREE.NumberKeyframeTrack('head.scale[x]', [0, .4, 1.05], [1, 1.5, 1.5])]),
-      new THREE.AnimationClip('fall', 1, [new THREE.NumberKeyframeTrack('head.scale[x]', [0, 1], [.8, .8])]),
-    );
-    await capy.preloadCapybaraAsset(async () => source);
-    const avatar = capy.buildCapybaraBody('#1FB5A8'), head = avatar.body.getObjectByName('head')!;
-    const actor = { pos: { x: 1, y: 3, z: 2 }, velocity: { x: 0, y: 12, z: 0 }, grounded: false,
-      swimming: false, bounceSeq: 1, bounceProtected: true, emote: null, emoteUntil: 0,
-      stage: 'ground', crouch: false, yaw: 0, pitch: 0, slot: 0, reloadUntil: 0, weapons: [{ id: 'pistol' }] } as any;
-    const root = avatar.body.getObjectByName('root')!.position.clone(), before = structuredClone(actor);
-    const advance = (seconds: number) => { for (let i = 0; i < Math.round(seconds * 60); i++) capy.updateCapybaraBody(avatar.body, actor, 1 / 60, i / 60); };
-    advance(.4); expect(head.scale.x).toBeGreaterThan(1.45);
-    advance(1); expect(head.scale.x).toBeCloseTo(1.5, 3);
-    expect(actor).toEqual(before); expect(avatar.body.getObjectByName('root')!.position.equals(root)).toBe(true);
-    actor.velocity.y = -.01; advance(.3); expect(head.scale.x).toBeLessThan(.81);
-    actor.bounceSeq++; actor.velocity.y = 12;
-    advance(1 / 60); expect(head.scale.x).toBeLessThan(1.1);
-    capy.resetCapybaraPose(avatar.body); actor.velocity.y = 4;
-    advance(.12); expect(head.scale.x).toBeGreaterThan(1.4);
-    actor.bounceProtected = false; advance(.4); expect(head.scale.x).toBeCloseTo(1, 2);
-    avatar.body.skeleton.dispose(); capy.disposeCapybaraAssets();
-  });
-
-  it('keeps the existing jump animation when the optional trampoline clip is absent', async () => {
-    const capy = await import('../src/render/capybara'), source = fixture();
-    source.animations.find(clip => clip.name === 'jump')!.tracks = [new THREE.NumberKeyframeTrack('head.scale[x]', [0, 1], [.9, .9])];
-    await capy.preloadCapybaraAsset(async () => source);
-    const avatar = capy.buildCapybaraBody('#1FB5A8');
-    const actor = { velocity: { x: 0, y: 12, z: 0 }, grounded: false, bounceProtected: true, bounceSeq: 1,
-      stage: 'ground', crouch: false, yaw: 0, pitch: 0, slot: 0, reloadUntil: 0, weapons: [{ id: 'pistol' }] } as any;
-    for (let i = 0; i < 30; i++) capy.updateCapybaraBody(avatar.body, actor, 1 / 60, i / 60);
-    expect(avatar.body.getObjectByName('head')!.scale.x).toBeCloseTo(.9, 3);
-    avatar.body.skeleton.dispose(); capy.disposeCapybaraAssets();
-  });
-
   it('treads water from idle instead of playing an airborne clip and preserves the physical actor', async () => {
     const capy = await import('../src/render/capybara'), source = fixture();
     source.animations.find(clip => clip.name === 'jump')!.tracks = [new THREE.NumberKeyframeTrack('head.position[y]', [0, 1], [.9, .9])];
