@@ -3,9 +3,12 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { AssetLoader } from './assets';
 import pieces from '../shared/kit-pieces.json';
 import { createToonMaterial } from './materials';
-import { kitInteriorLight } from './kit-interior';
+import { kitInteriorLight, paintKitPlacement } from './kit-interior';
 
-export interface KitPlacement { piece: string; x: number; y: number; z: number; yaw: number; scale?: number }
+export interface KitPlacement {
+  piece: string; x: number; y: number; z: number; yaw: number; scale?: number;
+  paintVariant?: 0 | 1 | 2; interiorFloor?: 'wood' | 'warm-tile';
+}
 export interface KitScene {
   ready: Promise<void>;
   update(camera: THREE.Camera, time?: number): void;
@@ -157,7 +160,10 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
             geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 4).fill(.82), 4));
             geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(count * 2).fill(.12), 2));
             parts.push(geometry.applyMatrix4(place(placement, cell.origin)));
-          } else parts.push(source.clone().applyMatrix4(place(placement, cell.origin)));
+          } else {
+            const geometry = source.clone(); paintKitPlacement(geometry, placement);
+            parts.push(geometry.applyMatrix4(place(placement, cell.origin)));
+          }
         }
         const geometry = mergeGeometries(parts);
         parts.forEach(part => part.dispose());

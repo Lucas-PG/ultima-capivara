@@ -2,6 +2,51 @@ import * as THREE from 'three';
 import { KIT_PIECES } from '../shared/kit-collision';
 import type { KitPlacement } from './kit';
 
+const ROOM_PALETTES = [
+  ['#F3DBBA', '#C57552', '#548F86'], // Sunset cloth, terracotta border, teal motif.
+  ['#ECE9CC', '#509897', '#C6924E'], // Coastal linen, turquoise border, gold motif.
+  ['#E8CE91', '#847E54', '#B66545'], // Ochre cloth, olive border, clay motif.
+].map(palette => palette.map(color => new THREE.Color(color)));
+
+// Called on an owned placement clone before its transform/cell merge. Only
+// existing colour/UV attributes change; positions, normals and indices do not.
+export function paintKitPlacement(geometry: THREE.BufferGeometry, placement: KitPlacement) {
+  const palette = placement.paintVariant === undefined ? undefined : ROOM_PALETTES[placement.paintVariant];
+  const decor = palette && (placement.piece === 'rug' || placement.piece === 'wall_picture');
+  const floors = placement.interiorFloor && /^house_(small|tall)$/.test(placement.piece)
+    ? KIT_PIECES[placement.piece].traversal?.floors : undefined;
+  if (!decor && !floors) return;
+  const uv = geometry.getAttribute('uv'), color = geometry.getAttribute('color');
+  const position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
+  const tileAt = (i: number) => Math.floor(uv.getX(i) * 4) + Math.floor(uv.getY(i) * 4) * 4;
+  const retile = (i: number, tile: number) => uv.setXY(i,
+    (tile % 4 + (uv.getX(i) * 4) % 1) / 4, (Math.floor(tile / 4) + (uv.getY(i) * 4) % 1) / 4);
+  for (let i = 0; i < position.count; i++) {
+    const tile = tileAt(i), r = color.getX(i), g = color.getY(i), b = color.getZ(i);
+    if (decor && palette) {
+      let part = -1, authoredTint = 1;
+      if (placement.piece === 'rug' && tile === 11) {
+        part = r > g * 1.4 ? 2 : g > r * 1.4 ? 1 : 0;
+        authoredTint = part === 2 ? .83 : part === 1 ? .57 : 1;
+      } else if (placement.piece === 'wall_picture') {
+        part = tile === 0 ? 0 : tile === 2 ? 1 : tile === 3 ? 2 : -1;
+        // Reuse the pale painted tile under the selected picture pigment.
+        if (part >= 0) retile(i, 0);
+      }
+      if (part >= 0) {
+        const tint = palette[part], ao = Math.min(1, Math.max(r, g, b) / authoredTint);
+        color.setXYZ(i, tint.r * ao, tint.g * ao, tint.b * ao);
+      }
+    }
+    if (floors && normal.getY(i) > .85 && (tile === 5 || tile === 14) && floors.some(floor =>
+      Math.abs(position.getY(i) - floor.y) < .025 && position.getX(i) >= floor.bounds[0] - .01 &&
+      position.getX(i) <= floor.bounds[2] + .01 && position.getZ(i) >= floor.bounds[1] - .01 && position.getZ(i) <= floor.bounds[3] + .01)) {
+      retile(i, placement.interiorFloor === 'wood' ? 5 : 14);
+      if (placement.interiorFloor === 'warm-tile') color.setXYZ(i, r * 1.04, g * .93, b * .78);
+    }
+  }
+}
+
 // Read window glass from the authored atlas, rather than inventing apertures.
 // The small painted bounce stays on existing surfaces and adds no draw or light.
 export function kitInteriorLight(material: THREE.MeshStandardMaterial, model: THREE.Object3D,
