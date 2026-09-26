@@ -22,7 +22,7 @@ describe('match celebration timing', () => {
     expect(ui.showMoment).toHaveBeenCalledTimes(1);
     expect(ui.showMoment).toHaveBeenLastCalledWith('Boa sorte, capivara!', 'Espaço pra saltar', 'launch');
     update(ui, sample(), actor('falling')); update(ui, sample(), actor('falling')); update(ui, sample(), actor('parachute')); update(ui, sample());
-    expect(ui.showMoment).toHaveBeenCalledTimes(2); expect(ui.showMoment).toHaveBeenLastCalledWith('PULA!', 'Espaço abre o paraquedas', 'drop');
+    expect(ui.showMoment).toHaveBeenCalledTimes(2); expect(ui.showMoment).toHaveBeenLastCalledWith('PULA!', '', 'drop');
   });
   it('keeps later arena modes free of storm countdowns', () => {
     const ui = moments(), snapshot = sample(3); snapshot.config.mode = 'deathmatch'; update(ui, snapshot);
