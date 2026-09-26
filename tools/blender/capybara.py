@@ -153,7 +153,7 @@ def mesh_part(name, verts, faces, color, weights, subdivide=True):
         sub.levels = 1
         bpy.ops.object.modifier_apply(modifier=sub.name)
     # Fur sits 4 mm behind facial linework, avoiding coincident surfaces at the hit sphere.
-    radius = .240 if obj.name == 'Head_and_muzzle' else .244
+    radius = .240 if obj.name == 'Head_and_muzzle' else .237 if obj.name == 'Torso_barrel' else .244
     # Face, muzzle and ears stay inside the head hit sphere.
     facial = {g.index for g in obj.vertex_groups if g.name == 'head' or g.name == 'jaw' or g.name.startswith(('ear_', 'blink_', 'socket_', 'glint_', 'brow_', 'mouth_'))}
     centre = V((0, 1.6, -.04))
@@ -295,8 +295,9 @@ profile = [(.35, .04, .04, .005), (.37, .15, .14, 0), (.42, .232, .197, -.006),
            (.49, .247, .221, -.008), (.59, .263, .236, -.008), (.70, .272, .238, -.006),
            (.81, .271, .234, -.004), (.93, .266, .228, 0), (1.05, .277, .238, .004),
            (1.17, .285, .239, .005), (1.28, .268, .216, .005),
-           (1.35, .228, .185, .005), (1.402, .172, .141, .005), (1.418, .164, .132, .005),
-           (1.445, .163, .130, .005), (1.464, .153, .124, .005), (1.472, .04, .04, .005)]
+           (1.35, .228, .185, .005), (1.402, .183, .160, 0), (1.418, .178, .158, .003),
+           (1.445, .174, .150, .003), (1.476, .163, .157, .005),
+           (1.510, .135, .125, .010), (1.528, .04, .04, .010)]
 # Reserve real garment depth inside the unchanged body hit cylinder.
 profile = [(y, rx * (.94 if .95 < y < 1.41 else 1), rz * (.94 if .95 < y < 1.41 else 1), cz) for y, rx, rz, cz in profile]
 verts, faces = [], []
@@ -344,23 +345,23 @@ for loop in patch.data.loops:
     rgb = tuple(fur[i] * (1 - weight) + belly[i] * weight for i in range(3))
     patch.data.color_attributes['Color'].data[loop.index].color = (*rgb, 1)
 # A single longitudinal quad surface joins the cheeks and broad blunt muzzle.
-# Forehead-to-nose is one gently descending line, without a box seam.
-# Side silhouette is about 1.4 times longer than tall. Close support rings at
-# the muzzle keep its top/bottom parallel and its front broad, without a cone.
-head_profile = [(.162, .022, 1.61, .025), (.149, .078, 1.614, .087),
-                (.108, .144, 1.613, .150), (.048, .188, 1.607, .183),
-                (-.016, .198, 1.600, .180), (-.078, .181, 1.595, .155),
-                (-.128, .144, 1.589, .122), (-.171, .123, 1.586, .106),
-                (-.208, .109, 1.590, .092), (-.235, .095, 1.599, .074),
-                (-.250, .080, 1.602, .063), (-.265, .065, 1.605, .045),
-                (-.271, .038, 1.608, .027), (-.273, .001, 1.609, .001)]
+# The skull is a long rounded rectangle, not a sphere with an attached snout.
+# A nearly level brow-to-nose line and a vertical front plane carry the brand
+# silhouette. The small lower jaw tucks behind the deep upper lip.
+head_profile = [(.173, .018, 1.588, .036), (.163, .071, 1.588, .091),
+                (.139, .126, 1.582, .133), (.092, .166, 1.572, .153),
+                (.035, .179, 1.572, .155), (-.035, .176, 1.574, .145),
+                (-.094, .158, 1.582, .128), (-.151, .141, 1.593, .116),
+                (-.196, .120, 1.605, .103), (-.226, .101, 1.615, .087),
+                (-.242, .082, 1.618, .082), (-.247, .078, 1.618, .080),
+                (-.249, .065, 1.618, .066), (-.250, .001, 1.618, .001)]
 verts, faces = [], []
 segments = 32
 for z, rx, cy, ry in head_profile:
     for i in range(segments):
         a = math.tau * i / segments
-        # Rounded cheeks and forehead, with a gently broader blunt snout.
-        power = .92 if z > -.13 else .76
+        # Broad top, underside and cheek planes soften into rounded corners.
+        power = .72 if z > -.13 else .60
         shape = lambda v: math.copysign(abs(v) ** power, v)
         verts.append((rx * shape(math.cos(a)), cy + ry * shape(math.sin(a)), z))
 for row in range(len(head_profile) - 1):
@@ -389,11 +390,14 @@ mouth_point = fur_point(0, 1.535)
 # the same tangent plane, so squints and arcs remain on the curved cheek.
 eye_frames = {}
 for side in [-1, 1]:
-    hit, point, normal, face = reference.ray_cast(V((side * .129, 1.696, -1)), V((0, 0, 1)))
+    hit, point, normal, face = reference.ray_cast(V((side, 1.674, -.060)), V((-side, 0, 0)))
     assert hit, ('lateral eye surface', side)
     normal = normal.normalized()
-    if normal.dot(V((0, 0, -1))) < 0:
+    if normal.dot(V((side, 0, 0))) < 0:
         normal.negate()
+    # A little forward-facing tilt keeps the high side-set eyes expressive in
+    # the front view while their centres remain behind the long upper muzzle.
+    normal = (normal * .78 + V((0, 0, -1)) * .34).normalized()
     up = V((0, 1, 0))
     tangent = up.cross(normal).normalized()
     up = normal.cross(tangent).normalized()
@@ -402,7 +406,7 @@ for side in [-1, 1]:
     cutter = bpy.context.object
     for vertex in cutter.data.vertices:
         x, y, z = vertex.co
-        vertex.co = point + normal * (.018 + y * .024) + tangent * x * .034 + up * z * .038
+        vertex.co = point + normal * (.018 + y * .024) + tangent * x * .035 + up * z * .031
     bm = bmesh.new()
     bm.from_mesh(cutter.data)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -466,8 +470,8 @@ for poly in head_surface.data.polygons:
         shadow = shadow * (1 - muzzle) + muzzle * max(0, min(1, (-up - .35) / .4))
         rgb = [base_rgb[i] * (1 - light) + light_rgb[i] * light for i in range(3)]
         rgb = [rgb[i] * (1 - shadow) + shadow_rgb[i] * shadow for i in range(3)]
-        muzzle_shade = max(0, min(1, (-z - .13) / .115)) * math.exp(-((y - 1.606) / .10) ** 2) * .70
-        muzzle_rgb = linear_rgb('765038')
+        muzzle_shade = max(0, min(1, (-z - .095) / .13)) * math.exp(-((y - 1.604) / .145) ** 2) * .88
+        muzzle_rgb = linear_rgb('4A3327')
         rgb = [rgb[i] * (1 - muzzle_shade) + muzzle_rgb[i] * muzzle_shade for i in range(3)]
         head_surface.data.uv_layers.active.data[loop_index].uv = (14.5 / 16, .5)
         head_surface.data.color_attributes['Color'].data[loop_index].color = (*rgb, 1)
@@ -480,9 +484,9 @@ for sign in [-1, 1]:
         color.color = (*linear_rgb('F5E8C5'), 1)
 # A broad, shallow oval pad follows the upper muzzle. Narrow slits avoid the
 # socket-like pair of circular dots inside a rectangular badge.
-ellipsoid('Nose_pad', (0, 1.627, -.254), (.073, .035, .024), 15, {'head': 1}, segments=24, rings=12)
+ellipsoid('Nose_pad', (0, 1.681, -.246), (.075, .028, .017), 15, {'head': 1}, square=.76, segments=24, rings=12)
 for side in [-1, 1]:
-    ellipsoid('Nostril_slit', (side * .033, 1.638, -.273), (.012, .005, .003), 9, {'head': 1}, segments=16, rings=8)
+    ellipsoid('Nostril_slit', (side * .034, 1.684, -.260), (.012, .006, .003), 9, {'head': 1}, segments=16, rings=8)
     for strand in range(3):
         x, y = side * (.066 + strand * .010), 1.575 - strand * .009
         point = fur_point(x, y)
@@ -491,6 +495,11 @@ for side in [-1, 1]:
         tip = start + Vector((side * .045, .007 - strand * .007, .028))
         fine_line('Whisker', [tuple(start), tuple(middle), tuple(tip)], .00075, 4, {'head': 1})
         ellipsoid('Whisker_follicle', tuple(start), (.0018, .0018, .001), 2, {'head': 1}, segments=6, rings=4)
+cleft = []
+for y in [1.651, 1.627, 1.603, 1.579, 1.555]:
+    point = fur_point(0, y) + V((0, 0, -.0008))
+    cleft.append((point.x, point.z, -point.y))
+fine_line('Upper_lip_cleft', cleft, .0012, 2, {'head': 1})
 # A fur-coloured lower lip and fine wine rim articulate the actual cavity.
 for name, angles, radius, color in [('Lower_lip', range(180, 361, 30), .003, 0), ('Lip_line', range(0, 361, 30), .0012, 3)]:
     points = []
@@ -520,9 +529,9 @@ for s, side in [(-1, 'L'), (1, 'R')]:
     # Nested convex eye surfaces give a visible iris and pupil at play distance.
     # All layers share the blink rig; sclera uses the non-emissive ivory tile half.
     layers = [
-        ('Sclera_', (.030, .034, .010), 10, 0, 0, -.003, 'D8C3A3'),
-        ('Iris_', (.025, .029, .012), 12, -s * .003, .001, .003, 'BD8A4F'),
-        ('Eye_', (.013, .022, .009), 9, -s * .005, .002, .013, None),
+        ('Sclera_', (.032, .027, .010), 10, 0, 0, -.003, 'D8C3A3'),
+        ('Iris_', (.026, .024, .012), 12, -s * .003, .001, .003, '9B6338'),
+        ('Eye_', (.013, .020, .009), 9, -s * .005, .002, .013, None),
         ('Glint_', (.0045, .006, .002), 10, -.010, .012, .023, None),
         ('Glint_small_', (.002, .0025, .0015), 10, .007, -.010, .022, None),
     ]
@@ -537,7 +546,7 @@ for s, side in [(-1, 'L'), (1, 'R')]:
             point, normal, tangent, up = eye_frames[s]
             vertex.co = point + tangent * (x - s * .176) + up * (y - 1.654) + normal * (depth - (z + .12))
     point, normal, tangent, up = eye_frames[s]
-    for label, lift, radius, tile in [('Upper_lid_', .032, .0035, 3), ('Brow_ridge_', .044, .008, 0), ('Lower_lid_', -.030, .0025, 2)]:
+    for label, lift, radius, tile in [('Upper_lid_', .028, .0058, 2), ('Brow_ridge_', .039, .012, 0), ('Lower_lid_', -.025, .003, 2)]:
         points = []
         for i in range(9):
             t = i / 8 * math.pi
@@ -545,15 +554,69 @@ for s, side in [(-1, 'L'), (1, 'R')]:
             points.append((p.x, p.z, -p.y))
         tube(label + side, points, [radius * (.35 + .65 * math.sin(i / 8 * math.pi)) for i in range(9)], tile,
              ['brow_' + side, 'head'] if label.startswith('Brow') else ['blink_' + side, 'blink_' + side])
-    ellipsoid('Ear_' + side, (s * .112, 1.755, .083), (.035, .041, .024), 0, {'ear_' + side: .88, 'head': .12}, segments=16, rings=10)
-    ellipsoid('Ear_inner_' + side, (s * .112, 1.755, .064), (.024, .029, .009), 11, {'ear_' + side: 1}, segments=16, rings=8)
-    tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .01), (s * .137, .23, .01), (s * .137, .15, -.012), (s * .137, .08, -.04)], [.10, .13, .125, .11, .085], 0,
-         ['thigh_' + side, 'thigh_' + side, 'shin_' + side, 'shin_' + side, 'foot_' + side])
-    ellipsoid('Foot_' + side, (s * .137, .052, -.050), (.113, .048, .127), 2, {'foot_' + side: 1}, square=.80, segments=16, rings=10)
+    # A small cupped ear has a rolled fur rim and a recessed warm inner bowl.
+    # Closed back/front rings avoid an opaque oval pasted onto another oval.
+    verts, faces = [], []
+    ear_rings = [(.001,.015),(.60,.017),(1,.002),(1,-.010),(.80,-.015),(.62,-.008),(.001,.007)]
+    tilt = s * .25
+    for radius, depth in ear_rings:
+        for i in range(20):
+            angle = math.tau * i / 20
+            x, y = .026 * radius * math.cos(angle), .030 * radius * math.sin(angle)
+            verts.append((s * .105 + x * math.cos(tilt) - depth * math.sin(tilt),
+                          1.732 + y, .108 + x * math.sin(tilt) + depth * math.cos(tilt)))
+    for row in range(len(ear_rings) - 1):
+        for i in range(20):
+            a, b = row * 20 + i, row * 20 + (i + 1) % 20
+            faces.append((a, b, b + 20, a + 20))
+    faces.extend([tuple(reversed(range(20))), tuple((len(ear_rings) - 1) * 20 + i for i in range(20))])
+    ear = mesh_part('Ear_' + side, verts, faces, 14, {'ear_' + side: .88, 'head': .12}, subdivide=False)
+    # Continuous vertex paint keeps the tiny recessed cup calm under decimation.
+    # Hard atlas-tile borders would turn its curved bowl into coloured wedges.
+    outer, inner = linear_rgb(PALETTE[0]), linear_rgb('52382C')
+    for loop in ear.data.loops:
+        ring = loop.vertex_index // 20
+        shade = [0, 0, 0, 0, .32, .78, 1][ring]
+        ear.data.color_attributes['Color'].data[loop.index].color = (*[outer[i] * (1 - shade) + inner[i] * shade for i in range(3)], 1)
+    bpy.context.view_layer.objects.active = ear
+    smooth = ear.modifiers.new('Soft ear rim', 'SUBSURF')
+    smooth.levels = 1
+    bpy.ops.object.modifier_apply(modifier=smooth.name)
+    # A bent knee and narrow ankle flow into an elevated heel. Four long padded
+    # toes carry the ground contact, rather than disappearing inside a flat boot.
+    leg = tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .004),
+                               (s * .137, .26, -.032), (s * .137, .18, -.022),
+                               (s * .137, .12, .014), (s * .137, .081, -.020)],
+               [.10, .116, .094, .075, .051, .044], 14,
+               ['thigh_' + side, 'thigh_' + side, 'shin_' + side, 'shin_' + side, 'foot_' + side])
+    warm, dark = linear_rgb(PALETTE[0]), linear_rgb(PALETTE[2])
+    for loop in leg.data.loops:
+        y = leg.data.vertices[loop.vertex_index].co.z
+        t = max(0, min(1, (.23 - y) / .11))
+        t = t * t * (3 - 2 * t)
+        leg.data.color_attributes['Color'].data[loop.index].color = (*[warm[i] * (1 - t) + dark[i] * t for i in range(3)], 1)
+    verts, faces = [], []
+    foot_profile = [(.066,.015,.093,.013), (.048,.048,.087,.036), (.022,.066,.074,.058),
+                    (-.025,.088,.055,.049), (-.068,.087,.038,.032), (-.100,.067,.032,.025),
+                    (-.109,.002,.031,.002)]
+    for z, rx, cy, ry in foot_profile:
+        for i in range(20):
+            angle = i * math.tau / 20
+            width = math.copysign(abs(math.cos(angle)) ** .8, math.cos(angle))
+            verts.append((s * .137 + rx * width, cy + ry * math.sin(angle), z))
+    for row in range(len(foot_profile) - 1):
+        for i in range(20):
+            a, b = row * 20 + i, row * 20 + (i + 1) % 20
+            faces.append((a, b, b + 20, a + 20))
+    faces.extend([tuple(reversed(range(20))), tuple((len(foot_profile) - 1) * 20 + i for i in range(20))])
+    mesh_part('Foot_' + side, verts, faces, 2, {'foot_' + side: 1})
     for toe in [-1.5, -.5, .5, 1.5]:
-        toe_z = -.144 + abs(toe) * .008
-        ellipsoid('Toe_' + side, (s * .137 + toe * .043, .047, toe_z), (.025, .031, .049), 2, {'foot_' + side: 1}, segments=12, rings=8)
-        ellipsoid('Toe_nail_' + side, (s * .137 + toe * .043, .052, toe_z - .038), (.016, .011, .023), 15, {'foot_' + side: 1}, segments=10, rings=6)
+        x, shorten = s * .137 + toe * .037, abs(toe) * .010
+        points = [(x, .051, -.071), (x, .050, -.096), (x, .039, -.130 + shorten),
+                  (x, .028, -.169 + shorten), (x, .027, -.194 + shorten), (x, .027, -.204 + shorten)]
+        tube('Toe_' + side, points, [.014, .025, .028, .024, .017, .003], 2, ['foot_' + side, 'foot_' + side])
+        ellipsoid('Toe_nail_' + side, (x, .041, -.185 + shorten), (.014, .011, .024), 15,
+                  {'foot_' + side: 1}, segments=12, rings=8)
     hand_z = -.39 if s == 1 else -.49
     tube('Arm_' + side, [(s * .225, 1.195, -.015), (s * .267, 1.12, -.08), (s * .27, 1.0, -.19), (s * .2, 1.016, (hand_z - .19) / 2), (s * .1, 1.045, hand_z)], [.075, .102, .089, .078, .053], 0,
          ['arm_' + side, 'arm_' + side, 'forearm_' + side, 'forearm_' + side, 'paw_' + side])
@@ -579,7 +642,14 @@ verts, faces = [], []
 for y in [1.434, 1.442, 1.451, 1.459]:
     for i in range(32):
         a = math.tau * i / 32
-        verts.append((.166 * math.cos(a), y, .002 + .130 * math.sin(a)))
+        height = y + .002 * math.sin(a * 2 + .4)
+        outward = V((math.cos(a), 0, math.sin(a)))
+        hit, point, normal, face = body_surface.ray_cast(V((0, height, 0)) + outward, -outward)
+        assert hit, ('bandana neck contact', a, height)
+        if normal.dot(outward) < 0:
+            normal.negate()
+        point += normal.normalized() * .006
+        verts.append((point.x, point.z, -point.y))
 for row in range(3):
     for i in range(32):
         a, b = row * 32 + i, row * 32 + (i + 1) % 32
@@ -758,18 +828,43 @@ bm.to_mesh(vest.data)
 bm.free()
 VEST_OUT = .004 + .012
 for side in [-1, 1]:
-    # Chest pockets on each front panel, turned to the local surface normal.
+    # A padded, slightly pinched canvas shell gives each pouch real volume.
     a = side * (VEST_GAP + .36)
-    for name, y, dims, color, depth, bevel in [('Vest_pocket', 1.015, (.105, .13, .032), 7, .016, .014), ('Pocket_flap', 1.068, (.112, .033, .012), 13, .034, .006)]:
-        centre, normal = torso_point(a, y, VEST_OUT + depth)
-        yaw = math.atan2(normal.x, normal.y)
-        rounded_block(name, centre, dims, color, {'spine': 1}, bevel=bevel, yaw=yaw)
+    centre, normal = torso_point(a, .991, VEST_OUT + .023)
+    centre = Vector(centre)
+    outward = Vector((normal.x, normal.z, -normal.y))
+    tangent, up = Vector((math.cos(a), 0, math.sin(a))), Vector((0, 1, 0))
+    verts, faces = [], []
+    pouch_rings = [(-.023,.045,.070), (-.018,.056,.082), (0,.059,.086),
+                   (.019,.055,.081), (.025,.045,.069), (.028,.001,.001)]
+    for depth, rx, ry in pouch_rings:
+        for i in range(24):
+            angle = i * math.tau / 24
+            shape = lambda value: math.copysign(abs(value) ** .55, value)
+            point = centre + tangent * (rx * shape(math.cos(angle))) + up * (ry * shape(math.sin(angle))) + outward * depth
+            verts.append(tuple(point))
+    for row in range(len(pouch_rings) - 1):
+        for i in range(24):
+            a0, b = row * 24 + i, row * 24 + (i + 1) % 24
+            faces.append((a0, b, b + 24, a0 + 24))
+    faces.extend([tuple(reversed(range(24))), tuple((len(pouch_rings) - 1) * 24 + i for i in range(24))])
+    mesh_part('Vest_pocket', verts, faces, 7, {'spine': 1})
+    flap = centre + up * .067 + outward * .028
+    rounded_block('Pocket_flap', tuple(flap), (.118, .042, .016), 13, {'spine': 1}, bevel=.009,
+                  yaw=math.atan2(normal.x, normal.y))
+    # A soft gusset and short retention tab articulate the curved front face.
+    seam = [centre + tangent * x + up * y + outward * .022 for x, y in
+            [(-.045,.038),(-.045,-.037),(-.032,-.065),(.032,-.065),(.045,-.037),(.045,.038)]]
+    fine_line('Pouch_gusset', [tuple(point) for point in seam], .0017, 13, {'spine': 1})
+    tab = centre + up * .018 + outward * .031
+    rounded_block('Pouch_tab', tuple(tab), (.021,.060,.007), 8, {'spine': 1}, bevel=.003,
+                  yaw=math.atan2(normal.x, normal.y))
     # Player-colour trim follows the front edge of each panel.
     trim = [torso_point(side * vest_gap(y), y, VEST_OUT)[0] for y in [VEST_HEM + .01, .95, 1.1, 1.22, 1.32, VEST_TOP - .01]]
     tube('Vest_trim', trim, [.011] * len(trim), 5, ['spine', 'neck'])
     # Pouch seams, brass snaps and shoulder webbing follow the garment surface.
     a = side * (VEST_GAP + .36)
-    centre, normal = torso_point(a, 1.015, VEST_OUT + .037)
+    centre, normal = torso_point(a, .991, VEST_OUT + .049)
     outward = Vector((normal.x, normal.z, -normal.y))
     tangent, up = Vector((math.cos(a), 0, math.sin(a))), Vector((0, 1, 0))
     centre = Vector(centre)
@@ -777,7 +872,7 @@ for side in [-1, 1]:
         for stitch in range(6):
             at = centre + tangent * edge * .035 + up * (-.042 + stitch * .014)
             fine_line('Pocket_stitch', [tuple(at), tuple(at + up * .007)], .0010, 4, {'spine': 1})
-    snap = centre + up * .049 + outward * .002
+    snap = centre + up * .041 + outward * .006
     ellipsoid('Pouch_snap', tuple(snap), (.006, .006, .003), 12, {'spine': 1}, segments=8, rings=6)
     shoulder = [torso_point(side * 1.05, y, VEST_OUT + .006)[0] for y in [1.35, 1.28, 1.21, 1.14]]
     fine_line('Shoulder_webbing', shoulder, .009, 8, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33), near=False)
@@ -802,11 +897,39 @@ for edge in [-1, 1]:
         point = patch_centre + tangent * (-.028 + stitch * .014) + Vector((0, edge * .022, 0))
         fine_line('Patch_stitch', [tuple(point), tuple(point + tangent * .006)], .0009, 4, {'spine': .7, 'neck': .3})
 
-# A compact rolled canvas pouch adds useful detail to the back silhouette.
-tube('Canvas_roll', [(-.12, 1.08, .245), (-.10, 1.08, .245), (.10, 1.08, .245), (.12, 1.08, .245)], [.012, .033, .033, .012], 13, ['spine', 'spine'])
-for x in [-.067, .067]:
-    points = [(x, 1.08 + math.cos(i * math.tau / 14) * .034, .245 + math.sin(i * math.tau / 14) * .034) for i in range(15)]
-    fine_line('Roll_strap', points, .0035, 8, {'spine': 1}, near=False)
+# A broad rolled blanket fills the back silhouette within the same hit cylinder.
+# Smaller end radii leave room for the visible fabric spirals and corner straps.
+roll_y, roll_depth = 1.305, .197
+roll_x = [-.175,-.173,-.166,-.140,-.080,0,.080,.140,.166,.173,.175]
+roll_points = [(x, roll_y, roll_depth) for x in roll_x]
+blanket = tube('Canvas_roll', roll_points, [.001,.046,.050,.060,.062,.062,.062,.060,.050,.046,.001], 7, ['spine','spine'])
+blanket.vertex_groups.new(name='neck')
+for vertex in blanket.data.vertices:
+    blanket.vertex_groups['spine'].add([vertex.index], .52, 'REPLACE')
+    blanket.vertex_groups['neck'].add([vertex.index], .48, 'REPLACE')
+for side in [-1,1]:
+    x = side * .175
+    points = []
+    for step in range(49):
+        t = step / 48
+        angle, radius = t * math.tau * 2.3, .004 + t * .037
+        points.append((x + side * .003, roll_y + math.cos(angle) * radius, roll_depth + math.sin(angle) * radius))
+    fine_line('Blanket_spiral', points, .0028, 13, {'spine': .52,'neck': .48}, near=False)
+for x in [-.104,.104]:
+    verts, faces = [], []
+    for i in range(25):
+        angle = i * math.tau / 24
+        for width in [-.009,.009]:
+            at = x + width
+            verts.append((at, roll_y + math.cos(angle) * .064, roll_depth + math.sin(angle) * .064))
+    for i in range(24):
+        a = i * 2
+        faces.append((a,a+1,a+3,a+2))
+    mesh_part('Blanket_strap', verts, faces, 8, {'spine': .52,'neck': .48}, subdivide=False)
+    centre = (x,roll_y-.004,roll_depth+.066)
+    rounded_block('Blanket_buckle', centre, (.027,.030,.007), 12, {'spine': .52,'neck': .48}, bevel=.005)
+    rounded_block('Blanket_buckle_inset', (centre[0],centre[1],centre[2]+.005), (.015,.018,.003), 8,
+                  {'spine': .52,'neck': .48}, bevel=.002)
 # A broad leather strap over the left shoulder to the right hip, on top of the vest.
 strap_path = [(-1.35 + 2.45 * k / 11, VEST_TOP - .02 - .58 * k / 11) for k in range(12)]
 verts, faces = [], []
@@ -880,6 +1003,8 @@ for source in fur_sources:
     sampled = rng.choices(polygons, weights=[max(.000001, p.area) for p in polygons], k=count)
     vertices, faces, weights, colors, tiles, fur_normals = [], [], [], [], [], []
     for poly in sampled:
+        if source.name.startswith('Ear_') and int(source.data.uv_layers.active.data[poly.loop_indices[0]].uv.x * 16) != 0:
+            continue  # The recessed inner ear is smooth, without loose fur fins.
         co = sum((source.data.vertices[i].co for i in poly.vertices), Vector()) / len(poly.vertices)
         normal = poly.normal.normalized()
         if source.name.startswith('Head') and normal.y > .28 and normal.z < .65:
@@ -931,13 +1056,12 @@ bpy.context.view_layer.objects.active = parts[0]
 bpy.ops.object.join()
 base = bpy.context.object
 base.name = 'Capybara_source'
-# A slightly broader/taller skull increases its share of the compact body.
+# Preserve the long skull's authored top line, with only a slight cheek width.
 # Facial pivots move with their vertices, preserving blink and expression axes.
 def fuller_head(point):
     centre = V((0, 1.6, -.04))
     offset = point - centre
     offset.x *= 1.04
-    offset.z *= 1.025
     return centre + offset
 face_groups = {g.index for g in base.vertex_groups if g.name in ['head', 'jaw'] or g.name.startswith(('ear_', 'blink_', 'socket_', 'glint_', 'brow_', 'mouth_'))}
 for vertex in base.data.vertices:
@@ -1011,6 +1135,11 @@ for level, budget in enumerate([19800, 4800, 1400]):
             if any(g.group == clearance.index and g.weight > .5 for g in vertex.groups):
                 vertex.co.y += .008 * max(0, min(1, (1.44 - vertex.co.z) / .04))
     obj.vertex_groups.remove(clearance)
+    # Simplified seam interpolation can overshoot one UV beyond the atlas edge.
+    # Keep the authored outer padding so a tiny triangle cannot wrap to another row.
+    for loop in obj.data.uv_layers.active.data:
+        loop.uv.x = max(.02, min(.98, loop.uv.x))
+        loop.uv.y = max(.02, min(.98, loop.uv.y))
     # Decimation can collapse tiny closed caps into duplicate opposite faces.
     # Remove them before export and require a valid mesh after that cleanup.
     if obj.data.validate(verbose=False, clean_customdata=False):
