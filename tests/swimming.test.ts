@@ -76,6 +76,27 @@ describe('capybaras swim with shared authoritative movement', () => {
     expect(actor.pos.y + 1.8).toBeLessThan(deck.min.y);
   });
 
+  it('climbs visible low steps out of the water without needing to jump', () => {
+    const steps = Array.from({ length: 10 }, (_, index) => ({ id: `step-${index}`, material: 'stone' as const,
+      min: { x: -22, y: -1.2, z: 9 + index * .6 }, max: { x: -18, y: -.88 + index * .27, z: 9.6 + index * .6 } }));
+    const { actor } = fixture();
+    place(actor, -20, 8); actor.yaw = Math.PI;
+    move(actor, { moveZ: 1 }, 200, { ...world, colliders: steps });
+    expect(actor.pos.z).toBeGreaterThan(15);
+    expect(actor.pos.y).toBeGreaterThan(1.5);
+    expect(actor.swimming).toBe(false);
+  });
+
+  it('lets bot steering cross a river without resetting it at the shoreline', () => {
+    const { sim, actor, runtime } = fixture();
+    place(actor, -20, -1); actor.bot = true; runtime.brain = {};
+    (sim as any).updateBot = (bot: any) => { bot.input = { ...emptyInput(), yaw: Math.PI, moveZ: 1 }; };
+    let swam = false;
+    for (let i = 0; i < 360; i++) { sim.step(1 / 60); swam ||= actor.swimming; }
+    expect(swam).toBe(true);
+    expect(actor.pos.z).toBeGreaterThan(14);
+  });
+
   it('matches host and prediction through water entry, traversal and exit', () => {
     const { sim, actor } = fixture();
     place(actor, -20, 8);
