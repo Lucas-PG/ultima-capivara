@@ -65,7 +65,7 @@ export const HOUSES: readonly HouseLot[] = [
   home(-13, 44, 'kiosk'), home(9, 45, 'home', true), home(30, 47, 'tailor'),
   home(87, -13, 'workshop'), home(103, 1, 'fisher'), home(87, 16, 'fishmonger'),
   home(47, 60, 'home'), home(77, 69, 'home'), home(-49, 78, 'home'),
-  home(-17, 93, 'fisher'), home(-67, 17, 'fisher'), home(-75, -17, 'home'),
+  home(-17, 93, 'fisher'), home(-67, 17, 'fisher'), home(-73, -15, 'home'),
 ];
 export const MORRO_LOTS: readonly HouseLot[] = [
   home(-109, -69, 'home'), home(-108, -54, 'home', true), home(-109, -38, 'home'),

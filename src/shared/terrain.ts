@@ -31,10 +31,11 @@ function rawHeight(x: number, z: number) {
 interface Pad { rect: Rect; margin: number; y: number }
 const pads: Pad[] = [
   ...AREAS.map(a => ({ ...a, y: a.y ?? Math.max(.85, rawHeight((a.rect[0] + a.rect[2]) / 2, (a.rect[1] + a.rect[3]) / 2)) })),
-  ...[...HOUSES, ...MORRO_LOTS].map(h => ({ rect: [h.x - h.w / 2 - .4, h.z - h.d / 2 - 1.2, h.x + h.w / 2 + .4, h.z + h.d / 2 + 1.2] as Rect,
+  ...[...HOUSES, ...MORRO_LOTS].map(h => ({ rect: [h.x - h.w / 2 - 1.5, h.z - h.d / 2 - 1.5, h.x + h.w / 2 + 1.5, h.z + h.d / 2 + 1.5] as Rect,
     margin: 1.3, y: Math.max(.85, rawHeight(h.x, h.z)) })),
 ];
-for (const p of pads.slice(AREAS.length)) {
+const housePads = pads.slice(AREAS.length);
+for (const p of housePads) {
   const x = (p.rect[0] + p.rect[2]) / 2, z = (p.rect[1] + p.rect[3]) / 2;
   const area = AREAS.find(a => x >= a.rect[0] && x <= a.rect[2] && z >= a.rect[1] && z <= a.rect[3]);
   if (area?.y != null) p.y = area.y;
@@ -67,6 +68,16 @@ for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
     if (distance < best) { best = distance; pathY = lerp(r.ay, r.by, t); }
   }
   if (best < 5) h = lerp(h, pathY, 1 - ease((best - 2) / 3));
+  // Hill paths can approach a terrace but cannot cut through a house floor.
+  // The extra apron also keeps both doorway thresholds level with the room.
+  let terraceWeight = 0, terraceY = h;
+  for (const p of housePads) {
+    const [x0, z0, x1, z1] = p.rect;
+    const distance = Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1));
+    const weight = distance === 0 ? 2 : 1 - ease(distance / 3);
+    if (weight > 0 && weight >= terraceWeight) { terraceWeight = weight; terraceY = p.y; }
+  }
+  h = lerp(h, terraceY, Math.min(1, terraceWeight));
   // Carve last so neither town pads nor roads can dam the river.
   const river = riverSample(x, z), bank = river.distance - river.width / 2;
   if (bank < 4.5) h = lerp(-1.2, h, ease((bank + 1) / 5.5));

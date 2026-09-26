@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clearSpawn, hasLineOfSight } from '../src/shared/collision';
-import { ARENA, BRIDGES, CHURCH, FORTE, HOUSES, MERCADAO, RIVER, ROADS, inArena } from '../src/shared/layout';
+import { ARENA, BRIDGES, CHURCH, FORTE, HOUSES, MERCADAO, MORRO_LOTS, RIVER, ROADS, inArena } from '../src/shared/layout';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
 import { WORLD_PALETTE, terrainColor, terrainHeight } from '../src/shared/terrain';
@@ -46,12 +46,15 @@ describe('river island gameplay integrity', () => {
     for (const spawn of world.spawns.filter(s => s.mode === 'deathmatch')) expect(inArena(spawn.x, spawn.z, 3)).toBe(true);
   });
 
-  it('keeps both doorways and the centre aisle open in the river-town houses', () => {
-    const houses = HOUSES.filter(h => inArena(h.x, h.z));
-    expect(houses.length).toBeGreaterThanOrEqual(15);
+  it('supports level house floors and leaves both doorways and the centre aisle open', () => {
+    const houses = [...HOUSES, ...MORRO_LOTS];
+    expect(houses.length).toBeGreaterThanOrEqual(35);
     for (const h of houses) {
       expect(walkableSegment(world, { x: h.x, z: h.z - h.d / 2 - .8 }, { x: h.x, z: h.z + h.d / 2 + .8 }),
         `${h.role} at ${h.x},${h.z} blocks its two-exit route`).toBe(true);
+      const floor = terrainHeight(h.x, h.z);
+      for (let z = h.z - h.d / 2; z <= h.z + h.d / 2; z++) for (let x = h.x - h.w / 2; x <= h.x + h.w / 2; x++)
+        expect(Math.abs(terrainHeight(x, z) - floor), `uneven house floor at ${x},${z}`).toBeLessThan(.15);
     }
     expect(world.pieces!.some(p => p.piece === 'church' && p.x === CHURCH[0] && p.z === CHURCH[1])).toBe(true);
   });
@@ -110,6 +113,22 @@ describe('river island gameplay integrity', () => {
     expect(spawns.length).toBeGreaterThanOrEqual(20);
     for (const spawn of spawns) expect(spawns.filter(other => other !== spawn && !hasLineOfSight(
       { x: spawn.x, y: spawn.y + 1.62, z: spawn.z }, { x: other.x, y: other.y + 1.62, z: other.z }, world)).length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('connects town spawns and pickups without sending Correria bots outside the arena', () => {
+    const graph = world.navigation!;
+    const start = graph.points.findIndex(p => Math.hypot(p.x, p.z + 20) < 3);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const queue = [start], connected = new Set(queue);
+    for (let i = 0; i < queue.length; i++) for (const next of graph.links[queue[i]]) {
+      const point = graph.points[next];
+      if (connected.has(next) || !inArena(point.x, point.z, .5)) continue;
+      connected.add(next); queue.push(next);
+    }
+    const points = [...world.spawns.filter(p => p.mode === 'deathmatch'),
+      ...world.loot.filter(p => inArena(p.x, p.z, .5)), ...world.chests.filter(p => inArena(p.x, p.z, .5))];
+    for (const point of points) expect(queue.some(index => Math.hypot(graph.points[index].x - point.x, graph.points[index].z - point.z) < 10 &&
+      walkableSegment(world, point, graph.points[index], true)), `town route leaves arena at ${JSON.stringify(point)}`).toBe(true);
   });
 
   it('places the market sign outside its frontage and central doorway', () => {
