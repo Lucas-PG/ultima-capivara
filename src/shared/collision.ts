@@ -16,6 +16,17 @@ export const TRAMPOLINE_IMPULSE = 12;
 export const actorHeight = (actor: ActorState) => actor.crouch ? 1.3 : 1.8;
 // Standing eye sits in the head volume; crouched, the head centre drops to ~1.14 m.
 export const actorEye = (actor: ActorState) => actor.crouch ? 1.17 : 1.62;
+
+export function tryTrampoline(actor: ActorState, world: WorldSpec): boolean {
+  if (!actor.alive || actor.stage !== 'ground' || !actor.grounded || actor.swimming) return false;
+  const pad = world.trampolines?.find(p => Math.abs(actor.pos.y - p.y) <= .08 &&
+    Math.hypot(actor.pos.x - p.x, actor.pos.z - p.z) <= p.radius);
+  if (!pad) return false;
+  actor.velocity.y = pad.impulse; actor.grounded = false;
+  actor.bounceProtected = true; actor.bounceSeq++;
+  actor.emote = null; actor.emoteUntil = 0; actor.soaking = false;
+  return true;
+}
 export const overlapsFootprint = (pos: Vec3, collider: Collider): boolean => {
   const x = pos.x - clamp(pos.x, collider.min.x, collider.max.x);
   const z = pos.z - clamp(pos.z, collider.min.z, collider.max.z);
@@ -92,6 +103,7 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
   if (actor.emote && (emoteInput(input) || !actor.grounded || actor.swimming)) { actor.emote = null; actor.emoteUntil = 0; }
   const water = waterAt(p.x, p.z);
   actor.swimming = !!water && water.depth >= SWIM_DEPTH && p.y <= water.surfaceY - SWIM_DEPTH + .05;
+  tryTrampoline(actor, world);
   actor.crouch = !actor.swimming && (actor.emote === 'sit' || actor.emote === 'chill' || input.crouch || (actor.crouch && !hasHeadroom(p, world, 1.8)));
   actor.sprint = !actor.swimming && input.sprint && !actor.crouch && !input.ads && input.moveZ > 0;
   actor.ads = !actor.swimming && input.ads;
@@ -146,6 +158,8 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     if (pistol >= 0 && actor.slot !== pistol) { actor.slot = pistol; actor.reloadUntil = 0; actor.shotHeat = 0; }
   } else if (p.y <= ground) { p.y = ground; actor.velocity.y = 0; actor.grounded = true; }
   else actor.grounded = false;
+  if (actor.grounded || actor.swimming) actor.bounceProtected = false;
+  tryTrampoline(actor, world);
   if (actor.soaking && (!actor.grounded || actor.swimming ||
     actor.emote !== 'sit' && actor.emote !== 'chill' || !mudBathAt(p, world))) actor.soaking = false;
   return actor;

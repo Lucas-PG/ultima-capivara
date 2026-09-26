@@ -171,6 +171,9 @@ export class EffectsView {
       const pos = this.copyActor(snapshot, event.actor, this.a);
       if (pos && (!this.frame || this.frame.camera.position.distanceToSquared(pos) < 35 * 35))
         this.upgrade(pos, event.actor === playerId && firstPerson, event.level);
+    } else if (event.type === 'bounce') {
+      if (this.frame?.reducedMotion || (this.frame && this.frame.camera.position.distanceToSquared(event.pos) > 40 * 40)) return;
+      this.bounceDust(event.pos);
     } else if (event.type === 'water') {
       if (this.frame && this.frame.camera.position.distanceToSquared(event.pos) > 40 * 40) return;
       this.a.set(event.pos.x, WATER_LEVEL, event.pos.z);
@@ -242,6 +245,19 @@ export class EffectsView {
     const water = this.surface.water;
     this.n.set(0, 1, 0);
     this.decals.spawn(pos, this.n, CELL.ring, .42, size, 1.3, .8, alpha, water.mark, water.markLight, rand(0, 6.3));
+  }
+
+  private bounceDust(pos: Vec3) {
+    const count = this.frame?.lowQuality ? 2 : 5;
+    for (let i = 0; i < count; i++) {
+      const angle = i / count * Math.PI * 2 + .3, x = Math.cos(angle), z = Math.sin(angle);
+      const puff = this.cards.spawn();
+      puff.pos.set(pos.x + x * .28, pos.y + .09, pos.z + z * .28);
+      puff.cell = PAINT.dust + i % 2; puff.life = .42; puff.fadeIn = .04; puff.fadeOut = .8;
+      puff.size0 = .18; puff.size1 = .45; puff.alpha = .27; puff.minPx = 0; puff.maxPx = 36;
+      puff.vel.set(x * .85, .28 + i % 2 * .12, z * .85); puff.drag = 2.4;
+      puff.rot = angle; puff.color.copy(this.surface.sand.puff); puff.light.copy(this.surface.sand.puffLight);
+    }
   }
 
   private waterDrops(pos: THREE.Vector3, count: number, speed: number) {
