@@ -61,7 +61,7 @@ describe('required weapon model readiness', () => {
       expect(view.camera.fov).toBe(58);
       const lights = view.scene.children.filter(child => child instanceof THREE.Light);
       expect(lights.map(light => [light.color.getHexString(), light.intensity])).toEqual([
-        ['e4ece6', .85], ['ffe6c4', 2.7], ['b9e3ea', 1.1],
+        ['8faecf', 1.05], ['ffc47e', 3.1], ['ffd28a', .8],
       ]);
     } finally { view.dispose(); }
   });

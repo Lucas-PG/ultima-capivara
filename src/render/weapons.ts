@@ -6,12 +6,12 @@ import { PaintedWeaponSet, PAINTED_WEAPON_IDS, paintedWeaponsEnabled, type Paint
 import { WEAPON_HIP_POSES, WEAPON_VIEW_FOV } from './weapon-framing';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
+import { PAINT } from './materials';
 import { advanceAds, WEAPONS } from '../shared/weapons';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 
 const palette = {
-  // Cel-shaded palette: low metalness so the banded key light, not the
-  // environment reflection, carries the form; local colours stay readable.
+  // Painted local colours stay readable under the continuous warm key.
   steel: new THREE.MeshStandardMaterial({ color: '#3c4648', metalness: .32, roughness: .5 }),
   edge: new THREE.MeshStandardMaterial({ color: '#8c9794', metalness: .4, roughness: .42 }),
   dark: new THREE.MeshStandardMaterial({ color: '#1d2523', metalness: .1, roughness: .72 }),
@@ -408,7 +408,7 @@ function arms(group: THREE.Group, id: WeaponId): THREE.Group {
   return support;
 }
 
-interface Model { group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; magazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Object3D; sightY: number; hipX: number; adsZ: number; painted?: PaintedWeaponModel; rarity?: number }
+interface Model { group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; magazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Object3D; triggerFinger?: THREE.Object3D; gripFingers?: THREE.Object3D; sightY: number; hipX: number; adsZ: number; painted?: PaintedWeaponModel; rarity?: number }
 
 function disposeImported(root: THREE.Object3D) {
   const geometry = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
@@ -432,6 +432,9 @@ export class WeaponView {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(58, 1, .01, 10);
   private readonly holder = new THREE.Group();
+  private readonly key = new THREE.DirectionalLight(PAINT.sun, 3.1);
+  private readonly rim = new THREE.DirectionalLight(PAINT.rim, .8);
+  private readonly inverseView = new THREE.Quaternion();
   private readonly models = {} as Record<WeaponId, Model>;
   private readonly painted = paintedWeaponsEnabled() ? new PaintedWeaponSet() : null;
   private readonly warmupVariants = new THREE.Group();
@@ -451,6 +454,7 @@ export class WeaponView {
   private holster = 0;
   private draw = 0;
   private gait = 0;
+  private breathingTime = 0;
   private shotLife = 0;
   private reloadEnd = 0;
   private inspectTime = -1;
@@ -460,11 +464,10 @@ export class WeaponView {
   private disposed = false;
 
   constructor(private readonly loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.scene.add(new THREE.HemisphereLight(this.painted ? '#B4C2EE' : '#e4ece6', this.painted ? '#C9A66B' : '#5e5147', this.painted ? 1.15 : .85));
-    const key = new THREE.DirectionalLight(this.painted ? '#FFD9A8' : '#ffe6c4', 2.7); key.position.set(-1.4, 2.4, 2.2); this.scene.add(key);
-    if (!this.painted) {
-      const rim = new THREE.DirectionalLight('#b9e3ea', 1.1); rim.position.set(1.8, .9, -1.6); this.scene.add(rim);
-    } else { this.camera.fov = WEAPON_VIEW_FOV; this.camera.updateProjectionMatrix(); }
+    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.05));
+    this.key.position.set(-70, 32, -30); this.rim.position.set(-70, 65, -30);
+    this.scene.add(this.key, this.rim);
+    if (this.painted) { this.camera.fov = WEAPON_VIEW_FOV; this.camera.updateProjectionMatrix(); }
     this.warmupVariants.visible = false; this.scene.add(this.warmupVariants);
     this.scene.add(this.holder);
     let pistolFallback: THREE.Group | undefined, sniperFallback: THREE.Group | undefined;
@@ -618,6 +621,12 @@ export class WeaponView {
 
   shot(id: WeaponId) {
     this.cancelInspect(); this.inspectAllowed = false;
+    // A cosmetic holster must never make a confirmed shot emerge from the
+    // previous weapon's muzzle. Gameplay can fire before the animation ends.
+    if (id !== this.active && this.models[id]) {
+      this.models[this.active].group.visible = false; this.active = id; this.models[id].group.visible = true;
+      this.holster = 0; this.draw = 0; this.ads = 0;
+    }
     this.recoil.impulse(id === 'sniper' ? 4.4 : id === 'shotgun' ? 3.6 : id === 'pistol' ? 2.5 : 1.65);
     this.recoilYaw.impulse((Math.random() - .5) * .55);
     this.shotLife = id === 'machete' ? .48 : id === 'shotgun' ? .42 : id === 'sniper' ? .58 : .2;
@@ -628,7 +637,12 @@ export class WeaponView {
   muzzleWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].muzzle.getWorldPosition(target); }
   ejectWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].eject.getWorldPosition(target); }
 
-  update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number) {
+  update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number, viewRotation?: THREE.Quaternion) {
+    if (viewRotation) {
+      this.inverseView.copy(viewRotation).invert();
+      this.key.position.set(-70, 32, -30).applyQuaternion(this.inverseView);
+      this.rim.position.set(-70, 65, -30).applyQuaternion(this.inverseView);
+    }
     this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
     if (!actor || !this.holder.visible) { this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined; this.land.reset(); return; }
     const requested = actor.weapons[actor.slot]?.id || 'pistol';
@@ -646,7 +660,7 @@ export class WeaponView {
       this.painted!.setRarity(model.painted, rarity); model.rarity = rarity;
     }
     const reloading = requested === weapon && actor.reloadUntil > simulationTime;
-    this.inspectAllowed = !actor.ads && !actor.sprint && !reloading && this.shotLife <= 0;
+    this.inspectAllowed = requested === weapon && !actor.ads && !actor.sprint && !reloading && this.shotLife <= 0;
     if (!this.inspectAllowed) this.cancelInspect();
     if (reloading && actor.reloadUntil > this.reloadEnd) this.reloadEnd = actor.reloadUntil;
     const duration = WEAPONS[weapon].reload || 1;
@@ -691,6 +705,7 @@ export class WeaponView {
     this.grounded = actor.grounded; this.verticalSpeed = actor.velocity.y;
     const landing = this.land.update(0, 17, dt);
     const motion = settings.reducedMotion ? 0 : 1;
+    this.breathingTime += dt;
     this.draw = damp(this.draw, 0, 7, dt);
     this.shotLife = Math.max(0, this.shotLife - dt);
     const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
@@ -698,16 +713,23 @@ export class WeaponView {
     const bob = settings.reducedMotion ? 0 : Math.min(speed / 7, 1) * (actor.sprint ? .027 : .012);
     const sprint = this.sprintPose = damp(this.sprintPose, actor.sprint ? 1 : 0, 12, dt);
     const ads = this.ads * this.ads * (3 - 2 * this.ads);
+    const breath = Math.sin(this.breathingTime * 1.8) * .0032 * motion * (1 - ads) * (1 - sprint);
+    const grip = Math.sin(this.breathingTime * 1.17) * Math.sin(this.breathingTime * .43) * motion * (1 - ads) * (1 - magazineMotion);
+    if (model.gripFingers) { model.gripFingers.position.y = grip * .0015; model.gripFingers.rotation.x = grip * .012; }
+    if (model.triggerFinger) {
+      const press = this.shotLife > 0 ? Math.min(1, this.shotLife / .045) : 0;
+      model.triggerFinger.position.set(0, -press * .012, press * .018);
+    }
     const pose = model.painted ? WEAPON_HIP_POSES[weapon] : null;
     const modelScale = pose?.scale ?? .72;
     this.holder.scale.setScalar(modelScale);
     const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, ads);
     this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, ads) + Math.sin(this.gait) * bob * .4 + swayX * motion * (1 - ads * .85),
-      hipY + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - (this.draw + this.holster) * .34 + (swayY + landing) * motion - sprint * .08 - closeWall * .12 - magazineMotion * .045,
+      hipY + breath + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - (this.draw + this.holster) * .34 + (swayY + landing) * motion - sprint * .08 - closeWall * .12 - magazineMotion * .045,
       THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
     this.holder.rotation.set((pose?.pitch ?? 0) * (1 - ads) + this.kick * 1.1 + (this.draw + this.holster) * .65 + swayY * motion + magazineMotion * .24 + sprint * .16,
       THREE.MathUtils.lerp(pose ? 0 : .24, 0, ads) + closeWall * .28 + yawKick + swayX * motion,
-      THREE.MathUtils.lerp(pose ? 0 : -.055, 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13);
+      THREE.MathUtils.lerp(pose ? 0 : -.055, 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13 + breath * .8);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.rotation);
     if (this.inspectTime >= 0) {
       this.inspectTime += dt;
@@ -716,7 +738,7 @@ export class WeaponView {
       this.holder.position.x -= look * .09; this.holder.position.y += look * .065;
       this.holder.position.z += look * .04;
       this.holder.rotation.x += look * .18;
-      this.holder.rotation.y -= look * (weapon === 'machete' ? .2 : weapon === 'slingshot' ? .3 : .5);
+      this.holder.rotation.y -= look * (weapon === 'machete' ? .2 : weapon === 'slingshot' ? .3 : .65);
       this.holder.rotation.z += look * (weapon === 'machete' ? -.3 : .35);
       if (progress === 1) this.inspectTime = -1;
     }

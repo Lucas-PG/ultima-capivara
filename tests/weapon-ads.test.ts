@@ -29,7 +29,7 @@ it('starts a newly selected weapon at hip even if the previous sight was fully a
     models: { smg: model(), m4: model() }, active: 'smg', ads: 1, draw: 0, kick: 0, reloadEnd: 0,
     recoil: new Spring(), recoilYaw: new Spring(), swayX: new Spring(), swayY: new Spring(), land: new Spring(),
     lastYaw: undefined, lastPitch: 0, grounded: true, verticalSpeed: 0, sprintPose: 0, holster: 0,
-    gait: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], furColor: actor.color,
+    gait: 0, breathingTime: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], furColor: actor.color,
   });
   view.update(actor, 1 / 60, DEFAULT_SETTINGS, 0, 0);
   expect(view.weapon).toBe('smg');

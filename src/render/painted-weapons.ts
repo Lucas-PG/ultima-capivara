@@ -12,6 +12,7 @@ export const PAINTED_WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', '
 export interface PaintedWeaponModel {
   group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D;
   magazine: THREE.Object3D; action: THREE.Object3D; support: THREE.Object3D;
+  triggerFinger?: THREE.Object3D; gripFingers?: THREE.Object3D;
   sightY: number; legendary: THREE.Object3D;
 }
 
@@ -85,12 +86,13 @@ export class PaintedWeaponSet {
     group.add(this.source.scene.getObjectByName(id)!.clone(true));
     // Blender exports unique ids; aliases become exact only inside this weapon.
     group.traverse(object => {
-      if (['mag', 'bolt', 'slide', 'grip_l'].includes(object.userData.partRole)) object.name = object.userData.partRole;
+      if (['mag', 'bolt', 'slide', 'grip_l', 'trigger_finger', 'grip_fingers'].includes(object.userData.partRole)) object.name = object.userData.partRole;
     });
     const get = (part: string) => group.getObjectByName(`${id}_${part}`)!;
     const sight = get('sight');
     const model = { group, muzzle: get('muzzle'), eject: get('eject'), magazine: group.getObjectByName('mag') || get('magazine'), action: group.getObjectByName('slide') || group.getObjectByName('bolt') || get('action'),
-      support: group.getObjectByName('grip_l') || get('left_paw') || new THREE.Group(), sightY: sight.position.y, legendary: get('legendary') };
+      support: group.getObjectByName('grip_l') || get('left_paw') || new THREE.Group(), sightY: sight.position.y, legendary: get('legendary'),
+      triggerFinger: group.getObjectByName('trigger_finger'), gripFingers: group.getObjectByName('grip_fingers') };
     this.setRarity(model, rarity); this.instances.add(group);
     return model;
   }
