@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/simulation';
-import { clearSpawn } from '../src/shared/collision';
 import { KIT_PIECES } from '../src/shared/kit-collision';
+import { FORTE } from '../src/shared/layout';
 import { walkableHeight } from '../src/shared/navigation';
 import { createWorld } from '../src/shared/world';
 import { buildingPoint, routesToFloor } from './helpers/building-paths';
+import { placedBuildingRoutes } from './helpers/placed-building-routes';
 import { walkTraversal } from './helpers/traversal-probe';
 
 // Further building repairs add their source-generated contracts to this same
@@ -13,6 +14,7 @@ const TYPES = Object.keys(KIT_PIECES).filter(type => KIT_PIECES[type].traversal)
 const world = createWorld();
 const actor = new Simulation(world, { mode: 'deathmatch', capacity: 2, bots: false, difficulty: 'normal', duration: 300 },
   [{ id: 'probe', name: 'Probe', color: '#fff', ready: true, connected: true }], 'all-building-floors', 7).snapshot().actors[0];
+const placedRoutes = placedBuildingRoutes(world, actor);
 
 describe('authored building access contract', () => {
   it('connects every declared floor to a real entrance and a flush stair landing', () => {
@@ -59,19 +61,37 @@ describe('authored building access contract', () => {
       expect(traversal, `${piece.piece} traversal metadata must ship with its mesh`).toBeDefined();
       if (!traversal) return;
       for (const floor of traversal.floors) {
-        const results = routesToFloor(traversal, floor.id).map(local => {
-          const route = local.map(point => buildingPoint(piece, point));
-          // Outside the authored entrance, the lot may rise slightly to its lip.
-          route[0].y = walkableHeight(route[0].x, route[0].z, world);
-          if (!clearSpawn(route[0], world)) return `${floor.id}: entrance obstructed`;
-          const up = walkTraversal(world, actor, route);
-          if (!up.ok) return JSON.stringify({ floor: floor.id, direction: 'up', reason: up.reason, actual: up.actual, expected: up.expected });
-          const down = walkTraversal(world, up.actor, [...route].reverse());
-          if (!down.ok) return JSON.stringify({ floor: floor.id, direction: 'down', reason: down.reason, actual: down.actual, expected: down.expected });
-          return null;
-        });
-        expect(results.some(result => result === null), results.join('\n')).toBe(true);
+        const route = placedRoutes.get(`${piece.id}/${floor.id}`);
+        expect(route, `${piece.id}/${floor.id} has no walking route from a ground entrance`).toBeDefined();
+        if (!route) continue;
+        const up = walkTraversal(world, actor, route);
+        expect(up.ok, JSON.stringify({ floor: floor.id, direction: 'up', reason: up.reason, actual: up.actual, expected: up.expected })).toBe(true);
+        const down = walkTraversal(world, up.actor, [...route].reverse());
+        expect(down.ok, JSON.stringify({ floor: floor.id, direction: 'down', reason: down.reason, actual: down.actual, expected: down.expected })).toBe(true);
       }
     });
   }
+
+  it('climbs from the courtyard, walks the whole fort circuit in either direction, and returns to ground', () => {
+    const stairs = world.pieces!.filter(piece => piece.piece === 'fort_stairs');
+    expect(stairs).toHaveLength(2);
+    const west = stairs.find(piece => piece.x < FORTE[0])!;
+    const entry = routesToFloor(KIT_PIECES.fort_stairs.traversal!, 'left')[0].map(point => buildingPoint(west, point));
+    entry[0].y = walkableHeight(entry[0].x, entry[0].z, world);
+    const port = entry.at(-1)!;
+    const wallPort = world.pieces!.filter(piece => piece.piece === 'fort_wall').flatMap(piece =>
+      KIT_PIECES.fort_wall.traversal!.entrances.map(entrance => buildingPoint(piece, entrance.point)))
+      .sort((a, b) => Math.hypot(a.x - port.x, a.z - port.z) - Math.hypot(b.x - port.x, b.z - port.z))[0];
+    const corners = world.pieces!.filter(piece => piece.piece === 'fort_corner_walk')
+      .sort((a, b) => (a.z < FORTE[1] ? a.x < FORTE[0] ? 0 : 1 : a.x > FORTE[0] ? 2 : 3) -
+        (b.z < FORTE[1] ? b.x < FORTE[0] ? 0 : 1 : b.x > FORTE[0] ? 2 : 3));
+    expect(corners).toHaveLength(4);
+    const gallery = corners.flatMap(piece => routesToFloor(KIT_PIECES.fort_corner_walk.traversal!, 'front-wall')[0]
+      .map(point => buildingPoint(piece, point)));
+    const circuit = [...entry, wallPort, ...gallery, wallPort, ...[...entry].reverse()];
+    for (const points of [circuit, [...circuit].reverse()]) {
+      const result = walkTraversal(world, actor, points);
+      expect(result.ok, JSON.stringify({ reason: result.reason, actual: result.actual, expected: result.expected })).toBe(true);
+    }
+  });
 });

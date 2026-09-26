@@ -25,7 +25,7 @@
       "triangles": [
         14936,
         3484,
-        804
+        808
       ],
       "colliders": 28
     },
@@ -43,7 +43,7 @@
       "triangles": [
         3916,
         748,
-        748
+        492
       ],
       "colliders": 8
     },
@@ -61,7 +61,7 @@
       "triangles": [
         2420,
         1100,
-        768
+        620
       ],
       "colliders": 15
     },
@@ -70,7 +70,7 @@
       "triangles": [
         2228,
         260,
-        260
+        228
       ],
       "colliders": 7
     },
@@ -133,43 +133,43 @@
       "triangles": [
         11984,
         2884,
-        714
+        712
       ],
       "colliders": 20
     },
     {
       "id": "warehouse",
       "triangles": [
-        14952,
+        14936,
         3484,
-        842
+        840
       ],
       "colliders": 25
     },
     {
       "id": "fort_gate",
       "triangles": [
-        968,
-        704,
-        704
+        1936,
+        880,
+        464
       ],
-      "colliders": 16
+      "colliders": 13
     },
     {
       "id": "lighthouse",
       "triangles": [
-        3852,
-        2888,
-        684
+        9136,
+        6742,
+        2307
       ],
-      "colliders": 9
+      "colliders": 150
     },
     {
       "id": "beach_kiosk",
       "triangles": [
         5128,
         1400,
-        767
+        768
       ],
       "colliders": 24
     },
@@ -334,7 +334,133 @@
         766
       ],
       "colliders": 29
+    },
+    {
+      "id": "fort_postern",
+      "triangles": [
+        1584,
+        704,
+        384
+      ],
+      "colliders": 10
+    },
+    {
+      "id": "fort_stairs",
+      "triangles": [
+        2596,
+        2200,
+        600
+      ],
+      "colliders": 50
+    },
+    {
+      "id": "fort_corner_walk",
+      "triangles": [
+        264,
+        264,
+        72
+      ],
+      "colliders": 6
+    },
+    {
+      "id": "dock_steps",
+      "triangles": [
+        744,
+        600,
+        216
+      ],
+      "colliders": 12
+    },
+    {
+      "id": "table",
+      "triangles": [
+        420,
+        108,
+        108
+      ],
+      "colliders": 5
+    },
+    {
+      "id": "chair",
+      "triangles": [
+        440,
+        108,
+        108
+      ],
+      "colliders": 7
+    },
+    {
+      "id": "shelf_pottery",
+      "triangles": [
+        1436,
+        648,
+        648
+      ],
+      "colliders": 7
+    },
+    {
+      "id": "rug",
+      "triangles": [
+        464,
+        96,
+        96
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "wardrobe",
+      "triangles": [
+        612,
+        108,
+        108
+      ],
+      "colliders": 5
+    },
+    {
+      "id": "sofa",
+      "triangles": [
+        616,
+        120,
+        120
+      ],
+      "colliders": 8
+    },
+    {
+      "id": "potted_plant",
+      "triangles": [
+        424,
+        376,
+        376
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "hammock",
+      "triangles": [
+        392,
+        264,
+        264
+      ],
+      "colliders": 4
+    },
+    {
+      "id": "stove",
+      "triangles": [
+        656,
+        224,
+        224
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "wall_picture",
+      "triangles": [
+        236,
+        188,
+        144
+      ],
+      "colliders": 0
     }
   ],
-  "bytes": 5797736
+  "bytes": 6620908
 }

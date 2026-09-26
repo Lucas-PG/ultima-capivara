@@ -5,6 +5,8 @@ import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
 import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
+import { buildingRooms, interiorPlacements } from './building-interiors';
+import { buildBuildingRoutes, buildingPoint } from './building-access';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 
 const ground = terrainHeight;
@@ -100,10 +102,14 @@ export function createWorld(): WorldSpec {
     // Furnish the wall bays, preserving the opposing doors and the tall-house stair.
     if (h.piece === 'house_tall') {
       lotPiece('interior_counter', h, width / 2 - 1.7, -depth / 2 + .75, 0, 1, y + .11);
-      lotPiece('bed', h, width / 2 - 1.15, .8, 0, 1, y + .11);
+      if (h.role === 'clinic') lotPiece('bed', h, width / 2 - 1.15, .8, 0, 1, y + .11);
+      else if (h.role === 'tailor') lotPiece('wardrobe', h, 3.4, .1, -Math.PI / 2, 1, y + .11);
+      else if (h.role === 'workshop') lotPiece('table', h, 2.65, .1, -Math.PI / 2, 1, y + .11);
+      else lotPiece('sofa', h, 3.25, .1, -Math.PI / 2, 1, y + .11);
     } else {
       lotPiece('interior_counter', h, -width / 2 + .75, -.4, Math.PI / 2, 1, y + .11);
-      if (['home', 'fisher', 'clinic'].includes(h.role)) lotPiece('bed', h, width / 2 - 1.15, .5, 0, 1, y + .11);
+      if (h.role === 'fisher') lotPiece('hammock', h, 2.65, .5, -Math.PI / 2, 1, y + .11);
+      else if (['home', 'clinic'].includes(h.role)) lotPiece('bed', h, width / 2 - 1.15, .5, 0, 1, y + .11);
       else lotPiece('bench', h, width / 2 - .7, .1, -Math.PI / 2, 1, y + .11);
     }
   }
@@ -193,12 +199,17 @@ export function createWorld(): WorldSpec {
   // Forte: red-capped towers frame two open gates above a crescent beach.
   const [fx, fz] = FORTE, fortY = ground(fx, fz);
   for (const side of [-1, 1]) {
-    for (const dx of [-8, 8]) place('fort_wall', fx + dx, fz + side * 12, 0, 1, fortY);
-    for (const dz of [-8, 0, 8]) if (!(side === 1 && dz === 8)) place('fort_wall', fx + side * 12, fz + dz, Math.PI / 2, 1, fortY);
+    for (const dx of [-8, 8]) place('fort_wall', fx + dx, fz + side * 12, side < 0 ? 0 : Math.PI, 1, fortY);
+    for (const dz of [-8, 0, 8]) if (!(side === 1 && dz === 8))
+      place('fort_wall', fx + side * 12, fz + dz, -side * Math.PI / 2, 1, fortY);
   }
   for (const dx of [-12, 12]) for (const dz of [-12, 12]) place('fort_tower', fx + dx, fz + dz, 0, 1, fortY);
-  detail('fort_gate', fx, fz + 12, 0, 1, fortY);
+  detail('fort_gate', fx, fz + 12, Math.PI, 1, fortY);
   detail('fort_gate', fx, fz - 12, 0, 1, fortY);
+  detail('fort_postern', fx + 12, fz + 8, -Math.PI / 2, 1, fortY);
+  for (const side of [-1, 1]) detail('fort_stairs', fx + side * 9.8, fz, 0, 1, fortY);
+  for (const [dx, dz, yaw] of [[-9, -9, 0], [9, -9, -Math.PI / 2], [9, 9, Math.PI], [-9, 9, Math.PI / 2]])
+    detail('fort_corner_walk', fx + dx, fz + dz, yaw, 1, fortY);
   place('house_tall', fx, fz - 2, 0, 1, fortY);
   pavement(fx, fz + 5, 13, 10, '#c9b994');
   for (const [x, z, scale] of [[66, -111, .48], [58, -119, .36]] as const)
@@ -221,6 +232,15 @@ export function createWorld(): WorldSpec {
     const scale = height / definition.height;
     const [width, depth] = definition.footprint, cs = Math.abs(Math.cos(yaw)), sn = Math.abs(Math.sin(yaw));
     const halfX = (width * cs + depth * sn) * scale / 2, halfZ = (width * sn + depth * cs) * scale / 2;
+    const lighthouse = KIT_PIECES.lighthouse;
+    if (lighthouse && bottom + height > ground(...FAROL) + .4 &&
+      Math.abs(x - FAROL[0]) < halfX + lighthouse.footprint[0] / 2 &&
+      Math.abs(z - FAROL[1]) < halfZ + lighthouse.footprint[1] / 2) {
+      // The former solid lighthouse hid this stone lip. Keep the complete
+      // rendered rock footprint outside the newly hollow interior.
+      x = FAROL[0] + Math.sign(x - FAROL[0] || 1) * (halfX + lighthouse.footprint[0] / 2 + .3);
+      bottom = Math.min(bottom, ground(x, z) - .4);
+    }
     // Keep the visible lip, curved water and splash pool open between the banks.
     if (bottom < 17 && x + halfX > -119 && x - halfX < -106 && z + halfZ > -13 && z - halfZ < -4) return false;
     const radius = Math.max(...definition.footprint) * scale * .72 + 1.4;
@@ -309,7 +329,10 @@ export function createWorld(): WorldSpec {
     const y = ground(x, z); place('container', x, z, yaw, 1, y);
     if (stack) place('container', x, z, yaw, 1, y + KIT_PIECES.container.height);
   }
-  for (const z of [-22, -7, 9]) for (const x of [120, 130]) place('dock_wood', x, z, Math.PI / 2, 1, 1.08);
+  const dock = KIT_PIECES.dock_wood.colliders[0], dockTop = dock.y + dock.height / 2;
+  for (const z of [-22, -7, 9]) for (const x of [120, 130])
+    place('dock_wood', x, z, Math.PI / 2, 1, (z === -22 ? 2.22 : 1.60) - dockTop);
+  detail('dock_steps', 112.2, -22, -Math.PI / 2, 1, ground(112.2, -22));
   detail('boat', 125, -15, Math.PI / 2, 1.1, -.05);
   detail('boat', 128, 2, Math.PI / 2, .9, -.05);
   for (const [x, z] of [[122, -14], [124, -13], [126, -14], [125, 3], [127, 4], [129, 3]])
@@ -355,7 +378,8 @@ export function createWorld(): WorldSpec {
   }
   sign(-86, -15, 'MIRANTE');
   // Boardwalks offer a dry second route around the estuary.
-  for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
+  for (const [x, z, yaw] of [[105, 45, 0], [117, 45, 0], [111, 51, Math.PI / 2]])
+    place('dock_wood', x, z, yaw, 1, .68 - dockTop);
   sign(90, 65, 'MANGUE');
   if (KIT_PIECES.cliff_rock_low && KIT_PIECES.cliff_rock_tall) {
     // Six former scatter slots now fund the authored fort and western cuts.
@@ -530,10 +554,20 @@ export function createWorld(): WorldSpec {
     }
   }
   for (const x of [45, 52, 59, 66, 73]) for (const z of [83, 89]) tree(x, z, 5.5, 'tree', 'orchard');
+  const estuaryDocks = pieces.filter(piece => piece.piece === 'dock_wood' && piece.z > 30);
+  const clearsDockCrown = (x: number, z: number) => estuaryDocks.every(piece => {
+    const dx = x - piece.x, dz = z - piece.z, c = Math.cos(piece.yaw), s = Math.sin(piece.yaw);
+    const [width, depth] = KIT_PIECES[piece.piece].footprint, scale = piece.scale ?? 1;
+    return Math.abs(dx * c - dz * s) > width * scale / 2 + 3 || Math.abs(dx * s + dz * c) > depth * scale / 2 + 3;
+  });
   for (let i = 0; i < 34; i++) {
     const x = 84 + random() * 35, z = 40 + random() * 29;
     if (occupied(x, z, 1) || routeDistance(x, z) < 2.5) continue;
-    tree(x, z, 4.5 + random() * 3, 'tree', 'mangrove');
+    // Keep the same scatter slots and random sequence while moving low crowns
+    // away from the newly accessible estuary decks and their walking aisles.
+    let bankZ = z;
+    for (let step = 1; !clearsDockCrown(x, bankZ) && step <= 12; step++) bankZ = z - step * 1.5;
+    tree(x, bankZ, 4.5 + random() * 3, 'tree', 'mangrove');
   }
   // Mid-height crowns cover the terrace aprons below the skyline trees. They
   // replace part of the later scatter, retaining the 360-plant island budget.
@@ -601,7 +635,32 @@ export function createWorld(): WorldSpec {
     }
   }
 
+  const rooms = pieces.flatMap(building => buildingRooms(building).filter(room => room.id === 'ground-room')
+    .map(room => ({ building, room })));
+  const inRoom = (x: number, z: number) => rooms.some(({ building, room }) => {
+    const dx = x - building.x, dz = z - building.z, c = Math.cos(building.yaw), s = Math.sin(building.yaw), size = building.scale ?? 1;
+    const localX = (dx * c - dz * s) / size, localZ = (dx * s + dz * c) / size;
+    return localX > room.bounds[0] - 1 && localX < room.bounds[2] + 1 && localZ > room.bounds[1] - 1 && localZ < room.bounds[3] + 1;
+  });
+  // Hollow rooms are clear between their wall colliders. Relocate old scatter
+  // roots that slipped into that space without changing the scatter budget.
+  for (const plant of objects.filter(object => object.kind === 'tree' || object.kind === 'palm')) {
+    if (!inRoom(plant.pos.x, plant.pos.z)) continue;
+    let target: Vec3 | undefined;
+    for (let radius = 2; radius <= 16 && !target; radius += 2) for (let i = 0; i < 16; i++) {
+      const angle = i * Math.PI / 8, x = plant.pos.x + Math.cos(angle) * radius, z = plant.pos.z + Math.sin(angle) * radius;
+      const y = ground(x, z);
+      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 1) || routeDistance(x, z) < 2) continue;
+      target = { x, y: y - .08, z }; break;
+    }
+    if (!target) throw new Error(`Sem margem livre para a árvore ${plant.id}.`);
+    plant.pos = target;
+  }
+  for (const building of [...pieces]) for (const furniture of interiorPlacements(building)) {
+    pieces.push(furniture); colliders.push(...kitColliders(furniture));
+  }
   const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary, mudBaths, trampolines };
+  world.buildingRoutes = buildBuildingRoutes(world);
   const graph = world.navigation = buildNavigation(world), seen = new Set<number>();
   let mainRoutes: number[] = [];
   for (let start = 0; start < graph.points.length; start++) {
@@ -658,6 +717,12 @@ export function createWorld(): WorldSpec {
     pickup(front.x, front.z, 'weapon', random() < .45 ? 'smg' : 'pistol');
     pickup(back.x, back.z, 'ammo');
     const pos = nearby(bay.x, bay.z, 10); if (pos) chests.push({ id: id('chest'), ...pos });
+  }
+  for (const house of pieces.filter(piece => piece.piece === 'house_tall')) {
+    const floor = KIT_PIECES.house_tall.traversal!.floors.find(floor => floor.id === 'upper-room')!;
+    const pos = buildingPoint(house, [1, floor.y, -1.5]);
+    loot.push({ id: `loot-upper-${house.id}`, ...pos, kind: house.id.includes('clinic') ? 'medkit' : 'weapon',
+      ...(house.id.includes('clinic') ? {} : { weapon: 'smg' as const }) });
   }
   for (const [x, z, weapon] of [[-7, -90, 'sniper'], [12, -92, 'dmr'], [28, -20, 'm4'], [24, -17, 'shotgun'],
     [-105, -76, 'sniper'], [65, 61, 'shotgun'], [102, -14, 'm4'], [12, 110, 'dmr']] as const) pickup(x, z, 'weapon', weapon);

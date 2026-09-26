@@ -1,0 +1,98 @@
+import { describe, expect, it } from 'vitest';
+import { buildingRole, buildingRooms } from '../src/shared/building-interiors';
+import { clearSpawn } from '../src/shared/collision';
+import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
+import { createWorld } from '../src/shared/world';
+import type { KitPlacement } from '../src/shared/types';
+
+const world = createWorld(), pieces = world.pieces!;
+const soft = new Set(['rug', 'wall_picture', 'potted_plant']);
+const local = (building: KitPlacement, item: KitPlacement) => {
+  const dx = item.x - building.x, dz = item.z - building.z, scale = building.scale ?? 1;
+  return { x: (dx * Math.cos(building.yaw) - dz * Math.sin(building.yaw)) / scale,
+    y: (item.y - building.y) / scale, z: (dx * Math.sin(building.yaw) + dz * Math.cos(building.yaw)) / scale };
+};
+
+describe('lived-in rooms preserve ordinary access', () => {
+  it('gives every room useful furniture supported by its actual floor, without burying pieces in walls or stairs', () => {
+    let count = 0;
+    for (const building of pieces) for (const room of buildingRooms(building)) {
+      const items = pieces.filter(item => item !== building && item.id.startsWith(`${building.id}:interior:${room.id}:`));
+      expect(items.length, `${building.id}/${room.id} is empty`).toBeGreaterThanOrEqual(2);
+      for (const item of items) {
+        const position = local(building, item), definition = KIT_PIECES[item.piece];
+        if (item.piece !== 'wall_picture') expect(position.y, `${item.id} floats above its floor`).toBeCloseTo(room.y, 4);
+        const yaw = item.yaw - building.yaw, scale = (item.scale ?? 1) / (building.scale ?? 1);
+        const hx = (Math.abs(Math.cos(yaw)) * definition.footprint[0] + Math.abs(Math.sin(yaw)) * definition.footprint[1]) * scale / 2;
+        const hz = (Math.abs(Math.sin(yaw)) * definition.footprint[0] + Math.abs(Math.cos(yaw)) * definition.footprint[1]) * scale / 2;
+        expect(position.x - hx, item.id).toBeGreaterThanOrEqual(room.bounds[0] - .02);
+        expect(position.x + hx, item.id).toBeLessThanOrEqual(room.bounds[2] + .02);
+        expect(position.z - hz, item.id).toBeGreaterThanOrEqual(room.bounds[1] - .02);
+        expect(position.z + hz, item.id).toBeLessThanOrEqual(room.bounds[3] + .02);
+        for (const solid of kitColliders(item)) for (const wall of world.colliders.filter(c => c.pieceId === building.id)) {
+          const overlap = Math.min(solid.max.x, wall.max.x) - Math.max(solid.min.x, wall.min.x) > .02 &&
+            Math.min(solid.max.y, wall.max.y) - Math.max(solid.min.y, wall.min.y) > .02 &&
+            Math.min(solid.max.z, wall.max.z) - Math.max(solid.min.z, wall.min.z) > .02;
+          expect(overlap, `${item.id} clips building solid ${wall.id}`).toBe(false);
+        }
+      }
+      count++;
+    }
+    expect(count).toBeGreaterThanOrEqual(55);
+  });
+
+  it('keeps furniture fronts usable and soft room accents non-solid', () => {
+    for (const item of pieces) {
+      const definition = KIT_PIECES[item.piece];
+      if (soft.has(item.piece)) expect(kitColliders(item), item.id).toHaveLength(0);
+      if (!definition.frontClearance) continue;
+      const scale = item.scale ?? 1;
+      const clear = [.33, .4, .5, .6].filter(distance => distance <= definition.frontClearance! + .06).some(distance => {
+        const forward = definition.footprint[1] * scale / 2 + distance;
+        return clearSpawn({ x: item.x + Math.sin(item.yaw) * forward, y: item.y,
+          z: item.z + Math.cos(item.yaw) * forward }, world);
+      });
+      expect(clear, `${item.id} has no usable space in front`).toBe(true);
+    }
+  });
+
+  it('keeps homes, workshops and the clinic distinct upstairs', () => {
+    for (const house of pieces.filter(piece => piece.piece === 'house_tall')) {
+      const upper = pieces.filter(piece => piece.id.startsWith(`${house.id}:interior:upper-room:`)).map(piece => piece.piece);
+      expect(upper, house.id).toContain('bed');
+      expect(upper, house.id).toContain('rug');
+      const role = buildingRole(house);
+      if (role === 'clinic') expect(upper).toContain('shelf_pottery');
+      else if (role === 'workshop') expect(upper).toContain('table');
+      else expect(upper).toContain('wardrobe');
+    }
+  });
+
+  it('keeps outdoor tree roots out of enterable rooms', () => {
+    const plants = world.objects.filter(object => object.kind === 'tree' || object.kind === 'palm');
+    for (const building of pieces) for (const room of buildingRooms(building)) {
+      if (room.id !== 'ground-room') continue;
+      for (const plant of plants) {
+        const position = local(building, { ...plant.pos, id: plant.id, piece: '', yaw: 0 });
+        const inside = position.x > room.bounds[0] && position.x < room.bounds[2] &&
+          position.z > room.bounds[1] && position.z < room.bounds[3];
+        expect(inside, `${plant.id} grows through ${building.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('hangs pictures clear of stair treads and tall furniture', () => {
+    for (const picture of pieces.filter(piece => piece.piece === 'wall_picture')) {
+      const definition = KIT_PIECES.wall_picture, scale = picture.scale ?? 1;
+      const c = Math.abs(Math.cos(picture.yaw)), s = Math.abs(Math.sin(picture.yaw));
+      const hx = (c * definition.footprint[0] + s * definition.footprint[1]) * scale / 2;
+      const hz = (s * definition.footprint[0] + c * definition.footprint[1]) * scale / 2;
+      for (const solid of world.colliders) {
+        const overlap = Math.min(picture.x + hx, solid.max.x) - Math.max(picture.x - hx, solid.min.x) > .015 &&
+          Math.min(picture.y + definition.height * scale, solid.max.y) - Math.max(picture.y, solid.min.y) > .015 &&
+          Math.min(picture.z + hz, solid.max.z) - Math.max(picture.z - hz, solid.min.z) > .015;
+        expect(overlap, `${picture.id} is buried in ${solid.id}`).toBe(false);
+      }
+    }
+  });
+});

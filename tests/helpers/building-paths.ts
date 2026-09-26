@@ -1,11 +1,5 @@
 import type { KitTraversal } from '../../src/shared/kit-collision';
-import type { KitPlacement, Vec3 } from '../../src/shared/types';
-
-export function buildingPoint(piece: KitPlacement, point: readonly [number, number, number]): Vec3 {
-  const scale = piece.scale ?? 1, c = Math.cos(piece.yaw), s = Math.sin(piece.yaw);
-  return { x: piece.x + (point[0] * c + point[2] * s) * scale, y: piece.y + point[1] * scale,
-    z: piece.z + (point[2] * c - point[0] * s) * scale };
-}
+export { buildingPoint } from '../../src/shared/building-access';
 
 // Route topology is authored with the solids; tests and review cameras consume
 // it without inventing a path through walls or teleporting between floors.
