@@ -82,7 +82,7 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
       const actor: ActorState = { id: s.state.myId, name: 'Host', color: '#1fb5a8', bot: false, connected: true,
         pos: { x: 1.23, y: 0, z: 2.34 }, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0,
         lean: 0, hp: 100, armor: 0, helmet: 0, alive: true, grounded: true, crouch: false,
-        sprint: false, ads: false, swimming: false, wetUntil: 0, emote: 'wave', emoteUntil: 4, weaponLevel: 2, stage: 'ground', kills: 0, deaths: 0, damage: 0,
+        sprint: false, ads: false, swimming: false, wetUntil: 0, emote: 'wave', emoteUntil: 4, weaponLevel: 2, soaking: false, stage: 'ground', kills: 0, deaths: 0, damage: 0,
         weapons: [{ id: 'm4', ammo: 25, reserve: 90, rarity: 2 }, { id: 'pistol', ammo: 12, reserve: 36, rarity: 0 }],
         slot: 0, consumables: { bandage: 2, medkit: 1, guarana: 1, acai: 0, rapadura: 0 },
         reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, shotHeat: 0 };

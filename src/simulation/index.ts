@@ -3,6 +3,7 @@ import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, ray
 import { terrainHeight } from '../shared/terrain';
 import { waterAt } from '../shared/water';
 import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emotes';
+import { MUD_HEAL_PER_SECOND, MUD_HURT_COOLDOWN, mudBathAt } from '../shared/recreation';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
@@ -10,7 +11,7 @@ import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, shotHeatGain,
 import { resolveImpact, type Impact } from './surface';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
-import type { ActorState, ChestSpec, ConsumableId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
+import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
 const TICK = 1 / 60;
 const PLANE_ALTITUDE = 115, PLANE_SPEED = 30, PLANE_ROUTE = 350;
@@ -163,7 +164,7 @@ export class Simulation {
       id: profile.id, name: profile.name.slice(0, 28), color: profile.color, bot, connected: bot || profile.connected,
       pos: br ? { ...this.plane } : spawn, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
       hp: 100, armor: 0, helmet: 0, alive: true, grounded: !br, crouch: false, sprint: false, ads: false, swimming: false, wetUntil: 0,
-      emote: null, emoteUntil: 0,
+      emote: null, emoteUntil: 0, soaking: false,
       stage: br ? 'plane' : 'ground', kills: 0, deaths: 0, damage: 0, weaponLevel: 0,
       weapons: this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[0])] : br ? bot ? this.botLoadout() :
         [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
@@ -206,11 +207,7 @@ export class Simulation {
     if (!s.alive) return;
     if (action.type === 'emote') {
       if (action.emote === null) this.cancelEmote(s);
-      else if (s.stage === 'ground' && s.grounded && !s.swimming && !s.using && !s.reloadUntil) {
-        s.emote = action.emote; s.emoteUntil = this.time + EMOTES[action.emote].duration;
-        s.velocity.x = s.velocity.z = 0;
-        s.sprint = s.ads = false; s.lean = 0; actor.adsAmount = 0;
-      }
+      else this.startEmote(actor, action.emote);
       return;
     }
     this.cancelEmote(s);
@@ -312,6 +309,7 @@ export class Simulation {
       moveActor(s, consumeQueuedJump ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1, this.config.mode);
       if (s.slot !== previousSlot) { actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0; }
       if (s.swimming !== wasSwimming) this.waterTransition(actor);
+      this.updateMudBath(actor);
       actor.jumpQueued = queuedJump && !consumeQueuedJump;
       if (s.using && this.time >= s.useUntil) this.finishConsume(actor);
       if (s.reloadUntil && this.time >= s.reloadUntil) this.finishReload(actor);
@@ -352,7 +350,20 @@ export class Simulation {
     s.wetUntil = this.time + 3;
     this.emit({ type: 'water', actor: s.id, pos: { ...s.pos, y: water?.surfaceY ?? s.pos.y }, entering: s.swimming });
   }
-  private cancelEmote(s: ActorState) { s.emote = null; s.emoteUntil = 0; }
+  private cancelEmote(s: ActorState) { s.emote = null; s.emoteUntil = 0; s.soaking = false; }
+  private startEmote(actor: ActorRuntime, emote: EmoteId) {
+    const s = actor.state;
+    if (s.stage !== 'ground' || !s.grounded || s.swimming || s.using || s.reloadUntil) return;
+    s.emote = emote; s.emoteUntil = this.time + EMOTES[emote].duration;
+    s.velocity.x = s.velocity.z = 0;
+    s.sprint = s.ads = false; s.lean = 0; actor.adsAmount = 0;
+  }
+  private updateMudBath(actor: ActorRuntime) {
+    const s = actor.state;
+    s.soaking = s.alive && s.grounded && !s.swimming && (s.emote === 'sit' || s.emote === 'chill') &&
+      this.time - actor.lastHurt >= MUD_HURT_COOLDOWN && !!mudBathAt(s.pos, this.world);
+    if (s.soaking) s.hp = Math.min(100, s.hp + MUD_HEAL_PER_SECOND * TICK);
+  }
   private drop(a: ActorRuntime) {
     if (a.state.stage !== 'plane') return;
     a.state.stage = 'falling'; a.state.pos = { ...this.plane, y: this.plane.y - 3 };
@@ -455,7 +466,10 @@ export class Simulation {
   }
   private interact(a: ActorRuntime, target: string) {
     const s = a.state;
-    if (this.config.mode === 'corrente' || s.stage !== 'ground' || typeof target !== 'string') return;
+    if (s.stage !== 'ground' || typeof target !== 'string') return;
+    const bath = mudBathAt(s.pos, this.world);
+    if (bath?.id === target) { this.startEmote(a, 'chill'); return; }
+    if (this.config.mode === 'corrente') return;
     const loot = this.loot.find(item => item.id === target && item.active);
     const chest = this.world.chests.find(item => item.id === target && !this.openedChests.has(item.id));
     const item = loot || chest;
