@@ -232,6 +232,7 @@ export class GameRenderer {
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0, this.camera.quaternion);
+    this.weaponView.cameraFeedback(this.camera, this.settings.reducedMotion);
     const held = viewed?.weapons[viewed.slot]?.id;
     const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
     const emoting = viewed?.emote && viewed.emoteUntil > (frame.simulationTime ?? snapshot?.time ?? 0);

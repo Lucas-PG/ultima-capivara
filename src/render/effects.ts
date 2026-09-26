@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { rarityOf } from '../shared/rarity';
 import { terrainHeight } from '../shared/terrain';
 import { WATER_LEVEL } from '../shared/water';
+import { MELEE_CONTACT } from '../shared/weapon-presentation';
 import type { ActorState, Collider, ConsumableId, GameEvent, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
 import type { WeaponView } from './weapons';
@@ -302,7 +303,7 @@ export class EffectsView {
     const muzzle = this.b, end = this.c.set(event.end.x, event.end.y, event.end.z);
     let streak = true;
     if (own && f) {
-      weaponView.shot(weapon);
+      weaponView.shot(weapon, event.hit || !!event.surface);
       const fp = weaponView.muzzleWorld(this.t1), ads = weaponView.adsAmount;
       this.flash(fp, weapon, true, ads);
       if (weapon !== 'machete' && weapon !== 'slingshot') {
@@ -353,6 +354,15 @@ export class EffectsView {
       }
     }
     if (event.hit) {
+      if (weapon === 'machete') {
+        // Confirmed contact only. Reuse the small dust pool, without blood or
+        // another material/draw system, and keep the centre readable.
+        const puff = this.cards.spawn(); puff.pos.copy(end); puff.cell = PAINT.dust;
+        puff.age = own ? -MELEE_CONTACT : 0;
+        puff.life = .22; puff.size0 = .08; puff.size1 = .32; puff.alpha = .55;
+        puff.minPx = 0; puff.maxPx = 38; puff.fadeOut = .85;
+        puff.vel.set(0, .25, 0); puff.color.copy(this.color.goldLight); puff.light.copy(this.color.cloudLight);
+      }
       let head = false, found = false;
       for (const p of this.pending) if (p.active && p.attacker === event.actor) { head ||= p.head; p.active = false; found = true; }
       if (found) this.hitStar(end, head);

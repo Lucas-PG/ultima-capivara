@@ -144,6 +144,7 @@ export class CardSystem {
     for (const c of this.cards) {
       if (c.life <= 0) continue;
       c.age += dt;
+      if (c.age < 0) continue; // Authored contact delay, without advancing or drawing the particle.
       if (c.age >= c.life) { c.life = 0; continue; }
       if (c.anchor !== null && !resolve(c.anchor, c.center)) { c.life = 0; continue; }
       const t = c.age / c.life;

@@ -29,6 +29,7 @@ type QaApi = {
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   names(): string[];
+  motion(weapon: WeaponId, action: 'reload' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
 };
@@ -331,6 +332,53 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   window.__capyQA = {
     async start() { renderer ||= await deps.begin(); },
     pose,
+    async motion(weapon, action, seconds) {
+      if (!WEAPONS.includes(weapon) || !Number.isFinite(seconds) || seconds < 0 || seconds > 4) throw new Error('Invalid motion review');
+      await pose(`fp-${weapon}`);
+      const s = current!, me = s.actors.find(actor => actor.id === 'practice')!;
+      const frame = (dt: number, draw = false, playing = true) => renderer!.update({ snapshot: s, playerId: me.id,
+        input: deps.input.frame, dt, playing, spectateId: null, simulationTime: s.time }, draw);
+      frame(0, false, false); // Reset transient motion, then establish a dry, still grip.
+      for (let i = 0; i < 30; i++) frame(1 / 60);
+      const advance = (duration: number) => {
+        const end = s.time + duration; let elapsed = 0;
+        while (elapsed < duration - 1e-8) {
+          const dt = Math.min(1 / 120, duration - elapsed); elapsed += dt; s.time += dt; frame(dt);
+        }
+        s.time = end;
+      };
+      const swing = () => {
+        const origin = { x: me.pos.x, y: me.pos.y + 1.55, z: me.pos.z };
+        renderer!.event({ type: 'shot', id: 200 + (action.endsWith('left') ? 1 : 0), actor: me.id, weapon: 'machete', origin,
+          end: { x: origin.x - Math.sin(me.yaw) * 1.7, y: origin.y, z: origin.z - Math.cos(me.yaw) * 1.7 },
+          hit: action.startsWith('hit') });
+      };
+      if (action === 'reload') { me.weapons[0].ammo = 0; me.reloadUntil = s.time + WEAPON_DEFS[weapon].reload; }
+      else if (action.includes('right') || action.includes('left')) {
+        if (weapon !== 'machete') throw new Error('Swing review requires machete');
+        if (action.endsWith('left')) { swing(); advance(.6); }
+        swing();
+      } else if (action === 'sprint') { me.sprint = true; me.velocity.z = -7; }
+      else if (action === 'ads') me.ads = true;
+      else if (action === 'equip') {
+        me.weapons.push({ id: weapon === 'pistol' ? 'm4' : 'pistol', rarity: 0, ammo: 12, reserve: 30 }); me.slot = 1;
+      } else if (action === 'land') {
+        me.grounded = false; me.velocity.y = -10; frame(1 / 60);
+        me.grounded = true; me.velocity.y = 0;
+      }
+      advance(seconds);
+      if (action === 'reload' && seconds >= WEAPON_DEFS[weapon].reload) {
+        // Complete the displayed fixture too. These strips review the pose;
+        // authoritative inventory completion has separate simulation intents.
+        me.reloadUntil = 0; me.weapons[0].ammo = weapon === 'shotgun' ? 1 : WEAPON_DEFS[weapon].magazine;
+        me.weapons[0].reserve -= me.weapons[0].ammo;
+      }
+      frame(0, true);
+      // The game HUD deliberately updates at a lower cadence. Let the pose's
+      // earlier HUD write expire before capturing this action's ammo/progress.
+      await new Promise(resolve => setTimeout(resolve, 80));
+      deps.ui.update(s, me.id, 0, false, 60, null);
+    },
     quality(quality) { if (!renderer) throw new Error('Call start first'); deps.settings.graphics = quality; renderer.setSettings(deps.settings); draw(); },
     actors(count) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; },
     loading(on) { deps.ui.setLoading(on); },
