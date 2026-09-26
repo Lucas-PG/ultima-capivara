@@ -77,7 +77,7 @@ export interface WorldSpec {
 // animate it arcing out; its x/y/z is already the landing spot.
 export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number; from?: Vec3; spawnedAt?: number }
 export interface ZoneState { x: number; z: number; radius: number; nextRadius: number; nextX: number; nextZ: number; phase: number; shrinking: boolean; timeLeft: number; damage: number }
-export interface MatchResult { id: string; name: string; color: string; bot: boolean; kills: number; deaths: number; damage: number; place: number; winner: boolean; shots: number; hits: number; headshots: number; survived: number; chests: number }
+export interface MatchResult { id: string; name: string; color: string; bot: boolean; kills: number; deaths: number; damage: number; place: number; winner: boolean; shots: number; hits: number; headshots: number; survived: number; chests: number; longestShot: number }
 export interface WorldSnapshot {
   protocol: number; world: string; matchId: string; tick: number; time: number; phase: Phase;
   config: RoomConfig; countdown: number; remaining: number; actors: ActorState[];

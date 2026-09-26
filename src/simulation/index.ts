@@ -40,10 +40,10 @@ interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; jumpQueuedUntil: number; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
   brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number; stormExposure: number; landedAt: number;
-  shots: number; hits: number; headshots: number; chests: number; eliminatedAt: number | null;
+  shots: number; hits: number; headshots: number; chests: number; longestShot: number; eliminatedAt: number | null;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
-interface Projectile { owner: string; weapon: WeaponId; pos: Vec3; velocity: Vec3; life: number }
+interface Projectile { owner: string; weapon: WeaponId; origin: Vec3; pos: Vec3; velocity: Vec3; life: number }
 type EventWithoutId = { [K in GameEvent['type']]: Omit<Extract<GameEvent, { type: K }>, 'id'> }[GameEvent['type']];
 
 const copy = <T>(value: T): T => structuredClone(value);
@@ -167,7 +167,7 @@ export class Simulation {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, eliminatedAt: null, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [] });
   }
 
   input(id: string, input: InputFrame) {
@@ -529,7 +529,7 @@ export class Simulation {
     if (range) this.alertBots(s.pos, range);
     origin.x += Math.cos(s.yaw) * s.lean * .32; origin.z -= Math.sin(s.yaw) * s.lean * .32;
     if (def.projectile) {
-      this.projectiles.push({ owner: s.id, weapon: w.id, pos: { ...origin }, velocity: { x: forward.x * (def.speed || 50), y: forward.y * (def.speed || 50), z: forward.z * (def.speed || 50) }, life: 3 });
+      this.projectiles.push({ owner: s.id, weapon: w.id, origin: { ...origin }, pos: { ...origin }, velocity: { x: forward.x * (def.speed || 50), y: forward.y * (def.speed || 50), z: forward.z * (def.speed || 50) }, life: 3 });
       this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: { x: origin.x + forward.x * 2, y: origin.y + forward.y * 2, z: origin.z + forward.z * 2 }, hit: false });
       return;
     }
@@ -550,7 +550,7 @@ export class Simulation {
       if (victim) {
         hit = true; headHit ||= head; endpoint = { x: origin.x + direction.x * best, y: origin.y + direction.y * best, z: origin.z + direction.z * best };
         const falloff = damageFalloff(w.id, best);
-        this.damage(victim, def.damage * (head ? def.headMultiplier : 1) * (1 + w.rarity * .08) * falloff * (a.brain ? this.botDamage(a, victim) : 1), s.id, w.id, head);
+        this.damage(victim, def.damage * (head ? def.headMultiplier : 1) * (1 + w.rarity * .08) * falloff * (a.brain ? this.botDamage(a, victim) : 1), s.id, w.id, head, best);
       } else if (!hit) {
         impact = resolveImpact(origin, direction, wall, def.range);
         if (impact) endpoint = impact.point;
@@ -591,7 +591,7 @@ export class Simulation {
     }
     return best < max ? { distance: best, head } : null;
   }
-  private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean) {
+  private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean, shotDistance = 0) {
     const s = target.state;
     if (!s.alive || s.protectionUntil > this.time || !Number.isFinite(raw) || raw <= 0) return;
     let damage = raw;
@@ -600,7 +600,10 @@ export class Simulation {
     if (s.armor > 0) { const blocked = Math.min(s.armor, damage); s.armor -= blocked; damage -= blocked; }
     s.hp = Math.max(0, s.hp - damage);
     const attacker = attackerId && attackerId !== s.id ? this.actors.get(attackerId) : null;
-    if (attacker) attacker.state.damage += raw;
+    if (attacker) {
+      attacker.state.damage += raw;
+      if (weapon !== 'storm' && weapon !== 'fall' && !WEAPONS[weapon].melee && Number.isFinite(shotDistance)) attacker.longestShot = Math.max(attacker.longestShot, shotDistance);
+    }
     target.lastHurt = this.time;
     const brain = target.brain;
     if (brain && attacker) {
@@ -657,7 +660,8 @@ export class Simulation {
       if (victim) {
         const owner = this.actors.get(p.owner);
         if (owner) { owner.hits++; if (head) owner.headshots++; }
-        this.damage(victim, WEAPONS[p.weapon].damage * (head ? WEAPONS[p.weapon].headMultiplier : 1), p.owner, p.weapon, head);
+        const distance = Math.hypot(previous.x + dir.x * best - p.origin.x, previous.y + dir.y * best - p.origin.y, previous.z + dir.z * best - p.origin.z);
+        this.damage(victim, WEAPONS[p.weapon].damage * (head ? WEAPONS[p.weapon].headMultiplier : 1), p.owner, p.weapon, head, distance);
       }
       const underground = p.pos.y < terrainHeight(p.pos.x, p.pos.z);
       const landed = victim ? null : resolveImpact(previous, dir, wall || (underground ? { distance: length, collider: { id: 'terrain', min: p.pos, max: p.pos, material: 'earth' } } : null), length);
@@ -1142,7 +1146,7 @@ export class Simulation {
       previousPlace = place;
       const livedUntil = this.config.mode === 'battle-royale' ? a.eliminatedAt ?? this.time : this.time;
       return { id: s.id, name: s.name, color: s.color, bot: s.bot, kills: s.kills, deaths: s.deaths, damage: s.damage, place, winner: place === 1 && (this.config.mode === 'deathmatch' || alive === 1),
-        shots: a.shots, hits: a.hits, headshots: a.headshots, survived: Math.round(Math.max(0, livedUntil - this.matchStartedAt) * 10) / 10, chests: a.chests };
+        shots: a.shots, hits: a.hits, headshots: a.headshots, survived: Math.round(Math.max(0, livedUntil - this.matchStartedAt) * 10) / 10, chests: a.chests, longestShot: Math.round(a.longestShot * 10) / 10 };
     });
     this.emit({ type: 'notice', text: 'Partida encerrada!' });
   }
