@@ -9,7 +9,12 @@ if (!chunk.includes('paintedWrap')) {
   if (start >= 0 && at >= 0) {
     THREE.ShaderChunk.lights_physical_pars_fragment = chunk.slice(0, at) + `${LIT}
 	float paintedWrap = (dot(geometryNormal, directLight.direction) + 0.28) / 1.28;
-	dotNL = max(0.0, paintedWrap);` + chunk.slice(at + LIT.length);
+	vec3 paintedDiffuseIrradiance = max(0.0, paintedWrap) * directLight.color;` + chunk.slice(at + LIT.length);
+    // GGX must retain physical N.L. Wrapping its irradiance lights back-facing
+    // grazing normals where the visibility denominator tends to zero.
+    THREE.ShaderChunk.lights_physical_pars_fragment = THREE.ShaderChunk.lights_physical_pars_fragment.replace(
+      'reflectedLight.directDiffuse += irradiance * BRDF_Lambert',
+      'reflectedLight.directDiffuse += paintedDiffuseIrradiance * BRDF_Lambert');
   }
 }
 
