@@ -16,7 +16,7 @@ it('reviews real river flotation, a nearby swimmer and a dry wet exit using shar
   const renderer = { update: (next: RenderFrame, draw = true) => { frame = next; updates.push({ dt: next.dt, draw }); }, prepareMatch: async () => {},
     cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 } };
   installQa({ world: createWorld(), settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
-    ui: { update: () => {}, setPaused: () => {} } as any, begin: async () => renderer as any });
+    ui: { update: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
   const qa = window.__capyQA!; await qa.start();
   await qa.pose('swimWaterline');
   expect(updates.reduce((time, update) => time + update.dt, 0)).toBeCloseTo(1);
@@ -49,7 +49,7 @@ it('keeps one render loop when reviews stop, change pose and restart before a qu
   const renderer = { update: (_frame: RenderFrame, draw = true) => { if (draw) draws++; }, prepareMatch: async () => {},
     cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 } };
   installQa({ world: createWorld(), settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
-    ui: { update: () => {}, setPaused: () => {} } as any, begin: async () => renderer as any });
+    ui: { update: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
   const qa = window.__capyQA!; await qa.start(); await qa.pose('plaza');
   qa.loop(true);
   for (const pose of ['swimWaterline', 'swimRemote', 'swimExit']) {

@@ -76,6 +76,43 @@ describe('island kit geometry and traversal contract', () => {
     }
   });
 
+  it('keeps recreation contact surfaces visible, supported and accessible at every LOD', () => {
+    asset.scene.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
+    for (const id of ['mud_bath', 'trampoline'] as const) {
+      const definition = metadata[id], contact = definition.interaction;
+      expect(definition.height, `${id} entry lip`).toBeLessThanOrEqual(.45);
+      const floor = definition.colliders[0];
+      expect(floor.type).toBe('cylinder');
+      expect(floor.y + floor.height / 2).toBeCloseTo(contact.surfaceY, 6);
+      // The movement adapter uses inscribed strips. Keep the whole interaction
+      // circle inside their supported core, including either entry direction.
+      expect(contact.radius).toBeLessThanOrEqual(floor.radius! * 5 / 6);
+      for (let lod = 0; lod < 3; lod++) {
+        const mesh = asset.scene.getObjectByName(`${id}_LOD${lod}`)!;
+        for (let sample = 0; sample < 16; sample++) {
+          const angle = sample * Math.PI / 8, radius = sample ? contact.radius * .96 : 0;
+          ray.set(new THREE.Vector3(Math.sin(angle) * radius, 2, Math.cos(angle) * radius), down);
+          const hit = ray.intersectObject(mesh, false)[0];
+          expect(hit, `${id} LOD${lod} contact ${sample}`).toBeDefined();
+          expect(hit.point.y).toBeGreaterThanOrEqual(contact.surfaceY - .012);
+          expect(hit.point.y).toBeLessThanOrEqual(contact.surfaceY + .025);
+        }
+      }
+    }
+  });
+
+  it('roots the river-step railing posts in the corresponding treads', () => {
+    const posts = metadata.river_steps.colliders.filter(c => c.type === 'box' && Math.abs(c.x) > 2);
+    expect(posts).toHaveLength(8);
+    for (const post of posts) {
+      const tread = metadata.river_steps.colliders.find(c => c.type === 'box' && c.x === 0 &&
+        Math.abs(c.z - post.z) < c.depth! / 2);
+      expect(tread).toBeDefined();
+      expect(post.y - post.height / 2).toBeCloseTo(tread!.y + tread!.height / 2, 6);
+    }
+  });
+
   it('keeps every cliff collision face behind outward stone geometry at every LOD', () => {
     asset.scene.updateMatrixWorld(true);
     const ray = new THREE.Raycaster();

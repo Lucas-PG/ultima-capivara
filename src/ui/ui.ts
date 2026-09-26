@@ -11,10 +11,15 @@ import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, we
 import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, tipCategory, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
+import { EMOTES, EMOTE_IDS } from '../shared/emotes';
+import type { EmoteId } from '../shared/types';
+import { emoteChoice, EMOTE_RADIUS } from './emote-wheel';
+import { paintIslandMap, paintMapCompass } from './map-paint';
 
 export interface UICallbacks {
   host(profile: Profile, config: RoomConfig): Promise<void>; join(profile: Profile, code: string): Promise<void>;
   practice(config: RoomConfig, profile: Profile): void; ready(ready: boolean): void; start(): void;
+  emote?(emote: EmoteId): void; cancelEmote?(): void;
   leave(): void; rematch(): void; resume(): void; spectate(): void;
   settings(settings: Settings): void; profile(profile: Profile): void;
 }
@@ -48,6 +53,10 @@ const DAMAGE_ARC = '<svg viewBox="-160 -160 320 320" aria-hidden="true"><path d=
 export class GameUI {
   screen: 'home' | 'lobby' | 'game' | 'results' = 'home';
   private root = document.querySelector<HTMLDivElement>('#app')!;
+  private emoteActive = false;
+  private emoteSelected: number | null = null;
+  private emoteX = 0;
+  private emoteY = 0;
   private selectedMode: Mode = 'battle-royale';
   private room: RoomState | null = null;
   private snapshot: WorldSnapshot | null = null;
@@ -55,6 +64,7 @@ export class GameUI {
   private inventoryKey = '';
   private hudTime = 0;
   private mapBg = document.createElement('canvas');
+  private mapCompass = document.createElement('canvas');
   private lastResults = '';
   private toastTimer = 0;
   private lastBanner = '';
@@ -105,7 +115,7 @@ export class GameUI {
     this.drawMapBackground(); this.home();
     // The map binding (M by default) toggles the island map; it never touches pointer lock or movement input.
     document.addEventListener('keydown', event => {
-      if (this.screen !== 'game' || event.repeat || event.target instanceof HTMLInputElement) return;
+      if (this.emoteActive || this.screen !== 'game' || event.repeat || event.target instanceof HTMLInputElement) return;
       if (event.code === bindingOf(this.settings.bindings, 'map')) { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
       else if (event.code === 'Escape' && this.mapOpen) this.toggleMap(false);
       else if (event.code === 'KeyH' && this.coach) this.finishOnboarding();
@@ -113,7 +123,7 @@ export class GameUI {
     });
     // The map may also sit on a mouse button (remap covers every action), so presses are matched the same way.
     document.addEventListener('mousedown', event => {
-      if (this.screen === 'game' && `Mouse${event.button}` === bindingOf(this.settings.bindings, 'map')) { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
+      if (!this.emoteActive && this.screen === 'game' && `Mouse${event.button}` === bindingOf(this.settings.bindings, 'map')) { this.toggleMap(); if (this.coach?.step === 'storm') this.coachDone(); }
     });
     this.root.addEventListener('click', event => {
       const element = (event.target as HTMLElement).closest<HTMLElement>('[data-do],[data-mode]'); if (!element) return;
@@ -158,6 +168,7 @@ export class GameUI {
     return `<header class="topbar"><button class="brand" data-do="home" aria-label="Tela inicial"><img src="./assets/favicon.svg" alt=""/><span>ÚLTIMA<br><b>CAPIVARA</b></span></button><nav>${back ? `<button class="nav-link" data-do="leave">${icon('back')} VOLTAR</button>` : '<span class="nav-link active">JOGAR</span><button class="nav-link" data-do="how">COMO JOGAR</button>'}<button class="icon-button" data-do="settings" aria-label="Configurações">${icon('settings')}</button></nav><div class="edition"><span class="live-dot"></span> EDIÇÃO ILHA <b>GRÁTIS</b></div></header>`;
   }
   home() {
+    this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
     this.screen = 'home'; this.lastResults = ''; this.els.clear(); this.coach = null; document.body.dataset.screen = 'home';
     const mode = (m: Mode) => `${this.selectedMode === m ? ' selected' : ''}" aria-pressed="${this.selectedMode === m}`;
     this.root.innerHTML = `${this.header()}<div class="menu-motes" aria-hidden="true">${'<i></i>'.repeat(12)}</div>
@@ -245,6 +256,7 @@ export class GameUI {
     catch { this.openModal('CONVIDE SUA TURMA', `<label>LINK DA SALA<input readonly value="${esc(url.href)}"/></label><p>Copie o link acima ou compartilhe o código ${esc(this.room.code)}.</p>`); }
   }
   game(playerId: string) {
+    this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
     this.lastBanner = ''; this.deathInfo = null; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null; this.deathReleased = false;
     if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
@@ -256,11 +268,12 @@ export class GameUI {
       + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
       + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden role="group" aria-label="Você foi eliminada"><img class="spec-mascot" src="${uiArt('capy-lose')}" alt="" draggable="false"><div class="btns">${ELIMINATED_ACTIONS.map(a => `<button type="button" class="${a.primary ? 'go' : 'alt'}" data-do="${a.do}">${a.primary ? icon('eye') : icon('back')} ${a.label}</button>`).join('')}</div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste<span class="esc"> · <kbd>Esc</kbd> solta o mouse pra clicar</span></span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="leave">${icon('back')} Voltar ao menu</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
-      + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
+      + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
       + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><i class="chip" id="armChip" style="width:0"></i><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><i class="chip" id="hpChip"></i><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
-      + `<div id="stance" class="stk">${HUD_ART.stance}<b id="stanceTxt" hidden>Em pé</b></div>`
-      + `<div id="wpnbox"><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
+      + `<div id="stance" class="stk">${HUD_ART.stance}${HUD_ART.swimming}<b id="stanceTxt" hidden>Em pé</b></div>`
+      + `<div id="wpnbox"><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
       + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
+      + `<div id="emoteWheel" hidden><div class="emote-ring" role="listbox" aria-label="Escolha um gesto"><span class="eyebrow emote-title">MOSTRE SEU JEITO</span>${EMOTE_IDS.map((id, i) => { const angle = i * Math.PI * 2 / EMOTE_IDS.length; const art = { wave: 'capy-wave', dance: 'icon-users', victory: 'capy-win', sit: 'icon-leaf', chill: 'icon-heart' }[id]; return `<div id="emote-${i}" class="emote-option" role="option" aria-selected="false" style="--ex:${(Math.sin(angle) * 154).toFixed(1)}px;--ey:${(-Math.cos(angle) * 154).toFixed(1)}px"><kbd>${i + 1}</kbd><img src="${uiArt(art)}" alt="" draggable="false"><b>${esc(EMOTES[id].label)}</b></div>`; }).join('')}<div class="emote-center"><img src="${uiArt('capy-wave')}" alt=""><b id="emoteName">Escolha um gesto</b><span id="emoteDetail">Centro cancela</span></div><i class="emote-pointer" id="emotePointer" aria-hidden="true"></i><span class="emote-hint">Mova o mouse e solte <kbd id="emoteKey">${key(bindingOf(this.settings.bindings, 'emote'))}</kbd> · ou use 1 a 5</span></div></div>`
       + `<div id="coach" class="stk" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
       + `</div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
     this.applyHudPrefs();
@@ -268,6 +281,7 @@ export class GameUI {
   update(snapshot: WorldSnapshot, playerId: string, ping: number, scoreboard: boolean, fps: number, interaction: { id: string; name: string } | null, latencies: Readonly<Record<string, number>> = {}) {
     this.latencies = latencies;
     this.snapshot = snapshot; this.localId = playerId;
+    if (this.emoteActive) { const actor = snapshot.actors.find(a => a.id === playerId); if (snapshot.phase !== 'playing' || !actor?.alive || actor.stage !== 'ground' || !actor.grounded || actor.swimming) { this.callbacks.cancelEmote?.(); this.closeEmoteWheel(); } }
     if (snapshot.phase === 'results') { if (this.lastResults !== snapshot.matchId) { this.lastResults = snapshot.matchId; if (this.screen !== 'game' || !this.root.querySelector('#hud')) this.game(playerId); this.victory(snapshot); } return; }
     if (this.screen !== 'game') this.game(playerId);
     const me = snapshot.actors.find(a => a.id === playerId); if (!me) return;
@@ -326,9 +340,10 @@ export class GameUI {
     this.show('consbar', carried > 0 && me.alive);
     const scoped = me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
     this.show('scope-overlay', scoped);
+    const emoting = me.alive && !!me.emote && me.emoteUntil > t;
     const speed = Math.hypot(me.velocity.x, me.velocity.z), cross = this.el('cross');
     this.style(cross, '--g', `${this.crosshairGap(me, now).toFixed(1)}px`);
-    this.style(cross, 'opacity', me.alive && me.stage === 'ground' && !scoped && !(me.sprint && speed > .5) ? '1' : '0');
+    this.style(cross, 'opacity', me.alive && me.stage === 'ground' && !emoting && !scoped && !(me.sprint && speed > .5) ? '1' : '0');
     this.updatePrompt(me, interaction);
     // Reload: a ring fills around the crosshair, with a short label under it.
     const reloading = !!weapon && !!def && me.reloadUntil > t && me.alive; this.show('reload', reloading); this.show('rring', reloading);
@@ -345,8 +360,8 @@ export class GameUI {
     if (air) { this.text('altTxt', `${Math.max(0, Math.round(me.pos.y - terrainHeight(me.pos.x, me.pos.z)))} m`); this.text('altHint', me.stage === 'falling' ? `${jump} abre o paraquedas` : 'WASD plana'); }
     this.attr(this.el('torso'), 'transform', `rotate(${(me.lean * 16).toFixed(0)} 30 56)`); this.attr(this.el('figure'), 'transform', `translate(0 ${me.crouch ? 15 : 0})`);
     // Posture chip: quiet when standing, labelled and highlighted when it matters.
-    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
-    this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance);
+    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? me.weapons.some(w => w.id === 'pistol') ? 'Nadando · só pistola' : 'Nadando · sem pistola' : emoting ? EMOTES[me.emote!].label : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
+    this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance); this.toggle(this.el('stance'), 'swimming', me.swimming);
     if (me.alive) this.deathInfo = null;
     let banner = '';
     if (snapshot.phase === 'countdown') banner = `${Math.ceil(snapshot.countdown)}<small>Prepare-se · a ilha já vai abrir</small>`;
@@ -462,7 +477,37 @@ export class GameUI {
     };
     requestAnimationFrame(step);
   }
+  openEmoteWheel() {
+    const me = this.snapshot?.actors.find(a => a.id === this.localId);
+    if (this.screen !== 'game' || this.snapshot?.phase !== 'playing' || !me?.alive || me.stage !== 'ground' || !me.grounded || me.swimming || me.using || me.reloadUntil > this.snapshot.time || this.modal || !this.el('pause-panel').hidden || this.root.querySelector('#loadingOverlay')) return false;
+    this.toggleMap(false); this.emoteActive = true; this.emoteX = this.emoteY = 0;
+    this.show('emoteWheel', true); this.selectEmote(null);
+    this.style(this.el('emotePointer'), 'transform', 'translate(0px,0px)');
+    this.text('emoteKey', chipKey(bindingOf(this.settings.bindings, 'emote')));
+    return true;
+  }
+  moveEmoteWheel(x: number, y: number) {
+    if (!this.emoteActive || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    this.emoteX += x; this.emoteY += y;
+    const distance = Math.hypot(this.emoteX, this.emoteY);
+    if (distance > EMOTE_RADIUS) { this.emoteX *= EMOTE_RADIUS / distance; this.emoteY *= EMOTE_RADIUS / distance; }
+    this.style(this.el('emotePointer'), 'transform', `translate(${this.emoteX.toFixed(1)}px,${this.emoteY.toFixed(1)}px)`);
+    this.selectEmote(emoteChoice(this.emoteX, this.emoteY, EMOTE_IDS.length));
+  }
+  selectEmote(index: number | null) {
+    this.emoteSelected = index !== null && Number.isInteger(index) && index >= 0 && index < EMOTE_IDS.length ? index : null;
+    EMOTE_IDS.forEach((_, i) => { const option = this.el(`emote-${i}`), selected = i === this.emoteSelected; this.toggle(option, 'selected', selected); this.attr(option, 'aria-selected', String(selected)); });
+    this.text('emoteName', this.emoteSelected === null ? 'Escolha um gesto' : EMOTES[EMOTE_IDS[this.emoteSelected]].label);
+    this.text('emoteDetail', this.emoteSelected === null ? 'Centro cancela' : 'Solte para fazer');
+  }
+  closeEmoteWheel(commit = false) {
+    if (!this.emoteActive) return;
+    const selected = this.emoteSelected;
+    this.emoteActive = false; this.emoteSelected = null; this.show('emoteWheel', false);
+    if (commit && selected !== null) this.callbacks.emote?.(EMOTE_IDS[selected]);
+  }
   setPaused(paused: boolean) {
+    if (paused) { this.callbacks.cancelEmote?.(); this.closeEmoteWheel(); }
     if (this.screen !== 'game') return; const panel = this.el('pause-panel'); panel.hidden = !paused || this.deadInRoyale();
     if (panel.hidden) return;
     this.toggleMap(false);
@@ -470,7 +515,7 @@ export class GameUI {
     const keys = (...codes: string[]) => `<span class="keys">${codes.map(code => `<kbd class="kc">${esc(code)}</kbd>`).join('')}</span>`;
     panel.innerHTML = `<div class="mc"><div class="eyebrow">Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'vivo' : 'vivos'}` : ''}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${online ? 'Menu' : 'Pausado'}</h1>${!online && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
       + `<div class="pboard"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><button type="button" class="play" data-do="resume">Voltar pra ilha</button><div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt quit" data-do="leave">Sair da partida</button></div></div><div id="lockErr" role="status"></div>`
-      + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span></div>`
+      + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'emote')))}gestos (segurar)</span></div>`
       + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2)}</b></span><input type="range" data-quick="sensitivity" min="0.2" max="3" step="0.05" value="${this.settings.sensitivity}"></label>`
       + `<label><span>Campo de visão <b data-out="fov">${this.settings.fov}°</b></span><input type="range" data-quick="fov" min="60" max="105" step="1" value="${this.settings.fov}"></label></div>`
       + `</div>`;
@@ -575,7 +620,7 @@ export class GameUI {
     const b = (a: string) => keyName(bindingOf(this.settings.bindings, a)), list = (...a: string[]) => a.map(b).join(' ');
     return [[list('forward', 'left', 'back', 'right'), 'MOVER'], ['MOUSE', 'OLHAR'], [`${b('fire')} / ${b('ads')}`, 'ATIRAR / MIRAR'], [b('jump'), 'PULAR / PARAQUEDAS'],
       [b('sprint'), 'CORRER'], [b('crouch'), 'AGACHAR'], [`${b('leanLeft')} / ${b('leanRight')}`, 'ESPIAR'], [b('interact'), 'PEGAR / ABRIR'], [b('reload'), 'RECARREGAR'],
-      [list('slot1', 'slot2', 'slot3', 'slot4'), 'TROCAR ARMA'], [list(...CONSUMABLE_ACTIONS), 'USAR CURA'], [b('scoreboard'), 'PLACAR'], [b('map'), 'MAPA DA ILHA']];
+      [list('slot1', 'slot2', 'slot3', 'slot4'), 'TROCAR ARMA'], [list(...CONSUMABLE_ACTIONS), 'USAR CURA'], [b('scoreboard'), 'PLACAR'], [b('map'), 'MAPA DA ILHA'], [b('emote'), 'GESTOS (SEGURAR)']];
   }
   private howModal() {
     this.openModal('INSTINTO DE SOBREVIVÊNCIA.', `<div class="how-grid"><div>${icon('users')}<h3>CHAME A TURMA</h3><p>Crie uma sala e compartilhe o link. Quem cria mantém o jogo aberto. Sem cadastro, sem instalação.</p></div><div>${icon('crown')}<h3>ÚLTIMA DE PÉ</h3><p>Salte do avião, abra baús e encontre armas. A tempestade fecha a ilha. Sobreviva até o fim.</p></div><div>${icon('bolt')}<h3>CORRERIA</h3><p>Mais eliminações vence. Você reaparece depois de cair, pronto para voltar à luta.</p></div></div><div class="controls-grid">${this.controlsList().map(([keys, text]) => `<span><kbd>${esc(keys)}</kbd> ${text}</span>`).join('')}</div>`);
@@ -607,7 +652,7 @@ export class GameUI {
       const hit = this.lastHits.get(event.target), mine = event.actor === this.localId && event.target !== this.localId, died = event.target === this.localId;
       const entry = document.createElement('div');
       entry.className = `fd${mine ? ' me' : died ? ' bad' : ''}`;
-      const face = (actor: typeof victim) => `<span class="pt">${capybara(actor?.color)}</span>`, name = (actor: typeof victim) => `<b>${esc(actor?.name || 'Capivara')}</b>`;
+      const face = (actor: typeof victim) => `<span class="pt">${capybara(actor?.color)}</span>`, name = (actor: typeof victim) => `<b title="${esc(actor?.name || 'Capivara')}">${esc(actor?.name || 'Capivara')}</b>`;
       if (!killer || event.weapon === 'storm' || event.weapon === 'fall') entry.innerHTML = `${face(victim)}${name(victim)}<em>${event.weapon === 'fall' ? 'caiu feio' : 'levado pela tempestade'}</em>`;
       else {
         const distance = victim ? Math.round(Math.hypot(killer.pos.x - victim.pos.x, killer.pos.y - victim.pos.y, killer.pos.z - victim.pos.z)) : 0;
@@ -692,7 +737,7 @@ export class GameUI {
     if (!element || !element.isConnected) { element = this.root.querySelector<HTMLElement>(`#${id}`)!; if (element) this.els.set(id, element); }
     return element;
   }
-  private show(id: string, visible: boolean) { const element = this.el(id); if (element && element.hidden === visible) element.hidden = !visible; }
+  private show(id: string, visible: boolean) { const element = this.el(id); if (element && element.hasAttribute('hidden') === visible) element.toggleAttribute('hidden', !visible); }
   private toggle(element: Element, cls: string, on: boolean) { if (element.classList.contains(cls) !== on) element.classList.toggle(cls, on); }
   private style(element: HTMLElement, prop: string, value: string) { if (element.style.getPropertyValue(prop) !== value) element.style.setProperty(prop, value); }
   private attr(element: Element | null, name: string, value: string) { if (element && element.getAttribute(name) !== value) element.setAttribute(name, value); }
@@ -721,21 +766,10 @@ export class GameUI {
   }
   private text(id: string, value: string | number) { const element = this.el(id); if (element) this.textOf(element, value); }
   private textOf(element: Element, value: string | number) { if (element.textContent !== String(value)) element.textContent = String(value); }
-  // Island texture for both maps, built from the world data (terrain height, colliders) at MAP_PPM pixels per metre.
+  // Static paint is cached for the UI lifetime and shared by the corner and full maps.
   private drawMapBackground() {
-    const size = this.world.size, px = Math.round(size * MAP_PPM), step = 2, ctx = this.mapBg.getContext('2d')!;
-    this.mapBg.width = this.mapBg.height = px;
-    for (let y = 0; y < px; y += step) for (let x = 0; x < px; x += step) {
-      const h = terrainHeight((x / px - .5) * size, (y / px - .5) * size);
-      ctx.fillStyle = h < -1.5 ? '#2b6b78' : h < 0 ? '#3f8c8f' : h < .7 ? '#d8c48a' : h > 7 ? '#8a9a63' : h > 3.5 ? '#6f9154' : '#5e8a4c'; ctx.fillRect(x, y, step, step);
-    }
-    ctx.fillStyle = '#efe2bd'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 1.5;
-    for (const b of this.world.colliders) if (b.max.y - b.min.y > .6) {
-      const x = (b.min.x / size + .5) * px, y = (b.min.z / size + .5) * px, w = Math.max(1.5, (b.max.x - b.min.x) * MAP_PPM), h = Math.max(1.5, (b.max.z - b.min.z) * MAP_PPM);
-      ctx.fillRect(x, y, w, h); if (w > 6 && h > 6) ctx.strokeRect(x, y, w, h);
-    }
-    ctx.strokeStyle = 'rgba(22,18,14,.12)'; ctx.lineWidth = 1;
-    for (let m = -size / 2; m <= size / 2; m += 20) { const v = (m / size + .5) * px; ctx.beginPath(); ctx.moveTo(v, 0); ctx.lineTo(v, px); ctx.moveTo(0, v); ctx.lineTo(px, v); ctx.stroke(); }
+    paintIslandMap(this.mapBg, this.world, MAP_PPM); paintMapCompass(this.mapCompass);
+    void document.fonts.ready.then(() => paintMapCompass(this.mapCompass));
   }
   // Corner minimap: a north-up window around the player, like Fortnite. M opens the whole island.
   private drawMap(snapshot: WorldSnapshot, actor: ActorState) {
@@ -747,7 +781,7 @@ export class GameUI {
   private drawMapView(canvas: HTMLCanvasElement, snapshot: WorldSnapshot, actor: ActorState, span: number, cx: number, cz: number, full: boolean) {
     const ctx = canvas.getContext('2d')!, size = canvas.width, scale = size / span, half = this.world.size / 2, zone = snapshot.zone;
     const X = (x: number) => (x - cx) * scale + size / 2, Z = (z: number) => (z - cz) * scale + size / 2;
-    ctx.fillStyle = '#2b6b78'; ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#277085'; ctx.fillRect(0, 0, size, size);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.mapBg, (cx - span / 2 + half) * MAP_PPM, (cz - span / 2 + half) * MAP_PPM, span * MAP_PPM, span * MAP_PPM, 0, 0, size, size);
     if (snapshot.config.mode === 'battle-royale') {
@@ -763,10 +797,11 @@ export class GameUI {
         this.planeGlyph(ctx, X(p.x), Z(p.z), Math.atan2(d.x, -d.z), full ? 16 : 11);
       }
     } else { ctx.strokeStyle = '#e5412d'; ctx.lineWidth = 3; ctx.strokeRect(X(ARENA.minX), Z(ARENA.minZ), (ARENA.maxX - ARENA.minX) * scale, (ARENA.maxZ - ARENA.minZ) * scale); }
-    ctx.save(); ctx.font = `${full ? 26 : 23}px "Dela Gothic One","Arial Black",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = full ? 7 : 5; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#fff4d6';
+    ctx.drawImage(this.mapCompass, size - 106, 8, 96, 96);
+    ctx.save(); ctx.font = `30px "Dela Gothic One","Arial Black",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = full ? 7 : 5; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#fff4d6';
     // Labels clamped to the edge must never overlap: a label that would collide with one already drawn is skipped.
     const placed: [number, number, number, number][] = [[X(actor.pos.x) - 18, Z(actor.pos.z) - 18, X(actor.pos.x) + 18, Z(actor.pos.z) + 18]];
-    if (!full) placed.push([size / 2 - 16, 0, size / 2 + 16, 34]);
+    placed.push([size - 116, 0, size, 114]);
     for (const district of this.world.districts) {
       const x = X(district.x), y = Z(district.z); if (x < -60 || y < -20 || x > size + 60 || y > size + 20) continue;
       const label = district.name.toUpperCase(), w = ctx.measureText(label).width / 2 + 6, lx = clamp(x, w, size - w), ly = clamp(y, 14, size - 14);
@@ -779,7 +814,6 @@ export class GameUI {
     ctx.restore();
     ctx.save(); ctx.translate(X(actor.pos.x), Z(actor.pos.z)); ctx.rotate(-actor.yaw); const k = full ? 1.5 : 1.25; ctx.scale(k, k);
     ctx.fillStyle = '#ffb81c'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore();
-    if (!full) { ctx.strokeStyle = 'rgba(22,18,14,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(size / 2, 0); ctx.lineTo(size / 2, 10); ctx.stroke(); ctx.font = '14px "Dela Gothic One",sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#ffb81c'; ctx.strokeText('N', size / 2, 22); ctx.fillText('N', size / 2, 22); }
   }
   private planeGlyph(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, r: number) {
     ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.fillStyle = '#fff4d6'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 2.5;
@@ -882,5 +916,7 @@ export class GameUI {
   toggleMap(open = !this.mapOpen) {
     if (this.screen !== 'game') return; const big = this.root.querySelector<HTMLElement>('#bigmap'); if (!big) return;
     this.mapOpen = open && !this.root.querySelector('#hud.ended'); big.hidden = !this.mapOpen; this.hudTime = 0;
+    const actor = this.snapshot?.actors.find(a => a.id === this.localId);
+    if (this.mapOpen && this.snapshot && actor) this.drawMap(this.snapshot, actor);
   }
 }

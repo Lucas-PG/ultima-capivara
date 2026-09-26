@@ -112,6 +112,8 @@ const ui = new GameUI(world, settings, profile, {
     else if (room?.isHost) session.resetLobby();
     else ui.toast('Quem criou a sala pode reunir a turma para a próxima partida.');
   },
+  emote(emote) { sendAction({ type: 'emote', id: input.actionIdNext(), emote }); },
+  cancelEmote() { input.closeEmoteWheel(); },
   resume() { void sound.unlock(); void input.lock(); },
   spectate() { cycleSpectator(); void input.lock(); },
   settings(next) {
@@ -309,6 +311,15 @@ function closestInteraction() {
   return findInteraction(world, snapshot, predicted, interactionResult);
 }
 input.onAction = sendAction;
+input.onCancelEmote = () => {
+  // A selection may still be travelling to the host, so a local-only control
+  // cancels reliably even before its active gesture appears in a snapshot.
+  if (playing && snapshot?.phase === 'playing') sendAction({ type: 'emote', id: input.actionIdNext(), emote: null });
+};
+input.onEmoteOpen = () => { input.onCancelEmote(); return playing && ui.openEmoteWheel(); };
+input.onEmoteClose = commit => ui.closeEmoteWheel(commit);
+input.onEmoteMove = (x, y) => ui.moveEmoteWheel(x, y);
+input.onEmoteChoice = index => ui.selectEmote(index);
 input.onInspect = () => renderer?.inspectWeapon();
 input.onCycle = direction => {
   const me = snapshot?.actors.find(a => a.id === playerId);
@@ -317,7 +328,7 @@ input.onCycle = direction => {
   sendAction({ type: 'slot', id: input.actionIdNext(), slot });
 };
 input.onInteract = () => { interaction = closestInteraction(); if (interaction) sendAction({ type: 'interact', id: input.actionIdNext(), target: interaction.id }); };
-input.onPause = () => { if (playing) ui.setPaused(true); };
+input.onPause = () => { input.onCancelEmote(); if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 const inputClock = new InputClock(

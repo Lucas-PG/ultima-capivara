@@ -127,7 +127,8 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
       w.session.sendAction({ type: 'reload', id: 1 });
     });
     await expect.poll(() => host.evaluate(() => (window as any).net.inputs.length)).toBe(2);
-    await expect.poll(() => host.evaluate(() => (window as any).net.actions.length)).toBe(2);
+    await expect.poll(() => host.evaluate(() => (window as any).net.actions.length)).toBe(3);
+    expect(await host.evaluate(() => (window as any).net.actions[2])).toEqual([guestId, { type: 'reload', id: 1 }]);
 
     await host.evaluate(() => (window as any).session.resetLobby());
     await expect.poll(() => guest.evaluate(() => (window as any).session.state.phase)).toBe('lobby');
@@ -136,7 +137,7 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
     await host.evaluate(() => (window as any).session.start());
     await expect.poll(() => guest.evaluate(previous => (window as any).session.matchId !== '' && (window as any).session.matchId !== previous, firstMatch)).toBe(true);
     await guest.evaluate(() => (window as any).session.sendAction({ type: 'reload', id: 1 }));
-    await expect.poll(() => host.evaluate(() => (window as any).net.actions.length)).toBe(3);
+    await expect.poll(() => host.evaluate(() => (window as any).net.actions.length)).toBe(4);
     await host.evaluate(() => (window as any).session.leave());
     await expect.poll(() => guest.evaluate(() => (window as any).net.closed[0]), { timeout: 10_000 }).toBe('O anfitrião fechou a sala.');
   } finally {
