@@ -270,6 +270,21 @@ describe('combat feedback audio', () => {
   }
   const here = { x: 0, y: 0, z: 0 };
 
+  it('announces a delivery briefly but only plays nearby landing and opening sounds', () => {
+    const audio = engine(), event = { id: 1, type: 'supply', drop: 'tucano-1', district: 'vila', pos: { x: 100, y: 0, z: 0 } };
+    audio.event({ ...event, stage: 'incoming' }, here, 0, 'self');
+    expect(audio.tone).toHaveBeenCalledTimes(2); expect(audio.spatial).not.toHaveBeenCalled();
+    audio.tone.mockClear(); audio.event({ ...event, stage: 'landed' }, here, 0, 'self');
+    expect(audio.tone).not.toHaveBeenCalled(); expect(audio.noise).not.toHaveBeenCalled();
+    audio.event({ ...event, pos: { x: 5, y: 0, z: 0 }, stage: 'landed' }, here, 0, 'self');
+    expect(audio.spatial).toHaveBeenCalledOnce(); expect(audio.noise).toHaveBeenCalledTimes(2);
+    expect(audio.tone.mock.calls.every((call: number[]) => call[1] + call[4] < 1.5)).toBe(true);
+    audio.event({ ...event, pos: here, stage: 'opened' }, here, 0, 'self');
+    expect(audio.metalClick).toHaveBeenCalledOnce(); expect(audio.tone).toHaveBeenCalledTimes(3);
+    audio.event({ ...event, stage: 'opened' }, here, 0, 'self');
+    expect(audio.metalClick).toHaveBeenCalledOnce();
+  });
+
   it('gives each trampoline launch one short spring cue and spatializes only nearby launches', () => {
     const audio = engine();
     audio.event({ id: 1, type: 'bounce', actor: 'self', pos: here }, here, 0, 'self');
