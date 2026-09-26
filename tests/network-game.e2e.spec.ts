@@ -104,8 +104,26 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await controls(guest, 'fire');
     await expect.poll(async () => (await player(host, guestId)).weapons[0].ammo).toBe(ammo - 1);
     await expect.poll(async () => (await player(guest)).weapons[0].ammo).toBe(ammo - 1);
+    // The wheel must reach the host through the existing reliable action path.
+    // Numbers choose gestures without leaking a weapon-slot action afterward.
+    await controls(guest, 'key', 'KeyB', true);
+    await expect(guest.locator('#emoteWheel')).toBeVisible();
+    const choosing = (await inspect(guest)).clientInput;
+    await guest.mouse.move(700, 260);
+    await controls(guest, 'fire');
+    await controls(guest, 'key', 'KeyW', true);
+    await guest.waitForTimeout(120);
+    expect((await inspect(guest)).clientInput).toMatchObject({ yaw: choosing.yaw, pitch: choosing.pitch, fire: false, moveZ: 0 });
+    await controls(guest, 'key', 'KeyW', false);
+    await controls(guest, 'key', 'Digit1', true);
+    await controls(guest, 'key', 'Digit1', false);
+    await controls(guest, 'key', 'KeyB', false);
+    await expect.poll(async () => (await player(host, guestId)).emote).toBe('wave');
+    await expect.poll(async () => (await player(guest)).emote).toBe('wave');
+    expect((await player(host, guestId)).weapons[0].ammo).toBe(ammo - 1);
     await controls(guest, 'key', 'Tab', true);
     await expect(guest.locator(`#scoreboard [data-player-ping="${guestId}"]`)).toHaveText(/^\d+ ms$/);
+    await expect.poll(async () => (await player(host, guestId)).emote).toBeNull();
     const rtt = await guest.locator(`#scoreboard [data-player-ping="${guestId}"]`).innerText();
     await guest.screenshot({ path: info.outputPath('ponte-scoreboard-720.png') });
     await controls(guest, 'key', 'Tab', false);
