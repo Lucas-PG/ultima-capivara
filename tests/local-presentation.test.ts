@@ -13,6 +13,13 @@ const actor = (): ActorState => ({
 });
 
 describe('local presentation without simulation changes', () => {
+  it('keeps the predicted swimming restrictions even with live aim, sprint and lean held', () => {
+    const state = actor(), view = new LocalPresentation(); state.swimming = true; state.grounded = false;
+    const before = structuredClone(state);
+    const rendered = view.sample(state, { ...emptyInput(), ads: true, sprint: true, lean: 1, moveZ: 1, yaw: 1.2 }, 1, .016, 1);
+    expect(rendered).toMatchObject({ swimming: true, ads: false, sprint: false, lean: 0, yaw: 1.2 });
+    expect(state).toEqual(before);
+  });
   it('renders intermediate positions at 120 Hz while preserving the 60 Hz actor', () => {
     const state = actor(), view = new LocalPresentation(), input = emptyInput();
     view.reconcile(state); state.pos.x = .05; view.tick(state);

@@ -23,7 +23,7 @@ async function harness() {
   const view = Object.assign(Object.create(WeaponView.prototype), {
     holder, scene, models: { pistol: model(), smg: model() }, active: 'pistol', ads: 0, draw: 0, kick: 0, reloadEnd: 0,
     recoil: new Spring(), recoilYaw: new Spring(), swayX: new Spring(), swayY: new Spring(), land: new Spring(),
-    lastYaw: undefined, lastPitch: 0, grounded: true, verticalSpeed: 0, sprintPose: 0, holster: 0,
+    lastYaw: undefined, lastPitch: 0, grounded: true, swimming: false, swimPose: 0, verticalSpeed: 0, sprintPose: 0, holster: 0,
     gait: 0, breathingTime: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], disposed: false,
     inspectTime: -1, inspectAllowed: false, restPosition: new THREE.Vector3(), restRotation: new THREE.Euler(),
   }) as InstanceType<typeof WeaponView>;
@@ -34,6 +34,15 @@ async function harness() {
 }
 
 describe('first-person inspect', () => {
+  it('keeps the pistol usable above the water and never aims or inspects while swimming', async () => {
+    const h = await harness(); h.actor.grounded = true; h.step();
+    const dryY = h.holder.position.y;
+    h.actor.swimming = true; h.actor.grounded = false; h.actor.ads = true;
+    for (let i = 0; i < 60; i++) h.step();
+    expect(h.view.adsAmount).toBe(0); expect(h.view.inspect()).toBe(false);
+    expect(h.holder.position.y).toBeGreaterThan(dryY + .02);
+    expect(h.holder.position.toArray().every(Number.isFinite)).toBe(true);
+  });
   it('starts only after an eligible live update and returns smoothly to the hip pose', async () => {
     const h = await harness(); expect(h.view.inspect()).toBe(false); h.step();
     const position = h.holder.position.clone(), rotation = h.holder.rotation.clone();

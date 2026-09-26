@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { rarityOf } from '../shared/rarity';
 import { terrainHeight } from '../shared/terrain';
-import type { Collider, ConsumableId, GameEvent, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from '../shared/types';
+import { WATER_LEVEL } from '../shared/water';
+import type { ActorState, Collider, ConsumableId, GameEvent, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
 import type { WeaponView } from './weapons';
 import { CELL, PAINT, PAINTED_URL, createEffectsAtlas } from './effects-atlas';
@@ -26,6 +27,7 @@ export interface EffectsFrame {
   firstPerson: boolean; viewportHeight: number;
   /** Accessibility: cards fade in and out without scale pops. */
   reducedMotion: boolean;
+  lowQuality?: boolean;
 }
 
 // One palette table (bible §3, §11). Values are the authored sRGB hexes.
@@ -84,6 +86,8 @@ export class EffectsView {
   private readonly pending: Pending[] = [];
   private readonly pebbles: Pebble[] = [];
   private frame: EffectsFrame | null = null;
+  private waterTime = 0;
+  private readonly waterActors = new Map<string, { next: number; seen: number }>();
   // Scratch values: events and frames reuse these instead of allocating.
   private readonly a = new THREE.Vector3();
   private readonly b = new THREE.Vector3();
@@ -147,8 +151,10 @@ export class EffectsView {
     out.copy(visual.group.position); out.y += 2.45 * visual.group.scale.y; return true;
   };
 
-  update(dt: number, frame: EffectsFrame) {
+  update(dt: number, frame: EffectsFrame, actors: readonly ActorState[] = [], simulationTime = 0, localActor?: ActorState) {
     this.frame = frame;
+    this.waterTime += Math.max(0, dt);
+    this.updateWater(actors, simulationTime, localActor);
     for (const p of this.pending) if (p.active) { p.active = false; this.hitStar(p.pos, p.head); }
     for (const pebble of this.pebbles) if (pebble.card && pebble.card.life <= 0) pebble.card = null;
     const px = 2 * Math.tan(THREE.MathUtils.degToRad(frame.camera.fov) / 2) / Math.max(1, frame.viewportHeight);
@@ -161,7 +167,12 @@ export class EffectsView {
   event(event: GameEvent, avatars: AvatarView, weaponView: WeaponView, playerId: string | undefined, snapshot: WorldSnapshot | null = null): void {
     const firstPerson = !!this.frame?.firstPerson;
     if (event.type === 'shot') this.shot(event, avatars, weaponView, playerId, snapshot);
-    else if (event.type === 'impact') {
+    else if (event.type === 'water') {
+      if (this.frame && this.frame.camera.position.distanceToSquared(event.pos) > 40 * 40) return;
+      this.a.set(event.pos.x, WATER_LEVEL, event.pos.z);
+      this.waterRipple(this.a, event.entering ? 1.9 : 1.2, event.entering ? .65 : .4);
+      this.waterDrops(this.a, this.frame?.reducedMotion ? 0 : this.frame?.lowQuality ? 3 : event.entering ? 10 : 5, event.entering ? 2.4 : 1.1);
+    } else if (event.type === 'impact') {
       for (const pebble of this.pebbles) if (pebble.card && pebble.actor === event.actor) { pebble.card.life = 0; pebble.card = null; break; }
       this.impact(this.a.copy(event.pos), event.surface, this.n.copy(event.normal), event.weapon, 1);
     } else if (event.type === 'damage') {
@@ -192,6 +203,53 @@ export class EffectsView {
     } else if (event.type === 'respawn') {
       const pos = this.copyActor(snapshot, event.actor, this.a);
       if (pos) this.ring(pos, this.color.white, this.color.goldLight, 1.4);
+    }
+  }
+
+  private updateWater(actors: readonly ActorState[], simulationTime: number, localActor?: ActorState) {
+    const frame = this.frame!;
+    for (const source of actors) {
+      const actor = source.id === localActor?.id ? localActor : source;
+      if (!actor.alive || (!actor.swimming && actor.wetUntil <= simulationTime) || frame.camera.position.distanceToSquared(actor.pos) > 32 * 32) continue;
+      let state = this.waterActors.get(actor.id);
+      if (!state) { state = { next: this.waterTime, seen: this.waterTime }; this.waterActors.set(actor.id, state); }
+      state.seen = this.waterTime;
+      if (this.waterTime < state.next) continue;
+      const moving = Math.hypot(actor.velocity.x, actor.velocity.z) > .15;
+      state.next = this.waterTime + (frame.lowQuality ? 1.05 : actor.swimming && moving ? .48 : .9);
+      const visual = actor === localActor ? undefined : frame.avatars.get(actor.id);
+      this.a.copy(visual?.group.position || actor.pos);
+      if (actor.swimming) {
+        this.a.y = WATER_LEVEL;
+        this.waterRipple(this.a, moving ? 1.55 : 1.05, moving ? .35 : .2);
+        if (moving && !frame.reducedMotion && !frame.lowQuality) {
+          this.a.x += Math.cos(actor.yaw) * .36; this.a.z -= Math.sin(actor.yaw) * .36;
+          this.waterDrops(this.a, 2, .85);
+        }
+      } else if (!frame.reducedMotion) {
+        this.a.y += .55;
+        this.waterDrops(this.a, frame.lowQuality ? 1 : 2, .05);
+      }
+    }
+    for (const [id, state] of this.waterActors) if (state.seen !== this.waterTime) this.waterActors.delete(id);
+  }
+
+  private waterRipple(pos: THREE.Vector3, size: number, alpha: number) {
+    const water = this.surface.water;
+    this.n.set(0, 1, 0);
+    this.decals.spawn(pos, this.n, CELL.ring, .42, size, 1.3, .8, alpha, water.mark, water.markLight, rand(0, 6.3));
+  }
+
+  private waterDrops(pos: THREE.Vector3, count: number, speed: number) {
+    const water = this.surface.water;
+    for (let i = 0; i < count; i++) {
+      const drop = this.cards.spawn(), angle = rand(0, Math.PI * 2);
+      drop.pos.copy(pos); drop.pos.x += Math.cos(angle) * .17; drop.pos.z += Math.sin(angle) * .17;
+      drop.cell = CELL.drop; drop.stretch = true; drop.aspect = 1.45;
+      drop.life = rand(.35, .55); drop.fadeOut = .65; drop.alpha = .65;
+      drop.vel.set(Math.cos(angle) * speed * .35, speed * rand(.65, 1.1), Math.sin(angle) * speed * .35);
+      drop.gravity = 6; drop.size0 = .035 + speed * .018; drop.size1 = .018; drop.minPx = 0; drop.maxPx = 12;
+      drop.color.copy(water.bit); drop.light.copy(water.bitLight);
     }
   }
 
@@ -500,6 +558,7 @@ export class EffectsView {
   }
 
   clear() {
+    this.waterActors.clear(); this.waterTime = 0;
     for (const system of this.systems) system.clear();
     for (const p of this.pending) p.active = false;
     for (const pebble of this.pebbles) pebble.card = null;
