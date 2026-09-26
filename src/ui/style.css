@@ -715,7 +715,7 @@ body.reduce-motion #pause-panel h1,body.reduce-motion #pause-panel .board-mascot
 #hud .emote-ring{position:relative;width:420px;height:420px;border:3px dashed rgba(255,241,214,.65);border-radius:50%;animation:toon-pop .22s var(--spring)}
 #hud .emote-title{position:absolute;bottom:100%;left:50%;translate:-50% -14px;white-space:nowrap;font-size:18px}
 #hud .emote-option{position:absolute;left:calc(50% + var(--ex));top:calc(50% + var(--ey));translate:-50% -50%;width:122px;height:100px;padding:5px;border:3px solid var(--brown);border-radius:22px;background:var(--paper);color:var(--brown);box-shadow:0 5px 0 var(--brown),var(--gloss);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;font-size:14px;transition:transform .18s var(--spring),background .15s}
-#hud .emote-option img{width:48px;height:48px;object-fit:contain}
+#hud .emote-option img,#hud .emote-option .emote-art{width:48px;height:48px;object-fit:contain;flex:none}
 #hud .emote-option kbd{position:absolute;top:5px;left:6px;border:2px solid var(--brown);border-radius:7px;background:var(--cream);color:var(--brown);font-size:13px;padding:1px 5px}
 #hud .emote-option.selected{background:var(--candy-gold);transform:scale(1.09) rotate(-2deg);box-shadow:0 6px 0 var(--brown),0 0 0 3px var(--cream),var(--gloss)}
 #hud .emote-center{position:absolute;inset:50% auto auto 50%;translate:-50% -50%;display:flex;flex-direction:column;align-items:center;gap:6px;width:142px;text-align:center;color:var(--cream);text-shadow:0 2px 0 var(--brown);font-size:13px}

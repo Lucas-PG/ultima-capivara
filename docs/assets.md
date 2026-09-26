@@ -438,3 +438,7 @@ Original procedural meshes in `tools/blender/kit/recreation.py` add a shallow ea
 ### First-person painted silhouettes, 2026-09-26
 
 Original Blender geometry in `tools/blender/weapons.py` refines the pistol with a crowned, tapered slide, inset rear plate and smaller two-handed grip. Four curved support digits expose their knuckles and nails around the firing hand. The M4 uses teal painted receiver panels against warm wood; the shotgun uses terracotta against wood and dark metal. Rounded bevels have weighted smooth normals, with a cream panel pinstripe, existing screws, ribs, sights, tape and charm. All weapons remain below 40,000 triangles including arms, share one material and retain the 1024-square colour/normal atlas and identity-rest animation aliases. The source normal map and rarity columns are unchanged. No external assets or image generation were used in this pass. Reviewed through the actual `fp-pistol`, `fp-m4` and `fp-shotgun` game poses at 1920x1080; the general HUD fixture defaults to a pistol and is not a weapon geometry reference.
+
+### Gesture wheel and celebrations, 2026-09-26
+
+Original inline SVG stool, hammock with sleepy Zs, and dancing footprints/music notes in `src/ui/icons.ts` give the sit, chill and dance actions literal visual cues. Brown outlines, wood, teal and candy colours follow the existing interface art. The victory screen reuses the original `capy-win.webp` painting and the winner's bandana-colour portrait; paper confetti and the sunburst are CSS artwork. No new renderer, raster download, external asset or paid API.
