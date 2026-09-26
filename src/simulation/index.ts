@@ -4,6 +4,7 @@ import { terrainHeight } from '../shared/terrain';
 import { waterAt } from '../shared/water';
 import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emotes';
 import { MUD_HEAL_PER_SECOND, MUD_HURT_COOLDOWN, mudBathAt } from '../shared/recreation';
+import { chooseSupplyLanding, SUPPLY_APPROACH_SECONDS, SUPPLY_DESCENT_SECONDS, SUPPLY_DROP_TIMES } from '../shared/supply-drops';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
@@ -11,7 +12,7 @@ import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, shotHeatGain,
 import { resolveImpact, type Impact } from './surface';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
-import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
+import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
 const TICK = 1 / 60;
 const PLANE_ALTITUDE = 115, PLANE_SPEED = 30, PLANE_ROUTE = 350;
@@ -65,6 +66,11 @@ export class Simulation {
   private readonly config: RoomConfig;
   private readonly matchId: string;
   private readonly random: () => number;
+  private readonly supplyRandom: () => number;
+  private readonly supplyDrops: SupplyDropState[] = [];
+  private readonly supplyRewards = new Map<string, { weapon: WeaponId; rarity: number }>();
+  private readonly landedSupply = new Set<string>();
+  private nextSupply = 0;
   private readonly actors = new Map<string, ActorRuntime>();
   private readonly loot: LootState[];
   private readonly openedChests = new Set<string>();
@@ -104,6 +110,7 @@ export class Simulation {
     this.diff = adaptDifficulty(DIFFICULTY[config.difficulty], config.adapt);
     this.matchId = matchId;
     this.random = rng(seed);
+    this.supplyRandom = rng(seed ^ 0x74756361);
     // Snapshots must not carry undefined fields: finiteTree() rejects them and the
     // host would stop publishing. Non-weapon spawns may come with `weapon: undefined`.
     this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: weapon === 'slingshot' ? 3 : Math.floor(this.random() * 4), respawnAt: 0 }));
@@ -275,7 +282,7 @@ export class Simulation {
     this.time += TICK; this.tick++;
     if (this.phase === 'countdown') { this.countdown = Math.max(0, this.countdown - TICK); if (this.countdown <= 0) { this.phase = 'playing'; this.matchStartedAt = this.time; this.emit({ type: 'notice', text: 'A partida começou!' }); } return; }
     if (this.phase !== 'playing') return;
-    if (this.config.mode === 'battle-royale') { this.updatePlane(); this.updateZone(); }
+    if (this.config.mode === 'battle-royale') { this.updatePlane(); this.updateZone(); this.updateSupplyDrops(); }
     for (const actor of this.actors.values()) {
       if (this.correnteWinner) break;
       const s = actor.state;
@@ -345,6 +352,27 @@ export class Simulation {
   private updatePlane() {
     const along = clamp((this.time - 3) * PLANE_SPEED, 0, PLANE_ROUTE);
     this.plane = { x: this.planeStart.x + this.planeDir.x * along, y: PLANE_ALTITUDE, z: this.planeStart.z + this.planeDir.z * along };
+  }
+  private updateSupplyDrops() {
+    if (this.nextSupply < SUPPLY_DROP_TIMES.length && this.time - this.matchStartedAt >= SUPPLY_DROP_TIMES[this.nextSupply]) {
+      const number = ++this.nextSupply;
+      const pos = chooseSupplyLanding(this.world, this.zone, this.supplyRandom, this.supplyDrops);
+      if (pos) {
+        const district = this.world.districts.reduce<WorldSpec['districts'][number] | null>((nearest, entry) =>
+          !nearest || Math.hypot(entry.x - pos.x, entry.z - pos.z) < Math.hypot(nearest.x - pos.x, nearest.z - pos.z) ? entry : nearest, null);
+        const drop: SupplyDropState = { id: `supply-${number}`, pos: { ...pos }, district: district?.id ?? '', heading: this.supplyRandom() * Math.PI * 2,
+          announcedAt: this.time, releaseAt: this.time + SUPPLY_APPROACH_SECONDS,
+          landsAt: this.time + SUPPLY_APPROACH_SECONDS + SUPPLY_DESCENT_SECONDS, opened: false };
+        const weapons: WeaponId[] = ['m4', 'shotgun', 'dmr', 'sniper'];
+        this.supplyRewards.set(drop.id, { weapon: weapons[Math.floor(this.supplyRandom() * weapons.length)], rarity: this.supplyRandom() < .3 ? 3 : 2 });
+        this.supplyDrops.push(drop);
+        this.emit({ type: 'supply', drop: drop.id, pos: { ...pos }, district: drop.district, stage: 'incoming' });
+      }
+    }
+    for (const drop of this.supplyDrops) if (this.time >= drop.landsAt && !this.landedSupply.has(drop.id)) {
+      this.landedSupply.add(drop.id);
+      this.emit({ type: 'supply', drop: drop.id, pos: { ...drop.pos }, district: drop.district, stage: 'landed' });
+    }
   }
   private waterTransition(a: ActorRuntime) {
     const s = a.state, water = waterAt(s.pos.x, s.pos.z);
@@ -477,9 +505,24 @@ export class Simulation {
     if (this.config.mode === 'corrente') return;
     const loot = this.loot.find(item => item.id === target && item.active);
     const chest = this.world.chests.find(item => item.id === target && !this.openedChests.has(item.id));
-    const item = loot || chest;
+    const delivery = this.supplyDrops.find(drop => drop.id === target && !drop.opened && this.time >= drop.landsAt);
+    const item = loot || chest || delivery?.pos;
     if (!item || Math.hypot(s.pos.x - item.x, s.pos.y - item.y, s.pos.z - item.z) > 3) return;
     if (!hasLineOfSight(center(s), { x: item.x, y: item.y + .5, z: item.z }, this.world)) return;
+    if (delivery) {
+      const reward = this.supplyRewards.get(delivery.id);
+      if (!reward) return;
+      delivery.opened = true;
+      const chest = { id: delivery.id, ...delivery.pos }, heading = Math.atan2(s.pos.x - chest.x, s.pos.z - chest.z);
+      const from = { ...delivery.pos, y: delivery.pos.y + .6 };
+      (['weapon', 'armor', 'ammo'] as const).forEach((kind, index) => {
+        this.loot.push({ id: `drop-${++this.dropSeq}`, kind, ...(kind === 'weapon' ? { weapon: reward.weapon } : {}),
+          ...this.dropSpot(chest, heading, (index - 1) * .82, true), active: true, rarity: kind === 'weapon' ? reward.rarity : 0,
+          respawnAt: 0, from, spawnedAt: this.time });
+      });
+      this.emit({ type: 'supply', drop: delivery.id, pos: { ...delivery.pos }, district: delivery.district, stage: 'opened' });
+      return;
+    }
     if (chest) {
       this.openedChests.add(chest.id);
       a.chests++;
@@ -517,12 +560,13 @@ export class Simulation {
         active: true, rarity: kind === 'weapon' ? rarity : 0, respawnAt: 0, from, spawnedAt: this.time });
     });
   }
-  private dropSpot(chest: ChestSpec, heading: number, side: number): Vec3 {
+  private dropSpot(chest: ChestSpec, heading: number, side: number, dry = false): Vec3 {
     const from = { x: chest.x, y: chest.y + .6, z: chest.z };
     // Prefer the opener's side; swing around the chest if a wall or fixture is in the way.
     for (const turn of [0, .7, -.7, 1.4, -1.4, 2.4, -2.4, Math.PI]) {
       const a = heading + turn, x = chest.x + Math.sin(a) * 1.25 + Math.cos(a) * side, z = chest.z + Math.cos(a) * 1.25 - Math.sin(a) * side;
-      const y = Math.max(terrainHeight(x, z), chest.y);
+      const y = dry ? terrainHeight(x, z) : Math.max(terrainHeight(x, z), chest.y);
+      if (dry && (waterAt(x, z) || !walkableSegment(this.world, chest, { x, z }))) continue;
       const blocked = this.grid.query(x - .22, z - .22, x + .22, z + .22).some(c => x > c.min.x - .22 && x < c.max.x + .22 && z > c.min.z - .22 && z < c.max.z + .22 &&
         c.max.y > y + .05 && c.min.y < y + 1);
       if (!blocked && hasLineOfSight(from, { x, y: y + .3, z }, this.world)) return { x, y, z };
@@ -1209,7 +1253,7 @@ export class Simulation {
       config: { ...this.config }, countdown: this.countdown, remaining: this.config.mode === 'corrente' ?
         this.correnteWinner ? 0 : CORRENTE_LADDER.length - Math.max(0, ...[...this.actors.values()].map(a => a.state.weaponLevel)) :
         this.config.mode === 'deathmatch' ? Math.max(0, this.config.duration - Math.max(0, this.time - 3)) : [...this.actors.values()].filter(a => a.state.alive).length,
-      actors: [...this.actors.values()].map(a => copy(a.state)), loot: copy(this.loot), openedChests: [...this.openedChests],
+      actors: [...this.actors.values()].map(a => copy(a.state)), loot: copy(this.loot), openedChests: [...this.openedChests], supplyDrops: copy(this.supplyDrops),
       zone: { ...this.zone }, results: copy(this.results), plane: { ...this.plane },
     };
   }
