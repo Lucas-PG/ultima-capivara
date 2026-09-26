@@ -299,3 +299,12 @@ palette and collision data; blade wind and fading run on the GPU. Low disables
 the entire layer. Authored by Cena for Phase A.
 
 Phase A cover-art direction update: the terrain bake now uses continuous olive grass mixtures, linen sand, warm earth and subtle overlapping procedural colour washes, without baked light or photographic noise. Distant island silhouettes are original arranged scene geometry outside the playable coast. All new terrain pixels and offshore compositions are generated locally from the authored map; the approved reference is the existing `public/assets/cover-v2.png`.
+
+# Phase B interface art
+
+`public/assets/ui/island-arrival-v3.webp` (loading screen background) and `public/assets/ui/capy-parachute-v3.webp`
+(loading progress mascot) are original generations made with Codex ImageGen by the Vitrine agent on 25/09/2026, with
+`public/assets/cover-v2.png` as the style reference. The mascot prompt opened with: "Use case: stylized-concept. Asset
+type: single original game UI progress mascot on a genuinely transparent background, PNG alpha. A small appealing
+capybara adventurer parachuting in a compact, readable full-body three-quarter silhouette facing right, beneath a
+rounded olive and golden canvas parachute." The complete prompt texts are kept in that Codex session log.

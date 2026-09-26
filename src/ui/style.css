@@ -324,37 +324,45 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:.5px;line-height:.9
 #hud #coach .skip{font-size:13px;color:var(--lmuted)}
 @keyframes hud-coach{from{opacity:0;scale:.94}}
 
-/* Loading screen (bible §13.1): blurred cover art, paper card, real progress, rotating tip. */
-#loadingOverlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;overflow:hidden;background:#16120e;font-family:var(--body);color:var(--ink);transition:opacity .35s ease-in}
+/* Loading screen, style v3: the painted arrival scene, a parachuting capybara riding real progress, and a glass tip card. Laid out at 1600x900 and scaled by --ui. */
+#loadingOverlay{position:fixed;inset:0;z-index:20;overflow:hidden;background:#0a2327;font-family:var(--sans);color:var(--cream);transition:opacity .35s ease-in}
 #loadingOverlay.out{opacity:0}
 #loadingOverlay>:not(.lbg){zoom:var(--ui,1)}
-#loadingOverlay .lbg{position:absolute;inset:-5%;background:linear-gradient(0deg,rgba(22,18,14,.8),rgba(22,18,14,.3) 55%,rgba(22,18,14,.55)),var(--cover-blur,var(--cover)) center/cover;filter:blur(10px);animation:load-kb 20s ease-in-out infinite alternate}
-@keyframes load-kb{from{transform:scale(1.02)}to{transform:scale(1.12) translate(-1.5%,1%)}}
-#loadingOverlay .lcard{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;width:560px;max-width:calc(100vw - 40px);padding:26px 32px 20px;margin-bottom:120px;--r:-1deg;box-shadow:10px 10px 0 var(--ink)}
-#loadingOverlay .lcapy{width:110px;height:110px;background:var(--onca);border:4px solid var(--ink);border-radius:50%;box-shadow:4px 4px 0 var(--ink);animation:load-bounce .7s cubic-bezier(.3,0,.4,1) infinite alternate}
-#loadingOverlay .lcapy svg{width:100%;height:100%;display:block}
-@keyframes load-bounce{from{transform:translateY(4px) rotate(-6deg) scaleY(.94)}to{transform:translateY(-14px) rotate(5deg)}}
-#loadingOverlay h2{margin:0;font-family:var(--display);font-weight:400;font-size:38px;color:var(--paper);text-shadow:var(--ol),5px 5px 0 var(--red),7px 7px 0 var(--ink);transform:rotate(-2deg);white-space:nowrap}
-#loadingOverlay .lbar{width:100%;height:26px;border:3px solid var(--ink);border-radius:6px;background:var(--paper-2);overflow:hidden;box-shadow:3px 3px 0 var(--ink)}
-#loadingOverlay .lbar i{display:block;height:100%;width:40%;background:repeating-linear-gradient(-45deg,var(--onca) 0 12px,#f29f12 12px 24px);border-right:3px solid var(--ink);animation:load-slide 1.15s ease-in-out infinite alternate,load-stripes .8s linear infinite}
-#loadingOverlay .lbar.determinate i{width:0;transition:width .2s ease-out;animation:load-stripes .8s linear infinite}
-@keyframes load-slide{from{transform:translateX(-10%)}to{transform:translateX(160%)}}
-@keyframes load-stripes{to{background-position:34px 0}}
-#loadingOverlay .lstatus{font-size:16px;color:var(--lmuted);min-height:1.5em}
-#loadingOverlay .ltipbox{position:absolute;left:50%;bottom:104px;translate:-50% 0;width:760px;max-width:calc(100vw - 40px);display:flex;align-items:center;gap:14px;padding:12px 12px 12px 16px;--r:.6deg}
-#loadingOverlay .dica{flex:none;font-family:var(--display);font-weight:400;font-size:14px;background:var(--onca);border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);padding:2px 10px;transform:rotate(-3deg)}
-#loadingOverlay .ltip{flex:1;margin:0;font-size:18px;line-height:1.45;min-height:2.9em;display:flex;align-items:center;transition:opacity .2s ease-out}
+#loadingOverlay .lbg{position:absolute;inset:-3%;background:linear-gradient(0deg,rgba(4,22,26,.92),rgba(4,22,26,.55) 34%,rgba(4,22,26,0) 60%),linear-gradient(180deg,rgba(4,22,26,.35),rgba(4,22,26,0) 20%),var(--arrival) center 30%/cover;animation:load-kb 24s ease-in-out infinite alternate}
+@keyframes load-kb{from{transform:scale(1.01)}to{transform:scale(1.07) translate(-1%,.6%)}}
+#loadingOverlay .lcard{position:absolute;left:50%;bottom:206px;translate:-50% 0;width:760px;max-width:calc(100vw / var(--ui,1) - 40px);padding:24px 30px 20px;border-radius:22px;background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--lift),var(--glass-glow);backdrop-filter:blur(16px) saturate(1.15)}
+#loadingOverlay .lhead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px}
+#loadingOverlay .eyebrow{font-size:13px;margin:0 0 10px}
+#loadingOverlay h2{margin:0;font-family:var(--heading);font-weight:400;font-size:40px;line-height:1;letter-spacing:.4px;color:var(--cream);text-shadow:0 8px 28px rgba(0,0,0,.4);white-space:nowrap}
+#loadingOverlay h2 em{background:linear-gradient(180deg,#ffe8ad 10%,#f6c25a 55%,#e2913a 95%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+#loadingOverlay .lpercent{font-family:var(--heading);font-weight:400;font-size:40px;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums;text-shadow:0 0 24px rgba(246,194,90,.35)}
+/* The capybara rides the head of the fill: the rider spans the track and moves by the same percentage. */
+#loadingOverlay .ltrack{position:relative;margin-top:92px}
+#loadingOverlay .lrider{position:absolute;left:0;right:0;bottom:6px;transform:translateX(var(--progress,0%));transition:transform .45s var(--ease);pointer-events:none}
+#loadingOverlay .lcapy{position:absolute;left:-52px;bottom:-10px;width:104px;height:104px;display:block;transform-origin:50% 8%;filter:drop-shadow(0 8px 10px rgba(0,0,0,.35));animation:load-sway 2.6s ease-in-out infinite alternate}
+@keyframes load-sway{from{transform:rotate(-5deg) translateY(-3px)}to{transform:rotate(5deg) translateY(3px)}}
+#loadingOverlay .lbar{position:relative;height:12px;border-radius:999px;background:rgba(0,0,0,.32);border:1px solid rgba(255,226,172,.16);overflow:hidden}
+#loadingOverlay .lbar i{display:block;height:100%;width:34%;border-radius:999px;background:linear-gradient(90deg,#e3973a,#f6c25a 60%,#ffe4a0);box-shadow:0 0 16px rgba(246,194,90,.6);animation:load-slide 1.3s ease-in-out infinite alternate}
+#loadingOverlay .lbar.determinate i{transition:width .45s var(--ease);animation:none}
+@keyframes load-slide{from{transform:translateX(-20%)}to{transform:translateX(220%)}}
+#loadingOverlay .lstatus{display:block;margin-top:12px;font-size:15px;font-weight:600;color:var(--mist);min-height:1.5em}
+#loadingOverlay .ltipbox{position:absolute;left:50%;bottom:88px;translate:-50% 0;width:760px;max-width:calc(100vw / var(--ui,1) - 40px);display:flex;align-items:center;gap:16px;padding:14px 14px 14px 16px;border-radius:18px;background:var(--glass-deep);border:1px solid var(--glass-line);box-shadow:var(--lift),var(--glass-glow);backdrop-filter:blur(16px)}
+#loadingOverlay .ltip-icon{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;color:#3b2208;background:radial-gradient(circle at 40% 35%,#ffe4a0,#e3973a);box-shadow:0 0 18px rgba(246,194,90,.35)}
+#loadingOverlay .ltip-icon .icon{width:22px;height:22px;stroke-width:2.2}
+#loadingOverlay .ltipbox>div{flex:1;min-width:0}
+#loadingOverlay .dica{display:block;font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+#loadingOverlay .ltip{margin:3px 0 0;font-size:17px;font-weight:500;line-height:1.4;min-height:2.8em;display:flex;align-items:center;color:var(--cream);transition:opacity .2s ease-out}
 #loadingOverlay .ltip.fade{opacity:0}
-#loadingOverlay .lnext{flex:none;width:44px;height:44px;display:grid;place-items:center;background:var(--paper-2);color:var(--ink);border:2.5px solid var(--ink);border-radius:6px;box-shadow:2px 2px 0 var(--ink);transition:transform .09s ease-out,box-shadow .09s ease-out}
-#loadingOverlay .lnext svg{width:20px;height:20px;stroke-width:2.4}
-#loadingOverlay .lnext:hover{background:var(--onca);transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--ink)}
-#loadingOverlay .lnext:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+#loadingOverlay .lnext{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.07);color:var(--cream);border:1px solid var(--glass-line);transition:background-color .2s,transform .2s var(--ease)}
+#loadingOverlay .lnext svg{width:20px;height:20px;stroke-width:2.2}
+#loadingOverlay .lnext:hover{background:rgba(246,194,90,.22);transform:translateX(2px)}
 #loadingOverlay .lfoot{position:absolute;left:24px;right:24px;bottom:24px;display:flex;justify-content:space-between;align-items:center;gap:16px}
-#loadingOverlay .lmode{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:14px;padding:6px 12px;--r:-1deg}
-#loadingOverlay .lmode svg{width:18px;height:18px;stroke-width:2.3;color:var(--red)}
-#loadingOverlay .lkeys{display:flex;gap:16px;font-size:13px;padding:6px 12px;--r:1deg}
-#loadingOverlay .lkeys span{display:flex;align-items:center;gap:6px;white-space:nowrap}
-#loadingOverlay kbd{font-family:var(--display);font-size:13px;background:var(--onca);border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);padding:0 7px;border-radius:4px;color:var(--ink)}
+#loadingOverlay .lmode,#loadingOverlay .lkeys{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:var(--glass);border:1px solid var(--glass-line);backdrop-filter:blur(12px);font-size:13px;font-weight:600;color:var(--mist)}
+#loadingOverlay .lmode{font-family:var(--heading);font-weight:400;letter-spacing:.3px;color:var(--cream)}
+#loadingOverlay .lmode svg{width:18px;height:18px;stroke-width:2.2;color:var(--gold)}
+#loadingOverlay .lkeys{gap:16px}
+#loadingOverlay .lkeys span{display:flex;align-items:center;gap:7px;white-space:nowrap}
+#loadingOverlay kbd{font-family:var(--sans);font-size:13px;font-weight:700;padding:2px 8px;border-radius:7px;background:rgba(255,255,255,.08);border:1px solid rgba(255,226,172,.22);box-shadow:inset 0 -2px 0 rgba(0,0,0,.25);color:var(--gold-hi)}
 
 /* Results (bible §13.3). */
 #victory .vcard,#victory .vpanel{zoom:var(--ui,1)}

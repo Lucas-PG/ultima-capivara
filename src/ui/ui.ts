@@ -9,7 +9,7 @@ import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon } from './icons';
 import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
-import { fillTip, TIPS } from './tips';
+import { fillTip, tipCategory, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 
 export interface UICallbacks {
@@ -765,7 +765,7 @@ export class GameUI {
     const snapshot = this.snapshot, me = snapshot?.actors.find(a => a.id === this.localId);
     return !!snapshot && !!me && !me.alive && snapshot.config.mode === 'battle-royale' && snapshot.phase === 'playing';
   }
-  // Match loading screen (style bible §13.1): the cover art behind a paper card, real progress, and rotating tips.
+  // Loading screen (style v3): the painted arrival scene, a parachuting capybara riding real progress, and rotating tips.
   setLoading(on: boolean) {
     clearInterval(this.tipTimer); clearTimeout(this.tipIndexTimer);
     const current = this.root.querySelector<HTMLElement>('#loadingOverlay');
@@ -781,11 +781,13 @@ export class GameUI {
     this.loadProgress = 0;
     const b = this.settings.bindings, mode = this.room?.config.mode ?? this.selectedMode;
     const overlay = document.createElement('div'); overlay.id = 'loadingOverlay'; overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-label', 'Carregando a partida');
-    overlay.innerHTML = `<div class="lbg"></div><div class="lcard stk"><div class="lcapy">${capybara(this.profile.color)}</div><h2>Preparando a ilha</h2>`
-      + `<div class="lbar" role="progressbar" aria-label="Carregamento da ilha" aria-valuemin="0" aria-valuemax="100"><i></i></div><span class="lstatus" role="status">${loadingLabel(0)}</span></div>`
-      + `<div class="ltipbox stk"><b class="dica">Dica</b><p class="ltip" aria-live="polite"></p><button type="button" class="lnext" data-do="next-tip" aria-label="Próxima dica">${icon('arrow')}</button></div>`
-      + `<div class="lfoot"><span class="lmode stk">${icon(mode === 'battle-royale' ? 'crown' : 'bolt')} ${mode === 'battle-royale' ? 'Última de Pé' : 'Correria'} · Ilha das Capivaras</span>`
-      + `<span class="lkeys stk"><span><kbd>${esc([b.forward, b.left, b.back, b.right].map(keyName).join(' '))}</kbd> andar</span><span><kbd>Mouse</kbd> mirar</span><span><kbd>${esc(keyName(b.jump))}</kbd> saltar</span></span></div>`;
+    overlay.innerHTML = `<div class="lbg" style="--arrival:url('${uiArt('island-arrival-v3')}')"></div>`
+      + `<div class="lcard"><div class="lhead"><div><p class="eyebrow"><span></span> A AVENTURA ESTÁ CHEGANDO</p><h2>Preparando <em>a ilha</em></h2></div><b class="lpercent" aria-hidden="true">0%</b></div>`
+      + `<div class="ltrack"><div class="lrider" aria-hidden="true"><img class="lcapy" src="${uiArt('capy-parachute-v3')}" alt="" draggable="false"/></div><div class="lbar" role="progressbar" aria-label="Carregamento da ilha" aria-valuemin="0" aria-valuemax="100"><i></i></div></div>`
+      + `<span class="lstatus" role="status">${loadingLabel(0)}</span></div>`
+      + `<div class="ltipbox"><span class="ltip-icon" aria-hidden="true">${icon('leaf')}</span><div><b class="dica">Dica da ilha</b><p class="ltip" aria-live="polite"></p></div><button type="button" class="lnext" data-do="next-tip" aria-label="Próxima dica">${icon('arrow')}</button></div>`
+      + `<div class="lfoot"><span class="lmode">${icon(mode === 'battle-royale' ? 'crown' : 'bolt')} ${mode === 'battle-royale' ? 'Última de Pé' : 'Correria'} · Ilha das Capivaras</span>`
+      + `<span class="lkeys"><span><kbd>${esc([b.forward, b.left, b.back, b.right].map(keyName).join(' '))}</kbd> andar</span><span><kbd>Mouse</kbd> mirar</span><span><kbd>${esc(keyName(b.jump))}</kbd> saltar</span></span></div>`;
     this.root.appendChild(overlay);
     this.showTip(true);
     this.tipTimer = window.setInterval(() => this.showTip(), 6000);
@@ -798,17 +800,20 @@ export class GameUI {
     this.loadProgress = next;
     bar.classList.add('determinate'); bar.setAttribute('aria-valuenow', String(Math.round(next * 100)));
     bar.querySelector<HTMLElement>('i')!.style.width = `${(next * 100).toFixed(1)}%`;
+    overlay.style.setProperty('--progress', `${(next * 100).toFixed(1)}%`);
+    this.textOf(overlay.querySelector('.lpercent')!, `${Math.round(next * 100)}%`);
     const status = overlay.querySelector('.lstatus');
     if (status) status.textContent = next >= 1 ? 'Pronto!' : label ? cleanLabel(label) || loadingLabel(next) : loadingLabel(next);
   }
   private showTip(immediate = false) {
     const line = this.root.querySelector<HTMLElement>('#loadingOverlay .ltip'); if (!line) return;
     const b = this.settings.bindings, keys = { jump: keyName(b.jump), interact: keyName(b.interact), leanLeft: keyName(b.leanLeft), leanRight: keyName(b.leanRight), reload: keyName(b.reload), crouch: keyName(b.crouch) };
-    const tip = fillTip(nextTip(), keys);
+    const source = nextTip(), tip = fillTip(source, keys), category = tipCategory(source), box = line.closest('.ltipbox')!;
+    const reveal = () => { line.textContent = tip; this.textOf(box.querySelector('.dica')!, category.label); box.querySelector('.ltip-icon')!.innerHTML = icon(category.icon); };
     clearTimeout(this.tipIndexTimer);
     // The tip change is a fade, which reduced motion keeps.
-    if (immediate) { line.textContent = tip; return; }
-    line.classList.add('fade'); this.tipIndexTimer = window.setTimeout(() => { line.textContent = tip; line.classList.remove('fade'); }, 200);
+    if (immediate) { reveal(); return; }
+    line.classList.add('fade'); this.tipIndexTimer = window.setTimeout(() => { reveal(); line.classList.remove('fade'); }, 200);
   }
   // First-run coach for practice: one short card at a time; each step waits for its moment and ends on the action itself.
   private updateCoach(snapshot: WorldSnapshot, me: ActorState, interaction: { id: string; name: string } | null) {
