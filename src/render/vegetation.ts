@@ -11,8 +11,8 @@ const PLANT_PAINT = { ...WORLD_PALETTE,
   trunk: '#785B3D',
 };
 
-// Closed crowns and individually shaped fronds have a readable silhouette from
-// either side. No atlas rectangles, oversized leaf cards, or transparent sorting.
+// Overlapping leaf clusters close the crown, with short connected sprays at its
+// edges. Distant LODs retain the major branches and omit subpixel leaves.
 export function buildVegetation(world: WorldSpec) {
   const group = new THREE.Group();
   const breeze = { value: 0 };
@@ -86,7 +86,15 @@ export function buildVegetation(world: WorldSpec) {
 ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_fragment>
         float brush = sin(vPlantPaint.x * 7.1 + sin(vPlantPaint.z * 4.3)) *
           sin(vPlantPaint.y * 8.7 + vPlantPaint.z * 2.1);
-        diffuseColor.rgb *= .96 + .055 * brush;
+        vec2 leafPlane = vec2(vPlantPaint.x + vPlantPaint.z * .63,
+          vPlantPaint.y + vPlantPaint.z * .41) * 6.5;
+        leafPlane.x += sin(leafPlane.y * 1.7) * .18;
+        vec2 cell = floor(leafPlane), within = fract(leafPlane) - .5;
+        float angle = fract(sin(dot(cell,vec2(127.1,311.7))) * 43758.5453) * 6.283185;
+        vec2 stroke = mat2(cos(angle),-sin(angle),sin(angle),cos(angle)) * within;
+        float leafPaint = exp(-dot(stroke * vec2(1.5,2.5),stroke * vec2(1.5,2.5)) * 5.0);
+        float paintVisibility = 1.0 - smoothstep(.06,.22,length(fwidth(vPlantPaint)));
+        diffuseColor.rgb *= .96 + .055 * brush + vLeafMask * paintVisibility * (leafPaint * .20 - .045);
       `).replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         vec3 leafGrain = vec3(
           sin(vPlantPaint.y * 21.0 + sin(vPlantPaint.z * 17.0)),
@@ -107,7 +115,7 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
         #include <opaque_fragment>
       `);
   };
-  material.customProgramCacheKey = () => 'painted-fluffy-foliage-v4';
+  material.customProgramCacheKey = () => 'painted-leaf-clusters-v5';
   // Smooth overlapping branch sections retain the original collision radius.
   const stem = new THREE.CylinderGeometry(.95, 1, 1, 10, 1, true);
   const lumpy = (segments: number, rings: number) => {
@@ -115,7 +123,7 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
     const normals = geometry.getAttribute('normal');
     for (let i = 0; i < points.count; i++) {
       const x = points.getX(i), y = points.getY(i), z = points.getZ(i);
-      const r = 1 + .10 * Math.sin(x * 7 + z * 5) * Math.cos(y * 6 - x * 4) + .035 * Math.cos(z * 11 + y * 8);
+      const r = 1 + .085 * Math.sin(x * 5 + z * 4) * Math.cos(y * 5 - x * 3) + .035 * Math.cos(z * 8 + y * 7);
       points.setXYZ(i, x * r, y * r, z * r);
       // Analytic canopy normals survive non-indexed merging, so light shades a
       // soft leaf volume instead of exposing each polygon's face normal.
@@ -124,8 +132,9 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
     }
     return geometry;
   };
-  const crowns = [lumpy(16, 10), lumpy(10, 7), lumpy(8, 5)];
+  const crowns = [lumpy(6, 4), lumpy(6, 3), lumpy(5, 3)];
   const coconut = new THREE.SphereGeometry(1, 10, 7);
+  const fruitShape = new THREE.SphereGeometry(1, 7, 4);
   const trunkRing = new THREE.TorusGeometry(1, .065, 3, 8);
   trunkRing.rotateX(Math.PI / 2);
   const up = new THREE.Vector3(0, 1, 0);
@@ -168,10 +177,9 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
       0, new THREE.Quaternion().setFromUnitVectors(up, delta.normalize()), frond);
   };
   const leaf = (base: THREE.Vector3, tip: THREE.Vector3, width: number, color: string | THREE.Color,
-    frond = 0, vertical = 0) => {
+    frond = 0, vertical = 0, steps = lod === 0 ? frond > 0 ? 4 : 3 : 2) => {
     const axis = tip.clone().sub(base);
     const side = new THREE.Vector3(-axis.z, .03 + axis.length() * vertical, axis.x).normalize();
-    const steps = lod === 0 ? frond > 0 ? 4 : 3 : 2;
     const points: THREE.Vector3[] = [], normals: THREE.Vector3[] = [];
     const rows: [THREE.Vector3, THREE.Vector3, THREE.Vector3][] = [];
     for (let i = 0; i <= steps; i++) {
@@ -180,7 +188,9 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
       rows.push([center.clone().addScaledVector(side, spread), center.clone().add(new THREE.Vector3(0, spread * .16, 0)), center.clone().addScaledVector(side, -spread)]);
     }
     const volumeNormal = new THREE.Vector3(axis.x * .7, Math.max(.15, axis.length() * .45), axis.z * .7).normalize();
-    for (let i = 0; i < steps; i++) for (const face of [[0, 3, 1], [1, 3, 4], [1, 4, 2], [2, 4, 5]]) {
+    for (let i = 0; i < steps; i++) for (const [index, face] of [[0, 3, 1], [1, 3, 4], [1, 4, 2], [2, 4, 5]].entries()) {
+      // Both ends converge to a point; do not upload their zero-area triangles.
+      if (i === 0 && index % 2 === 0 || i === steps - 1 && index % 2 === 1) continue;
       const ring = [...rows[i], ...rows[i + 1]];
       for (const index of face) {
         points.push(ring[index]);
@@ -308,7 +318,7 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
     const broad = key === 'flamboyant';
     const flowering = key === 'ipe-yellow' || key === 'ipe-pink';
     const radius = Math.max(1.6, h * (broad ? .34 : .27));
-    for (let cluster = 0; cluster < (far ? 5 : 9); cluster++) {
+    for (let cluster = 0; cluster < 9; cluster++) {
       const angle = rotation + cluster * 2.399, outer = cluster < 5;
       const center = base.clone().add(new THREE.Vector3(
         outer ? Math.cos(angle) * radius * (broad ? .8 : .57) : Math.cos(angle) * .35,
@@ -319,21 +329,33 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
         broad && cluster < 6 ? (cluster % 2 ? '#E8483C' : '#E76F51') :
           cluster % 3 === 0 ? PLANT_PAINT.foliageLight :
             cluster % 3 === 1 ? PLANT_PAINT.foliageMid : PLANT_PAINT.foliageCore;
-      const color = new THREE.Color(canopyColor);
-      const bulk = far ? 1.12 : 1;
-      piece(crowns[lod], color, center, new THREE.Vector3(radius * (broad ? .76 : .69) * bulk,
-        radius * (broad ? .28 : .49) * bulk, radius * (broad ? .76 : .66) * bulk), 1);
-      // Small leaves at crown edges add detail without filling the view with cards.
-      for (let spray = 0; spray < (far ? distant ? 0 : 4 : 20); spray++) {
-        const a = angle + spray * 2.399;
-        const elevation = Math.sin(spray * 1.71) * .29;
-        const root = center.clone().add(new THREE.Vector3(Math.cos(a) * radius * .56, radius * elevation, Math.sin(a) * radius * .56));
-        const tip = root.clone().add(new THREE.Vector3(Math.cos(a) * (.25 + spray % 3 * .07), .03 + elevation * .22, Math.sin(a) * (.25 + spray % 3 * .07)));
-        const leafColor = flowering || broad ? canopyColor : spray % 3 ? PLANT_PAINT.foliageMid : PLANT_PAINT.foliageLight;
-        leaf(root, tip, .09 + spray % 3 * .018, leafColor);
+      const size = new THREE.Vector3(radius * (broad ? .76 : .69), radius * (broad ? .28 : .49), radius * (broad ? .76 : .66));
+      const packets = distant ? 3 : far ? 5 : 11;
+      for (let packet = 0; packet < packets; packet++) {
+        const a = angle + (packet - 1) * Math.PI * 2 / (packets - 1);
+        const offset = packet === 0 ? new THREE.Vector3(0, .08, 0) :
+          new THREE.Vector3(Math.cos(a) * (far ? .64 : .72), Math.sin(a * 3 + cluster) * .28, Math.sin(a) * (far ? .64 : .72));
+        const position = center.clone().add(offset.multiply(size));
+        const scale = packet === 0 ? .54 : (distant ? .59 : far ? .53 : .32) + hash(seed + cluster, packet) * .06;
+        const color = new THREE.Color(canopyColor).multiplyScalar(packet === 0 ? .84 : .94 + hash(seed + cluster * 13, packet) * .14);
+        const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(.13 * Math.sin(a), a, .12 * Math.cos(a)));
+        piece(crowns[lod], color, position, size.clone().multiply(new THREE.Vector3(scale, scale * (packet % 2 ? .83 : 1), scale)), 1, rotation);
+        if (far || packet === 0) continue;
+        // Sprays start inside each small clump, so leaves read as connected
+        // branches rather than detached bright confetti around a solid ellipse.
+        for (let spray = 0; spray < 2; spray++) {
+          const direction = a + (spray - .5) * .67, reach = radius * (.10 + hash(seed + packet, spray) * .045);
+          const radial = new THREE.Vector3(Math.cos(direction), .12 + spray * .18, Math.sin(direction));
+          const root = position.clone().add(radial.clone().multiply(size).multiplyScalar(scale * .76));
+          for (const side of [-1, 1]) {
+            const leafAngle = direction + side * .43;
+            const tip = root.clone().add(new THREE.Vector3(Math.cos(leafAngle) * reach, reach * (.22 + side * .12), Math.sin(leafAngle) * reach));
+            leaf(root, tip, reach * .32, color, 0, .18, 2);
+          }
+        }
       }
       if (!far && seed % 3 === 0 && cluster < 5) {
-        for (let fruit = 0; fruit < 3; fruit++) piece(coconut, '#e8a145', center.clone().add(new THREE.Vector3(
+        for (let fruit = 0; fruit < 3; fruit++) piece(fruitShape, '#e8a145', center.clone().add(new THREE.Vector3(
           Math.cos(angle + fruit) * radius * .49, -.15, Math.sin(angle + fruit) * radius * .5)), new THREE.Vector3(.095, .11, .095), 1);
       }
     }
@@ -470,7 +492,7 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
     proxy.position.set(cx, 0, cz); proxy.castShadow = true;
     group.add(proxy);
   }
-  stem.dispose(); crowns.forEach(g => g.dispose()); coconut.dispose(); trunkRing.dispose();
+  stem.dispose(); crowns.forEach(g => g.dispose()); coconut.dispose(); fruitShape.dispose(); trunkRing.dispose();
   return { group, update(time: number) { breeze.value = time; },
     dispose() { instances.forEach(mesh => mesh.dispose()); merged.forEach(g => g.dispose());
       shadowTree.dispose(); shadowPalm.dispose(); material.dispose(); shadowProxy.dispose(); } };

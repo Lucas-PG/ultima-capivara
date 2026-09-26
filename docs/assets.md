@@ -412,3 +412,9 @@ The runtime selects the new 4x4 character paint layout from the exported `paintA
 ### Vitrine painted map, 2026-09-26
 
 Original procedural canvas artwork in `src/ui/map-paint.ts`. Terrain washes and shore highlights sample the shared height field and water level; roads and paths use shared layout data; warm roofs use placed kit footprints, rotation and scale. Paper grain, brush variation and the compass rose are authored in code. No external images, purchases or generated assets. The 4 px/m background and compass bake once at UI load and are reused by both map views on every graphics preset.
+
+### Western waterfall, 2026-09-26
+
+Original procedural geometry and shaders in `src/render/waterfall.ts` replace the flat cascade with seven curved, irregular falling ribbons, painted moving froth, lip and pool foam, and 24 soft spray particles. All elements share the authored marker transform. Low uses four simpler ribbons and six particles, without lights, shadows or texture downloads. The source uses deterministic noise and no external assets, image generation or paid services. Placement reserves the falling-water corridor between the source-derived stone banks.
+
+Cena canopy refinement, September 2026: broadleaf crowns use original procedural clusters and attached paired leaf sprays, with derivative-filtered leaf-shaped paint marks. Closed volume geometry keeps the canopy grounded without transparent card sorting. Mid and distant LODs omit the small sprays; original instance placements, 25/60 m transitions and cheap trunk/crown shadow proxies remain. Small fruit geometry has fewer segments to fund the finer crown silhouette. No downloaded texture or third-party foliage source is used.

@@ -114,10 +114,16 @@ export class AssetLoader {
           seen.add(texture);
           const palette = texture.minFilter === THREE.NearestFilter && texture.magFilter === THREE.NearestFilter && texture.image?.width <= 64;
           if (palette) continue;
-          texture.anisotropy = this.anisotropy; texture.magFilter = THREE.LinearFilter;
-          texture.generateMipmaps = !(texture instanceof THREE.CompressedTexture);
-          texture.minFilter = texture.generateMipmaps || texture.mipmaps?.length ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
-          texture.needsUpdate = true;
+          const generateMipmaps = !(texture instanceof THREE.CompressedTexture);
+          const minFilter = generateMipmaps || texture.mipmaps?.length ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+          if (texture.anisotropy !== this.anisotropy || texture.magFilter !== THREE.LinearFilter ||
+            texture.generateMipmaps !== generateMipmaps || texture.minFilter !== minFilter) {
+            texture.anisotropy = this.anisotropy; texture.magFilter = THREE.LinearFilter;
+            texture.generateMipmaps = generateMipmaps; texture.minFilter = minFilter;
+            // A second match shares these textures. Invalidating unchanged maps
+            // here used to upload every atlas and rebuild its mip chain again.
+            texture.needsUpdate = true;
+          }
         }
       }
     });

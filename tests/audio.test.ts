@@ -2,6 +2,104 @@ import { describe, expect, it, vi } from 'vitest';
 import { LOW_HP, SoundEngine, STORM_LEVEL } from '../src/audio';
 import { DEFAULT_SETTINGS } from '../src/settings';
 
+describe('ground contact audio', () => {
+  function engine() {
+    const audio = new SoundEngine({ ...DEFAULT_SETTINGS, music: 0 }) as any;
+    audio.context = { currentTime: 1, state: 'running' };
+    audio.buses = { effects: {} };
+    audio.updateAmbient = vi.fn(); audio.updateStorm = vi.fn(); audio.updateReload = vi.fn();
+    audio.placeListener = vi.fn(); audio.spatial = vi.fn((_pos, output) => output);
+    audio.footstep = vi.fn(); audio.nextSpotCheck = Infinity;
+    return audio;
+  }
+  function actor(id = 'self') {
+    return { id, alive: true, hp: 100, stage: 'ground', grounded: true, crouch: false, sprint: false,
+      pos: { x: 0, y: 0, z: 0 }, velocity: { x: 3, y: 0, z: 0 }, yaw: 0 };
+  }
+  function update(audio: any, local: ReturnType<typeof actor>, remotes: ReturnType<typeof actor>[] = []) {
+    // A delayed authoritative local snapshot can still report contact during a
+    // predicted jump. The explicit local argument must win for local sounds.
+    audio.update(local, { phase: 'playing', actors: [{ ...local, grounded: true }, ...remotes] }, 1 / 60, false);
+  }
+
+  it('stops steps on a predicted jump, lands once, and resumes only while moving', () => {
+    const audio = engine(), local = actor();
+    update(audio, local);
+    for (let i = 0; i < 3; i++) { local.pos.x += .5; update(audio, local); }
+    local.grounded = false;
+    for (let i = 0; i < 8; i++) { local.pos.x += .5; local.velocity.y = 6 - i * 2; update(audio, local); }
+    expect(audio.footstep).not.toHaveBeenCalled();
+    local.grounded = true; local.velocity = { x: 0, y: 0, z: 0 };
+    update(audio, local);
+    for (let i = 0; i < 8; i++) update(audio, local);
+    expect(audio.footstep).toHaveBeenCalledOnce();
+    expect(audio.footstep.mock.calls[0][2]).toBe(true);
+    local.velocity.x = 3;
+    for (let i = 0; i < 4; i++) { local.pos.x += .5; update(audio, local); }
+    expect(audio.footstep.mock.calls.map((call: any[]) => call[2])).toEqual([true, false]);
+  });
+
+  it('uses snapshot contact for remote jumps and emits one spatial landing', () => {
+    const audio = engine(), local = actor(), remote = actor('remote');
+    local.velocity.x = 0;
+    update(audio, local, [remote]);
+    remote.grounded = false; remote.velocity.y = -10;
+    for (let i = 0; i < 8; i++) { remote.pos.x += .5; update(audio, local, [remote]); }
+    expect(audio.footstep).not.toHaveBeenCalled();
+    remote.grounded = true; remote.velocity = { x: 0, y: 0, z: 0 };
+    for (let i = 0; i < 8; i++) update(audio, local, [remote]);
+    expect(audio.footstep).toHaveBeenCalledOnce();
+    expect(audio.footstep.mock.calls[0][2]).toBe(true);
+    expect(audio.spatial).toHaveBeenCalledOnce();
+  });
+
+  it('scales touchdown weight with the downward speed', () => {
+    const land = (speed: number) => {
+      const audio = engine(), local = actor(); local.grounded = false; local.velocity.y = -speed;
+      update(audio, local); local.grounded = true; local.velocity.y = 0; update(audio, local);
+      expect(audio.footstep).toHaveBeenCalledOnce();
+      return audio.footstep.mock.calls[0][1];
+    };
+    expect(land(16)).toBeGreaterThan(land(4));
+  });
+
+  it('makes crouch walking quieter and less frequent for local and remote actors', () => {
+    const walk = (crouch: boolean, remote: boolean) => {
+      const audio = engine(), local = actor(), walker = remote ? actor('remote') : local;
+      walker.crouch = crouch;
+      if (remote) local.velocity.x = 0;
+      const others = remote ? [walker] : [];
+      update(audio, local, others);
+      for (let i = 0; i < 8; i++) { walker.pos.x += .5; update(audio, local, others); }
+      return audio.footstep.mock.calls;
+    };
+    for (const remote of [false, true]) {
+      const normal = walk(false, remote), quiet = walk(true, remote);
+      expect(normal).toHaveLength(2); expect(quiet).toHaveLength(1);
+      expect(quiet[0][1]).toBeLessThan(normal[0][1]);
+    }
+  });
+
+  it('does not mistake respawn or a change of spectator for a landing', () => {
+    const audio = engine(), local = actor();
+    update(audio, local); local.alive = false; local.grounded = false; update(audio, local);
+    local.alive = true; local.grounded = true; update(audio, local);
+    local.grounded = false; update(audio, local); update(audio, actor('spectated'));
+    expect(audio.footstep).not.toHaveBeenCalled();
+  });
+
+  it('adds a landing thud even when recorded footstep samples are loaded', () => {
+    const audio = engine();
+    audio.footstep = (SoundEngine.prototype as any).footstep;
+    audio.playSample = vi.fn(() => true); audio.tone = vi.fn();
+    audio.footstep(actor().pos, .2, false);
+    expect(audio.tone).not.toHaveBeenCalled();
+    audio.footstep(actor().pos, .2, true);
+    expect(audio.playSample).toHaveBeenCalledTimes(2);
+    expect(audio.tone).toHaveBeenCalledOnce();
+  });
+});
+
 describe('audio mix and capybara chirps', () => {
   it('keeps the recommended bus defaults and accepts live volume changes', () => {
     expect([DEFAULT_SETTINGS.master, DEFAULT_SETTINGS.effects, DEFAULT_SETTINGS.ambience, DEFAULT_SETTINGS.music]).toEqual([.8, .85, .45, .25]);
