@@ -93,9 +93,45 @@
       "colliders": 1
     },
     {
+      "id": "barrel",
+      "triangles": [
+        1004,
+        872,
+        768
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "bush_cluster",
+      "triangles": [
+        6720,
+        1120,
+        504
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "hedge",
+      "triangles": [
+        8640,
+        1440,
+        648
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "flower_bed",
+      "triangles": [
+        10804,
+        1180,
+        652
+      ],
+      "colliders": 5
+    },
+    {
       "id": "house_medium",
       "triangles": [
-        11988,
+        11984,
         2884,
         714
       ],
@@ -104,7 +140,7 @@
     {
       "id": "warehouse",
       "triangles": [
-        14968,
+        14952,
         3484,
         842
       ],
@@ -122,8 +158,8 @@
     {
       "id": "lighthouse",
       "triangles": [
-        3740,
-        2887,
+        3852,
+        2888,
         684
       ],
       "colliders": 9
@@ -131,18 +167,18 @@
     {
       "id": "beach_kiosk",
       "triangles": [
-        5016,
+        5128,
         1400,
-        768
+        767
       ],
       "colliders": 24
     },
     {
       "id": "fountain",
       "triangles": [
-        5800,
+        6040,
         1320,
-        768
+        766
       ],
       "colliders": 5
     },
@@ -167,56 +203,56 @@
     {
       "id": "fence",
       "triangles": [
+        1088,
         864,
-        864,
-        768
+        776
       ],
       "colliders": 16
     },
     {
       "id": "fence_gate",
       "triangles": [
+        1088,
         864,
-        864,
-        768
+        776
       ],
       "colliders": 16
     },
     {
       "id": "cliff_rock",
       "triangles": [
+        1632,
         960,
-        960,
-        767
+        696
       ],
       "colliders": 8
     },
     {
       "id": "cliff_rock_low",
       "triangles": [
-        1140,
-        612,
-        612
+        2556,
+        1772,
+        754
       ],
-      "colliders": 3
+      "colliders": 18
     },
     {
       "id": "cliff_rock_tall",
       "triangles": [
-        3040,
-        1632,
-        876
+        2556,
+        1772,
+        754
       ],
-      "colliders": 8
+      "colliders": 18
     },
     {
       "id": "cliff_ledge",
       "triangles": [
-        1900,
-        1020,
-        768
+        2556,
+        1772,
+        754
       ],
-      "colliders": 5
+      "colliders": 18
     },
     {
       "id": "boat",
@@ -230,7 +266,7 @@
     {
       "id": "interior_counter",
       "triangles": [
-        872,
+        1048,
         88,
         88
       ],
@@ -257,9 +293,9 @@
     {
       "id": "planter",
       "triangles": [
-        1780,
+        4020,
         980,
-        754
+        540
       ],
       "colliders": 2
     },
@@ -275,12 +311,12 @@
     {
       "id": "market_stall",
       "triangles": [
-        4332,
+        8364,
         1452,
         766
       ],
       "colliders": 6
     }
   ],
-  "bytes": 4333984
+  "bytes": 5547472
 }
