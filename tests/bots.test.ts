@@ -217,7 +217,11 @@ describe('legacy bot behaviour', () => {
     advance(sim, 12);
     const moved = grounded.filter(a => a.state.alive && Math.hypot(a.state.pos.x - before.get(a.state.id)!.x, a.state.pos.z - before.get(a.state.id)!.z) > 3);
     expect(moved.length).toBeGreaterThan(grounded.filter(a => a.state.alive).length * .6);
-    expect(grounded.filter(a => a.state.alive && walkableHeight(a.state.pos.x, a.state.pos.z, world) < -.3)).toHaveLength(0);
+    // River crossings are allowed; swimmers must keep their heads above the surface.
+    for (const a of grounded.filter(a => a.state.alive && a.state.swimming)) {
+      expect(a.state.pos.y + 1.62).toBeGreaterThan(0);
+      expect(a.state.weapons[a.state.slot].id).toBe('pistol');
+    }
   }, 45_000);
 
   it('adaptive difficulty makes practice bots milder after losses and braver after wins, within legacy bounds', () => {

@@ -2,10 +2,14 @@ import { clamp } from './math';
 import { terrainHeight } from './terrain';
 import { boundaryFeedback } from './bounds';
 import { colliderGrid } from './collider-grid';
+import { waterAt } from './water';
 import type { ActorState, Collider, InputFrame, Mode, Vec3, WorldSpec } from './types';
 
 const RADIUS = .32;
 const STEP = .45;
+export const SWIM_DEPTH = 1.05;
+export const SWIM_DRAFT = 1.1;
+export const SWIM_SPEED = 2.5;
 export const actorHeight = (actor: ActorState) => actor.crouch ? 1.3 : 1.8;
 // Standing eye sits in the head volume; crouched, the head centre drops to ~1.14 m.
 export const actorEye = (actor: ActorState) => actor.crouch ? 1.17 : 1.62;
@@ -82,13 +86,15 @@ export function clearSpawn(pos: Vec3, world: WorldSpec): boolean {
 export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec, dt: number, speedMultiplier = 1, mode?: Mode): ActorState {
   if (actor.stage !== 'ground' || !actor.alive || !Number.isFinite(dt) || dt <= 0) return actor;
   const p = actor.pos;
-  actor.crouch = input.crouch || (actor.crouch && !hasHeadroom(p, world, 1.8));
-  actor.sprint = input.sprint && !actor.crouch && !input.ads && input.moveZ > 0;
-  actor.ads = input.ads;
-  actor.lean = actor.sprint ? 0 : clamp(input.lean, -1, 1);
+  const water = waterAt(p.x, p.z);
+  actor.swimming = !!water && water.depth >= SWIM_DEPTH && p.y <= water.surfaceY - SWIM_DEPTH + .05;
+  actor.crouch = !actor.swimming && (input.crouch || (actor.crouch && !hasHeadroom(p, world, 1.8)));
+  actor.sprint = !actor.swimming && input.sprint && !actor.crouch && !input.ads && input.moveZ > 0;
+  actor.ads = !actor.swimming && input.ads;
+  actor.lean = actor.swimming || actor.sprint ? 0 : clamp(input.lean, -1, 1);
   const f = -Math.sin(actor.yaw), g = -Math.cos(actor.yaw), r = Math.cos(actor.yaw), s = -Math.sin(actor.yaw);
   const mx = clamp(input.moveX, -1, 1), mz = clamp(input.moveZ, -1, 1), length = Math.max(1, Math.hypot(mx, mz));
-  const speed = (actor.crouch ? 2.1 : actor.sprint ? 6.4 : input.ads ? 2.4 : 3.9) * clamp(speedMultiplier, .1, 2);
+  const speed = actor.swimming ? SWIM_SPEED : (actor.crouch ? 2.1 : actor.sprint ? 6.4 : input.ads ? 2.4 : 3.9) * clamp(speedMultiplier, .1, 2);
   let wantedX = (f * mz + r * mx) / length * speed, wantedZ = (g * mz + s * mx) / length * speed;
   const boundary = boundaryFeedback(p, world, mode);
   if (boundary) {
@@ -96,10 +102,10 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     const push = Math.max(0, 3.2 - inward) * boundary.strength;
     wantedX += boundary.x * push; wantedZ += boundary.z * push;
   }
-  const alpha = 1 - Math.exp(-(actor.grounded ? 9 : 1.6) * dt);
+  const alpha = 1 - Math.exp(-(actor.swimming ? 5 : actor.grounded ? 9 : 1.6) * dt);
   actor.velocity.x += (wantedX - actor.velocity.x) * alpha;
   actor.velocity.z += (wantedZ - actor.velocity.z) * alpha;
-  if (input.jump && actor.grounded) { actor.velocity.y = 7; actor.grounded = false; }
+  if (input.jump && actor.grounded && !actor.swimming) { actor.velocity.y = 7; actor.grounded = false; }
   p.x += actor.velocity.x * dt; p.z += actor.velocity.z * dt;
   const height = actorHeight(actor);
   const grid = colliderGrid(world);
@@ -125,7 +131,15 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     else if (actor.velocity.y > 0 && p.y + height <= c.min.y && p.y + height + actor.velocity.y * dt > c.min.y) actor.velocity.y = 0;
   }
   p.y += actor.velocity.y * dt;
-  if (p.y <= ground) { p.y = ground; actor.velocity.y = 0; actor.grounded = true; }
+  const nextWater = waterAt(p.x, p.z);
+  const floating = nextWater && ground <= nextWater.surfaceY - SWIM_DEPTH && p.y <= nextWater.surfaceY - SWIM_DEPTH + .05;
+  actor.swimming = !!floating;
+  if (floating) {
+    p.y = Math.max(ground, nextWater.surfaceY - SWIM_DRAFT); actor.velocity.y = 0; actor.grounded = false;
+    actor.crouch = actor.sprint = actor.ads = false; actor.lean = 0;
+    const pistol = actor.weapons.findIndex(w => w.id === 'pistol');
+    if (pistol >= 0 && actor.slot !== pistol) { actor.slot = pistol; actor.reloadUntil = 0; actor.shotHeat = 0; }
+  } else if (p.y <= ground) { p.y = ground; actor.velocity.y = 0; actor.grounded = true; }
   else actor.grounded = false;
   return actor;
 }
