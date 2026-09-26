@@ -10,6 +10,12 @@ export class InputController {
   readonly frame: InputFrame = emptyInput();
   locked = false;
   scoreboard = false;
+  emoteWheel = false;
+  onCancelEmote: () => void = () => {};
+  onEmoteOpen: () => boolean = () => false;
+  onEmoteClose: (commit: boolean) => void = () => {};
+  onEmoteMove: (x: number, y: number) => void = () => {};
+  onEmoteChoice: (index: number) => void = () => {};
   private keys = new Set<string>();
   private sequence = 0;
   private actionId = 0;
@@ -39,6 +45,7 @@ export class InputController {
     }, { signal });
     document.addEventListener('mousemove', event => {
       if (!this.locked) return;
+      if (this.emoteWheel) { this.onEmoteMove(event.movementX, event.movementY); return; }
       const scale = .002 * this.settings.sensitivity * (this.frame.ads ? .55 : 1);
       this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw - event.movementX * scale), Math.cos(this.frame.yaw - event.movementX * scale));
       this.frame.pitch = clamp(this.frame.pitch - event.movementY * scale, -1.48, 1.48);
@@ -51,14 +58,14 @@ export class InputController {
     canvas.addEventListener('contextmenu', event => event.preventDefault(), { signal });
     // Mouse wheel cycles weapons (down = next), one step per notch at most every 90 ms.
     document.addEventListener('wheel', event => {
-      if (!this.locked || Math.abs(event.deltaY) < 1) return;
+      if (!this.locked || this.emoteWheel || Math.abs(event.deltaY) < 1) return;
       event.preventDefault();
       const now = performance.now();
       if (now - this.wheelAt < 90) return;
       this.wheelAt = now; this.onCycle(event.deltaY > 0 ? 1 : -1);
     }, { signal, passive: false });
-    window.addEventListener('blur', () => this.clear(), { signal });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); }, { signal });
+    window.addEventListener('blur', () => { this.onCancelEmote(); this.clear(); }, { signal });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.onCancelEmote(); this.clear(); } }, { signal });
   }
   private key(event: KeyboardEvent, down: boolean) {
     if (!this.locked) return;
@@ -77,6 +84,15 @@ export class InputController {
   // Every action goes through its binding, whether the code is a key or a mouse button.
   private press(code: string, down: boolean, repeat: boolean) {
     const binding = this.settings.bindings;
+    if (code === binding.emote) {
+      if (down && !repeat && !this.emoteWheel) { this.clear(); this.emoteWheel = this.onEmoteOpen(); }
+      else if (!down) this.closeEmoteWheel(true);
+      return;
+    }
+    if (this.emoteWheel) {
+      if (down && !repeat && /^Digit[1-5]$/.test(code)) { this.onEmoteChoice(Number(code.slice(-1)) - 1); this.closeEmoteWheel(true); }
+      return;
+    }
     if (down) this.keys.add(code); else this.keys.delete(code);
     if (code === binding.scoreboard) this.scoreboard = down;
     if (code === binding.fire) {
@@ -93,6 +109,7 @@ export class InputController {
     }
     if (code === binding.ads) { if (down && !repeat) this.adsToggled = !this.adsToggled; this.adsHeld = down; }
     if (!down || repeat) return;
+    if ([binding.scoreboard, binding.map, binding.inspect].includes(code)) this.onCancelEmote();
     if (code === binding.reload) this.onAction({ type: 'reload', id: ++this.actionId });
     if (code === binding.interact) this.onInteract();
     if (code === binding.inspect) this.onInspect();
@@ -102,12 +119,12 @@ export class InputController {
   }
   // Refresh visual intent on every display frame without creating an input tick.
   refresh() {
-    const held = (key: string) => this.locked && this.keys.has(this.settings.bindings[key]);
+    const held = (key: string) => this.locked && !this.emoteWheel && this.keys.has(this.settings.bindings[key]);
     this.frame.moveX = Number(held('right')) - Number(held('left'));
     this.frame.moveZ = Number(held('forward')) - Number(held('back'));
     this.frame.sprint = held('sprint'); this.frame.crouch = held('crouch'); this.frame.jump = held('jump') || this.locked && performance.now() - this.jumpPressedAt < 100;
     this.frame.lean = Number(held('leanRight')) - Number(held('leanLeft'));
-    this.frame.ads = this.locked && (this.settings.adsToggle ? this.adsToggled : this.adsHeld);
+    this.frame.ads = this.locked && !this.emoteWheel && (this.settings.adsToggle ? this.adsToggled : this.adsHeld);
     if (!this.locked) { this.frame.fire = false; delete this.frame.firePressId; }
   }
   sample(time: number): InputFrame {
@@ -134,7 +151,8 @@ export class InputController {
     if (this.recoilPitch < .00001) this.recoilShots = 0;
   }
   reset(yaw = 0) { this.sequence = 0; this.actionId = 0; this.clear(); Object.assign(this.frame, emptyInput(), { yaw }); }
-  clear() { this.keys.clear(); this.frame.fire = false; delete this.frame.firePressId; this.frame.moveX = this.frame.moveZ = this.frame.lean = 0; this.adsHeld = this.adsToggled = false; this.scoreboard = false; this.jumpPressedAt = -Infinity; this.recoilPitch = this.recoilYaw = this.recoilShots = 0; }
+  closeEmoteWheel(commit = false) { if (!this.emoteWheel) return; this.emoteWheel = false; this.onEmoteClose(commit); }
+  clear() { this.closeEmoteWheel(); this.keys.clear(); this.frame.fire = false; delete this.frame.firePressId; this.frame.moveX = this.frame.moveZ = this.frame.lean = 0; this.adsHeld = this.adsToggled = false; this.scoreboard = false; this.jumpPressedAt = -Infinity; this.recoilPitch = this.recoilYaw = this.recoilShots = 0; }
   setSettings(settings: Settings) { this.settings = settings; }
   async lock() {
     try { await this.canvas.requestPointerLock(); }
