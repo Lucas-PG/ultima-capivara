@@ -14,6 +14,18 @@ if (result.status !== 0) process.exit(result.status || 1);
 await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
 const document = await io.read(`${root}/output/characters/capybara.raw.glb`);
+// 1.05 seconds falls between Blender's 30 Hz samples. Normalize only the new
+// bounce clip after export; do not alter any existing animation's time inputs.
+const boing = document.getRoot().listAnimations().find(clip => clip.getName() === 'boing');
+if (boing) {
+  const duration = Math.max(...boing.listSamplers().map(sampler => sampler.getInput().getMax([])[0]));
+  const inputs = new Map();
+  for (const sampler of boing.listSamplers()) {
+    const input = sampler.getInput();
+    if (!inputs.has(input)) inputs.set(input, input.clone().setArray(Float32Array.from(input.getArray(), value => value * 1.05 / duration)));
+    sampler.setInput(inputs.get(input));
+  }
+}
 await document.transform(dedup(), resample(), prune(), meshopt({ encoder: MeshoptEncoder, level: 'high', quantizePosition: 16, quantizationVolume: 'scene' }), dedup(), prune());
 const path = `${root}/public/models/capybara/capybara.glb`;
 await io.write(path, document);
@@ -32,7 +44,7 @@ for (let i = 0; i < 3; i++) {
   if (!lod || lod.triangles > [20000, 5000, 1500][i]) throw new Error(`LOD${i} exceeds budget`);
 }
 const requiredClips = ['idle', 'run', 'jump', 'walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'fall', 'land', 'reload_tp', 'death',
-  'face_neutral', 'face_determined', 'face_hit', 'face_stunned', 'face_victory', 'face_blink', 'wave', 'dance', 'victory', 'sit', 'chill'];
+  'face_neutral', 'face_determined', 'face_hit', 'face_stunned', 'face_victory', 'face_blink', 'wave', 'dance', 'victory', 'sit', 'chill', 'boing'];
 if (report.materials > 3 || report.skins !== 1 || report.joints !== 35 || !requiredClips.every(clip => report.clips.includes(clip))) throw new Error('Character rig/material/animation contract failed');
 await writeFile(`${root}/public/models/capybara/metrics.json`, JSON.stringify(report, null, 2) + '\n');
 console.log(`Capivara: ${report.lods.map(lod => `${lod.name} ${lod.triangles} tris`).join(', ')}; ${report.bytes} bytes (${(report.bytes / report.rawBytes * 100).toFixed(1)}% of raw); ${report.joints} joints; ${report.materials} material; clips ${report.clips.join(', ')}`);
