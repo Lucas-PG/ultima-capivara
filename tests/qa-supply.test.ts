@@ -31,6 +31,7 @@ it('reviews every delivery phase at one real dry landing with a valid landed pro
       expect(observer.yaw).toBeCloseTo(heading, 10);
     }
     if (phase === 'descending') expect(supplyDropPosition(drop, snapshot.time).y).toBeGreaterThan(drop.pos.y + 8);
+    if (phase === 'incoming' || phase === 'descending') expect(interaction).toBeNull();
     expect(interaction?.id === drop.id).toBe(phase === 'landed');
     if (phase === 'opened') expect(snapshot.loot.some(item => item.id === 'supply-qa-weapon' && item.rarity === 3)).toBe(true);
     positions.push(drop.pos);

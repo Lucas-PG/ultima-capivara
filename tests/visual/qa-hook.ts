@@ -92,13 +92,19 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
     if (supply) {
-      const close = name === 'supplyLanded' || name === 'supplyOpened', distance = close ? 2.4 : 18;
-      const direction = [[0, 1], [1, 0], [0, -1], [-1, 0]].find(([dx, dz]) => {
-        const to = { x: supply.x + dx * distance, z: supply.z + dz * distance };
-        return !waterAt(to.x, to.z) && walkableSegment(deps.world, supply, to);
+      const close = name === 'supplyLanded' || name === 'supplyOpened';
+      const observer = (close ? [2.4] : [18, 16, 20]).flatMap(distance =>
+        [[0, 1], [1, 0], [0, -1], [-1, 0]].map(([dx, dz]) => {
+          const x = supply.x + dx * distance, z = supply.z + dz * distance;
+          return { x, y: terrainHeight(x, z), z };
+        })).find(to => {
+        // A nearby ordinary chest prompt must not look like an airborne claim.
+        const actor = { ...base.actors[0], pos: to, stage: 'ground' as const, grounded: true };
+        return !waterAt(to.x, to.z) && walkableSegment(deps.world, supply, to) &&
+          (close || !closestInteraction(deps.world, base, actor, { id: '', name: '' }));
       });
-      if (!direction) throw new Error('A câmera da entrega precisa de uma aproximação livre.');
-      x = supply.x + direction[0] * distance; z = supply.z + direction[1] * distance;
+      if (!observer) throw new Error('A câmera da entrega precisa de uma aproximação livre.');
+      x = observer.x; z = observer.z;
       // At the middle of its approach the eastbound carrier is still 30 m
       // behind the landing point. The observer remains on the same dry ground.
       const targetX = supply.x - (name === 'supplyIncoming' ? SUPPLY_APPROACH_SECONDS / 2 * 12 : 0);
