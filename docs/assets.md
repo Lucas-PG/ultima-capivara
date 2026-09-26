@@ -286,3 +286,10 @@ Painted weapons retain the established component groups. Visible moving geometry
 ## Phase A island terrain, 2026-09-25
 
 `public/textures/terrain-color.png` is an original procedural colour map for the redesigned 260 m river island. It is generated locally by `npx tsx scripts/generate-terrain-colors.ts` from `src/shared/layout.ts` and `src/shared/terrain.ts`, with the existing painted island palette. The authored layout follows the Phase A brief: northern fort and crescent beach, central Vila river town, western hillside/waterfall, eastern port, southern beach/lighthouse, estuary mangroves and inland fields. No external assets, paid services or image generation were used for this map texture. The kit models and their collision manifest are generated from Oficina's original Blender geometry; their asset provenance is recorded with that kit delivery.
+# Phase A ground cover
+
+`src/render/ground-cover.ts` creates original curved grass ribbons, five-petal
+wildflowers, low-poly pebbles and fallen leaves directly from geometry. No image
+prompt, external source or download is used. Placement follows the shared terrain
+palette and collision data; blade wind and fading run on the GPU. Low disables
+the entire layer. Authored by Cena for Phase A.

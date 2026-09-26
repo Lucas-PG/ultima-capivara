@@ -11,6 +11,9 @@ import { AssetLoader } from './assets';
 import { ASSET_MANIFEST, type AssetEntry } from './asset-manifest';
 import capybaraMetrics from '../../public/models/capybara/metrics.json';
 import weaponMetrics from '../../public/models/weapons/metrics.json';
+import kitMetrics from '../../public/models/kit/metrics.json';
+import { KIT_PIECES } from '../shared/kit-collision';
+import { KIT_ASSET_PATH } from './kit';
 import { paintedWeaponsEnabled } from './painted-weapons';
 import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
@@ -24,6 +27,7 @@ import { DEATH_CAM_SECONDS } from '../shared/death-cam';
 import { actorEye } from '../shared/collision';
 import { RenderPipeline, PRESETS } from './pipeline';
 import { itemGeometry } from './item-geometry';
+import type { PresentationFrame } from './local-presentation';
 export { itemGeometry } from './item-geometry';
 
 const ZONE_NONE: ZoneState = { x: 0, z: 0, radius: 0, nextRadius: 0, nextX: 0, nextZ: 0, phase: 0, shrinking: false, timeLeft: 0, damage: 0 };
@@ -79,6 +83,12 @@ export class GameRenderer {
     this.litRooms = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
       .map(object => ({ ...object.pos, y: object.pos.y - (object.kind === 'roof' ? 3.1 : 0),
         w: object.scale.x, d: object.scale.z }));
+    for (const piece of world.pieces ?? []) if (['house_small', 'house_tall', 'church', 'market_hall'].includes(piece.piece)) {
+      const footprint = KIT_PIECES[piece.piece].footprint, scale = piece.scale ?? 1;
+      const c = Math.abs(Math.cos(piece.yaw)), s = Math.abs(Math.sin(piece.yaw));
+      this.litRooms.push({ x: piece.x, y: piece.y, z: piece.z,
+        w: (footprint[0] * c + footprint[1] * s) * scale, d: (footprint[0] * s + footprint[1] * c) * scale });
+    }
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
@@ -87,7 +97,9 @@ export class GameRenderer {
       ...ASSET_MANIFEST.filter(asset => !asset.path.startsWith('models/service-pistol/') && !asset.path.startsWith('models/m700/')),
       { path: 'models/weapons/painted-weapons.glb', kind: 'glb', bytes: weaponMetrics.bytes, label: 'Armas da ilha' },
     ] : ASSET_MANIFEST;
-    const manifest: readonly AssetEntry[] = [...weaponManifest, {
+    const manifest: readonly AssetEntry[] = [...weaponManifest, ...(world.pieces?.length ? [{
+      path: KIT_ASSET_PATH, kind: 'glb' as const, bytes: kitMetrics.bytes, label: 'Casas e caminhos da ilha',
+    }] : []), {
       path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
     }];
     this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
@@ -103,7 +115,7 @@ export class GameRenderer {
     this.weaponView.scene.environment = this.environment.texture;
     this.weaponView.scene.environmentIntensity = .35;
     this.scene.background = new THREE.Color(PAINT.fog);
-    this.scene.fog = new THREE.Fog(PAINT.fog, 110, 460);
+    this.scene.fog = new THREE.Fog(PAINT.fog, 42, 300);
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
     this.avatars = new AvatarView(this.scene, this.camera, world);
@@ -134,9 +146,17 @@ export class GameRenderer {
     const preset = PRESETS[settings.graphics];
     this.applyPixelRatio();
     this.pipeline.setSamples(preset.samples);
+    this.pipeline.setQuality(preset);
     this.gl.shadowMap.enabled = preset.shadows; this.sun.castShadow = preset.shadows;
     this.interiorLight.visible = preset.interior;
     const reach = preset.shadowReach || 30, shadow = this.sun.shadow.camera;
+    if (this.sun.shadow.mapSize.x !== preset.shadowSize) {
+      this.sun.shadow.mapSize.set(preset.shadowSize, preset.shadowSize);
+      this.sun.shadow.map?.dispose(); this.sun.shadow.map = null;
+    }
+    this.sun.shadow.camera.far = settings.graphics === 'high' ? 230 : 180;
+    this.sun.shadow.normalBias = settings.graphics === 'high' ? .07 : .1;
+    this.sun.shadow.radius = settings.graphics === 'high' ? 2.4 : 1.6;
     shadow.left = -reach; shadow.right = reach; shadow.top = reach; shadow.bottom = -reach; shadow.updateProjectionMatrix();
   }
 
@@ -149,9 +169,8 @@ export class GameRenderer {
     }
   }
 
-  // Like legacy PERF: if frames keep arriving late, render fewer pixels (down to
-  // 60 %); when there is headroom again, climb back. Paused/background frames
-  // (long gaps) are ignored.
+  // Only sustained misses reduce resolution. A tight floor preserves small
+  // details and readable silhouettes on Retina displays; isolated stalls do not.
   private adaptResolution() {
     const now = performance.now(), interval = now - this.lastUpdateAt; this.lastUpdateAt = now;
     const budget = 1000 / (this.settings.frameLimit || 60);
@@ -160,22 +179,22 @@ export class GameRenderer {
     if (this.frameInterval > budget * 1.18) { this.slowFor += interval; this.fastFor = 0; }
     else if (this.frameInterval < budget * 1.04) { this.fastFor += interval; this.slowFor = 0; }
     else { this.slowFor = 0; this.fastFor = 0; }
-    if (this.slowFor > 1500 && this.resolutionScale > .6) { this.resolutionScale = Math.max(.6, this.resolutionScale - .1); this.slowFor = 0; this.applyPixelRatio(); }
-    else if (this.fastFor > 6000 && this.resolutionScale < 1) { this.resolutionScale = Math.min(1, this.resolutionScale + .05); this.fastFor = 0; this.applyPixelRatio(); }
+    if (this.slowFor > 3500 && this.resolutionScale > .85) { this.resolutionScale = Math.max(.85, this.resolutionScale - .05); this.slowFor = 0; this.applyPixelRatio(); }
+    else if (this.fastFor > 4000 && this.resolutionScale < 1) { this.resolutionScale = Math.min(1, this.resolutionScale + .05); this.fastFor = 0; this.applyPixelRatio(); }
   }
 
-  update(frame: RenderFrame): void {
+  update(frame: PresentationFrame): void {
     if (this.disposed) return;
     this.adaptResolution();
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
     // A new match starts with no marks, shells or effects from the previous one.
     if (frame.snapshot && frame.snapshot.matchId !== this.effectsMatch) { this.effectsMatch = frame.snapshot.matchId; this.effects.clear(); this.cameraRig.clearDeathCam(); }
-    this.worldView.update(this.elapsed);
     this.cameraRig.updatePlanePath(frame.snapshot, dt, this.elapsed);
     this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed);
     const cameraAt = timing.begin();
     this.cameraRig.update(frame, this.settings, this.elapsed, this.weaponView.adsAmount);
+    this.worldView.update(this.elapsed, this.camera);
     timing.end('camera', cameraAt);
     this.loot.update(frame.snapshot, this.elapsed);
     let room: typeof this.litRooms[number] | undefined;
@@ -189,7 +208,7 @@ export class GameRenderer {
     this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? 9 : 0, 7, dt);
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
-    this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), snapshot?.time || 0);
+    this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0);
     const held = viewed?.weapons[viewed.slot]?.id;
     const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
     const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35);
@@ -274,6 +293,7 @@ export class GameRenderer {
       await preloadCapybaraAsset(url => this.assets.gltf(url));
       await preloadNameplateFont();
       this.requireActive();
+      await this.worldView.ready;
       await this.assets.ready();
       this.requireActive();
       this.onProgress(.9, 'Pintando a ilha');
@@ -332,6 +352,7 @@ export class GameRenderer {
     this.scene.add(this.avatars.warmupWeapons);
     this.effects.warm(true);
     reveal(this.scene); this.weaponView.revealAll(true); reveal(this.weaponView.scene);
+    this.assets.prepareTextures(this.scene); this.assets.prepareTextures(this.weaponView.scene);
     instrumentMaterials(this.scene); instrumentMaterials(this.weaponView.scene);
     const shadows = this.gl.shadowMap.enabled;
     try {
@@ -384,7 +405,7 @@ export class GameRenderer {
     this.settings = settings;
     this.resolutionScale = 1; this.applyPreset(settings);
     this.worldView.setSettings(settings);
-    this.scene.fog = new THREE.Fog(PAINT.fog, 110, 460);
+    this.scene.fog = new THREE.Fog(PAINT.fog, 42, 300);
     this.camera.fov = settings.fov; this.camera.updateProjectionMatrix(); this.resize();
   }
 

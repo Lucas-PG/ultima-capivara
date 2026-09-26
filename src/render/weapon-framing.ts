@@ -1,16 +1,16 @@
 import type { WeaponId } from '../shared/types';
 
-// FOV belongs to the first-person layer too. These draft poses are measured in
-// tools/blender/weapon-review.html before any default-path art is replaced.
+// FOV belongs to the first-person layer too. The hip framing leaves the centre
+// clear while retaining the authored sights for ADS.
 export const WEAPON_VIEW_FOV = 78;
 export interface WeaponHipPose { x: number; y: number; z: number; scale: number; pitch?: number }
 export const WEAPON_HIP_POSES: Record<WeaponId, WeaponHipPose> = {
-  pistol: { x: .23, y: -.07, z: -.34, scale: 1 },
-  smg: { x: .3, y: -.04, z: -.53, scale: 1 },
-  m4: { x: .3, y: -.07, z: -.53, scale: 1 },
-  shotgun: { x: .3, y: -.035, z: -.53, scale: 1 },
-  dmr: { x: .3, y: -.07, z: -.53, scale: 1 },
-  sniper: { x: .3, y: -.07, z: -.53, scale: 1 },
+  pistol: { x: .24, y: -.18, z: -.56, scale: .86 },
+  smg: { x: .27, y: -.16, z: -.65, scale: .9 },
+  m4: { x: .28, y: -.17, z: -.67, scale: .9 },
+  shotgun: { x: .28, y: -.16, z: -.65, scale: .9 },
+  dmr: { x: .28, y: -.17, z: -.67, scale: .9 },
+  sniper: { x: .28, y: -.17, z: -.67, scale: .9 },
   machete: { x: .18, y: 0, z: -.35, scale: 1, pitch: -.8 },
-  slingshot: { x: .3, y: -.04, z: -.53, scale: 1 },
+  slingshot: { x: .27, y: -.16, z: -.65, scale: .9 },
 };

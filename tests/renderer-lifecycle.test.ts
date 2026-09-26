@@ -27,11 +27,11 @@ function harness(ready: Promise<void> = Promise.resolve()) {
   const fields = {
     disposed: false, warming: null, preparation: Promise.resolve(),
     scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
-    assets: { ready: vi.fn(() => ready), dispose: vi.fn() },
+    assets: { ready: vi.fn(() => ready), prepareTextures: vi.fn(), dispose: vi.fn() },
     weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), revealAll: vi.fn(), dispose: vi.fn() },
     storm: { mesh: new THREE.Mesh(), dispose: vi.fn() },
     sky: { group: new THREE.Group(), dispose: vi.fn() },
-    worldView: { group: new THREE.Group(), dispose: vi.fn() },
+    worldView: { ready: Promise.resolve(), group: new THREE.Group(), dispose: vi.fn() },
     avatars: { prepare: vi.fn(), warmupWeapons: new THREE.Group(), dispose: vi.fn() },
     pipeline: { beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), dispose: vi.fn() },
     environment: { dispose: vi.fn() }, onProgress: vi.fn(), resize: vi.fn(),
@@ -45,6 +45,15 @@ function harness(ready: Promise<void> = Promise.resolve()) {
 const snapshot = { actors: [] } as unknown as WorldSnapshot;
 
 describe('renderer preparation lifecycle', () => {
+  it('keeps loading until kit geometry has replaced the placement placeholders', async () => {
+    const kit = deferred(), h = harness(); h.worldView.ready = kit.promise;
+    const preparing = h.renderer.prepareMatch(snapshot);
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(h.gl.compileAsync).not.toHaveBeenCalled(); expect(h.avatars.prepare).not.toHaveBeenCalled();
+    kit.resolve(); await preparing;
+    expect(h.avatars.prepare).toHaveBeenCalledOnce(); expect(h.pipeline.renderPost).toHaveBeenCalled();
+  });
+
   it('cancels deferred asset warmup and queued match preparation when disposed', async () => {
     const load = deferred(), h = harness(load.promise);
     const warming = h.renderer.warmup(), preparing = h.renderer.prepareMatch(snapshot);
