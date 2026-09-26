@@ -1,9 +1,10 @@
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 export const WORLD_VERSION = 'ilha-v3-rio-4';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
-export type Mode = 'battle-royale' | 'deathmatch';
+export type Mode = 'battle-royale' | 'deathmatch' | 'corrente';
+export const isArenaMode = (mode: Mode | undefined) => mode === 'deathmatch' || mode === 'corrente';
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'results';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'slingshot';
@@ -48,7 +49,7 @@ export interface ActorState {
   swimming: boolean; wetUntil: number;
   emote: EmoteId | null; emoteUntil: number;
   stage: 'plane' | 'falling' | 'parachute' | 'ground';
-  kills: number; deaths: number; damage: number;
+  kills: number; deaths: number; damage: number; weaponLevel: number;
   weapons: WeaponState[]; slot: number;
   consumables: Record<ConsumableId, number>;
   reloadUntil: number; useUntil: number; using: ConsumableId | null;
@@ -95,6 +96,7 @@ export type GameEvent =
   | { type: 'reload'; id: number; actor: string; weapon: WeaponId }
   | { type: 'respawn'; id: number; actor: string }
   | { type: 'water'; id: number; actor: string; pos: Vec3; entering: boolean }
+  | { type: 'upgrade'; id: number; actor: string; weapon: WeaponId; level: number }
   | { type: 'use'; id: number; actor: string; item: ConsumableId }
   // A slow projectile (slingshot stone) struck the world after its flight.
   | { type: 'impact'; id: number; actor: string; weapon: WeaponId; pos: Vec3; surface: Surface; normal: Vec3 }
