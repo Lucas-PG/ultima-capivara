@@ -682,7 +682,10 @@ export class Simulation {
     }
     target.lastHurt = this.time;
     const brain = target.brain;
-    if (brain) { this.stopBotLeisure(target); brain.celebrateUntil = 0; brain.leisureAt = Math.max(brain.leisureAt, this.time + 35); }
+    if (brain) {
+      if (brain.leisure) brain.leisureAt = Math.max(brain.leisureAt, this.time + 35);
+      this.stopBotLeisure(target); brain.celebrateUntil = 0;
+    }
     if (brain && attacker) {
       // Legacy hurt(): remember the attacker, get alert toward them and rethink soon.
       brain.lastAttacker = attacker.state.id; brain.hurtUntil = this.time + 1.5; brain.recentDmg += damage;
@@ -995,8 +998,12 @@ export class Simulation {
       if (walkableSegment(this.world, s.pos, goal, isArenaMode(this.config.mode))) b.goal = goal;
       return false;
     }
+    // A brief step down from a low authored rim must not discard the approach.
+    // Gestures still require firm ground, and actual jumps/falls end the visit.
+    const airborne = !s.grounded && (!b.leisure || !!s.emote || Math.abs(s.velocity.y) > 4 ||
+      s.pos.y - walkableHeight(s.pos.x, s.pos.z, this.world) > .6);
     const unsafe = b.sees || now < b.alertUntil || now - b.lastSeenAt < 5 || now - a.lastHurt < 6 ||
-      now < a.nextShot + 2 || b.mode === 'cover' || !!this.zoneNeed(s) || s.swimming || !s.grounded || !!s.using || !!s.reloadUntil;
+      now < a.nextShot + 2 || b.mode === 'cover' || !!this.zoneNeed(s) || s.swimming || airborne || !!s.using || !!s.reloadUntil;
     if (unsafe) { this.stopBotLeisure(a); return false; }
     if ((!b.leisure || rethink) && [...this.actors.values()].some(other => {
       const t = other.state;

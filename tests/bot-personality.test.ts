@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { BOT_TELL, Simulation } from '../src/simulation';
 import { createBrain } from '../src/simulation/bots';
 import { terrainHeight } from '../src/shared/terrain';
+import { walkableSegment } from '../src/shared/navigation';
+import { createWorld } from '../src/shared/world';
 import type { ActorState, GameEvent, WorldSpec } from '../src/shared/types';
 
 const point = (x: number, z = -20) => ({ x, y: terrainHeight(x, z), z });
-function fixture(seed = 7, recreation: 'bath' | 'trampoline' | null = null) {
-  const world: WorldSpec = { version: 'personality-test', size: 260, objects: [], colliders: [], chests: [], loot: [], districts: [],
+function fixture(seed = 7, recreation: 'bath' | 'trampoline' | null = null, authoredWorld?: WorldSpec) {
+  const world: WorldSpec = authoredWorld ?? { version: 'personality-test', size: 260, objects: [], colliders: [], chests: [], loot: [], districts: [],
     spawns: [{ ...point(0), yaw: 0, mode: 'both' }],
     mudBaths: recreation === 'bath' ? [{ id: 'bath', ...point(6), radius: 1.45 }] : [],
     trampolines: recreation === 'trampoline' ? [{ id: 'pad', ...point(6), radius: 1.38, impulse: 12 }] : [] };
@@ -128,6 +130,15 @@ describe('seeded bot personality without combat concessions', () => {
     }
   });
 
+  it('can seek a bath after the danger has passed without inheriting an interrupted-leisure cooldown', () => {
+    const { sim, runtime, bot, player } = fixture(7, 'bath'); bot.state.hp = 60;
+    runtime.damage(bot, 5, player.state.id, 'pistol', false);
+    sim.step(1 / 60); expect(bot.brain.leisure).toBeNull();
+    runtime.time += 7; bot.state.pos = point(0); bot.brain.thinkAt = 0;
+    sim.step(1 / 60);
+    expect(bot.brain.leisure?.kind).toBe('bath');
+  });
+
   it('abandons a bath as soon as the closing storm requires travel', () => {
     const { sim, runtime, bot } = fixture(7, 'bath'); bot.state.hp = 55;
     advance(sim, 3); expect(bot.state.soaking).toBe(true);
@@ -161,5 +172,32 @@ describe('seeded bot personality without combat concessions', () => {
     expect(sim.snapshot().supplyDrops[0].opened).toBe(true);
     expect(bot.state.weapons.some((weapon: any) => weapon.id === 'm4' && weapon.rarity === 3)).toBe(true);
     expect(sim.drainEvents().some(event => event.type === 'pickup' && event.actor === bot.state.id && event.item === 'drop-1')).toBe(true);
+  });
+
+  it('reaches and uses all six authored recreation contacts through normal bot movement', () => {
+    const world = createWorld();
+    for (const kind of ['bath', 'trampoline'] as const) for (const site of kind === 'bath' ? world.mudBaths! : world.trampolines!) {
+      const start = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([x, z]) => point(site.x + x * (site.radius + 3), site.z + z * (site.radius + 3)))
+        .find(pos => walkableSegment(world, pos, site));
+      expect(start, site.id).toBeTruthy();
+      let used = false;
+      const attempts: unknown[] = [];
+      for (let seed = 1; seed <= 12 && !used; seed++) {
+        const { sim, bot, player, runtime } = fixture(seed, kind, world);
+        // Loose island loot must not turn this idle-only trampoline scenario
+        // into the deliberately higher-priority equipment hunt.
+        runtime.loot.forEach((item: any) => { item.active = false; });
+        world.chests.forEach(chest => runtime.openedChests.add(chest.id));
+        player.state.pos = point(-110, -110);
+        bot.state.pos = { ...start! }; bot.state.hp = kind === 'bath' ? 55 : 100;
+        bot.state.yaw = Math.atan2(start!.x - site.x, start!.z - site.z);
+        bot.brain = createBrain(false, 2, bot.state.pos, 1);
+        sim.step(1 / 60);
+        if (bot.brain.leisure?.kind !== kind) { attempts.push({ seed, initial: bot.brain.leisure, pos: bot.state.pos }); continue; }
+        advance(sim, 5, () => { used ||= kind === 'bath' ? bot.state.soaking : bot.state.bounceSeq > 0; });
+        attempts.push({ seed, end: bot.brain.leisure, pos: bot.state.pos, grounded: bot.state.grounded, swimming: bot.state.swimming });
+      }
+      expect(used, JSON.stringify({ site, start, attempts })).toBe(true);
+    }
   });
 });
