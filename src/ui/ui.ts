@@ -281,7 +281,7 @@ export class GameUI {
   update(snapshot: WorldSnapshot, playerId: string, ping: number, scoreboard: boolean, fps: number, interaction: { id: string; name: string } | null, latencies: Readonly<Record<string, number>> = {}) {
     this.latencies = latencies;
     this.snapshot = snapshot; this.localId = playerId;
-    if (this.emoteActive) { const actor = snapshot.actors.find(a => a.id === playerId); if (snapshot.phase !== 'playing' || !actor?.alive || actor.stage !== 'ground' || actor.swimming) { this.callbacks.cancelEmote?.(); this.closeEmoteWheel(); } }
+    if (this.emoteActive) { const actor = snapshot.actors.find(a => a.id === playerId); if (snapshot.phase !== 'playing' || !actor?.alive || actor.stage !== 'ground' || !actor.grounded || actor.swimming) { this.callbacks.cancelEmote?.(); this.closeEmoteWheel(); } }
     if (snapshot.phase === 'results') { if (this.lastResults !== snapshot.matchId) { this.lastResults = snapshot.matchId; if (this.screen !== 'game' || !this.root.querySelector('#hud')) this.game(playerId); this.victory(snapshot); } return; }
     if (this.screen !== 'game') this.game(playerId);
     const me = snapshot.actors.find(a => a.id === playerId); if (!me) return;
@@ -340,9 +340,10 @@ export class GameUI {
     this.show('consbar', carried > 0 && me.alive);
     const scoped = me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
     this.show('scope-overlay', scoped);
+    const emoting = me.alive && !!me.emote && me.emoteUntil > t;
     const speed = Math.hypot(me.velocity.x, me.velocity.z), cross = this.el('cross');
     this.style(cross, '--g', `${this.crosshairGap(me, now).toFixed(1)}px`);
-    this.style(cross, 'opacity', me.alive && me.stage === 'ground' && !scoped && !(me.sprint && speed > .5) ? '1' : '0');
+    this.style(cross, 'opacity', me.alive && me.stage === 'ground' && !emoting && !scoped && !(me.sprint && speed > .5) ? '1' : '0');
     this.updatePrompt(me, interaction);
     // Reload: a ring fills around the crosshair, with a short label under it.
     const reloading = !!weapon && !!def && me.reloadUntil > t && me.alive; this.show('reload', reloading); this.show('rring', reloading);
@@ -359,7 +360,7 @@ export class GameUI {
     if (air) { this.text('altTxt', `${Math.max(0, Math.round(me.pos.y - terrainHeight(me.pos.x, me.pos.z)))} m`); this.text('altHint', me.stage === 'falling' ? `${jump} abre o paraquedas` : 'WASD plana'); }
     this.attr(this.el('torso'), 'transform', `rotate(${(me.lean * 16).toFixed(0)} 30 56)`); this.attr(this.el('figure'), 'transform', `translate(0 ${me.crouch ? 15 : 0})`);
     // Posture chip: quiet when standing, labelled and highlighted when it matters.
-    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? me.weapons.some(w => w.id === 'pistol') ? 'Nadando · só pistola' : 'Nadando · sem pistola' : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
+    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? me.weapons.some(w => w.id === 'pistol') ? 'Nadando · só pistola' : 'Nadando · sem pistola' : emoting ? EMOTES[me.emote!].label : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
     this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance); this.toggle(this.el('stance'), 'swimming', me.swimming);
     if (me.alive) this.deathInfo = null;
     let banner = '';
@@ -478,7 +479,7 @@ export class GameUI {
   }
   openEmoteWheel() {
     const me = this.snapshot?.actors.find(a => a.id === this.localId);
-    if (this.screen !== 'game' || this.snapshot?.phase !== 'playing' || !me?.alive || me.stage !== 'ground' || me.swimming || this.modal || !this.el('pause-panel').hidden || this.root.querySelector('#loadingOverlay')) return false;
+    if (this.screen !== 'game' || this.snapshot?.phase !== 'playing' || !me?.alive || me.stage !== 'ground' || !me.grounded || me.swimming || me.using || me.reloadUntil > this.snapshot.time || this.modal || !this.el('pause-panel').hidden || this.root.querySelector('#loadingOverlay')) return false;
     this.toggleMap(false); this.emoteActive = true; this.emoteX = this.emoteY = 0;
     this.show('emoteWheel', true); this.selectEmote(null);
     this.style(this.el('emotePointer'), 'transform', 'translate(0px,0px)');
