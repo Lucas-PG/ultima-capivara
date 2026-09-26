@@ -78,6 +78,7 @@ describe('painted weapon readiness and ownership', () => {
     expect(accent[2]).toBeGreaterThan(accent[1]); expect(accent[1]).toBeGreaterThan(accent[0]);
     expect(accent).not.toEqual(swatch(common, 9, .5, .5));
     expect(fur[3]).toBe(255); expect(accent[3]).toBe(255);
+    expect((mesh(common).material.map as THREE.DataTexture).image.width).toBe(1024);
     set.dispose();
   });
 
