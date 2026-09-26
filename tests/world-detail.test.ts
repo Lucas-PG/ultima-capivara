@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearSpawn, hasLineOfSight, moveActor, raycastWorld, SWIM_DRAFT } from '../src/shared/collision';
+import { clearSpawn, hasLineOfSight, moveActor, raycastWorld, SWIM_DRAFT, TRAMPOLINE_IMPULSE } from '../src/shared/collision';
 import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
@@ -81,6 +81,8 @@ describe('river island gameplay integrity', () => {
       expect(spawn, `${district.id} needs a composed arrival`).toBeDefined();
       const [x, z] = DISTRICT_ARRIVALS[district.id];
       expect(Math.hypot(spawn.x - x, spawn.z - z), `${district.id} lost its authored approach`).toBeLessThanOrEqual(6.001);
+      const nearest = world.districts.reduce((a, b) => Math.hypot(a.x - spawn.x, a.z - spawn.z) < Math.hypot(b.x - spawn.x, b.z - spawn.z) ? a : b);
+      expect(nearest.id, `${district.id} arrival must announce the district being entered`).toBe(district.id);
       const eye = { x: spawn.x, y: spawn.y + 1.62, z: spawn.z };
       expect(hasLineOfSight(eye, { x: eye.x - Math.sin(spawn.yaw) * 5, y: eye.y, z: eye.z - Math.cos(spawn.yaw) * 5 }, world),
         `${district.id} opens against a wall or a bare terrace`).toBe(true);
@@ -210,6 +212,29 @@ describe('river island gameplay integrity', () => {
       expect(actor.pos.y, `${piece.id} must leave the water`).toBeGreaterThan(1.8);
       expect(actor.swimming).toBe(false); expect(actor.grounded).toBe(true);
     }
+  });
+
+  it('keeps the six play spots accessible, clear overhead and tied to visible contact surfaces', () => {
+    for (const [piece, sites] of [['mud_bath', world.mudBaths ?? []], ['trampoline', world.trampolines ?? []]] as const) {
+      const interaction = KIT_PIECES[piece]?.interaction;
+      expect(sites.length).toBe(interaction ? 3 : 0);
+      if (!interaction) continue;
+      for (const site of sites) {
+        const placed = world.pieces!.find(instance => instance.id === site.id)!;
+        expect(placed.piece).toBe(piece);
+        expect(site.y).toBeCloseTo(placed.y + interaction.surfaceY * (placed.scale ?? 1), 5);
+        expect(site.radius).toBeCloseTo(interaction.radius * (placed.scale ?? 1), 5);
+        expect(walkableHeight(site.x, site.z, world)).toBeCloseTo(site.y, 3);
+        const reach = Math.max(...KIT_PIECES[piece].footprint) * (placed.scale ?? 1) / 2 + .9;
+        const from = { x: site.x + Math.sin(placed.yaw) * reach, z: site.z + Math.cos(placed.yaw) * reach };
+        expect(walkableSegment(world, from, site), `${site.id} must have a walk-in entrance`).toBe(true);
+        expect(hasLineOfSight({ x: site.x, y: site.y + .5, z: site.z },
+          { x: site.x, y: site.y + 8, z: site.z }, world), `${site.id} needs open sky`).toBe(true);
+        for (const point of [...world.spawns, ...world.loot, ...world.chests])
+          expect(Math.hypot(point.x - site.x, point.z - site.z), `${site.id} must remain free of spawns and pickups`).toBeGreaterThan(site.radius + .5);
+      }
+    }
+    for (const pad of world.trampolines ?? []) expect(pad.impulse).toBe(TRAMPOLINE_IMPULSE);
   });
 
   it('supports the full fort foundations so beach paths cannot cut under the towers', () => {
