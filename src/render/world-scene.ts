@@ -10,6 +10,7 @@ import { buildVegetation } from './vegetation';
 import { createIslandBackdrop } from './island-backdrop';
 import { createStreetDressing } from './street-dressing';
 import { createWaterfalls } from './waterfall';
+import { RecreationView } from './recreation';
 import { GroundCover } from './ground-cover';
 import { createKit, type KitScene } from './kit';
 import { releaseAfterUpload } from './memory';
@@ -17,7 +18,7 @@ import { buildProps } from './props';
 import { buildWallArt } from './wall-art';
 import { textSignMaterial, twoSidedTextSign } from './signage';
 import { SIGN_ART } from '../shared/signage';
-import type { MapObject, Settings, WorldSpec } from '../shared/types';
+import type { ActorState, MapObject, Settings, Vec3, WorldSpec } from '../shared/types';
 
 const c = (value: string | number) => new THREE.Color(value);
 const box = new THREE.BoxGeometry(1, 1, 1);
@@ -182,14 +183,18 @@ export class WorldScene {
   private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly waterfalls: ReturnType<typeof createWaterfalls>;
+  private readonly recreation: RecreationView;
   private readonly vegetation: ReturnType<typeof buildVegetation>;
   private readonly groundCover: GroundCover;
   private reducedMotion = false;
   private readonly disposables: { dispose: () => void }[] = [];
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.kit = createKit(this.group, loader, world.pieces ?? [], settings.graphics);
-    this.ready = this.kit.ready; this.disposables.push(this.kit);
+    this.recreation = new RecreationView(world, loader, settings.graphics); this.group.add(this.recreation.group);
+    this.kit = createKit(this.group, loader, (world.pieces ?? []).filter(piece => !this.recreation.pieceIds.has(piece.id)), settings.graphics);
+    this.ready = Promise.all([this.kit.ready, this.recreation.ready]).then(() => {});
+    void this.ready.catch(() => {});
+    this.disposables.push(this.recreation, this.kit);
     const signAtlas = loader.texture('textures/island-signs.png');
     signAtlas.colorSpace = THREE.SRGBColorSpace;
     signAtlas.minFilter = THREE.LinearMipmapLinearFilter;
@@ -691,15 +696,20 @@ export class WorldScene {
     this.groundCover.setQuality(settings.graphics);
     this.waterfalls.setQuality(settings.graphics);
     this.paintedWater.setQuality(settings.graphics);
+    this.recreation.setQuality(settings.graphics);
   }
 
-  update(time: number, camera?: THREE.Camera) {
+  update(time: number, camera?: THREE.Camera, actors: readonly ActorState[] = [], localActor?: ActorState) {
     if (camera) { this.kit.update(camera, time); this.groundCover.update(camera, time, this.reducedMotion); }
     this.vegetation.update(this.reducedMotion ? 0 : time);
     this.waterfalls.update(time, this.reducedMotion);
     this.paintedWater.update(time, this.reducedMotion);
+    this.recreation.update(time, camera, this.reducedMotion, actors, localActor);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);
   }
+
+  bounce(position: Vec3) { this.recreation.bounce(position); }
+  resetRecreation() { this.recreation.reset(); }
 
   dispose() { this.disposables.forEach(value => value.dispose()); }
 }
