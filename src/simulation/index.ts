@@ -2,6 +2,7 @@ import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
 import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, SWIM_DEPTH, SWIM_DRAFT } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
 import { waterAt } from '../shared/water';
+import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emotes';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
@@ -156,6 +157,7 @@ export class Simulation {
       id: profile.id, name: profile.name.slice(0, 28), color: profile.color, bot, connected: bot || profile.connected,
       pos: br ? { ...this.plane } : spawn, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
       hp: 100, armor: 0, helmet: 0, alive: true, grounded: !br, crouch: false, sprint: false, ads: false, swimming: false, wetUntil: 0,
+      emote: null, emoteUntil: 0,
       stage: br ? 'plane' : 'ground', kills: 0, deaths: 0, damage: 0,
       weapons: br ? bot ? this.botLoadout() : [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
       slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
@@ -187,6 +189,7 @@ export class Simulation {
     const actor = this.actors.get(id);
     if (!actor || actor.state.bot || !actor.state.connected || this.phase !== 'playing') return;
     if (!Number.isSafeInteger(action.id) || action.id < 0 || action.id <= actor.lastAction || (actor.lastAction >= 0 && action.id > actor.lastAction + 600)) return;
+    if (action.type === 'emote' && action.emote !== null && !isEmote(action.emote)) return;
     if (action.type === 'trigger' && (![action.yaw, action.pitch, action.lean, action.clientTime].every(Number.isFinite) ||
       Math.abs(action.yaw) > Math.PI * 1000 || Math.abs(action.pitch) > Math.PI / 2 + .01 ||
       Math.abs(action.lean) > 1 || typeof action.ads !== 'boolean' ||
@@ -194,6 +197,16 @@ export class Simulation {
     actor.lastAction = action.id;
     const s = actor.state;
     if (!s.alive) return;
+    if (action.type === 'emote') {
+      if (action.emote === null) this.cancelEmote(s);
+      else if (s.stage === 'ground' && s.grounded && !s.swimming && !s.using && !s.reloadUntil) {
+        s.emote = action.emote; s.emoteUntil = this.time + EMOTES[action.emote].duration;
+        s.velocity.x = s.velocity.z = 0;
+        s.sprint = s.ads = false; s.lean = 0; actor.adsAmount = 0;
+      }
+      return;
+    }
+    this.cancelEmote(s);
     if (action.type === 'jump') { if (s.stage === 'plane') this.drop(actor); else if (s.stage === 'ground') { actor.jumpQueued = true; actor.jumpQueuedUntil = this.time + .1; } }
     // Old client clocks may still submit a new click. fire() bounds rewind at
     // execution and uses current targets outside that window; cadence stays authoritative.
@@ -228,7 +241,7 @@ export class Simulation {
     if (status === 'join' && actor.disconnectedAt === -Infinity && this.config.mode === 'deathmatch') {
       actor.state.connected = true; actor.disconnectedAt = Infinity; actor.state.respawnAt = this.time;
     }
-    if (status === 'disconnect') { actor.state.connected = false; actor.disconnectedAt = this.time; actor.input = emptyInput(); actor.jumpQueued = false; actor.triggerQueued = null; }
+    if (status === 'disconnect') { actor.state.connected = false; actor.disconnectedAt = this.time; actor.input = emptyInput(); actor.jumpQueued = false; actor.triggerQueued = null; this.cancelEmote(actor.state); }
     if (status === 'reconnect') {
       actor.state.connected = true;
       if (actor.disconnectedAt !== -Infinity) actor.disconnectedAt = Infinity;
@@ -244,6 +257,7 @@ export class Simulation {
     s.connected = false; actor.disconnectedAt = -Infinity;
     if (!s.alive) { s.respawnAt = 0; return; }
     s.alive = false; s.hp = 0; s.deaths++; s.respawnAt = 0; s.using = null; s.reloadUntil = 0; actor.jumpQueued = false; actor.triggerQueued = null;
+    this.cancelEmote(s);
     actor.elimination = ++this.elimination; actor.eliminatedAt ??= this.time;
     this.emit({ type: 'notice', text: `${s.name} saiu da partida` });
   }
@@ -277,7 +291,10 @@ export class Simulation {
         continue;
       }
       if (s.bot) this.updateBot(actor);
-      const inp = s.bot || s.connected && this.time - actor.lastInputAt <= .3 ? actor.input : emptyInput();
+      const inp = s.bot || s.connected && this.time - actor.lastInputAt <= .3 ? actor.input :
+        { ...emptyInput(), yaw: s.yaw, pitch: s.pitch };
+      if (s.emote && (this.time >= s.emoteUntil || emoteInput(inp) || !s.grounded || s.swimming ||
+        Math.abs(angleDiff(s.yaw, inp.yaw)) > EMOTE_LOOK_EPSILON || Math.abs(s.pitch - inp.pitch) > EMOTE_LOOK_EPSILON)) this.cancelEmote(s);
       const trigger = actor.triggerQueued;
       actor.triggerQueued = null;
       s.yaw = inp.yaw; s.pitch = inp.pitch;
@@ -327,6 +344,7 @@ export class Simulation {
     s.wetUntil = this.time + 3;
     this.emit({ type: 'water', actor: s.id, pos: { ...s.pos, y: water?.surfaceY ?? s.pos.y }, entering: s.swimming });
   }
+  private cancelEmote(s: ActorState) { s.emote = null; s.emoteUntil = 0; }
   private drop(a: ActorRuntime) {
     if (a.state.stage !== 'plane') return;
     a.state.stage = 'falling'; a.state.pos = { ...this.plane, y: this.plane.y - 3 };
@@ -491,7 +509,7 @@ export class Simulation {
   // `aim` is the bot path: a direction plus the legacy aim-error cone (radians).
   private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }) {
     const s = a.state, w = s.weapons[s.slot], def = w && WEAPONS[w.id];
-    if (!w || !def || s.stage !== 'ground' || s.using || this.time < a.nextShot || (s.swimming && w.id !== 'pistol')) return;
+    if (!w || !def || s.stage !== 'ground' || s.using || s.emote || this.time < a.nextShot || (s.swimming && w.id !== 'pistol')) return;
     if (!def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return;
     if (s.reloadUntil) {
       if (w.id !== 'shotgun' || w.ammo === 0) return;
@@ -592,6 +610,7 @@ export class Simulation {
       if (!brain.sees) brain.thinkAt = Math.min(brain.thinkAt, this.time + .08);
     }
     if (s.using) { s.using = null; s.useUntil = 0; }
+    this.cancelEmote(s);
     this.emit({ type: 'damage', actor: attackerId || '', target: s.id, amount: Math.round(raw * 10) / 10, head, pos: { ...s.pos, y: s.pos.y + 1 }, ...(hadArmor && s.armor <= 0 ? { armorBreak: true } : {}) });
     if (s.hp <= 0) this.kill(target, attacker || null, weapon);
   }
@@ -599,6 +618,7 @@ export class Simulation {
     const s = target.state;
     if (!s.alive) return;
     s.alive = false; s.hp = 0; s.deaths++; s.using = null; s.reloadUntil = 0; target.jumpQueued = false; target.triggerQueued = null;
+    this.cancelEmote(s);
     if (killer && killer !== target) killer.state.kills++;
     target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
     if (this.config.mode === 'deathmatch') s.respawnAt = this.time + 3;
@@ -610,6 +630,7 @@ export class Simulation {
     const s = a.state; s.pos = this.spawnPoint(s.id); s.velocity = { x: 0, y: 0, z: 0 };
     s.hp = 100; s.armor = 0; s.helmet = 0; s.alive = true; s.grounded = true; s.stage = 'ground';
     s.crouch = false; s.sprint = false; s.ads = false; s.lean = 0; s.swimming = false; s.wetUntil = 0;
+    this.cancelEmote(s);
     s.weapons = [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
     s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;

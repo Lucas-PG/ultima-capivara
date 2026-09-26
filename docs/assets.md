@@ -429,6 +429,7 @@ Cena canopy refinement, September 2026: broadleaf crowns use original procedural
 
 Swimming presentation reuses the original effects atlas for pooled turquoise surface ripples and small splash/drip cards. Stroke, entry and exit sounds are synthesized locally; no new downloads or external recordings. The existing capybara rig receives a procedural free-paw scull while the pistol stays above the shared water surface. The actor root, collision, water level and swimming rules remain authoritative shared data. Named river review poses exercise the real movement code.
 
+Emote presentation uses existing original character clips when exact wave, dance, victory, sit and chill tracks are available. Temporary rig-driven wave, dance and victory gestures and grounded crouch-height sit/chill fallbacks are original runtime animation. The emote camera prefers a front three-quarter view and checks the shared collider grid for a clear alternative. All motion is cosmetic; shared emote deadlines, root position and cancellation remain authoritative.
 
 ### Accessible recreation kit, 2026-09-26
 

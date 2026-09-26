@@ -1,5 +1,6 @@
 import { PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type WorldSnapshot } from '../shared/types';
 import { WEAPONS } from '../shared/weapons';
+import { EMOTE_IDS } from '../shared/emotes';
 
 export const MAX_CONTROL_BYTES = 512_000;
 export const MAX_FRAME_BYTES = 128_000;
@@ -8,7 +9,7 @@ const q = (n: number, scale = 100) => Math.round(n * scale) / scale;
 const qi = (n: number, scale = 100) => Math.round(n * scale);
 const stages = ['plane', 'falling', 'parachute', 'ground'] as const;
 const items = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'] as const;
-const ACTOR_FIELDS = 27;
+const ACTOR_FIELDS = 29;
 
 export function finiteTree(value: unknown, depth = 0): boolean {
   if (depth > 24) return false;
@@ -105,6 +106,7 @@ export function actorFrame(a: ActorState, index: number): number[] {
     qi(a.yaw, 1000), qi(a.pitch, 1000), qi(a.lean), qi(a.hp), qi(a.armor), qi(a.helmet), flags,
     stages.indexOf(a.stage), a.kills, a.deaths, qi(a.damage), a.slot, qi(a.reloadUntil), qi(a.useUntil),
     a.using ? items.indexOf(a.using) : -1, qi(a.respawnAt), qi(a.protectionUntil), a.lastInput, qi(a.shotHeat), qi(a.wetUntil),
+    a.emote ? EMOTE_IDS.indexOf(a.emote) : -1, qi(a.emoteUntil),
     ...a.weapons.flatMap(w => [w.ammo, w.reserve])];
 }
 
@@ -131,7 +133,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
   for (const tuple of fast.actors) {
     if (!Array.isArray(tuple) || !tuple.every(Number.isFinite)) return null;
     const [index, px, py, pz, vx, vy, vz, yaw, pitch, lean, hp, armor, helmet, flags, stage, kills, deaths,
-      damage, slot, reloadUntil, useUntil, using, respawnAt, protectionUntil, lastInput, shotHeat, wetUntil] = tuple;
+      damage, slot, reloadUntil, useUntil, using, respawnAt, protectionUntil, lastInput, shotHeat, wetUntil, emote, emoteUntil] = tuple;
     if (!Number.isSafeInteger(index) || index !== actors.length) return null;
     const profile = world.actors[index], kit = gear[index];
     if (!profile || !kit || profile.id !== kit.id || !stages[stage] || (using !== -1 && !items[using])) return null;
@@ -145,7 +147,8 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       !Number.isInteger(stage) || !Number.isInteger(using) || hp < 0 || hp > 100_000 || armor < 0 || armor > 100_000 ||
       helmet < 0 || helmet > 100_000 || Math.max(Math.abs(px), Math.abs(py), Math.abs(pz)) > 100_000 ||
       !Number.isSafeInteger(slot) || slot < 0 || slot >= kit.weapons.length ||
-      ![kills, deaths, lastInput, shotHeat, wetUntil].every(n => Number.isSafeInteger(n) && n >= 0) || shotHeat > 120 ||
+      ![kills, deaths, lastInput, shotHeat, wetUntil, emoteUntil].every(n => Number.isSafeInteger(n) && n >= 0) || shotHeat > 120 ||
+      !Number.isInteger(emote) || emote < -1 || emote >= EMOTE_IDS.length ||
       !kit.weapons.every((w: any, i: number) => Number.isSafeInteger(tuple[ACTOR_FIELDS + i * 2]) &&
         tuple[ACTOR_FIELDS + i * 2] >= 0 && tuple[ACTOR_FIELDS + i * 2] <= WEAPONS[w.id as keyof typeof WEAPONS].magazine &&
         Number.isSafeInteger(tuple[ACTOR_FIELDS + 1 + i * 2]) && tuple[ACTOR_FIELDS + 1 + i * 2] >= 0 && tuple[ACTOR_FIELDS + 1 + i * 2] <= 10_000)) return null;
@@ -156,6 +159,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       hp: hp / 100, armor: armor / 100, helmet: helmet / 100,
       connected: !!(flags & 1), alive: !!(flags & 2), grounded: !!(flags & 4),
       crouch: !!(flags & 8), sprint: !!(flags & 16), ads: !!(flags & 32), swimming: !!(flags & 64), wetUntil: wetUntil / 100, stage: stages[stage],
+      emote: emote === -1 ? null : EMOTE_IDS[emote], emoteUntil: emoteUntil / 100,
       kills, deaths, damage: damage / 100, slot, weapons, consumables: kit.consumables,
       reloadUntil: reloadUntil / 100, useUntil: useUntil / 100, using: using === -1 ? null : items[using],
       respawnAt: respawnAt / 100, protectionUntil: protectionUntil / 100, lastInput, shotHeat: shotHeat / 100 });

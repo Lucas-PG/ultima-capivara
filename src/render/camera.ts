@@ -13,7 +13,7 @@ import type { PresentationFrame } from './local-presentation';
 const material = (color: string) => new THREE.MeshStandardMaterial({ color, emissive: '#000000', roughness: .8, metalness: .04 });
 const AXES = ['x', 'y', 'z'] as const;
 const ease = (t: number) => t * t * (3 - 2 * t);
-type CameraMode = 'orbit' | 'chase' | 'fps';
+type CameraMode = 'orbit' | 'chase' | 'emote' | 'fps';
 export function makePlane(): THREE.Group {
   const group = new THREE.Group();
   addBox(group, '#e0ddd0', 0, 0, 0, 3.4, 1.7, 14);
@@ -129,6 +129,32 @@ export class CameraRig {
     this.wasDeathCam = true;
   }
 
+  private poseEmote(actor: ActorState, position: THREE.Vector3, quaternion: THREE.Quaternion) {
+    const seated = actor.emote === 'sit' || actor.emote === 'chill';
+    const look = this.lookTarget.copy(actor.pos).setY(actor.pos.y + (seated ? .78 : 1.02));
+    const distance = seated ? 2.45 : 3.05;
+    let best = -1;
+    // Prefer the face and free paw. In a narrow room choose the clear side
+    // instead of pulling the camera through a wall or into the capybara.
+    for (const offset of [.38, -.38, Math.PI]) {
+      const angle = actor.yaw + offset;
+      const end = this.target.set(look.x - Math.sin(angle) * distance, look.y + .38, look.z - Math.cos(angle) * distance);
+      end.y = Math.max(end.y, terrainHeight(end.x, end.z) + .25);
+      const direction = this.direction.subVectors(end, look), length = direction.length();
+      direction.divideScalar(length);
+      let allowed = length;
+      for (const collider of colliderGrid(this.world).query(Math.min(look.x, end.x) - .2, Math.min(look.z, end.z) - .2,
+        Math.max(look.x, end.x) + .2, Math.max(look.z, end.z) + .2)) {
+        const hit = segmentAabb(look, direction, allowed, collider.min, collider.max);
+        if (hit < allowed) allowed = Math.max(0, hit - .2);
+      }
+      if (allowed > best) { best = allowed; position.copy(look).addScaledVector(direction, allowed); }
+      if (allowed > length - .05) break;
+    }
+    position.y = Math.max(position.y, terrainHeight(position.x, position.z) + .25);
+    quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, look, this.camera.up));
+  }
+
   update(frame: PresentationFrame, settings: Settings, elapsed: number, adsAmount: number) {
     this.settings = settings; this.elapsed = elapsed; this.adsAmount = adsAmount;
     const snapshot = frame.snapshot;
@@ -149,11 +175,12 @@ export class CameraRig {
       const own = viewedId === frame.playerId;
       const yaw = own ? frame.input.yaw : actor.yaw;
       const pitch = own ? frame.input.pitch : actor.pitch;
-      const mode: CameraMode = actor.stage === 'plane' ? 'orbit' : actor.stage === 'ground' ? 'fps' : 'chase';
+      const emoting = actor.emote && actor.emoteUntil > (frame.simulationTime ?? snapshot?.time ?? 0) && actor.grounded && !actor.swimming;
+      const mode: CameraMode = actor.stage === 'plane' ? 'orbit' : emoting ? 'emote' : actor.stage === 'ground' ? 'fps' : 'chase';
       const snap = !this.cameraInitialized || this.lastViewedId !== viewedId;
       if (!snap && this.cameraMode && mode !== this.cameraMode) {
         this.blendFromPosition.copy(this.camera.position); this.blendFromQuaternion.copy(this.camera.quaternion);
-        this.cameraBlend = 1; this.cameraBlendDuration = mode === 'fps' ? .6 : .8;
+        this.cameraBlend = settings.reducedMotion ? 0 : 1; this.cameraBlendDuration = mode === 'emote' ? .45 : mode === 'fps' ? .4 : .8;
       }
       if (this.cameraMode !== mode && timing.enabled) timing.record('camera-transition', timing.begin(), 0, mode, true);
       if (snap) { this.cameraBlend = 0; this.eyeHeight.reset(actorEye(actor)); this.landing.reset(); this.grounded = actor.grounded; this.swimming = actor.swimming; }
@@ -172,6 +199,8 @@ export class CameraRig {
         const orbitPitch = THREE.MathUtils.clamp(pitch - .38, -1.2, .3), reach = 26 * Math.cos(orbitPitch);
         position.set(this.planePosition.x + Math.sin(yaw) * reach, this.planePosition.y + 4 - Math.sin(orbitPitch) * 26, this.planePosition.z + Math.cos(yaw) * reach);
         quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(this.planePosition).setY(this.planePosition.y + 1), this.camera.up));
+      } else if (mode === 'emote') {
+        this.poseEmote(actor, position, quaternion); fov = Math.min(settings.fov, 58);
       } else if (mode === 'chase') {
         const body = this.avatars.get(actor.id)?.group.position || this.target.copy(actor.pos);
         const chute = actor.stage === 'parachute', distance = chute ? 7.5 : 6;
