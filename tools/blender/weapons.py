@@ -6,7 +6,7 @@ import bpy
 import json
 import math
 from pathlib import Path
-from mathutils import Vector
+from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -29,11 +29,11 @@ def painted_shade(column, u, v):
         shade *= .97 + .025 * math.sin(v * 85 + u * 8)
     return shade
 
-image = bpy.data.images.new('Ilha_Dourada_weapons', width=1024, height=256, alpha=False)
+image = bpy.data.images.new('Ilha_Dourada_weapons', width=1024, height=1024, alpha=False)
 pixels = []
-for y in range(256):
+for y in range(1024):
     for x in range(1024):
-        column, u, v = x // 32, (x % 32 + .5) / 32, (y + .5) / 256
+        column, u, v = x // 32, (x % 32 + .5) / 32, (y + .5) / 1024
         shade = painted_shade(column, u, v)
         pixels.extend([min(1, int(PALETTE[column][i:i + 2], 16) / 255 * shade) for i in (0, 2, 4)] + [1])
 image.pixels = pixels
@@ -54,7 +54,7 @@ material.node_tree.links.new(texture.outputs['Color'], bsdf.inputs['Base Color']
 # Roughness separates painted metal, polymer, wood, cloth and fur in one draw.
 roughness = bpy.data.images.new('Painted_surface_roughness', width=32, height=32, alpha=False)
 roughness.colorspace_settings.name = 'Non-Color'
-roughness.pixels = [c for y in range(32) for x in range(32) for c in ([.62 if x in [0, 1, 7, 24] else .97 if x in [13,14,15,16,17,18,19] else .87] * 3 + [1])]
+roughness.pixels = [c for y in range(32) for x in range(32) for c in ([.22 if x in [25, 26] else .49 if x in [0, 1, 7, 24] else .97 if x in [13,14,15,16,17,18,19] else .87] * 3 + [1])]
 roughness.filepath_raw = str(OUT / 'roughness.png')
 roughness.file_format = 'PNG'
 roughness.save()
@@ -63,6 +63,35 @@ roughness_node = material.node_tree.nodes.new('ShaderNodeTexImage')
 roughness_node.image = roughness
 roughness_node.interpolation = 'Closest'
 material.node_tree.links.new(roughness_node.outputs['Color'], bsdf.inputs['Roughness'])
+
+# Fine original engraving, fur combing and canvas weave in a tangent-space map.
+normal_image = bpy.data.images.new('Engraving_fur_and_canvas', width=1024, height=1024, alpha=False)
+normal_image.colorspace_settings.name = 'Non-Color'
+normal_pixels = []
+for y in range(1024):
+    for x in range(1024):
+        column, u, v = x // 32, (x % 32 + .5) / 32, (y + .5) / 1024
+        if column in [13, 14, 15, 19]:
+            nx, ny = .20 * math.cos(u * 95 + v * 16), .035 * math.cos(u * 53 - v * 32)
+        elif column in [17, 18]:
+            nx, ny = .12 * math.cos(u * 90), .12 * math.cos(v * 210)
+        elif column in [4, 23]:
+            nx, ny = .13 * math.sin(u * 80) * math.cos(v * 120), .13 * math.cos(u * 80) * math.sin(v * 120)
+        else:
+            nx, ny = .035 * math.cos(u * 60 + v * 11), .045 * math.sin(v * 85)
+        length = math.sqrt(1 + nx * nx + ny * ny)
+        normal_pixels.extend([.5 + nx / length * .5, .5 + ny / length * .5, .5 + .5 / length, 1])
+normal_image.pixels = normal_pixels
+normal_image.filepath_raw = str(OUT / 'surface-normal.png')
+normal_image.file_format = 'PNG'
+normal_image.save()
+normal_image.pack()
+normal_texture = material.node_tree.nodes.new('ShaderNodeTexImage')
+normal_texture.image = normal_image
+normal_node = material.node_tree.nodes.new('ShaderNodeNormalMap')
+normal_node.inputs['Strength'].default_value = .28
+material.node_tree.links.new(normal_texture.outputs['Color'], normal_node.inputs['Color'])
+material.node_tree.links.new(normal_node.outputs['Normal'], bsdf.inputs['Normal'])
 
 # Painted blade edge retains a cool, light value under the warm island sun.
 # The rest of the shared weapon/paw material remains non-emissive.
@@ -104,12 +133,14 @@ def finish(obj, parent, color, bevel=0, edge=None):
     for layer in list(obj.data.uv_layers):
         obj.data.uv_layers.remove(layer)
     uv = obj.data.uv_layers.new(name='Palette')
+    organic = color in [13, 14, 15, 16, 17, 18, 19]
+    organic_bounds = [(min(v.co[a] for v in obj.data.vertices), max(v.co[a] for v in obj.data.vertices)) for a in [0, 2]]
     for poly in obj.data.polygons:
         index = edge if edge is not None and .12 < poly.normal.z < .96 else color
         points = [obj.data.vertices[v].co for v in poly.vertices]
         normal = poly.normal
-        axes = [0, 1] if abs(normal.z) > .6 else [1, 2] if abs(normal.x) > .6 else [0, 2]
-        bounds = [(min(v[a] for v in points), max(v[a] for v in points)) for a in axes]
+        axes = [0, 2] if organic else [0, 1] if abs(normal.z) > .6 else [1, 2] if abs(normal.x) > .6 else [0, 2]
+        bounds = organic_bounds if organic else [(min(v[a] for v in points), max(v[a] for v in points)) for a in axes]
         for loop in poly.loop_indices:
             co = obj.data.vertices[obj.data.loops[loop].vertex_index].co
             u, v = [(co[a] - lo) / max(.001, hi - lo) for a, (lo, hi) in zip(axes, bounds)]
@@ -192,6 +223,19 @@ def link(name, parent, start, end, radius, color, end_radius=None):
     return obj
 
 
+def fur_fin(parent, start, tip, color):
+    a, b = V(start), V(tip)
+    axis = (b - a).normalized()
+    tangent = axis.cross(Vector((0, 0, 1))).normalized() * .0018
+    across = axis.cross(tangent).normalized() * .0018
+    mesh = bpy.data.meshes.new('Fine_fur_fringe')
+    mesh.from_pydata([a + tangent, a - tangent, b, a + across, a - across, b], [], [[0, 1, 2], [3, 4, 5]])
+    mesh.update()
+    obj = bpy.data.objects.new('Fine_fur_fringe', mesh)
+    bpy.context.collection.objects.link(obj)
+    finish(obj, parent, color)
+
+
 def merge_group(parent, name):
     meshes = [obj for obj in parent.children if obj.type == 'MESH']
     if not meshes:
@@ -251,9 +295,9 @@ def scope(parent, front=-.41, length=.35, radius=.05):
 
 
 def paw(parent, side, palm, elbow, vertical=False):
-    # Three rounded fingers and an opposable thumb. Fixed brown fur and dark pads.
+    # Four rounded fingers, articulated knuckles and a separate wrapping thumb.
     p, e = Vector(palm), Vector(elbow)
-    hero = parent.name.split('_')[0] in ['pistol', 'smg', 'm4']
+    hero = parent.name.split('_')[0] in ['pistol', 'smg', 'm4', 'shotgun']
     existing_parts = set(parent.children)
     wrist = p.lerp(e, .28)
     link('Forearm', parent, tuple(e), tuple(wrist), .084 if hero else .074, 13, .067 if hero else .059)
@@ -266,17 +310,50 @@ def paw(parent, side, palm, elbow, vertical=False):
         for i in range(3):
             t = .72 + i * .08
             link('Sleeve_fold', parent, tuple(p.lerp(e, t)), tuple(p.lerp(e, t + .025)), .098, 17, .102)
-    ellipsoid('Palm', parent, palm, (.076, .087, .065) if vertical else (.083, .066, .092), 13, vertical)
-    ellipsoid('Palm_pad', parent, (p.x, p.y - .055, p.z), (.051, .018, .057), 16, vertical)
+        cuff = p.lerp(e, .60)
+        for i in range(20):
+            a = math.tau * i / 20
+            stitch = cuff + Vector((math.cos(a) * .100, .005, math.sin(a) * .100))
+            link('Canvas_stitch', parent, tuple(stitch), tuple(stitch + Vector((.003, -.007, .004))), .0017, 19)
+        patch = p.lerp(e, .81) + Vector((side * .076, .015, .015))
+        block('Canvas_patch', parent, tuple(patch), (.016, .065, .069), 18, .006)
+        ellipsoid('Patch_capy_head', parent, tuple(patch + Vector((side * .011, .003, -.003))), (.006, .017, .024), 19)
+        for dz in [-.014, .014]:
+            ellipsoid('Patch_capy_ear', parent, tuple(patch + Vector((side * .011, .021, dz))), (.006, .008, .007), 19)
+        watch = p.lerp(e, .37) + Vector((side * .055, .038, .033))
+        block('Watch_case', parent, tuple(watch), (.043, .030, .055), 0, .009, 1)
+        block('Watch_glass', parent, tuple(watch + Vector((0, .018, 0))), (.032, .006, .043), 26, .005)
+        block('Watch_hand', parent, tuple(watch + Vector((0, .022, -.004))), (.003, .002, .023), 19, .001)
+        # Tapered low-cost fur fins break the silhouette without transparent sorting.
+        for i in range(120):
+            a = i * 2.399963
+            t = .03 + (i % 17) / 17 * .49
+            center = p.lerp(e, t) + Vector((math.cos(a) * .067, .006, math.sin(a) * .065))
+            tip = center + Vector((math.cos(a) * .009, -.009, math.sin(a) * .009))
+            fur_fin(parent, tuple(center), tuple(tip), 14 if i % 4 == 0 else 13)
+    ellipsoid('Palm', parent, palm, (.076, .087, .065) if vertical else (.068, .057, .073), 13, vertical)
+    ellipsoid('Palm_pad', parent, (p.x, p.y - .055, p.z), (.051, .018, .057), 14, vertical)
     if vertical:
         link('Teal_wrist_band', parent, tuple(p.lerp(e, .40)), tuple(p.lerp(e, .44)), .079, 5, .079)
-    for i in [-1, 0, 1]:
+    grip_fingers = group(parent.name.split('_')[0] + '_grip_fingers', parent) if hero and side == -1 else parent
+    if grip_fingers != parent:
+        grip_fingers['partRole'] = 'grip_fingers'
+    for i in [-1.5, -.5, .5, 1.5]:
         center = (p.x - .063, p.y + i * .047, p.z - .013) if vertical else (p.x + i * .044, p.y + .018, p.z - .07)
         if hero:
             center = (p.x - side * .035, p.y + .005 + i * .037, p.z - .050)
-        ellipsoid('Finger', parent, center, (.047, .025, .036) if vertical else (.050, .024, .040) if hero else (.026, .037, .048), 13, vertical or hero)
+        finger_parent = grip_fingers
+        radii = (.046, .021, .036) if vertical else (.050, .020, .040) if hero else (.026, .031, .048)
+        if hero and side == 1 and i == 1.5:
+            finger_parent = group(parent.name.split('_')[0] + '_trigger_finger', parent)
+            finger_parent['partRole'] = 'trigger_finger'
+            center = (p.x - .004, p.y + .076, p.z - .074)
+            radii = (.023, .021, .075)
+        ellipsoid('Finger', finger_parent, center, radii, 13, vertical or hero)
+        if hero:
+            ellipsoid('Knuckle', finger_parent, (center[0] + side * .028, center[1] + .003, center[2] + .010), (.020, .020, .022), 15)
         claw = (center[0] - .035, center[1], center[2] + .014) if vertical else (center[0], center[1] + .004, center[2] - .042)
-        ellipsoid('Claw', parent, claw, (.018, .015, .016), 16, vertical)
+        ellipsoid('Claw', finger_parent, claw, (.015, .010, .019), 25, True)
     thumb = (p.x - .034, p.y + .081, p.z + .025) if vertical else (p.x - side * .064, p.y + .035, p.z + .027)
     ellipsoid('Thumb', parent, thumb, (.037, .04, .042), 14, vertical)
     for i in [-1, 1]:
@@ -287,7 +364,7 @@ def paw(parent, side, palm, elbow, vertical=False):
         # Fuse the palm, knuckles and thumb into one padded organic silhouette.
         # Separate overlapping spheres made the fingers read as flat wedges.
         fur_parts = [obj for obj in parent.children if obj not in existing_parts and
-                     obj.name.split('.')[0] in ['Palm', 'Finger', 'Thumb', 'Wrist_tuft']]
+                     obj.name.split('.')[0] in ['Palm', 'Thumb', 'Wrist_tuft']]
         bpy.ops.object.select_all(action='DESELECT')
         for obj in fur_parts:
             obj.select_set(True)
@@ -317,7 +394,7 @@ def screw(parent, x, y, z):
 
 
 def hero_detail(weapon, body, action, magazine):
-    if weapon not in ['pistol', 'smg', 'm4']:
+    if weapon not in ['pistol', 'smg', 'm4', 'shotgun']:
         return
     if weapon == 'pistol':
         for sign in [-1, 1]:
@@ -349,8 +426,9 @@ def hero_detail(weapon, body, action, magazine):
             for z in [-.36, -.41, -.46, -.51]:
                 block('Handguard_vent_inset', body, (sign * .073, .013, z), (.014, .024, .031), 23, .005)
                 block('Handguard_vent_lip', body, (sign * .080, -.004, z), (.006, .006, .032), 3 if weapon == 'm4' else 1, .002)
-            for z in [-.185, -.143, -.101]:
-                block('Magazine_flute', magazine, (sign * .048, -.224, z), (.006, .157, .012), 0, .003)
+            if weapon != 'shotgun':
+                for z in [-.185, -.143, -.101]:
+                    block('Magazine_flute', magazine, (sign * .048, -.224, z), (.006, .157, .012), 0, .003)
             block('Grip_panel', body, (sign * .046, -.164, .093), (.006, .11, .056), 21, .004)
             for yy in [-.207, -.184, -.161, -.138, -.115]:
                 block('Grip_rib', body, (sign * .05, yy, .094), (.009, .004, .047), 3, .001)
@@ -363,6 +441,43 @@ def hero_detail(weapon, body, action, magazine):
         for side in [-1, 1]:
             link('Sling_loop', body, (side * .07, -.06, .39), (side * .09, -.10, .39), .009, 1)
         cylinder('Muzzle_lock_ring', body, (0, 0, -.594 if weapon == 'smg' else -.883), .043, .026, 1, sides=16)
+
+
+def personal_details(weapon, body, right):
+    if weapon in ['machete', 'slingshot']:
+        return
+    for sign in [-1, 1]:
+        # Original capybara decal built as shallow coloured relief, no logo source.
+        x = sign * (.070 if weapon == 'pistol' else .083)
+        block('Capy_sticker_backing', body, (x, -.074, -.032), (.0025, .036, .051), 27, .006)
+        ellipsoid('Capy_sticker_head', body, (x + sign * .002, -.074, -.030), (.0018, .010, .018), 3)
+        for z in [-.040, -.020]:
+            ellipsoid('Capy_sticker_ear', body, (x + sign * .002, -.061, z), (.0018, .005, .004), 2)
+        ellipsoid('Capy_sticker_eye', body, (x + sign * .004, -.072, -.038), (.001, .0017, .0017), 23)
+        font = bpy.data.curves.new('Serial_ILHA_26', type='FONT')
+        font.body, font.size, font.extrude, font.resolution_u = 'ILHA-26', .011, .00015, 2
+        text = bpy.data.objects.new('Stamped_serial', font)
+        bpy.context.collection.objects.link(text)
+        text.location = V((x, -.032, .046 if sign > 0 else -.092))
+        text.rotation_euler = Matrix(((0, 0, sign), (sign, 0, 0), (0, 1, 0))).to_euler()
+        bpy.ops.object.select_all(action='DESELECT')
+        text.select_set(True); bpy.context.view_layer.objects.active = text
+        bpy.ops.object.convert(target='MESH')
+        finish(bpy.context.object, body, 1)
+    for i in range(3):
+        block('Grip_tape_wrap', body, (0, -.156 - i * .020, .093), (.103, .011, .071), 18 if i % 2 else 27, .004)
+    if weapon == 'm4':
+        charm = group('m4_capy_charm', body)
+        charm['partRole'] = 'charm'
+        for i in range(4):
+            bpy.ops.mesh.primitive_torus_add(major_radius=.009, minor_radius=.002, major_segments=12, minor_segments=6,
+                location=V((.094, -.115 - i * .014, .067)), rotation=(math.pi / 2 if i % 2 else 0, 0, 0))
+            finish(bpy.context.object, charm, 1)
+        ellipsoid('Charm_body', charm, (.094, -.20, .067), (.023, .025, .017), 3, True)
+        ellipsoid('Charm_head', charm, (.094, -.176, .062), (.025, .018, .022), 3, True)
+        for x in [.076, .110]:
+            ellipsoid('Charm_ear', charm, (x, -.158, .069), (.009, .009, .006), 2)
+            ellipsoid('Charm_eye', charm, (x, -.174, .041), (.0025, .003, .002), 23)
 
 
 def bake_weapon_ao(meshes):
@@ -381,13 +496,21 @@ def bake_weapon_ao(meshes):
     for obj in meshes:
         layer = obj.data.color_attributes.new(name='Color', type='FLOAT_COLOR', domain='CORNER')
         normals = obj.matrix_world.to_3x3().inverted().transposed()
+        values, totals, counts = [], [0.0] * len(obj.data.vertices), [0] * len(obj.data.vertices)
         for poly in obj.data.polygons:
             normal = (normals @ poly.normal).normalized()
             center = obj.matrix_world @ poly.center + normal * .0012
             orient = Vector((0, 0, 1)).rotation_difference(normal)
             hits = sum(bvh.ray_cast(center, orient @ d, .095)[0] is not None for d in directions)
             shade = 1 - hits / 8 * .36
+            values.append(shade)
+            for vertex in poly.vertices:
+                totals[vertex] += shade
+                counts[vertex] += 1
+        for poly, face_shade in zip(obj.data.polygons, values):
             for loop in poly.loop_indices:
+                vertex = obj.data.loops[loop].vertex_index
+                shade = totals[vertex] / max(1, counts[vertex]) if poly.use_smooth else face_shade
                 layer.data[loop].color = (shade, shade, shade, 1)
 
 
@@ -497,6 +620,7 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
     group(weapon + '_muzzle', root, (muzzle_x, muzzle_y, muzzle_z))
     group(weapon + '_eject', root, (.079, -.024, -.075))
     group(weapon + '_sight', root, (0, sight_y, .07))
+    personal_details(weapon, body, right)
     for part in [body, magazine, action, right, left, legendary]:
         if part:
             merge_group(part, part.name + '_mesh')
@@ -518,7 +642,7 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         mesh.data.calc_loop_triangles()
         triangles += len(mesh.data.loop_triangles)
         assert not mesh.data.validate(verbose=False, clean_customdata=False), mesh.name
-    budget = 24000 if weapon in ['pistol', 'smg', 'm4'] else 10000
+    budget = 39800 if weapon in ['pistol', 'smg', 'm4', 'shotgun'] else 18000
     if triangles > budget:
         ratio = (budget - 100) / triangles
         for obj in meshes:
