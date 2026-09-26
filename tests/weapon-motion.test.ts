@@ -15,12 +15,13 @@ describe('physical first-person action timing', () => {
     for (const id of reloadable) expect(weaponShotDuration(id)).toBeLessThan(60 / WEAPONS[id].rpm);
   });
   it.each(reloadable)('%s begins and ends at exact rest at its gameplay duration', id => {
-    for (const progress of [0, 1, 1.1]) expect(Object.values(sampleReload(id, progress, createReloadPose())).every(value => value === 0)).toBe(true);
-    // Tiny frame advances cannot jump a part or hand, including every phase boundary.
+    for (const progress of [0, 1, 1.1]) expect(Object.values(sampleReload(id, progress, createReloadPose())).every(value => value === 0 || value === false)).toBe(true);
+    // Tiny frame advances cannot jump a transform, including phase boundaries.
     let prior = sampleReload(id, 0, createReloadPose());
     for (let i = 1; i <= 2000; i++) {
       const next = sampleReload(id, i / 2000, createReloadPose());
       for (const key of Object.keys(next) as (keyof typeof next)[]) {
+        if (key === 'hideMagazine' || key === 'showDiscard') continue;
         expect(Number.isFinite(next[key])).toBe(true);
         expect(Math.abs(next[key] - prior[key])).toBeLessThan(.04);
       }
@@ -28,18 +29,27 @@ describe('physical first-person action timing', () => {
     }
   });
 
-  it.each(magazineWeapons)('%s grabs before withdrawal, seats before racking and keeps the paw attached to the mag', id => {
+  it.each(magazineWeapons)('%s removes an old mag, fetches a separate replacement and seats it before racking', id => {
     const c = RELOAD_CUES[id], pose = (t: number) => sampleReload(id, t, createReloadPose());
-    expect(pose(c.grab).mag).toBeCloseTo(0, 8);
+    expect(pose(c.grab).discardY).toBeCloseTo(0, 8);
     expect(pose(c.grab).handY).toBeLessThan(0);
-    expect(pose(c.out).mag).toBeLessThan(-.2);
-    expect(pose(c.out).handY - pose(c.grab).handY).toBeCloseTo(pose(c.out).mag, 8);
+    expect(pose(c.out).discardY).toBeLessThan(-.15);
+    expect(pose(c.out).showDiscard).toBe(true); expect(pose(c.out).hideMagazine).toBe(true);
+    expect(pose(c.out).handY - pose(c.grab).handY).toBeCloseTo(pose(c.out).discardY, 8);
+    expect(pose(c.insert).hideMagazine).toBe(false);
+    expect(pose(c.insert).mag).toBeGreaterThan(pose(c.out).mag);
+    expect(pose(c.insert).mag).toBeLessThan(-.1);
+    expect(pose(c.out + .06).discardY).toBeLessThan(pose(c.out).discardY - .04);
     expect(pose(c.seat).mag).toBeCloseTo(0, 8);
+    expect(pose(c.seat).showDiscard).toBe(false);
     expect(pose(c.seat).bump).toBe(1);
     expect(pose(c.seat).action).toBe(0);
     expect(pose(c.rack).action).toBeGreaterThan(.04);
     expect(pose(c.close).action).toBe(0);
     expect(pose(.99).lift).toBeLessThan(pose(c.grab).lift * .015);
+    // The receiver stays close to its hip height with no large tilt or lift.
+    expect(Math.abs(pose(c.out).roll)).toBeLessThanOrEqual(25 * Math.PI / 180);
+    expect(pose(c.out).lift).toBeLessThanOrEqual(.08);
   });
 
   it.each(['shotgun', 'slingshot'] as const)('%s carries a single round instead of moving an imaginary magazine', id => {
