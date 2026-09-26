@@ -4,14 +4,16 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { DEFAULT_SETTINGS } from '../src/settings';
-import { RELOAD_CUES } from '../src/shared/weapon-presentation';
+import { RELOAD_CUES, SUPPORT_PALM } from '../src/shared/weapon-presentation';
 import { WEAPONS } from '../src/shared/weapons';
 import type { ActorState, WeaponId } from '../src/shared/types';
 import type { AssetLoader } from '../src/render/assets';
 import type { WeaponView } from '../src/render/weapons';
 
 let view: WeaponView;
+let grips: { id: WeaponId; gripAnchors: { left?: number[] } }[];
 beforeAll(async () => {
+  grips = JSON.parse(await readFile('public/models/weapons/metrics.json', 'utf8')).weapons;
   const context = { fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, ellipse() {}, fill() {},
     createRadialGradient: () => ({ addColorStop() {} }) };
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
@@ -52,6 +54,10 @@ function vertices(root: THREE.Object3D) {
 }
 
 describe('decoded first-person reload readability', () => {
+  it('pivots each support paw around its exported palm centre', () => {
+    for (const weapon of grips) if (weapon.gripAnchors.left)
+      expect(SUPPORT_PALM[weapon.id], weapon.id).toEqual(weapon.gripAnchors.left);
+  });
   it.each(['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper'] as const)('%s keeps the receiver on screen and the reaching forearm away from the lens', id => {
     const cue = RELOAD_CUES[id];
     for (const progress of [cue.grab, cue.out, cue.insert, cue.seat, cue.rack, cue.close]) {

@@ -24,8 +24,8 @@ type Point = readonly [number, number, number];
 
 // Authored palm centres, in the painted asset's Y-up, -Z-forward space.
 export const SUPPORT_PALM: Record<WeaponId, Point> = {
-  pistol: [-.067, -.178, .151], smg: [-.074, -.11, -.34], m4: [-.074, -.11, -.37],
-  shotgun: [-.074, -.15, -.47], dmr: [-.074, -.11, -.4], sniper: [-.074, -.11, -.4],
+  pistol: [-.067, -.178, .151], smg: [-.082, -.101, -.265], m4: [-.082, -.095, -.30],
+  shotgun: [-.082, -.14, -.38], dmr: [-.082, -.10, -.325], sniper: [-.082, -.10, -.325],
   machete: [0, 0, 0], slingshot: [-.025, .045, .21],
 };
 const MAG_GRIP: Record<WeaponId, Point> = {
