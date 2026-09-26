@@ -195,6 +195,10 @@ describe('seeded bot personality without combat concessions', () => {
         sim.step(1 / 60);
         if (bot.brain.leisure?.kind !== kind) { attempts.push({ seed, initial: bot.brain.leisure, pos: bot.state.pos }); continue; }
         advance(sim, 5, () => { used ||= kind === 'bath' ? bot.state.soaking : bot.state.bounceSeq > 0; });
+        if (kind === 'trampoline' && used) {
+          expect(bot.state.bounceSeq, site.id).toBe(1);
+          expect(Math.hypot(bot.state.pos.x - site.x, bot.state.pos.z - site.z), site.id).toBeGreaterThan(site.radius + 1);
+        }
         attempts.push({ seed, end: bot.brain.leisure, pos: bot.state.pos, grounded: bot.state.grounded, swimming: bot.state.swimming });
       }
       expect(used, JSON.stringify({ site, start, attempts })).toBe(true);
