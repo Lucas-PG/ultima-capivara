@@ -62,10 +62,13 @@ export interface District { id: string; name: string; x: number; z: number; radi
 export interface SpawnPoint extends Vec3 { mode: Mode | 'both'; yaw: number; district?: string }
 export interface LootSpawn extends Vec3 { id: string; kind: 'weapon' | 'ammo' | 'armor' | 'helmet' | ConsumableId; weapon?: WeaponId }
 export interface ChestSpec extends Vec3 { id: string }
+export interface MudBathSpec extends Vec3 { id: string; radius: number }
+export interface TrampolineSpec extends Vec3 { id: string; radius: number; impulse: number }
 export interface WorldSpec {
   version: string; size: number; colliders: Collider[]; objects: MapObject[];
   spawns: SpawnPoint[]; loot: LootSpawn[]; chests: ChestSpec[]; districts: District[];
   pieces?: KitPlacement[]; arenaBoundary?: string[]; walkways?: Collider[]; navigation?: NavigationGraph;
+  mudBaths?: MudBathSpec[]; trampolines?: TrampolineSpec[];
 }
 // Loot spilled from a chest carries where it came from and when, so clients can
 // animate it arcing out; its x/y/z is already the landing spot.
