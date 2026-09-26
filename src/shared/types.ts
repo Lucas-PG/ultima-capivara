@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 3;
-export const WORLD_VERSION = 'ilha-v2-3';
+export const WORLD_VERSION = 'ilha-v3-rio-1';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
@@ -50,7 +50,9 @@ export interface ActorState {
   reloadUntil: number; useUntil: number; using: ConsumableId | null;
   respawnAt: number; protectionUntil: number; lastInput: number; shotHeat: number;
 }
-export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth' }
+export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth'; pieceId?: string }
+export interface KitPlacement extends Vec3 { id: string; piece: string; yaw: number; scale?: number }
+export interface NavigationGraph { points: Vec3[]; links: number[][] }
 export interface MapObject {
   id: string; kind: 'box' | 'cylinder' | 'cone' | 'sphere' | 'roof' | 'palm' | 'tree' | 'grass' | 'sign' | 'boat' | 'barrel' | 'rock' | 'lamp';
   pos: Vec3; scale: Vec3; rotation?: number; color: string; detail?: string;
@@ -59,7 +61,11 @@ export interface District { id: string; name: string; x: number; z: number; radi
 export interface SpawnPoint extends Vec3 { mode: Mode | 'both'; yaw: number }
 export interface LootSpawn extends Vec3 { id: string; kind: 'weapon' | 'ammo' | 'armor' | 'helmet' | ConsumableId; weapon?: WeaponId }
 export interface ChestSpec extends Vec3 { id: string }
-export interface WorldSpec { version: string; size: number; colliders: Collider[]; objects: MapObject[]; spawns: SpawnPoint[]; loot: LootSpawn[]; chests: ChestSpec[]; districts: District[] }
+export interface WorldSpec {
+  version: string; size: number; colliders: Collider[]; objects: MapObject[];
+  spawns: SpawnPoint[]; loot: LootSpawn[]; chests: ChestSpec[]; districts: District[];
+  pieces?: KitPlacement[]; arenaBoundary?: string[]; walkways?: Collider[]; navigation?: NavigationGraph;
+}
 // Loot spilled from a chest carries where it came from and when, so clients can
 // animate it arcing out; its x/y/z is already the landing spot.
 export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number; from?: Vec3; spawnedAt?: number }

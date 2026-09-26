@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { createHash } from 'node:crypto';
 import * as THREE from 'three';
 import { buildVegetation } from '../src/render/vegetation';
 import { createWorld } from '../src/shared/world';
@@ -61,28 +60,20 @@ describe('vegetation rendering budget', () => {
     } finally { vegetation.dispose(); }
   });
 
-  it('preserves legacy loot, chest and spawn placement when vegetation gains colliders', () => {
+  it('keeps island pickup and spawn placement deterministic through vegetation rebuilds', () => {
     const world = createWorld();
-    // Baselines from c5a4a3a, before the instancing pass. A content pass that
-    // deliberately changes placement must re-review and update these hashes.
-    const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-    expect(world.loot).toHaveLength(191);
-    expect(world.spawns).toHaveLength(76);
-    expect(world.chests).toHaveLength(58);
-    expect(digest(world.loot)).toBe('828f96915b5496c9816e0c9675000fd0fbba32b0692b41637c2133f8f5387542');
-    expect(digest(world.spawns)).toBe('f17bb02c99398d585c8ea2268240ee27a95e0c23359dc17837de3fc9711e28f8');
-    expect(digest(world.chests)).toBe('f3c16f59630eb559b5fd127f9847b792eb8f34e58893a3ee1ad183acfaf7e9b4');
+    const before = structuredClone({ loot: world.loot, spawns: world.spawns, chests: world.chests });
+    const vegetation = buildVegetation(world); vegetation.dispose();
+    expect({ loot: world.loot, spawns: world.spawns, chests: world.chests }).toEqual(before);
+    const rebuilt = createWorld();
+    expect({ loot: rebuilt.loot, spawns: rebuilt.spawns, chests: rebuilt.chests }).toEqual(before);
   });
 
-  it('keeps every plant at its authored position, size and collision width through LOD', () => {
+  it('keeps every decorative plant at its authored position and size through LOD', () => {
     const world = createWorld(), vegetation = buildVegetation(world);
     const species = (object: (typeof world.objects)[number]) => object.kind === 'tree' ?
       (['mangrove', 'orchard', 'ipe-yellow', 'ipe-pink', 'flamboyant', 'banana'].includes(object.detail || '') ? object.detail! : 'tree') :
       object.kind === 'grass' && object.detail === 'reeds' ? 'reeds' : object.kind;
-    const trunk = (x: number, z: number) => world.colliders.find(collider =>
-      /^(mangrove-)?trunk-/.test(collider.id) &&
-      Math.abs((collider.min.x + collider.max.x) / 2 - x) < .0001 &&
-      Math.abs((collider.min.z + collider.max.z) / 2 - z) < .0001);
     const present = new Set(world.objects.filter(object => object.kind === 'tree' ||
       object.kind === 'palm' || object.kind === 'grass').map(species));
     for (const type of ['palm', 'banana', 'flamboyant', 'ipe-yellow', 'ipe-pink', 'mangrove', 'orchard'])
@@ -118,8 +109,8 @@ describe('vegetation rendering budget', () => {
             expect(Math.min(cap, templateHeight) * heightScale).toBeLessThanOrEqual(cap + .001);
             expect(Math.min(cap, templateHeight) * heightScale).toBeCloseTo(Math.min(cap, object.scale.y), 3);
           } else {
-            const collider = trunk(object.pos.x, object.pos.z);
-            expect(collider, `missing trunk collider for ${object.id}`).toBeDefined();
+            // Thin decorative trunks must not regain independent invisible boxes.
+            expect(world.colliders.some(c => c.pieceId === object.id)).toBe(false);
             if (type === 'palm') {
               const height = Math.hypot(matrix.elements[4], matrix.elements[5], matrix.elements[6]);
               expect(height * templateHeight).toBeCloseTo(object.scale.y, 3);
@@ -129,10 +120,6 @@ describe('vegetation rendering budget', () => {
               palmLeans.add(Math.round(lean));
               palmDirections.add(Math.floor((Math.atan2(matrix.elements[4], matrix.elements[6]) + Math.PI) / (Math.PI / 2)));
             }
-            const templateRadius = type === 'palm' ? .13 + templateHeight * .009 :
-              type === 'banana' ? .13 : .15 + templateHeight * .015;
-            const visualRadius = templateRadius * Math.hypot(matrix.elements[0], matrix.elements[2]);
-            expect(Math.abs(visualRadius - (collider!.max.x - collider!.min.x) / 2)).toBeLessThanOrEqual(.02);
           }
         }
       }

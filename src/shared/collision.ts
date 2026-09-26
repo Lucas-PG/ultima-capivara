@@ -1,6 +1,7 @@
 import { clamp } from './math';
 import { terrainHeight } from './terrain';
-import type { ActorState, Collider, InputFrame, Vec3, WorldSpec } from './types';
+import { boundaryFeedback } from './bounds';
+import type { ActorState, Collider, InputFrame, Mode, Vec3, WorldSpec } from './types';
 
 const RADIUS = .32;
 const STEP = .45;
@@ -76,9 +77,9 @@ export function clearSpawn(pos: Vec3, world: WorldSpec): boolean {
 }
 
 /** Shared host/client ground movement. The host remains authoritative. */
-export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec, dt: number, speedMultiplier = 1): ActorState {
+export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec, dt: number, speedMultiplier = 1, mode?: Mode): ActorState {
   if (actor.stage !== 'ground' || !actor.alive || !Number.isFinite(dt) || dt <= 0) return actor;
-  const p = actor.pos, oldX = p.x, oldZ = p.z;
+  const p = actor.pos;
   actor.crouch = input.crouch || (actor.crouch && !hasHeadroom(p, world, 1.8));
   actor.sprint = input.sprint && !actor.crouch && !input.ads && input.moveZ > 0;
   actor.ads = input.ads;
@@ -86,7 +87,13 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
   const f = -Math.sin(actor.yaw), g = -Math.cos(actor.yaw), r = Math.cos(actor.yaw), s = -Math.sin(actor.yaw);
   const mx = clamp(input.moveX, -1, 1), mz = clamp(input.moveZ, -1, 1), length = Math.max(1, Math.hypot(mx, mz));
   const speed = (actor.crouch ? 2.1 : actor.sprint ? 6.4 : input.ads ? 2.4 : 3.9) * clamp(speedMultiplier, .1, 2);
-  const wantedX = (f * mz + r * mx) / length * speed, wantedZ = (g * mz + s * mx) / length * speed;
+  let wantedX = (f * mz + r * mx) / length * speed, wantedZ = (g * mz + s * mx) / length * speed;
+  const boundary = boundaryFeedback(p, world, mode);
+  if (boundary) {
+    const inward = wantedX * boundary.x + wantedZ * boundary.z;
+    const push = Math.max(0, 3.2 - inward) * boundary.strength;
+    wantedX += boundary.x * push; wantedZ += boundary.z * push;
+  }
   const alpha = 1 - Math.exp(-(actor.grounded ? 9 : 1.6) * dt);
   actor.velocity.x += (wantedX - actor.velocity.x) * alpha;
   actor.velocity.z += (wantedZ - actor.velocity.z) * alpha;
@@ -102,9 +109,6 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     if (d2 > 1e-9) { const k = (RADIUS - Math.sqrt(d2)) / Math.sqrt(d2); p.x += dx * k; p.z += dz * k; }
     else { const ex = Math.min(p.x - c.min.x, c.max.x - p.x), ez = Math.min(p.z - c.min.z, c.max.z - p.z); if (ex < ez) p.x = p.x - c.min.x < c.max.x - p.x ? c.min.x - RADIUS : c.max.x + RADIUS; else p.z = p.z - c.min.z < c.max.z - p.z ? c.min.z - RADIUS : c.max.z + RADIUS; }
   }
-  const limit = world.size / 2 - RADIUS;
-  p.x = clamp(p.x, -limit, limit); p.z = clamp(p.z, -limit, limit);
-  if (terrainHeight(p.x, p.z) < -.8) { p.x = oldX; p.z = oldZ; }
   actor.velocity.y -= 22 * dt;
   let ground = terrainHeight(p.x, p.z);
   for (const c of world.colliders) {

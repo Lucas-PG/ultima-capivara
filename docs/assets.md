@@ -271,3 +271,7 @@ Final-art delivery: Pincel approved both P0 sheets on 2026-09-25, without retake
 ### F1 runtime cuts, 2026-09-25
 
 Run `uv run --with pillow python tools/assets/prepare-render-atlas.py` to reproduce four 627x627 RGB cuts from the retained original: `painted-sun.png`, `storm-wisps.png`, `shore-foam.png`, `water-glints.png`. The glint cut applies Pincel’s required luminance levels (below 70 becomes black; 70..255 maps to 0..255 with hue retained). All 372157 source pixels below the threshold become exactly black, removing the grey diamond matte. These cuts are prepared assets; shader wiring and its visual review are separate. Brasa’s F2 consumer supplies the integrated 1024x512 PNG (148876 bytes), documented above.
+
+## Phase A island terrain, 2026-09-25
+
+`public/textures/terrain-color.png` is an original procedural colour map for the redesigned 260 m river island. It is generated locally by `npx tsx scripts/generate-terrain-colors.ts` from `src/shared/layout.ts` and `src/shared/terrain.ts`, with the existing painted island palette. The authored layout follows the Phase A brief: northern fort and crescent beach, central Vila river town, western hillside/waterfall, eastern port, southern beach/lighthouse, estuary mangroves and inland fields. No external assets, paid services or image generation were used for this map texture. The kit models and their collision manifest are generated from Oficina's original Blender geometry; their asset provenance is recorded with that kit delivery.
