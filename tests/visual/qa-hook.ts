@@ -196,9 +196,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (trampoline) {
       const jumper = structuredClone(me); jumper.id = 'bot-qa-bounce'; jumper.name = 'Capivara'; jumper.bot = true;
       jumper.pos = { x: trampoline.x, y: trampoline.y, z: trampoline.z }; jumper.yaw = Math.PI / 2;
-      for (let i = 0; i < bounceTicks; i++) moveActor(jumper, emptyInput(), deps.world, 1 / 60);
-      if (jumper.bounceSeq !== 1 || jumper.grounded || !jumper.bounceProtected)
-        throw new Error('A revisão precisa lançar uma capivara pelo contato real do trampolim.');
+      // Consecutive review poses reuse this avatar. Preserve its launch sequence
+      // so each real new bounce restarts the one-shot exactly once.
+      jumper.bounceSeq = current?.actors.find(actor => actor.id === jumper.id)?.bounceSeq ?? 0;
+      jumper.grounded = true; jumper.velocity = { x: 0, y: 0, z: 0 };
       s.actors.push(jumper);
     }
     if (name === 'results') {
@@ -229,9 +230,21 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       renderer.event(event); deps.ui.event(event); draw();
     }
     if (trampoline) {
-      renderer.event({ type: 'bounce', id: 2, actor: 'bot-qa-bounce', pos: { x: trampoline.x, y: trampoline.y, z: trampoline.z } });
-      for (let i = 0; i < bounceTicks; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame,
-        dt: 1 / 60, playing: true, spectateId: null }, i === bounceTicks - 1);
+      // Warm the grounded actor above, then advance physics and presentation
+      // together. A frozen rising snapshot would finish a one-shot during warmup.
+      const jumper = s.actors.find(actor => actor.id === 'bot-qa-bounce')!;
+      const initialBounce = jumper.bounceSeq;
+      for (let i = 0; i < bounceTicks; i++) {
+        const previous = jumper.bounceSeq;
+        s.time += 1 / 60;
+        moveActor(jumper, emptyInput(), deps.world, 1 / 60);
+        if (jumper.bounceSeq !== previous)
+          renderer.event({ type: 'bounce', id: 2, actor: jumper.id, pos: { x: trampoline.x, y: trampoline.y, z: trampoline.z } });
+        renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame,
+          dt: 1 / 60, playing: true, spectateId: null }, i === bounceTicks - 1);
+      }
+      if (jumper.bounceSeq !== initialBounce + 1 || jumper.grounded || !jumper.bounceProtected)
+        throw new Error('A revisão precisa lançar uma capivara pelo contato real do trampolim.');
     }
     if (name !== 'results') document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
