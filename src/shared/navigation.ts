@@ -1,28 +1,12 @@
 import { inArena } from './layout';
 import { overlapsFootprint } from './collision';
 import { KIT_PIECES } from './kit-collision';
+import { colliderGrid } from './collider-grid';
 import { terrainHeight } from './terrain';
 import type { Collider, NavigationGraph, Vec3, WorldSpec } from './types';
 
-const CELL = 8;
-const geometry = new WeakMap<WorldSpec, { count: number; cells: Map<string, Collider[]> }>();
 function nearby(world: WorldSpec, x: number, z: number, margin = 0): Collider[] {
-  let cached = geometry.get(world);
-  if (!cached || cached.count !== world.colliders.length) {
-    const cells = new Map<string, Collider[]>();
-    for (const c of world.colliders) for (let ix = Math.floor(c.min.x / CELL); ix <= Math.floor(c.max.x / CELL); ix++)
-      for (let iz = Math.floor(c.min.z / CELL); iz <= Math.floor(c.max.z / CELL); iz++) {
-        const key = `${ix}:${iz}`, list = cells.get(key);
-        if (list) list.push(c); else cells.set(key, [c]);
-      }
-    cached = { count: world.colliders.length, cells }; geometry.set(world, cached);
-  }
-  const x0 = Math.floor((x - margin) / CELL), x1 = Math.floor((x + margin) / CELL);
-  const z0 = Math.floor((z - margin) / CELL), z1 = Math.floor((z + margin) / CELL);
-  if (x0 === x1 && z0 === z1) return cached.cells.get(`${x0}:${z0}`) ?? [];
-  const result: Collider[] = [];
-  for (let ix = x0; ix <= x1; ix++) for (let iz = z0; iz <= z1; iz++) result.push(...cached.cells.get(`${ix}:${iz}`) ?? []);
-  return result;
+  return colliderGrid(world).query(x - margin, z - margin, x + margin, z + margin);
 }
 
 // Only deck surfaces derived from bridge/dock kit colliders can lift a route

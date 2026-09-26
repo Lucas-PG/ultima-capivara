@@ -332,12 +332,14 @@ export class GameRenderer {
   // uploading on the frame you touched the ground.
   private async uploadEverything(reportProgress = true) {
     this.requireActive();
-    const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
-    const culled: THREE.Object3D[] = [], hidden: THREE.Object3D[] = [], lods: THREE.LOD[] = [];
+    const target = new THREE.WebGLRenderTarget(64, 64, { type: THREE.HalfFloatType });
+    const culled: THREE.Object3D[] = [], hidden: THREE.Object3D[] = [];
+    const lods: { object: THREE.LOD; autoUpdate: boolean }[] = [];
+    const shadowMaps: { shadow: THREE.LightShadow; size: THREE.Vector2; map: THREE.RenderTarget | null }[] = [];
     const reveal = (root: THREE.Object3D) => root.traverse(object => {
       if (object.frustumCulled) { culled.push(object); object.frustumCulled = false; }
       if (!object.visible && !(object instanceof THREE.Light)) { hidden.push(object); object.visible = true; }
-      if (object instanceof THREE.LOD) { lods.push(object); object.autoUpdate = false; }
+      if (object instanceof THREE.LOD) { lods.push({ object, autoUpdate: object.autoUpdate }); object.autoUpdate = false; }
     });
     // Stand-in capybaras (one per bandana colour, with gun, parachute and name tag)
     // build and upload the shared body geometries and compile the skinned programs.
@@ -361,6 +363,13 @@ export class GameRenderer {
     instrumentMaterials(this.scene); instrumentMaterials(this.weaponView.scene);
     const shadows = this.gl.shadowMap.enabled;
     try {
+      this.pipeline.beginWarmup();
+      this.scene.traverse(object => {
+        if (!(object instanceof THREE.DirectionalLight || object instanceof THREE.SpotLight || object instanceof THREE.PointLight) || !object.castShadow) return;
+        const shadow = object.shadow;
+        shadowMaps.push({ shadow, size: shadow.mapSize.clone(), map: shadow.map });
+        shadow.mapSize.set(64, 64); shadow.map = null;
+      });
       // Compile world programs against the same linear target as normal frames.
       this.gl.setRenderTarget(target);
       const compileWorldAt = timing.begin();
@@ -384,12 +393,16 @@ export class GameRenderer {
       await this.pipeline.warmup(this.scene, this.camera);
       timing.end('shader-compile-post', postAt, '', true);
       this.requireActive();
-      this.pipeline.renderPost();
+      this.pipeline.renderPost(target);
     } finally {
       if (!this.disposed) { this.gl.setRenderTarget(null); this.gl.shadowMap.enabled = shadows; }
       culled.forEach(object => { object.frustumCulled = true; });
       hidden.forEach(object => { object.visible = false; });
-      lods.forEach(lod => { lod.autoUpdate = true; });
+      lods.forEach(({ object, autoUpdate }) => { object.autoUpdate = autoUpdate; });
+      for (const { shadow, size, map } of shadowMaps) {
+        shadow.map?.dispose(); shadow.map = map; shadow.mapSize.copy(size);
+      }
+      if (!this.disposed) this.pipeline.resize();
       this.weaponView.revealAll(false);
       this.effects.warm(false);
       target.dispose(); this.scene.remove(this.avatars.warmupWeapons);

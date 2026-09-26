@@ -34,7 +34,7 @@ function harness(ready: Promise<void> = Promise.resolve()) {
     sky: { group: new THREE.Group(), dispose: vi.fn() },
     worldView: { ready: Promise.resolve(), group: new THREE.Group(), dispose: vi.fn() },
     avatars: { prepare: vi.fn(), warmupWeapons: new THREE.Group(), dispose: vi.fn() },
-    pipeline: { beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), dispose: vi.fn() },
+    pipeline: { beginWarmup: vi.fn(), beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), resize: vi.fn(), dispose: vi.fn() },
     environment: { dispose: vi.fn() }, onProgress: vi.fn(), resize: vi.fn(),
     effects: { warm: vi.fn(), dispose: vi.fn() },
     gl: { setRenderTarget: vi.fn(), compileAsync: vi.fn(async () => {}), render: vi.fn(), dispose: vi.fn(), shadowMap: { enabled: true } },
@@ -46,6 +46,21 @@ function harness(ready: Promise<void> = Promise.resolve()) {
 const snapshot = { actors: [] } as unknown as WorldSnapshot;
 
 describe('renderer preparation lifecycle', () => {
+  it('uploads into a tiny offscreen buffer and restores manual LOD and shadow resources', async () => {
+    const h = harness(), lod = new THREE.LOD(), sun = new THREE.DirectionalLight();
+    lod.autoUpdate = false; sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+    const map = new THREE.WebGLRenderTarget(1024, 1024); sun.shadow.map = map;
+    h.scene.add(lod, sun);
+    h.gl.render.mockImplementation(() => {
+      expect(sun.shadow.mapSize.toArray()).toEqual([64, 64]);
+    });
+    await h.renderer.warmup();
+    const output = h.pipeline.renderPost.mock.calls[0][0] as THREE.WebGLRenderTarget;
+    expect([output.width, output.height]).toEqual([64, 64]);
+    expect(lod.autoUpdate).toBe(false); expect(sun.shadow.map).toBe(map);
+    expect(sun.shadow.mapSize.toArray()).toEqual([1024, 1024]);
+    expect(h.pipeline.resize).toHaveBeenCalledOnce(); map.dispose();
+  });
   it('keeps loading until kit geometry has replaced the placement placeholders', async () => {
     const kit = deferred(), h = harness(); h.worldView.ready = kit.promise;
     const preparing = h.renderer.prepareMatch(snapshot);

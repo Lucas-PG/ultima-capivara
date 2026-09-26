@@ -1,6 +1,7 @@
 import { clamp } from './math';
 import { terrainHeight } from './terrain';
 import { boundaryFeedback } from './bounds';
+import { colliderGrid } from './collider-grid';
 import type { ActorState, Collider, InputFrame, Mode, Vec3, WorldSpec } from './types';
 
 const RADIUS = .32;
@@ -15,11 +16,13 @@ export const overlapsFootprint = (pos: Vec3, collider: Collider): boolean => {
 };
 
 const hasHeadroom = (pos: Vec3, world: WorldSpec, height: number): boolean =>
-  world.colliders.every(c => !overlapsFootprint(pos, c) || pos.y >= c.max.y - .01 || pos.y + height <= c.min.y);
+  colliderGrid(world).query(pos.x - RADIUS, pos.z - RADIUS, pos.x + RADIUS, pos.z + RADIUS)
+    .every(c => !overlapsFootprint(pos, c) || pos.y >= c.max.y - .01 || pos.y + height <= c.min.y);
 
 export function raycastWorld(origin: Vec3, direction: Vec3, maxDistance: number, world: WorldSpec): { distance: number; collider: Collider; point: Vec3 } | null {
   let nearest: { distance: number; collider: Collider; point: Vec3 } | null = null;
-  for (const collider of world.colliders) {
+  const endX = origin.x + direction.x * maxDistance, endZ = origin.z + direction.z * maxDistance;
+  for (const collider of colliderGrid(world).query(Math.min(origin.x, endX), Math.min(origin.z, endZ), Math.max(origin.x, endX), Math.max(origin.z, endZ))) {
     let low = 0, high = maxDistance;
     for (const axis of ['x', 'y', 'z'] as const) {
       const d = direction[axis], o = origin[axis];
@@ -49,8 +52,7 @@ export function hasLineOfSight(a: Vec3, b: Vec3, world: WorldSpec): boolean {
   const limit = distance - .05;
   // Boolean visibility needs no hit record, direction object or terrain points.
   // Keep the same slab bounds and endpoint tolerance as raycastWorld.
-  for (let i = 0; i < world.colliders.length; i++) {
-    const collider = world.colliders[i];
+  for (const collider of colliderGrid(world).query(Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z))) {
     let low = 0, high = limit;
     for (let axis = 0; axis < 3; axis++) {
       const d = axis === 0 ? dx : axis === 1 ? dy : dz, o = axis === 0 ? a.x : axis === 1 ? a.y : a.z;
@@ -72,7 +74,7 @@ export function hasLineOfSight(a: Vec3, b: Vec3, world: WorldSpec): boolean {
 }
 
 export function clearSpawn(pos: Vec3, world: WorldSpec): boolean {
-  return world.colliders.every(c => pos.y >= c.max.y - .01 || pos.y + 1.8 <= c.min.y ||
+  return colliderGrid(world).query(pos.x - RADIUS, pos.z - RADIUS, pos.x + RADIUS, pos.z + RADIUS).every(c => pos.y >= c.max.y - .01 || pos.y + 1.8 <= c.min.y ||
     pos.x + RADIUS <= c.min.x || pos.x - RADIUS >= c.max.x || pos.z + RADIUS <= c.min.z || pos.z - RADIUS >= c.max.z);
 }
 
@@ -100,7 +102,10 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
   if (input.jump && actor.grounded) { actor.velocity.y = 7; actor.grounded = false; }
   p.x += actor.velocity.x * dt; p.z += actor.velocity.z * dt;
   const height = actorHeight(actor);
-  for (const c of world.colliders) {
+  const grid = colliderGrid(world);
+  let candidates = grid.queryIndices(p.x - RADIUS, p.z - RADIUS, p.x + RADIUS, p.z + RADIUS);
+  for (let i = 0; i < candidates.length; i++) {
+    const index = candidates[i], c = world.colliders[index];
     if (p.y >= c.max.y - .01 || p.y + height <= c.min.y) continue;
     const cx = clamp(p.x, c.min.x, c.max.x), cz = clamp(p.z, c.min.z, c.max.z);
     const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
@@ -108,10 +113,13 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     if (actor.grounded && c.max.y - p.y <= STEP && hasHeadroom({ x: p.x, y: c.max.y, z: p.z }, world, height)) { p.y = Math.max(p.y, c.max.y); continue; }
     if (d2 > 1e-9) { const k = (RADIUS - Math.sqrt(d2)) / Math.sqrt(d2); p.x += dx * k; p.z += dz * k; }
     else { const ex = Math.min(p.x - c.min.x, c.max.x - p.x), ez = Math.min(p.z - c.min.z, c.max.z - p.z); if (ex < ez) p.x = p.x - c.min.x < c.max.x - p.x ? c.min.x - RADIUS : c.max.x + RADIUS; else p.z = p.z - c.min.z < c.max.z - p.z ? c.min.z - RADIUS : c.max.z + RADIUS; }
+    // A solid can push the actor into a new cell. Resume in source order at
+    // the new footprint, exactly as the former full-array pass would do.
+    candidates = grid.queryIndices(p.x - RADIUS, p.z - RADIUS, p.x + RADIUS, p.z + RADIUS, index); i = -1;
   }
   actor.velocity.y -= 22 * dt;
   let ground = terrainHeight(p.x, p.z);
-  for (const c of world.colliders) {
+  for (const c of grid.query(p.x - RADIUS, p.z - RADIUS, p.x + RADIUS, p.z + RADIUS)) {
     if (!overlapsFootprint(p, c)) continue;
     if (p.y >= c.max.y - STEP) ground = Math.max(ground, c.max.y);
     else if (actor.velocity.y > 0 && p.y + height <= c.min.y && p.y + height + actor.velocity.y * dt > c.min.y) actor.velocity.y = 0;

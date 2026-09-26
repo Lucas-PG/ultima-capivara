@@ -67,7 +67,35 @@ export function createWorld(): WorldSpec {
   };
 
   // Vila: narrow side streets open onto a church square and a covered market.
-  for (const h of [...HOUSES, ...MORRO_LOTS]) place(h.piece, h.x, h.z, h.yaw ?? 0, 1, ground(h.x, h.z), h.role);
+  for (const h of [...HOUSES, ...MORRO_LOTS]) {
+    const y = ground(h.x, h.z);
+    place(h.piece, h.x, h.z, h.yaw ?? 0, 1, y, h.role);
+    // Furnish the wall bays, preserving the opposing doors and the tall-house stair.
+    if (h.piece === 'house_tall') {
+      detail('interior_counter', h.x + h.w / 2 - 1.7, h.z - h.d / 2 + .75, 0, 1, y + .11);
+      detail('bed', h.x + h.w / 2 - 1.15, h.z + .8, 0, 1, y + .11);
+    } else {
+      detail('interior_counter', h.x - h.w / 2 + .75, h.z - .4, Math.PI / 2, 1, y + .11);
+      if (['home', 'fisher', 'clinic'].includes(h.role)) detail('bed', h.x + h.w / 2 - 1.15, h.z + .5, 0, 1, y + .11);
+      else detail('bench', h.x + h.w / 2 - .7, h.z + .1, Math.PI / 2, 1, y + .11);
+    }
+  }
+  const shopNames = { bakery: 'PADARIA', cafe: 'CAFÉ DA VILA', tailor: 'ATELIÊ', fishmonger: 'PEIXE FRESCO', workshop: 'OFICINA', kiosk: 'ARMAZÉM', home: 'BOM DIA', fisher: 'PEIXE FRESCO', clinic: 'CAPIVARAS' };
+  for (const [index, h] of [...HOUSES, ...MORRO_LOTS].entries()) {
+    const y = ground(h.x, h.z);
+    obj('box', h.x + h.w / 2 + .16, y + 1.75, h.z - .5, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, Math.PI / 2);
+    if (index % 2 === 0) obj('box', h.x, y, h.z + h.d / 2 + 1.25, 1, 1, 1, '#FFFFFF', 'prop:street-laundry');
+    if (index % 3 === 0) obj('box', h.x + h.w / 2 + 1.15, y, h.z + 1.1, 1, 1, 1,
+      index % 2 ? '#BD765A' : '#65A29C', 'prop:street-bike', Math.PI / 2);
+    for (const side of [-1, 1]) {
+      const x = h.x + side * (h.w / 2 + .75), z = h.z + h.d / 2 + 1;
+      if (!occupied(x, z, .6) && !roadAt(x, z, .5)) detail('planter', x, z, 0, .8);
+    }
+  }
+  for (const [x, z, yaw] of [[-36, -38, Math.PI / 2], [20, -38, Math.PI / 2], [52, -38, Math.PI / 2],
+    [4, -60, 0], [4, -3, 0], [-40, -4, 0], [44, 10, 0], [-30, 49, 0], [16, 33, Math.PI / 2],
+    [82, -23, 0], [-30, 100, Math.PI / 2], [36, 100, Math.PI / 2], [-97, -55, 0]] as const)
+    obj('box', x, ground(x, z), z, 1, 1, 1, '#FFFFFF', 'prop:street-lights', yaw);
   place('church', ...CHURCH);
   place('market_hall', ...MERCADAO);
   pavement(...PLAZA, 18, 17);
@@ -75,6 +103,7 @@ export function createWorld(): WorldSpec {
   detail('fountain', PLAZA[0], PLAZA[1]);
   for (const [x, z] of [[-17, -24], [-3, -18], [-17, -17], [35, -10]] as const) detail('bench', x, z);
   for (const [x, z] of [[-19, -28], [-1, -28], [-19, -13], [-1, -13], [21, -10], [37, -10]] as const) detail('planter', x, z);
+  for (const [x, z] of [[-19, -30], [-1, -30], [-19, -11], [1, -14], [20, -10], [39, -11]] as const) detail('lamp_post', x, z);
   for (const [x, z] of [[24, -23], [34, -23], [24, -16], [34, -16], [-34, 39]] as const) detail('market_stall', x, z);
   sign(-40, -41, 'VILA'); sign(39, -9, 'MERCADÃO'); sign(-21, 37, 'POSTO');
   // Three crossings have a continuous deck level with the banks.
@@ -84,13 +113,22 @@ export function createWorld(): WorldSpec {
     const sample = riverSample(x, 10);
     for (const side of [-1, 1]) {
       const z = sample.z + side * (sample.width / 2 + 5.4);
-      if (KIT_PIECES.river_wall) detail('river_wall', x, z);
+      if (KIT_PIECES.river_wall) detail('river_wall', x, z, 0, .5, ground(x, z) - .12);
       else place('fort_wall', x, z, 0, .42, ground(x, z) - .2, 'river-wall');
     }
   }
   for (const [x, z] of [[-29, 7], [19, 13], [55, 25]] as const) {
     detail('boat', x, z, Math.PI / 2, .8, -.15);
     if (!KIT_PIECES.boat) obj('boat', x, .05, z, 4.2, 1.1, 1.7, '#e6c17d', 'fishing');
+  }
+  for (let x = -78; x <= 78; x += 7) {
+    if (BRIDGES.some(([bx]) => Math.abs(bx - x) < 5)) continue;
+    const river = riverSample(x, 10);
+    for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
+      const xx = x + i * .55, z = river.z + side * (river.width / 2 + 2.8 + Math.sin(x + i) * .4), y = ground(xx, z);
+      if (y < -.2 || occupied(xx, z, .35) || roadAt(xx, z, .5)) continue;
+      obj('grass', xx, y, z, 1, 1.2 + i * .18, 1, '#709A63', 'reeds');
+    }
   }
   // Entry markers sit beside open routes, so the warning has visible context.
   for (const [x, z, yaw] of [
@@ -116,14 +154,64 @@ export function createWorld(): WorldSpec {
   detail('fort_gate', fx, fz - 12, 0, 1, fortY);
   place('house_tall', fx, fz - 2, 0, 1, fortY);
   pavement(fx, fz + 5, 13, 10, '#c9b994');
-  for (const [x, z, scale] of [[25, -109, 2], [27, -98, 1.4], [32, -89, 1.2], [66, -111, 1], [58, -119, .7]] as const)
-    detail('cliff_rock', x, z, 0, scale);
+  for (const [x, z, scale] of [[66, -111, .48], [58, -119, .36]] as const)
+    detail('cliff_rock_low', x, z, 0, scale, ground(x, z) - .35);
   detail('boat', 48, -108, Math.PI / 2, 1.2, ground(48, -108) - .18);
   if (!KIT_PIECES.boat) obj('boat', 48, ground(48, -108) + .2, -108, 7.2, 2, 2.9, '#9c7660', 'wreck');
   for (const [x, z] of [[57, -116], [65, -102], [35, -116]] as const) {
     obj('cylinder', x, ground(x, z) + .045, z, 3.1, .07, 2.4, '#82b6ad', 'water');
-    for (const dx of [-2, 2]) detail('cliff_rock', x + dx, z, 0, .36);
+    for (const dx of [-2, 2]) detail('cliff_rock_low', x + dx, z, 0, .28, ground(x + dx, z) - .3);
   }
+  const rockLayer = (piece: string, x: number, z: number, yaw: number, bottom: number, height: number) => {
+    const definition = KIT_PIECES[piece]; if (!definition) return;
+    const scale = height / definition.height;
+    if (routeDistance(x, z) < Math.min(...definition.footprint) * scale * .45 + 1.5) return;
+    place(piece, x, z, yaw, scale, bottom);
+  };
+  if (KIT_PIECES.cliff_rock_tall && KIT_PIECES.cliff_ledge && KIT_PIECES.cliff_rock_low) {
+    // Interlocking tall faces, projecting ledges and low toe boulders conceal
+    // the heightfield skirt while the fort and its two approach ramps stay clear.
+    for (const [index, [x, z, yaw]] of [
+      [24, -109, Math.PI / 2], [24, -99, Math.PI / 2], [24, -88, Math.PI / 2],
+      [-16, -109, -Math.PI / 2], [-16, -99, -Math.PI / 2], [-16, -88, -Math.PI / 2],
+      [-7, -119, Math.PI], [4, -119, Math.PI], [15, -119, Math.PI], [-11, -79, 0], [19, -79, 0],
+    ].entries()) {
+      const ox = Math.sin(yaw), oz = Math.cos(yaw);
+      const height = 10.2 + index % 4 * 1.05, twist = Math.sin(index * 2.7 + .4) * .22;
+      rockLayer('cliff_rock_tall', x, z, yaw + twist, fortY - .38 - height, height);
+      rockLayer('cliff_ledge', x + ox * 3.4 + Math.cos(index) * .8, z + oz * 3.4,
+        yaw - twist * .7, 2.1 + index % 2 * 1.5, 4 + index % 3 * .65);
+      rockLayer('cliff_rock_low', x + ox * (6.5 + index % 2 * .6), z + oz * (6.5 + index % 2 * .6),
+        yaw - .24 + index % 3 * .21, -.1 + index % 2 * .2, 2.2 + index % 4 * .4);
+    }
+    // These skins finish below the supported summit road; their solids are
+    // inside the steep headland face, leaving both gate approaches above them.
+    place('cliff_rock_tall', 19, -79, .23, 12.1 / KIT_PIECES.cliff_rock_tall.height, fortY - 12.5);
+    place('cliff_rock_tall', 25, -93, Math.PI / 2 - .24, 11.3 / KIT_PIECES.cliff_rock_tall.height, fortY - 11.7);
+    for (const [x, z, scale] of [[28, -106, .95], [30, -97, .8], [23, -76, .85], [-20, -93, .9], [-9, -122, .8], [14, -122, .75]])
+      detail('cliff_rock', x, z, 0, scale, ground(x, z) - 2.7 * scale);
+    for (const [x, z, bottom, scale] of [[28, -101, .6, 1.85], [25, -91, 2.3, 1.5], [17, -77, 3, 1.6]])
+      detail('cliff_rock', x, z, 0, scale, bottom);
+  }
+  for (const [x, z] of [[50, -96], [43, -110], [64, -111]] as const) {
+    obj('cylinder', x, ground(x, z) + .045, z, 4.7, .05, 3.3, '#69B9AD', 'water');
+    for (const [dx, dz, scale] of [[-2.2, -.9, .28], [1.9, -1, .33], [-1.7, 1.2, .22], [1.8, 1.1, .25]])
+      detail('cliff_rock_low', x + dx, z + dz, Math.PI / 2, scale, ground(x + dx, z + dz) - .3);
+  }
+  for (const [x, z] of [[54, -92], [43, -104], [61, -113], [-29, 118], [32, 118], [119, -7], [119, 9]] as const) {
+    for (let i = 0; i < 3; i++) {
+      const xx = x + i * .42, zz = z + i * .35;
+      obj('box', xx, ground(xx, zz) + .07, zz, 1.4 + i * .55, .14, .16 + i * .025, '#92704D', 'crate', -.45 + i * .57);
+    }
+    for (let i = 0; i < 8; i++) {
+      const along = (i - 3.5) * .32;
+      obj('box', x + 2.6 + along, ground(x + 2.6 + along, z) + .025, z, .018, .015, 2.5, '#C1AD7C', 'net-rope');
+      obj('box', x + 2.6, ground(x + 2.6, z + along) + .035, z + along, 2.5, .015, .018, '#AD9766', 'net-rope');
+    }
+  }
+  for (const [x, z] of [[38, -88], [45, -92], [56, -102], [69, -102], [55, -115], [33, -114],
+    [-50, 112], [-39, 119], [-21, 115], [19, 116], [39, 112]])
+    obj('grass', x, ground(x, z), z, 4.2, .38, 3.5, '#A7B876', 'dune-grass');
   sign(21, -82, 'FORTE');
 
   // Porto: an open warehouse court, stacked containers and piers out to sea.
@@ -137,6 +225,8 @@ export function createWorld(): WorldSpec {
   for (const z of [-22, -7, 9]) for (const x of [120, 130]) place('dock_wood', x, z, Math.PI / 2, 1, 1.08);
   detail('boat', 125, -15, Math.PI / 2, 1.1, -.05);
   detail('boat', 128, 2, Math.PI / 2, .9, -.05);
+  for (const [x, z] of [[122, -14], [124, -13], [126, -14], [125, 3], [127, 4], [129, 3]])
+    obj('box', x, .02, z, 1, 1, 1, '#DB8263', 'prop:street-buoy');
   detail('crane', 113, -29);
   sign(78, -28, 'PORTO');
 
@@ -157,6 +247,7 @@ export function createWorld(): WorldSpec {
     for (const dx of [-3, 3]) {
       obj('cone', x + dx, ground(x + dx, 117) + 2, 117, 2.8, .65, 2.8, dx < 0 ? '#e89a78' : '#83bcb1', 'umbrella');
       obj('cylinder', x + dx, ground(x + dx, 117) + 1, 117, .06, 2, .06, '#a8865e', 'umbrella-pole');
+      obj('box', x + dx, ground(x + dx, 115), 115, 1, 1, 1, dx < 0 ? '#D68870' : '#71AAA2', 'prop:street-towel', dx * .09);
     }
   }
   if (KIT_PIECES.lighthouse) detail('lighthouse', ...FAROL);
@@ -166,12 +257,25 @@ export function createWorld(): WorldSpec {
   // Water falls from the western ridge into the river's blue-green feeder pool.
   const cascadeX = -109, cascadeZ = -9, low = -.05, top = Math.max(9, ground(-114, -15));
   obj('box', cascadeX, (top + low) / 2, cascadeZ, 6, top - low, .22, '#87c2c7', 'waterfall', Math.PI / 2);
-  detail('cliff_rock', -112, -15, 0, 2.5);
-  detail('cliff_rock', -112, -3, 0, 1.8);
+  detail('cliff_rock_tall', -112, -15, Math.PI / 2, 1.2, ground(-112, -15) - 4.5);
+  detail('cliff_ledge', -112, -3, Math.PI / 2, 1.1, ground(-112, -3) - 2);
   sign(-86, -15, 'MIRANTE');
   // Boardwalks offer a dry second route around the estuary.
   for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
   sign(90, 65, 'MANGUE');
+  if (KIT_PIECES.cliff_rock_low && KIT_PIECES.cliff_rock_tall) {
+    let formations = 0;
+    for (let z = -116; z <= 116 && formations < 52; z += 8) for (let x = -116; x <= 116 && formations < 52; x += 8) {
+      if (x > -38 && x < 43 && z < -68) continue;
+      if (Math.hypot(x - 60, z + 86) < 9) continue;
+      const y = ground(x, z), dx = ground(x + 2, z) - ground(x - 2, z), dz = ground(x, z + 2) - ground(x, z - 2);
+      const slope = Math.hypot(dx, dz) / 4;
+      if (y < 1 || slope < .8 || routeDistance(x, z) < 5.5 || roadAt(x, z, 4) || occupied(x, z, 2.4)) continue;
+      const piece = slope > 1.25 ? 'cliff_rock_tall' : 'cliff_rock_low', height = slope > 1.25 ? 7 : 3.8;
+      const yaw = Math.round(Math.atan2(-dx, -dz) / (Math.PI / 2)) * Math.PI / 2;
+      rockLayer(piece, x, z, yaw, y - height * .7, height); formations++;
+    }
+  }
 
   // Offshore silhouettes supply a second and third landscape layer. They are
   // scenery beyond the ocean current, with no hidden collision in the sea.
@@ -212,8 +316,8 @@ export function createWorld(): WorldSpec {
   for (const [x, z] of [[23, -91], [29, -107], [40, -116], [66, -105], [-107, -28], [-114, -14],
     [-75, -77], [-64, -55], [-70, 71], [-52, 91], [15, 113], [80, 40]] as const) {
     if (occupied(x, z, 3) || routeDistance(x, z) < 4) continue;
-    detail('cliff_rock', x, z, 0, 1.2);
-    detail('cliff_rock', x + 2.2, z + 1.5, Math.PI / 2, .65);
+    detail('cliff_rock_low', x, z, 0, .7, ground(x, z) - .6);
+    detail('cliff_rock_low', x + 2.2, z + 1.5, Math.PI / 2, .4, ground(x + 2.2, z + 1.5) - .35);
     detail('bush_cluster', x - 1.5, z + 1.7, 0, 1.1);
     detail('flower_bed', x + 1.7, z - 1.9, 0, .7);
   }
@@ -243,22 +347,51 @@ export function createWorld(): WorldSpec {
   }
   // Plants are decorative, with no independently authored trunk boxes.
   const planted: PointLike[] = [];
+  const blocksHeroView = (x: number, z: number) => [[-1, -10, -10, -40, 4.8], [60, -86, 4, -99, 4.2]].some(([ax, az, bx, bz, width]) => {
+    const dx = bx - ax, dz = bz - az, t = ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz);
+    return t >= 0 && t <= 1 && Math.hypot(x - ax - dx * t, z - az - dz * t) < width;
+  });
+  const paved = (x: number, z: number) => objects.some(o => o.detail === 'courtyard' &&
+    Math.abs(x - o.pos.x) < o.scale.x / 2 + 1.4 && Math.abs(z - o.pos.z) < o.scale.z / 2 + 1.4);
   const tree = (x: number, z: number, height: number, kind: 'tree' | 'palm' = 'tree', species = 'foliage') => {
     obj(kind, x, ground(x, z) - .08, z, 1.1, height, 1.1, '#5FA544', species, random() * Math.PI * 2);
     planted.push({ x, z });
   };
   tree(-20, -21, 8.4, 'tree', 'ipe-yellow'); tree(47, -31, 8, 'tree', 'ipe-pink');
   tree(-63, -55, 9.2, 'tree', 'flamboyant'); tree(77, 78, 4.8, 'tree', 'banana'); tree(-60, 84, 5.2, 'tree', 'banana');
+  // Low, broad crowns at the rock toes give the escarpment a living foreground.
+  // They share the existing instanced foliage and replace part of the scatter.
+  let shrubs = 0;
+  for (const rock of pieces.filter(piece => piece.piece.startsWith('cliff_'))) {
+    if (shrubs >= 54) break;
+    const [width, depth] = KIT_PIECES[rock.piece].footprint, size = rock.scale ?? 1;
+    for (const side of [-1, 1]) {
+      const x = rock.x + side * (width * size / 2 + .7), z = rock.z + depth * size * .28, y = ground(x, z);
+      if (y < .7 || occupied(x, z, .35) || roadAt(x, z, 1) || routeDistance(x, z) < 2.5 ||
+        Math.abs(ground(x + 1, z) - y) > 1 || blocksHeroView(x, z)) continue;
+      tree(x, z, 1.15 + random() * .55); shrubs++;
+    }
+  }
   for (const x of [45, 52, 59, 66, 73]) for (const z of [83, 89]) tree(x, z, 5.5, 'tree', 'orchard');
   for (let i = 0; i < 34; i++) {
     const x = 84 + random() * 35, z = 40 + random() * 29;
     if (occupied(x, z, 1) || routeDistance(x, z) < 2.5) continue;
     tree(x, z, 4.5 + random() * 3, 'tree', 'mangrove');
   }
+  for (const [gx, gz] of [[-110, -85], [-88, -85], [-69, -88], [-45, -77], [-28, -79], [34, -65],
+    [48, -77], [67, -65], [-111, -25], [-73, 39], [-69, 61], [80, 85], [29, 87], [73, 98], [-72, 96]]) {
+    for (let i = 0; i < 10; i++) {
+      const angle = i * 2.4, radius = 1.7 + Math.sqrt(i) * 2.1;
+      const x = gx + Math.cos(angle) * radius, z = gz + Math.sin(angle) * radius, y = ground(x, z);
+      if (y < .8 || occupied(x, z, 3) || roadAt(x, z, 2) || routeDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) ||
+        planted.some(t => Math.hypot(t.x - x, t.z - z) < 3.4)) continue;
+      tree(x, z, 7.3 + random() * 3.4, y < 1.4 ? 'palm' : 'tree');
+    }
+  }
   for (let i = 0; i < 7000 && planted.length < 360; i++) {
     const x = -123 + random() * 246, z = -122 + random() * 244, y = ground(x, z);
     if (y < .6 || occupied(x, z, 2.8) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 ||
-      riverDistance(x, z) < 3 || planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 20)) continue;
+      riverDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) || planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 20)) continue;
     const palm = y < 2 || z > 94 || (x > 25 && z < -85) || random() < .12;
     tree(x, z, (palm ? 7 : 5.5) + random() * 3, palm ? 'palm' : 'tree');
   }
