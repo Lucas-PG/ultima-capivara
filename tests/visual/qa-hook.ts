@@ -1,10 +1,13 @@
 import { Simulation } from '../../src/simulation';
 import { terrainHeight } from '../../src/shared/terrain';
 import { moveActor } from '../../src/shared/collision';
-import { emptyInput } from '../../src/shared/math';
+import { emptyInput, rng } from '../../src/shared/math';
 import { EMOTES, EMOTE_IDS } from '../../src/shared/emotes';
 import { closestInteraction } from '../../src/shared/interaction';
 import { mudBathAt } from '../../src/shared/recreation';
+import { chooseSupplyLanding, SUPPLY_APPROACH_SECONDS, SUPPLY_DESCENT_SECONDS } from '../../src/shared/supply-drops';
+import { walkableSegment } from '../../src/shared/navigation';
+import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
@@ -28,6 +31,7 @@ declare global { interface Window { __capyQA?: QaApi } }
 const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
 const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
 const TRAMPOLINE_POSES = ['trampolineBounce', 'trampolineAir'];
+const SUPPLY_POSES = ['supplyIncoming', 'supplyDescending', 'supplyLanded', 'supplyOpened'];
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
@@ -57,7 +61,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
   const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
-    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES,
+    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES,
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
@@ -79,14 +83,38 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     const spawn = name.startsWith('spawn-') ? deps.world.spawns.find(point => `spawn-${point.district}` === name) : null;
     const bath = MUD_POSES.includes(name) ? deps.world.mudBaths?.[0] : undefined;
     const trampoline = TRAMPOLINE_POSES.includes(name) ? deps.world.trampolines?.[0] : undefined;
+    const supply = SUPPLY_POSES.includes(name) ? chooseSupplyLanding(deps.world,
+      { ...base.zone, nextX: 4, nextZ: -20, nextRadius: 28 }, rng(0x74756361)) : null;
     if (MUD_POSES.includes(name) && !bath) throw new Error('A revisão precisa de um banho de lama no mapa.');
     if (TRAMPOLINE_POSES.includes(name) && !trampoline) throw new Error('A revisão precisa de um trampolim no mapa.');
+    if (SUPPLY_POSES.includes(name) && !supply) throw new Error('A revisão precisa de uma entrega em solo seco e acessível.');
     const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
-    const [x, z, yaw, pitch] = view;
+    let [x, z, yaw, pitch] = view;
+    if (supply) {
+      const close = name === 'supplyLanded' || name === 'supplyOpened', distance = close ? 2.4 : 18;
+      const direction = [[0, 1], [1, 0], [0, -1], [-1, 0]].find(([dx, dz]) => {
+        const to = { x: supply.x + dx * distance, z: supply.z + dz * distance };
+        return !waterAt(to.x, to.z) && walkableSegment(deps.world, supply, to);
+      });
+      if (!direction) throw new Error('A câmera da entrega precisa de uma aproximação livre.');
+      x = supply.x + direction[0] * distance; z = supply.z + direction[1] * distance;
+      yaw = Math.atan2(x - supply.x, z - supply.z);
+      pitch = Math.atan2(supply.y + (close ? .5 : name === 'supplyIncoming' ? 34 : 14) - terrainHeight(x, z) - 1.62, distance);
+    }
     const s = structuredClone(base), me = s.actors[0];
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
     if (spawn) s.config.mode = 'battle-royale';
+    if (supply) {
+      s.config.mode = 'battle-royale'; s.remaining = 8;
+      const district = [...deps.world.districts].sort((a, b) => Math.hypot(a.x - supply.x, a.z - supply.z) - Math.hypot(b.x - supply.x, b.z - supply.z))[0];
+      const announcedAt = 45, releaseAt = announcedAt + SUPPLY_APPROACH_SECONDS, landsAt = releaseAt + SUPPLY_DESCENT_SECONDS;
+      s.time = name === 'supplyIncoming' ? announcedAt + 2.5 : name === 'supplyDescending' ? releaseAt + 7 : landsAt + 1;
+      s.supplyDrops = [{ id: 'supply-1', pos: supply, district: district?.id ?? '', heading: Math.PI / 2,
+        announcedAt, releaseAt, landsAt, opened: name === 'supplyOpened' }];
+      if (name === 'supplyOpened') s.loot.push({ id: 'supply-qa-weapon', kind: 'weapon', weapon: 'm4', rarity: 3, active: true, respawnAt: 0,
+        x: supply.x - .9, y: terrainHeight(supply.x - .9, supply.z), z: supply.z, from: { ...supply, y: supply.y + .6 }, spawnedAt: s.time - .7 });
+    }
     me.pos = { x, y: bath?.y ?? spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
     me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : name.startsWith('fp-') ? name.slice(3) as WeaponId : 'pistol', ammo: 12, reserve: 50, rarity: 0 }];
@@ -169,12 +197,17 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     current = s;
     deps.input.frame.yaw = yaw; deps.input.frame.pitch = pitch;
     for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
-    deps.ui.update(s, 'practice', 0, false, 60, bath ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : null);
+    deps.ui.update(s, 'practice', 0, false, 60, bath || supply ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : null);
     deps.ui.setPaused(name === 'pause');
     if (name === 'emote-wheel') deps.ui.openEmoteWheel();
     if (name === 'corrente-upgrade') {
       const upgrade = { type: 'upgrade' as const, id: 1, actor: me.id, weapon: CORRENTE_LADDER[level], level };
       renderer.event(upgrade); deps.ui.event(upgrade); draw();
+    }
+    if (supply) {
+      const drop = s.supplyDrops[0], stage = name === 'supplyOpened' ? 'opened' : name === 'supplyLanded' ? 'landed' : 'incoming';
+      const event = { type: 'supply', id: 3, drop: drop.id, pos: drop.pos, district: drop.district, stage } as const;
+      renderer.event(event); deps.ui.event(event); draw();
     }
     if (trampoline) {
       renderer.event({ type: 'bounce', id: 2, actor: 'bot-qa-bounce', pos: { x: trampoline.x, y: trampoline.y, z: trampoline.z } });
