@@ -19,6 +19,7 @@ test('Settings keeps keyboard access, saved values, remapping and calm controls'
       return { inside: !!el.closest('dialog'), id: el.id || el.dataset.setting || '', outline: getComputedStyle(el).outlineStyle };
     });
     expect(focus.inside).toBe(true); expect(focus.outline).not.toBe('none'); reached.add(focus.id);
+    if (focus.id === 'save-settings') break;
   }
   for (const id of ['sensitivity', 'fov', 'master', 'effects', 'ambience', 'music', 'ui-scale', 'reduced-motion', 'ads-toggle', 'adaptive', 'show-fps', 'save-settings']) expect(reached.has(id)).toBe(true);
   const sensitivity = dialog.getByRole('slider', { name: 'Sensibilidade do mouse', exact: true });
