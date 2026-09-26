@@ -22,6 +22,7 @@ import { WeaponView } from './weapons';
 import { AvatarView, avatar, BOT_COLOR } from './avatars';
 import { CameraRig, makePlane } from './camera';
 import { LootView } from './loot';
+import { SupplyDropView } from './supply-drops';
 import { EffectsView, type EffectsFrame } from './effects';
 import { StormView } from './storm';
 import { DEATH_CAM_SECONDS } from '../shared/death-cam';
@@ -46,6 +47,7 @@ export class GameRenderer {
   private readonly avatars: AvatarView;
   private readonly cameraRig: CameraRig;
   private readonly loot: LootView;
+  private readonly supplyDrops: SupplyDropView;
   private readonly effects: EffectsView;
   private readonly effectsFrame: EffectsFrame;
   private readonly pipeline: RenderPipeline;
@@ -142,6 +144,7 @@ export class GameRenderer {
     this.scene.add(this.plane); this.plane.visible = false;
     this.storm = new StormView(this.scene);
     this.loot = new LootView(this.scene, world);
+    this.supplyDrops = new SupplyDropView(this.assets); this.scene.add(this.supplyDrops.group);
     this.effects = new EffectsView(this.scene, world, this.weaponView.scene, this.assets);
     this.effectsFrame = { camera: this.camera, fpCamera: this.weaponView.camera, avatars: this.avatars,
       firstPerson: false, viewportHeight: 1, reducedMotion: settings.reducedMotion };
@@ -207,6 +210,7 @@ export class GameRenderer {
     this.ambientLife.update(this.camera, this.elapsed, this.settings, this.gl.getPixelRatio());
     timing.end('camera', cameraAt);
     this.loot.update(frame.snapshot, this.elapsed, this.camera);
+    this.supplyDrops.update(frame.snapshot, frame.simulationTime ?? frame.snapshot?.time ?? 0, this.camera, this.settings);
     let room: typeof this.litRooms[number] | undefined;
     for (const candidate of this.litRooms) if (Math.abs(this.camera.position.x - candidate.x) < candidate.w / 2 &&
       Math.abs(this.camera.position.z - candidate.z) < candidate.d / 2 && this.camera.position.y > candidate.y &&
@@ -310,6 +314,7 @@ export class GameRenderer {
       await preloadNameplateFont();
       this.requireActive();
       await this.worldView.ready;
+      await this.supplyDrops.ready;
       await this.assets.ready();
       this.requireActive();
       this.onProgress(.9, 'Pintando a ilha');
@@ -458,7 +463,7 @@ export class GameRenderer {
     if (this.disposed) return;
     this.disposed = true;
     this.scene.remove(this.worldView.group);
-    this.worldView.dispose(); this.ambientLife.dispose(); this.weaponView.dispose();
+    this.worldView.dispose(); this.ambientLife.dispose(); this.weaponView.dispose(); this.supplyDrops.dispose();
     this.scene.remove(this.sky.group); this.sky.dispose();
     this.scene.remove(this.storm.mesh); this.storm.dispose();
     this.environment.dispose(); this.pipeline.dispose(); this.assets.dispose(); this.effects.dispose();

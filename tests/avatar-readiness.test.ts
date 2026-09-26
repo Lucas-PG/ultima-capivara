@@ -50,6 +50,7 @@ describe('match avatar preparation', () => {
     const renderer = Object.assign(Object.create(GameRenderer.prototype), {
       disposed: false, warming: null, scene, avatars: view, camera: new THREE.PerspectiveCamera(),
       worldView: { group: new THREE.Group(), ...owned() },
+      supplyDrops: { ready: Promise.resolve(), ...owned() },
       ambientLife: owned(),
       sky: { group: new THREE.Group(), ...owned() }, storm: { mesh: new THREE.Mesh(), ...owned() },
       weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), revealAll: vi.fn(), ...owned() },

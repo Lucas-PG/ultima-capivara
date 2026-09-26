@@ -33,6 +33,7 @@ function harness(ready: Promise<void> = Promise.resolve()) {
     ambientLife: { dispose: vi.fn() },
     sky: { group: new THREE.Group(), dispose: vi.fn() },
     worldView: { ready: Promise.resolve(), group: new THREE.Group(), dispose: vi.fn() },
+    supplyDrops: { ready: Promise.resolve(), dispose: vi.fn() },
     avatars: { prepare: vi.fn(), warmupWeapons: new THREE.Group(), dispose: vi.fn() },
     pipeline: { beginWarmup: vi.fn(), beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), resize: vi.fn(), dispose: vi.fn() },
     environment: { dispose: vi.fn() }, onProgress: vi.fn(), resize: vi.fn(),
@@ -82,6 +83,7 @@ describe('renderer preparation lifecycle', () => {
     expect(h.avatars.prepare).not.toHaveBeenCalled();
     expect(h.onProgress).not.toHaveBeenCalled();
     expect(h.gl.dispose).toHaveBeenCalledOnce();
+    expect(h.supplyDrops.dispose).toHaveBeenCalledOnce();
   });
 
   it.each(['world', 'first person', 'post'] as const)('does not resume GPU work after disposal during %s compilation', async stage => {
