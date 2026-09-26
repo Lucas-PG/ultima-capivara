@@ -198,7 +198,7 @@ export function createWorld(): WorldSpec {
     for (const [dx, dz, scale] of [[-2.2, -.9, .28], [1.9, -1, .33], [-1.7, 1.2, .22], [1.8, 1.1, .25]])
       detail('cliff_rock_low', x + dx, z + dz, Math.PI / 2, scale, ground(x + dx, z + dz) - .3);
   }
-  for (const [x, z] of [[54, -92], [43, -104], [61, -113], [-29, 118], [32, 118]] as const) {
+  for (const [x, z] of [[54, -92], [43, -104], [61, -113], [-29, 118], [32, 118], [119, -7], [119, 9]] as const) {
     for (let i = 0; i < 3; i++) {
       const xx = x + i * .42, zz = z + i * .35;
       obj('box', xx, ground(xx, zz) + .07, zz, 1.4 + i * .55, .14, .16 + i * .025, '#92704D', 'crate', -.45 + i * .57);
@@ -225,6 +225,8 @@ export function createWorld(): WorldSpec {
   for (const z of [-22, -7, 9]) for (const x of [120, 130]) place('dock_wood', x, z, Math.PI / 2, 1, 1.08);
   detail('boat', 125, -15, Math.PI / 2, 1.1, -.05);
   detail('boat', 128, 2, Math.PI / 2, .9, -.05);
+  for (const [x, z] of [[122, -14], [124, -13], [126, -14], [125, 3], [127, 4], [129, 3]])
+    obj('box', x, .02, z, 1, 1, 1, '#DB8263', 'prop:street-buoy');
   detail('crane', 113, -29);
   sign(78, -28, 'PORTO');
 
