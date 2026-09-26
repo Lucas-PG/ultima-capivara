@@ -27,6 +27,7 @@ declare global { interface Window { __capyQA?: QaApi } }
 
 const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
 const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
+const TRAMPOLINE_POSES = ['trampolineBounce', 'trampolineAir'];
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
@@ -56,7 +57,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
   const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
-    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES,
+    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES,
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
@@ -77,8 +78,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     const district = name.startsWith('district-') ? deps.world.districts.find(d => `district-${d.id}` === name) : null;
     const spawn = name.startsWith('spawn-') ? deps.world.spawns.find(point => `spawn-${point.district}` === name) : null;
     const bath = MUD_POSES.includes(name) ? deps.world.mudBaths?.[0] : undefined;
+    const trampoline = TRAMPOLINE_POSES.includes(name) ? deps.world.trampolines?.[0] : undefined;
     if (MUD_POSES.includes(name) && !bath) throw new Error('A revisão precisa de um banho de lama no mapa.');
-    const view = bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
+    if (TRAMPOLINE_POSES.includes(name) && !trampoline) throw new Error('A revisão precisa de um trampolim no mapa.');
+    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     const [x, z, yaw, pitch] = view;
     const s = structuredClone(base), me = s.actors[0];
@@ -142,6 +145,15 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       }
       me.yaw = yaw; me.pitch = pitch;
     }
+    const bounceTicks = name === 'trampolineAir' ? 20 : 5;
+    if (trampoline) {
+      const jumper = structuredClone(me); jumper.id = 'bot-qa-bounce'; jumper.name = 'Capivara'; jumper.bot = true;
+      jumper.pos = { x: trampoline.x, y: trampoline.y, z: trampoline.z }; jumper.yaw = Math.PI / 2;
+      for (let i = 0; i < bounceTicks; i++) moveActor(jumper, emptyInput(), deps.world, 1 / 60);
+      if (jumper.bounceSeq !== 1 || jumper.grounded || !jumper.bounceProtected)
+        throw new Error('A revisão precisa lançar uma capivara pelo contato real do trampolim.');
+      s.actors.push(jumper);
+    }
     if (name === 'results') {
       s.phase = 'results'; s.results = [{ id: me.id, name: me.name, color: me.color, bot: false, kills: 1, deaths: 0, damage: 100, place: 1, winner: true,
         shots: 3, hits: 1, headshots: 0, survived: 30, chests: 0, longestShot: 12.4 }];
@@ -163,6 +175,11 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (name === 'corrente-upgrade') {
       const upgrade = { type: 'upgrade' as const, id: 1, actor: me.id, weapon: CORRENTE_LADDER[level], level };
       renderer.event(upgrade); deps.ui.event(upgrade); draw();
+    }
+    if (trampoline) {
+      renderer.event({ type: 'bounce', id: 2, actor: 'bot-qa-bounce', pos: { x: trampoline.x, y: trampoline.y, z: trampoline.z } });
+      for (let i = 0; i < bounceTicks; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame,
+        dt: 1 / 60, playing: true, spectateId: null }, i === bounceTicks - 1);
     }
     if (name !== 'results') document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
