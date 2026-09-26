@@ -728,8 +728,8 @@ export class WeaponView {
       hipY + breath + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - (this.draw + this.holster) * .34 + (swayY + landing) * motion - sprint * .08 - closeWall * .12 - magazineMotion * .045,
       THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
     this.holder.rotation.set((pose?.pitch ?? 0) * (1 - ads) + this.kick * 1.1 + (this.draw + this.holster) * .65 + swayY * motion + magazineMotion * .24 + sprint * .16,
-      THREE.MathUtils.lerp(pose ? 0 : .24, 0, ads) + closeWall * .28 + yawKick + swayX * motion,
-      THREE.MathUtils.lerp(pose ? 0 : -.055, 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13 + breath * .8);
+      THREE.MathUtils.lerp(pose?.yaw ?? (pose ? 0 : .24), 0, ads) + closeWall * .28 + yawKick + swayX * motion,
+      THREE.MathUtils.lerp(pose?.roll ?? (pose ? 0 : -.055), 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13 + breath * .8);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.rotation);
     if (this.inspectTime >= 0) {
       this.inspectTime += dt;

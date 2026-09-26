@@ -456,7 +456,7 @@ ${shader.fragmentShader}`.replace('#include <color_fragment>', `#include <color_
   // The shadow camera covers a small slice of the map. Grouping by broadleaf
   // or palm silhouette in 64 m cells cuts redundant proxy draws.
   const shadowCells = new Map<string, MapObject[]>();
-  for (const object of world.objects) if (object.kind === 'tree' || object.kind === 'palm') {
+  for (const object of world.objects) if ((object.kind === 'tree' || object.kind === 'palm') && object.scale.y >= 2.5) {
     const type = object.kind === 'palm' || object.detail === 'banana' ? 'palm' : 'tree';
     const key = `${type}:${Math.floor(object.pos.x / 64)}:${Math.floor(object.pos.z / 64)}`;
     const bucket = shadowCells.get(key) || [];

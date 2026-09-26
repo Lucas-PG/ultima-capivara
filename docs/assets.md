@@ -315,11 +315,21 @@ The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms 
 
 Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.
 
-Cena's v3 renderer adds original canvas-painted cloud silhouettes and brush washes,
+Cena's initial v3 renderer adds original canvas-painted cloud silhouettes and brush washes,
 procedural metre-scale sand ripples and continuous triplanar rock colour, ribbed
 shell geometry, GPU pollen, water glints and depth-occluded sunlight shafts. These
 are generated locally from authored equations and geometry, with no external
 downloads or paid services. The lighting reference is `public/assets/cover-v2.png`.
+
+### Sculpted cloud atlas, 2026-09-25
+
+`public/textures/clouds-painted-v4.png` is an original 1774x887 RGBA atlas generated with the built-in Codex imagegen tool, then copied unchanged into the project. It replaces the earlier canvas cloud gradients with eight distinct painted cumulus clusters, detailed rolling billows, peach-gold light and lavender self-shadowing. Each fixed sky card mirrors its UVs toward the world sun. Transparent gutters, trilinear mipmaps and renderer-capability anisotropy protect the soft silhouettes. The atlas participates in the loading barrier and adds 894,096 bytes. No purchased assets or paid API was used.
+
+Generation prompt:
+> Use case: stylized-concept. Asset type: an original transparent RGBA cloud sprite atlas for a premium hand-painted tropical island 3D game. Create exactly EIGHT distinct isolated cumulus cloud clusters in a precise 4-column by 2-row grid, wide canvas 2048 by 1024. Each square cell contains one horizontally broad cloud cluster with generous transparent padding on every side. The background must be truly transparent alpha, no sky and no checkerboard baked in. Golden-hour oil-painted storybook art, exceptional fine surface detail: sculpted rolling billows of many scales, small torn vapor edges, fine brush strokes following the volume, glowing peach and pale gold upper-left edges, creamy apricot highlights, deep muted lavender and slate-blue undersides, rich soft internal self-shadowing between billows. Show dimensional cauliflower-like cumulus forms, distinctly varied asymmetric silhouettes; some tall turrets, some low stretched banks. All clouds have light from upper left, shadow below right, no harsh black. Soft translucent feathering only at the wispy outer edges, opaque detailed cores. Avoid smooth balloon blobs, vector art, outlines, circles, flat gradients, washed-out white, photography. No ground, sun, birds, text, labels, symbols, borders, watermarks, or grid lines. Keep cloud pixels strictly inside their own cell with at least 40px transparent margins. The result will be sampled as an atlas, so each cloud must be fully separated and not clipped.
+
+Final spacing/alpha refinement prompt:
+> Edit this transparent 4 by 2 cloud atlas for production use. Preserve the eight painterly cloud designs, beautiful fine billow detail, golden highlights and lavender shadows. Change only spacing and alpha cleanliness: scale EACH cloud down within its existing grid cell so it has a generous fully transparent gutter on ALL FOUR sides (at least 12 percent of cell width/height). Exactly four columns, two rows, equal square cells, wide 2:1 canvas. No cloud or wisp may touch the canvas edge or another cell. Remove any neon red/yellow/blue/magenta edge pixels; cloud fringes must be only natural peach, cream or lavender with clean soft translucent alpha. Keep background truly transparent. No solid matte, checkerboard pattern, labels or grid lines. Preserve all fine interior painted texture and lighting.
 
 ## Phase A lived-in street dressing
 
@@ -394,3 +404,7 @@ The original character geometry in tools/blender/capybara.py now carries directi
 Original deterministic colour, tangent-normal and roughness maps are authored by tools/blender/character_paint.py. The 1024-square colour map uses 4x4 tiles with the same 16 palette semantics. src/render/character-atlas.ts mirrors its fur and fabric paint while allowing leaf, wave or diamond bandana prints and player colour changes. Recolouring reuses cached strand fields. Rig and material extras identify the 4x4 painted layout so the loader can retain legacy compatibility. Source normal, roughness and specular maps remain intact during runtime recolouring.
 
 Fur uses tiles 0, 1, 2, 4, 14; fabric uses 5, 6, 7, 13. Tile 14 is a neutral carrier multiplied by the authored face/belly vertex colours. Gloss is confined to eyes/nose/nails in 9/15. The 64-square emissive mask lights only the upper half of tile 10 for eye catchlights; lower half ivory teeth receive ordinary scene lighting. All textures and geometry are procedural original work, with no external model, purchased asset, image API or font. Swappable hat geometry and the remaining street vehicles/house decals are still open for a later iteration.
+
+### Painted character and first-person presentation
+
+The runtime selects the new 4x4 character paint layout from the exported `paintAtlas` marker and preserves the source normal, roughness, emissive and specular maps. Cosmetic bandana colours change only their two painted tiles. Sun-directed rim light and a broad soft sheen apply to the authored fur tiles; cloth, eyes and mouth retain their own surface response. The existing 16-column character asset remains supported. The pistol hip pose is angled slightly to expose its side engraving, serrations, fasteners and supporting paw; the authored sights stay aligned when aiming.
