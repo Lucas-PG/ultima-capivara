@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import type { WeaponId } from '../shared/types';
 import { itemGeometry } from './item-geometry';
+import { worldWeaponMaterial } from './world-weapons';
 
-// Hotbar thumbnails: every weapon's ground-loot model rendered once, three-quarter view, toon lit,
+// Hotbar thumbnails: every weapon's painted ground-loot model rendered once, three-quarter view, softly lit,
 // with a thick sticker outline stamped in 2D. Cached as data URLs; the WebGL context is released after.
 const WEAPON_IDS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
 const WIDTH = 256, HEIGHT = 160, OUTLINE = 5, INK = '#16120e';
@@ -38,9 +39,7 @@ function render() {
   scene.add(new THREE.HemisphereLight('#fff6e0', '#6d5a44', 1.5));
   const key = new THREE.DirectionalLight('#ffffff', 2.6); key.position.set(-1.5, 2.5, 3); scene.add(key);
   const rim = new THREE.DirectionalLight('#ffe2b0', 1.1); rim.position.set(2, 1, -2.5); scene.add(rim);
-  const ramp = new THREE.DataTexture(new Uint8Array([120, 120, 120, 255, 190, 190, 190, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat);
-  ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
-  const material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: ramp, side: THREE.DoubleSide });
+  const material = worldWeaponMaterial().clone();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, .01, 20);
   const out = document.createElement('canvas'); out.width = WIDTH; out.height = HEIGHT;
   const ctx = out.getContext('2d')!;
@@ -67,5 +66,5 @@ function render() {
     cache.set(id, out.toDataURL('image/png'));
     scene.remove(mesh); geometry.dispose();
   }
-  material.dispose(); ramp.dispose(); gl.dispose(); gl.forceContextLoss();
+  material.dispose(); gl.dispose(); gl.forceContextLoss();
 }
