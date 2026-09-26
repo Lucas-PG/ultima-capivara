@@ -29,7 +29,7 @@ const VIEWS: Record<string, [number, number, number, number]> = {
 const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {
   vila: [-1, -10, .48, .02], centro: [36, -6, .42, .02],
   forte: [4, -80, 0, .12], cachoeira: [-83, -13, 1.72, .08],
-  morro: [-54, -39, 1.4, .12], porto: [78, -23, -1.84, 0],
+  morro: [-97, -66, Math.atan2(-2, -31), .08], porto: [78, -23, -1.84, 0],
   posto: [-22, 38, Math.PI, 0], farol: [3, 98, Math.PI, .25],
   praia: [-31, 95, Math.PI, 0], fazenda: [47, 80, -.63, 0],
   mangue: [86, 54, -1.2, 0], lagoa: [-65, 9, 1.22, .04],
@@ -60,6 +60,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     const [x, z, yaw, pitch] = view;
     const s = structuredClone(base), me = s.actors[0];
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
+    if (spawn) s.config.mode = 'battle-royale';
     me.pos = { x, y: spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
     me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : name.startsWith('fp-') ? name.slice(3) as WeaponId : 'pistol', ammo: 12, reserve: 50, rarity: 0 }];

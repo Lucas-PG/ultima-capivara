@@ -12,3 +12,7 @@ The Blender kit uses a bottom-centred origin, Y up and +Z frontage. A placed pie
 `tests/world-detail.test.ts` verifies seat, serving-front, sign and door orientation; lamp edges; dry and connected spawn/loot locations; clear building aisles and bridge routes; and the western canopy/undergrowth layers. `tests/world-kit.test.ts` protects the visible collision contract. Decorative foliage has no independent hidden blockers.
 
 After moving or rotating architecture, inspect at walking height, check both exits and update the terrain colour bake if the footprint changes. Compare the plaza and hill frames with `public/assets/cover-v2.png`, then verify the shared host and client checks before reporting a landable hash.
+
+District arrivals use authored landmark approaches in `DISTRICT_ARRIVALS`. The nearest clear spawn must have at least five metres of open view at standing eye height and allow forward movement; an empty collider footprint alone does not make a good arrival. Review captures use the corresponding battle-royale mode and actual supported spawn height.
+
+The western terrace aprons and waterfall slopes receive priority within the existing island budget of 360 trees and 52 scattered cliff formations. Collect slope candidates island-wide before choosing them, so the northern rows cannot consume the whole budget. Keep roads, house exits and footpaths clear; use intermediate crowns below the skyline and bury the source-derived cliff solids into the slope.

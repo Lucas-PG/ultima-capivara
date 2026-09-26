@@ -1,7 +1,8 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BRIDGES, CHURCH, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
+import { ARENA, ARENA_CENTER, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
+import { hasLineOfSight } from './collision';
 import { SIGN_ART } from './signage';
 import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type SpawnPoint, type Vec3, type WeaponId, type WorldSpec } from './types';
@@ -295,19 +296,39 @@ export function createWorld(): WorldSpec {
   for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
   sign(90, 65, 'MANGUE');
   if (KIT_PIECES.cliff_rock_low && KIT_PIECES.cliff_rock_tall) {
-    let formations = 0;
-    for (let z = -116; z <= 116 && formations < 52; z += 8) for (let x = -116; x <= 116 && formations < 52; x += 8) {
+    // Spend the same formation budget across visible slope faces. A north-first
+    // scan exhausted it before reaching the town-facing terraces and waterfall.
+    const slopes = [
+      { x: -65, z: -40, radius: 34, count: 26 }, { x: -104, z: -7, radius: 23, count: 12 },
+      { x: 55, z: -77, radius: 32, count: 5 }, { x: -70, z: 65, radius: 42, count: 5 },
+      { x: 4, z: 111, radius: 26, count: 4 },
+    ];
+    const candidates: { x: number; z: number; y: number; slope: number; yaw: number; zone: number; score: number }[] = [];
+    for (let zz = -116; zz <= 116; zz += 6) for (let xx = -116; xx <= 116; xx += 6) {
+      const x = xx + Math.sin(xx * .31 + zz * .17) * 1.3, z = zz + Math.cos(xx * .23 - zz * .29) * 1.1;
       if (x > -38 && x < 43 && z < -68) continue;
       if (Math.hypot(x - 60, z + 86) < 9) continue;
       const y = ground(x, z), dx = ground(x + 2, z) - ground(x - 2, z), dz = ground(x, z + 2) - ground(x, z - 2);
       const slope = Math.hypot(dx, dz) / 4;
       if (y < 1 || slope < .8 || routeDistance(x, z) < 5.5 || roadAt(x, z, 4) || occupied(x, z, 2.4)) continue;
-      const piece = slope > 1.25 ? 'cliff_rock_tall' : 'cliff_rock_low', height = slope > 1.25 ? 7 : 3.8;
-      const yaw = Math.round(Math.atan2(-dx, -dz) / (Math.PI / 2)) * Math.PI / 2;
-      rockLayer(piece, x, z, yaw, y - height * .7, height); formations++;
+      const distances = slopes.map(area => Math.hypot(x - area.x, z - area.z) / area.radius);
+      const score = Math.min(...distances), zone = distances.indexOf(score);
+      candidates.push({ x, z, y, slope, yaw: Math.atan2(-dx, -dz) + Math.sin(x * .17 + z * .31) * .18, zone, score });
+    }
+    candidates.sort((a, b) => a.score - b.score);
+    const chosen = new Set<typeof candidates[number]>();
+    const formation = (candidate: typeof candidates[number]) => {
+      const { x, z, y, slope, yaw } = candidate;
+      const piece = slope > 1.25 ? 'cliff_rock_tall' : 'cliff_rock_low';
+      const height = (slope > 1.25 ? 6.6 : 3.5) + Math.sin(x * .37 + z * .13) * .4;
+      rockLayer(piece, x, z, yaw, y - height * .7, height); chosen.add(candidate);
+    };
+    slopes.forEach((area, zone) => candidates.filter(candidate => candidate.zone === zone).slice(0, area.count).forEach(formation));
+    for (const candidate of candidates) {
+      if (chosen.size >= 52) break;
+      if (!chosen.has(candidate)) formation(candidate);
     }
   }
-
   // Offshore silhouettes supply a second and third landscape layer. They are
   // scenery beyond the ocean current, with no hidden collision in the sea.
   for (const [x, z, width, height, depth, color] of [
@@ -417,6 +438,17 @@ export function createWorld(): WorldSpec {
     if (occupied(x, z, 1) || routeDistance(x, z) < 2.5) continue;
     tree(x, z, 4.5 + random() * 3, 'tree', 'mangrove');
   }
+  // Mid-height crowns cover the terrace aprons below the skyline trees. They
+  // replace part of the later scatter, retaining the 360-plant island budget.
+  for (const [gx, gz] of [[-54, -55], [-65, -48], [-78, -43], [-88, -48], [-103, -31], [-91, -21], [-108, -13]]) {
+    for (let i = 0; i < 9; i++) {
+      const angle = i * 2.399, radius = 1.8 + Math.sqrt(i) * 1.8;
+      const x = gx + Math.cos(angle) * radius, z = gz + Math.sin(angle) * radius, y = ground(x, z);
+      if (y < .8 || plantBlocked(x, z, 1) || roadAt(x, z, 1.8) || routeDistance(x, z) < 3 || paved(x, z) ||
+        planted.some(t => Math.hypot(t.x - x, t.z - z) < 3)) continue;
+      tree(x, z, 4.6 + random() * 2.5);
+    }
+  }
   for (const [gx, gz] of [[-106, -87], [-89, -79], [-76, -77], [-61, -82], [-46, -69], [-64, -59], [-82, -38], [-111, -32],
     [-110, -85], [-88, -85], [-69, -88], [-45, -77], [-28, -79], [34, -65],
     [48, -77], [67, -65], [-111, -25], [-73, 39], [-69, 61], [80, 85], [29, 87], [73, 98], [-72, 96]]) {
@@ -507,10 +539,14 @@ export function createWorld(): WorldSpec {
       walkableSegment(world, { x, z }, graph.points[index], arena));
   };
   const used: PointLike[] = [];
-  const nearby = (x: number, z: number, maxRadius: number) => {
+  const nearby = (x: number, z: number, maxRadius: number, look?: PointLike) => {
     for (let ring = 0; ring <= maxRadius; ring += 1.5) for (let k = 0; k < (ring ? 16 : 1); k++) {
       const a = k / 16 * Math.PI * 2, px = x + Math.cos(a) * ring, pz = z + Math.sin(a) * ring;
       if (!clear(px, pz) || used.some(o => Math.hypot(px - o.x, pz - o.z) < 1.5)) continue;
+      if (look) {
+        const dx = look.x - px, dz = look.z - pz, distance = Math.hypot(dx, dz), y = walkableHeight(px, pz, world) + 1.62;
+        if (distance < 5 || !hasLineOfSight({ x: px, y, z: pz }, { x: px + dx / distance * 5, y, z: pz + dz / distance * 5 }, world)) continue;
+      }
       used.push({ x: px, z: pz }); return p(px, walkableHeight(px, pz, world), pz);
     }
     return null;
@@ -549,8 +585,11 @@ export function createWorld(): WorldSpec {
     spawns.push({ x, y: walkableHeight(x, z, world), z, mode: 'deathmatch', yaw: Math.atan2(-(ARENA_CENTER.x - x), -(ARENA_CENTER.z - z)) });
   }
   for (const d of districts) for (let i = 0; i < 5; i++) {
-    const angle = i * Math.PI * 2 / 5, pos = nearby(d.x + Math.cos(angle) * d.radius * .6, d.z + Math.sin(angle) * d.radius * .6, 14);
-    if (pos) spawns.push({ ...pos, mode: 'battle-royale', district: d.id, yaw: Math.atan2(pos.x - d.x, pos.z - d.z) });
+    const angle = i * Math.PI * 2 / 5, arrival = DISTRICT_ARRIVALS[d.id];
+    const look = i === 0 ? { x: arrival[2], z: arrival[3] } : d;
+    const pos = i === 0 ? nearby(arrival[0], arrival[1], 6, look) :
+      nearby(d.x + Math.cos(angle) * d.radius * .6, d.z + Math.sin(angle) * d.radius * .6, 14);
+    if (pos) spawns.push({ ...pos, mode: 'battle-royale', district: d.id, yaw: Math.atan2(pos.x - look.x, pos.z - look.z) });
   }
   return world;
 }

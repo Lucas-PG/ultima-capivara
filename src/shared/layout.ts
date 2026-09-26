@@ -9,6 +9,15 @@ export const PLAZA = [-10, -21] as const;
 export const MERCADAO = [29, -20] as const;
 export const LAKE = [-92, -1, 12] as const; // Cachoeira feeder pool.
 
+// First arrival in each district: a usable approach with a recognisable view,
+// rather than a radial sample that can face a wall or the back of a terrace.
+export const DISTRICT_ARRIVALS: Readonly<Record<string, readonly [number, number, number, number]>> = {
+  forte: [4, -78, 4, -99], vila: [-1, -10, -10, -34], centro: [36, -6, 29, -20],
+  morro: [-97, -66, -95, -35], cachoeira: [-83, -13, -109, -9], porto: [111, 21, 100, -8],
+  praia: [-31, 95, -28, 109], farol: [0, 106, 3, 113], mangue: [114, 52, 92, 52],
+  fazenda: [53, 78, 70, 60], posto: [-25, 37, -22, 47], lagoa: [-65, 9, -94, -2],
+};
+
 // Width is the wetted channel width, with another 4 m for each bank.
 export const RIVER: readonly (readonly [number, number, number])[] = [
   [-109, -9, 10], [-92, -1, 15], [-70, -1, 7], [-44, 5, 7],

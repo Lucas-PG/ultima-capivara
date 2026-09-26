@@ -4,7 +4,7 @@ import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
 import type { Mode, SpawnPoint } from '../src/shared/types';
-import { ARENA, BRIDGES, CHURCH, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, RIVER, ROADS, inArena, riverSample } from '../src/shared/layout';
+import { ARENA, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, RIVER, ROADS, inArena, riverSample } from '../src/shared/layout';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
 import { WORLD_PALETTE, terrainColor, terrainHeight } from '../src/shared/terrain';
@@ -74,12 +74,16 @@ describe('river island gameplay integrity', () => {
     }
   });
 
-  it('opens each island spawn toward the landmark in its district', () => {
-    for (const spawn of world.spawns.filter(point => point.mode === 'battle-royale')) {
-      const district = world.districts.find(d => d.id === spawn.district)!;
-      expect(district, 'each island opening needs a composed destination').toBeDefined();
-      const dx = district.x - spawn.x, dz = district.z - spawn.z;
-      expect((-Math.sin(spawn.yaw) * dx - Math.cos(spawn.yaw) * dz) / Math.hypot(dx, dz)).toBeGreaterThan(.99);
+  it('gives each district an arrival with an open view down its approach', () => {
+    for (const district of world.districts) {
+      const spawn = world.spawns.find(point => point.mode === 'battle-royale' && point.district === district.id)!;
+      expect(spawn, `${district.id} needs a composed arrival`).toBeDefined();
+      const [x, z] = DISTRICT_ARRIVALS[district.id];
+      expect(Math.hypot(spawn.x - x, spawn.z - z), `${district.id} lost its authored approach`).toBeLessThanOrEqual(6.001);
+      const eye = { x: spawn.x, y: spawn.y + 1.62, z: spawn.z };
+      expect(hasLineOfSight(eye, { x: eye.x - Math.sin(spawn.yaw) * 5, y: eye.y, z: eye.z - Math.cos(spawn.yaw) * 5 }, world),
+        `${district.id} opens against a wall or a bare terrace`).toBe(true);
+      expect(walkFrom(spawn, spawn.yaw, 'battle-royale'), `${district.id} must open onto a usable approach`).toBeGreaterThan(.5);
     }
   });
 
@@ -163,6 +167,8 @@ describe('river island gameplay integrity', () => {
   });
 
   it('layers canopy and undergrowth across the western hills without closing paths', () => {
+    expect(world.objects.filter(object => object.kind === 'tree' || object.kind === 'palm').length,
+      'redistribute the canopy budget rather than growing the island draw cost').toBeLessThanOrEqual(360);
     const canopies = world.objects.filter(object => object.kind === 'tree' && object.scale.y > 4 && object.pos.x < -42 && object.pos.z < -26);
     const shrubs = world.pieces!.filter(piece => piece.id.startsWith('kit-undergrowth-'));
     expect(canopies.length).toBeGreaterThanOrEqual(50);
