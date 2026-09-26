@@ -160,6 +160,16 @@ export class SoundEngine {
         this.tone(output, time, pitch, pitch, .3, volume, 'triangle');
         this.tone(output, time, pitch * 2, pitch * 2, .16, volume * .2, 'sine');
       });
+    } else if (event.type === 'bounce') {
+      const own = event.actor === myId;
+      const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
+      if (!own && distance > 28) return;
+      const output = own ? this.buses.effects : this.spatial(event.pos, this.buses.effects, distance);
+      const volume = own ? 1 : .5, now = ctx.currentTime;
+      this.noise(output, now, .11, 'lowpass', 520, .05 * volume, .008, true);
+      this.tone(output, now, 90, 215, .13, .07 * volume, 'sine');
+      this.tone(output, now + .1, 230, 105, .22, .045 * volume, 'triangle');
+      this.tone(output, now + .25, 155, 85, .2, .02 * volume, 'sine');
     } else if (event.type === 'water') {
       const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
       if (distance > 32) return;

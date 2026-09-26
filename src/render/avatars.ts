@@ -14,6 +14,7 @@ interface Avatar {
   color: string; name: string;
   group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
   weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean; awaitingAlive: boolean; sawDead: boolean; celebrated: boolean; emoting: boolean;
+  bounceAge: number;
 }
 export function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
@@ -37,7 +38,7 @@ export function avatar(color: string, name: string): Avatar {
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
   }
   const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
-  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false };
+  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false, bounceAge: Infinity };
 }
 
 export class AvatarView {
@@ -80,6 +81,11 @@ export class AvatarView {
     const visual = this.visuals.get(id);
     if (!visual) return;
     resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = true;
+    visual.bounceAge = Infinity; visual.body.scale.setScalar(1);
+  }
+  bounce(id: string) {
+    const visual = this.visuals.get(id);
+    if (visual && !capybaraIsDead(visual.body)) visual.bounceAge = 0;
   }
   dispose() {
     for (const [id, visual] of this.visuals) this.removeAvatar(id, visual);
@@ -111,7 +117,7 @@ export class AvatarView {
     return visual;
   }
 
-  update(frame: PresentationFrame, cameraBlend: number, elapsed: number) {
+  update(frame: PresentationFrame, cameraBlend: number, elapsed: number, reducedMotion = false) {
     this.cameraBlend = cameraBlend;
     const actors = frame.snapshot?.actors;
     for (const visual of this.ordered) { visual.group.visible = false; visual.targetable = false; }
@@ -120,6 +126,7 @@ export class AvatarView {
     if (this.matchId !== null && this.matchId !== matchId) {
       for (const visual of this.ordered) {
         resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = false; visual.celebrated = false;
+        visual.bounceAge = Infinity; visual.body.scale.setScalar(1);
       }
     }
     this.matchId = matchId;
@@ -165,6 +172,16 @@ export class AvatarView {
       visual.bones[CAPY_BONES.helmet].scale.setScalar(actor.helmet > 0 ? 1 : .0001);
       visual.chute.visible = !dead && actor.stage === 'parachute';
       this.poseAvatar(visual, actor, frame.dt, simulationTime);
+      if (reducedMotion || dead || actor.swimming || actor.stage !== 'ground') visual.bounceAge = Infinity;
+      visual.bounceAge += Math.max(0, Math.min(frame.dt, .05));
+      const age = visual.bounceAge;
+      const stretch = age < .08 ? 1 - .12 * Math.sin(age / .08 * Math.PI / 2) : age < .24 ?
+        .88 + .24 * THREE.MathUtils.smoothstep(age, .08, .24) : age < .55 ?
+          1.12 - .12 * THREE.MathUtils.smoothstep(age, .24, .55) : 1;
+      // The empty compatibility body is rooted at the foot plane. Scale only
+      // presentation below it; position, capsule and the airborne clip stay intact.
+      const width = 1 / Math.sqrt(stretch);
+      visual.body.scale.set(width, stretch, width);
       const held = actor.weapons[actor.slot]?.id || null;
       const weaponDistance = visual.group.position.distanceToSquared(this.camera.position);
       const distantWeapon = held === 'pistol' && weaponDistance > (visual.weapon.geometry === this.distantPistol ? 12 * 12 : 14 * 14);
@@ -198,7 +215,7 @@ export class AvatarView {
       const scale = visual.group.scale.y, fontScale = nameplateFontSize(this.height, plate.distance) / 14;
       const pixelsToUnits = 2 / (this.height * this.camera.projectionMatrix.elements[5]);
       label.scale.set(plate.width * fontScale * pixelsToUnits / scale, plate.height * fontScale * pixelsToUnits / scale, 1);
-      const crownHeight = capybaraCrownHeight(visual.body);
+      const crownHeight = capybaraCrownHeight(visual.body) * visual.body.scale.y;
       label.position.set(0, crownHeight + .35 / scale, 0);
       plate.projected.copy(visual.group.position); plate.projected.y += crownHeight * scale + .35;
       const m = this.camera.matrixWorldInverse.elements;

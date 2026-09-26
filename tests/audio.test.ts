@@ -256,6 +256,19 @@ describe('combat feedback audio', () => {
   }
   const here = { x: 0, y: 0, z: 0 };
 
+  it('gives each trampoline launch one short spring cue and spatializes only nearby launches', () => {
+    const audio = engine();
+    audio.event({ id: 1, type: 'bounce', actor: 'self', pos: here }, here, 0, 'self');
+    expect(audio.noise).toHaveBeenCalledOnce(); expect(audio.tone).toHaveBeenCalledTimes(3);
+    expect(audio.tone.mock.calls.every((call: unknown[]) => Number(call[1]) + Number(call[4]) <= 1.46)).toBe(true);
+    expect(audio.spatial).not.toHaveBeenCalled();
+    audio.event({ id: 2, type: 'bounce', actor: 'near', pos: { x: 4, y: 0, z: 0 } }, here, 0, 'self');
+    expect(audio.spatial).toHaveBeenCalledOnce(); expect(audio.tone).toHaveBeenCalledTimes(6);
+    expect(audio.tone.mock.calls[3][5]).toBeLessThan(audio.tone.mock.calls[0][5]);
+    audio.event({ id: 3, type: 'bounce', actor: 'far', pos: { x: 100, y: 0, z: 0 } }, here, 0, 'self');
+    expect(audio.noise).toHaveBeenCalledTimes(2); expect(audio.tone).toHaveBeenCalledTimes(6);
+  });
+
   it('celebrates a local ladder upgrade and keeps distant upgrades out of the mix', () => {
     const audio = engine();
     audio.event({ id: 1, type: 'upgrade', actor: 'self', weapon: 'm4', level: 2 }, here, 0, 'self');

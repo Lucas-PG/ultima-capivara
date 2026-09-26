@@ -1,5 +1,5 @@
 import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
-import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, SWIM_DEPTH, SWIM_DRAFT } from '../shared/collision';
+import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, SWIM_DEPTH, SWIM_DRAFT, tryTrampoline } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
 import { waterAt } from '../shared/water';
 import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emotes';
@@ -164,7 +164,7 @@ export class Simulation {
       id: profile.id, name: profile.name.slice(0, 28), color: profile.color, bot, connected: bot || profile.connected,
       pos: br ? { ...this.plane } : spawn, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
       hp: 100, armor: 0, helmet: 0, alive: true, grounded: !br, crouch: false, sprint: false, ads: false, swimming: false, wetUntil: 0,
-      emote: null, emoteUntil: 0, soaking: false,
+      emote: null, emoteUntil: 0, soaking: false, bounceSeq: 0, bounceProtected: false,
       stage: br ? 'plane' : 'ground', kills: 0, deaths: 0, damage: 0, weaponLevel: 0,
       weapons: this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[0])] : br ? bot ? this.botLoadout() :
         [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
@@ -261,7 +261,7 @@ export class Simulation {
     s.connected = false; actor.disconnectedAt = -Infinity;
     if (!s.alive) { s.respawnAt = 0; return; }
     s.alive = false; s.hp = 0; s.deaths++; s.respawnAt = 0; s.using = null; s.reloadUntil = 0; actor.jumpQueued = false; actor.triggerQueued = null;
-    this.cancelEmote(s);
+    this.cancelEmote(s); s.bounceProtected = false;
     actor.elimination = ++this.elimination; actor.eliminatedAt ??= this.time;
     this.emit({ type: 'notice', text: `${s.name} saiu da partida` });
   }
@@ -303,13 +303,14 @@ export class Simulation {
       const trigger = actor.triggerQueued;
       actor.triggerQueued = null;
       s.yaw = inp.yaw; s.pitch = inp.pitch;
-      const wasSwimming = s.swimming, previousSlot = s.slot;
+      const wasSwimming = s.swimming, previousSlot = s.slot, previousBounce = s.bounceSeq;
       const queuedJump = actor.jumpQueued && this.time <= actor.jumpQueuedUntil;
       const consumeQueuedJump = queuedJump && s.grounded;
       moveActor(s, consumeQueuedJump ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1, this.config.mode);
       if (s.slot !== previousSlot) { actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0; }
       if (s.swimming !== wasSwimming) this.waterTransition(actor);
       this.updateMudBath(actor);
+      if (s.bounceSeq !== previousBounce) this.emit({ type: 'bounce', actor: s.id, pos: { ...s.pos } });
       actor.jumpQueued = queuedJump && !consumeQueuedJump;
       if (s.using && this.time >= s.useUntil) this.finishConsume(actor);
       if (s.reloadUntil && this.time >= s.reloadUntil) this.finishReload(actor);
@@ -389,7 +390,7 @@ export class Simulation {
     const water = waterAt(s.pos.x, s.pos.z);
     if (water && ground <= water.surfaceY - SWIM_DEPTH && s.pos.y <= water.surfaceY - SWIM_DRAFT) {
       s.pos.y = Math.max(ground, water.surfaceY - SWIM_DRAFT); s.velocity.y = 0; s.stage = 'ground'; a.landedAt = this.time;
-      s.swimming = true; s.grounded = false; s.crouch = s.sprint = s.ads = false; s.lean = 0;
+      s.swimming = true; s.grounded = false; s.crouch = s.sprint = s.ads = false; s.lean = 0; s.bounceProtected = false;
       const pistol = s.weapons.findIndex(w => w.id === 'pistol');
       if (pistol >= 0 && s.slot !== pistol) { s.slot = pistol; s.reloadUntil = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; }
       this.waterTransition(a);
@@ -398,7 +399,11 @@ export class Simulation {
     if (s.pos.y <= ground) {
       const impact = s.velocity.y;
       s.pos.y = ground; s.velocity = { x: 0, y: 0, z: 0 }; s.stage = 'ground'; s.grounded = true; a.landedAt = this.time;
-      if (impact < -20) this.damage(a, Math.min(100, (-impact - 20) * 3), null, 'fall', false);
+      if (tryTrampoline(s, this.world)) this.emit({ type: 'bounce', actor: s.id, pos: { ...s.pos } });
+      else {
+        if (impact < -20) this.damage(a, Math.min(100, (-impact - 20) * 3), null, 'fall', false);
+        s.bounceProtected = false;
+      }
     }
   }
   private planZone() {
@@ -618,6 +623,7 @@ export class Simulation {
   private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean, shotDistance = 0) {
     const s = target.state;
     if (!s.alive || this.correnteWinner || s.protectionUntil > this.time || !Number.isFinite(raw) || raw <= 0) return;
+    if (weapon === 'fall' && s.bounceProtected) return;
     let damage = raw;
     const hadArmor = s.armor > 0;
     if (head && s.helmet > 0) { const blocked = Math.min(s.helmet, damage * .4); s.helmet -= blocked; damage -= blocked; }
@@ -645,7 +651,7 @@ export class Simulation {
     const s = target.state;
     if (!s.alive) return;
     s.alive = false; s.hp = 0; s.deaths++; s.using = null; s.reloadUntil = 0; target.jumpQueued = false; target.triggerQueued = null;
-    this.cancelEmote(s);
+    this.cancelEmote(s); s.bounceProtected = false;
     if (killer && killer !== target) killer.state.kills++;
     target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
     if (isArenaMode(this.config.mode)) s.respawnAt = this.time + 3;
@@ -672,7 +678,7 @@ export class Simulation {
   private respawn(a: ActorRuntime) {
     const s = a.state; s.pos = this.spawnPoint(s.id); s.velocity = { x: 0, y: 0, z: 0 };
     s.hp = 100; s.armor = 0; s.helmet = 0; s.alive = true; s.grounded = true; s.stage = 'ground';
-    s.crouch = false; s.sprint = false; s.ads = false; s.lean = 0; s.swimming = false; s.wetUntil = 0;
+    s.crouch = false; s.sprint = false; s.ads = false; s.lean = 0; s.swimming = false; s.wetUntil = 0; s.bounceProtected = false;
     this.cancelEmote(s);
     s.weapons = this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[s.weaponLevel])] :
       [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
