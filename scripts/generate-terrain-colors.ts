@@ -21,6 +21,20 @@ function channelsFor(hex: string): [number, number, number] {
   }
   return channels;
 }
+const soften = (value: number) => { const t = Math.max(0, Math.min(1, value)); return t * t * (3 - 2 * t); };
+function paintedChannels(hex: string, x: number, z: number): number[] {
+  let channels: readonly number[] = channelsFor(hex);
+  if ([WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass].some(color => color === hex)) {
+    const shade = channelsFor(WORLD_PALETTE.grass), light = channelsFor(WORLD_PALETTE.grassLight), dry = channelsFor(WORLD_PALETTE.dryGrass);
+    const greenMix = soften((fbm(x / 36 + 7, z / 36 + 3) + .2) / .4);
+    const dryMix = soften((fbm(x / 48 - 4, z / 48 + 9) - .18) / .24);
+    channels = shade.map((value, i) => (value + (light[i] - value) * greenMix) * (1 - dryMix) + dry[i] * dryMix);
+  }
+  // Quiet overlapping washes read as paint at walking distance, with no grain
+  // or baked lighting that would fight the scene's moving sun and shadows.
+  const wash = 1 + fbm(x / 17 + 8, z / 21 - 3) * .075 + fbm(x / 2.7 - 5, z / 6.8 + 4) * .018;
+  return channels.map(value => Math.max(0, Math.min(255, value * wash)));
+}
 
 for (let row = 0; row < resolution; row++) for (let col = 0; col < resolution; col++) {
   const x = (col + .5) * texel - size / 2;
@@ -29,7 +43,7 @@ for (let row = 0; row < resolution; row++) for (let col = 0; col < resolution; c
   const slope = Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z),
     terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
   const hex = terrainColor(x, z, y, slope, false, true, false);
-  const channels = channelsFor(hex);
+  const channels = paintedChannels(hex, x, z);
   const cell = row * resolution + col;
   const index = cell * 4;
   if (y <= .05) shoreline[cell] = 0;
@@ -38,8 +52,8 @@ for (let row = 0; row < resolution; row++) for (let col = 0; col < resolution; c
   pixels[index + 2] = channels[2]; pixels[index + 3] = 255;
   const border = beachDistance(x, z);
   if (y >= .8 && Math.abs(border) < 1) {
-    const grass = channelsFor(terrainColor(x, z, y, slope, false, false, false));
-    const sand = channelsFor(terrainColor(x, z, y, slope, false, true, false));
+    const grass = paintedChannels(terrainColor(x, z, y, slope, false, false, false), x, z);
+    const sand = paintedChannels(terrainColor(x, z, y, slope, false, true, false), x, z);
     const t = Math.max(0, Math.min(1, (border + 1) / 2));
     const mix = t * t * (3 - 2 * t);
     for (let channel = 0; channel < 3; channel++)
