@@ -348,7 +348,9 @@ export class GameRenderer {
     });
     // Stand-in capybaras (one per bandana colour, with gun, parachute and name tag)
     // build and upload the shared body geometries and compile the skinned programs.
-    const stands = [...PLAYER_COLORS, BOT_COLOR].map(color => avatar(color, 'Capivara'));
+    // Later match preparation uploads the actual players; shared rigs and
+    // palette variants are already resident from the initial warmup.
+    const stands = reportProgress ? [...PLAYER_COLORS, BOT_COLOR].map(color => avatar(color, 'Capivara')) : [];
     for (const stand of stands) {
       stand.weapon.geometry = itemGeometry('weapon', 'm4'); stand.group.position.copy(this.camera.position);
       this.scene.add(stand.group);
@@ -424,8 +426,11 @@ export class GameRenderer {
     canvas.style.width = '100vw'; canvas.style.height = '100vh';
     const dpr = window.devicePixelRatio || 1;
     if (width === this.lastSize.width && height === this.lastSize.height && dpr === this.lastDeviceRatio) return;
-    this.lastDeviceRatio = dpr; this.applyPixelRatio();
-    this.lastSize = { width, height }; this.gl.setSize(width, height, false); this.pipeline.resize();
+    this.lastDeviceRatio = dpr;
+    // Apply CSS extent and DPR together. Moving between displays must not
+    // allocate the old extent at the new DPR, then allocate it all again.
+    this.gl.setDrawingBufferSize(width, height, Math.min(dpr, PRESETS[this.settings.graphics].dpr) * this.resolutionScale);
+    this.lastSize = { width, height }; this.pipeline.resize();
     this.camera.aspect = width / height; this.camera.updateProjectionMatrix(); this.weaponView.resize(width, height); this.avatars.resize(width, height);
   }
 
