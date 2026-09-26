@@ -103,7 +103,7 @@ export function createWorld(): WorldSpec {
   detail('fountain', PLAZA[0], PLAZA[1]);
   for (const [x, z] of [[-17, -24], [-3, -18], [-17, -17], [35, -10]] as const) detail('bench', x, z);
   for (const [x, z] of [[-19, -28], [-1, -28], [-19, -13], [-1, -13], [21, -10], [37, -10]] as const) detail('planter', x, z);
-  for (const [x, z] of [[-19, -30], [-1, -30], [-19, -11], [-1, -11], [20, -10], [39, -11]] as const) detail('lamp_post', x, z);
+  for (const [x, z] of [[-19, -30], [-1, -30], [-19, -11], [1, -14], [20, -10], [39, -11]] as const) detail('lamp_post', x, z);
   for (const [x, z] of [[24, -23], [34, -23], [24, -16], [34, -16], [-34, 39]] as const) detail('market_stall', x, z);
   sign(-40, -41, 'VILA'); sign(39, -9, 'MERCADÃO'); sign(-21, 37, 'POSTO');
   // Three crossings have a continuous deck level with the banks.
@@ -120,6 +120,15 @@ export function createWorld(): WorldSpec {
   for (const [x, z] of [[-29, 7], [19, 13], [55, 25]] as const) {
     detail('boat', x, z, Math.PI / 2, .8, -.15);
     if (!KIT_PIECES.boat) obj('boat', x, .05, z, 4.2, 1.1, 1.7, '#e6c17d', 'fishing');
+  }
+  for (let x = -78; x <= 78; x += 7) {
+    if (BRIDGES.some(([bx]) => Math.abs(bx - x) < 5)) continue;
+    const river = riverSample(x, 10);
+    for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
+      const xx = x + i * .55, z = river.z + side * (river.width / 2 + 2.8 + Math.sin(x + i) * .4), y = ground(xx, z);
+      if (y < -.2 || occupied(xx, z, .35) || roadAt(xx, z, .5)) continue;
+      obj('grass', xx, y, z, 1, 1.2 + i * .18, 1, '#709A63', 'reeds');
+    }
   }
   // Entry markers sit beside open routes, so the warning has visible context.
   for (const [x, z, yaw] of [
@@ -162,20 +171,27 @@ export function createWorld(): WorldSpec {
   if (KIT_PIECES.cliff_rock_tall && KIT_PIECES.cliff_ledge && KIT_PIECES.cliff_rock_low) {
     // Interlocking tall faces, projecting ledges and low toe boulders conceal
     // the heightfield skirt while the fort and its two approach ramps stay clear.
-    for (const [x, z, yaw] of [
+    for (const [index, [x, z, yaw]] of [
       [24, -109, Math.PI / 2], [24, -99, Math.PI / 2], [24, -88, Math.PI / 2],
       [-16, -109, -Math.PI / 2], [-16, -99, -Math.PI / 2], [-16, -88, -Math.PI / 2],
       [-7, -119, Math.PI], [4, -119, Math.PI], [15, -119, Math.PI], [-11, -79, 0], [19, -79, 0],
-    ]) {
+    ].entries()) {
       const ox = Math.sin(yaw), oz = Math.cos(yaw);
-      rockLayer('cliff_rock_tall', x, z, yaw, fortY - 14.4, 14.1);
-      rockLayer('cliff_ledge', x + ox * 3.8, z + oz * 3.8, yaw, 3.8, 4.5);
-      rockLayer('cliff_rock_low', x + ox * 8, z + oz * 8, yaw, .1, 3.1);
+      const height = 10.2 + index % 4 * 1.05, twist = Math.sin(index * 2.7 + .4) * .22;
+      rockLayer('cliff_rock_tall', x, z, yaw + twist, fortY - .38 - height, height);
+      rockLayer('cliff_ledge', x + ox * 3.4 + Math.cos(index) * .8, z + oz * 3.4,
+        yaw - twist * .7, 2.1 + index % 2 * 1.5, 4 + index % 3 * .65);
+      rockLayer('cliff_rock_low', x + ox * (6.5 + index % 2 * .6), z + oz * (6.5 + index % 2 * .6),
+        yaw - .24 + index % 3 * .21, -.1 + index % 2 * .2, 2.2 + index % 4 * .4);
     }
     // These skins finish below the supported summit road; their solids are
     // inside the steep headland face, leaving both gate approaches above them.
-    place('cliff_rock_tall', 19, -79, 0, 14.1 / KIT_PIECES.cliff_rock_tall.height, fortY - 14.4);
-    place('cliff_rock_tall', 25, -93, Math.PI / 2, 12.7 / KIT_PIECES.cliff_rock_tall.height, fortY - 13);
+    place('cliff_rock_tall', 19, -79, .23, 12.1 / KIT_PIECES.cliff_rock_tall.height, fortY - 12.5);
+    place('cliff_rock_tall', 25, -93, Math.PI / 2 - .24, 11.3 / KIT_PIECES.cliff_rock_tall.height, fortY - 11.7);
+    for (const [x, z, scale] of [[28, -106, .95], [30, -97, .8], [23, -76, .85], [-20, -93, .9], [-9, -122, .8], [14, -122, .75]])
+      detail('cliff_rock', x, z, 0, scale, ground(x, z) - 2.7 * scale);
+    for (const [x, z, bottom, scale] of [[28, -101, .6, 1.85], [25, -91, 2.3, 1.5], [17, -77, 3, 1.6]])
+      detail('cliff_rock', x, z, 0, scale, bottom);
   }
   for (const [x, z] of [[50, -96], [43, -110], [64, -111]] as const) {
     obj('cylinder', x, ground(x, z) + .045, z, 4.7, .05, 3.3, '#69B9AD', 'water');
@@ -341,6 +357,19 @@ export function createWorld(): WorldSpec {
   };
   tree(-20, -21, 8.4, 'tree', 'ipe-yellow'); tree(47, -31, 8, 'tree', 'ipe-pink');
   tree(-63, -55, 9.2, 'tree', 'flamboyant'); tree(77, 78, 4.8, 'tree', 'banana'); tree(-60, 84, 5.2, 'tree', 'banana');
+  // Low, broad crowns at the rock toes give the escarpment a living foreground.
+  // They share the existing instanced foliage and replace part of the scatter.
+  let shrubs = 0;
+  for (const rock of pieces.filter(piece => piece.piece.startsWith('cliff_'))) {
+    if (shrubs >= 54) break;
+    const [width, depth] = KIT_PIECES[rock.piece].footprint, size = rock.scale ?? 1;
+    for (const side of [-1, 1]) {
+      const x = rock.x + side * (width * size / 2 + .7), z = rock.z + depth * size * .28, y = ground(x, z);
+      if (y < .7 || occupied(x, z, .35) || roadAt(x, z, 1) || routeDistance(x, z) < 2.5 ||
+        Math.abs(ground(x + 1, z) - y) > 1 || blocksHeroView(x, z)) continue;
+      tree(x, z, 1.15 + random() * .55); shrubs++;
+    }
+  }
   for (const x of [45, 52, 59, 66, 73]) for (const z of [83, 89]) tree(x, z, 5.5, 'tree', 'orchard');
   for (let i = 0; i < 34; i++) {
     const x = 84 + random() * 35, z = 40 + random() * 29;
@@ -349,7 +378,7 @@ export function createWorld(): WorldSpec {
   }
   for (const [gx, gz] of [[-110, -85], [-88, -85], [-69, -88], [-45, -77], [-28, -79], [34, -65],
     [48, -77], [67, -65], [-111, -25], [-73, 39], [-69, 61], [80, 85], [29, 87], [73, 98], [-72, 96]]) {
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 10; i++) {
       const angle = i * 2.4, radius = 1.7 + Math.sqrt(i) * 2.1;
       const x = gx + Math.cos(angle) * radius, z = gz + Math.sin(angle) * radius, y = ground(x, z);
       if (y < .8 || occupied(x, z, 3) || roadAt(x, z, 2) || routeDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) ||
