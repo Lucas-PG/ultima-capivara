@@ -50,7 +50,7 @@ async function traceInputs(page: Page, label: string, samples: unknown[]) {
   });
 }
 
-test('two game contexts join, replicate movement and shots, show RTT, and recover the same player', async ({ browser }, info) => {
+test('two Corrente game contexts join, replicate movement and emotes, show RTT, and recover the same player', async ({ browser }, info) => {
   test.skip(info.project.name !== 'chromium', 'Rendered multiplayer smoke is the Chromium gate.');
   test.setTimeout(180_000);
   const contexts = await Promise.all([browser.newContext({ viewport: { width: 1280, height: 720 } }), browser.newContext({ viewport: { width: 1280, height: 720 } })]);
@@ -68,7 +68,7 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     await traceInputs(host, 'host', inputEvidence);
     await host.locator('[data-do="host"]').click();
     await host.locator('[name="nickname"]').fill('Ponte Host');
-    await host.getByRole('button', { name: 'Correria', exact: true }).click();
+    await host.getByRole('button', { name: 'Corrente', exact: true }).click();
     await host.locator('[name="bots"]').uncheck();
     await host.locator('#room-form [type="submit"]').click();
     await expect(host.locator('.invite-card strong')).toHaveText(/^[A-Z2-9]{6}$/);
@@ -89,6 +89,10 @@ test('two game contexts join, replicate movement and shots, show RTT, and recove
     }
     await controls(guest, 'activate');
     const before = await player(guest);
+    expect((await inspect(guest)).snapshot.config.mode).toBe('corrente');
+    expect(before.weaponLevel).toBe(0);
+    expect(before.weapons).toHaveLength(1);
+    expect(before.weapons[0].id).toBe('pistol');
     await controls(guest, 'key', 'KeyW', true);
     // A bounded movement window verifies real keyboard -> guest -> host Worker -> snapshot flow.
     await expect.poll(async () => {

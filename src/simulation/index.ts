@@ -6,10 +6,10 @@ import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emote
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
-import { advanceAds, coolShotHeat, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
+import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
-import { PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
+import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
 const TICK = 1 / 60;
@@ -40,10 +40,10 @@ interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; jumpQueuedUntil: number; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
   brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number; stormExposure: number; landedAt: number;
-  shots: number; hits: number; headshots: number; chests: number; eliminatedAt: number | null;
+  shots: number; hits: number; headshots: number; chests: number; longestShot: number; eliminatedAt: number | null;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
-interface Projectile { owner: string; weapon: WeaponId; pos: Vec3; velocity: Vec3; life: number }
+interface Projectile { owner: string; weapon: WeaponId; origin: Vec3; pos: Vec3; velocity: Vec3; life: number }
 type EventWithoutId = { [K in GameEvent['type']]: Omit<Extract<GameEvent, { type: K }>, 'id'> }[GameEvent['type']];
 
 const copy = <T>(value: T): T => structuredClone(value);
@@ -85,6 +85,7 @@ export class Simulation {
   private countdown = 3;
   private elimination = 0;
   private results: MatchResult[] = [];
+  private correnteWinner: string | null = null;
   // Legacy initPlane(): a random heading across the island, offset up to 35 m
   // from the centre, 350 m long at 30 m/s after a 3 s countdown.
   private plane: Vec3 = { x: -175, y: PLANE_ALTITUDE, z: 0 };
@@ -105,6 +106,10 @@ export class Simulation {
     // Snapshots must not carry undefined fields: finiteTree() rejects them and the
     // host would stop publishing. Non-weapon spawns may come with `weapon: undefined`.
     this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: weapon === 'slingshot' ? 3 : Math.floor(this.random() * 4), respawnAt: 0 }));
+    if (config.mode === 'corrente') {
+      for (const item of this.loot) item.active = false;
+      for (const chest of world.chests) this.openedChests.add(chest.id);
+    }
     const heading = this.random() * Math.PI * 2, offset = (this.random() * 2 - 1) * 35;
     this.planeDir = { x: Math.cos(heading), y: 0, z: Math.sin(heading) };
     this.planeStart = { x: -this.planeDir.z * offset - this.planeDir.x * PLANE_ROUTE / 2, y: PLANE_ALTITUDE, z: this.planeDir.x * offset - this.planeDir.z * PLANE_ROUTE / 2 };
@@ -119,7 +124,8 @@ export class Simulation {
   drainEvents(): GameEvent[] { return this.events.splice(0); }
 
   private spawnPoint(id: string): Vec3 {
-    const points = this.world.spawns.filter(s => (s.mode === 'both' || s.mode === this.config.mode) && (this.config.mode !== 'deathmatch' || this.inArena(s)));
+    const points = this.world.spawns.filter(s => (s.mode === 'both' || s.mode === this.config.mode ||
+      this.config.mode === 'corrente' && s.mode === 'deathmatch') && (!isArenaMode(this.config.mode) || this.inArena(s)));
     const others = [...this.actors.values()].map(v => v.state).filter(a => a.alive && a.stage === 'ground');
     let best: Vec3 | null = null, score = -Infinity;
     for (const point of points.length ? points : [{ x: -42, y: 0, z: -12, mode: 'both' as const, yaw: 0 }]) {
@@ -133,13 +139,13 @@ export class Simulation {
     }
     if (best) return best;
     for (let i = 0; i < 500; i++) {
-      const dm = this.config.mode === 'deathmatch';
+      const dm = isArenaMode(this.config.mode);
       const x = dm ? ARENA.minX + 2 + this.random() * (ARENA.maxX - ARENA.minX - 4) : -110 + this.random() * 220;
       const z = dm ? ARENA.minZ + 2 + this.random() * (ARENA.maxZ - ARENA.minZ - 4) : -110 + this.random() * 220;
       const p = groundPoint(x, z);
       if (terrainHeight(x, z) > .5 && clearSpawn(p, this.world)) return p;
     }
-    const b = this.config.mode === 'deathmatch' ? { x0: ARENA.minX + 2, x1: ARENA.maxX - 2, z0: ARENA.minZ + 2, z1: ARENA.maxZ - 2 } : { x0: -110, x1: 110, z0: -110, z1: 110 };
+    const b = isArenaMode(this.config.mode) ? { x0: ARENA.minX + 2, x1: ARENA.maxX - 2, z0: ARENA.minZ + 2, z1: ARENA.maxZ - 2 } : { x0: -110, x1: 110, z0: -110, z1: 110 };
     for (let x = b.x0; x <= b.x1; x += 2) for (let z = b.z0; z <= b.z1; z += 2) {
       const p = groundPoint(x, z);
       if (terrainHeight(x, z) > .5 && clearSpawn(p, this.world)) return p;
@@ -158,8 +164,9 @@ export class Simulation {
       pos: br ? { ...this.plane } : spawn, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
       hp: 100, armor: 0, helmet: 0, alive: true, grounded: !br, crouch: false, sprint: false, ads: false, swimming: false, wetUntil: 0,
       emote: null, emoteUntil: 0,
-      stage: br ? 'plane' : 'ground', kills: 0, deaths: 0, damage: 0,
-      weapons: br ? bot ? this.botLoadout() : [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
+      stage: br ? 'plane' : 'ground', kills: 0, deaths: 0, damage: 0, weaponLevel: 0,
+      weapons: this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[0])] : br ? bot ? this.botLoadout() :
+        [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
       slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
       reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0, shotHeat: 0,
     };
@@ -167,7 +174,7 @@ export class Simulation {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, eliminatedAt: null, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [] });
   }
 
   input(id: string, input: InputFrame) {
@@ -238,7 +245,7 @@ export class Simulation {
       return;
     }
     if (!actor) return;
-    if (status === 'join' && actor.disconnectedAt === -Infinity && this.config.mode === 'deathmatch') {
+    if (status === 'join' && actor.disconnectedAt === -Infinity && isArenaMode(this.config.mode)) {
       actor.state.connected = true; actor.disconnectedAt = Infinity; actor.state.respawnAt = this.time;
     }
     if (status === 'disconnect') { actor.state.connected = false; actor.disconnectedAt = this.time; actor.input = emptyInput(); actor.jumpQueued = false; actor.triggerQueued = null; this.cancelEmote(actor.state); }
@@ -273,10 +280,11 @@ export class Simulation {
     if (this.phase !== 'playing') return;
     if (this.config.mode === 'battle-royale') { this.updatePlane(); this.updateZone(); }
     for (const actor of this.actors.values()) {
+      if (this.correnteWinner) break;
       const s = actor.state;
       if (actor.shotHeat > 0) actor.shotHeat = s.shotHeat = coolShotHeat(actor.shotHeat, TICK);
       if (!s.connected && actor.disconnectedAt >= 0 && this.time - actor.disconnectedAt >= 30) this.forfeit(actor);
-      if (!s.alive) { if (this.config.mode === 'deathmatch' && s.respawnAt && this.time >= s.respawnAt && s.connected) this.respawn(actor); continue; }
+      if (!s.alive) { if (isArenaMode(this.config.mode) && s.respawnAt && this.time >= s.respawnAt && s.connected) this.respawn(actor); continue; }
       if (s.stage === 'plane') {
         s.pos = { ...this.plane };
         if (!actor.brain && s.connected && this.time - actor.lastInputAt <= .3) { s.yaw = actor.input.yaw; s.pitch = actor.input.pitch; }
@@ -326,10 +334,10 @@ export class Simulation {
       actor.history.push({ time: this.time, pos: { ...s.pos }, crouch: s.crouch, yaw: s.yaw });
       if (actor.history.length > 15) actor.history.shift();
     }
-    this.updateProjectiles();
+    if (!this.correnteWinner) this.updateProjectiles();
     for (const loot of this.loot) if (!loot.active && loot.respawnAt && this.time >= loot.respawnAt) { loot.active = true; loot.respawnAt = 0; }
     for (const [loot, until] of this.spentDrops) if (this.time >= until) { this.loot.splice(this.loot.indexOf(loot), 1); this.spentDrops.delete(loot); }
-    if (this.config.mode === 'deathmatch' && this.time >= this.config.duration + 3) this.finish();
+    if (this.correnteWinner || this.config.mode === 'deathmatch' && this.time >= this.config.duration + 3) this.finish();
     if (this.config.mode === 'battle-royale') {
       const survivors = [...this.actors.values()].filter(a => a.state.alive);
       if (survivors.length === 0 || survivors.length === 1 && survivors[0].state.connected) this.finish();
@@ -411,6 +419,7 @@ export class Simulation {
   }
   private startReload(a: ActorRuntime) {
     const s = a.state, w = s.weapons[s.slot], def = w && WEAPONS[w.id];
+    if (this.config.mode === 'corrente' && w && def.ammo) w.reserve = Math.max(w.reserve, AMMO[w.id]);
     if (!w || !def.ammo || s.stage !== 'ground' || s.reloadUntil || s.using || w.ammo >= def.magazine || w.reserve <= 0) return;
     s.reloadUntil = this.time + def.reload;
   }
@@ -420,6 +429,7 @@ export class Simulation {
       const def = WEAPONS[w.id];
       const amount = Math.min(w.id === 'shotgun' ? 1 : def.magazine - w.ammo, w.reserve);
       w.ammo += amount; w.reserve -= amount;
+      if (this.config.mode === 'corrente') w.reserve = AMMO[w.id];
       if (amount) this.emit({ type: 'reload', actor: s.id, weapon: w.id });
       if (w.id === 'shotgun' && w.ammo < def.magazine && w.reserve > 0) { s.reloadUntil = this.time + def.reload; return; }
     }
@@ -445,7 +455,7 @@ export class Simulation {
   }
   private interact(a: ActorRuntime, target: string) {
     const s = a.state;
-    if (s.stage !== 'ground' || typeof target !== 'string') return;
+    if (this.config.mode === 'corrente' || s.stage !== 'ground' || typeof target !== 'string') return;
     const loot = this.loot.find(item => item.id === target && item.active);
     const chest = this.world.chests.find(item => item.id === target && !this.openedChests.has(item.id));
     const item = loot || chest;
@@ -529,7 +539,7 @@ export class Simulation {
     if (range) this.alertBots(s.pos, range);
     origin.x += Math.cos(s.yaw) * s.lean * .32; origin.z -= Math.sin(s.yaw) * s.lean * .32;
     if (def.projectile) {
-      this.projectiles.push({ owner: s.id, weapon: w.id, pos: { ...origin }, velocity: { x: forward.x * (def.speed || 50), y: forward.y * (def.speed || 50), z: forward.z * (def.speed || 50) }, life: 3 });
+      this.projectiles.push({ owner: s.id, weapon: w.id, origin: { ...origin }, pos: { ...origin }, velocity: { x: forward.x * (def.speed || 50), y: forward.y * (def.speed || 50), z: forward.z * (def.speed || 50) }, life: 3 });
       this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: { x: origin.x + forward.x * 2, y: origin.y + forward.y * 2, z: origin.z + forward.z * 2 }, hit: false });
       return;
     }
@@ -550,7 +560,7 @@ export class Simulation {
       if (victim) {
         hit = true; headHit ||= head; endpoint = { x: origin.x + direction.x * best, y: origin.y + direction.y * best, z: origin.z + direction.z * best };
         const falloff = damageFalloff(w.id, best);
-        this.damage(victim, def.damage * (head ? def.headMultiplier : 1) * (1 + w.rarity * .08) * falloff * (a.brain ? this.botDamage(a, victim) : 1), s.id, w.id, head);
+        this.damage(victim, def.damage * (head ? def.headMultiplier : 1) * (1 + w.rarity * .08) * falloff * (a.brain ? this.botDamage(a, victim) : 1), s.id, w.id, head, best);
       } else if (!hit) {
         impact = resolveImpact(origin, direction, wall, def.range);
         if (impact) endpoint = impact.point;
@@ -591,16 +601,19 @@ export class Simulation {
     }
     return best < max ? { distance: best, head } : null;
   }
-  private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean) {
+  private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean, shotDistance = 0) {
     const s = target.state;
-    if (!s.alive || s.protectionUntil > this.time || !Number.isFinite(raw) || raw <= 0) return;
+    if (!s.alive || this.correnteWinner || s.protectionUntil > this.time || !Number.isFinite(raw) || raw <= 0) return;
     let damage = raw;
     const hadArmor = s.armor > 0;
     if (head && s.helmet > 0) { const blocked = Math.min(s.helmet, damage * .4); s.helmet -= blocked; damage -= blocked; }
     if (s.armor > 0) { const blocked = Math.min(s.armor, damage); s.armor -= blocked; damage -= blocked; }
     s.hp = Math.max(0, s.hp - damage);
     const attacker = attackerId && attackerId !== s.id ? this.actors.get(attackerId) : null;
-    if (attacker) attacker.state.damage += raw;
+    if (attacker) {
+      attacker.state.damage += raw;
+      if (weapon !== 'storm' && weapon !== 'fall' && !WEAPONS[weapon].melee && Number.isFinite(shotDistance)) attacker.longestShot = Math.max(attacker.longestShot, shotDistance);
+    }
     target.lastHurt = this.time;
     const brain = target.brain;
     if (brain && attacker) {
@@ -621,17 +634,34 @@ export class Simulation {
     this.cancelEmote(s);
     if (killer && killer !== target) killer.state.kills++;
     target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
-    if (this.config.mode === 'deathmatch') s.respawnAt = this.time + 3;
+    if (isArenaMode(this.config.mode)) s.respawnAt = this.time + 3;
     const from = killer && killer !== target ? killer.state.pos : null;
     this.emit({ type: 'kill', actor: killer?.state.id || null, target: s.id, weapon,
       ...(from ? { from: { ...from }, distance: Math.round(Math.hypot(from.x - s.pos.x, from.y - s.pos.y, from.z - s.pos.z)) } : {}) });
+    if (this.config.mode === 'corrente' && killer && killer !== target && weapon !== 'storm' && weapon !== 'fall') {
+      const winner = killer.state;
+      if (winner.weaponLevel < CORRENTE_LADDER.length - 1) {
+        winner.weaponLevel++;
+        const next = CORRENTE_LADDER[winner.weaponLevel];
+        winner.weapons = [this.makeWeapon(next)]; winner.slot = 0;
+        winner.reloadUntil = winner.useUntil = 0; winner.using = null; winner.ads = false;
+        killer.adsAmount = 0; killer.shotHeat = winner.shotHeat = 0;
+        killer.nextShot = this.time + .18; killer.wasFiring = false;
+        this.cancelEmote(winner);
+        if (killer.brain) { killer.brain.burst = 0; killer.brain.fireAt = killer.nextShot; killer.brain.thinkAt = this.time; }
+        this.emit({ type: 'upgrade', actor: winner.id, weapon: next, level: winner.weaponLevel });
+      } else if (weapon === 'machete') {
+        this.correnteWinner = winner.id;
+      }
+    }
   }
   private respawn(a: ActorRuntime) {
     const s = a.state; s.pos = this.spawnPoint(s.id); s.velocity = { x: 0, y: 0, z: 0 };
     s.hp = 100; s.armor = 0; s.helmet = 0; s.alive = true; s.grounded = true; s.stage = 'ground';
     s.crouch = false; s.sprint = false; s.ads = false; s.lean = 0; s.swimming = false; s.wetUntil = 0;
     this.cancelEmote(s);
-    s.weapons = [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
+    s.weapons = this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[s.weaponLevel])] :
+      [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
     s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
     // Press IDs survive respawn just like lastAction/lastSeq; a delayed reliable
@@ -657,7 +687,8 @@ export class Simulation {
       if (victim) {
         const owner = this.actors.get(p.owner);
         if (owner) { owner.hits++; if (head) owner.headshots++; }
-        this.damage(victim, WEAPONS[p.weapon].damage * (head ? WEAPONS[p.weapon].headMultiplier : 1), p.owner, p.weapon, head);
+        const distance = Math.hypot(previous.x + dir.x * best - p.origin.x, previous.y + dir.y * best - p.origin.y, previous.z + dir.z * best - p.origin.z);
+        this.damage(victim, WEAPONS[p.weapon].damage * (head ? WEAPONS[p.weapon].headMultiplier : 1), p.owner, p.weapon, head, distance);
       }
       const underground = p.pos.y < terrainHeight(p.pos.x, p.pos.z);
       const landed = victim ? null : resolveImpact(previous, dir, wall || (underground ? { distance: length, collider: { id: 'terrain', min: p.pos, max: p.pos, material: 'earth' } } : null), length);
@@ -710,7 +741,7 @@ export class Simulation {
     inp.sprint = s.stage === 'falling' && dist < Math.max(0, height - 55) * .45 + 55;
   }
   private botDamage(a: ActorRuntime, victim: ActorRuntime): number {
-    const human = !victim.state.bot || this.config.mode === 'deathmatch';
+    const human = !victim.state.bot || isArenaMode(this.config.mode);
     if (human) return (a.brain!.elite ? .62 : .45) * this.diff.dmg;
     // Legacy used .15/.1; the quadruped hit volumes are larger than the old
     // humanoids, so bot-vs-bot is scaled down to keep legacy's attrition rate.
@@ -743,7 +774,7 @@ export class Simulation {
     return this.grid.sees(this.botEye(s), { x: t.pos.x, y: t.pos.y + (t.swimming ? 1.6 : 1.0 * (t.crouch ? 1.3 / 1.8 : 1)), z: t.pos.z });
   }
   private walkable(x: number, z: number) {
-    if (this.config.mode === 'deathmatch') return inArena(x, z, .5);
+    if (isArenaMode(this.config.mode)) return inArena(x, z, .5);
     return Math.abs(x) < 118 && Math.abs(z) < 118;
   }
   // Indoor loot is reached through a doorway: the nearest outdoor spot with a straight
@@ -799,19 +830,19 @@ export class Simulation {
   }
   // Legacy safeCircle(): the storm's next circle (Correria uses the arena rectangle instead).
   private safeCircle() {
-    if (this.config.mode === 'deathmatch') return { x: ARENA_CENTER.x, z: ARENA_CENTER.z, r: Math.min(ARENA.maxX - ARENA.minX, ARENA.maxZ - ARENA.minZ) / 2 };
+    if (isArenaMode(this.config.mode)) return { x: ARENA_CENTER.x, z: ARENA_CENTER.z, r: Math.min(ARENA.maxX - ARENA.minX, ARENA.maxZ - ARENA.minZ) / 2 };
     if (this.zone.phase >= STORM.length) return { x: this.zone.x, z: this.zone.z, r: 0 };
     return { x: this.zone.nextX, z: this.zone.nextZ, r: this.zone.nextRadius };
   }
   private randomGoal(s: ActorState): Vec3 {
-    const sc = this.safeCircle(), spots = this.config.mode === 'deathmatch' ? this.world.loot.filter(l => this.inArena(l)) : [...this.world.loot, ...this.world.chests];
+    const sc = this.safeCircle(), spots = isArenaMode(this.config.mode) ? this.world.loot.filter(l => this.inArena(l)) : [...this.world.loot, ...this.world.chests];
     for (let k = 0; k < 20; k++) {
       let x: number, z: number;
       if (this.random() < .3 && spots.length) { const p = spots[Math.floor(this.random() * spots.length)]; x = p.x; z = p.z; }
-      else if (this.config.mode === 'deathmatch') { x = ARENA.minX + 3 + this.random() * (ARENA.maxX - ARENA.minX - 6); z = ARENA.minZ + 3 + this.random() * (ARENA.maxZ - ARENA.minZ - 6); }
+      else if (isArenaMode(this.config.mode)) { x = ARENA.minX + 3 + this.random() * (ARENA.maxX - ARENA.minX - 6); z = ARENA.minZ + 3 + this.random() * (ARENA.maxZ - ARENA.minZ - 6); }
       else { const a = this.random() * Math.PI * 2, r = Math.sqrt(this.random()) * sc.r * .85; x = sc.x + Math.cos(a) * r; z = sc.z + Math.sin(a) * r; }
       if (!this.walkable(x, z) || this.pointBlocked(x, terrainHeight(x, z), z)) continue;
-      if (this.config.mode !== 'deathmatch' && Math.hypot(x - sc.x, z - sc.z) > sc.r * .95 && k < 15) continue;
+      if (!isArenaMode(this.config.mode) && Math.hypot(x - sc.x, z - sc.z) > sc.r * .95 && k < 15) continue;
       return groundPoint(x, z);
     }
     return this.walkable(sc.x, sc.z) ? groundPoint(sc.x, sc.z) : { ...s.pos };
@@ -844,7 +875,8 @@ export class Simulation {
     return best;
   }
   private findLoot(s: ActorState): BotBrain['loot'] {
-    const dm = this.config.mode === 'deathmatch';
+    if (this.config.mode === 'corrente') return null;
+    const dm = isArenaMode(this.config.mode);
     let best: BotBrain['loot'] = null, bd = dm ? 14 : 36;
     const current = s.weapons[this.bestWeapon(s)], value = botValue(current.id, current.rarity);
     const b = this.actors.get(s.id)?.brain, ignored = (id: string) => (b?.ignore.get(id) ?? -1) > this.time;
@@ -884,7 +916,7 @@ export class Simulation {
   // When a wall blocks the straight line, head for the nearest visible corner of
   // that wall segment. Walls are split at openings, so this usually is a doorway.
   private route(s: ActorState, goal: Vec3, avoid: Vec3 | null = null): Vec3 | null {
-    const waypoint = navigationWaypoint(this.world, s.pos, goal, this.config.mode === 'deathmatch');
+    const waypoint = navigationWaypoint(this.world, s.pos, goal, isArenaMode(this.config.mode));
     if (waypoint) return waypoint;
     const low = { x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, dx = goal.x - s.pos.x, dz = goal.z - s.pos.z, L = Math.hypot(dx, dz);
     if (L < 1.5 || this.grid.ray(low, { x: dx / L, y: 0, z: dz / L }, L) === null) return null;
@@ -915,7 +947,7 @@ export class Simulation {
     return this.walkable(x, z);
   }
   private botThink(a: ActorRuntime) {
-    const s = a.state, b = a.brain!, diff = this.diff, dm = this.config.mode === 'deathmatch';
+    const s = a.state, b = a.brain!, diff = this.diff, dm = isArenaMode(this.config.mode);
     const weapon = BOT_WEAPON[s.weapons[s.slot]?.id || 'pistol'];
     const fx = -Math.sin(s.yaw), fz = -Math.cos(s.yaw);
     let best: ActorRuntime | null = null, bd = Infinity;
@@ -1025,7 +1057,7 @@ export class Simulation {
       // Commit to a detour corner until it is reached or lost from sight; re-planning every
       // few frames made bots flip between the two ends of a wall.
       const goalMoved = !b.routeFor || Math.hypot(b.routeFor.x - g.x, b.routeFor.z - g.z) > 2;
-      const viaLost = !!b.via && (this.world.navigation ? !walkableSegment(this.world, s.pos, b.via, this.config.mode === 'deathmatch') :
+      const viaLost = !!b.via && (this.world.navigation ? !walkableSegment(this.world, s.pos, b.via, isArenaMode(this.config.mode)) :
         !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: b.via.x, y: b.via.y + .7, z: b.via.z }));
       if (goalMoved || viaLost || (!b.via && now >= b.routeAt)) {
         b.routeAt = now + .3; b.routeFor = { ...g }; b.via = this.route(s, g, b.lastVia);
@@ -1117,7 +1149,7 @@ export class Simulation {
     const eye = center(s), dist = Math.hypot(aim.x - eye.x, aim.y - eye.y, aim.z - eye.z);
     const tv = Math.hypot(t.velocity.x, t.velocity.z), sv = Math.hypot(s.velocity.x, s.velocity.z);
     const track = b.elite ? lerp(1.5, .45, clamp(b.trackT / 1.6, 0, 1)) : lerp(1.8, .75, clamp(b.trackT / 2.2, 0, 1));
-    const human = !t.bot || this.config.mode === 'deathmatch';
+    const human = !t.bot || isArenaMode(this.config.mode);
     const err = (b.skill + dist * .008 + tv * .22 + sv * .18) * track * DEG * (w.id === 'dmr' || w.id === 'sniper' ? .6 : 1) * (s.crouch ? .8 : 1) * (human ? this.diff.err : 1.8);
     const before = w.ammo;
     this.fire(a, this.time, undefined, { dir: norm({ x: aim.x - eye.x, y: aim.y - eye.y, z: aim.z - eye.z }), cone: err });
@@ -1131,7 +1163,11 @@ export class Simulation {
   private finish() {
     if (this.phase === 'results') return;
     this.phase = 'results';
-    const sorted = [...this.actors.values()].sort((a, b) => this.config.mode === 'deathmatch' ? b.state.kills - a.state.kills || a.state.deaths - b.state.deaths || b.state.damage - a.state.damage : Number(b.state.alive) - Number(a.state.alive) || b.elimination - a.elimination);
+    const sorted = [...this.actors.values()].sort((a, b) => this.config.mode === 'corrente' ?
+      Number(b.state.id === this.correnteWinner) - Number(a.state.id === this.correnteWinner) || b.state.weaponLevel - a.state.weaponLevel ||
+      b.state.kills - a.state.kills || a.state.deaths - b.state.deaths : this.config.mode === 'deathmatch' ?
+      b.state.kills - a.state.kills || a.state.deaths - b.state.deaths || b.state.damage - a.state.damage :
+      Number(b.state.alive) - Number(a.state.alive) || b.elimination - a.elimination);
     let previousPlace = 0;
     const alive = sorted.filter(a => a.state.alive).length;
     this.results = sorted.map((a, index) => {
@@ -1141,15 +1177,18 @@ export class Simulation {
       const place = tied ? previousPlace : index + 1;
       previousPlace = place;
       const livedUntil = this.config.mode === 'battle-royale' ? a.eliminatedAt ?? this.time : this.time;
-      return { id: s.id, name: s.name, color: s.color, bot: s.bot, kills: s.kills, deaths: s.deaths, damage: s.damage, place, winner: place === 1 && (this.config.mode === 'deathmatch' || alive === 1),
-        shots: a.shots, hits: a.hits, headshots: a.headshots, survived: Math.round(Math.max(0, livedUntil - this.matchStartedAt) * 10) / 10, chests: a.chests };
+      const winner = this.config.mode === 'corrente' ? s.id === this.correnteWinner : place === 1 && (this.config.mode === 'deathmatch' || alive === 1);
+      return { id: s.id, name: s.name, color: s.color, bot: s.bot, kills: s.kills, deaths: s.deaths, damage: s.damage, place, winner,
+        shots: a.shots, hits: a.hits, headshots: a.headshots, survived: Math.round(Math.max(0, livedUntil - this.matchStartedAt) * 10) / 10, chests: a.chests, longestShot: Math.round(a.longestShot * 10) / 10 };
     });
     this.emit({ type: 'notice', text: 'Partida encerrada!' });
   }
   snapshot(): WorldSnapshot {
     return {
       protocol: PROTOCOL_VERSION, world: this.world.version || WORLD_VERSION, matchId: this.matchId, tick: this.tick, time: this.time, phase: this.phase,
-      config: { ...this.config }, countdown: this.countdown, remaining: this.config.mode === 'deathmatch' ? Math.max(0, this.config.duration - Math.max(0, this.time - 3)) : [...this.actors.values()].filter(a => a.state.alive).length,
+      config: { ...this.config }, countdown: this.countdown, remaining: this.config.mode === 'corrente' ?
+        this.correnteWinner ? 0 : CORRENTE_LADDER.length - Math.max(0, ...[...this.actors.values()].map(a => a.state.weaponLevel)) :
+        this.config.mode === 'deathmatch' ? Math.max(0, this.config.duration - Math.max(0, this.time - 3)) : [...this.actors.values()].filter(a => a.state.alive).length,
       actors: [...this.actors.values()].map(a => copy(a.state)), loot: copy(this.loot), openedChests: [...this.openedChests],
       zone: { ...this.zone }, results: copy(this.results), plane: { ...this.plane },
     };

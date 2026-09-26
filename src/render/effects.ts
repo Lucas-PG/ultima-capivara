@@ -167,7 +167,11 @@ export class EffectsView {
   event(event: GameEvent, avatars: AvatarView, weaponView: WeaponView, playerId: string | undefined, snapshot: WorldSnapshot | null = null): void {
     const firstPerson = !!this.frame?.firstPerson;
     if (event.type === 'shot') this.shot(event, avatars, weaponView, playerId, snapshot);
-    else if (event.type === 'water') {
+    else if (event.type === 'upgrade') {
+      const pos = this.copyActor(snapshot, event.actor, this.a);
+      if (pos && (!this.frame || this.frame.camera.position.distanceToSquared(pos) < 35 * 35))
+        this.upgrade(pos, event.actor === playerId && firstPerson, event.level);
+    } else if (event.type === 'water') {
       if (this.frame && this.frame.camera.position.distanceToSquared(event.pos) > 40 * 40) return;
       this.a.set(event.pos.x, WATER_LEVEL, event.pos.z);
       this.waterRipple(this.a, event.entering ? 1.9 : 1.2, event.entering ? .65 : .4);
@@ -479,6 +483,28 @@ export class EffectsView {
       card.rot = i / count * Math.PI * 2; card.spin = rand(3, 5); card.vel.set(0, height * rand(.8, 1.2), 0);
       card.cell = CELL.twinkle; card.life = rand(.55, .75); card.pop = true; card.fadeOut = .4;
       card.size0 = .22; card.size1 = .1; card.minPx = 8; card.maxPx = 30; card.color.copy(color); card.light.copy(light);
+    }
+  }
+
+  private upgrade(pos: THREE.Vector3, local: boolean, level: number) {
+    const reduced = !!this.frame?.reducedMotion;
+    const count = reduced ? 2 : this.frame?.lowQuality ? 4 : level === 7 ? 8 : 6;
+    if (!local && !reduced) this.ring(pos, this.color.gold, this.color.goldLight, 1.4);
+    for (let i = 0; i < count; i++) {
+      const card = (local ? this.fpCards : this.cards).spawn(), side = i % 2 ? 1 : -1;
+      if (local) {
+        card.pos.set(side * (.29 + (i % 3) * .045), -.28 + (i % 3) * .045, -.68);
+        card.vel.y = reduced ? 0 : .11;
+      } else {
+        card.pos.set(pos.x + side * .42, pos.y + 1.2 + i % 3 * .2, pos.z);
+        if (!reduced) {
+          card.center.copy(pos).setY(pos.y + .4); card.motion = Motion.Orbit; card.radius = .5;
+          card.rot = i / count * Math.PI * 2; card.spin = 2.8; card.vel.y = 1.3;
+        }
+      }
+      card.cell = CELL.twinkle; card.life = .75; card.fadeIn = .08; card.fadeOut = .4; card.pop = !reduced;
+      card.size0 = local ? .055 : .23; card.size1 = card.size0 * (reduced ? 1 : .65);
+      card.color.copy(this.color.gold); card.light.copy(this.color.goldLight);
     }
   }
 
