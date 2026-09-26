@@ -646,7 +646,10 @@ export class WeaponView {
       this.rim.position.set(-70, 65, -30).applyQuaternion(this.inverseView);
     }
     this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
-    if (!actor || !this.holder.visible) { this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined; this.land.reset(); return; }
+    if (!actor || !this.holder.visible) {
+      this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined; this.land.reset();
+      this.swimPose = 0; this.swimming = false; return;
+    }
     const requested = actor.weapons[actor.slot]?.id || 'pistol';
     if (requested !== this.active) {
       this.cancelInspect(); this.holster = Math.min(1, this.holster + dt / .11);

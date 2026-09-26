@@ -212,7 +212,7 @@ export function resetCapybaraPose(body: THREE.SkinnedMesh): void {
   for (const action of runtime.faceActions) action?.setEffectiveWeight(0);
   for (const [name, action] of Object.entries(runtime.actions)) if (!name.startsWith('face_')) { action.stop(); action.reset().setEffectiveWeight(name === 'idle' ? 1 : 0).play(); }
   for (const name of Object.keys(runtime.weights)) runtime.weights[name] = name === 'idle' ? 1 : 0;
-  runtime.active = 'idle'; runtime.grounded = true; runtime.landing = 0;
+  runtime.active = 'idle'; runtime.grounded = true; runtime.swimming = false; runtime.swimBlend = 0; runtime.landing = 0;
   runtime.scene.rotation.set(0, 0, 0); runtime.scene.position.set(0, 0, 0);
 }
 
