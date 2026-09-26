@@ -4,6 +4,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { WEAPONS } from '../shared/weapons';
 import { EMOTES, EMOTE_IDS } from '../shared/emotes';
+import { TRAMPOLINE_IMPULSE } from '../shared/collision';
 import type { ActorState, EmoteId } from '../shared/types';
 import type { AvatarReaction } from './effects';
 import palette from './capybara-palette.json';
@@ -110,6 +111,7 @@ interface CharacterInstance {
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
   relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
   gesture: EmoteId | null; gestureDeadline: number; gestureElapsed: number; gestureBlend: number;
+  bounceSeq: number | null;
   gestureJoints: Partial<Record<'forearm_L' | 'forearm_R' | 'paw_L' | 'paw_R' | 'thigh_L' | 'thigh_R' | 'shin_L' | 'shin_R' | 'foot_L' | 'foot_R', THREE.Bone>>;
 }
 
@@ -213,6 +215,7 @@ export function resetCapybaraPose(body: THREE.SkinnedMesh): void {
   if (!runtime) return;
   runtime.hitTime = runtime.faceTime = runtime.emoteTime = 0; runtime.deathTime = -1;
   runtime.gesture = null; runtime.gestureDeadline = runtime.gestureElapsed = runtime.gestureBlend = 0;
+  runtime.bounceSeq = null;
   runtime.expression = 'neutral'; runtime.forcedExpression = null;
   for (const action of runtime.faceActions) action?.setEffectiveWeight(0);
   for (const [name, action] of Object.entries(runtime.actions)) if (!name.startsWith('face_')) { action.stop(); action.reset().setEffectiveWeight(name === 'idle' ? 1 : 0).play(); }
@@ -265,7 +268,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     actions[clip.name] = mixer.clipAction(playable);
     if (facial) actions[clip.name].setEffectiveWeight(0).play();
   }
-  for (const name of ['jump', 'land', 'death', 'reload_tp']) if (actions[name]) {
+  for (const name of ['jump', 'boing', 'land', 'death', 'reload_tp']) if (actions[name]) {
     actions[name].setLoop(THREE.LoopOnce, 1); actions[name].clampWhenFinished = true;
   }
   for (const name of EMOTE_IDS) if (actions[name]) {
@@ -279,6 +282,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   const runtime: CharacterInstance = {
     scene, mixer, actions, weights, targets, grounded: true, swimming: false, swimBlend: 0, landing: 0, crouchOffset: 0,
     gesture: null, gestureDeadline: 0, gestureElapsed: 0, gestureBlend: 0, gestureJoints: {},
+    bounceSeq: null,
     spine: scene.getObjectByName('spine') as THREE.Bone | undefined, crown: new THREE.Vector3(0, characterHeadTop, 0), crownScratch: new THREE.Vector3(), faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
     hitTime: 0, hitX: 0, hitZ: 0, deathTime: -1, deathSide: 1, emoteTime: 0, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,
@@ -345,6 +349,16 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
   const dead = runtime.deathTime >= 0;
   const step = Math.max(0, Math.min(dt, .1));
+  const bouncing = !!actions.boing && !dead && !actor.swimming && actor.stage === 'ground' &&
+    !actor.grounded && actor.bounceProtected && actor.velocity.y > 0;
+  if (bouncing && runtime.bounceSeq !== actor.bounceSeq) {
+    runtime.bounceSeq = actor.bounceSeq;
+    const clip = actions.boing;
+    clip.reset().play();
+    // A remote capy may first appear halfway up. Enter the matching part of
+    // the rise instead of replaying its tuck at the apex. Never change physics.
+    clip.time = Math.min(clip.getClip().duration, .55 * THREE.MathUtils.clamp(1 - actor.velocity.y / TRAMPOLINE_IMPULSE, 0, 1));
+  }
   const gesture = !dead && !actor.swimming && actor.grounded && actor.stage === 'ground' && actor.emoteUntil > simulationTime ? actor.emote : null;
   if (gesture && (gesture !== runtime.gesture || actor.emoteUntil !== runtime.gestureDeadline)) {
     runtime.gesture = gesture; runtime.gestureDeadline = actor.emoteUntil;
@@ -373,9 +387,9 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   } else if (actor.swimming) { weight('idle', 1); runtime.landing = 0; }
   else if (runtime.emoteTime > 0) weight('idle', 1);
   else if (actor.stage !== 'ground' || !actor.grounded) {
-    const airborne = actor.velocity.y < -.15 ? 'fall' : 'jump';
+    const airborne = bouncing ? 'boing' : actor.velocity.y < (actor.bounceProtected && actions.boing ? 0 : -.15) ? 'fall' : 'jump';
     weight(airborne, 1, 'jump');
-    if (runtime.grounded) actions[actions[airborne] ? airborne : 'jump'].reset().play();
+    if (runtime.grounded && airborne !== 'boing') actions[actions[airborne] ? airborne : 'jump'].reset().play();
   } else {
     if (!runtime.grounded && !runtime.swimming && actions.land) { runtime.landing = .24; actions.land.reset().play(); }
     const moving = THREE.MathUtils.smoothstep(speed, .05, .35);
@@ -401,7 +415,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   runtime.swimBlend = THREE.MathUtils.damp(runtime.swimBlend, actor.swimming && !dead ? 1 : 0, 9, step);
   for (const [name, action] of Object.entries(actions)) if (!name.startsWith('face_') && name !== 'reload_tp') {
     const target = targets[name] || 0;
-    if (target > 0 && runtime.weights[name] < .001 && name !== 'death' && name !== 'land' && name !== gesture) action.reset().play();
+    if (target > 0 && runtime.weights[name] < .001 && name !== 'death' && name !== 'land' && name !== 'boing' && name !== gesture) action.reset().play();
     runtime.weights[name] = THREE.MathUtils.damp(runtime.weights[name], target, 18, step);
     action.setEffectiveWeight(runtime.weights[name]);
     const nominal = name === 'run' ? 6.4 : name === 'crouch_walk' ? 2.1 : ['walk', 'backpedal', 'strafe_l', 'strafe_r'].includes(name) ? 3.9 : 0;
@@ -409,7 +423,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   }
   const reload = actions.reload_tp, held = actor.weapons[actor.slot];
   if (reload) {
-    const active = !dead && !!held && actor.reloadUntil > simulationTime;
+    const active = !dead && !bouncing && !!held && actor.reloadUntil > simulationTime;
     reload.setEffectiveWeight(THREE.MathUtils.damp(reload.getEffectiveWeight(), active ? 1 : 0, 20, step));
     reload.paused = true;
     if (active) reload.time = reload.getClip().duration * THREE.MathUtils.clamp(1 - (actor.reloadUntil - simulationTime) / (WEAPONS[held.id].reload || 1), 0, 1);
@@ -420,7 +434,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   runtime.hitTime = Math.max(0, runtime.hitTime - step);
   runtime.emoteTime = Math.max(0, runtime.emoteTime - step);
   if (dead) { runtime.deathTime += step; runtime.expression = 'stunned'; }
-  else if (!runtime.faceTime) runtime.expression = gesture === 'wave' || gesture === 'dance' || gesture === 'victory' ? 'victory' : actor.ads ? 'determined' : 'neutral';
+  else if (!runtime.faceTime) runtime.expression = bouncing || gesture === 'wave' || gesture === 'dance' || gesture === 'victory' ? 'victory' : actor.ads ? 'determined' : 'neutral';
   const expression = runtime.forcedExpression || runtime.expression;
   for (let i = 0; i < FACE_EXPRESSIONS.length; i++) {
     const action = runtime.faceActions[i];
@@ -429,13 +443,14 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   runtime.elapsed += step; mixer.update(step);
   // Deepen the upper-body crouch to the existing head volume while leaving
   // authored feet, limb lengths and the whole-avatar scale intact.
-  runtime.crouchOffset = THREE.MathUtils.damp(runtime.crouchOffset, !dead && actor.crouch && actions.crouch_idle && !(gesture && actions[gesture]) ? .29 : 0, 18, step);
+  runtime.crouchOffset = THREE.MathUtils.damp(runtime.crouchOffset, !dead && !bouncing && actor.crouch && actions.crouch_idle && !(gesture && actions[gesture]) ? .29 : 0, 18, step);
   if (runtime.spine) runtime.spine.position.y -= runtime.crouchOffset;
   for (let i = 0; i < runtime.poseBones.length; i++) runtime.baseRotations[i].copy(runtime.poseBones[i].quaternion);
-  const pitch = dead || gesture ? 0 : THREE.MathUtils.clamp(actor.pitch, -1, 1);
+  const bounceWeight = runtime.weights.boing || 0;
+  const pitch = dead || gesture ? 0 : THREE.MathUtils.clamp(actor.pitch, -1, 1) * (1 - bounceWeight);
   head.rotateX(pitch * .45);
   const resting = dead || runtime.emoteTime > 0 || (gesture && !actions[gesture]) || (!actor.weapons[actor.slot] && actor.stage === 'ground' && !actor.swimming);
-  runtime.unarmed = THREE.MathUtils.damp(runtime.unarmed, resting ? 1 : 0, 12, step);
+  runtime.unarmed = THREE.MathUtils.damp(runtime.unarmed, resting ? 1 - bounceWeight : 0, 12, step);
   // Compact resting arms without changing the authored combat reach or sockets.
   for (const arm of arms) arm.scale.setScalar(1 - .05 * runtime.unarmed);
   for (let i = 0; i < arms.length; i++) arms[i].rotateX((pitch * .65 + (actor.sprint ? -.18 : 0)) * (1 - runtime.unarmed));

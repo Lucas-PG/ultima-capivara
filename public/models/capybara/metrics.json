@@ -49,6 +49,7 @@
   },
   "clips": [
     "backpedal",
+    "boing",
     "chill",
     "crouch_idle",
     "crouch_walk",
@@ -105,11 +106,17 @@
       "inPlace": true
     }
   },
+  "bounce": {
+    "clip": "boing",
+    "seconds": 1.05,
+    "starAt": 0.35,
+    "inPlace": true
+  },
   "materials": 1,
   "skins": 1,
   "joints": 35,
-  "bytes": 1852552,
-  "rawBytes": 3242168,
+  "bytes": 1870184,
+  "rawBytes": 3266580,
   "texture": {
     "format": "PNG",
     "width": 1024,
