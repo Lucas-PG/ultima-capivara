@@ -143,7 +143,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (name === 'emote-wheel') deps.ui.openEmoteWheel();
     if (name === 'corrente-upgrade') {
       const upgrade = { type: 'upgrade' as const, id: 1, actor: me.id, weapon: CORRENTE_LADDER[level], level };
-      renderer.event(upgrade); deps.ui.event(upgrade);
+      renderer.event(upgrade); deps.ui.event(upgrade); draw();
     }
     if (name !== 'results') document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
