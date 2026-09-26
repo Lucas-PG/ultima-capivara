@@ -1,12 +1,12 @@
 import './ui/style.css';
 import { createWorld } from './shared/world';
-import { ARENA } from './shared/layout';
 import { moveActor } from './shared/collision';
 import { clamp } from './shared/math';
 import { closestInteraction as findInteraction } from './shared/interaction';
 import { WEAPONS } from './shared/weapons';
 import { DEATH_CAM_SECONDS } from './shared/death-cam';
-import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot, RenderFrame } from './shared/types';
+import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot } from './shared/types';
+import { LocalPresentation, type PresentationFrame } from './render/local-presentation';
 import type { GameRenderer } from './render/renderer';
 import { timing } from './render/timing';
 import { RoomSession } from './network/session';
@@ -25,7 +25,8 @@ if (requestedFps === 30 || requestedFps === 60) settings.frameLimit = requestedF
 let activeFrameLimit = settings.frameLimit;
 const input = new InputController(canvas, settings);
 const sound = new SoundEngine(settings, world);
-const renderFrame: RenderFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
+const renderFrame: PresentationFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
+const localPresentation = new LocalPresentation();
 const remoteInterpolation = new RemoteInterpolation();
 let renderedRemoteTime: number | null = null;
 let renderer: GameRenderer | null = null;
@@ -202,6 +203,7 @@ function startPractice(config: RoomConfig, p: { name: string; color: string }) {
   void input.lock();
 }
 function stopMatch() {
+  localPresentation.clear(); renderFrame.localActor = undefined;
   remoteInterpolation.reset(); renderedRemoteTime = null;
   playing = false; input.unlock(); worker?.terminate(); worker = null;
   snapshot = null; predicted = null; pending = []; spectateId = null; accumulator = 0; interaction = null; diedAt = 0; lastKiller = null; killSeen = false;
@@ -241,6 +243,7 @@ function acceptSnapshot(next: WorldSnapshot) {
     pending = pending.filter(frame => frame.seq > actor.lastInput);
     predicted = structuredClone(actor);
     if (next.phase === 'playing') for (const frame of pending) predict(frame);
+    localPresentation.reconcile(predicted);
     if (!actor.alive && lastAlive && next.config.mode === 'battle-royale') {
       diedAt = performance.now();
     }
@@ -281,6 +284,7 @@ function sendAction(action: PlayerAction) {
     return;
   }
   if (action.type === 'jump' && me?.stage === 'falling') action = { type: 'parachute', id: action.id };
+  if (predicted) localPresentation.action(action, predicted, snapshot.time + Math.min(.2, (performance.now() - receivedAt) / 1000));
   if (action.type === 'trigger') action = { ...action, clientTime: shotClientTime(
     snapshot.time + Math.min(.2, (performance.now() - receivedAt) / 1000), renderedRemoteTime) };
   if (practiceConfig) worker?.postMessage({ type: 'action', id: playerId, action });
@@ -289,11 +293,7 @@ function sendAction(action: PlayerAction) {
 function predict(frame: InputFrame) {
   if (!predicted || snapshot?.phase !== 'playing') return;
   predicted.yaw = frame.yaw; predicted.pitch = frame.pitch;
-  moveActor(predicted, frame, world, 1 / 60);
-  if (snapshot.config.mode === 'deathmatch') {
-    predicted.pos.x = clamp(predicted.pos.x, ARENA.minX + .32, ARENA.maxX - .32);
-    predicted.pos.z = clamp(predicted.pos.z, ARENA.minZ + .32, ARENA.maxZ - .32);
-  }
+  moveActor(predicted, frame, world, 1 / 60, 1, snapshot.config.mode);
 }
 function cycleSpectator() {
   const alive = snapshot?.actors.filter(a => a.alive && a.id !== playerId) || [];
@@ -335,6 +335,7 @@ function frame(now: number) {
   const dt = Math.min((now - lastFrame) / 1000, .1); lastFrame = now;
   if (document.hidden || (loading && !readyToReveal)) return;
   timing.context(loading ? 'loading' : snapshot?.phase ?? 'menu', snapshot?.tick ?? -1, renderedFrames);
+  input.refresh();
   input.recoverRecoil(dt);
   const me = snapshot?.actors.find(a => a.id === playerId) || null;
   const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : me;
@@ -350,7 +351,10 @@ function frame(now: number) {
     const next = input.sample(shotClientTime(time, renderedRemoteTime));
     if (practiceConfig) worker?.postMessage({ type: 'input', id: playerId, input: next });
     else session.sendInput(next);
-    if (snapshot.phase === 'playing') { pending.push(next); if (pending.length > 120) pending.shift(); predict(next); }
+    if (snapshot.phase === 'playing') {
+      pending.push(next); if (pending.length > 120) pending.shift(); predict(next);
+      if (predicted) localPresentation.tick(predicted);
+    }
     accumulator -= 1 / 60;
   }
   const activeLimit = input.locked ? settings.frameLimit : ended ? 30 : 10;
@@ -374,7 +378,9 @@ function frame(now: number) {
   if (input.locked || dirtyFrame || ended || renderer?.deathCamActive) {
     renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt;
     renderFrame.remoteActors = remoteInterpolation.sample(now);
-    renderFrame.spectateId = spectateId; renderFrame.predicted = predicted?.pos;
+    renderFrame.simulationTime = snapshot.time + Math.min(.2, (now - receivedAt) / 1000);
+    renderFrame.localActor = predicted ? localPresentation.sample(predicted, input.frame, accumulator * 60, renderDt, renderFrame.simulationTime) : undefined;
+    renderFrame.spectateId = spectateId; renderFrame.predicted = renderFrame.localActor?.pos;
     const renderAt = timing.begin();
     renderer?.update(renderFrame);
     timing.end('render', renderAt);

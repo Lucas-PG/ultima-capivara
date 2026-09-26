@@ -100,16 +100,20 @@ export class InputController {
     SLOTS.forEach((action, slot) => { if (code === binding[action]) this.onAction({ type: 'slot', id: ++this.actionId, slot }); });
     for (const [action, item] of CONSUMABLE_ACTIONS) if (code === binding[action]) this.onAction({ type: 'consume', id: ++this.actionId, item });
   }
-  sample(time: number): InputFrame {
+  // Refresh visual intent on every display frame without creating an input tick.
+  refresh() {
     const held = (key: string) => this.locked && this.keys.has(this.settings.bindings[key]);
-    this.frame.seq = ++this.sequence;
-    this.frame.clientTime = time;
     this.frame.moveX = Number(held('right')) - Number(held('left'));
     this.frame.moveZ = Number(held('forward')) - Number(held('back'));
     this.frame.sprint = held('sprint'); this.frame.crouch = held('crouch'); this.frame.jump = held('jump') || this.locked && performance.now() - this.jumpPressedAt < 100;
     this.frame.lean = Number(held('leanRight')) - Number(held('leanLeft'));
     this.frame.ads = this.locked && (this.settings.adsToggle ? this.adsToggled : this.adsHeld);
     if (!this.locked) { this.frame.fire = false; delete this.frame.firePressId; }
+  }
+  sample(time: number): InputFrame {
+    this.refresh();
+    this.frame.seq = ++this.sequence;
+    this.frame.clientTime = time;
     return { ...this.frame };
   }
   actionIdNext() { return ++this.actionId; }

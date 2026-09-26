@@ -4,6 +4,7 @@ import { clamp } from '../shared/math';
 import { rarityOf } from '../shared/rarity';
 import { ARENA } from '../shared/layout';
 import { terrainHeight } from '../shared/terrain';
+import { boundaryFeedback } from '../shared/bounds';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon } from './icons';
@@ -309,6 +310,10 @@ export class GameUI {
       banner = `${br ? `#${info.place}` : 'Caiu!'}<small class="${carding ? 'kc' : ''}">${detail}</small>`;
     }
     else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando'}</small>`; }
+    else if (me.stage === 'ground') {
+      const boundary = boundaryFeedback(me.pos, this.world, snapshot.config.mode);
+      if (boundary) banner = `${boundary.message}<small>Siga de volta para a área de jogo</small>`;
+    }
     this.setBanner(banner);
     // Out for good: the player's own loadout and vitals leave the screen so the choice (watch or leave) is the focus.
     const out = !me.alive, hud = this.el('hud');

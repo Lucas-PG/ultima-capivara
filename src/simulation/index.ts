@@ -2,6 +2,7 @@ import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
 import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
+import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
 import { advanceAds, coolShotHeat, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, ColliderGrid, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
@@ -278,17 +279,16 @@ export class Simulation {
       const trigger = actor.triggerQueued;
       actor.triggerQueued = null;
       s.yaw = inp.yaw; s.pitch = inp.pitch;
-      const before = actor.brain ? { x: s.pos.x, z: s.pos.z, h: terrainHeight(s.pos.x, s.pos.z) } : null;
+      const before = actor.brain ? { x: s.pos.x, z: s.pos.z, h: walkableHeight(s.pos.x, s.pos.z, this.world) } : null;
       const queuedJump = actor.jumpQueued && this.time <= actor.jumpQueuedUntil;
       const consumeQueuedJump = queuedJump && s.grounded;
-      moveActor(s, consumeQueuedJump ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1);
+      moveActor(s, consumeQueuedJump ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1, this.config.mode);
       if (before) {
         // Bots never wade into the pond or the sea, whatever their steering says.
-        const h = terrainHeight(s.pos.x, s.pos.z);
+        const h = walkableHeight(s.pos.x, s.pos.z, this.world);
         if (h < -.3 && h < before.h) { s.pos.x = before.x; s.pos.z = before.z; s.velocity.x = 0; s.velocity.z = 0; }
       }
       actor.jumpQueued = queuedJump && !consumeQueuedJump;
-      if (this.config.mode === 'deathmatch') { s.pos.x = clamp(s.pos.x, ARENA.minX + .32, ARENA.maxX - .32); s.pos.z = clamp(s.pos.z, ARENA.minZ + .32, ARENA.maxZ - .32); }
       if (s.using && this.time >= s.useUntil) this.finishConsume(actor);
       if (s.reloadUntil && this.time >= s.reloadUntil) this.finishReload(actor);
       if (actor.hot > 0) { const heal = Math.min(actor.hot, 5 * TICK, 100 - s.hp); s.hp += heal; actor.hot -= heal; }
@@ -709,8 +709,8 @@ export class Simulation {
     return this.grid.sees(this.botEye(s), { x: t.pos.x, y: t.pos.y + 1.0 * (t.crouch ? 1.3 / 1.8 : 1), z: t.pos.z });
   }
   private walkable(x: number, z: number) {
-    if (this.config.mode === 'deathmatch') return inArena(x, z, .5) && terrainHeight(x, z) > .3;
-    return Math.abs(x) < 118 && Math.abs(z) < 118 && terrainHeight(x, z) > .3;
+    if (this.config.mode === 'deathmatch') return inArena(x, z, .5) && walkableHeight(x, z, this.world) > .3;
+    return Math.abs(x) < 118 && Math.abs(z) < 118 && walkableHeight(x, z, this.world) > .3;
   }
   // Indoor loot is reached through a doorway: the nearest outdoor spot with a straight
   // knee-height line to the item. Loot with no such line is left alone by bots.
@@ -849,6 +849,8 @@ export class Simulation {
   // When a wall blocks the straight line, head for the nearest visible corner of
   // that wall segment. Walls are split at openings, so this usually is a doorway.
   private route(s: ActorState, goal: Vec3, avoid: Vec3 | null = null): Vec3 | null {
+    const waypoint = navigationWaypoint(this.world, s.pos, goal, this.config.mode === 'deathmatch');
+    if (waypoint) return waypoint;
     const low = { x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, dx = goal.x - s.pos.x, dz = goal.z - s.pos.z, L = Math.hypot(dx, dz);
     if (L < 1.5 || this.grid.ray(low, { x: dx / L, y: 0, z: dz / L }, L) === null) return null;
     const c = this.grid.lastHit;
@@ -876,8 +878,8 @@ export class Simulation {
     const x = s.pos.x + dir.x * 1.3, z = s.pos.z + dir.z * 1.3;
     // Shores (and the Correria fence) are walls for bots: never step down toward
     // water, but always allow climbing out of it.
-    const ahead = terrainHeight(x, z);
-    if (ahead < .15 && ahead < terrainHeight(s.pos.x, s.pos.z)) return false;
+    const ahead = walkableHeight(x, z, this.world);
+    if (ahead < .15 && ahead < walkableHeight(s.pos.x, s.pos.z, this.world)) return false;
     return this.config.mode !== 'deathmatch' || this.inArena({ x, y: 0, z });
   }
   private botThink(a: ActorRuntime) {
@@ -991,7 +993,8 @@ export class Simulation {
       // Commit to a detour corner until it is reached or lost from sight; re-planning every
       // few frames made bots flip between the two ends of a wall.
       const goalMoved = !b.routeFor || Math.hypot(b.routeFor.x - g.x, b.routeFor.z - g.z) > 2;
-      const viaLost = !!b.via && !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: b.via.x, y: s.pos.y + .7, z: b.via.z });
+      const viaLost = !!b.via && (this.world.navigation ? !walkableSegment(this.world, s.pos, b.via, this.config.mode === 'deathmatch') :
+        !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: b.via.x, y: b.via.y + .7, z: b.via.z }));
       if (goalMoved || viaLost || (!b.via && now >= b.routeAt)) {
         b.routeAt = now + .3; b.routeFor = { ...g }; b.via = this.route(s, g, b.lastVia);
       }

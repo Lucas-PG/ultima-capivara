@@ -6,6 +6,7 @@ import { terrainHeight } from '../shared/terrain';
 import type { ActorState, RenderFrame, Settings, Vec3, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
 import { addBox, addEllipsoid } from './primitives';
+import type { PresentationFrame } from './local-presentation';
 
 const material = (color: string) => new THREE.MeshStandardMaterial({ color, emissive: '#000000', roughness: .8, metalness: .04 });
 const AXES = ['x', 'y', 'z'] as const;
@@ -122,12 +123,13 @@ export class CameraRig {
     this.wasDeathCam = true;
   }
 
-  update(frame: RenderFrame, settings: Settings, elapsed: number, adsAmount: number) {
+  update(frame: PresentationFrame, settings: Settings, elapsed: number, adsAmount: number) {
     this.settings = settings; this.elapsed = elapsed; this.adsAmount = adsAmount;
     const snapshot = frame.snapshot;
     const viewedId = frame.spectateId || frame.playerId;
     let actor: ActorState | undefined;
     if (snapshot) for (const candidate of snapshot.actors) if (candidate.id === viewedId) { actor = candidate; break; }
+    if (viewedId === frame.playerId && frame.localActor) actor = frame.localActor;
     this.lastActor = actor;
     const cam = this.deathCam;
     if (cam) {
@@ -189,8 +191,9 @@ export class CameraRig {
           }
           target.addScaledVector(leanDir, allowed);
         }
-        if (snap || this.cameraBlend > 0 || this.fpsPosition.distanceToSquared(target) > 100) this.fpsPosition.copy(target);
-        else this.fpsPosition.lerp(target, Math.min(1, frame.dt * 22));
+        // Local ticks are already interpolated and reconciliation has its own
+        // bounded visual offset. A second lerp adds avoidable movement latency.
+        this.fpsPosition.copy(target);
         position.copy(this.fpsPosition);
         // Yaw must be applied before pitch. Resetting a lookAt() XYZ Euler's roll
         // can flip the horizon when the view crosses east or west.

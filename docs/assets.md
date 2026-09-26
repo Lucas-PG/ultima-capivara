@@ -272,6 +272,10 @@ Final-art delivery: Pincel approved both P0 sheets on 2026-09-25, without retake
 
 Run `uv run --with pillow python tools/assets/prepare-render-atlas.py` to reproduce four 627x627 RGB cuts from the retained original: `painted-sun.png`, `storm-wisps.png`, `shore-foam.png`, `water-glints.png`. The glint cut applies Pincel’s required luminance levels (below 70 becomes black; 70..255 maps to 0..255 with hue retained). All 372157 source pixels below the threshold become exactly black, removing the grey diamond matte. These cuts are prepared assets; shader wiring and its visual review are separate. Brasa’s F2 consumer supplies the integrated 1024x512 PNG (148876 bytes), documented above.
 
+## Phase A island terrain, 2026-09-25
+
+`public/textures/terrain-color.png` is an original procedural colour map for the redesigned 260 m river island. It is generated locally by `npx tsx scripts/generate-terrain-colors.ts` from `src/shared/layout.ts` and `src/shared/terrain.ts`, with the existing painted island palette. The authored layout follows the Phase A brief: northern fort and crescent beach, central Vila river town, western hillside/waterfall, eastern port, southern beach/lighthouse, estuary mangroves and inland fields. No external assets, paid services or image generation were used for this map texture. The kit models and their collision manifest are generated from Oficina's original Blender geometry; their asset provenance is recorded with that kit delivery.
+
 ### Phase A island kit and motion, 2026-09-25
 
 Oficina authored all kit geometry in `tools/blender/kit/spec.py`; Blender builds it with `tools/blender/kit/build.py` and `node tools/blender/build-kit.mjs`. Each solid primitive emits its collision shape into `src/shared/kit-pieces.json`. Origins are bottom-centred, metres, game Y up, +Z frontage. The bridge deck top is 0.45 m above the origin. Buildings retain opposing 2 m doors. Meshes have two LODs, bevels, roof-tile geometry, framed windows, louvred shutters, sills, flower boxes, door panels, rain pipes and contact occlusion baked into vertex colours. The GLB uses meshopt compression and one shared matte atlas material. `public/models/kit/metrics.json` records delivered sizes and triangle counts.
@@ -291,3 +295,13 @@ The Phase A style-v3 brief supersedes the earlier flat-palette and toon constrai
 The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms budget. They add machined panel recesses, fasteners, serrations, grip stippling, magazine ribs, muzzle collars, shaped fingers, fused palms, cloth sleeve cuffs and a vertex contact-occlusion bake. Original palette-derived painted grain, fur strands and fabric weave are authored by the deterministic equations shared between `tools/blender/weapons.py` and `src/render/weapon-atlas.ts`. This 1024x256 painted colour atlas and the roughness atlas replace the old flat 32x32 colour texture. One material is retained; runtime rarity tint regenerates only colour choices while preserving surface detail. No photographic texture, downloaded asset or paid API was used.
 
 Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.
+
+Phase A cover-art direction update: the terrain bake now uses continuous olive grass mixtures, linen sand, warm earth and subtle overlapping procedural colour washes, without baked light or photographic noise. Distant island silhouettes are original arranged scene geometry outside the playable coast. All new terrain pixels and offshore compositions are generated locally from the authored map; the approved reference is the existing `public/assets/cover-v2.png`.
+
+# Phase A ground cover
+
+`src/render/ground-cover.ts` creates original curved grass ribbons, five-petal
+wildflowers, low-poly pebbles and fallen leaves directly from geometry. No image
+prompt, external source or download is used. Placement follows the shared terrain
+palette and collision data; blade wind and fading run on the GPU. Low disables
+the entire layer. Authored by Cena for Phase A.
