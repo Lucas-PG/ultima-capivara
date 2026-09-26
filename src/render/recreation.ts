@@ -30,6 +30,42 @@ function copyGeometry(mesh: THREE.Mesh) {
   return geometry.applyMatrix4(mesh.matrixWorld);
 }
 
+function removeMudFill(geometry: THREE.BufferGeometry) {
+  const uv = geometry.getAttribute('uv');
+  if (!uv) return;
+  const source = geometry.index ? Array.from(geometry.index.array) : Array.from({ length: uv.count }, (_, i) => i);
+  const indices: number[] = [];
+  for (let face = 0; face < source.length; face += 3) {
+    const corners = source.slice(face, face + 3);
+    // Kit tile 4 is the solid mud cylinder and its old painted rings/bubbles.
+    // Rim stone (14) and moss (12) retain their authored geometry and collider.
+    const mud = corners.every(i => Math.floor(uv.getX(i) * 4) + Math.floor(uv.getY(i) * 4) * 4 === 4);
+    if (!mud) indices.push(...corners);
+  }
+  geometry.setIndex(indices);
+}
+
+function mudSurface(radius: number, height: number) {
+  const positions = [0, 0, 0], indices: number[] = [], segments = 64;
+  const flat = radius, outer = radius + .18;
+  const rings = [flat * .4, flat * .75, flat, (flat + outer) * .5, outer];
+  for (let ring = 0; ring < rings.length; ring++) for (let i = 0; i < segments; i++) {
+    const angle = i / segments * Math.PI * 2, edge = THREE.MathUtils.smoothstep(rings[ring], flat, outer);
+    const r = rings[ring] + edge * .018 * (Math.sin(angle * 7) + .45 * Math.sin(angle * 11));
+    positions.push(Math.cos(angle) * r, -(height - .006) * edge, Math.sin(angle) * r);
+    const next = (i + 1) % segments, current = 1 + ring * segments + i;
+    if (ring === 0) indices.push(0, 1 + next, current);
+    else {
+      const inner = 1 + (ring - 1) * segments + i, innerNext = 1 + (ring - 1) * segments + next;
+      const outerNext = 1 + ring * segments + next;
+      indices.push(inner, innerNext, current, innerNext, outerNext, current);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices); geometry.computeVertexNormals(); return geometry;
+}
+
 function softenMat(geometry: THREE.BufferGeometry, surface: number, steps: number) {
   if (steps < 2) return;
   const position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
@@ -143,6 +179,7 @@ export class RecreationView {
           let geometry = geometryCache.get(key);
           if (!geometry) {
             geometry = copyGeometry(model);
+            if (site.kind === 'mud_bath') removeMudFill(geometry);
             if (site.kind === 'trampoline') softenMat(geometry, site.surface, level === 0 ? 4 : level === 1 ? 2 : 1);
             geometry.computeBoundingSphere(); geometryCache.set(key, geometry); this.geometries.add(geometry);
           }
@@ -202,15 +239,16 @@ export class RecreationView {
       const angle = i * 2.399 + .8, radius = (.26 + Math.sqrt(i / 8) * .6) * site.radius;
       return new THREE.Vector4(Math.cos(angle) * radius, Math.sin(angle) * radius, i * .137, .055 + i % 3 * .018);
     });
-    const mud = new THREE.MeshPhysicalMaterial({ color: '#78492E', roughness: .28, metalness: 0,
-      clearcoat: .45, clearcoatRoughness: .22, envMapIntensity: .7 }); this.materials.add(mud);
+    const mud = new THREE.MeshPhysicalMaterial({ color: '#78492E', roughness: .18, metalness: 0,
+      clearcoat: .65, clearcoatRoughness: .14, envMapIntensity: .7 }); this.materials.add(mud);
     mud.onBeforeCompile = shader => {
       shader.uniforms.mudTime = this.clock; shader.uniforms.mudDetail = this.detail;
+      shader.uniforms.mudRadius = { value: site.radius };
       shader.uniforms.mudContacts = { value: contacts }; shader.uniforms.mudBubbles = { value: bubbles };
       shader.vertexShader = `varying vec2 vMudPoint;varying vec3 vMudX,vMudZ;\n${shader.vertexShader}`
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           vMudPoint=position.xz;vMudX=normalize(normalMatrix*vec3(1,0,0));vMudZ=normalize(normalMatrix*vec3(0,0,1));`);
-      shader.fragmentShader = `uniform float mudTime,mudDetail;uniform vec4 mudContacts[4],mudBubbles[8];
+      shader.fragmentShader = `uniform float mudTime,mudDetail,mudRadius;uniform vec4 mudContacts[4],mudBubbles[8];
         varying vec2 vMudPoint;varying vec3 vMudX,vMudZ;${noise}\n${shader.fragmentShader}`
         .replace('#include <color_fragment>', `#include <color_fragment>
           vec2 p=vMudPoint;float radius=length(p),angle=atan(p.y,p.x);
@@ -230,15 +268,24 @@ export class RecreationView {
             float ring=1.0-smoothstep(.009,.027+fwidth(d),abs(d-(mudBubbles[i].w+age*.16)));
             rings+=ring*(1.0-age)*step(.73,phase)*.6;
           }
-          diffuseColor.rgb*=paint;diffuseColor.rgb+=vec3(.11,.065,.027)*min(1.0,rings);`)
+          float wetEdge=smoothstep(mudRadius*.52,mudRadius*.98,radius);
+          diffuseColor.rgb*=paint*mix(1.08,.68,wetEdge);
+          diffuseColor.rgb+=vec3(.11,.065,.027)*min(1.0,rings);`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
           vec2 gradient=vec2(cos(p.x*4.5+swirl+mudTime*.07),sin(p.y*4.1+wash-mudTime*.06));
-          normal=normalize(normal-.045*(vMudX*gradient.x+vMudZ*gradient.y));`);
+          normal=normalize(normal-.055*(vMudX*gradient.x+vMudZ*gradient.y));`)
+        .replace('#include <opaque_fragment>', `
+          vec3 mudView=normalize(vViewPosition);
+          vec3 reflectedSky=inverseTransformDirection(reflect(-mudView,normal),viewMatrix);
+          float fresnel=pow(1.0-max(dot(normal,mudView),0.0),4.0);
+          vec3 skyWash=mix(vec3(.43,.29,.18),vec3(.21,.32,.39),smoothstep(-.08,.65,reflectedSky.y));
+          outgoingLight=mix(outgoingLight,skyWash,(.055+.28*fresnel)*(.9+.1*wash));
+          #include <opaque_fragment>`);
     };
-    mud.customProgramCacheKey = () => 'chocolate-spring-v1';
-    const circle = new THREE.CircleGeometry(site.radius * .995, 64).rotateX(-Math.PI / 2);
+    mud.customProgramCacheKey = () => 'chocolate-spring-v2';
+    const circle = mudSurface(site.radius, site.surface);
     this.geometries.add(circle);
-    const surface = new THREE.Mesh(circle, mud); surface.name = 'Lama viva'; surface.position.y = site.surface + .025;
+    const surface = new THREE.Mesh(circle, mud); surface.name = 'Lama viva'; surface.position.y = site.surface;
     surface.receiveShadow = true; site.group.add(surface);
 
     const bubbleGeometry = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
@@ -253,9 +300,9 @@ export class RecreationView {
           float life=fract(mudTime*.17+bubble.z);
           float grow=smoothstep(.05,.60,life)*(1.0-smoothstep(.67,.73,life));
           transformed*=vec3(bubble.w*grow,bubble.w*.65*grow,bubble.w*grow);
-          transformed+=vec3(bubble.x,${(site.surface + .026).toFixed(5)},bubble.y);`);
+          transformed+=vec3(bubble.x,${(site.surface + .001).toFixed(5)},bubble.y);`);
     };
-    bubbleMaterial.customProgramCacheKey = () => 'lazy-mud-bubbles-v1';
+    bubbleMaterial.customProgramCacheKey = () => 'lazy-mud-bubbles-v2';
     const caps = new THREE.InstancedMesh(bubbleGeometry, bubbleMaterial, 8); caps.name = 'Bolhas de lama';
     caps.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, site.surface, 0), site.radius + .2);
     site.bubbles = caps; detail.add(caps); this.instances.push(caps);
@@ -336,7 +383,7 @@ export class RecreationView {
       for (; index < site.contacts.length; index++) site.contacts[index].w = 0;
       for (let leaf = 0; leaf < 3; leaf++) {
         const t = this.clock.value, angle = leaf * 2.399 + .5 + t * .018, radius = site.radius * (.5 + leaf * .12);
-        this.temp.position.set(Math.cos(angle) * radius, site.surface + .039 + Math.sin(t * .6 + leaf) * .006, Math.sin(angle) * radius);
+        this.temp.position.set(Math.cos(angle) * radius, site.surface + .016 + Math.sin(t * .6 + leaf) * .006, Math.sin(angle) * radius);
         this.temp.rotation.set(Math.sin(t * .55 + leaf) * .055, angle + Math.PI * .3, Math.cos(t * .43 + leaf) * .045);
         this.temp.scale.setScalar(1 + leaf * .12); this.temp.updateMatrix(); site.leaves!.setMatrixAt(leaf, this.temp.matrix);
       }
