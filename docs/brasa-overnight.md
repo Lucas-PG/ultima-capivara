@@ -21,7 +21,7 @@ The current Brasa brief and overnight request supersede the older shared gamepla
 - CORRENTE LANDABLE `9af2e919018f7d07b993538f6b941814967af94b`: typecheck, 433 units with two workers, production build and Chromium 3/3 in 59.7 s passed. Includes core `8cbab2f`, UI `91f31cf`, presentation `0490b87`, authoritative longestShot, water `bf3aa03`, authored 24-clip capy `d085c70` and loaf camera `43dda03`. Real host/guest movement, firing, emotes and recovery passed without page errors.
 - Corrente menu, first gun, upgrade glints and final facão captured at 720p/1080p. Authored sit and chill now show grounded contact and clear the HUD at both resolutions. Medium 720p, DPR 1, 16 actors: 60 FPS, p95 17.7 ms, 242 draw calls, 1,524,802 triangles, exactly 180 draws across 180 measured RAFs. Browser and servers closed before direct release to Vitrine.
 - MUD LANDABLE `304c8ad8f72f92eb3dbc1139df78e9274526f47a`: check, 459 units with two workers, build and Chromium 3/3 passed. Includes rio-6, core `3a268dc`, UI `03f5939`, surfaces `e430968`, audio `b77f484` and stable authored capy `d085c70`. All three real contacts heal correctly and damage interrupts soaking. Prompt, healing and full-health captures pass at 720p/1080p; nine surface comparison/Low captures have no shader errors. Exact plaza16 Medium720/DPR1: 1,557,971 triangles, 262 draws, 60 FPS, p95 17.7 ms, exactly 180 draws across 180 RAFs.
-- Trampoline core `d8b555d`, QA `737bf70`, presentation `fdb383e` and avatar reaction `7c30db7` are integrated separately after the mud gate. Final combined gate pending. Protocol 8 preserves rio-6 and all bathing fields.
+- TRAMPOLINE LANDABLE `7181990d76d4c237180f5813741d3b90b797e620`: check, 471 units with two workers, build and Chromium 3/3 passed. Real host/prediction arcs and 720p/1080p/Low/reduced-motion captures passed. Exact plaza16 remains 1,557,971 triangles / 262 draws / 60 FPS. All five original features are complete.
 
 ## Integration contracts
 
@@ -35,5 +35,18 @@ The current Brasa brief and overnight request supersede the older shared gamepla
 
 ## Thermal coordination
 
-Current queue: Brasa trampoline, Cena, Oficina's reserved head refinement, then Vitrine lobby polish. Explicit handoff required. Mud browser and server were closed at its verified boundary.
+Current queue: Oficina head, Vitrine lobby, Mapa paving, then Brasa supply and bots. Oficina may use the first minutes of the Brasa slot for the small supply asset export and then releases directly back. Explicit handoff required. No Brasa browser or dev server is active while waiting.
 While another owner runs, source work and focused single-file tests only. No build, full suite, capture, Blender or Chromium gate overlap. Close pages and stop dev servers after each owned slot.
+
+
+## Tucano and bot personality follow-up
+
+The director requested this batch after accepting all five original features. Required completion is a verified supply delivery plus deterministic, safe bot personality, with the same full gate and capture rules. The optional win-streak cosmetic is deferred because persistent network cosmetics are not a trivial extension.
+
+- Supply core `f7ac8881c4dda3f88cf9cf6e68b96e1a1ebbdae5`: protocol 9, two BR opportunities at 45/125 seconds after actual match start. Dedicated RNG preserves the combat random stream. Largest navigation component, dry flat terrain footprint, clear descent column, multiple walk-ins, next-zone inset and recreation exclusions determine valid sites. No unsafe fallback.
+- Required `WorldSnapshot.supplyDrops` holds at most two `{id,pos,district,heading,announcedAt,releaseAt,landsAt,opened}` objects. District is the authored district ID. Shared `supplyDropPhase` and `supplyDropPosition` in `shared/supply-drops.ts` define a five-second carrier approach and twelve-second descent from 32 m. Reliable baselines preserve animation after reconnect.
+- Supply events have stage incoming/landed/opened. Existing interact action claims only a landed, nearby, visible crate. One contested claim spills an epic or legendary gun, armour and ammo using ordinary unowned loot. Crates are nonblocking. Prediction and actor packets are unchanged.
+- Bot core `46d763a3fcc2fdaedfdc128be5a13f71321c74a2`: separate seeded personality RNG, occasional wave/dance after three quiet seconds, capped at 1.8 seconds; nearby safe hurt-bot bath visits use real contact healing; idle bots take one trampoline bounce then leave. Threats, harm, storm travel, reload and water cancel leisure. Forty-to-sixty-second leisure cooldowns prevent repeated exposure. The normal perception, reaction and damage tuning stay intact. Bots also open and loot supply crates.
+- QA `d9f5dc22b94e69ed17fb0830c251175ad15ecaae`: supplyIncoming, supplyDescending, supplyLanded and supplyOpened use the same real safe landing near Vila. Check and one QA intent pass. Core transport/interaction tests total 41; nine personality plus thirteen legacy bot intents pass. Full gate is still pending.
+- Verified Cena `5185f294f9e7f7e55cf8db3f7b526945bb90ac6d` merged, including recessed mud art and hearing-range audio fix. Vitrine isolated supply UI `eba6592` adopted as `b8d468c`; four focused UI tests and check pass. An append conflict was resolved using only the five delivery CSS rules, leaving unpublished lobby styling for its verified base.
+- The existing transport E2E now includes delivery descent across reconnect and one opened event despite a duplicate send. This draft is typechecked but browser execution awaits the reserved slot. The actual two-game Corrente test remains intact; no additional browser contexts are added.
