@@ -3,6 +3,8 @@ import { terrainHeight } from '../../src/shared/terrain';
 import { moveActor } from '../../src/shared/collision';
 import { emptyInput } from '../../src/shared/math';
 import { EMOTES, EMOTE_IDS } from '../../src/shared/emotes';
+import { closestInteraction } from '../../src/shared/interaction';
+import { mudBathAt } from '../../src/shared/recreation';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
@@ -24,6 +26,7 @@ type QaApi = {
 declare global { interface Window { __capyQA?: QaApi } }
 
 const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
+const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
@@ -52,7 +55,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
   const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
-    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade',
+    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES,
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
@@ -72,18 +75,27 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     deps.ui.closeEmoteWheel();
     const district = name.startsWith('district-') ? deps.world.districts.find(d => `district-${d.id}` === name) : null;
     const spawn = name.startsWith('spawn-') ? deps.world.spawns.find(point => `spawn-${point.district}` === name) : null;
-    const view = spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
+    const bath = MUD_POSES.includes(name) ? deps.world.mudBaths?.[0] : undefined;
+    if (MUD_POSES.includes(name) && !bath) throw new Error('A revisão precisa de um banho de lama no mapa.');
+    const view = bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     const [x, z, yaw, pitch] = view;
     const s = structuredClone(base), me = s.actors[0];
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
     if (spawn) s.config.mode = 'battle-royale';
-    me.pos = { x, y: spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
+    me.pos = { x, y: bath?.y ?? spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
     me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : name.startsWith('fp-') ? name.slice(3) as WeaponId : 'pistol', ammo: 12, reserve: 50, rarity: 0 }];
     me.slot = 0;
     const emote = EMOTE_IDS.find(id => name === `emote-${id}`);
     if (emote) { me.emote = emote; me.emoteUntil = s.time + EMOTES[emote].duration; me.crouch = emote === 'sit' || emote === 'chill'; }
+    if (bath) {
+      for (let i = 0; i < 60; i++) moveActor(me, { ...emptyInput(), yaw, pitch }, deps.world, 1 / 60);
+      if (!me.grounded || me.swimming || mudBathAt(me.pos, deps.world)?.id !== bath.id)
+        throw new Error('A revisão precisa tocar a superfície real do banho.');
+      me.hp = name === 'mudFull' ? 100 : 52;
+      if (name !== 'mudPrompt') { me.emote = 'chill'; me.emoteUntil = s.time + EMOTES.chill.duration; me.crouch = me.soaking = true; }
+    }
     const level = name === 'corrente-upgrade' ? 2 : CORRENTE_LADDER.findIndex(id => name === `corrente-${id}`);
     if (level >= 0) {
       const id = CORRENTE_LADDER[level];
@@ -144,7 +156,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     current = s;
     deps.input.frame.yaw = yaw; deps.input.frame.pitch = pitch;
     for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
-    deps.ui.update(s, 'practice', 0, false, 60, null);
+    deps.ui.update(s, 'practice', 0, false, 60, bath ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : null);
     deps.ui.setPaused(name === 'pause');
     if (name === 'emote-wheel') deps.ui.openEmoteWheel();
     if (name === 'corrente-upgrade') {
