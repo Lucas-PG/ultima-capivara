@@ -1,5 +1,6 @@
 """Hero district furnishings and landmarks, using the shared solid primitives."""
 import math
+from rocks import add_cliffs
 
 
 def extend(Piece, building, roof, window):
@@ -162,39 +163,7 @@ def extend(Piece, building, roof, window):
             p.box(side * 1.35, y, .78, .15, .15, 1.55, 5, True, 'wood')
         for i in range(5):
             p.box(side * 1.35, .88, i * .30 + .12, .10, 1.4, .15, 15, True, 'wood')
-    p = Piece('cliff_rock', 7, 7)
-    p.orb(0, 2.75, 0, 7, 5.5, 7, 14, False)
-    for i in range(8):
-        low, high = i * 5.5 / 8, (i + 1) * 5.5 / 8
-        extreme = max(abs(low - 2.75), abs(high - 2.75)) / 2.75
-        radius = max(.05, 3.48 * math.sqrt(max(0, 1 - extreme * extreme)))
-        p.cylinder(0, (low + high) / 2, 0, radius, high - low, 14, True, sides=16)
-    for i in range(5):
-        a = math.tau * i / 5
-        p.orb(math.sin(a) * 2.0, 1.0, math.cos(a) * 2.0, 2.4, 2.0, 2.4, 6, False)
-
-    # Broad irregular boulder shells replace repeated full-width slab stacks.
-    # Inscribed visible solid bands provide collision within each rounded shell.
-    for name, width, depth, levels in [('cliff_rock_low', 9, 6, 3), ('cliff_rock_tall', 7, 6, 8), ('cliff_ledge', 12, 7, 5)]:
-        p = Piece(name, width, depth)
-        height = (levels - 1) * .88 + 1.32
-        shells = [(0, height * .325, 0, width * .96, height * .65, depth * .94),
-                  (width * .12, height * .72, -depth * .08, width * .69, height * .56, depth * .75),
-                  (-width * .31, height * .21, depth * .14, width * .43, height * .42, depth * .60)]
-        for sx, sy, sz, w, h, d in shells:
-            p.orb(sx, sy, sz, w, h, d, 14, False)
-            for band in range(6):
-                lo, hi = -h / 2 + band * h / 6, -h / 2 + (band + 1) * h / 6
-                extreme = max(abs(lo), abs(hi)) / (h / 2)
-                radius = max(.025, min(w, d) * .49 * math.sqrt(max(0, 1 - extreme * extreme)))
-                p.cylinder(sx, sy + (lo + hi) / 2, sz, radius, hi - lo, 14, True, sides=16)
-        for seam in range(3):
-            y = height * (.23 + seam * .22)
-            x = math.sin(seam * 2.1) * width * .20
-            p.box(x, y, depth * .34 - seam * .19, width * (.28 + seam * .05), .16, .65, 6, bevel=.07)
-        for moss in range(4):
-            p.orb(width * .12 + math.sin(moss * 2.4) * width * .14, height * .96, -depth * .08 + math.cos(moss * 2.4) * depth * .09,
-                  width * .18, .16, depth * .16, 12, False)
+    add_cliffs(Piece)
 
     p = Piece('boat', 3.4, 7)
     # Hollow plank hull, shaped ribs and thwarts, with a traversable open interior.
