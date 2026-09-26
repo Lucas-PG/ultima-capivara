@@ -337,6 +337,15 @@ Review against the cover at 1920x1080: the M4 visibly carries wood grain, machin
 
 Original source-authored shop corner brackets, brass suspension rings and street-facing capybara panels in `src/render/street-dressing.ts`. Side-wall murals, laundry, bicycles and planting rotate with the house fronts. No external assets or image generation used. Shop brackets sit outside the kit's front windows and door openings.
 
+# Phase B interface art
+
+`public/assets/ui/island-arrival-v3.webp` (loading screen background) and `public/assets/ui/capy-parachute-v3.webp`
+(loading progress mascot) are original generations made with Codex ImageGen by the Vitrine agent on 25/09/2026, with
+`public/assets/cover-v2.png` as the style reference. The mascot prompt opened with: "Use case: stylized-concept. Asset
+type: single original game UI progress mascot on a genuinely transparent background, PNG alpha. A small appealing
+capybara adventurer parachuting in a compact, readable full-body three-quarter silhouette facing right, beneath a
+rounded olive and golden canvas parachute." The complete prompt texts are kept in that Codex session log.
+
 ### Fractured coastal stone iteration, 2026-09-25
 
 The four cliff pieces are rebuilt from original irregular convex stone chunks in `tools/blender/kit/rocks.py`. Their silhouettes use angled fracture planes, softened chipped edges, overhangs and unequal masses; the spherical shells and projecting slab decorations are removed. The existing painted sandstone atlas is mapped continuously over each chunk, with cool stone washes, subtle strata, short fissures, torn moss patches and small grass shoots. Fine fissures and grass are omitted after LOD0. Each formation stays below 3,400 / 1,250 / 600 triangles.
