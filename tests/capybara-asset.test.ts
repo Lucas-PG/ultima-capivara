@@ -109,6 +109,21 @@ describe('shipped capybara asset contract', () => {
     expect(Array.from(scale.getArray()!).some(value => value < .1)).toBe(true);
   });
 
+  it('includes the complete directional and action clip contract without root travel', () => {
+    const names = ['walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'fall', 'land', 'reload_tp', 'death'];
+    for (const name of names) {
+      const clip = asset.getRoot().listAnimations().find(animation => animation.getName() === name);
+      expect(clip, name).toBeDefined();
+      expect(clip!.listSamplers().some(s => s.getInput()!.getCount() >= 8), name).toBe(true);
+      if (name === 'death') continue;
+      for (const channel of clip!.listChannels()) {
+        if (channel.getTargetNode()?.getName() !== 'root' || channel.getTargetPath() !== 'translation') continue;
+        const positions = channel.getSampler()!.getOutput()!;
+        for (let i = 1; i < positions.getCount(); i++) expect(positions.getElement(i, []), name).toEqual(positions.getElement(0, []));
+      }
+    }
+  });
+
   it('keeps faces and locomotion inside the head hitbox, including ears and mouth extremes', async () => {
     const bytes = await readFile('public/models/capybara/capybara.glb');
     // Image decoding is unnecessary for CPU skinning; the real exported meshes,

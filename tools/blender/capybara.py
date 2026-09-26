@@ -708,6 +708,121 @@ for name, frames in [('idle', 75), ('run', 24), ('jump', 30)]:
             p.keyframe_insert('rotation_euler', frame=frame, group=p.name)
             p.keyframe_insert('location', frame=frame, group=p.name)
             p.keyframe_insert('scale', frame=frame, group=p.name)
+# Phase A locomotion uses a fixed foot-contact interval and smooth airborne return.
+# Clips are in-place; runtime alone owns position and time-scales the authored gait.
+def smooth01(t):
+    return t * t * (3 - 2 * t)
+
+
+def contact_leg(side, phase, stride, lift, lateral=0, reverse=False, crouch=0):
+    cycle = phase % 1
+    contact = .52
+    if cycle < contact:
+        travel = 1 - 2 * cycle / contact
+        height = .065
+    else:
+        swing = (cycle - contact) / (1 - contact)
+        travel = -1 + 2 * smooth01(swing)
+        height = .065 + lift * math.sin(math.pi * swing) ** 1.4
+    forward = travel * stride * (-1 if reverse else 1)
+    down = .39 - .055 - crouch - height
+    # Analytic two-bone solve, preserving the original rig and foot orientation.
+    upper, lower = .17, math.hypot(.14, .05)
+    reach = min(upper + lower - .0002, max(.055, math.hypot(forward, down)))
+    knee = math.acos(max(-1, min(1, (reach * reach - upper * upper - lower * lower) / (2 * upper * lower))))
+    hip = math.atan2(forward, max(.025, down)) + math.atan2(lower * math.sin(knee), upper + lower * math.cos(knee))
+    shin = -knee - math.atan2(.05, .14)
+    thigh_bone = rig.pose.bones['thigh_' + side]
+    thigh_bone.location.y = .055 + crouch
+    thigh_bone.rotation_euler.x = hip
+    thigh_bone.rotation_euler.z = lateral * travel
+    rig.pose.bones['shin_' + side].rotation_euler.x = shin
+    rig.pose.bones['foot_' + side].rotation_euler.x = -hip - shin
+    rig.pose.bones['foot_' + side].rotation_euler.z = -lateral * travel
+
+
+new_clips = [('walk', 20), ('strafe_l', 20), ('strafe_r', 20), ('backpedal', 22),
+             ('crouch_idle', 72), ('crouch_walk', 28), ('fall', 36), ('land', 16),
+             ('reload_tp', 66), ('death', 48)]
+report['locomotionSpeed'] = {'walk': 3.9, 'run': 6.4, 'crouch_walk': 2.1}
+for name, frames in new_clips:
+    action = bpy.data.actions.new(name)
+    action.use_fake_user = True
+    rig.animation_data.action = action
+    for frame in range(frames + 1):
+        scene.frame_set(frame)
+        t = frame / frames
+        phase = math.tau * t
+        for p in rig.pose.bones:
+            p.rotation_mode = 'XYZ'
+            p.rotation_euler = (0, 0, 0)
+            p.location = (0, 0, 0)
+            p.scale = (1, 1, 1)
+        rig.pose.bones['mouth_cavity'].scale.y = .001
+        if name in ['walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_walk']:
+            crouch = .075 if name == 'crouch_walk' else 0
+            lateral = (-.28 if name == 'strafe_l' else .28) if name.startswith('strafe') else 0
+            for i, side in enumerate(['L', 'R']):
+                leg_phase = (t + i * .5) % 1
+                contact_leg(side, leg_phase, .065 if lateral else .12 if crouch else .15, .055 if crouch else .10,
+                            lateral=lateral, reverse=name == 'backpedal', crouch=crouch)
+                rig.pose.bones['arm_' + side].rotation_euler.x = (-1 if i else 1) * .035 * math.sin(phase - .2)
+                rig.pose.bones['ear_' + side].rotation_euler.x = .018 * math.sin(phase - .45 + i * .3)
+            rig.pose.bones['spine'].rotation_euler.z = .017 * math.sin(phase)
+            rig.pose.bones['spine'].rotation_euler.x = -.07 if crouch else -.018
+            rig.pose.bones['spine'].location.y = -.12 if crouch else 0
+            rig.pose.bones['neck'].rotation_euler.x = .07 if crouch else .018
+        elif name == 'crouch_idle':
+            for side in ['L', 'R']:
+                contact_leg(side, .26, 0, 0, crouch=.075)
+            rig.pose.bones['spine'].location.y = -.12
+            rig.pose.bones['spine'].rotation_euler.x = -.07
+            rig.pose.bones['neck'].rotation_euler.x = .07
+            rig.pose.bones['spine'].scale.x = 1 + .003 * math.sin(phase)
+        elif name == 'fall':
+            for i, side in enumerate(['L', 'R']):
+                rig.pose.bones['thigh_' + side].rotation_euler.x = .20 + .07 * math.sin(phase + i * math.pi)
+                rig.pose.bones['shin_' + side].rotation_euler.x = -.48
+                rig.pose.bones['arm_' + side].rotation_euler.x = -.22 + .018 * math.sin(phase)
+                rig.pose.bones['arm_' + side].rotation_euler.z = (-1 if i else 1) * .19
+                rig.pose.bones['ear_' + side].rotation_euler.x = -.09 + .02 * math.sin(phase)
+        elif name == 'land':
+            compression = math.sin(math.pi * min(1, t / .42)) ** 1.2 if t < .42 else 0
+            settle = math.sin((t - .42) / .58 * math.pi) * .018 if t >= .42 else 0
+            rig.pose.bones['spine'].location.y = -.07 * compression + settle
+            for side in ['L', 'R']:
+                contact_leg(side, .26, 0, 0, crouch=.035 * compression)
+                rig.pose.bones['arm_' + side].rotation_euler.x = .08 * compression
+                rig.pose.bones['ear_' + side].rotation_euler.x = -.08 * compression + .025 * math.sin(phase)
+        elif name == 'reload_tp':
+            # Support paw reaches the magazine, replaces it, then returns to aim.
+            reach = smooth01(min(1, t / .20)) * (1 - smooth01(max(0, (t - .76) / .24)))
+            exchange = math.sin(math.pi * max(0, min(1, (t - .22) / .48)))
+            rig.pose.bones['arm_L'].rotation_euler.x = .35 * reach
+            rig.pose.bones['arm_L'].rotation_euler.z = -.28 * reach
+            rig.pose.bones['forearm_L'].rotation_euler.x = -.45 * exchange
+            rig.pose.bones['paw_L'].rotation_euler.y = .28 * reach
+            rig.pose.bones['arm_R'].rotation_euler.x = -.06 * reach
+            rig.pose.bones['spine'].rotation_euler.z = .018 * reach
+            rig.pose.bones['head'].rotation_euler.x = .025 * reach
+        else:
+            anticipation = math.sin(math.pi * min(1, t / .14)) * .06 if t < .14 else 0
+            collapse = smooth01(max(0, min(1, (t - .10) / .58)))
+            rebound = math.sin(max(0, min(1, (t - .68) / .32)) * math.pi) * (1 - t) * .06
+            rig.pose.bones['root'].rotation_euler.z = -1.52 * collapse + rebound
+            rig.pose.bones['root'].location.y = .26 * collapse
+            rig.pose.bones['spine'].rotation_euler.x = anticipation + .20 * collapse
+            for i, side in enumerate(['L', 'R']):
+                rig.pose.bones['thigh_' + side].rotation_euler.x = (.5 if i else -.24) * collapse
+                rig.pose.bones['shin_' + side].rotation_euler.x = -.7 * collapse
+                rig.pose.bones['arm_' + side].rotation_euler.z = (.7 if i else -.3) * collapse
+                rig.pose.bones['forearm_' + side].rotation_euler.x = .3 * collapse
+        for p in rig.pose.bones:
+            p.keyframe_insert('rotation_euler', frame=frame, group=p.name)
+            p.keyframe_insert('location', frame=frame, group=p.name)
+            p.keyframe_insert('scale', frame=frame, group=p.name)
+    report['clips'].append(name)
+
 # Facial clips key only eyelids, brow tufts, ears and mouth. Skull and muzzle
 # have no tracks here. Runtime can blend these additively over locomotion,
 # referencing face_neutral through AnimationUtils.makeClipAdditive.

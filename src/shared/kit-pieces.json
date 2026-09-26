@@ -4,7 +4,7 @@
       7.7,
       6.7
     ],
-    "height": 8.335,
+    "height": 5.075,
     "colliders": [
       {
         "type": "box",
@@ -288,7 +288,7 @@
       8.7,
       7.7
     ],
-    "height": 12.035,
+    "height": 8.275,
     "colliders": [
       {
         "type": "box",
@@ -825,7 +825,7 @@
       10.7,
       16.7
     ],
-    "height": 13.685,
+    "height": 13.45,
     "colliders": [
       {
         "type": "box",
@@ -1252,7 +1252,7 @@
       16.7,
       12.7
     ],
-    "height": 11.685,
+    "height": 5.425,
     "colliders": [
       {
         "type": "box",
