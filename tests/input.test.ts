@@ -119,10 +119,10 @@ describe('local input feel', () => {
 
   it('asks the host to cancel gestures for local-only controls', () => {
     const input = controller(); input.locked = true; const cancel = vi.fn(); input.onCancelEmote = cancel;
-    for (const action of ['scoreboard', 'map', 'inspect']) (input as any).press(DEFAULT_SETTINGS.bindings[action], true, false);
-    expect(cancel).toHaveBeenCalledTimes(3);
+    for (const action of ['scoreboard', 'map', 'inspect', 'interact']) (input as any).press(DEFAULT_SETTINGS.bindings[action], true, false);
+    expect(cancel).toHaveBeenCalledTimes(4);
     (input as any).press(DEFAULT_SETTINGS.bindings.map, true, true);
-    expect(cancel).toHaveBeenCalledTimes(3);
+    expect(cancel).toHaveBeenCalledTimes(4);
   });
 
   it('cancels the host gesture and wheel when focus leaves the game', () => {

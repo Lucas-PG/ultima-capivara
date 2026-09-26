@@ -109,7 +109,7 @@ export class InputController {
     }
     if (code === binding.ads) { if (down && !repeat) this.adsToggled = !this.adsToggled; this.adsHeld = down; }
     if (!down || repeat) return;
-    if ([binding.scoreboard, binding.map, binding.inspect].includes(code)) this.onCancelEmote();
+    if ([binding.scoreboard, binding.map, binding.inspect, binding.interact].includes(code)) this.onCancelEmote();
     if (code === binding.reload) this.onAction({ type: 'reload', id: ++this.actionId });
     if (code === binding.interact) this.onInteract();
     if (code === binding.inspect) this.onInspect();
