@@ -1,19 +1,20 @@
 import * as THREE from 'three';
 import { terrainHeight } from '../shared/terrain';
-import type { WorldSpec } from '../shared/types';
-
-const WATER = { shallow: '#2EC4B6', middle: '#1FB0AE', deep: '#0E7C86', foam: '#F4FBF6' } as const;
+import { RIVER } from '../shared/layout';
+import type { Settings, WorldSpec } from '../shared/types';
 import { WATER_LEVEL as LEVEL, WATER_HALF_SIZE } from '../shared/water';
 
-const DEPTH_RANGE = 12;
+const WATER = { shallow: '#71AE91', middle: '#2B8F93', deep: '#14566D', foam: '#D9E8CD', sky: '#A3CBD4', horizon: '#E4CAAC' } as const;
+const DEPTH_RANGE = 12, SHORE_RANGE = 16;
 
 export class PaintedWater {
   readonly mesh: THREE.Mesh;
   readonly contacts: THREE.InstancedMesh;
   private readonly depth: THREE.DataTexture;
   private readonly time = { value: 0 };
+  private readonly detail = { value: 1 };
 
-  constructor(world: WorldSpec, terrain: THREE.BufferGeometry) {
+  constructor(world: WorldSpec, terrain: THREE.BufferGeometry, anisotropy = 1) {
     // Keep the exact rendered samples at the shore, but extend the bathymetry
     // beyond its square boundary using the shared coast. Distance to dry land
     // deepens the offshore shelf organically, including outside the height grid.
@@ -39,16 +40,41 @@ export class PaintedWater {
       if (z + 1 < side) distance[i] = Math.min(distance[i], distance[i + side] + 1,
         x ? distance[i + side - 1] + Math.SQRT2 : 1e6, x + 1 < side ? distance[i + side + 1] + Math.SQRT2 : 1e6);
     }
-    const values = new Uint8Array(depths.length);
-    for (let i = 0; i < values.length; i++) values[i] = Math.round(THREE.MathUtils.clamp(
-      Math.max(depths[i], Math.max(0, distance[i] * stride - 6) * .16) / DEPTH_RANGE, 0, 1) * 255);
-    this.depth = new THREE.DataTexture(values, side, side, THREE.RedFormat);
-    this.depth.minFilter = this.depth.magFilter = THREE.LinearFilter; this.depth.needsUpdate = true;
+    // One filtered lookup carries depth, the river's flow vector and distance
+    // to the bank. This replaces five texture fetches in the old water shader.
+    const values = new Uint8Array(depths.length * 4);
+    for (let z = 0; z < side; z++) for (let x = 0; x < side; x++) {
+      const i = z * side + x, wx = x * stride - fieldSize / 2, wz = z * stride - fieldSize / 2;
+      const depth = Math.max(depths[i], Math.max(0, distance[i] * stride - 6) * .16);
+      const dx = (depths[z * side + Math.min(side - 1, x + 1)] - depths[z * side + Math.max(0, x - 1)]) / (2 * stride);
+      const dz = (depths[Math.min(side - 1, z + 1) * side + x] - depths[Math.max(0, z - 1) * side + x]) / (2 * stride);
+      const shore = Math.min(distance[i] * stride, depths[i] / Math.max(.015, Math.hypot(dx, dz)));
+      let flowX = 0, flowZ = 0, flowWeight = 0;
+      for (let segment = 1; segment < RIVER.length; segment++) {
+        const [ax, az, aw] = RIVER[segment - 1], [bx, bz, bw] = RIVER[segment];
+        const rx = bx - ax, rz = bz - az, length = Math.hypot(rx, rz);
+        const t = THREE.MathUtils.clamp(((wx - ax) * rx + (wz - az) * rz) / (length * length), 0, 1);
+        const width = THREE.MathUtils.lerp(aw, bw, t), away = Math.hypot(wx - ax - rx * t, wz - az - rz * t);
+        const weight = 1 - THREE.MathUtils.smoothstep(away, width * .5, width * .5 + 6);
+        flowX += rx / length * weight; flowZ += rz / length * weight; flowWeight += weight;
+      }
+      const river = Math.min(1, flowWeight);
+      flowX = THREE.MathUtils.lerp(.32, flowX / Math.max(.001, flowWeight) * .7, river);
+      flowZ = THREE.MathUtils.lerp(-.1, flowZ / Math.max(.001, flowWeight) * .7, river);
+      values[i * 4] = Math.round(Math.min(1, depth / DEPTH_RANGE) * 255);
+      values[i * 4 + 1] = Math.round((flowX * .5 + .5) * 255);
+      values[i * 4 + 2] = Math.round((flowZ * .5 + .5) * 255);
+      values[i * 4 + 3] = Math.round(Math.min(1, shore / SHORE_RANGE) * 255);
+    }
+    this.depth = new THREE.DataTexture(values, side, side);
+    this.depth.minFilter = THREE.LinearMipmapLinearFilter; this.depth.magFilter = THREE.LinearFilter;
+    this.depth.generateMipmaps = true; this.depth.anisotropy = anisotropy; this.depth.needsUpdate = true;
     const material = new THREE.ShaderMaterial({
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
-        depthField: { value: this.depth }, grid: { value: side }, islandSize: { value: fieldSize }, uTime: this.time,
+        depthField: { value: this.depth }, grid: { value: side }, islandSize: { value: fieldSize }, uTime: this.time, uDetail: this.detail,
         shallow: { value: new THREE.Color(WATER.shallow) }, middle: { value: new THREE.Color(WATER.middle) },
         deep: { value: new THREE.Color(WATER.deep) }, foam: { value: new THREE.Color(WATER.foam) },
+        sky: { value: new THREE.Color(WATER.sky) }, horizonColor: { value: new THREE.Color(WATER.horizon) },
       }]),
       transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
       vertexShader: `varying vec3 vWorld;
@@ -57,43 +83,65 @@ export class PaintedWater {
           gl_Position=projectionMatrix*mvPosition;
           #include <fog_vertex>
         }`,
-      fragmentShader: `uniform sampler2D depthField;uniform float grid,islandSize,uTime;
-        uniform vec3 shallow,middle,deep,foam;varying vec3 vWorld;
+      fragmentShader: `uniform sampler2D depthField;uniform float grid,islandSize,uTime,uDetail;
+        uniform vec3 shallow,middle,deep,foam,sky,horizonColor;varying vec3 vWorld;
         #include <fog_pars_fragment>
         float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+        float noise(vec2 p){vec2 cell=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+          return mix(mix(hash(cell),hash(cell+vec2(1,0)),f.x),mix(hash(cell+vec2(0,1)),hash(cell+vec2(1,1)),f.x),f.y);}
         void main(){
           vec2 uv=vWorld.xz/islandSize+.5;
           vec2 sampleUV=(uv*(grid-1.0)+.5)/grid;
-          float depth=texture2D(depthField,sampleUV).r*12.0;
-          vec2 stepUV=vec2(1.0/grid,0.0);
-          float dx=texture2D(depthField,sampleUV+stepUV).r-texture2D(depthField,sampleUV-stepUV).r;
-          float dz=texture2D(depthField,sampleUV+stepUV.yx).r-texture2D(depthField,sampleUV-stepUV.yx).r;
-          float slope=length(vec2(dx,dz))*12.0*(grid-1.0)/(2.0*islandSize);
-          float shoreDistance=depth/max(.015,slope);
-          vec3 color=mix(shallow,middle,smoothstep(.3,3.0,depth));
-          color=mix(color,deep,smoothstep(3.0,10.0,depth));
-          float broadWave=.5+.5*sin(vWorld.x*.18+vWorld.z*.12-uTime*.4);
-          float shore=(1.0-smoothstep(.18,1.05,shoreDistance))*(.35+.65*broadWave);
-          color=mix(color,foam,shore*.55);
-          vec2 cell=vWorld.xz/6.0, local=fract(cell)-.5;
-          float glint=(1.0-smoothstep(.07,.12,abs(local.x)))*(1.0-smoothstep(.012,.025,abs(local.y)));
-          glint*=step(.82,hash(floor(cell)))*smoothstep(.55,.95,.5+.5*sin(uTime*.7+hash(floor(cell))*6.28));
-          glint*=1.0-smoothstep(20.0,60.0,distance(vWorld,cameraPosition));
-          color=mix(color,foam,glint*.55);
-          vec3 waterNormal=normalize(vec3(sin(vWorld.x*.72+uTime*.8)*.035,1.0,cos(vWorld.z*.81-uTime*.7)*.035));
+          vec4 field=texture2D(depthField,sampleUV);
+          float depth=field.r*12.0,shoreDistance=field.a*16.0;
+          vec2 flow=field.gb*2.0-1.0,along=normalize(flow+vec2(.001)),across=vec2(-along.y,along.x);
+          vec2 p=vWorld.xz-flow*uTime*.45;
+          float brush=noise(p*.31),wash=noise(p*.071+vec2(9.0,3.0));
+          float phase=dot(p,along)*3.2+sin(dot(p,across)*1.1)*.7+brush*.85;
+          float crossPhase=dot(p,across)*2.4+sin(dot(p,along)*.72);
+          float distanceToEye=distance(vWorld,cameraPosition);
+          float detailFade=1.0-smoothstep(24.0,95.0,distanceToEye);
+          vec3 color=mix(shallow,middle,smoothstep(.12,1.15,depth));
+          color=mix(color,deep,smoothstep(.8,3.4,depth));
+          color*=.88+wash*.2+brush*.08;
+          vec2 slope=along*cos(phase)*.065+across*cos(crossPhase)*.035;
+          vec3 waterNormal=normalize(vec3(-slope.x,1.0,-slope.y));
+          vec3 viewDirection=normalize(cameraPosition-vWorld);
+          float fresnel=.06+.55*pow(1.0-max(0.0,dot(viewDirection,waterNormal)),3.0);
+          vec3 reflection=mix(sky,horizonColor,pow(1.0-max(0.0,viewDirection.y),5.0));
+          reflection*=.88+.12*sin(phase*.35+wash);
+          color=mix(color,reflection,fresnel);
+          float width=max(fwidth(phase)*1.25,.055);
+          float ribbons=(1.0-smoothstep(.07,.07+width,abs(sin(phase))))*smoothstep(.48,.82,brush);
+          color=mix(color,foam,ribbons*.16*detailFade);
+          if(uDetail>.5){
+            float finePhase=phase*1.73+crossPhase*.53;
+            float fineWidth=max(.05,fwidth(finePhase)*1.5);
+            float fine=(1.0-smoothstep(.025,.025+fineWidth,abs(sin(finePhase))))*smoothstep(.57,.82,wash);
+            color=mix(color,foam,fine*.095*detailFade);
+            float caustic=pow(.5+.5*sin(phase*.8)*cos(crossPhase*.7),8.0);
+            color+=foam*caustic*.075*(1.0-smoothstep(.3,1.5,depth))*detailFade;
+          }
+          float bankWave=shoreDistance-(.13+.09*sin(uTime*.65+wash*5.0));
+          float bank=(1.0-smoothstep(.04,.2,abs(bankWave)))*smoothstep(0.0,.07,depth);
+          float lace=(.45+.55*smoothstep(.3,.66,brush))*(.85+.15*sin(uTime*.7+phase*.1));
+          color=mix(color,foam,bank*lace*.68);
           vec3 sunDirection=normalize(vec3(-70.0,32.0,-30.0));
-          vec3 halfDirection=normalize(normalize(cameraPosition-vWorld)+sunDirection);
-          float sunlight=pow(max(0.0,dot(waterNormal,halfDirection)),220.0);
-          color+=vec3(1.0,.75,.38)*sunlight*1.8+foam*glint*.7;
+          vec3 halfDirection=normalize(viewDirection+sunDirection);
+          float sunFacing=max(0.0,dot(waterNormal,halfDirection));
+          float sunlight=pow(sunFacing,65.0)*.28+pow(sunFacing,180.0)*.9*(.65+.35*sin(phase));
+          color+=vec3(1.0,.69,.32)*sunlight;
           // Dissolve into the sky haze before the far clip or the ocean mesh edge.
           // At the 120 m plane view this spans about 50 pixels at 1080p.
-          float horizon=1.0-smoothstep(500.0,750.0,distance(vWorld,cameraPosition));
-          gl_FragColor=vec4(color,smoothstep(0.0,.35,shoreDistance)*.96*horizon);
+          float horizon=1.0-smoothstep(500.0,750.0,distanceToEye);
+          float absorption=.3+.67*(1.0-exp(-depth*.9));
+          float alpha=smoothstep(0.0,.1,depth)*absorption;
+          gl_FragColor=vec4(color,max(alpha,bank*lace*.62)*horizon);
           #include <fog_fragment>
         }`,
     });
     // UniformsUtils clones values; restore the shared clock for both materials.
-    material.uniforms.uTime = this.time; material.uniforms.depthField.value = this.depth;
+    material.uniforms.uTime = this.time; material.uniforms.uDetail = this.detail; material.uniforms.depthField.value = this.depth;
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(WATER_HALF_SIZE * 2, WATER_HALF_SIZE * 2), material);
     this.mesh.rotation.x = -Math.PI / 2; this.mesh.position.y = LEVEL; this.mesh.renderOrder = 1;
 
@@ -113,8 +161,10 @@ export class PaintedWater {
         #include <fog_pars_fragment>
         void main(){vec2 q=abs((vUv-.5)*vSize)-(vSize*.5-.6);
           float d=length(max(q,0.0))+min(max(q.x,q.y),0.0);
-          float wash=.7+.3*sin(vWorld.x*.8+vWorld.z*.5-uTime*.4);
-          float alpha=smoothstep(-.02,.06,d)*(1.0-smoothstep(.08,.48,d))*.55*wash;
+          float phase=vWorld.x*.8+vWorld.z*.5-uTime*.6;
+          float wash=.5+.3*sin(phase)+.2*sin(vWorld.x*3.1-vWorld.z*2.7+uTime*.4);
+          float band=d-.06*sin(phase);
+          float alpha=smoothstep(-.02,.05,band)*(1.0-smoothstep(.06,.27,band))*.4*wash;
           gl_FragColor=vec4(foam,alpha);
           #include <fog_fragment>
         }`,
@@ -131,6 +181,7 @@ export class PaintedWater {
     geometry.setAttribute('contactSize', new THREE.InstancedBufferAttribute(sizes, 2));
     this.contacts.renderOrder = 2;
   }
+  setQuality(quality: Settings['graphics']) { this.detail.value = quality === 'low' ? 0 : 1; }
   update(time: number, reducedMotion: boolean) { this.time.value = reducedMotion ? 0 : time; }
   dispose() {
     this.depth.dispose();
