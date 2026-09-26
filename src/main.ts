@@ -376,7 +376,7 @@ function frame(now: number) {
   // Immediate local contact comes from prediction; other actors use snapshots.
   const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : predicted || me;
   const audioAt = timing.begin();
-  sound.update(listener, snapshot, dt, ui.screen !== 'game');
+  sound.update(listener, snapshot, dt, ui.screen !== 'game', snapshot ? snapshot.time + Math.min(.2, (now - receivedAt) / 1000) : 0);
   timing.end('audio', audioAt);
   // After the match ends the island keeps drawing behind the in-game victory overlay.
   const ended = !playing && snapshot?.phase === 'results';

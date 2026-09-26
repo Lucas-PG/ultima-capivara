@@ -100,7 +100,7 @@ export class PaintedWeaponSet {
   setRarity(model: PaintedWeaponModel, rarity: number): void {
     const tier = Number.isInteger(rarity) && rarity >= 0 && rarity < RARITY.length ? rarity : 0;
     model.group.traverse(object => {
-      if (object instanceof THREE.Mesh) { object.material = this.materials[tier]; object.castShadow = true; }
+      if (object instanceof THREE.Mesh && !object.userData.reloadProp) { object.material = this.materials[tier]; object.castShadow = true; }
     });
     model.legendary.visible = tier === 3;
   }

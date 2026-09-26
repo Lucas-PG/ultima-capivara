@@ -55,3 +55,17 @@ The director requested this batch after accepting all five original features. Ru
 - Exact settled plaza16, Medium 1280x720/DPR 1: 1,559,995 triangles, 262 draw calls, 60.00 FPS, p95 18.6 ms, exactly 180 draws over 180 RAFs. This remains below the 1.58 million triangle cap. The Low descent view uses 809,319 triangles and 205 draw calls.
 
 Evidence: shared reviews `A-brasa-supplyIncoming-*`, `A-brasa-supplyDescending-*`, `A-brasa-supplyLanded-*`, `A-brasa-supplyOpened-*`, `A-brasa-supplyMap-*` and `A-brasa-supply-plaza16-720.png`. Local logs are in `output/brasa/supply/`, including the original failures and their passing reruns. All capture/game browsers and ports 5174, 9001 and 5195 are closed before direct release to Vitrine. No remote Git or deployment was performed by Brasa.
+
+## First-person motion, 2026-09-26 core rescope
+
+Source checkpoint only until the reserved slot after Cena. Reload, melee and transition ownership was handed off by Cena; Oficina confirmed the current palm anchors and identity part roles will survive the new paw/machete geometry. Production gameplay durations, movement, network state and damage are unchanged.
+
+- Shared presentation cues drive seven distinct reloads and their contact sounds. Magazine weapons anticipate, grasp, withdraw, insert, bump, rack and settle. The shotgun feeds one shell during each existing 0.55-second reload; the slingshot seats a stone. Original tiny procedural shell/stone props use existing materials and are prewarmed and disposed with the view.
+- Quintic curves have still endpoints. The support paw rotates around its authored palm, follows the magazine, then meets the action. Normal completion reaches exact rest at the authoritative deadline; cancellation eases back. Audio receives the same estimated simulation time as the renderer, preserving the predicted local listener.
+- A 0.46-second machete action alternates direction, winds up, crosses a fast arc, follows through and recovers. A confirmed contact pauses only presentation for 35 ms, still fitting the existing 0.5-second attack cadence. A two-triangle trail and pooled impact puff add feedback. Camera kick, trail and hit-stop are suppressed by reduced motion; simulation and input keep running.
+- Equip/holster use eased travel below the frame. Sprint/bob and nearby-wall motion recover smoothly; the existing eased ADS and landing springs remain. Respawn/hidden views clear transient motion. Automatic firearm action cycles finish before the next legal shot.
+- QA `window.__capyQA.motion(weapon, action, seconds)` replays reload, left/right swing or hit, equip, sprint, ADS and landing with a continuously advancing presentation clock. Eight-frame strips and 1080 contact stills are required before claiming landable.
+
+Separately, test-only `f424614` fixes an exact local-double yaw assertion and arms host/guest transient-emote observation before selection. Vitrine verified it in `170898d` with check, 536 units, build and Chromium 4/4. The runtime input/transport contract was not changed.
+
+After this visual gate, the authorized gameplay audit uses seeded bot evidence for TTK/spread, movement, storm/loot and upstairs access. Mapa owns building geometry/traversal metadata and the future rio-7 tree colliders. Brasa will not alter `collision.ts` while that geometry audit is active.

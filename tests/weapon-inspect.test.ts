@@ -3,6 +3,7 @@ import { Spring } from '../src/render/spring';
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import type { ActorState, WeaponId } from '../src/shared/types';
+import { createReloadPose, MELEE_SECONDS, MELEE_CONTACT } from '../src/shared/weapon-presentation';
 
 beforeAll(() => {
   const noop = () => {};
@@ -20,12 +21,17 @@ async function harness() {
     group.add(muzzle, eject); holder.add(group);
     return { group, muzzle, eject, support: new THREE.Group(), sightY: .1, hipX: .2, adsZ: -.3 };
   };
+  const smear = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
+  smear.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
   const view = Object.assign(Object.create(WeaponView.prototype), {
-    holder, scene, models: { pistol: model(), smg: model() }, active: 'pistol', ads: 0, draw: 0, kick: 0, reloadEnd: 0,
+    holder, scene, models: { pistol: model(), smg: model(), machete: model() }, active: 'pistol', ads: 0, draw: 0, kick: 0, reloadEnd: 0,
     recoil: new Spring(), recoilYaw: new Spring(), swayX: new Spring(), swayY: new Spring(), land: new Spring(),
     lastYaw: undefined, lastPitch: 0, grounded: true, swimming: false, swimPose: 0, verticalSpeed: 0, sprintPose: 0, holster: 0,
     gait: 0, breathingTime: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], disposed: false,
     inspectTime: -1, inspectAllowed: false, restPosition: new THREE.Vector3(), restRotation: new THREE.Euler(),
+    reloadPose: createReloadPose(), reloadTarget: createReloadPose(), palm: new THREE.Vector3(), palmRotated: new THREE.Vector3(),
+    bobAmount: 0, wallPose: 0, meleeTime: MELEE_SECONDS, meleeSide: -1, meleeHit: false, meleeStop: 0,
+    meleePose: {}, smear, trailBase: new THREE.Vector3(), trailTip: new THREE.Vector3(), lastTrailBase: new THREE.Vector3(), lastTrailTip: new THREE.Vector3(),
   }) as InstanceType<typeof WeaponView>;
   const actor = { alive: true, stage: 'ground', weapons: [{ id: 'pistol', rarity: 0 }, { id: 'smg', rarity: 0 }], slot: 0,
     reloadUntil: 0, ads: false, sprint: false, velocity: { x: 0, y: 0, z: 0 } } as ActorState;
@@ -97,11 +103,61 @@ describe('first-person inspect', () => {
     expect(model.support.position.y).toBeLessThan(-.1);
     h.actor.reloadUntil = 0;
     h.view.update(h.actor, 1 / 60, DEFAULT_SETTINGS, 0, .71);
+    // Cancel smoothly from the held magazine instead of teleporting the paw.
+    expect(model.magazine.position.y).toBeLessThan(-.05);
+    for (let i = 0; i < 30; i++) h.step();
     expect(model.magazine.position.y).toBe(0);
     expect(model.support.position.length()).toBe(0);
     h.view.shot('pistol'); h.step();
     expect(model.triggerFinger.position.y).toBeLessThan(0);
     for (let i = 0; i < 30; i++) h.step();
     expect(model.triggerFinger.position.length()).toBe(0);
+  });
+
+  it('pauses only the confirmed blade contact, alternates swings and leaves aiming/input untouched', async () => {
+    const h = await harness(), view = h.view as any;
+    h.actor.weapons[0].id = 'machete'; h.actor.yaw = .7; h.actor.pitch = -.1;
+    for (let i = 0; i < 60; i++) h.step();
+    h.view.shot('machete', true);
+    for (let i = 0; i < 9; i++) h.step();
+    expect(view.meleeTime).toBeCloseTo(MELEE_CONTACT, 8);
+    const hitPose = h.holder.rotation.clone(), side = view.meleeSide;
+    h.step(); expect(view.meleeTime).toBeCloseTo(MELEE_CONTACT, 8);
+    expect(h.holder.rotation.y).toBeCloseTo(hitPose.y, 8);
+    expect(h.actor.yaw).toBe(.7); expect(h.actor.pitch).toBe(-.1);
+    for (let i = 0; i < 25; i++) h.step();
+    expect(view.meleeTime).toBe(MELEE_SECONDS);
+    h.view.shot('machete', false); expect(view.meleeSide).toBe(-side);
+    for (let i = 0; i < 9; i++) h.step();
+    expect(view.meleeTime).toBeGreaterThan(MELEE_CONTACT);
+    expect(view.smear.visible).toBe(true);
+  });
+
+  it('loads a painted shotgun through its support paw even though it has no detachable magazine alias', async () => {
+    const h = await harness(), view = h.view as any, model = view.models.pistol;
+    model.magazine = new THREE.Group(); model.magazine.name = 'shotgun_magazine';
+    model.painted = {}; model.rarity = 0;
+    const shell = new THREE.Object3D(); shell.name = 'reload-prop'; model.support.add(shell);
+    view.models.shotgun = model; view.active = 'shotgun';
+    h.actor.weapons[0].id = 'shotgun'; h.actor.reloadUntil = 2;
+    h.view.update(h.actor, 1 / 60, DEFAULT_SETTINGS, 0, 1.63);
+    expect(model.support.position.y).toBeLessThan(-.1);
+    expect(model.magazine.position.length()).toBe(0); expect(shell.visible).toBe(true);
+    h.view.update(h.actor, 1 / 60, DEFAULT_SETTINGS, 0, 2);
+    expect(model.support.position.length()).toBe(0); expect(shell.visible).toBe(false);
+  });
+
+  it('suppresses melee trail, hit-stop and camera kick in reduced motion and resets on hide', async () => {
+    const h = await harness(), view = h.view as any;
+    h.actor.weapons[0].id = 'machete'; for (let i = 0; i < 60; i++) h.step();
+    h.view.shot('machete', true);
+    for (let i = 0; i < 9; i++) h.view.update(h.actor, 1 / 60, { ...DEFAULT_SETTINGS, reducedMotion: true }, 0, 1);
+    expect(view.meleeTime).toBeGreaterThan(MELEE_CONTACT); expect(view.smear.visible).toBe(false);
+    const camera = new THREE.PerspectiveCamera(), original = camera.quaternion.clone();
+    h.view.cameraFeedback(camera, true); expect(camera.quaternion.equals(original)).toBe(true);
+    h.actor.alive = false; h.step();
+    expect(view.meleeTime).toBe(MELEE_SECONDS); expect(view.meleeStop).toBe(0); expect(view.smear.visible).toBe(false);
+    h.actor.alive = true; h.step(); expect(view.holder.visible).toBe(true);
+    expect(Object.values(view.meleePose).every(value => value === 0)).toBe(true);
   });
 });
