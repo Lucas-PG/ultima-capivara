@@ -532,7 +532,8 @@ body #victory #confetti{display:none}
    slots, a rarity glow on the weapon card and a springy ammo tick. Compact, and nothing new near the crosshair. */
 body[data-screen=game] .stk{background:var(--paper);border-radius:12px}
 #hud #topL .cell+.cell{border-left:2.5px dashed rgba(58,36,24,.25)}
-#hud #mapWrap{border-radius:14px;overflow:hidden}
+#hud #mapWrap{border-radius:14px}
+#hud #minimap{border-radius:10px}
 #hud #mapWrap .tab{border-radius:999px;background:var(--candy-gold);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.5)}
 #hud #mapWrap .net{border-radius:999px}
 #hud #bigmap .frame{border-radius:18px;overflow:hidden}
@@ -602,7 +603,7 @@ body.reduce-motion #hud .ammo b.tick{animation:none!important}
 @keyframes toon-shine{to{transform:translateX(110%)}}
 #victory .button{border-radius:16px;box-shadow:0 5px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(120,50,10,.25);transition:transform .18s var(--spring),box-shadow .15s}
 #victory .button.primary{background:var(--candy-gold)}
-#victory .button.secondary{background:var(--paper)}
+#victory .button.secondary{background:var(--paper);text-shadow:none}
 #victory .button:hover:not(:disabled){transform:translateY(-3px)}
 #victory .button:active:not(:disabled){transform:translateY(4px) scale(1.02,.95);box-shadow:0 1px 0 var(--ink)}
 #victory .vactions .wait{border-radius:16px}
