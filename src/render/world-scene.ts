@@ -357,7 +357,7 @@ export class WorldScene {
     const street = createStreetDressing(world); this.group.add(street.group); this.disposables.push(street);
     this.waterfalls = createWaterfalls(world, settings.graphics); this.group.add(this.waterfalls.group); this.disposables.push(this.waterfalls);
 
-    this.paintedWater = new PaintedWater(world, ground.geometry);
+    this.paintedWater = new PaintedWater(world, ground.geometry, loader.maxAnisotropy);
     this.water = this.paintedWater.mesh;
     this.group.add(this.water, this.paintedWater.contacts); this.disposables.push(this.paintedWater);
     this.smallWaterNormals = waterNormalTexture(); this.smallWaterNormals.repeat.set(3, 5);
@@ -698,6 +698,7 @@ export class WorldScene {
     this.reducedMotion = settings.reducedMotion;
     this.groundCover.setQuality(settings.graphics);
     this.waterfalls.setQuality(settings.graphics);
+    this.paintedWater.setQuality(settings.graphics);
   }
 
   update(time: number, camera?: THREE.Camera) {

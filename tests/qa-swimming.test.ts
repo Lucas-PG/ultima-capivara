@@ -12,12 +12,16 @@ afterEach(() => vi.unstubAllGlobals());
 it('reviews real river flotation, a nearby swimmer and a dry wet exit using shared movement', async () => {
   vi.stubGlobal('window', {}); vi.stubGlobal('document', { querySelector: () => null });
   let frame: RenderFrame | undefined;
-  const renderer = { update: (next: RenderFrame) => { frame = next; }, prepareMatch: async () => {},
+  const updates: { dt: number; draw: boolean }[] = [];
+  const renderer = { update: (next: RenderFrame, draw = true) => { frame = next; updates.push({ dt: next.dt, draw }); }, prepareMatch: async () => {},
     cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 } };
   installQa({ world: createWorld(), settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
     ui: { update: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
   const qa = window.__capyQA!; await qa.start();
   await qa.pose('swimWaterline');
+  expect(updates.reduce((time, update) => time + update.dt, 0)).toBeCloseTo(1);
+  expect(updates.filter(update => update.draw)).toHaveLength(1);
+  expect(updates.at(-1)!.draw).toBe(true);
   expect(frame!.snapshot!.actors[0]).toMatchObject({ swimming: true, grounded: false });
   expect(frame!.snapshot!.actors[0].pos.y).toBeCloseTo(WATER_LEVEL - SWIM_DRAFT);
   await qa.pose('swimRemote');
@@ -34,4 +38,30 @@ it('reviews real river flotation, a nearby swimmer and a dry wet exit using shar
     expect(actor.emote).toBe(emote); expect(actor.emoteUntil).toBeGreaterThan(frame!.snapshot!.time);
     expect(actor.crouch).toBe(emote === 'sit' || emote === 'chill');
   }
+});
+
+it('keeps one render loop when reviews stop, change pose and restart before a queued frame runs', async () => {
+  vi.stubGlobal('window', {}); vi.stubGlobal('document', { querySelector: () => null });
+  const queued = new Map<number, FrameRequestCallback>();
+  let nextId = 0, draws = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { const id = ++nextId; queued.set(id, callback); return id; });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => queued.delete(id));
+  const renderer = { update: (_frame: RenderFrame, draw = true) => { if (draw) draws++; }, prepareMatch: async () => {},
+    cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 } };
+  installQa({ world: createWorld(), settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
+    ui: { update: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
+  const qa = window.__capyQA!; await qa.start(); await qa.pose('plaza');
+  qa.loop(true);
+  for (const pose of ['swimWaterline', 'swimRemote', 'swimExit']) {
+    qa.loop(false); await qa.pose(pose); qa.loop(true);
+    expect(queued.size).toBe(1);
+  }
+  draws = 0;
+  for (let frame = 0; frame < 3; frame++) {
+    const callbacks = [...queued.values()]; queued.clear();
+    for (const callback of callbacks) callback(frame * 1000 / 60);
+    expect(queued.size).toBe(1);
+  }
+  expect(draws).toBe(3);
+  qa.loop(false); expect(queued.size).toBe(0);
 });
