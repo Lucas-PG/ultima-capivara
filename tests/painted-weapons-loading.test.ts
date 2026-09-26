@@ -64,16 +64,21 @@ describe('painted weapon readiness and ownership', () => {
     expect(mesh(common).material.emissiveMap!.minFilter).toBe(THREE.NearestFilter);
     expect(mesh(common).material.emissiveMap!.magFilter).toBe(THREE.NearestFilter);
     expect(mesh(common).material.emissiveMap!.generateMipmaps).toBe(false);
-    const pixels = (model: typeof common) => (mesh(model).material.map as THREE.DataTexture).image.data!;
-    const texel = (model: typeof common, column: number) => {
-      const offset = (128 * 1024 + column * 32 + 16) * 4;
-      return Array.from(pixels(model).slice(offset, offset + 4));
+    const swatch = (model: typeof common, column: number, u: number, v: number) => {
+      const { data, width, height } = (mesh(model).material.map as THREE.DataTexture).image;
+      const offset = (Math.floor(v * height) * width + Math.floor((column + u) * width / 32)) * 4;
+      return Array.from(data!.slice(offset, offset + 4));
     };
-    expect(texel(common, 13)).toEqual(texel(rare, 13));
-    const fur = texel(common, 13); expect(fur[0]).toBeGreaterThan(fur[1]); expect(fur[1]).toBeGreaterThan(fur[2]);
-    const blue = texel(rare, 9); expect(blue[2]).toBeGreaterThan(blue[1]); expect(blue[1]).toBeGreaterThan(blue[0]);
-    expect(texel(common, 9)).not.toEqual(blue);
-    expect((mesh(common).material.map as THREE.DataTexture).image.width).toBe(1024);
+    for (const u of [.2, .5, .8]) for (const v of [.1, .5, .9]) {
+      expect(swatch(rare, 13, u, v)).toEqual(swatch(common, 13, u, v));
+      expect(swatch(legendary, 13, u, v)).toEqual(swatch(common, 13, u, v));
+    }
+    const fur = swatch(common, 13, .5, .5), accent = swatch(rare, 9, .5, .5);
+    expect(fur[0]).toBeGreaterThan(fur[1]); expect(fur[1]).toBeGreaterThan(fur[2]);
+    expect(accent[2]).toBeGreaterThan(accent[1]); expect(accent[1]).toBeGreaterThan(accent[0]);
+    expect(accent).not.toEqual(swatch(common, 9, .5, .5));
+    expect(fur[3]).toBe(255); expect(accent[3]).toBe(255);
+
     set.dispose();
   });
 
