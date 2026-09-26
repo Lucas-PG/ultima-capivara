@@ -824,7 +824,7 @@ body.reduce-motion #hud #ladder.upgrade{animation:none}
 
 /* Tucano deliveries share the calm stamped announcement and crisp map overlay. */
 #hud #matchMoment[data-kind=delivery] strong{background:var(--candy-teal);font-size:26px}
-#hud #bigmap .supply-legend{position:absolute;left:10px;bottom:12px;max-width:60%;padding:5px 9px;background:var(--paper);color:var(--brown);font-size:12px;font-weight:800;border:2px solid var(--brown);border-radius:8px;box-shadow:2px 2px 0 var(--brown)}
+#hud #bigmap .supply-legend{position:absolute;left:10px;bottom:12px;max-width:60%;padding:5px 9px;background:var(--paper);color:var(--brown);font-size:13px;font-weight:800;border:2px solid var(--brown);border-radius:8px;box-shadow:2px 2px 0 var(--brown)}
 #hud #bigmap .supply-legend[hidden]{display:none}
 
 /* A beach hut for the turma: wooden invitation, painted paper name cards, candy readiness. */
