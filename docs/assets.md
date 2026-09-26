@@ -325,6 +325,8 @@ Original 1024x1024 painted colour and tangent normal atlases add directional fur
 
 Review against the cover at 1920x1080: the M4 visibly carries wood grain, machined edges, watch, cuff, fur breakup and shaped support fingers. The full cover-level fur density and richer character face/gear are still open for the subsequent capybara iteration. Existing world houses still need the remaining decorative cracks, wall decals, balcony/door hardware and street vehicle dressing.
 
+The support-grip follow-up replaces the SMG, M4 and shotgun's hidden fingers with four separate curved fingers wrapped along the handguard or pump. Knuckles and nails sit on the visible upper side, the palm is smaller, and short fur fins remain around the wrist rather than obscuring the fingers. The existing `grip_fingers` and `trigger_finger` nodes stay at identity rest transforms. All eight weapons remain within 40,000 triangles, with one material and the same 1024-square colour/normal atlas contract.
+
 # Phase B interface art
 
 `public/assets/ui/island-arrival-v3.webp` (loading screen background) and `public/assets/ui/capy-parachute-v3.webp`
@@ -333,11 +335,6 @@ Review against the cover at 1920x1080: the M4 visibly carries wood grain, machin
 type: single original game UI progress mascot on a genuinely transparent background, PNG alpha. A small appealing
 capybara adventurer parachuting in a compact, readable full-body three-quarter silhouette facing right, beneath a
 rounded olive and golden canvas parachute." The complete prompt texts are kept in that Codex session log.
-### Fractured coastal stone iteration, 2026-09-25
-
-The four cliff pieces are rebuilt from original irregular convex stone chunks in `tools/blender/kit/rocks.py`. Their silhouettes use angled fracture planes, softened chipped edges, overhangs and unequal masses; the spherical shells and projecting slab decorations are removed. The existing painted sandstone atlas is mapped continuously over each chunk, with cool stone washes, subtle strata, short fissures, moss painted directly into upward stone faces and small grass shoots. The moss uses the same stone vertices, so distant simplification cannot leave intersecting overlay triangles. Fine fissures and grass are omitted after LOD0. Each formation stays below 3,400 / 1,250 / 600 triangles.
-
-Collision boxes are inscribed directly against the same authored hull half-spaces, eroded by the bevel radius. No separate cylinder cores are rendered. The exported metadata retains the four piece IDs, bottom origins, footprint dimensions and stone material. Asset tests raycast every collider face against all three exported LODs to ensure no collision surface protrudes beyond visible stone. This iteration uses no external assets or services.
 ### Fractured coastal stone iteration, 2026-09-25
 
 The four cliff pieces are rebuilt from original irregular convex stone chunks in `tools/blender/kit/rocks.py`. Their silhouettes use angled fracture planes, softened chipped edges, overhangs and unequal masses; the spherical shells and projecting slab decorations are removed. The existing painted sandstone atlas is mapped continuously over each chunk, with cool stone washes, subtle strata, short fissures, moss painted directly into upward stone faces and small grass shoots. The moss uses the same stone vertices, so distant simplification cannot leave intersecting overlay triangles. Fine fissures and grass are omitted after LOD0. Each formation stays below 3,400 / 1,250 / 600 triangles.
