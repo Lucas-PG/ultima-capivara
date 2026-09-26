@@ -173,19 +173,73 @@ export function createWorld(): WorldSpec {
   for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
   sign(90, 65, 'MANGUE');
 
-  // Cover is placed deliberately in courtyards, then scattered away from the
-  // navigation corridors. Every solid comes from an actual kit mesh.
-  for (const [x, z] of [[-35, -18], [-25, -18], [17, -25], [43, -30], [-36, 48], [-4, 36], [19, 41],
-    [52, 48], [-49, -48], [12, -49], [7, -88], [12, -105], [89, -6], [108, 20]] as const) {
-    if (!occupied(x, z, 1.2)) place('crate', x, z);
+  // Offshore silhouettes supply a second and third landscape layer. They are
+  // scenery beyond the ocean current, with no hidden collision in the sea.
+  for (const [x, z, width, height, depth, color] of [
+    [-164, -253, 112, 72, 91, '#648176'], [-117, -284, 74, 106, 69, '#6B827F'],
+    [-72, -265, 89, 63, 72, '#728A80'], [-45, -323, 102, 116, 81, '#819598'],
+    [21, -310, 97, 74, 88, '#8B9D99'], [62, -347, 72, 100, 72, '#8B9B9E'],
+    [225, -151, 106, 59, 84, '#718A7D'], [277, -174, 87, 89, 66, '#809597'],
+    [293, -117, 107, 49, 91, '#83988D'], [243, 184, 116, 51, 79, '#6D887B'],
+    [288, 206, 78, 81, 68, '#839697'], [-219, 163, 91, 47, 69, '#6F8980'],
+  ] as const) obj('rock', x, height / 2 - 8, z, width, height, depth, color, 'distant-island', .2);
+
+  // Planting frames the facades while the doors retain a wide central aisle.
+  for (const h of [...HOUSES, ...MORRO_LOTS]) {
+    for (const side of [-1, 1]) {
+      const flowers = KIT_PIECES.flower_bed;
+      const x = h.x + side * (1.4 + (flowers?.footprint[0] ?? 2.4) / 2), z = h.z + h.d / 2 + 1.7;
+      if (!roadAt(x, z, 1) && !occupied(x, z, .5)) detail('flower_bed', x, z);
+    }
+    if (h.role === 'home' || h.role === 'fisher') {
+      const x = h.x - h.w / 2 - 2, z = h.z - 1;
+      if (!roadAt(x, z, 1) && !occupied(x, z, .8)) detail('bush_cluster', x, z, 0, .85);
+    }
   }
-  for (let i = 0, placed = 0; i < 1000 && placed < 65; i++) {
-    const x = Math.round(-111 + random() * 222), z = Math.round(-113 + random() * 226);
+  for (const [x, z, yaw] of [[-20, -28, Math.PI / 2], [-20, -15, Math.PI / 2], [0, -28, Math.PI / 2],
+    [0, -15, Math.PI / 2], [-17, -31, 0], [-3, -31, 0], [20, -11, 0], [38, -11, 0]] as const)
+    if (!occupied(x, z, 1)) detail('hedge', x, z, yaw);
+  for (let x = -48; x <= 52; x += 12) {
+    const sample = riverSample(x, 10);
+    for (const side of [-1, 1]) {
+      const z = sample.z + side * (sample.width / 2 + 8.4);
+      if (BRIDGES.some(([bx]) => Math.abs(x - bx) < 6) || occupied(x, z, 1.4) || roadAt(x, z, 1.2)) continue;
+      detail('bench', x, z, side > 0 ? 0 : Math.PI);
+      detail('planter', x + 2.3, z);
+      detail('bush_cluster', x - 2.4, z, 0, .8);
+    }
+  }
+  for (const [x, z] of [[23, -91], [29, -107], [40, -116], [66, -105], [-107, -28], [-114, -14],
+    [-75, -77], [-64, -55], [-70, 71], [-52, 91], [15, 113], [80, 40]] as const) {
+    if (occupied(x, z, 3) || routeDistance(x, z) < 4) continue;
+    detail('cliff_rock', x, z, 0, 1.2);
+    detail('cliff_rock', x + 2.2, z + 1.5, Math.PI / 2, .65);
+    detail('bush_cluster', x - 1.5, z + 1.7, 0, 1.1);
+    detail('flower_bed', x + 1.7, z - 1.9, 0, .7);
+  }
+
+  // Supplies sit in working groups beside routes, with a low side prop and
+  // an occasional stack that breaks eye-level sightlines across open ground.
+  let coverGroups = 0;
+  const coverGroup = (x: number, z: number) => {
+    if (occupied(x, z, 2.6) || roadAt(x, z, 2.4) || routeDistance(x, z) < 3) return false;
     const y = ground(x, z);
-    if (y < .85 || routeDistance(x, z) < 3 || roadAt(x, z, 1) || occupied(x, z, 2)) continue;
+    if (Math.max(Math.abs(ground(x + 1.6, z + .6) - y), Math.abs(ground(x - .9, z + 1.4) - y)) > .2) return false;
+    place('crate', x, z);
+    place('crate', x + 1.4, z + .4, Math.PI / 2, .75);
+    const side = KIT_PIECES.barrel ? 'barrel' : 'crate';
+    place(side, x - .9, z + 1.4, 0, side === 'barrel' ? .9 : .65);
+    if (coverGroups++ % 2 === 0) place('crate', x + .1, z, Math.PI / 2, .65, y + KIT_PIECES.crate.height);
+    return true;
+  };
+  for (const [x, z] of [[-35, -18], [-25, -18], [17, -25], [43, -30], [-36, 48], [-4, 36], [19, 41],
+    [52, 48], [-49, -48], [12, -49], [7, -88], [12, -105], [89, -6], [108, 20]] as const) coverGroup(x, z);
+  for (let i = 0, placed = 0; i < 2200 && placed < 28; i++) {
+    const x = Math.round(-111 + random() * 222), z = Math.round(-113 + random() * 226);
+    const y = ground(x, z), route = routeDistance(x, z);
+    if (y < .85 || route < 3 || route > 14) continue;
     if (Math.abs(ground(x + 1, z) - ground(x - 1, z)) > .4 || Math.abs(ground(x, z + 1) - ground(x, z - 1)) > .4) continue;
-    const piece = KIT_PIECES.cliff_rock && i % 3 === 0 ? 'cliff_rock' : 'crate';
-    place(piece, x, z, i % 2 ? Math.PI / 2 : 0, piece === 'crate' ? 1 : .7 + random() * .5); placed++;
+    if (coverGroup(x, z)) placed++;
   }
   // Plants are decorative, with no independently authored trunk boxes.
   const planted: PointLike[] = [];

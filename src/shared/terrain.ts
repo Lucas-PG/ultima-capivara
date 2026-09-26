@@ -91,9 +91,9 @@ export function terrainHeight(x: number, z: number): number {
   return u + v <= 1 ? a + (b - a) * u + (c - a) * v : d + (c - d) * (1 - u) + (b - d) * (1 - v);
 }
 export const WORLD_PALETTE = {
-  grass: '#6FAE45', grassLight: '#8CC453', dryGrass: '#B0CC5E',
-  earth: '#C99A62', rock: '#BBAE98', rockTop: '#A89F92',
-  sand: '#F2D9A0', sandLight: '#F8E6BA', sandWet: '#D9B77A', mud: '#5F8F86',
+  grass: '#88A65C', grassLight: '#AEC47C', dryGrass: '#BBBC79',
+  earth: '#B89162', rock: '#A99D88', rockTop: '#948E80',
+  sand: '#DFC58F', sandLight: '#EBD8A5', sandWet: '#C2A778', mud: '#527F77',
   road: '#8D8173', curb: '#D9C8AC',
   foliageLight: '#86BD4F', foliageMid: '#5FA544', foliageCore: '#3F8A4A',
   palmMid: '#5F9E3E', palmLight: '#9CC756', palmTrunk: '#A8865E', palmRing: '#8A6A48',
