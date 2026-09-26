@@ -9,6 +9,7 @@ import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
 import { createIslandBackdrop } from './island-backdrop';
 import { createStreetDressing } from './street-dressing';
+import { createWaterfalls } from './waterfall';
 import { GroundCover } from './ground-cover';
 import { createKit, type KitScene } from './kit';
 import { releaseAfterUpload } from './memory';
@@ -180,7 +181,7 @@ export class WorldScene {
   private readonly kit: KitScene;
   private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
-  private readonly cascadeTime = { value: 0 };
+  private readonly waterfalls: ReturnType<typeof createWaterfalls>;
   private readonly vegetation: ReturnType<typeof buildVegetation>;
   private readonly groundCover: GroundCover;
   private reducedMotion = false;
@@ -346,6 +347,7 @@ export class WorldScene {
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
     const backdrop = createIslandBackdrop(world); this.group.add(backdrop.mesh); this.disposables.push(backdrop);
     const street = createStreetDressing(world); this.group.add(street.group); this.disposables.push(street);
+    this.waterfalls = createWaterfalls(world, settings.graphics); this.group.add(this.waterfalls.group); this.disposables.push(this.waterfalls);
 
     this.paintedWater = new PaintedWater(world, ground.geometry);
     this.water = this.paintedWater.mesh;
@@ -386,21 +388,6 @@ export class WorldScene {
       roughness: .14, metalness: .02, normalMap: this.smallWaterNormals, normalScale: new THREE.Vector2(.2, .4),
       clearcoat: 1, transparent: true, opacity: .72, depthWrite: false, side: THREE.DoubleSide });
     this.disposables.push(cascadeMaterial);
-    const cascadeSheet = new THREE.ShaderMaterial({
-      uniforms: { uTime: this.cascadeTime }, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: `uniform float uTime; varying vec2 vUv;
-        void main() {
-          float flow = vUv.y + uTime * .78;
-          float streams = .5 + .5 * sin(vUv.x * 117.0 + sin(flow * 13.0) * .6);
-          float broken = .5 + .5 * sin(vUv.x * 43.0 + flow * 29.0);
-          float foam = (1.0 - smoothstep(.0, .2, vUv.y)) + smoothstep(.92, 1.0, vUv.y);
-          float edge = smoothstep(.0, .035, vUv.x) * smoothstep(.0, .035, 1.0-vUv.x);
-          vec3 water = mix(vec3(.31,.49,.47), vec3(.91,.96,.91), clamp(.3+streams*.37+broken*.13+foam*.35,0.0,1.0));
-          gl_FragColor = vec4(water, edge*(.62+streams*.2+foam*.12));
-        }`,
-    });
-    this.disposables.push(cascadeSheet);
     const add = (surface: Surface, geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = 0) => {
       const tint = c(color);
       const painted = coloredGeometry(geometry, tint, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation, tileMeters[surface]);
@@ -482,18 +469,7 @@ export class WorldScene {
     for (const object of world.objects) {
       const { kind, pos, scale, color, detail, rotation = 0 } = object;
       if (detail?.startsWith('prop:') || detail === 'distant-island' || kind === 'palm' || kind === 'tree' || kind === 'grass') continue;
-      if (detail === 'waterfall') {
-        const geometry = new THREE.PlaneGeometry(scale.x, scale.y, 6, 12);
-        const vertices = geometry.getAttribute('position');
-        for (let i = 0; i < vertices.count; i++) vertices.setZ(i, Math.sin(vertices.getX(i) * 3 + vertices.getY(i) * 5) * .035);
-        geometry.computeVertexNormals();
-        const cascade = new THREE.Mesh(geometry, cascadeSheet);
-        const front = scale.z * .5 + .03;
-        cascade.rotation.y = rotation;
-        cascade.position.set(pos.x + Math.sin(rotation) * front, pos.y, pos.z + Math.cos(rotation) * front);
-        this.group.add(cascade); this.disposables.push(geometry);
-        continue;
-      }
+      if (detail === 'waterfall') continue;
       if (detail === 'water') {
         const geometry = cylinder.clone(); geometry.scale(scale.x, scale.y, scale.z);
         const basin = new THREE.Mesh(geometry, cascadeMaterial);
@@ -713,12 +689,13 @@ export class WorldScene {
   setSettings(settings: Settings) {
     this.reducedMotion = settings.reducedMotion;
     this.groundCover.setQuality(settings.graphics);
+    this.waterfalls.setQuality(settings.graphics);
   }
 
   update(time: number, camera?: THREE.Camera) {
     if (camera) { this.kit.update(camera, time); this.groundCover.update(camera, time, this.reducedMotion); }
     this.vegetation.update(this.reducedMotion ? 0 : time);
-    this.cascadeTime.value = time;
+    this.waterfalls.update(time, this.reducedMotion);
     this.paintedWater.update(time, this.reducedMotion);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);
   }

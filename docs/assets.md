@@ -408,3 +408,7 @@ Fur uses tiles 0, 1, 2, 4, 14; fabric uses 5, 6, 7, 13. Tile 14 is a neutral car
 ### Painted character and first-person presentation
 
 The runtime selects the new 4x4 character paint layout from the exported `paintAtlas` marker and preserves the source normal, roughness, emissive and specular maps. Cosmetic bandana colours change only their two painted tiles. Sun-directed rim light and a broad soft sheen apply to the authored fur tiles; cloth, eyes and mouth retain their own surface response. The existing 16-column character asset remains supported. The pistol hip pose is angled slightly to expose its side engraving, serrations, fasteners and supporting paw; the authored sights stay aligned when aiming.
+
+### Western waterfall, 2026-09-26
+
+Original procedural geometry and shaders in `src/render/waterfall.ts` replace the flat cascade with seven curved, irregular falling ribbons, painted moving froth, lip and pool foam, and 24 soft spray particles. All elements share the authored marker transform. Low uses four simpler ribbons and six particles, without lights, shadows or texture downloads. The source uses deterministic noise and no external assets, image generation or paid services. Placement reserves the falling-water corridor between the source-derived stone banks.
