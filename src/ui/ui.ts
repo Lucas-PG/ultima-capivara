@@ -59,6 +59,8 @@ export class GameUI {
   private emoteY = 0;
   private selectedMode: Mode = 'battle-royale';
   private room: RoomState | null = null;
+  private lobbyCode = '';
+  private lobbyPlayers = new Map<string, boolean>();
   private snapshot: WorldSnapshot | null = null;
   private modal: HTMLDialogElement | null = null;
   private inventoryKey = '';
@@ -141,6 +143,7 @@ export class GameUI {
         case 'ready': this.callbacks.ready(!this.room?.players.find(p => p.id === this.room?.myId)?.ready); break;
         case 'start': this.callbacks.start(); break;
         case 'copy': void this.copyInvite(); break;
+        case 'copy-code': void this.copyInvite(true); break;
         case 'resume': this.callbacks.resume(); break;
         case 'rematch': this.callbacks.rematch(); break;
         case 'spectate': this.callbacks.spectate(); break;
@@ -218,6 +221,7 @@ export class GameUI {
   }
   roomModal(kind: 'host' | 'join', code = '') {
     const dialog = this.openModal(kind === 'host' ? 'A TURMA COMEÇA AQUI.' : 'SUA TURMA TE ESPERA.', `<form id="room-form">${this.profileFields()}${kind === 'host' ? `<div class="form-grid"><label>MODO<select name="mode"><option value="battle-royale" ${this.selectedMode === 'battle-royale' ? 'selected' : ''}>Última de pé · Battle royale</option><option value="deathmatch" ${this.selectedMode === 'deathmatch' ? 'selected' : ''}>Correria · Combate por tempo</option><option value="corrente" ${this.selectedMode === 'corrente' ? 'selected' : ''}>Corrente · Sequência de armas</option></select></label><label>VAGAS PARA AMIGOS<select name="capacity"><option>2</option><option>4</option><option selected>8</option><option>12</option><option>16</option></select></label><label>DURAÇÃO DA CORRERIA<select name="duration"><option value="300">5 minutos</option><option value="480" selected>8 minutos</option><option value="600">10 minutos</option></select></label><label>NÍVEL DOS BOTS<select name="difficulty"><option value="easy">Tranquilo</option><option value="normal" selected>Na medida</option><option value="hard">Sem dó</option></select></label></div><label class="check-row"><input type="checkbox" name="bots" checked/><span>Completar a turma com bots<small>21 bichos no battle royale; pelo menos 8 nos outros modos.</small></span></label><p class="form-note">${icon('info')} Quem cria a sala mantém esta aba aberta durante a partida.</p>` : `<label for="join-code">CÓDIGO DA SALA</label><input id="join-code" class="code-input" name="code" maxlength="6" minlength="6" required placeholder="ABC123" autocomplete="off" spellcheck="false" value="${esc(code)}"/><p class="form-note">${icon('link')} Peça o código ou o link para quem criou a sala.</p>`}<p class="form-error" role="alert"></p><button class="button primary full-width" type="submit">${kind === 'host' ? 'CRIAR MINHA SALA' : 'ENTRAR NA SALA'} ${icon('arrow')}</button></form>`);
+    dialog.classList.add('room-dialog'); dialog.dataset.roomKind = kind;
     dialog.querySelectorAll<HTMLElement>('[data-color]').forEach(button => button.addEventListener('click', () => { this.profile.color = button.dataset.color!; dialog.querySelectorAll('[data-color]').forEach(b => b.classList.toggle('selected', b === button)); dialog.querySelector('#profile-avatar')!.innerHTML = capybara(this.profile.color); }));
     const form = dialog.querySelector<HTMLFormElement>('form')!;
     if (kind === 'host') { const mode = form.querySelector<HTMLSelectElement>('[name=mode]')!, duration = form.querySelector<HTMLSelectElement>('[name=duration]')!; const updateDuration = () => { duration.closest('label')!.hidden = mode.value !== 'deathmatch'; }; mode.addEventListener('change', updateDuration); updateDuration(); }
@@ -235,9 +239,32 @@ export class GameUI {
   }
   setRoom(room: RoomState | null) { this.room = room; if (room) { this.localId = room.myId; if (room.phase === 'lobby') this.lobby(); } }
   private lobby() {
-    const room = this.room!; this.screen = 'lobby'; this.els.clear(); document.body.dataset.screen = 'lobby';
-    const me = room.players.find(p => p.id === room.myId), allReady = room.players.every(p => p.ready && p.connected);
-    this.root.innerHTML = `${this.header(true)}<main class="lobby-content"><section class="lobby-intro"><p class="eyebrow">ENCONTRO MARCADO.</p><h1>SUA TURMA.<br><em>SUA ILHA.</em></h1><p>A melhor confusão começa com os amigos certos.</p><div class="invite-card"><div><span>CÓDIGO DA SALA</span><strong>${esc(room.code)}</strong></div><button class="button secondary" data-do="copy">${icon('link')} COPIAR LINK</button></div><div class="lobby-rules"><span>${icon(room.config.mode === 'battle-royale' ? 'crown' : 'bolt')} ${modeName(room.config.mode)}</span><p>${room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : room.config.mode === 'corrente' ? 'Cada eliminação traz a próxima arma. Avance pela sequência e vença com o facão final.' : `Você tem ${room.config.duration / 60} minutos. Elimine, reapareça e termine no topo.`}</p><small>${room.config.bots ? 'BOTS COMPLETAM A TURMA' : 'SOMENTE AMIGOS'} · ${room.config.capacity} VAGAS</small></div></section><section class="roster-panel"><div class="section-heading"><span>QUEM VAI PRA ILHA</span><small>${room.players.length}/${room.config.capacity}</small></div><div class="roster">${room.players.map(player => `<div class="player-row ${player.id === room.myId ? 'you' : ''}">${capybara(player.color)}<div><strong>${esc(player.name)} ${player.id === room.myId ? '<small>VOCÊ</small>' : ''}</strong><span>${player.id === room.hostId ? 'CRIADOR DA SALA' : 'NA TURMA'}</span></div><b class="ready-status ${player.ready && player.connected ? 'ready' : ''}">${!player.connected ? 'RECONECTANDO' : player.ready ? `${icon('check')} PRONTO` : 'PREPARANDO'}</b></div>`).join('')}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')} O próximo lugar pode ser do seu amigo.</div>` : ''}</div><div class="lobby-bottom"><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width" data-do="ready">${icon('check')} ${me?.ready ? 'ESTOU PRONTO · CANCELAR' : 'ESTOU PRONTO'}</button>${room.isHost ? this.startButton(allReady) : '<p>Quem criou a sala começa quando a turma estiver pronta.</p>'}<small>${room.isHost ? 'Mantenha esta aba aberta enquanto a turma joga.' : 'Seu jogo está pronto. Só falta a turma.'}</small><p id="connection-status" role="status">${esc(this.networkStatus)}</p></div></section></main>`;
+    const room = this.room!, fresh = this.screen !== 'lobby' || this.lobbyCode !== room.code;
+    if (fresh) this.lobbyPlayers.clear();
+    const previous = this.lobbyPlayers, arrived = new Set(room.players.filter(p => !previous.has(p.id)).map(p => p.id));
+    const newlyReady = new Set(room.players.filter(p => previous.has(p.id) && !previous.get(p.id) && p.ready && p.connected).map(p => p.id));
+    this.lobbyPlayers = new Map(room.players.map(p => [p.id, p.ready && p.connected])); this.lobbyCode = room.code;
+    const active = document.activeElement as HTMLElement | null, focusAction = active && this.root.contains(active) ? active.closest<HTMLElement>('[data-do]')?.dataset.do : null;
+    const scroll = fresh ? 0 : this.root.querySelector('.roster')?.scrollTop ?? 0;
+    this.screen = 'lobby'; this.els.clear(); document.body.dataset.screen = 'lobby';
+    const me = room.players.find(p => p.id === room.myId), host = room.players.find(p => p.id === room.hostId);
+    const readyCount = room.players.filter(p => p.ready && p.connected).length, allReady = readyCount === room.players.length;
+    const motion = !this.reducedMotion(), art = room.config.mode === 'battle-royale' ? 'mode-royale' : room.config.mode === 'corrente' ? 'mode-corrente' : 'mode-correria';
+    const rules = room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : room.config.mode === 'corrente' ? 'Uma eliminação, uma nova arma. Feche a sequência com o facão para vencer.' : `${room.config.duration / 60} minutos de correria. Caiu? Volta pra disputa. Mais eliminações vence!`;
+    const cards = room.players.map((player, i) => `<article class="player-row${player.id === room.myId ? ' you' : ''}${!player.connected ? ' reconnecting' : ''}${motion && arrived.has(player.id) ? ' arriving' : ''}" data-player-id="${esc(player.id)}" style="--kit:${/^#[a-f0-9]{6}$/i.test(player.color) ? player.color : PLAYER_COLORS[0]};--tilt:${i % 2 ? '.7' : '-.7'}deg">
+      <span class="player-portrait">${capybara(player.color)}</span><div class="player-card-copy"><strong title="${esc(player.name)}">${esc(player.name)}</strong><span class="player-role">${player.id === room.myId ? '<b>VOCÊ</b>' : ''}${player.id === room.hostId ? `${icon('crown')} CRIOU A SALA` : 'DA TURMA'}</span><b class="ready-status${player.ready && player.connected ? ' ready' : ''}${motion && newlyReady.has(player.id) ? ' ready-wiggle' : ''}">${!player.connected ? 'Reconectando' : player.ready ? `${icon('check')} PRONTO!` : 'Escolhendo o chinelo...'}</b></div></article>`).join('');
+    const readiness = `${readyCount} de ${room.players.length} ${room.players.length === 1 ? 'capivara pronta' : 'capivaras prontas'}`;
+    this.root.innerHTML = `${this.header(true)}<main class="lobby-content beach-hut"><div class="hut-bunting" aria-hidden="true">${'<i></i>'.repeat(9)}</div>
+      <section class="lobby-intro"><p class="eyebrow">RANCHO DA TURMA</p><h1>CHEGA<br><em>MAIS!</em></h1><p>Puxa uma cadeira.<br>Já já a ilha é nossa.</p>
+        <div class="invite-card"><img class="lobby-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><button class="room-code" data-do="copy-code" aria-label="Copiar código ${esc(room.code)}"><span>CÓDIGO DA TURMA</span><strong>${esc(room.code)}</strong><small>Toque para copiar o código</small></button><button class="button secondary" data-do="copy">${icon('link')} Copiar link do convite</button></div>
+        <div class="lobby-rules"><div class="lobby-mode-art" style="background-image:url(${uiArt(art)})" aria-hidden="true"></div><div><small>HOJE A TURMA VAI DE</small><span>${modeName(room.config.mode)}</span><p>${rules}</p><b>${room.config.bots ? 'Bots completam a turma' : 'Só os amigos'} · ${room.config.capacity} vagas</b></div></div>
+      </section><section class="roster-panel" aria-label="Amigos na sala"><div class="section-heading"><span>GUARDEI SEU LUGAR</span><small>${room.players.length}/${room.config.capacity} NA TURMA</small></div>
+        <div class="roster">${cards}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')}<span>Tem lugar pra mais um.<small>Mande o código e puxe outra cadeira!</small></span></div>` : ''}</div>
+        <div class="lobby-bottom"><p class="lobby-readiness" role="status">${icon(allReady ? 'check' : 'users')} ${readiness}</p><div class="lobby-action-row"><div class="ready-control"><span>QUANDO VOCÊ QUISER</span><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width${motion && newlyReady.has(room.myId) ? ' ready-wiggle' : ''}" data-do="ready" aria-pressed="${!!me?.ready}">${icon('check')} ${me?.ready ? 'PRONTO! · CANCELAR' : 'ESTOU PRONTO'}</button></div>
+        ${room.isHost ? `<div class="host-controls"><span>${icon('crown')} VOCÊ DÁ A LARGADA</span>${this.startButton(allReady)}</div>` : `<div class="host-wait">${icon('crown')}<span><b>${esc(host?.name ?? 'Quem criou a sala')}</b> dá a largada quando a turma estiver pronta.</span></div>`}</div>
+        <small>${room.isHost ? 'Sua aba mantém a sala aberta. Deixe a turma por aqui enquanto joga.' : 'Pode ficar à vontade. Seu lugar na turma está guardado.'}</small><p id="connection-status" role="status">${esc(this.networkStatus)}</p></div></section></main>`;
+    const roster = this.root.querySelector('.roster'); if (roster) roster.scrollTop = scroll;
+    if (focusAction) [...this.root.querySelectorAll<HTMLElement>('[data-do]')].find(el => el.dataset.do === focusAction)?.focus({ preventScroll: true });
   }
   // Host start button: while the island warms up it is disabled, labelled and shows real progress (setRoomLoading).
   private startButton(allReady: boolean) {
@@ -257,10 +284,11 @@ export class GameUI {
     if (next !== null && wasLoading && bar) { const pct = startButtonState(false, next).pct; bar.setAttribute('aria-valuenow', String(pct)); bar.querySelector('i')!.style.width = `${pct}%`; return; }
     button.outerHTML = this.startButton(this.room.players.every(p => p.ready && p.connected));
   }
-  private async copyInvite() {
+  private async copyInvite(codeOnly = false) {
     if (!this.room) return; const url = new URL(location.href); url.search = ''; url.searchParams.set('sala', this.room.code); url.hash = '';
-    try { await navigator.clipboard.writeText(url.href); this.toast('Link copiado. Chame a turma!'); }
-    catch { this.openModal('CONVIDE SUA TURMA', `<label>LINK DA SALA<input readonly value="${esc(url.href)}"/></label><p>Copie o link acima ou compartilhe o código ${esc(this.room.code)}.</p>`); }
+    const value = codeOnly ? this.room.code : url.href;
+    try { await navigator.clipboard.writeText(value); this.toast(codeOnly ? 'Código copiado. Tem lugar pra turma!' : 'Link copiado. Chame a turma!'); }
+    catch { const dialog = this.openModal('CONVIDE SUA TURMA', `<label>${codeOnly ? 'CÓDIGO' : 'LINK'} DA SALA<input readonly value="${esc(value)}"/></label><p>Compartilhe com os amigos e combine o próximo salto.</p>`); dialog.querySelector('input')?.select(); }
   }
   game(playerId: string) {
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
@@ -720,7 +748,7 @@ export class GameUI {
     if (!me.alive) { clearTimeout(this.momentTimer); this.show('matchMoment', false); }
     else if (snapshot.phase === 'playing') {
       if (this.momentPhase === 'countdown') this.showMoment('Boa sorte, capivara!', me.stage === 'plane' ? `${keyName(bindingOf(this.settings.bindings, 'jump'))} pra saltar` : 'A ilha é sua!', me.stage === 'plane' ? 'launch' : 'start');
-      if (this.momentStage === 'plane' && me.stage === 'falling') this.showMoment('PULA!', `${keyName(bindingOf(this.settings.bindings, 'jump'))} abre o paraquedas`, 'drop');
+      if (this.momentStage === 'plane' && me.stage === 'falling') this.showMoment('PULA!', '', 'drop');
       const beat = snapshot.config.mode === 'battle-royale' && snapshot.zone.phase === 0 && !snapshot.zone.shrinking ? Math.ceil(snapshot.zone.timeLeft) : 0;
       if (beat > 0 && beat <= 5 && beat !== this.firstStormBeat) this.showMoment(String(beat), 'Primeira tempestade · prepare a rota', 'storm');
       else if (this.firstStormBeat > 0 && this.firstStormBeat <= 5 && snapshot.zone.phase === 0 && snapshot.zone.shrinking) this.showMoment('Lá vem ela!', 'Vá para a área segura', 'storm');
@@ -730,7 +758,7 @@ export class GameUI {
   }
   private showMoment(title: string, detail: string, kind = 'start') {
     const moment = this.el('matchMoment'); clearTimeout(this.momentTimer);
-    this.text('momentTitle', title); this.text('momentDetail', detail); moment.dataset.kind = kind; this.show('matchMoment', true);
+    this.text('momentTitle', title); this.text('momentDetail', detail); this.show('momentDetail', !!detail); moment.dataset.kind = kind; this.show('matchMoment', true);
     if (!this.reducedMotion()) this.restartAnimation(moment, 'stamp');
     this.momentTimer = window.setTimeout(() => { moment.hidden = true; }, kind === 'storm' && /^\d$/.test(title) ? 1200 : 1600);
   }

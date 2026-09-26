@@ -821,3 +821,79 @@ body.reduce-motion #hud #ladder.upgrade{animation:none}
 
 /* The launch stamp carries the jump hint until the normal flight banner returns. */
 #hud:has(#matchMoment[data-kind=launch]:not([hidden])) #banner{visibility:hidden}
+
+/* A beach hut for the turma: wooden invitation, painted paper name cards, candy readiness. */
+body[data-screen=lobby] #cover-art{background:linear-gradient(90deg,#422916ce,#44301b69 65%,#16483a91),var(--cover) center/cover no-repeat}
+.beach-hut{position:relative;max-width:1440px;width:calc(100% - 80px);padding:32px 0 26px;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:46px;align-items:start}
+.hut-bunting{position:absolute;top:1px;left:34%;right:0;height:26px;display:flex;justify-content:space-around;gap:20px;border-top:3px solid var(--brown);rotate:1deg;pointer-events:none}
+.hut-bunting i{width:25px;height:25px;background:#f9bf48;clip-path:polygon(0 0,100% 0,100% 75%,50% 100%,0 75%)}
+.hut-bunting i:nth-child(3n+1){background:#58c1ad}.hut-bunting i:nth-child(3n+2){background:#e7815b}
+.beach-hut .lobby-intro h1{font-size:clamp(44px,4.3vw,62px);line-height:1.04;rotate:-2deg;text-shadow:var(--ol-b),0 5px 0 var(--brown)}
+.beach-hut .lobby-intro>.eyebrow{margin:0 0 16px;width:max-content;font-size:12px}
+.beach-hut .lobby-intro>p:not(.eyebrow){margin:18px 0 22px;font-size:17px;line-height:1.35}
+.beach-hut .invite-card{position:relative;display:grid;gap:13px;padding:0;border:0;background:none;box-shadow:none;isolation:isolate}
+.lobby-mascot{position:absolute;width:132px;height:132px;object-fit:contain;top:-110px;right:0;z-index:-1;rotate:8deg;pointer-events:none}
+.room-code{display:block;width:100%;padding:14px 18px 17px;background:var(--wood);border:4px solid var(--brown);border-radius:17px;box-shadow:0 6px 0 var(--brown),inset 0 3px 0 #ffe4a977;color:var(--cream);text-align:center;rotate:-1deg;transition:transform .2s var(--spring)}
+.room-code::before,.room-code::after{content:'';position:absolute;top:12px;width:8px;height:8px;border:2px solid var(--brown);border-radius:50%;background:#f2c784;box-shadow:0 1px 0 #ffe8b9}
+.room-code::before{left:12px}.room-code::after{right:12px}
+.room-code>span{font-weight:800;font-size:12px;letter-spacing:1.8px;text-shadow:0 2px 0 var(--brown)}
+.beach-hut .room-code strong{font-size:38px;letter-spacing:5px;margin:4px 0 5px;color:#fff2b2;line-height:1.2}
+.room-code small{font-size:13px;font-weight:700;color:var(--cream);text-shadow:0 1px 0 var(--brown)}
+.room-code:hover{transform:rotate(1deg) translateY(-2px)}.room-code:active{transform:translateY(3px)}
+.beach-hut .invite-card>.button{width:100%;font-size:13px;height:48px}
+.beach-hut .lobby-rules{display:grid;grid-template-columns:74px minmax(0,1fr);gap:12px;padding:12px;margin-top:22px;background:var(--paper);border:3px solid var(--brown);border-radius:16px;box-shadow:3px 4px 0 var(--brown);rotate:.6deg;color:var(--brown)}
+.lobby-mode-art{border:2px solid var(--brown);border-radius:9px;background-size:auto 100%;background-position:35% center;min-height:100px}
+.beach-hut .lobby-rules small{display:block;font-size:12px;letter-spacing:.3px;color:var(--brown-2);text-shadow:none}
+.beach-hut .lobby-rules span{display:block;font-family:var(--heading);font-size:18px;line-height:1.3;margin:4px 0}
+.beach-hut .lobby-rules p{font-size:13px;line-height:1.35;color:var(--brown);text-shadow:none;margin:5px 0}
+.beach-hut .lobby-rules b{font-size:12px;color:var(--brown-2);line-height:1.35;display:block}
+.beach-hut .roster-panel{padding:21px;display:flex;flex-direction:column;max-height:calc(100dvh - 158px);background:var(--paper);border:4px solid var(--brown);box-shadow:0 7px 0 var(--brown),0 16px 25px #24120866}
+.beach-hut .section-heading{gap:12px;flex-shrink:0;margin:0 0 17px;align-items:center;color:var(--brown);text-shadow:none;font-size:14px}
+.beach-hut .section-heading>span{font-family:var(--heading);font-size:16px;letter-spacing:0}
+.beach-hut .section-heading small{font-size:12px;white-space:nowrap;letter-spacing:.3px}
+.beach-hut .roster{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-height:none;min-height:0;padding:4px 6px 9px;overflow:auto;scrollbar-color:#b87d45 #ecd2a2;scrollbar-width:thin;overscroll-behavior:contain}
+.beach-hut .player-row{position:relative;display:flex;gap:10px;min-width:0;padding:12px 10px;background:var(--paper);border:3px solid var(--brown);border-radius:14px;box-shadow:2px 3px 0 #9b6939;rotate:var(--tilt);align-items:center}
+.beach-hut .player-row.you{background:linear-gradient(125deg,#fff0b0cc,#fff9e600),var(--paper);border-color:#976020}
+.beach-hut .player-row.reconnecting{border-style:dashed}
+.beach-hut .player-portrait{display:block;flex:0 0 64px;height:72px;align-self:center}
+.beach-hut .player-row .capy-avatar{width:64px;height:72px;border:3px solid var(--brown);border-radius:42% 45% 40% 38%;background:var(--kit);box-shadow:0 3px 0 var(--brown)}
+.beach-hut .player-card-copy{min-width:0}
+.beach-hut .player-row strong{font-size:15px;line-height:1.5}
+.beach-hut .player-role{display:flex;align-items:center;gap:5px;font-size:12px;letter-spacing:0;margin:4px 0 7px;flex-wrap:wrap;line-height:1.3}
+.beach-hut .player-role b{background:#f4bf54;color:var(--brown);padding:1px 4px;border-radius:4px;font-size:12px}
+.beach-hut .player-role .icon{width:14px;height:14px;flex-shrink:0;color:#975d23}
+.beach-hut .ready-status{display:inline-flex;font-size:12px;line-height:1.25;letter-spacing:0;padding:4px 7px;border-width:2px;border-radius:8px;text-shadow:none;max-width:100%}
+.beach-hut .ready-status.ready{color:#244f31;background:#b7e5a0;box-shadow:0 2px 0 #487448}
+.beach-hut .empty-seat{grid-column:1/-1;justify-content:center;gap:13px;min-height:76px;padding:12px;border:2px dashed #b29261;border-radius:14px;background:#e7d1a638;text-align:left}
+.beach-hut .empty-seat>.icon{width:30px;height:30px;color:#95723e}.beach-hut .empty-seat small{display:block;font-size:12px;margin-top:4px}
+.beach-hut .lobby-bottom{flex-shrink:0;gap:12px;margin-top:12px;padding-top:14px}
+.beach-hut .lobby-readiness{display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px;color:var(--brown)}
+.beach-hut .lobby-readiness .icon{width:18px;height:18px;color:#477650}
+.lobby-action-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end}
+.ready-control>span,.host-controls>span{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.4px;margin-bottom:9px}
+.host-controls{padding:10px;border:2px solid #bc8a36;border-radius:14px;background:#f5cd7966}
+.host-controls>span{color:#764521}.host-controls>span .icon{width:15px;height:15px}
+.beach-hut .lobby-action-row .button{font-size:13px;height:52px;padding:0 10px;gap:7px;white-space:normal;line-height:1.2}
+.ready-control{padding-bottom:12px}
+.host-wait{display:flex;align-items:center;gap:9px;align-self:stretch;border:2px dashed #bf9b60;border-radius:14px;padding:12px;background:#ead9b95c;font-size:13px;line-height:1.35}
+.host-wait>.icon{width:23px;height:23px;flex-shrink:0;color:#9c6726}.host-wait b{font-weight:800;overflow-wrap:anywhere}
+.beach-hut .lobby-bottom>small{font-size:12px;line-height:1.35}
+.beach-hut #connection-status:empty{display:none}
+.room-dialog{background:var(--paper);border-width:5px;padding:26px 30px;max-width:740px}
+.room-dialog .modal-heading h2{font-size:26px;padding:12px 16px;max-width:520px}
+.room-dialog .profile-editor{padding:14px;border:3px solid #b49361;border-radius:17px;background:#ead4a666;margin-bottom:22px;rotate:.4deg}
+.room-dialog .profile-editor .capy-avatar{width:84px;height:84px;border:3px solid var(--brown);border-radius:40%;box-shadow:0 4px 0 var(--brown)}
+.room-dialog .form-grid{gap:17px 22px}
+.room-dialog .code-input{font-family:var(--heading)!important;letter-spacing:8px;text-align:center;font-size:28px!important;height:66px!important;background:#ffedc3!important}
+.room-dialog .form-note{padding:10px 12px;background:#efd7b0;border-radius:10px}
+@keyframes hut-arrive{0%{transform:translateY(12px) scale(.93);opacity:0}70%{transform:translateY(-3px) scale(1.015);opacity:1}100%{transform:none;opacity:1}}
+@keyframes hut-ready{0%,100%{transform:none}30%{transform:rotate(-3deg) translateY(-3px)}65%{transform:rotate(2deg) translateY(-1px)}}
+.beach-hut .arriving{animation:hut-arrive .3s var(--spring)}.beach-hut .ready-wiggle{animation:hut-ready .3s ease-out}
+body.reduce-motion .beach-hut :is(.arriving,.ready-wiggle){animation:none}body.reduce-motion .room-code{transition:none}
+@media(prefers-reduced-motion:reduce){.beach-hut :is(.arriving,.ready-wiggle){animation:none}.room-code{transition:none}}
+@media(min-width:901px) and (max-height:800px){.beach-hut{padding-top:26px;gap:32px;grid-template-columns:310px minmax(0,1fr)}.beach-hut .lobby-intro h1{font-size:44px}.beach-hut .lobby-intro>.eyebrow{margin-bottom:12px}.beach-hut .lobby-intro>p:not(.eyebrow){font-size:15px;margin:14px 0 18px}.beach-hut .lobby-rules{margin-top:17px}.beach-hut .lobby-rules p{font-size:12px}.beach-hut .roster-panel{padding:17px;max-height:calc(100dvh - 132px)}.beach-hut .player-row{padding:10px 8px}.beach-hut .player-portrait,.beach-hut .player-row .capy-avatar{width:56px;height:64px;flex-basis:56px}.beach-hut .lobby-action-row .button{font-size:12px}.room-dialog{padding:20px 26px}.room-dialog .modal-heading{margin-bottom:18px}.room-dialog .profile-editor{padding:10px;margin-bottom:18px}.room-dialog .modal-heading h2{font-size:23px}}
+@media(max-width:1100px) and (min-width:901px){.beach-hut{width:calc(100% - 48px);gap:24px;grid-template-columns:280px minmax(0,1fr)}.beach-hut .roster{grid-template-columns:1fr}.beach-hut .section-heading>span{font-size:14px}.lobby-action-row{gap:8px}.host-controls{padding:8px}.ready-control>span,.host-controls>span{letter-spacing:0;font-size:12px}}
+@media(max-width:900px){body[data-screen=lobby]{overflow:auto}.beach-hut{width:calc(100% - 40px);padding:30px 0;grid-template-columns:1fr;gap:28px;max-width:650px}.hut-bunting{left:0}.beach-hut .lobby-intro h1{font-size:42px}.beach-hut .lobby-intro h1 br{display:none}.beach-hut .lobby-intro h1 em{margin-left:12px}.beach-hut .lobby-intro>p:not(.eyebrow) br{display:none}.beach-hut .lobby-intro>p:not(.eyebrow){margin:15px 0 24px}.lobby-mascot{width:115px;height:115px;top:-92px;right:15px}.beach-hut .roster-panel{max-height:none;padding:18px}.beach-hut .roster{max-height:450px}.beach-hut .lobby-rules{grid-template-columns:74px 1fr}.room-dialog .modal-heading h2{font-size:22px}}
+@media(max-width:560px){.beach-hut .roster{grid-template-columns:1fr}.beach-hut .section-heading>span{font-size:13px}.beach-hut .section-heading small{font-size:12px}.lobby-action-row{grid-template-columns:1fr}.ready-control{padding-bottom:0}.beach-hut .lobby-intro h1{font-size:34px}.lobby-mascot{width:88px;height:88px;top:-66px;right:8px}.room-dialog{padding:20px 16px}.room-dialog .profile-editor{gap:12px;padding:10px}.room-dialog .profile-editor .capy-avatar{width:62px;height:62px}.room-dialog .code-input{letter-spacing:6px}}
+@media(min-width:901px) and (max-height:800px){.room-dialog .modal-heading .eyebrow{display:none}.room-dialog .modal-heading{margin-bottom:15px}.room-dialog .modal-mascot{width:62px;height:62px;margin:-10px 6px -10px auto}.room-dialog .profile-editor{margin-bottom:14px}.room-dialog .profile-inputs input{height:44px}.room-dialog .color-picker{margin-top:9px}.room-dialog .check-row{margin-top:14px}.room-dialog .form-note{margin:12px 0;padding:8px 10px}.room-dialog .form-grid{gap:14px 20px}.room-dialog .form-error:empty{display:none}}
+@media(min-width:901px) and (max-height:800px){.beach-hut .empty-seat{min-height:62px;padding:8px 12px}}
