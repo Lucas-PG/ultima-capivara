@@ -47,6 +47,29 @@ async function traceInputs(page: Page, label: string, samples: unknown[]) {
       record('receive', message.data, { guest: guest.profile.id, accepted: guest.lastInput === message.data?.seq,
         serverTime: w.__capivara.inspect().snapshot?.time }); return result;
     };
+    // Arm before selecting a gesture. A 3 s wave can start and finish while
+    // Playwright waits behind a rendered frame, so polling only latest state
+    // after several awaited key releases can miss a correctly delivered wave.
+    w.__emoteEvidence = [];
+    const observe = (snapshot: any) => {
+      const actor = snapshot?.actors.find((a: any) => a.id === w.__observeEmoteId);
+      if (!actor) return;
+      const prior = w.__emoteEvidence.at(-1);
+      if (prior?.emote === actor.emote && prior?.until === actor.emoteUntil) return;
+      w.__emoteEvidence.push({ at: performance.now(), time: snapshot.time, tick: snapshot.tick,
+        actor: actor.id, emote: actor.emote, until: actor.emoteUntil, ammo: actor.weapons[0]?.ammo });
+      if (w.__emoteEvidence.length > 32) w.__emoteEvidence.shift();
+    };
+    const publish = prototype.publish, receiveFrame = prototype.receiveFrame;
+    prototype.publish = function (this: any, ...args: any[]) {
+      const result = publish.apply(this, args); observe(this.current); return result;
+    };
+    prototype.receiveFrame = function (this: any, ...args: any[]) {
+      const snapshot = this.callbacks.snapshot;
+      this.callbacks.snapshot = (value: any) => { observe(value); return snapshot(value); };
+      try { return receiveFrame.apply(this, args); }
+      finally { this.callbacks.snapshot = snapshot; }
+    };
   });
 }
 
@@ -117,13 +140,26 @@ test('two Corrente game contexts join, replicate movement and emotes, show RTT, 
     await controls(guest, 'fire');
     await controls(guest, 'key', 'KeyW', true);
     await guest.waitForTimeout(120);
-    expect((await inspect(guest)).clientInput).toMatchObject({ yaw: choosing.yaw, pitch: choosing.pitch, fire: false, moveZ: 0 });
+    const frozen = (await inspect(guest)).clientInput;
+    expect(frozen).toMatchObject({ fire: false, moveZ: 0 });
+    // clientInput is an unquantized local double. recoverRecoil normalizes yaw
+    // with atan2(sin, cos) even at zero recoil, which may differ by one ULP.
+    // 1e-10 rad is far below .001 snapshot quantization and .0001 emote look cancellation.
+    expect(Math.abs(frozen.yaw - choosing.yaw)).toBeLessThan(1e-10);
+    expect(Math.abs(frozen.pitch - choosing.pitch)).toBeLessThan(1e-10);
     await controls(guest, 'key', 'KeyW', false);
+    await Promise.all([host, guest].map(page => page.evaluate(id => {
+      (window as any).__observeEmoteId = id; (window as any).__emoteEvidence = [];
+    }, guestId)));
     await controls(guest, 'key', 'Digit1', true);
     await controls(guest, 'key', 'Digit1', false);
     await controls(guest, 'key', 'KeyB', false);
-    await expect.poll(async () => (await player(host, guestId)).emote).toBe('wave');
-    await expect.poll(async () => (await player(guest)).emote).toBe('wave');
+    const observed = (page: Page) => page.evaluate(() => (window as any).__emoteEvidence.find((sample: any) => sample.emote === 'wave'));
+    await Promise.all([host, guest].map(page => expect.poll(async () => !!(await observed(page))).toBe(true)));
+    const [hostWave, guestWave] = await Promise.all([observed(host), observed(guest)]);
+    expect(Math.abs(hostWave.until - guestWave.until)).toBeLessThan(.02);
+    expect(hostWave.ammo).toBe(ammo - 1); expect(guestWave.ammo).toBe(ammo - 1);
+    await info.attach('emote-observation', { body: JSON.stringify({ hostWave, guestWave }), contentType: 'application/json' });
     expect((await player(host, guestId)).weapons[0].ammo).toBe(ammo - 1);
     await controls(guest, 'key', 'Tab', true);
     await expect(guest.locator(`#scoreboard [data-player-ping="${guestId}"]`)).toHaveText(/^\d+ ms$/);
@@ -170,6 +206,11 @@ test('two Corrente game contexts join, replicate movement and emotes, show RTT, 
     await expect.poll(async () => (await inspect(guest)).room).toBeNull();
     await expect(guest.locator('#toast')).toContainText('O anfitrião fechou a sala.');
   } finally {
+    const emotes = await Promise.all(contexts.map(async context => {
+      const page = context.pages()[0];
+      return page ? page.evaluate(() => (window as any).__emoteEvidence || []).catch(() => []) : [];
+    }));
+    await info.attach('emote-history-host-guest', { body: JSON.stringify(emotes, null, 2), contentType: 'application/json' });
     await info.attach('input-evidence', { body: JSON.stringify(inputEvidence, null, 2), contentType: 'application/json' });
     await info.attach('host-close-progress', { body: JSON.stringify(closeProgress, null, 2), contentType: 'application/json' });
     await Promise.all(contexts.map(context => context.close()));
