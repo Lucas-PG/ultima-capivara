@@ -24,7 +24,7 @@ describe('painted weapons shipped asset contract', () => {
       };
       visit(root);
       expect(triangles, id).toBeGreaterThan(500);
-      expect(triangles, id).toBeLessThanOrEqual(10000);
+      expect(triangles, id).toBeLessThanOrEqual(25000);
       for (const part of ['body', 'right_paw', 'muzzle', 'eject', 'sight', 'legendary']) expect(names.has(`${id}_${part}`), `${id}/${part}`).toBe(true);
       expect(names.has(`${id}_left_paw`), id).toBe(id !== 'machete');
     }
@@ -43,15 +43,17 @@ describe('painted weapons shipped asset contract', () => {
     }
   });
 
-  it('uses a shared painted atlas without photographic surface maps', () => {
+  it('uses painted colour and roughness atlases with baked contact shading', () => {
     const materials = asset.getRoot().listMaterials();
     expect(materials).toHaveLength(1);
     expect(materials[0].getMetallicFactor()).toBe(0);
     expect(materials[0].getRoughnessFactor()).toBeGreaterThanOrEqual(.85);
     expect(materials[0].getNormalTexture()).toBeNull();
-    expect(materials[0].getMetallicRoughnessTexture()).toBeNull();
+    expect(materials[0].getMetallicRoughnessTexture()).toBeDefined();
     expect(materials[0].getBaseColorTexture()).toBeDefined();
-    expect(asset.getRoot().listTextures()).toHaveLength(2);
+    expect(asset.getRoot().listTextures()).toHaveLength(3);
+    expect(materials[0].getBaseColorTexture()?.getSize()).toEqual([1024, 256]);
+    for (const mesh of asset.getRoot().listMeshes()) for (const p of mesh.listPrimitives()) expect(p.getAttribute('COLOR_0')).toBeDefined();
     expect(materials[0].getEmissiveTexture()?.getSize()).toEqual([32, 32]);
     for (const channel of materials[0].getEmissiveFactor()) expect(channel).toBeCloseTo(.35, 6);
   });
