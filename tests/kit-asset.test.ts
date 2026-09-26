@@ -117,4 +117,34 @@ describe('island kit geometry and traversal contract', () => {
     expect(size.x).toBeGreaterThan(8); expect(size.z).toBeGreaterThan(9); expect(size.y).toBeGreaterThan(6);
     kit.dispose(); expect(scene.children).toHaveLength(0);
   });
+
+  it('reduces dense planting at walking distance without hiding solid kit collision', async () => {
+    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
+    const kit = createKit(scene, { gltf: async () => asset } as unknown as AssetLoader, [
+      { piece: 'bush_cluster', x: 1, y: 0, z: 1, yaw: 0 },
+      { piece: 'hedge', x: 2, y: 0, z: 1, yaw: 0 },
+      { piece: 'flower_bed', x: 1, y: 0, z: 2, yaw: 0 },
+      { piece: 'house_small', x: 3, y: 0, z: 3, yaw: 0 },
+    ]);
+    await kit.ready; scene.updateMatrixWorld(true);
+    const plants = scene.getObjectByName('kit:plants:0:0') as THREE.LOD;
+    const flowers = scene.getObjectByName('kit:flowers:0:0') as THREE.LOD;
+    const house = scene.getObjectByName('kit:solid:0:0') as THREE.LOD;
+    const move = (distance: number) => {
+      camera.position.set(1.5, 2, 1 + distance); camera.updateMatrixWorld(true); kit.update(camera);
+    };
+    move(3); expect(plants.getCurrentLevel()).toBe(0);
+    move(20); expect(plants.getCurrentLevel()).toBe(1); expect(flowers.getCurrentLevel()).toBe(1);
+    const near = (plants.levels[0].object as THREE.Mesh).geometry.index!.count;
+    const middle = (plants.levels[1].object as THREE.Mesh).geometry.index!.count;
+    expect(middle).toBeLessThan(near * .4);
+    for (const entry of [...plants.levels, ...flowers.levels]) expect((entry.object as THREE.Mesh).castShadow).toBe(false);
+    move(40);
+    expect(plants.getCurrentLevel()).toBe(2); expect(plants.visible).toBe(true);
+    expect(((plants.levels[2].object as THREE.Mesh).material as THREE.MeshStandardMaterial).opacity).toBeCloseTo(.5);
+    move(55); expect(plants.visible).toBe(false);
+    expect(flowers.visible).toBe(true); expect(house.visible).toBe(true);
+    move(3); expect(plants.visible).toBe(true); expect(plants.getCurrentLevel()).toBe(0);
+    kit.dispose(); expect(scene.children).toHaveLength(0);
+  });
 });

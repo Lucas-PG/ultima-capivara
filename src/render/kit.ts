@@ -12,7 +12,9 @@ export interface KitScene {
 }
 export const KIT_ASSET_PATH = 'models/kit/kit.glb';
 const CELL_SIZE = 40;
+const PLANT_CELL_SIZE = 8;
 const FAR_LOD = 32;
+const SOFT_LANDSCAPE = new Set(['bush_cluster', 'hedge']);
 type Definition = { footprint: number[]; height: number; colliders: { type: string; x: number; y: number; z: number; width?: number; height: number; depth?: number; radius?: number; yaw?: number }[] };
 const definitions: Record<string, Definition> = pieces;
 
@@ -34,7 +36,8 @@ function editableGeometry(source: THREE.BufferGeometry): THREE.BufferGeometry {
 export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   placements: readonly KitPlacement[], quality = 'medium'): KitScene {
   const root = new THREE.Group(); root.name = 'Ilha_modular'; scene.add(root);
-  const cells = new Map<string, { origin: THREE.Vector3; placements: KitPlacement[]; lod: THREE.LOD }>();
+  const cells = new Map<string, { origin: THREE.Vector3; placements: KitPlacement[]; lod: THREE.LOD;
+    landscape: boolean; fades: boolean; material?: THREE.MeshStandardMaterial }>();
   const geometries = new Set<THREE.BufferGeometry>();
   const temporaryMaterials = new Set<THREE.Material>();
   let disposed = false;
@@ -42,12 +45,18 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   for (const placement of placements) {
     if (![placement.x, placement.y, placement.z, placement.yaw, placement.scale ?? 1].every(Number.isFinite) || (placement.scale ?? 1) <= 0)
       throw new Error(`Posição de peça inválida: ${placement.piece}.`);
-    const cx = Math.floor(placement.x / CELL_SIZE), cz = Math.floor(placement.z / CELL_SIZE), key = `${cx}:${cz}`;
+    // Keep traversable planting independent from the 40 m structural batches.
+    // Flower beds retain visible borders at distance because they have collision.
+    const fades = SOFT_LANDSCAPE.has(placement.piece) && definitions[placement.piece]?.colliders.length === 0;
+    const landscape = fades || placement.piece === 'flower_bed';
+    const size = landscape ? PLANT_CELL_SIZE : CELL_SIZE;
+    const cx = Math.floor(placement.x / size), cz = Math.floor(placement.z / size);
+    const key = `${fades ? 'plants' : landscape ? 'flowers' : 'solid'}:${cx}:${cz}`;
     let cell = cells.get(key);
     if (!cell) {
-      const origin = new THREE.Vector3((cx + .5) * CELL_SIZE, 0, (cz + .5) * CELL_SIZE);
+      const origin = new THREE.Vector3((cx + .5) * size, 0, (cz + .5) * size);
       const lod = new THREE.LOD(); lod.name = `kit:${key}`; lod.position.copy(origin); lod.autoUpdate = false;
-      root.add(lod); cell = { origin, placements: [], lod }; cells.set(key, cell);
+      root.add(lod); cell = { origin, placements: [], lod, landscape, fades }; cells.set(key, cell);
     }
     cell.placements.push(placement);
   }
@@ -74,13 +83,18 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   temporaryMaterials.add(placeholderMaterial);
   const fallbackSources = new Map<string, THREE.BufferGeometry>();
   for (const cell of cells.values()) {
+    if (cell.landscape) {
+      cell.origin.set(0, 0, 0);
+      for (const p of cell.placements) cell.origin.add(new THREE.Vector3(p.x, p.y, p.z));
+      cell.origin.divideScalar(cell.placements.length); cell.lod.position.copy(cell.origin);
+    }
     const parts = cell.placements.map(placement => {
       let source = fallbackSources.get(placement.piece);
       if (!source) { source = placeholder(placement.piece); fallbackSources.set(placement.piece, source); }
       return source.clone().applyMatrix4(place(placement, cell.origin));
     });
     const geometry = mergeGeometries(parts)!; parts.forEach(part => part.dispose()); geometries.add(geometry);
-    const mesh = new THREE.Mesh(geometry, placeholderMaterial); mesh.castShadow = mesh.receiveShadow = true;
+    const mesh = new THREE.Mesh(geometry, placeholderMaterial); mesh.castShadow = !cell.landscape; mesh.receiveShadow = true;
     cell.lod.addLevel(mesh, 0);
   }
   fallbackSources.forEach(source => source.dispose());
@@ -112,6 +126,11 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
       }
     }
     for (const cell of cells.values()) {
+      if (cell.fades) {
+        // Opaque alpha hashing fades soft cover without sorted transparent layers.
+        // Only zero-collider plants can disappear, never a walkable bed or wall.
+        cell.material = sourceMaterial.clone(); cell.material.alphaHash = true;
+      }
       for (const entry of cell.lod.levels) {
         const geometry = (entry.object as THREE.Mesh).geometry;
         geometry.dispose(); geometries.delete(geometry);
@@ -134,9 +153,11 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         parts.forEach(part => part.dispose());
         if (!geometry) throw new Error('Não foi possível montar as peças da ilha.');
         geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
-        const mesh = new THREE.Mesh(geometry, sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
-        mesh.castShadow = mesh.receiveShadow = true;
-        cell.lod.addLevel(mesh, level === 2 ? (quality === 'low' ? 65 : 90) : level ? (quality === 'low' ? 24 : FAR_LOD) : 0, .12);
+        const mesh = new THREE.Mesh(geometry, cell.material ?? sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
+        mesh.castShadow = !cell.landscape; mesh.receiveShadow = true;
+        const near = cell.landscape ? (quality === 'low' ? 9 : 14) : quality === 'low' ? 24 : FAR_LOD;
+        const far = cell.landscape ? (quality === 'low' ? 20 : 27) : quality === 'low' ? 65 : 90;
+        cell.lod.addLevel(mesh, level === 2 ? far : level ? near : 0, .12);
       }
     }
     sourceGeometry.forEach(geometry => geometry.dispose());
@@ -144,11 +165,21 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   }) : Promise.resolve();
   // Let the caller's readiness barrier report failure without an unhandled rejection.
   void ready.catch(() => {});
+  const eye = new THREE.Vector3(), center = new THREE.Vector3();
   return {
     ready,
     update(camera) {
       if (disposed) return;
+      camera.getWorldPosition(eye);
       for (const cell of cells.values()) {
+        if (cell.fades) {
+          cell.lod.getWorldPosition(center);
+          const distance = Math.hypot(center.x - eye.x, center.z - eye.z);
+          const reach = quality === 'low' ? 35 : 45;
+          cell.lod.visible = distance < reach;
+          if (cell.material) cell.material.opacity = THREE.MathUtils.clamp((reach - distance) / 10, 0, 1);
+          if (!cell.lod.visible) continue;
+        }
         // LOD handles distance and hysteresis; Three frustum-culls cell geometry.
         cell.lod.update(camera);
       }
@@ -158,6 +189,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
       disposed = true; root.removeFromParent();
       geometries.forEach(geometry => geometry.dispose()); geometries.clear();
       temporaryMaterials.forEach(material => material.dispose()); temporaryMaterials.clear();
+      cells.forEach(cell => cell.material?.dispose());
       releaseSource?.();
       cells.clear();
     },
