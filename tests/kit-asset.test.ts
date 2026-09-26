@@ -37,6 +37,7 @@ describe('island kit geometry and traversal contract', () => {
         }
         expect(primitive.getIndices()!.getCount()).toBeGreaterThan(12);
         if (id.startsWith('house_')) expect(primitive.getIndices()!.getCount() / 3, `${id} LOD${lod} budget`).toBeLessThanOrEqual([12000, 3000, 800][lod]);
+        if (['flower_bed', 'bush_cluster', 'hedge'].includes(id)) expect(primitive.getIndices()!.getCount() / 3, `${id} landscape budget`).toBeLessThanOrEqual([12000, 3000, 800][lod]);
       }
       expect(definition.height, id).toBeGreaterThan(0);
       for (const collider of definition.colliders) {
@@ -73,6 +74,15 @@ describe('island kit geometry and traversal contract', () => {
         expect(hit.point.y).toBeGreaterThan(c.y + c.height / 2 - .06);
       }
     }
+  });
+
+  it('keeps the outward rock shell visible in front of its inscribed solid bands', () => {
+    asset.scene.updateMatrixWorld(true);
+    const rock = asset.scene.getObjectByName('cliff_rock_LOD0')!;
+    const ray = new THREE.Raycaster(new THREE.Vector3(0, 2.75, 10), new THREE.Vector3(0, 0, -1));
+    const hit = ray.intersectObject(rock, false)[0];
+    expect(hit).toBeDefined();
+    expect(hit.point.z).toBeGreaterThan(3.44);
   });
 
   it('preserves metre scale after meshopt decoding, placement, rotation and cell merging', async () => {
