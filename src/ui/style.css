@@ -727,3 +727,32 @@ body.reduce-motion #pause-panel h1,body.reduce-motion #pause-panel .board-mascot
 body.reduce-motion #hud .emote-ring{animation:none}
 body.reduce-motion #hud .emote-option{transition:none}
 @media(prefers-reduced-motion:reduce){#hud .emote-ring{animation:none}#hud .emote-option{transition:none}}
+
+/* Three adventures retain the compact illustrated postcard treatment at 720p. */
+.title-screen .mode-section{width:min(1180px,100%)}
+.title-screen .mode-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.title-screen .mode-art{width:82px}
+.title-screen .mode-card:nth-child(3){rotate:-.6deg}
+.title-screen .mode-copy{padding:12px}
+.title-screen .mode-copy h2{font-size:21px}
+.title-screen .corrente .mode-art{background:radial-gradient(circle at 50% 25%,#ffe89e,#de8d32 75%);display:flex;flex-direction:column;justify-content:center;gap:8px}
+.title-screen .corrente .mode-art .weapon-icon{width:62px;height:24px;color:var(--brown);rotate:-18deg}
+.title-screen .corrente .mode-art .icon{width:30px;height:30px;color:var(--cream);filter:drop-shadow(0 2px 0 var(--brown))}
+#hud #ladder{position:absolute;left:20px;top:100px;width:360px;zoom:var(--ui,1);padding:9px 12px;border:3px solid var(--brown);border-radius:16px;background:var(--paper);color:var(--brown);box-shadow:4px 4px 0 var(--brown);font-size:13px}
+#hud .ladder-heading{display:flex;align-items:center;gap:8px}
+#hud .ladder-heading b{font-family:var(--heading);font-size:14px}
+#hud #ladderStep{margin-left:auto;border:2px solid var(--brown);border-radius:999px;padding:1px 8px;background:var(--candy-gold);font-variant-numeric:tabular-nums}
+#hud .ladder-track{display:flex;gap:5px;margin:7px 0}
+#hud .ladder-track i{height:8px;flex:1;border:2px solid var(--brown);border-radius:999px;background:#e0c99e}
+#hud .ladder-track i.done{background:var(--candy-teal)}
+#hud .ladder-track i.current{background:var(--candy-gold)}
+#hud #ladder.final{background:linear-gradient(150deg,#fff4d6,#ffe29a);box-shadow:4px 4px 0 var(--brown),0 0 0 3px var(--gold)}
+#hud #ladderNext{display:block;font-size:13px}
+#hud.out #ladder,#hud.ended #ladder{display:none}
+@media(max-width:1100px){.title-screen .mode-art{width:60px}.title-screen .mode-copy h2{font-size:18px}.title-screen .mode-copy{padding:10px}.title-screen .mode-meta{letter-spacing:0}.title-screen .mode-grid{gap:14px}}
+@media(max-width:900px){.title-screen .mode-grid{grid-template-columns:1fr}.title-screen .mode-art{width:100px}.title-screen .mode-copy{padding:12px 16px}.title-screen .mode-copy h2{font-size:22px}.title-screen .mode-card{rotate:0deg}}
+
+#hud #ladder.upgrade{animation:toon-pop .25s var(--spring)}
+body.reduce-motion #hud #ladder.upgrade{animation:none}
+@media(prefers-reduced-motion:reduce){#hud #ladder.upgrade{animation:none}}
+.how-grid:has(>div:nth-child(4)){grid-template-columns:repeat(2,minmax(0,1fr))}
