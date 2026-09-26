@@ -194,11 +194,31 @@ export function createWorld(): WorldSpec {
     obj('cylinder', x, ground(x, z) + .045, z, 3.1, .07, 2.4, '#82b6ad', 'water');
     for (const dx of [-2, 2]) detail('cliff_rock_low', x + dx, z, 0, .28, ground(x + dx, z) - .3);
   }
+  const cliffRoutes = NAV_ROUTES.flatMap(route => route.slice(1).flatMap((b, index) => {
+    const a = route[index], steps = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]));
+    return Array.from({ length: steps + 1 }, (_, i) => {
+      const x = a[0] + (b[0] - a[0]) * i / steps, z = a[1] + (b[1] - a[1]) * i / steps;
+      return { x, z, y: ground(x, z) };
+    });
+  }));
   const rockLayer = (piece: string, x: number, z: number, yaw: number, bottom: number, height: number) => {
-    const definition = KIT_PIECES[piece]; if (!definition) return;
+    const definition = KIT_PIECES[piece]; if (!definition) return false;
     const scale = height / definition.height;
-    if (routeDistance(x, z) < Math.min(...definition.footprint) * scale * .45 + 1.5) return;
-    place(piece, x, z, yaw, scale, bottom);
+    const [width, depth] = definition.footprint, cs = Math.abs(Math.cos(yaw)), sn = Math.abs(Math.sin(yaw));
+    const halfX = (width * cs + depth * sn) * scale / 2, halfZ = (width * sn + depth * cs) * scale / 2;
+    // Keep the visible lip, curved water and splash pool open between the banks.
+    if (bottom < 17 && x + halfX > -119 && x - halfX < -106 && z + halfZ > -13 && z - halfZ < -4) return false;
+    const radius = Math.max(...definition.footprint) * scale * .72 + 1.4;
+    const routes = cliffRoutes.filter(point => Math.abs(point.x - x) < radius && Math.abs(point.z - z) < radius);
+    const houses = [...HOUSES, ...MORRO_LOTS].filter(h => Math.abs(h.x - x) < radius + h.w / 2 && Math.abs(h.z - z) < radius + h.d / 2);
+    const shapes = kitColliders({ id: 'cliff-clearance', piece, x, y: bottom, z, yaw, scale });
+    // A cliff may sit under an elevated route or house, but never in its aisle.
+    // Centre-distance rejection left those exact terrace faces completely bare.
+    if (shapes.some(c => routes.some(point => point.y < c.max.y + .03 && point.y + 1.8 > c.min.y &&
+      point.x + 1.25 > c.min.x && point.x - 1.25 < c.max.x && point.z + 1.25 > c.min.z && point.z - 1.25 < c.max.z) ||
+      houses.some(h => c.max.y > ground(h.x, h.z) - .03 && c.min.y < ground(h.x, h.z) + 3 &&
+        c.max.x > h.x - h.w / 2 - .6 && c.min.x < h.x + h.w / 2 + .6 && c.max.z > h.z - h.d / 2 - .6 && c.min.z < h.z + h.d / 2 + .6))) return false;
+    place(piece, x, z, yaw, scale, bottom); return true;
   };
   if (KIT_PIECES.cliff_rock_tall && KIT_PIECES.cliff_ledge && KIT_PIECES.cliff_rock_low) {
     // Interlocking tall faces, projecting ledges and low toe boulders conceal
@@ -209,8 +229,8 @@ export function createWorld(): WorldSpec {
       [-7, -119, Math.PI], [4, -119, Math.PI], [15, -119, Math.PI], [-11, -79, 0], [19, -79, 0],
     ].entries()) {
       const ox = Math.sin(yaw), oz = Math.cos(yaw);
-      const height = 10.2 + index % 4 * 1.05, twist = Math.sin(index * 2.7 + .4) * .22;
-      rockLayer('cliff_rock_tall', x, z, yaw + twist, fortY - .38 - height, height);
+      const height = 13.2 + index % 4 * .55, twist = Math.sin(index * 2.7 + .4) * .22;
+      rockLayer('cliff_rock_tall', x + ox * 2.6, z + oz * 2.6, yaw + twist, fortY - .15 - height, height);
       rockLayer('cliff_ledge', x + ox * 3.4 + Math.cos(index) * .8, z + oz * 3.4,
         yaw - twist * .7, 2.1 + index % 2 * 1.5, 4 + index % 3 * .65);
       rockLayer('cliff_rock_low', x + ox * (6.5 + index % 2 * .6), z + oz * (6.5 + index % 2 * .6),
@@ -224,6 +244,11 @@ export function createWorld(): WorldSpec {
       detail('cliff_rock', x, z, 0, scale, ground(x, z) - 2.7 * scale);
     for (const [x, z, bottom, scale] of [[28, -101, .6, 1.85], [25, -91, 2.3, 1.5], [17, -77, 3, 1.6]])
       detail('cliff_rock', x, z, 0, scale, bottom);
+    // Two staggered courses fit between the summit ramp and its lower approach.
+    // Their tops stay below the route, while the faces reach the visible toe.
+    for (const [x, z, bottom, height, yaw] of [[10.5, -75, .6, 9, .15], [12, -78, 7, 7, -.12],
+      [-6, -75, .5, 9, -.17], [-7, -78, 8, 6.5, .12]])
+      rockLayer('cliff_rock_tall', x, z, yaw, bottom, height);
   }
   for (const [x, z] of [[50, -96], [43, -110], [64, -111]] as const) {
     obj('cylinder', x, ground(x, z) + .045, z, 4.7, .05, 3.3, '#69B9AD', 'water');
@@ -287,10 +312,10 @@ export function createWorld(): WorldSpec {
   sign(-42, 92, 'PRAIA'); sign(13, 107, 'FAROL');
 
   // Water falls from the western ridge into the river's blue-green feeder pool.
-  const cascadeX = -109, cascadeZ = -9, low = -.05, top = Math.max(9, ground(-114, -15));
+  const cascadeX = -116, cascadeZ = -9, low = -.05, top = ground(-118, -9) + .1;
   obj('box', cascadeX, (top + low) / 2, cascadeZ, 6, top - low, .22, '#87c2c7', 'waterfall', Math.PI / 2);
-  detail('cliff_rock_tall', -112, -15, Math.PI / 2, 1.2, ground(-112, -15) - 4.5);
-  detail('cliff_ledge', -112, -3, Math.PI / 2, 1.1, ground(-112, -3) - 2);
+  detail('cliff_rock_tall', -118, -18, Math.PI / 2, 1.2, ground(-118, -18) - 4.5);
+  detail('cliff_ledge', -112, 2, Math.PI / 2, 1.1, ground(-112, 2) - 2);
   sign(-86, -15, 'MIRANTE');
   // Boardwalks offer a dry second route around the estuary.
   for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
@@ -310,22 +335,27 @@ export function createWorld(): WorldSpec {
       if (Math.hypot(x - 60, z + 86) < 9) continue;
       const y = ground(x, z), dx = ground(x + 2, z) - ground(x - 2, z), dz = ground(x, z + 2) - ground(x, z - 2);
       const slope = Math.hypot(dx, dz) / 4;
-      if (y < 1 || slope < .8 || routeDistance(x, z) < 5.5 || roadAt(x, z, 4) || occupied(x, z, 2.4)) continue;
+      if (y < 1 || slope < .8) continue;
       const distances = slopes.map(area => Math.hypot(x - area.x, z - area.z) / area.radius);
       const score = Math.min(...distances), zone = distances.indexOf(score);
       candidates.push({ x, z, y, slope, yaw: Math.atan2(-dx, -dz) + Math.sin(x * .17 + z * .31) * .18, zone, score });
     }
     candidates.sort((a, b) => a.score - b.score);
-    const chosen = new Set<typeof candidates[number]>();
+    const chosen = new Set<typeof candidates[number]>(); let formations = 0;
     const formation = (candidate: typeof candidates[number]) => {
       const { x, z, y, slope, yaw } = candidate;
       const piece = slope > 1.25 ? 'cliff_rock_tall' : 'cliff_rock_low';
-      const height = (slope > 1.25 ? 6.6 : 3.5) + Math.sin(x * .37 + z * .13) * .4;
-      rockLayer(piece, x, z, yaw, y - height * .7, height); chosen.add(candidate);
+      const height = Math.min(12, 4.6 + slope * 3.2) + Math.sin(x * .37 + z * .13) * .4;
+      chosen.add(candidate);
+      if (!rockLayer(piece, x + Math.sin(yaw) * .7, z + Math.cos(yaw) * .7, yaw, y - height * .48, height)) return false;
+      formations++; return true;
     };
-    slopes.forEach((area, zone) => candidates.filter(candidate => candidate.zone === zone).slice(0, area.count).forEach(formation));
+    slopes.forEach((area, zone) => {
+      let count = 0;
+      for (const candidate of candidates) if (candidate.zone === zone && count < area.count && formation(candidate)) count++;
+    });
     for (const candidate of candidates) {
-      if (chosen.size >= 52) break;
+      if (formations >= 52) break;
       if (!chosen.has(candidate)) formation(candidate);
     }
   }
@@ -478,7 +508,8 @@ export function createWorld(): WorldSpec {
     };
     // Overlapping high, middle and low foliage bands give the western ridge a
     // broken green silhouette and cover the bare apron beneath the canopy.
-    for (const [gx, gz] of [[-106, -82], [-89, -76], [-76, -81], [-60, -75], [-48, -64], [-68, -57], [-82, -37], [-109, -27]])
+    for (const [gx, gz] of [[-106, -82], [-89, -76], [-76, -81], [-60, -75], [-48, -64], [-68, -57], [-82, -37], [-109, -27],
+      [-91, -65], [-57, -52]])
       for (let i = 0; i < 11; i++) {
         const angle = i * 2.399, radius = 2 + Math.sqrt(i) * 2.05;
         understory(gx + Math.cos(angle) * radius, gz + Math.sin(angle) * radius, .9 + foliageRandom() * .55);
