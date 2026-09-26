@@ -28,10 +28,11 @@ it.each([false, true])('keeps contact dust small, pooled and close to the launch
 it('routes the authoritative contact to the mat and effect systems once', () => {
   const renderer = Object.assign(Object.create(GameRenderer.prototype), {
     lastFrame: { playerId: 'self', snapshot: null }, worldView: { bounce: vi.fn() },
-    effects: { event: vi.fn() }, avatars: {}, weaponView: {},
+    effects: { event: vi.fn() }, avatars: { bounce: vi.fn() }, weaponView: {},
   });
   const event = { id: 5, type: 'bounce', actor: 'self', pos: { x: 2, y: 1.32, z: 1 } };
   renderer.event(event);
   expect(renderer.worldView.bounce).toHaveBeenCalledExactlyOnceWith(event.pos);
+  expect(renderer.avatars.bounce).toHaveBeenCalledExactlyOnceWith(event.actor);
   expect(renderer.effects.event).toHaveBeenCalledExactlyOnceWith(event, renderer.avatars, renderer.weaponView, 'self', null);
 });

@@ -200,7 +200,7 @@ export class GameRenderer {
     // A new match starts with no marks, shells or effects from the previous one.
     if (frame.snapshot && frame.snapshot.matchId !== this.effectsMatch) { this.effectsMatch = frame.snapshot.matchId; this.effects.clear(); this.cameraRig.clearDeathCam(); this.worldView.resetRecreation(); }
     this.cameraRig.updatePlanePath(frame.snapshot, dt, this.elapsed);
-    this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed);
+    this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed, this.settings.reducedMotion);
     const cameraAt = timing.begin();
     this.cameraRig.update(frame, this.settings, this.elapsed, this.weaponView.adsAmount);
     this.worldView.update(this.elapsed, this.camera, frame.snapshot?.actors, frame.localActor);
@@ -290,7 +290,7 @@ export class GameRenderer {
         killerPos: event.from || null, duration: DEATH_CAM_SECONDS });
     }
     if (event.type === 'respawn') this.avatars.respawn(event.actor);
-    if (event.type === 'bounce') this.worldView.bounce(event.pos);
+    if (event.type === 'bounce') { this.worldView.bounce(event.pos); this.avatars.bounce(event.actor); }
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
 
