@@ -4,7 +4,7 @@ import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
 import type { Mode, SpawnPoint } from '../src/shared/types';
-import { ARENA, BRIDGES, CHURCH, FORTE, HOUSES, MERCADAO, MORRO_LOTS, RIVER, ROADS, inArena } from '../src/shared/layout';
+import { ARENA, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, RIVER, ROADS, inArena, riverSample } from '../src/shared/layout';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
 import { WORLD_PALETTE, terrainColor, terrainHeight } from '../src/shared/terrain';
@@ -74,17 +74,108 @@ describe('river island gameplay integrity', () => {
     }
   });
 
+  it('gives each district an arrival with an open view down its approach', () => {
+    for (const district of world.districts) {
+      const spawn = world.spawns.find(point => point.mode === 'battle-royale' && point.district === district.id)!;
+      expect(spawn, `${district.id} needs a composed arrival`).toBeDefined();
+      const [x, z] = DISTRICT_ARRIVALS[district.id];
+      expect(Math.hypot(spawn.x - x, spawn.z - z), `${district.id} lost its authored approach`).toBeLessThanOrEqual(6.001);
+      const eye = { x: spawn.x, y: spawn.y + 1.62, z: spawn.z };
+      expect(hasLineOfSight(eye, { x: eye.x - Math.sin(spawn.yaw) * 5, y: eye.y, z: eye.z - Math.cos(spawn.yaw) * 5 }, world),
+        `${district.id} opens against a wall or a bare terrace`).toBe(true);
+      expect(walkFrom(spawn, spawn.yaw, 'battle-royale'), `${district.id} must open onto a usable approach`).toBeGreaterThan(.5);
+    }
+  });
+
+  it('orients seats toward the fountain, a river walk or the interior aisle', () => {
+    const benches = world.pieces!.filter(piece => piece.piece === 'bench');
+    expect(benches.length).toBeGreaterThan(10);
+    for (const bench of benches) {
+      const house = [...HOUSES, ...MORRO_LOTS].find(h => Math.abs(bench.x - h.x) < h.w / 2 && Math.abs(bench.z - h.z) < h.d / 2);
+      const target = house ? house : Math.hypot(bench.x - PLAZA[0], bench.z - PLAZA[1]) < 12 ? { x: PLAZA[0], z: PLAZA[1] } :
+        Math.hypot(bench.x - MERCADAO[0], bench.z - MERCADAO[1]) < 14 ? { x: bench.x, z: MERCADAO[1] } : riverSample(bench.x, bench.z);
+      const dx = target.x - bench.x, dz = target.z - bench.z;
+      expect((Math.sin(bench.yaw) * dx + Math.cos(bench.yaw) * dz) / Math.hypot(dx, dz),
+        `bench ${bench.id} turns its back on its view or walkway`).toBeGreaterThanOrEqual(Math.SQRT1_2);
+    }
+  });
+
+  it('turns serving fronts toward their customer aisle and keeps lamps on path edges', () => {
+    for (const piece of world.pieces!) {
+      let target: { x: number; z: number } | undefined;
+      if (piece.piece === 'market_stall') target = { x: piece.x, z: piece.z < 0 ? MERCADAO[1] : 33 };
+      if (piece.piece === 'beach_kiosk') target = { x: piece.x, z: 100 };
+      if (piece.piece === 'interior_counter') target = [...HOUSES, ...MORRO_LOTS]
+        .find(h => Math.abs(piece.x - h.x) < h.w / 2 && Math.abs(piece.z - h.z) < h.d / 2);
+      if (target) {
+        const dx = target.x - piece.x, dz = target.z - piece.z;
+        expect((Math.sin(piece.yaw) * dx + Math.cos(piece.yaw) * dz) / Math.hypot(dx, dz),
+          `${piece.piece} ${piece.id} faces away from customers`).toBeGreaterThanOrEqual(Math.SQRT1_2);
+      }
+      if (piece.piece === 'lamp_post') {
+        const courts = world.objects.filter(o => o.detail === 'courtyard').map(o =>
+          [o.pos.x - o.scale.x / 2, o.pos.z - o.scale.z / 2, o.pos.x + o.scale.x / 2, o.pos.z + o.scale.z / 2]);
+        expect([...ROADS, ...courts].some(([x0, z0, x1, z1]) => {
+          const dx = Math.max(x0 - piece.x, 0, piece.x - x1), dz = Math.max(z0 - piece.z, 0, piece.z - z1);
+          return Math.hypot(dx, dz) <= 3.5 && (piece.x <= x0 + .1 || piece.x >= x1 - .1 || piece.z <= z0 + .1 || piece.z >= z1 - .1);
+        }), `lamp ${piece.id} must line an edge, not obstruct a route`).toBe(true);
+      }
+    }
+  });
+
+  it('faces district signs toward a public approach', () => {
+    const routes = [...NAV_ROUTES, ...ROADS.map(([x0, z0, x1, z1]) => x1 - x0 > z1 - z0 ?
+      [[x0, (z0 + z1) / 2], [x1, (z0 + z1) / 2]] : [[(x0 + x1) / 2, z0], [(x0 + x1) / 2, z1]])];
+    for (const sign of world.objects.filter(object => object.kind === 'sign')) {
+      let nearest = Infinity, alignment = -1;
+      for (const route of routes) for (let i = 1; i < route.length; i++) {
+        const [ax, az] = route[i - 1], [bx, bz] = route[i], dx = bx - ax, dz = bz - az;
+        const t = Math.max(0, Math.min(1, ((sign.pos.x - ax) * dx + (sign.pos.z - az) * dz) / (dx * dx + dz * dz)));
+        const x = ax + dx * t - sign.pos.x, z = az + dz * t - sign.pos.z, distance = Math.hypot(x, z);
+        if (distance < nearest) { nearest = distance; alignment = (Math.sin(sign.rotation ?? 0) * x + Math.cos(sign.rotation ?? 0) * z) / distance; }
+      }
+      expect(alignment, `sign ${sign.detail} faces away from its approach`).toBeGreaterThanOrEqual(Math.SQRT1_2);
+    }
+  });
+
   it('supports level house floors and leaves both doorways and the centre aisle open', () => {
     const houses = [...HOUSES, ...MORRO_LOTS];
     expect(houses.length).toBeGreaterThanOrEqual(35);
     for (const h of houses) {
-      expect(walkableSegment(world, { x: h.x, z: h.z - h.d / 2 - .8 }, { x: h.x, z: h.z + h.d / 2 + .8 }),
+      const reach = (h.piece === 'house_tall' ? 7 : 6) / 2 + .8, dx = Math.sin(h.yaw ?? 0) * reach, dz = Math.cos(h.yaw ?? 0) * reach;
+      expect(walkableSegment(world, { x: h.x - dx, z: h.z - dz }, { x: h.x + dx, z: h.z + dz }),
         `${h.role} at ${h.x},${h.z} blocks its two-exit route`).toBe(true);
       const floor = terrainHeight(h.x, h.z);
       for (let z = h.z - h.d / 2; z <= h.z + h.d / 2; z++) for (let x = h.x - h.w / 2; x <= h.x + h.w / 2; x++)
         expect(Math.abs(terrainHeight(x, z) - floor), `uneven house floor at ${x},${z}`).toBeLessThan(.15);
     }
     expect(world.pieces!.some(p => p.piece === 'church' && p.x === CHURCH[0] && p.z === CHURCH[1])).toBe(true);
+  });
+
+  it('faces each house frontage toward the street serving its lot', () => {
+    for (const h of [...HOUSES, ...MORRO_LOTS]) {
+      let distance = Infinity, alignment = -1;
+      for (const [x0, z0, x1, z1] of ROADS) {
+        const horizontal = x1 - x0 > z1 - z0;
+        const x = (horizontal ? Math.max(x0, Math.min(x1, h.x)) : (x0 + x1) / 2) - h.x;
+        const z = (horizontal ? (z0 + z1) / 2 : Math.max(z0, Math.min(z1, h.z))) - h.z;
+        const gap = Math.hypot(x, z);
+        if (gap < distance) { distance = gap; alignment = (Math.sin(h.yaw ?? 0) * x + Math.cos(h.yaw ?? 0) * z) / gap; }
+      }
+      expect(alignment, `house at ${h.x},${h.z} turns its front doorway away from the street`).toBeGreaterThanOrEqual(Math.SQRT1_2 - 1e-6);
+    }
+  });
+
+  it('layers canopy and undergrowth across the western hills without closing paths', () => {
+    expect(world.objects.filter(object => object.kind === 'tree' || object.kind === 'palm').length,
+      'redistribute the canopy budget rather than growing the island draw cost').toBeLessThanOrEqual(360);
+    const canopies = world.objects.filter(object => object.kind === 'tree' && object.scale.y > 4 && object.pos.x < -42 && object.pos.z < -26);
+    const shrubs = world.pieces!.filter(piece => piece.id.startsWith('kit-undergrowth-'));
+    expect(canopies.length).toBeGreaterThanOrEqual(50);
+    expect(shrubs.filter(piece => piece.x < -42 && piece.z < -26).length).toBeGreaterThanOrEqual(40);
+    for (const district of world.districts) expect(shrubs.filter(piece => Math.hypot(piece.x - district.x, piece.z - district.z) < district.radius * 1.1).length,
+      `${district.id} needs an undergrowth layer`).toBeGreaterThanOrEqual(2);
+    for (const piece of shrubs) expect(KIT_PIECES[piece.piece].colliders, 'low foliage must not add hidden blockers').toHaveLength(0);
   });
 
   it('carves one continuous river and provides three usable crossings', () => {

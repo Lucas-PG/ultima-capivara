@@ -297,6 +297,14 @@ wildflowers, low-poly pebbles and fallen leaves directly from geometry. No image
 prompt, external source or download is used. Placement follows the shared terrain
 palette and collision data; blade wind and fading run on the GPU. Low disables
 the entire layer. Authored by Cena for Phase A.
+#### Cover-art direction and revised budgets
+
+The Phase A style-v3 brief supersedes the earlier flat-palette and toon constraints above. The kit now has three LODs: houses remain within 12,000 / 3,000 / 800 triangles, with physical clay caps only nearby. Hero landmarks, four cliff formations and interior/plaza furniture use the same generated collision contract. Fort masonry has staggered stone courses and continuous cylinder UV spacing, avoiding thin vertical texture streaks.
+
+The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms budget. They add machined panel recesses, fasteners, serrations, grip stippling, magazine ribs, muzzle collars, shaped fingers, fused palms, cloth sleeve cuffs and a vertex contact-occlusion bake. Original palette-derived painted grain, fur strands and fabric weave are authored by the deterministic equations shared between `tools/blender/weapons.py` and `src/render/weapon-atlas.ts`. This 1024x256 painted colour atlas and the roughness atlas replace the old flat 32x32 colour texture. One material is retained; runtime rarity tint regenerates only colour choices while preserving surface detail. No photographic texture, downloaded asset or paid API was used.
+
+Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.
+
 
 Phase A cover-art direction update: the terrain bake now uses continuous olive grass mixtures, linen sand, warm earth and subtle overlapping procedural colour washes, without baked light or photographic noise. Distant island silhouettes are original arranged scene geometry outside the playable coast. All new terrain pixels and offshore compositions are generated locally from the authored map; the approved reference is the existing `public/assets/cover-v2.png`.
 #### Cover-art direction and revised budgets
@@ -307,11 +315,21 @@ The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms 
 
 Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.
 
-Cena's v3 renderer adds original canvas-painted cloud silhouettes and brush washes,
+Cena's initial v3 renderer adds original canvas-painted cloud silhouettes and brush washes,
 procedural metre-scale sand ripples and continuous triplanar rock colour, ribbed
 shell geometry, GPU pollen, water glints and depth-occluded sunlight shafts. These
 are generated locally from authored equations and geometry, with no external
 downloads or paid services. The lighting reference is `public/assets/cover-v2.png`.
+
+### Sculpted cloud atlas, 2026-09-25
+
+`public/textures/clouds-painted-v4.png` is an original 1774x887 RGBA atlas generated with the built-in Codex imagegen tool, then copied unchanged into the project. It replaces the earlier canvas cloud gradients with eight distinct painted cumulus clusters, detailed rolling billows, peach-gold light and lavender self-shadowing. Each fixed sky card mirrors its UVs toward the world sun. Transparent gutters, trilinear mipmaps and renderer-capability anisotropy protect the soft silhouettes. The atlas participates in the loading barrier and adds 894,096 bytes. No purchased assets or paid API was used.
+
+Generation prompt:
+> Use case: stylized-concept. Asset type: an original transparent RGBA cloud sprite atlas for a premium hand-painted tropical island 3D game. Create exactly EIGHT distinct isolated cumulus cloud clusters in a precise 4-column by 2-row grid, wide canvas 2048 by 1024. Each square cell contains one horizontally broad cloud cluster with generous transparent padding on every side. The background must be truly transparent alpha, no sky and no checkerboard baked in. Golden-hour oil-painted storybook art, exceptional fine surface detail: sculpted rolling billows of many scales, small torn vapor edges, fine brush strokes following the volume, glowing peach and pale gold upper-left edges, creamy apricot highlights, deep muted lavender and slate-blue undersides, rich soft internal self-shadowing between billows. Show dimensional cauliflower-like cumulus forms, distinctly varied asymmetric silhouettes; some tall turrets, some low stretched banks. All clouds have light from upper left, shadow below right, no harsh black. Soft translucent feathering only at the wispy outer edges, opaque detailed cores. Avoid smooth balloon blobs, vector art, outlines, circles, flat gradients, washed-out white, photography. No ground, sun, birds, text, labels, symbols, borders, watermarks, or grid lines. Keep cloud pixels strictly inside their own cell with at least 40px transparent margins. The result will be sampled as an atlas, so each cloud must be fully separated and not clipped.
+
+Final spacing/alpha refinement prompt:
+> Edit this transparent 4 by 2 cloud atlas for production use. Preserve the eight painterly cloud designs, beautiful fine billow detail, golden highlights and lavender shadows. Change only spacing and alpha cleanliness: scale EACH cloud down within its existing grid cell so it has a generous fully transparent gutter on ALL FOUR sides (at least 12 percent of cell width/height). Exactly four columns, two rows, equal square cells, wide 2:1 canvas. No cloud or wisp may touch the canvas edge or another cell. Remove any neon red/yellow/blue/magenta edge pixels; cloud fringes must be only natural peach, cream or lavender with clean soft translucent alpha. Keep background truly transparent. No solid matte, checkerboard pattern, labels or grid lines. Preserve all fine interior painted texture and lighting.
 
 ## Phase A lived-in street dressing
 
@@ -327,6 +345,10 @@ Review against the cover at 1920x1080: the M4 visibly carries wood grain, machin
 
 The support-grip follow-up replaces the SMG, M4 and shotgun's hidden fingers with four separate curved fingers wrapped along the handguard or pump. Knuckles and nails sit on the visible upper side, the palm is smaller, and short fur fins remain around the wrist rather than obscuring the fingers. The existing `grip_fingers` and `trigger_finger` nodes stay at identity rest transforms. All eight weapons remain within 40,000 triangles, with one material and the same 1024-square colour/normal atlas contract.
 
+### Street frontage placement follow-up
+
+Original source-authored shop corner brackets, brass suspension rings and street-facing capybara panels in `src/render/street-dressing.ts`. Side-wall murals, laundry, bicycles and planting rotate with the house fronts. No external assets or image generation used. Shop brackets sit outside the kit's front windows and door openings.
+
 # Phase B interface art
 
 `public/assets/ui/island-arrival-v3.webp` (loading screen background) and `public/assets/ui/capy-parachute-v3.webp`
@@ -341,6 +363,7 @@ rounded olive and golden canvas parachute." The complete prompt texts are kept i
 The four cliff pieces are rebuilt from original irregular convex stone chunks in `tools/blender/kit/rocks.py`. Their silhouettes use angled fracture planes, softened chipped edges, overhangs and unequal masses; the spherical shells and projecting slab decorations are removed. The existing painted sandstone atlas is mapped continuously over each chunk, with cool stone washes, subtle strata, short fissures, moss painted directly into upward stone faces and small grass shoots. The moss uses the same stone vertices, so distant simplification cannot leave intersecting overlay triangles. Fine fissures and grass are omitted after LOD0. Each formation stays below 3,400 / 1,250 / 600 triangles.
 
 Collision boxes are inscribed directly against the same authored hull half-spaces, eroded by the bevel radius. No separate cylinder cores are rendered. The exported metadata retains the four piece IDs, bottom origins, footprint dimensions and stone material. Asset tests raycast every collider face against all three exported LODs to ensure no collision surface protrudes beyond visible stone. This iteration uses no external assets or services.
+
 
 ### Cartoon UI icon and material art, 2026-09-25
 
@@ -381,3 +404,7 @@ The original character geometry in tools/blender/capybara.py now carries directi
 Original deterministic colour, tangent-normal and roughness maps are authored by tools/blender/character_paint.py. The 1024-square colour map uses 4x4 tiles with the same 16 palette semantics. src/render/character-atlas.ts mirrors its fur and fabric paint while allowing leaf, wave or diamond bandana prints and player colour changes. Recolouring reuses cached strand fields. Rig and material extras identify the 4x4 painted layout so the loader can retain legacy compatibility. Source normal, roughness and specular maps remain intact during runtime recolouring.
 
 Fur uses tiles 0, 1, 2, 4, 14; fabric uses 5, 6, 7, 13. Tile 14 is a neutral carrier multiplied by the authored face/belly vertex colours. Gloss is confined to eyes/nose/nails in 9/15. The 64-square emissive mask lights only the upper half of tile 10 for eye catchlights; lower half ivory teeth receive ordinary scene lighting. All textures and geometry are procedural original work, with no external model, purchased asset, image API or font. Swappable hat geometry and the remaining street vehicles/house decals are still open for a later iteration.
+
+### Painted character and first-person presentation
+
+The runtime selects the new 4x4 character paint layout from the exported `paintAtlas` marker and preserves the source normal, roughness, emissive and specular maps. Cosmetic bandana colours change only their two painted tiles. Sun-directed rim light and a broad soft sheen apply to the authored fur tiles; cloth, eyes and mouth retain their own surface response. The existing 16-column character asset remains supported. The pistol hip pose is angled slightly to expose its side engraving, serrations, fasteners and supporting paw; the authored sights stay aligned when aiming.
