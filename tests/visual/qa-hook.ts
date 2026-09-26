@@ -108,17 +108,29 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
     if (name.startsWith('world-')) pitch = -.5;
+    const s = structuredClone(base), me = s.actors[0];
+    s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
+    if (spawn) s.config.mode = 'battle-royale';
     if (supply) {
+      s.config.mode = 'battle-royale'; s.remaining = 8;
+      const district = [...deps.world.districts].sort((a, b) => Math.hypot(a.x - supply.x, a.z - supply.z) - Math.hypot(b.x - supply.x, b.z - supply.z))[0];
+      const announcedAt = 45, releaseAt = announcedAt + SUPPLY_APPROACH_SECONDS, landsAt = releaseAt + SUPPLY_DESCENT_SECONDS;
+      s.time = name === 'supplyIncoming' ? announcedAt + 2.5 : name === 'supplyDescending' ? releaseAt + 7 : landsAt + 1;
+      const drop = { id: 'supply-1', pos: supply, district: district?.id ?? '', heading: Math.PI / 2,
+        announcedAt, releaseAt, landsAt, opened: false };
+      s.supplyDrops = [drop];
       const close = name === 'supplyLanded' || name === 'supplyOpened';
+      const prospective = close ? { ...s, time: landsAt + 1 } : s;
       const observer = (close ? [2.4] : [18, 16, 20]).flatMap(distance =>
         [[0, 1], [1, 0], [0, -1], [-1, 0]].map(([dx, dz]) => {
           const x = supply.x + dx * distance, z = supply.z + dz * distance;
           return { x, y: terrainHeight(x, z), z };
         })).find(to => {
-        // A nearby ordinary chest prompt must not look like an airborne claim.
+        // Check the actual prompt and eye-to-crate LOS, not only a walkable path.
         const actor = { ...base.actors[0], pos: to, stage: 'ground' as const, grounded: true };
+        const interaction = closestInteraction(deps.world, prospective, actor, { id: '', name: '' });
         return !waterAt(to.x, to.z) && walkableSegment(deps.world, supply, to) &&
-          (close || !closestInteraction(deps.world, base, actor, { id: '', name: '' }));
+          (close ? interaction?.id === drop.id : !interaction);
       });
       if (!observer) throw new Error('A câmera da entrega precisa de uma aproximação livre.');
       x = observer.x; z = observer.z;
@@ -128,17 +140,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       yaw = Math.atan2(x - targetX, z - supply.z);
       pitch = Math.atan2(supply.y + (close ? .5 : name === 'supplyIncoming' ? 34 : 14) - terrainHeight(x, z) - 1.62,
         Math.hypot(x - targetX, z - supply.z));
-    }
-    const s = structuredClone(base), me = s.actors[0];
-    s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
-    if (spawn) s.config.mode = 'battle-royale';
-    if (supply) {
-      s.config.mode = 'battle-royale'; s.remaining = 8;
-      const district = [...deps.world.districts].sort((a, b) => Math.hypot(a.x - supply.x, a.z - supply.z) - Math.hypot(b.x - supply.x, b.z - supply.z))[0];
-      const announcedAt = 45, releaseAt = announcedAt + SUPPLY_APPROACH_SECONDS, landsAt = releaseAt + SUPPLY_DESCENT_SECONDS;
-      s.time = name === 'supplyIncoming' ? announcedAt + 2.5 : name === 'supplyDescending' ? releaseAt + 7 : landsAt + 1;
-      s.supplyDrops = [{ id: 'supply-1', pos: supply, district: district?.id ?? '', heading: Math.PI / 2,
-        announcedAt, releaseAt, landsAt, opened: name === 'supplyOpened' }];
+      drop.opened = name === 'supplyOpened';
       if (name === 'supplyOpened') s.loot.push({ id: 'supply-qa-weapon', kind: 'weapon', weapon: 'm4', rarity: 3, active: true, respawnAt: 0,
         x: supply.x - .9, y: terrainHeight(supply.x - .9, supply.z), z: supply.z, from: { ...supply, y: supply.y + .6 }, spawnedAt: s.time - .7 });
     }
