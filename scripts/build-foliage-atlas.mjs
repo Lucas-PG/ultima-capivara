@@ -6,6 +6,12 @@ import { createHash } from 'node:crypto';
 const source = 'tools/art/ui-source/foliage-atlas.png', packed = 'tools/art/foliage-atlas-packed.png';
 const output = 'public/textures/foliage-atlas.webp';
 const names = ['emerald-broadleaf', 'lime-broadleaf', 'mangrove-guava', 'yellow-ipe', 'pink-ipe', 'bougainvillea', 'coconut-frond', 'palm-fan', 'banana', 'monstera', 'clover', 'wildflowers', 'grass', 'fallen-leaves', 'fern', 'shadow-broadleaf'];
+// Reviewed stem attachment points in each packed cell. Lowest alpha pixels can
+// belong to a hanging leaf rather than its stem, so silhouette bounds are not pivots.
+const roots = [[.356,.925],[.335,.89],[.357,.89],[.32,.925],
+  [.35,.925],[.3,.9],[.308,.925],[.555,.925],
+  [.443,.925],[.436,.925],[.51,.925],[.46,.91],
+  [.5,.925],[.5,.8],[.362,.925],[.33,.925]];
 const run = args => execFileSync('magick', args, { maxBuffer: 40 * 1024 * 1024 });
 const [width, height] = run(['identify', '-format', '%w %h', source]).toString().split(' ').map(Number);
 const raw = run([source, '-depth', '8', 'rgba:-']), atlas = Buffer.alloc(2048 * 2048 * 4), tiles = [];
@@ -39,7 +45,8 @@ for (let tile = 0; tile < 16; tile++) {
   const resized = execFileSync('magick', ['-size', `${cw}x${ch}`, '-depth', '8', 'rgba:-', '-filter', 'Triangle', '-resize', `${rw}x${rh}!`, '-depth', '8', 'rgba:-'], { input: cut, maxBuffer: 4 * 1024 * 1024 });
   const ox = Math.floor((512 - rw) / 2), oy = 476 - rh;
   for (let y = 0; y < rh; y++) resized.copy(atlas, ((Math.floor(tile / 4) * 512 + oy + y) * 2048 + tile % 4 * 512 + ox) * 4, y * rw * 4, (y + 1) * rw * 4);
-  tiles.push({ index: tile, name: names[tile], bounds: [ox, oy, ox + rw, oy + rh] });
+  tiles.push({ index: tile, name: names[tile], bounds: [ox, oy, ox + rw, oy + rh],
+    root: roots[tile] });
 }
 mkdirSync('public/textures', { recursive: true });
 execFileSync('magick', ['-size', '2048x2048', '-depth', '8', 'rgba:-', '-strip', `PNG32:${packed}`], { input: atlas });

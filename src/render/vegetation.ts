@@ -5,6 +5,7 @@ import type { MapObject, Settings, WorldSpec } from '../shared/types';
 import { PLANT_CELL_SIZE, PLANT_TEMPLATE_HEIGHT, plantHash, plantStemTemplate, plantTransform, type PlantStemSection } from '../shared/vegetation-trunks';
 import { releaseAfterUpload } from './memory';
 import { createToonMaterial } from './materials';
+import foliageAtlas from '../../tools/art/foliage-atlas.metrics.json';
 
 const PLANT_PAINT = { ...WORLD_PALETTE,
   foliageLight: '#A1B75F', foliageMid: '#688F4B', foliageCore: '#376653',
@@ -241,6 +242,9 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
     volumeCenter?: THREE.Vector3) => {
     const vertices: number[] = [], normals: number[] = [], uv: number[] = [], indices: number[] = [];
     const root = path(0), end = path(1), axis = end.clone().sub(root).normalize();
+    const paintedRoot = foliageAtlas.tiles[tile].root;
+    const rootAcross = (paintedRoot[0] - .5) / .976 * width;
+    const rootAlong = (.988 - paintedRoot[1]) / .976;
     const side = new THREE.Vector3(-axis.z, 0, axis.x);
     if (side.lengthSq() < .001) side.set(1, 0, 0);
     side.normalize().applyAxisAngle(axis, roll);
@@ -249,9 +253,9 @@ ${shader.fragmentShader}`.replace('#include <map_fragment>', `
     // the crown soft instead of exposing a pile of flat lit rectangles.
     const normal = facing.clone().multiplyScalar(.38).add(new THREE.Vector3(axis.x * .22, .9, axis.z * .22)).normalize();
     for (let row = 0; row <= segments; row++) {
-      const t = row / segments, center = path(t);
+      const t = row / segments, center = path((t - rootAlong) / (1 - rootAlong));
       for (let col = 0; col < 3; col++) {
-        const across = col - 1, point = center.clone().addScaledVector(side, across * width * .5)
+        const across = col - 1, point = center.clone().addScaledVector(side, across * width * .5 - rootAcross)
           .addScaledVector(facing, (1 - across * across) * Math.sin(t * Math.PI) * width * .1);
         vertices.push(point.x, point.y, point.z);
         const n = volumeCenter ? point.clone().sub(volumeCenter).multiply(new THREE.Vector3(1, 1.6, 1))
