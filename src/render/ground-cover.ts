@@ -47,7 +47,12 @@ function blades() {
 function groundCard(tile: number, width: number, height: number, flat = false) {
   const geometry = new THREE.PlaneGeometry(width, height, 1, flat ? 1 : 2);
   if (flat) geometry.rotateX(-Math.PI / 2).translate(0, .012, 0);
-  else geometry.translate(0, height / 2, 0);
+  else {
+    geometry.translate(0, height / 2, 0);
+    const position = geometry.getAttribute('position');
+    for (let i = 0; i < position.count; i++)
+      position.setZ(i, (position.getY(i) / height) ** 2 * height * .22);
+  }
   const uv = geometry.getAttribute('uv'), normals = geometry.getAttribute('normal');
   for (let i = 0; i < uv.count; i++) {
     uv.setXY(i, (tile % 4 + .012 + uv.getX(i) * .976) / 4,
@@ -77,7 +82,13 @@ function groundDetails() {
     shellVertices.setXYZ(i, x * .09 * ridge, shellVertices.getY(i) * .028, z * .115 * ridge);
   }
   shell.computeVertexNormals(); tint(shell, '#EADCC7');
-  return [bloom, pebble, leaf, shell, clover].map(geometry => {
+  const understory = (tile: number, width: number, height: number) => {
+    const cards = Array.from({ length: 3 }, (_, i) => groundCard(tile, width, height)
+      .rotateY(i * Math.PI * 2 / 3));
+    const plant = mergeGeometries(cards)!; cards.forEach(card => card.dispose()); return plant;
+  };
+  const fern = understory(14, .48, .52), monstera = understory(9, .51, .56);
+  return [bloom, pebble, leaf, shell, clover, fern, monstera].map(geometry => {
     if (!geometry.getAttribute('paintMask')) geometry.setAttribute('paintMask',
       new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count), 1));
     if (!geometry.index) return geometry;
@@ -181,9 +192,11 @@ export class GroundCover {
         const point = points[i], size = .8 + point.seed * .3;
         position.set(point.x - x0, point.y - .015, point.z - z0); alignToGround(point.x, point.z, point.seed * Math.PI * 2); scale.set(size, size, size);
         matrix.compose(position, rotation, scale); mesh.setMatrixAt(i, matrix);
-        const underTree = i % 13 === 0 && nearbyTrees.some(tree => Math.hypot(point.x - tree.pos.x, point.z - tree.pos.z) < tree.scale.y * .32);
+        const underTree = (i % 13 === 0 || i % 131 === 0) && nearbyTrees.some(tree =>
+          Math.hypot(point.x - tree.pos.x, point.z - tree.pos.z) < tree.scale.y * .32);
         const clover = hash(Math.floor(point.x / 3), Math.floor(point.z / 3), 12) > .72;
-        const type = underTree && i % 13 === 0 ? 2 : clover && i % 7 === 0 ? 4 : i % 127 === 0 ? 0 : -1;
+        const type = underTree && i % 131 === 0 ? point.seed > .5 ? 5 : 6 :
+          underTree && i % 13 === 0 ? 2 : clover && i % 7 === 0 ? 4 : i % 127 === 0 ? 0 : -1;
         if (type >= 0) details.push(detailShapes[type].clone().applyMatrix4(matrix));
       }
       for (const point of shore) {
