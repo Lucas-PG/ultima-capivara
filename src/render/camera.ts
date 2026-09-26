@@ -62,6 +62,7 @@ export class CameraRig {
   private readonly eyeHeight = new Spring();
   private readonly landing = new Spring();
   private grounded = true;
+  private swimming = false;
   private verticalSpeed = 0;
   private gait = 0;
   // Plane: third-person orbit. Drop: chase camera. Ground: first person.
@@ -155,7 +156,7 @@ export class CameraRig {
         this.cameraBlend = 1; this.cameraBlendDuration = mode === 'fps' ? .6 : .8;
       }
       if (this.cameraMode !== mode && timing.enabled) timing.record('camera-transition', timing.begin(), 0, mode, true);
-      if (snap) { this.cameraBlend = 0; this.eyeHeight.reset(actorEye(actor)); this.landing.reset(); this.grounded = actor.grounded; }
+      if (snap) { this.cameraBlend = 0; this.eyeHeight.reset(actorEye(actor)); this.landing.reset(); this.grounded = actor.grounded; this.swimming = actor.swimming; }
       // Handing off from the death cam to the spectated capybara eases instead of cutting.
       if (this.wasDeathCam && !this.settings.reducedMotion) {
         this.blendFromPosition.copy(this.camera.position); this.blendFromQuaternion.copy(this.camera.quaternion);
@@ -184,12 +185,14 @@ export class CameraRig {
         const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
         const dt = Math.max(0, Math.min(frame.dt, .05));
         this.gait += speed * dt * 2.5;
-        if (actor.grounded && !this.grounded) this.landing.impulse(-Math.min(3.2, Math.max(.6, -this.verticalSpeed * .28)));
-        if (!actor.grounded && this.grounded && actor.velocity.y > 0) this.landing.impulse(.65);
-        this.grounded = actor.grounded; this.verticalSpeed = actor.velocity.y;
+        if (!actor.swimming && !this.swimming) {
+          if (actor.grounded && !this.grounded) this.landing.impulse(-Math.min(3.2, Math.max(.6, -this.verticalSpeed * .28)));
+          if (!actor.grounded && this.grounded && actor.velocity.y > 0) this.landing.impulse(.65);
+        } else if (actor.swimming) this.landing.reset();
+        this.grounded = actor.grounded; this.swimming = actor.swimming; this.verticalSpeed = actor.velocity.y;
         const eye = this.eyeHeight.update(actorEye(actor), 23, dt);
         const impact = this.landing.update(0, 17, dt);
-        const bob = settings.reducedMotion ? 0 : actor.grounded ? Math.sin(this.gait) * Math.min(speed / 8, 1) * .017 : 0;
+        const bob = settings.reducedMotion ? 0 : actor.swimming ? Math.sin(elapsed * 2.1) * .012 : actor.grounded ? Math.sin(this.gait) * Math.min(speed / 8, 1) * .017 : 0;
         const target = this.target.copy(predicted).setY(predicted.y + eye + bob + (settings.reducedMotion ? 0 : impact));
         // Keep the visual crouch transition below any actual low ceiling.
         for (const solid of colliderGrid(this.world).query(predicted.x - .06, predicted.z - .06, predicted.x + .06, predicted.z + .06)) if (predicted.x > solid.min.x - .06 && predicted.x < solid.max.x + .06 &&

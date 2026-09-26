@@ -449,6 +449,8 @@ export class WeaponView {
   private lastYaw: number | undefined;
   private lastPitch = 0;
   private grounded = true;
+  private swimming = false;
+  private swimPose = 0;
   private verticalSpeed = 0;
   private sprintPose = 0;
   private holster = 0;
@@ -660,7 +662,7 @@ export class WeaponView {
       this.painted!.setRarity(model.painted, rarity); model.rarity = rarity;
     }
     const reloading = requested === weapon && actor.reloadUntil > simulationTime;
-    this.inspectAllowed = requested === weapon && !actor.ads && !actor.sprint && !reloading && this.shotLife <= 0;
+    this.inspectAllowed = requested === weapon && !actor.swimming && !actor.ads && !actor.sprint && !reloading && this.shotLife <= 0;
     if (!this.inspectAllowed) this.cancelInspect();
     if (reloading && actor.reloadUntil > this.reloadEnd) this.reloadEnd = actor.reloadUntil;
     const duration = WEAPONS[weapon].reload || 1;
@@ -690,7 +692,7 @@ export class WeaponView {
       if (!model.action.userData.fbxBolt) model.action.rotation.z = weapon === 'sniper' ? -cycle * .6 : 0;
       if (weapon === 'shotgun') model.support.position.z += cycle * .11;
     }
-    const goalAds = actor.ads && !reloading && !actor.sprint && weapon !== 'machete' ? 1 : 0;
+    const goalAds = actor.ads && !actor.swimming && !reloading && !actor.sprint && weapon !== 'machete' ? 1 : 0;
     this.ads = advanceAds(weapon, this.ads, !!goalAds, dt);
     this.kick = this.recoil.update(0, 24, dt);
     const yawKick = this.recoilYaw.update(0, 27, dt);
@@ -700,9 +702,12 @@ export class WeaponView {
     this.lastYaw = yaw; this.lastPitch = pitch;
     const swayX = this.swayX.update(THREE.MathUtils.clamp(-yawDelta / Math.max(dt, .001) * .012, -.055, .055), 20, dt);
     const swayY = this.swayY.update(THREE.MathUtils.clamp(pitchDelta / Math.max(dt, .001) * .01, -.04, .04), 20, dt);
-    if (actor.grounded && !this.grounded) this.land.impulse(-Math.min(3, Math.max(.6, -this.verticalSpeed * .25)));
-    if (!actor.grounded && this.grounded && actor.velocity.y > 0) this.land.impulse(.6);
-    this.grounded = actor.grounded; this.verticalSpeed = actor.velocity.y;
+    if (!actor.swimming && !this.swimming) {
+      if (actor.grounded && !this.grounded) this.land.impulse(-Math.min(3, Math.max(.6, -this.verticalSpeed * .25)));
+      if (!actor.grounded && this.grounded && actor.velocity.y > 0) this.land.impulse(.6);
+    } else if (actor.swimming) this.land.reset();
+    this.grounded = actor.grounded; this.swimming = actor.swimming; this.verticalSpeed = actor.velocity.y;
+    this.swimPose = damp(this.swimPose, actor.swimming ? 1 : 0, 8, dt);
     const landing = this.land.update(0, 17, dt);
     const motion = settings.reducedMotion ? 0 : 1;
     this.breathingTime += dt;
@@ -710,8 +715,8 @@ export class WeaponView {
     this.shotLife = Math.max(0, this.shotLife - dt);
     const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
     this.gait += speed * dt * 2.5;
-    const bob = settings.reducedMotion ? 0 : Math.min(speed / 7, 1) * (actor.sprint ? .027 : .012);
-    const sprint = this.sprintPose = damp(this.sprintPose, actor.sprint ? 1 : 0, 12, dt);
+    const bob = settings.reducedMotion || !actor.grounded ? 0 : Math.min(speed / 7, 1) * (actor.sprint ? .027 : .012);
+    const sprint = this.sprintPose = damp(this.sprintPose, actor.sprint && !actor.swimming ? 1 : 0, 12, dt);
     const ads = this.ads * this.ads * (3 - 2 * this.ads);
     const breath = Math.sin(this.breathingTime * 1.8) * .0032 * motion * (1 - ads) * (1 - sprint);
     const grip = Math.sin(this.breathingTime * 1.17) * Math.sin(this.breathingTime * .43) * motion * (1 - ads) * (1 - magazineMotion);
@@ -723,13 +728,14 @@ export class WeaponView {
     const pose = model.painted ? WEAPON_HIP_POSES[weapon] : null;
     const modelScale = pose?.scale ?? .72;
     this.holder.scale.setScalar(modelScale);
-    const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, ads);
+    const swimBob = Math.sin(this.breathingTime * 2.1) * .009 * motion * this.swimPose;
+    const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, ads) + this.swimPose * (weapon === 'pistol' ? .035 : -.18) + swimBob;
     this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, ads) + Math.sin(this.gait) * bob * .4 + swayX * motion * (1 - ads * .85),
       hipY + breath + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - (this.draw + this.holster) * .34 + (swayY + landing) * motion - sprint * .08 - closeWall * .12 - magazineMotion * .045,
       THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, ads) + this.kick * .8 + closeWall * .08 + sprint * .07);
     this.holder.rotation.set((pose?.pitch ?? 0) * (1 - ads) + this.kick * 1.1 + (this.draw + this.holster) * .65 + swayY * motion + magazineMotion * .24 + sprint * .16,
       THREE.MathUtils.lerp(pose?.yaw ?? (pose ? 0 : .24), 0, ads) + closeWall * .28 + yawKick + swayX * motion,
-      THREE.MathUtils.lerp(pose?.roll ?? (pose ? 0 : -.055), 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13 + breath * .8);
+      THREE.MathUtils.lerp(pose?.roll ?? (pose ? 0 : -.055), 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13 + breath * .8 + swimBob * 1.2);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.rotation);
     if (this.inspectTime >= 0) {
       this.inspectTime += dt;
