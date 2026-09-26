@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 export const WORLD_VERSION = 'ilha-v3-rio-6';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -79,11 +79,15 @@ export interface WorldSpec {
 // animate it arcing out; its x/y/z is already the landing spot.
 export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number; from?: Vec3; spawnedAt?: number }
 export interface ZoneState { x: number; z: number; radius: number; nextRadius: number; nextX: number; nextZ: number; phase: number; shrinking: boolean; timeLeft: number; damage: number }
+export interface SupplyDropState {
+  id: string; pos: Vec3; district: string; heading: number;
+  announcedAt: number; releaseAt: number; landsAt: number; opened: boolean;
+}
 export interface MatchResult { id: string; name: string; color: string; bot: boolean; kills: number; deaths: number; damage: number; place: number; winner: boolean; shots: number; hits: number; headshots: number; survived: number; chests: number; longestShot: number }
 export interface WorldSnapshot {
   protocol: number; world: string; matchId: string; tick: number; time: number; phase: Phase;
   config: RoomConfig; countdown: number; remaining: number; actors: ActorState[];
-  loot: LootState[]; openedChests: string[]; zone: ZoneState;
+  loot: LootState[]; openedChests: string[]; zone: ZoneState; supplyDrops: SupplyDropState[];
   results: MatchResult[]; plane: Vec3;
 }
 // What a shot's endpoint struck when it was not a capybara; `normal` faces the shooter's side.
@@ -99,6 +103,7 @@ export type GameEvent =
   | { type: 'water'; id: number; actor: string; pos: Vec3; entering: boolean }
   | { type: 'upgrade'; id: number; actor: string; weapon: WeaponId; level: number }
   | { type: 'bounce'; id: number; actor: string; pos: Vec3 }
+  | { type: 'supply'; id: number; drop: string; pos: Vec3; district: string; stage: 'incoming' | 'landed' | 'opened' }
   | { type: 'use'; id: number; actor: string; item: ConsumableId }
   // A slow projectile (slingshot stone) struck the world after its flight.
   | { type: 'impact'; id: number; actor: string; weapon: WeaponId; pos: Vec3; surface: Surface; normal: Vec3 }

@@ -822,6 +822,11 @@ body.reduce-motion #hud #ladder.upgrade{animation:none}
 /* The launch stamp carries the jump hint until the normal flight banner returns. */
 #hud:has(#matchMoment[data-kind=launch]:not([hidden])) #banner{visibility:hidden}
 
+/* Tucano deliveries share the calm stamped announcement and crisp map overlay. */
+#hud #matchMoment[data-kind=delivery] strong{background:var(--candy-teal);font-size:26px}
+#hud #bigmap .supply-legend{position:absolute;left:10px;bottom:12px;max-width:60%;padding:5px 9px;background:var(--paper);color:var(--brown);font-size:13px;font-weight:800;border:2px solid var(--brown);border-radius:8px;box-shadow:2px 2px 0 var(--brown)}
+#hud #bigmap .supply-legend[hidden]{display:none}
+
 /* A beach hut for the turma: wooden invitation, painted paper name cards, candy readiness. */
 body[data-screen=lobby] #cover-art{background:linear-gradient(90deg,#422916ce,#44301b69 65%,#16483a91),var(--cover) center/cover no-repeat}
 .beach-hut{position:relative;max-width:1440px;width:calc(100% - 80px);padding:32px 0 26px;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:46px;align-items:start}

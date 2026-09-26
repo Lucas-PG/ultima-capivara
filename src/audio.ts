@@ -161,6 +161,26 @@ export class SoundEngine {
         this.tone(output, time, pitch, pitch, .3, volume, 'triangle');
         this.tone(output, time, pitch * 2, pitch * 2, .16, volume * .2, 'sine');
       });
+    } else if (event.type === 'supply') {
+      const now = ctx.currentTime;
+      if (event.stage === 'incoming') {
+        // A brief delivery call is island-wide; contact sounds stay positional.
+        this.tone(this.buses.effects, now, 660, 880, .13, .024, 'sine');
+        this.tone(this.buses.effects, now + .17, 790, 1185, .22, .02, 'triangle');
+      } else {
+        const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
+        if (distance > (event.stage === 'landed' ? 70 : 28)) return;
+        const output = this.spatial(event.pos, this.buses.effects, distance);
+        if (event.stage === 'landed') {
+          this.noise(output, now, .25, 'lowpass', 620, .11, .01, true);
+          this.tone(output, now, 115, 48, .24, .12, 'sine');
+          this.noise(output, now + .08, .23, 'bandpass', 1700, .035, .035, true);
+        } else {
+          this.metalClick(output, now, 1600, .045);
+          this.tone(output, now + .05, 520, 520, .22, .028, 'triangle');
+          this.tone(output, now + .13, 780, 780, .24, .025, 'sine');
+        }
+      }
     } else if (event.type === 'bounce') {
       const own = event.actor === myId;
       const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
