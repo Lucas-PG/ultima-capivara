@@ -92,7 +92,7 @@ test('host and guest exchange lobby, gameplay, recovery, and close over local Pe
         z: n, active: true, rarity: 0, respawnAt: 0 }));
       const snapshot = { protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: s.matchId, tick: 1, time: 1,
         phase: 'playing', config: s.state.config, countdown: 0, remaining: 479, actors,
-        loot, openedChests: [], zone: { x: 0, z: 0, radius: 100, nextRadius: 90, nextX: 0,
+        loot, openedChests: [], supplyDrops: [], zone: { x: 0, z: 0, radius: 100, nextRadius: 90, nextX: 0,
           nextZ: 0, phase: 1, shrinking: false, timeLeft: 60, damage: 1 }, results: [],
         plane: { x: 0, y: 30, z: 0 } };
       const moduleUrl = '/src/network/codec.ts';

@@ -17,7 +17,7 @@ const actor: ActorState = {
 const snapshot: WorldSnapshot = {
   protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: 'a'.repeat(48), tick: 5, time: 1.2,
   phase: 'playing', config: DEFAULT_CONFIG, countdown: 0, remaining: 478,
-  actors: [actor], loot: [], openedChests: [],
+  actors: [actor], loot: [], openedChests: [], supplyDrops: [],
   zone: { x: 0, z: 0, radius: 100, nextRadius: 90, nextX: 0, nextZ: 0,
     phase: 1, shrinking: false, timeLeft: 60, damage: 1 }, results: [], plane: { x: 0, y: 30, z: 0 },
 };
