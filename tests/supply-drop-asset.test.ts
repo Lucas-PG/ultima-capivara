@@ -4,6 +4,7 @@ import { NodeIO, type Document, type Node } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { Box3, BufferGeometry, Float32BufferAttribute, Matrix4, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
+import { SUPPLY_CANOPY_HEIGHT } from '../src/shared/supply-drops';
 
 let asset: Document;
 beforeAll(async () => {
@@ -66,6 +67,7 @@ describe('painted supply drop asset contract', () => {
       expect(outward).toBeGreaterThan(50);
       expect(inward).toBe(0);
       const chute = asset.getRoot().listNodes().find(node => node.getName() === `drop_chute_LOD${lod}`)!;
+      expect(new Box3().setFromPoints(vertices(chute)).max.y).toBeLessThanOrEqual(SUPPLY_CANOPY_HEIGHT);
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new Float32BufferAttribute(vertices(chute).flatMap(v => v.toArray()), 3));
       geometry.setIndex(Array.from(chute.getMesh()!.listPrimitives()[0].getIndices()!.getArray()!));

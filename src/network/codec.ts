@@ -89,7 +89,7 @@ export async function decodeFastFrame(raw: unknown): Promise<Record<string, unkn
 
 export function worldPart(snapshot: WorldSnapshot) {
   return {
-    config: snapshot.config, loot: snapshot.loot, openedChests: snapshot.openedChests, results: snapshot.results,
+    config: snapshot.config, loot: snapshot.loot, openedChests: snapshot.openedChests, results: snapshot.results, supplyDrops: snapshot.supplyDrops,
     actors: snapshot.actors.map(a => ({ id: a.id, name: a.name, color: a.color, bot: a.bot })),
   };
 }
@@ -128,7 +128,13 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
     !fast.plane || !['x', 'y', 'z'].every(k => Number.isFinite(fast.plane[k])) ||
     !world.config || !['battle-royale', 'deathmatch', 'corrente'].includes(world.config.mode) ||
     !Number.isInteger(world.config.capacity) || world.config.capacity < 1 || world.config.capacity > 16 ||
-    !plainTextTree(world) || !plainTextTree(gear)) return null;
+    !plainTextTree(world) || !plainTextTree(gear) || !Array.isArray(world.supplyDrops) || world.supplyDrops.length > 2 ||
+    new Set(world.supplyDrops.map((drop: any) => drop?.id)).size !== world.supplyDrops.length ||
+    !world.supplyDrops.every((drop: any) => drop && /^supply-[12]$/.test(drop.id) && typeof drop.district === 'string' &&
+      drop.district.length <= 40 && typeof drop.opened === 'boolean' && drop.pos &&
+      ['x', 'y', 'z'].every(key => Number.isFinite(drop.pos[key]) && Math.abs(drop.pos[key]) <= 1000) &&
+      [drop.heading, drop.announcedAt, drop.releaseAt, drop.landsAt].every(Number.isFinite) &&
+      drop.announcedAt >= 0 && drop.releaseAt > drop.announcedAt && drop.landsAt > drop.releaseAt)) return null;
   const actors: ActorState[] = [];
   for (const tuple of fast.actors) {
     if (!Array.isArray(tuple) || !tuple.every(Number.isFinite)) return null;
@@ -167,7 +173,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       respawnAt: respawnAt / 100, protectionUntil: protectionUntil / 100, lastInput, shotHeat: shotHeat / 100 });
   }
   const snapshot = { protocol: PROTOCOL_VERSION, world: WORLD_VERSION, ...fast, config: world.config,
-    loot: world.loot, openedChests: world.openedChests, results: world.results, actors } as WorldSnapshot;
+    loot: world.loot, openedChests: world.openedChests, results: world.results, supplyDrops: world.supplyDrops, actors } as WorldSnapshot;
   return finiteTree(snapshot) && snapshot.actors.length <= 64 && Array.isArray(snapshot.loot) &&
     snapshot.loot.length <= 3000 && Array.isArray(snapshot.openedChests) &&
     Array.isArray(snapshot.results) && snapshot.results.every(r => typeof r.name === 'string' &&

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
-import { DEFAULT_CONFIG, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type WorldSnapshot } from '../src/shared/types';
+import { DEFAULT_CONFIG, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type GameEvent, type WorldSnapshot } from '../src/shared/types';
 import { decodeFastFrame, encodeFastFrame, fastPart, gearPart, MAX_COMPRESSED_FRAME_BYTES, MAX_FRAME_BYTES, packet, parseWire, rebuildFrame, worldPart } from '../src/network/codec';
 import { RoomSession, validAction, validConfig, validInput } from '../src/network/session';
 
@@ -17,7 +17,7 @@ const actor: ActorState = {
 const snapshot: WorldSnapshot = {
   protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: 'a'.repeat(48), tick: 5, time: 1.2,
   phase: 'playing', config: DEFAULT_CONFIG, countdown: 0, remaining: 478,
-  actors: [actor], loot: [], openedChests: [],
+  actors: [actor], loot: [], openedChests: [], supplyDrops: [],
   zone: { x: 0, z: 0, radius: 100, nextRadius: 90, nextX: 0, nextZ: 0,
     phase: 1, shrinking: false, timeLeft: 60, damage: 1 }, results: [], plane: { x: 0, y: 30, z: 0 },
 };
@@ -358,5 +358,33 @@ describe('connection recovery and latency', () => {
     runtime.onGuestControl(conn, packet('events', { matchId: snapshot.matchId, data: events }));
     expect(callbacks.events).toHaveBeenCalledWith(events);
     expect(callbacks.snapshot).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { type: 'water', id: 7, actor: 'guest', pos: { x: 1, y: -.05, z: 2 }, entering: true },
+    { type: 'upgrade', id: 7, actor: 'guest', weapon: 'm4', level: 2 },
+    { type: 'bounce', id: 7, actor: 'guest', pos: { x: 1, y: .32, z: 2 } },
+    ...(['incoming', 'landed', 'opened'] as const).map(stage => ({ type: 'supply' as const, id: 7,
+      drop: 'supply-1', pos: { x: 1, y: 2.2, z: 2 }, district: 'vila', stage })),
+  ] satisfies GameEvent[])('delivers $type feedback once from the current host and match', event => {
+    const { runtime, callbacks } = makeSession();
+    const conn = { close: vi.fn() }; runtime.hostConn = conn; runtime.matchId = snapshot.matchId;
+    const message = packet('events', { matchId: snapshot.matchId, data: [event] });
+    runtime.onGuestControl({ close: vi.fn() }, message);
+    runtime.onGuestControl(conn, { ...message, matchId: 'b'.repeat(48) });
+    expect(callbacks.events).not.toHaveBeenCalled();
+    runtime.onGuestControl(conn, message); runtime.onGuestControl(conn, message);
+    expect(callbacks.events).toHaveBeenCalledExactlyOnceWith([event]);
+  });
+
+  it('keeps unknown event names out of presentation without consuming valid event IDs', () => {
+    const { runtime, callbacks } = makeSession();
+    const conn = { close: vi.fn() }; runtime.hostConn = conn; runtime.matchId = snapshot.matchId;
+    runtime.onGuestControl(conn, packet('events', { matchId: snapshot.matchId,
+      data: ['unknown', 'constructor', 'toString'].map(type => ({ type, id: 100 })) }));
+    expect(callbacks.events).not.toHaveBeenCalled();
+    const event: GameEvent = { type: 'bounce', id: 1, actor: 'guest', pos: { x: 0, y: .32, z: 0 } };
+    runtime.onGuestControl(conn, packet('events', { matchId: snapshot.matchId, data: [event] }));
+    expect(callbacks.events).toHaveBeenCalledExactlyOnceWith([event]);
   });
 });

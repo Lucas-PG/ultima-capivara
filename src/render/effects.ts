@@ -171,6 +171,21 @@ export class EffectsView {
       const pos = this.copyActor(snapshot, event.actor, this.a);
       if (pos && (!this.frame || this.frame.camera.position.distanceToSquared(pos) < 35 * 35))
         this.upgrade(pos, event.actor === playerId && firstPerson, event.level);
+    } else if (event.type === 'supply') {
+      if (event.stage === 'incoming' || (this.frame && this.frame.camera.position.distanceToSquared(event.pos) > 60 * 60)) return;
+      this.a.set(event.pos.x, event.pos.y + .08, event.pos.z);
+      if (event.stage === 'landed') {
+        if (this.frame?.reducedMotion) return;
+        const count = this.frame?.lowQuality ? 3 : 8;
+        for (let i = 0; i < count; i++) {
+          const angle = i / count * Math.PI * 2, x = Math.cos(angle), z = Math.sin(angle);
+          const puff = this.cards.spawn(); puff.pos.copy(this.a); puff.pos.x += x * .35; puff.pos.z += z * .35;
+          puff.cell = PAINT.dust + i % 2; puff.life = .6; puff.fadeIn = .03; puff.fadeOut = .8;
+          puff.size0 = .2; puff.size1 = .8; puff.alpha = .3; puff.minPx = 0; puff.maxPx = 54;
+          puff.vel.set(x * 1.4, .4, z * 1.4); puff.drag = 2.4; puff.rot = angle;
+          puff.color.copy(this.surface.sand.puff); puff.light.copy(this.surface.sand.puffLight);
+        }
+      } else if (!this.frame?.reducedMotion) this.sparkle(this.a, this.color.gold, this.color.goldLight, this.frame?.lowQuality ? 4 : 8, 1);
     } else if (event.type === 'bounce') {
       if (this.frame?.reducedMotion || (this.frame && this.frame.camera.position.distanceToSquared(event.pos) > 40 * 40)) return;
       this.bounceDust(event.pos);

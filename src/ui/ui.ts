@@ -1,3 +1,4 @@
+import { supplyDropPhase } from '../shared/supply-drops';
 import type { ConnectionStatus } from '../network/session';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type ActorState, type ConsumableId, type GameEvent, type MatchResult, type Mode, type RoomConfig, type RoomState, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../shared/types';
 import { clamp } from '../shared/math';
@@ -59,6 +60,8 @@ export class GameUI {
   private emoteY = 0;
   private selectedMode: Mode = 'battle-royale';
   private room: RoomState | null = null;
+  private lobbyCode = '';
+  private lobbyPlayers = new Map<string, boolean>();
   private snapshot: WorldSnapshot | null = null;
   private modal: HTMLDialogElement | null = null;
   private inventoryKey = '';
@@ -72,6 +75,7 @@ export class GameUI {
   private momentStage: ActorState['stage'] | null = null;
   private firstStormBeat = 0;
   private momentTimer = 0;
+  private supplyNotice: string | null = null;
   private deathInfo: { place: number; line: string; card: string | null; until: number } | null = null;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
@@ -141,6 +145,7 @@ export class GameUI {
         case 'ready': this.callbacks.ready(!this.room?.players.find(p => p.id === this.room?.myId)?.ready); break;
         case 'start': this.callbacks.start(); break;
         case 'copy': void this.copyInvite(); break;
+        case 'copy-code': void this.copyInvite(true); break;
         case 'resume': this.callbacks.resume(); break;
         case 'rematch': this.callbacks.rematch(); break;
         case 'spectate': this.callbacks.spectate(); break;
@@ -218,6 +223,7 @@ export class GameUI {
   }
   roomModal(kind: 'host' | 'join', code = '') {
     const dialog = this.openModal(kind === 'host' ? 'A TURMA COMEÇA AQUI.' : 'SUA TURMA TE ESPERA.', `<form id="room-form">${this.profileFields()}${kind === 'host' ? `<div class="form-grid"><label>MODO<select name="mode"><option value="battle-royale" ${this.selectedMode === 'battle-royale' ? 'selected' : ''}>Última de pé · Battle royale</option><option value="deathmatch" ${this.selectedMode === 'deathmatch' ? 'selected' : ''}>Correria · Combate por tempo</option><option value="corrente" ${this.selectedMode === 'corrente' ? 'selected' : ''}>Corrente · Sequência de armas</option></select></label><label>VAGAS PARA AMIGOS<select name="capacity"><option>2</option><option>4</option><option selected>8</option><option>12</option><option>16</option></select></label><label>DURAÇÃO DA CORRERIA<select name="duration"><option value="300">5 minutos</option><option value="480" selected>8 minutos</option><option value="600">10 minutos</option></select></label><label>NÍVEL DOS BOTS<select name="difficulty"><option value="easy">Tranquilo</option><option value="normal" selected>Na medida</option><option value="hard">Sem dó</option></select></label></div><label class="check-row"><input type="checkbox" name="bots" checked/><span>Completar a turma com bots<small>21 bichos no battle royale; pelo menos 8 nos outros modos.</small></span></label><p class="form-note">${icon('info')} Quem cria a sala mantém esta aba aberta durante a partida.</p>` : `<label for="join-code">CÓDIGO DA SALA</label><input id="join-code" class="code-input" name="code" maxlength="6" minlength="6" required placeholder="ABC123" autocomplete="off" spellcheck="false" value="${esc(code)}"/><p class="form-note">${icon('link')} Peça o código ou o link para quem criou a sala.</p>`}<p class="form-error" role="alert"></p><button class="button primary full-width" type="submit">${kind === 'host' ? 'CRIAR MINHA SALA' : 'ENTRAR NA SALA'} ${icon('arrow')}</button></form>`);
+    dialog.classList.add('room-dialog'); dialog.dataset.roomKind = kind;
     dialog.querySelectorAll<HTMLElement>('[data-color]').forEach(button => button.addEventListener('click', () => { this.profile.color = button.dataset.color!; dialog.querySelectorAll('[data-color]').forEach(b => b.classList.toggle('selected', b === button)); dialog.querySelector('#profile-avatar')!.innerHTML = capybara(this.profile.color); }));
     const form = dialog.querySelector<HTMLFormElement>('form')!;
     if (kind === 'host') { const mode = form.querySelector<HTMLSelectElement>('[name=mode]')!, duration = form.querySelector<HTMLSelectElement>('[name=duration]')!; const updateDuration = () => { duration.closest('label')!.hidden = mode.value !== 'deathmatch'; }; mode.addEventListener('change', updateDuration); updateDuration(); }
@@ -235,9 +241,32 @@ export class GameUI {
   }
   setRoom(room: RoomState | null) { this.room = room; if (room) { this.localId = room.myId; if (room.phase === 'lobby') this.lobby(); } }
   private lobby() {
-    const room = this.room!; this.screen = 'lobby'; this.els.clear(); document.body.dataset.screen = 'lobby';
-    const me = room.players.find(p => p.id === room.myId), allReady = room.players.every(p => p.ready && p.connected);
-    this.root.innerHTML = `${this.header(true)}<main class="lobby-content"><section class="lobby-intro"><p class="eyebrow">ENCONTRO MARCADO.</p><h1>SUA TURMA.<br><em>SUA ILHA.</em></h1><p>A melhor confusão começa com os amigos certos.</p><div class="invite-card"><div><span>CÓDIGO DA SALA</span><strong>${esc(room.code)}</strong></div><button class="button secondary" data-do="copy">${icon('link')} COPIAR LINK</button></div><div class="lobby-rules"><span>${icon(room.config.mode === 'battle-royale' ? 'crown' : 'bolt')} ${modeName(room.config.mode)}</span><p>${room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : room.config.mode === 'corrente' ? 'Cada eliminação traz a próxima arma. Avance pela sequência e vença com o facão final.' : `Você tem ${room.config.duration / 60} minutos. Elimine, reapareça e termine no topo.`}</p><small>${room.config.bots ? 'BOTS COMPLETAM A TURMA' : 'SOMENTE AMIGOS'} · ${room.config.capacity} VAGAS</small></div></section><section class="roster-panel"><div class="section-heading"><span>QUEM VAI PRA ILHA</span><small>${room.players.length}/${room.config.capacity}</small></div><div class="roster">${room.players.map(player => `<div class="player-row ${player.id === room.myId ? 'you' : ''}">${capybara(player.color)}<div><strong>${esc(player.name)} ${player.id === room.myId ? '<small>VOCÊ</small>' : ''}</strong><span>${player.id === room.hostId ? 'CRIADOR DA SALA' : 'NA TURMA'}</span></div><b class="ready-status ${player.ready && player.connected ? 'ready' : ''}">${!player.connected ? 'RECONECTANDO' : player.ready ? `${icon('check')} PRONTO` : 'PREPARANDO'}</b></div>`).join('')}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')} O próximo lugar pode ser do seu amigo.</div>` : ''}</div><div class="lobby-bottom"><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width" data-do="ready">${icon('check')} ${me?.ready ? 'ESTOU PRONTO · CANCELAR' : 'ESTOU PRONTO'}</button>${room.isHost ? this.startButton(allReady) : '<p>Quem criou a sala começa quando a turma estiver pronta.</p>'}<small>${room.isHost ? 'Mantenha esta aba aberta enquanto a turma joga.' : 'Seu jogo está pronto. Só falta a turma.'}</small><p id="connection-status" role="status">${esc(this.networkStatus)}</p></div></section></main>`;
+    const room = this.room!, fresh = this.screen !== 'lobby' || this.lobbyCode !== room.code;
+    if (fresh) this.lobbyPlayers.clear();
+    const previous = this.lobbyPlayers, arrived = new Set(room.players.filter(p => !previous.has(p.id)).map(p => p.id));
+    const newlyReady = new Set(room.players.filter(p => previous.has(p.id) && !previous.get(p.id) && p.ready && p.connected).map(p => p.id));
+    this.lobbyPlayers = new Map(room.players.map(p => [p.id, p.ready && p.connected])); this.lobbyCode = room.code;
+    const active = document.activeElement as HTMLElement | null, focusAction = active && this.root.contains(active) ? active.closest<HTMLElement>('[data-do]')?.dataset.do : null;
+    const scroll = fresh ? 0 : this.root.querySelector('.roster')?.scrollTop ?? 0;
+    this.screen = 'lobby'; this.els.clear(); document.body.dataset.screen = 'lobby';
+    const me = room.players.find(p => p.id === room.myId), host = room.players.find(p => p.id === room.hostId);
+    const readyCount = room.players.filter(p => p.ready && p.connected).length, allReady = readyCount === room.players.length;
+    const motion = !this.reducedMotion(), art = room.config.mode === 'battle-royale' ? 'mode-royale' : room.config.mode === 'corrente' ? 'mode-corrente' : 'mode-correria';
+    const rules = room.config.mode === 'battle-royale' ? 'Salte, encontre equipamento e fuja da tempestade. Só a última capivara de pé vence.' : room.config.mode === 'corrente' ? 'Uma eliminação, uma nova arma. Feche a sequência com o facão para vencer.' : `${room.config.duration / 60} minutos de correria. Caiu? Volta pra disputa. Mais eliminações vence!`;
+    const cards = room.players.map((player, i) => `<article class="player-row${player.id === room.myId ? ' you' : ''}${!player.connected ? ' reconnecting' : ''}${motion && arrived.has(player.id) ? ' arriving' : ''}" data-player-id="${esc(player.id)}" style="--kit:${/^#[a-f0-9]{6}$/i.test(player.color) ? player.color : PLAYER_COLORS[0]};--tilt:${i % 2 ? '.7' : '-.7'}deg">
+      <span class="player-portrait">${capybara(player.color)}</span><div class="player-card-copy"><strong title="${esc(player.name)}">${esc(player.name)}</strong><span class="player-role">${player.id === room.myId ? '<b>VOCÊ</b>' : ''}${player.id === room.hostId ? `${icon('crown')} CRIOU A SALA` : 'DA TURMA'}</span><b class="ready-status${player.ready && player.connected ? ' ready' : ''}${motion && newlyReady.has(player.id) ? ' ready-wiggle' : ''}">${!player.connected ? 'Reconectando' : player.ready ? `${icon('check')} PRONTO!` : 'Escolhendo o chinelo...'}</b></div></article>`).join('');
+    const readiness = `${readyCount} de ${room.players.length} ${room.players.length === 1 ? 'capivara pronta' : 'capivaras prontas'}`;
+    this.root.innerHTML = `${this.header(true)}<main class="lobby-content beach-hut"><div class="hut-bunting" aria-hidden="true">${'<i></i>'.repeat(9)}</div>
+      <section class="lobby-intro"><p class="eyebrow">RANCHO DA TURMA</p><h1>CHEGA<br><em>MAIS!</em></h1><p>Puxa uma cadeira.<br>Já já a ilha é nossa.</p>
+        <div class="invite-card"><img class="lobby-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><button class="room-code" data-do="copy-code" aria-label="Copiar código ${esc(room.code)}"><span>CÓDIGO DA TURMA</span><strong>${esc(room.code)}</strong><small>Toque para copiar o código</small></button><button class="button secondary" data-do="copy">${icon('link')} Copiar link do convite</button></div>
+        <div class="lobby-rules"><div class="lobby-mode-art" style="background-image:url(${uiArt(art)})" aria-hidden="true"></div><div><small>HOJE A TURMA VAI DE</small><span>${modeName(room.config.mode)}</span><p>${rules}</p><b>${room.config.bots ? 'Bots completam a turma' : 'Só os amigos'} · ${room.config.capacity} vagas</b></div></div>
+      </section><section class="roster-panel" aria-label="Amigos na sala"><div class="section-heading"><span>GUARDEI SEU LUGAR</span><small>${room.players.length}/${room.config.capacity} NA TURMA</small></div>
+        <div class="roster">${cards}${room.players.length < room.config.capacity ? `<div class="empty-seat">${icon('plus')}<span>Tem lugar pra mais um.<small>Mande o código e puxe outra cadeira!</small></span></div>` : ''}</div>
+        <div class="lobby-bottom"><p class="lobby-readiness" role="status">${icon(allReady ? 'check' : 'users')} ${readiness}</p><div class="lobby-action-row"><div class="ready-control"><span>QUANDO VOCÊ QUISER</span><button class="button ${me?.ready ? 'secondary' : 'primary'} full-width${motion && newlyReady.has(room.myId) ? ' ready-wiggle' : ''}" data-do="ready" aria-pressed="${!!me?.ready}">${icon('check')} ${me?.ready ? 'PRONTO! · CANCELAR' : 'ESTOU PRONTO'}</button></div>
+        ${room.isHost ? `<div class="host-controls"><span>${icon('crown')} VOCÊ DÁ A LARGADA</span>${this.startButton(allReady)}</div>` : `<div class="host-wait">${icon('crown')}<span><b>${esc(host?.name ?? 'Quem criou a sala')}</b> dá a largada quando a turma estiver pronta.</span></div>`}</div>
+        <small>${room.isHost ? 'Sua aba mantém a sala aberta. Deixe a turma por aqui enquanto joga.' : 'Pode ficar à vontade. Seu lugar na turma está guardado.'}</small><p id="connection-status" role="status">${esc(this.networkStatus)}</p></div></section></main>`;
+    const roster = this.root.querySelector('.roster'); if (roster) roster.scrollTop = scroll;
+    if (focusAction) [...this.root.querySelectorAll<HTMLElement>('[data-do]')].find(el => el.dataset.do === focusAction)?.focus({ preventScroll: true });
   }
   // Host start button: while the island warms up it is disabled, labelled and shows real progress (setRoomLoading).
   private startButton(allReady: boolean) {
@@ -257,14 +286,15 @@ export class GameUI {
     if (next !== null && wasLoading && bar) { const pct = startButtonState(false, next).pct; bar.setAttribute('aria-valuenow', String(pct)); bar.querySelector('i')!.style.width = `${pct}%`; return; }
     button.outerHTML = this.startButton(this.room.players.every(p => p.ready && p.connected));
   }
-  private async copyInvite() {
+  private async copyInvite(codeOnly = false) {
     if (!this.room) return; const url = new URL(location.href); url.search = ''; url.searchParams.set('sala', this.room.code); url.hash = '';
-    try { await navigator.clipboard.writeText(url.href); this.toast('Link copiado. Chame a turma!'); }
-    catch { this.openModal('CONVIDE SUA TURMA', `<label>LINK DA SALA<input readonly value="${esc(url.href)}"/></label><p>Copie o link acima ou compartilhe o código ${esc(this.room.code)}.</p>`); }
+    const value = codeOnly ? this.room.code : url.href;
+    try { await navigator.clipboard.writeText(value); this.toast(codeOnly ? 'Código copiado. Tem lugar pra turma!' : 'Link copiado. Chame a turma!'); }
+    catch { const dialog = this.openModal('CONVIDE SUA TURMA', `<label>${codeOnly ? 'CÓDIGO' : 'LINK'} DA SALA<input readonly value="${esc(value)}"/></label><p>Compartilhe com os amigos e combine o próximo salto.</p>`); dialog.querySelector('input')?.select(); }
   }
   game(playerId: string) {
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
-    clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0;
+    clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0; this.supplyNotice = null;
     this.lastBanner = ''; this.deathInfo = null; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null; this.deathReleased = false;
     if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
@@ -274,7 +304,7 @@ export class GameUI {
       + `<div id="topL" class="stk"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
       + `<div id="ladder" hidden><div class="ladder-heading"><b>CORRENTE</b><span id="ladderStep">1 / ${CORRENTE_LADDER.length}</span></div><div class="ladder-track" aria-hidden="true">${CORRENTE_LADDER.map((_, i) => `<i id="ladder-${i}"></i>`).join('')}</div><span id="ladderNext"></span></div>`
       + `<div id="safe" class="stk" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="stk" hidden>Na tempestade! −<span id="hDps">1</span>/s</div>`
-      + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
+      + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="supply-legend" id="supplyLegend" hidden>Entrega do Tucano · caixa marcada</span><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
       + `<div id="matchMoment" hidden aria-live="polite"><strong id="momentTitle"></strong><small id="momentDetail"></small></div>`
       + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden role="group" aria-label="Você foi eliminada"><img class="spec-mascot" src="${uiArt('capy-lose')}" alt="" draggable="false"><div class="btns">${ELIMINATED_ACTIONS.map(a => `<button type="button" class="${a.primary ? 'go' : 'alt'}" data-do="${a.do}">${a.primary ? icon('eye') : icon('back')} ${a.label}</button>`).join('')}</div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste<span class="esc"> · <kbd>Esc</kbd> solta o mouse pra clicar</span></span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="leave">${icon('back')} Voltar ao menu</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
@@ -438,14 +468,15 @@ export class GameUI {
     const visible = !!interaction && me.alive && me.stage === 'ground'; this.show('prompt', visible);
     if (!visible || !interaction) return;
     const loot = this.snapshot?.loot.find(l => l.id === interaction.id), bath = this.world.mudBaths?.some(b => b.id === interaction.id), chest = !loot && !bath && interaction.name.startsWith('Abrir');
-    const color = loot?.kind === 'weapon' ? rarityOf(loot.rarity).color : chest ? '#ffc23d' : '#fff4d6';
+    const delivery = this.snapshot?.supplyDrops?.some(drop => drop.id === interaction.id && supplyDropPhase(drop, this.snapshot!.time) === 'landed');
+    const color = delivery ? '#ffd06b' : loot?.kind === 'weapon' ? rarityOf(loot.rarity).color : chest ? '#ffc23d' : '#fff4d6';
     const iconKey = loot ? `${loot.kind}:${loot.weapon || ''}` : bath ? 'bath' : chest ? 'chest' : 'none';
     const holder = this.el('promptIcon');
     if (holder.dataset.k !== iconKey) {
       holder.dataset.k = iconKey;
       holder.innerHTML = loot?.kind === 'weapon' ? weaponIcon(loot.weapon || 'pistol') : loot && loot.kind in CONSUMABLE_ICONS ? CONSUMABLE_ICONS[loot.kind as ConsumableId] : loot?.kind === 'armor' ? HUD_ART.shield : loot?.kind === 'helmet' ? HUD_ART.helmet : bath ? emoteIcon('chill') : chest ? icon('box') : '';
     }
-    this.text('promptVerb', bath ? 'Sentar' : chest ? 'Abrir' : 'Pegar'); this.text('promptItem', bath ? 'banho de lama' : chest ? 'caixa de suprimentos' : interaction.name);
+    this.text('promptVerb', bath ? 'Sentar' : chest ? 'Abrir' : 'Pegar'); this.text('promptItem', delivery ? 'entrega do Tucano' : bath ? 'banho de lama' : chest ? 'caixa de suprimentos' : interaction.name);
     this.style(this.el('prompt'), '--ic', color); this.text('promptKey', keyName(this.settings.bindings.interact));
   }
   private scoreTable(snapshot: WorldSnapshot) {
@@ -657,6 +688,16 @@ export class GameUI {
     if (event.type === 'shot' && event.actor === this.localId) this.crosshairSpread.onShot(event.weapon, performance.now());
     if (event.type === 'notice' && event.text !== 'A partida começou!' && !(event.text === 'A tempestade está fechando!' && this.snapshot?.zone.phase === 0)) this.toast(event.text);
     if (this.screen !== 'game' || !this.root.querySelector('#hud')) return;
+    if (event.type === 'supply') {
+      if (event.stage === 'opened' && this.supplyNotice === event.drop) {
+        this.supplyNotice = null;
+        if (this.el('matchMoment').dataset.kind === 'delivery') { clearTimeout(this.momentTimer); this.show('matchMoment', false); }
+      } else if (event.stage !== 'opened' && this.snapshot?.phase === 'playing') {
+        const district = this.world.districts.find(d => d.id === event.district)?.name || 'Ilha';
+        this.supplyNotice = event.drop;
+        this.showMoment(event.stage === 'incoming' ? 'Entrega do Tucano!' : 'Entrega no chão!', event.stage === 'incoming' ? `A caminho · ${district}` : `${district} · abra a caixa`, 'delivery');
+      }
+    }
     const find = (id: string | null) => id ? this.snapshot?.actors.find(a => a.id === id) : undefined;
     if (event.type === 'damage') {
       this.lastHits.set(event.target, { actor: event.actor, head: event.head });
@@ -720,7 +761,7 @@ export class GameUI {
     if (!me.alive) { clearTimeout(this.momentTimer); this.show('matchMoment', false); }
     else if (snapshot.phase === 'playing') {
       if (this.momentPhase === 'countdown') this.showMoment('Boa sorte, capivara!', me.stage === 'plane' ? `${keyName(bindingOf(this.settings.bindings, 'jump'))} pra saltar` : 'A ilha é sua!', me.stage === 'plane' ? 'launch' : 'start');
-      if (this.momentStage === 'plane' && me.stage === 'falling') this.showMoment('PULA!', `${keyName(bindingOf(this.settings.bindings, 'jump'))} abre o paraquedas`, 'drop');
+      if (this.momentStage === 'plane' && me.stage === 'falling') this.showMoment('PULA!', '', 'drop');
       const beat = snapshot.config.mode === 'battle-royale' && snapshot.zone.phase === 0 && !snapshot.zone.shrinking ? Math.ceil(snapshot.zone.timeLeft) : 0;
       if (beat > 0 && beat <= 5 && beat !== this.firstStormBeat) this.showMoment(String(beat), 'Primeira tempestade · prepare a rota', 'storm');
       else if (this.firstStormBeat > 0 && this.firstStormBeat <= 5 && snapshot.zone.phase === 0 && snapshot.zone.shrinking) this.showMoment('Lá vem ela!', 'Vá para a área segura', 'storm');
@@ -730,9 +771,9 @@ export class GameUI {
   }
   private showMoment(title: string, detail: string, kind = 'start') {
     const moment = this.el('matchMoment'); clearTimeout(this.momentTimer);
-    this.text('momentTitle', title); this.text('momentDetail', detail); moment.dataset.kind = kind; this.show('matchMoment', true);
+    this.text('momentTitle', title); this.text('momentDetail', detail); this.show('momentDetail', !!detail); moment.dataset.kind = kind; this.show('matchMoment', true);
     if (!this.reducedMotion()) this.restartAnimation(moment, 'stamp');
-    this.momentTimer = window.setTimeout(() => { moment.hidden = true; }, kind === 'storm' && /^\d$/.test(title) ? 1200 : 1600);
+    this.momentTimer = window.setTimeout(() => { moment.hidden = true; }, kind === 'delivery' ? 3200 : kind === 'storm' && /^\d$/.test(title) ? 1200 : 1600);
   }
   private setBanner(html: string) {
     if (html === this.lastBanner) return; this.lastBanner = html;
@@ -822,6 +863,7 @@ export class GameUI {
     const canvas = this.root.querySelector<HTMLCanvasElement>('#minimap');
     if (canvas) this.drawMapView(canvas, snapshot, actor, actor.stage === 'plane' ? 160 : MINIMAP_SPAN, actor.pos.x, actor.pos.z, false);
     const big = this.root.querySelector<HTMLCanvasElement>('#bigmapCanvas');
+    this.show('supplyLegend', snapshot.config.mode === 'battle-royale' && snapshot.supplyDrops.some(drop => !drop.opened && snapshot.time >= drop.announcedAt));
     if (big && this.mapOpen) this.drawMapView(big, snapshot, actor, this.world.size, 0, 0, true);
   }
   private drawMapView(canvas: HTMLCanvasElement, snapshot: WorldSnapshot, actor: ActorState, span: number, cx: number, cz: number, full: boolean) {
@@ -848,6 +890,13 @@ export class GameUI {
     // Labels clamped to the edge must never overlap: a label that would collide with one already drawn is skipped.
     const placed: [number, number, number, number][] = [[X(actor.pos.x) - 18, Z(actor.pos.z) - 18, X(actor.pos.x) + 18, Z(actor.pos.z) + 18]];
     placed.push([size - 116, 0, size, 114]);
+    const drops = snapshot.config.mode === 'battle-royale' ? snapshot.supplyDrops.filter(drop => !drop.opened && snapshot.time >= drop.announcedAt).map(drop => {
+      const tx = X(drop.pos.x), tz = Z(drop.pos.z), x = clamp(tx, 38, size - 38);
+      let y = clamp(tz, 40, size - 40);
+      if (x > size - 135 && y < 145) y = 145;
+      placed.push([x - 30, y - 40, x + 30, y + 30]);
+      return { drop, x, y, angle: !full && (Math.abs(tx - x) > 1 || Math.abs(tz - y) > 1) ? Math.atan2(tz - y, tx - x) : null };
+    }) : [];
     for (const district of this.world.districts) {
       const x = X(district.x), y = Z(district.z); if (x < -60 || y < -20 || x > size + 60 || y > size + 20) continue;
       const label = district.name.toUpperCase(), w = ctx.measureText(label).width / 2 + 6, lx = clamp(x, w, size - w), ly = clamp(y, 14, size - 14);
@@ -858,8 +907,23 @@ export class GameUI {
       placed.push([lx - w, ty - 15, lx + w, ty + 15]); ctx.strokeText(label, lx, ty); ctx.fillText(label, lx, ty);
     }
     ctx.restore();
+    for (const { drop, x, y, angle } of drops) this.supplyGlyph(ctx, x, y, supplyDropPhase(drop, snapshot.time) === 'landed', angle);
     ctx.save(); ctx.translate(X(actor.pos.x), Z(actor.pos.z)); ctx.rotate(-actor.yaw); const k = full ? 1.5 : 1.25; ctx.scale(k, k);
     ctx.fillStyle = '#ffb81c'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore();
+  }
+  private supplyGlyph(ctx: CanvasRenderingContext2D, x: number, y: number, landed: boolean, edgeAngle: number | null) {
+    ctx.save(); ctx.translate(x, y); ctx.strokeStyle = '#3a2418'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    // A gold delivery crate stays crisp above the baked map; an edge arrow points to distant deliveries.
+    ctx.fillStyle = '#fff4d6'; ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (edgeAngle !== null) { ctx.save(); ctx.rotate(edgeAngle); ctx.fillStyle = '#ffd06b'; ctx.beginPath(); ctx.moveTo(23, -7); ctx.lineTo(34, 0); ctx.lineTo(23, 7); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+    if (!landed) {
+      ctx.fillStyle = '#58c1ad'; ctx.beginPath(); ctx.arc(0, -6, 18, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-18, -6); ctx.lineTo(-9, 8); ctx.moveTo(18, -6); ctx.lineTo(9, 8); ctx.moveTo(0, -6); ctx.lineTo(0, 8); ctx.stroke();
+    }
+    ctx.fillStyle = '#ffc23d'; ctx.fillRect(-13, landed ? -12 : 5, 26, 22); ctx.strokeRect(-13, landed ? -12 : 5, 26, 22);
+    ctx.fillStyle = '#a96b38'; ctx.fillRect(-3, landed ? -12 : 5, 6, 22);
+    if (landed) { ctx.strokeStyle = '#397357'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-8, 17); ctx.lineTo(-2, 22); ctx.lineTo(9, 13); ctx.stroke(); }
+    ctx.restore();
   }
   private planeGlyph(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, r: number) {
     ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.fillStyle = '#fff4d6'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 2.5;

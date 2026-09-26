@@ -11,6 +11,12 @@ const KEEPALIVE_MS = 3_000;
 const CLOSE_ACK_MS = 1_000;
 const INPUTS_PER_SECOND = 90;
 const ACTIONS_PER_SECOND = 20;
+// Keep guest presentation events exhaustive when shared gameplay adds a type.
+const EVENT_TYPES = {
+  shot: true, damage: true, kill: true, pickup: true, reload: true, respawn: true,
+  notice: true, use: true, alert: true, impact: true, water: true, upgrade: true,
+  bounce: true, supply: true,
+} satisfies Record<GameEvent['type'], true>;
 type Profile = { name: string; color: string };
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'relay' | 'reconnecting' | 'closed';
 
@@ -387,7 +393,7 @@ export class RoomSession {
       case 'frame': this.receiveFrame(m); break;
       case 'events': if (m.matchId === this.matchId && Array.isArray(m.data) && m.data.length <= 200 && finiteTree(m.data)) {
         const fresh = (m.data as GameEvent[]).filter(e => e && Number.isSafeInteger(e.id) && e.id > this.lastEventId &&
-          ['shot', 'damage', 'kill', 'pickup', 'reload', 'respawn', 'notice', 'use', 'alert', 'impact'].includes(e.type) && plainTextTree(e));
+          typeof e.type === 'string' && Object.hasOwn(EVENT_TYPES, e.type) && plainTextTree(e));
         if (fresh.length) { this.lastEventId = fresh[fresh.length - 1].id; this.callbacks.events(fresh); }
       } break;
       case 'channel': if (Number.isInteger(m.id)) this.setupGuestGame(conn, m.id as number); break;
