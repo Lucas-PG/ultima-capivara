@@ -319,6 +319,7 @@ export class WorldScene {
         // Rounded, staggered stone courses use world metres. Their joints and
         // individual washes fade before becoming a distant checker pattern.
         vec2 pavingUV = vTerrainXZ / vec2(.82, .54);
+        float pavingDetail = 1.0 - smoothstep(.1, .55, max(fwidth(pavingUV.x), fwidth(pavingUV.y)));
         float pavingRow = floor(pavingUV.y);
         pavingUV.x += mod(pavingRow, 2.0) * .5 + sin(pavingRow * 2.19) * .09;
         vec2 pavingCell = floor(pavingUV);
@@ -329,7 +330,6 @@ export class WorldScene {
         float stoneAA = max(fwidth(stoneDistance), .001);
         float stoneFace = 1.0 - smoothstep(-.03 - stoneAA, -.03 + stoneAA, stoneDistance);
         float wornEdge = smoothstep(-.11, -.035, stoneDistance);
-        float pavingDetail = 1.0 - smoothstep(.1, .55, max(fwidth(pavingUV.x), fwidth(pavingUV.y)));
         vec3 pavingPaint = terrainAsphalt * (.97 + stoneWash * .045 + fineWear * .035 + wornEdge * .07);
         pavingPaint = mix(terrainAsphalt * .62, pavingPaint, stoneFace);
         pavingPaint = mix(terrainAsphalt * (.98 + broadWear * .06), pavingPaint, pavingDetail);
