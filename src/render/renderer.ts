@@ -221,7 +221,8 @@ export class GameRenderer {
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0, this.camera.quaternion);
     const held = viewed?.weapons[viewed.slot]?.id;
     const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
-    const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35);
+    const emoting = viewed?.emote && viewed.emoteUntil > (frame.simulationTime ?? snapshot?.time ?? 0);
+    const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && !emoting && this.cameraRig.cameraBlend < .35);
     this.effectsFrame.firstPerson = firstPerson;
     this.effectsFrame.viewportHeight = this.lastSize.height;
     this.effectsFrame.reducedMotion = this.settings.reducedMotion;

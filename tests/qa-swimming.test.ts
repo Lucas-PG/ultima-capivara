@@ -28,4 +28,10 @@ it('reviews real river flotation, a nearby swimmer and a dry wet exit using shar
     expect(actor.pos.y).toBeGreaterThan(WATER_LEVEL);
     expect(actor.wetUntil).toBeGreaterThan(frame!.snapshot!.time);
   }
+  for (const emote of ['wave', 'dance', 'victory', 'sit', 'chill']) {
+    await qa.pose(`emote-${emote}`);
+    const actor = frame!.snapshot!.actors[0];
+    expect(actor.emote).toBe(emote); expect(actor.emoteUntil).toBeGreaterThan(frame!.snapshot!.time);
+    expect(actor.crouch).toBe(emote === 'sit' || emote === 'chill');
+  }
 });

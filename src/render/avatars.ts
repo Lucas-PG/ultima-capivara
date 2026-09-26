@@ -6,13 +6,14 @@ import { addEllipsoid } from './primitives';
 import { WEAPONS } from '../shared/weapons';
 import type { AvatarReaction } from './effects';
 import { Nameplate, nameplateFontSize, nameplateHit, stackNameplate } from './nameplates';
-import type { ActorState, RenderFrame, WeaponId, WorldSpec } from '../shared/types';
+import type { ActorState, WeaponId, WorldSpec } from '../shared/types';
+import type { PresentationFrame } from './local-presentation';
 
 export const BOT_COLOR = '#ae825e';
 interface Avatar {
   color: string; name: string;
   group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
-  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean; awaitingAlive: boolean; sawDead: boolean; celebrated: boolean;
+  weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean; awaitingAlive: boolean; sawDead: boolean; celebrated: boolean; emoting: boolean;
 }
 export function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
@@ -36,7 +37,7 @@ export function avatar(color: string, name: string): Avatar {
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
   }
   const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
-  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false };
+  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false };
 }
 
 export class AvatarView {
@@ -107,7 +108,7 @@ export class AvatarView {
     return visual;
   }
 
-  update(frame: RenderFrame, cameraBlend: number, elapsed: number) {
+  update(frame: PresentationFrame, cameraBlend: number, elapsed: number) {
     this.cameraBlend = cameraBlend;
     const actors = frame.snapshot?.actors;
     for (const visual of this.ordered) { visual.group.visible = false; visual.targetable = false; }
@@ -124,7 +125,9 @@ export class AvatarView {
     this.up.setFromMatrixColumn(this.camera.matrixWorld, 1);
     let aimed: Avatar | null = null, nearest = Infinity;
     for (const state of actors) {
-      const actor = frame.remoteActors?.get(state.id) ?? state;
+      const actor = state.id === frame.playerId && frame.localActor ? frame.localActor : frame.remoteActors?.get(state.id) ?? state;
+      const simulationTime = frame.simulationTime ?? frame.snapshot?.time ?? 0;
+      const emoting = actor.emote && actor.emoteUntil > simulationTime && actor.grounded && !actor.swimming;
       const visual = this.ensureAvatar(actor);
       let winner = false;
       if (frame.snapshot!.phase === 'results') {
@@ -146,7 +149,8 @@ export class AvatarView {
       // Everyone still in the plane rides inside it; the viewed capivara stays
       // visible in third person and while the camera eases into its eyes.
       visual.group.visible = dead ? capybaraCorpseVisible(visual.body) : (actor.alive || winner) && actor.stage !== 'plane' &&
-        (!frame.playing || actor.id !== viewed || actor.stage !== 'ground' || this.cameraBlend > .35);
+        (!frame.playing || actor.id !== viewed || actor.stage !== 'ground' || emoting || visual.emoting || this.cameraBlend > .35);
+      visual.emoting = !!emoting;
       const pos = actor.id === frame.playerId && frame.predicted ? frame.predicted : actor.pos;
       const target = this.target.copy(pos);
       if (frame.remoteActors?.has(actor.id) || !visual.initialized || visual.group.position.distanceToSquared(target) > 144) visual.group.position.copy(target);
@@ -157,18 +161,19 @@ export class AvatarView {
       visual.bones[CAPY_BONES.armor].scale.setScalar(actor.armor > 0 ? 1 : .0001);
       visual.bones[CAPY_BONES.helmet].scale.setScalar(actor.helmet > 0 ? 1 : .0001);
       visual.chute.visible = !dead && actor.stage === 'parachute';
-      this.poseAvatar(visual, actor, frame.dt, frame.snapshot?.time ?? 0);
+      this.poseAvatar(visual, actor, frame.dt, simulationTime);
       const held = actor.weapons[actor.slot]?.id || null;
       if (held !== visual.weaponId) {
         visual.weapon.geometry = this.weapons.get(held)!;
         visual.weaponId = held;
       }
-      visual.weapon.visible = !dead && actor.stage === 'ground' && !!held;
+      visual.weapon.visible = !dead && !emoting && actor.stage === 'ground' && !!held;
       const plate = visual.plate, scale = visual.group.scale.y;
       plate.head.copy(visual.group.position);
       plate.head.x -= Math.sin(actor.yaw) * .04 * scale;
       plate.head.y += 1.6 * (actor.crouch ? 1.3 / 1.8 : scale); plate.head.z -= Math.cos(actor.yaw) * .04 * scale;
       plate.distance = plate.head.distanceTo(this.camera.position);
+      if (actor.id === viewed && frame.playing && (emoting || this.cameraBlend > 0) && plate.distance < .65) visual.group.visible = false;
       // The local kill event can beat the dead snapshot and the camera pullback.
       // Keep the corpse out of the camera until it has left the standing head.
       if (dead && frame.playing && actor.id === viewed && plate.distance < .5) visual.group.visible = false;

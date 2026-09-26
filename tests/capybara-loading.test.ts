@@ -85,6 +85,38 @@ describe('capybara cosmetic colour contract', () => {
     avatar.body.skeleton.dispose(); capy.disposeCapybaraAssets();
   });
 
+  it('provides a reversible in-place wave when no authored emote clip exists', async () => {
+    const capy = await import('../src/render/capybara');
+    await capy.preloadCapybaraAsset(async () => fixture());
+    const avatar = capy.buildCapybaraBody('#1FB5A8');
+    const actor = { pos: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, grounded: true,
+      emote: 'wave', emoteUntil: 3, stage: 'ground', crouch: false, yaw: 0, pitch: 0, slot: 0, reloadUntil: 0, weapons: [{ id: 'pistol' }] } as any;
+    const before = structuredClone(actor), root = avatar.body.getObjectByName('root')!.position.clone();
+    for (let i = 0; i < 60; i++) capy.updateCapybaraBody(avatar.body, actor, 1 / 60, i / 60);
+    expect(avatar.body.getObjectByName('arm_R')!.quaternion.angleTo(new THREE.Quaternion())).toBeGreaterThan(1);
+    expect(avatar.body.getObjectByName('root')!.position.equals(root)).toBe(true); expect(actor).toEqual(before);
+    actor.emote = null; actor.emoteUntil = 0;
+    for (let i = 0; i < 60; i++) capy.updateCapybaraBody(avatar.body, actor, 1 / 60, 1 + i / 60);
+    expect(avatar.body.getObjectByName('arm_R')!.quaternion.angleTo(new THREE.Quaternion())).toBeLessThan(.01);
+    avatar.body.skeleton.dispose(); capy.disposeCapybaraAssets();
+  });
+
+  it('prefers an authored emote and restarts it when the same gesture receives a new deadline', async () => {
+    const capy = await import('../src/render/capybara'), source = fixture();
+    source.animations.push(new THREE.AnimationClip('wave', 3, [new THREE.NumberKeyframeTrack('head.scale[x]', [0, 3], [1, 1.3])]));
+    await capy.preloadCapybaraAsset(async () => source);
+    const avatar = capy.buildCapybaraBody('#1FB5A8');
+    const actor = { velocity: { x: 0, y: 0, z: 0 }, grounded: true, emote: 'wave', emoteUntil: 3,
+      stage: 'ground', crouch: false, yaw: 0, pitch: 0, slot: 0, reloadUntil: 0, weapons: [{ id: 'pistol' }] } as any;
+    for (let i = 0; i < 60; i++) capy.updateCapybaraBody(avatar.body, actor, 1 / 60, i / 60);
+    expect(avatar.body.getObjectByName('head')!.scale.x).toBeGreaterThan(1.09);
+    expect(avatar.body.getObjectByName('arm_R')!.quaternion.angleTo(new THREE.Quaternion())).toBeLessThan(.01);
+    actor.emoteUntil = 4;
+    capy.updateCapybaraBody(avatar.body, actor, 1 / 60, 1);
+    expect(avatar.body.getObjectByName('head')!.scale.x).toBeLessThan(1.02);
+    avatar.body.skeleton.dispose(); capy.disposeCapybaraAssets();
+  });
+
   it.each([false, true])('preserves fur and gear through recolouring and shares every LOD material (painted atlas: %s)', async painted => {
     const capy = await import('../src/render/capybara');
     const source = fixture();
