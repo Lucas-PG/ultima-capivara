@@ -645,7 +645,7 @@ export class WeaponView {
       this.key.position.set(-70, 32, -30).applyQuaternion(this.inverseView);
       this.rim.position.set(-70, 65, -30).applyQuaternion(this.inverseView);
     }
-    this.holder.visible = !!actor && actor.alive && actor.stage === 'ground';
+    this.holder.visible = !!actor && actor.alive && actor.stage === 'ground' && !(actor.emote && actor.emoteUntil > simulationTime);
     if (!actor || !this.holder.visible) {
       this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined; this.land.reset();
       this.swimPose = 0; this.swimming = false; return;
