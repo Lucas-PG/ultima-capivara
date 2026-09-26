@@ -727,3 +727,66 @@ body.reduce-motion #pause-panel h1,body.reduce-motion #pause-panel .board-mascot
 body.reduce-motion #hud .emote-ring{animation:none}
 body.reduce-motion #hud .emote-option{transition:none}
 @media(prefers-reduced-motion:reduce){#hud .emote-ring{animation:none}#hud .emote-option{transition:none}}
+
+/* Big moments share one paper-stamp language; the island remains behind the celebration. */
+#victory{grid-template-columns:minmax(280px,520px) minmax(400px,620px);place-items:center;place-content:center;gap:clamp(24px,4vw,64px);padding:28px;overflow:auto;pointer-events:auto;isolation:isolate;background:rgba(40,26,16,.56)}
+#victory::before{background:radial-gradient(ellipse at 28% 48%,rgba(255,194,61,.28),transparent 65%);pointer-events:none}
+#victory::after{pointer-events:none;z-index:-1}
+#victory .vrays{left:-25%;top:-25%;width:150%;height:150%;margin:0;opacity:.3;transform:rotate(-8deg);animation:none;pointer-events:none;background:repeating-conic-gradient(from -8deg at 28% 50%,#ffc23d55 0 8deg,transparent 8deg 16deg);mask-image:radial-gradient(ellipse,#000 10%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse,#000 10%,transparent 75%)}
+#victory .vcard,#victory:has(.vpanel.show) .vcard{position:relative;left:auto;top:auto;bottom:auto;transform:none;translate:none;scale:1;zoom:1;transition:none;width:100%;gap:10px;animation:victory-stamp .32s var(--spring) both}
+#victory .vsticker{margin:0;background:var(--candy-teal);border:3px solid var(--brown);border-radius:999px;padding:5px 15px;color:var(--brown);font:14px var(--heading);box-shadow:0 4px 0 var(--brown);rotate:-3deg}
+#victory .vtitle,#victory.lost .vtitle{max-width:100%;margin:8px 0 0;font-size:clamp(36px,4.5vw,66px);line-height:1.08;white-space:normal;text-transform:uppercase;text-wrap:balance;color:var(--gold);text-shadow:var(--ol-b),5px 7px 0 var(--brown);rotate:-3deg}
+#victory.lost .vtitle{color:var(--cream)}
+#victory .vportrait{position:relative;width:300px;height:270px;display:grid;place-items:center}
+#victory .vportrait::before{content:"";position:absolute;inset:24px 10px 0;border-radius:50%;background:radial-gradient(circle,#fff2b2aa,#f39a2333 65%,transparent 70%);border:3px dashed #fff1d666;rotate:9deg}
+#victory .vnum{position:absolute;left:-8px;top:16px;z-index:1;font-size:40px;line-height:1;background:var(--candy-gold);color:var(--brown);border:4px solid var(--brown);border-radius:22px;padding:12px;rotate:-13deg;text-shadow:0 2px 0 #fff1d6;box-shadow:0 5px 0 var(--brown)}
+#victory .vmascot,#victory.won .vmascot{position:relative;width:290px;height:290px;margin:-10px 0 0;animation:none;filter:drop-shadow(0 7px 0 #3a241855)}
+#victory .vwinner{display:flex;align-items:center;gap:10px;max-width:100%;padding:5px 20px 5px 6px;background:var(--paper);border:3px solid var(--brown);border-radius:999px;box-shadow:0 5px 0 var(--brown);color:var(--brown);rotate:2deg}
+#victory .vface svg{width:46px;height:46px;display:block}
+#victory .vwinner div{min-width:0}
+#victory .vwinner small{display:block;font-size:10px;letter-spacing:1.1px}
+#victory .vwinner b{display:block;font-family:var(--heading);font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#victory .vsub{margin:2px 0 0;padding:4px 10px;max-width:100%;font-size:13px;border:0;box-shadow:none;transform:none;background:none;color:var(--cream);white-space:normal;text-align:center;text-shadow:0 2px 0 var(--brown)}
+#victory .vpanel{position:relative;inset:auto;width:100%;zoom:1;--r:0deg;translate:0 12px;transform:none;padding:20px;gap:12px;border:4px solid var(--brown);box-shadow:7px 8px 0 var(--brown),inset 0 0 0 4px #f7e2b8;transition:translate .22s var(--spring),opacity .18s}
+#victory .vpanel.show{translate:0 0}
+#victory .vpanel-heading{position:relative;padding-right:90px;color:var(--brown)}
+#victory .vpanel-heading .eyebrow{font-size:11px;color:var(--brown-2);margin:0}
+#victory .vpanel-heading h2{font-family:var(--heading);font-size:22px;line-height:1.2;margin:4px 0}
+#victory .vplace{position:absolute;right:-8px;top:6px;rotate:8deg;border:3px solid var(--brown);border-radius:12px;padding:6px 9px;background:var(--candy-gold);font:14px var(--heading)}
+#victory .vstats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#victory .vstats div:nth-child(n){min-width:0;gap:5px;padding:10px;transform:none}
+#victory .vstats b{font-size:32px;color:var(--brown)}
+#victory .vstats span{font-size:12px;white-space:normal;text-align:center}
+#victory .vaccuracy{margin:0;text-align:center;font-size:12px;color:var(--brown-2)}
+#victory .vawards{gap:8px}
+#victory .award{font-size:11px;padding:5px 8px;gap:5px}
+#victory .award img{width:26px;height:26px}
+#victory .award small{display:none}
+#victory .vboard{max-height:170px;overflow:auto;padding-top:6px;scrollbar-color:var(--gold) var(--paper-2);scrollbar-width:thin}
+#victory .score-table th,#victory .score-table td{font-size:12px;padding:6px 8px}
+#victory .vlast{display:none}
+#victory .vactions{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;padding-top:4px}
+#victory .vactions .button{height:52px;font-size:17px;justify-content:center}
+#victory .vactions .wait{height:auto;min-height:52px;font-size:12px;padding:6px}
+#victory #confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+#victory #confetti i{left:var(--cx);top:var(--cy);width:12px;height:19px;border:2px solid var(--brown);border-radius:3px;rotate:var(--spin);opacity:.7;animation:victory-paper var(--fall) var(--ease) var(--delay) both}
+#victory #confetti i:nth-child(3n){width:17px;height:9px;border-radius:1px}
+#victory #confetti i:nth-child(5n){clip-path:polygon(50% 0,61% 35%,100% 35%,68% 57%,80% 100%,50% 72%,20% 100%,32% 57%,0 35%,39% 35%);width:22px;height:22px;border:0}
+@keyframes victory-stamp{from{opacity:0;transform:scale(.88) rotate(-4deg)}70%{transform:scale(1.02) rotate(1deg)}to{opacity:1;transform:none}}
+@keyframes victory-paper{from{opacity:0;transform:translateY(-65vh) rotate(-140deg)}15%{opacity:1}to{opacity:.7;transform:none}}
+#hud #matchMoment{position:absolute;left:50%;top:128px;translate:-50% 0;z-index:8;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;max-width:calc(100% - 32px);text-align:center;rotate:-3deg}
+#hud #matchMoment strong{font:clamp(26px,3.1vw,42px)/1.1 var(--heading);text-transform:uppercase;color:var(--brown);background:var(--candy-gold);border:4px solid var(--brown);border-radius:14px;padding:10px 20px;box-shadow:5px 6px 0 var(--brown)}
+#hud #matchMoment small{font-size:12px;color:var(--brown);background:var(--paper);border:2px solid var(--brown);border-radius:999px;padding:4px 12px;rotate:3deg}
+#hud #matchMoment[data-kind=drop] strong{font-size:56px;padding:6px 34px}
+#hud #matchMoment[data-kind=storm] strong{background:linear-gradient(#e0c5ff,#b388f7);min-width:84px}
+#hud #matchMoment.stamp{animation:victory-stamp .24s var(--spring)}
+#hud #banner.countdown{font-size:110px;color:var(--gold);text-shadow:var(--ol-b),7px 9px 0 var(--brown)}
+#hud #banner.countdown.count-beat{animation:count-beat .22s var(--spring)}
+@keyframes count-beat{from{scale:.75}70%{scale:1.07}to{scale:1}}
+#hud.ended #matchMoment,body:has(#pause-panel:not([hidden])) #matchMoment,body:has(#emoteWheel:not([hidden])) #matchMoment{display:none}
+body.reduce-motion #victory :is(.vcard,.vmascot,.vrays,#confetti i,.award::after),body.reduce-motion #hud :is(#matchMoment,#banner.countdown){animation:none!important}
+body.reduce-motion #victory .vpanel{transition:none}
+@media(prefers-reduced-motion:reduce){#victory :is(.vcard,.vmascot,.vrays,#confetti i,.award::after),#hud :is(#matchMoment,#banner.countdown){animation:none!important}#victory .vpanel{transition:none}}
+@media(min-height:900px) and (min-width:901px){#victory .vportrait{width:370px;height:340px}#victory .vmascot,#victory.won .vmascot{width:370px;height:370px}#victory .vpanel{padding:26px;gap:16px}#victory .vstats div{padding:15px}#victory .vboard{max-height:210px}}
+@media(max-width:900px){#victory{grid-template-columns:minmax(0,620px);align-content:start;padding:24px 20px 32px;gap:22px}#victory .vcard{gap:8px}#victory .vportrait{width:210px;height:170px}#victory .vmascot,#victory.won .vmascot{width:200px;height:200px}#victory .vnum{font-size:26px;padding:9px;left:0}#victory .vtitle,#victory.lost .vtitle{font-size:38px}#victory .vpanel{padding:16px}#victory .vboard{max-height:150px}#hud #matchMoment{top:110px}}
+@media(max-width:500px){#victory .vtitle,#victory.lost .vtitle{font-size:32px}#victory .vpanel-heading h2{font-size:18px}#victory .vactions{grid-template-columns:1fr}#victory .vstats b{font-size:28px}#hud #matchMoment strong{font-size:23px;padding:8px 14px}}

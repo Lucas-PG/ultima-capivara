@@ -8,7 +8,7 @@ import { boundaryFeedback } from '../shared/bounds';
 import { WEAPONS } from '../shared/weapons';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon } from './icons';
-import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, tipCategory, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 import { EMOTES, EMOTE_IDS } from '../shared/emotes';
@@ -36,10 +36,10 @@ const MINIMAP_SPAN = 84, MAP_PPM = 4;
 const CONSUMABLES: ConsumableId[] = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'];
 const USE_LABEL: Record<ConsumableId, string> = { bandage: 'Enfaixando…', medkit: 'Remendando…', guarana: 'Tomando guaraná…', acai: 'Tomando açaí…', rapadura: 'Mastigando rapadura…' };
 const LOOT_LABEL: Record<string, string> = { ammo: 'munição', armor: 'colete', helmet: 'capacete', bandage: 'bandagem', medkit: 'kit médico', guarana: 'guaraná', acai: 'açaí', rapadura: 'rapadura' };
-const DEATH_LINES = [(k: string) => `Virou comida de ${k}`, (k: string) => `${k} te mandou pro saco`, (k: string) => `Levou a pior contra ${k}`, (k: string) => `${k} não deixou nem o osso`];
+const nextEliminationLine = tipBag(ELIMINATION_LINES);
 const fireMode = (id: WeaponId) => id === 'machete' ? 'CORTE' : id === 'slingshot' ? 'PEDRA' : id === 'shotgun' ? 'BOMBA' : id === 'sniper' ? 'FERROLHO' : WEAPONS[id].automatic ? 'AUTO' : 'SEMI';
 // Result stats the simulation may add (Brasa, M1); cards stay hidden until the fields exist.
-type ResultStats = MatchResult & Partial<{ shots: number; hits: number; headshots: number; survived: number; chests: number }>;
+type ResultStats = MatchResult & Partial<{ shots: number; hits: number; headshots: number; survived: number; chests: number; longestShot: number }>;
 const CROSSHAIR_COLORS: Record<Settings['crosshairColor'], string> = { white: '#ffffff', yellow: '#ffe14d', cyan: '#3fd8ff', magenta: '#ff4fd8' };
 // Colour-blind palette swaps red/gold for magenta/cyan; the markers also differ by shape, never by colour alone.
 const HIT_PALETTES: Record<Settings['hitPalette'], [string, string, string]> = { default: ['#ffffff', '#ffc23d', '#e5412d'], colorblind: ['#ffffff', '#3fd8ff', '#ff4fd8'] };
@@ -68,6 +68,10 @@ export class GameUI {
   private lastResults = '';
   private toastTimer = 0;
   private lastBanner = '';
+  private momentPhase: WorldSnapshot['phase'] | null = null;
+  private momentStage: ActorState['stage'] | null = null;
+  private firstStormBeat = 0;
+  private momentTimer = 0;
   private deathInfo: { place: number; line: string; card: string | null; until: number } | null = null;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
@@ -168,6 +172,7 @@ export class GameUI {
     return `<header class="topbar"><button class="brand" data-do="home" aria-label="Tela inicial"><img src="./assets/favicon.svg" alt=""/><span>ÚLTIMA<br><b>CAPIVARA</b></span></button><nav>${back ? `<button class="nav-link" data-do="leave">${icon('back')} VOLTAR</button>` : '<span class="nav-link active">JOGAR</span><button class="nav-link" data-do="how">COMO JOGAR</button>'}<button class="icon-button" data-do="settings" aria-label="Configurações">${icon('settings')}</button></nav><div class="edition"><span class="live-dot"></span> EDIÇÃO ILHA <b>GRÁTIS</b></div></header>`;
   }
   home() {
+    clearTimeout(this.momentTimer);
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
     this.screen = 'home'; this.lastResults = ''; this.els.clear(); this.coach = null; document.body.dataset.screen = 'home';
     const mode = (m: Mode) => `${this.selectedMode === m ? ' selected' : ''}" aria-pressed="${this.selectedMode === m}`;
@@ -257,6 +262,7 @@ export class GameUI {
   }
   game(playerId: string) {
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
+    clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0;
     this.lastBanner = ''; this.deathInfo = null; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null; this.deathReleased = false;
     if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
@@ -266,6 +272,7 @@ export class GameUI {
       + `<div id="topL" class="stk"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
       + `<div id="safe" class="stk" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="stk" hidden>Na tempestade! −<span id="hDps">1</span>/s</div>`
       + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
+      + `<div id="matchMoment" hidden aria-live="polite"><strong id="momentTitle"></strong><small id="momentDetail"></small></div>`
       + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden role="group" aria-label="Você foi eliminada"><img class="spec-mascot" src="${uiArt('capy-lose')}" alt="" draggable="false"><div class="btns">${ELIMINATED_ACTIONS.map(a => `<button type="button" class="${a.primary ? 'go' : 'alt'}" data-do="${a.do}">${a.primary ? icon('eye') : icon('back')} ${a.label}</button>`).join('')}</div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste<span class="esc"> · <kbd>Esc</kbd> solta o mouse pra clicar</span></span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="leave">${icon('back')} Voltar ao menu</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
       + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
@@ -367,7 +374,7 @@ export class GameUI {
     if (snapshot.phase === 'countdown') banner = `${Math.ceil(snapshot.countdown)}<small>Prepare-se · a ilha já vai abrir</small>`;
     else if (!me.alive) {
       // During the death cam the card names the killer; afterwards BR shows the placement line, Correria the respawn timer.
-      const info = this.deathInfo ||= { place: alive + 1, line: 'Fim da linha pra você', card: null, until: 0 }, carding = !!info.card && now < info.until;
+      const info = this.deathInfo ||= { place: alive + 1, line: nextEliminationLine(), card: null, until: 0 }, carding = !!info.card && now < info.until;
       const detail = carding ? info.card! : br ? esc(info.line) : `Volta em ${Math.max(0, Math.ceil(me.respawnAt - t))} s`;
       banner = `${br ? `#${info.place}` : 'Caiu!'}<small class="${carding ? 'kc' : ''}">${detail}</small>`;
     }
@@ -376,7 +383,9 @@ export class GameUI {
       const boundary = boundaryFeedback(me.pos, this.world, snapshot.config.mode);
       if (boundary) banner = `${boundary.message}<small>Siga de volta para a área de jogo</small>`;
     }
+    this.toggle(this.el('banner'), 'countdown', snapshot.phase === 'countdown');
     this.setBanner(banner);
+    this.updateMoments(snapshot, me);
     // Out for good: the player's own loadout and vitals leave the screen so the choice (watch or leave) is the focus.
     const out = !me.alive, hud = this.el('hud');
     // The moment the player is down (out of a battle royale, or waiting to respawn in Correria), every combat cue goes.
@@ -430,37 +439,41 @@ export class GameUI {
   }
   // Results over the live island: a stamped placement, then stats, awards, the board and the next step.
   private victory(snapshot: WorldSnapshot) {
+    clearTimeout(this.momentTimer); this.show('matchMoment', false);
     const hud = this.el('hud'); hud.classList.add('ended'); this.el('pause-panel').hidden = true; this.el('scoreboard').hidden = true; this.coach = null; this.show('coach', false);
     const br = snapshot.config.mode === 'battle-royale', results = snapshot.results as ResultStats[], winners = results.filter(r => r.winner), won = winners.some(r => r.id === this.localId);
     const me = results.find(r => r.id === this.localId), place = me?.place ?? results.length, names = winners.map(w => esc(w.name)).join(' e ');
-    const title = won ? br ? 'Última de pé!' : 'Dona da correria!' : br ? 'Não foi dessa vez' : winners.length ? `${names} ${winners.length > 1 ? 'levaram' : 'levou'}` : 'Ninguém levou';
+    const title = won ? br ? 'Última Capivara!' : 'Dona da correria!' : 'Boa partida!';
     const sub = won ? br ? `Última capivara de pé entre ${results.length}` : `${winners.length > 1 ? 'Vitória dividida · ' : ''}${me?.kills ?? 0} presas` : `Você ficou em ${ordinal(place)} de ${results.length}`;
+    const champion = winners.find(w => w.id === this.localId) ?? winners[0], championName = winners.length > 1 ? `${champion?.name ?? 'A turma'} + ${winners.length - 1}` : champion?.name ?? 'A turma';
     const prey = this.lastPrey ? `<div class="vlast"><span class="pt">${capybara(this.lastPrey.color)}</span><span>Última presa: <b>${esc(this.lastPrey.name)}</b></span></div>` : '';
     const stat = (value: string | number, label: string) => `<div><b${typeof value === 'number' ? ` data-count="${value}"` : ''}>${value}</b><span>${label}</span></div>`;
-    const stats = me ? [stat(me.kills, 'Eliminações'), stat(Math.round(me.damage), 'Dano'),
-      me.shots !== undefined && me.hits !== undefined ? stat(accuracyText(me.hits, me.shots), 'Precisão') : '',
-      me.headshots !== undefined ? stat(me.headshots, 'Na cachola') : '',
-      me.survived !== undefined ? stat(formatSurvived(me.survived), 'Tempo vivo') : ''].join('') : '';
+    const stats = me ? [stat(me.kills, 'Eliminações'), stat(Math.round(me.damage), 'Dano causado'),
+      stat(me.survived === undefined ? '–' : formatSurvived(me.survived), 'Tempo vivo'),
+      stat(me.longestShot === undefined ? '–' : `${Math.max(0, Math.round(me.longestShot))} m`, 'Acerto mais longe')].join('') : '';
+    const accuracy = me?.shots !== undefined && me.hits !== undefined ? `${accuracyText(me.hits, me.shots)} de precisão${me.headshots !== undefined ? ` · ${me.headshots} na cachola` : ''}` : '';
     // Awards only from simulation fields; a player gets at most two.
     const best = (field: keyof ResultStats) => { const top = Math.max(0, ...results.map(r => Number(r[field] ?? 0))); return top > 0 && Number(me?.[field] ?? 0) === top; };
     const awards = me ? ([['kills', 'Caçadora da ilha', 'mais eliminações'], ['damage', 'Mão pesada', 'mais dano'], ['headshots', 'Mira de ouro', 'mais tiros na cabeça'], ['chests', 'Rainha do baú', 'mais baús abertos'], ['survived', 'Sobrevivente', 'mais tempo viva']] as const)
       .filter(([field]) => me[field] !== undefined && best(field)).slice(0, 2).map(([field, name, why]) => `<span class="award"><img src="${uiArt(`award-${field}`)}" alt="" draggable="false"><b>${name}</b><small>${why}</small></span>`).join('') : '';
     const host = !!this.room?.isHost, guest = !!this.room && !host;
-    const primary = guest ? `<span class="wait">${icon('clock')} Esperando quem criou a sala</span>` : `<button class="button primary" data-do="rematch">${icon(host ? 'users' : 'play')} ${host ? 'Reunir a turma' : 'Jogar de novo'}</button>`;
+    const primary = guest ? `<span class="wait">${icon('clock')} Esperando quem criou a sala</span>` : `<button class="button primary" data-do="rematch">${icon(host ? 'users' : 'play')} Jogar de novo</button>`;
     const board = [...results].sort((x, y) => x.place - y.place || y.kills - x.kills), top = board.slice(0, 5);
     if (me && !top.includes(me)) top.push(me);
     const rows = top.map(r => `<tr class="${r.id === this.localId ? 'you' : ''}"><td><span class="rank">${r.place}</span><i style="background:${/^#[a-f0-9]{6}$/i.test(r.color) ? r.color : PLAYER_COLORS[0]}"></i>${esc(r.name)}${r.bot ? '<small>BOT</small>' : r.id === this.localId ? '<small>VOCÊ</small>' : ''}</td><td>${r.kills}</td><td>${Math.round(r.damage)}</td></tr>`).join('');
     const layer = document.createElement('div'); layer.id = 'victory'; layer.className = won ? 'won' : 'lost';
-    layer.innerHTML = `<div class="vrays"></div><div class="vcard"><img class="vmascot" src="${uiArt(won ? 'capy-win' : 'capy-lose')}" alt="" draggable="false"><div class="vnum">#${won ? 1 : place}</div><div class="vtitle">${title}</div><div class="vsub">${sub}</div>${prey}</div>`
-      + `<div class="vpanel stk" id="vpanel" role="region" aria-label="Resultado da partida"><div class="vstats">${stats}</div>${awards ? `<div class="vawards">${awards}</div>` : ''}`
+    layer.innerHTML = `<div class="vrays" aria-hidden="true"></div><div class="vcard"><p class="vsticker">${won ? 'É SUA, CAPIVARA!' : 'VALEU A AVENTURA!'}</p><h1 class="vtitle">${title}</h1><div class="vportrait"><span class="vnum">${champion ? '#1' : '♥'}</span><img class="vmascot" src="${uiArt(champion ? 'capy-win' : 'capy-wave')}" alt="Capivara comemorando com seu troféu" draggable="false"></div><div class="vwinner" title="${names}"><span class="vface">${capybara(champion?.color)}</span><div><small>${winners.length > 1 ? 'TURMA VENCEDORA' : 'A ILHA TEM CAMPEÃ'}</small><b>${esc(championName)}</b></div></div><div class="vsub">${sub}</div></div>`
+      + `<div class="vpanel stk" id="vpanel" role="region" aria-label="Resultado da partida"><div class="vpanel-heading"><span class="eyebrow">ESSA VAI PRO ÁLBUM</span><h2>Seu resumo da ilha</h2><span class="vplace">${ordinal(place)} lugar</span></div><div class="vstats">${stats}</div>${accuracy ? `<p class="vaccuracy">${accuracy}</p>` : ''}${awards ? `<div class="vawards">${awards}</div>` : ''}`
       + `<div class="vboard"><table class="score-table"><thead><tr><th>CAPIVARA</th><th>ELIM.</th><th>DANO</th></tr></thead><tbody>${rows}</tbody></table></div>`
-      + `<div class="vactions">${primary}<button class="button secondary" data-do="leave">${icon('back')} Voltar ao menu</button></div></div>`
-      + `<div id="confetti"></div><div id="flash"></div>`;
+      + `${prey}<div class="vactions">${primary}<button class="button secondary" data-do="leave">${icon('back')} Voltar</button></div></div><div id="confetti" aria-hidden="true"></div>`;
     hud.appendChild(layer);
-    if (won && !this.reducedMotion()) {
-      const confetti = layer.querySelector<HTMLElement>('#confetti')!, colors = [...PLAYER_COLORS];
-      for (let i = 0; i < 70; i++) { const bit = document.createElement('i'); bit.style.left = `${Math.random() * 100}%`; bit.style.background = colors[i % colors.length]; bit.style.animationDuration = `${2.2 + Math.random() * 2}s`; bit.style.animationDelay = `${Math.random() * 1.6}s`; bit.style.rotate = `${Math.random() * 180}deg`; confetti.appendChild(bit); }
-      layer.querySelector('#flash')!.classList.add('on');
+    if (won) {
+      const confetti = layer.querySelector<HTMLElement>('#confetti')!, colors = ['#ffc23d', '#1fb5a8', '#fff1d6', '#e2623a', '#8fc95e'];
+      for (let i = 0; i < 36; i++) {
+        const bit = document.createElement('i');
+        bit.style.cssText = `--cx:${(i * 37 + 7) % 100}%;--cy:${(i * 23 + 3) % 100}%;--spin:${i * 47 % 180}deg;--delay:${i % 7 * .055}s;--fall:${1.6 + i % 5 * .17}s;background:${colors[i % colors.length]}`;
+        confetti.appendChild(bit);
+      }
     }
     // Quality bar: nothing may block input for more than 400 ms. The panel slides in under the stamp while it plays,
     // and its actions are focusable and clickable from 300 ms on.
@@ -627,7 +640,7 @@ export class GameUI {
   }
   event(event: GameEvent) {
     if (event.type === 'shot' && event.actor === this.localId) this.crosshairSpread.onShot(event.weapon, performance.now());
-    if (event.type === 'notice') this.toast(event.text);
+    if (event.type === 'notice' && event.text !== 'A partida começou!' && !(event.text === 'A tempestade está fechando!' && this.snapshot?.zone.phase === 0)) this.toast(event.text);
     if (this.screen !== 'game' || !this.root.querySelector('#hud')) return;
     const find = (id: string | null) => id ? this.snapshot?.actors.find(a => a.id === id) : undefined;
     if (event.type === 'damage') {
@@ -663,7 +676,7 @@ export class GameUI {
       if (died && this.snapshot) {
         const others = this.snapshot.actors.filter(a => a.alive && a.id !== this.localId).length;
         const byPlayer = !!killer && event.weapon !== 'storm' && event.weapon !== 'fall';
-        const line = byPlayer ? DEATH_LINES[Math.floor(Math.random() * DEATH_LINES.length)](killer!.name) : event.weapon === 'fall' ? 'O chão ganhou essa' : 'A tempestade te engoliu';
+        const line = event.weapon === 'fall' ? 'O chão apareceu cedo demais.' : event.weapon === 'storm' ? 'A tempestade molhou os planos.' : nextEliminationLine();
         // Kill card for the death cam: who, with what, from how far (the event's distance at the moment of the kill).
         const kill = event as typeof event & { distance?: number };
         const measured = kill.distance ?? (killer && victim ? Math.hypot(killer.pos.x - victim.pos.x, killer.pos.y - victim.pos.y, killer.pos.z - victim.pos.z) : null);
@@ -688,10 +701,28 @@ export class GameUI {
     const feed = this.el('feed'); feed.prepend(entry); window.setTimeout(() => entry.remove(), 4200);
     while (feed.children.length > 6) feed.lastElementChild!.remove();
   }
+  private updateMoments(snapshot: WorldSnapshot, me: ActorState) {
+    if (!me.alive) { clearTimeout(this.momentTimer); this.show('matchMoment', false); }
+    else if (snapshot.phase === 'playing') {
+      if (this.momentPhase === 'countdown') this.showMoment('Boa sorte, capivara!', 'A ilha é sua!');
+      if (this.momentStage === 'plane' && me.stage === 'falling') this.showMoment('PULA!', `${keyName(bindingOf(this.settings.bindings, 'jump'))} abre o paraquedas`, 'drop');
+      const beat = snapshot.config.mode === 'battle-royale' && snapshot.zone.phase === 0 && !snapshot.zone.shrinking ? Math.ceil(snapshot.zone.timeLeft) : 0;
+      if (beat > 0 && beat <= 5 && beat !== this.firstStormBeat) this.showMoment(String(beat), 'Primeira tempestade · prepare a rota', 'storm');
+      else if (this.firstStormBeat > 0 && this.firstStormBeat <= 5 && snapshot.zone.phase === 0 && snapshot.zone.shrinking) this.showMoment('Lá vem ela!', 'Vá para a área segura', 'storm');
+      this.firstStormBeat = beat;
+    }
+    this.momentPhase = snapshot.phase; this.momentStage = me.stage;
+  }
+  private showMoment(title: string, detail: string, kind = 'start') {
+    const moment = this.el('matchMoment'); clearTimeout(this.momentTimer);
+    this.text('momentTitle', title); this.text('momentDetail', detail); moment.dataset.kind = kind; this.show('matchMoment', true);
+    if (!this.reducedMotion()) this.restartAnimation(moment, 'stamp');
+    this.momentTimer = window.setTimeout(() => { moment.hidden = true; }, kind === 'storm' && /^\d$/.test(title) ? 1200 : 1600);
+  }
   private setBanner(html: string) {
     if (html === this.lastBanner) return; this.lastBanner = html;
     // A hidden banner leaves the accessibility tree: cleared after its fade, aria-hidden right away.
-    const banner = this.el('banner'); if (html) banner.innerHTML = html; banner.classList.toggle('on', !!html); banner.setAttribute('aria-hidden', String(!html));
+    const banner = this.el('banner'); if (html && banner.classList.contains('countdown') && !this.reducedMotion()) this.restartAnimation(banner, 'count-beat'); if (html) banner.innerHTML = html; banner.classList.toggle('on', !!html); banner.setAttribute('aria-hidden', String(!html));
     if (!html) window.setTimeout(() => { if (!this.lastBanner && banner.isConnected) banner.textContent = ''; }, 300);
   }
   private hitMarker(kind: '' | 'head' | 'kill') {
