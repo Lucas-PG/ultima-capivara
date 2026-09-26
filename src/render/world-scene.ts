@@ -8,6 +8,7 @@ import { terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
 import { createIslandBackdrop } from './island-backdrop';
+import { createStreetDressing } from './street-dressing';
 import { GroundCover } from './ground-cover';
 import { createKit, type KitScene } from './kit';
 import { releaseAfterUpload } from './memory';
@@ -344,6 +345,7 @@ export class WorldScene {
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
     const backdrop = createIslandBackdrop(world); this.group.add(backdrop.mesh); this.disposables.push(backdrop);
+    const street = createStreetDressing(world); this.group.add(street.group); this.disposables.push(street);
 
     this.paintedWater = new PaintedWater(world, ground.geometry);
     this.water = this.paintedWater.mesh;
