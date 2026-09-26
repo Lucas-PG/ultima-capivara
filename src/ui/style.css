@@ -791,7 +791,7 @@ body.reduce-motion #victory .vpanel{transition:none}
 @media(max-width:900px){#victory{grid-template-columns:minmax(0,620px);align-content:start;padding:24px 20px 32px;gap:22px}#victory .vcard{gap:8px}#victory .vportrait{width:210px;height:170px}#victory .vmascot,#victory.won .vmascot{width:200px;height:200px}#victory .vnum{font-size:26px;padding:9px;left:0}#victory .vtitle,#victory.lost .vtitle{font-size:38px}#victory .vpanel{padding:16px}#victory .vboard{max-height:150px}#hud #matchMoment{top:110px}}
 @media(max-width:500px){#victory .vtitle,#victory.lost .vtitle{font-size:32px}#victory .vpanel-heading h2{font-size:18px}#victory .vactions{grid-template-columns:1fr}#victory .vstats b{font-size:28px}#hud #matchMoment strong{font-size:23px;padding:8px 14px}}
 /* Keep the wheel hint above live health/armor at 720p; option text remains above 12 px. */
-@media(max-height:800px){#hud .emote-ring{scale:.9;translate:0 -16px}}
+@media(max-height:800px){#hud .emote-ring{scale:.9;translate:0 -16px}#hud :is(.emote-hint,.emote-center,.emote-option kbd){font-size:14px}}
 /* Three adventures retain the compact illustrated postcard treatment at 720p. */
 .title-screen .mode-section{width:min(1180px,100%)}
 .title-screen .mode-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
