@@ -7,7 +7,7 @@ import type { Mode, SpawnPoint } from '../src/shared/types';
 import { ARENA, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, RIVER, ROADS, inArena, riverSample, routeDistance } from '../src/shared/layout';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
-import { WORLD_PALETTE, terrainColor, terrainHeight } from '../src/shared/terrain';
+import { WORLD_PALETTE, roadPaintWeight, terrainColor, terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
 import { waterAt } from '../src/shared/water';
 
@@ -298,6 +298,16 @@ describe('river island gameplay integrity', () => {
     expect(covered / samples).toBeGreaterThan(.4);
   });
 
+  it('connects the beach approach to the fort gate without climbing the terrace face', () => {
+    const route = NAV_ROUTES.find(points => points.some(([x, z]) => x === 51 && z === -101))!;
+    expect(route).toBeDefined();
+    const [x, z] = route[0];
+    expect(walkableSegment(world, { x, z }, { x: FORTE[0], z: FORTE[1] + 12 })).toBe(true);
+    for (let i = 1; i < route.length; i++)
+      expect(walkableSegment(world, { x: route[i - 1][0], z: route[i - 1][1] },
+        { x: route[i][0], z: route[i][1] }), `unwalkable fort approach segment ${i}`).toBe(true);
+  });
+
   it('marks each arena edge with real pieces while leaving its gates traversable', () => {
     const boundaries = world.pieces!.filter(p => world.arenaBoundary!.includes(p.id));
     expect(boundaries.length).toBeGreaterThanOrEqual(12);
@@ -369,6 +379,19 @@ describe('river island gameplay integrity', () => {
 });
 
 describe('painted terrain regions', () => {
+  it('lets the promenade become continuous sand without a straight road or curb band', () => {
+    for (const z of [101, 102.9, 103, 103.2, 103.4, 104]) {
+      const y = terrainHeight(-38, z);
+      expect(roadPaintWeight(-38, z, y)).toBe(0);
+      expect([WORLD_PALETTE.sand, WORLD_PALETTE.sandLight, WORLD_PALETTE.sandWet])
+        .toContain(terrainColor(-38, z, y, 0));
+    }
+    expect(roadPaintWeight(-38, 86, 2.2)).toBe(1);
+    expect(roadPaintWeight(3, 109, 5.8)).toBe(1);
+    for (let z = 86; z < 100; z += .1)
+      expect(Math.abs(roadPaintWeight(-38, z + .1, .85) - roadPaintWeight(-38, z, .85))).toBeLessThan(.06);
+  });
+
   it('keeps bright grass, distinct roads, sandy beaches and rocky relief', () => {
     const brightness = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).reduce((n, c, i) => n + c * [.2126, .7152, .0722][i], 0);
     for (const color of [WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass]) expect(brightness(color)).toBeGreaterThan(145);

@@ -27,6 +27,7 @@ const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
+  fortApproach: [4, -62, 0, .2], morroApproach: [-54, -38, Math.PI / 2, .2],
   quayNorth: [-13, .3, Math.PI, -.55], quaySouth: [27, 23.5, 0, -.55],
   bathVila: [19, 31, 0, -.13], bathFazenda: [55, 51, Math.PI / 2, -.28], bathMangue: [108, 63, Math.PI / 2, -.2],
   trampolineVila: [18, -7, -Math.PI / 2, -.13], trampolineForte: [51, -101, Math.atan2(-4, 6), -.13],

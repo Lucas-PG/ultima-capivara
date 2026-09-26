@@ -37,6 +37,21 @@ function harness() {
 }
 
 describe('authoritative character reactions', () => {
+  it('simplifies a distant held pistol without changing its socket and avoids LOD flicker', () => {
+    const h = harness(); h.actor.weapons = [{ id: 'pistol', ammo: 12, reserve: 24, rarity: 0 }];
+    h.advance(1 / 60);
+    const near = h.visual.weapon.geometry, socket = h.visual.weapon.position.clone();
+    camera.position.set(0, 1.6, 18); h.advance(1 / 60);
+    const far = h.visual.weapon.geometry;
+    expect(far.getAttribute('position').count).toBeLessThan(near.getAttribute('position').count * .5);
+    camera.position.z = 13; h.advance(1 / 60);
+    expect(h.visual.weapon.geometry).toBe(far);
+    camera.position.z = 11; h.advance(1 / 60);
+    expect(h.visual.weapon.geometry).toBe(near);
+    expect(h.visual.weapon.position.equals(socket)).toBe(true);
+    expect(h.actor.weapons[0].id).toBe('pistol');
+  });
+
   it('anchors labels 35 cm over the loaded crown, including crouched avatars', () => {
     const h = harness();
     for (const crouch of [false, true]) {

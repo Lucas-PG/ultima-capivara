@@ -122,8 +122,9 @@ export const NAV_ROUTES: readonly (readonly Point[])[] = [
   [[-30, 78], [3, 78], [60, 78], [80, 54], [102, 54]],
   [[3, 78], [3, 100], [3, 106]],
   [[-30, 61], [-63, 61], [-64, 87], [-45, 100]],
-  [[4, -80], [29, -84], [51, -101], [74, -91], [62, -38]],
-  [[29, -84], [17, -87]],
+  // Beach traffic joins the graded southern ramp below the fort. A shortcut
+  // across the fixed terrace would create an unwalkable cut under its walls.
+  [[4, -62], [18, -66], [31, -79], [51, -101], [74, -91], [62, -38]],
 ];
 export function routeDistance(x: number, z: number): number {
   let nearest = Infinity;

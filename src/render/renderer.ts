@@ -206,7 +206,7 @@ export class GameRenderer {
     this.worldView.update(this.elapsed, this.camera);
     this.ambientLife.update(this.camera, this.elapsed, this.settings, this.gl.getPixelRatio());
     timing.end('camera', cameraAt);
-    this.loot.update(frame.snapshot, this.elapsed);
+    this.loot.update(frame.snapshot, this.elapsed, this.camera);
     let room: typeof this.litRooms[number] | undefined;
     for (const candidate of this.litRooms) if (Math.abs(this.camera.position.x - candidate.x) < candidate.w / 2 &&
       Math.abs(this.camera.position.z - candidate.z) < candidate.d / 2 && this.camera.position.y > candidate.y &&
