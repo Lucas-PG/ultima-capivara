@@ -474,3 +474,11 @@ Exact prompt:
 ### Worn island paving, 2026-09-26
 
 Original procedural ground paint in `src/render/world-scene.ts` gives the walkable town roads warm, staggered stone courses with rounded corners, quiet per-stone washes and worn edges. Derivative filtering removes the joints before they form a distant checker pattern. The shared `roadPaintWeight` in `src/shared/terrain.ts` blends paving and curb into beach sand and removes both from steep terrace cuts. Terrain heights, road layout, collision and recreation contacts are unchanged. No external textures, image generation, new meshes or added draw calls are used.
+
+### Long-headed capybara silhouette, toes and field gear, 2026-09-26
+
+Original Blender source in `tools/blender/capybara.py` reshapes the approved character into a long rounded rectangular skull with a nearly level brow-to-nose line, broad vertical muzzle, high nose pad, high side-set eyes and heavier lids. A continuous thicker neck meets the chest; the bandana follows its measured surface. Small cupped ears use smooth vertex colour instead of sharp painted wedges. The cinnamon fur palette is now centred on `#9A5C36`, with `#4A3327` muzzle and paws. The actual skinned head surface measures about 1.36 times longer than tall at LOD0.
+
+Four separate long padded toes and rounded nails replace the flat boot outline, with narrower ankles, a raised heel and bent knees. Convex canvas pouches have gussets and retention tabs; the back roll has tapered ends, rolled fabric spirals and two straps. All 35 joints, 24 existing clips, root transforms and shared hit shapes remain unchanged. The three LODs contain 19,800 / 4,786 / 1,298 triangles, with one material and a 1,852,552-byte compressed GLB. Simplified UVs are clamped inside the painted atlas before export, preventing a measured decimation overshoot from wrapping into an unrelated material. A decoded-UV regression protects that boundary. No external asset, animation or image generation was used in this iteration.
+
+Fresh front, three-quarter and side comparisons use the approved turnaround and current game lighting. The long blunt head, darker muzzle, separate toes and rounded gear are delivered; richer cloth folds, denser directional fur and swappable hats remain open. This checkpoint does not claim full parity with the cover painting.

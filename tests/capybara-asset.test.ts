@@ -55,6 +55,12 @@ describe('shipped capybara asset contract', () => {
       expect(mesh).toBeDefined();
       const triangles = mesh.listPrimitives().reduce((n, p) => n + p.getIndices()!.getCount() / 3, 0);
       expect(triangles).toBeLessThanOrEqual([20000, 5000, 1500][i]);
+      // A simplified UV outside the atlas wraps to a different painted material.
+      for (const primitive of mesh.listPrimitives()) {
+        const uv = primitive.getAttribute('TEXCOORD_0')!;
+        const staysInAtlas = Array.from({ length: uv.getCount() }, (_, index) => uv.getElement(index, [])).every(pair => pair.every(value => value >= 0 && value <= 1));
+        expect(staysInAtlas, `LOD${i} painted atlas boundaries`).toBe(true);
+      }
     }
     expect(root.listMaterials().length).toBeLessThanOrEqual(3);
     expect(root.listSkins()).toHaveLength(1);
