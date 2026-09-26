@@ -49,6 +49,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     [{ id: 'practice', name: 'Capivara', color: '#bd8956', ready: true, connected: true }], 'qa-seed-2026', 0x5eed2026);
   const base = fixture.snapshot();
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
+  let pendingFrame: number | null = null;
   let preparedIdentities = '';
   const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade',
@@ -60,7 +61,12 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       dt: looping ? 1 / 60 : 0, playing: true, spectateId: null });
     renderedFrames++;
   }
-  function tick() { if (!looping) return; draw(); requestAnimationFrame(tick); }
+  function tick() {
+    pendingFrame = null;
+    if (!looping) return;
+    draw();
+    if (looping && pendingFrame === null) pendingFrame = requestAnimationFrame(tick);
+  }
   async function pose(name: string) {
     if (!renderer) throw new Error('Call start first');
     deps.ui.closeEmoteWheel();
@@ -137,7 +143,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     current = s;
     deps.input.frame.yaw = yaw; deps.input.frame.pitch = pitch;
-    for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null });
+    for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
     deps.ui.update(s, 'practice', 0, false, 60, null);
     deps.ui.setPaused(name === 'pause');
     if (name === 'emote-wheel') deps.ui.openEmoteWheel();
@@ -154,7 +160,12 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     quality(quality) { if (!renderer) throw new Error('Call start first'); deps.settings.graphics = quality; renderer.setSettings(deps.settings); draw(); },
     actors(count) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; },
     loading(on) { deps.ui.setLoading(on); },
-    loop(on) { if (on === looping) return; looping = on; if (on) requestAnimationFrame(tick); },
+    loop(on) {
+      if (on === looping) return;
+      looping = on;
+      if (on) pendingFrame = requestAnimationFrame(tick);
+      else if (pendingFrame !== null) { cancelAnimationFrame(pendingFrame); pendingFrame = null; }
+    },
     stats() { return { ...(renderer?.stats || { drawCalls: 0, triangles: 0 }), renderedFrames }; },
     names: () => names,
   };

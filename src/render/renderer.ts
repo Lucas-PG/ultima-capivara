@@ -191,10 +191,10 @@ export class GameRenderer {
     else if (this.fastFor > 4000 && this.resolutionScale < 1) { this.resolutionScale = Math.min(1, this.resolutionScale + .05); this.fastFor = 0; this.applyPixelRatio(); }
   }
 
-  update(frame: PresentationFrame): void {
+  update(frame: PresentationFrame, draw = true): void {
     if (this.disposed) return;
     if (this.lastDeviceRatio !== (window.devicePixelRatio || 1) || this.lastSize.width !== window.innerWidth || this.lastSize.height !== window.innerHeight) this.resize();
-    this.adaptResolution();
+    if (draw) this.adaptResolution();
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
     // A new match starts with no marks, shells or effects from the previous one.
@@ -262,6 +262,9 @@ export class GameRenderer {
       this.sun.target.updateMatrixWorld();
     }
     this.sky.update(this.camera, this.elapsed, this.settings.reducedMotion);
+    // Review poses settle camera and animation without submitting a viewport
+    // draw for every intermediate state. Normal gameplay always draws.
+    if (!draw) return;
     const drawAt = timing.begin(), programs = timing.enabled ? this.gl.info.programs?.length ?? 0 : 0;
     this.pipeline.render(this.scene, this.camera, this.frameStats,
       firstPerson ? this.weaponView.scene : undefined, firstPerson ? this.weaponView.camera : undefined);

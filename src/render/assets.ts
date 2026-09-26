@@ -129,6 +129,7 @@ export class AssetLoader {
     });
   }
 
+  get maxAnisotropy() { return this.anisotropy; }
   get stats() { return this.progress.stats; }
   dispose() { this.ktx.dispose(); }
 }
