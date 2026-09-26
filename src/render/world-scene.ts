@@ -126,7 +126,7 @@ function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
     const slope = Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z),
       terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
     positions.push(x, y, z); uvs.push(x / size + .5, z / size + .5); slopes.push(slope);
-    roadPaint.push(roadPaintWeight(x, z, y));
+    roadPaint.push(roadPaintWeight(x, z, y, slope));
     if (ix < steps && iz < steps) {
       const a = iz * (steps + 1) + ix, b = a + 1, d = a + steps + 1;
       indices.push(a, d, b, b, d, d + 1);
@@ -233,7 +233,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v11:${ROADS.length}`;
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v12:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -312,12 +312,28 @@ export class WorldScene {
         float roadPaint = clamp(vTerrainRoadPaint, 0.0, 1.0);
         float asphaltMask = roadInterior * roadPaint;
         float curbMask = (1.0 - smoothstep(0.4 - edgeWidth, 0.4 + edgeWidth, distanceToRoad)) * (1.0 - roadInterior) * roadPaint;
-        diffuseColor.rgb = mix(diffuseColor.rgb, terrainCurb, curbMask);
         float broadWear = terrainFbm(vTerrainXZ / 18.0 + vec2(6.0, 19.0));
         float fineWear = terrainNoise(vTerrainXZ / 3.8 + vec2(23.0, 7.0));
-        float paintPatch = smoothstep(-.08, .08, broadWear);
-        vec3 asphaltPaint = terrainAsphalt * clamp(.95 + paintPatch * .1 + fineWear * .01, .94, 1.06);
-        diffuseColor.rgb = mix(diffuseColor.rgb, asphaltPaint, asphaltMask);
+        vec3 curbPaint = terrainCurb * (.97 + fineWear * .07 + broadWear * .03);
+        diffuseColor.rgb = mix(diffuseColor.rgb, curbPaint, curbMask);
+        // Rounded, staggered stone courses use world metres. Their joints and
+        // individual washes fade before becoming a distant checker pattern.
+        vec2 pavingUV = vTerrainXZ / vec2(.82, .54);
+        float pavingRow = floor(pavingUV.y);
+        pavingUV.x += mod(pavingRow, 2.0) * .5 + sin(pavingRow * 2.19) * .09;
+        vec2 pavingCell = floor(pavingUV);
+        float stoneWash = terrainHash(pavingCell + vec2(8.0, 19.0));
+        float cornerRadius = .13 + stoneWash * .025;
+        vec2 stoneEdge = abs(fract(pavingUV) - .5) - vec2(.5 - cornerRadius);
+        float stoneDistance = length(max(stoneEdge, 0.0)) + min(max(stoneEdge.x, stoneEdge.y), 0.0) - cornerRadius;
+        float stoneAA = max(fwidth(stoneDistance), .001);
+        float stoneFace = 1.0 - smoothstep(-.03 - stoneAA, -.03 + stoneAA, stoneDistance);
+        float wornEdge = smoothstep(-.11, -.035, stoneDistance);
+        float pavingDetail = 1.0 - smoothstep(.1, .55, max(fwidth(pavingUV.x), fwidth(pavingUV.y)));
+        vec3 pavingPaint = terrainAsphalt * (.97 + stoneWash * .045 + fineWear * .035 + wornEdge * .07);
+        pavingPaint = mix(terrainAsphalt * .62, pavingPaint, stoneFace);
+        pavingPaint = mix(terrainAsphalt * (.98 + broadWear * .06), pavingPaint, pavingDetail);
+        diffuseColor.rgb = mix(diffuseColor.rgb, pavingPaint, asphaltMask);
         // Authored stone is albedo, so it receives the same sun and shadows
         // as grass. Lake banks retain their painted grass/sand substrate.
         float coastRadius = max(abs(vTerrainXZ.x), abs(vTerrainXZ.y)) * 0.65 + length(vTerrainXZ) * 0.35;

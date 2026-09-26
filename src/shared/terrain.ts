@@ -95,7 +95,7 @@ export const WORLD_PALETTE = {
   grass: '#88A65C', grassLight: '#AEC47C', dryGrass: '#BBBC79',
   earth: '#B89162', rock: '#A99D88', rockTop: '#948E80',
   sand: '#DFC58F', sandLight: '#EBD8A5', sandWet: '#C2A778', mud: '#527F77',
-  road: '#8D8173', curb: '#D9C8AC',
+  road: '#C1AF8D', curb: '#BCAA88',
   foliageLight: '#86BD4F', foliageMid: '#5FA544', foliageCore: '#3F8A4A',
   palmMid: '#5F9E3E', palmLight: '#9CC756', palmTrunk: '#A8865E', palmRing: '#8A6A48',
   trunk: '#8A5E3C', tuft: '#9CC756', tuftTip: '#D8D98A',
@@ -106,16 +106,18 @@ export function beachDistance(x: number, z: number): number {
   return Math.max(south, crescent);
 }
 // The walking route continues across the beach, but its paving fades into
-// the painted sand. Both the road and its curb use this continuous weight.
-export function roadPaintWeight(x: number, z: number, y: number): number {
-  return 1 - ease((beachDistance(x, z) + 1) / 3) * (1 - ease((y - 2.5) / .75));
+// the painted sand. Steep terrace faces keep their exposed stone instead of
+// stretching a road rectangle down the cut. Both paving and curb fade together.
+export function roadPaintWeight(x: number, z: number, y: number, slope = 0): number {
+  const coastal = 1 - ease((beachDistance(x, z) + 1) / 3) * (1 - ease((y - 2.5) / .75));
+  return coastal * (1 - ease((slope - .85) / .5));
 }
 export function terrainColor(x: number, z: number, y: number, slope: number,
   includeRoads = true, includeBeach = true, includeWet = true): string {
   const road = (margin: number) => ROADS.some(([x0, z0, x1, z1]) =>
     x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
   if (y < -.2) return WORLD_PALETTE.mud;
-  const paved = includeRoads && y > .3 && roadPaintWeight(x, z, y) >= .5;
+  const paved = includeRoads && y > .3 && roadPaintWeight(x, z, y, slope) >= .5;
   if (paved && road(0)) return WORLD_PALETTE.road;
   if (paved && road(.4)) return WORLD_PALETTE.curb;
   const beach = includeBeach && beachDistance(x, z) > 0 && y < 3;
