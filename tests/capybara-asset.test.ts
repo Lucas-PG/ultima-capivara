@@ -142,6 +142,76 @@ describe('shipped capybara asset contract', () => {
     }
   });
 
+  it('keeps social clips in place for the host-owned emote durations and closes every loop', () => {
+    const expected = { wave: [3, false], dance: [8, true], victory: [4, false], sit: [12, true], chill: [12, true] } as const;
+    for (const [name, [seconds, loop]] of Object.entries(expected)) {
+      const clip = asset.getRoot().listAnimations().find(animation => animation.getName() === name);
+      expect(clip, name).toBeDefined();
+      const duration = Math.max(...clip!.listSamplers().map(sampler => {
+        const time = sampler.getInput()!;
+        return time.getScalar(time.getCount() - 1);
+      }));
+      expect(duration, name).toBeCloseTo(seconds, 4);
+      for (const channel of clip!.listChannels()) {
+        const values = channel.getSampler()!.getOutput()!, first = values.getElement(0, []);
+        if (channel.getTargetNode()?.getName() === 'root') {
+          for (let i = 1; i < values.getCount(); i++) {
+            for (const [j, value] of values.getElement(i, []).entries()) expect(value, `${name} fixed root`).toBeCloseTo(first[j], 5);
+          }
+        }
+        if (loop) {
+          const last = values.getElement(values.getCount() - 1, []);
+          // q and -q encode the same orientation; compare the shorter distance.
+          const sign = channel.getTargetPath() === 'rotation' && first.reduce((sum, value, j) => sum + value * last[j], 0) < 0 ? -1 : 1;
+          last.forEach((value, j) => expect(value * sign, `${name} loop seam`).toBeCloseTo(first[j], 4));
+        }
+      }
+      if (name === 'sit' || name === 'chill') {
+        const lowering = clip!.listChannels().find(channel => channel.getTargetNode()?.getName() === 'spine' && channel.getTargetPath() === 'translation');
+        expect(lowering, `${name} authored seated pose`).toBeDefined();
+      }
+    }
+  });
+
+  it('plants the authored emote feet at the actor contact surface', async () => {
+    const bytes = await readFile('public/models/capybara/capybara.glb');
+    vi.stubGlobal('self', globalThis);
+    vi.stubGlobal('createImageBitmap', async () => ({ width: 1024, height: 1024, close() {} }));
+    let gltf;
+    try {
+      gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+    } finally { vi.unstubAllGlobals(); }
+    const mesh = gltf.scene.getObjectByName('Capybara_LOD0') as SkinnedMesh;
+    const indices = mesh.geometry.getAttribute('skinIndex'), weights = mesh.geometry.getAttribute('skinWeight');
+    const feet = [[], []] as number[][];
+    for (let i = 0; i < indices.count; i++) {
+      for (let j = 0; j < 4; j++) {
+        const joint = mesh.skeleton.bones[indices.getComponent(i, j)].name;
+        if (weights.getComponent(i, j) > .9 && (joint === 'foot_L' || joint === 'foot_R')) feet[joint === 'foot_L' ? 0 : 1].push(i);
+      }
+    }
+    expect(feet.every(vertices => vertices.length > 20)).toBe(true);
+    const mixer = new AnimationMixer(gltf.scene), vertex = new Vector3();
+    for (const name of ['wave', 'dance', 'victory', 'sit', 'chill']) {
+      const clip = gltf.animations.find(clip => clip.name === name)!;
+      mixer.stopAllAction(); mixer.clipAction(clip).reset().play();
+      for (let sample = 0; sample < 16; sample++) {
+        mixer.setTime(clip.duration * sample / 16); gltf.scene.updateMatrixWorld(true); mesh.skeleton.update();
+        const bottoms = feet.map(vertices => {
+          let bottom = Infinity;
+          for (const index of vertices) {
+            mesh.getVertexPosition(index, vertex); vertex.applyMatrix4(mesh.matrixWorld);
+            bottom = Math.min(bottom, vertex.y);
+          }
+          return bottom;
+        });
+        expect(Math.min(...bottoms), `${name} feet cannot sink below the contact plane`).toBeGreaterThanOrEqual(-.03);
+        expect(Math.min(...bottoms), `${name} keeps a foot planted`).toBeLessThanOrEqual(.04);
+      }
+    }
+    mixer.stopAllAction(); mixer.uncacheRoot(gltf.scene);
+  });
+
   it('keeps faces and locomotion inside the head hitbox, including ears and mouth extremes', async () => {
     const bytes = await readFile('public/models/capybara/capybara.glb');
     // Image decoding is unnecessary for CPU skinning; the real exported meshes,

@@ -265,7 +265,7 @@ def paint_surface(obj):
             tile = min(15, int(obj.data.uv_layers.active.data[loop_id].uv.x * 16))
             if obj.name.startswith('Glint_'):
                 u, v = .5, .25
-            elif obj.name.startswith('Front_incisor'):
+            elif obj.name.startswith(('Front_incisor', 'Sclera_')):
                 u, v = .5, .75
             elif obj.name.startswith('Head_and_muzzle'):
                 # A box projection avoids a cylindrical pinwheel across the muzzle.
@@ -288,17 +288,17 @@ def paint_surface(obj):
             u, v = .08 + .84 * max(0, min(1, u)), .08 + .84 * max(0, min(1, v))
             obj.data.uv_layers.active.data[loop_id].uv = ((tile % 4 + u) / 4, 1 - (tile // 4 + v) / 4)
 
-# Barrel torso: broad chest and hips share nearly parallel sides, like the cover.
-# Rounded seat still covers the thighs, retaining the approved short legs.
+# The cover-derived shape has a broad ribcage and a soft, full lower belly.
+# The spine, hips and short leg pivots remain in their original bind locations.
 # Leave room for the fitted vest inside the normal .30 m body cylinder.
-profile = [(.32, .04, .04, .005), (.335, .14, .13, 0), (.37, .225, .21, -.006),
-           (.43, .275, .258, -.008), (.51, .290, .277, -.008), (.61, .291, .279, -.006),
-           (.73, .289, .271, -.004), (.87, .284, .259, 0), (1.01, .280, .249, .004),
-           (1.15, .271, .231, .005), (1.27, .251, .207, .005),
-           (1.35, .212, .175, .005), (1.402, .169, .138, .005), (1.418, .164, .132, .005),
+profile = [(.35, .04, .04, .005), (.37, .15, .14, 0), (.42, .232, .197, -.006),
+           (.49, .247, .221, -.008), (.59, .263, .236, -.008), (.70, .272, .238, -.006),
+           (.81, .271, .234, -.004), (.93, .266, .228, 0), (1.05, .277, .238, .004),
+           (1.17, .285, .239, .005), (1.28, .268, .216, .005),
+           (1.35, .228, .185, .005), (1.402, .172, .141, .005), (1.418, .164, .132, .005),
            (1.445, .163, .130, .005), (1.464, .153, .124, .005), (1.472, .04, .04, .005)]
 # Reserve real garment depth inside the unchanged body hit cylinder.
-profile = [(y, rx * (.94 if .80 < y < 1.41 else 1), rz * (.94 if .80 < y < 1.41 else 1), cz) for y, rx, rz, cz in profile]
+profile = [(y, rx * (.94 if .95 < y < 1.41 else 1), rz * (.94 if .95 < y < 1.41 else 1), cz) for y, rx, rz, cz in profile]
 verts, faces = [], []
 for y, rx, rz, cz in profile:
     for i in range(20):
@@ -343,24 +343,25 @@ for loop in patch.data.loops:
     belly, fur = linear_rgb('D39A47'), linear_rgb(PALETTE[0])
     rgb = tuple(fur[i] * (1 - weight) + belly[i] * weight for i in range(3))
     patch.data.color_attributes['Color'].data[loop.index].color = (*rgb, 1)
-# A single longitudinal quad surface joins cheeks and rectangular muzzle.
+# A single longitudinal quad surface joins the cheeks and broad blunt muzzle.
 # Forehead-to-nose is one gently descending line, without a box seam.
 # Side silhouette is about 1.4 times longer than tall. Close support rings at
 # the muzzle keep its top/bottom parallel and its front broad, without a cone.
-head_profile = [(.158, .035, 1.59, .035), (.144, .105, 1.592, .092),
-                (.092, .166, 1.597, .133), (.035, .194, 1.597, .145),
-                (-.030, .195, 1.593, .142), (-.092, .173, 1.583, .124),
-                (-.145, .139, 1.580, .104), (-.190, .122, 1.580, .099),
-                (-.224, .114, 1.580, .095), (-.240, .104, 1.582, .089),
-                (-.249, .093, 1.582, .080), (-.250, .079, 1.582, .067),
-                (-.250, .060, 1.582, .050), (-.250, .040, 1.582, .033),
-                (-.250, .020, 1.582, .016), (-.250, .001, 1.582, .001)]
+head_profile = [(.162, .022, 1.61, .025), (.149, .078, 1.614, .087),
+                (.108, .144, 1.613, .150), (.048, .188, 1.607, .183),
+                (-.016, .198, 1.600, .180), (-.078, .181, 1.595, .155),
+                (-.128, .144, 1.589, .122), (-.171, .123, 1.586, .106),
+                (-.208, .109, 1.590, .092), (-.235, .095, 1.599, .074),
+                (-.250, .080, 1.602, .063), (-.265, .065, 1.605, .045),
+                (-.271, .038, 1.608, .027), (-.273, .001, 1.609, .001)]
 verts, faces = [], []
 segments = 32
 for z, rx, cy, ry in head_profile:
     for i in range(segments):
         a = math.tau * i / segments
-        shape = lambda v: math.copysign(abs(v) ** .48, v)
+        # Rounded cheeks and forehead, with a gently broader blunt snout.
+        power = .92 if z > -.13 else .76
+        shape = lambda v: math.copysign(abs(v) ** power, v)
         verts.append((rx * shape(math.cos(a)), cy + ry * shape(math.sin(a)), z))
 for row in range(len(head_profile) - 1):
     for i in range(segments):
@@ -388,7 +389,7 @@ mouth_point = fur_point(0, 1.535)
 # the same tangent plane, so squints and arcs remain on the curved cheek.
 eye_frames = {}
 for side in [-1, 1]:
-    hit, point, normal, face = reference.ray_cast(V((side * .165, 1.665, -1)), V((0, 0, 1)))
+    hit, point, normal, face = reference.ray_cast(V((side * .129, 1.696, -1)), V((0, 0, 1)))
     assert hit, ('lateral eye surface', side)
     normal = normal.normalized()
     if normal.dot(V((0, 0, -1))) < 0:
@@ -401,7 +402,7 @@ for side in [-1, 1]:
     cutter = bpy.context.object
     for vertex in cutter.data.vertices:
         x, y, z = vertex.co
-        vertex.co = point + normal * (.017 + y * .020) + tangent * x * .022 + up * z * .027
+        vertex.co = point + normal * (.018 + y * .024) + tangent * x * .034 + up * z * .038
     bm = bmesh.new()
     bm.from_mesh(cutter.data)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -443,7 +444,7 @@ for vertex in head_surface.data.vertices:
     corner_weight = mouth_weight * .6 * min(1, abs(x) / .034) ** 2
     eye_side = 'L' if x < 0 else 'R'
     eye_point = eye_frames[-1 if x < 0 else 1][0]
-    eye_distance = ((vertex.co - eye_point).length / .034)
+    eye_distance = ((vertex.co - eye_point).length / .045)
     eye_weight = max(0, min(1, (1.4 - eye_distance) / .3))
     for name, weight in [('head', max(0, 1 - jaw_weight - mouth_weight - eye_weight)), ('jaw', jaw_weight), ('mouth_cavity', mouth_weight - corner_weight), ('mouth_' + mouth_side, corner_weight), ('socket_' + eye_side, eye_weight)]:
         if weight > 0:
@@ -458,14 +459,16 @@ for poly in head_surface.data.polygons:
         x, z = vertex.co.x, -vertex.co.y
         light = max(0, min(1, (y - 1.61) / .135))
         shadow = max(0, min(1, (1.53 - y) / .085))
-        # Muzzle stays in the fur family: its top plane takes the lit tone and
-        # only the underside darkens, so the front never reads as a dark mask.
+        # Broad value transitions follow the volume beneath the darker muzzle.
         muzzle = max(0, min(1, (-z - .15) / .05))
         up = vertex.normal.z
         light = light * (1 - muzzle) + muzzle * max(0, min(1, (up - .15) / .35))
         shadow = shadow * (1 - muzzle) + muzzle * max(0, min(1, (-up - .35) / .4))
         rgb = [base_rgb[i] * (1 - light) + light_rgb[i] * light for i in range(3)]
         rgb = [rgb[i] * (1 - shadow) + shadow_rgb[i] * shadow for i in range(3)]
+        muzzle_shade = max(0, min(1, (-z - .13) / .115)) * math.exp(-((y - 1.606) / .10) ** 2) * .70
+        muzzle_rgb = linear_rgb('765038')
+        rgb = [rgb[i] * (1 - muzzle_shade) + muzzle_rgb[i] * muzzle_shade for i in range(3)]
         head_surface.data.uv_layers.active.data[loop_index].uv = (14.5 / 16, .5)
         head_surface.data.color_attributes['Color'].data[loop_index].color = (*rgb, 1)
 # Separate facial linework keeps expression colour and deformation local.
@@ -477,9 +480,9 @@ for sign in [-1, 1]:
         color.color = (*linear_rgb('F5E8C5'), 1)
 # A broad, shallow oval pad follows the upper muzzle. Narrow slits avoid the
 # socket-like pair of circular dots inside a rectangular badge.
-ellipsoid('Nose_pad', (0, 1.637, -.249), (.061, .022, .005), 15, {'head': 1}, segments=24, rings=12)
+ellipsoid('Nose_pad', (0, 1.627, -.254), (.073, .035, .024), 15, {'head': 1}, segments=24, rings=12)
 for side in [-1, 1]:
-    ellipsoid('Nostril_slit', (side * .029, 1.646, -.2535), (.014, .0022, .001), 9, {'head': 1}, segments=16, rings=8)
+    ellipsoid('Nostril_slit', (side * .033, 1.638, -.273), (.012, .005, .003), 9, {'head': 1}, segments=16, rings=8)
     for strand in range(3):
         x, y = side * (.066 + strand * .010), 1.575 - strand * .009
         point = fur_point(x, y)
@@ -504,38 +507,72 @@ for name, angles, radius, color in [('Lower_lip', range(180, 361, 30), .003, 0),
         lip.vertex_groups['mouth_cavity'].add([vertex.index], 1 - corner, 'REPLACE')
         lip.vertex_groups['mouth_' + ('L' if vertex.co.x < 0 else 'R')].add([vertex.index], corner, 'REPLACE')
 for s, side in [(-1, 'L'), (1, 'R')]:
+    points = []
+    for x, y in [(.026, 1.535), (.039, 1.539), (.053, 1.547), (.058, 1.552)]:
+        point = fur_point(s * x, y) + V((0, 0, -.0012))
+        points.append((point.x, point.z, -point.y))
+    fine_line('Smile_corner_' + side, points, .0014, 3, {'head': .4, 'mouth_' + side: .6})
+for s, side in [(-1, 'L'), (1, 'R')]:
     def lid_weights(point):
         tip = .45 * max(0, 1 - abs((point[1] - 1.654) / .024))
         peak = .45 * max(0, 1 - abs((point[0] - s * .176) / .021))
         return {'blink_' + side: 1 - tip - peak, 'blink_tip_' + side: tip, 'blink_peak_' + side: peak}
-    eye = ellipsoid('Eye_' + side, (s * .176, 1.654, -.12), (.018, .023, .014), 9, lid_weights, segments=16, rings=10)
-    glint = ellipsoid('Glint_' + side, (s * .176 - .006, 1.662, -.132), (.005, .006, .003), 10, {'glint_' + side: 1}, segments=16, rings=10)
-    for patch, centre_z, depth in [(eye, -.12, -.0005), (glint, -.132, .0035)]:
+    # Nested convex eye surfaces give a visible iris and pupil at play distance.
+    # All layers share the blink rig; sclera uses the non-emissive ivory tile half.
+    layers = [
+        ('Sclera_', (.030, .034, .010), 10, 0, 0, -.003, 'D8C3A3'),
+        ('Iris_', (.025, .029, .012), 12, -s * .003, .001, .003, 'BD8A4F'),
+        ('Eye_', (.013, .022, .009), 9, -s * .005, .002, .013, None),
+        ('Glint_', (.0045, .006, .002), 10, -.010, .012, .023, None),
+        ('Glint_small_', (.002, .0025, .0015), 10, .007, -.010, .022, None),
+    ]
+    for label, scale, tile, dx, dy, depth, tint in layers:
+        patch = ellipsoid(label + side, (s * .176 + dx, 1.654 + dy, -.12), scale, tile,
+                          {'glint_' + side: 1} if label.startswith('Glint') else lid_weights, segments=16, rings=10)
+        if tint:
+            for color in patch.data.color_attributes['Color'].data:
+                color.color = (*linear_rgb(tint), 1)
         for vertex in patch.data.vertices:
             x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
             point, normal, tangent, up = eye_frames[s]
-            vertex.co = point + tangent * (x - s * .176) + up * (y - 1.654) + normal * (depth - (z - centre_z) * .26)
-    brow = tube('Brow_tuft_' + side, [(s * .11, 1.704, -.10), (s * .13, 1.710, -.10), (s * .15, 1.704, -.10)], [.002, .006, .002], 2, ['brow_' + side, 'head'])
-    for vertex in brow.data.vertices:
-        x, y, z = vertex.co.x, vertex.co.z, -vertex.co.y
-        point, normal, tangent, up = eye_frames[s]
-        vertex.co = point + tangent * (x - s * .13) + up * (.033 + y - 1.704) + normal * .001
-    ellipsoid('Ear_' + side, (s * .115, 1.733, .085), (.032, .034, .023), 0, {'ear_' + side: .88, 'head': .12}, segments=12, rings=8)
-    ellipsoid('Ear_inner_' + side, (s * .115, 1.733, .066), (.020, .022, .008), 11, {'ear_' + side: 1}, segments=12, rings=6)
-    tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .01), (s * .137, .23, .01), (s * .137, .15, -.012), (s * .137, .08, -.04)], [.10, .13, .125, .11, .085], 0, ['thigh_' + side, 'shin_' + side, 'foot_' + side])
-    rounded_block('Foot_' + side, (s * .137, .061, -.045), (.225, .115, .25), 2, {'foot_' + side: 1}, bevel=.048)
+            vertex.co = point + tangent * (x - s * .176) + up * (y - 1.654) + normal * (depth - (z + .12))
+    point, normal, tangent, up = eye_frames[s]
+    for label, lift, radius, tile in [('Upper_lid_', .032, .0035, 3), ('Brow_ridge_', .044, .008, 0), ('Lower_lid_', -.030, .0025, 2)]:
+        points = []
+        for i in range(9):
+            t = i / 8 * math.pi
+            p = point + tangent * (-.034 * math.cos(t)) + up * (lift * math.sin(t)) + normal * (.006 if lift < .04 else -.002)
+            points.append((p.x, p.z, -p.y))
+        tube(label + side, points, [radius * (.35 + .65 * math.sin(i / 8 * math.pi)) for i in range(9)], tile,
+             ['brow_' + side, 'head'] if label.startswith('Brow') else ['blink_' + side, 'blink_' + side])
+    ellipsoid('Ear_' + side, (s * .112, 1.755, .083), (.035, .041, .024), 0, {'ear_' + side: .88, 'head': .12}, segments=16, rings=10)
+    ellipsoid('Ear_inner_' + side, (s * .112, 1.755, .064), (.024, .029, .009), 11, {'ear_' + side: 1}, segments=16, rings=8)
+    tube('Leg_' + side, [(s * .137, .41, .01), (s * .137, .35, .01), (s * .137, .23, .01), (s * .137, .15, -.012), (s * .137, .08, -.04)], [.10, .13, .125, .11, .085], 0,
+         ['thigh_' + side, 'thigh_' + side, 'shin_' + side, 'shin_' + side, 'foot_' + side])
+    ellipsoid('Foot_' + side, (s * .137, .052, -.050), (.113, .048, .127), 2, {'foot_' + side: 1}, square=.80, segments=16, rings=10)
     for toe in [-1.5, -.5, .5, 1.5]:
-        ellipsoid('Toe_nail_' + side, (s * .137 + toe * .043, .062, -.163), (.014, .010, .012), 15, {'foot_' + side: 1}, segments=8, rings=6)
+        toe_z = -.144 + abs(toe) * .008
+        ellipsoid('Toe_' + side, (s * .137 + toe * .043, .047, toe_z), (.025, .031, .049), 2, {'foot_' + side: 1}, segments=12, rings=8)
+        ellipsoid('Toe_nail_' + side, (s * .137 + toe * .043, .052, toe_z - .038), (.016, .011, .023), 15, {'foot_' + side: 1}, segments=10, rings=6)
     hand_z = -.39 if s == 1 else -.49
-    tube('Arm_' + side, [(s * .225, 1.195, -.015), (s * .267, 1.12, -.08), (s * .27, 1.0, -.19), (s * .2, 1.016, (hand_z - .19) / 2), (s * .1, 1.045, hand_z)], [.075, .108, .1, .092, .08], 0, ['arm_' + side, 'forearm_' + side, 'paw_' + side])
-    ellipsoid('Paw_' + side, (s * .1, 1.045, hand_z + .002), (.084, .070, .079), 0, {'paw_' + side: 1}, square=.65)
+    tube('Arm_' + side, [(s * .225, 1.195, -.015), (s * .267, 1.12, -.08), (s * .27, 1.0, -.19), (s * .2, 1.016, (hand_z - .19) / 2), (s * .1, 1.045, hand_z)], [.075, .102, .089, .078, .053], 0,
+         ['arm_' + side, 'arm_' + side, 'forearm_' + side, 'forearm_' + side, 'paw_' + side])
+    ellipsoid('Paw_' + side, (s * .1, 1.045, hand_z + .002), (.067, .051, .073), 2, {'paw_' + side: 1}, square=.85)
     # Four distinct padded fingers and a wrapping thumb match the hero FP paws.
     for finger in [-1.5, -.5, .5, 1.5]:
-        ellipsoid('Finger_' + side, (s * .1 + finger * .041, 1.044, hand_z - .090), (.019, .031, .040), 0, {'paw_' + side: 1}, segments=10, rings=6)
-        ellipsoid('Knuckle_' + side, (s * .1 + finger * .041, 1.062, hand_z - .076), (.020, .014, .024), 1, {'paw_' + side: 1}, segments=10, rings=6)
-        ellipsoid('Claw_' + side, (s * .1 + finger * .041, 1.048, hand_z - .123), (.012, .012, .012), 15, {'paw_' + side: 1}, segments=8, rings=6)
-    ellipsoid('Thumb_' + side, (s * .1 - s * .082, 1.035, hand_z - .033), (.035, .044, .035), 0, {'paw_' + side: 1}, segments=10, rings=6)
-    ellipsoid('Paw_pad_' + side, (s * .1, .977, hand_z - .025), (.052, .016, .065), 4, {'paw_' + side: 1}, segments=12, rings=6)
+        x = s * .1 + finger * .033
+        short = abs(finger) * .005
+        points = [(x, 1.052, hand_z - .030), (x, 1.061, hand_z - .050),
+                  (x, 1.064, hand_z - .072 + short), (x, 1.052, hand_z - .092 + short),
+                  (x, 1.028, hand_z - .100 + short), (x, 1.012, hand_z - .087 + short)]
+        tube('Finger_' + side, points, [.012, .019, .020, .019, .016, .009], 2, ['paw_' + side, 'paw_' + side])
+        ellipsoid('Finger_pad_' + side, (x, 1.012, hand_z - .074 + short), (.013, .009, .020), 4, {'paw_' + side: 1}, segments=10, rings=6)
+        ellipsoid('Claw_' + side, (x, 1.026, hand_z - .104 + short), (.012, .015, .011), 15, {'paw_' + side: 1}, segments=10, rings=6)
+    tube('Thumb_' + side, [(s * .1 - s * .057, 1.041, hand_z - .012), (s * .1 - s * .075, 1.028, hand_z - .041),
+                         (s * .1 - s * .065, 1.015, hand_z - .067), (s * .1 - s * .045, 1.018, hand_z - .072)],
+         [.014, .023, .021, .010], 2, ['paw_' + side, 'paw_' + side])
+    ellipsoid('Thumb_claw_' + side, (s * .1 - s * .045, 1.025, hand_z - .074), (.014, .010, .015), 15, {'paw_' + side: 1}, segments=10, rings=6)
+    ellipsoid('Paw_pad_' + side, (s * .1, .998, hand_z - .020), (.043, .008, .047), 4, {'paw_' + side: 1}, segments=12, rings=6)
 bpy.data.objects.remove(reference, do_unlink=True)
 # No visible tail. Cloth band hugs the neck with a thin flat cross section.
 verts, faces = [], []
@@ -557,7 +594,8 @@ for row in range(17):
         x = width * (i / 6 - 1)
         hit, point, normal, face = body_surface.ray_cast(V((x, y, -.5)), V((0, 0, 1)))
         assert hit, ('cloth flap surface', x, y)
-        point += V((0, 0, -.006))
+        fold = .012 + .004 * math.sin(i / 12 * math.tau * 2 + t * 2.2) * math.sin(t * math.pi)
+        point += V((0, 0, -fold))
         flap_verts.append((point.x, point.z, -point.y))
 for row in range(16):
     for col in range(12):
@@ -581,11 +619,95 @@ def torso_point(a, y, offset):
         normal.negate()
     point = point + normal * offset
     return (point.x, point.z, -point.y), normal
-VEST_HEM, VEST_TOP, VEST_GAP = .80, 1.405, .5
+# A fitted olive shirt and compact cargo shorts replace the long bare belly.
+# Surface-sampled garment bands retain the exact body collision envelope.
+for garment, rows_y, tile, outset in [
+    ('Shirt_body', [.838, .85, .94, 1.00, 1.12, 1.25, 1.35, 1.39], 7, .002),
+    ('Belt', [.733, .740, .779, .785], 8, .018),
+]:
+    verts, faces = [], []
+    for y in rows_y:
+        for i in range(32):
+            a = i * math.tau / 32
+            verts.append(torso_point(a, y, outset)[0])
+    for row in range(len(rows_y) - 1):
+        for i in range(32):
+            a, b = row * 32 + i, row * 32 + (i + 1) % 32
+            faces.append((a, a + 32, b + 32, b))
+    mesh_part(garment, verts, faces, tile, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33), subdivide=False)
+
+# A continuous pair of shorts joins the waist to both leg openings. Sharing the
+# crotch and hip vertices prevents separate garment bands opening during crouch.
+def shorts_weights(p):
+    t = max(0, min(1, (p[1] - .365) / .30))
+    t = t * t * (3 - 2 * t)
+    right = max(0, min(1, .5 + p[0] / .09))
+    return {'spine': t, 'thigh_L': (1 - t) * (1 - right), 'thigh_R': (1 - t) * right}
+
+verts, faces, shared = [], [], {}
+segments = 32
+def shorts_vertex(p):
+    key = tuple(round(v, 7) for v in p)
+    if key not in shared:
+        shared[key] = len(verts)
+        verts.append(p)
+    return shared[key]
+
+for s in [-1, 1]:
+    rings = []
+    for y, rx, rz in [(.345, .128, .139), (.355, .133, .147), (.390, .132, .163), (.49, .126, .180), (.575, .121, .184)]:
+        rings.append([shorts_vertex((s * (.137 + rx * math.cos(i * math.tau / segments)), y,
+                                     .010 + rz * math.sin(i * math.tau / segments))) for i in range(segments)])
+    hip = []
+    for i in range(segments):
+        a = i * math.tau / segments
+        if math.cos(a) >= -1e-7:
+            p = torso_point(math.atan2(s * math.cos(a), -math.sin(a)), .65, .008)[0]
+        else:
+            p = (0, .65 - .105 * abs(math.cos(a)), .005 + .205 * math.sin(a))
+        hip.append(shorts_vertex(p))
+    rings.append(hip)
+    for lower, upper in zip(rings, rings[1:]):
+        for i in range(segments):
+            j = (i + 1) % segments
+            faces.append((lower[i], lower[j], upper[j], upper[i]))
+    faces.append(tuple(reversed(rings[0])))
+
+waist = []
+for y in [.65, .705, .755, .765]:
+    ring = []
+    for i in range(segments):
+        a = i * math.tau / segments
+        ring.append(shorts_vertex(torso_point(math.atan2(math.cos(a), -math.sin(a)), y, .008)[0]))
+    waist.append(ring)
+for lower, upper in zip(waist, waist[1:]):
+    for i in range(segments):
+        j = (i + 1) % segments
+        faces.append((lower[i], lower[j], upper[j], upper[i]))
+faces.append(tuple(waist[-1]))
+shorts = mesh_part('Cargo_shorts', verts, faces, 13, shorts_weights, subdivide=False)
+bm = bmesh.new()
+bm.from_mesh(shorts.data)
+assert all(edge.is_manifold for edge in bm.edges), 'Shorts need a continuous waist and crotch'
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+bm.to_mesh(shorts.data)
+bm.free()
+for s, side in [(-1, 'L'), (1, 'R')]:
+    rounded_block('Cargo_pocket_' + side, (s * .139, .514, -.186), (.105, .114, .026), 7, shorts_weights, bevel=.014)
+    rounded_block('Cargo_flap_' + side, (s * .139, .562, -.205), (.109, .032, .012), 13, shorts_weights, bevel=.006)
+    ellipsoid('Cargo_snap_' + side, (s * .139, .557, -.213), (.005, .005, .003), 12, shorts_weights, segments=8, rings=6)
+    tube('Shirt_sleeve_' + side, [(s * .221, 1.199, -.013), (s * .237, 1.181, -.035),
+                                (s * .258, 1.135, -.069), (s * .266, 1.112, -.085)],
+         [.070, .108, .112, .105], 7, ['arm_' + side, 'arm_' + side])
+    tube('Sleeve_cuff_' + side, [(s * .263, 1.127, -.075), (s * .267, 1.108, -.087)], [.112, .106], 13, ['arm_' + side, 'arm_' + side])
+belt_centre = torso_point(0, .759, .024)[0]
+rounded_block('Belt_buckle', belt_centre, (.075, .054, .013), 12, {'spine': 1}, bevel=.009)
+rounded_block('Belt_buckle_inset', (belt_centre[0], belt_centre[1], belt_centre[2] - .008), (.049, .030, .006), 8, {'spine': 1}, bevel=.005)
+VEST_HEM, VEST_TOP, VEST_GAP = .85, 1.405, .24
 def vest_gap(y):
     # A V-neck: the front opening widens toward the neck and clears the bandana point.
     t = max(0, min(1, (y - 1.05) / (VEST_TOP - 1.05)))
-    return VEST_GAP + .45 * t * t * (3 - 2 * t)
+    return VEST_GAP + .63 * t * t * (3 - 2 * t)
 ARMHOLE_A, ARMHOLE_Y, ARMHOLE_DA, ARMHOLE_DY = 1.48, 1.19, .36, .125
 def armhole(a, y):
     return ((abs(a) - ARMHOLE_A) / ARMHOLE_DA) ** 2 + ((y - ARMHOLE_Y) / ARMHOLE_DY) ** 2
@@ -619,10 +741,12 @@ for j, i in sorted(keep):
         key = (j + dj, i + di)
         if key not in index:
             index[key] = len(verts)
-            verts.append(torso_point(*grid[key[0]][key[1]], .004)[0])
+            a, y = grid[key[0]][key[1]]
+            fold = .003 * math.sin(a * 13 + y * 23) * math.sin(math.pi * (y - VEST_HEM) / (VEST_TOP - VEST_HEM))
+            verts.append(torso_point(a, y, .004 + fold)[0])
         quad.append(index[key])
     faces.append(tuple(quad))
-vest = mesh_part('Vest_wrap', verts, faces, 7, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33), subdivide=False)
+vest = mesh_part('Vest_wrap', verts, faces, 13, lambda p: blend('spine', 'neck', (p[1] - 1.04) / .33), subdivide=False)
 bpy.context.view_layer.objects.active = vest
 thickness = vest.modifiers.new('Cloth thickness', 'SOLIDIFY')
 thickness.thickness, thickness.offset, thickness.use_even_offset = .012, 1, True
@@ -636,7 +760,7 @@ VEST_OUT = .004 + .012
 for side in [-1, 1]:
     # Chest pockets on each front panel, turned to the local surface normal.
     a = side * (VEST_GAP + .36)
-    for name, y, dims, color, depth, bevel in [('Vest_pocket', .98, (.085, .11, .032), 7, .016, .012), ('Pocket_flap', 1.035, (.092, .03, .012), 13, .034, .004)]:
+    for name, y, dims, color, depth, bevel in [('Vest_pocket', 1.015, (.105, .13, .032), 7, .016, .014), ('Pocket_flap', 1.068, (.112, .033, .012), 13, .034, .006)]:
         centre, normal = torso_point(a, y, VEST_OUT + depth)
         yaw = math.atan2(normal.x, normal.y)
         rounded_block(name, centre, dims, color, {'spine': 1}, bevel=bevel, yaw=yaw)
@@ -645,7 +769,7 @@ for side in [-1, 1]:
     tube('Vest_trim', trim, [.011] * len(trim), 5, ['spine', 'neck'])
     # Pouch seams, brass snaps and shoulder webbing follow the garment surface.
     a = side * (VEST_GAP + .36)
-    centre, normal = torso_point(a, .982, VEST_OUT + .037)
+    centre, normal = torso_point(a, 1.015, VEST_OUT + .037)
     outward = Vector((normal.x, normal.z, -normal.y))
     tangent, up = Vector((math.cos(a), 0, math.sin(a))), Vector((0, 1, 0))
     centre = Vector(centre)
@@ -710,6 +834,34 @@ for side in [-1, 1]:
             tail.append((px, y, z))
     mesh_part('Bandana_tail', tail, [(0, 1, 3, 2), (2, 3, 5, 4)], 5, {'neck': .7, 'spine': .3}, subdivide=False)
 
+# The torso remains a construction surface until every garment has been sampled.
+# Remove the covered skin now, instead of allowing independently simplified cloth
+# and skin to intersect. Keep the collar and a soft fur band above the belt.
+bm = bmesh.new()
+bm.from_mesh(body_surface.data)
+bmesh.ops.delete(bm, geom=[face for face in bm.faces if face.calc_center_median().z < 1.375
+                         and not .765 < face.calc_center_median().z < .875], context='FACES')
+bm.to_mesh(body_surface.data)
+bm.free()
+for covered in list(parts):
+    if covered.name.startswith('Belly_patch'):
+        parts.remove(covered)
+        bpy.data.objects.remove(covered, do_unlink=True)
+    elif covered.name.startswith('Arm_'):
+        bm = bmesh.new()
+        bm.from_mesh(covered.data)
+        bmesh.ops.delete(bm, geom=[face for face in bm.faces if face.calc_center_median().z > 1.17], context='FACES')
+        bm.to_mesh(covered.data)
+        bm.free()
+    elif covered.name.startswith('Leg_'):
+        # The shorts follow the same thigh joint at the cuff. Their skin stays
+        # hidden above that overlap, including when the short legs fold to sit.
+        bm = bmesh.new()
+        bm.from_mesh(covered.data)
+        bmesh.ops.delete(bm, geom=[face for face in bm.faces if face.calc_center_median().z > .375], context='FACES')
+        bm.to_mesh(covered.data)
+        bm.free()
+
 # Short tapered fins retain the fur silhouette without obscuring face or fingers.
 # They are kept at LOD0 only, avoiding subpixel fringe in distant actor outlines.
 rng = random.Random(2609)
@@ -723,20 +875,22 @@ for source in fur_sources:
     bm.to_mesh(source.data)
     bm.free()
     source.data.update()
-    count = 160 if source.name.startswith('Torso') else 180 if source.name.startswith('Head') else 48 if source.name.startswith('Arm') else 24
+    count = 160 if source.name.startswith('Torso') else 360 if source.name.startswith('Head') else 90 if source.name.startswith('Arm') else 40
     polygons = list(source.data.polygons)
     sampled = rng.choices(polygons, weights=[max(.000001, p.area) for p in polygons], k=count)
-    vertices, faces, weights, colors, tiles = [], [], [], [], []
+    vertices, faces, weights, colors, tiles, fur_normals = [], [], [], [], [], []
     for poly in sampled:
         co = sum((source.data.vertices[i].co for i in poly.vertices), Vector()) / len(poly.vertices)
-        if source.name.startswith('Head') and (abs(co.x) < .12 or -co.y < -.17):
-            continue
         normal = poly.normal.normalized()
-        flow = V((rng.uniform(-.25, .25), -1, .12))
+        if source.name.startswith('Head') and normal.y > .28 and normal.z < .65:
+            continue
+        if source.name.startswith('Torso') and co.z > .75:
+            continue  # Shirt and vest cover these roots.
+        flow = V((math.copysign(.45, co.x), -.65, .25)) if source.name.startswith('Head') else V((rng.uniform(-.20, .20), -1, .12))
         flow = (flow - normal * flow.dot(normal)).normalized()
         sideways = normal.cross(flow).normalized()
         root = co - normal * .001
-        tip = co + normal * .004 + flow * .005
+        tip = co + normal * .004 + flow * rng.uniform(.007, .011)
         influence = {}
         for index in poly.vertices:
             for group in source.data.vertices[index].groups:
@@ -744,17 +898,20 @@ for source in fur_sources:
                 influence[name] = influence.get(name, 0) + group.weight / len(poly.vertices)
         tile = min(15, int(source.data.uv_layers.active.data[poly.loop_start].uv.x * 16))
         color = tuple(source.data.color_attributes['Color'].data[poly.loop_start].color)
-        for across in [sideways, normal.cross(sideways).normalized()]:
+        for across in [sideways, (sideways * .8 + normal * .2).normalized()]:
             first = len(vertices)
-            for point in [root - across * .0025, root + across * .0025, tip]:
+            for point in [root - across * .0012, root + across * .0012, tip]:
                 vertices.append((point.x, point.z, -point.y))
                 weights.append(influence)
+                fur_normals.append(tuple(normal))
             faces.append((first, first + 1, first + 2))
             colors.append(color)
             tiles.append(tile)
     if vertices:
         lookup = {p: w for p, w in zip(vertices, weights)}
         fins = mesh_part('Fur_fringe_' + source.name, vertices, faces, 0, lambda p: lookup[p], subdivide=False)
+        # Thin fins inherit the fur volume's normal rather than flashing as cards.
+        fins.data.normals_split_custom_set_from_vertices(fur_normals)
         fins['detail_near'] = True
         for poly, color, tile in zip(fins.data.polygons, colors, tiles):
             for loop in poly.loop_indices:
@@ -805,7 +962,7 @@ bpy.ops.object.mode_set(mode='OBJECT')
 base.data.calc_loop_triangles()
 source_tris = len(base.data.loop_triangles)
 report = {'sourceTriangles': source_tris + near_triangles, 'nearDetailTriangles': near_triangles, 'palette': PALETTE, 'lods': [], 'hitbox': {'head': {'center': [0, 1.6, -.04], 'radius': .25}, 'body': {'radius': .3, 'top': 1.42}}, 'clips': ['idle', 'run', 'jump']}
-for level, budget in enumerate([18800, 4800, 1400]):
+for level, budget in enumerate([19800, 4800, 1400]):
     obj = base.copy()
     obj.data = base.data.copy()
     scene.collection.objects.link(obj)
@@ -1025,6 +1182,9 @@ for name, frames in new_clips:
             p.keyframe_insert('location', frame=frame, group=p.name)
             p.keyframe_insert('scale', frame=frame, group=p.name)
     report['clips'].append(name)
+
+from character_emotes import add_emotes
+add_emotes(rig, scene, report, contact_leg)
 
 # Facial clips key only eyelids, brow tufts, ears and mouth. Skull and muzzle
 # have no tracks here. Runtime can blend these additively over locomotion,

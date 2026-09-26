@@ -18,10 +18,13 @@ function surfacePaint(pattern: BandanaPattern) {
     let shade = .97 + .025 * Math.sin(u * 13 + Math.sin(v * 11) * 1.2) + .018 * Math.cos(v * 23 + u * 8);
     let print = 0;
     if ((CHARACTER_FUR_TILES as readonly number[]).includes(tile)) {
-      const flow = u * 460 + Math.sin(v * 39) * 1.8 + Math.sin(v * 117 + u * 37) * .5;
-      const strand = Math.pow(Math.max(0, Math.sin(flow)), 4);
-      const short = .1 + .9 * Math.pow(Math.max(0, Math.sin(v * 143 + u * 57)), 6);
-      shade = .975 + .075 * strand * short + .012 * Math.sin(u * 117 + v * 38);
+      const fx = (u + .012 * Math.sin(v * 9)) * 78;
+      const stagger = Math.sin(Math.floor(fx) * 73.13) * 39.2, fy = v * 26 + stagger - Math.floor(stagger);
+      let seed = Math.sin(Math.floor(fx) * 12.9898 + Math.floor(fy) * 78.233) * 43758.5453;
+      seed -= Math.floor(seed);
+      const along = fy - Math.floor(fy), across = fx - Math.floor(fx) - (.23 + seed * .5 + .08 * Math.sin(along * Math.PI * 2));
+      const strand = Math.exp(-Math.pow(across / .17, 2)) * Math.pow(Math.max(0, Math.sin(along * Math.PI)), 1.2);
+      shade = .97 + .022 * Math.sin(u * 13 + v * 8) + strand * (seed > .42 ? .16 : -.10);
     } else if ([5, 6, 7, 13].includes(tile)) {
       shade *= .96 + .022 * Math.sin(u * 420) * Math.cos(v * 420);
       if (tile === 5 || tile === 6) {
