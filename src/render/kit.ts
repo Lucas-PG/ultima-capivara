@@ -161,8 +161,8 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
         const mesh = new THREE.Mesh(geometry, cell.material ?? sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
         mesh.castShadow = !cell.landscape && !cell.furniture; mesh.receiveShadow = true;
-        const near = cell.furniture ? (quality === 'low' ? 8 : 12) : cell.landscape ? (quality === 'low' ? 9 : 14) : quality === 'low' ? 24 : FAR_LOD;
-        const far = cell.furniture || cell.landscape ? (quality === 'low' ? 20 : 27) : quality === 'low' ? 65 : 90;
+        const near = cell.furniture ? (quality === 'low' ? 8 : quality === 'high' ? 12 : 10) : cell.landscape ? (quality === 'low' ? 9 : 14) : quality === 'low' ? 24 : FAR_LOD;
+        const far = cell.furniture ? (quality === 'low' ? 20 : quality === 'high' ? 27 : 23) : cell.landscape ? (quality === 'low' ? 20 : 27) : quality === 'low' ? 65 : 90;
         cell.lod.addLevel(mesh, level === 2 ? far : level ? near : 0, .12);
       }
     }
