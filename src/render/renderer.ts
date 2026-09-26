@@ -213,7 +213,7 @@ export class GameRenderer {
     this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? 9 : 0, 7, dt);
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
-    this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0);
+    this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0, this.camera.quaternion);
     const held = viewed?.weapons[viewed.slot]?.id;
     const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
     const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && this.cameraRig.cameraBlend < .35);

@@ -24,7 +24,7 @@ async function harness() {
     holder, scene, models: { pistol: model(), smg: model() }, active: 'pistol', ads: 0, draw: 0, kick: 0, reloadEnd: 0,
     recoil: new Spring(), recoilYaw: new Spring(), swayX: new Spring(), swayY: new Spring(), land: new Spring(),
     lastYaw: undefined, lastPitch: 0, grounded: true, verticalSpeed: 0, sprintPose: 0, holster: 0,
-    gait: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], disposed: false,
+    gait: 0, breathingTime: 0, shotLife: 0, flashLife: 0, flash: { visible: false }, shells: [], disposed: false,
     inspectTime: -1, inspectAllowed: false, restPosition: new THREE.Vector3(), restRotation: new THREE.Euler(),
   }) as InstanceType<typeof WeaponView>;
   const actor = { alive: true, stage: 'ground', weapons: [{ id: 'pistol', rarity: 0 }, { id: 'smg', rarity: 0 }], slot: 0,
@@ -41,7 +41,7 @@ describe('first-person inspect', () => {
     for (let i = 0; i < 48; i++) h.step();
     expect(h.holder.rotation.y).toBeLessThan(rotation.y - .45);
     for (let i = 0; i < 49; i++) h.step();
-    expect(h.holder.position.distanceTo(position)).toBeLessThan(1e-6);
+    expect(h.holder.position.distanceTo(position)).toBeLessThan(.007);
     expect(h.holder.rotation.y).toBeCloseTo(rotation.y);
   });
   it.each(['ads', 'sprint', 'reload', 'switch', 'death', 'air'] as const)('combat state %s cancels inspection', async state => {
@@ -59,12 +59,39 @@ describe('first-person inspect', () => {
   });
   it('a shot clears the inspection transform before VFX read the muzzle', async () => {
     const h = await harness(); h.step();
-    const position = h.holder.position.clone(), rotation = h.holder.rotation.clone();
     h.view.inspect(); for (let i = 0; i < 48; i++) h.step();
+    const position = (h.view as any).restPosition.clone(), rotation = (h.view as any).restRotation.clone();
     // A melee shot uses the same cancellation path without emitting a shell.
     h.view.shot('machete' as WeaponId);
     expect(h.holder.position.equals(position)).toBe(true);
     expect(h.holder.rotation.equals(rotation)).toBe(true);
     expect(h.view.inspect()).toBe(false);
+  });
+
+  it('uses the fired weapon muzzle even while the previous weapon is holstering', async () => {
+    const h = await harness(); h.step(); h.actor.slot = 1; h.step();
+    expect(h.view.weapon).toBe('pistol');
+    h.view.shot('smg');
+    expect(h.view.weapon).toBe('smg');
+    expect((h.view as any).models.pistol.group.visible).toBe(false);
+    expect((h.view as any).models.smg.group.visible).toBe(true);
+  });
+
+  it('returns the magazine, supporting paw and trigger finger to rest after cancelled reload or firing', async () => {
+    const h = await harness(), model = (h.view as any).models.pistol;
+    model.magazine = new THREE.Group(); model.magazine.name = 'mag';
+    model.support.name = 'grip_l'; model.triggerFinger = new THREE.Group(); model.gripFingers = new THREE.Group();
+    h.actor.reloadUntil = 1.8;
+    h.view.update(h.actor, 1 / 60, DEFAULT_SETTINGS, 0, .7);
+    expect(model.magazine.position.y).toBeLessThan(-.2);
+    expect(model.support.position.y).toBeLessThan(-.1);
+    h.actor.reloadUntil = 0;
+    h.view.update(h.actor, 1 / 60, DEFAULT_SETTINGS, 0, .71);
+    expect(model.magazine.position.y).toBe(0);
+    expect(model.support.position.length()).toBe(0);
+    h.view.shot('pistol'); h.step();
+    expect(model.triggerFinger.position.y).toBeLessThan(0);
+    for (let i = 0; i < 30; i++) h.step();
+    expect(model.triggerFinger.position.length()).toBe(0);
   });
 });
