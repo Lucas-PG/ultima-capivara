@@ -31,6 +31,8 @@ for (let i = 0; i < 3; i++) {
   const lod = report.lods.find(lod => lod.name.includes(`LOD${i}`));
   if (!lod || lod.triangles > [20000, 5000, 1500][i]) throw new Error(`LOD${i} exceeds budget`);
 }
-if (report.materials > 3 || report.skins !== 1 || !['idle', 'run', 'jump'].every(clip => report.clips.includes(clip))) throw new Error('Character rig/material/animation contract failed');
+const requiredClips = ['idle', 'run', 'jump', 'walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'fall', 'land', 'reload_tp', 'death',
+  'face_neutral', 'face_determined', 'face_hit', 'face_stunned', 'face_victory', 'face_blink', 'wave', 'dance', 'victory', 'sit', 'chill'];
+if (report.materials > 3 || report.skins !== 1 || report.joints !== 35 || !requiredClips.every(clip => report.clips.includes(clip))) throw new Error('Character rig/material/animation contract failed');
 await writeFile(`${root}/public/models/capybara/metrics.json`, JSON.stringify(report, null, 2) + '\n');
 console.log(`Capivara: ${report.lods.map(lod => `${lod.name} ${lod.triangles} tris`).join(', ')}; ${report.bytes} bytes (${(report.bytes / report.rawBytes * 100).toFixed(1)}% of raw); ${report.joints} joints; ${report.materials} material; clips ${report.clips.join(', ')}`);

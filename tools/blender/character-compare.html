@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="icon" href="../../assets/favicon.svg">
+<title>Capivara: comparação com o modelo aprovado</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eee7d7; color: #3a2418; font: 18px system-ui, sans-serif; }
+  main { display: grid; grid-template-columns: 1fr 1fr; height: 100vh; }
+  section { min-width: 0; position: relative; }
+  h1 { height: 50px; margin: 0; padding: 14px 24px; font-size: 18px; font-weight: 650; }
+  iframe { width: 100%; height: calc(100% - 50px); border: 0; display: block; }
+  .reference { border-left: 1px solid #cdbb98; display: flex; flex-direction: column; }
+  .reference figure { flex: 1; min-height: 0; width: min(460px, 95%); margin: 0 auto; background: url('../art/character-reference/capybara-turnaround-v1.png') no-repeat; background-size: auto 100%; }
+  p { margin: 0; padding: 20px 28px; font-size: 16px; line-height: 1.5; }
+</style>
+<main>
+  <section><h1 id="caption"></h1><iframe title="Modelo atual"></iframe></section>
+  <section class="reference"><h1>Turnaround aprovado a partir da capa</h1>
+    <figure role="img" aria-label="Vista correspondente do turnaround aprovado"></figure>
+    <p>Comparação de forma: crânio e focinho arredondados, olhos altos, patas curtas e curvas, peito largo e pelve compacta. Rig, animações e volumes de colisão preservados.</p>
+  </section>
+</main>
+<script>
+  const query = new URLSearchParams(location.search), pose = query.get('pose') || 'front';
+  const angles = { front: 180, threequarter: 215, side: 270 };
+  const labels = { front: 'Frente', threequarter: 'Três quartos', side: 'Lado' };
+  const reference = document.querySelector('figure');
+  reference.style.width = `${Math.min(460, reference.clientHeight * 418 / 941)}px`;
+  reference.style.backgroundSize = '400% 100%';
+  reference.style.backgroundPosition = `${({ front: 0, threequarter: 33.333, side: 66.667 })[pose] || 0}% center`;
+  document.querySelector('#caption').textContent = `Modelo em tempo real · ${labels[pose] || pose}`;
+  const clip = query.get('clip') || 'idle';
+  document.querySelector('iframe').src = `character-studio.html?runtime=1${clip === 'idle' ? '&relaxed=1' : ''}&ortho=1&clip=${clip}&t=${query.get('t') || 0}&w=${innerWidth / 2}&h=${innerHeight - 50}&yaw=${angles[pose] || 180}&d=3.9&ty=.94&revision=${query.get('revision') || 'turnaround'}`;
+</script>
+</html>
