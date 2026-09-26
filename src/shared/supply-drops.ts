@@ -10,6 +10,8 @@ export const SUPPLY_APPROACH_SECONDS = 5;
 export const SUPPLY_DESCENT_SECONDS = 12;
 export const SUPPLY_RELEASE_HEIGHT = 32;
 export const SUPPLY_CRATE_RADIUS = .55;
+// The authored canopy reaches 3.48 m above the crate landing root.
+export const SUPPLY_CANOPY_HEIGHT = 3.5;
 const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
 const routes = new WeakMap<WorldSpec, readonly Vec3[]>();
 
@@ -52,7 +54,7 @@ export function clearSupplyLanding(world: WorldSpec, point: Vec3): boolean {
   const margin = 1.25;
   if (colliderGrid(world).query(x - margin, z - margin, x + margin, z + margin).some(c =>
     c.min.x < x + margin && c.max.x > x - margin && c.min.z < z + margin && c.max.z > z - margin &&
-    c.max.y > y + .03 && c.min.y < y + SUPPLY_RELEASE_HEIGHT + 3)) return false;
+    c.max.y > y + .03 && c.min.y < y + SUPPLY_RELEASE_HEIGHT + SUPPLY_CANOPY_HEIGHT)) return false;
   let approaches = 0;
   for (const [dx, dz] of directions) {
     const to = { x: x + dx * 3, z: z + dz * 3 };

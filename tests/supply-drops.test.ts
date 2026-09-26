@@ -3,7 +3,7 @@ import { Simulation } from '../src/simulation';
 import { closestInteraction } from '../src/shared/interaction';
 import { rng } from '../src/shared/math';
 import { walkableSegment } from '../src/shared/navigation';
-import { chooseSupplyLanding, clearSupplyLanding, SUPPLY_RELEASE_HEIGHT, supplyDropPhase, supplyDropPosition } from '../src/shared/supply-drops';
+import { chooseSupplyLanding, clearSupplyLanding, SUPPLY_CANOPY_HEIGHT, SUPPLY_RELEASE_HEIGHT, supplyDropPhase, supplyDropPosition } from '../src/shared/supply-drops';
 import { terrainHeight } from '../src/shared/terrain';
 import { waterAt } from '../src/shared/water';
 import { createWorld } from '../src/shared/world';
@@ -127,7 +127,7 @@ describe('reachable supply landing sites', () => {
         expect(Math.abs(terrainHeight(point.x + dx, point.z + dz) - point.y)).toBeLessThanOrEqual(.1);
       }
       expect(world.colliders.some(c => c.min.x < point.x + 1.25 && c.max.x > point.x - 1.25 &&
-        c.min.z < point.z + 1.25 && c.max.z > point.z - 1.25 && c.max.y > point.y + .03 && c.min.y < point.y + 35)).toBe(false);
+        c.min.z < point.z + 1.25 && c.max.z > point.z - 1.25 && c.max.y > point.y + .03 && c.min.y < point.y + SUPPLY_RELEASE_HEIGHT + SUPPLY_CANOPY_HEIGHT)).toBe(false);
       expect([[3, 0], [-3, 0], [0, 3], [0, -3]].filter(([x, z]) => walkableSegment(world, point, { x: point.x + x, z: point.z + z })).length).toBeGreaterThanOrEqual(2);
     }
     expect(found.size).toBeGreaterThan(8);
@@ -144,5 +144,17 @@ describe('reachable supply landing sites', () => {
     world.mudBaths = []; world.navigation!.points.push(ground(80)); world.navigation!.links.push([]);
     const zone = { nextX: 80, nextZ: -20, nextRadius: 12 } as ZoneState;
     expect(chooseSupplyLanding(world, zone, rng(1))).toBeNull();
+  });
+
+  it('keeps the full authored canopy clear of overhead geometry at release', () => {
+    const { world } = fixture(), point = ground(0);
+    expect(clearSupplyLanding(world, point)).toBe(true);
+    world.colliders = [{ id: 'overhead', material: 'wood',
+      min: { x: -.5, y: point.y + SUPPLY_RELEASE_HEIGHT + 3.25, z: -20.5 },
+      max: { x: .5, y: point.y + SUPPLY_RELEASE_HEIGHT + 3.4, z: -19.5 } }];
+    expect(clearSupplyLanding(world, point)).toBe(false);
+    world.colliders = world.colliders.map(c => ({ ...c, min: { ...c.min, y: point.y + SUPPLY_RELEASE_HEIGHT + 3.6 },
+      max: { ...c.max, y: point.y + SUPPLY_RELEASE_HEIGHT + 3.8 } }));
+    expect(clearSupplyLanding(world, point)).toBe(true);
   });
 });
