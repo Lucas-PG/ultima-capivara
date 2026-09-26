@@ -297,6 +297,14 @@ wildflowers, low-poly pebbles and fallen leaves directly from geometry. No image
 prompt, external source or download is used. Placement follows the shared terrain
 palette and collision data; blade wind and fading run on the GPU. Low disables
 the entire layer. Authored by Cena for Phase A.
+#### Cover-art direction and revised budgets
+
+The Phase A style-v3 brief supersedes the earlier flat-palette and toon constraints above. The kit now has three LODs: houses remain within 12,000 / 3,000 / 800 triangles, with physical clay caps only nearby. Hero landmarks, four cliff formations and interior/plaza furniture use the same generated collision contract. Fort masonry has staggered stone courses and continuous cylinder UV spacing, avoiding thin vertical texture streaks.
+
+The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms budget. They add machined panel recesses, fasteners, serrations, grip stippling, magazine ribs, muzzle collars, shaped fingers, fused palms, cloth sleeve cuffs and a vertex contact-occlusion bake. Original palette-derived painted grain, fur strands and fabric weave are authored by the deterministic equations shared between `tools/blender/weapons.py` and `src/render/weapon-atlas.ts`. This 1024x256 painted colour atlas and the roughness atlas replace the old flat 32x32 colour texture. One material is retained; runtime rarity tint regenerates only colour choices while preserving surface detail. No photographic texture, downloaded asset or paid API was used.
+
+Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.
+
 
 Phase A cover-art direction update: the terrain bake now uses continuous olive grass mixtures, linen sand, warm earth and subtle overlapping procedural colour washes, without baked light or photographic noise. Distant island silhouettes are original arranged scene geometry outside the playable coast. All new terrain pixels and offshore compositions are generated locally from the authored map; the approved reference is the existing `public/assets/cover-v2.png`.
 #### Cover-art direction and revised budgets
@@ -327,6 +335,10 @@ Review against the cover at 1920x1080: the M4 visibly carries wood grain, machin
 
 The support-grip follow-up replaces the SMG, M4 and shotgun's hidden fingers with four separate curved fingers wrapped along the handguard or pump. Knuckles and nails sit on the visible upper side, the palm is smaller, and short fur fins remain around the wrist rather than obscuring the fingers. The existing `grip_fingers` and `trigger_finger` nodes stay at identity rest transforms. All eight weapons remain within 40,000 triangles, with one material and the same 1024-square colour/normal atlas contract.
 
+### Street frontage placement follow-up
+
+Original source-authored shop corner brackets, brass suspension rings and street-facing capybara panels in `src/render/street-dressing.ts`. Side-wall murals, laundry, bicycles and planting rotate with the house fronts. No external assets or image generation used. Shop brackets sit outside the kit's front windows and door openings.
+
 # Phase B interface art
 
 `public/assets/ui/island-arrival-v3.webp` (loading screen background) and `public/assets/ui/capy-parachute-v3.webp`
@@ -335,6 +347,7 @@ The support-grip follow-up replaces the SMG, M4 and shotgun's hidden fingers wit
 type: single original game UI progress mascot on a genuinely transparent background, PNG alpha. A small appealing
 capybara adventurer parachuting in a compact, readable full-body three-quarter silhouette facing right, beneath a
 rounded olive and golden canvas parachute." The complete prompt texts are kept in that Codex session log.
+
 ### Fractured coastal stone iteration, 2026-09-25
 
 The four cliff pieces are rebuilt from original irregular convex stone chunks in `tools/blender/kit/rocks.py`. Their silhouettes use angled fracture planes, softened chipped edges, overhangs and unequal masses; the spherical shells and projecting slab decorations are removed. The existing painted sandstone atlas is mapped continuously over each chunk, with cool stone washes, subtle strata, short fissures, moss painted directly into upward stone faces and small grass shoots. The moss uses the same stone vertices, so distant simplification cannot leave intersecting overlay triangles. Fine fissures and grass are omitted after LOD0. Each formation stays below 3,400 / 1,250 / 600 triangles.

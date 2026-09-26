@@ -9,6 +9,15 @@ export const PLAZA = [-10, -21] as const;
 export const MERCADAO = [29, -20] as const;
 export const LAKE = [-92, -1, 12] as const; // Cachoeira feeder pool.
 
+// First arrival in each district: a usable approach with a recognisable view,
+// rather than a radial sample that can face a wall or the back of a terrace.
+export const DISTRICT_ARRIVALS: Readonly<Record<string, readonly [number, number, number, number]>> = {
+  forte: [4, -78, 4, -99], vila: [-1, -10, -10, -34], centro: [36, -6, 29, -20],
+  morro: [-97, -66, -95, -35], cachoeira: [-83, -13, -109, -9], porto: [111, 21, 100, -8],
+  praia: [-31, 95, -28, 109], farol: [0, 106, 3, 113], mangue: [114, 52, 92, 52],
+  fazenda: [53, 78, 70, 60], posto: [-25, 37, -22, 47], lagoa: [-65, 9, -94, -2],
+};
+
 // Width is the wetted channel width, with another 4 m for each bank.
 export const RIVER: readonly (readonly [number, number, number])[] = [
   [-109, -9, 10], [-92, -1, 15], [-70, -1, 7], [-44, 5, 7],
@@ -54,8 +63,21 @@ export interface HouseLot {
   x: number; z: number; w: number; d: number; role: HouseRole;
   material: 'stone' | 'wood'; piece: 'house_small' | 'house_tall'; yaw?: number;
 }
-const home = (x: number, z: number, role: HouseRole = 'home', tall = false, yaw = 0): HouseLot =>
-  ({ x, z, w: tall ? 8 : 7, d: tall ? 7 : 6, role, material: 'stone', piece: tall ? 'house_tall' : 'house_small', yaw });
+function streetFacing(x: number, z: number) {
+  let distance = Infinity, yaw = 0;
+  for (const [x0, z0, x1, z1] of ROADS) {
+    const horizontal = x1 - x0 > z1 - z0;
+    const px = horizontal ? Math.max(x0, Math.min(x1, x)) : (x0 + x1) / 2;
+    const pz = horizontal ? (z0 + z1) / 2 : Math.max(z0, Math.min(z1, z));
+    const gap = Math.hypot(px - x, pz - z);
+    if (gap < distance) { distance = gap; yaw = Math.round(Math.atan2(px - x, pz - z) / (Math.PI / 2)) * Math.PI / 2; }
+  }
+  return yaw;
+}
+const home = (x: number, z: number, role: HouseRole = 'home', tall = false, yaw = streetFacing(x, z)): HouseLot => {
+  const width = tall ? 8 : 7, depth = tall ? 7 : 6, turned = Math.abs(Math.sin(yaw)) > .5;
+  return { x, z, w: turned ? depth : width, d: turned ? width : depth, role, material: 'stone', piece: tall ? 'house_tall' : 'house_small', yaw };
+};
 export const HOUSES: readonly HouseLot[] = [
   home(-43, -29, 'bakery'), home(-29, -29, 'tailor', true),
   home(-44, -13, 'cafe'), home(-28, -9, 'home'), home(10, -13, 'clinic', true),
