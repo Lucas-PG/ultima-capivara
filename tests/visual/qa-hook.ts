@@ -46,7 +46,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   const base = fixture.snapshot();
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let preparedIdentities = '';
-  const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'scope',
+  const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
@@ -58,6 +58,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   function tick() { if (!looping) return; draw(); requestAnimationFrame(tick); }
   async function pose(name: string) {
     if (!renderer) throw new Error('Call start first');
+    deps.ui.closeEmoteWheel();
     const district = name.startsWith('district-') ? deps.world.districts.find(d => `district-${d.id}` === name) : null;
     const spawn = name.startsWith('spawn-') ? deps.world.spawns.find(point => `spawn-${point.district}` === name) : null;
     const view = spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
@@ -127,6 +128,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null });
     deps.ui.update(s, 'practice', 0, false, 60, null);
     deps.ui.setPaused(name === 'pause');
+    if (name === 'emote-wheel') deps.ui.openEmoteWheel();
     if (name !== 'results') document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
   }

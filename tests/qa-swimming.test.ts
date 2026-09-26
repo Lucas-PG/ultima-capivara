@@ -15,7 +15,7 @@ it('reviews real river flotation, a nearby swimmer and a dry wet exit using shar
   const renderer = { update: (next: RenderFrame) => { frame = next; }, prepareMatch: async () => {},
     cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 } };
   installQa({ world: createWorld(), settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
-    ui: { update: () => {}, setPaused: () => {} } as any, begin: async () => renderer as any });
+    ui: { update: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
   const qa = window.__capyQA!; await qa.start();
   await qa.pose('swimWaterline');
   expect(frame!.snapshot!.actors[0]).toMatchObject({ swimming: true, grounded: false });
