@@ -221,8 +221,8 @@
     {
       "id": "cliff_rock",
       "triangles": [
-        3384,
-        1237,
+        3328,
+        1238,
         588
       ],
       "colliders": 10
@@ -230,16 +230,16 @@
     {
       "id": "cliff_rock_low",
       "triangles": [
-        3384,
-        1237,
-        587
+        3376,
+        1238,
+        588
       ],
       "colliders": 9
     },
     {
       "id": "cliff_rock_tall",
       "triangles": [
-        3385,
+        3321,
         1237,
         587
       ],
@@ -248,9 +248,9 @@
     {
       "id": "cliff_ledge",
       "triangles": [
-        3380,
+        3383,
         1238,
-        587
+        588
       ],
       "colliders": 9
     },
@@ -318,5 +318,5 @@
       "colliders": 6
     }
   ],
-  "bytes": 5482956
+  "bytes": 5458676
 }
