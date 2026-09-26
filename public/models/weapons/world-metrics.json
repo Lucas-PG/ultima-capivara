@@ -1,49 +1,49 @@
 {
   "source": "painted-weapons.glb",
-  "sourceSha256": "9e3507cd013358c264d263b56fcdbfcb58bed1334c8383c68e98507e7ab619fe",
+  "sourceSha256": "93821f63df2e36eb4e2d7b4facd87c79b69ceacadc4b232d388ccfe8d4f05088",
   "forward": "-Z",
   "material": "shared painted atlas with authored contact shading",
   "weapons": {
     "pistol": {
-      "sourceTriangles": 12744,
+      "sourceTriangles": 15276,
       "scale": 0.7,
       "near": 1400,
       "far": 280
     },
     "smg": {
-      "sourceTriangles": 13254,
+      "sourceTriangles": 15954,
       "scale": 0.88,
-      "near": 1700,
+      "near": 1699,
       "far": 320
     },
     "m4": {
-      "sourceTriangles": 15672,
+      "sourceTriangles": 18410,
       "scale": 0.84,
-      "near": 2190,
+      "near": 2195,
       "far": 380
     },
     "shotgun": {
-      "sourceTriangles": 13034,
+      "sourceTriangles": 15564,
       "scale": 0.84,
       "near": 1900,
       "far": 350
     },
     "dmr": {
-      "sourceTriangles": 5846,
+      "sourceTriangles": 7152,
       "scale": 0.84,
       "near": 1900,
       "far": 360
     },
     "sniper": {
-      "sourceTriangles": 6016,
+      "sourceTriangles": 7484,
       "scale": 0.84,
       "near": 2000,
       "far": 380
     },
     "machete": {
-      "sourceTriangles": 580,
+      "sourceTriangles": 1294,
       "scale": 0.9,
-      "near": 580,
+      "near": 650,
       "far": 180
     },
     "slingshot": {
@@ -53,5 +53,5 @@
       "far": 240
     }
   },
-  "bundledBytes": 1661460
+  "bundledBytes": 1635141
 }
