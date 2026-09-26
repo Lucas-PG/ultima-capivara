@@ -106,7 +106,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
     sourceMaterial.roughness = Math.max(.85, sourceMaterial.roughness); sourceMaterial.metalness = 0;
     const sourceGeometry = new Map<string, THREE.BufferGeometry>();
     for (const id of new Set(placements.map(placement => placement.piece))) {
-      for (let level = 0; level < 2; level++) {
+      for (let level = 0; level < 3; level++) {
         const mesh = asset.scene.getObjectByName(`${id}_LOD${level}`) as THREE.Mesh | undefined;
         if (mesh?.isMesh) sourceGeometry.set(`${id}:${level}`, editableGeometry(mesh.geometry).applyMatrix4(mesh.matrixWorld));
       }
@@ -117,7 +117,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         geometry.dispose(); geometries.delete(geometry);
       }
       cell.lod.clear(); cell.lod.levels.length = 0;
-      for (let level = 0; level < 2; level++) {
+      for (let level = 0; level < 3; level++) {
         const parts: THREE.BufferGeometry[] = [];
         for (const placement of cell.placements) {
           const source = sourceGeometry.get(`${placement.piece}:${level}`) || sourceGeometry.get(`${placement.piece}:0`);
@@ -136,7 +136,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
         const mesh = new THREE.Mesh(geometry, sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
         mesh.castShadow = mesh.receiveShadow = true;
-        cell.lod.addLevel(mesh, level ? (quality === 'low' ? 38 : FAR_LOD) : 0, .12);
+        cell.lod.addLevel(mesh, level === 2 ? (quality === 'low' ? 80 : 118) : level ? (quality === 'low' ? 32 : FAR_LOD) : 0, .12);
       }
     }
     sourceGeometry.forEach(geometry => geometry.dispose());

@@ -297,3 +297,10 @@ wildflowers, low-poly pebbles and fallen leaves directly from geometry. No image
 prompt, external source or download is used. Placement follows the shared terrain
 palette and collision data; blade wind and fading run on the GPU. Low disables
 the entire layer. Authored by Cena for Phase A.
+#### Cover-art direction and revised budgets
+
+The Phase A style-v3 brief supersedes the earlier flat-palette and toon constraints above. The kit now has three LODs: houses remain within 12,000 / 3,000 / 800 triangles, with physical clay caps only nearby. Hero landmarks, four cliff formations and interior/plaza furniture use the same generated collision contract. Fort masonry has staggered stone courses and continuous cylinder UV spacing, avoiding thin vertical texture streaks.
+
+The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms budget. They add machined panel recesses, fasteners, serrations, grip stippling, magazine ribs, muzzle collars, shaped fingers, fused palms, cloth sleeve cuffs and a vertex contact-occlusion bake. Original palette-derived painted grain, fur strands and fabric weave are authored by the deterministic equations shared between `tools/blender/weapons.py` and `src/render/weapon-atlas.ts`. This 1024x256 painted colour atlas and the roughness atlas replace the old flat 32x32 colour texture. One material is retained; runtime rarity tint regenerates only colour choices while preserving surface detail. No photographic texture, downloaded asset or paid API was used.
+
+Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.

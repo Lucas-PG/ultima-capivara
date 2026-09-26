@@ -5,83 +5,282 @@
     {
       "id": "house_small",
       "triangles": [
-        29288,
-        4828
+        11988,
+        2884,
+        714
       ],
-      "colliders": 25
+      "colliders": 18
     },
     {
       "id": "house_tall",
       "triangles": [
-        46052,
-        8154
+        11964,
+        2880,
+        538
       ],
-      "colliders": 48
+      "colliders": 40
     },
     {
       "id": "church",
       "triangles": [
-        55684,
-        5908
+        14936,
+        3484,
+        804
       ],
-      "colliders": 38
+      "colliders": 28
     },
     {
       "id": "market_hall",
       "triangles": [
-        65144,
-        7438
+        14936,
+        3484,
+        742
       ],
-      "colliders": 46
+      "colliders": 31
     },
     {
       "id": "fort_wall",
       "triangles": [
-        1836,
-        954
+        3916,
+        748,
+        748
       ],
       "colliders": 8
     },
     {
       "id": "fort_tower",
       "triangles": [
-        3392,
-        1762
+        7312,
+        1600,
+        768
       ],
       "colliders": 16
     },
     {
       "id": "bridge_stone",
       "triangles": [
-        5940,
-        1404
+        2420,
+        1100,
+        768
       ],
       "colliders": 15
     },
     {
       "id": "dock_wood",
       "triangles": [
-        4212,
-        168
+        2228,
+        260,
+        260
       ],
       "colliders": 7
     },
     {
       "id": "container",
       "triangles": [
-        6588,
-        616
+        2684,
+        484,
+        484
       ],
       "colliders": 1
     },
     {
       "id": "crate",
       "triangles": [
-        996,
-        516
+        420,
+        420,
+        420
       ],
       "colliders": 1
+    },
+    {
+      "id": "house_medium",
+      "triangles": [
+        11988,
+        2884,
+        714
+      ],
+      "colliders": 20
+    },
+    {
+      "id": "warehouse",
+      "triangles": [
+        14968,
+        3484,
+        842
+      ],
+      "colliders": 25
+    },
+    {
+      "id": "fort_gate",
+      "triangles": [
+        968,
+        704,
+        704
+      ],
+      "colliders": 16
+    },
+    {
+      "id": "lighthouse",
+      "triangles": [
+        3740,
+        2887,
+        684
+      ],
+      "colliders": 9
+    },
+    {
+      "id": "beach_kiosk",
+      "triangles": [
+        5016,
+        1400,
+        768
+      ],
+      "colliders": 24
+    },
+    {
+      "id": "fountain",
+      "triangles": [
+        5800,
+        1320,
+        768
+      ],
+      "colliders": 5
+    },
+    {
+      "id": "river_wall",
+      "triangles": [
+        220,
+        220,
+        220
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "river_steps",
+      "triangles": [
+        1432,
+        1432,
+        768
+      ],
+      "colliders": 20
+    },
+    {
+      "id": "fence",
+      "triangles": [
+        864,
+        864,
+        768
+      ],
+      "colliders": 16
+    },
+    {
+      "id": "fence_gate",
+      "triangles": [
+        864,
+        864,
+        768
+      ],
+      "colliders": 16
+    },
+    {
+      "id": "cliff_rock",
+      "triangles": [
+        960,
+        960,
+        767
+      ],
+      "colliders": 8
+    },
+    {
+      "id": "cliff_rock_low",
+      "triangles": [
+        1140,
+        612,
+        612
+      ],
+      "colliders": 3
+    },
+    {
+      "id": "cliff_rock_tall",
+      "triangles": [
+        3040,
+        1632,
+        876
+      ],
+      "colliders": 8
+    },
+    {
+      "id": "cliff_ledge",
+      "triangles": [
+        1900,
+        1020,
+        768
+      ],
+      "colliders": 5
+    },
+    {
+      "id": "boat",
+      "triangles": [
+        2484,
+        2388,
+        768
+      ],
+      "colliders": 29
+    },
+    {
+      "id": "interior_counter",
+      "triangles": [
+        872,
+        88,
+        88
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "bed",
+      "triangles": [
+        616,
+        396,
+        396
+      ],
+      "colliders": 7
+    },
+    {
+      "id": "bench",
+      "triangles": [
+        572,
+        572,
+        572
+      ],
+      "colliders": 11
+    },
+    {
+      "id": "planter",
+      "triangles": [
+        1780,
+        980,
+        754
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "lamp_post",
+      "triangles": [
+        468,
+        468,
+        468
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "market_stall",
+      "triangles": [
+        4332,
+        1452,
+        766
+      ],
+      "colliders": 6
     }
   ],
-  "bytes": 5195328
+  "bytes": 4333984
 }
