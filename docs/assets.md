@@ -289,3 +289,11 @@ Capybara motion remains original scripted animation on the existing 35-joint rig
 Painted weapons retain the established component groups. Visible moving geometry now sits below identity alias pivots `<id>_mag`, `<id>_slide` or `<id>_bolt`, and `<id>_grip_l`, with `partRole` extras. Runtime normalizes these names on each cloned weapon to avoid GLTFLoader's global duplicate-name suffixes. Magazine withdrawal is local -Y; bolt and slide travel is +Z. The tube-fed shotgun and non-firearms retain their appropriate existing mechanisms.
 
 Phase A cover-art direction update: the terrain bake now uses continuous olive grass mixtures, linen sand, warm earth and subtle overlapping procedural colour washes, without baked light or photographic noise. Distant island silhouettes are original arranged scene geometry outside the playable coast. All new terrain pixels and offshore compositions are generated locally from the authored map; the approved reference is the existing `public/assets/cover-v2.png`.
+
+# Phase A ground cover
+
+`src/render/ground-cover.ts` creates original curved grass ribbons, five-petal
+wildflowers, low-poly pebbles and fallen leaves directly from geometry. No image
+prompt, external source or download is used. Placement follows the shared terrain
+palette and collision data; blade wind and fading run on the GPU. Low disables
+the entire layer. Authored by Cena for Phase A.

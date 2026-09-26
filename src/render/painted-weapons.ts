@@ -5,7 +5,7 @@ import { RARITY } from '../shared/rarity';
 import palette from './weapon-palette.json';
 
 export const PAINTED_WEAPON_URL = `${import.meta.env.BASE_URL}models/weapons/painted-weapons.glb`;
-export const paintedWeaponsEnabled = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('weapons') === 'v3';
+export const paintedWeaponsEnabled = () => typeof location === 'undefined' || new URLSearchParams(location.search).get('weapons') !== 'legacy';
 export const PAINTED_WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
 
 export interface PaintedWeaponModel {
@@ -89,6 +89,10 @@ export class PaintedWeaponSet {
     if (!this.source || this.disposed) throw new Error('As armas ainda não estão prontas.');
     const group = new THREE.Group(); group.name = id;
     group.add(this.source.scene.getObjectByName(id)!.clone(true));
+    // Blender exports unique ids; aliases become exact only inside this weapon.
+    group.traverse(object => {
+      if (['mag', 'bolt', 'slide', 'grip_l'].includes(object.userData.partRole)) object.name = object.userData.partRole;
+    });
     const get = (part: string) => group.getObjectByName(`${id}_${part}`)!;
     const sight = get('sight');
     const model = { group, muzzle: get('muzzle'), eject: get('eject'), magazine: get('magazine'), action: get('action'),

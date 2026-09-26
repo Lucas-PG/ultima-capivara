@@ -70,6 +70,10 @@ export class LootView {
     this.beamCeilings = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
       .map(object => ({ x: object.pos.x, z: object.pos.z, y: object.pos.y + (object.kind === 'roof' ? 0 : 2.95),
         halfWidth: object.scale.x / 2, halfDepth: object.scale.z / 2 }));
+    for (const solid of world.colliders) if (solid.pieceId) this.beamCeilings.push({
+      x: (solid.min.x + solid.max.x) / 2, z: (solid.min.z + solid.max.z) / 2, y: solid.min.y,
+      halfWidth: (solid.max.x - solid.min.x) / 2, halfDepth: (solid.max.z - solid.min.z) / 2,
+    });
     for (const item of world.loot) if (item.kind === 'weapon') this.beamHeight(item);
     const counts = new Map<string, number>();
     for (const item of world.loot) counts.set(lootKey(item), (counts.get(lootKey(item)) || 0) + 1);
