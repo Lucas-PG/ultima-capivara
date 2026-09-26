@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BOT_TELL, LANDING_GRACE, Simulation } from '../src/simulation';
 import { DIFFICULTY, adaptDifficulty } from '../src/simulation/bots';
 import { terrainHeight } from '../src/shared/terrain';
+import { walkableHeight } from '../src/shared/navigation';
 import { WEAPONS } from '../src/shared/weapons';
 import { createWorld } from '../src/shared/world';
 import type { ActorState, Difficulty, GameEvent, InputFrame, WorldSpec } from '../src/shared/types';
@@ -216,7 +217,7 @@ describe('legacy bot behaviour', () => {
     advance(sim, 12);
     const moved = grounded.filter(a => a.state.alive && Math.hypot(a.state.pos.x - before.get(a.state.id)!.x, a.state.pos.z - before.get(a.state.id)!.z) > 3);
     expect(moved.length).toBeGreaterThan(grounded.filter(a => a.state.alive).length * .6);
-    expect(grounded.filter(a => a.state.alive && terrainHeight(a.state.pos.x, a.state.pos.z) < -.3)).toHaveLength(0);
+    expect(grounded.filter(a => a.state.alive && walkableHeight(a.state.pos.x, a.state.pos.z, world) < -.3)).toHaveLength(0);
   }, 45_000);
 
   it('adaptive difficulty makes practice bots milder after losses and braver after wins, within legacy bounds', () => {
