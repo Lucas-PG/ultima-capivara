@@ -1,8 +1,9 @@
 import { inArena } from './layout';
-import { overlapsFootprint } from './collision';
+import { overlapsFootprint, SWIM_DEPTH, SWIM_DRAFT } from './collision';
 import { KIT_PIECES } from './kit-collision';
 import { colliderGrid } from './collider-grid';
 import { terrainHeight } from './terrain';
+import { waterAt } from './water';
 import type { Collider, NavigationGraph, Vec3, WorldSpec } from './types';
 
 function nearby(world: WorldSpec, x: number, z: number, margin = 0): Collider[] {
@@ -13,6 +14,8 @@ function nearby(world: WorldSpec, x: number, z: number, margin = 0): Collider[] 
 // above water. Roofs and crate tops are never mistaken for dry ground.
 export function walkableHeight(x: number, z: number, world: WorldSpec): number {
   let y = terrainHeight(x, z);
+  const water = waterAt(x, z);
+  if (water && water.depth >= SWIM_DEPTH) y = Math.max(y, water.surfaceY - SWIM_DRAFT);
   const ground = y;
   for (const c of nearby(world, x, z, .32)) if (c.max.y <= ground + .45 && c.max.y > y && overlapsFootprint({ x, y, z }, c))
     y = c.max.y;
@@ -27,7 +30,7 @@ export function walkableSegment(world: WorldSpec, from: Pick<Vec3, 'x' | 'z'>, t
   for (let i = 0; i <= steps; i++) {
     const x = from.x + (to.x - from.x) * i / steps, z = from.z + (to.z - from.z) * i / steps;
     const y = walkableHeight(x, z, world);
-    if (y < .3 || Math.abs(x) > 124 || Math.abs(z) > 124 || (arena && !inArena(x, z, .5))) return false;
+    if (Math.abs(x) > 124 || Math.abs(z) > 124 || (arena && !inArena(x, z, .5))) return false;
     if (i && Math.abs(y - previous) > Math.max(.45, distance / steps * .85)) return false;
     if (nearby(world, x, z, .32).some(c => y < c.max.y - .01 && y + 1.8 > c.min.y &&
       x + .32 > c.min.x && x - .32 < c.max.x && z + .32 > c.min.z && z - .32 < c.max.z)) return false;
@@ -108,7 +111,7 @@ export function navigationWaypoint(world: WorldSpec, from: Vec3, to: Vec3, arena
   while (path[path.length - 1] !== start) path.push(previous[path[path.length - 1]]);
   path.reverse();
   // Skip short collinear segments when the whole walk is clear, without ever
-  // cutting a diagonal corner through the river or a building.
+  // cutting a diagonal corner through a building or a steep bank.
   let waypoint = graph.points[start];
   for (const index of path.slice(1, 8)) {
     const candidate = graph.points[index];

@@ -46,12 +46,12 @@ export function damageFalloff(id: WeaponId, distance: number): number {
 
 // Heat is server owned and decays between shots. Moving or firing a burst widens
 // the cone, while the first settled shot keeps the weapon's listed accuracy.
-export function shotSpread(id: WeaponId, ads: number, speed: number, airborne: boolean, heat: number): number {
+export function shotSpread(id: WeaponId, ads: number, speed: number, airborne: boolean, heat: number, swimming = false): number {
   const def = WEAPONS[id];
   if (def.melee || def.projectile) return 0;
   const movement = airborne ? .9 : Math.min(1, speed / 3.9) * .45;
-  const blend = Math.min(1, Math.max(0, ads));
-  return def.spread + (def.adsSpread - def.spread) * blend + movement + heat * (.65 - .3 * blend);
+  const blend = swimming ? 0 : Math.min(1, Math.max(0, ads));
+  return def.spread + (def.adsSpread - def.spread) * blend + movement + heat * (.65 - .3 * blend) + (swimming ? 1.5 : 0);
 }
 
 export function advanceAds(id: WeaponId, amount: number, held: boolean, dt: number): number {
