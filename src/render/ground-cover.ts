@@ -162,6 +162,7 @@ export class GroundCover {
   }
 
   update(camera: THREE.Camera, time: number, reducedMotion: boolean) {
+    if (this.quality === 'low') return;
     this.time.value = reducedMotion ? 0 : time; this.eye.value.copy(camera.position);
     const reach = GROUND_COVER[this.quality].distance;
     for (const cell of this.cells) {

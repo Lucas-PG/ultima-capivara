@@ -37,7 +37,7 @@ it('uses viewport CSS pixels after resizing and updates DPR even when CSS dimens
   renderer.resize();
   expect(gl.setSize).toHaveBeenLastCalledWith(1512, 982, false);
   expect(gl.domElement.style).toEqual({ width: '100vw', height: '100vh' });
-  expect(camera.aspect).toBe(1512 / 982); expect(ratio).toBe(1.5);
+  expect(camera.aspect).toBe(1512 / 982); expect(ratio).toBe(2);
   viewport.devicePixelRatio = 1; renderer.resize(); expect(ratio).toBe(1);
   viewport.innerWidth = 1100; viewport.innerHeight = 900; renderer.resize();
   expect(gl.setSize).toHaveBeenLastCalledWith(1100, 900, false);

@@ -53,7 +53,7 @@ describe('match avatar preparation', () => {
       ambientLife: owned(),
       sky: { group: new THREE.Group(), ...owned() }, storm: { mesh: new THREE.Mesh(), ...owned() },
       weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), revealAll: vi.fn(), ...owned() },
-      environment: owned(), pipeline: owned(), assets: { ready: vi.fn().mockResolvedValue(undefined), prepareTextures: vi.fn(), ...owned() },
+      environment: owned(), pipeline: { beginWarmup: vi.fn(), resize: vi.fn(), ...owned() }, assets: { ready: vi.fn().mockResolvedValue(undefined), prepareTextures: vi.fn(), ...owned() },
       onProgress: vi.fn(), resize: vi.fn(), effects: { warm: vi.fn(), ...owned() },
       gl: { compileAsync: compile, setRenderTarget: vi.fn(), shadowMap: { enabled: true }, ...owned() },
     }) as GameRenderer;

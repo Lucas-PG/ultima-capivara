@@ -3,6 +3,7 @@ import { timing } from './timing';
 import { Spring } from './spring';
 import { damp } from '../shared/math';
 import { actorEye } from '../shared/collision';
+import { colliderGrid } from '../shared/collider-grid';
 import { terrainHeight } from '../shared/terrain';
 import type { ActorState, RenderFrame, Settings, Vec3, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
@@ -110,9 +111,7 @@ export class CameraRig {
     if (length > 1e-3) {
       reach.divideScalar(length);
       let allowed = length;
-      for (const collider of this.world.colliders) {
-        // Skip only boxes wholly outside a 4 m square; a wide ceiling that contains the eyes must still count.
-        if (collider.min.x > eye.x + 4 || collider.max.x < eye.x - 4 || collider.min.z > eye.z + 4 || collider.max.z < eye.z - 4) continue;
+      for (const collider of colliderGrid(this.world).query(eye.x - 4, eye.z - 4, eye.x + 4, eye.z + 4)) {
         const hit = segmentAabb(eye, reach, allowed, collider.min, collider.max);
         if (hit < allowed) allowed = Math.max(0, hit - .2);
       }
@@ -193,16 +192,14 @@ export class CameraRig {
         const bob = settings.reducedMotion ? 0 : actor.grounded ? Math.sin(this.gait) * Math.min(speed / 8, 1) * .017 : 0;
         const target = this.target.copy(predicted).setY(predicted.y + eye + bob + (settings.reducedMotion ? 0 : impact));
         // Keep the visual crouch transition below any actual low ceiling.
-        for (const solid of this.world.colliders) if (predicted.x > solid.min.x - .06 && predicted.x < solid.max.x + .06 &&
+        for (const solid of colliderGrid(this.world).query(predicted.x - .06, predicted.z - .06, predicted.x + .06, predicted.z + .06)) if (predicted.x > solid.min.x - .06 && predicted.x < solid.max.x + .06 &&
           predicted.z > solid.min.z - .06 && predicted.z < solid.max.z + .06 && solid.min.y > predicted.y + .5)
           target.y = Math.min(target.y, solid.min.y - .08);
         const leanDistance = actor.lean * .24;
         if (Math.abs(leanDistance) > .001) {
           const leanDir = this.direction.set(Math.cos(yaw) * Math.sign(leanDistance), 0, -Math.sin(yaw) * Math.sign(leanDistance));
           let allowed = Math.abs(leanDistance);
-          for (const collider of this.world.colliders) {
-            if (Math.abs(collider.min.x - target.x) > 2 && Math.abs(collider.max.x - target.x) > 2) continue;
-            if (Math.abs(collider.min.z - target.z) > 2 && Math.abs(collider.max.z - target.z) > 2) continue;
+          for (const collider of colliderGrid(this.world).query(target.x - 2, target.z - 2, target.x + 2, target.z + 2)) {
             const hit = segmentAabb(target, leanDir, allowed, collider.min, collider.max);
             if (hit < allowed) allowed = Math.max(0, hit - .07);
           }
@@ -266,9 +263,8 @@ export class CameraRig {
   closeWall(): number {
     const dir = this.direction; this.camera.getWorldDirection(dir);
     let nearest = 1.5;
-    for (const collider of this.world.colliders) {
-      if (Math.abs(collider.min.x - this.camera.position.x) > 3 && Math.abs(collider.max.x - this.camera.position.x) > 3) continue;
-      if (Math.abs(collider.min.z - this.camera.position.z) > 3 && Math.abs(collider.max.z - this.camera.position.z) > 3) continue;
+    const { x, z } = this.camera.position;
+    for (const collider of colliderGrid(this.world).query(x - 1.5, z - 1.5, x + 1.5, z + 1.5)) {
       const d = segmentAabb(this.camera.position, dir, 1.5, collider.min, collider.max);
       if (d >= 0 && d < nearest) nearest = d;
     }
