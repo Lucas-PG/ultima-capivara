@@ -288,14 +288,6 @@ Capybara motion remains original scripted animation on the existing 35-joint rig
 
 Painted weapons retain the established component groups. Visible moving geometry now sits below identity alias pivots `<id>_mag`, `<id>_slide` or `<id>_bolt`, and `<id>_grip_l`, with `partRole` extras. Runtime normalizes these names on each cloned weapon to avoid GLTFLoader's global duplicate-name suffixes. Magazine withdrawal is local -Y; bolt and slide travel is +Z. The tube-fed shotgun and non-firearms retain their appropriate existing mechanisms.
 
-#### Cover-art direction and revised budgets
-
-The Phase A style-v3 brief supersedes the earlier flat-palette and toon constraints above. The kit now has three LODs: houses remain within 12,000 / 3,000 / 800 triangles, with physical clay caps only nearby. Hero landmarks, four cliff formations and interior/plaza furniture use the same generated collision contract. Fort masonry has staggered stone courses and continuous cylinder UV spacing, avoiding thin vertical texture streaks.
-
-The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms budget. They add machined panel recesses, fasteners, serrations, grip stippling, magazine ribs, muzzle collars, shaped fingers, fused palms, cloth sleeve cuffs and a vertex contact-occlusion bake. Original palette-derived painted grain, fur strands and fabric weave are authored by the deterministic equations shared between `tools/blender/weapons.py` and `src/render/weapon-atlas.ts`. This 1024x256 painted colour atlas and the roughness atlas replace the old flat 32x32 colour texture. One material is retained; runtime rarity tint regenerates only colour choices while preserving surface detail. No photographic texture, downloaded asset or paid API was used.
-
-Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.
-
 Phase A cover-art direction update: the terrain bake now uses continuous olive grass mixtures, linen sand, warm earth and subtle overlapping procedural colour washes, without baked light or photographic noise. Distant island silhouettes are original arranged scene geometry outside the playable coast. All new terrain pixels and offshore compositions are generated locally from the authored map; the approved reference is the existing `public/assets/cover-v2.png`.
 
 # Phase A ground cover
@@ -307,11 +299,23 @@ palette and collision data; blade wind and fading run on the GPU. Low disables
 the entire layer. Authored by Cena for Phase A.
 
 Phase A cover-art direction update: the terrain bake now uses continuous olive grass mixtures, linen sand, warm earth and subtle overlapping procedural colour washes, without baked light or photographic noise. Distant island silhouettes are original arranged scene geometry outside the playable coast. All new terrain pixels and offshore compositions are generated locally from the authored map; the approved reference is the existing `public/assets/cover-v2.png`.
+#### Cover-art direction and revised budgets
+
+The Phase A style-v3 brief supersedes the earlier flat-palette and toon constraints above. The kit now has three LODs: houses remain within 12,000 / 3,000 / 800 triangles, with physical clay caps only nearby. Hero landmarks, four cliff formations and interior/plaza furniture use the same generated collision contract. Fort masonry has staggered stone courses and continuous cylinder UV spacing, avoiding thin vertical texture streaks.
+
+The pistol, SMG and M4 now target the approved 25,000-triangle weapon-plus-arms budget. They add machined panel recesses, fasteners, serrations, grip stippling, magazine ribs, muzzle collars, shaped fingers, fused palms, cloth sleeve cuffs and a vertex contact-occlusion bake. Original palette-derived painted grain, fur strands and fabric weave are authored by the deterministic equations shared between `tools/blender/weapons.py` and `src/render/weapon-atlas.ts`. This 1024x256 painted colour atlas and the roughness atlas replace the old flat 32x32 colour texture. One material is retained; runtime rarity tint regenerates only colour choices while preserving surface detail. No photographic texture, downloaded asset or paid API was used.
+
+Tree crowns now use rounded lobes and analytic volume normals, curved leaf ribbons and painterly colour variation. Near foliage receives warm light transmission and rim shading. Detailed, reduced and distant geometry switches at 25 and 60 metres per cell, retaining the existing instancing and inexpensive shadow proxies. Palm fronds remain layered and drooping, with individual leaflets, curved ringed trunks and coconuts. Gameplay placement and trunk collision radii remain unchanged.
+
 Cena's v3 renderer adds original canvas-painted cloud silhouettes and brush washes,
 procedural metre-scale sand ripples and continuous triplanar rock colour, ribbed
 shell geometry, GPU pollen, water glints and depth-occluded sunlight shafts. These
 are generated locally from authored equations and geometry, with no external
 downloads or paid services. The lighting reference is `public/assets/cover-v2.png`.
+
+## Phase A lived-in street dressing
+
+`src/render/street-dressing.ts` creates original curved laundry ropes, folded cloth with hems and pegs, warm festoon bulbs, bicycle frames with spokes and woven baskets, and fringed beach towels. Small meshes merge by material and 48 m cell. The 1024x512 canvas atlas contains locally drawn pt-BR shop panels, brush strokes, capybara silhouettes and leaf sprigs. It uses no downloaded image, external asset, paid service or generated-image prompt. Decorative placements are authored in shared world data; all gameplay solids continue to come from the Blender kit contract. Broad offshore ridges use forest-dominant colour washes and smooth rounded profiles under the scene haze.
 
 #### First-person detail bible iteration
 
@@ -329,3 +333,8 @@ Review against the cover at 1920x1080: the M4 visibly carries wood grain, machin
 type: single original game UI progress mascot on a genuinely transparent background, PNG alpha. A small appealing
 capybara adventurer parachuting in a compact, readable full-body three-quarter silhouette facing right, beneath a
 rounded olive and golden canvas parachute." The complete prompt texts are kept in that Codex session log.
+### Fractured coastal stone iteration, 2026-09-25
+
+The four cliff pieces are rebuilt from original irregular convex stone chunks in `tools/blender/kit/rocks.py`. Their silhouettes use angled fracture planes, softened chipped edges, overhangs and unequal masses; the spherical shells and projecting slab decorations are removed. The existing painted sandstone atlas is mapped continuously over each chunk, with cool stone washes, subtle strata, short fissures, torn moss patches and small grass shoots. Fine fissures and grass are omitted after LOD0. Each formation stays below 3,400 / 1,250 / 600 triangles.
+
+Collision boxes are inscribed directly against the same authored hull half-spaces, eroded by the bevel radius. No separate cylinder cores are rendered. The exported metadata retains the four piece IDs, bottom origins, footprint dimensions and stone material. Asset tests raycast every collider face against all three exported LODs to ensure no collision surface protrudes beyond visible stone. This iteration uses no external assets or services.

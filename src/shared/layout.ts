@@ -76,9 +76,9 @@ export const MORRO_LOTS: readonly HouseLot[] = [
 export const MORRO_COLS = [-109, -85, -70, -58] as const;
 export const MORRO_Z = [-74, -20] as const;
 export const TOWERS = HOUSES.filter(h => h.piece === 'house_tall').map(h => [h.x, h.z] as const);
-export const AREAS: readonly { rect: Rect; margin: number; y: number | null }[] = [
+export const AREAS: readonly { rect: Rect; margin: number; y: number | null; fixed?: boolean }[] = [
   { rect: [-56, -58, 60, 58], margin: 3, y: 2.2 },
-  { rect: [-10, -113, 18, -85], margin: 2, y: 15.5 },
+  { rect: [-14, -117, 22, -81], margin: 2, y: 15.5, fixed: true },
   { rect: [76, -33, 116, 18], margin: 3, y: 1.5 },
   { rect: [41, 48, 83, 78], margin: 3, y: 5.4 },
   { rect: [-53, 93, 47, 115], margin: 2, y: .85 },

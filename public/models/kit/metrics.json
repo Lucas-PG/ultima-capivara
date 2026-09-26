@@ -221,38 +221,38 @@
     {
       "id": "cliff_rock",
       "triangles": [
-        1632,
-        960,
-        696
+        3384,
+        1237,
+        588
       ],
-      "colliders": 8
+      "colliders": 10
     },
     {
       "id": "cliff_rock_low",
       "triangles": [
-        2556,
-        1772,
-        754
+        3384,
+        1237,
+        587
       ],
-      "colliders": 18
+      "colliders": 9
     },
     {
       "id": "cliff_rock_tall",
       "triangles": [
-        2556,
-        1772,
-        754
+        3385,
+        1237,
+        587
       ],
-      "colliders": 18
+      "colliders": 8
     },
     {
       "id": "cliff_ledge",
       "triangles": [
-        2556,
-        1772,
-        754
+        3380,
+        1238,
+        587
       ],
-      "colliders": 18
+      "colliders": 9
     },
     {
       "id": "boat",
@@ -318,5 +318,5 @@
       "colliders": 6
     }
   ],
-  "bytes": 5547472
+  "bytes": 5482956
 }

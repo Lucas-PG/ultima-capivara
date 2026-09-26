@@ -76,13 +76,30 @@ describe('island kit geometry and traversal contract', () => {
     }
   });
 
-  it('keeps the outward rock shell visible in front of its inscribed solid bands', () => {
+  it('keeps every cliff collision face behind outward stone geometry at every LOD', () => {
     asset.scene.updateMatrixWorld(true);
-    const rock = asset.scene.getObjectByName('cliff_rock_LOD0')!;
-    const ray = new THREE.Raycaster(new THREE.Vector3(0, 2.75, 10), new THREE.Vector3(0, 0, -1));
-    const hit = ray.intersectObject(rock, false)[0];
-    expect(hit).toBeDefined();
-    expect(hit.point.z).toBeGreaterThan(3.44);
+    const ray = new THREE.Raycaster();
+    for (const id of ['cliff_rock', 'cliff_rock_low', 'cliff_rock_tall', 'cliff_ledge'] as const) {
+      for (let lod = 0; lod < 3; lod++) {
+        const rock = asset.scene.getObjectByName(`${id}_LOD${lod}`)!;
+        for (const c of metadata[id].colliders) {
+          if (c.type !== 'box') continue;
+          const center = new THREE.Vector3(c.x, c.y, c.z), size = [c.width, c.height, c.depth];
+          for (let axis = 0; axis < 3; axis++) for (const sign of [-1, 1]) {
+            const normal = new THREE.Vector3().setComponent(axis, sign);
+            for (const a of [-.43, .43]) for (const b of [-.43, .43]) {
+              const sample = center.clone();
+              sample.setComponent((axis + 1) % 3, sample.getComponent((axis + 1) % 3) + a * size[(axis + 1) % 3]);
+              sample.setComponent((axis + 2) % 3, sample.getComponent((axis + 2) % 3) + b * size[(axis + 2) % 3]);
+              ray.set(sample.addScaledVector(normal, 30), normal.clone().negate());
+              const hit = ray.intersectObject(rock, false)[0];
+              expect(hit, `${id} LOD${lod} axis ${axis} face ${sign}`).toBeDefined();
+              expect(hit.point.clone().sub(center).dot(normal), `${id} collision stays inside stone`).toBeGreaterThanOrEqual(size[axis] / 2 - .08);
+            }
+          }
+        }
+      }
+    }
   });
 
   it('preserves metre scale after meshopt decoding, placement, rotation and cell merging', async () => {

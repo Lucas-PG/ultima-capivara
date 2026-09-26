@@ -9,7 +9,12 @@ if (!chunk.includes('paintedWrap')) {
   if (start >= 0 && at >= 0) {
     THREE.ShaderChunk.lights_physical_pars_fragment = chunk.slice(0, at) + `${LIT}
 	float paintedWrap = (dot(geometryNormal, directLight.direction) + 0.28) / 1.28;
-	dotNL = max(0.0, paintedWrap);` + chunk.slice(at + LIT.length);
+	vec3 paintedDiffuseIrradiance = max(0.0, paintedWrap) * directLight.color;` + chunk.slice(at + LIT.length);
+    // GGX must retain physical N.L. Wrapping its irradiance lights back-facing
+    // grazing normals where the visibility denominator tends to zero.
+    THREE.ShaderChunk.lights_physical_pars_fragment = THREE.ShaderChunk.lights_physical_pars_fragment.replace(
+      'reflectedLight.directDiffuse += irradiance * BRDF_Lambert',
+      'reflectedLight.directDiffuse += paintedDiffuseIrradiance * BRDF_Lambert');
   }
 }
 
@@ -43,7 +48,7 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     fragmentShader: `precision highp float;
       #include <tonemapping_pars_fragment>
       #include <colorspace_pars_fragment>
-      uniform sampler2D tColor,tDepth,tCharacter,tAtmosphere;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY,atmosphereEnabled,bloomStrength;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse;varying vec2 vUv;
+      uniform sampler2D tColor,tCharacter,tAtmosphere;uniform highp sampler2D tDepth;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY,atmosphereEnabled,bloomStrength;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
         vec4 src=texture2D(tColor,vUv);vec3 c=src.rgb;float d=texture2D(tDepth,vUv).x;

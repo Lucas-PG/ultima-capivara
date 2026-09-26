@@ -28,7 +28,7 @@ function rawHeight(x: number, z: number) {
   if (x > 23 && beach < 35) h = lerp(h, .95, 1 - ease((beach - 23) / 12));
   return lerp(-3.8, h, mask);
 }
-interface Pad { rect: Rect; margin: number; y: number }
+interface Pad { rect: Rect; margin: number; y: number; fixed?: boolean }
 const pads: Pad[] = [
   ...AREAS.map(a => ({ ...a, y: a.y ?? Math.max(.85, rawHeight((a.rect[0] + a.rect[2]) / 2, (a.rect[1] + a.rect[3]) / 2)) })),
   ...[...HOUSES, ...MORRO_LOTS].map(h => ({ rect: [h.x - h.w / 2 - 1.5, h.z - h.d / 2 - 1.5, h.x + h.w / 2 + 1.5, h.z + h.d / 2 + 1.5] as Rect,
@@ -40,6 +40,7 @@ for (const p of housePads) {
   const area = AREAS.find(a => x >= a.rect[0] && x <= a.rect[2] && z >= a.rect[1] && z <= a.rect[3]);
   if (area?.y != null) p.y = area.y;
 }
+const structuralPads = [...pads.filter(p => p.fixed), ...housePads];
 function paddedHeight(x: number, z: number) {
   let height = rawHeight(x, z), weight = 0, target = height;
   for (const p of pads) {
@@ -71,7 +72,7 @@ for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
   // Hill paths can approach a terrace but cannot cut through a house floor.
   // The extra apron also keeps both doorway thresholds level with the room.
   let terraceWeight = 0, terraceY = h;
-  for (const p of housePads) {
+  for (const p of structuralPads) {
     const [x0, z0, x1, z1] = p.rect;
     const distance = Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1));
     const weight = distance === 0 ? 2 : 1 - ease(distance / 3);
