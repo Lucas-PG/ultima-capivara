@@ -410,7 +410,7 @@ export class GameUI {
     if (air) { this.text('altTxt', `${Math.max(0, Math.round(me.pos.y - terrainHeight(me.pos.x, me.pos.z)))} m`); this.text('altHint', me.stage === 'falling' ? `${jump} abre o paraquedas` : 'WASD plana'); }
     this.attr(this.el('torso'), 'transform', `rotate(${(me.lean * 16).toFixed(0)} 30 56)`); this.attr(this.el('figure'), 'transform', `translate(0 ${me.crouch ? 15 : 0})`);
     // Posture chip: quiet when standing, labelled and highlighted when it matters.
-    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? me.weapons.some(w => w.id === 'pistol') ? 'Nadando · só pistola' : 'Nadando · sem pistola' : emoting ? EMOTES[me.emote!].label : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
+    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? me.weapons.some(w => w.id === 'pistol') ? 'Nadando · só pistola' : 'Nadando · sem pistola' : me.soaking ? me.hp < 100 ? 'Banho de lama · recuperando vida' : 'Relaxando' : emoting ? EMOTES[me.emote!].label : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
     this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance); this.toggle(this.el('stance'), 'swimming', me.swimming);
     if (me.alive) this.deathInfo = null;
     let banner = '';
@@ -465,15 +465,15 @@ export class GameUI {
   private updatePrompt(me: ActorState, interaction: { id: string; name: string } | null) {
     const visible = !!interaction && me.alive && me.stage === 'ground'; this.show('prompt', visible);
     if (!visible || !interaction) return;
-    const loot = this.snapshot?.loot.find(l => l.id === interaction.id), chest = !loot && interaction.name.startsWith('Abrir');
+    const loot = this.snapshot?.loot.find(l => l.id === interaction.id), bath = this.world.mudBaths?.some(b => b.id === interaction.id), chest = !loot && !bath && interaction.name.startsWith('Abrir');
     const color = loot?.kind === 'weapon' ? rarityOf(loot.rarity).color : chest ? '#ffc23d' : '#fff4d6';
-    const iconKey = loot ? `${loot.kind}:${loot.weapon || ''}` : chest ? 'chest' : 'none';
+    const iconKey = loot ? `${loot.kind}:${loot.weapon || ''}` : bath ? 'bath' : chest ? 'chest' : 'none';
     const holder = this.el('promptIcon');
     if (holder.dataset.k !== iconKey) {
       holder.dataset.k = iconKey;
-      holder.innerHTML = loot?.kind === 'weapon' ? weaponIcon(loot.weapon || 'pistol') : loot && loot.kind in CONSUMABLE_ICONS ? CONSUMABLE_ICONS[loot.kind as ConsumableId] : loot?.kind === 'armor' ? HUD_ART.shield : loot?.kind === 'helmet' ? HUD_ART.helmet : chest ? icon('box') : '';
+      holder.innerHTML = loot?.kind === 'weapon' ? weaponIcon(loot.weapon || 'pistol') : loot && loot.kind in CONSUMABLE_ICONS ? CONSUMABLE_ICONS[loot.kind as ConsumableId] : loot?.kind === 'armor' ? HUD_ART.shield : loot?.kind === 'helmet' ? HUD_ART.helmet : bath ? emoteIcon('chill') : chest ? icon('box') : '';
     }
-    this.text('promptVerb', chest ? 'Abrir' : 'Pegar'); this.text('promptItem', chest ? 'caixa de suprimentos' : interaction.name);
+    this.text('promptVerb', bath ? 'Sentar' : chest ? 'Abrir' : 'Pegar'); this.text('promptItem', bath ? 'banho de lama' : chest ? 'caixa de suprimentos' : interaction.name);
     this.style(this.el('prompt'), '--ic', color); this.text('promptKey', keyName(this.settings.bindings.interact));
   }
   private scoreTable(snapshot: WorldSnapshot) {

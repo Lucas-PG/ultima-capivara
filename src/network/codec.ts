@@ -101,7 +101,7 @@ export function gearPart(snapshot: WorldSnapshot) {
 // The fixed-order tuple keeps fast frames small. Names, loot and weapon identities travel reliably on change.
 export function actorFrame(a: ActorState, index: number): number[] {
   const flags = (a.connected ? 1 : 0) | (a.alive ? 2 : 0) | (a.grounded ? 4 : 0) |
-    (a.crouch ? 8 : 0) | (a.sprint ? 16 : 0) | (a.ads ? 32 : 0) | (a.swimming ? 64 : 0);
+    (a.crouch ? 8 : 0) | (a.sprint ? 16 : 0) | (a.ads ? 32 : 0) | (a.swimming ? 64 : 0) | (a.soaking ? 128 : 0);
   return [index, qi(a.pos.x), qi(a.pos.y), qi(a.pos.z), qi(a.velocity.x), qi(a.velocity.y), qi(a.velocity.z),
     qi(a.yaw, 1000), qi(a.pitch, 1000), qi(a.lean), qi(a.hp), qi(a.armor), qi(a.helmet), flags,
     stages.indexOf(a.stage), a.kills, a.deaths, qi(a.damage), a.slot, qi(a.reloadUntil), qi(a.useUntil),
@@ -143,7 +143,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       tuple.length !== ACTOR_FIELDS + kit.weapons.length * 2 ||
       !kit.weapons.every((w: any) => w && typeof w.id === 'string' && Object.hasOwn(WEAPONS, w.id) &&
         Number.isSafeInteger(w.rarity) && w.rarity >= 0 && w.rarity <= 3) ||
-      !kit.consumables || typeof kit.consumables !== 'object' || !Number.isInteger(flags) || flags < 0 || flags > 127 ||
+      !kit.consumables || typeof kit.consumables !== 'object' || !Number.isInteger(flags) || flags < 0 || flags > 255 ||
       !Number.isInteger(stage) || !Number.isInteger(using) || hp < 0 || hp > 100_000 || armor < 0 || armor > 100_000 ||
       helmet < 0 || helmet > 100_000 || Math.max(Math.abs(px), Math.abs(py), Math.abs(pz)) > 100_000 ||
       !Number.isSafeInteger(slot) || slot < 0 || slot >= kit.weapons.length ||
@@ -160,7 +160,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       hp: hp / 100, armor: armor / 100, helmet: helmet / 100,
       connected: !!(flags & 1), alive: !!(flags & 2), grounded: !!(flags & 4),
       crouch: !!(flags & 8), sprint: !!(flags & 16), ads: !!(flags & 32), swimming: !!(flags & 64), wetUntil: wetUntil / 100, stage: stages[stage],
-      emote: emote === -1 ? null : EMOTE_IDS[emote], emoteUntil: emoteUntil / 100,
+      emote: emote === -1 ? null : EMOTE_IDS[emote], emoteUntil: emoteUntil / 100, soaking: !!(flags & 128),
       kills, deaths, damage: damage / 100, weaponLevel, slot, weapons, consumables: kit.consumables,
       reloadUntil: reloadUntil / 100, useUntil: useUntil / 100, using: using === -1 ? null : items[using],
       respawnAt: respawnAt / 100, protectionUntil: protectionUntil / 100, lastInput, shotHeat: shotHeat / 100 });

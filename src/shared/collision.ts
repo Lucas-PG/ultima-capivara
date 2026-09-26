@@ -4,6 +4,7 @@ import { boundaryFeedback } from './bounds';
 import { colliderGrid } from './collider-grid';
 import { waterAt } from './water';
 import { emoteInput } from './emotes';
+import { mudBathAt } from './recreation';
 import type { ActorState, Collider, InputFrame, Mode, Vec3, WorldSpec } from './types';
 
 const RADIUS = .32;
@@ -145,5 +146,7 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     if (pistol >= 0 && actor.slot !== pistol) { actor.slot = pistol; actor.reloadUntil = 0; actor.shotHeat = 0; }
   } else if (p.y <= ground) { p.y = ground; actor.velocity.y = 0; actor.grounded = true; }
   else actor.grounded = false;
+  if (actor.soaking && (!actor.grounded || actor.swimming ||
+    actor.emote !== 'sit' && actor.emote !== 'chill' || !mudBathAt(p, world))) actor.soaking = false;
   return actor;
 }

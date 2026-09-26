@@ -4,12 +4,13 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import type { AssetLoader } from './assets';
 import { PaintedWater } from './water';
 import { createToonMaterial, type ToonMaterialKind } from './materials';
-import { terrainHeight, WORLD_PALETTE } from '../shared/terrain';
+import { roadPaintWeight, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
 import { createIslandBackdrop } from './island-backdrop';
 import { createStreetDressing } from './street-dressing';
 import { createWaterfalls } from './waterfall';
+import { RecreationView } from './recreation';
 import { GroundCover } from './ground-cover';
 import { createKit, type KitScene } from './kit';
 import { releaseAfterUpload } from './memory';
@@ -17,7 +18,7 @@ import { buildProps } from './props';
 import { buildWallArt } from './wall-art';
 import { textSignMaterial, twoSidedTextSign } from './signage';
 import { SIGN_ART } from '../shared/signage';
-import type { MapObject, Settings, WorldSpec } from '../shared/types';
+import type { ActorState, MapObject, Settings, Vec3, WorldSpec } from '../shared/types';
 
 const c = (value: string | number) => new THREE.Color(value);
 const box = new THREE.BoxGeometry(1, 1, 1);
@@ -120,12 +121,13 @@ const gableRoof = roofGeometry('gable');
 
 function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
   const size = world.size, steps = Math.round(world.size / 2), stride = size / steps;
-  const positions: number[] = [], uvs: number[] = [], slopes: number[] = [], indices: number[] = [];
+  const positions: number[] = [], uvs: number[] = [], slopes: number[] = [], roadPaint: number[] = [], indices: number[] = [];
   for (let iz = 0; iz <= steps; iz++) for (let ix = 0; ix <= steps; ix++) {
     const x = -size / 2 + ix * stride, z = -size / 2 + iz * stride, y = terrainHeight(x, z);
     const slope = Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z),
       terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
     positions.push(x, y, z); uvs.push(x / size + .5, z / size + .5); slopes.push(slope);
+    roadPaint.push(roadPaintWeight(x, z, y));
     if (ix < steps && iz < steps) {
       const a = iz * (steps + 1) + ix, b = a + 1, d = a + steps + 1;
       indices.push(a, d, b, b, d, d + 1);
@@ -135,6 +137,7 @@ function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.setAttribute('terrainSlope', new THREE.Float32BufferAttribute(slopes, 1));
+  geo.setAttribute('terrainRoadPaint', new THREE.Float32BufferAttribute(roadPaint, 1));
   geo.setIndex(indices); geo.computeVertexNormals();
   return geo;
 }
@@ -182,14 +185,18 @@ export class WorldScene {
   private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly waterfalls: ReturnType<typeof createWaterfalls>;
+  private readonly recreation: RecreationView;
   private readonly vegetation: ReturnType<typeof buildVegetation>;
   private readonly groundCover: GroundCover;
   private reducedMotion = false;
   private readonly disposables: { dispose: () => void }[] = [];
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.kit = createKit(this.group, loader, world.pieces ?? [], settings.graphics);
-    this.ready = this.kit.ready; this.disposables.push(this.kit);
+    this.recreation = new RecreationView(world, loader, settings.graphics); this.group.add(this.recreation.group);
+    this.kit = createKit(this.group, loader, (world.pieces ?? []).filter(piece => !this.recreation.pieceIds.has(piece.id)), settings.graphics);
+    this.ready = Promise.all([this.kit.ready, this.recreation.ready]).then(() => {});
+    void this.ready.catch(() => {});
+    this.disposables.push(this.recreation, this.kit);
     const signAtlas = loader.texture('textures/island-signs.png');
     signAtlas.colorSpace = THREE.SRGBColorSpace;
     signAtlas.minFilter = THREE.LinearMipmapLinearFilter;
@@ -231,7 +238,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v10:${ROADS.length}`;
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v11:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -249,18 +256,22 @@ export class WorldScene {
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `
         #include <common>
         attribute float terrainSlope;
+        attribute float terrainRoadPaint;
         varying float vTerrainSlope;
+        varying float vTerrainRoadPaint;
         varying vec2 vTerrainXZ;
         varying float vTerrainWorldY;
       `).replace('#include <begin_vertex>', `
         #include <begin_vertex>
         vTerrainSlope = terrainSlope;
+        vTerrainRoadPaint = terrainRoadPaint;
         vTerrainXZ = (modelMatrix * vec4(position, 1.0)).xz;
         vTerrainWorldY = (modelMatrix * vec4(position, 1.0)).y;
       `);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
         #include <common>
         varying float vTerrainSlope;
+        varying float vTerrainRoadPaint;
         varying vec2 vTerrainXZ;
         varying float vTerrainWorldY;
         uniform vec4 terrainRoads[${ROADS.length}];
@@ -302,8 +313,10 @@ export class WorldScene {
         for (int road = 0; road < ${ROADS.length}; road++)
           distanceToRoad = min(distanceToRoad, terrainRectDistance(vTerrainXZ, terrainRoads[road]));
         float edgeWidth = max(fwidth(distanceToRoad), 0.002);
-        float asphaltMask = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
-        float curbMask = (1.0 - smoothstep(0.4 - edgeWidth, 0.4 + edgeWidth, distanceToRoad)) * (1.0 - asphaltMask);
+        float roadInterior = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
+        float roadPaint = clamp(vTerrainRoadPaint, 0.0, 1.0);
+        float asphaltMask = roadInterior * roadPaint;
+        float curbMask = (1.0 - smoothstep(0.4 - edgeWidth, 0.4 + edgeWidth, distanceToRoad)) * (1.0 - roadInterior) * roadPaint;
         diffuseColor.rgb = mix(diffuseColor.rgb, terrainCurb, curbMask);
         float broadWear = terrainFbm(vTerrainXZ / 18.0 + vec2(6.0, 19.0));
         float fineWear = terrainNoise(vTerrainXZ / 3.8 + vec2(23.0, 7.0));
@@ -691,15 +704,20 @@ export class WorldScene {
     this.groundCover.setQuality(settings.graphics);
     this.waterfalls.setQuality(settings.graphics);
     this.paintedWater.setQuality(settings.graphics);
+    this.recreation.setQuality(settings.graphics);
   }
 
-  update(time: number, camera?: THREE.Camera) {
+  update(time: number, camera?: THREE.Camera, actors: readonly ActorState[] = [], localActor?: ActorState) {
     if (camera) { this.kit.update(camera, time); this.groundCover.update(camera, time, this.reducedMotion); }
     this.vegetation.update(this.reducedMotion ? 0 : time);
     this.waterfalls.update(time, this.reducedMotion);
     this.paintedWater.update(time, this.reducedMotion);
+    this.recreation.update(time, camera, this.reducedMotion, actors, localActor);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);
   }
+
+  bounce(position: Vec3) { this.recreation.bounce(position); }
+  resetRecreation() { this.recreation.reset(); }
 
   dispose() { this.disposables.forEach(value => value.dispose()); }
 }

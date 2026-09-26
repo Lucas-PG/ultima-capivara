@@ -7,8 +7,11 @@ export const itemMaterial = new THREE.MeshStandardMaterial({ vertexColors: true,
 const pawnSphere = new THREE.SphereGeometry(1, 12, 8);
 const pawnBox = new THREE.BoxGeometry(1, 1, 1);
 const pawnRoundedBox = new RoundedBoxGeometry(1, 1, 1, 2, .1);
+const pawnRoundedBoxFar = new RoundedBoxGeometry(1, 1, 1, 1, .1);
 const pawnGuard = new THREE.TorusGeometry(1, .13, 5, 14);
+const pawnGuardFar = new THREE.TorusGeometry(1, .13, 4, 8);
 const pawnCylinder = new THREE.CylinderGeometry(.5, .5, 1, 12);
+const pawnCylinderFar = new THREE.CylinderGeometry(.5, .5, 1, 8);
 // Half cylinder rotated by Euler(0, 0, PI / 2): curved side up, axis along X.
 const pawnDome = new THREE.CylinderGeometry(1, 1, 1, 10, 1, false, 0, Math.PI);
 const vertex = (base: THREE.BufferGeometry, tint: string | THREE.Color, pos: THREE.Vector3, scale: THREE.Vector3, rotation = new THREE.Euler()) => {
@@ -27,12 +30,12 @@ function mergeParts(parts: THREE.BufferGeometry[]) {
   merged.computeBoundingSphere(); return merged;
 }
 
-export function itemGeometry(kind: LootSpawn['kind'], weapon: WeaponId = 'pistol'): THREE.BufferGeometry {
+export function itemGeometry(kind: LootSpawn['kind'], weapon: WeaponId = 'pistol', detail: 'near' | 'far' = 'near'): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
   const add = (base: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotation = new THREE.Euler()) =>
     parts.push(vertex(base, color, new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz), rotation));
   const b = (color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number) => add(pawnBox, color, x, y, z, sx, sy, sz);
-  const tube = (color: string, x: number, y: number, z: number, radius: number, length: number) => add(pawnCylinder, color, x, y, z, radius * 2, length, radius * 2, new THREE.Euler(Math.PI / 2, 0, 0));
+  const tube = (color: string, x: number, y: number, z: number, radius: number, length: number) => add(detail === 'far' ? pawnCylinderFar : pawnCylinder, color, x, y, z, radius * 2, length, radius * 2, new THREE.Euler(Math.PI / 2, 0, 0));
   if (kind === 'weapon') {
     const small = weapon === 'pistol', blade = weapon === 'machete', sling = weapon === 'slingshot';
     if (blade) {
@@ -50,19 +53,21 @@ export function itemGeometry(kind: LootSpawn['kind'], weapon: WeaponId = 'pistol
     } else if (small) {
       // A compact slide over an angled grip, with the muzzle inside the slide.
       // The former shared rifle recipe left a long exposed barrel on pistols.
-      add(pawnRoundedBox, '#536C78', 0, .025, -.012, .085, .076, .245);
-      add(pawnRoundedBox, '#35474C', 0, -.019, .012, .077, .042, .207);
-      add(pawnRoundedBox, '#8C694C', 0, -.1, .077, .069, .145, .076, new THREE.Euler(-.24, 0, 0));
+      const rounded = detail === 'far' ? pawnRoundedBoxFar : pawnRoundedBox;
+      add(rounded, '#536C78', 0, .025, -.012, .085, .076, .245);
+      add(rounded, '#35474C', 0, -.019, .012, .077, .042, .207);
+      add(rounded, '#8C694C', 0, -.1, .077, .069, .145, .076, new THREE.Euler(-.24, 0, 0));
       b('#B49061', 0, -.174, .094, .075, .012, .075);
       tube('#ABB8B6', 0, .018, -.137, .021, .014);
       tube('#223537', 0, .018, -.146, .014, .005);
       b('#A9B8B7', 0, .067, -.021, .038, .004, .205);
       for (const side of [-1, 1]) {
-        for (let i = 0; i < 5; i++) b('#A0B1AD', side * .043, .023, .041 + i * .011, .003, .043, .004);
+        // Millimetre slide grooves alias before the compact silhouette does.
+        if (detail === 'near') for (let i = 0; i < 5; i++) b('#A0B1AD', side * .043, .023, .041 + i * .011, .003, .043, .004);
         b('#414F48', side * .035, -.1, .082, .004, .072, .042);
         b('#C6AE73', side * .039, -.093, .083, .003, .026, .021);
       }
-      add(pawnGuard, '#364B50', 0, -.067, -.015, .035, .037, .035, new THREE.Euler(0, Math.PI / 2, 0));
+      add(detail === 'far' ? pawnGuardFar : pawnGuard, '#364B50', 0, -.067, -.015, .035, .037, .035, new THREE.Euler(0, Math.PI / 2, 0));
       b('#B2ADA0', 0, -.052, .002, .008, .035, .006);
       b('#263A40', 0, .071, -.101, .013, .015, .016);
       for (const side of [-1, 1]) b('#263A40', side * .024, .07, .084, .016, .013, .018);

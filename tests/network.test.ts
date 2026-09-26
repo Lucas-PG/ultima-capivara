@@ -12,7 +12,7 @@ const actor: ActorState = {
   weapons: [{ id: 'pistol', ammo: 12, reserve: 36, rarity: 0 }], slot: 0,
   consumables: { bandage: 1, medkit: 0, guarana: 0, acai: 0, rapadura: 0 }, reloadUntil: 0,
   useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 4, shotHeat: .32, swimming: false, wetUntil: 0,
-  emote: null, emoteUntil: 0, weaponLevel: 0,
+  emote: null, emoteUntil: 0, weaponLevel: 0, soaking: false,
 };
 const snapshot: WorldSnapshot = {
   protocol: PROTOCOL_VERSION, world: WORLD_VERSION, matchId: 'a'.repeat(48), tick: 5, time: 1.2,
