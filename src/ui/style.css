@@ -88,8 +88,8 @@ body[data-screen=game] .score-table,#victory .score-table{font-family:var(--body
 :root{--sans:"Avenir Next","Nunito","Segoe UI",system-ui,-apple-system,sans-serif;--brown:#3a2418;--brown-2:#6b4630;--cream:#fff1d6;--gold:#ffc23d;--gold-hi:#ffe487;--orange:#f39a23;--terra:#e2623a;--teal:#1fb5a8;--turq:#6fe3d6;--jungle:#3f8f4a;--mist:#f3dcae;
   --spring:cubic-bezier(.34,1.56,.64,1);--ease:cubic-bezier(.2,.8,.2,1);
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .36 0 0 0 0 .22 0 0 0 0 .1 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  --paper:var(--grain),linear-gradient(180deg,#fff7e6,#f7e4bf);
-  --wood:repeating-linear-gradient(177deg,transparent 0 6px,rgba(70,36,14,.16) 6px 7px,transparent 7px 15px),linear-gradient(180deg,#cd8f50,#a2622f 60%,#8a5026);
+  --paper:var(--paper-tex,none) 0 0/320px 320px,var(--grain),linear-gradient(180deg,#fff7e6,#f7e4bf);
+  --wood:var(--wood-tex,none) center/100% 100%,repeating-linear-gradient(177deg,transparent 0 6px,rgba(70,36,14,.16) 6px 7px,transparent 7px 15px),linear-gradient(180deg,#cd8f50,#a2622f 60%,#8a5026);
   --candy-gold:linear-gradient(180deg,#ffe98f,#ffc23d 46%,#f39a23);
   --candy-teal:linear-gradient(180deg,#7fe9dc,#22b8aa 50%,#12867c);
   --candy-terra:linear-gradient(180deg,#ffa47a,#e2623a 52%,#b7432a);
@@ -387,7 +387,7 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 #loadingOverlay .lstatus{display:block;margin-top:12px;font-size:15px;font-weight:800;color:var(--brown-2);min-height:1.5em}
 /* Tip on a wooden sign, nailed at both ends. */
 #loadingOverlay .ltipbox{position:absolute;left:50%;bottom:86px;translate:-50% 0;width:780px;max-width:calc(100vw / var(--ui,1) - 40px);display:flex;align-items:center;gap:16px;padding:14px 16px 14px 22px;border:4px solid var(--brown);border-radius:18px;background:var(--wood);box-shadow:0 7px 0 var(--brown),0 22px 36px -14px rgba(0,0,0,.6),inset 0 3px 0 rgba(255,220,170,.35),inset 0 -4px 0 rgba(60,28,10,.3);rotate:.8deg}
-#loadingOverlay .ltipbox::before,#loadingOverlay .ltipbox::after{content:"";position:absolute;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f2d6a8,#7a5a3c 70%);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+#loadingOverlay .ltipbox::before,#loadingOverlay .ltipbox::after{display:none;content:"";position:absolute;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f2d6a8,#7a5a3c 70%);box-shadow:0 1px 0 rgba(0,0,0,.4)}
 #loadingOverlay .ltipbox::before{left:8px}#loadingOverlay .ltipbox::after{right:8px}
 #loadingOverlay .ltip-icon{flex:none;width:52px;height:52px;display:grid;place-items:center;border:3px solid var(--brown);border-radius:50%;color:var(--brown);background:var(--candy-gold);box-shadow:0 3px 0 var(--brown),inset 0 3px 0 rgba(255,255,255,.55)}
 #loadingOverlay .ltip-icon .icon{width:26px;height:26px;stroke-width:2.6}
@@ -514,3 +514,14 @@ body #victory #confetti{display:none}
 
 /* Final art: the mode column shows the painted key art, framed on its subject (royale parachuter, correria runners). */
 .mode-art.painted{background:var(--art) 68% 42%/auto 118% no-repeat,#233833}.deathmatch .mode-art.painted{background-position:62% 55%}.mode-art.painted::before,.mode-art.painted::after{display:none}.mode-art.painted .mode-index{text-shadow:0 1px 3px #12241b}
+
+/* Painted icons: sized like the glyphs they replace, with a small brown drop so they sit on paper and candy. */
+.picon{object-fit:contain;filter:drop-shadow(0 1.5px 0 rgba(58,36,24,.45))}
+.hero-actions .button.warmup>.picon:first-child{padding:9px 7px 9px 11px;background:var(--cream);filter:none}
+.hero-actions .button .picon{width:26px;height:26px}
+.topbar .icon-button .picon{width:28px;height:28px;filter:drop-shadow(0 1.5px 0 rgba(58,36,24,.6))}
+.hero-facts .picon{width:20px;height:20px}
+.mode-meta>.picon{width:18px;height:18px}
+.modal .how-grid .picon{width:52px;height:52px;padding:6px;background:var(--cream)}
+#loadingOverlay .ltip-icon .picon{width:34px;height:34px}
+#loadingOverlay .lmode .picon{width:22px;height:22px}

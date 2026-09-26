@@ -689,6 +689,8 @@ export class GameUI {
     // The cover follows the screen width (desktop vs small); both variants are tiny compared to the PNG master.
     const art = coverImageSet(innerWidth, devicePixelRatio || 1), root = document.documentElement.style;
     if (root.getPropertyValue('--cover') !== art.cover) { root.setProperty('--cover', art.cover); root.setProperty('--cover-blur', art.blur); }
+    // Painted paper and wood textures, absolute against the document like the cover (non-root deploys).
+    if (!root.getPropertyValue('--paper-tex')) { root.setProperty('--paper-tex', `url(${uiArt('paper-cream')})`); root.setProperty('--wood-tex', `url(${uiArt('wood-plank')})`); }
     const body = document.body.style, [hit, head, kill] = HIT_PALETTES[this.settings.hitPalette];
     const scale = hudScale(innerWidth, innerHeight, this.settings.uiScale);
     body.setProperty('--ui', String(scale)); body.setProperty('--hud-w', (innerWidth / scale).toFixed(0));
