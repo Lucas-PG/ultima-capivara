@@ -82,6 +82,8 @@ describe('river island gameplay integrity', () => {
         expect(Math.abs(terrainHeight(x, z) - piece.y), `floating foundation ${piece.id} at ${x},${z}`).toBeLessThan(.2);
       }
     }
+    for (const [from, to] of [[{ x: 4, z: -70 }, { x: 4, z: -92 }], [{ x: 4, z: -118 }, { x: 4, z: -106 }]])
+      expect(walkableSegment(world, from, to), 'cliff dressing must preserve the two fort gate approaches').toBe(true);
   });
 
   it('marks each arena edge with real pieces while leaving its gates traversable', () => {

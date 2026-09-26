@@ -310,3 +310,7 @@ procedural metre-scale sand ripples and continuous triplanar rock colour, ribbed
 shell geometry, GPU pollen, water glints and depth-occluded sunlight shafts. These
 are generated locally from authored equations and geometry, with no external
 downloads or paid services. The lighting reference is `public/assets/cover-v2.png`.
+
+## Phase A lived-in street dressing
+
+`src/render/street-dressing.ts` creates original curved laundry ropes, folded cloth with hems and pegs, warm festoon bulbs, bicycle frames with spokes and woven baskets, and fringed beach towels. Small meshes merge by material and 48 m cell. The 1024x512 canvas atlas contains locally drawn pt-BR shop panels, brush strokes, capybara silhouettes and leaf sprigs. It uses no downloaded image, external asset, paid service or generated-image prompt. Decorative placements are authored in shared world data; all gameplay solids continue to come from the Blender kit contract. Broad offshore ridges use forest-dominant colour washes and smooth rounded profiles under the scene haze.
