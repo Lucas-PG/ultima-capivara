@@ -316,7 +316,25 @@
         766
       ],
       "colliders": 6
+    },
+    {
+      "id": "mud_bath",
+      "triangles": [
+        2380,
+        780,
+        780
+      ],
+      "colliders": 13
+    },
+    {
+      "id": "trampoline",
+      "triangles": [
+        8028,
+        2844,
+        766
+      ],
+      "colliders": 29
     }
   ],
-  "bytes": 5458676
+  "bytes": 5800840
 }

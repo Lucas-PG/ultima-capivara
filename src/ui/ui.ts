@@ -14,6 +14,7 @@ import { CrosshairSpread } from './crosshair';
 import { EMOTES, EMOTE_IDS } from '../shared/emotes';
 import type { EmoteId } from '../shared/types';
 import { emoteChoice, EMOTE_RADIUS } from './emote-wheel';
+import { paintIslandMap, paintMapCompass } from './map-paint';
 
 export interface UICallbacks {
   host(profile: Profile, config: RoomConfig): Promise<void>; join(profile: Profile, code: string): Promise<void>;
@@ -63,6 +64,7 @@ export class GameUI {
   private inventoryKey = '';
   private hudTime = 0;
   private mapBg = document.createElement('canvas');
+  private mapCompass = document.createElement('canvas');
   private lastResults = '';
   private toastTimer = 0;
   private lastBanner = '';
@@ -266,10 +268,10 @@ export class GameUI {
       + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
       + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden role="group" aria-label="Você foi eliminada"><img class="spec-mascot" src="${uiArt('capy-lose')}" alt="" draggable="false"><div class="btns">${ELIMINATED_ACTIONS.map(a => `<button type="button" class="${a.primary ? 'go' : 'alt'}" data-do="${a.do}">${a.primary ? icon('eye') : icon('back')} ${a.label}</button>`).join('')}</div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste<span class="esc"> · <kbd>Esc</kbd> solta o mouse pra clicar</span></span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="leave">${icon('back')} Voltar ao menu</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
-      + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
+      + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
       + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><i class="chip" id="armChip" style="width:0"></i><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><i class="chip" id="hpChip"></i><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
       + `<div id="stance" class="stk">${HUD_ART.stance}${HUD_ART.swimming}<b id="stanceTxt" hidden>Em pé</b></div>`
-      + `<div id="wpnbox"><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
+      + `<div id="wpnbox"><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
       + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
       + `<div id="emoteWheel" hidden><div class="emote-ring" role="listbox" aria-label="Escolha um gesto"><span class="eyebrow emote-title">MOSTRE SEU JEITO</span>${EMOTE_IDS.map((id, i) => { const angle = i * Math.PI * 2 / EMOTE_IDS.length; const art = { wave: 'capy-wave', dance: 'icon-users', victory: 'capy-win', sit: 'icon-leaf', chill: 'icon-heart' }[id]; return `<div id="emote-${i}" class="emote-option" role="option" aria-selected="false" style="--ex:${(Math.sin(angle) * 154).toFixed(1)}px;--ey:${(-Math.cos(angle) * 154).toFixed(1)}px"><kbd>${i + 1}</kbd><img src="${uiArt(art)}" alt="" draggable="false"><b>${esc(EMOTES[id].label)}</b></div>`; }).join('')}<div class="emote-center"><img src="${uiArt('capy-wave')}" alt=""><b id="emoteName">Escolha um gesto</b><span id="emoteDetail">Centro cancela</span></div><i class="emote-pointer" id="emotePointer" aria-hidden="true"></i><span class="emote-hint">Mova o mouse e solte <kbd id="emoteKey">${key(bindingOf(this.settings.bindings, 'emote'))}</kbd> · ou use 1 a 5</span></div></div>`
       + `<div id="coach" class="stk" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
@@ -649,7 +651,7 @@ export class GameUI {
       const hit = this.lastHits.get(event.target), mine = event.actor === this.localId && event.target !== this.localId, died = event.target === this.localId;
       const entry = document.createElement('div');
       entry.className = `fd${mine ? ' me' : died ? ' bad' : ''}`;
-      const face = (actor: typeof victim) => `<span class="pt">${capybara(actor?.color)}</span>`, name = (actor: typeof victim) => `<b>${esc(actor?.name || 'Capivara')}</b>`;
+      const face = (actor: typeof victim) => `<span class="pt">${capybara(actor?.color)}</span>`, name = (actor: typeof victim) => `<b title="${esc(actor?.name || 'Capivara')}">${esc(actor?.name || 'Capivara')}</b>`;
       if (!killer || event.weapon === 'storm' || event.weapon === 'fall') entry.innerHTML = `${face(victim)}${name(victim)}<em>${event.weapon === 'fall' ? 'caiu feio' : 'levado pela tempestade'}</em>`;
       else {
         const distance = victim ? Math.round(Math.hypot(killer.pos.x - victim.pos.x, killer.pos.y - victim.pos.y, killer.pos.z - victim.pos.z)) : 0;
@@ -734,7 +736,7 @@ export class GameUI {
     if (!element || !element.isConnected) { element = this.root.querySelector<HTMLElement>(`#${id}`)!; if (element) this.els.set(id, element); }
     return element;
   }
-  private show(id: string, visible: boolean) { const element = this.el(id); if (element && element.hidden === visible) element.hidden = !visible; }
+  private show(id: string, visible: boolean) { const element = this.el(id); if (element && element.hasAttribute('hidden') === visible) element.toggleAttribute('hidden', !visible); }
   private toggle(element: Element, cls: string, on: boolean) { if (element.classList.contains(cls) !== on) element.classList.toggle(cls, on); }
   private style(element: HTMLElement, prop: string, value: string) { if (element.style.getPropertyValue(prop) !== value) element.style.setProperty(prop, value); }
   private attr(element: Element | null, name: string, value: string) { if (element && element.getAttribute(name) !== value) element.setAttribute(name, value); }
@@ -763,21 +765,10 @@ export class GameUI {
   }
   private text(id: string, value: string | number) { const element = this.el(id); if (element) this.textOf(element, value); }
   private textOf(element: Element, value: string | number) { if (element.textContent !== String(value)) element.textContent = String(value); }
-  // Island texture for both maps, built from the world data (terrain height, colliders) at MAP_PPM pixels per metre.
+  // Static paint is cached for the UI lifetime and shared by the corner and full maps.
   private drawMapBackground() {
-    const size = this.world.size, px = Math.round(size * MAP_PPM), step = 2, ctx = this.mapBg.getContext('2d')!;
-    this.mapBg.width = this.mapBg.height = px;
-    for (let y = 0; y < px; y += step) for (let x = 0; x < px; x += step) {
-      const h = terrainHeight((x / px - .5) * size, (y / px - .5) * size);
-      ctx.fillStyle = h < -1.5 ? '#2b6b78' : h < 0 ? '#3f8c8f' : h < .7 ? '#d8c48a' : h > 7 ? '#8a9a63' : h > 3.5 ? '#6f9154' : '#5e8a4c'; ctx.fillRect(x, y, step, step);
-    }
-    ctx.fillStyle = '#efe2bd'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 1.5;
-    for (const b of this.world.colliders) if (b.max.y - b.min.y > .6) {
-      const x = (b.min.x / size + .5) * px, y = (b.min.z / size + .5) * px, w = Math.max(1.5, (b.max.x - b.min.x) * MAP_PPM), h = Math.max(1.5, (b.max.z - b.min.z) * MAP_PPM);
-      ctx.fillRect(x, y, w, h); if (w > 6 && h > 6) ctx.strokeRect(x, y, w, h);
-    }
-    ctx.strokeStyle = 'rgba(22,18,14,.12)'; ctx.lineWidth = 1;
-    for (let m = -size / 2; m <= size / 2; m += 20) { const v = (m / size + .5) * px; ctx.beginPath(); ctx.moveTo(v, 0); ctx.lineTo(v, px); ctx.moveTo(0, v); ctx.lineTo(px, v); ctx.stroke(); }
+    paintIslandMap(this.mapBg, this.world, MAP_PPM); paintMapCompass(this.mapCompass);
+    void document.fonts.ready.then(() => paintMapCompass(this.mapCompass));
   }
   // Corner minimap: a north-up window around the player, like Fortnite. M opens the whole island.
   private drawMap(snapshot: WorldSnapshot, actor: ActorState) {
@@ -789,7 +780,7 @@ export class GameUI {
   private drawMapView(canvas: HTMLCanvasElement, snapshot: WorldSnapshot, actor: ActorState, span: number, cx: number, cz: number, full: boolean) {
     const ctx = canvas.getContext('2d')!, size = canvas.width, scale = size / span, half = this.world.size / 2, zone = snapshot.zone;
     const X = (x: number) => (x - cx) * scale + size / 2, Z = (z: number) => (z - cz) * scale + size / 2;
-    ctx.fillStyle = '#2b6b78'; ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#277085'; ctx.fillRect(0, 0, size, size);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.mapBg, (cx - span / 2 + half) * MAP_PPM, (cz - span / 2 + half) * MAP_PPM, span * MAP_PPM, span * MAP_PPM, 0, 0, size, size);
     if (snapshot.config.mode === 'battle-royale') {
@@ -805,10 +796,11 @@ export class GameUI {
         this.planeGlyph(ctx, X(p.x), Z(p.z), Math.atan2(d.x, -d.z), full ? 16 : 11);
       }
     } else { ctx.strokeStyle = '#e5412d'; ctx.lineWidth = 3; ctx.strokeRect(X(ARENA.minX), Z(ARENA.minZ), (ARENA.maxX - ARENA.minX) * scale, (ARENA.maxZ - ARENA.minZ) * scale); }
-    ctx.save(); ctx.font = `${full ? 26 : 23}px "Dela Gothic One","Arial Black",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = full ? 7 : 5; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#fff4d6';
+    ctx.drawImage(this.mapCompass, size - 106, 8, 96, 96);
+    ctx.save(); ctx.font = `30px "Dela Gothic One","Arial Black",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = full ? 7 : 5; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#fff4d6';
     // Labels clamped to the edge must never overlap: a label that would collide with one already drawn is skipped.
     const placed: [number, number, number, number][] = [[X(actor.pos.x) - 18, Z(actor.pos.z) - 18, X(actor.pos.x) + 18, Z(actor.pos.z) + 18]];
-    if (!full) placed.push([size / 2 - 16, 0, size / 2 + 16, 34]);
+    placed.push([size - 116, 0, size, 114]);
     for (const district of this.world.districts) {
       const x = X(district.x), y = Z(district.z); if (x < -60 || y < -20 || x > size + 60 || y > size + 20) continue;
       const label = district.name.toUpperCase(), w = ctx.measureText(label).width / 2 + 6, lx = clamp(x, w, size - w), ly = clamp(y, 14, size - 14);
@@ -821,7 +813,6 @@ export class GameUI {
     ctx.restore();
     ctx.save(); ctx.translate(X(actor.pos.x), Z(actor.pos.z)); ctx.rotate(-actor.yaw); const k = full ? 1.5 : 1.25; ctx.scale(k, k);
     ctx.fillStyle = '#ffb81c'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore();
-    if (!full) { ctx.strokeStyle = 'rgba(22,18,14,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(size / 2, 0); ctx.lineTo(size / 2, 10); ctx.stroke(); ctx.font = '14px "Dela Gothic One",sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#ffb81c'; ctx.strokeText('N', size / 2, 22); ctx.fillText('N', size / 2, 22); }
   }
   private planeGlyph(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, r: number) {
     ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.fillStyle = '#fff4d6'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 2.5;
@@ -924,5 +915,7 @@ export class GameUI {
   toggleMap(open = !this.mapOpen) {
     if (this.screen !== 'game') return; const big = this.root.querySelector<HTMLElement>('#bigmap'); if (!big) return;
     this.mapOpen = open && !this.root.querySelector('#hud.ended'); big.hidden = !this.mapOpen; this.hudTime = 0;
+    const actor = this.snapshot?.actors.find(a => a.id === this.localId);
+    if (this.mapOpen && this.snapshot && actor) this.drawMap(this.snapshot, actor);
   }
 }

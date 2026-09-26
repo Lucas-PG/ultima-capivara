@@ -1,6 +1,6 @@
 """Original Direction A weapon set. Blender 5.0.1, metres, game forward -Z.
 Eight distinct silhouettes use one painted atlas and capybara paws.
-No photographs, noise, normal maps, trademarks or downloaded geometry.
+Original geometry and painted surface maps, without downloaded models or trademarks.
 """
 import bpy
 import json
@@ -145,7 +145,13 @@ def finish(obj, parent, color, bevel=0, edge=None):
             co = obj.data.vertices[obj.data.loops[loop].vertex_index].co
             u, v = [(co[a] - lo) / max(.001, hi - lo) for a, (lo, hi) in zip(axes, bounds)]
             uv.data[loop].uv = ((index + .12 + .76 * u) / 32, .06 + .88 * v)
-        poly.use_smooth = False
+        poly.use_smooth = bool(bevel)
+    if bevel:
+        # Broad planes keep their shape while the three bevel rings shade as a
+        # continuous rounded edge at first-person size.
+        normals = obj.modifiers.new('Rounded painted edge normals', 'WEIGHTED_NORMAL')
+        normals.keep_sharp, normals.weight = True, 40
+        bpy.ops.object.modifier_apply(modifier=normals.name)
     return obj
 
 
@@ -328,7 +334,7 @@ def paw(parent, side, palm, elbow, vertical=False):
     support = side == -1 and weapon in ['smg', 'm4', 'shotgun']
     existing_parts = set(parent.children)
     wrist = p.lerp(e, .28)
-    link('Forearm', parent, tuple(e), tuple(wrist), .084 if hero else .074, 13, .067 if hero else .059)
+    link('Forearm', parent, tuple(e), tuple(wrist), .078 if weapon == 'pistol' else .084 if hero else .074, 13, .055 if weapon == 'pistol' else .067 if hero else .059)
     link('Forearm_light', parent, tuple(e + Vector((0, .046, 0))), tuple(wrist + Vector((0, .04, 0))), .025, 14, .016)
     link('Olive_cuff', parent, tuple(p.lerp(e, .25)), tuple(p.lerp(e, .43)), .077, 17, .077)
     if hero:
@@ -359,14 +365,24 @@ def paw(parent, side, palm, elbow, vertical=False):
             center = p.lerp(e, t) + Vector((math.cos(a) * .067, .006, math.sin(a) * .065))
             tip = center + Vector((math.cos(a) * .0045, -.006, math.sin(a) * .0045))
             fur_fin(parent, tuple(center), tuple(tip), 14 if i % 4 == 0 else 13)
-    ellipsoid('Palm', parent, palm, (.076, .087, .065) if vertical else (.052, .045, .064) if support else (.068, .057, .073), 13, vertical)
-    ellipsoid('Palm_pad', parent, (p.x, p.y - .055, p.z), (.051, .018, .057), 14, vertical)
+    ellipsoid('Palm', parent, palm, (.055, .046, .059) if weapon == 'pistol' else (.076, .087, .065) if vertical else (.052, .045, .064) if support else (.068, .057, .073), 13, vertical)
+    ellipsoid('Palm_pad', parent, (p.x, p.y - .042 if weapon == 'pistol' else p.y - .055, p.z), (.041, .012, .044) if weapon == 'pistol' else (.051, .018, .057), 14, vertical)
     if vertical:
         link('Teal_wrist_band', parent, tuple(p.lerp(e, .40)), tuple(p.lerp(e, .44)), .079, 5, .079)
     grip_fingers = group(parent.name.split('_')[0] + '_grip_fingers', parent) if hero and side == -1 else parent
     if grip_fingers != parent:
         grip_fingers['partRole'] = 'grip_fingers'
     for i in [-1.5, -.5, .5, 1.5]:
+        if weapon == 'pistol' and side == -1:
+            # The supporting fingers wrap the back of the firing hand, where
+            # the player can read their separate knuckles and rounded nails.
+            y = p.y + .010 + i * .033
+            path = [(p.x - .012, y, p.z - .012), (p.x - .030, y, p.z + .022),
+                    (p.x - .008, y, p.z + .052), (p.x + .039, y, p.z + .055),
+                    (p.x + .069, y, p.z + .032)]
+            curled_finger(grip_fingers, path)
+            ellipsoid('Support_nail', grip_fingers, (p.x + .064, y, p.z + .045), (.013, .011, .007), 25, True)
+            continue
         if support:
             # Four separate curls run along the handguard, exposing knuckles and
             # nails on its camera-facing side instead of hiding behind the palm.
@@ -394,9 +410,9 @@ def paw(parent, side, palm, elbow, vertical=False):
         claw = (center[0] - .035, center[1], center[2] + .014) if vertical else (center[0], center[1] + .004, center[2] - .042)
         ellipsoid('Claw', finger_parent, claw, (.015, .010, .019), 25, True)
     thumb = (p.x - .034, p.y + .081, p.z + .025) if vertical else (p.x - side * .064, p.y + .035, p.z + .027)
-    ellipsoid('Thumb', parent, thumb, (.037, .04, .042), 14, vertical)
+    ellipsoid('Thumb', parent, thumb, (.028, .031, .034) if weapon == 'pistol' else (.037, .04, .042), 14, vertical)
     for i in [-1, 1]:
-        ellipsoid('Wrist_tuft', parent, (wrist.x + i * .055, wrist.y, wrist.z), (.025, .026, .042), 13)
+        ellipsoid('Wrist_tuft', parent, (wrist.x + i * (.043 if weapon == 'pistol' else .055), wrist.y, wrist.z), (.019, .021, .033) if weapon == 'pistol' else (.025, .026, .042), 13)
 
 
     if vertical or hero:
@@ -438,7 +454,7 @@ def hero_detail(weapon, body, action, magazine):
         for sign in [-1, 1]:
             # Layered machined slide, inset ejection panel and cocking serrations.
             block('Slide_side_inset', action, (sign * .061, .036, -.089), (.006, .040, .23), 4, .004)
-            block('Slide_brushed_face', action, (sign * .065, .046, -.10), (.004, .017, .21), 0, .002)
+            block('Slide_brushed_face', action, (sign * .065, .046, -.10), (.004, .017, .21), 5, .002)
             for z in [-.229, -.210, -.191, .055, .075, .095]:
                 block('Machined_serration', action, (sign * .066, .020, z), (.007, .036, .008), 1, .002)
             for z in [-.12, .055]:
@@ -458,7 +474,11 @@ def hero_detail(weapon, body, action, magazine):
     else:
         for sign in [-1, 1]:
             block('Receiver_inset', body, (sign * .062, -.033, -.070), (.012, .085, .225), 4, .008)
-            block('Receiver_cover', body, (sign * .070, -.013, -.071), (.008, .045, .191), 0, .007)
+            block('Receiver_cover', body, (sign * .070, -.013, -.071), (.008, .045, .191),
+                  5 if weapon == 'm4' else 8 if weapon == 'shotgun' else 26, .007)
+            if weapon in ['m4', 'shotgun']:
+                block('Painted_receiver_pinstripe', body, (sign * .075, .007, -.071),
+                      (.004, .005, .162), 27, .002)
             for z in [-.165, .057]:
                 screw(body, sign * .080, -.038, z)
             for z in [-.36, -.41, -.46, -.51]:
@@ -563,7 +583,28 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
     sight_y, muzzle_x, muzzle_y, muzzle_z = .1, 0, 0, -.7
     if weapon == 'pistol':
         profile('Frame', body, [(-.23, -.015), (.14, -.015), (.14, -.1), (-.18, -.1)], .105, 0, .009, 1)
-        profile('Slide', action, [(-.285, .014), (-.263, .084), (.12, .084), (.148, .055), (.14, -.011), (-.285, -.011)], .119, 0, .009, 1)
+        # A crowned, tapered slide replaces the broad rectangular rear block.
+        cross_section = [(-.047, -.011), (.047, -.011), (.058, .004), (.059, .039),
+                         (.050, .063), (.029, .081), (0, .087), (-.029, .081),
+                         (-.050, .063), (-.059, .039), (-.058, .004)]
+        sections = [(-.285, .88, -.009), (-.269, 1, 0), (.075, 1, 0), (.122, .91, -.004), (.143, .83, -.009)]
+        verts, faces = [], []
+        for z, width, drop in sections:
+            verts.extend(V((x * width, y + drop, z)) for x, y in cross_section)
+        count = len(cross_section)
+        for row in range(len(sections) - 1):
+            for i in range(count):
+                a, b = row * count + i, row * count + (i + 1) % count
+                faces.append((a, b, b + count, a + count))
+        faces += [tuple(reversed(range(count))), tuple((len(sections) - 1) * count + i for i in range(count))]
+        mesh = bpy.data.meshes.new('Crowned_slide')
+        mesh.from_pydata(verts, [], faces); mesh.update()
+        slide = bpy.data.objects.new('Crowned_slide', mesh)
+        bpy.context.collection.objects.link(slide)
+        finish(slide, action, 26, .005, 1)
+        block('Rear_slide_plate', action, (0, .026, .145), (.066, .049, .009), 4, .008)
+        block('Rear_plate_inset', action, (0, .027, .151), (.047, .030, .004), 0, .006)
+        cylinder('Striker_pin', action, (0, .030, .156), .006, .005, 1, sides=16)
         cylinder('Barrel', body, (0, .025, -.272), .027, .067, 4)
         cylinder('Bore', body, (0, .025, -.308), .017, .007, 23)
         grip(body, True)
@@ -577,7 +618,9 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         data = {'smg': (-.62, .34, .24), 'm4': (-.91, .47, .34), 'shotgun': (-1.00, .46, .40), 'dmr': (-1.04, .50, .39), 'sniper': (-1.23, .56, .44)}[weapon]
         muzzle_z, rear, handguard = data
         wood = weapon in ['m4', 'shotgun', 'dmr']
-        profile('Receiver', body, [(-.28, .055), (.13, .055), (.17, .003), (.14, -.115), (-.25, -.115), (-.31, -.066)], .12, 0, .012, 1)
+        profile('Receiver', body, [(-.28, .055), (.13, .055), (.17, .003), (.14, -.115), (-.25, -.115), (-.31, -.066)],
+                .12, 5 if weapon == 'm4' else 8 if weapon == 'shotgun' else 0,
+                .018 if weapon in ['m4', 'shotgun'] else .012, 1)
         cylinder('Barrel', body, (0, 0, (muzzle_z - .23) / 2), .024 if weapon != 'shotgun' else .033, abs(muzzle_z + .23), 0)
         cylinder('Muzzle_crown', body, (0, 0, muzzle_z + .028), .042 if weapon != 'sniper' else .049, .06, 0)
         cylinder('Bore', body, (0, 0, muzzle_z - .004), .024, .008, 23)

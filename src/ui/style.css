@@ -537,7 +537,8 @@ body[data-screen=game] .stk{background:var(--paper);border-radius:12px}
 #hud #minimap{border-radius:10px}
 #hud #mapWrap .tab{border-radius:999px;background:var(--candy-gold);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.5)}
 #hud #mapWrap .net{border-radius:999px}
-#hud #bigmap .frame{border-radius:18px;overflow:hidden}
+#hud #bigmap .frame{border-radius:18px;overflow:visible;padding:6px;background:var(--wood)}
+#hud #bigmap canvas{border-radius:8px;border:2px solid var(--brown)}
 #hud #bigmap .tab{border-radius:999px;background:var(--candy-gold)}
 #hud .fd{border-radius:999px;background:var(--paper)}
 #hud .fd.me{background:var(--candy-gold)}
@@ -690,6 +691,17 @@ body[data-screen=game] #pause-panel::after{display:none}
 body.reduce-motion #pause-panel h1,body.reduce-motion #pause-panel .board-mascot{animation:none!important}
 @media(prefers-reduced-motion:reduce){body #pause-panel h1,body #pause-panel .board-mascot{animation:none!important}}
 @media(max-width:640px){#hud #ammoBox .wrow{margin:-3px -9px 3px;padding:3px 9px}#hud #mapWrap{padding:3px}}
+
+/* Reload status shares the weapon stack so it cannot sit behind a taller nameplate. */
+#hud #wpnbox #reload{position:static;translate:none;zoom:1;flex:none}
+/* Portraits and weapon silhouettes keep their space; long names yield before icons overlap them. */
+#hud #feed{max-width:min(520px,calc(var(--hud-w,1600) * 1px - 40px))}
+#hud .fd{min-width:0;max-width:100%}
+#hud .fd .pt{flex:0 0 28px}
+#hud .fd .wi{flex:0 0 42px;width:42px;overflow:hidden}
+#hud .fd .wi svg{width:42px;height:14px}
+#hud .fd b{flex:0 1 auto;min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+#hud .fd em{flex:none}
 
 /* Swimming is a quiet posture cue, away from the crosshair and interaction prompt. */
 #hud #stance .swim-icon{display:none}
