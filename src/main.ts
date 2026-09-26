@@ -362,7 +362,8 @@ function frame(now: number) {
   input.refresh();
   input.recoverRecoil(dt);
   const me = snapshot?.actors.find(a => a.id === playerId) || null;
-  const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : me;
+  // Immediate local contact comes from prediction; other actors use snapshots.
+  const listener = spectateId ? snapshot?.actors.find(a => a.id === spectateId) || me : predicted || me;
   const audioAt = timing.begin();
   sound.update(listener, snapshot, dt, ui.screen !== 'game');
   timing.end('audio', audioAt);
