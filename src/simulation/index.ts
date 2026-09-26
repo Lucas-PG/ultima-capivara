@@ -3,9 +3,10 @@ import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, ray
 import { terrainHeight } from '../shared/terrain';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
+import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
 import { advanceAds, coolShotHeat, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
-import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, ColliderGrid, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
+import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
@@ -94,7 +95,7 @@ export class Simulation {
 
   constructor(world: WorldSpec, config: RoomConfig, players: PlayerProfile[], matchId: string, seed = crypto.getRandomValues(new Uint32Array(1))[0]) {
     this.world = world;
-    this.grid = new ColliderGrid(world);
+    this.grid = colliderGrid(world);
     this.config = { ...config };
     this.diff = adaptDifficulty(DIFFICULTY[config.difficulty], config.adapt);
     this.matchId = matchId;
@@ -342,7 +343,7 @@ export class Simulation {
     s.pos.y += s.velocity.y * TICK;
     if (s.stage === 'falling' && s.pos.y - terrainHeight(s.pos.x, s.pos.z) < 55) s.stage = 'parachute';
     let ground = terrainHeight(s.pos.x, s.pos.z);
-    for (const collider of this.world.colliders) {
+    for (const collider of this.grid.query(s.pos.x - .32, s.pos.z - .32, s.pos.x + .32, s.pos.z + .32)) {
       if (overlapsFootprint(s.pos, collider) && previousY >= collider.max.y && s.pos.y <= collider.max.y) ground = Math.max(ground, collider.max.y);
     }
     if (s.pos.y <= ground) {
@@ -463,7 +464,7 @@ export class Simulation {
     for (const turn of [0, .7, -.7, 1.4, -1.4, 2.4, -2.4, Math.PI]) {
       const a = heading + turn, x = chest.x + Math.sin(a) * 1.25 + Math.cos(a) * side, z = chest.z + Math.cos(a) * 1.25 - Math.sin(a) * side;
       const y = Math.max(terrainHeight(x, z), chest.y);
-      const blocked = this.world.colliders.some(c => x > c.min.x - .22 && x < c.max.x + .22 && z > c.min.z - .22 && z < c.max.z + .22 &&
+      const blocked = this.grid.query(x - .22, z - .22, x + .22, z + .22).some(c => x > c.min.x - .22 && x < c.max.x + .22 && z > c.min.z - .22 && z < c.max.z + .22 &&
         c.max.y > y + .05 && c.min.y < y + 1);
       if (!blocked && hasLineOfSight(from, { x, y: y + .3, z }, this.world)) return { x, y, z };
     }

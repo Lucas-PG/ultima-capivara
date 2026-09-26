@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { clearSpawn, hasLineOfSight } from '../src/shared/collision';
+import { clearSpawn, hasLineOfSight, moveActor } from '../src/shared/collision';
+import { boundaryFeedback } from '../src/shared/bounds';
+import { emptyInput } from '../src/shared/math';
+import { Simulation } from '../src/simulation';
+import type { Mode, SpawnPoint } from '../src/shared/types';
 import { ARENA, BRIDGES, CHURCH, FORTE, HOUSES, MERCADAO, MORRO_LOTS, RIVER, ROADS, inArena } from '../src/shared/layout';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
@@ -7,6 +11,15 @@ import { WORLD_PALETTE, terrainColor, terrainHeight } from '../src/shared/terrai
 import { createWorld } from '../src/shared/world';
 
 const world = createWorld();
+const spawnActor = new Simulation(world, { mode: 'deathmatch', capacity: 2, bots: false, difficulty: 'normal', duration: 300 },
+  [{ id: 'player', name: 'P', color: '#fff', ready: true, connected: true }], 'spawn-escape', 1).snapshot().actors[0];
+function walkFrom(spawn: SpawnPoint, yaw: number, mode: Mode) {
+  const actor = structuredClone(spawnActor);
+  actor.pos = { x: spawn.x, y: spawn.y, z: spawn.z }; actor.yaw = yaw;
+  actor.velocity = { x: 0, y: 0, z: 0 }; actor.stage = 'ground'; actor.grounded = true;
+  for (let seq = 1; seq <= 60; seq++) moveActor(actor, { ...emptyInput(), seq, moveZ: 1, yaw }, world, 1 / 60, 1, mode);
+  return Math.hypot(actor.pos.x - spawn.x, actor.pos.z - spawn.z);
+}
 describe('river island gameplay integrity', () => {
   it('keeps the familiar districts while moving the hero fort north and the beach south', () => {
     expect(new Set(world.districts.map(d => d.id))).toEqual(new Set(['forte', 'vila', 'centro', 'morro', 'cachoeira', 'porto', 'praia', 'farol', 'mangue', 'fazenda', 'posto', 'lagoa']));
@@ -44,6 +57,21 @@ describe('river island gameplay integrity', () => {
       expect(point.y).toBeGreaterThan(.5);
     }
     for (const spawn of world.spawns.filter(s => s.mode === 'deathmatch')) expect(inArena(spawn.x, spawn.z, 3)).toBe(true);
+  });
+
+  it('allows the rendered multiplayer guest spawn to walk forward for one second', () => {
+    const spawn: SpawnPoint = { x: 52.62707957951352, y: 2.200000047683716, z: 42.44404777279124, yaw: 0, mode: 'deathmatch' };
+    expect(clearSpawn(spawn, world)).toBe(true);
+    expect(boundaryFeedback(spawn, world, 'deathmatch')).toBeNull();
+    expect(walkFrom(spawn, 0, 'deathmatch')).toBeGreaterThan(.5);
+  });
+
+  it('gives every spawn a clear walking exit in at least one direction', () => {
+    for (const spawn of world.spawns) {
+      const modes: Mode[] = spawn.mode === 'both' ? ['deathmatch', 'battle-royale'] : [spawn.mode];
+      for (const mode of modes) expect([0, Math.PI / 2, Math.PI, Math.PI * 1.5]
+        .some(turn => walkFrom(spawn, spawn.yaw + turn, mode) > .5), `trapped ${mode} spawn ${JSON.stringify(spawn)}`).toBe(true);
+    }
   });
 
   it('supports level house floors and leaves both doorways and the centre aisle open', () => {
