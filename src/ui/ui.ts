@@ -11,6 +11,7 @@ import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, we
 import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
 import { fillTip, tipCategory, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
+import { paintIslandMap, paintMapCompass } from './map-paint';
 
 export interface UICallbacks {
   host(profile: Profile, config: RoomConfig): Promise<void>; join(profile: Profile, code: string): Promise<void>;
@@ -55,6 +56,7 @@ export class GameUI {
   private inventoryKey = '';
   private hudTime = 0;
   private mapBg = document.createElement('canvas');
+  private mapCompass = document.createElement('canvas');
   private lastResults = '';
   private toastTimer = 0;
   private lastBanner = '';
@@ -721,21 +723,10 @@ export class GameUI {
   }
   private text(id: string, value: string | number) { const element = this.el(id); if (element) this.textOf(element, value); }
   private textOf(element: Element, value: string | number) { if (element.textContent !== String(value)) element.textContent = String(value); }
-  // Island texture for both maps, built from the world data (terrain height, colliders) at MAP_PPM pixels per metre.
+  // Static paint is cached for the UI lifetime and shared by the corner and full maps.
   private drawMapBackground() {
-    const size = this.world.size, px = Math.round(size * MAP_PPM), step = 2, ctx = this.mapBg.getContext('2d')!;
-    this.mapBg.width = this.mapBg.height = px;
-    for (let y = 0; y < px; y += step) for (let x = 0; x < px; x += step) {
-      const h = terrainHeight((x / px - .5) * size, (y / px - .5) * size);
-      ctx.fillStyle = h < -1.5 ? '#2b6b78' : h < 0 ? '#3f8c8f' : h < .7 ? '#d8c48a' : h > 7 ? '#8a9a63' : h > 3.5 ? '#6f9154' : '#5e8a4c'; ctx.fillRect(x, y, step, step);
-    }
-    ctx.fillStyle = '#efe2bd'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 1.5;
-    for (const b of this.world.colliders) if (b.max.y - b.min.y > .6) {
-      const x = (b.min.x / size + .5) * px, y = (b.min.z / size + .5) * px, w = Math.max(1.5, (b.max.x - b.min.x) * MAP_PPM), h = Math.max(1.5, (b.max.z - b.min.z) * MAP_PPM);
-      ctx.fillRect(x, y, w, h); if (w > 6 && h > 6) ctx.strokeRect(x, y, w, h);
-    }
-    ctx.strokeStyle = 'rgba(22,18,14,.12)'; ctx.lineWidth = 1;
-    for (let m = -size / 2; m <= size / 2; m += 20) { const v = (m / size + .5) * px; ctx.beginPath(); ctx.moveTo(v, 0); ctx.lineTo(v, px); ctx.moveTo(0, v); ctx.lineTo(px, v); ctx.stroke(); }
+    paintIslandMap(this.mapBg, this.world, MAP_PPM); paintMapCompass(this.mapCompass);
+    void document.fonts.ready.then(() => paintMapCompass(this.mapCompass));
   }
   // Corner minimap: a north-up window around the player, like Fortnite. M opens the whole island.
   private drawMap(snapshot: WorldSnapshot, actor: ActorState) {
@@ -747,7 +738,7 @@ export class GameUI {
   private drawMapView(canvas: HTMLCanvasElement, snapshot: WorldSnapshot, actor: ActorState, span: number, cx: number, cz: number, full: boolean) {
     const ctx = canvas.getContext('2d')!, size = canvas.width, scale = size / span, half = this.world.size / 2, zone = snapshot.zone;
     const X = (x: number) => (x - cx) * scale + size / 2, Z = (z: number) => (z - cz) * scale + size / 2;
-    ctx.fillStyle = '#2b6b78'; ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#277085'; ctx.fillRect(0, 0, size, size);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.mapBg, (cx - span / 2 + half) * MAP_PPM, (cz - span / 2 + half) * MAP_PPM, span * MAP_PPM, span * MAP_PPM, 0, 0, size, size);
     if (snapshot.config.mode === 'battle-royale') {
@@ -763,10 +754,11 @@ export class GameUI {
         this.planeGlyph(ctx, X(p.x), Z(p.z), Math.atan2(d.x, -d.z), full ? 16 : 11);
       }
     } else { ctx.strokeStyle = '#e5412d'; ctx.lineWidth = 3; ctx.strokeRect(X(ARENA.minX), Z(ARENA.minZ), (ARENA.maxX - ARENA.minX) * scale, (ARENA.maxZ - ARENA.minZ) * scale); }
-    ctx.save(); ctx.font = `${full ? 26 : 23}px "Dela Gothic One","Arial Black",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = full ? 7 : 5; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#fff4d6';
+    ctx.drawImage(this.mapCompass, size - 106, 8, 96, 96);
+    ctx.save(); ctx.font = `30px "Dela Gothic One","Arial Black",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = full ? 7 : 5; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#fff4d6';
     // Labels clamped to the edge must never overlap: a label that would collide with one already drawn is skipped.
     const placed: [number, number, number, number][] = [[X(actor.pos.x) - 18, Z(actor.pos.z) - 18, X(actor.pos.x) + 18, Z(actor.pos.z) + 18]];
-    if (!full) placed.push([size / 2 - 16, 0, size / 2 + 16, 34]);
+    placed.push([size - 116, 0, size, 114]);
     for (const district of this.world.districts) {
       const x = X(district.x), y = Z(district.z); if (x < -60 || y < -20 || x > size + 60 || y > size + 20) continue;
       const label = district.name.toUpperCase(), w = ctx.measureText(label).width / 2 + 6, lx = clamp(x, w, size - w), ly = clamp(y, 14, size - 14);
@@ -779,7 +771,6 @@ export class GameUI {
     ctx.restore();
     ctx.save(); ctx.translate(X(actor.pos.x), Z(actor.pos.z)); ctx.rotate(-actor.yaw); const k = full ? 1.5 : 1.25; ctx.scale(k, k);
     ctx.fillStyle = '#ffb81c'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore();
-    if (!full) { ctx.strokeStyle = 'rgba(22,18,14,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(size / 2, 0); ctx.lineTo(size / 2, 10); ctx.stroke(); ctx.font = '14px "Dela Gothic One",sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#16120e'; ctx.fillStyle = '#ffb81c'; ctx.strokeText('N', size / 2, 22); ctx.fillText('N', size / 2, 22); }
   }
   private planeGlyph(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, r: number) {
     ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.fillStyle = '#fff4d6'; ctx.strokeStyle = '#16120e'; ctx.lineWidth = 2.5;

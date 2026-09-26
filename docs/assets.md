@@ -408,3 +408,7 @@ Fur uses tiles 0, 1, 2, 4, 14; fabric uses 5, 6, 7, 13. Tile 14 is a neutral car
 ### Painted character and first-person presentation
 
 The runtime selects the new 4x4 character paint layout from the exported `paintAtlas` marker and preserves the source normal, roughness, emissive and specular maps. Cosmetic bandana colours change only their two painted tiles. Sun-directed rim light and a broad soft sheen apply to the authored fur tiles; cloth, eyes and mouth retain their own surface response. The existing 16-column character asset remains supported. The pistol hip pose is angled slightly to expose its side engraving, serrations, fasteners and supporting paw; the authored sights stay aligned when aiming.
+
+### Vitrine painted map, 2026-09-26
+
+Original procedural canvas artwork in `src/ui/map-paint.ts`. Terrain washes and shore highlights sample the shared height field and water level; roads and paths use shared layout data; warm roofs use placed kit footprints, rotation and scale. Paper grain, brush variation and the compass rose are authored in code. No external images, purchases or generated assets. The 4 px/m background and compass bake once at UI load and are reused by both map views on every graphics preset.
