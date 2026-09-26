@@ -5,15 +5,15 @@ import { DEFAULT_SETTINGS } from '../src/settings';
 describe('ground contact audio', () => {
   function engine() {
     const audio = new SoundEngine({ ...DEFAULT_SETTINGS, music: 0 }) as any;
-    audio.context = { currentTime: 1, state: 'running' };
+    audio.context = { currentTime: 1, state: 'running', createGain: vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() })) };
     audio.buses = { effects: {} };
     audio.updateAmbient = vi.fn(); audio.updateStorm = vi.fn(); audio.updateReload = vi.fn();
     audio.placeListener = vi.fn(); audio.spatial = vi.fn((_pos, output) => output);
-    audio.footstep = vi.fn(); audio.waterSound = vi.fn(); audio.nextSpotCheck = Infinity;
+    audio.footstep = vi.fn(); audio.waterSound = vi.fn(); audio.mudSound = vi.fn(); audio.nextSpotCheck = Infinity;
     return audio;
   }
   function actor(id = 'self') {
-    return { id, alive: true, hp: 100, stage: 'ground', grounded: true, swimming: false, crouch: false, sprint: false,
+    return { id, alive: true, hp: 100, stage: 'ground', grounded: true, swimming: false, soaking: false, crouch: false, sprint: false,
       pos: { x: 0, y: 0, z: 0 }, velocity: { x: 3, y: 0, z: 0 }, yaw: 0 };
   }
   function update(audio: any, local: ReturnType<typeof actor>, remotes: ReturnType<typeof actor>[] = []) {
@@ -126,6 +126,40 @@ describe('ground contact audio', () => {
     audio.footstep(actor().pos, .2, true);
     expect(audio.playSample).toHaveBeenCalledTimes(2);
     expect(audio.tone).toHaveBeenCalledOnce();
+  });
+
+  it('sounds soaking once, keeps bubbles sparse after stalls, and cancels against a stale snapshot', () => {
+    const audio = engine(), local = actor();
+    local.soaking = true; local.velocity.x = 0;
+    for (let i = 0; i < 12; i++) update(audio, local);
+    expect(audio.mudSound).toHaveBeenCalledOnce();
+    expect(audio.mudSound.mock.calls[0][2]).toBe(true);
+    audio.context.currentTime = 31;
+    update(audio, local);
+    expect(audio.mudSound.mock.calls.map((call: unknown[]) => call[2])).toEqual([true, false]);
+    const channel = audio.context.createGain.mock.results.at(-1).value;
+    local.soaking = false;
+    audio.update(local, { phase: 'playing', actors: [{ ...local, soaking: true }] }, 1 / 60, false);
+    expect(channel.disconnect).toHaveBeenCalledOnce();
+    audio.context.currentTime = 40; update(audio, local);
+    expect(audio.mudSound).toHaveBeenCalledTimes(2);
+    local.soaking = true; update(audio, local);
+    expect(audio.mudSound.mock.calls[2][2]).toBe(true);
+    const reentry = audio.context.createGain.mock.results.at(-1).value;
+    audio.update(local, { phase: 'playing', actors: [local] }, 1 / 60, true);
+    expect(reentry.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('spatializes only nearby soaking and stops when the remote actor leaves the snapshot', () => {
+    const audio = engine(), local = actor(), remote = actor('near'), far = actor('far');
+    remote.pos.x = 4; far.pos.x = 50; remote.soaking = far.soaking = true;
+    update(audio, local, [remote, far]);
+    expect(audio.mudSound).toHaveBeenCalledOnce(); expect(audio.spatial).toHaveBeenCalledOnce();
+    const channel = audio.context.createGain.mock.results[0].value;
+    update(audio, local);
+    expect(channel.disconnect).toHaveBeenCalledOnce();
+    remote.grounded = false; update(audio, local, [remote]);
+    expect(audio.mudSound).toHaveBeenCalledOnce();
   });
 });
 
