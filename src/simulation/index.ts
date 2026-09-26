@@ -7,6 +7,7 @@ import { MUD_HEAL_PER_SECOND, MUD_HURT_COOLDOWN, mudBathAt } from '../shared/rec
 import { chooseSupplyLanding, SUPPLY_APPROACH_SECONDS, SUPPLY_DESCENT_SECONDS, SUPPLY_DROP_TIMES } from '../shared/supply-drops';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
+import { BotBuildingRoutes } from './building-routes';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
 import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
@@ -77,6 +78,7 @@ export class Simulation {
   private readonly openedChests = new Set<string>();
   private dropSeq = 0;
   private readonly grid: ColliderGrid;
+  private readonly buildingRoutes: BotBuildingRoutes;
   private readonly diff: BotDifficulty;
   private readonly landings: Vec3[] = [];
   private botCount = 0;
@@ -107,6 +109,7 @@ export class Simulation {
   constructor(world: WorldSpec, config: RoomConfig, players: PlayerProfile[], matchId: string, seed = crypto.getRandomValues(new Uint32Array(1))[0]) {
     this.world = world;
     this.grid = colliderGrid(world);
+    this.buildingRoutes = new BotBuildingRoutes(world, isArenaMode(config.mode));
     this.config = { ...config };
     this.diff = adaptDifficulty(DIFFICULTY[config.difficulty], config.adapt);
     this.matchId = matchId;
@@ -855,6 +858,7 @@ export class Simulation {
   // Indoor loot is reached through a doorway: the nearest outdoor spot with a straight
   // knee-height line to the item. Loot with no such line is left alone by bots.
   private approach(id: string, p: Vec3): Vec3 | 'open' | 'none' {
+    if (this.buildingRoutes.contains(p)) return 'open';
     const cached = this.approaches.get(id);
     if (cached) return cached;
     let result: Vec3 | 'open' | 'none' = 'open';
@@ -964,12 +968,16 @@ export class Simulation {
       else if (item.kind === 'bandage' || item.kind === 'medkit' || item.kind === 'rapadura') want = this.heals(s) < 4;
       if (!want) continue;
       const d = Math.hypot(item.x - s.pos.x, item.z - s.pos.z);
-      if (d < bd && Math.abs(item.y - s.pos.y) < LEVEL) { bd = d; best = { id: item.id, kind: 'item', pos: { x: item.x, y: item.y, z: item.z } }; }
+      if (d < bd && (Math.abs(item.y - s.pos.y) < LEVEL || this.buildingRoutes.contains(item) || this.buildingRoutes.contains(s.pos))) {
+        bd = d; best = { id: item.id, kind: 'item', pos: { x: item.x, y: item.y, z: item.z } };
+      }
     }
     if (!dm && (BOT_WEAPON[current.id].tier < 3 || s.armor < 50)) for (const c of this.world.chests) {
       if (this.openedChests.has(c.id) || ignored(c.id) || this.approach(c.id, c) === 'none') continue;
       const d = Math.hypot(c.x - s.pos.x, c.z - s.pos.z);
-      if (d < bd && Math.abs(c.y - s.pos.y) < LEVEL) { bd = d; best = { id: c.id, kind: 'chest', pos: { x: c.x, y: c.y, z: c.z } }; }
+      if (d < bd && (Math.abs(c.y - s.pos.y) < LEVEL || this.buildingRoutes.contains(c) || this.buildingRoutes.contains(s.pos))) {
+        bd = d; best = { id: c.id, kind: 'chest', pos: { x: c.x, y: c.y, z: c.z } };
+      }
     }
     if (!dm && (value < 33 || s.armor < 100)) for (const drop of this.supplyDrops) {
       if (drop.opened || this.time < drop.landsAt || ignored(drop.id)) continue;
@@ -1149,7 +1157,7 @@ export class Simulation {
     const fighting = !!(t && t.alive && b.sees && t.stage === 'ground' && t.protectionUntil <= now);
     b.trackT = fighting ? b.trackT + dt : Math.max(0, b.trackT - dt * 2);
     if (this.botLeisure(a, rethink)) return;
-    let mx = 0, mz = 0, speed = 0, face = s.yaw, crouch = false, jump = false, pitch = s.pitch * Math.exp(-4 * dt);
+    let mx = 0, mz = 0, speed = 0, face = s.yaw, crouch = false, jump = false, pitch = s.pitch * Math.exp(-4 * dt), preciseBuilding = false;
     const atCover = b.mode === 'cover' && !!b.coverPt && Math.hypot(b.coverPt.x - s.pos.x, b.coverPt.z - s.pos.z) <= .7;
     if (s.using) {
       crouch = true;
@@ -1199,8 +1207,14 @@ export class Simulation {
           !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: g.x, y: g.y + .7, z: g.z })) g = door;
       }
       else { if (!b.goal) b.goal = this.randomGoal(s); g = b.goal; }
+      const building = this.buildingRoutes.step(b, s.pos, g);
+      if (building) {
+        g = building.point; preciseBuilding = building.precise; b.drop = null;
+        if (building.advanced) b.lootSince = now;
+        if (preciseBuilding) { b.via = null; b.routeFor = null; b.avoidOff = 0; }
+      }
       // Up on a roof with the goal below: head for the nearest edge and drop off instead of circling.
-      if (g.y < s.pos.y - 1.5 && s.grounded && s.pos.y - terrainHeight(s.pos.x, s.pos.z) > 2.2) {
+      if (!building && g.y < s.pos.y - 1.5 && s.grounded && s.pos.y - terrainHeight(s.pos.x, s.pos.z) > 2.2) {
         if (!b.drop || Math.hypot(b.drop.x - s.pos.x, b.drop.z - s.pos.z) < .6) b.drop = this.dropPoint(s);
         if (b.drop) { g = b.drop; run = false; kind = 'goal'; }
       } else b.drop = null;
@@ -1209,7 +1223,7 @@ export class Simulation {
       const goalMoved = !b.routeFor || Math.hypot(b.routeFor.x - g.x, b.routeFor.z - g.z) > 2;
       const viaLost = !!b.via && (this.world.navigation ? !walkableSegment(this.world, s.pos, b.via, isArenaMode(this.config.mode)) :
         !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: b.via.x, y: b.via.y + .7, z: b.via.z }));
-      if (goalMoved || viaLost || (!b.via && now >= b.routeAt)) {
+      if (!preciseBuilding && (goalMoved || viaLost || (!b.via && now >= b.routeAt))) {
         b.routeAt = now + .3; b.routeFor = { ...g }; b.via = this.route(s, g, b.lastVia);
       }
       if (b.via && Math.hypot(b.via.x - s.pos.x, b.via.z - s.pos.z) < 1) { b.lastVia = b.via; b.via = null; b.routeAt = now; }
@@ -1225,15 +1239,16 @@ export class Simulation {
       }
       const step = b.via || g, dist = Math.hypot(g.x - s.pos.x, g.z - s.pos.z);
       const dx = step.x - s.pos.x, dz = step.z - s.pos.z, stepDist = Math.hypot(dx, dz) || 1;
-      if (dist < (kind === 'leisure' ? .45 : 1.3)) {
-        if (kind === 'goal') b.goal = null;
+      if (dist < (building?.waypoint ? .12 : kind === 'leisure' ? .45 : 1.3) && (!building || Math.abs(g.y - s.pos.y) < 1.6)) {
+        if (building?.waypoint) { /* The authored route advances at its height-checked waypoint. */ }
+        else if (kind === 'goal') b.goal = null;
         else if (kind === 'hear') { b.hearPos = null; b.alertUntil = -1; }
         else if (kind === 'loot' && b.loot && g !== b.loot.pos) b.routeAt = now; // at the doorway: next step is the item
         else if (kind === 'loot' && b.loot) {
           if (Math.abs(g.y - s.pos.y) < 1.6) this.interact(a, b.loot.id);
           b.loot = null; b.lootScanAt = now - .9;
         } else if (kind === 'chase') b.lastSeenAt = -99;
-      } else { mx = dx / stepDist; mz = dz / stepDist; speed = run ? 5.8 : 4.2; }
+      } else { mx = dx / stepDist; mz = dz / stepDist; speed = preciseBuilding ? Math.min(3.9, stepDist / .35 * 3.9) : run ? 5.8 : 4.2; }
       if (now < b.alertUntil && b.hearPos && !run) face = Math.atan2(-(b.hearPos.x - s.pos.x), -(b.hearPos.z - s.pos.z));
       else if (speed > 0) face = Math.atan2(-mx, -mz);
       if (this.heals(s) > 0 && s.hp < 75 && now >= b.hurtUntil && !run) this.botHeal(a);
@@ -1241,7 +1256,7 @@ export class Simulation {
     if (crouch) speed = Math.min(speed, 2);
     const ml = Math.hypot(mx, mz);
     if (ml > 0) {
-      if (now >= b.avoidAt) {
+      if (!preciseBuilding && now >= b.avoidAt) {
         b.avoidAt = now + .15;
         const angle = Math.atan2(-mx, -mz);
         // Hold a side-step for at least 0.6 s before straightening, so bots do not wobble along walls.
@@ -1257,7 +1272,7 @@ export class Simulation {
       if (speed >= 5 && Math.abs(angleDiff(Math.atan2(-mx, -mz), face)) < .3) face = Math.atan2(-mx, -mz);
     }
     // Pressing into something for a third of a second: try the next side-step right away.
-    const pressing = ml > 0 && s.grounded && !s.using && Math.hypot(s.velocity.x, s.velocity.z) < speed * .3;
+    const pressing = !preciseBuilding && ml > 0 && s.grounded && !s.using && Math.hypot(s.velocity.x, s.velocity.z) < speed * .3;
     b.pressT = pressing ? b.pressT + dt : 0;
     if (b.pressT > .35) {
       const order = [1, -1, 2, -2, 3, -3], next = order[(order.indexOf(b.avoidOff) + 1) % order.length];
@@ -1274,7 +1289,7 @@ export class Simulation {
         if (b.mode === 'cover') b.coverUntil = now;
         // Hop only over a genuinely low ledge; jumping at walls looks broken.
         const ahead = { x: -Math.sin(s.yaw), y: 0, z: -Math.cos(s.yaw) };
-        if (s.grounded && this.grid.ray({ x: s.pos.x, y: s.pos.y + .3, z: s.pos.z }, ahead, 1) !== null &&
+        if (!preciseBuilding && s.grounded && this.grid.ray({ x: s.pos.x, y: s.pos.y + .3, z: s.pos.z }, ahead, 1) !== null &&
           this.grid.ray({ x: s.pos.x, y: s.pos.y + 1.1, z: s.pos.z }, ahead, 1.2) === null) jump = true;
       }
       b.lastPos = { ...s.pos }; b.stuckAt = now;

@@ -122,6 +122,8 @@ for name, piece in PIECES.items():
         for part in piece.parts:
             if level and part.get('detail'):
                 continue
+            if level and 'farBevel' in part:
+                part = dict(part, bevel=part['farBevel'])
             if level == 2 and hasattr(piece, 'traversal') and part.get('solid'):
                 part = dict(part, bevel=0)
             vv, ff = make_part(part, level)
@@ -216,6 +218,10 @@ for name, piece in PIECES.items():
         # bound complete houses, not each submesh, while keeping one atlas draw.
         obj.data.calc_loop_triangles()
         budget = [12000, 2900, 780][level]
+        if name == 'lighthouse':
+            # The hollow tower has two complete stair turns and a usable
+            # balcony. Preserve those surfaces in the single distant instance.
+            budget = [12000, 4500, 2400][level]
         if name in ['church', 'market_hall', 'warehouse']:
             budget = [15000, 3500, 900][level]
         if name.startswith('cliff_'):

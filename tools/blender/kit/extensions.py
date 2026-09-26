@@ -1,6 +1,7 @@
 """Hero district furnishings and landmarks, using the shared solid primitives."""
 import math
 from rocks import add_cliffs
+from access import build_fort_gate, build_lighthouse
 
 
 def extend(Piece, building, roof, window):
@@ -44,49 +45,8 @@ def extend(Piece, building, roof, window):
         p.orb(x, h + .03, z, .07, .045, .07, 3, i % 3 != 0)
     building('house_medium', 9, 7, color=3)
     building('warehouse', 14, 10, color=0, roof_tile=8)
-    p = Piece('fort_gate', 10, 3)
-    for x in [-3.5, 3.5]:
-        p.box(x, 2.7, 0, 3, 5.4, 3, 6, True, bevel=.10)
-        for y in [.25, 4.9, 5.5]:
-            p.box(x, y, 0, 3.2, .24, 3.2, 14, True, bevel=.06)
-        for dx in [-.9, .9]:
-            p.box(x + dx, 6.0, -.95, .7, .9, .6, 6, True, bevel=.06)
-    p.box(0, 4.75, 0, 4, 1.3, 3, 6, True, bevel=.08)
-    p.box(0, 5.5, 0, 4, .24, 3.2, 14, True)
-    for side in [-1, 1]:
-        # Open timber gate leaves rest against the inner side of each pier.
-        p.box(side * 2.03, 1.65, 1.3, .13, 3.3, 2.5, 7, True, 'wood')
-        for yy in [.6, 2.2, 3.0]:
-            p.box(side * 1.93, yy, 1.3, .07, .14, 2.4, 9, detail=True)
-    p = Piece('lighthouse', 7, 7)
-    p.cylinder(0, .20, 0, 3.25, .40, 14, True, sides=32)
-    for i in range(6):
-        r = 2.5 - i * .15
-        p.cylinder(0, .40 + (i + .5) * 1.75, 0, r, 1.75, 0 if i % 2 == 0 else 1, True, sides=32)
-        p.cylinder(0, .40 + i * 1.75, 0, r + .08, .13, 15, sides=32)
-    p.cylinder(0, 11.0, 0, 2.25, .30, 14, True, sides=32)
-    p.cylinder(0, 12.1, 0, 1.40, 2.0, 10, True, sides=16)
-    for i in range(12):
-        a = math.tau * i / 12
-        x, z = math.sin(a), math.cos(a)
-        p.cylinder(x * 2.05, 11.58, z * 2.05, .045, 1.0, 9, sides=8)
-        p.beam((x * 1.42, 11.1, z * 1.42), (x * 1.42, 13.1, z * 1.42), .10, 15)
-        b = math.tau * (i + 1) / 12
-        p.beam((x * 2.05, 12.07, z * 2.05), (math.sin(b) * 2.05, 12.07, math.cos(b) * 2.05), .075, 9)
-    p.cylinder(0, 13.2, 0, 1.85, .22, 15, sides=24)
-    p.cylinder(0, 13.9, 0, 1.92, 1.3, 4, top=.12, sides=24)
-    p.orb(0, 14.6, 0, .24, .28, .24, 3, False)
-    p.box(0, 1.7, 2.49, 1.35, 2.5, .10, 7, bevel=.06)
-    for xx in [-.77, .77]:
-        p.box(xx, 1.7, 2.52, .14, 2.8, .18, 15)
-    p.box(0, 3.13, 2.50, 1.68, .18, .20, 15)
-    for i in range(4):
-        y, r = 4.0 + i * 1.9, 2.2 - i * .16
-        p.box(0, y, r, .55, 1.0, .1, 10)
-        for xx in [-.35, .35]:
-            p.box(xx, y, r + .03, .1, 1.2, .14, 15)
-        for yy in [-.56, .56]:
-            p.box(0, y + yy, r + .03, .8, .1, .14, 15)
+    build_fort_gate(Piece)
+    build_lighthouse(Piece)
 
     p = Piece('beach_kiosk', 6.8, 5.8)
     p.box(0, .14, 0, 6.4, .28, 5.4, 5, True, 'wood')

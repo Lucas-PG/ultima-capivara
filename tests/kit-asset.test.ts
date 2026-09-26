@@ -184,4 +184,37 @@ describe('island kit geometry and traversal contract', () => {
     move(3); expect(plants.visible).toBe(true); expect(plants.getCurrentLevel()).toBe(0);
     kit.dispose(); expect(scene.children).toHaveLength(0);
   });
+
+  it('reduces room furniture independently of buildings while preserving every solid silhouette', async () => {
+    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
+    const kit = createKit(scene, { gltf: async () => asset } as unknown as AssetLoader, [
+      { piece: 'bed', x: 1, y: 0, z: 1, yaw: 0 },
+      { piece: 'interior_counter', x: 2, y: 0, z: 1, yaw: 0 },
+      { piece: 'bed', x: 18, y: 3.22, z: 1, yaw: Math.PI / 2 },
+      { piece: 'house_small', x: 3, y: 0, z: 3, yaw: 0 },
+    ]);
+    await kit.ready; scene.updateMatrixWorld(true);
+    const furniture = scene.getObjectByName('kit:furniture:0:0') as THREE.LOD;
+    const upperFurniture = scene.getObjectByName('kit:furniture:2:0') as THREE.LOD;
+    const house = scene.getObjectByName('kit:solid:0:0') as THREE.LOD;
+    expect(furniture.levels).toHaveLength(3); expect(upperFurniture.levels).toHaveLength(3);
+    const move = (distance: number) => {
+      camera.position.set(1.5, 1.7, 1 + distance); camera.updateMatrixWorld(true); kit.update(camera);
+    };
+    move(3); expect(furniture.getCurrentLevel()).toBe(0);
+    move(16); expect(furniture.getCurrentLevel()).toBe(1); expect(house.getCurrentLevel()).toBe(0);
+    move(33); expect(furniture.getCurrentLevel()).toBe(2);
+    move(120); expect(furniture.visible).toBe(true); expect(upperFurniture.visible).toBe(true);
+    for (const entry of [...furniture.levels, ...upperFurniture.levels]) {
+      const mesh = entry.object as THREE.Mesh, material = mesh.material as THREE.MeshStandardMaterial;
+      expect(mesh.castShadow).toBe(false); expect(mesh.receiveShadow).toBe(true);
+      expect(material.opacity).toBe(1); expect(material.transparent).toBe(false);
+    }
+    expect((house.levels[0].object as THREE.Mesh).castShadow).toBe(true);
+    const near = (furniture.levels[0].object as THREE.Mesh).geometry.index!.count;
+    const far = (furniture.levels[2].object as THREE.Mesh).geometry.index!.count;
+    expect(far).toBeLessThan(near * .4);
+    move(3); expect(furniture.getCurrentLevel()).toBe(0);
+    kit.dispose(); expect(scene.children).toHaveLength(0);
+  });
 });
