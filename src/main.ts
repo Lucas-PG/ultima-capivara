@@ -312,8 +312,9 @@ function closestInteraction() {
 }
 input.onAction = sendAction;
 input.onCancelEmote = () => {
-  const actor = snapshot?.actors.find(a => a.id === playerId);
-  if (playing && actor?.emote && actor.emoteUntil > snapshot!.time) sendAction({ type: 'emote', id: input.actionIdNext(), emote: null });
+  // A selection may still be travelling to the host, so a local-only control
+  // cancels reliably even before its active gesture appears in a snapshot.
+  if (playing && snapshot?.phase === 'playing') sendAction({ type: 'emote', id: input.actionIdNext(), emote: null });
 };
 input.onEmoteOpen = () => { input.onCancelEmote(); return playing && ui.openEmoteWheel(); };
 input.onEmoteClose = commit => ui.closeEmoteWheel(commit);
