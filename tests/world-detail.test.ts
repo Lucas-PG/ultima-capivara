@@ -227,7 +227,15 @@ describe('river island gameplay integrity', () => {
         expect(walkableHeight(site.x, site.z, world)).toBeCloseTo(site.y, 3);
         const reach = Math.max(...KIT_PIECES[piece].footprint) * (placed.scale ?? 1) / 2 + .9;
         const from = { x: site.x + Math.sin(placed.yaw) * reach, z: site.z + Math.cos(placed.yaw) * reach };
-        expect(walkableSegment(world, from, site), `${site.id} must have a walk-in entrance`).toBe(true);
+        const actor = structuredClone(spawnActor);
+        actor.pos = { ...from, y: walkableHeight(from.x, from.z, world) }; actor.yaw = placed.yaw;
+        actor.velocity = { x: 0, y: 0, z: 0 }; actor.stage = 'ground'; actor.grounded = true;
+        // The shared round actor footprint steps over the low pad rim. A
+        // navigation-cell square can conservatively reject its outer corners.
+        for (let tick = 0; tick < 180 && Math.hypot(actor.pos.x - site.x, actor.pos.z - site.z) >= site.radius - .1; tick++)
+          moveActor(actor, { ...emptyInput(), moveZ: 1, yaw: actor.yaw }, world, 1 / 60, 1, 'battle-royale');
+        expect(Math.hypot(actor.pos.x - site.x, actor.pos.z - site.z), `${site.id} must have a walk-in entrance`).toBeLessThan(site.radius - .1);
+        expect(actor.pos.y).toBeGreaterThanOrEqual(site.y - .05);
         expect(hasLineOfSight({ x: site.x, y: site.y + .5, z: site.z },
           { x: site.x, y: site.y + 8, z: site.z }, world), `${site.id} needs open sky`).toBe(true);
         for (const point of [...world.spawns, ...world.loot, ...world.chests])
