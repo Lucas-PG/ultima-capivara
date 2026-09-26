@@ -744,30 +744,30 @@ body.reduce-motion #hud .emote-option{transition:none}
 #victory .vwinner{display:flex;align-items:center;gap:10px;max-width:100%;padding:5px 20px 5px 6px;background:var(--paper);border:3px solid var(--brown);border-radius:999px;box-shadow:0 5px 0 var(--brown);color:var(--brown);rotate:2deg}
 #victory .vface svg{width:46px;height:46px;display:block}
 #victory .vwinner div{min-width:0}
-#victory .vwinner small{display:block;font-size:10px;letter-spacing:1.1px}
+#victory .vwinner small{display:block;font-size:13px;letter-spacing:1.1px}
 #victory .vwinner b{display:block;font-family:var(--heading);font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #victory .vsub{margin:2px 0 0;padding:4px 10px;max-width:100%;font-size:13px;border:0;box-shadow:none;transform:none;background:none;color:var(--cream);white-space:normal;text-align:center;text-shadow:0 2px 0 var(--brown)}
 #victory .vpanel{position:relative;inset:auto;width:100%;zoom:1;--r:0deg;translate:0 12px;transform:none;padding:20px;gap:12px;border:4px solid var(--brown);box-shadow:7px 8px 0 var(--brown),inset 0 0 0 4px #f7e2b8;transition:translate .22s var(--spring),opacity .18s}
 #victory .vpanel.show{translate:0 0}
 #victory .vpanel-heading{position:relative;padding-right:90px;color:var(--brown)}
-#victory .vpanel-heading .eyebrow{font-size:11px;color:var(--brown-2);margin:0}
+#victory .vpanel-heading .eyebrow{font-size:13px;color:var(--brown-2);margin:0}
 #victory .vpanel-heading h2{font-family:var(--heading);font-size:22px;line-height:1.2;margin:4px 0}
 #victory .vplace{position:absolute;right:-8px;top:6px;rotate:8deg;border:3px solid var(--brown);border-radius:12px;padding:6px 9px;background:var(--candy-gold);font:14px var(--heading)}
 #victory .vstats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 #victory .vstats div:nth-child(n){min-width:0;gap:5px;padding:10px;transform:none}
 #victory .vstats b{font-size:32px;color:var(--brown)}
-#victory .vstats span{font-size:12px;white-space:normal;text-align:center}
-#victory .vaccuracy{margin:0;text-align:center;font-size:12px;color:var(--brown-2)}
+#victory .vstats span{font-size:13px;white-space:normal;text-align:center}
+#victory .vaccuracy{margin:0;text-align:center;font-size:13px;color:var(--brown-2)}
 #victory .vawards{gap:8px}
-#victory .award{font-size:11px;padding:5px 8px;gap:5px}
+#victory .award{font-size:13px;padding:5px 8px;gap:5px}
 #victory .award img{width:26px;height:26px}
 #victory .award small{display:none}
 #victory .vboard{max-height:170px;overflow:auto;padding-top:6px;scrollbar-color:var(--gold) var(--paper-2);scrollbar-width:thin}
-#victory .score-table th,#victory .score-table td{font-size:12px;padding:6px 8px}
+#victory .score-table th,#victory .score-table td{font-size:13px;padding:6px 8px}
 #victory .vlast{display:none}
 #victory .vactions{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;padding-top:4px}
 #victory .vactions .button{height:52px;font-size:17px;justify-content:center}
-#victory .vactions .wait{height:auto;min-height:52px;font-size:12px;padding:6px}
+#victory .vactions .wait{height:auto;min-height:52px;font-size:13px;padding:6px}
 #victory #confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
 #victory #confetti i{left:var(--cx);top:var(--cy);width:12px;height:19px;border:2px solid var(--brown);border-radius:3px;rotate:var(--spin);opacity:.7;animation:victory-paper var(--fall) var(--ease) var(--delay) both}
 #victory #confetti i:nth-child(3n){width:17px;height:9px;border-radius:1px}
@@ -776,7 +776,7 @@ body.reduce-motion #hud .emote-option{transition:none}
 @keyframes victory-paper{from{opacity:0;transform:translateY(-65vh) rotate(-140deg)}15%{opacity:1}to{opacity:.7;transform:none}}
 #hud #matchMoment{position:absolute;left:50%;top:128px;translate:-50% 0;z-index:8;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;max-width:calc(100% - 32px);text-align:center;rotate:-3deg}
 #hud #matchMoment strong{font:clamp(26px,3.1vw,42px)/1.1 var(--heading);text-transform:uppercase;color:var(--brown);background:var(--candy-gold);border:4px solid var(--brown);border-radius:14px;padding:10px 20px;box-shadow:5px 6px 0 var(--brown)}
-#hud #matchMoment small{font-size:12px;color:var(--brown);background:var(--paper);border:2px solid var(--brown);border-radius:999px;padding:4px 12px;rotate:3deg}
+#hud #matchMoment small{font-size:13px;color:var(--brown);background:var(--paper);border:2px solid var(--brown);border-radius:999px;padding:4px 12px;rotate:3deg}
 #hud #matchMoment[data-kind=drop] strong{font-size:56px;padding:6px 34px}
 #hud #matchMoment[data-kind=storm] strong{background:linear-gradient(#e0c5ff,#b388f7);min-width:84px}
 #hud #matchMoment.stamp{animation:victory-stamp .24s var(--spring)}
