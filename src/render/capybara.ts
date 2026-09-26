@@ -103,7 +103,7 @@ function characterMaterial(source: THREE.MeshStandardMaterial, color: string): T
 interface CharacterInstance {
   scene: THREE.Group; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>;
   faceActions: (THREE.AnimationAction | undefined)[];
-  active: string; weights: Record<string, number>; targets: Record<string, number>; grounded: boolean; landing: number; crouchOffset: number; spine?: THREE.Bone; crown: THREE.Vector3; crownScratch: THREE.Vector3; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
+  active: string; weights: Record<string, number>; targets: Record<string, number>; grounded: boolean; swimming: boolean; swimBlend: number; landing: number; crouchOffset: number; spine?: THREE.Bone; crown: THREE.Vector3; crownScratch: THREE.Vector3; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
   hitTime: number; hitX: number; hitZ: number; deathTime: number; deathSide: number; emoteTime: number; unarmed: number; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
   relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
@@ -212,7 +212,7 @@ export function resetCapybaraPose(body: THREE.SkinnedMesh): void {
   for (const action of runtime.faceActions) action?.setEffectiveWeight(0);
   for (const [name, action] of Object.entries(runtime.actions)) if (!name.startsWith('face_')) { action.stop(); action.reset().setEffectiveWeight(name === 'idle' ? 1 : 0).play(); }
   for (const name of Object.keys(runtime.weights)) runtime.weights[name] = name === 'idle' ? 1 : 0;
-  runtime.active = 'idle'; runtime.grounded = true; runtime.landing = 0;
+  runtime.active = 'idle'; runtime.grounded = true; runtime.swimming = false; runtime.swimBlend = 0; runtime.landing = 0;
   runtime.scene.rotation.set(0, 0, 0); runtime.scene.position.set(0, 0, 0);
 }
 
@@ -268,7 +268,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     weights[name] = name === 'idle' ? 1 : 0; targets[name] = 0; action.setEffectiveWeight(weights[name]).play();
   }
   const runtime: CharacterInstance = {
-    scene, mixer, actions, weights, targets, grounded: true, landing: 0, crouchOffset: 0,
+    scene, mixer, actions, weights, targets, grounded: true, swimming: false, swimBlend: 0, landing: 0, crouchOffset: 0,
     spine: scene.getObjectByName('spine') as THREE.Bone | undefined, crown: new THREE.Vector3(0, characterHeadTop, 0), crownScratch: new THREE.Vector3(), faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
     hitTime: 0, hitX: 0, hitZ: 0, deathTime: -1, deathSide: 1, emoteTime: 0, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,
@@ -341,13 +341,14 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
     weight('death', 1, 'idle');
     if (runtime.active !== 'death' && actions.death) actions.death.reset().play();
     runtime.active = 'death';
-  } else if (runtime.emoteTime > 0) weight('idle', 1);
+  } else if (actor.swimming) { weight('idle', 1); runtime.landing = 0; }
+  else if (runtime.emoteTime > 0) weight('idle', 1);
   else if (actor.stage !== 'ground' || !actor.grounded) {
     const airborne = actor.velocity.y < -.15 ? 'fall' : 'jump';
     weight(airborne, 1, 'jump');
     if (runtime.grounded) actions[actions[airborne] ? airborne : 'jump'].reset().play();
   } else {
-    if (!runtime.grounded && actions.land) { runtime.landing = .24; actions.land.reset().play(); }
+    if (!runtime.grounded && !runtime.swimming && actions.land) { runtime.landing = .24; actions.land.reset().play(); }
     const moving = THREE.MathUtils.smoothstep(speed, .05, .35);
     if (actor.crouch) { weight('crouch_idle', 1 - moving, 'idle'); weight('crouch_walk', moving); }
     else {
@@ -367,6 +368,8 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
     }
   }
   runtime.grounded = actor.grounded;
+  runtime.swimming = actor.swimming;
+  runtime.swimBlend = THREE.MathUtils.damp(runtime.swimBlend, actor.swimming && !dead ? 1 : 0, 9, step);
   for (const [name, action] of Object.entries(actions)) if (!name.startsWith('face_') && name !== 'reload_tp') {
     const target = targets[name] || 0;
     if (target > 0 && runtime.weights[name] < .001 && name !== 'death' && name !== 'land') action.reset().play();
@@ -402,7 +405,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   for (let i = 0; i < runtime.poseBones.length; i++) runtime.baseRotations[i].copy(runtime.poseBones[i].quaternion);
   const pitch = dead ? 0 : THREE.MathUtils.clamp(actor.pitch, -1, 1);
   head.rotateX(pitch * .45);
-  const resting = dead || runtime.emoteTime > 0 || (!actor.weapons[actor.slot] && actor.stage === 'ground');
+  const resting = dead || runtime.emoteTime > 0 || (!actor.weapons[actor.slot] && actor.stage === 'ground' && !actor.swimming);
   runtime.unarmed = THREE.MathUtils.damp(runtime.unarmed, resting ? 1 : 0, 12, step);
   // Compact resting arms without changing the authored combat reach or sockets.
   for (const arm of arms) arm.scale.setScalar(1 - .05 * runtime.unarmed);
@@ -414,7 +417,19 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
     runtime.relaxBones[i].quaternion.premultiply(runtime.armBlends[i]);
   }
   legacyBones[CAPY_BONES.arms].rotation.x = pitch + (actor.sprint ? -.18 : 0);
+  legacyBones[CAPY_BONES.arms].position.y = legacyBones[CAPY_BONES.arms].userData.rest.y + runtime.swimBlend * .22;
   runtime.scene.rotation.set(0, 0, 0); runtime.scene.position.set(0, 0, 0);
+  // Tread around the shared floating root. The head remains in its hit volume;
+  // the free paw sculls while the weapon paw stays above the surface.
+  if (runtime.swimBlend > .001) {
+    const swim = runtime.swimBlend, stroke = runtime.elapsed * (2.8 + Math.min(speed, 2.5) * .7);
+    root.rotateX(swim * .07); head.rotateX(-swim * .07);
+    runtime.scene.position.y = Math.sin(runtime.elapsed * 2.1) * .012 * swim;
+    arms[0].rotateX(swim * (.25 + Math.sin(stroke) * .24));
+    arms[0].rotateZ(swim * (.45 + Math.cos(stroke) * .2));
+    arms[1].rotateX(swim * (held ? -.25 : .25 - Math.sin(stroke) * .24));
+    if (!held) arms[1].rotateZ(-swim * (.45 - Math.cos(stroke) * .2));
+  }
   if (actor.stage === 'falling') {
     runtime.scene.rotation.x = -1.25;
     runtime.scene.position.set(0, .9 * (1 - Math.cos(-1.25)), -.9 * Math.sin(-1.25));

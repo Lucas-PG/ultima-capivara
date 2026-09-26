@@ -9,10 +9,17 @@ const actor = (): ActorState => ({
   hp: 100, armor: 0, helmet: 0, alive: true, grounded: true, crouch: false, sprint: false, ads: false,
   stage: 'ground', kills: 0, deaths: 0, damage: 0, weapons: [{ id: 'pistol', ammo: 4, reserve: 20, rarity: 0 }], slot: 0,
   consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 }, reloadUntil: 0, useUntil: 0,
-  using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, shotHeat: 0,
+  using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, shotHeat: 0, swimming: false, wetUntil: 0,
 });
 
 describe('local presentation without simulation changes', () => {
+  it('keeps the predicted swimming restrictions even with live aim, sprint and lean held', () => {
+    const state = actor(), view = new LocalPresentation(); state.swimming = true; state.grounded = false;
+    const before = structuredClone(state);
+    const rendered = view.sample(state, { ...emptyInput(), ads: true, sprint: true, lean: 1, moveZ: 1, yaw: 1.2 }, 1, .016, 1);
+    expect(rendered).toMatchObject({ swimming: true, ads: false, sprint: false, lean: 0, yaw: 1.2 });
+    expect(state).toEqual(before);
+  });
   it('renders intermediate positions at 120 Hz while preserving the 60 Hz actor', () => {
     const state = actor(), view = new LocalPresentation(), input = emptyInput();
     view.reconcile(state); state.pos.x = .05; view.tick(state);

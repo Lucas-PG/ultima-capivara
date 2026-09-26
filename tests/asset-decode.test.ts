@@ -28,6 +28,27 @@ function textureLoad() {
 }
 
 describe('texture decode readiness', () => {
+  it('prepares new detail maps without reuploading shared atlases on the next match', () => {
+    vi.stubGlobal('location', { href: 'http://localhost/' });
+    const loader = new AssetLoader({ capabilities: { getMaxAnisotropy: () => 8 } } as unknown as THREE.WebGLRenderer);
+    const map = new THREE.DataTexture(new Uint8Array(128 * 128 * 4), 128, 128);
+    const palette = new THREE.DataTexture(new Uint8Array(16 * 16 * 4), 16, 16);
+    const material = new THREE.MeshStandardMaterial({ map, emissiveMap: palette });
+    const scene = new THREE.Group(); scene.add(new THREE.Mesh(new THREE.PlaneGeometry(), material));
+    loader.prepareTextures(scene);
+    expect(map.anisotropy).toBe(8); expect(map.generateMipmaps).toBe(true);
+    expect(map.minFilter).toBe(THREE.LinearMipmapLinearFilter);
+    expect(palette.minFilter).toBe(THREE.NearestFilter); expect(palette.version).toBe(0);
+    const uploadedVersion = map.version;
+    const normal = new THREE.DataTexture(new Uint8Array(128 * 128 * 4), 128, 128);
+    material.normalMap = normal;
+    loader.prepareTextures(scene);
+    expect(map.version).toBe(uploadedVersion);
+    expect(normal.anisotropy).toBe(8); expect(normal.version).toBeGreaterThan(0);
+    loader.dispose(); material.dispose(); map.dispose(); palette.dispose(); normal.dispose();
+    (scene.children[0] as THREE.Mesh).geometry.dispose();
+  });
+
   it('holds asset completion until a loaded image finishes decoding', async () => {
     const h = textureLoad(), ready = vi.fn();
     const pending = h.loader.ready().then(ready);

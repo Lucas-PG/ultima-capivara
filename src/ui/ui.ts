@@ -161,11 +161,11 @@ export class GameUI {
     this.screen = 'home'; this.lastResults = ''; this.els.clear(); this.coach = null; document.body.dataset.screen = 'home';
     const mode = (m: Mode) => `${this.selectedMode === m ? ' selected' : ''}" aria-pressed="${this.selectedMode === m}`;
     this.root.innerHTML = `${this.header()}<div class="menu-motes" aria-hidden="true">${'<i></i>'.repeat(12)}</div>
-      <main class="home-content"><section class="hero-copy"><p class="eyebrow"><span></span> A ILHA É NOSSA.</p>
-      <h1>ÚLTIMA<br><em>CAPIVARA</em><span class="title-stamp">SÓ UMA<br>FICA DE PÉ.</span></h1><p class="hero-description">Sua turma. Uma ilha. Só uma fica de pé.<br>O resto é instinto de sobrevivência.</p>
-      <div class="hero-actions"><button class="button primary warmup" data-do="practice">${icon('play')}<span>JOGAR AGORA<small>Treino com bots · sem esperar</small></span>${icon('arrow')}</button>
-      <button class="button secondary" data-do="host">${icon('plus')} CRIAR SALA</button><button class="button secondary" data-do="join">${icon('users')} ENTRAR NA SALA</button></div>
-      <div class="hero-facts"><span>${icon('users')} Até 16 amigos</span><i></i><span>${icon('globe')} No navegador</span><i></i><span>100% grátis</span></div></section>
+      <main class="home-content title-screen"><section class="hero-copy"><div class="logo-lockup"><p class="eyebrow"><span></span> A ILHA É NOSSA.</p>
+      <h1><span class="logo-top">ÚLTIMA</span><em>CAPIVARA</em><span class="title-stamp">SÓ UMA<br>FICA DE PÉ.</span></h1></div><p class="hero-description">Chame a turma. O resto é instinto de sobrevivência.</p>
+      <div class="menu-board"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><div class="hero-actions"><button class="button primary warmup" data-do="practice">${icon('play')}<span>JOGAR AGORA<small>Treino com bots · sem esperar</small></span>${icon('arrow')}</button>
+      <button class="button secondary" data-do="host">${icon('plus')} CRIAR SALA</button><button class="button secondary" data-do="join">${icon('users')} ENTRAR NA SALA</button></div></div>
+      <div class="hero-facts"><span>${icon('users')} Até 16 amigos</span><span>${icon('globe')} No navegador</span><b class="burst">100%<br>GRÁTIS</b></div></section>
       <section class="mode-section" aria-label="Escolha o modo"><div class="section-heading"><span>ESCOLHA SUA AVENTURA</span><small>02 MODOS DE JOGO</small></div><div class="mode-grid">
       <button class="mode-card royale${mode('battle-royale')}" data-mode="battle-royale"><div class="mode-art painted" style="--art:url(${uiArt('mode-royale')})"><span class="mode-index">01</span></div><div class="mode-copy"><span class="mode-tag">BATTLE ROYALE</span><h2>ÚLTIMA DE PÉ</h2><p>Uma ilha. Uma vida.<br>Sobreviva até o fim.</p><span class="mode-meta">${icon('users')} ATÉ 21 BICHOS <b class="selection-mark">${icon('check')}</b></span></div></button>
       <button class="mode-card deathmatch${mode('deathmatch')}" data-mode="deathmatch"><div class="mode-art painted" style="--art:url(${uiArt('mode-correria')})"><span class="mode-index">02</span></div><div class="mode-copy"><span class="mode-tag">COMBATE POR TEMPO</span><h2>CORRERIA</h2><p>Caiu? Volta pra disputa.<br>Mais eliminações, mais glória.</p><span class="mode-meta">${icon('clock')} 8 MINUTOS <b class="selection-mark">${icon('check')}</b></span></div></button>
@@ -258,7 +258,7 @@ export class GameUI {
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
       + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
       + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><i class="chip" id="armChip" style="width:0"></i><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><i class="chip" id="hpChip"></i><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
-      + `<div id="stance" class="stk">${HUD_ART.stance}<b id="stanceTxt" hidden>Em pé</b></div>`
+      + `<div id="stance" class="stk">${HUD_ART.stance}${HUD_ART.swimming}<b id="stanceTxt" hidden>Em pé</b></div>`
       + `<div id="wpnbox"><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
       + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
       + `<div id="coach" class="stk" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
@@ -345,8 +345,8 @@ export class GameUI {
     if (air) { this.text('altTxt', `${Math.max(0, Math.round(me.pos.y - terrainHeight(me.pos.x, me.pos.z)))} m`); this.text('altHint', me.stage === 'falling' ? `${jump} abre o paraquedas` : 'WASD plana'); }
     this.attr(this.el('torso'), 'transform', `rotate(${(me.lean * 16).toFixed(0)} 30 56)`); this.attr(this.el('figure'), 'transform', `translate(0 ${me.crouch ? 15 : 0})`);
     // Posture chip: quiet when standing, labelled and highlighted when it matters.
-    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
-    this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance);
+    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? me.weapons.some(w => w.id === 'pistol') ? 'Nadando · só pistola' : 'Nadando · sem pistola' : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
+    this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance); this.toggle(this.el('stance'), 'swimming', me.swimming);
     if (me.alive) this.deathInfo = null;
     let banner = '';
     if (snapshot.phase === 'countdown') banner = `${Math.ceil(snapshot.countdown)}<small>Prepare-se · a ilha já vai abrir</small>`;
@@ -468,12 +468,12 @@ export class GameUI {
     this.toggleMap(false);
     const snapshot = this.snapshot, online = !!this.room, alive = snapshot ? snapshot.actors.filter(a => a.alive).length : 0, b = this.settings.bindings;
     const keys = (...codes: string[]) => `<span class="keys">${codes.map(code => `<kbd class="kc">${esc(code)}</kbd>`).join('')}</span>`;
-    panel.innerHTML = `<div class="mc"><div class="eyebrow stk">Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'vivo' : 'vivos'}` : ''}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${online ? 'Menu' : 'Pausado'}</h1>${!online && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
-      + `<button type="button" class="play" data-do="resume">Voltar pra ilha</button><div id="lockErr" role="status"></div>`
+    panel.innerHTML = `<div class="mc"><div class="eyebrow">Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'vivo' : 'vivos'}` : ''}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${online ? 'Menu' : 'Pausado'}</h1>${!online && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
+      + `<div class="pboard"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><button type="button" class="play" data-do="resume">Voltar pra ilha</button><div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt quit" data-do="leave">Sair da partida</button></div></div><div id="lockErr" role="status"></div>`
       + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span></div>`
       + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2)}</b></span><input type="range" data-quick="sensitivity" min="0.2" max="3" step="0.05" value="${this.settings.sensitivity}"></label>`
       + `<label><span>Campo de visão <b data-out="fov">${this.settings.fov}°</b></span><input type="range" data-quick="fov" min="60" max="105" step="1" value="${this.settings.fov}"></label></div>`
-      + `<div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt" data-do="leave">Sair da partida</button></div></div>`;
+      + `</div>`;
     const show = (key: string, value: number) => { const out = panel.querySelector(`[data-out="${key}"]`); if (out) out.textContent = key === 'fov' ? `${value}°` : value.toFixed(2); };
     panel.querySelectorAll<HTMLInputElement>('[data-quick]').forEach(input => input.addEventListener('input', () => {
       const key = input.dataset.quick as 'sensitivity' | 'fov'; this.settings[key] = Number(input.value); show(key, this.settings[key]); this.callbacks.settings(this.settings);
@@ -789,7 +789,7 @@ export class GameUI {
     const snapshot = this.snapshot, me = snapshot?.actors.find(a => a.id === this.localId);
     return !!snapshot && !!me && !me.alive && snapshot.config.mode === 'battle-royale' && snapshot.phase === 'playing';
   }
-  // Loading screen (style v3): the painted arrival scene, a parachuting capybara riding real progress, and rotating tips.
+  // Loading screen: the painted arrival scene, a parachuting capybara riding the tip of the real progress fill, and rotating tips.
   setLoading(on: boolean) {
     clearInterval(this.tipTimer); clearTimeout(this.tipIndexTimer);
     const current = this.root.querySelector<HTMLElement>('#loadingOverlay');
@@ -807,7 +807,7 @@ export class GameUI {
     const overlay = document.createElement('div'); overlay.id = 'loadingOverlay'; overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-label', 'Carregando a partida');
     overlay.innerHTML = `<div class="lbg" style="--arrival:url('${uiArt('island-arrival-v3')}')"></div>`
       + `<div class="lcard"><div class="lhead"><div><p class="eyebrow"><span></span> A AVENTURA ESTÁ CHEGANDO</p><h2>Preparando <em>a ilha</em></h2></div><b class="lpercent" aria-hidden="true">0%</b></div>`
-      + `<div class="ltrack"><div class="lrider" aria-hidden="true"><img class="lcapy" src="${uiArt('capy-parachute-v3')}" alt="" draggable="false"/></div><div class="lbar" role="progressbar" aria-label="Carregamento da ilha" aria-valuemin="0" aria-valuemax="100"><i></i></div></div>`
+      + `<div class="ltrack"><div class="lbar" role="progressbar" aria-label="Carregamento da ilha" aria-valuemin="0" aria-valuemax="100"><i><img class="lcapy" src="${uiArt('capy-parachute-v3')}" alt="" draggable="false"/></i></div></div>`
       + `<span class="lstatus" role="status">${loadingLabel(0)}</span></div>`
       + `<div class="ltipbox"><span class="ltip-icon" aria-hidden="true">${icon('leaf')}</span><div><b class="dica">Dica da ilha</b><p class="ltip" aria-live="polite"></p></div><button type="button" class="lnext" data-do="next-tip" aria-label="Próxima dica">${icon('arrow')}</button></div>`
       + `<div class="lfoot"><span class="lmode">${icon(mode === 'battle-royale' ? 'crown' : 'bolt')} ${mode === 'battle-royale' ? 'Última de Pé' : 'Correria'} · Ilha das Capivaras</span>`
@@ -824,7 +824,6 @@ export class GameUI {
     this.loadProgress = next;
     bar.classList.add('determinate'); bar.setAttribute('aria-valuenow', String(Math.round(next * 100)));
     bar.querySelector<HTMLElement>('i')!.style.width = `${(next * 100).toFixed(1)}%`;
-    overlay.style.setProperty('--progress', `${(next * 100).toFixed(1)}%`);
     this.textOf(overlay.querySelector('.lpercent')!, `${Math.round(next * 100)}%`);
     const status = overlay.querySelector('.lstatus');
     if (status) status.textContent = next >= 1 ? 'Pronto!' : label ? cleanLabel(label) || loadingLabel(next) : loadingLabel(next);

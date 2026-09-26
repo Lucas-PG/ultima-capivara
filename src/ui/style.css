@@ -367,7 +367,8 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 #loadingOverlay.out{opacity:0}
 #loadingOverlay>:not(.lbg){zoom:var(--ui,1)}
 #loadingOverlay .lbg{position:absolute;inset:-3%;background:linear-gradient(0deg,rgba(36,18,8,.78),rgba(36,18,8,.3) 36%,rgba(36,18,8,0) 60%),var(--arrival) center 30%/cover}
-#loadingOverlay .lcard{position:absolute;left:50%;bottom:214px;translate:-50% 0;width:740px;max-width:calc(100vw / var(--ui,1) - 40px);padding:22px 30px 18px;border:4px solid var(--brown);border-radius:24px;background:var(--paper);box-shadow:0 8px 0 var(--brown),0 26px 44px -14px rgba(0,0,0,.6);rotate:-1deg;animation:toon-pop .35s var(--spring) both}
+#loadingOverlay .lcard{position:absolute;left:50%;bottom:214px;translate:-50% 0;width:740px;max-width:calc(100vw / var(--ui,1) - 40px);padding:22px 30px 18px;border:4px solid var(--brown);border-radius:24px;background:var(--paper);box-shadow:0 8px 0 var(--brown),0 26px 44px -14px rgba(0,0,0,.6);rotate:-1deg;transform-origin:50% 0;animation:load-flip .32s var(--spring) .05s both}
+@keyframes load-flip{from{opacity:0;transform:perspective(900px) rotateX(-72deg) translateY(-24px)}to{opacity:1;transform:none}}
 /* Two strips of tape hold the note to the screen. */
 #loadingOverlay .lcard::before,#loadingOverlay .lcard::after{content:"";position:absolute;top:-16px;width:92px;height:28px;background:rgba(255,236,190,.78);border:2px solid rgba(58,36,24,.25);box-shadow:0 2px 4px rgba(0,0,0,.2)}
 #loadingOverlay .lcard::before{left:40px;rotate:-7deg}
@@ -377,14 +378,14 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 #loadingOverlay h2{margin:0;font-family:var(--heading);font-weight:400;font-size:40px;line-height:1.05;letter-spacing:.5px;color:var(--cream);text-shadow:var(--ol-b),0 6px 0 var(--brown);white-space:nowrap}
 #loadingOverlay h2 em{color:var(--gold)}
 #loadingOverlay .lpercent{font-family:var(--heading);font-weight:400;font-size:40px;line-height:1;color:var(--terra);font-variant-numeric:tabular-nums;text-shadow:0 3px 0 rgba(58,36,24,.25)}
-/* The capybara rides the head of the fill: the rider spans the track and moves by the same percentage. */
-#loadingOverlay .ltrack{position:relative;margin-top:96px}
-#loadingOverlay .lrider{position:absolute;left:0;right:0;bottom:10px;transform:translateX(var(--progress,0%));transition:transform .45s var(--spring);pointer-events:none}
-#loadingOverlay .lcapy{position:absolute;left:-54px;bottom:-12px;width:108px;height:108px;display:block;transform-origin:50% 8%;filter:drop-shadow(0 6px 0 rgba(58,36,24,.35));animation:load-sway 2.4s ease-in-out infinite alternate}
-@keyframes load-sway{from{transform:rotate(-6deg) translateY(-4px)}to{transform:rotate(6deg) translateY(4px)}}
-#loadingOverlay .lbar{position:relative;height:26px;border:3px solid var(--brown);border-radius:999px;background:#f0d9ad;box-shadow:inset 0 3px 0 rgba(58,36,24,.18),0 3px 0 var(--brown);overflow:hidden}
-#loadingOverlay .lbar i{position:relative;display:block;height:100%;width:34%;border-right:3px solid var(--brown);border-radius:999px;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.28) 0 10px,transparent 10px 20px),var(--candy-gold);box-shadow:inset 0 3px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(150,60,10,.3);animation:load-slide 1.2s ease-in-out infinite alternate}
-#loadingOverlay .lbar.determinate i{transition:width .45s var(--spring);animation:none}
+/* The capybara is a child of the fill, centred on its tip, so it can never lead or lag the bar. The bar is inset so
+   the capybara stays inside the note at 0% and 100%. */
+#loadingOverlay .ltrack{position:relative;margin:92px 14px 0}
+#loadingOverlay .lbar{position:relative;height:26px;border:3px solid var(--brown);border-radius:999px;background:#f0d9ad;box-shadow:inset 0 3px 0 rgba(58,36,24,.18),0 3px 0 var(--brown)}
+#loadingOverlay .lbar i{position:relative;display:block;height:100%;width:34%;border-radius:999px;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.28) 0 10px,transparent 10px 20px),var(--candy-gold);box-shadow:inset 0 3px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(150,60,10,.3),3px 0 0 var(--brown);animation:load-slide 1.2s ease-in-out infinite alternate}
+#loadingOverlay .lbar.determinate i{transition:width .45s var(--ease);animation:none}
+#loadingOverlay .lcapy{position:absolute;left:100%;bottom:calc(100% + 1px);width:88px;height:88px;margin-left:-44px;display:block;transform-origin:50% 8%;filter:drop-shadow(0 5px 0 rgba(58,36,24,.35));animation:load-sway 2.4s ease-in-out infinite alternate;pointer-events:none}
+@keyframes load-sway{from{transform:rotate(-5deg) translateY(-3px)}to{transform:rotate(5deg) translateY(3px)}}
 @keyframes load-slide{from{transform:translateX(-20%)}to{transform:translateX(200%)}}
 #loadingOverlay .lstatus{display:block;margin-top:12px;font-size:15px;font-weight:800;color:var(--brown-2);min-height:1.5em}
 /* Tip on a wooden sign, nailed at both ends. */
@@ -616,3 +617,83 @@ body.reduce-motion #victory .vmascot,body.reduce-motion #victory .vstats b.done{
 body.reduce-motion #hud #spec .spec-mascot,body.reduce-motion .modal-mascot{animation:none!important}
 @media(prefers-reduced-motion:reduce){body #hud #spec .spec-mascot,body .modal-mascot{animation:none!important}}
 @media(max-width:700px){.modal-mascot{display:none}}
+
+/* Home as a cartoon title screen: a bouncing logo lockup, the menu on a painted wooden board with the waving capybara,
+   stickers stuck across the board's edge, and tilted mode cards with a gold painted trim. */
+body[data-screen=home] .topbar .brand,body[data-screen=home] .topbar .nav-link.active{display:none}
+body[data-screen=home] .topbar nav{margin-left:0}
+.title-screen .logo-lockup{position:relative;display:inline-block;animation:logo-drop .6s var(--spring) both}
+@keyframes logo-drop{0%{opacity:0;transform:translateY(-44px) rotate(-5deg) scale(.9)}60%{opacity:1;transform:translateY(6px) rotate(1deg) scale(1.02)}100%{transform:none}}
+.title-screen .logo-lockup .eyebrow{margin-bottom:6px}
+.title-screen h1{--h:clamp(64px,7vw,124px);line-height:.9;transform:rotate(-3deg)}
+.title-screen .logo-lockup:hover h1{animation:logo-wobble .45s var(--spring)}
+@keyframes logo-wobble{0%{transform:rotate(-3deg)}40%{transform:rotate(-5deg) scale(1.03)}75%{transform:rotate(-1.5deg)}100%{transform:rotate(-3deg)}}
+.title-screen h1 .logo-top{display:block;font-size:.66em;letter-spacing:2px;margin-left:.06em}
+.title-screen h1 em{display:block}
+.title-screen h1 .title-stamp{left:calc(var(--h) * 3.6);top:calc(var(--h) * .02)}
+.title-screen .hero-description{margin:12px 0 22px;max-width:520px}
+.menu-board{position:relative;max-width:560px;padding:18px 18px 20px;border:4px solid var(--brown);border-radius:22px;background:var(--wood);box-shadow:0 8px 0 var(--brown),0 22px 34px -12px rgba(0,0,0,.6),inset 0 3px 0 rgba(255,220,170,.35),inset 0 -5px 0 rgba(60,28,10,.3);rotate:-.8deg}
+.menu-board .hero-actions{max-width:none}
+.board-mascot{position:absolute;right:-36px;top:-96px;width:132px;height:132px;rotate:10deg;transform-origin:30% 90%;filter:drop-shadow(0 5px 0 rgba(58,36,24,.45));animation:toon-pop .45s var(--spring) .25s both,mascot-wave 1.4s ease-in-out .8s 2;pointer-events:none}
+.menu-board:hover .board-mascot{animation:mascot-wave .9s ease-in-out}
+@keyframes mascot-wave{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}75%{transform:rotate(5deg)}}
+.title-screen .hero-facts{position:relative;z-index:1;margin-top:-12px;padding-left:16px;align-items:center;gap:10px}
+.hero-facts .burst{display:grid;place-items:center;flex-shrink:0;width:100px;height:100px;margin:-14px 0 -14px 2px;font-family:var(--heading);font-weight:400;font-size:13px;line-height:1.05;text-align:center;color:var(--brown);position:relative;isolation:isolate;rotate:-12deg;filter:drop-shadow(2.5px 0 0 var(--brown)) drop-shadow(-2.5px 0 0 var(--brown)) drop-shadow(0 2.5px 0 var(--brown)) drop-shadow(0 -2.5px 0 var(--brown)) drop-shadow(0 4px 0 var(--brown));animation:toon-pop .4s var(--spring) .55s both}
+.hero-facts .burst::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--candy-gold);clip-path:polygon(50% 0,59% 14%,75% 7%,77% 24%,93% 25%,86% 41%,100% 50%,86% 59%,93% 75%,77% 76%,75% 93%,59% 86%,50% 100%,41% 86%,25% 93%,23% 76%,7% 75%,14% 59%,0 50%,14% 41%,7% 25%,23% 24%,25% 7%,41% 14%)}
+.title-screen .mode-card{border-width:4px;rotate:-1.2deg;box-shadow:0 6px 0 var(--brown),0 14px 24px -8px rgba(0,0,0,.5),inset 0 0 0 3px #fff6e0,inset 0 0 0 6px var(--gold)}
+.title-screen .mode-card:nth-child(2){rotate:1.2deg}
+.title-screen .mode-card:hover{transform:translateY(-7px) scale(1.02)}
+.title-screen .mode-card:nth-child(2):hover{transform:translateY(-7px) scale(1.02)}
+.title-screen .mode-card.selected{box-shadow:0 6px 0 var(--brown),0 0 0 4px var(--gold),0 0 0 7px var(--brown),0 0 26px 6px rgba(255,194,61,.45),inset 0 0 0 3px #fff6e0,inset 0 0 0 6px var(--gold)}
+.title-screen .mode-art{border-right-width:4px}
+@media(max-height:800px) and (min-width:1000px){.title-screen h1{--h:clamp(52px,4.8vh + 2.3vw,92px)}.title-screen .hero-description{margin:6px 0 16px;font-size:15px}.menu-board{padding:11px 13px 13px}.title-screen .mode-copy p{line-height:1.3}.board-mascot{width:104px;height:104px;top:-76px;right:-28px}.title-screen .hero-facts{margin-top:-12px}.hero-facts .burst{width:88px;height:88px;font-size:12px}}
+@media(max-width:700px){.board-mascot{display:none}.menu-board{rotate:0deg}.title-screen .mode-card,.title-screen .mode-card:nth-child(2){rotate:0deg}}
+body.reduce-motion .title-screen .logo-lockup,body.reduce-motion .board-mascot,body.reduce-motion .hero-facts .burst,body.reduce-motion .title-screen .logo-lockup:hover h1{animation:none!important}
+@media(prefers-reduced-motion:reduce){body .title-screen .logo-lockup,body .board-mascot,body .hero-facts .burst,body .title-screen .logo-lockup:hover h1{animation:none!important}}
+
+/* Home to loading: the overlay fades up, the paper note flips down onto the screen and the tip sign slides up. */
+#loadingOverlay{animation:rm-in .2s ease-out}
+#loadingOverlay .ltipbox{animation:load-rise .3s var(--spring) .12s both}
+#loadingOverlay .lfoot{animation:rm-in .3s ease-out .15s both}
+@keyframes load-rise{from{opacity:0;transform:translateY(60px) rotate(-2deg)}to{opacity:1;transform:none}}
+body.reduce-motion #loadingOverlay .ltipbox{animation:rm-in .2s ease-out both!important}
+@media(prefers-reduced-motion:reduce){body #loadingOverlay .ltipbox{animation:rm-in .2s ease-out both!important}}
+/* HUD: the minimap sits on a small wooden board and the weapon card wears a wooden nameplate, like the home board. */
+#hud #mapWrap{padding:6px;background:var(--wood);border:3px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink),inset 0 2px 0 rgba(255,220,170,.35)}
+#hud #minimap{border:2.5px solid var(--ink);border-radius:10px}
+#hud #mapWrap .tab{top:-13px;left:12px}
+#hud #mapWrap .net{right:-6px;bottom:-12px}
+#hud #ammoBox .wrow{margin:-8px -14px 6px;padding:6px 14px 7px;background:var(--wood);border-bottom:3px solid var(--ink);border-radius:13px 13px 0 0;box-shadow:inset 0 2px 0 rgba(255,220,170,.35)}
+#hud #ammoBox .wname{color:var(--cream);text-shadow:var(--ol-b2),0 2px 0 var(--ink)}
+#hud #ammoBox .mode{background:var(--cream);color:var(--ink);border:2px solid var(--ink)}
+/* Pause: the title-screen language over the dimmed island. */
+body[data-screen=game] #pause-panel{background:linear-gradient(90deg,rgba(36,18,8,.9),rgba(36,18,8,.66) 50%,rgba(36,18,8,.12))}
+body[data-screen=game] #pause-panel::before{background:repeating-conic-gradient(from 0deg at 20% 30%,rgba(255,194,61,.07) 0 5deg,transparent 5deg 12deg)}
+body[data-screen=game] #pause-panel::after{display:none}
+#pause-panel .mc{gap:14px}
+#pause-panel .eyebrow{align-self:flex-start;margin:0;padding:6px 24px;font-size:13px;letter-spacing:.3px;transform:rotate(-2deg)}
+#pause-panel h1{font-size:clamp(56px,7vw,96px);color:var(--cream);text-shadow:4px 0 0 var(--brown),-4px 0 0 var(--brown),0 4px 0 var(--brown),0 -4px 0 var(--brown),3px 3px 0 var(--brown),-3px -3px 0 var(--brown),3px -3px 0 var(--brown),-3px 3px 0 var(--brown),0 9px 0 var(--brown);transform:rotate(-3deg);animation:logo-drop .45s var(--spring) both}
+#pause-panel .pboard{position:relative;align-self:flex-start;display:flex;flex-direction:column;gap:12px;width:min(480px,100%);padding:16px 16px 18px;border:4px solid var(--brown);border-radius:22px;background:var(--wood);box-shadow:0 8px 0 var(--brown),0 22px 34px -12px rgba(0,0,0,.6),inset 0 3px 0 rgba(255,220,170,.35),inset 0 -5px 0 rgba(60,28,10,.3);rotate:-.8deg}
+#pause-panel .pboard .board-mascot{width:112px;height:112px;top:-84px;right:-30px}
+#pause-panel .play{align-self:stretch;font-size:26px;padding:16px 28px;border:4px solid var(--brown);border-radius:20px;background:var(--candy-gold);color:var(--brown);box-shadow:0 7px 0 var(--brown),inset 0 4px 0 rgba(255,255,255,.55),inset 0 -6px 0 rgba(150,60,10,.3);transform:none;transition:transform .18s var(--spring),box-shadow .15s}
+#pause-panel .play:hover{transform:translateY(-3px);animation:toon-wobble .35s var(--spring);box-shadow:0 10px 0 var(--brown),inset 0 4px 0 rgba(255,255,255,.55),inset 0 -6px 0 rgba(150,60,10,.3)}
+#pause-panel .play:active{animation:none;transform:translateY(4px) scale(1.02,.95);box-shadow:0 1px 0 var(--brown)}
+#pause-panel .mrow{gap:12px}
+#pause-panel .mrow button{flex:1;font-size:15px;padding:10px 14px;border:3px solid var(--brown);border-radius:16px;background:var(--candy-teal);color:var(--cream);text-shadow:var(--ol-b2);box-shadow:0 5px 0 var(--brown),var(--gloss);transition:transform .18s var(--spring),box-shadow .15s}
+#pause-panel .mrow button.quit{background:var(--candy-terra)}
+#pause-panel .mrow button:hover{transform:translateY(-3px) rotate(-1deg)}
+#pause-panel .mrow button:active{translate:0 0;transform:translateY(4px) scale(1.02,.95);box-shadow:0 1px 0 var(--brown)}
+#pause-panel .quick,#pause-panel .set{border-radius:16px;transform:none}
+#pause-panel kbd.kc{border-radius:8px;background:var(--candy-gold);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.5)}
+#pause-panel .set input[type=range]{accent-color:var(--terra)}
+#pause-panel #lockErr{color:var(--gold);text-shadow:0 2px 0 var(--brown)}
+body.reduce-motion #pause-panel h1,body.reduce-motion #pause-panel .board-mascot{animation:none!important}
+@media(prefers-reduced-motion:reduce){body #pause-panel h1,body #pause-panel .board-mascot{animation:none!important}}
+@media(max-width:640px){#hud #ammoBox .wrow{margin:-3px -9px 3px;padding:3px 9px}#hud #mapWrap{padding:3px}}
+
+/* Swimming is a quiet posture cue, away from the crosshair and interaction prompt. */
+#hud #stance .swim-icon{display:none}
+#hud #stance.swimming{background:var(--candy-teal);color:var(--brown);box-shadow:3px 3px 0 var(--brown),var(--gloss)}
+#hud #stance.swimming>svg{display:none}
+#hud #stance.swimming>.swim-icon{display:block;width:36px;height:36px}
+#hud #stance.swimming b{font-family:var(--sans);font-weight:800;font-size:15px}

@@ -1,6 +1,7 @@
 import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
-import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld } from '../shared/collision';
+import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, SWIM_DEPTH, SWIM_DRAFT } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
+import { waterAt } from '../shared/water';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
@@ -154,7 +155,7 @@ export class Simulation {
     const state: ActorState = {
       id: profile.id, name: profile.name.slice(0, 28), color: profile.color, bot, connected: bot || profile.connected,
       pos: br ? { ...this.plane } : spawn, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
-      hp: 100, armor: 0, helmet: 0, alive: true, grounded: !br, crouch: false, sprint: false, ads: false,
+      hp: 100, armor: 0, helmet: 0, alive: true, grounded: !br, crouch: false, sprint: false, ads: false, swimming: false, wetUntil: 0,
       stage: br ? 'plane' : 'ground', kills: 0, deaths: 0, damage: 0,
       weapons: br ? bot ? this.botLoadout() : [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
       slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
@@ -199,7 +200,7 @@ export class Simulation {
     else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) actor.triggerQueued = action; }
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
-      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot) {
+      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot && (!s.swimming || s.weapons[action.slot].id === 'pistol')) {
         s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0;
       }
     } else if (action.type === 'reload') this.startReload(actor);
@@ -280,15 +281,12 @@ export class Simulation {
       const trigger = actor.triggerQueued;
       actor.triggerQueued = null;
       s.yaw = inp.yaw; s.pitch = inp.pitch;
-      const before = actor.brain ? { x: s.pos.x, z: s.pos.z, h: walkableHeight(s.pos.x, s.pos.z, this.world) } : null;
+      const wasSwimming = s.swimming, previousSlot = s.slot;
       const queuedJump = actor.jumpQueued && this.time <= actor.jumpQueuedUntil;
       const consumeQueuedJump = queuedJump && s.grounded;
       moveActor(s, consumeQueuedJump ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1, this.config.mode);
-      if (before) {
-        // Bots never wade into the pond or the sea, whatever their steering says.
-        const h = walkableHeight(s.pos.x, s.pos.z, this.world);
-        if (h < -.3 && h < before.h) { s.pos.x = before.x; s.pos.z = before.z; s.velocity.x = 0; s.velocity.z = 0; }
-      }
+      if (s.slot !== previousSlot) { actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0; }
+      if (s.swimming !== wasSwimming) this.waterTransition(actor);
       actor.jumpQueued = queuedJump && !consumeQueuedJump;
       if (s.using && this.time >= s.useUntil) this.finishConsume(actor);
       if (s.reloadUntil && this.time >= s.reloadUntil) this.finishReload(actor);
@@ -300,11 +298,11 @@ export class Simulation {
         if (actor.stormExposure >= 1 - 1e-9) { actor.stormExposure -= 1; this.damage(actor, this.zone.damage, null, 'storm', false); }
       }
       if (trigger) {
-        s.yaw = trigger.yaw; s.pitch = trigger.pitch; s.lean = trigger.lean; s.ads = trigger.ads;
+        s.yaw = trigger.yaw; s.pitch = trigger.pitch; s.lean = s.swimming ? 0 : trigger.lean; s.ads = !s.swimming && trigger.ads;
         actor.wasFiring = false;
       }
       const weaponId = s.weapons[s.slot].id;
-      actor.adsAmount = advanceAds(weaponId, actor.adsAmount, s.ads && !s.sprint && !s.reloadUntil && weaponId !== 'machete', TICK);
+      actor.adsAmount = s.swimming ? 0 : advanceAds(weaponId, actor.adsAmount, s.ads && !s.sprint && !s.reloadUntil && weaponId !== 'machete', TICK);
       if (s.alive && (inp.fire || trigger)) this.fire(actor, trigger?.clientTime, trigger?.id);
       if (!inp.fire) actor.wasFiring = false;
       if (inp.jump) actor.input.jump = false;
@@ -323,6 +321,11 @@ export class Simulation {
   private updatePlane() {
     const along = clamp((this.time - 3) * PLANE_SPEED, 0, PLANE_ROUTE);
     this.plane = { x: this.planeStart.x + this.planeDir.x * along, y: PLANE_ALTITUDE, z: this.planeStart.z + this.planeDir.z * along };
+  }
+  private waterTransition(a: ActorRuntime) {
+    const s = a.state, water = waterAt(s.pos.x, s.pos.z);
+    s.wetUntil = this.time + 3;
+    this.emit({ type: 'water', actor: s.id, pos: { ...s.pos, y: water?.surfaceY ?? s.pos.y }, entering: s.swimming });
   }
   private drop(a: ActorRuntime) {
     if (a.state.stage !== 'plane') return;
@@ -345,6 +348,15 @@ export class Simulation {
     let ground = terrainHeight(s.pos.x, s.pos.z);
     for (const collider of this.grid.query(s.pos.x - .32, s.pos.z - .32, s.pos.x + .32, s.pos.z + .32)) {
       if (overlapsFootprint(s.pos, collider) && previousY >= collider.max.y && s.pos.y <= collider.max.y) ground = Math.max(ground, collider.max.y);
+    }
+    const water = waterAt(s.pos.x, s.pos.z);
+    if (water && ground <= water.surfaceY - SWIM_DEPTH && s.pos.y <= water.surfaceY - SWIM_DRAFT) {
+      s.pos.y = Math.max(ground, water.surfaceY - SWIM_DRAFT); s.velocity.y = 0; s.stage = 'ground'; a.landedAt = this.time;
+      s.swimming = true; s.grounded = false; s.crouch = s.sprint = s.ads = false; s.lean = 0;
+      const pistol = s.weapons.findIndex(w => w.id === 'pistol');
+      if (pistol >= 0 && s.slot !== pistol) { s.slot = pistol; s.reloadUntil = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; }
+      this.waterTransition(a);
+      return;
     }
     if (s.pos.y <= ground) {
       const impact = s.velocity.y;
@@ -479,7 +491,7 @@ export class Simulation {
   // `aim` is the bot path: a direction plus the legacy aim-error cone (radians).
   private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }) {
     const s = a.state, w = s.weapons[s.slot], def = w && WEAPONS[w.id];
-    if (!w || !def || s.stage !== 'ground' || s.using || this.time < a.nextShot) return;
+    if (!w || !def || s.stage !== 'ground' || s.using || this.time < a.nextShot || (s.swimming && w.id !== 'pistol')) return;
     if (!def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return;
     if (s.reloadUntil) {
       if (w.id !== 'shotgun' || w.ammo === 0) return;
@@ -487,7 +499,7 @@ export class Simulation {
     }
     a.wasFiring = true;
     if (!def.melee && w.ammo <= 0) { this.startReload(a); return; }
-    const spread = shotSpread(w.id, a.adsAmount, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded, a.shotHeat);
+    const spread = shotSpread(w.id, a.adsAmount, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded && !s.swimming, a.shotHeat, s.swimming);
     if (!s.bot && !def.melee && !def.projectile) a.shotHeat = s.shotHeat = Math.min(1.2, a.shotHeat + shotHeatGain(w.id));
     if (pressId !== undefined) a.lastShotPressId = Math.max(a.lastShotPressId, pressId);
     if (s.protectionUntil > this.time) s.protectionUntil = this.time;
@@ -505,7 +517,7 @@ export class Simulation {
     }
     const pellets = def.pellets || 1; let hit = false, headHit = false, impact: Impact | null = null, endpoint = { x: origin.x + forward.x * def.range, y: origin.y + forward.y * def.range, z: origin.z + forward.z * def.range };
     for (let n = 0; n < pellets; n++) {
-      const direction = aim ? this.cone(forward, aim.cone + (pellets > 1 ? def.spread * DEG * .5 : 0))
+      const direction = aim ? this.cone(forward, aim.cone + (s.swimming ? 1.5 * DEG : 0) + (pellets > 1 ? def.spread * DEG * .5 : 0))
         : def.melee ? forward : norm({ x: forward.x + (this.random() * 2 - 1) * spread * DEG, y: forward.y + (this.random() * 2 - 1) * spread * DEG, z: forward.z + (this.random() * 2 - 1) * spread * DEG });
       const wall = raycastWorld(origin, direction, def.range, this.world);
       let best = wall?.distance ?? def.range, victim: ActorRuntime | null = null, head = false;
@@ -597,7 +609,7 @@ export class Simulation {
   private respawn(a: ActorRuntime) {
     const s = a.state; s.pos = this.spawnPoint(s.id); s.velocity = { x: 0, y: 0, z: 0 };
     s.hp = 100; s.armor = 0; s.helmet = 0; s.alive = true; s.grounded = true; s.stage = 'ground';
-    s.crouch = false; s.sprint = false; s.ads = false; s.lean = 0;
+    s.crouch = false; s.sprint = false; s.ads = false; s.lean = 0; s.swimming = false; s.wetUntil = 0;
     s.weapons = [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
     s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
@@ -707,11 +719,11 @@ export class Simulation {
   }
   private botEye(s: ActorState): Vec3 { return center(s); }
   private botCanSee(s: ActorState, t: ActorState) {
-    return this.grid.sees(this.botEye(s), { x: t.pos.x, y: t.pos.y + 1.0 * (t.crouch ? 1.3 / 1.8 : 1), z: t.pos.z });
+    return this.grid.sees(this.botEye(s), { x: t.pos.x, y: t.pos.y + (t.swimming ? 1.6 : 1.0 * (t.crouch ? 1.3 / 1.8 : 1)), z: t.pos.z });
   }
   private walkable(x: number, z: number) {
-    if (this.config.mode === 'deathmatch') return inArena(x, z, .5) && walkableHeight(x, z, this.world) > .3;
-    return Math.abs(x) < 118 && Math.abs(z) < 118 && walkableHeight(x, z, this.world) > .3;
+    if (this.config.mode === 'deathmatch') return inArena(x, z, .5);
+    return Math.abs(x) < 118 && Math.abs(z) < 118;
   }
   // Indoor loot is reached through a doorway: the nearest outdoor spot with a straight
   // knee-height line to the item. Loot with no such line is left alone by bots.
@@ -805,6 +817,7 @@ export class Simulation {
     else if (s.consumables.medkit) this.startConsume(a, 'medkit');
   }
   private bestWeapon(s: ActorState) {
+    if (s.swimming) { const pistol = s.weapons.findIndex(w => w.id === 'pistol'); return pistol < 0 ? s.slot : pistol; }
     let best = s.slot, value = -1;
     s.weapons.forEach((w, i) => { const v = botValue(w.id, w.rarity) + (w.id === 'machete' ? -5 : 0); if (v > value) { value = v; best = i; } });
     return best;
@@ -877,11 +890,8 @@ export class Simulation {
       if (this.grid.ray(origin, dir, 1.3) !== null) return false;
     }
     const x = s.pos.x + dir.x * 1.3, z = s.pos.z + dir.z * 1.3;
-    // Shores (and the Correria fence) are walls for bots: never step down toward
-    // water, but always allow climbing out of it.
-    const ahead = walkableHeight(x, z, this.world);
-    if (ahead < .15 && ahead < walkableHeight(s.pos.x, s.pos.z, this.world)) return false;
-    return this.config.mode !== 'deathmatch' || this.inArena({ x, y: 0, z });
+    // Water is a route. Only the same soft playable limits used by humans bound it.
+    return this.walkable(x, z);
   }
   private botThink(a: ActorRuntime) {
     const s = a.state, b = a.brain!, diff = this.diff, dm = this.config.mode === 'deathmatch';
@@ -899,8 +909,8 @@ export class Simulation {
       if (d > weapon.sight * (human ? diff.sight : .55)) continue;
       if (!human && d > 18 && b.lastAttacker !== t.id) continue;
       const moving = Math.hypot(t.velocity.x, t.velocity.z) > .5;
-      const heard = human && moving && d < (t.sprint ? (b.elite ? 20 : 15) : t.crouch ? (b.elite ? 4 : 2) : (b.elite ? 9 : 6));
-      if (d > weapon.sight * (t.crouch && !moving ? .6 : 1)) continue;
+      const heard = human && moving && d < (t.swimming ? 4 : t.sprint ? (b.elite ? 20 : 15) : t.crouch ? (b.elite ? 4 : 2) : (b.elite ? 9 : 6));
+      if (d > weapon.sight * (t.swimming ? .6 : t.crouch && !moving ? .6 : 1)) continue;
       if (this.time >= b.alertUntil && !heard && d > 6 && (dx * fx + dz * fz) / d < Math.cos(1.35)) continue;
       if (!this.botCanSee(s, t)) continue;
       const score = d * (t.id === b.target ? .65 : 1) * (t.hp < 50 ? .8 : 1);

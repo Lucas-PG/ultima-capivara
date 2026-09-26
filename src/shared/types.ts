@@ -1,5 +1,5 @@
-export const PROTOCOL_VERSION = 3;
-export const WORLD_VERSION = 'ilha-v3-rio-2';
+export const PROTOCOL_VERSION = 4;
+export const WORLD_VERSION = 'ilha-v3-rio-4';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
@@ -43,6 +43,7 @@ export interface ActorState {
   pos: Vec3; velocity: Vec3; yaw: number; pitch: number; lean: number;
   hp: number; armor: number; helmet: number; alive: boolean; grounded: boolean;
   crouch: boolean; sprint: boolean; ads: boolean;
+  swimming: boolean; wetUntil: number;
   stage: 'plane' | 'falling' | 'parachute' | 'ground';
   kills: number; deaths: number; damage: number;
   weapons: WeaponState[]; slot: number;
@@ -61,10 +62,13 @@ export interface District { id: string; name: string; x: number; z: number; radi
 export interface SpawnPoint extends Vec3 { mode: Mode | 'both'; yaw: number; district?: string }
 export interface LootSpawn extends Vec3 { id: string; kind: 'weapon' | 'ammo' | 'armor' | 'helmet' | ConsumableId; weapon?: WeaponId }
 export interface ChestSpec extends Vec3 { id: string }
+export interface MudBathSpec extends Vec3 { id: string; radius: number }
+export interface TrampolineSpec extends Vec3 { id: string; radius: number; impulse: number }
 export interface WorldSpec {
   version: string; size: number; colliders: Collider[]; objects: MapObject[];
   spawns: SpawnPoint[]; loot: LootSpawn[]; chests: ChestSpec[]; districts: District[];
   pieces?: KitPlacement[]; arenaBoundary?: string[]; walkways?: Collider[]; navigation?: NavigationGraph;
+  mudBaths?: MudBathSpec[]; trampolines?: TrampolineSpec[];
 }
 // Loot spilled from a chest carries where it came from and when, so clients can
 // animate it arcing out; its x/y/z is already the landing spot.
@@ -87,6 +91,7 @@ export type GameEvent =
   | { type: 'pickup'; id: number; actor: string; item: string }
   | { type: 'reload'; id: number; actor: string; weapon: WeaponId }
   | { type: 'respawn'; id: number; actor: string }
+  | { type: 'water'; id: number; actor: string; pos: Vec3; entering: boolean }
   | { type: 'use'; id: number; actor: string; item: ConsumableId }
   // A slow projectile (slingshot stone) struck the world after its flight.
   | { type: 'impact'; id: number; actor: string; weapon: WeaponId; pos: Vec3; surface: Surface; normal: Vec3 }

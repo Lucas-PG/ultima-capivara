@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { clearSpawn, hasLineOfSight, moveActor } from '../src/shared/collision';
+import { clearSpawn, hasLineOfSight, moveActor, raycastWorld, SWIM_DRAFT } from '../src/shared/collision';
 import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
 import type { Mode, SpawnPoint } from '../src/shared/types';
-import { ARENA, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, RIVER, ROADS, inArena, riverSample } from '../src/shared/layout';
+import { ARENA, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, RIVER, ROADS, inArena, riverSample, routeDistance } from '../src/shared/layout';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
 import { WORLD_PALETTE, terrainColor, terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
+import { waterAt } from '../src/shared/water';
 
 const world = createWorld();
 const spawnActor = new Simulation(world, { mode: 'deathmatch', capacity: 2, bots: false, difficulty: 'normal', duration: 300 },
@@ -190,6 +191,27 @@ describe('river island gameplay integrity', () => {
     }
   });
 
+  it('provides visible stair exits from swimming depth to both town banks', () => {
+    const steps = world.pieces!.filter(piece => piece.piece === 'river_steps');
+    expect(steps.length).toBeGreaterThanOrEqual(2);
+    expect(steps.some(piece => Math.cos(piece.yaw) > .9)).toBe(true);
+    expect(steps.some(piece => Math.cos(piece.yaw) < -.9)).toBe(true);
+    for (const piece of steps) {
+      const along = KIT_PIECES[piece.piece].footprint[1] * (piece.scale ?? 1) / 2;
+      const x = piece.x - Math.sin(piece.yaw) * (along + .7), z = piece.z - Math.cos(piece.yaw) * (along + .7);
+      const actor = structuredClone(spawnActor);
+      actor.pos = { x, y: waterAt(x, z)!.surfaceY - SWIM_DRAFT, z }; actor.yaw = piece.yaw + Math.PI;
+      actor.velocity = { x: 0, y: 0, z: 0 }; actor.stage = 'ground'; actor.grounded = false; actor.swimming = true;
+      moveActor(actor, emptyInput(), world, 1 / 60, 1, 'deathmatch');
+      expect(actor.swimming).toBe(true); expect(actor.grounded).toBe(false);
+      for (let seq = 1; seq <= 360; seq++) moveActor(actor, { ...emptyInput(), seq, moveZ: 1, yaw: actor.yaw }, world, 1 / 60, 1, 'deathmatch');
+      const progress = (actor.pos.x - piece.x) * Math.sin(piece.yaw) + (actor.pos.z - piece.z) * Math.cos(piece.yaw);
+      expect(progress, `${piece.id} must lead all the way onto the quay`).toBeGreaterThan(along);
+      expect(actor.pos.y, `${piece.id} must leave the water`).toBeGreaterThan(1.8);
+      expect(actor.swimming).toBe(false); expect(actor.grounded).toBe(true);
+    }
+  });
+
   it('supports the full fort foundations so beach paths cannot cut under the towers', () => {
     const fort = world.pieces!.filter(p => /^fort_(wall|tower)$/.test(p.piece) && Math.hypot(p.x - FORTE[0], p.z - FORTE[1]) < 23);
     expect(fort.length).toBeGreaterThanOrEqual(12);
@@ -203,6 +225,27 @@ describe('river island gameplay integrity', () => {
     }
     for (const [from, to] of [[{ x: 4, z: -70 }, { x: 4, z: -92 }], [{ x: 4, z: -118 }, { x: 4, z: -106 }]])
       expect(walkableSegment(world, from, to), 'cliff dressing must preserve the two fort gate approaches').toBe(true);
+  });
+
+  it('exposes the fort stone faces instead of burying their geometry inside the smooth skirt', () => {
+    const pieces = new Set(world.pieces!.filter(piece => piece.piece.startsWith('cliff_')).map(piece => piece.id));
+    const stone = { ...world, colliders: world.colliders.filter(collider => pieces.has(collider.pieceId!)) };
+    const origin = { x: FORTE[0], y: terrainHeight(FORTE[0], FORTE[1] + 49) + 1.62, z: FORTE[1] + 49 };
+    let samples = 0, covered = 0;
+    for (let z = FORTE[1] + 20; z <= FORTE[1] + 29; z++) for (let x = FORTE[0] - 20; x <= FORTE[0] + 20; x++) {
+      const y = terrainHeight(x, z);
+      const slope = Math.hypot(terrainHeight(x + 1, z) - terrainHeight(x - 1, z), terrainHeight(x, z + 1) - terrainHeight(x, z - 1)) / 2;
+      if (y < 3 || y > 14.8 || slope < .9 || routeDistance(x, z) < 2.6) continue;
+      const direction = { x: x - origin.x, y: y + .1 - origin.y, z: z - origin.z };
+      const distance = Math.hypot(direction.x, direction.y, direction.z);
+      direction.x /= distance; direction.y /= distance; direction.z /= distance;
+      const hit = raycastWorld(origin, direction, distance + .1, stone);
+      samples++; if (hit && hit.collider.id !== 'terrain') covered++;
+    }
+    // Inscribed collision is smaller than rendered stone, so this is a
+    // conservative visibility floor. The formerly buried skins covered 7%.
+    expect(samples).toBeGreaterThan(100);
+    expect(covered / samples).toBeGreaterThan(.4);
   });
 
   it('marks each arena edge with real pieces while leaving its gates traversable', () => {

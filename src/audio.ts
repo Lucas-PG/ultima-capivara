@@ -58,7 +58,8 @@ export class SoundEngine {
   private lastSnapshot: WorldSnapshot | null = null;
   private lastPosition: Vec3 | null = null;
   private lastActorId: string | null = null;
-  private lastStage: ActorState['stage'] | null = null;
+  private lastGrounded = false;
+  private lastSwimming = false;
   private lastVelocityY = 0;
   private distanceToStep = 0;
   private nextWildlife = 0;
@@ -81,7 +82,7 @@ export class SoundEngine {
   private reloadGain: GainNode | null = null;
   private localReloadEnd = -Infinity;
   private disposed = false;
-  private remoteSteps = new Map<string, { pos: Vec3; travelled: number }>();
+  private remoteSteps = new Map<string, { pos: Vec3; travelled: number; grounded: boolean; swimming: boolean; velocityY: number }>();
 
   constructor(settings: Settings, private world?: WorldSpec) {
     this.settings = { ...settings };
@@ -144,6 +145,12 @@ export class SoundEngine {
       const output = own ? this.buses.effects : this.spatial(event.origin, this.remoteFire || this.buses.effects, distance);
       this.weapon(event.weapon, output, own ? 1 : .72, now + (own ? 0 : distance / 343));
       if (event.surface && !event.hit) this.impactSound(event.surface, event.end, listener, own);
+    } else if (event.type === 'water') {
+      const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
+      if (distance > 32) return;
+      const own = event.actor === myId;
+      const output = own ? this.buses.effects : this.spatial(event.pos, this.buses.effects, distance);
+      this.waterSound(output, ctx.currentTime, event.entering, own ? 1 : .7);
     } else if (event.type === 'impact') {
       this.impactSound(event.surface, event.pos, listener, event.actor === myId);
     } else if (event.type === 'reload') {
@@ -229,8 +236,9 @@ export class SoundEngine {
         this.nextHeart = now + interval;
       }
     } else this.nextHeart = Math.max(this.nextHeart, now);
-    if (!actor || !snapshot || !Number.isFinite(dt) || dt <= 0) {
-      this.lastPosition = null; this.lastActorId = null; this.lastStage = null; this.distanceToStep = 0;
+    if (!actor || !snapshot || menu || !Number.isFinite(dt) || dt <= 0) {
+      this.lastPosition = null; this.lastActorId = null; this.lastGrounded = false; this.lastSwimming = false; this.distanceToStep = 0;
+      this.remoteSteps.clear();
       this.cancelReload();
       return;
     }
@@ -247,18 +255,24 @@ export class SoundEngine {
       }
     }
     this.updateReload(actor, snapshot, now);
+    if (!actor.alive) { this.lastActorId = null; this.lastPosition = null; this.distanceToStep = 0; return; }
+    const grounded = actor.grounded && actor.stage === 'ground' && !actor.swimming;
     if (this.lastActorId !== actor.id) {
       this.lastActorId = actor.id; this.lastPosition = { ...actor.pos };
-      this.lastStage = actor.stage; this.lastVelocityY = actor.velocity.y; this.distanceToStep = 0;
+      this.lastGrounded = grounded; this.lastSwimming = actor.swimming; this.lastVelocityY = actor.velocity.y; this.distanceToStep = 0;
       return;
     }
-    if (this.lastStage !== 'ground' && actor.stage === 'ground') {
-      this.footstep(actor.pos, Math.abs(this.lastVelocityY) > 12 ? .27 : .13, true);
-      this.distanceToStep = 0;
-    }
-    if (this.lastPosition && actor.alive && actor.stage === 'ground' && this.lastStage === 'ground') {
+    // Ordinary jumps keep stage='ground'. Contact, not stage, owns the cadence.
+    if (actor.swimming && this.lastSwimming && this.lastPosition && Math.hypot(actor.velocity.x, actor.velocity.z) > .15) {
       const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
-      if (travelled < 2) this.distanceToStep += travelled;
+      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
+      if (this.distanceToStep >= 1.6) { this.distanceToStep %= 1.6; this.waterSound(this.buses.effects, now, null, .65); }
+    } else if (!this.lastGrounded && !this.lastSwimming && grounded) {
+      this.footstep(actor.pos, .09 + clamp(-this.lastVelocityY, 0, 18) * .01, true);
+      this.distanceToStep = 0;
+    } else if (this.lastPosition && grounded && this.lastGrounded && Math.hypot(actor.velocity.x, actor.velocity.z) > .1) {
+      const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
+      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
       const stride = actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
       if (this.distanceToStep >= stride) {
         this.distanceToStep %= stride;
@@ -268,8 +282,8 @@ export class SoundEngine {
           this.tone(this.buses.effects, now + .04, 77, 52, .1, .018, 'triangle');
         }
       }
-    }
-    this.lastPosition = { ...actor.pos }; this.lastStage = actor.stage; this.lastVelocityY = actor.velocity.y;
+    } else this.distanceToStep = 0;
+    this.lastPosition = { ...actor.pos }; this.lastGrounded = grounded; this.lastSwimming = actor.swimming; this.lastVelocityY = actor.velocity.y;
   }
 
   setHidden(hidden: boolean): void {
@@ -524,30 +538,55 @@ export class SoundEngine {
   }
 
   private updateRemoteSteps(listener: ActorState, snapshot: WorldSnapshot) {
-    const nearby = snapshot.actors.filter(a => a.id !== listener.id && a.alive && a.grounded && a.stage === 'ground')
+    // Keep airborne neighbours in the history so a snapshot touchdown sounds
+    // once, without carrying their in-air travel into the next walking stride.
+    const nearby = snapshot.actors.filter(a => a.id !== listener.id && a.alive && a.stage !== 'plane')
       .map(actor => ({ actor, distance: Math.hypot(actor.pos.x - listener.pos.x, actor.pos.y - listener.pos.y, actor.pos.z - listener.pos.z) }))
       .filter(item => item.distance < (item.actor.crouch ? 7 : 28)).sort((a, b) => a.distance - b.distance).slice(0, 6);
     const seen = new Set<string>();
     for (const { actor, distance } of nearby) {
       seen.add(actor.id);
-      const prior = this.remoteSteps.get(actor.id) || { pos: { ...actor.pos }, travelled: 0 };
+      const grounded = actor.grounded && actor.stage === 'ground' && !actor.swimming;
+      const prior = this.remoteSteps.get(actor.id) || { pos: { ...actor.pos }, travelled: 0, grounded, swimming: actor.swimming, velocityY: actor.velocity.y };
+      const landing = !prior.grounded && !prior.swimming && grounded, fallSpeed = Math.max(0, -prior.velocityY);
       const moved = Math.hypot(actor.pos.x - prior.pos.x, actor.pos.z - prior.pos.z);
-      prior.travelled = moved < 2 ? prior.travelled + moved : 0;
+      const steady = (grounded && prior.grounded) || (actor.swimming && prior.swimming);
+      prior.travelled = steady && Math.hypot(actor.velocity.x, actor.velocity.z) > .15 && moved < 2 ? prior.travelled + moved : 0;
+      prior.grounded = grounded; prior.swimming = actor.swimming; prior.velocityY = actor.velocity.y;
       prior.pos = { ...actor.pos }; this.remoteSteps.set(actor.id, prior);
-      const stride = actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
-      if (prior.travelled < stride) continue;
+      const stride = actor.swimming ? 1.6 : actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
+      if (!landing && prior.travelled < stride) continue;
       prior.travelled %= stride;
       const occluded = this.world && !hasLineOfSight({ ...listener.pos, y: listener.pos.y + 1.5 }, { ...actor.pos, y: actor.pos.y + 1 }, this.world);
       const output = this.spatial(actor.pos, this.buses!.effects, distance);
-      this.footstep(actor.pos, (actor.crouch ? .06 : actor.sprint ? .24 : .16) * (occluded ? .35 : 1), false, output);
+      if (actor.swimming) { this.waterSound(output, this.context!.currentTime, null, occluded ? .14 : .45); continue; }
+      const volume = landing ? .12 + clamp(fallSpeed, 0, 18) * .012 : actor.crouch ? .06 : actor.sprint ? .24 : .16;
+      this.footstep(actor.pos, volume * (occluded ? .35 : 1), landing, output);
     }
     for (const id of this.remoteSteps.keys()) if (!seen.has(id)) this.remoteSteps.delete(id);
+  }
+
+  private waterSound(output: AudioNode, now: number, entering: boolean | null, volume: number) {
+    if (entering === null) {
+      this.noise(output, now, .27, 'bandpass', 620, .055 * volume, .045, true);
+      this.tone(output, now + .05, 155, 235, .13, .019 * volume, 'sine');
+      return;
+    }
+    this.noise(output, now, entering ? .36 : .2, 'lowpass', entering ? 1300 : 1800, (entering ? .19 : .065) * volume, .012, true);
+    if (entering) this.tone(output, now, 135, 48, .22, .075 * volume, 'sine');
+    for (let i = 0; i < 3; i++) {
+      const delay = .08 + i * .085, pitch = 420 + i * 135;
+      this.tone(output, now + delay, pitch, pitch * .6, .06, .023 * volume, 'sine');
+    }
   }
 
   private footstep(position: Vec3, volume: number, landing: boolean, output: AudioNode = this.buses!.effects) {
     const ctx = this.context!, now = ctx.currentTime;
     const sampleId = `footstep-${this.footstepIndex++ % 6}` as SampleId;
-    if (this.playSample(sampleId, output, volume * (landing ? .8 : .68), now, .2)) return;
+    if (this.playSample(sampleId, output, volume * (landing ? .8 : .68), now, .2)) {
+      if (landing) this.tone(output, now, 110, 45, .17, volume * .42, 'sine');
+      return;
+    }
     const x = position.x, z = position.z;
     const dock = x > -91 && x < -56 && z > -86 && z < -48;
     const town = Math.hypot(x + 42, z + 12) < 32 || Math.hypot(x + 5, z + 48) < 17;
