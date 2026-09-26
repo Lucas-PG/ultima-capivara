@@ -1,6 +1,5 @@
 import './ui/style.css';
 import { createWorld } from './shared/world';
-import { ARENA } from './shared/layout';
 import { moveActor } from './shared/collision';
 import { clamp } from './shared/math';
 import { closestInteraction as findInteraction } from './shared/interaction';
@@ -289,11 +288,7 @@ function sendAction(action: PlayerAction) {
 function predict(frame: InputFrame) {
   if (!predicted || snapshot?.phase !== 'playing') return;
   predicted.yaw = frame.yaw; predicted.pitch = frame.pitch;
-  moveActor(predicted, frame, world, 1 / 60);
-  if (snapshot.config.mode === 'deathmatch') {
-    predicted.pos.x = clamp(predicted.pos.x, ARENA.minX + .32, ARENA.maxX - .32);
-    predicted.pos.z = clamp(predicted.pos.z, ARENA.minZ + .32, ARENA.maxZ - .32);
-  }
+  moveActor(predicted, frame, world, 1 / 60, 1, snapshot.config.mode);
 }
 function cycleSpectator() {
   const alive = snapshot?.actors.filter(a => a.alive && a.id !== playerId) || [];

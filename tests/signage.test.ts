@@ -9,7 +9,8 @@ describe('island text signs', () => {
     const actual = createWorld().objects.filter(object => object.kind === 'sign').map(object => object.detail);
     expect(new Set(actual)).toEqual(new Set(SIGN_ART.map(sign => sign.label)));
     const mirante = createWorld().objects.find(object => object.detail === 'MIRANTE')!;
-    expect(Math.hypot(mirante.pos.x - 102, mirante.pos.z + 22)).toBeLessThan(30);
+    const waterfall = createWorld().districts.find(district => district.id === 'cachoeira')!;
+    expect(Math.hypot(mirante.pos.x - waterfall.x, mirante.pos.z - waterfall.z)).toBeLessThan(30);
     expect(SIGN_ART.find(sign => sign.label === 'MIRANTE')?.accent).toBe('#E9B44C');
   });
   it('renders only the outward side of each text plane', () => {

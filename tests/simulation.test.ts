@@ -4,6 +4,8 @@ import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../src/shar
 import { terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
 import { inArena } from '../src/shared/layout';
+import { KIT_PIECES } from '../src/shared/kit-collision';
+import { walkableHeight } from '../src/shared/navigation';
 import { advanceAds, damageFalloff, shotSpread, WEAPONS } from '../src/shared/weapons';
 import { finiteTree } from '../src/network/codec';
 import type { ActorState, InputFrame, PlayerProfile, RoomConfig, WorldSpec } from '../src/shared/types';
@@ -555,19 +557,17 @@ describe('authoritative simulation', () => {
     }
   });
 
-  it('gives every visible roof a walkable collision surface close to its pitch', () => {
+  it('gives every kit building a solid roof above its room', () => {
     const actual = createWorld();
-    const roofs = actual.objects.filter(object => object.kind === 'roof');
-    expect(roofs.length).toBeGreaterThan(40);
+    const roofs = actual.pieces!.filter(piece => piece.piece.startsWith('house_') || piece.piece === 'church' || piece.piece === 'market_hall');
+    expect(roofs.length).toBeGreaterThan(35);
     for (const roof of roofs) {
-      for (const [fx, fz] of [[0, 0], [.25, 0], [-.25, 0], [0, .25], [0, -.25], [.45, 0]] as const) {
-        const x = roof.pos.x + roof.scale.x * fx, z = roof.pos.z + roof.scale.z * fz;
-        const profile = roof.detail === 'hip' ? Math.max(Math.abs(fx), Math.abs(fz)) : Math.abs(fx);
-        const visibleHeight = roof.pos.y + roof.scale.y * (1 - 2 * profile);
-        const hit = raycastWorld({ x, y: roof.pos.y + roof.scale.y + 1, z }, { x: 0, y: -1, z: 0 }, roof.scale.y + 2, actual);
-        expect(hit?.collider.id.startsWith(`${roof.id}-step-`)).toBe(true);
-        expect(hit!.point.y).toBeGreaterThanOrEqual(visibleHeight - .001);
-        expect(hit!.point.y - visibleHeight).toBeLessThanOrEqual(.19);
+      const definition = KIT_PIECES[roof.piece], scale = roof.scale ?? 1;
+      for (const fraction of [0, -.25, .25]) {
+        const x = roof.x + definition.footprint[0] * fraction * scale, z = roof.z;
+        const hit = raycastWorld({ x, y: roof.y + definition.height * scale + 2, z }, { x: 0, y: -1, z: 0 }, definition.height * scale + 3, actual);
+        expect(hit?.collider.pieceId).toBe(roof.id);
+        expect(hit!.point.y).toBeGreaterThan(roof.y + (roof.piece === 'house_tall' ? 6.4 : 3.2) * scale);
       }
     }
   });
@@ -599,7 +599,7 @@ describe('authoritative simulation', () => {
     const approach = (item: { x: number; y: number; z: number }) => {
       for (let i = 0; i < 16; i++) {
         const angle = i * Math.PI / 8, x = item.x + Math.cos(angle) * 1.8, z = item.z + Math.sin(angle) * 1.8;
-        const pos = { x, y: terrainHeight(x, z), z };
+        const pos = { x, y: walkableHeight(x, z, actual), z };
         if (clearSpawn(pos, actual) && hasLineOfSight({ x, y: pos.y + 1.62, z }, { x: item.x, y: item.y + .5, z: item.z }, actual)) return pos;
       }
       return null;
@@ -831,20 +831,20 @@ describe('authoritative simulation', () => {
 
   it('lands and remains on a pitched roof in the island world', () => {
     const actual = createWorld();
-    const roof = actual.objects.find(object => object.kind === 'roof' && object.detail === 'hip')!;
-    const x = roof.pos.x + roof.scale.x * .25;
-    const visibleHeight = roof.pos.y + roof.scale.y * .5;
+    const roof = actual.pieces!.find(piece => piece.piece === 'house_small')!;
+    const x = roof.x + KIT_PIECES[roof.piece].footprint[0] * .25;
+    const top = Math.max(...actual.colliders.filter(c => c.pieceId === roof.id && x >= c.min.x && x <= c.max.x && roof.z >= c.min.z && roof.z <= c.max.z).map(c => c.max.y));
     const sim = new Simulation(actual, { ...config, mode: 'battle-royale' }, profiles, 'island-roof', 130);
     advance(sim, 3.1);
     const actor = (sim as any).actors.get('a').state as ActorState;
-    actor.stage = 'parachute'; actor.pos = { x, y: visibleHeight + .6, z: roof.pos.z };
+    actor.stage = 'parachute'; actor.pos = { x, y: top + .6, z: roof.z };
     actor.velocity = { x: 0, y: -6.5, z: 0 };
     advance(sim, .5);
     expect(actor.stage).toBe('ground');
-    expect(actor.pos.y).toBeGreaterThanOrEqual(visibleHeight - .001);
-    expect(actor.pos.y - visibleHeight).toBeLessThanOrEqual(.25);
+    expect(actor.pos.y).toBeGreaterThanOrEqual(top - .001);
+    expect(actor.pos.y - top).toBeLessThanOrEqual(.25);
     advance(sim, .5);
-    expect(actor.pos.y - visibleHeight).toBeLessThanOrEqual(.25);
+    expect(actor.pos.y - top).toBeLessThanOrEqual(.25);
     const startX = actor.pos.x, startY = actor.pos.y;
     actor.yaw = Math.PI / 2;
     for (let i = 0; i < 35; i++) moveActor(actor, input(i, { moveZ: 1 }), actual, 1 / 60);
