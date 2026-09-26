@@ -15,7 +15,10 @@ export class InputClock {
   private advance() {
     const now = performance.now(), elapsed = Math.max(0, now - this.previous);
     this.previous = now;
-    if (!this.active() || elapsed > 500) { this.accumulator = 0; this.tickAt = now; return; }
+    if (!this.active()) { this.accumulator = 0; this.tickAt = now; return; }
+    // Throttled timers can fire only once per second. Send the current intent
+    // once rather than either replaying stale time or going silent forever.
+    if (elapsed > 500) { this.accumulator = 0; this.tickAt = now; this.tick(now); return; }
     this.accumulator += Math.min(100, elapsed);
     while (this.accumulator + 1e-7 >= STEP_MS) {
       this.accumulator = Math.max(0, this.accumulator - STEP_MS);

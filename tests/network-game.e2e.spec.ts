@@ -10,6 +10,7 @@ const player = (page: Page, id?: string) => page.evaluate(id => {
 
 function gameAddress(code?: string) {
   const url = new URL(gameUrl); url.searchParams.set('networkQa', '1');
+  url.searchParams.set('networkFps', '2');
   if (code) url.searchParams.set('sala', code);
   return url.href;
 }

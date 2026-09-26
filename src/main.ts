@@ -22,6 +22,10 @@ const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 let settings = loadSettings(), profile = loadProfile();
 let savedFrameLimit = settings.frameLimit;
 const requestedFps = Number(new URLSearchParams(location.search).get('fps'));
+// The network smoke still renders the real scene, but software GL must not
+// monopolize the page between transport assertions. Absent from normal builds.
+const networkQaFps = import.meta.env.VITE_QA === '1' &&
+  new URLSearchParams(location.search).get('networkFps') === '2' ? 2 : null;
 if (requestedFps === 30 || requestedFps === 60) settings.frameLimit = requestedFps;
 let activeFrameLimit = settings.frameLimit;
 const input = new InputController(canvas, settings);
@@ -317,7 +321,7 @@ input.onPause = () => { if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 const inputClock = new InputClock(
-  () => !document.hidden && playing && !!snapshot && ui.screen === 'game' && (!loading || readyToReveal),
+  () => (!document.hidden || input.locked) && playing && !!snapshot && ui.screen === 'game' && (!loading || readyToReveal),
   now => {
     const time = snapshot!.time + Math.min(.2, (now - receivedAt) / 1000);
     const next = input.sample(shotClientTime(time, renderedRemoteTime));
@@ -365,7 +369,7 @@ function frame(now: number) {
   // After the match ends the island keeps drawing behind the in-game victory overlay.
   const ended = !playing && snapshot?.phase === 'results';
   if ((!playing && !ended) || !snapshot || ui.screen !== 'game') return;
-  const activeLimit = input.locked ? settings.frameLimit : ended ? 30 : 10;
+  const activeLimit = networkQaFps ?? (input.locked ? settings.frameLimit : ended ? 30 : 10);
   const interval = 1000 / activeLimit;
   if (now < renderDeadline - .5) return;
   // Keep the cadence across small rAF timing variations instead of dropping
@@ -435,6 +439,7 @@ if (import.meta.env.DEV) {
   try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
     inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length,
+      clientInput: { ...input.frame, locked: input.locked }, renderState: { loading, readyToReveal, hidden: document.hidden },
       network: { status: session.connectionStatus, latencies: session.latencies, interpolationDelayMs: remoteInterpolation.delay * 1000 },
       remoteActors: [...(renderFrame.remoteActors?.values() ?? [])].map(actor => ({ id: actor.id, pos: { ...actor.pos }, yaw: actor.yaw })) }),
     perf: () => {
