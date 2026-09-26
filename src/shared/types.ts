@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 3;
-export const WORLD_VERSION = 'ilha-v3-rio-1';
+export const WORLD_VERSION = 'ilha-v3-rio-2';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
@@ -58,7 +58,7 @@ export interface MapObject {
   pos: Vec3; scale: Vec3; rotation?: number; color: string; detail?: string;
 }
 export interface District { id: string; name: string; x: number; z: number; radius: number; color: string }
-export interface SpawnPoint extends Vec3 { mode: Mode | 'both'; yaw: number }
+export interface SpawnPoint extends Vec3 { mode: Mode | 'both'; yaw: number; district?: string }
 export interface LootSpawn extends Vec3 { id: string; kind: 'weapon' | 'ammo' | 'armor' | 'helmet' | ConsumableId; weapon?: WeaponId }
 export interface ChestSpec extends Vec3 { id: string }
 export interface WorldSpec {

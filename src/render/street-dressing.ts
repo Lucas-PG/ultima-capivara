@@ -139,8 +139,19 @@ export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
       add(new THREE.CylinderGeometry(.14, .16, .13, 10).translate(0, .17, 0), '#F4E3B6');
       add(new THREE.TorusGeometry(.06, .018, 5, 10).translate(0, .33, 0), '#665F43');
       cable([[0, .32, 0], [.4, .07, .3], [1, .025, .35], [1.7, .03, .1]], .011, '#C1AD80');
-    } else if (kind.startsWith('panel:')) {
-      const index = Math.max(0, LABELS.indexOf(kind.slice(6))), geometry = new THREE.PlaneGeometry(1.5, 1.5);
+    } else if (kind.startsWith('panel:') || kind.startsWith('shop:')) {
+      if (kind.startsWith('shop:')) {
+        // The bracket anchors at the front corner, outside the window shutters.
+        box(.9, .43, -.45, .085, .5, .08, '#536B60');
+        beam([.9, .65, -.45], [.48, .65, 0], .027, '#536B60');
+        beam([-.48, .65, 0], [.48, .65, 0], .027, '#536B60');
+        cable([[.9, .2, -.45], [.48, .35, -.2], [.15, .63, 0]], .019, '#738A70');
+        for (const x of [-.4, .4]) {
+          beam([x, .63, 0], [x, .4, 0], .014, '#BC9C5F');
+          add(new THREE.TorusGeometry(.044, .009, 4, 10).translate(x, .43, 0), '#C4A468');
+        }
+      }
+      const index = Math.max(0, LABELS.indexOf(kind.slice(kind.indexOf(':') + 1))), geometry = new THREE.PlaneGeometry(1.5, 1.5);
       const uv = geometry.getAttribute('uv');
       for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + index % 4) / 4, (uv.getY(i) + 1 - Math.floor(index / 4)) / 2);
       add(geometry, '#FFFFFF', 2);

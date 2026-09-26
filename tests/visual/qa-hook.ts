@@ -21,15 +21,15 @@ declare global { interface Window { __capyQA?: QaApi } }
 
 const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
 const VIEWS: Record<string, [number, number, number, number]> = {
-  plaza: [-1, -10, .48, .02], bakery: [-43, -23, 0, 0],
+  plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
-  vilaStreet: [-40, -21, .35, .03],
+  vilaStreet: [-40, -38, Math.PI - .3, .03],
   capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
 };
 const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {
   vila: [-1, -10, .48, .02], centro: [36, -6, .42, .02],
   forte: [4, -80, 0, .12], cachoeira: [-83, -13, 1.72, .08],
-  morro: [-54, -39, 1.4, .12], porto: [78, -23, -1.84, 0],
+  morro: [-97, -66, Math.atan2(-2, -31), .08], porto: [78, -23, -1.84, 0],
   posto: [-22, 38, Math.PI, 0], farol: [3, 98, Math.PI, .25],
   praia: [-31, 95, Math.PI, 0], fazenda: [47, 80, -.63, 0],
   mangue: [86, 54, -1.2, 0], lagoa: [-65, 9, 1.22, .04],
@@ -42,7 +42,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let preparedIdentities = '';
   const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), 'scope',
-    ...deps.world.districts.map(d => `district-${d.id}`), 'hud', 'pause', 'results'];
+    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
     if (!renderer || !current) return;
@@ -54,12 +54,14 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   async function pose(name: string) {
     if (!renderer) throw new Error('Call start first');
     const district = name.startsWith('district-') ? deps.world.districts.find(d => `district-${d.id}` === name) : null;
-    const view = district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
+    const spawn = name.startsWith('spawn-') ? deps.world.spawns.find(point => `spawn-${point.district}` === name) : null;
+    const view = spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name] || VIEWS.plaza;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     const [x, z, yaw, pitch] = view;
     const s = structuredClone(base), me = s.actors[0];
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
-    me.pos = { x, y: terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
+    if (spawn) s.config.mode = 'battle-royale';
+    me.pos = { x, y: spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
     me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : name.startsWith('fp-') ? name.slice(3) as WeaponId : 'pistol', ammo: 12, reserve: 50, rarity: 0 }];
     me.slot = 0;
