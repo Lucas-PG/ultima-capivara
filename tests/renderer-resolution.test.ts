@@ -26,8 +26,11 @@ it('protects fine detail from isolated stalls, bounds sustained reductions and r
 it('uses viewport CSS pixels after resizing and updates DPR even when CSS dimensions do not change', () => {
   const viewport = { innerWidth: 1512, innerHeight: 982, devicePixelRatio: 2 }; vi.stubGlobal('window', viewport);
   let ratio = 1;
-  const gl = { domElement: { clientWidth: 1920, clientHeight: 720, style: {} },
-    getPixelRatio: () => ratio, setPixelRatio: vi.fn(value => { ratio = value; }), setSize: vi.fn() };
+  const gl = { domElement: { clientWidth: 1920, clientHeight: 720, width: 1920, height: 720, style: {} },
+    getPixelRatio: () => ratio,
+    setDrawingBufferSize: vi.fn((width, height, value) => {
+      ratio = value; gl.domElement.width = Math.floor(width * value); gl.domElement.height = Math.floor(height * value);
+    }) };
   const camera = { aspect: 1, updateProjectionMatrix: vi.fn() };
   const renderer = Object.assign(Object.create(GameRenderer.prototype), {
     disposed: false, settings: { ...DEFAULT_SETTINGS, graphics: 'medium' }, resolutionScale: 1,
@@ -35,10 +38,13 @@ it('uses viewport CSS pixels after resizing and updates DPR even when CSS dimens
     pipeline: { resize: vi.fn() }, weaponView: { resize: vi.fn() }, avatars: { resize: vi.fn() },
   });
   renderer.resize();
-  expect(gl.setSize).toHaveBeenLastCalledWith(1512, 982, false);
+  expect([gl.domElement.width, gl.domElement.height]).toEqual([3024, 1964]);
+  expect(gl.setDrawingBufferSize).toHaveBeenCalledOnce();
+  expect(renderer.pipeline.resize).toHaveBeenCalledOnce();
   expect(gl.domElement.style).toEqual({ width: '100vw', height: '100vh' });
   expect(camera.aspect).toBe(1512 / 982); expect(ratio).toBe(2);
   viewport.devicePixelRatio = 1; renderer.resize(); expect(ratio).toBe(1);
+  expect([gl.domElement.width, gl.domElement.height]).toEqual([1512, 982]);
   viewport.innerWidth = 1100; viewport.innerHeight = 900; renderer.resize();
-  expect(gl.setSize).toHaveBeenLastCalledWith(1100, 900, false);
+  expect([gl.domElement.width, gl.domElement.height]).toEqual([1100, 900]);
 });
