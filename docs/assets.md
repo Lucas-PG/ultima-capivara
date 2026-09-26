@@ -409,6 +409,10 @@ Fur uses tiles 0, 1, 2, 4, 14; fabric uses 5, 6, 7, 13. Tile 14 is a neutral car
 
 The runtime selects the new 4x4 character paint layout from the exported `paintAtlas` marker and preserves the source normal, roughness, emissive and specular maps. Cosmetic bandana colours change only their two painted tiles. Sun-directed rim light and a broad soft sheen apply to the authored fur tiles; cloth, eyes and mouth retain their own surface response. The existing 16-column character asset remains supported. The pistol hip pose is angled slightly to expose its side engraving, serrations, fasteners and supporting paw; the authored sights stay aligned when aiming.
 
+### Vitrine painted map, 2026-09-26
+
+Original procedural canvas artwork in `src/ui/map-paint.ts`. Terrain washes and shore highlights sample the shared height field and water level; roads and paths use shared layout data; warm roofs use placed kit footprints, rotation and scale. Paper grain, brush variation and the compass rose are authored in code. No external images, purchases or generated assets. The 4 px/m background and compass bake once at UI load and are reused by both map views on every graphics preset.
+
 ### Cover-derived character turnaround, 2026-09-25
 
 Original concept reference generated with the built-in Codex image tool, using public/assets/cover-v2.png as the character identity reference. Saved at tools/art/character-reference/capybara-turnaround-v1.png. This is a modeling reference, not a runtime texture. It guides rounded head planes, larger eyes, barrel chest and tapered pelvis, organic finger curvature, and directional fur. Existing rig and hit shapes remain the implementation constraints. No external asset or paid API was used.
@@ -424,6 +428,7 @@ Original procedural geometry and shaders in `src/render/waterfall.ts` replace th
 Cena canopy refinement, September 2026: broadleaf crowns use original procedural clusters and attached paired leaf sprays, with derivative-filtered leaf-shaped paint marks. Closed volume geometry keeps the canopy grounded without transparent card sorting. Mid and distant LODs omit the small sprays; original instance placements, 25/60 m transitions and cheap trunk/crown shadow proxies remain. Small fruit geometry has fewer segments to fund the finer crown silhouette. No downloaded texture or third-party foliage source is used.
 
 Swimming presentation reuses the original effects atlas for pooled turquoise surface ripples and small splash/drip cards. Stroke, entry and exit sounds are synthesized locally; no new downloads or external recordings. The existing capybara rig receives a procedural free-paw scull while the pistol stays above the shared water surface. The actor root, collision, water level and swimming rules remain authoritative shared data. Named river review poses exercise the real movement code.
+
 
 ### Accessible recreation kit, 2026-09-26
 
