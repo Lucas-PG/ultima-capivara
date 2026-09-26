@@ -3,12 +3,27 @@ import { expect, it } from 'vitest';
 import { GroundCover } from '../src/render/ground-cover';
 import { createWorld } from '../src/shared/world';
 import { ROADS } from '../src/shared/layout';
+import { terrainHeight } from '../src/shared/terrain';
 
 it('keeps grass away from roads and solids, culls distant cells and disables it on Low', () => {
   const world = createWorld(), cover = new GroundCover(world), camera = new THREE.PerspectiveCamera();
   try {
     const matrix = new THREE.Matrix4();
     const violations: { x: number; z: number; reason: string }[] = [];
+    const grass = cover.group.children.find(node => node instanceof THREE.InstancedMesh) as THREE.InstancedMesh;
+    const positions = grass.geometry.getAttribute('position'), masks = grass.geometry.getAttribute('paintMask');
+    const indices = grass.geometry.index!;
+    let plainVertices = 0;
+    for (let i = 0; i < masks.count; i++) if (masks.getX(i) < .5) plainVertices++;
+    expect(plainVertices, 'short plain blades must remain mixed with painted root tufts').toBeGreaterThan(0);
+    for (let face = 0; face < indices.count; face += 3) {
+      if (masks.getX(indices.getX(face)) < .5) continue;
+      for (let edge = 0; edge < 3; edge++) {
+        const a = indices.getX(face + edge), b = indices.getX(face + (edge + 1) % 3);
+        expect(Math.hypot(positions.getX(a) - positions.getX(b), positions.getY(a) - positions.getY(b),
+          positions.getZ(a) - positions.getZ(b)), 'painted grass tufts must stay small at eye level').toBeLessThan(.31);
+      }
+    }
     for (const node of cover.group.children) if (node instanceof THREE.InstancedMesh) {
       // All roots in this draw belong to its 24 m cell. The furnished island
       // has thousands of colliders; distant solids cannot intersect these roots.
@@ -22,6 +37,21 @@ it('keeps grass away from roads and solids, culls distant cells and disables it 
       }
     }
     expect(violations).toEqual([]);
+    let groundedPaint = 0, minClearance = Infinity, maxClearance = -Infinity;
+    for (const node of cover.group.children) if (node instanceof THREE.Mesh && !(node instanceof THREE.InstancedMesh)) {
+      const position = node.geometry.getAttribute('position'), uv = node.geometry.getAttribute('uv');
+      const paint = node.geometry.getAttribute('paintMask');
+      for (let i = 0; i < position.count; i++) {
+        const tile = Math.floor(uv.getX(i) * 4) + Math.floor((1 - uv.getY(i)) * 4) * 4;
+        if (paint.getX(i) < .5 || tile !== 10 && tile !== 13) continue;
+        const clearance = position.getY(i) + node.position.y - terrainHeight(position.getX(i) + node.position.x,
+          position.getZ(i) + node.position.z);
+        minClearance = Math.min(minClearance, clearance); maxClearance = Math.max(maxClearance, clearance); groundedPaint++;
+      }
+    }
+    expect(groundedPaint).toBeGreaterThan(100);
+    expect(minClearance, 'clover and fallen leaves must remain visible above the floor').toBeGreaterThan(.01);
+    expect(maxClearance, 'ground paintings must not float over slopes').toBeLessThan(.018);
     camera.position.set(-35, 4, 61); cover.setQuality('medium'); cover.update(camera, 1, false);
     const visible = cover.group.children.filter(node => node.visible);
     expect(visible.length).toBeGreaterThan(0); expect(visible.length).toBeLessThan(48);

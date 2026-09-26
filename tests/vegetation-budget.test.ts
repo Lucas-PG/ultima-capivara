@@ -2,8 +2,52 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { buildVegetation } from '../src/render/vegetation';
 import { createWorld } from '../src/shared/world';
+import { PLANT_CELL_SIZE } from '../src/shared/vegetation-trunks';
+import type { MapObject, WorldSpec } from '../src/shared/types';
 
 describe('vegetation rendering budget', () => {
+  it('keeps leaf UVs inside one padded atlas tile and selects cheap silhouettes on Low', () => {
+    const objects = ['tree', 'ipe-yellow', 'ipe-pink', 'mangrove', 'flamboyant', 'banana', 'palm'].map((detail, i) =>
+      ({ id: `plant-${i}`, kind: detail === 'palm' ? 'palm' : 'tree', detail,
+        pos: { x: i * 20, y: 0, z: 0 }, scale: { x: 1, y: 7, z: 1 } }) as MapObject);
+    const atlas = new THREE.Texture(), vegetation = buildVegetation({ objects, colliders: [] } as unknown as WorldSpec, atlas);
+    const camera = new THREE.PerspectiveCamera();
+    vegetation.group.updateMatrixWorld(true);
+    try {
+      for (const node of vegetation.group.children.filter((child): child is THREE.LOD => child instanceof THREE.LOD)) {
+        const near = node.levels[0].object as THREE.InstancedMesh;
+        const uv = near.geometry.getAttribute('uv'), leaf = near.geometry.getAttribute('leafDetail');
+        const position = near.geometry.getAttribute('position');
+        let cards = 0, largestSprigEdge = 0;
+        for (let face = 0; face < uv.count; face += 3) {
+          if (leaf.getZ(face) < 1.5) continue;
+          cards++;
+          for (let edge = 0; edge < 3; edge++) {
+            const a = face + edge, b = face + (edge + 1) % 3;
+            largestSprigEdge = Math.max(largestSprigEdge, Math.hypot(position.getX(a) - position.getX(b),
+              position.getY(a) - position.getY(b), position.getZ(a) - position.getZ(b)));
+          }
+          const tile = Math.floor(uv.getX(face) * 4) + Math.floor((1 - uv.getY(face)) * 4) * 4;
+          for (let vertex = face; vertex < face + 3; vertex++) {
+            expect(Math.floor(uv.getX(vertex) * 4) + Math.floor((1 - uv.getY(vertex)) * 4) * 4).toBe(tile);
+            for (const coordinate of [uv.getX(vertex) * 4, (1 - uv.getY(vertex)) * 4])
+              expect(coordinate % 1).toBeGreaterThan(.01);
+          }
+        }
+        expect(cards).toBeGreaterThan(50);
+        if (!node.name.startsWith('vegetation:palm:') && !node.name.startsWith('vegetation:banana:'))
+          expect(largestSprigEdge, 'near crowns need small sprigs, not head-sized individual leaves').toBeLessThan(.75);
+        camera.position.copy(node.position); camera.updateMatrixWorld();
+        vegetation.setQuality('low'); node.update(camera);
+        expect(node.levels[0].object.visible).toBe(false);
+        const low = node.levels[1].object as THREE.InstancedMesh;
+        expect(low.visible).toBe(true);
+        expect(low.geometry.getAttribute('position').count).toBeLessThan(near.geometry.getAttribute('position').count * .65);
+        vegetation.setQuality('medium'); node.update(camera); expect(near.visible).toBe(true);
+      }
+    } finally { vegetation.dispose(); atlas.dispose(); }
+  });
+
   it('switches canopy detail at 25 m and distant silhouettes at 60 m', () => {
     const vegetation = buildVegetation(createWorld()), camera = new THREE.PerspectiveCamera();
     vegetation.group.updateMatrixWorld(true);
@@ -62,7 +106,7 @@ describe('vegetation rendering budget', () => {
     const world = createWorld(), vegetation = buildVegetation(world);
     const species = (object: (typeof world.objects)[number]) => object.kind === 'tree' ?
       (['mangrove', 'orchard', 'ipe-yellow', 'ipe-pink', 'flamboyant', 'banana'].includes(object.detail || '') ? object.detail! : 'tree') :
-      object.kind === 'grass' && object.detail === 'reeds' ? 'reeds' : object.kind;
+      object.kind === 'grass' && ['reeds', 'fern', 'monstera', 'ground-litter'].includes(object.detail || '') ? object.detail! : object.kind;
     const present = new Set(world.objects.filter(object => object.kind === 'tree' ||
       object.kind === 'palm' || object.kind === 'grass').map(species));
     for (const type of ['palm', 'banana', 'flamboyant', 'ipe-yellow', 'ipe-pink', 'mangrove', 'orchard'])
@@ -77,11 +121,11 @@ describe('vegetation rendering budget', () => {
       for (const cell of cells) {
         const [, type, cx, cz] = cell.name.split(':');
         const objects = world.objects.filter(object => species(object) === type &&
-          Math.floor(object.pos.x / 32) === Number(cx) && Math.floor(object.pos.z / 32) === Number(cz));
+          Math.floor(object.pos.x / PLANT_CELL_SIZE) === Number(cx) && Math.floor(object.pos.z / PLANT_CELL_SIZE) === Number(cz));
         const near = cell.levels[0].object as THREE.InstancedMesh;
         instances.push(near); nearCount += near.count;
         expect(near.count).toBe(objects.length);
-        if (type !== 'grass' && type !== 'reeds') {
+        if (objects[0].kind !== 'grass') {
           const far = cell.levels[1].object as THREE.InstancedMesh;
           const distant = cell.levels[2].object as THREE.InstancedMesh;
           instances.push(far, distant);
@@ -100,8 +144,8 @@ describe('vegetation rendering budget', () => {
             expect(Math.min(cap, templateHeight) * heightScale).toBeLessThanOrEqual(cap + .001);
             expect(Math.min(cap, templateHeight) * heightScale).toBeCloseTo(Math.min(cap, object.scale.y), 3);
           } else {
-            // Thin decorative trunks must not regain independent invisible boxes.
-            expect(world.colliders.some(c => c.pieceId === object.id)).toBe(false);
+            // Only large stems become cover. Small shrubs remain decorative.
+            if (object.scale.y < 2.5) expect(world.colliders.some(c => c.pieceId === object.id)).toBe(false);
             if (type === 'palm') {
               const height = Math.hypot(matrix.elements[4], matrix.elements[5], matrix.elements[6]);
               expect(height * templateHeight).toBeCloseTo(object.scale.y, 3);

@@ -65,7 +65,7 @@ export class GameRenderer {
   private readonly shadowUp = this.shadowDirection.clone().cross(this.shadowRight);
   private readonly shadowAnchor = new THREE.Vector3();
   private readonly interiorLight = new THREE.PointLight(PAINT.interior, 0, 14, 2);
-  private readonly litRooms: { x: number; y: number; z: number; w: number; d: number }[];
+  private readonly litRooms: { x: number; y: number; z: number; w: number; d: number; h: number }[];
   private readonly environment: THREE.WebGLRenderTarget;
   private settings: Settings;
   private elapsed = 0;
@@ -88,12 +88,18 @@ export class GameRenderer {
     this.settings = settings;
     this.litRooms = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
       .map(object => ({ ...object.pos, y: object.pos.y - (object.kind === 'roof' ? 3.1 : 0),
-        w: object.scale.x, d: object.scale.z }));
+        w: object.scale.x, d: object.scale.z, h: 3.1 }));
     for (const piece of world.pieces ?? []) if (['house_small', 'house_tall', 'church', 'market_hall'].includes(piece.piece)) {
-      const footprint = KIT_PIECES[piece.piece].footprint, scale = piece.scale ?? 1;
+      const definition = KIT_PIECES[piece.piece], footprint = definition.footprint, scale = piece.scale ?? 1;
       const c = Math.abs(Math.cos(piece.yaw)), s = Math.abs(Math.sin(piece.yaw));
-      this.litRooms.push({ x: piece.x, y: piece.y, z: piece.z,
-        w: (footprint[0] * c + footprint[1] * s) * scale, d: (footprint[0] * s + footprint[1] * c) * scale });
+      const room = { x: piece.x, y: piece.y, z: piece.z, h: 3.1 * scale,
+        w: (footprint[0] * c + footprint[1] * s) * scale, d: (footprint[0] * s + footprint[1] * c) * scale };
+      this.litRooms.push(room);
+      // The same authored floor slab supplies collision and the upper room's
+      // light height. Thin stair treads and roof solids are not extra rooms.
+      for (const surface of definition.colliders) if (surface.type === 'box' && surface.material === 'wood' &&
+        surface.height < .3 && surface.y > 1 && surface.width > footprint[0] * .5 && surface.depth > footprint[1] * .5)
+        this.litRooms.push({ ...room, y: piece.y + (surface.y + surface.height / 2) * scale });
     }
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
@@ -216,10 +222,10 @@ export class GameRenderer {
     this.supplyDrops.update(frame.snapshot, frame.simulationTime ?? frame.snapshot?.time ?? 0, this.camera, this.settings);
     let room: typeof this.litRooms[number] | undefined;
     for (const candidate of this.litRooms) if (Math.abs(this.camera.position.x - candidate.x) < candidate.w / 2 &&
-      Math.abs(this.camera.position.z - candidate.z) < candidate.d / 2 && this.camera.position.y > candidate.y &&
-      this.camera.position.y < candidate.y + 3.1) { room = candidate; break; }
+      Math.abs(this.camera.position.z - candidate.z) < candidate.d / 2 && this.camera.position.y > candidate.y - .15 &&
+      this.camera.position.y < candidate.y + candidate.h) { room = candidate; break; }
     if (room) {
-      this.interiorLight.position.set(room.x, room.y + 2.45, room.z);
+      this.interiorLight.position.set(room.x, damp(this.interiorLight.position.y, room.y + room.h * .79, 7, dt), room.z);
       this.interiorLight.color.set(PAINT.interior);
     }
     this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? 9 : 0, 7, dt);
