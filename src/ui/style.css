@@ -377,14 +377,14 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 #loadingOverlay h2{margin:0;font-family:var(--heading);font-weight:400;font-size:40px;line-height:1.05;letter-spacing:.5px;color:var(--cream);text-shadow:var(--ol-b),0 6px 0 var(--brown);white-space:nowrap}
 #loadingOverlay h2 em{color:var(--gold)}
 #loadingOverlay .lpercent{font-family:var(--heading);font-weight:400;font-size:40px;line-height:1;color:var(--terra);font-variant-numeric:tabular-nums;text-shadow:0 3px 0 rgba(58,36,24,.25)}
-/* The capybara rides the head of the fill: the rider spans the track and moves by the same percentage. */
-#loadingOverlay .ltrack{position:relative;margin-top:96px}
-#loadingOverlay .lrider{position:absolute;left:0;right:0;bottom:10px;transform:translateX(var(--progress,0%));transition:transform .45s var(--spring);pointer-events:none}
-#loadingOverlay .lcapy{position:absolute;left:-54px;bottom:-12px;width:108px;height:108px;display:block;transform-origin:50% 8%;filter:drop-shadow(0 6px 0 rgba(58,36,24,.35));animation:load-sway 2.4s ease-in-out infinite alternate}
-@keyframes load-sway{from{transform:rotate(-6deg) translateY(-4px)}to{transform:rotate(6deg) translateY(4px)}}
-#loadingOverlay .lbar{position:relative;height:26px;border:3px solid var(--brown);border-radius:999px;background:#f0d9ad;box-shadow:inset 0 3px 0 rgba(58,36,24,.18),0 3px 0 var(--brown);overflow:hidden}
-#loadingOverlay .lbar i{position:relative;display:block;height:100%;width:34%;border-right:3px solid var(--brown);border-radius:999px;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.28) 0 10px,transparent 10px 20px),var(--candy-gold);box-shadow:inset 0 3px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(150,60,10,.3);animation:load-slide 1.2s ease-in-out infinite alternate}
-#loadingOverlay .lbar.determinate i{transition:width .45s var(--spring);animation:none}
+/* The capybara is a child of the fill, centred on its tip, so it can never lead or lag the bar. The bar is inset so
+   the capybara stays inside the note at 0% and 100%. */
+#loadingOverlay .ltrack{position:relative;margin:92px 14px 0}
+#loadingOverlay .lbar{position:relative;height:26px;border:3px solid var(--brown);border-radius:999px;background:#f0d9ad;box-shadow:inset 0 3px 0 rgba(58,36,24,.18),0 3px 0 var(--brown)}
+#loadingOverlay .lbar i{position:relative;display:block;height:100%;width:34%;border-radius:999px;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.28) 0 10px,transparent 10px 20px),var(--candy-gold);box-shadow:inset 0 3px 0 rgba(255,255,255,.55),inset 0 -4px 0 rgba(150,60,10,.3),3px 0 0 var(--brown);animation:load-slide 1.2s ease-in-out infinite alternate}
+#loadingOverlay .lbar.determinate i{transition:width .45s var(--ease);animation:none}
+#loadingOverlay .lcapy{position:absolute;left:100%;bottom:calc(100% + 1px);width:88px;height:88px;margin-left:-44px;display:block;transform-origin:50% 8%;filter:drop-shadow(0 5px 0 rgba(58,36,24,.35));animation:load-sway 2.4s ease-in-out infinite alternate;pointer-events:none}
+@keyframes load-sway{from{transform:rotate(-5deg) translateY(-3px)}to{transform:rotate(5deg) translateY(3px)}}
 @keyframes load-slide{from{transform:translateX(-20%)}to{transform:translateX(200%)}}
 #loadingOverlay .lstatus{display:block;margin-top:12px;font-size:15px;font-weight:800;color:var(--brown-2);min-height:1.5em}
 /* Tip on a wooden sign, nailed at both ends. */
@@ -616,3 +616,36 @@ body.reduce-motion #victory .vmascot,body.reduce-motion #victory .vstats b.done{
 body.reduce-motion #hud #spec .spec-mascot,body.reduce-motion .modal-mascot{animation:none!important}
 @media(prefers-reduced-motion:reduce){body #hud #spec .spec-mascot,body .modal-mascot{animation:none!important}}
 @media(max-width:700px){.modal-mascot{display:none}}
+
+/* Home as a cartoon title screen: a bouncing logo lockup, the menu on a painted wooden board with the waving capybara,
+   stickers stuck across the board's edge, and tilted mode cards with a gold painted trim. */
+body[data-screen=home] .topbar .brand,body[data-screen=home] .topbar .nav-link.active{display:none}
+body[data-screen=home] .topbar nav{margin-left:0}
+.title-screen .logo-lockup{position:relative;display:inline-block;animation:logo-drop .6s var(--spring) both}
+@keyframes logo-drop{0%{opacity:0;transform:translateY(-44px) rotate(-5deg) scale(.9)}60%{opacity:1;transform:translateY(6px) rotate(1deg) scale(1.02)}100%{transform:none}}
+.title-screen .logo-lockup .eyebrow{margin-bottom:6px}
+.title-screen h1{--h:clamp(64px,7vw,124px);line-height:.9;transform:rotate(-3deg)}
+.title-screen .logo-lockup:hover h1{animation:logo-wobble .45s var(--spring)}
+@keyframes logo-wobble{0%{transform:rotate(-3deg)}40%{transform:rotate(-5deg) scale(1.03)}75%{transform:rotate(-1.5deg)}100%{transform:rotate(-3deg)}}
+.title-screen h1 .logo-top{display:block;font-size:.66em;letter-spacing:2px;margin-left:.06em}
+.title-screen h1 em{display:block}
+.title-screen h1 .title-stamp{left:calc(var(--h) * 3.6);top:calc(var(--h) * .02)}
+.title-screen .hero-description{margin:12px 0 22px;max-width:520px}
+.menu-board{position:relative;max-width:560px;padding:18px 18px 20px;border:4px solid var(--brown);border-radius:22px;background:var(--wood);box-shadow:0 8px 0 var(--brown),0 22px 34px -12px rgba(0,0,0,.6),inset 0 3px 0 rgba(255,220,170,.35),inset 0 -5px 0 rgba(60,28,10,.3);rotate:-.8deg}
+.menu-board .hero-actions{max-width:none}
+.board-mascot{position:absolute;right:-36px;top:-96px;width:132px;height:132px;rotate:10deg;transform-origin:30% 90%;filter:drop-shadow(0 5px 0 rgba(58,36,24,.45));animation:toon-pop .45s var(--spring) .25s both,mascot-wave 1.4s ease-in-out .8s 2;pointer-events:none}
+.menu-board:hover .board-mascot{animation:mascot-wave .9s ease-in-out}
+@keyframes mascot-wave{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}75%{transform:rotate(5deg)}}
+.title-screen .hero-facts{position:relative;z-index:1;margin-top:-12px;padding-left:16px;align-items:center;gap:10px}
+.hero-facts .burst{display:grid;place-items:center;flex-shrink:0;width:100px;height:100px;margin:-14px 0 -14px 2px;font-family:var(--heading);font-weight:400;font-size:13px;line-height:1.05;text-align:center;color:var(--brown);position:relative;isolation:isolate;rotate:-12deg;filter:drop-shadow(2.5px 0 0 var(--brown)) drop-shadow(-2.5px 0 0 var(--brown)) drop-shadow(0 2.5px 0 var(--brown)) drop-shadow(0 -2.5px 0 var(--brown)) drop-shadow(0 4px 0 var(--brown));animation:toon-pop .4s var(--spring) .55s both}
+.hero-facts .burst::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--candy-gold);clip-path:polygon(50% 0,59% 14%,75% 7%,77% 24%,93% 25%,86% 41%,100% 50%,86% 59%,93% 75%,77% 76%,75% 93%,59% 86%,50% 100%,41% 86%,25% 93%,23% 76%,7% 75%,14% 59%,0 50%,14% 41%,7% 25%,23% 24%,25% 7%,41% 14%)}
+.title-screen .mode-card{border-width:4px;rotate:-1.2deg;box-shadow:0 6px 0 var(--brown),0 14px 24px -8px rgba(0,0,0,.5),inset 0 0 0 3px #fff6e0,inset 0 0 0 6px var(--gold)}
+.title-screen .mode-card:nth-child(2){rotate:1.2deg}
+.title-screen .mode-card:hover{transform:translateY(-7px) scale(1.02)}
+.title-screen .mode-card:nth-child(2):hover{transform:translateY(-7px) scale(1.02)}
+.title-screen .mode-card.selected{box-shadow:0 6px 0 var(--brown),0 0 0 4px var(--gold),0 0 0 7px var(--brown),0 0 26px 6px rgba(255,194,61,.45),inset 0 0 0 3px #fff6e0,inset 0 0 0 6px var(--gold)}
+.title-screen .mode-art{border-right-width:4px}
+@media(max-height:800px) and (min-width:1000px){.title-screen h1{--h:clamp(52px,4.8vh + 2.3vw,92px)}.title-screen .hero-description{margin:6px 0 16px;font-size:15px}.menu-board{padding:11px 13px 13px}.title-screen .mode-copy p{line-height:1.3}.board-mascot{width:104px;height:104px;top:-76px;right:-28px}.title-screen .hero-facts{margin-top:-12px}.hero-facts .burst{width:88px;height:88px;font-size:12px}}
+@media(max-width:700px){.board-mascot{display:none}.menu-board{rotate:0deg}.title-screen .mode-card,.title-screen .mode-card:nth-child(2){rotate:0deg}}
+body.reduce-motion .title-screen .logo-lockup,body.reduce-motion .board-mascot,body.reduce-motion .hero-facts .burst,body.reduce-motion .title-screen .logo-lockup:hover h1{animation:none!important}
+@media(prefers-reduced-motion:reduce){body .title-screen .logo-lockup,body .board-mascot,body .hero-facts .burst,body .title-screen .logo-lockup:hover h1{animation:none!important}}
