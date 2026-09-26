@@ -158,7 +158,7 @@ describe('seeded bot personality without combat concessions', () => {
       if (bot.brain.leisure?.kind !== 'trampoline') continue;
       advance(sim, 4);
       expect(bot.state.bounceSeq).toBe(1); expect(bot.brain.leisure).toBeNull();
-      expect(Math.hypot(bot.state.pos.x - world.trampolines![0].x, bot.state.pos.z - world.trampolines![0].z)).toBeGreaterThan(3);
+      expect(Math.hypot(bot.state.pos.x - world.trampolines![0].x, bot.state.pos.z - world.trampolines![0].z)).toBeGreaterThan(world.trampolines![0].radius + 1);
       expect(bot.state.hp).toBe(100); exercised = true;
     }
     expect(exercised).toBe(true);

@@ -40,7 +40,7 @@ export interface BotBrain {
   fireAt: number; burst: number; strafeDir: number; strafeUntil: number;
   mode: 'roam' | 'fight' | 'cover'; coverPt: Vec3 | null; flank: number;
   goal: Vec3 | null; loot: { id: string; kind: 'item' | 'chest' | 'supply'; pos: Vec3 } | null; lootScanAt: number; zoneGoal: Vec3 | null;
-  leisure: { kind: 'celebrate' | 'bath' | 'trampoline'; pos: Vec3; until: number; bounceSeq: number } | null;
+  leisure: { kind: 'celebrate' | 'bath' | 'trampoline'; pos: Vec3; exit: Vec3; until: number; bounceSeq: number } | null;
   leisureAt: number; leisureScanAt: number; celebrateAt: number; celebrateUntil: number;
   hearPos: Vec3 | null; lastAttacker: string | null;
   avoidOff: number; avoidAt: number; stuckAt: number; lastPos: Vec3;

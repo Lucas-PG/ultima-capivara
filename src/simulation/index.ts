@@ -991,11 +991,11 @@ export class Simulation {
     if (!b.leisure && (now < b.leisureScanAt || now < b.leisureAt)) return false;
     if (!b.leisure) b.leisureScanAt = now + 2 + this.personalityRandom();
     if (b.leisure?.kind === 'trampoline' && s.bounceSeq !== b.leisure.bounceSeq) {
-      // Keep the approach direction through one bounce, then leave the pad.
-      const dx = -Math.sin(s.yaw), dz = -Math.cos(s.yaw);
+      // Return along the verified walk-in. The opposite side of a pad can face
+      // a fort wall, where a fresh long-distance route would cause rebounces.
+      const exit = b.leisure.exit;
       this.stopBotLeisure(a);
-      const goal = groundPoint(s.pos.x + dx * 7, s.pos.z + dz * 7);
-      if (walkableSegment(this.world, s.pos, goal, isArenaMode(this.config.mode))) b.goal = goal;
+      b.goal = exit; b.avoidOff = 0; b.pressT = 0; b.stuckAt = now; b.lastPos = { ...s.pos };
       return false;
     }
     // A brief step down from a low authored rim must not discard the approach.
@@ -1020,17 +1020,18 @@ export class Simulation {
       if (now >= b.celebrateAt && now < b.celebrateUntil && s.hp >= 65) {
         b.celebrateUntil = 0;
         this.startEmote(a, this.personalityRandom() < .5 ? 'wave' : 'dance');
-        b.leisure = { kind: 'celebrate', pos: { ...s.pos }, until: now + 1.8, bounceSeq: s.bounceSeq };
+        b.leisure = { kind: 'celebrate', pos: { ...s.pos }, exit: { ...s.pos }, until: now + 1.8, bounceSeq: s.bounceSeq };
       } else {
         const hurt = s.hp < 75 && this.heals(s) === 0;
         const sites = hurt ? this.world.mudBaths : !b.loot && s.hp >= 85 ? this.world.trampolines : undefined;
         const sc = this.safeCircle();
         const site = sites?.filter(point => Math.hypot(point.x - s.pos.x, point.z - s.pos.z) < (hurt ? 14 : 8) &&
+          (hurt || Math.hypot(point.x - s.pos.x, point.z - s.pos.z) > point.radius + 1) &&
           (isArenaMode(this.config.mode) ? this.inArena(point) : Math.hypot(point.x - sc.x, point.z - sc.z) < sc.r - 8) &&
           !waterAt(point.x, point.z) && walkableSegment(this.world, s.pos, point, isArenaMode(this.config.mode)))
           .sort((p, q) => Math.hypot(p.x - s.pos.x, p.z - s.pos.z) - Math.hypot(q.x - s.pos.x, q.z - s.pos.z))[0];
         if (site && (hurt || this.personalityRandom() < .35))
-          b.leisure = { kind: hurt ? 'bath' : 'trampoline', pos: { x: site.x, y: site.y, z: site.z }, until: now + (hurt ? 12 : 6), bounceSeq: s.bounceSeq };
+          b.leisure = { kind: hurt ? 'bath' : 'trampoline', pos: { x: site.x, y: site.y, z: site.z }, exit: { ...s.pos }, until: now + (hurt ? 12 : 6), bounceSeq: s.bounceSeq };
       }
       if (b.leisure) { b.leisureAt = now + 40 + this.personalityRandom() * 20; b.via = null; b.routeFor = null; }
     }
@@ -1255,14 +1256,15 @@ export class Simulation {
       if (speed >= 5 && Math.abs(angleDiff(Math.atan2(-mx, -mz), face)) < .3) face = Math.atan2(-mx, -mz);
     }
     // Pressing into something for a third of a second: try the next side-step right away.
-    const pressing = ml > 0 && !s.using && Math.hypot(s.velocity.x, s.velocity.z) < speed * .3;
+    const pressing = ml > 0 && s.grounded && !s.using && Math.hypot(s.velocity.x, s.velocity.z) < speed * .3;
     b.pressT = pressing ? b.pressT + dt : 0;
     if (b.pressT > .35) {
       const order = [1, -1, 2, -2, 3, -3], next = order[(order.indexOf(b.avoidOff) + 1) % order.length];
       b.avoidOff = next; b.avoidAt = now + .5; b.pressT = 0; b.via = null;
     }
-    // The 1 s stuck window only runs while the bot is trying to walk somewhere.
-    if (ml === 0 || b.stuckAt < 0) { b.stuckAt = now; b.lastPos = { ...s.pos }; }
+    // Only grounded walking counts as stuck. Slow air steering during a bounce
+    // is not a blocked route and must not discard the safe exit goal.
+    if (ml === 0 || !s.grounded || b.stuckAt < 0) { b.stuckAt = now; b.lastPos = { ...s.pos }; }
     else if (now - b.stuckAt > 1) {
       if (Math.hypot(s.pos.x - b.lastPos.x, s.pos.z - b.lastPos.z) < .4) {
         b.goal = this.randomGoal(s); b.avoidOff = 0;
