@@ -11,8 +11,12 @@ export function createPaintedWeaponAtlas(colors: readonly number[], size = 1024)
     if ([2, 3, 21].includes(column)) shade *= .89 + .11 * Math.sin(u * 38 + Math.sin(v * 12) * 2 + v * 4);
     else if ([13, 14, 15, 16, 19].includes(column)) {
       const strand = Math.sin(u * 95 + Math.sin(v * 42) * 2.3 + v * 16);
-      shade *= .94 + .065 * strand + .035 * Math.sin(u * 53 - v * 32);
-    } else if ([17, 18].includes(column)) shade *= .95 + .04 * Math.sin(u * 90) * Math.sin(v * 210);
+      shade *= .93 + .058 * strand + .033 * Math.sin(u * 53 - v * 32);
+    } else if (column === 7) shade *= 1.04 - .20 * u + .012 * Math.sin(u * 17 + v * 4);
+    else if (column === 24) shade *= .985 + .012 * Math.sin(u * 17 + v * 4);
+    else if (column === 25) shade *= .99 + .008 * Math.sin(u * 4 + v * 3);
+    else if ([28, 29, 30, 31].includes(column)) shade *= .97 + .015 * Math.sin(u * 39) * Math.cos(v * 61);
+    else if ([17, 18].includes(column)) shade *= .95 + .04 * Math.sin(u * 90) * Math.sin(v * 210);
     else if ([4, 23].includes(column)) shade *= .94 + .045 * Math.sin(u * 80) * Math.cos(v * 120);
     else shade *= .97 + .025 * Math.sin(v * 85 + u * 8);
     const hex = colors[column] ?? colors[0], offset = (y * width + x) * 4;
