@@ -3,6 +3,7 @@ import { terrainHeight } from '../../src/shared/terrain';
 import { moveActor } from '../../src/shared/collision';
 import { emptyInput } from '../../src/shared/math';
 import { EMOTES, EMOTE_IDS } from '../../src/shared/emotes';
+import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
 import type { GameUI } from '../../src/ui/ui';
@@ -47,6 +48,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let preparedIdentities = '';
   const names = [...Object.keys(VIEWS), ...WEAPONS.map(id => `fp-${id}`), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
+    ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade',
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
   function draw() {
@@ -73,6 +75,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     me.slot = 0;
     const emote = EMOTE_IDS.find(id => name === `emote-${id}`);
     if (emote) { me.emote = emote; me.emoteUntil = s.time + EMOTES[emote].duration; me.crouch = emote === 'sit' || emote === 'chill'; }
+    const level = name === 'corrente-upgrade' ? 2 : CORRENTE_LADDER.findIndex(id => name === `corrente-${id}`);
+    if (level >= 0) {
+      const id = CORRENTE_LADDER[level];
+      s.config.mode = 'corrente'; s.remaining = CORRENTE_LADDER.length - level;
+      s.loot.forEach(item => { item.active = false; }); s.openedChests = deps.world.chests.map(chest => chest.id);
+      me.weaponLevel = me.kills = level; me.weapons = [{ id, ammo: WEAPON_DEFS[id].magazine, reserve: id === 'machete' ? 0 : 60, rarity: 0 }];
+    }
     s.actors = [me];
     for (let i = 1; i < actorCount; i++) {
       const bot = structuredClone(me), angle = i * Math.PI * 2 / (actorCount - 1), radius = 12 + i % 4 * 4;
@@ -129,6 +138,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     deps.ui.update(s, 'practice', 0, false, 60, null);
     deps.ui.setPaused(name === 'pause');
     if (name === 'emote-wheel') deps.ui.openEmoteWheel();
+    if (name === 'corrente-upgrade') {
+      const upgrade = { type: 'upgrade' as const, id: 1, actor: me.id, weapon: CORRENTE_LADDER[level], level };
+      renderer.event(upgrade); deps.ui.event(upgrade);
+    }
     if (name !== 'results') document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
   }
