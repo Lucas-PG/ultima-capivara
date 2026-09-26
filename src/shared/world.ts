@@ -243,6 +243,12 @@ export function createWorld(): WorldSpec {
   }
   // Plants are decorative, with no independently authored trunk boxes.
   const planted: PointLike[] = [];
+  const blocksHeroView = (x: number, z: number) => [[-1, -10, -10, -40, 4.8], [60, -86, 4, -99, 4.2]].some(([ax, az, bx, bz, width]) => {
+    const dx = bx - ax, dz = bz - az, t = ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz);
+    return t >= 0 && t <= 1 && Math.hypot(x - ax - dx * t, z - az - dz * t) < width;
+  });
+  const paved = (x: number, z: number) => objects.some(o => o.detail === 'courtyard' &&
+    Math.abs(x - o.pos.x) < o.scale.x / 2 + 1.4 && Math.abs(z - o.pos.z) < o.scale.z / 2 + 1.4);
   const tree = (x: number, z: number, height: number, kind: 'tree' | 'palm' = 'tree', species = 'foliage') => {
     obj(kind, x, ground(x, z) - .08, z, 1.1, height, 1.1, '#5FA544', species, random() * Math.PI * 2);
     planted.push({ x, z });
@@ -255,10 +261,20 @@ export function createWorld(): WorldSpec {
     if (occupied(x, z, 1) || routeDistance(x, z) < 2.5) continue;
     tree(x, z, 4.5 + random() * 3, 'tree', 'mangrove');
   }
+  for (const [gx, gz] of [[-110, -85], [-88, -85], [-69, -88], [-45, -77], [-28, -79], [34, -65],
+    [48, -77], [67, -65], [-111, -25], [-73, 39], [-69, 61], [80, 85], [29, 87], [73, 98], [-72, 96]]) {
+    for (let i = 0; i < 6; i++) {
+      const angle = i * 2.4, radius = 1.7 + Math.sqrt(i) * 2.1;
+      const x = gx + Math.cos(angle) * radius, z = gz + Math.sin(angle) * radius, y = ground(x, z);
+      if (y < .8 || occupied(x, z, 3) || roadAt(x, z, 2) || routeDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) ||
+        planted.some(t => Math.hypot(t.x - x, t.z - z) < 3.4)) continue;
+      tree(x, z, 7.3 + random() * 3.4, y < 1.4 ? 'palm' : 'tree');
+    }
+  }
   for (let i = 0; i < 7000 && planted.length < 360; i++) {
     const x = -123 + random() * 246, z = -122 + random() * 244, y = ground(x, z);
     if (y < .6 || occupied(x, z, 2.8) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 ||
-      riverDistance(x, z) < 3 || planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 20)) continue;
+      riverDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) || planted.some(t => (t.x - x) ** 2 + (t.z - z) ** 2 < 20)) continue;
     const palm = y < 2 || z > 94 || (x > 25 && z < -85) || random() < .12;
     tree(x, z, (palm ? 7 : 5.5) + random() * 3, palm ? 'palm' : 'tree');
   }
