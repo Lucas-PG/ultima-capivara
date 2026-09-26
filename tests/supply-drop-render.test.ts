@@ -4,6 +4,7 @@ import { expect, it, vi } from 'vitest';
 import { SupplyDropView, SUPPLY_ASSET_PATH } from '../src/render/supply-drops';
 import { supplyDropPosition } from '../src/shared/supply-drops';
 import type { SupplyDropState, WorldSnapshot } from '../src/shared/types';
+import supplyMetrics from '../public/models/supply-drop/metrics.json';
 
 function fixture() {
   const scene = new THREE.Group(), geometry = new THREE.BoxGeometry(), map = new THREE.Texture();
@@ -64,6 +65,24 @@ it('limits delivery count and Low cost, and keeps the real trajectory with reduc
   h.view.update(h.snapshot, 21, h.camera, { graphics: 'medium', reducedMotion: true });
   expect(smoke.visible).toBe(false); expect(crate.rotation.x).toBeCloseTo(0); expect(crate.rotation.z).toBeCloseTo(0);
   expect(crate.position.equals(position)).toBe(true); h.view.dispose();
+});
+
+it('gathers landed parachute cloth above the crate without moving the drop or expanding its clearance', async () => {
+  const h = fixture(); await h.view.ready;
+  const chute = h.view.group.getObjectByName('Paraquedas da entrega')!;
+  const crate = h.view.group.getObjectByName('Caixa de entrega')!;
+  const bounds = supplyMetrics.components.filter(part => part.name.startsWith('drop_chute_'));
+  const lowestCord = Math.min(...bounds.map(part => part.min[1]));
+  const radius = Math.max(...bounds.flatMap(part => [Math.abs(part.min[0]), Math.abs(part.min[2]), part.max[0], part.max[2]]));
+  const before = structuredClone(h.drop);
+  for (const dt of [0, .15, .3, .6, 1, 1.19]) {
+    h.view.update(h.snapshot, h.drop.landsAt + dt, h.camera, h.settings);
+    expect(chute.position.y + lowestCord * chute.scale.y).toBeGreaterThanOrEqual(h.drop.pos.y + lowestCord);
+    expect(radius * chute.scale.x).toBeLessThanOrEqual(1.25);
+    expect(crate.position.toArray()).toEqual([h.drop.pos.x, h.drop.pos.y, h.drop.pos.z]);
+    if (dt >= 1) expect(radius * chute.scale.x).toBeLessThan(.425);
+  }
+  expect(h.drop).toEqual(before); h.view.dispose();
 });
 
 it('releases shared authored resources exactly once, including a load that completes after disposal', async () => {
