@@ -2,48 +2,44 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const SKY = {
-  top: '#4F9FD0', middle: '#9FD0E0', horizon: '#FFD49A', fog: '#F2DCB6',
-  cloud: '#FFF4E2', warm: '#F6B98C', shade: '#C9B2D6', sun: '#FFF1C9',
+  top: '#376FAD', middle: '#8BB6D1', horizon: '#FFC380', fog: '#DBC2AE',
+  cloud: '#FFE5B4', warm: '#FFC679', shade: '#7D829F', sun: '#FFF1C9',
 } as const;
 
 // Original low-frequency painted cloud card. One shared atlas, fixed world-facing
 // cards, no camera-facing billboards or alpha-test thresholds that pop in motion.
 function cloudTexture(sunSides: number[]) {
-  const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 512;
+  const canvas = document.createElement('canvas'); canvas.width = 2048; canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
-  const light = document.createElement('canvas'); light.width = light.height = 256;
-  const lightContext = light.getContext('2d')!;
-  const shapes = [
-    [[49, 178, 36, 24], [76, 145, 40, 43], [119, 110, 43, 66], [165, 150, 49, 46], [211, 177, 31, 23]],
-    [[38, 181, 26, 18], [67, 164, 38, 32], [112, 150, 43, 40], [159, 165, 44, 28], [211, 181, 32, 19]],
-    [[40, 181, 27, 19], [69, 153, 33, 45], [103, 177, 37, 25], [161, 154, 40, 48], [199, 177, 39, 26]],
-  ];
+  let state = 9183;
+  const random = () => { state = (Math.imul(state, 1664525) + 1013904223) | 0; return (state >>> 0) / 4294967296; };
   sunSides.forEach((sunSide, index) => {
-    const lobes = shapes[index % shapes.length];
-    const top = Math.min(...lobes.map(([, y, , ry]) => y - ry)), bottom = Math.max(...lobes.map(([, y, , ry]) => y + ry));
-    const shadeTop = bottom - (bottom - top) * .2;
-    ctx.save(); ctx.translate(index % 4 * 256, Math.floor(index / 4) * 256);
+    ctx.save(); ctx.translate(index % 4 * 512, Math.floor(index / 4) * 512);
+    const lobes: { x: number; y: number; rx: number; ry: number }[] = [];
+    for (let i = 0; i < 28; i++) {
+      const x = 72 + i / 27 * 365, envelope = Math.sin(i / 27 * Math.PI);
+      lobes.push({ x, y: 346 - envelope * (45 + random() * 77), rx: 25 + random() * 39, ry: 24 + envelope * (20 + random() * 48) });
+    }
+    // Overlapping rounded volumes carry broad painted light and coloured
+    // undersides. Fine brush dabs stay inside the cloud silhouette.
     ctx.beginPath();
-    for (const [x, y, rx, ry] of lobes) { ctx.moveTo(x + rx, y); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); }
-    ctx.fillStyle = SKY.cloud; ctx.fill(); ctx.clip();
-    // Shade only the lower fifth. The warm sun-facing side breaks up the cool
-    // underside instead of drawing the same peach stripe across every cloud.
-    const shade = ctx.createLinearGradient(0, shadeTop, 0, bottom);
-    shade.addColorStop(0, 'rgba(201,178,214,0)'); shade.addColorStop(1, SKY.shade);
-    ctx.fillStyle = shade; ctx.fillRect(0, shadeTop, 256, bottom - shadeTop);
-    lightContext.clearRect(0, 0, 256, 256);
-    lightContext.globalCompositeOperation = 'source-over';
-    const sunX = sunSide >= 0 ? 256 : 0;
-    const warm = lightContext.createRadialGradient(sunX, bottom, 0, sunX, bottom, 190);
-    warm.addColorStop(0, SKY.warm); warm.addColorStop(1, 'rgba(246,185,140,0)');
-    lightContext.globalAlpha = Math.abs(sunSide);
-    lightContext.fillStyle = warm; lightContext.fillRect(0, 0, 256, 256);
-    lightContext.globalAlpha = 1;
-    lightContext.globalCompositeOperation = 'destination-in';
-    const fade = lightContext.createLinearGradient(0, shadeTop, 0, bottom);
-    fade.addColorStop(0, 'rgba(255,255,255,0)'); fade.addColorStop(1, 'rgba(255,255,255,1)');
-    lightContext.fillStyle = fade; lightContext.fillRect(0, 0, 256, 256);
-    ctx.drawImage(light, 0, 0); ctx.restore();
+    for (const lobe of lobes) { ctx.moveTo(lobe.x + lobe.rx, lobe.y); ctx.ellipse(lobe.x, lobe.y, lobe.rx, lobe.ry, 0, 0, Math.PI * 2); }
+    const body = ctx.createLinearGradient(0, 125, 0, 400);
+    body.addColorStop(0, '#FFECCA'); body.addColorStop(.45, '#F6CFAB'); body.addColorStop(.8, '#BBA8B4'); body.addColorStop(1, '#8590AA');
+    ctx.fillStyle = body; ctx.fill(); ctx.clip();
+    for (const lobe of lobes) {
+      const litX = lobe.x + sunSide * lobe.rx * .35, litY = lobe.y - lobe.ry * .48;
+      const gradient = ctx.createRadialGradient(litX, litY, 0, litX, litY, lobe.rx * 1.4);
+      gradient.addColorStop(0, 'rgba(255,242,204,.68)'); gradient.addColorStop(.6, 'rgba(255,220,169,.16)'); gradient.addColorStop(1, 'rgba(255,220,169,0)');
+      ctx.fillStyle = gradient; ctx.fillRect(lobe.x - lobe.rx * 2, lobe.y - lobe.ry * 2, lobe.rx * 4, lobe.ry * 4);
+    }
+    ctx.globalCompositeOperation = 'source-atop';
+    for (let i = 0; i < 480; i++) {
+      const x = random() * 512, y = 150 + random() * 240;
+      ctx.fillStyle = i % 3 ? 'rgba(255,221,170,.055)' : 'rgba(92,103,153,.035)';
+      ctx.beginPath(); ctx.ellipse(x, y, 4 + random() * 19, 1 + random() * 4, -.18, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over'; ctx.restore();
   });
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
   texture.name = 'painted-cumulus-three-silhouettes'; return texture;
@@ -60,7 +56,7 @@ export class PaintedSky {
       uniforms: { ...Object.fromEntries(Object.entries(SKY).map(([name, color]) => [name, { value: new THREE.Color(color) }])), viewport: { value: viewport } },
       vertexShader: `varying vec3 vDirection;varying vec4 vSun;varying float vSunRadius;
         void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
-          vSun=projectionMatrix*viewMatrix*vec4(cameraPosition+normalize(vec3(-70.0,55.0,-30.0))*500.0,1.0);
+          vSun=projectionMatrix*viewMatrix*vec4(cameraPosition+normalize(vec3(-70.0,32.0,-30.0))*500.0,1.0);
           vSunRadius=projectionMatrix[1][1]*.027;}`,
       fragmentShader: `varying vec3 vDirection;varying vec4 vSun;varying float vSunRadius;uniform vec4 viewport;uniform vec3 top,middle,horizon,fog,sun;
         void main(){
@@ -74,8 +70,8 @@ export class PaintedSky {
           vec2 sunDelta=screen-vSun.xy/max(.001,vSun.w);sunDelta.x*=viewport.z/viewport.w;
           float sunDistance=length(sunDelta)/max(.001,vSunRadius);
           if(vSun.w>0.0){
-            color=mix(color,sun,.4*exp(-sunDistance*sunDistance/10.0));
-            color=mix(color,sun,1.0-smoothstep(.92,1.02,sunDistance));
+            color+=sun*1.4*exp(-sunDistance*sunDistance/18.0);
+            color=mix(color,sun*5.0,1.0-smoothstep(.92,1.02,sunDistance));
           }
           // Sub-code-value dither prevents gradient banding without visible grain.
           float dither=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5;
@@ -85,11 +81,11 @@ export class PaintedSky {
     dome.onBeforeRender = renderer => { renderer.getCurrentViewport(viewport); };
     dome.renderOrder = -1000; dome.frustumCulled = false; this.group.add(dome);
     const geometries: THREE.BufferGeometry[] = [];
-    const transform = new THREE.Object3D(), sunDirection = new THREE.Vector3(-70, 55, -30).normalize();
+    const transform = new THREE.Object3D(), sunDirection = new THREE.Vector3(-70, 32, -30).normalize();
     const right = new THREE.Vector3(), sunSides: number[] = [];
     for (let i = 0; i < 8; i++) {
       const angle = i * Math.PI / 4 + [.17, -.11, .08, -.15, .12, -.06, .19, -.08][i];
-      const scale = [.8, 1.25, .65, 1.4, .95, 1.1, .7, 1.2][i], height = [295, 340, 260, 355, 310, 325, 285, 350][i];
+      const scale = [.8, 1.25, .65, 1.4, .95, 1.1, .7, 1.2][i], height = [205, 280, 225, 310, 190, 265, 230, 295][i];
       transform.position.set(Math.cos(angle) * 470, height, Math.sin(angle) * 470);
       transform.lookAt(0, height * .45, 0); transform.rotateY([.09, -.16, .18, -.08, .13, -.2, .05, -.11][i]);
       transform.updateMatrix();
@@ -104,9 +100,9 @@ export class PaintedSky {
     this.clouds = new THREE.Mesh(geometry, material); this.clouds.renderOrder = -999; this.clouds.frustumCulled = false;
     this.group.add(this.clouds);
   }
-  update(camera: THREE.Camera, _elapsed: number, _reducedMotion: boolean) {
+  update(camera: THREE.Camera, elapsed: number, reducedMotion: boolean) {
     this.group.position.copy(camera.position);
-    // Fixed world directions keep the painted sun side aligned during a pan.
+    this.clouds.rotation.y = reducedMotion ? 0 : Math.sin(elapsed * .003) * .04;
   }
   dispose() {
     this.texture.dispose();

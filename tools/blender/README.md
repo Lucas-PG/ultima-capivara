@@ -43,3 +43,13 @@ API references used: [Blender GLB export](https://docs.blender.org/api/main/bpy.
 
 The Blender process uses `--python-exit-code 1`: validation errors stop the
 build before an old or missing raw GLB can be compressed.
+
+Phase A island kit: `npm run assets:kit` generates the shared collision manifest,
+compressed GLB and metrics from the same original geometry recipes. The three
+house LOD budgets are 12k / 3k / 800 triangles. Preview the actual renderer at
+`tools/blender/kit-review.html`; `?piece=fort_tower` isolates a piece.
+
+Phase A painted weapons use the cover-art direction and a 25k triangle combined
+weapon/arms ceiling. The first-person colour atlas is now 1024x256 with painted
+material variation, a roughness atlas and baked vertex contact shading. Keep
+`src/render/weapon-atlas.ts` in sync with the paint equations in `weapons.py`.

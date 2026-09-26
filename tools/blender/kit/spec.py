@@ -80,7 +80,7 @@ def portal(p, x, z, wall_h, width=2, side=1, color=5):
 
 def roof(p, width, depth, base, rise=1.7, tile=4):
     # Narrow structural bands are the visible stepped clay bed and exact collision.
-    rows = max(5, math.ceil(width / .55))
+    rows = max(5, math.ceil(width / 1.1))
     half = width / 2
     step = rise / rows
     for i in range(rows):
@@ -91,8 +91,8 @@ def roof(p, width, depth, base, rise=1.7, tile=4):
         for i in range(rows):
             x = sign * (half - (i + .5) * half / rows)
             y = base + (i + 1) * step + .035
-            for j in range(math.ceil(depth / .39)):
-                z = -depth / 2 + (j + .5) * depth / math.ceil(depth / .39)
+            for j in range(math.ceil(depth / .55)):
+                z = -depth / 2 + (j + .5) * depth / math.ceil(depth / .55)
                 p.cylinder(x, y, z, .084, half / rows + .07, tile, sides=6, detail=True, axis='x')
     p.cylinder(0, base + rise + .085, 0, .14, depth + .1, tile, sides=10, axis='z')
     for z in [-depth / 2, depth / 2]:
@@ -177,9 +177,24 @@ for x in [-3.5, -2.1, -.7, .7, 2.1, 3.5]:
     p.box(x, 4.23, -.70, .92, .12, .73, 14, bevel=.04)
 for x in [-3.0, 0, 3.0]:
     p.box(x, 1.4, .96, .75, 2.8, .30, 14)
+# Masonry courses keep large fort faces readable as stone at player distance.
+for row in range(6):
+    for block in range(6):
+        xx = (block - 2.5) * 1.28 + (.3 if row % 2 else 0)
+        if abs(xx) > 3.5:
+            continue
+        for side in [-1, 1]:
+            p.box(xx, .28 + row * .49, side * 1.02, 1.22, .43, .075, 6 if (row + block) % 4 else 14, bevel=.025, detail=True)
 p = Piece('fort_tower', 6, 6)
 # Octagonal drum. Cylinder collision matches the same outer radius.
 p.cylinder(0, 3.2, 0, 2.6, 6.4, 6, True, sides=24)
+# Fine stone joints and staggered quoins replace the barrel-like broad bands.
+for row in range(12):
+    p.cylinder(0, .29 + row * .50, 0, 2.64, .45, 6, sides=32, detail=True)
+    for i in range(8):
+        angle = math.tau * (i + (row % 2) * .5) / 8
+        p.box(math.sin(angle) * 2.655, .29 + row * .50, math.cos(angle) * 2.655,
+              .64, .39, .055, 14 if (i + row) % 4 == 0 else 6, bevel=.02, detail=True, yaw=angle)
 for yy in [.22, 3.4, 6.35]:
     p.cylinder(0, yy, 0, 2.72, .26, 14, True, sides=24)
 for i in range(12):
@@ -228,6 +243,10 @@ for side in [-1, 1]:
         p.box(0, yy, side * .6, 1.2, .15, .10, 7)
         p.box(side * .6, yy, 0, .10, .15, 1.2, 7)
     p.beam((-.48, .2, side * .62), (.48, 1.0, side * .62), .12, 7)
+
+
+from extensions import extend
+extend(Piece, building, roof, window)
 
 
 def write_metadata():

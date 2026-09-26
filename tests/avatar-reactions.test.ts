@@ -44,6 +44,7 @@ describe('authoritative character reactions', () => {
       camera.position.set(0, crouch ? 1.15 : 1.6, 3);
       camera.lookAt(0, crouch ? 1.15 : 1.6, 0);
       h.advance(.6);
+      expect(h.visual.group.scale.toArray()).toEqual([1, 1, 1]);
       h.visual.group.updateMatrixWorld(true);
       h.visual.body.traverse(object => { if (object instanceof THREE.SkinnedMesh) object.skeleton.update(); });
       const crown = new THREE.Box3().setFromObject(h.rig, true).max.y;
@@ -76,9 +77,14 @@ describe('authoritative character reactions', () => {
   it('holds death through a still-alive snapshot, shows a flop, and resets on the respawn event', () => {
     const h = harness();
     view.react(h.actor.id, { kind: 'death', head: false, weapon: 'm4', from: { x: 3, y: 1, z: 0 } });
-    h.advance(.7);
+    h.advance(1.3);
     expect(h.actor.alive).toBe(true); expect(capybaraIsDead(h.visual.body)).toBe(true);
-    expect(h.visual.group.visible).toBe(true); expect(Math.abs(h.rig.rotation.z)).toBeGreaterThan(1.3);
+    expect(h.visual.group.visible).toBe(true);
+    h.visual.group.updateMatrixWorld(true);
+    h.visual.body.traverse(object => { if (object instanceof THREE.SkinnedMesh) object.skeleton.update(); });
+    const corpse = new THREE.Box3().setFromObject(h.rig, true);
+    expect(corpse.max.y - corpse.min.y).toBeLessThan(1.1);
+    expect(h.rig.rotation.z).toBe(0); // Authored fall is not doubled by the legacy flop.
     h.actor.alive = false; h.advance(.1);
     view.respawn(h.actor.id);
     // A respawn event can precede its alive snapshot: the old dead snapshot must not replay death.
