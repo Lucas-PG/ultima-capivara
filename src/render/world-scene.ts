@@ -4,7 +4,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import type { AssetLoader } from './assets';
 import { PaintedWater } from './water';
 import { createToonMaterial, type ToonMaterialKind } from './materials';
-import { terrainHeight, WORLD_PALETTE } from '../shared/terrain';
+import { roadPaintWeight, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
 import { createIslandBackdrop } from './island-backdrop';
@@ -121,12 +121,13 @@ const gableRoof = roofGeometry('gable');
 
 function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
   const size = world.size, steps = Math.round(world.size / 2), stride = size / steps;
-  const positions: number[] = [], uvs: number[] = [], slopes: number[] = [], indices: number[] = [];
+  const positions: number[] = [], uvs: number[] = [], slopes: number[] = [], roadPaint: number[] = [], indices: number[] = [];
   for (let iz = 0; iz <= steps; iz++) for (let ix = 0; ix <= steps; ix++) {
     const x = -size / 2 + ix * stride, z = -size / 2 + iz * stride, y = terrainHeight(x, z);
     const slope = Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z),
       terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
     positions.push(x, y, z); uvs.push(x / size + .5, z / size + .5); slopes.push(slope);
+    roadPaint.push(roadPaintWeight(x, z, y));
     if (ix < steps && iz < steps) {
       const a = iz * (steps + 1) + ix, b = a + 1, d = a + steps + 1;
       indices.push(a, d, b, b, d, d + 1);
@@ -136,6 +137,7 @@ function terrainGeometry(world: WorldSpec): THREE.BufferGeometry {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geo.setAttribute('terrainSlope', new THREE.Float32BufferAttribute(slopes, 1));
+  geo.setAttribute('terrainRoadPaint', new THREE.Float32BufferAttribute(roadPaint, 1));
   geo.setIndex(indices); geo.computeVertexNormals();
   return geo;
 }
@@ -236,7 +238,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v10:${ROADS.length}`;
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v11:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -254,18 +256,22 @@ export class WorldScene {
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `
         #include <common>
         attribute float terrainSlope;
+        attribute float terrainRoadPaint;
         varying float vTerrainSlope;
+        varying float vTerrainRoadPaint;
         varying vec2 vTerrainXZ;
         varying float vTerrainWorldY;
       `).replace('#include <begin_vertex>', `
         #include <begin_vertex>
         vTerrainSlope = terrainSlope;
+        vTerrainRoadPaint = terrainRoadPaint;
         vTerrainXZ = (modelMatrix * vec4(position, 1.0)).xz;
         vTerrainWorldY = (modelMatrix * vec4(position, 1.0)).y;
       `);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `
         #include <common>
         varying float vTerrainSlope;
+        varying float vTerrainRoadPaint;
         varying vec2 vTerrainXZ;
         varying float vTerrainWorldY;
         uniform vec4 terrainRoads[${ROADS.length}];
@@ -307,8 +313,10 @@ export class WorldScene {
         for (int road = 0; road < ${ROADS.length}; road++)
           distanceToRoad = min(distanceToRoad, terrainRectDistance(vTerrainXZ, terrainRoads[road]));
         float edgeWidth = max(fwidth(distanceToRoad), 0.002);
-        float asphaltMask = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
-        float curbMask = (1.0 - smoothstep(0.4 - edgeWidth, 0.4 + edgeWidth, distanceToRoad)) * (1.0 - asphaltMask);
+        float roadInterior = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
+        float roadPaint = clamp(vTerrainRoadPaint, 0.0, 1.0);
+        float asphaltMask = roadInterior * roadPaint;
+        float curbMask = (1.0 - smoothstep(0.4 - edgeWidth, 0.4 + edgeWidth, distanceToRoad)) * (1.0 - roadInterior) * roadPaint;
         diffuseColor.rgb = mix(diffuseColor.rgb, terrainCurb, curbMask);
         float broadWear = terrainFbm(vTerrainXZ / 18.0 + vec2(6.0, 19.0));
         float fineWear = terrainNoise(vTerrainXZ / 3.8 + vec2(23.0, 7.0));
