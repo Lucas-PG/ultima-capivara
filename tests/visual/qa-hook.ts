@@ -124,7 +124,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     current = s;
     deps.input.frame.yaw = yaw; deps.input.frame.pitch = pitch;
-    for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null });
+    for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
     deps.ui.update(s, 'practice', 0, false, 60, null);
     deps.ui.setPaused(name === 'pause');
     if (name !== 'results') document.querySelector('#victory')?.remove();

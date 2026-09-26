@@ -12,12 +12,16 @@ afterEach(() => vi.unstubAllGlobals());
 it('reviews real river flotation, a nearby swimmer and a dry wet exit using shared movement', async () => {
   vi.stubGlobal('window', {}); vi.stubGlobal('document', { querySelector: () => null });
   let frame: RenderFrame | undefined;
-  const renderer = { update: (next: RenderFrame) => { frame = next; }, prepareMatch: async () => {},
+  const updates: { dt: number; draw: boolean }[] = [];
+  const renderer = { update: (next: RenderFrame, draw = true) => { frame = next; updates.push({ dt: next.dt, draw }); }, prepareMatch: async () => {},
     cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 } };
   installQa({ world: createWorld(), settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
     ui: { update: () => {}, setPaused: () => {} } as any, begin: async () => renderer as any });
   const qa = window.__capyQA!; await qa.start();
   await qa.pose('swimWaterline');
+  expect(updates.reduce((time, update) => time + update.dt, 0)).toBeCloseTo(1);
+  expect(updates.filter(update => update.draw)).toHaveLength(1);
+  expect(updates.at(-1)!.draw).toBe(true);
   expect(frame!.snapshot!.actors[0]).toMatchObject({ swimming: true, grounded: false });
   expect(frame!.snapshot!.actors[0].pos.y).toBeCloseTo(WATER_LEVEL - SWIM_DRAFT);
   await qa.pose('swimRemote');
