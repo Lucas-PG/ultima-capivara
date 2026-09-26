@@ -719,7 +719,7 @@ export class GameUI {
   private updateMoments(snapshot: WorldSnapshot, me: ActorState) {
     if (!me.alive) { clearTimeout(this.momentTimer); this.show('matchMoment', false); }
     else if (snapshot.phase === 'playing') {
-      if (this.momentPhase === 'countdown') this.showMoment('Boa sorte, capivara!', 'A ilha é sua!');
+      if (this.momentPhase === 'countdown') this.showMoment('Boa sorte, capivara!', me.stage === 'plane' ? `${keyName(bindingOf(this.settings.bindings, 'jump'))} pra saltar` : 'A ilha é sua!', me.stage === 'plane' ? 'launch' : 'start');
       if (this.momentStage === 'plane' && me.stage === 'falling') this.showMoment('PULA!', `${keyName(bindingOf(this.settings.bindings, 'jump'))} abre o paraquedas`, 'drop');
       const beat = snapshot.config.mode === 'battle-royale' && snapshot.zone.phase === 0 && !snapshot.zone.shrinking ? Math.ceil(snapshot.zone.timeLeft) : 0;
       if (beat > 0 && beat <= 5 && beat !== this.firstStormBeat) this.showMoment(String(beat), 'Primeira tempestade · prepare a rota', 'storm');

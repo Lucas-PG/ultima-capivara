@@ -820,3 +820,6 @@ body.reduce-motion #victory .vpanel{transition:none}
 body.reduce-motion #hud #ladder.upgrade{animation:none}
 @media(prefers-reduced-motion:reduce){#hud #ladder.upgrade{animation:none}}
 .how-grid:has(>div:nth-child(4)){grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* The launch stamp carries the jump hint until the normal flight banner returns. */
+#hud:has(#matchMoment[data-kind=launch]:not([hidden])) #banner{visibility:hidden}

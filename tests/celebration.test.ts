@@ -20,6 +20,7 @@ describe('match celebration timing', () => {
     const ui = moments(); ui.momentPhase = 'countdown'; ui.momentStage = 'plane';
     update(ui, sample(), actor('plane')); update(ui, sample(), actor('plane'));
     expect(ui.showMoment).toHaveBeenCalledTimes(1);
+    expect(ui.showMoment).toHaveBeenLastCalledWith('Boa sorte, capivara!', 'Espaço pra saltar', 'launch');
     update(ui, sample(), actor('falling')); update(ui, sample(), actor('falling')); update(ui, sample(), actor('parachute')); update(ui, sample());
     expect(ui.showMoment).toHaveBeenCalledTimes(2); expect(ui.showMoment).toHaveBeenLastCalledWith('PULA!', 'Espaço abre o paraquedas', 'drop');
   });
