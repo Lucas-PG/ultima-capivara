@@ -99,6 +99,7 @@ export function createWorld(): WorldSpec {
     [ARENA.minX, -49, Math.PI / 2], [ARENA.minX, -25, Math.PI / 2], [ARENA.minX, 18, Math.PI / 2], [ARENA.minX, 44, Math.PI / 2],
     [ARENA.maxX, -48, Math.PI / 2], [ARENA.maxX, -17, Math.PI / 2], [ARENA.maxX, 39, Math.PI / 2], [ARENA.maxX, 51, Math.PI / 2],
   ]) {
+    if (occupied(x, z, 2.5)) continue;
     const piece = KIT_PIECES.fence ? 'fence' : 'fort_wall';
     const placed = place(piece, x, z, yaw, piece === 'fence' ? 1 : .5, ground(x, z), 'arena');
     arenaBoundary.push(placed.id);
