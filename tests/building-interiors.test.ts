@@ -32,7 +32,7 @@ describe('lived-in rooms preserve ordinary access', () => {
     let count = 0;
     for (const building of pieces) for (const room of buildingRooms(building)) {
       const items = pieces.filter(item => item !== building && item.id.startsWith(`${building.id}:interior:${room.id}:`));
-      expect(items.length, `${building.id}/${room.id} is empty`).toBeGreaterThanOrEqual(2);
+      expect(items.length, `${building.id}/${room.id} needs a furnished corner and small accents`).toBeGreaterThanOrEqual(4);
       for (const item of items) {
         const position = local(building, item), definition = KIT_PIECES[item.piece];
         if (item.piece !== 'wall_picture') expect(position.y, `${item.id} floats above its floor`).toBeCloseTo(room.y, 4);
@@ -56,6 +56,7 @@ describe('lived-in rooms preserve ordinary access', () => {
   });
 
   it('keeps furniture fronts usable and soft room accents non-solid', () => {
+    const blocked: string[] = [];
     for (const item of pieces) {
       const definition = KIT_PIECES[item.piece];
       if (soft.has(item.piece)) expect(kitColliders(item), item.id).toHaveLength(0);
@@ -66,8 +67,9 @@ describe('lived-in rooms preserve ordinary access', () => {
         return clearSpawn({ x: item.x + Math.sin(item.yaw) * forward, y: item.y,
           z: item.z + Math.cos(item.yaw) * forward }, world);
       });
-      expect(clear, `${item.id} has no usable space in front`).toBe(true);
+      if (!clear) blocked.push(item.id);
     }
+    expect(blocked, 'Furniture fronts need usable standing space').toEqual([]);
   });
 
   it('keeps homes, workshops and the clinic distinct upstairs', () => {
@@ -82,6 +84,45 @@ describe('lived-in rooms preserve ordinary access', () => {
     }
   });
 
+  it('uses different arrangements across repeated household roles and keeps park benches outdoors', () => {
+    const houses = pieces.filter(piece => /^house_(small|tall)$/.test(piece.piece));
+    const upperHomes = houses.filter(house => house.piece === 'house_tall' && buildingRole(house) === 'home');
+    expect(new Set(upperHomes.map(roomVariant)).size, 'The home bedrooms need three distinct arrangements').toBe(3);
+    for (const role of new Set(houses.map(buildingRole))) {
+      const lots = houses.filter(house => buildingRole(house) === role);
+      if (lots.length > 1) expect(new Set(lots.map(roomVariant)).size, `${role} repeats the same lot arrangement`).toBeGreaterThanOrEqual(2);
+    }
+    for (const house of houses) for (const room of buildingRooms(house)) {
+      for (const bench of pieces.filter(piece => piece.piece === 'bench')) {
+        const point = local(house, bench);
+        const inside = Math.abs(point.y - room.y) < .1 && point.x > room.bounds[0] && point.x < room.bounds[2] &&
+          point.z > room.bounds[1] && point.z < room.bounds[3];
+        expect(inside, `${bench.id} is an oversized park bench inside ${house.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('keeps room furniture from intersecting adjacent solid furniture', () => {
+    const furniture = new Set(['table', 'chair', 'shelf_pottery', 'wardrobe', 'sofa', 'hammock', 'stove', 'bed', 'interior_counter', 'crate', 'barrel', 'bench']);
+    const overlaps: string[] = [];
+    for (const building of pieces) for (const room of buildingRooms(building)) {
+      const items = pieces.filter(item => {
+        if (!furniture.has(item.piece)) return false;
+        const point = local(building, item);
+        return Math.abs(point.y - room.y) < .02 && point.x > room.bounds[0] && point.x < room.bounds[2] &&
+          point.z > room.bounds[1] && point.z < room.bounds[3];
+      }).map(item => ({ item, solids: kitColliders(item) }));
+      for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) {
+        if (items[a].solids.some(left => items[b].solids.some(right =>
+          Math.min(left.max.x, right.max.x) - Math.max(left.min.x, right.min.x) > .015 &&
+          Math.min(left.max.y, right.max.y) - Math.max(left.min.y, right.min.y) > .015 &&
+          Math.min(left.max.z, right.max.z) - Math.max(left.min.z, right.min.z) > .015)))
+          overlaps.push(`${items[a].item.id} intersects ${items[b].item.id}`);
+      }
+    }
+    expect(overlaps).toEqual([]);
+  });
+
   it('keeps outdoor tree roots out of enterable rooms', () => {
     const plants = world.objects.filter(object => object.kind === 'tree' || object.kind === 'palm');
     for (const building of pieces) for (const room of buildingRooms(building)) {
@@ -92,6 +133,18 @@ describe('lived-in rooms preserve ordinary access', () => {
           position.z > room.bounds[1] && position.z < room.bounds[3];
         expect(inside, `${plant.id} grows through ${building.id}`).toBe(false);
       }
+    }
+  });
+
+  it('keeps soft potted plants clear of room walls, stairs and furniture', () => {
+    for (const plant of pieces.filter(piece => piece.piece === 'potted_plant' && piece.id.includes(':interior:'))) {
+      const size = plant.scale ?? 1, definition = KIT_PIECES.potted_plant;
+      const radius = Math.max(...definition.footprint) * size / 2;
+      const clipped = world.colliders.filter(solid =>
+        Math.min(plant.x + radius, solid.max.x) - Math.max(plant.x - radius, solid.min.x) > .015 &&
+        Math.min(plant.y + definition.height * size, solid.max.y) - Math.max(plant.y, solid.min.y) > .015 &&
+        Math.min(plant.z + radius, solid.max.z) - Math.max(plant.z - radius, solid.min.z) > .015);
+      expect(clipped.map(solid => solid.id), `${plant.id} clips a solid despite being decorative`).toEqual([]);
     }
   });
 

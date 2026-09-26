@@ -4,6 +4,8 @@ import { KIT_PIECES } from '../src/shared/kit-collision';
 import { terrainHeight } from '../src/shared/terrain';
 import { walkableHeight } from '../src/shared/navigation';
 import { createWorld } from '../src/shared/world';
+import { buildingRooms } from '../src/shared/building-interiors';
+import { buildingPoint } from '../src/shared/building-access';
 import { floorRoute } from './helpers/floor-route';
 import { walkTraversal } from './helpers/traversal-probe';
 
@@ -38,6 +40,21 @@ describe('published building routes reach loot from real ground', () => {
       expect(up.ok, JSON.stringify({ id: loot.id, reason: up.reason, actual: up.actual, expected: up.expected })).toBe(true);
       const back = walkTraversal(world, up.actor, [...points].reverse());
       expect(back.ok, loot.id).toBe(true);
+    }
+  });
+
+  it('lets players cross furnished house and hall rooms and return through their entrances', () => {
+    for (const piece of world.pieces!) for (const floor of buildingRooms(piece)) {
+      // The lighthouse follows its separately tested curved route around a
+      // central structural column, rather than a straight room aisle.
+      if (piece.piece === 'lighthouse') continue;
+      const route = world.buildingRoutes!.find(route => route.pieceId === piece.id && route.floorId === floor.id)!;
+      const point = buildingPoint(piece, [floor.id === 'upper-room' ? 1 : 0, floor.y, floor.bounds[3] - .6]);
+      const points = [...route.points, point];
+      for (const path of [points, [...points].reverse()]) {
+        const result = walkTraversal(world, actor, path);
+        expect(result.ok, JSON.stringify({ room: `${piece.id}/${floor.id}`, reason: result.reason, actual: result.actual, expected: result.expected })).toBe(true);
+      }
     }
   });
 

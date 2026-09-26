@@ -11,7 +11,7 @@ import { KIT_PIECES } from '../../src/shared/kit-collision';
 import { buildingPoint, routesToFloor } from '../helpers/building-paths';
 import { walkTraversal } from '../helpers/traversal-probe';
 import { placedBuildingRoutes } from '../helpers/placed-building-routes';
-import { buildingRole } from '../../src/shared/building-interiors';
+import { buildingRole, buildingRooms, roomVariant } from '../../src/shared/building-interiors';
 import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
@@ -44,7 +44,8 @@ const ACCESS_POSES = ['fortStairBottom', 'fortStairTop', 'fortWallNorth', 'light
   'lighthouseStairBottom', 'lighthouseStairTop', 'lighthouseBalcony', 'dockStairBottom', 'dockStairTop', 'dockPorto', 'dockMangue'];
 const ROOM_POSES = ['home', 'bakery', 'cafe', 'tailor', 'clinic', 'fisher', 'fishmonger', 'workshop', 'kiosk',
   'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
-  'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks'].map(role => `room-${role}`);
+  'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks',
+  'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2'].map(role => `room-${role}`);
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
@@ -190,17 +191,21 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       me.yaw = yaw; me.pitch = pitch;
     }
     if (ROOM_POSES.includes(name)) {
-      const upper = name.startsWith('room-upper-'), role = name.slice(upper ? 11 : 5);
-      const piece = deps.world.pieces!.find(piece => ['church', 'market_hall', 'warehouse', 'beach_kiosk'].includes(role) ?
+      const upper = name.startsWith('room-upper-'), requested = /-([012])$/.exec(name)?.[1];
+      const role = name.slice(upper ? 11 : 5).replace(/-[012]$/, '');
+      const piece = deps.world.pieces!.filter(piece => requested === undefined || roomVariant(piece) === Number(requested))
+        .find(piece => ['church', 'market_hall', 'warehouse', 'beach_kiosk'].includes(role) ?
         piece.piece === role : (upper ? piece.piece === 'house_tall' : piece.piece.startsWith('house_')) && buildingRole(piece) === role);
       if (!piece) throw new Error(`Missing furnished building for ${name}`);
       placedRoutes ??= placedBuildingRoutes(deps.world, me);
       const route = placedRoutes.get(`${piece.id}/${upper ? 'upper-room' : 'ground-room'}`);
       if (!route) throw new Error(`No ground entrance for ${name}`);
-      const walked = walkTraversal(deps.world, me, route);
+      const floor = buildingRooms(piece).find(floor => floor.id === (upper ? 'upper-room' : 'ground-room'))!;
+      const reviewPoint = buildingPoint(piece, [upper ? 1 : 0, floor.y, floor.bounds[3] - .6]);
+      const walked = walkTraversal(deps.world, me, [...route, reviewPoint]);
       if (!walked.ok) throw new Error(`Room review cannot walk to ${name}: ${walked.reason}`);
       Object.assign(me, walked.actor); me.velocity = { x: 0, y: 0, z: 0 };
-      yaw = piece.yaw + (upper ? -2.1 : role === 'church' ? -.3 : -1.2); pitch = -.18;
+      yaw = piece.yaw + (upper ? -.12 : 0); pitch = -.15;
       me.yaw = yaw; me.pitch = pitch;
     }
     const weaponReview = /^(?:fp|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
