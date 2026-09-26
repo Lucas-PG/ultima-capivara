@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../src/shared/collision';
+import { clearSpawn, hasLineOfSight, moveActor, raycastWorld, SWIM_DRAFT } from '../src/shared/collision';
 import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
@@ -9,6 +9,7 @@ import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
 import { WORLD_PALETTE, terrainColor, terrainHeight } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
+import { waterAt } from '../src/shared/water';
 
 const world = createWorld();
 const spawnActor = new Simulation(world, { mode: 'deathmatch', capacity: 2, bots: false, difficulty: 'normal', duration: 300 },
@@ -190,7 +191,7 @@ describe('river island gameplay integrity', () => {
     }
   });
 
-  it('provides visible stair exits from the river bed to both town banks', () => {
+  it('provides visible stair exits from swimming depth to both town banks', () => {
     const steps = world.pieces!.filter(piece => piece.piece === 'river_steps');
     expect(steps.length).toBeGreaterThanOrEqual(2);
     expect(steps.some(piece => Math.cos(piece.yaw) > .9)).toBe(true);
@@ -199,12 +200,15 @@ describe('river island gameplay integrity', () => {
       const along = KIT_PIECES[piece.piece].footprint[1] * (piece.scale ?? 1) / 2;
       const x = piece.x - Math.sin(piece.yaw) * (along + .7), z = piece.z - Math.cos(piece.yaw) * (along + .7);
       const actor = structuredClone(spawnActor);
-      actor.pos = { x, y: terrainHeight(x, z), z }; actor.yaw = piece.yaw + Math.PI;
-      actor.velocity = { x: 0, y: 0, z: 0 }; actor.stage = 'ground'; actor.grounded = true;
+      actor.pos = { x, y: waterAt(x, z)!.surfaceY - SWIM_DRAFT, z }; actor.yaw = piece.yaw + Math.PI;
+      actor.velocity = { x: 0, y: 0, z: 0 }; actor.stage = 'ground'; actor.grounded = false; actor.swimming = true;
+      moveActor(actor, emptyInput(), world, 1 / 60, 1, 'deathmatch');
+      expect(actor.swimming).toBe(true); expect(actor.grounded).toBe(false);
       for (let seq = 1; seq <= 360; seq++) moveActor(actor, { ...emptyInput(), seq, moveZ: 1, yaw: actor.yaw }, world, 1 / 60, 1, 'deathmatch');
       const progress = (actor.pos.x - piece.x) * Math.sin(piece.yaw) + (actor.pos.z - piece.z) * Math.cos(piece.yaw);
       expect(progress, `${piece.id} must lead all the way onto the quay`).toBeGreaterThan(along);
       expect(actor.pos.y, `${piece.id} must leave the water`).toBeGreaterThan(1.8);
+      expect(actor.swimming).toBe(false); expect(actor.grounded).toBe(true);
     }
   });
 
