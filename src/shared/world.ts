@@ -2,10 +2,10 @@ import { rng } from './math';
 import { terrainHeight } from './terrain';
 import { ARENA, ARENA_CENTER, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
-import { hasLineOfSight } from './collision';
+import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
 import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
-import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type SpawnPoint, type Vec3, type WeaponId, type WorldSpec } from './types';
+import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 
 const ground = terrainHeight;
 const p = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
@@ -27,6 +27,7 @@ export function createWorld(): WorldSpec {
   const random = rng(0x51a7cafe);
   const pieces: KitPlacement[] = [], objects: MapObject[] = [], colliders: Collider[] = [], walkways: Collider[] = [];
   const loot: LootSpawn[] = [], chests: ChestSpec[] = [], spawns: SpawnPoint[] = [], arenaBoundary: string[] = [];
+  const mudBaths: MudBathSpec[] = [], trampolines: TrampolineSpec[] = [];
   const districts: District[] = [
     { id: 'forte', name: 'Forte', x: 4, z: -99, radius: 25, color: '#c47c57' },
     { id: 'vila', name: 'Vila', x: -22, z: -18, radius: 32, color: '#e39973' },
@@ -74,7 +75,9 @@ export function createWorld(): WorldSpec {
   };
   const roadAt = (x: number, z: number, margin = 0) => ROADS.some(([x0, z0, x1, z1]) =>
     x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
-  const occupied = (x: number, z: number, margin: number) => colliders.some(c =>
+  const playAreaAt = (x: number, z: number, margin: number) => [mudBaths, trampolines].some(sites =>
+    sites.some(site => Math.hypot(site.x - x, site.z - z) < site.radius + margin));
+  const occupied = (x: number, z: number, margin: number) => playAreaAt(x, z, margin) || colliders.some(c =>
     x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
   const pavement = (x: number, z: number, width: number, depth: number, color = '#d5c1a0') => {
     const y = ground(x, z);
@@ -229,7 +232,7 @@ export function createWorld(): WorldSpec {
     if (shapes.some(c => routes.some(point => point.y < c.max.y + .03 && point.y + 1.8 > c.min.y &&
       point.x + 1.25 > c.min.x && point.x - 1.25 < c.max.x && point.z + 1.25 > c.min.z && point.z - 1.25 < c.max.z) ||
       houses.some(h => c.max.y > ground(h.x, h.z) - .03 && c.min.y < ground(h.x, h.z) + 3 &&
-        c.max.x > h.x - h.w / 2 - .6 && c.min.x < h.x + h.w / 2 + .6 && c.max.z > h.z - h.d / 2 - .6 && c.min.z < h.z + h.d / 2 + .6))) return false;
+        c.max.x > h.x - h.w / 2 - 1.3 && c.min.x < h.x + h.w / 2 + 1.3 && c.max.z > h.z - h.d / 2 - 1.3 && c.min.z < h.z + h.d / 2 + 1.3))) return false;
     place(piece, x, z, yaw, scale, bottom); return true;
   };
   if (KIT_PIECES.cliff_rock_tall && KIT_PIECES.cliff_ledge && KIT_PIECES.cliff_rock_low) {
@@ -262,6 +265,14 @@ export function createWorld(): WorldSpec {
       rockLayer('cliff_rock_tall', x, z, yaw, bottom, height);
     rockLayer('cliff_ledge', -8.5, -75.5, .06, 8.8, 6.1);
     rockLayer('cliff_ledge', 16, -75.5, -.08, 8.6, 6.2);
+    // Broken shoulders make the narrow gate ramp read as a route through
+    // stone. Each course stays below the walking surface beside it.
+    for (const [x, z, height, yaw] of [
+      [-.6, -72, 5.5, -.22], [8.7, -72.7, 5.8, .31],
+      [-.8, -68, 3.6, .16], [8.8, -68.5, 3.8, -.27],
+      [-1.2, -64.6, 2.1, -.37], [9.1, -64.8, 2.3, .43],
+      [-11, -70, 3.4, .35], [17.5, -69.6, 3.1, -.38],
+    ]) rockLayer('cliff_rock_low', x, z, yaw, ground(x, z) - height * .55, height);
   }
   for (const [x, z] of [[50, -96], [43, -110], [64, -111]] as const) {
     obj('cylinder', x, ground(x, z) + .045, z, 4.7, .05, 3.3, '#69B9AD', 'water');
@@ -329,6 +340,13 @@ export function createWorld(): WorldSpec {
   obj('box', cascadeX, (top + low) / 2, cascadeZ, 6, top - low, .22, '#87c2c7', 'waterfall', Math.PI / 2);
   detail('cliff_rock_tall', -118, -18, Math.PI / 2, 1.2, ground(-118, -18) - 4.5);
   detail('cliff_ledge', -112, 2, Math.PI / 2, 1.1, ground(-112, 2) - 2);
+  for (const [index, x] of [-104, -98, -92].entries()) {
+    const river = riverSample(x, -5);
+    for (const side of [-1, 1]) {
+      const z = river.z + side * (river.width / 2 + 3.6), height = 2.4 + index % 2 * .65;
+      rockLayer('cliff_rock_low', x, z, side * Math.PI / 2 + index * .21, ground(x, z) - height * .55, height);
+    }
+  }
   sign(-86, -15, 'MIRANTE');
   // Boardwalks offer a dry second route around the estuary.
   for (const x of [91, 101, 111]) place('dock_wood', x, 52, Math.PI / 2, 1, .32);
@@ -360,7 +378,11 @@ export function createWorld(): WorldSpec {
       const piece = slope > 1.25 ? 'cliff_rock_tall' : 'cliff_rock_low';
       const height = Math.min(12, 4.6 + slope * 3.2) + Math.sin(x * .37 + z * .13) * .4;
       chosen.add(candidate);
-      if (!rockLayer(piece, x + Math.sin(yaw) * .7, z + Math.cos(yaw) * .7, yaw, y - height * .48, height)) return false;
+      const faceX = x + Math.sin(yaw) * 1.7, faceZ = z + Math.cos(yaw) * 1.7;
+      // Projecting a face downhill can cross a sharp terrace break. Keep its
+      // base rooted at the new position rather than suspended over the cut.
+      const bottom = Math.min(y - height * .48, ground(faceX, faceZ) - .25);
+      if (!rockLayer(piece, faceX, faceZ, yaw, bottom, height)) return false;
       formations++; return true;
     };
     slopes.forEach((area, zone) => {
@@ -418,6 +440,24 @@ export function createWorld(): WorldSpec {
     detail('flower_bed', x + 1.7, z - 1.9, 0, .7);
   }
 
+  // Contact surfaces and interaction radii come from the same exported solids
+  // as the visible bath and pad. Their entrances face a public walking route.
+  for (const [piece, sites] of [
+    ['mud_bath', [[19, 25], [51, 51], [103, 63]]],
+    ['trampoline', [[25, -7], [55, -107], [-38, 107]]],
+  ] as const) {
+    const interaction = KIT_PIECES[piece]?.interaction;
+    if (!interaction) continue;
+    for (const [x, z] of sites) {
+      const approach = pathApproach(x, z);
+      const placed = place(piece, x, z, faceToward(x, z, approach.x, approach.z));
+      const scale = placed.scale ?? 1;
+      const site = { id: placed.id, x, y: placed.y + interaction.surfaceY * scale, z, radius: interaction.radius * scale };
+      if (piece === 'mud_bath') mudBaths.push(site);
+      else trampolines.push({ ...site, impulse: TRAMPOLINE_IMPULSE });
+    }
+  }
+
   // Supplies sit in working groups beside routes, with a low side prop and
   // an occasional stack that breaks eye-level sightlines across open ground.
   let coverGroups = 0;
@@ -443,7 +483,8 @@ export function createWorld(): WorldSpec {
   }
   // Plants are decorative, with no independently authored trunk boxes.
   const planted: PointLike[] = [];
-  const blocksHeroView = (x: number, z: number) => [[-1, -10, -10, -40, 4.8], [60, -86, 4, -99, 4.2]].some(([ax, az, bx, bz, width]) => {
+  const blocksHeroView = (x: number, z: number) => [[-1, -10, -10, -40, 4.8], [36, -6, 29, -20, 2.7],
+    [60, -86, 4, -99, 4.2]].some(([ax, az, bx, bz, width]) => {
     const dx = bx - ax, dz = bz - az, t = ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz);
     return t >= 0 && t <= 1 && Math.hypot(x - ax - dx * t, z - az - dz * t) < width;
   });
@@ -452,6 +493,7 @@ export function createWorld(): WorldSpec {
   // Buried cliff solids should not erase the jungle above them. Keep roots on
   // terrain and reject only geometry that actually rises through the planting.
   const plantBlocked = (x: number, z: number, margin: number) => {
+    if (playAreaAt(x, z, margin + .6)) return true;
     const y = ground(x, z);
     return colliders.some(c => c.max.y > y + .3 && c.min.y < y + 2 &&
       x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
@@ -514,7 +556,7 @@ export function createWorld(): WorldSpec {
     const patches: PointLike[] = [], foliageRandom = rng(0x71f03a);
     const understory = (x: number, z: number, scale: number) => {
       const y = ground(x, z);
-      if (y < .7 || roadAt(x, z, 1.5) || routeDistance(x, z) < 2.4 || paved(x, z) || plantBlocked(x, z, .8) ||
+      if (y < .25 || roadAt(x, z, 1.5) || routeDistance(x, z) < 2.4 || paved(x, z) || plantBlocked(x, z, .8) ||
         patches.some(point => Math.hypot(point.x - x, point.z - z) < 2.5)) return;
       place('bush_cluster', x, z, foliageRandom() * Math.PI * 2, scale, y - .12, 'undergrowth');
       patches.push({ x, z });
@@ -547,7 +589,7 @@ export function createWorld(): WorldSpec {
     }
   }
 
-  const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary };
+  const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary, mudBaths, trampolines };
   const graph = world.navigation = buildNavigation(world), seen = new Set<number>();
   let mainRoutes: number[] = [];
   for (let start = 0; start < graph.points.length; start++) {
@@ -573,6 +615,7 @@ export function createWorld(): WorldSpec {
     if (component.length > townRoutes.length) townRoutes = component;
   }
   const clear = (x: number, z: number, radius = .75) => {
+    if (playAreaAt(x, z, radius + .5)) return false;
     const y = walkableHeight(x, z, world);
     if (y < .55 || Math.abs(x) > 120 || Math.abs(z) > 120) return false;
     if (Math.hypot(ground(x + .6, z) - ground(x - .6, z), ground(x, z + .6) - ground(x, z - .6)) / 1.2 > .6) return false;
