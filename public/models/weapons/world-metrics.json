@@ -1,6 +1,6 @@
 {
   "source": "painted-weapons.glb",
-  "sourceSha256": "93821f63df2e36eb4e2d7b4facd87c79b69ceacadc4b232d388ccfe8d4f05088",
+  "sourceSha256": "89497231d76b79ebeae337d7f57df92050e59adff1747cc1e71a3bd586946246",
   "forward": "-Z",
   "material": "shared painted atlas with authored contact shading",
   "weapons": {
@@ -19,7 +19,7 @@
     "m4": {
       "sourceTriangles": 18410,
       "scale": 0.84,
-      "near": 2195,
+      "near": 2191,
       "far": 380
     },
     "shotgun": {
@@ -51,7 +51,19 @@
       "scale": 0.8,
       "near": 850,
       "far": 240
+    },
+    "revolver": {
+      "sourceTriangles": 6912,
+      "scale": 0.72,
+      "near": 1400,
+      "far": 280
+    },
+    "coco": {
+      "sourceTriangles": 7352,
+      "scale": 0.84,
+      "near": 1896,
+      "far": 360
     }
   },
-  "bundledBytes": 1635141
+  "bundledBytes": 2041183
 }

@@ -17,17 +17,3 @@ export const WEAPON_HIP_POSES: Record<WeaponId, WeaponHipPose> = {
   coco: { x: .30, y: -.13, z: -.77, scale: .80, pitch: -.14 },
 };
 
-// Code-built arsenal: the stock butt sits at the shoulder just behind the eye,
-// so long guns read from above and behind like a held rifle, not a floating prop.
-export const TOON_HIP_POSES: Record<WeaponId, WeaponHipPose> = {
-  pistol: { x: .15, y: -.17, z: -.5, scale: .9, yaw: .1 },
-  smg: { x: .19, y: -.2, z: -.5, scale: .8, yaw: .1 },
-  m4: { x: .2, y: -.2, z: -.53, scale: .78, yaw: .1, pitch: .03 },
-  shotgun: { x: .2, y: -.2, z: -.55, scale: .78, yaw: .1, pitch: .03 },
-  dmr: { x: .2, y: -.21, z: -.55, scale: .78, yaw: .1, pitch: .03 },
-  sniper: { x: .2, y: -.21, z: -.57, scale: .76, yaw: .1, pitch: .03 },
-  machete: { x: .22, y: -.22, z: -.48, scale: .9, pitch: -.3, roll: -.12 },
-  slingshot: { x: .12, y: -.22, z: -.5, scale: .8 },
-  revolver: { x: .15, y: -.17, z: -.5, scale: .9, yaw: .1 },
-  coco: { x: .2, y: -.2, z: -.5, scale: .8, yaw: .1, pitch: .02 },
-};

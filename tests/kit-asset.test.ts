@@ -145,8 +145,10 @@ describe('island kit geometry and traversal contract', () => {
       [{ piece:'house_small', x:43, y:2, z:-22, yaw:Math.PI / 2, scale:1.3 }]);
     await kit.ready; scene.updateMatrixWorld(true);
     const meshes: THREE.Mesh[] = [];
-    scene.traverse(object => { if (object instanceof THREE.Mesh) meshes.push(object); });
+    scene.traverse(object => { if (object instanceof THREE.Mesh && object.name !== 'interior-windows') meshes.push(object); });
     expect(meshes).toHaveLength(3);
+    // The house's rooms also get their inner window panes, merged into one extra mesh.
+    expect(scene.getObjectByName('interior-windows')).toBeDefined();
     const bounds = new THREE.Box3().setFromObject(meshes[0]);
     const center = bounds.getCenter(new THREE.Vector3()), size = bounds.getSize(new THREE.Vector3());
     expect(center.x).toBeCloseTo(43, 0); expect(center.z).toBeCloseTo(-22, 0);

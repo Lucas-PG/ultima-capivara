@@ -18,6 +18,7 @@ const specs = {
   pistol: [.70, 1400, 280], smg: [.88, 1700, 320], m4: [.84, 2200, 380],
   shotgun: [.84, 1900, 350], dmr: [.84, 1900, 360], sniper: [.84, 2000, 380],
   machete: [.90, 650, 180], slingshot: [.80, 850, 240],
+  revolver: [.72, 1400, 280], coco: [.84, 1900, 360],
 };
 const result = {};
 const report = { source: 'painted-weapons.glb', sourceSha256: createHash('sha256').update(source).digest('hex'),

@@ -7,7 +7,7 @@ import palette from './weapon-palette.json';
 
 export const PAINTED_WEAPON_URL = `${import.meta.env.BASE_URL}models/weapons/painted-weapons.glb`;
 export const paintedWeaponsEnabled = () => typeof location === 'undefined' || new URLSearchParams(location.search).get('weapons') !== 'legacy';
-export const PAINTED_WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
+export const PAINTED_WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot', 'revolver', 'coco'];
 
 export interface PaintedWeaponModel {
   group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D;

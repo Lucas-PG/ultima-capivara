@@ -36,7 +36,7 @@ type QaApi = {
 
 declare global { interface Window { __capyQA?: QaApi } }
 
-const WEAPONS: WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
+const WEAPONS: WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete', 'slingshot'];
 const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
 const TRAMPOLINE_POSES = ['trampolineBounce', 'trampolineAir'];
 const SUPPLY_POSES = ['supplyIncoming', 'supplyDescending', 'supplyLanded', 'supplyOpened'];
@@ -46,7 +46,7 @@ const ACCESS_POSES = ['fortStairBottom', 'fortStairTop', 'fortWallNorth', 'light
 const ROOM_POSES = ['home', 'bakery', 'cafe', 'tailor', 'clinic', 'fisher', 'fishmonger', 'workshop', 'kiosk',
   'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
   'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks',
-  'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2'].map(role => `room-${role}`);
+  'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2', 'home-back', 'cafe-back', 'upper-home-back'].map(role => `room-${role}`);
 const VIEWS: Record<string, [number, number, number, number]> = {
   plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
   river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
@@ -76,7 +76,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
   let placedRoutes: Map<string, Vec3[]> | undefined;
-  const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
+  const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `ads-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES, ...ACCESS_POSES, ...ROOM_POSES,
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
@@ -104,7 +104,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (MUD_POSES.includes(name) && !bath) throw new Error('A revisão precisa de um banho de lama no mapa.');
     if (TRAMPOLINE_POSES.includes(name) && !trampoline) throw new Error('A revisão precisa de um trampolim no mapa.');
     if (SUPPLY_POSES.includes(name) && !supply) throw new Error('A revisão precisa de uma entrega em solo seco e acessível.');
-    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name.startsWith('tp-') ? 'capySide' : name === 'cocoBlast' ? 'plaza' : name] || VIEWS.plaza;
+    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name] || VIEWS.plaza;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
     if (name.startsWith('world-')) pitch = -.5;
@@ -194,8 +194,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       me.yaw = yaw; me.pitch = pitch;
     }
     if (ROOM_POSES.includes(name)) {
-      const upper = name.startsWith('room-upper-'), requested = /-([012])$/.exec(name)?.[1];
-      const role = name.slice(upper ? 11 : 5).replace(/-[012]$/, '');
+      const upper = name.startsWith('room-upper-'), requested = /-([012])$/.exec(name)?.[1], back = name.endsWith('-back');
+      const role = name.slice(upper ? 11 : 5).replace(/-[012]$/, '').replace(/-back$/, '');
       const piece = deps.world.pieces!.filter(piece => requested === undefined || roomVariant(piece) === Number(requested))
         .find(piece => ['church', 'market_hall', 'warehouse', 'beach_kiosk'].includes(role) ?
         piece.piece === role : (upper ? piece.piece === 'house_tall' : piece.piece.startsWith('house_')) && buildingRole(piece) === role);
@@ -204,15 +204,15 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const route = placedRoutes.get(`${piece.id}/${upper ? 'upper-room' : 'ground-room'}`);
       if (!route) throw new Error(`No ground entrance for ${name}`);
       const floor = buildingRooms(piece).find(floor => floor.id === (upper ? 'upper-room' : 'ground-room'))!;
-      const reviewPoint = buildingPoint(piece, [upper ? 1 : 0, floor.y, floor.bounds[3] - .6]);
+      const reviewPoint = buildingPoint(piece, [upper ? 1 : 0, floor.y, back ? floor.bounds[1] + .6 : floor.bounds[3] - .6]);
       const walked = walkTraversal(deps.world, me, [...route, reviewPoint]);
       if (!walked.ok) throw new Error(`Room review cannot walk to ${name}: ${walked.reason}`);
       Object.assign(me, walked.actor); me.velocity = { x: 0, y: 0, z: 0 };
-      yaw = piece.yaw + (upper ? -.12 : 0); pitch = -.15;
+      yaw = piece.yaw + (upper ? -.12 : 0) + (back ? Math.PI : 0); pitch = -.15;
       me.yaw = yaw; me.pitch = pitch;
     }
-    const weaponReview = /^(?:fp|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
-    me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : weaponReview || 'pistol', ammo: 12, reserve: 50, rarity: 0, box: 0 }];
+    const weaponReview = /^(?:fp|ads|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
+    me.ads = name === 'scope' || name.startsWith('ads-'); me.weapons = [{ id: name === 'scope' ? 'sniper' : weaponReview || 'pistol', ammo: 12, reserve: 50, rarity: 0, box: 0 }];
     me.slot = 0;
     const emote = EMOTE_IDS.find(id => name === `emote-${id}`);
     if (emote) { me.emote = emote; me.emoteUntil = s.time + EMOTES[emote].duration; me.crouch = emote === 'sit' || emote === 'chill'; }
@@ -327,6 +327,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       }
       if (jumper.bounceSeq !== initialBounce + 1 || jumper.grounded || !jumper.bounceProtected)
         throw new Error('A revisão precisa lançar uma capivara pelo contato real do trampolim.');
+    }
+    if (name.startsWith('ads-') || name.startsWith('fp-')) {
+      // Settle the weapon: draw, sway and the aim-down-sights blend run on real frame time.
+      for (let i = 0; i < 45; i++) { s.time += 1 / 60; renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 44); }
     }
     if (name === 'cocoBlast') {
       // A real coconut impact 9 m ahead, rendered 0.15 s into the burst.

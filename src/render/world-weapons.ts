@@ -3,18 +3,11 @@ import type { WeaponId } from '../shared/types';
 import data from './world-weapon-data.json';
 import palette from './weapon-palette.json';
 import { createPaintedWeaponAtlas } from './weapon-atlas';
-import { bakeToonWeapon } from './toon-weapons';
 
-// The code-built arsenal is the default everywhere; ?weapons=painted restores the Blender set.
-const paintedSet = () => typeof location !== 'undefined' && ['painted', 'legacy'].includes(new URLSearchParams(location.search).get('weapons') || '');
 
 let material: THREE.MeshStandardMaterial | undefined;
 // Shared by held and instanced ground weapons. Other loot keeps its own paint.
 export function worldWeaponMaterial(): THREE.MeshStandardMaterial {
-  if (!material && !paintedSet()) {
-    material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .08 });
-    material.name = 'toon-world-weapons';
-  }
   if (!material) {
     const source = createPaintedWeaponAtlas(palette.map(hex => parseInt(hex, 16)), 512);
     const pixels = new Uint8Array(512 * 512 * 4), strip = source.image.data!;
@@ -37,8 +30,7 @@ export function worldWeaponMaterial(): THREE.MeshStandardMaterial {
 }
 
 export function worldWeaponGeometry(id: WeaponId, detail: 'near' | 'far'): THREE.BufferGeometry {
-  if (!paintedSet() || !(id in data)) return bakeToonWeapon(id, detail);
-  const packed = data[id as keyof typeof data][detail], geometry = new THREE.BufferGeometry();
+  const packed = data[id][detail], geometry = new THREE.BufferGeometry();
   geometry.name = `painted-world:${id}:${detail}`;
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(packed.position.map(value => value / 100000), 3));
   geometry.setAttribute('normal', new THREE.Int16BufferAttribute(packed.normal, 3, true));

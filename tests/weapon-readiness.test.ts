@@ -95,7 +95,7 @@ describe('painted first-person integration', () => {
         if (PAINTED_WEAPON_IDS.includes(object.name as never) && object instanceof THREE.Group) visibleRoots.push(object.name);
         if (object instanceof THREE.Mesh && object.geometry === geometry) variants.add(object.material as THREE.Material);
       });
-      expect(visibleRoots).toHaveLength(32); expect(variants.size).toBe(4);
+      expect(visibleRoots).toHaveLength(PAINTED_WEAPON_IDS.length * 4); expect(variants.size).toBe(4);
       const resources = [geometry, material, material.map!, ...variants];
       for (const variant of variants) resources.push((variant as THREE.MeshStandardMaterial).map!);
       const dispose = resources.map(resource => vi.spyOn(resource, 'dispose'));

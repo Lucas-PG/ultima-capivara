@@ -770,7 +770,7 @@ def bake_weapon_ao(meshes):
 
 
 report = {'palette': PALETTE, 'weapons': []}
-for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot']:
+for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot', 'revolver', 'coco']:
     root = group(weapon)
     body = group(weapon + '_body', root)
     magazine = group(weapon + '_magazine', root)
@@ -850,6 +850,37 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
                     ellipsoid('Bolt_knob', action, (.162, -.03, .063), (.027, .026, .027), 4)
             else:
                 sight_y = sights(body, -.48, .08, .09)
+    elif weapon == 'revolver':
+        # Heavy six-shooter: slate frame and top strap, fluted steel cylinder,
+        # ribbed barrel and walnut panels over the tested pistol grip.
+        profile('Frame', body, [(-.21, .072), (.10, .072), (.135, .03), (.14, -.03), (.06, -.052), (-.21, -.045)], .07, 26, .008, 1)
+        cylinder('Cylinder', magazine, (0, .012, -.025), .053, .118, 1, sides=18)
+        for i in range(6):
+            a = i / 6 * math.tau
+            block('Cylinder_flute', magazine, (math.cos(a) * .052, .012 + math.sin(a) * .052, -.025), (.011, .011, .092), 0, .003)
+        cylinder('Barrel', body, (0, .036, -.205), .027, .23, 26)
+        block('Barrel_rib', body, (0, .066, -.205), (.022, .018, .23), 0, .004, 1)
+        block('Ejector_housing', body, (0, .002, -.17), (.03, .026, .15), 26, .006)
+        cylinder('Bore', body, (0, .036, -.321), .017, .008, 23)
+        block('Hammer_spur', action, (0, .088, .118), (.018, .042, .032), 4, .005)
+        grip(body, True)
+        profile('Grip_walnut', body, [(.05, -.03), (.145, -.04), (.178, -.235), (.085, -.248), (.058, -.185)], .088, 2, .012, 3)
+        sight_y = sights(body, -.305, .085, .09)
+        muzzle_y, muzzle_z = .036, -.325
+    elif weapon == 'coco':
+        # Stubby coconut launcher: teal receiver, fat tube with brass hoops and
+        # a coconut seated in the mouth, walnut stock and foregrip.
+        profile('Receiver', body, [(-.20, .055), (.13, .055), (.17, .003), (.14, -.115), (-.18, -.115), (-.23, -.066)], .13, 5, .018, 1)
+        cylinder('Launch_tube', body, (0, .012, -.44), .074, .50, 5, sides=20)
+        for z in [-.29, -.55]:
+            cylinder('Brass_hoop', body, (0, .012, z), .080, .034, 22, sides=20)
+        cylinder('Tube_lip', body, (0, .012, -.695), .084, .05, 4, sides=20)
+        ellipsoid('Coconut', magazine, (0, .012, -.69), (.066, .064, .068), 21, detail=True)
+        profile('Foregrip', body, [(-.47, -.058), (-.30, -.058), (-.31, -.13), (-.46, -.125)], .1, 2, .012, 3)
+        stock(body, .40, True)
+        grip(body)
+        sight_y = sights(body, -.62, .07, .13)
+        muzzle_y, muzzle_z = .012, -.72
     elif weapon == 'machete':
         machete(body)
         muzzle_x, muzzle_y, muzzle_z, sight_y = -.083, .503, 0, 0
@@ -866,12 +897,15 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         muzzle_z -= .008  # Front surface of the authored bore disc.
     hero_detail(weapon, body, action, magazine)
     # Teal accent and rarity stripe use the same atlas in all eight classes.
-    side_x = .054 if weapon == 'pistol' else .041 if weapon == 'machete' else .049 if weapon == 'slingshot' else .062
+    side_x = .054 if weapon == 'pistol' else .041 if weapon in ['machete', 'revolver'] else .049 if weapon == 'slingshot' else .07 if weapon == 'coco' else .062
     if weapon == 'machete':
         block('Rarity_grip_heel', body, (0, -.184, .009), (.060, .006, .044), 9, .002)
     elif weapon == 'slingshot':
         block('Teal_signature', body, (side_x, -.034, .015), (.011, .023, .076), 5, .003)
         link('Rarity_grip_band', body, (0, -.190, .0822), (0, -.174, .0751), .058, 9)
+    elif weapon == 'revolver':
+        block('Teal_signature', body, (side_x, .045, .03), (.011, .02, .06), 5, .003)
+        block('Rarity_stripe', body, (side_x + .001, -.02, .045), (.009, .03, .07), 9, .003)
     else:
         block('Teal_signature', body, (side_x, -.034, .015), (.011, .023, .076), 5, .003)
         block('Rarity_stripe', body, (side_x + .001, -.065, -.096), (.009, .034, .09), 9, .003)
@@ -881,6 +915,9 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         for side in [-1, 1]:
             for y in [-.069, -.108]:
                 block('Gold_grip_inlay', legendary, (side * .031, y, .006), (.002, .021, .029), 12, .001)
+    elif weapon == 'revolver':
+        cylinder('Gold_cylinder_band', legendary, (0, .012, .03), .055, .012, 12, sides=18)
+        cylinder('Gold_muzzle_band', legendary, (0, .036, -.31), .03, .012, 12)
     elif weapon == 'slingshot':
         for side in [-1, 1]:
             link('Gold_fork_binding', legendary, (side * .094, .164, -.086),
@@ -889,7 +926,7 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         for side in [-1, 1]:
             for a, b in [((-.17, -.051), (-.12, -.026)), ((-.12, -.026), (-.08, -.049)), ((-.08, -.049), (-.04, -.028))]:
                 link('Gold_filigree', legendary, (side * (side_x + .005), a[1], a[0]), (side * (side_x + .005), b[1], b[0]), .004, 12)
-    if weapon == 'pistol':
+    if weapon in ['pistol', 'revolver']:
         paw(right, 1, (.066, -.156, .123), (.23, -.34, .30))
         paw(left, -1, (-.067, -.178, .151), (-.24, -.31, .31))
     elif weapon == 'machete':
@@ -898,8 +935,8 @@ for weapon in ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'sl
         paw(right, 1, (.06, -.10, .07), (.23, -.28, 0))
         paw(left, -1, (-.025, .045, .21), (-.24, -.23, .005))
     else:
-        support_z = -.380 if weapon == 'shotgun' else -.325 if weapon in ['dmr', 'sniper'] else -.300 if weapon == 'm4' else -.265
-        support_y = -.140 if weapon == 'shotgun' else -.095 if weapon == 'm4' else -.101 if weapon == 'smg' else -.100
+        support_z = -.380 if weapon in ['shotgun', 'coco'] else -.325 if weapon in ['dmr', 'sniper'] else -.300 if weapon == 'm4' else -.265
+        support_y = -.140 if weapon in ['shotgun', 'coco'] else -.095 if weapon == 'm4' else -.101 if weapon == 'smg' else -.100
         paw(right, 1, (.072, -.177, .092), (.24, -.285, .22))
         # The support elbow sits below the viewport, keeping the cuff at its
         # lower edge instead of crossing the frame with the upper sleeve.
