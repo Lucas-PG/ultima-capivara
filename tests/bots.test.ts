@@ -6,6 +6,7 @@ import { walkableHeight } from '../src/shared/navigation';
 import { WEAPONS } from '../src/shared/weapons';
 import { createWorld } from '../src/shared/world';
 import type { ActorState, Difficulty, GameEvent, InputFrame, WorldSpec } from '../src/shared/types';
+import { swimReady } from '../src/shared/inventory';
 
 type Runtime = { state: ActorState; brain: any; input: InputFrame; lastInputAt: number };
 
@@ -220,7 +221,7 @@ describe('legacy bot behaviour', () => {
     // River crossings are allowed; swimmers must keep their heads above the surface.
     for (const a of grounded.filter(a => a.state.alive && a.state.swimming)) {
       expect(a.state.pos.y + 1.62).toBeGreaterThan(0);
-      expect(a.state.weapons[a.state.slot].id).toBe('pistol');
+      expect(swimReady(a.state.weapons[a.state.slot].id)).toBe(true);
     }
   }, 45_000);
 

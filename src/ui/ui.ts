@@ -7,7 +7,7 @@ import { ARENA } from '../shared/layout';
 import { terrainHeight } from '../shared/terrain';
 import { boundaryFeedback } from '../shared/bounds';
 import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
-import { BOX_LABELS, indexOfBox, planPickup } from '../shared/inventory';
+import { BOX_LABELS, indexOfBox, planPickup, sidearmIndex } from '../shared/inventory';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon, emoteIcon } from './icons';
 import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
@@ -415,7 +415,7 @@ export class GameUI {
     if (air) { this.text('altTxt', `${Math.max(0, Math.round(me.pos.y - terrainHeight(me.pos.x, me.pos.z)))} m`); this.text('altHint', me.stage === 'falling' ? `${jump} abre o paraquedas` : 'WASD plana'); }
     this.attr(this.el('torso'), 'transform', `rotate(${(me.lean * 16).toFixed(0)} 30 56)`); this.attr(this.el('figure'), 'transform', `translate(0 ${me.crouch ? 15 : 0})`);
     // Posture chip: quiet when standing, labelled and highlighted when it matters.
-    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? me.weapons.some(w => w.id === 'pistol') ? 'Nadando · só pistola' : 'Nadando · sem pistola' : me.soaking ? me.hp < 100 ? 'Banho de lama · recuperando vida' : 'Relaxando' : emoting ? EMOTES[me.emote!].label : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
+    const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? sidearmIndex(me.weapons) >= 0 ? 'Nadando · só pistola' : 'Nadando · sem pistola' : me.soaking ? me.hp < 100 ? 'Banho de lama · recuperando vida' : 'Relaxando' : emoting ? EMOTES[me.emote!].label : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
     this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance); this.toggle(this.el('stance'), 'swimming', me.swimming);
     if (me.alive) this.deathInfo = null;
     let banner = '';

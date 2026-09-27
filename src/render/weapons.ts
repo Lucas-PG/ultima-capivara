@@ -15,6 +15,7 @@ import { advanceAds, WEAPONS } from '../shared/weapons';
 import { sampleMelee, smoothPose, weaponShotDuration,
   MELEE_SECONDS, MELEE_CONTACT, MELEE_HIT_STOP, type MeleePose } from '../shared/weapon-presentation';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
+import { swimReady } from '../shared/inventory';
 
 const palette = {
   // Painted local colours stay readable under the continuous warm key.
@@ -778,7 +779,7 @@ export class WeaponView {
     const modelScale = pose?.scale ?? .72;
     this.holder.scale.setScalar(modelScale);
     const swimBob = Math.sin(this.breathingTime * 2.1) * .009 * motion * this.swimPose;
-    const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, ads) + this.swimPose * (weapon === 'pistol' ? .035 : -.18) + swimBob;
+    const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, ads) + this.swimPose * (swimReady(weapon) ? .035 : -.18) + swimBob;
     this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, ads) + Math.sin(this.gait) * bob * .4 + swayX * motion * (1 - ads * .85),
       hipY + breath + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - lower * 1.05 + (swayY + landing) * motion - sprint * .08 - wall * .12 - magazineMotion * .045,
       THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, ads) + this.kick * .8 + wall * .08 + sprint * .07);

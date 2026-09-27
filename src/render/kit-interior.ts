@@ -13,7 +13,7 @@ const ROOM_PALETTES = [
 export function paintKitPlacement(geometry: THREE.BufferGeometry, placement: KitPlacement) {
   const palette = placement.paintVariant === undefined ? undefined : ROOM_PALETTES[placement.paintVariant];
   const decor = palette && (placement.piece === 'rug' || placement.piece === 'wall_picture');
-  const floors = placement.interiorFloor && /^house_(small|tall)$/.test(placement.piece)
+  const floors = placement.interiorFloor && /^house_(small|medium|tall)$/.test(placement.piece)
     ? KIT_PIECES[placement.piece].traversal?.floors : undefined;
   if (!decor && !floors) return;
   const uv = geometry.getAttribute('uv'), color = geometry.getAttribute('color');

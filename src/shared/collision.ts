@@ -6,6 +6,7 @@ import { waterAt } from './water';
 import { emoteInput } from './emotes';
 import { mudBathAt } from './recreation';
 import type { ActorState, Collider, InputFrame, Mode, Vec3, WorldSpec } from './types';
+import { sidearmIndex } from './inventory';
 
 const RADIUS = .32;
 const STEP = .45;
@@ -154,7 +155,7 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     p.y = Math.max(ground, nextWater.surfaceY - SWIM_DRAFT); actor.velocity.y = 0; actor.grounded = false;
     actor.crouch = actor.sprint = actor.ads = false; actor.lean = 0;
     actor.emote = null; actor.emoteUntil = 0;
-    const pistol = actor.weapons.findIndex(w => w.id === 'pistol');
+    const pistol = sidearmIndex(actor.weapons);
     if (pistol >= 0 && actor.slot !== pistol) { actor.slot = pistol; actor.reloadUntil = 0; actor.shotHeat = 0; }
   } else if (p.y <= ground) { p.y = ground; actor.velocity.y = 0; actor.grounded = true; }
   else actor.grounded = false;

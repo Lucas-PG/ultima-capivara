@@ -82,6 +82,16 @@ export function interiorPlacements(building: KitPlacement): KitPlacement[] {
       }
       add(room, 'wall_picture', -3.29, 1.8, Math.PI / 2, 1, 1.35);
       add(room, 'rug', 0, .15, 0, .65);
+    } else if (building.piece === 'house_medium') {
+      // The wide single-storey shop: a counter wall, a sitting corner and a working corner.
+      const domestic = ['home', 'clinic', 'fisher'].includes(role);
+      add(room, domestic ? 'stove' : ['bakery', 'cafe'].includes(role) ? 'stove' : 'crate', 3.55, -2.6, -Math.PI / 2, domestic || ['bakery', 'cafe'].includes(role) ? 1 : .6);
+      add(room, 'chair', -2.3, -2.4);
+      add(room, 'chair', -1.2, 2.55, Math.PI);
+      add(room, domestic ? 'potted_plant' : 'shelf_pottery', -3.95, 2.45, Math.PI / 2);
+      add(room, 'potted_plant', -3.9, -2.95);
+      add(room, 'wall_picture', -4.29, -1.2, Math.PI / 2, 1, 1.35);
+      add(room, 'rug', 0, .15, 0, .75);
     } else if (building.piece === 'house_tall') {
       if (role === 'barracks') {
         add(room, 'interior_counter', 2.3, -2.75);

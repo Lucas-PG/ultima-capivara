@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
+import { ARENA, ARENA_CENTER, BRIDGES, HOUSE_SIZE, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -79,7 +79,10 @@ export function createWorld(): WorldSpec {
     x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
   const playAreaAt = (x: number, z: number, margin: number) => [mudBaths, trampolines].some(sites =>
     sites.some(site => Math.hypot(site.x - x, site.z - z) < site.radius + margin));
-  const occupied = (x: number, z: number, margin: number) => playAreaAt(x, z, margin) || colliders.some(c =>
+  // A house lot is occupied as a whole: its hollow room is not open ground for dressing.
+  const lotAt = (x: number, z: number, margin: number) => [...HOUSES, ...MORRO_LOTS].some(h =>
+    Math.abs(x - h.x) < h.w / 2 + margin && Math.abs(z - h.z) < h.d / 2 + margin);
+  const occupied = (x: number, z: number, margin: number) => playAreaAt(x, z, margin) || lotAt(x, z, margin) || colliders.some(c =>
     x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
   const pavement = (x: number, z: number, width: number, depth: number, color = '#d5c1a0') => {
     const y = ground(x, z);
@@ -97,7 +100,7 @@ export function createWorld(): WorldSpec {
 
   // Vila: narrow side streets open onto a church square and a covered market.
   for (const h of [...HOUSES, ...MORRO_LOTS]) {
-    const y = ground(h.x, h.z), width = h.piece === 'house_tall' ? 8 : 7, depth = h.piece === 'house_tall' ? 7 : 6;
+    const y = ground(h.x, h.z), [width, depth] = HOUSE_SIZE[h.piece];
     const house = place(h.piece, h.x, h.z, h.yaw ?? 0, 1, y, h.role);
     const furnish = (piece: string, x: number, z: number, yaw = 0) => {
       const point = groundRoomPoint(house, x, z, yaw);
@@ -119,7 +122,7 @@ export function createWorld(): WorldSpec {
   }
   const shopNames = { bakery: 'PADARIA', cafe: 'CAFÉ DA VILA', tailor: 'ATELIÊ', fishmonger: 'PEIXE FRESCO', workshop: 'OFICINA', kiosk: 'ARMAZÉM', home: 'BOM DIA', fisher: 'PEIXE FRESCO', clinic: 'CAPIVARAS' };
   for (const [index, h] of [...HOUSES, ...MORRO_LOTS].entries()) {
-    const y = ground(h.x, h.z), width = h.piece === 'house_tall' ? 8 : 7, depth = h.piece === 'house_tall' ? 7 : 6;
+    const y = ground(h.x, h.z), [width, depth] = HOUSE_SIZE[h.piece];
     const mural = lotPoint(h, width / 2 + .17, -.5), shop = lotPoint(h, -width / 2 - .75, depth / 2 + .45);
     const laundry = lotPoint(h, 0, depth / 2 + 1.25), bike = lotPoint(h, width / 2 + 1.15, 1.1);
     obj('box', mural.x, y + 1.75, mural.z, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, (h.yaw ?? 0) + Math.PI / 2);
@@ -447,7 +450,7 @@ export function createWorld(): WorldSpec {
 
   // Planting frames the facades while the doors retain a wide central aisle.
   for (const h of [...HOUSES, ...MORRO_LOTS]) {
-    const width = h.piece === 'house_tall' ? 8 : 7, depth = h.piece === 'house_tall' ? 7 : 6;
+    const [width, depth] = HOUSE_SIZE[h.piece];
     for (const side of [-1, 1]) {
       const flowers = KIT_PIECES.flower_bed;
       const { x, z } = lotPoint(h, side * (1.4 + (flowers?.footprint[0] ?? 2.4) / 2), depth / 2 + 1.7);
@@ -533,7 +536,7 @@ export function createWorld(): WorldSpec {
   // Buried cliff solids should not erase the jungle above them. Keep roots on
   // terrain and reject only geometry that actually rises through the planting.
   const plantBlocked = (x: number, z: number, margin: number) => {
-    if (playAreaAt(x, z, margin + .6)) return true;
+    if (playAreaAt(x, z, margin + .6) || lotAt(x, z, margin)) return true;
     const y = ground(x, z);
     return colliders.some(c => c.max.y > y + .3 && c.min.y < y + 2 &&
       x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
@@ -660,7 +663,7 @@ export function createWorld(): WorldSpec {
     if (!target) throw new Error(`Sem margem livre para a árvore ${plant.id}.`);
     plant.pos = target;
   }
-  for (const building of pieces) if (building.piece === 'house_small' || building.piece === 'house_tall')
+  for (const building of pieces) if (/^house_(small|medium|tall)$/.test(building.piece))
     building.interiorFloor = ['clinic', 'workshop', 'fishmonger'].includes(buildingRole(building)) ? 'warm-tile' : 'wood';
   for (const building of [...pieces]) for (const furniture of interiorPlacements(building)) {
     pieces.push(furniture); colliders.push(...kitColliders(furniture));

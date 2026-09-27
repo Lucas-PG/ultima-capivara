@@ -52,3 +52,7 @@ export function validLoadout(weapons: readonly { box?: unknown }[]) {
   }
   return true;
 }
+
+// Swimming keeps one paw free: only the sidearm box can be held or fired.
+export const swimReady = (id: WeaponId | undefined) => !!id && WEAPON_CLASS[id] === 'sidearm';
+export const sidearmIndex = (weapons: readonly WeaponState[]) => weapons.findIndex(w => swimReady(w.id));

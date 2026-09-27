@@ -11,7 +11,7 @@ import { BotBuildingRoutes } from './building-routes';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
 import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
-import { canDrop, defaultBox, insertWeapon, planPickup } from '../shared/inventory';
+import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
@@ -232,7 +232,7 @@ export class Simulation {
     else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) actor.triggerQueued = action; }
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
-      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot && (!s.swimming || s.weapons[action.slot].id === 'pistol')) {
+      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot && (!s.swimming || swimReady(s.weapons[action.slot].id))) {
         this.setSlot(s, action.slot);
       }
     } else if (action.type === 'drop') this.dropHeld(actor);
@@ -429,7 +429,7 @@ export class Simulation {
     if (water && ground <= water.surfaceY - SWIM_DEPTH && s.pos.y <= water.surfaceY - SWIM_DRAFT) {
       s.pos.y = Math.max(ground, water.surfaceY - SWIM_DRAFT); s.velocity.y = 0; s.stage = 'ground'; a.landedAt = this.time;
       s.swimming = true; s.grounded = false; s.crouch = s.sprint = s.ads = false; s.lean = 0; s.bounceProtected = false;
-      const pistol = s.weapons.findIndex(w => w.id === 'pistol');
+      const pistol = sidearmIndex(s.weapons);
       if (pistol >= 0 && s.slot !== pistol) { s.slot = pistol; s.reloadUntil = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; }
       this.waterTransition(a);
       return;
@@ -643,7 +643,7 @@ export class Simulation {
   // `aim` is the bot path: a direction plus the legacy aim-error cone (radians).
   private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }) {
     const s = a.state, w = s.weapons[s.slot], def = w && WEAPONS[w.id];
-    if (!w || !def || s.stage !== 'ground' || s.using || s.emote || this.time < a.nextShot || (s.swimming && w.id !== 'pistol')) return;
+    if (!w || !def || s.stage !== 'ground' || s.using || s.emote || this.time < a.nextShot || (s.swimming && !swimReady(w.id))) return;
     if (!def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return;
     if (s.reloadUntil) {
       if (w.id !== 'shotgun' || w.ammo === 0) return;
@@ -1030,7 +1030,7 @@ export class Simulation {
     else if (s.consumables.medkit) this.startConsume(a, 'medkit');
   }
   private bestWeapon(s: ActorState) {
-    if (s.swimming) { const pistol = s.weapons.findIndex(w => w.id === 'pistol'); return pistol < 0 ? s.slot : pistol; }
+    if (s.swimming) { const pistol = sidearmIndex(s.weapons); return pistol < 0 ? s.slot : pistol; }
     let best = s.slot, value = -1;
     s.weapons.forEach((w, i) => { const v = botValue(w.id, w.rarity) + (w.id === 'machete' ? -5 : 0); if (v > value) { value = v; best = i; } });
     return best;
