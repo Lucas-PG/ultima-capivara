@@ -23,7 +23,7 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 ### Done
 - **Inventory** (`src/shared/inventory.ts`, simulation `giveWeapon`/`dropHeld`/`dropGun`): four fixed boxes (1-2 long guns, 3 sidearm, 4 facão). Keys always mean the same box. Picking up a gun of a full class swaps it with the held gun of that class (or box 1) and drops the old one with its magazine and reserve. Same gun tops up ammo. G drops the held gun. Royale eliminations drop the victim's guns. Arena drops fade after 25 s; royale keeps up to 48. The F prompt names the swap ("Trocar SMG → M4"). Empty boxes show what belongs there and shake when pressed. Protocol v10 carries `box`.
 - **First-person arsenal: REVERTED to production.** A code-built set (toon-weapons) was tried; the user and an A/B against production (hip and ADS, same pose) showed it was worse (flat sight pictures, odd M4 paws). Production's Blender-painted set is the default again, and the revolver and Lança-coco were authored in the same Blender pipeline (`tools/blender/weapons.py`), so all 10 guns share one style; the 8 existing guns rebuilt byte-identical (same triangles, bounds, sights). Rule going forward: every visual change gets a same-pose A/B against production before landing.
-- **Tools:** `tools/qa/capture.mjs` (QA poses), `tools/qa/play.mjs` (headless live match driver), `tools/qa/viewmodel.html` (all weapons on one sheet: `?mode=hip|ads|side&weapon=`).
+- **Tools:** `tools/qa/capture.mjs` (QA poses; `QUERY=...` adds URL params), `tools/qa/play.mjs` (headless live match driver with a scripted `hunt` player).
 
 - **Consistency:** ground pickups and third-person guns come from the painted GLB via `build-world-weapons.mjs`, now including the two new guns.
 - **HUD:** first-match coach card moved top-left, off the weapon.
@@ -72,5 +72,5 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 ## Next action
 1. Places: road grid and wide empty fields between districts (cover lines, district props); flower beds pinch door approaches (bots grind at them).
 2. Terrain/lighting: large flat grass and sand areas read bare.
-3. Remaining bot hotspots: (-84,-78) Morro east and (54,24) river bank.
+3. Remaining bot hotspots: (-84,-78) Morro east and (54,24) river bank. Tried adding four river stairs (all pass the climb-out test at x -24, 14, 52, 52); east-river stuck fell but 12-seed BR stuck rose 1.79 -> 2.34 with a new cluster near the west bridge (-42,0), so it was reverted.
 4. Rule: every visual change is checked in the same pose before and after, and must be a clear improvement.
