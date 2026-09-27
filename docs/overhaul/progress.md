@@ -13,9 +13,9 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 | # | Milestone | State |
 |---|---|---|
 | M1 | Hands and arsenal: inventory rules, first-person weapons and paws | in progress |
-| M2 | Island look: water, light, sky, materials | not started |
+| M2 | Island look: water, light, sky, materials | water done; light/materials open |
 | M3 | Places: district identity, buildings and interiors, prop placement | not started |
-| M4 | Combat feel, weapon variety, bots, audio, pacing (full matches) | not started |
+| M4 | Combat feel, weapon variety, bots, audio, pacing (full matches) | 2 new weapons done |
 | M5 | Multiplayer restore and verification with real clients | not started |
 
 ## M1 log
@@ -25,16 +25,25 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 - **First-person arsenal** (`src/render/toon-weapons.ts`): all 8 weapons rebuilt from code (extruded side silhouettes with bevels, ink hull outlines, rarity accent paint, legendary trim) with capybara paws wrapped around each real grip, fur forearms and rolled teal sleeves. New framing `TOON_HIP_POSES`: stock at the shoulder, gun shown from above-behind. Default set; `?weapons=painted` and `?weapons=legacy` keep the old ones for comparison.
 - **Tools:** `tools/qa/capture.mjs` (QA poses), `tools/qa/play.mjs` (headless live match driver), `tools/qa/viewmodel.html` (all weapons on one sheet: `?mode=hip|ads|side&weapon=`).
 
+- **Consistency:** ground pickups and third-person guns are baked from the same builders (`bakeToonWeapon`, paw-less, near/far detail within 2200/900 tris).
+- **HUD:** first-match coach card moved top-left, off the weapon.
+- **New weapons:** Trinta-e-oito revolver (sidearm, 6 x 46 dmg, precise) and Lança-coco (primary, arcing coconut, 4.2 m line-of-sight splash, 40% self-damage). Cartoon burst effect, icons, bot tuning, chest weights, synth audio. Corrente ladder is now 10 steps.
+
+### M2 log
+- **Water** (`src/render/water.ts`): new stylized shader: depth-graded mint/turquoise/teal, animated Voronoi cell highlights in patches, sky fresnel, crisp toon sun glints, shore lip plus two rolling foam bands. Low preset skips the cell layers.
+
 ### Checks
-- `npx vitest run`: 714 passed (6 new inventory intent tests, 9 arsenal contract tests).
+- `npx vitest run`: 717 passed (inventory, arsenal contract, coconut splash intent tests).
+- `npx playwright test --project=chromium`: 4/4 (host + guest game over local PeerJS, protocol v11).
+- `scripts/bot-trials.ts 6 normal`: no regression vs baseline 514f0f9 (BR stuck 2.15 vs 2.27 per bot-minute; pre-existing weakness).
+- Frame time, live Correria, headless Chrome on this Mac (Apple Silicon, 1280x720, medium preset): p50 16.7 ms, p99 16.8 ms, 310 draws, 1.42M tris.
 - Live headless playtests (Chrome, Apple Silicon Mac, 1280x720): SMG, pistol, facão idle/fire/swing/reload render correctly; HUD boxes and labels correct.
 
 ### Open in M1
 - Long-gun support paw is small and mostly hidden; stock still looms on rifles.
 - Reload/equip animations are the old generic ones; no pump/bolt hand motion.
 - Third-person and world pickup models still use the old painted set (mismatch with FP).
-- Weapon variety: only 8 weapons; plan at least a throwable and one more distinct gun in M4.
 - HUD ammo card and coach card overlap the lower-right weapon area.
 
 ## Next action
-Finish M1 polish (support paw visibility, stock, world/TP model match), then start M2 water.
+M3: break architectural repetition (use the unused `house_medium` kit piece, district signatures), then M2 light/materials, then M4 bots (BR stuck rate), then M5 multiplayer pass.
