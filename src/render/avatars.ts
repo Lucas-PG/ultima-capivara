@@ -3,7 +3,7 @@ import { applyCharacterStyle } from './materials';
 import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
 import { itemGeometry } from './item-geometry';
 import { worldWeaponMaterial } from './world-weapons';
-import { addEllipsoid } from './primitives';
+import { makeParachute } from './aircraft';
 import { WEAPONS } from '../shared/weapons';
 import type { AvatarReaction } from './effects';
 import { Nameplate, nameplateFontSize, nameplateHit, stackNameplate } from './nameplates';
@@ -32,12 +32,7 @@ export function avatar(color: string, name: string): Avatar {
   // The held weapon rides on the arms bone, so it aims with the paws.
   const weapon = new THREE.Mesh(new THREE.BufferGeometry(), worldWeaponMaterial());
   weapon.position.copy(WEAPON_MOUNT); weapon.castShadow = true; bones[CAPY_BONES.arms].add(weapon);
-  const chute = new THREE.Group(); group.add(chute);
-  addEllipsoid(chute, '#e6c280', 0, 3.65, 0, 1.9, .32, 1.18);
-  for (const x of [-1.6, 1.6]) for (const z of [-.9, .9]) {
-    const start = new THREE.Vector3(x, 3.65, z), end = new THREE.Vector3(x * .15, 1.25, z * .15);
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
-  }
+  const chute = makeParachute(color); group.add(chute);
   const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
   return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false, bounceAge: Infinity };
 }

@@ -8,29 +8,11 @@ import { capybaraHasClip } from './capybara';
 import { terrainHeight } from '../shared/terrain';
 import type { ActorState, RenderFrame, Settings, Vec3, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
-import { addBox, addEllipsoid } from './primitives';
 import type { PresentationFrame } from './local-presentation';
 
-const material = (color: string) => new THREE.MeshStandardMaterial({ color, emissive: '#000000', roughness: .8, metalness: .04 });
 const AXES = ['x', 'y', 'z'] as const;
 const ease = (t: number) => t * t * (3 - 2 * t);
 type CameraMode = 'orbit' | 'chase' | 'emote' | 'fps';
-export function makePlane(): THREE.Group {
-  const group = new THREE.Group();
-  addBox(group, '#e0ddd0', 0, 0, 0, 3.4, 1.7, 14);
-  addEllipsoid(group, '#e8e7dc', 0, 0, -7.2, 1.65, .88, 2.3);
-  addBox(group, '#dfc06e', 0, -.15, -1, 21, .24, 3.2);
-  addBox(group, '#dfc06e', 0, 1.1, 5.6, 8.5, .2, 1.6);
-  addBox(group, '#b8c3bb', 0, 2.4, 5.9, .24, 3, 1.5);
-  for (const x of [-5.2, 5.2]) {
-    const engine = new THREE.Mesh(new THREE.CylinderGeometry(.6, .6, 2.4, 12), material('#9ca9a8'));
-    engine.rotation.x = Math.PI / 2; engine.position.set(x, -.5, -1); group.add(engine);
-    const prop = new THREE.Mesh(new THREE.BoxGeometry(.13, 3.8, .08), material('#c7af75'));
-    prop.position.set(x, -.5, -2.3); prop.name = 'propeller'; group.add(prop);
-  }
-  return group;
-}
-
 function segmentAabb(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number, min: Vec3, max: Vec3): number {
   let near = 0, far = maxDistance;
   for (const axis of AXES) {
