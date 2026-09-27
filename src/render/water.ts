@@ -139,8 +139,11 @@ export class PaintedWater {
           vec3 sunDirection=normalize(vec3(-70.0,32.0,-30.0));
           vec3 halfDirection=normalize(viewDirection+sunDirection);
           float spec=pow(max(0.0,dot(waterNormal,halfDirection)),90.0);
-          float glint=smoothstep(.35,.45,spec*(.6+.8*brush));
+          // Crisp glints only where waves are resolvable; far water gets a smooth sheen instead of stipple.
+          float glintNear=1.0-smoothstep(25.0,90.0,distanceToEye);
+          float glint=smoothstep(.35,.45,spec*(.6+.8*brush))*glintNear;
           color=mix(color,vec3(1.0,.93,.78),glint*.85);
+          color+=vec3(1.0,.8,.55)*pow(max(0.0,dot(normalize(vec3(-viewDirection.x,viewDirection.y,-viewDirection.z)),sunDirection)),40.0)*.35*(1.0-glintNear);
           color+=vec3(1.0,.7,.35)*pow(max(0.0,dot(waterNormal,halfDirection)),24.0)*.18;
           // Shore: a solid lip plus foam bands rolling in toward the sand.
           float lip=1.0-smoothstep(.05,.24+.08*sin(uTime*.8+wash*6.0),shoreDistance);
