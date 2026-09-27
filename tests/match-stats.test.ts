@@ -14,7 +14,7 @@ function match() {
   const runtime = sim as any, shooter = runtime.actors.get('a'), target = runtime.actors.get('b');
   const fire = (distance: number, weapon: WeaponId = 'pistol') => {
     shooter.state.pos = { x: 0, y, z: 0 }; target.state.pos = { x: 0, y, z: -distance };
-    shooter.state.weapons = [{ id: weapon, ammo: WEAPONS[weapon].magazine, reserve: 0, rarity: 0 }];
+    shooter.state.weapons = [{ id: weapon, ammo: WEAPONS[weapon].magazine, reserve: 0, rarity: 0, box: 0 }];
     shooter.state.slot = 0; shooter.nextShot = 0; shooter.wasFiring = false; target.history = [];
     runtime.fire(shooter, 0, undefined, { dir: { x: 0, y: 0, z: -1 }, cone: 0 });
   };

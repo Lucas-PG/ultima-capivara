@@ -60,7 +60,7 @@ describe('authoritative character reactions', () => {
   });
 
   it('simplifies a distant held pistol without changing its socket and avoids LOD flicker', () => {
-    const h = harness(); h.actor.weapons = [{ id: 'pistol', ammo: 12, reserve: 24, rarity: 0 }];
+    const h = harness(); h.actor.weapons = [{ id: 'pistol', ammo: 12, reserve: 24, rarity: 0, box: 2 }];
     h.advance(1 / 60);
     const near = h.visual.weapon.geometry, socket = h.visual.weapon.position.clone();
     camera.position.set(0, 1.6, 18); h.advance(1 / 60);
@@ -96,7 +96,7 @@ describe('authoritative character reactions', () => {
     expect(arm.scale.x).toBeCloseTo(.95, 4);
     h.advance(2);
     expect(arm.scale.x).toBeCloseTo(.95, 4);
-    h.actor.weapons = [{ id: 'm4', ammo: 30, reserve: 90, rarity: 0 }];
+    h.actor.weapons = [{ id: 'm4', ammo: 30, reserve: 90, rarity: 0, box: 0 }];
     h.advance(2);
     expect(arm.scale.x).toBeCloseTo(1, 4);
   });

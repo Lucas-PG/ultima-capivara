@@ -20,7 +20,7 @@ it('starts a newly selected weapon at hip even if the previous sight was fully a
   const sim = new Simulation(world, { mode: 'deathmatch', capacity: 1, bots: false, difficulty: 'normal', duration: 300 },
     [{ id: 'a', name: 'A', color: '#111111', ready: true, connected: true }], 'ads-switch', 1);
   const actor = sim.snapshot().actors[0];
-  actor.weapons = [{ id: 'smg', ammo: 25, reserve: 75, rarity: 0 }, { id: 'm4', ammo: 30, reserve: 90, rarity: 0 }];
+  actor.weapons = [{ id: 'smg', ammo: 25, reserve: 75, rarity: 0, box: 0 }, { id: 'm4', ammo: 30, reserve: 90, rarity: 0, box: 1 }];
   actor.slot = 1;
   actor.ads = true;
   const model = () => ({ group: { visible: true, rotation: { x: 0, z: 0 } }, support: { position: { set: noop }, rotation: { x: 0 } }, sightY: .1, hipX: .2, adsZ: -.3 });

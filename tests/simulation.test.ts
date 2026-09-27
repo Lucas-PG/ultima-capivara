@@ -87,7 +87,7 @@ describe('authoritative simulation', () => {
     const sim = new Simulation(world(true), config, [profiles[0]], 'ray-spread', 911);
     advance(sim, 3.1);
     const actor = (sim as any).actors.get('a');
-    actor.state.weapons[0] = { id: 'm4', ammo: 2000, reserve: 0, rarity: 0 };
+    actor.state.weapons[0] = { id: 'm4', ammo: 2000, reserve: 0, rarity: 0, box: 0 };
     actor.state.slot = 0;
     actor.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
     actor.state.yaw = actor.state.pitch = 0;
@@ -184,7 +184,7 @@ describe('authoritative simulation', () => {
     shooter.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
     target.state.pos = { x: 0, y: terrainHeight(0, -5), z: -5 };
     target.state.protectionUntil = 0;
-    shooter.state.weapons[0] = { id: 'shotgun', ammo: 6, reserve: 6, rarity: 0 };
+    shooter.state.weapons[0] = { id: 'shotgun', ammo: 6, reserve: 6, rarity: 0, box: 0 };
     shooter.state.slot = 0; shooter.adsAmount = 1;
     shooter.state.yaw = 0;
     shooter.state.pitch = Math.atan2(target.state.pos.y + 1.6 - shooter.state.pos.y - 1.62, 5);
@@ -711,7 +711,7 @@ describe('authoritative simulation', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'shells', 123);
     advance(sim, 5.1);
     const actor = (sim as any).actors.get('a').state as ActorState;
-    actor.weapons = [{ id: 'shotgun', ammo: 0, reserve: 6, rarity: 0 }];
+    actor.weapons = [{ id: 'shotgun', ammo: 0, reserve: 6, rarity: 0, box: 0 }];
     actor.slot = 0;
     sim.action('a', { type: 'reload', id: 1 });
     advance(sim, .57);
@@ -791,7 +791,7 @@ describe('authoritative simulation', () => {
       const shooter = (sim as any).actors.get('a'), target = (sim as any).actors.get('b');
       // The ray grazes the front of the head sphere: a hit facing -z (yaw 0), a miss facing +z.
       shooter.state.pos = { x: -5, y: terrainHeight(0, 0), z: -.27 };
-      shooter.state.weapons[0] = { id: 'sniper', ammo: 5, reserve: 0, rarity: 0 };
+      shooter.state.weapons[0] = { id: 'sniper', ammo: 5, reserve: 0, rarity: 0, box: 0 };
       shooter.adsAmount = 1;
       target.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
       target.state.yaw = Math.PI; target.state.protectionUntil = 0;

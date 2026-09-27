@@ -11,6 +11,7 @@ import { BotBuildingRoutes } from './building-routes';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
 import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
+import { canDrop, defaultBox, insertWeapon, planPickup } from '../shared/inventory';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
@@ -83,6 +84,8 @@ export class Simulation {
   private readonly landings: Vec3[] = [];
   private botCount = 0;
   private readonly spentDrops = new Map<LootState, number>();
+  // Guns players let go of: arena copies fade after a while, royale piles stay but are capped.
+  private readonly droppedGuns = new Map<LootState, number>();
   private readonly approaches = new Map<string, Vec3 | 'open' | 'none'>();
   private readonly events: GameEvent[] = [];
   private readonly projectiles: Projectile[] = [];
@@ -166,7 +169,7 @@ export class Simulation {
     throw new Error('World has no safe spawn point');
   }
   private inArena(p: Vec3) { return inArena(p.x, p.z); }
-  private makeWeapon(id: WeaponId, rarity = 0): WeaponState { return { id, ammo: WEAPONS[id].magazine, reserve: AMMO[id], rarity }; }
+  private makeWeapon(id: WeaponId, rarity = 0): WeaponState { return { id, ammo: WEAPONS[id].magazine, reserve: AMMO[id], rarity, box: defaultBox(id) }; }
   private addActor(profile: PlayerProfile, bot: boolean) {
     if (this.actors.has(profile.id)) return;
     const spawn = this.spawnPoint(profile.id);
@@ -230,9 +233,10 @@ export class Simulation {
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
       if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot && (!s.swimming || s.weapons[action.slot].id === 'pistol')) {
-        s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0;
+        this.setSlot(s, action.slot);
       }
-    } else if (action.type === 'reload') this.startReload(actor);
+    } else if (action.type === 'drop') this.dropHeld(actor);
+    else if (action.type === 'reload') this.startReload(actor);
     else if (action.type === 'consume') this.startConsume(actor, action.item);
     else if (action.type === 'interact') this.interact(actor, action.target);
   }
@@ -347,6 +351,7 @@ export class Simulation {
     }
     if (!this.correnteWinner) this.updateProjectiles();
     for (const loot of this.loot) if (!loot.active && loot.respawnAt && this.time >= loot.respawnAt) { loot.active = true; loot.respawnAt = 0; }
+    for (const [loot, until] of this.droppedGuns) if (this.time >= until) { this.droppedGuns.delete(loot); if (loot.active) { loot.active = false; this.spentDrops.set(loot, this.time + 1); } }
     for (const [loot, until] of this.spentDrops) if (this.time >= until) { this.loot.splice(this.loot.indexOf(loot), 1); this.spentDrops.delete(loot); }
     if (this.correnteWinner || this.config.mode === 'deathmatch' && this.time >= this.config.duration + 3) this.finish();
     if (this.config.mode === 'battle-royale') {
@@ -536,7 +541,7 @@ export class Simulation {
       return;
     }
     if (!loot) return;
-    if (loot.kind === 'weapon') this.giveWeapon(s, loot.weapon || 'pistol', loot.rarity);
+    if (loot.kind === 'weapon') this.giveWeapon(s, loot.weapon || 'pistol', loot.rarity, loot);
     else if (loot.kind === 'ammo') { for (const w of s.weapons) if (w.id !== 'machete') w.reserve = Math.min(AMMO[w.id] * 3, w.reserve + WEAPONS[w.id].magazine); }
     else if (loot.kind === 'armor') s.armor = Math.min(100, s.armor + 50);
     else if (loot.kind === 'helmet') s.helmet = Math.min(60, s.helmet + 60);
@@ -578,11 +583,62 @@ export class Simulation {
     }
     return { x: chest.x, y: chest.y, z: chest.z };
   }
-  private giveWeapon(s: ActorState, id: WeaponId, rarity: number) {
-    const existing = s.weapons.find(w => w.id === id);
-    if (existing) { existing.rarity = Math.max(existing.rarity, rarity); existing.reserve = Math.min(AMMO[id] * 3, existing.reserve + AMMO[id]); return; }
-    if (s.weapons.length < 4) s.weapons.push(this.makeWeapon(id, rarity));
-    else { const slot = s.weapons.findIndex(w => w.id !== 'machete' && w.id !== 'pistol'); s.weapons[slot < 0 ? 0 : slot] = this.makeWeapon(id, rarity); }
+  // See planPickup: the same gun tops up, a free box fills, a full class swaps
+  // and the replaced gun lands at the player's feet with its ammo intact.
+  private giveWeapon(s: ActorState, id: WeaponId, rarity: number, source?: Pick<LootState, 'ammo' | 'reserve'>) {
+    const plan = planPickup(s.weapons, s.slot, id);
+    const incoming = this.makeWeapon(id, rarity);
+    if (source?.ammo !== undefined) incoming.ammo = Math.min(WEAPONS[id].magazine, source.ammo);
+    if (source?.reserve !== undefined) incoming.reserve = Math.min(AMMO[id] * 3, source.reserve);
+    if (plan.kind === 'merge') {
+      const existing = s.weapons[plan.index];
+      existing.rarity = Math.max(existing.rarity, rarity);
+      existing.reserve = Math.min(AMMO[id] * 3, existing.reserve + (WEAPONS[id].melee ? 0 : incoming.ammo + incoming.reserve));
+      return;
+    }
+    const held = s.weapons[s.slot];
+    incoming.box = plan.box;
+    if (plan.kind === 'swap') {
+      const [old] = s.weapons.splice(plan.index, 1);
+      this.dropGun(s, old);
+    }
+    const index = insertWeapon(s.weapons, incoming);
+    // Equip what replaced the held gun, or the first gun picked up while holding the facão.
+    const equip = plan.kind === 'swap' ? held?.box === plan.box : !held || WEAPONS[held.id].melee;
+    const selected = equip ? index : s.weapons.indexOf(held);
+    this.setSlot(s, selected < 0 ? index : selected);
+  }
+  private setSlot(s: ActorState, index: number) {
+    if (index === s.slot && s.weapons[index]) return;
+    const actor = this.actors.get(s.id);
+    s.slot = index; s.reloadUntil = 0; s.useUntil = 0; s.using = null; s.shotHeat = 0;
+    if (actor) { actor.shotHeat = 0; actor.adsAmount = 0; }
+  }
+  private dropHeld(a: ActorRuntime) {
+    const s = a.state, held = s.weapons[s.slot];
+    if (this.config.mode === 'corrente' || s.stage !== 'ground' || !canDrop(held) || s.swimming) return;
+    s.weapons.splice(s.slot, 1);
+    this.dropGun(s, held);
+    // Fall to the next box down, wrapping to the facão.
+    const next = s.weapons.findIndex(w => w.box > held.box);
+    s.slot = -1; this.setSlot(s, next < 0 ? s.weapons.length - 1 : next);
+  }
+  private dropGun(s: ActorState, weapon: WeaponState, side = 0) {
+    if (WEAPONS[weapon.id].melee) return;
+    const heading = s.yaw, from = { x: s.pos.x, y: s.pos.y + 1, z: s.pos.z };
+    let x = s.pos.x - Math.sin(heading) * 1.1 + Math.cos(heading) * side, z = s.pos.z - Math.cos(heading) * 1.1 - Math.sin(heading) * side;
+    if (!hasLineOfSight(from, { x, y: s.pos.y + .3, z }, this.world) || waterAt(x, z)) { x = s.pos.x; z = s.pos.z; }
+    const y = s.swimming || waterAt(x, z) ? Math.max(terrainHeight(x, z), s.pos.y) : Math.max(terrainHeight(x, z), s.grounded ? s.pos.y : terrainHeight(x, z));
+    const loot: LootState = { id: `drop-${++this.dropSeq}`, kind: 'weapon', weapon: weapon.id, x, y, z, active: true, rarity: weapon.rarity,
+      respawnAt: 0, from, spawnedAt: this.time, ammo: weapon.ammo, reserve: weapon.reserve };
+    this.loot.push(loot);
+    this.droppedGuns.set(loot, this.time + (isArenaMode(this.config.mode) ? 25 : Infinity));
+    // Keep the royale snapshot bounded: the oldest dropped gun disappears first.
+    if (this.droppedGuns.size > 48) {
+      const [oldest] = this.droppedGuns.keys();
+      this.droppedGuns.delete(oldest);
+      if (oldest.active) { oldest.active = false; this.spentDrops.set(oldest, this.time + 1); }
+    }
   }
   // `aim` is the bot path: a direction plus the legacy aim-error cone (radians).
   private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }) {
@@ -713,6 +769,12 @@ export class Simulation {
     }
     target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
     if (isArenaMode(this.config.mode)) s.respawnAt = this.time + 3;
+    // A royale elimination leaves the guns behind, fanned out so each can be picked.
+    else if (s.stage === 'ground') {
+      const guns = s.weapons.filter(canDrop);
+      guns.forEach((gun, i) => this.dropGun(s, gun, (i - (guns.length - 1) / 2) * .8));
+      s.weapons = s.weapons.filter(w => !canDrop(w)); s.slot = 0;
+    }
     const from = killer && killer !== target ? killer.state.pos : null;
     this.emit({ type: 'kill', actor: killer?.state.id || null, target: s.id, weapon,
       ...(from ? { from: { ...from }, distance: Math.round(Math.hypot(from.x - s.pos.x, from.y - s.pos.y, from.z - s.pos.z)) } : {}) });

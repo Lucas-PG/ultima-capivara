@@ -16,7 +16,7 @@ function rig(settings: Settings = DEFAULT_SETTINGS, colliders: { id: string; min
   return new CameraRig(camera, world, settings, avatars as never);
 }
 const me = (alive: boolean): ActorState => ({ id: 'me', alive, pos: at(0, 0), velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0, stage: 'ground',
-  grounded: true, crouch: false, sprint: false, ads: false, weapons: [{ id: 'm4', ammo: 1, reserve: 1, rarity: 0 }], slot: 0 } as unknown as ActorState);
+  grounded: true, crouch: false, sprint: false, ads: false, weapons: [{ id: 'm4', ammo: 1, reserve: 1, rarity: 0, box: 0 }], slot: 0 } as unknown as ActorState);
 const frame = (alive: boolean, spectateId: string | null = null, dt = 1 / 60): RenderFrame => ({
   snapshot: { actors: [me(alive)], matchId: 'm' } as unknown as WorldSnapshot, playerId: 'me', spectateId, dt, playing: true,
   input: { yaw: 0, pitch: 0 } as RenderFrame['input'],

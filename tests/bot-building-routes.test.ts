@@ -26,7 +26,7 @@ function scenario(piece: KitPlacement, seed = 7, start?: Vec3) {
   Object.assign(actors.get('player')!.state, { alive: true, hp: 100, stage: 'ground', grounded: true,
     pos: { x: -110, y: terrainHeight(-110, -110), z: -110 }, protectionUntil: 1e9 });
   Object.assign(bot.state, { alive: true, hp: 100, stage: 'ground', grounded: true, pos: { ...(start ?? route.points[0]) },
-    velocity: { x: 0, y: 0, z: 0 }, weapons: [{ id: 'pistol', ammo: 17, reserve: 51, rarity: 0 }], slot: 0 });
+    velocity: { x: 0, y: 0, z: 0 }, weapons: [{ id: 'pistol', ammo: 17, reserve: 51, rarity: 0, box: 2 }], slot: 0 });
   bot.brain = createBrain(false, 2, bot.state.pos, 1); bot.brain.leisureAt = Infinity;
   Object.assign((sim as any).zone, { radius: 999, nextRadius: 900 });
   for (let i = 0; i < 181; i++) sim.step(1 / 60);

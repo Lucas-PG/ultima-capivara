@@ -9,7 +9,7 @@ const actor: ActorState = {
   pos: { x: 12.345, y: 0, z: -8.765 }, velocity: { x: .1, y: 0, z: -.2 }, yaw: 1.23456,
   pitch: .2, lean: 0, hp: 100, armor: 25, helmet: 10, alive: true, grounded: true,
   crouch: false, sprint: true, ads: false, stage: 'ground', kills: 0, deaths: 0, damage: 0,
-  weapons: [{ id: 'pistol', ammo: 12, reserve: 36, rarity: 0 }], slot: 0,
+  weapons: [{ id: 'pistol', ammo: 12, reserve: 36, rarity: 0, box: 2 }], slot: 0,
   consumables: { bandage: 1, medkit: 0, guarana: 0, acai: 0, rapadura: 0 }, reloadUntil: 0,
   useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 4, shotHeat: .32, swimming: false, wetUntil: 0,
   emote: null, emoteUntil: 0, weaponLevel: 0, soaking: false, bounceSeq: 0, bounceProtected: false,
@@ -45,9 +45,9 @@ describe('network protocol', () => {
 
   it('keeps ammo changes out of reliable gear and rebuilds each weapon slot from fast frames', () => {
     const weapons: ActorState['weapons'] = [
-      { id: 'smg', ammo: 25, reserve: 75, rarity: 0 },
-      { id: 'shotgun', ammo: 2, reserve: 12, rarity: 2 },
-      { id: 'machete', ammo: 0, reserve: 0, rarity: 0 },
+      { id: 'smg', ammo: 25, reserve: 75, rarity: 0, box: 0 },
+      { id: 'shotgun', ammo: 2, reserve: 12, rarity: 2, box: 1 },
+      { id: 'machete', ammo: 0, reserve: 0, rarity: 0, box: 3 },
     ];
     const before = { ...snapshot, actors: [{ ...actor, weapons, slot: 1 }] };
     const after = { ...snapshot, actors: [{ ...actor, weapons: weapons.map((w, i) =>
@@ -60,9 +60,9 @@ describe('network protocol', () => {
 
   it('bounds combined traffic for 21 actors and 15 guests at 20 Hz', () => {
     const many = { ...snapshot, actors: Array.from({ length: 21 }, (_, n) => ({ ...actor, id: `p-${String(n).padStart(12, '0')}`,
-      weapons: [{ id: 'smg' as const, ammo: 19, reserve: 68, rarity: 0 },
-        { id: 'pistol' as const, ammo: 12, reserve: 31, rarity: 0 },
-        { id: 'machete' as const, ammo: 0, reserve: 0, rarity: 0 }],
+      weapons: [{ id: 'smg' as const, ammo: 19, reserve: 68, rarity: 0, box: 0 },
+        { id: 'pistol' as const, ammo: 12, reserve: 31, rarity: 0, box: 2 },
+        { id: 'machete' as const, ammo: 0, reserve: 0, rarity: 0, box: 3 }],
       lastInput: 18_000, kills: 3, deaths: 2, damage: 300 })) };
     const wire = JSON.stringify(packet('frame', { wr: 1, gr: 1, data: fastPart(many) }));
     const baseline = JSON.stringify(packet('gear', { rev: 1, data: gearPart(many) })) +

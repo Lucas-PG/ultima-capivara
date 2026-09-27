@@ -58,16 +58,19 @@ describe('local input feel', () => {
     input.locked = true;
     const actions: { type: string; slot?: number; item?: string }[] = [];
     input.onAction = action => actions.push(action);
+    // Keys 1-4 name fixed hotbar boxes; main.ts maps a box to the weapon carried there.
+    input.onBox = box => actions.push({ type: 'slot', slot: box });
     const key = (code: string, down = true) => (input as any).key({ code, repeat: false, preventDefault: () => {} }, down);
     const mouse = (button: number, down = true) => (input as any).mouse({ button, preventDefault: () => {} }, down);
-    // Defaults: left mouse fires, right aims, 1-4 slots, 5-9 cures, Tab scoreboard.
+    // Defaults: left mouse fires, right aims, 1-4 boxes, G drops, 5-9 cures, Tab scoreboard.
     mouse(0); expect(input.frame.fire).toBe(true); expect(actions.at(-1)!.type).toBe('trigger'); mouse(0, false);
     mouse(2); expect(input.sample(0).ads).toBe(true); mouse(2, false);
     key('Digit3'); expect(actions.at(-1)).toMatchObject({ type: 'slot', slot: 2 });
     key('Digit8'); expect(actions.at(-1)).toMatchObject({ type: 'consume', item: 'acai' });
+    key('KeyG'); expect(actions.at(-1)).toMatchObject({ type: 'drop' });
     key('Tab'); expect(input.scoreboard).toBe(true); key('Tab', false); expect(input.scoreboard).toBe(false);
     // Remapped: fire on a side button, slot 1 on Q, bandage on G, sprint held on the other side button.
-    input.setSettings({ ...DEFAULT_SETTINGS, bindings: { ...DEFAULT_SETTINGS.bindings, fire: 'Mouse3', slot1: 'KeyQ', leanLeft: 'KeyZ', useBandage: 'KeyG', sprint: 'Mouse4' } });
+    input.setSettings({ ...DEFAULT_SETTINGS, bindings: { ...DEFAULT_SETTINGS.bindings, fire: 'Mouse3', slot1: 'KeyQ', leanLeft: 'KeyZ', useBandage: 'KeyG', drop: 'KeyX', sprint: 'Mouse4' } });
     const before = actions.length;
     mouse(0); expect(input.frame.fire).toBe(false); expect(actions.length).toBe(before);
     mouse(3); expect(input.frame.fire).toBe(true); mouse(3, false); expect(input.frame.fire).toBe(false);

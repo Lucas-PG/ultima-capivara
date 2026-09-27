@@ -3,6 +3,7 @@ import { createWorld } from './shared/world';
 import { moveActor } from './shared/collision';
 import { clamp } from './shared/math';
 import { closestInteraction as findInteraction } from './shared/interaction';
+import { indexOfBox } from './shared/inventory';
 import { WEAPONS } from './shared/weapons';
 import { DEATH_CAM_SECONDS } from './shared/death-cam';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot } from './shared/types';
@@ -326,6 +327,11 @@ input.onCycle = direction => {
   if (!me || me.weapons.length < 2) return;
   const slot = (me.slot + direction + me.weapons.length) % me.weapons.length;
   sendAction({ type: 'slot', id: input.actionIdNext(), slot });
+};
+input.onBox = box => {
+  const me = snapshot?.actors.find(a => a.id === playerId), slot = me ? indexOfBox(me.weapons, box) : -1;
+  if (slot >= 0) sendAction({ type: 'slot', id: input.actionIdNext(), slot });
+  else ui.flashEmptyBox(box);
 };
 input.onInteract = () => { interaction = closestInteraction(); if (interaction) sendAction({ type: 'interact', id: input.actionIdNext(), target: interaction.id }); };
 input.onPause = () => { input.onCancelEmote(); if (playing) ui.setPaused(true); };

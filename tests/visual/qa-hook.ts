@@ -212,7 +212,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       me.yaw = yaw; me.pitch = pitch;
     }
     const weaponReview = /^(?:fp|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
-    me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : weaponReview || 'pistol', ammo: 12, reserve: 50, rarity: 0 }];
+    me.ads = name === 'scope'; me.weapons = [{ id: name === 'scope' ? 'sniper' : weaponReview || 'pistol', ammo: 12, reserve: 50, rarity: 0, box: 0 }];
     me.slot = 0;
     const emote = EMOTE_IDS.find(id => name === `emote-${id}`);
     if (emote) { me.emote = emote; me.emoteUntil = s.time + EMOTES[emote].duration; me.crouch = emote === 'sit' || emote === 'chill'; }
@@ -228,7 +228,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const id = CORRENTE_LADDER[level];
       s.config.mode = 'corrente'; s.remaining = CORRENTE_LADDER.length - level;
       s.loot.forEach(item => { item.active = false; }); s.openedChests = deps.world.chests.map(chest => chest.id);
-      me.weaponLevel = me.kills = level; me.weapons = [{ id, ammo: WEAPON_DEFS[id].magazine, reserve: id === 'machete' ? 0 : 60, rarity: 0 }];
+      me.weaponLevel = me.kills = level; me.weapons = [{ id, ammo: WEAPON_DEFS[id].magazine, reserve: id === 'machete' ? 0 : 60, rarity: 0, box: 0 }];
     }
     s.actors = [me];
     for (let i = 1; i < actorCount; i++) {
@@ -363,7 +363,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       } else if (action === 'sprint') { me.sprint = true; me.velocity.z = -7; }
       else if (action === 'ads') me.ads = true;
       else if (action === 'equip') {
-        me.weapons.push({ id: weapon === 'pistol' ? 'm4' : 'pistol', rarity: 0, ammo: 12, reserve: 30 }); me.slot = 1;
+        me.weapons.push({ id: weapon === 'pistol' ? 'm4' : 'pistol', rarity: 0, ammo: 12, reserve: 30, box: 1 }); me.slot = 1;
       } else if (action === 'land') {
         me.grounded = false; me.velocity.y = -10; frame(1 / 60);
         me.grounded = true; me.velocity.y = 0;

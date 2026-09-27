@@ -11,7 +11,7 @@ it('projects burst beyond still spread, ADS inside hip spread, and fades only ir
   const sim = new Simulation(world, { mode: 'deathmatch', capacity: 1, bots: false, difficulty: 'normal', duration: 300 },
     [{ id: 'a', name: 'A', color: '#111111', ready: true, connected: true }], 'hud-test', 1);
   const me = sim.snapshot().actors[0];
-  me.weapons = [{ id: 'smg', ammo: 25, reserve: 75, rarity: 0 }];
+  me.weapons = [{ id: 'smg', ammo: 25, reserve: 75, rarity: 0, box: 0 }];
   me.slot = 0;
   const spread = new CrosshairSpread();
   const settings = { ...DEFAULT_SETTINGS };
@@ -47,7 +47,7 @@ it('projects burst beyond still spread, ADS inside hip spread, and fades only ir
   expect(spread.ticksOpacity).toBe(1);
   spread.reset();
   me.sprint = false;
-  me.weapons[0] = { id: 'machete', ammo: 0, reserve: 0, rarity: 0 };
+  me.weapons[0] = { id: 'machete', ammo: 0, reserve: 0, rarity: 0, box: 3 };
   spread.gap(me, settings, 900, 5000);
   spread.gap(me, settings, 900, 5200);
   expect(spread.ticksOpacity).toBe(1);

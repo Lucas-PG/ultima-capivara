@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 export const WORLD_VERSION = 'ilha-v3-rio-9';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -35,12 +35,14 @@ export type PlayerAction =
   | { type: 'reload'; id: number }
   | { type: 'slot'; id: number; slot: number }
   | { type: 'interact'; id: number; target: string }
+  | { type: 'drop'; id: number }
   | { type: 'consume'; id: number; item: ConsumableId }
   | { type: 'parachute'; id: number }
   | { type: 'jump'; id: number }
   | { type: 'emote'; id: number; emote: EmoteId | null }
   | { type: 'trigger'; id: number; yaw: number; pitch: number; lean: number; ads: boolean; clientTime: number };
-export interface WeaponState { id: WeaponId; ammo: number; reserve: number; rarity: number }
+// `box` is the fixed hotbar box (0-1 long guns, 2 sidearm, 3 facão); the array stays sorted by it.
+export interface WeaponState { id: WeaponId; ammo: number; reserve: number; rarity: number; box: number }
 export interface ActorState {
   id: string; name: string; color: string; bot: boolean; connected: boolean;
   pos: Vec3; velocity: Vec3; yaw: number; pitch: number; lean: number;
@@ -83,7 +85,8 @@ export interface WorldSpec {
 }
 // Loot spilled from a chest carries where it came from and when, so clients can
 // animate it arcing out; its x/y/z is already the landing spot.
-export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number; from?: Vec3; spawnedAt?: number }
+// A dropped gun keeps its magazine and reserve so swapping back loses nothing.
+export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number; from?: Vec3; spawnedAt?: number; ammo?: number; reserve?: number }
 export interface ZoneState { x: number; z: number; radius: number; nextRadius: number; nextX: number; nextZ: number; phase: number; shrinking: boolean; timeLeft: number; damage: number }
 export interface SupplyDropState {
   id: string; pos: Vec3; district: string; heading: number;

@@ -3,7 +3,7 @@ import { clamp } from './shared/math';
 
 export const DEFAULT_BINDINGS: Record<string, string> = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft',
-  jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', leanLeft: 'KeyQ', leanRight: 'KeyE', inspect: 'KeyI',
+  jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', drop: 'KeyG', leanLeft: 'KeyQ', leanRight: 'KeyE', inspect: 'KeyI',
   fire: 'Mouse0', ads: 'Mouse2', slot1: 'Digit1', slot2: 'Digit2', slot3: 'Digit3', slot4: 'Digit4',
   useBandage: 'Digit5', useMedkit: 'Digit6', useGuarana: 'Digit7', useAcai: 'Digit8', useRapadura: 'Digit9',
   scoreboard: 'Tab', map: 'KeyM', emote: 'KeyB',

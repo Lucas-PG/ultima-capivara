@@ -28,6 +28,8 @@ export class InputController {
   onInspect: () => void = () => {};
   onPause: () => void = () => {};
   onCycle: (direction: 1 | -1) => void = () => {};
+  // Keys 1-4 name hotbar boxes; the owner maps a box to the carried weapon in it.
+  onBox: (box: number) => void = () => {};
   private wheelAt = 0;
   private jumpPressedAt = -Infinity;
   private recoilPitch = 0;
@@ -111,10 +113,11 @@ export class InputController {
     if (!down || repeat) return;
     if ([binding.scoreboard, binding.map, binding.inspect, binding.interact].includes(code)) this.onCancelEmote();
     if (code === binding.reload) this.onAction({ type: 'reload', id: ++this.actionId });
+    if (code === binding.drop) this.onAction({ type: 'drop', id: ++this.actionId });
     if (code === binding.interact) this.onInteract();
     if (code === binding.inspect) this.onInspect();
     if (code === binding.jump) { this.jumpPressedAt = performance.now(); this.onAction({ type: 'jump', id: ++this.actionId }); }
-    SLOTS.forEach((action, slot) => { if (code === binding[action]) this.onAction({ type: 'slot', id: ++this.actionId, slot }); });
+    SLOTS.forEach((action, box) => { if (code === binding[action]) this.onBox(box); });
     for (const [action, item] of CONSUMABLE_ACTIONS) if (code === binding[action]) this.onAction({ type: 'consume', id: ++this.actionId, item });
   }
   // Refresh visual intent on every display frame without creating an input tick.

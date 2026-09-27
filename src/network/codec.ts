@@ -1,5 +1,6 @@
 import { PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type WorldSnapshot } from '../shared/types';
 import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
+import { validLoadout } from '../shared/inventory';
 import { EMOTE_IDS } from '../shared/emotes';
 
 export const MAX_CONTROL_BYTES = 512_000;
@@ -95,7 +96,7 @@ export function worldPart(snapshot: WorldSnapshot) {
 }
 
 export function gearPart(snapshot: WorldSnapshot) {
-  return snapshot.actors.map(a => ({ id: a.id, weapons: a.weapons.map(w => ({ id: w.id, rarity: w.rarity })), consumables: a.consumables }));
+  return snapshot.actors.map(a => ({ id: a.id, weapons: a.weapons.map(w => ({ id: w.id, rarity: w.rarity, box: w.box })), consumables: a.consumables }));
 }
 
 // The fixed-order tuple keeps fast frames small. Names, loot and weapon identities travel reliably on change.
@@ -148,7 +149,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       typeof profile.bot !== 'boolean' || !Array.isArray(kit.weapons) || kit.weapons.length < 1 || kit.weapons.length > 4 ||
       tuple.length !== ACTOR_FIELDS + kit.weapons.length * 2 ||
       !kit.weapons.every((w: any) => w && typeof w.id === 'string' && Object.hasOwn(WEAPONS, w.id) &&
-        Number.isSafeInteger(w.rarity) && w.rarity >= 0 && w.rarity <= 3) ||
+        Number.isSafeInteger(w.rarity) && w.rarity >= 0 && w.rarity <= 3) || !validLoadout(kit.weapons) ||
       !kit.consumables || typeof kit.consumables !== 'object' || !Number.isInteger(flags) || flags < 0 || flags > 511 ||
       !Number.isInteger(stage) || !Number.isInteger(using) || hp < 0 || hp > 100_000 || armor < 0 || armor > 100_000 ||
       helmet < 0 || helmet > 100_000 || Math.max(Math.abs(px), Math.abs(py), Math.abs(pz)) > 100_000 ||
@@ -159,7 +160,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       !kit.weapons.every((w: any, i: number) => Number.isSafeInteger(tuple[ACTOR_FIELDS + i * 2]) &&
         tuple[ACTOR_FIELDS + i * 2] >= 0 && tuple[ACTOR_FIELDS + i * 2] <= WEAPONS[w.id as keyof typeof WEAPONS].magazine &&
         Number.isSafeInteger(tuple[ACTOR_FIELDS + 1 + i * 2]) && tuple[ACTOR_FIELDS + 1 + i * 2] >= 0 && tuple[ACTOR_FIELDS + 1 + i * 2] <= 10_000)) return null;
-    const weapons = kit.weapons.map((w: any, i: number) => ({ id: w.id, rarity: w.rarity,
+    const weapons = kit.weapons.map((w: any, i: number) => ({ id: w.id, rarity: w.rarity, box: w.box,
       ammo: tuple[ACTOR_FIELDS + i * 2], reserve: tuple[ACTOR_FIELDS + 1 + i * 2] }));
     actors.push({ ...profile, pos: { x: px / 100, y: py / 100, z: pz / 100 },
       velocity: { x: vx / 100, y: vy / 100, z: vz / 100 }, yaw: yaw / 1000, pitch: pitch / 1000, lean: lean / 100,

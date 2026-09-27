@@ -7,6 +7,7 @@ import { ARENA } from '../shared/layout';
 import { terrainHeight } from '../shared/terrain';
 import { boundaryFeedback } from '../shared/bounds';
 import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
+import { BOX_LABELS, indexOfBox, planPickup } from '../shared/inventory';
 import { DEFAULT_BINDINGS, adaptNote } from '../settings';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon, emoteIcon } from './icons';
 import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
@@ -378,10 +379,11 @@ export class GameUI {
     // The magazine count ticks on every shot and reload; a weapon swap just changes the number.
     if (mag.textContent !== magText) { const tick = mag.dataset.slot === String(me.slot); mag.textContent = magText; mag.dataset.slot = String(me.slot); if (tick) this.restartAnimation(mag, 'tick'); } this.text('aRes', !weapon || !def || def.melee ? '' : `/ ${weapon.reserve}`);
     this.toggle(this.el('ammo'), 'low', !!weapon && !!def && !def.melee && weapon.ammo <= Math.ceil(def.magazine * .2));
-    const inventoryKey = JSON.stringify([me.weapons.map(w => [w.id, w.rarity, w.ammo]), me.slot]);
+    const inventoryKey = JSON.stringify([me.weapons.map(w => [w.id, w.rarity, w.ammo, w.box]), me.slot]);
     if (this.inventoryKey !== inventoryKey) {
       this.inventoryKey = inventoryKey;
-      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(i => { const w = me.weapons[i]; return `<div class="hs${i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${i + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : ''}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
+      // Boxes are fixed (two long guns, sidearm, facão); an empty box names what belongs there.
+      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(box => { const i = indexOfBox(me.weapons, box), w = me.weapons[i]; return `<div class="hs${w && i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" data-box="${box}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${box + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : `<em>${BOX_LABELS[box]}</em>`}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
     }
     // Consumables: only what you carry, each with its count; the slot key stays visible.
     let carried = 0;
@@ -465,6 +467,11 @@ export class GameUI {
     return gap;
   }
   // Interaction prompt: the item name takes its rarity colour, with a mini icon.
+  // A key for an empty box nudges that box instead of silently doing nothing.
+  flashEmptyBox(box: number) {
+    const slot = this.root.querySelector<HTMLElement>(`#hotbar .hs[data-box="${box}"]`);
+    if (slot) this.restartAnimation(slot, 'nope');
+  }
   private updatePrompt(me: ActorState, interaction: { id: string; name: string } | null) {
     const visible = !!interaction && me.alive && me.stage === 'ground'; this.show('prompt', visible);
     if (!visible || !interaction) return;
@@ -477,7 +484,12 @@ export class GameUI {
       holder.dataset.k = iconKey;
       holder.innerHTML = loot?.kind === 'weapon' ? weaponIcon(loot.weapon || 'pistol') : loot && loot.kind in CONSUMABLE_ICONS ? CONSUMABLE_ICONS[loot.kind as ConsumableId] : loot?.kind === 'armor' ? HUD_ART.shield : loot?.kind === 'helmet' ? HUD_ART.helmet : bath ? emoteIcon('chill') : chest ? icon('box') : '';
     }
-    this.text('promptVerb', bath ? 'Sentar' : chest ? 'Abrir' : 'Pegar'); this.text('promptItem', delivery ? 'entrega do Tucano' : bath ? 'banho de lama' : chest ? 'caixa de suprimentos' : interaction.name);
+    // Name the consequence before the key press: a swap says which carried gun hits the floor.
+    const plan = loot?.kind === 'weapon' && loot.weapon && this.snapshot?.config.mode !== 'corrente' ? planPickup(me.weapons, me.slot, loot.weapon) : null;
+    const swapped = plan?.kind === 'swap' ? me.weapons[plan.index] : null;
+    const verb = bath ? 'Sentar' : chest ? 'Abrir' : swapped ? 'Trocar' : plan?.kind === 'merge' ? 'Munição' : 'Pegar';
+    this.text('promptVerb', verb); this.text('promptItem', delivery ? 'entrega do Tucano' : bath ? 'banho de lama' : chest ? 'caixa de suprimentos' :
+      swapped ? `${WEAPONS[swapped.id].name} → ${interaction.name}` : interaction.name);
     this.style(this.el('prompt'), '--ic', color); this.text('promptKey', keyName(this.settings.bindings.interact));
   }
   private scoreTable(snapshot: WorldSnapshot) {
@@ -579,7 +591,7 @@ export class GameUI {
     const keys = (...codes: string[]) => `<span class="keys">${codes.map(code => `<kbd class="kc">${esc(code)}</kbd>`).join('')}</span>`;
     panel.innerHTML = `<div class="mc"><div class="eyebrow">Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'vivo' : 'vivos'}` : ''}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${online ? 'Menu' : 'Pausado'}</h1>${!online && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
       + `<div class="pboard"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><button type="button" class="play" data-do="resume">Voltar pra ilha</button><div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt quit" data-do="leave">Sair da partida</button></div></div><div id="lockErr" role="status"></div>`
-      + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'emote')))}gestos (segurar)</span></div>`
+      + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'drop')))}soltar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'emote')))}gestos (segurar)</span></div>`
       + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2)}</b></span><input type="range" data-quick="sensitivity" min="0.2" max="3" step="0.05" value="${this.settings.sensitivity}"></label>`
       + `<label><span>Campo de visão <b data-out="fov">${this.settings.fov}°</b></span><input type="range" data-quick="fov" min="60" max="105" step="1" value="${this.settings.fov}"></label></div>`
       + `</div>`;
@@ -689,7 +701,7 @@ export class GameUI {
   private controlsList(): [string, string][] {
     const b = (a: string) => keyName(bindingOf(this.settings.bindings, a)), list = (...a: string[]) => a.map(b).join(' ');
     return [[list('forward', 'left', 'back', 'right'), 'MOVER'], ['MOUSE', 'OLHAR'], [`${b('fire')} / ${b('ads')}`, 'ATIRAR / MIRAR'], [b('jump'), 'PULAR / PARAQUEDAS'],
-      [b('sprint'), 'CORRER'], [b('crouch'), 'AGACHAR'], [`${b('leanLeft')} / ${b('leanRight')}`, 'ESPIAR'], [b('interact'), 'PEGAR / ABRIR'], [b('reload'), 'RECARREGAR'],
+      [b('sprint'), 'CORRER'], [b('crouch'), 'AGACHAR'], [`${b('leanLeft')} / ${b('leanRight')}`, 'ESPIAR'], [b('interact'), 'PEGAR / ABRIR / TROCAR'], [b('drop'), 'SOLTAR ARMA'], [b('reload'), 'RECARREGAR'],
       [list('slot1', 'slot2', 'slot3', 'slot4'), 'TROCAR ARMA'], [list(...CONSUMABLE_ACTIONS), 'USAR CURA'], [b('scoreboard'), 'PLACAR'], [b('map'), 'MAPA DA ILHA'], [b('emote'), 'GESTOS (SEGURAR)']];
   }
   private howModal() {

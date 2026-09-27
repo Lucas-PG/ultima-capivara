@@ -140,7 +140,7 @@ describe('legacy bot behaviour', () => {
     // Keep the human alive (a lone survivor would end the match), parked and protected far away.
     const human = actors.get('player')!.state;
     Object.assign(human, { alive: true, hp: 100, stage: 'ground', grounded: true, pos: { x: -110, y: terrainHeight(-110, -110), z: -110 }, protectionUntil: 1e9 });
-    Object.assign(bot.state, { stage: 'ground', grounded: true, pos: { x: 0, y: terrainHeight(0, 0), z: 0 }, weapons: [{ id: 'pistol', ammo: 17, reserve: 51, rarity: 0 }, { id: 'machete', ammo: 0, reserve: 0, rarity: 0 }], slot: 0 });
+    Object.assign(bot.state, { stage: 'ground', grounded: true, pos: { x: 0, y: terrainHeight(0, 0), z: 0 }, weapons: [{ id: 'pistol', ammo: 17, reserve: 51, rarity: 0, box: 2 }, { id: 'machete', ammo: 0, reserve: 0, rarity: 0, box: 3 }], slot: 0 });
     bot.brain.jumpAt = Infinity; bot.brain.thinkAt = 0; bot.brain.lastPos = { ...bot.state.pos };
     (sim as any).zone.radius = 999; (sim as any).zone.nextRadius = 900;
     collect(sim, 8);

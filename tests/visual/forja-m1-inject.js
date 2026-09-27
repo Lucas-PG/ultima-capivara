@@ -115,7 +115,7 @@ window.__m1Pose = {
     me.stage = plan.plane ? 'plane' : 'ground'; me.grounded = !plan.plane;
     me.pos = { x: plan.camera.x, y: m1Ground(plan.camera.x, plan.camera.z), z: plan.camera.z };
     me.velocity = { x: 0, y: 0, z: 0 }; me.yaw = plan.yaw; me.pitch = 0;
-    me.weapons = [{ id: plan.weapon ? 'm4' : 'pistol', ammo: 30, reserve: 90, rarity: 0 }]; me.slot = 0;
+    me.weapons = [{ id: plan.weapon ? 'm4' : 'pistol', ammo: 30, reserve: 90, rarity: 0, box: 0 }]; me.slot = 0;
     bot.id = 'm1-bot'; bot.name = 'Capivara'; bot.bot = true;
     bot.stage = plan.plane ? 'plane' : 'ground'; bot.grounded = !plan.plane;
     const bx = plan.bot?.x ?? 1000, bz = plan.bot?.z ?? 1000;
