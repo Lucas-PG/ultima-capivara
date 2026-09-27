@@ -9,7 +9,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   use: { baseURL: 'http://127.0.0.1:5174', trace: 'retain-on-failure' },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Two full game clients need a real GPU; software GL stalls for seconds per frame.
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], ...(process.platform === 'darwin' ? {
+      channel: 'chrome', launchOptions: { args: ['--use-gl=angle', '--use-angle=metal'] } } : {}) } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],

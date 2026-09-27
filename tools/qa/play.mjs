@@ -4,10 +4,10 @@
 import { chromium } from '@playwright/test';
 const [out, mode = 'deathmatch', stepsJson = '[]'] = process.argv.slice(2);
 const steps = JSON.parse(stepsJson);
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch(process.env.BUNDLED ? {} : { channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
-await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?networkQa=1&calm`);
+await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?networkQa=1&calm${process.env.QUERY || ''}`);
 await page.locator(`[data-mode="${mode}"]`).click();
 await page.locator('[data-do="practice"]').click();
 await page.waitForFunction(() => { const s = window.__capivara?.inspect(); return s?.snapshot && !s.renderState.loading; }, null, { timeout: 90000 });

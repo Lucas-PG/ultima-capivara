@@ -19,8 +19,10 @@ describe('toon first-person arsenal', () => {
     }
     const box = new THREE.Box3().setFromObject(model.group);
     expect(box.min.x).toBeLessThan(0); expect(box.max.x).toBeGreaterThan(0);
-    let inked = 0; model.group.traverse(o => { if (o.name === 'ink') inked++; });
-    expect(inked).toBeGreaterThan(10);
+    // Batched for draw calls: ink everywhere, but only a few dozen meshes per held gun.
+    let inked = 0, meshes = 0; model.group.traverse(o => { if (o.name === 'ink') inked++; if (o instanceof THREE.Mesh) meshes++; });
+    expect(inked).toBeGreaterThan(0);
+    expect(meshes).toBeLessThan(45);
   });
   it('recolours only accent paint for rarity and shows legendary trim at tier 3', () => {
     const model = arsenal.create('m4', 0);

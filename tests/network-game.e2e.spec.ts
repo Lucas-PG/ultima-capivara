@@ -249,3 +249,55 @@ test('a silent room exposes the join timeout and its retry button recovers', asy
     await expect(guest.locator('.player-row')).toHaveCount(2);
   } finally { await Promise.all([host.close(), guest.close()]); }
 });
+
+// Inventory actions are new reliable messages: the guest's box selection, drop
+// and pickup must be decided by the host and replicated back unchanged.
+test('a Correria guest selects, drops and picks back a gun through the host', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'chromium', 'Rendered multiplayer smoke is the Chromium gate.');
+  test.setTimeout(180_000);
+  const contexts = await Promise.all([0, 1].map(() => browser.newContext({ viewport: { width: 1280, height: 720 } })));
+  const errors: string[] = [];
+  try {
+    for (const context of contexts) await context.addInitScript(() => {
+      if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+      localStorage.setItem('uc-v2-settings', JSON.stringify({ graphics: 'low', master: 0, frameLimit: 60 }));
+    });
+    const [host, guest] = await Promise.all(contexts.map(context => context.newPage()));
+    for (const page of [host, guest]) page.on('pageerror', error => errors.push(error.message));
+    await host.goto(gameAddress());
+    await host.locator('[data-do="host"]').click();
+    await host.locator('[name="nickname"]').fill('Ponte Host');
+    await host.getByRole('button', { name: 'Correria', exact: true }).click();
+    await host.locator('[name="bots"]').uncheck();
+    await host.locator('#room-form [type="submit"]').click();
+    await expect(host.locator('.invite-card strong')).toHaveText(/^[A-Z2-9]{6}$/);
+    const code = await host.locator('.invite-card strong').innerText();
+    await guest.goto(gameAddress(code));
+    await guest.locator('[name="nickname"]').fill('Ponte Guest');
+    await guest.locator('#room-form [type="submit"]').click();
+    await expect(guest.locator('#connection-status')).toHaveText(/Conectado/);
+    const guestId = (await inspect(guest)).room.myId;
+    await Promise.all([host.locator('[data-do="ready"]').click(), guest.locator('[data-do="ready"]').click()]);
+    await expect(host.locator('[data-do="start"]')).toBeEnabled({ timeout: 90_000 });
+    await host.locator('[data-do="start"]').click();
+    for (const page of [host, guest]) await expect.poll(async () => (await inspect(page)).snapshot?.phase, { timeout: 60_000 }).toBe('playing');
+    await controls(guest, 'activate');
+    const held = async (page: Page) => { const a = await player(page, guestId); return a.weapons[a.slot]?.id; };
+    const boxes = async (page: Page) => (await player(page, guestId)).weapons.map((w: any) => `${w.box}:${w.id}`).join(' ');
+    expect(await boxes(host)).toBe('0:smg 2:pistol 3:machete');
+    await controls(guest, 'key', 'Digit3', true); await controls(guest, 'key', 'Digit3', false);
+    await expect.poll(() => held(host)).toBe('pistol');
+    await expect.poll(() => held(guest)).toBe('pistol');
+    const ammo = (await player(host, guestId)).weapons[1].ammo;
+    await controls(guest, 'key', 'KeyG', true); await controls(guest, 'key', 'KeyG', false);
+    await expect.poll(() => boxes(host)).toBe('0:smg 3:machete');
+    await expect.poll(() => boxes(guest)).toBe('0:smg 3:machete');
+    const dropped = async (page: Page) => (await inspect(page)).snapshot.loot.find((l: any) => l.active && l.weapon === 'pistol' && l.ammo !== undefined);
+    await expect.poll(async () => (await dropped(guest))?.ammo).toBe(ammo);
+    await controls(guest, 'key', 'KeyF', true); await controls(guest, 'key', 'KeyF', false);
+    await expect.poll(() => boxes(host)).toBe('0:smg 2:pistol 3:machete');
+    expect((await player(host, guestId)).weapons.find((w: any) => w.id === 'pistol').ammo).toBe(ammo);
+    await expect.poll(async () => !!(await dropped(host))).toBe(false);
+    expect(errors).toEqual([]);
+  } finally { await Promise.all(contexts.map(context => context.close())); }
+});

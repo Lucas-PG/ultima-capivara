@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RARITY } from '../shared/rarity';
 import type { WeaponId } from '../shared/types';
 
@@ -157,8 +157,49 @@ export class ToonArsenal {
   create(id: WeaponId, rarity = 0): ToonWeaponModel {
     const model = BUILDERS[id](this);
     model.group.name = id;
+    if (this.paws) this.batch(model.group);
     this.setRarity(model, rarity);
     return model;
+  }
+
+  // Parts are authored as many small meshes; each rigid group (the gun, the
+  // magazine, the bolt, a paw...) is merged into one mesh per material plus
+  // one ink hull, so a held weapon costs a few dozen draws, not hundreds.
+  private batch(container: THREE.Object3D) {
+    for (const child of [...container.children]) if (!(child instanceof THREE.Mesh)) this.batch(child);
+    const meshes = container.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh && child.name !== 'ink');
+    if (meshes.length < 2) return;
+    const byMaterial = new Map<string, { material: THREE.Material; accent: boolean; parts: THREE.BufferGeometry[] }>();
+    const inks: THREE.BufferGeometry[] = [];
+    const prepare = (geometry: THREE.BufferGeometry, matrix: THREE.Matrix4, keepUv: boolean) => {
+      const flat = geometry.index ? geometry.toNonIndexed() : geometry.clone();
+      for (const name of Object.keys(flat.attributes)) if (name !== 'position' && name !== 'normal' && !(keepUv && name === 'uv')) flat.deleteAttribute(name);
+      if (keepUv && !flat.getAttribute('uv')) flat.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(flat.getAttribute('position').count * 2), 2));
+      flat.applyMatrix4(matrix);
+      return flat;
+    };
+    for (const mesh of meshes) {
+      mesh.updateMatrix();
+      const accent = !!mesh.userData.accent, material = mesh.material as THREE.Material;
+      const key = accent ? 'accent' : material.uuid;
+      if (!byMaterial.has(key)) byMaterial.set(key, { material, accent, parts: [] });
+      byMaterial.get(key)!.parts.push(prepare(mesh.geometry, mesh.matrix, true));
+      const ink = mesh.children.find(child => child.name === 'ink') as THREE.Mesh | undefined;
+      if (ink) { ink.updateMatrix(); inks.push(prepare(ink.geometry, mesh.matrix.clone().multiply(ink.matrix), false)); }
+      container.remove(mesh);
+    }
+    for (const { material, accent, parts } of byMaterial.values()) {
+      const merged = mergeGeometries(parts); parts.forEach(part => part.dispose());
+      this.geometries.add(merged);
+      const mesh = new THREE.Mesh(merged, material); if (accent) mesh.userData.accent = true;
+      container.add(mesh);
+    }
+    if (inks.length) {
+      const merged = mergeGeometries(inks); inks.forEach(part => part.dispose());
+      this.geometries.add(merged);
+      const hull = new THREE.Mesh(merged, this.outline); hull.name = 'ink'; hull.renderOrder = -1;
+      container.add(hull);
+    }
   }
 
   dispose() {
