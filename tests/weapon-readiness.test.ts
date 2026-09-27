@@ -70,7 +70,7 @@ describe('required weapon model readiness', () => {
 
 describe('painted first-person integration', () => {
   it('loads only the shared set, prewarms every rarity, aligns ADS and disposes sources once', async () => {
-    vi.stubGlobal('location', { search: '' });
+    vi.stubGlobal('location', { search: '?weapons=painted' });
     const source = new THREE.Group(), geometry = new THREE.BoxGeometry(), material = new THREE.MeshStandardMaterial({ map: new THREE.Texture() });
     for (const id of PAINTED_WEAPON_IDS) {
       const root = new THREE.Object3D(); root.name = id; source.add(root);
