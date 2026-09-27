@@ -42,8 +42,7 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 ### Open in M1
 - Long-gun support paw is small and mostly hidden; stock still looms on rifles.
 - Reload/equip animations are the old generic ones; no pump/bolt hand motion.
-- Third-person and world pickup models still use the old painted set (mismatch with FP).
-- HUD ammo card and coach card overlap the lower-right weapon area.
+- The ammo card still sits over the lower-right corner of long guns at 4:3.
 
 ## Next action
 M3: break architectural repetition (use the unused `house_medium` kit piece, district signatures), then M2 light/materials, then M4 bots (BR stuck rate), then M5 multiplayer pass.
