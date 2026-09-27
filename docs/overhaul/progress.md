@@ -12,10 +12,10 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 
 | # | Milestone | State |
 |---|---|---|
-| M1 | Hands and arsenal: inventory rules, first-person weapons and paws | done (polish items open) |
+| M1 | Hands and arsenal: inventory rules, first-person weapons and paws | done; production painted guns kept, 2 new guns authored in the same pipeline |
 | M2 | Island look: water, light, sky, materials | water done; light/materials open |
 | M3 | Places: district identity, buildings and interiors, prop placement | house variety, landmarks, Farol headland done; deeper layout work open |
-| M4 | Combat feel, weapon variety, bots, audio, pacing (full matches) | weapons, ammo flow, landing grace done; bot stuck rate open |
+| M4 | Combat feel, weapon variety, bots, audio, pacing (full matches) | weapons, ammo flow, landing grace, bot navigation fix done |
 | M5 | Multiplayer restore and verification with real clients | e2e incl. inventory; rematch gate added |
 
 ## M1 log
@@ -43,6 +43,9 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 - Plane and parachutes rebuilt (cartoon twin-prop with livery; striped canopy in kit colour). Coconut burst has its own sound.
 - Swimming allows any sidearm (revolver swap no longer strands a swimmer).
 
+- **Bot navigation:** a bot within ~1 m of its start node now follows the graph link instead of being handed the same node again (Morro hotspot). 12 seeded royales: stuck 2.20 -> 1.79, roaming stuck 1.20 -> 0.89, jitter 2.03 -> 0.32 per bot-minute. `STUCK_LOG=path npx tsx scripts/bot-trials.ts` dumps stuck positions.
+- Water glints fade with distance into a smooth sheen (no stipple from the plane). Offshore islands: finer ridges, canopy mottling, exposed rock, pale beaches.
+
 ### M5 log
 - New e2e: Correria guest selects the sidearm, drops it, picks it back through the host with ammo intact.
 - Local Chromium e2e now uses real Chrome with ANGLE Metal on macOS: two software-GL clients stalled 2-10 s per frame.
@@ -59,9 +62,7 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 - Live headless playtests (Chrome, Apple Silicon Mac, 1280x720): SMG, pistol, facão idle/fire/swing/reload render correctly; HUD boxes and labels correct.
 
 ### Open in M1
-- Long-gun support paw is small and mostly hidden; stock still looms on rifles.
-- Reload/equip animations are the old generic ones; no pump/bolt hand motion.
-- The ammo card still sits over the lower-right corner of long guns at 4:3.
+- Reload animations are production's (the team's v2 reload was rejected); per-weapon pump/bolt hand motion is still a candidate.
 
 ## Session 1 final gate (2026-09-27, branch `overhaul/m1-inventory`, not pushed)
 - `npm run check` clean; `npx vitest run` 718/718; `npm run build` ok (dist 41 MB).
@@ -69,8 +70,7 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 - Live Correria combat on Apple M2, real Chrome, 1280x720, medium: p50/p99 16.7/16.8 ms, 0 long tasks, 248 draws, 1.53M tris.
 
 ## Next action
-1. Bots: BR roaming stuck ~1.2/bot-minute (12 seeds); improve local avoidance around kit corners.
-2. Places: the grid of roads and wide empty fields between districts; add alleys, cover lines and district-specific props (Mangue stilts, Fazenda crops/fences, Porto cargo).
-3. First-person polish: per-weapon reload hand motions (pump, bolt), support paw visibility on long guns.
-4. Character: third-person capybara pass (not reviewed this session).
-5. Terrain/lighting: large flat grass and sand areas read bare.
+1. Places: road grid and wide empty fields between districts (cover lines, district props); flower beds pinch door approaches (bots grind at them).
+2. Terrain/lighting: large flat grass and sand areas read bare.
+3. Remaining bot hotspots: (-84,-78) Morro east and (54,24) river bank.
+4. Rule: every visual change is checked in the same pose before and after, and must be a clear improvement.
