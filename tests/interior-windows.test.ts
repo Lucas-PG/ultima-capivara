@@ -31,5 +31,12 @@ describe('interior windows', () => {
     const [w, d] = { house_small: [7, 6], house_medium: [9, 7], house_tall: [8, 7] }[piece]!;
     expect(box.max.x).toBeLessThanOrEqual(w / 2); expect(box.max.z).toBeLessThanOrEqual(d / 2);
     expect(box.min.y).toBeGreaterThan(.4);
+    // Each pane's front (daylight) face looks into the room; the street sees its dark-glass back.
+    const index = mesh.geometry.getIndex()!, a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    for (let i = 0; i < index.count; i += 3) {
+      a.fromBufferAttribute(position, index.getX(i)); b.fromBufferAttribute(position, index.getX(i + 1)); c.fromBufferAttribute(position, index.getX(i + 2));
+      const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize(), toCentre = a.clone().setY(0).negate().normalize();
+      expect(normal.dot(toCentre)).toBeGreaterThan(.5);
+    }
   });
 });

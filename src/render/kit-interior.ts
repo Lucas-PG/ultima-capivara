@@ -239,6 +239,8 @@ export function kitInteriorWindows(model: THREE.Object3D, placements: readonly K
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices); geometry.computeBoundingSphere();
+  // Front faces look into the room. Facade windows are real openings, so from the
+  // street the back face reads as dark glass in the same frame, hiding the room.
   const material = new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
     uniforms: { sunDirection: { value: new THREE.Vector3(-70, 32, -30).normalize() } },
@@ -255,7 +257,8 @@ export function kitInteriorWindows(model: THREE.Object3D, placements: readonly K
         float frame = 1.0 - step(.07, min(edge.x, edge.y));
         float mullion = 1.0 - step(.025, min(abs(vUv.x - .5), abs(vUv.y - .5)));
         vec3 wood = vec3(.86, .82, .72);
-        gl_FragColor = vec4(mix(view * 1.08, wood, max(frame, mullion)), 1.0);
+        vec3 glass = gl_FrontFacing ? view * 1.08 : mix(vec3(.10, .17, .20), zenith, .18 + .3 * smoothstep(.2, .9, vUv.y));
+        gl_FragColor = vec4(mix(glass, wood, max(frame, mullion)), 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
