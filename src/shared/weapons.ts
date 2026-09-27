@@ -34,7 +34,7 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
   sniper: { name: 'Sniper', shortName: 'Sniper', description: 'Rifle .308 de ferrolho', ammo: '308', magazine: 5, damage: 90, rpm: 50, reload: 3, range: 240, headMultiplier: 2.5, spread: 5, adsSpread: 0 },
   machete: { name: 'Facão', shortName: 'Facão', description: 'Arma corpo a corpo', ammo: null, magazine: 0, damage: 45, rpm: 120, reload: 0, range: 2.4, headMultiplier: 1.4, spread: 0, adsSpread: 0, melee: true },
   // Heavy sidearm: six precise shots that reward a steady aim over the pistol's volume.
-  revolver: { name: 'Trinta-e-oito', shortName: '38', description: 'Revólver de seis tiros', ammo: '38', magazine: 6, damage: 46, rpm: 150, reload: 2.3, range: 110, headMultiplier: 2, spread: 1.1, adsSpread: .08 },
+  revolver: { name: 'Trinta-e-oito', shortName: '38', description: 'Revólver de seis tiros', ammo: '38', magazine: 6, damage: 46, rpm: 175, reload: 2.3, range: 110, headMultiplier: 2, spread: 1.1, adsSpread: .08 },
   // Arcing coconut that bursts on contact: splash clears cover and punishes camping.
   coco: { name: 'Lança-coco', shortName: 'Coco', description: 'Coco explosivo em arco', ammo: 'coco', magazine: 4, damage: 90, rpm: 60, reload: 2.8, range: 70, headMultiplier: 1, spread: .7, adsSpread: .3, projectile: true, speed: 30, splash: 4.2 },
   slingshot: { name: 'Estilingão', shortName: 'Estilingão', description: 'Pedrada de estilingue', ammo: 'pedra', magazine: 1, damage: 75, rpm: 75, reload: .6, range: 90, headMultiplier: 1.6, spread: .4, adsSpread: .12, projectile: true, speed: 50 },
