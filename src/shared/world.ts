@@ -376,6 +376,15 @@ export function createWorld(): WorldSpec {
   if (KIT_PIECES.lighthouse) detail('lighthouse', ...FAROL);
   else place('fort_tower', ...FAROL, 0, 1.5);
   sign(-42, 92, 'PRAIA'); sign(13, 107, 'FAROL');
+  // The lighthouse stood on a bare sand dome: seat it on a rocky headland,
+  // half-buried outcrops on the sea and flank sides, the northern path left open.
+  for (const [angle, distance, piece, scale, sink] of [[1.1, 11, 'cliff_rock_low', .8, .9], [1.9, 12.5, 'cliff_rock', .7, 1.4],
+    [2.6, 11.5, 'cliff_rock_low', .9, 1], [3.3, 12, 'cliff_rock_tall', .55, 1.6], [4.0, 11, 'cliff_rock_low', .75, .8],
+    [4.7, 12.5, 'cliff_rock', .6, 1.2], [5.3, 10.5, 'cliff_rock_low', .7, .8]] as const) {
+    const x = FAROL[0] + Math.sin(angle) * distance, z = FAROL[1] + Math.cos(angle) * distance;
+    if (routeDistance(x, z) < 4 || occupied(x, z, 1.5)) continue;
+    detail(piece, x, z, angle, scale, ground(x, z) - sink);
+  }
 
   // Water falls from the western ridge into the river's blue-green feeder pool.
   const cascadeX = -116, cascadeZ = -9, low = -.05, top = ground(-118, -9) + .1;
