@@ -200,7 +200,8 @@ export class SoundEngine {
       const output = own ? this.buses.effects : this.spatial(event.pos, this.buses.effects, distance);
       this.waterSound(output, ctx.currentTime, event.entering, own ? 1 : .7);
     } else if (event.type === 'impact') {
-      this.impactSound(event.surface, event.pos, listener, event.actor === myId);
+      if (event.weapon === 'coco') this.cocoBurst(event.pos, listener);
+      else this.impactSound(event.surface, event.pos, listener, event.actor === myId);
     } else if (event.type === 'reload') {
       if (event.actor === myId && ctx.currentTime < this.localReloadEnd + .25) return;
       const actor = this.lastSnapshot?.actors.find(a => a.id === event.actor);
@@ -793,6 +794,18 @@ export class SoundEngine {
     else if (surface === 'stone') this.noise(output, now, .05, 'highpass', 1900, .08 * k, .001);
     else if (surface === 'water') { this.noise(output, now, .2, 'bandpass', 1300, .07 * k, .01); this.noise(output, now + .05, .16, 'lowpass', 500, .04 * k, .02); }
     else this.noise(output, now, .08, 'lowpass', surface === 'sand' ? 520 : 700, .07 * k, .003, true);
+  }
+
+  // A cartoon "BOF!": deep thump, crunchy shell crack and a rolling dusty tail, audible across a district.
+  private cocoBurst(pos: Vec3, listener: Vec3) {
+    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
+    if (distance > 90) return;
+    const now = this.context!.currentTime + distance / 343, output = this.spatial(pos, this.buses!.effects, distance);
+    this.tone(output, now, 120, 38, .55, .42, 'sine');
+    this.noise(output, now, .12, 'lowpass', 900, .38, .002, true);
+    this.noise(output, now + .01, .08, 'bandpass', 1800, .16, .001);
+    this.noise(output, now + .06, .9, 'lowpass', 380, .2, .05, true);
+    this.metalClick(output, now + .12, 900, .05); this.metalClick(output, now + .2, 700, .04);
   }
 
   private armorBreakSound(pos: Vec3, listener: Vec3, local: boolean, now: number) {
