@@ -11,6 +11,7 @@ import { WORLD_PALETTE, roadPaintWeight, terrainColor, terrainHeight } from '../
 import { createWorld } from '../src/shared/world';
 import { waterAt } from '../src/shared/water';
 import { floorRoute } from './helpers/floor-route';
+import { landmarkColliders } from '../src/shared/landmarks';
 
 const world = createWorld();
 const walkingEntrance = (point: { x: number; y: number; z: number }) =>
@@ -40,10 +41,14 @@ describe('river island gameplay integrity', () => {
     const pieces = new Map(world.pieces!.map(piece => [piece.id, piece]));
     expect(pieces.size).toBeGreaterThan(120);
     expect(new Set(world.colliders.map(c => c.id)).size).toBe(world.colliders.length);
+    const landmarks = new Map((world.landmarks ?? []).map(landmark => [landmark.id, landmark]));
     for (const collider of world.colliders) {
       expect(collider.pieceId, `unowned collider ${collider.id}`).toBeDefined();
-      expect(pieces.has(collider.pieceId!)).toBe(true);
+      expect(pieces.has(collider.pieceId!) || landmarks.has(collider.pieceId!)).toBe(true);
     }
+    // Landmarks are drawn from the same spec their colliders come from.
+    for (const landmark of landmarks.values()) expect(world.colliders.filter(c => c.pieceId === landmark.id)).toEqual(landmarkColliders(landmark));
+    expect([...landmarks.values()].map(l => l.kind).sort()).toEqual(['crane', 'radio_mast', 'windmill']);
     for (const piece of pieces.values()) {
       expect(KIT_PIECES[piece.piece], `missing mesh contract ${piece.piece}`).toBeDefined();
       expect(world.colliders.filter(c => c.pieceId === piece.id)).toEqual(kitColliders(piece));

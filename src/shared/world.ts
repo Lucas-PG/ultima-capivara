@@ -8,6 +8,7 @@ import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
 import { buildingRole, buildingRooms, groundRoomPoint, interiorPlacements } from './building-interiors';
 import { buildBuildingRoutes, buildingPoint } from './building-access';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
+import { landmarkColliders, type LandmarkSpec } from './landmarks';
 
 const ground = terrainHeight;
 const p = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
@@ -29,7 +30,7 @@ export function createWorld(): WorldSpec {
   const random = rng(0x51a7cafe);
   const pieces: KitPlacement[] = [], objects: MapObject[] = [], colliders: Collider[] = [], walkways: Collider[] = [];
   const loot: LootSpawn[] = [], chests: ChestSpec[] = [], spawns: SpawnPoint[] = [], arenaBoundary: string[] = [];
-  const mudBaths: MudBathSpec[] = [], trampolines: TrampolineSpec[] = [];
+  const mudBaths: MudBathSpec[] = [], trampolines: TrampolineSpec[] = [], landmarks: LandmarkSpec[] = [];
   const districts: District[] = [
     { id: 'forte', name: 'Forte', x: 4, z: -99, radius: 25, color: '#c47c57' },
     { id: 'vila', name: 'Vila', x: -22, z: -18, radius: 32, color: '#e39973' },
@@ -62,6 +63,11 @@ export function createWorld(): WorldSpec {
   // A missing dressing piece is omitted, never replaced by invisible collision.
   const detail = (piece: string, x: number, z: number, yaw = 0, scale = 1, y = ground(x, z)) =>
     KIT_PIECES[piece] ? place(piece, x, z, yaw, scale, y) : null;
+  // Solid district landmarks: tall silhouettes that make each district findable from afar.
+  const landmark = (kind: LandmarkSpec['kind'], x: number, z: number, yaw: number) => {
+    const spec: LandmarkSpec = { id: id(`landmark-${kind}`), kind, x, y: ground(x, z), z, yaw };
+    landmarks.push(spec); colliders.push(...landmarkColliders(spec));
+  };
   const lotPoint = (h: HouseLot, x: number, z: number) => {
     const c = Math.cos(h.yaw ?? 0), s = Math.sin(h.yaw ?? 0);
     return { x: h.x + x * c + z * s, z: h.z + z * c - x * s };
@@ -344,13 +350,13 @@ export function createWorld(): WorldSpec {
   detail('boat', 128, 2, Math.PI / 2, .9, -.05);
   for (const [x, z] of [[122, -14], [124, -13], [126, -14], [125, 3], [127, 4], [129, 3]])
     obj('box', x, .02, z, 1, 1, 1, '#DB8263', 'prop:street-buoy');
-  detail('crane', 113, -29);
+  landmark('crane', 113, -29, Math.PI / 2);
   sign(78, -28, 'PORTO');
 
   // Fazenda and Morro retain warm, recognisable silhouettes above the valley.
   if (KIT_PIECES.barn) detail('barn', 71, 57);
   else place('market_hall', 71, 57, 0, .85, ground(71, 57), 'barn');
-  detail('windmill', 83, 48); detail('radio_mast', -104, -78);
+  landmark('windmill', 83, 48, 0); landmark('radio_mast', -104, -78, 0);
   for (let x = 46; x <= 69; x += 3) {
     obj('box', x, ground(x, 70) + .025, 70, .8, .04, 8, '#b48d57', 'field-row');
     for (let z = 67; z <= 73; z += 2) obj('grass', x, ground(x, z), z, .7, .4, .7, '#b0cc5e', 'crop');
@@ -668,7 +674,7 @@ export function createWorld(): WorldSpec {
   for (const building of [...pieces]) for (const furniture of interiorPlacements(building)) {
     pieces.push(furniture); colliders.push(...kitColliders(furniture));
   }
-  const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary, mudBaths, trampolines };
+  const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary, mudBaths, trampolines, landmarks };
   world.buildingRoutes = buildBuildingRoutes(world);
   const graph = world.navigation = buildNavigation(world), seen = new Set<number>();
   let mainRoutes: number[] = [];

@@ -1,5 +1,6 @@
+import type { LandmarkSpec } from './landmarks';
 export const PROTOCOL_VERSION = 11;
-export const WORLD_VERSION = 'ilha-v3-rio-10';
+export const WORLD_VERSION = 'ilha-v3-rio-11';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
@@ -82,6 +83,7 @@ export interface WorldSpec {
   pieces?: KitPlacement[]; arenaBoundary?: string[]; walkways?: Collider[]; navigation?: NavigationGraph;
   buildingRoutes?: BuildingRoute[];
   mudBaths?: MudBathSpec[]; trampolines?: TrampolineSpec[];
+  landmarks?: LandmarkSpec[];
 }
 // Loot spilled from a chest carries where it came from and when, so clients can
 // animate it arcing out; its x/y/z is already the landing spot.

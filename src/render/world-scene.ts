@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import type { AssetLoader } from './assets';
 import { PaintedWater } from './water';
 import { createToonMaterial, type ToonMaterialKind } from './materials';
+import { buildLandmark } from './landmarks';
 import { roadPaintWeight, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
@@ -190,6 +191,7 @@ export class WorldScene {
   private readonly groundCover: GroundCover;
   private reducedMotion = false;
   private readonly disposables: { dispose: () => void }[] = [];
+  private readonly spinners: THREE.Object3D[] = [];
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
     this.recreation = new RecreationView(world, loader, settings.graphics); this.group.add(this.recreation.group);
@@ -197,6 +199,17 @@ export class WorldScene {
     this.ready = Promise.all([this.kit.ready, this.recreation.ready]).then(() => {});
     void this.ready.catch(() => {});
     this.disposables.push(this.recreation, this.kit);
+    const landmarkPaint = createToonMaterial('painted-metal', { vertexColors: true });
+    const landmarkGroup = new THREE.Group(); landmarkGroup.name = 'landmarks'; this.group.add(landmarkGroup);
+    for (const spec of world.landmarks ?? []) {
+      const { group, spinner } = buildLandmark(spec.kind, landmarkPaint);
+      group.position.set(spec.x, spec.y, spec.z); group.rotation.y = spec.yaw; landmarkGroup.add(group);
+      if (spinner) this.spinners.push(spinner);
+    }
+    this.disposables.push({ dispose: () => {
+      landmarkGroup.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
+      landmarkPaint.dispose();
+    } });
     const signAtlas = loader.texture('textures/island-signs.png');
     signAtlas.colorSpace = THREE.SRGBColorSpace;
     signAtlas.minFilter = THREE.LinearMipmapLinearFilter;
@@ -743,6 +756,7 @@ export class WorldScene {
   update(time: number, camera?: THREE.Camera, actors: readonly ActorState[] = [], localActor?: ActorState) {
     if (camera) { this.kit.update(camera, time); this.groundCover.update(camera, time, this.reducedMotion); }
     this.vegetation.update(this.reducedMotion ? 0 : time);
+    for (const spinner of this.spinners) spinner.rotation.z = (this.reducedMotion ? .15 : .7) * time;
     this.waterfalls.update(time, this.reducedMotion);
     this.paintedWater.update(time, this.reducedMotion);
     this.recreation.update(time, camera, this.reducedMotion, actors, localActor);
