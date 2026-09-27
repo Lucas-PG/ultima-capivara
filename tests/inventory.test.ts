@@ -94,3 +94,15 @@ describe('inventory', () => {
     expect(rebuildFrame(fastPart(snapshot), worldPart(snapshot), gear)).toBeNull();
   });
 });
+
+describe('ammo flow', () => {
+  it('an empty gun with no reserve hands over to the next gun instead of dry-firing', () => {
+    const { sim, me } = start([]);
+    const actor = (sim as any).actors.get('a');
+    actor.state.weapons[0].ammo = 0; actor.state.weapons[0].reserve = 0;
+    const time = sim.snapshot().time;
+    sim.input('a', { seq: 1, moveX: 0, moveZ: 0, yaw: 0, pitch: 0, sprint: false, crouch: false, jump: false, fire: true, ads: false, lean: 0, clientTime: time });
+    sim.step(.1);
+    expect(me().weapons[me().slot].id).toBe('pistol');
+  });
+});

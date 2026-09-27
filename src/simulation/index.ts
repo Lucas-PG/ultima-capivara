@@ -650,7 +650,14 @@ export class Simulation {
       s.reloadUntil = 0;
     }
     a.wasFiring = true;
-    if (!def.melee && w.ammo <= 0) { this.startReload(a); return; }
+    if (!def.melee && w.ammo <= 0) {
+      // A gun with nothing left hands over to the next one that can shoot, like a real draw.
+      if (w.reserve <= 0 && this.config.mode !== 'corrente') {
+        const ready = s.weapons.findIndex(other => other !== w && (WEAPONS[other.id].melee || other.ammo + other.reserve > 0) && (!s.swimming || swimReady(other.id)));
+        if (ready >= 0) this.setSlot(s, ready);
+      } else this.startReload(a);
+      return;
+    }
     const spread = shotSpread(w.id, a.adsAmount, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded && !s.swimming, a.shotHeat, s.swimming);
     if (!s.bot && !def.melee && !def.projectile) a.shotHeat = s.shotHeat = Math.min(1.2, a.shotHeat + shotHeatGain(w.id));
     if (pressId !== undefined) a.lastShotPressId = Math.max(a.lastShotPressId, pressId);
@@ -763,6 +770,9 @@ export class Simulation {
     this.cancelEmote(s); s.bounceProtected = false;
     if (killer && killer !== target) {
       killer.state.kills++;
+      // Correria keeps the fight going: every elimination restocks one magazine per carried gun.
+      if (this.config.mode === 'deathmatch')
+        for (const w of killer.state.weapons) if (!WEAPONS[w.id].melee) w.reserve = Math.min(AMMO[w.id] * 3, w.reserve + WEAPONS[w.id].magazine);
       if (killer.brain && this.time >= killer.brain.leisureAt && this.personalityRandom() < .4) {
         killer.brain.celebrateAt = this.time + 3; killer.brain.celebrateUntil = this.time + 9;
       }
@@ -1032,7 +1042,7 @@ export class Simulation {
   private bestWeapon(s: ActorState) {
     if (s.swimming) { const pistol = sidearmIndex(s.weapons); return pistol < 0 ? s.slot : pistol; }
     let best = s.slot, value = -1;
-    s.weapons.forEach((w, i) => { const v = botValue(w.id, w.rarity) + (w.id === 'machete' ? -5 : 0); if (v > value) { value = v; best = i; } });
+    s.weapons.forEach((w, i) => { const dry = !WEAPONS[w.id].melee && w.ammo + w.reserve <= 0; const v = botValue(w.id, w.rarity) + (w.id === 'machete' ? -5 : 0) - (dry ? 100 : 0); if (v > value) { value = v; best = i; } });
     return best;
   }
   private findLoot(s: ActorState): BotBrain['loot'] {
