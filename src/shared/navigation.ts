@@ -112,8 +112,12 @@ export function navigationWaypoint(world: WorldSpec, from: Vec3, to: Vec3, arena
   path.reverse();
   // Skip short collinear segments when the whole walk is clear, without ever
   // cutting a diagonal corner through a building or a steep bank.
-  let waypoint = graph.points[start];
-  for (const index of path.slice(1, 8)) {
+  // A walker standing on its start node follows the graph link itself: its
+  // exact spot may not see past the node on a slope, and re-picking the same
+  // node there left bots hovering a metre away from it forever.
+  const atStart = path.length > 1 && Math.hypot(graph.points[start].x - from.x, graph.points[start].z - from.z) < 1.1;
+  let waypoint = atStart ? graph.points[path[1]] : graph.points[start];
+  for (const index of path.slice(atStart ? 2 : 1, 8)) {
     const candidate = graph.points[index];
     if (!walkableSegment(world, from, candidate, arena)) break;
     waypoint = candidate;
