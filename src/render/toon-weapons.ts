@@ -46,7 +46,10 @@ export class ToonArsenal {
   private readonly accents = RARITY.map(r => new THREE.MeshStandardMaterial({ color: r.color, roughness: .45, metalness: .05, emissive: r.color, emissiveIntensity: .12 }));
   private readonly geometries = new Set<THREE.BufferGeometry>();
 
-  constructor() {
+  // `paws: false` builds bare guns for ground pickups and third-person baking.
+  private readonly seg: { bevel: number; curve: number; sides: number; sphere: [number, number] };
+  constructor(readonly paws = true, detail: 'fp' | 'near' | 'far' = 'fp') {
+    this.seg = detail === 'fp' ? { bevel: 3, curve: 5, sides: 18, sphere: [20, 14] } : detail === 'near' ? { bevel: 1, curve: 2, sides: 8, sphere: [8, 6] } : { bevel: 0, curve: 1, sides: 6, sphere: [6, 4] };
     const [polymer, wood, fur] = this.textures;
     const m = (color: string, roughness: number, metalness = 0, map?: THREE.Texture) =>
       new THREE.MeshStandardMaterial({ color, roughness, metalness, map: map ?? null });
@@ -99,15 +102,15 @@ export class ToonArsenal {
       shape.quadraticCurveTo(cur[0], cur[1], b[0], b[1]);
     }
     shape.closePath();
-    const depth = Math.max(.001, width - bevel * 2);
-    const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel * .85, bevelSegments: 3, curveSegments: 5 });
+    const depth = Math.max(.001, width - (this.seg.bevel > 0 ? bevel * 2 : 0));
+    const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: this.seg.bevel > 0, bevelThickness: bevel, bevelSize: bevel * .85, bevelSegments: Math.max(1, this.seg.bevel), curveSegments: this.seg.curve });
     geometry.translate(0, 0, -depth / 2); geometry.rotateY(Math.PI / 2); geometry.translate(x, 0, 0);
     geometry.computeVertexNormals();
     return this.add(parent, geometry, material);
   }
   // A round part along the barrel axis from u0 to u1.
   tube(parent: THREE.Object3D, u0: number, u1: number, v: number, r0: number, material: THREE.Material, r1 = r0, x = 0, sides = 18) {
-    const geometry = new THREE.CylinderGeometry(r1, r0, Math.abs(u1 - u0), sides, 1);
+    const geometry = new THREE.CylinderGeometry(r1, r0, Math.abs(u1 - u0), Math.min(sides, this.seg.sides), 1);
     geometry.rotateX(-Math.PI / 2); geometry.translate(x, v, -(u0 + u1) / 2);
     return this.add(parent, geometry, material);
   }
@@ -117,7 +120,7 @@ export class ToonArsenal {
     return this.add(parent, geometry, material, ink);
   }
   ball(parent: THREE.Object3D, at: THREE.Vector3, scale: THREE.Vector3 | number, material: THREE.Material, ink = true) {
-    const geometry = new THREE.SphereGeometry(1, 20, 14);
+    const geometry = new THREE.SphereGeometry(1, ...this.seg.sphere);
     const s = typeof scale === 'number' ? new THREE.Vector3(scale, scale, scale) : scale;
     geometry.scale(s.x, s.y, s.z); geometry.translate(at.x, at.y, at.z);
     return this.add(parent, geometry, material, ink);
@@ -125,8 +128,8 @@ export class ToonArsenal {
   // Tapered capsule between two points: toes, forearms, straps.
   limb(parent: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3, r0: number, r1: number, material: THREE.Material, ink = true) {
     const dir = to.clone().sub(from), length = dir.length();
-    const geometry = new THREE.CylinderGeometry(r1, r0, length, 16, 1, true);
-    const cap0 = new THREE.SphereGeometry(r0, 16, 10), cap1 = new THREE.SphereGeometry(r1, 16, 10);
+    const geometry = new THREE.CylinderGeometry(r1, r0, length, Math.min(16, this.seg.sides), 1, true);
+    const cap0 = new THREE.SphereGeometry(r0, ...this.seg.sphere), cap1 = new THREE.SphereGeometry(r1, ...this.seg.sphere);
     cap0.translate(0, -length / 2, 0); cap1.translate(0, length / 2, 0);
     const merged = mergeParts([geometry, cap0, cap1]);
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
@@ -134,7 +137,7 @@ export class ToonArsenal {
     return this.add(parent, merged, material, ink);
   }
   ring(parent: THREE.Object3D, at: THREE.Vector3, radius: number, tube: number, material: THREE.Material, axis: 'u' | 'x' = 'u') {
-    const geometry = new THREE.TorusGeometry(radius, tube, 10, 28);
+    const geometry = new THREE.TorusGeometry(radius, tube, Math.min(10, this.seg.sides), Math.min(28, this.seg.sides * 2));
     if (axis === 'x') geometry.rotateY(Math.PI / 2);
     geometry.translate(at.x, at.y, at.z);
     return this.add(parent, geometry, material);
@@ -187,6 +190,7 @@ function mergeParts(parts: THREE.BufferGeometry[]) {
 // on the gun's left face, the face the camera actually sees.
 interface GripSpec { top: THREE.Vector3; bottom: THREE.Vector3; radius: number; forward: THREE.Vector3 }
 function wrapPaw(k: ToonArsenal, parent: THREE.Object3D, grip: GripSpec, side: 1 | -1, options: { trigger?: boolean; elbow: THREE.Vector3; toes?: number[] }) {
+  if (!k.paws) { const paw = new THREE.Group(); paw.name = side > 0 ? 'paw_r' : 'paw_l'; parent.add(paw); return { paw, fingers: new THREE.Group(), triggerFinger: undefined as THREE.Object3D | undefined }; }
   const mat = k.materials;
   const axis = grip.bottom.clone().sub(grip.top).normalize();
   const fwd = grip.forward.clone().sub(axis.clone().multiplyScalar(grip.forward.dot(axis))).normalize();
@@ -246,6 +250,7 @@ function wrapPaw(k: ToonArsenal, parent: THREE.Object3D, grip: GripSpec, side: 1
 function cradlePaw(k: ToonArsenal, parent: THREE.Object3D, center: THREE.Vector3, radius: number, elbow: THREE.Vector3, span = .09) {
   const mat = k.materials;
   const paw = new THREE.Group(); paw.name = 'grip_l'; parent.add(paw);
+  if (!k.paws) return paw;
   const ringPoint = (u: number, degrees: number, extra: number) => {
     // degrees: 0 = bottom, 90 = left face (-x), 150 = upper left.
     const a = THREE.MathUtils.degToRad(degrees), r = radius + extra;
@@ -390,6 +395,7 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     mag.userData.restY = 0; mag.userData.travel = .2;
     // The support paw cups the firing paw from the visible side.
     const support = new THREE.Group(); support.name = 'grip_l'; g.add(support);
+    if (k.paws) {
     k.ball(support, P(-.075, -.075, -.052), new THREE.Vector3(.036, .058, .05), m.fur);
     [.0, .022, .044].forEach((d, i) => {
       const a = P(-.04 - d * .4, -.03 - d * 1.2, -.07), b = P(.005 - d * .4, -.05 - d * 1.2, -.052);
@@ -399,6 +405,7 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     const wrist = P(-.12, -.11, -.07), elbow = new THREE.Vector3(-.2, -.42, .42), cuff = wrist.clone().lerp(elbow, .6);
     k.limb(support, wrist, cuff, .043, .056, m.fur); k.limb(support, cuff, elbow, .062, .07, m.sleeve);
     k.limb(support, cuff.clone().lerp(wrist, .04), cuff.clone().lerp(elbow, .07), .066, .069, m.cuff);
+    }
     f.muzzle.position.copy(P(.23, .052)); f.eject.position.set(.035, .07, -.02);
     sparkle(k, f.legendary, [P(.1, .09, -.03), P(-.05, .09, .03)]);
     return { ...f, magazine: mag, action, support, triggerFinger: hand.triggerFinger, gripFingers: hand.fingers, toon: true };
@@ -546,13 +553,51 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
       { elbow: new THREE.Vector3(.12, -.45, .4) });
     // The drawing paw pinches the pouch from the left.
     const support = new THREE.Group(); support.name = 'grip_l'; g.add(support);
+    if (k.paws) {
     k.ball(support, pouchAt.clone().add(new THREE.Vector3(-.03, -.02, .03)), new THREE.Vector3(.04, .05, .045), m.fur);
     k.limb(support, pouchAt.clone().add(new THREE.Vector3(-.035, .02, .01)), pouchAt.clone().add(new THREE.Vector3(-.012, .012, -.01)), .016, .014, m.furLight);
     const wrist = pouchAt.clone().add(new THREE.Vector3(-.05, -.05, .07)), elbow = new THREE.Vector3(-.24, -.4, .38), cuff = wrist.clone().lerp(elbow, .6);
     k.limb(support, wrist, cuff, .042, .055, m.fur); k.limb(support, cuff, elbow, .062, .07, m.sleeve);
     k.limb(support, cuff.clone().lerp(wrist, .05), cuff.clone().lerp(elbow, .07), .066, .069, m.cuff);
+    }
     f.muzzle.position.copy(P(.05, .23)); f.eject.position.copy(pouchAt);
     sparkle(k, f.legendary, [P(0, .1, .03)]);
     return { ...f, magazine: pouch, support, gripFingers: hand.fingers, toon: true };
   },
 };
+
+// Ground pickups and third-person guns share one vertex-coloured geometry per
+// weapon, baked from the same builders so every view of a gun matches.
+const WORLD_LENGTH: Record<WeaponId, number> = { pistol: .35, smg: .86, m4: 1.18, shotgun: 1.25, dmr: 1.31, sniper: 1.52, machete: .63, slingshot: .42 };
+const bakers: Partial<Record<'near' | 'far', ToonArsenal>> = {};
+export function bakeToonWeapon(id: WeaponId, detail: 'near' | 'far'): THREE.BufferGeometry {
+  const baker = bakers[detail] ??= new ToonArsenal(false, detail);
+  const model = baker.create(id);
+  if (id === 'machete') model.group.rotation.x = -Math.PI / 2;
+  model.group.updateMatrixWorld(true);
+  const parts: THREE.BufferGeometry[] = [];
+  const color = new THREE.Color();
+  model.group.traverse(object => {
+    if (!(object instanceof THREE.Mesh) || object.name === 'ink' || !object.visible) return;
+    let hidden = false; object.traverseAncestors(a => { if (a.name === 'legendary') hidden = true; });
+    if (hidden) return;
+    object.geometry.computeBoundingSphere();
+    if (detail === 'far' && object.geometry.boundingSphere!.radius < .03) return;
+    const source = object.geometry.index ? object.geometry.toNonIndexed() : object.geometry.clone();
+    for (const name of Object.keys(source.attributes)) if (name !== 'position' && name !== 'normal') source.deleteAttribute(name);
+    source.applyMatrix4(object.matrixWorld);
+    color.copy((object.material as THREE.MeshStandardMaterial).color);
+    const colors = new Float32Array(source.getAttribute('position').count * 3);
+    for (let i = 0; i < colors.length; i += 3) { colors[i] = color.r; colors[i + 1] = color.g; colors[i + 2] = color.b; }
+    source.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    parts.push(source);
+  });
+  const merged = mergeParts(parts.map(part => { const indexed = new THREE.BufferGeometry(); indexed.setAttribute('position', part.getAttribute('position')); indexed.setAttribute('normal', part.getAttribute('normal')); indexed.userData.color = part.getAttribute('color'); return indexed; }));
+  const colors: number[] = []; for (const part of parts) colors.push(...(part.getAttribute('color').array as Float32Array));
+  merged.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  merged.computeBoundingBox();
+  const box = merged.boundingBox!, length = Math.max(box.max.z - box.min.z, box.max.y - box.min.y);
+  merged.scale(WORLD_LENGTH[id] / length, WORLD_LENGTH[id] / length, WORLD_LENGTH[id] / length);
+  merged.computeBoundingSphere(); merged.name = `toon-world:${id}:${detail}`;
+  return merged;
+}

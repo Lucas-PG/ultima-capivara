@@ -352,7 +352,7 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 #hud #stance.active{opacity:1;background:var(--onca)}
 #hud #figure,#hud #torso{transition:transform .15s}
 /* First-run coach card, above the vitals (the storm step sits next to the minimap). */
-#hud #coach{position:absolute;left:50%;bottom:190px;translate:-50% 0;width:min(480px,calc(100vw - 40px));padding:10px 16px;display:flex;flex-direction:column;gap:6px;--r:-.8deg;animation:hud-coach .18s ease-out}
+#hud #coach{position:absolute;left:20px;top:112px;width:min(400px,calc(100vw - 40px));padding:10px 16px;display:flex;flex-direction:column;gap:6px;--r:-.8deg;animation:hud-coach .18s ease-out}
 #hud #coach[data-step=storm]{left:auto;right:20px;bottom:auto;top:300px;translate:none;width:340px}
 #hud #coach .ck{align-self:flex-start;font-family:var(--display);font-size:13px;background:var(--red);color:var(--paper);border:2px solid var(--ink);padding:0 8px;transform:rotate(-2deg)}
 #hud #coach p{margin:0;font-size:15px;line-height:1.5}
