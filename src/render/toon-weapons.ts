@@ -14,6 +14,8 @@ export interface ToonWeaponModel {
   magazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Object3D;
   triggerFinger?: THREE.Object3D; gripFingers?: THREE.Object3D;
   sightY: number; legendary: THREE.Object3D; toon: true;
+  // Parts behind the eye in a cheek weld; hidden while aiming down the sights.
+  stock?: THREE.Object3D;
 }
 export const TOON_WEAPON_IDS: readonly WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete', 'slingshot'];
 
@@ -293,10 +295,10 @@ function cupPaw(k: ToonArsenal, g: THREE.Object3D) {
 
 
 function frame(sightY: number) {
-  const group = new THREE.Group(), muzzle = new THREE.Object3D(), eject = new THREE.Object3D(), legendary = new THREE.Group();
-  muzzle.name = 'muzzle'; eject.name = 'eject'; legendary.name = 'legendary';
-  group.add(muzzle, eject, legendary);
-  return { group, muzzle, eject, legendary, sightY };
+  const group = new THREE.Group(), muzzle = new THREE.Object3D(), eject = new THREE.Object3D(), legendary = new THREE.Group(), stock = new THREE.Group();
+  muzzle.name = 'muzzle'; eject.name = 'eject'; legendary.name = 'legendary'; stock.name = 'stock';
+  group.add(muzzle, eject, legendary, stock);
+  return { group, muzzle, eject, legendary, stock, sightY };
 }
 function sparkle(k: ToonArsenal, legendary: THREE.Object3D, points: THREE.Vector3[]) {
   for (const p of points) k.ball(legendary, p, .008, k.materials.brass, false);
@@ -345,9 +347,9 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     k.tube(g, .76, .86, .03, .022, m.steel);
     ironSights(k, g, -.08, .53, f.sightY, .104);
     // Buffer tube and sliding stock.
-    k.tube(g, -.36, -.14, .052, .022, m.dark);
-    k.profile(g, [[-.5, .075], [-.3, .078], [-.26, .04], [-.3, -.04], [-.5, -.08]], .05, m.sand, 0, .02);
-    k.box(g, -.515, -.49, -.08, .078, .056, m.rubber);
+    k.tube(f.stock, -.36, -.14, .052, .022, m.dark);
+    k.profile(f.stock, [[-.5, .075], [-.3, .078], [-.26, .04], [-.3, -.04], [-.5, -.08]], .05, m.sand, 0, .02);
+    k.box(f.stock, -.515, -.49, -.08, .078, .056, m.rubber);
     const { fingers, triggerFinger } = rifleGrip(k, g, [-.055, .008], [-.1, -.17], .046, m.sand);
     const mag = magazine(k, g, [[.03, -.045], [.105, -.045], [.14, -.23], [.07, -.24]], .05, m.dark, .29);
     const support = cradlePaw(k, g, P(.4, .02), .052, new THREE.Vector3(-.36, -.4, .3));
@@ -370,11 +372,11 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     k.tube(g, .36, .41, .045, .026, m.steel);
     ironSights(k, g, -.1, .23, f.sightY, .116);
     // Fold stock wire.
-    k.limb(g, P(-.17, .06, .03), P(-.38, .04, .03), .009, .009, m.dark);
-    k.limb(g, P(-.17, .06, -.03), P(-.38, .04, -.03), .009, .009, m.dark);
-    k.limb(g, P(-.38, .07, 0).setX(-.036), P(-.38, -.05, 0).setX(-.036), .011, .011, m.rubber);
-    k.limb(g, P(-.38, .07, 0).setX(.036), P(-.38, -.05, 0).setX(.036), .011, .011, m.rubber);
-    k.box(g, -.395, -.37, -.06, .08, .08, m.rubber);
+    k.limb(f.stock, P(-.17, .06, .03), P(-.38, .04, .03), .009, .009, m.dark);
+    k.limb(f.stock, P(-.17, .06, -.03), P(-.38, .04, -.03), .009, .009, m.dark);
+    k.limb(f.stock, P(-.38, .07, 0).setX(-.036), P(-.38, -.05, 0).setX(-.036), .011, .011, m.rubber);
+    k.limb(f.stock, P(-.38, .07, 0).setX(.036), P(-.38, -.05, 0).setX(.036), .011, .011, m.rubber);
+    k.box(f.stock, -.395, -.37, -.06, .08, .08, m.rubber);
     k.ring(g, P(.04, -.045), .028, .005, m.dark, 'x');
     const { fingers, triggerFinger } = rifleGrip(k, g, [-.06, -.01], [-.1, -.16], .044, m.dark);
     const mag = magazine(k, g, [[.1, -.01], [.155, -.01], [.165, -.24], [.105, -.24]], .042, m.dark, .27);
@@ -429,8 +431,8 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     f.sightY = .098;
     k.box(g, -.1, .18, .085, .093, .012, m.dark, 0, false);
     // Walnut stock with a classic drop and a red recoil pad.
-    k.profile(g, [[-.14, .07], [-.14, -.03], [-.2, -.08], [-.5, -.13], [-.52, .04], [-.3, .06]], .06, m.wood, 0, .02);
-    k.box(g, -.54, -.515, -.13, .045, .064, m.red);
+    k.profile(f.stock, [[-.14, .07], [-.14, -.03], [-.2, -.08], [-.5, -.13], [-.52, .04], [-.3, .06]], .06, m.wood, 0, .02);
+    k.box(f.stock, -.54, -.515, -.13, .045, .064, m.red);
     k.ring(g, P(.03, -.04), .03, .0055, m.dark, 'x');
     const hand = wrapPaw(k, g, { top: P(-.14, -.01), bottom: P(-.19, -.1), radius: .028, forward: new THREE.Vector3(0, -.25, -1).normalize() }, 1,
       { trigger: true, elbow: new THREE.Vector3(.2, -.42, .5) });
@@ -460,8 +462,8 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     k.accent(k.box(g, .3, .6, .052, .06, .084, m.dark, 0, false));
     k.tube(g, .62, .92, .03, .015, m.dark);
     k.tube(g, .9, .98, .03, .02, m.steel);
-    k.profile(g, [[-.16, .08], [-.16, -.02], [-.24, -.07], [-.54, -.12], [-.56, .06], [-.32, .1]], .064, m.wood, 0, .022);
-    k.box(g, -.58, -.55, -.12, .065, .068, m.rubber);
+    k.profile(f.stock, [[-.16, .08], [-.16, -.02], [-.24, -.07], [-.54, -.12], [-.56, .06], [-.32, .1]], .064, m.wood, 0, .022);
+    k.box(f.stock, -.58, -.55, -.12, .065, .068, m.rubber);
     k.profile(g, [[-.1, .005], [.14, .005], [.12, -.05], [-.07, -.04]], .064, m.olive, 0, .012);
     k.ring(g, P(.03, -.06), .03, .005, m.dark, 'x');
     // Medium scope on rings.
@@ -486,8 +488,9 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     const m = k.materials, f = frame(.18);
     const g = f.group;
     // Long walnut stock that runs under a round receiver: the classic bolt gun.
-    k.profile(g, [[-.58, .05], [-.35, .06], [-.18, .04], [.5, .03], [.5, -.035], [.1, -.05], [-.15, -.06], [-.2, -.1], [-.56, -.14]], .07, m.walnut, 0, .024);
-    k.box(g, -.6, -.57, -.14, .05, .074, m.rubber);
+    k.profile(f.stock, [[-.58, .05], [-.35, .06], [-.15, .042], [-.15, -.06], [-.2, -.1], [-.56, -.14]], .07, m.walnut, 0, .024);
+    k.profile(g, [[-.17, .042], [.5, .03], [.5, -.035], [.1, -.05], [-.17, -.06]], .07, m.walnut, 0, .024);
+    k.box(f.stock, -.6, -.57, -.14, .05, .074, m.rubber);
     k.tube(g, -.16, .2, .06, .033, m.body);
     k.tube(g, .2, 1.06, .055, .017, m.dark, .014);
     k.tube(g, 1.02, 1.1, .055, .024, m.steel);
@@ -586,8 +589,8 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     k.profile(g, [[.44, .085], [.47, .085], [.462, .128], [.448, .128]], .012, m.dark, 0, .004, .002);
     k.ball(g, P(.455, f.sightY), .006, m.brass, false);
     k.profile(g, [[.24, -.02], [.44, -.02], [.43, -.06], [.25, -.06]], .06, m.wood, 0, .018);
-    k.profile(g, [[-.15, .07], [-.15, -.02], [-.21, -.07], [-.48, -.11], [-.5, .05], [-.3, .065]], .058, m.wood, 0, .02);
-    k.box(g, -.52, -.495, -.11, .04, .062, m.rubber);
+    k.profile(f.stock, [[-.15, .07], [-.15, -.02], [-.21, -.07], [-.48, -.11], [-.5, .05], [-.3, .065]], .058, m.wood, 0, .02);
+    k.box(f.stock, -.52, -.495, -.11, .04, .062, m.rubber);
     k.ring(g, P(.03, -.04), .03, .0055, m.dark, 'x');
     const { fingers, triggerFinger } = rifleGrip(k, g, [-.06, -.025], [-.1, -.17], .048, m.wood);
     const support = cradlePaw(k, g, P(.34, .0), .045, new THREE.Vector3(-.36, -.4, .3));

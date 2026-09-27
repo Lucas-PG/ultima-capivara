@@ -494,7 +494,7 @@ export class WeaponView {
     if (this.painted || this.toon) { this.camera.fov = WEAPON_VIEW_FOV; this.camera.updateProjectionMatrix(); }
     if (this.toon) for (const id of TOON_WEAPON_IDS) {
       const model = this.toon.create(id);
-      this.models[id] = { ...model, toonModel: model, rarity: 0, hipX: TOON_HIP_POSES[id].x, adsZ: -.42 };
+      this.models[id] = { ...model, toonModel: model, rarity: 0, hipX: TOON_HIP_POSES[id].x, adsZ: id === 'slingshot' ? -.72 : -.5 };
       model.group.visible = false; this.holder.add(model.group);
     }
     this.warmupVariants.visible = false; this.scene.add(this.warmupVariants);
@@ -776,6 +776,7 @@ export class WeaponView {
       model.triggerFinger.position.set(0, -press * .012, press * .018);
     }
     const pose = model.painted ? WEAPON_HIP_POSES[weapon] : model.toonModel ? TOON_HIP_POSES[weapon] : null;
+    if (model.toonModel?.stock) model.toonModel.stock.visible = this.ads < .45;
     const modelScale = pose?.scale ?? .72;
     this.holder.scale.setScalar(modelScale);
     const swimBob = Math.sin(this.breathingTime * 2.1) * .009 * motion * this.swimPose;

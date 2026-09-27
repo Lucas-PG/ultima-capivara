@@ -2,7 +2,7 @@
 import { chromium } from '@playwright/test';
 const [out, query = ''] = process.argv.slice(2);
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
-const page = await browser.newPage({ viewport: { width: 2560, height: 720 } });
+const page = await browser.newPage({ viewport: { width: 2560, height: Number(process.env.H || 720) } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 page.on('console', m => { if (m.type() === 'error') console.error('console', m.text()); });
 await page.goto(`http://127.0.0.1:5173/tools/qa/viewmodel.html?${query}`);

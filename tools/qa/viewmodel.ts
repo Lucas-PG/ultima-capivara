@@ -34,7 +34,7 @@ const scenes = ids.map((id, i) => {
   const pose = WEAPON_HIP_POSES[id];
   const camera = new THREE.PerspectiveCamera(mode === 'side' ? 30 : WEAPON_VIEW_FOV, tileW / tileH, .01, 10);
   if (mode === 'side') { camera.position.set(-2.2, .05, -.25); camera.lookAt(0, 0, -.25); }
-  else if (mode === 'ads') { holder.scale.setScalar(pose.scale); holder.position.set(0, -model.sightY * pose.scale, -.4); }
+  else if (mode === 'ads') { if (model.stock) model.stock.visible = false; holder.scale.setScalar(pose.scale); holder.position.set(0, -model.sightY * pose.scale, Number(params.get('adsZ') || -.4)); }
   else { holder.scale.setScalar(pose.scale); holder.position.set(pose.x, pose.y, pose.z); holder.rotation.set(pose.pitch ?? 0, pose.yaw ?? 0, pose.roll ?? 0); }
   return { scene, camera, x: (i % cols) * tileW, y: (rows - 1 - Math.floor(i / cols)) * tileH };
 });
