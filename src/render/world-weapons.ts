@@ -37,8 +37,8 @@ export function worldWeaponMaterial(): THREE.MeshStandardMaterial {
 }
 
 export function worldWeaponGeometry(id: WeaponId, detail: 'near' | 'far'): THREE.BufferGeometry {
-  if (!paintedSet()) return bakeToonWeapon(id, detail);
-  const packed = data[id][detail], geometry = new THREE.BufferGeometry();
+  if (!paintedSet() || !(id in data)) return bakeToonWeapon(id, detail);
+  const packed = data[id as keyof typeof data][detail], geometry = new THREE.BufferGeometry();
   geometry.name = `painted-world:${id}:${detail}`;
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(packed.position.map(value => value / 100000), 3));
   geometry.setAttribute('normal', new THREE.Int16BufferAttribute(packed.normal, 3, true));

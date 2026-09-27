@@ -58,18 +58,18 @@ describe('Corrente race to the facão', () => {
       expect(actor.weapons[0].id).toBe(CORRENTE_LADDER[level]);
       expect(actor.weapons[0].ammo).toBe(WEAPONS[CORRENTE_LADDER[level]].magazine);
       expect(actor.reloadUntil).toBe(0); expect(actor.shotHeat).toBe(0); expect(a.adsAmount).toBe(0);
-      expect(sim.snapshot().remaining).toBe(8 - level);
+      expect(sim.snapshot().remaining).toBe(CORRENTE_LADDER.length - level);
       expect(sim.snapshot().phase).toBe('playing');
     }
     // A stone already in flight may earn another elimination, but cannot finish the race.
     eliminate(runtime, b, a, 'slingshot');
     advance(sim, 1);
-    expect(sim.snapshot().phase).toBe('playing'); expect(actor.weaponLevel).toBe(7);
+    expect(sim.snapshot().phase).toBe('playing'); expect(actor.weaponLevel).toBe(CORRENTE_LADDER.length - 1);
     eliminate(runtime, b, a, 'machete'); advance(sim, 1);
     const result = sim.snapshot();
     expect(result.phase).toBe('results'); expect(result.remaining).toBe(0);
     expect(result.results.filter(r => r.winner).map(r => r.id)).toEqual(['a']);
-    expect(sim.drainEvents().filter(e => e.type === 'upgrade')).toHaveLength(7);
+    expect(sim.drainEvents().filter(e => e.type === 'upgrade')).toHaveLength(CORRENTE_LADDER.length - 1);
   });
 
   it('retains progression and refreshes the current gun after a normal death and respawn', () => {
@@ -93,7 +93,7 @@ describe('Corrente race to the facão', () => {
     expect(actor.weaponLevel).toBe(0); expect(actor.kills).toBe(0);
     runtime.time = config.duration + 10; advance(sim, 1);
     expect(sim.snapshot().phase).toBe('playing');
-    expect(sim.snapshot().remaining).toBe(8);
+    expect(sim.snapshot().remaining).toBe(CORRENTE_LADDER.length);
   });
 
   it('gives human reloads renewable reserves without changing the weapon stage', () => {
@@ -142,7 +142,7 @@ describe('Corrente race to the facão', () => {
     for (let level = 1; level < CORRENTE_LADDER.length; level++) eliminate(runtime, b, bot, CORRENTE_LADDER[level - 1]);
     b.state.alive = false; b.state.respawnAt = 0;
     eliminate(runtime, bot, a, 'pistol'); advance(sim, 181);
-    expect(bot.state.weaponLevel).toBe(7); expect(bot.state.weapons[0].id).toBe('machete');
+    expect(bot.state.weaponLevel).toBe(CORRENTE_LADDER.length - 1); expect(bot.state.weapons[0].id).toBe('machete');
     bot.state.pos = point(0, -20); bot.state.protectionUntil = 0; bot.state.yaw = 0;
     a.state.pos = { ...bot.state.pos, z: bot.state.pos.z - 2 }; a.state.hp = 1; a.state.protectionUntil = 0;
     advance(sim, 360);

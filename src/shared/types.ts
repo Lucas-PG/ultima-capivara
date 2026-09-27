@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 export const WORLD_VERSION = 'ilha-v3-rio-9';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -7,7 +7,7 @@ export type Mode = 'battle-royale' | 'deathmatch' | 'corrente';
 export const isArenaMode = (mode: Mode | undefined) => mode === 'deathmatch' || mode === 'corrente';
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'results';
 export type Difficulty = 'easy' | 'normal' | 'hard';
-export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'slingshot';
+export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'slingshot' | 'revolver' | 'coco';
 export type EmoteId = 'wave' | 'dance' | 'victory' | 'sit' | 'chill';
 export type ConsumableId = 'bandage' | 'medkit' | 'guarana' | 'acai' | 'rapadura';
 export interface Vec3 { x: number; y: number; z: number }

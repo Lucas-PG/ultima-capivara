@@ -428,7 +428,9 @@ describe('authoritative simulation', () => {
     expect(sim.snapshot().loot.find(item => item.id === weapon.id)?.active).toBe(false);
     advance(sim, 1.2);
     expect(sim.snapshot().loot.some(item => item.id === weapon.id)).toBe(false);
-    expect(sim.snapshot().loot.filter(item => item.from)).toHaveLength(drops.length - 1);
+    // The other spilled items remain; a full class may add the swapped-out gun beside them.
+    const remaining = sim.snapshot().loot.filter(item => item.from && drops.some(d => d.id === item.id));
+    expect(remaining).toHaveLength(drops.length - 1);
   });
 
   it('keeps real-world snapshots publishable (no undefined fields)', () => {

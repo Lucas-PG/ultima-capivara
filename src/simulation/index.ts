@@ -29,9 +29,9 @@ const STORM = [
   { wait: 15, shrink: 15, radius: 0, damage: 14 },
 ];
 const USE_TIME: Record<ConsumableId, number> = { bandage: 2.5, medkit: 5, guarana: 2, acai: 3, rapadura: 1.5 };
-const CHEST_WEAPONS: WeaponId[] = ['smg', 'shotgun', 'm4', 'dmr', 'sniper', 'slingshot'];
+const CHEST_WEAPONS: WeaponId[] = ['smg', 'shotgun', 'm4', 'dmr', 'sniper', 'slingshot', 'revolver', 'coco', 'smg', 'm4', 'revolver'];
 const CHEST_EXTRA: [LootState['kind'], number][] = [['bandage', 20], ['medkit', 12], ['armor', 18], ['helmet', 12], ['guarana', 14], ['acai', 12], ['rapadura', 12]];
-const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, slingshot: 12 };
+const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, slingshot: 12, revolver: 24, coco: 8 };
 // Legacy-sized hit shapes on the standing capybara (eye 1.62, facing -z): a head
 // sphere and a vertical body cylinder from the feet. When a bot shoots a human the
 // legacy player-favouring sizes apply. Crouching scales them by 1.3/1.8 from the feet.
@@ -832,8 +832,28 @@ export class Simulation {
       }
       const underground = p.pos.y < terrainHeight(p.pos.x, p.pos.z);
       const landed = victim ? null : resolveImpact(previous, dir, wall || (underground ? { distance: length, collider: { id: 'terrain', min: p.pos, max: p.pos, material: 'earth' } } : null), length);
-      if (landed) this.emit({ type: 'impact', actor: p.owner, weapon: p.weapon, pos: landed.point, surface: landed.surface, normal: landed.normal });
-      if (victim || wall || landed || underground || p.life <= 0) this.projectiles.splice(i, 1);
+      const done = victim || wall || landed || underground || p.life <= 0;
+      if (done && WEAPONS[p.weapon].splash) {
+        const at = landed?.point ?? { x: previous.x + dir.x * best, y: previous.y + dir.y * best, z: previous.z + dir.z * best };
+        this.explode(p, at, victim);
+        this.emit({ type: 'impact', actor: p.owner, weapon: p.weapon, pos: at, surface: landed?.surface ?? 'dirt', normal: landed?.normal ?? { x: 0, y: 1, z: 0 } });
+      } else if (landed) this.emit({ type: 'impact', actor: p.owner, weapon: p.weapon, pos: landed.point, surface: landed.surface, normal: landed.normal });
+      if (done) this.projectiles.splice(i, 1);
+    }
+  }
+  // Splash falls off linearly to the edge and needs a clear line from the burst,
+  // so walls still protect. The direct victim already took the full hit; the
+  // shooter takes a reduced share so point-blank shots are a real risk.
+  private explode(p: Projectile, at: Vec3, direct: ActorRuntime | null) {
+    const def = WEAPONS[p.weapon], radius = def.splash!, lifted = { x: at.x, y: at.y + .35, z: at.z };
+    this.alertBots(at, 40);
+    for (const other of this.actors.values()) {
+      const t = other.state;
+      if (other === direct || !t.alive || t.stage !== 'ground') continue;
+      const body = { x: t.pos.x, y: t.pos.y + .6, z: t.pos.z }, d = Math.hypot(body.x - at.x, body.y - at.y, body.z - at.z);
+      if (d > radius || !hasLineOfSight(lifted, body, this.world)) continue;
+      const scale = (1 - d / radius) * (t.id === p.owner ? .4 : 1);
+      if (scale > .02) this.damage(other, def.damage * .85 * scale, p.owner, p.weapon, false, Math.hypot(at.x - p.origin.x, at.z - p.origin.z));
     }
   }
   // ---------------- bots (ported from the legacy build) ----------------

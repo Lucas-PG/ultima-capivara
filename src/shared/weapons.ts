@@ -1,16 +1,16 @@
 import type { WeaponId } from './types';
 
-export const CORRENTE_LADDER = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'slingshot', 'machete'] as const satisfies readonly WeaponId[];
+export const CORRENTE_LADDER = ['pistol', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'revolver', 'slingshot', 'machete'] as const satisfies readonly WeaponId[];
 
 export interface WeaponDefinition {
   name: string; shortName: string; description: string; ammo: string | null;
   magazine: number; damage: number; rpm: number; reload: number; range: number;
   headMultiplier: number; spread: number; adsSpread: number; pellets?: number;
-  melee?: boolean; projectile?: boolean; speed?: number; automatic?: boolean;
+  melee?: boolean; projectile?: boolean; speed?: number; automatic?: boolean; splash?: number;
 }
 
 export const ADS_TIME: Record<WeaponId, number> = {
-  pistol: .16, smg: .16, m4: .22, shotgun: .22, dmr: .22, sniper: .3, machete: .16, slingshot: .16,
+  pistol: .16, smg: .16, m4: .22, shotgun: .22, dmr: .22, sniper: .3, machete: .16, slingshot: .16, revolver: .18, coco: .24,
 };
 export const RECOIL: Record<WeaponId, { pitch: number; yaw: number; recovery: number }> = {
   pistol: { pitch: .014, yaw: .002, recovery: .45 },
@@ -21,6 +21,8 @@ export const RECOIL: Record<WeaponId, { pitch: number; yaw: number; recovery: nu
   sniper: { pitch: .055, yaw: .003, recovery: .6 },
   machete: { pitch: 0, yaw: 0, recovery: .4 },
   slingshot: { pitch: .01, yaw: .002, recovery: .45 },
+  revolver: { pitch: .038, yaw: .004, recovery: .5 },
+  coco: { pitch: .05, yaw: .003, recovery: .6 },
 };
 
 export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
@@ -31,6 +33,10 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
   dmr: { name: 'Carabina', shortName: 'DMR', description: 'Carabina 5.56 com luneta', ammo: '556', magazine: 12, damage: 42, rpm: 300, reload: 2.6, range: 190, headMultiplier: 2.1, spread: 3, adsSpread: .1 },
   sniper: { name: 'Sniper', shortName: 'Sniper', description: 'Rifle .308 de ferrolho', ammo: '308', magazine: 5, damage: 90, rpm: 50, reload: 3, range: 240, headMultiplier: 2.5, spread: 5, adsSpread: 0 },
   machete: { name: 'Facão', shortName: 'Facão', description: 'Arma corpo a corpo', ammo: null, magazine: 0, damage: 45, rpm: 120, reload: 0, range: 2.4, headMultiplier: 1.4, spread: 0, adsSpread: 0, melee: true },
+  // Heavy sidearm: six precise shots that reward a steady aim over the pistol's volume.
+  revolver: { name: 'Trinta-e-oito', shortName: '38', description: 'Revólver de seis tiros', ammo: '38', magazine: 6, damage: 46, rpm: 150, reload: 2.3, range: 110, headMultiplier: 2, spread: 1.1, adsSpread: .08 },
+  // Arcing coconut that bursts on contact: splash clears cover and punishes camping.
+  coco: { name: 'Lança-coco', shortName: 'Coco', description: 'Coco explosivo em arco', ammo: 'coco', magazine: 4, damage: 90, rpm: 60, reload: 2.8, range: 70, headMultiplier: 1, spread: .7, adsSpread: .3, projectile: true, speed: 30, splash: 4.2 },
   slingshot: { name: 'Estilingão', shortName: 'Estilingão', description: 'Pedrada de estilingue', ammo: 'pedra', magazine: 1, damage: 75, rpm: 75, reload: .6, range: 90, headMultiplier: 1.6, spread: .4, adsSpread: .12, projectile: true, speed: 50 },
 };
 

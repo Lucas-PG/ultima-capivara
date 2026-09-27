@@ -8,7 +8,7 @@ export const BOX_LABELS = ['Primária', 'Primária', 'Pistola', 'Facão'] as con
 export type WeaponClass = 'primary' | 'sidearm' | 'melee';
 export const WEAPON_CLASS: Record<WeaponId, WeaponClass> = {
   smg: 'primary', m4: 'primary', shotgun: 'primary', dmr: 'primary', sniper: 'primary',
-  pistol: 'sidearm', slingshot: 'sidearm', machete: 'melee',
+  pistol: 'sidearm', slingshot: 'sidearm', revolver: 'sidearm', coco: 'primary', machete: 'melee',
 };
 const CLASS_BOXES: Record<WeaponClass, readonly number[]> = { primary: [0, 1], sidearm: [2], melee: [3] };
 

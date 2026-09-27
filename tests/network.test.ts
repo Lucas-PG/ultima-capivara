@@ -1,3 +1,4 @@
+import { CORRENTE_LADDER } from '../src/shared/weapons';
 import { describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { DEFAULT_CONFIG, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type GameEvent, type WorldSnapshot } from '../src/shared/types';
@@ -148,7 +149,7 @@ describe('network protocol', () => {
     tampered(f => { f.actors[0][28] = -1; });
     tampered(f => { f.actors[0][29] = -1; });
     tampered(f => { f.actors[0][29] = 1.5; });
-    tampered(f => { f.actors[0][29] = 8; });
+    tampered(f => { f.actors[0][29] = CORRENTE_LADDER.length; });
     tampered(f => { f.actors[0][30] = -1; });
     tampered(f => { f.actors[0][30] = 1.5; });
     tampered(f => { f.actors[0][31] = -1; });

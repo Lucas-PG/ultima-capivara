@@ -15,7 +15,7 @@ export interface ToonWeaponModel {
   triggerFinger?: THREE.Object3D; gripFingers?: THREE.Object3D;
   sightY: number; legendary: THREE.Object3D; toon: true;
 }
-export const TOON_WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot'];
+export const TOON_WEAPON_IDS: readonly WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete', 'slingshot'];
 
 const INK = '#2a1a12';
 type V2 = readonly [number, number];
@@ -189,7 +189,7 @@ function mergeParts(parts: THREE.BufferGeometry[]) {
 // thickness. Toes start on the palm side and curl around the front to finish
 // on the gun's left face, the face the camera actually sees.
 interface GripSpec { top: THREE.Vector3; bottom: THREE.Vector3; radius: number; forward: THREE.Vector3 }
-function wrapPaw(k: ToonArsenal, parent: THREE.Object3D, grip: GripSpec, side: 1 | -1, options: { trigger?: boolean; elbow: THREE.Vector3; toes?: number[] }) {
+function wrapPaw(k: ToonArsenal, parent: THREE.Object3D, grip: GripSpec, side: 1 | -1, options: { trigger?: boolean; elbow: THREE.Vector3; toes?: number[]; palm?: number }) {
   if (!k.paws) { const paw = new THREE.Group(); paw.name = side > 0 ? 'paw_r' : 'paw_l'; parent.add(paw); return { paw, fingers: new THREE.Group(), triggerFinger: undefined as THREE.Object3D | undefined }; }
   const mat = k.materials;
   const axis = grip.bottom.clone().sub(grip.top).normalize();
@@ -204,10 +204,10 @@ function wrapPaw(k: ToonArsenal, parent: THREE.Object3D, grip: GripSpec, side: 1
   };
   const paw = new THREE.Group(); paw.name = side > 0 ? 'paw_r' : 'paw_l';
   parent.add(paw);
-  const palm = around(.45, 55, .018);
-  k.ball(paw, palm, new THREE.Vector3(.052, .062, .05), mat.fur);
+  const palm = around(.45, 55, .018), size = options.palm ?? 1;
+  k.ball(paw, palm, new THREE.Vector3(.052, .062, .05).multiplyScalar(size), mat.fur);
   // Back of the paw sits on the hidden face; the heel of the palm behind the bar.
-  k.ball(paw, around(.52, 12, .02), new THREE.Vector3(.04, .05, .038), mat.fur);
+  k.ball(paw, around(.52, 12, .02), new THREE.Vector3(.04, .05, .038).multiplyScalar(size), mat.fur);
   const fingers = new THREE.Group(); fingers.name = 'grip_fingers'; paw.add(fingers);
   const toes = options.toes ?? (options.trigger ? [.3, .56, .8] : [.18, .42, .66, .9]);
   for (const t of toes) {
@@ -274,6 +274,24 @@ function cradlePaw(k: ToonArsenal, parent: THREE.Object3D, center: THREE.Vector3
 }
 
 // ---- Weapons -----------------------------------------------------------------
+// Two-handed sidearm hold: the support paw cups the firing paw from the visible side.
+function cupPaw(k: ToonArsenal, g: THREE.Object3D) {
+  const m = k.materials;
+  const support = new THREE.Group(); support.name = 'grip_l'; g.add(support);
+  if (!k.paws) return support;
+  k.ball(support, P(-.075, -.075, -.05), new THREE.Vector3(.03, .046, .04), m.fur);
+  [.0, .022, .044].forEach((d, i) => {
+    const a = P(-.04 - d * .4, -.03 - d * 1.2, -.07), b = P(.005 - d * .4, -.05 - d * 1.2, -.052);
+    k.limb(support, a, b, .018, .015, i === 0 ? m.furLight : m.fur);
+    k.ball(support, b.clone().add(new THREE.Vector3(.008, 0, -.004)), new THREE.Vector3(.01, .009, .011), m.nail, false);
+  });
+  const wrist = P(-.12, -.11, -.07), elbow = new THREE.Vector3(-.2, -.42, .42), cuff = wrist.clone().lerp(elbow, .6);
+  k.limb(support, wrist, cuff, .043, .056, m.fur); k.limb(support, cuff, elbow, .062, .07, m.sleeve);
+  k.limb(support, cuff.clone().lerp(wrist, .04), cuff.clone().lerp(elbow, .07), .066, .069, m.cuff);
+  return support;
+}
+
+
 function frame(sightY: number) {
   const group = new THREE.Group(), muzzle = new THREE.Object3D(), eject = new THREE.Object3D(), legendary = new THREE.Group();
   muzzle.name = 'muzzle'; eject.name = 'eject'; legendary.name = 'legendary';
@@ -389,23 +407,12 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     // Grip raked back, ready for the right paw.
     k.profile(g, [[-.1, .005], [-.02, .005], [-.055, -.13], [-.135, -.125]], .05, m.sand, 0, .018);
     const hand = wrapPaw(k, g, { top: P(-.06, -.01), bottom: P(-.095, -.12), radius: .029, forward: new THREE.Vector3(0, 0, -1) }, 1,
-      { trigger: true, elbow: new THREE.Vector3(.13, -.4, .45) });
+      { trigger: true, elbow: new THREE.Vector3(.13, -.4, .45), palm: .78 });
     const mag = new THREE.Group(); mag.name = 'mag'; g.add(mag);
     k.accent(k.box(mag, -.12, -.05, -.14, -.125, .052, m.dark));
     mag.userData.restY = 0; mag.userData.travel = .2;
     // The support paw cups the firing paw from the visible side.
-    const support = new THREE.Group(); support.name = 'grip_l'; g.add(support);
-    if (k.paws) {
-    k.ball(support, P(-.075, -.075, -.052), new THREE.Vector3(.036, .058, .05), m.fur);
-    [.0, .022, .044].forEach((d, i) => {
-      const a = P(-.04 - d * .4, -.03 - d * 1.2, -.07), b = P(.005 - d * .4, -.05 - d * 1.2, -.052);
-      k.limb(support, a, b, .018, .015, i === 0 ? m.furLight : m.fur);
-      k.ball(support, b.clone().add(new THREE.Vector3(.008, 0, -.004)), new THREE.Vector3(.01, .009, .011), m.nail, false);
-    });
-    const wrist = P(-.12, -.11, -.07), elbow = new THREE.Vector3(-.2, -.42, .42), cuff = wrist.clone().lerp(elbow, .6);
-    k.limb(support, wrist, cuff, .043, .056, m.fur); k.limb(support, cuff, elbow, .062, .07, m.sleeve);
-    k.limb(support, cuff.clone().lerp(wrist, .04), cuff.clone().lerp(elbow, .07), .066, .069, m.cuff);
-    }
+    const support = cupPaw(k, g);
     f.muzzle.position.copy(P(.23, .052)); f.eject.position.set(.035, .07, -.02);
     sparkle(k, f.legendary, [P(.1, .09, -.03), P(-.05, .09, .03)]);
     return { ...f, magazine: mag, action, support, triggerFinger: hand.triggerFinger, gripFingers: hand.fingers, toon: true };
@@ -531,6 +538,66 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
     return { ...f, support: new THREE.Group(), gripFingers: hand.fingers, toon: true };
   },
 
+  revolver(k) {
+    const m = k.materials, f = frame(.092);
+    const g = f.group;
+    // Frame, fat fluted cylinder, ribbed barrel and a walnut bird's-head grip.
+    k.profile(g, [[-.085, .0], [.09, .0], [.09, .066], [-.055, .074], [-.09, .05]], .05, m.body, 0, .012);
+    const cylinder = new THREE.Group(); cylinder.name = 'mag'; g.add(cylinder);
+    k.tube(cylinder, .0, .085, .036, .037, m.steel, .037, 0, 14);
+    for (let a = 0; a < 6; a++) {
+      const angle = a / 6 * Math.PI * 2;
+      k.box(cylinder, .012, .073, .036 + Math.sin(angle) * .036 - .005, .036 + Math.sin(angle) * .036 + .005, .012, m.dark, Math.cos(angle) * .036, false);
+    }
+    cylinder.userData.restY = 0; cylinder.userData.travel = .07;
+    k.tube(g, .085, .27, .048, .017, m.steel);
+    k.box(g, .085, .27, .062, .074, .02, m.body);
+    k.accent(k.box(g, .1, .25, .074, .079, .022, m.dark, 0, false));
+    k.profile(g, [[.245, .07], [.268, .07], [.264, .094], [.25, .094]], .01, m.dark, 0, .004, .002);
+    k.box(g, -.06, -.035, .07, .086, .03, m.dark);
+    const action = new THREE.Group(); action.name = 'hammer'; g.add(action);
+    k.profile(action, [[-.1, .045], [-.075, .05], [-.085, .1], [-.105, .098]], .018, m.dark, 0, .006);
+    k.ring(g, P(.035, -.02), .026, .005, m.body, 'x');
+    k.profile(g, [[-.09, .01], [-.035, .0], [-.05, -.1], [-.08, -.135], [-.125, -.12], [-.12, -.03]], .048, m.walnut, 0, .02);
+    const hand = wrapPaw(k, g, { top: P(-.07, -.01), bottom: P(-.09, -.12), radius: .028, forward: new THREE.Vector3(0, 0, -1) }, 1,
+      { trigger: true, elbow: new THREE.Vector3(.13, -.4, .45), palm: .78 });
+    const support = cupPaw(k, g);
+    f.muzzle.position.copy(P(.275, .048)); f.eject.position.copy(P(.04, .06));
+    sparkle(k, f.legendary, [P(.15, .09, -.02), P(-.05, .09, .02)]);
+    return { ...f, magazine: cylinder, action, support, triggerFinger: hand.triggerFinger, gripFingers: hand.fingers, toon: true };
+  },
+
+  coco(k) {
+    const m = k.materials, f = frame(.13);
+    const g = f.group;
+    // Stubby break-action launcher: fat teal tube with brass bands and a coconut in the mouth.
+    k.profile(g, [[-.15, -.025], [.1, -.025], [.1, .075], [-.12, .08], [-.15, .06]], .078, m.body, 0, .016);
+    k.tube(g, .08, .56, .035, .054, m.teal, .054, 0, 20);
+    for (const u of [.16, .4]) k.tube(g, u, u + .03, .035, .058, m.brass, .058, 0, 20);
+    k.accent(k.tube(g, .27, .3, .035, .058, m.dark, .058, 0, 20));
+    k.tube(g, .54, .6, .035, .064, m.dark, .06, 0, 20);
+    const shell = new THREE.Group(); shell.name = 'mag'; g.add(shell);
+    k.ball(shell, P(.585, .035), new THREE.Vector3(.047, .047, .05), m.walnut);
+    k.ball(shell, P(.62, .045), new THREE.Vector3(.012, .01, .004), m.dark, false);
+    shell.userData.restY = 0; shell.userData.travel = .12;
+    // Raised leaf sights so the arc can be judged.
+    k.profile(g, [[-.04, .075], [.02, .075], [.012, .13], [-.03, .13]], .044, m.dark, 0, .006);
+    k.ring(g, P(-.01, f.sightY), .011, .0045, m.dark, 'u');
+    k.profile(g, [[.44, .085], [.47, .085], [.462, .128], [.448, .128]], .012, m.dark, 0, .004, .002);
+    k.ball(g, P(.455, f.sightY), .006, m.brass, false);
+    k.profile(g, [[.24, -.02], [.44, -.02], [.43, -.06], [.25, -.06]], .06, m.wood, 0, .018);
+    k.profile(g, [[-.15, .07], [-.15, -.02], [-.21, -.07], [-.48, -.11], [-.5, .05], [-.3, .065]], .058, m.wood, 0, .02);
+    k.box(g, -.52, -.495, -.11, .04, .062, m.rubber);
+    k.ring(g, P(.03, -.04), .03, .0055, m.dark, 'x');
+    const { fingers, triggerFinger } = rifleGrip(k, g, [-.06, -.025], [-.1, -.17], .048, m.wood);
+    const support = cradlePaw(k, g, P(.34, .0), .045, new THREE.Vector3(-.36, -.4, .3));
+    const action = new THREE.Group(); action.name = 'latch'; g.add(action);
+    k.box(action, .06, .1, .07, .085, .03, m.steel);
+    f.muzzle.position.copy(P(.62, .035)); f.eject.position.copy(P(.05, .06));
+    sparkle(k, f.legendary, [P(.3, .1, -.03), P(-.3, .08, .03)]);
+    return { ...f, magazine: shell, action, support, triggerFinger, gripFingers: fingers, toon: true };
+  },
+
   slingshot(k) {
     const m = k.materials, f = frame(.24);
     const g = f.group;
@@ -568,7 +635,7 @@ const BUILDERS: Record<WeaponId, (k: ToonArsenal) => ToonWeaponModel> = {
 
 // Ground pickups and third-person guns share one vertex-coloured geometry per
 // weapon, baked from the same builders so every view of a gun matches.
-const WORLD_LENGTH: Record<WeaponId, number> = { pistol: .35, smg: .86, m4: 1.18, shotgun: 1.25, dmr: 1.31, sniper: 1.52, machete: .63, slingshot: .42 };
+const WORLD_LENGTH: Record<WeaponId, number> = { pistol: .35, smg: .86, m4: 1.18, shotgun: 1.25, dmr: 1.31, sniper: 1.52, machete: .63, slingshot: .42, revolver: .4, coco: 1.1 };
 const bakers: Partial<Record<'near' | 'far', ToonArsenal>> = {};
 export function bakeToonWeapon(id: WeaponId, detail: 'near' | 'far'): THREE.BufferGeometry {
   const baker = bakers[detail] ??= new ToonArsenal(false, detail);

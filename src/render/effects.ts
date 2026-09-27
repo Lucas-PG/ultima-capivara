@@ -3,6 +3,7 @@ import { rarityOf } from '../shared/rarity';
 import { terrainHeight } from '../shared/terrain';
 import { WATER_LEVEL } from '../shared/water';
 import { MELEE_CONTACT } from '../shared/weapon-presentation';
+import { WEAPONS } from '../shared/weapons';
 import type { ActorState, Collider, ConsumableId, GameEvent, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
 import type { WeaponView } from './weapons';
@@ -40,6 +41,7 @@ const HEX = {
   heal: '#3aa35a', healLight: '#8cc453', armor: '#2f9df4', armorLight: '#bfd8e6', boost: '#e9b44c', boostLight: '#ffe7a3',
   alert: '#e5412d', alertLight: '#ffc23d', white: '#f4fbf6',
   pebble: '#bbae98', pebbleLight: '#d8c8aa',
+  coconut: '#6b4428', coconutLight: '#a8784a', blast: '#ffab2e', blastLight: '#fff2b0', smoke: '#5d4a3e', smokeLight: '#9a8676',
 } as const;
 
 // Per surface: dust puff, flying bits, and the mark left behind.
@@ -57,8 +59,9 @@ const SURFACES: Record<Surface, { puff: string; puffLight: string; bit: string; 
 const FLASH: Partial<Record<WeaponId, { world: number; fp: number }>> = {
   pistol: { world: .42, fp: .16 }, smg: { world: .38, fp: .15 }, m4: { world: .5, fp: .19 },
   shotgun: { world: .7, fp: .28 }, dmr: { world: .55, fp: .21 }, sniper: { world: .7, fp: .26 },
+  revolver: { world: .55, fp: .22 }, coco: { world: .6, fp: .24 },
 };
-const TRACER_WIDTH: Partial<Record<WeaponId, number>> = { pistol: .018, smg: .016, m4: .02, shotgun: .016, dmr: .024, sniper: .028 };
+const TRACER_WIDTH: Partial<Record<WeaponId, number>> = { pistol: .018, smg: .016, m4: .02, shotgun: .016, dmr: .024, sniper: .028, revolver: .024 };
 export const MARK_LIFE = 4;
 
 type Palette = Record<keyof typeof HEX, THREE.Color>;
@@ -94,6 +97,7 @@ export class EffectsView {
   private readonly b = new THREE.Vector3();
   private readonly c = new THREE.Vector3();
   private readonly n = new THREE.Vector3();
+  private readonly n2 = new THREE.Vector3();
   private readonly t1 = new THREE.Vector3();
   private readonly t2 = new THREE.Vector3();
   private readonly u1 = new THREE.Vector3();
@@ -118,7 +122,7 @@ export class EffectsView {
     // Owned and disposed here, not by the scenes' generic disposal passes.
     for (const mesh of [this.decals.mesh, this.casings.mesh, this.tracers.mesh, this.cards.mesh, this.fpCasings.mesh, this.fpCards.mesh]) mesh.userData.effects = true;
     // Third-person barrel tips: the mean of the vertices at the front (-z) of each held model.
-    for (const id of ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'slingshot', 'machete'] as WeaponId[]) {
+    for (const id of Object.keys(WEAPONS) as WeaponId[]) {
       const geometry = itemGeometry('weapon', id), position = geometry.getAttribute('position');
       let front = Infinity;
       for (let i = 0; i < position.count; i++) front = Math.min(front, position.getZ(i));
@@ -197,7 +201,8 @@ export class EffectsView {
       this.waterDrops(this.a, this.frame?.reducedMotion ? 0 : this.frame?.lowQuality ? 3 : event.entering ? 10 : 5, event.entering ? 2.4 : 1.1);
     } else if (event.type === 'impact') {
       for (const pebble of this.pebbles) if (pebble.card && pebble.actor === event.actor) { pebble.card.life = 0; pebble.card = null; break; }
-      this.impact(this.a.copy(event.pos), event.surface, this.n.copy(event.normal), event.weapon, 1);
+      if (event.weapon === 'coco') this.blast(this.a.copy(event.pos), this.n.copy(event.normal));
+      else this.impact(this.a.copy(event.pos), event.surface, this.n.copy(event.normal), event.weapon, 1);
     } else if (event.type === 'damage') {
       avatars.react(event.target, { kind: 'hit', head: event.head, amount: event.amount, from: event.actor ? this.actorPos(snapshot, event.actor) : null });
       if (event.actor) {
@@ -306,7 +311,7 @@ export class EffectsView {
       weaponView.shot(weapon, event.hit || !!event.surface);
       const fp = weaponView.muzzleWorld(this.t1), ads = weaponView.adsAmount;
       this.flash(fp, weapon, true, ads);
-      if (weapon !== 'machete' && weapon !== 'slingshot') {
+      if (weapon !== 'machete' && weapon !== 'slingshot' && weapon !== 'coco' && weapon !== 'revolver') {
         const eject = weaponView.ejectWorld(this.t2);
         this.fpCasings.spawn(eject, this.n.set(rand(.9, 1.3), rand(.8, 1.2), rand(.1, .35)), weapon === 'shotgun', .7);
       }
@@ -320,7 +325,7 @@ export class EffectsView {
         visual.weapon.updateWorldMatrix(true, false);
         muzzle.copy(this.tips.get(weapon)!).applyMatrix4(visual.weapon.matrixWorld);
         this.flash(muzzle, weapon, false, 0);
-        if (weapon !== 'machete' && weapon !== 'slingshot' && f && muzzle.distanceToSquared(f.camera.position) < 30 * 30) {
+        if (weapon !== 'machete' && weapon !== 'slingshot' && weapon !== 'coco' && weapon !== 'revolver' && f && muzzle.distanceToSquared(f.camera.position) < 30 * 30) {
           // Ejected to the shooter's right from above the grip, a little behind the tip.
           const yaw = visual.group.rotation.y, g = visual.group.position;
           this.a.set(muzzle.x + (g.x - muzzle.x) * .6, muzzle.y, muzzle.z + (g.z - muzzle.z) * .6);
@@ -332,7 +337,7 @@ export class EffectsView {
         if (event.actor === playerId) streak = false;
       }
     }
-    if (weapon === 'slingshot') { this.pebble(muzzle, event); return; }
+    if (weapon === 'slingshot' || weapon === 'coco') { this.pebble(muzzle, event); return; }
     if (streak && FLASH[weapon]) {
       const hostile = !!playerId && event.actor !== playerId && this.passesNear(muzzle, end, snapshot, playerId);
       this.tracers.spawn(muzzle, end, .11, TRACER_WIDTH[weapon] || .018, own ? .7 : .95,
@@ -405,10 +410,41 @@ export class EffectsView {
     for (const p of this.pebbles) if (!p.card) { slot = p; break; }
     const card = this.cards.spawn();
     card.pos.copy(from); card.cell = CELL.chip; card.life = 3; card.fadeOut = .02;
-    card.vel.set(event.end.x - event.origin.x, event.end.y - event.origin.y, event.end.z - event.origin.z).normalize().multiplyScalar(50);
-    card.gravity = 9.8; card.size0 = card.size1 = .07; card.minPx = 4; card.spin = 14;
-    card.color.copy(this.color.pebble); card.light.copy(this.color.pebbleLight);
+    const coco = event.weapon === 'coco';
+    card.vel.set(event.end.x - event.origin.x, event.end.y - event.origin.y, event.end.z - event.origin.z).normalize().multiplyScalar(WEAPONS[event.weapon].speed || 50);
+    card.gravity = 9.8; card.size0 = card.size1 = coco ? .2 : .07; card.minPx = coco ? 7 : 4; card.spin = coco ? 6 : 14;
+    card.color.copy(coco ? this.color.coconut : this.color.pebble); card.light.copy(coco ? this.color.coconutLight : this.color.pebbleLight);
     slot.card = card; slot.actor = event.actor;
+  }
+
+  // Coconut burst: a hot core, rolling smoke, shell shards and a scorch; readable, not realistic.
+  private blast(pos: THREE.Vector3, normal: THREE.Vector3) {
+    const reduced = !!this.frame?.reducedMotion;
+    const core = this.cards.spawn();
+    core.pos.copy(pos).addScaledVector(normal, .4); core.cell = PAINT.dust; core.life = .12; core.size0 = 2.2; core.size1 = 3; core.minPx = 20;
+    core.color.copy(this.color.blastLight); core.light.copy(this.color.white);
+    for (let i = 0; i < 8; i++) {
+      const fire = this.cards.spawn();
+      fire.pos.copy(pos).addScaledVector(normal, .3).add(this.n2.set(rand(-.5, .5), rand(0, .6), rand(-.5, .5)));
+      fire.cell = PAINT.dust + (i & 1); fire.life = rand(.3, .45); fire.size0 = rand(1, 1.4); fire.size1 = rand(2.6, 3.4);
+      fire.rot = rand(-1, 1); fire.minPx = 16; fire.vel.set(rand(-1.5, 1.5), rand(1.5, 3), rand(-1.5, 1.5)); fire.drag = 4; fire.fadeOut = .5;
+      fire.color.copy(this.color.blast); fire.light.copy(this.color.blastLight);
+    }
+    for (let i = 0; i < (reduced ? 3 : 7); i++) {
+      const smoke = this.cards.spawn();
+      smoke.pos.copy(pos).add(this.n2.set(rand(-.8, .8), rand(.2, 1), rand(-.8, .8)));
+      smoke.cell = PAINT.dust + (i & 1); smoke.life = rand(1.1, 1.7); smoke.size0 = rand(.3, .5); smoke.size1 = rand(2.8, 3.8);
+      smoke.rot = rand(-1, 1); smoke.minPx = 16; smoke.vel.set(rand(-.8, .8), rand(1.2, 2.2), rand(-.8, .8)); smoke.drag = 2; smoke.fadeOut = .7; smoke.alpha = .6;
+      smoke.color.copy(this.color.smoke); smoke.light.copy(this.color.smokeLight);
+    }
+    for (let i = 0; i < 10; i++) {
+      const shard = this.cards.spawn();
+      shard.pos.copy(pos).addScaledVector(normal, .2); shard.cell = CELL.chip; shard.life = rand(.6, 1);
+      shard.vel.set(rand(-5, 5), rand(3, 7), rand(-5, 5)); shard.gravity = 14; shard.spin = rand(-12, 12);
+      shard.size0 = shard.size1 = rand(.08, .14); shard.minPx = 4; shard.color.copy(this.color.coconut); shard.light.copy(this.color.coconutLight);
+    }
+    const floor = this.groundAt(pos.x, pos.z, pos.y + .3);
+    if (Math.abs(floor - pos.y) < 1.2) this.decals.spawn(this.n2.set(pos.x, floor + .02, pos.z), this.t2.set(0, 1, 0), CELL.scuff, 1.6, 2.4, 6, 2, .8, this.color.smoke, this.color.coconut, rand(0, 6.3));
   }
 
   private impact(pos: THREE.Vector3, surface: Surface, normal: THREE.Vector3, weapon: WeaponId, scale: number) {

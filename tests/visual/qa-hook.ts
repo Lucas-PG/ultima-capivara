@@ -76,7 +76,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
   let placedRoutes: Map<string, Vec3[]> | undefined;
-  const names = [...Object.keys(VIEWS), ...WEAPONS.flatMap(id => [`fp-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
+  const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES, ...ACCESS_POSES, ...ROOM_POSES,
     ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
 
@@ -104,7 +104,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (MUD_POSES.includes(name) && !bath) throw new Error('A revisão precisa de um banho de lama no mapa.');
     if (TRAMPOLINE_POSES.includes(name) && !trampoline) throw new Error('A revisão precisa de um trampolim no mapa.');
     if (SUPPLY_POSES.includes(name) && !supply) throw new Error('A revisão precisa de uma entrega em solo seco e acessível.');
-    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name.startsWith('tp-') ? 'capySide' : name] || VIEWS.plaza;
+    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name.startsWith('tp-') ? 'capySide' : name === 'cocoBlast' ? 'plaza' : name] || VIEWS.plaza;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
     if (name.startsWith('world-')) pitch = -.5;
@@ -327,6 +327,12 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       }
       if (jumper.bounceSeq !== initialBounce + 1 || jumper.grounded || !jumper.bounceProtected)
         throw new Error('A revisão precisa lançar uma capivara pelo contato real do trampolim.');
+    }
+    if (name === 'cocoBlast') {
+      // A real coconut impact 9 m ahead, rendered 0.15 s into the burst.
+      const x = me.pos.x - Math.sin(yaw) * 7, z = me.pos.z - Math.cos(yaw) * 7;
+      renderer.event({ type: 'impact', id: 3, actor: 'bot', weapon: 'coco', pos: { x, y: terrainHeight(x, z), z }, surface: 'dirt', normal: { x: 0, y: 1, z: 0 } });
+      for (let i = 0; i < 9; i++) { s.time += 1 / 60; renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 8); }
     }
     if (name !== 'results') document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
