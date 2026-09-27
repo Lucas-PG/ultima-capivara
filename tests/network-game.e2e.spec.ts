@@ -301,3 +301,52 @@ test('a Correria guest selects, drops and picks back a gun through the host', as
     expect(errors).toEqual([]);
   } finally { await Promise.all(contexts.map(context => context.close())); }
 });
+
+// Slow (a full 5-minute Correria): results reach both clients, the host's
+// rematch returns the room to the lobby and a second match starts clean.
+test('a full Correria ends on both clients and the host starts a clean rematch', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'chromium' || !process.env.E2E_SLOW, 'Set E2E_SLOW=1 for the full-match rematch gate.');
+  test.setTimeout(780_000);
+  const step = (label: string) => console.log(`[rematch] ${new Date().toISOString().slice(11, 19)} ${label}`);
+  const contexts = await Promise.all([0, 1].map(() => browser.newContext({ viewport: { width: 1280, height: 720 } })));
+  const errors: string[] = [];
+  try {
+    for (const context of contexts) await context.addInitScript(() => {
+      if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+      localStorage.setItem('uc-v2-settings', JSON.stringify({ graphics: 'low', master: 0, frameLimit: 30 }));
+    });
+    const [host, guest] = await Promise.all(contexts.map(context => context.newPage()));
+    for (const page of [host, guest]) page.on('pageerror', error => errors.push(error.message));
+    await host.goto(gameAddress());
+    await host.locator('[data-do="host"]').click();
+    await host.locator('[name="nickname"]').fill('Ponte Host');
+    await host.getByRole('button', { name: 'Correria', exact: true }).click();
+    await host.locator('[name="duration"]').selectOption('300', { force: true });
+    await host.locator('#room-form [type="submit"]').click();
+    const code = await host.locator('.invite-card strong').innerText();
+    await guest.goto(gameAddress(code));
+    await guest.locator('[name="nickname"]').fill('Ponte Guest');
+    await guest.locator('#room-form [type="submit"]').click();
+    await expect(guest.locator('#connection-status')).toHaveText(/Conectado/);
+    const start = async () => {
+      await Promise.all([host.locator('[data-do="ready"]').click(), guest.locator('[data-do="ready"]').click()]);
+      await expect(host.locator('[data-do="start"]')).toBeEnabled({ timeout: 90_000 });
+      await host.locator('[data-do="start"]').click();
+      for (const page of [host, guest]) await expect.poll(async () => (await inspect(page)).snapshot?.phase, { timeout: 60_000 }).toBe('playing');
+    };
+    await start(); step('first match playing');
+    const firstMatch = (await inspect(host)).snapshot.matchId;
+    for (const page of [host, guest]) await expect.poll(async () => { const i = await inspect(page); step(`${page === host ? 'host' : 'guest'} ${i.screen} ${i.snapshot?.phase} ${Math.round(i.snapshot?.remaining ?? -1)}`); return i.snapshot?.phase; }, { timeout: 360_000, intervals: [20_000] }).toBe('results');
+    step('results on both');
+    // Both see the same winners and bots were counted in the scoreboard.
+    const [hostResults, guestResults] = await Promise.all([host, guest].map(async page => (await inspect(page)).snapshot.results.map((r: any) => `${r.name}:${r.kills}:${r.place}`).join('|')));
+    expect(guestResults).toBe(hostResults);
+    await host.locator('[data-do="rematch"]').click(); step('rematch clicked');
+    for (const page of [host, guest]) await expect.poll(async () => (await inspect(page)).room?.phase, { timeout: 30_000 }).toBe('lobby');
+    step('both in lobby'); await start(); step('second match playing');
+    const second = await inspect(guest);
+    expect(second.snapshot.matchId).not.toBe(firstMatch);
+    expect(second.snapshot.actors.every((a: any) => a.kills === 0 && a.deaths === 0)).toBe(true);
+    expect(errors).toEqual([]);
+  } finally { await Promise.all(contexts.map(context => context.close())); }
+});
