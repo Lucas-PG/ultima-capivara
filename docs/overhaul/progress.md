@@ -14,7 +14,7 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 |---|---|---|
 | M1 | Hands and arsenal: inventory rules, first-person weapons and paws | done (polish items open) |
 | M2 | Island look: water, light, sky, materials | water done; light/materials open |
-| M3 | Places: district identity, buildings and interiors, prop placement | house variety done; districts open |
+| M3 | Places: district identity, buildings and interiors, prop placement | house variety, landmarks, Farol headland done; deeper layout work open |
 | M4 | Combat feel, weapon variety, bots, audio, pacing (full matches) | weapons, ammo flow, landing grace done; bot stuck rate open |
 | M5 | Multiplayer restore and verification with real clients | e2e incl. inventory; rematch gate added |
 
@@ -34,6 +34,9 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 
 ### M3 log
 - `house_medium` (unused kit piece) now used on 8 lots with its own furnished interior and painted floor. House lots count as occupied, which fixed bushes growing inside rooms. World version `ilha-v3-rio-10`.
+
+- Landmarks the plan named but the kit never shipped are now built in code and collidable: Porto crane, Fazenda windmill (turning), Morro radio mast (`src/render/landmarks.ts`, `src/shared/landmarks.ts`). World `ilha-v3-rio-11`.
+- Farol headland: rock outcrops on the lighthouse flanks.
 
 ### M4 log
 - Playtest driver `hunt` step (scripted aim-and-fire player). Findings fixed: guns ran dry and dry-fired (now auto-switch to a loaded gun; Correria kills restock a magazine; bots skip empty guns); BR players were shot 4-6 s after landing (bot landing grace 2.5 s -> 7 s).
@@ -60,5 +63,14 @@ Resumable record for the creative-direction overhaul (started 2026-09-27). Newes
 - Reload/equip animations are the old generic ones; no pump/bolt hand motion.
 - The ammo card still sits over the lower-right corner of long guns at 4:3.
 
+## Session 1 final gate (2026-09-27, branch `overhaul/m1-inventory`, not pushed)
+- `npm run check` clean; `npx vitest run` 718/718; `npm run build` ok (dist 41 MB).
+- `npx playwright test --project=chromium`: 5/5 (slow rematch gate skipped by default; passed separately with `E2E_SLOW=1`).
+- Live Correria combat on Apple M2, real Chrome, 1280x720, medium: p50/p99 16.7/16.8 ms, 0 long tasks, 248 draws, 1.53M tris.
+
 ## Next action
-M3: break architectural repetition (use the unused `house_medium` kit piece, district signatures), then M2 light/materials, then M4 bots (BR stuck rate), then M5 multiplayer pass.
+1. Bots: BR roaming stuck ~1.2/bot-minute (12 seeds); improve local avoidance around kit corners.
+2. Places: the grid of roads and wide empty fields between districts; add alleys, cover lines and district-specific props (Mangue stilts, Fazenda crops/fences, Porto cargo).
+3. First-person polish: per-weapon reload hand motions (pump, bolt), support paw visibility on long guns.
+4. Character: third-person capybara pass (not reviewed this session).
+5. Terrain/lighting: large flat grass and sand areas read bare.
