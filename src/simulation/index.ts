@@ -59,8 +59,9 @@ const DEG = Math.PI / 180;
 export const BOT_TELL = .45;
 // Loot a bot will walk to must be on its own level (no stairs pathing).
 const LEVEL = 1.8;
-// Seconds after a human lands before bots may pick them as a target.
-export const LANDING_GRACE = 2.5;
+// Seconds after a human lands before bots may pick them as a target: long
+// enough to grab a gun, unless the human shoots first.
+export const LANDING_GRACE = 7;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export class Simulation {
