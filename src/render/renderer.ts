@@ -238,7 +238,9 @@ export class GameRenderer {
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0, this.camera.quaternion);
     this.weaponView.cameraFeedback(this.camera, this.settings.reducedMotion);
     const held = viewed?.weapons[viewed.slot]?.id;
-    const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
+    // The scope takes over only once the gun has been raised to the eye.
+    const scoped = this.scoped = !!(viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr')
+      && (viewed.id !== frame.playerId || this.weaponView.adsAmount > .8));
     const emoting = viewed?.emote && viewed.emoteUntil > (frame.simulationTime ?? snapshot?.time ?? 0);
     const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && !emoting && this.cameraRig.cameraBlend < .35);
     this.effectsFrame.firstPerson = firstPerson;
@@ -472,6 +474,8 @@ export class GameRenderer {
   get deathCamActive() { return this.cameraRig.deathCamActive; }
 
   get stats() { return { ...this.frameStats }; }
+  /** The scope overlay replaces the first-person gun this frame. */
+  scoped = false;
   get cameraPosition(): Vec3 { return { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }; }
 
   dispose(): void {

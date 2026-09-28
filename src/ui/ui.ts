@@ -56,6 +56,8 @@ export class GameUI {
   screen: 'home' | 'lobby' | 'game' | 'results' = 'home';
   private root = document.querySelector<HTMLDivElement>('#app')!;
   private emoteActive = false;
+  /** Set by the renderer each frame: the scope shows only once the gun reaches the eye. */
+  scopeReady = true;
   private emoteSelected: number | null = null;
   private emoteX = 0;
   private emoteY = 0;
@@ -302,7 +304,7 @@ export class GameUI {
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
     this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
     const key = (code: string) => esc(keyName(code));
-    this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><span>×</span></div>`
+    this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><u></u><em></em></div>`
       + `<div id="topL" class="stk"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
       + `<div id="ladder" hidden><div class="ladder-heading"><b>CORRENTE</b><span id="ladderStep">1 / ${CORRENTE_LADDER.length}</span></div><div class="ladder-track" aria-hidden="true">${CORRENTE_LADDER.map((_, i) => `<i id="ladder-${i}"></i>`).join('')}</div><span id="ladderNext"></span></div>`
       + `<div id="safe" class="stk" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="stk" hidden>Na tempestade! −<span id="hDps">1</span>/s</div>`
@@ -393,8 +395,10 @@ export class GameUI {
       if (count > 0) carried++;
     });
     this.show('consbar', carried > 0 && me.alive);
-    const scoped = me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
+    const scoped = this.scopeReady && me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
     this.show('scope-overlay', scoped);
+    const scope = this.el('scope-overlay');
+    if (scoped && scope && scope.dataset.kind !== weapon!.id) scope.dataset.kind = weapon!.id;
     const emoting = me.alive && !!me.emote && me.emoteUntil > t;
     const speed = Math.hypot(me.velocity.x, me.velocity.z), cross = this.el('cross');
     this.style(cross, '--g', `${this.crosshairGap(me, now).toFixed(1)}px`);

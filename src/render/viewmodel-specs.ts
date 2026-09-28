@@ -21,6 +21,8 @@ export interface ViewSpec {
   sprint: { pos: V3; rot: V3 };
   /** Eye-to-sight distance when aiming. */
   adsDistance: number;
+  /** Aim point in weapon space when the sight socket is blocked by the gun's own body, and the muzzle-up pitch that puts the front sight on the crosshair. */
+  adsEye?: V3; adsPitch?: number;
   grips: { R: GripSpec; L?: GripSpec };
   /** Visual recoil: back kick (m/s), muzzle climb and roll (rad/s), spring frequency. */
   recoil: { kick: number; climb: number; roll: number; frequency: number };
@@ -79,14 +81,16 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   shotgun: {
     url: 'models/arsenal/shotgun.glb', scale: 1, handling: 'heavy', reload: 'shotgun',
     hip: { pos: [.17, -.19, -.37], rot: [.06, .22, -.12] },
-    sprint: LONG_SPRINT, adsDistance: .24,
+    // The receiver stands taller than the rib: sight from above it, down the rib to the bead.
+    sprint: LONG_SPRINT, adsDistance: .3, adsEye: [0, .13, .02], adsPitch: .07,
     grips: { R: { wrist: [.03, -.015, .1], forward: [-.05, -.45, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] }, L: UNDERHAND_L([-.052, -.03, -.33], 'pump') },
     recoil: { kick: 2.4, climb: 6.5, roll: 2.5, frequency: 17 }, inertia: 1.25,
   },
   coco: {
     url: 'models/arsenal/coco.glb', scale: 1, handling: 'heavy', reload: 'coco',
     hip: { pos: [.2, -.22, -.46], rot: [.06, .2, -.1] },
-    sprint: LONG_SPRINT, adsDistance: .26,
+    // The hopper stands over the tube: aim from above it, the notch and hopper lined up on the target.
+    sprint: LONG_SPRINT, adsDistance: .2, adsEye: [-.03, .26, .03], adsPitch: .18,
     grips: { R: RIFLE_GRIP_R([.032, -.004, .09]), L: UNDERHAND_L([-.055, -.035, -.25], 'pump') },
     recoil: { kick: 2.6, climb: 7.5, roll: 1.6, frequency: 16 }, inertia: 1.3,
   },

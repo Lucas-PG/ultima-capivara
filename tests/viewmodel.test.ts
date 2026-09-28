@@ -101,6 +101,26 @@ describe('first-person viewmodel', () => {
     expect(h.view.weapon).toBe('smg');
   });
 
+  // Aiming must put the sight line on the crosshair: otherwise shots leave the
+  // screen centre while the gun points elsewhere, or the gun's body blocks the view.
+  it('every gun at full aim puts its aim point on the view axis with the authored pitch', async () => {
+    const { VIEW_SPECS } = await import('../src/render/viewmodel-specs');
+    for (const id of Object.keys(VIEW_SPECS).filter(id => id !== 'machete') as WeaponId[]) {
+      const h = await harness(); const spec = VIEW_SPECS[id];
+      h.actor.weapons = [{ id, rarity: 0, ammo: 5, reserve: 10, box: 0 }] as ActorState['weapons'];
+      for (let i = 0; i < 40; i++) h.step();
+      h.actor.ads = true; for (let i = 0; i < 90; i++) h.step();
+      expect(h.view.adsAmount, id).toBeGreaterThan(.99);
+      const aim = new THREE.Vector3(...(spec.adsEye ?? [0, .08, .03])).multiplyScalar(spec.scale);
+      h.holder.updateMatrix();
+      const onScreen = aim.applyMatrix4(h.holder.matrix);
+      expect(Math.hypot(onScreen.x, onScreen.y), id).toBeLessThan(.004);
+      expect(onScreen.z, id).toBeCloseTo(-spec.adsDistance, 2);
+      const muzzle = new THREE.Vector3(0, 0, -1).applyQuaternion(h.holder.quaternion);
+      expect(Math.atan2(muzzle.y, -muzzle.z), id).toBeCloseTo(spec.adsPitch ?? 0, 1);
+    }
+  });
+
   it('draws a newly selected weapon at the hip even if the previous one was fully aimed', async () => {
     const h = await harness(); h.actor.ads = true; for (let i = 0; i < 60; i++) h.step();
     expect(h.view.adsAmount).toBeGreaterThan(.99);

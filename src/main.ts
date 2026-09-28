@@ -422,6 +422,7 @@ function frame(now: number) {
   }
   if (now - fpsAt >= 1000) { fps = frameCount * 1000 / (now - fpsAt); frameCount = 0; fpsAt = now; }
   const hudAt = timing.begin();
+  ui.scopeReady = renderer?.scoped ?? true;
   ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction, session.latencies);
   timing.end('hud', hudAt);
 }

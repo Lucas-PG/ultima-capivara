@@ -21,6 +21,7 @@ import { swimReady } from '../shared/inventory';
 export const VIEWMODEL_FOV = 58;
 
 const v3 = (value: V3, out = new THREE.Vector3()) => out.set(value[0], value[1], value[2]);
+const X_AXIS = new THREE.Vector3(1, 0, 0);
 const ease = (t: number) => { const x = THREE.MathUtils.clamp(t, 0, 1); return x * x * (3 - 2 * x); };
 const window01 = (t: number, a: number, b: number) => ease((t - a) / (b - a));
 const bump = (t: number, a: number, peak: number, b: number) => window01(t, a, peak) * (1 - window01(t, peak, b));
@@ -114,6 +115,7 @@ export class WeaponView {
   private readonly targetL: HandTarget;
   private readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
   private readonly quat = new THREE.Quaternion();
+  private readonly adsQuat = new THREE.Quaternion();
   private readonly offset = new THREE.Quaternion();
   private disposed = false;
   readonly assets: Promise<void>;
@@ -322,10 +324,11 @@ export class WeaponView {
 
     // ---- base pose: hip to sights
     const hip = v3(spec.hip.pos), hipRot = this.quat.setFromEuler(this.euler.set(spec.hip.rot[0], spec.hip.rot[1], spec.hip.rot[2], 'YXZ'));
-    const sightOffset = model.sight.clone().multiplyScalar(spec.scale);
-    const adsPos = new THREE.Vector3(0, 0, -spec.adsDistance).sub(sightOffset);
+    const adsRot = this.adsQuat.setFromAxisAngle(X_AXIS, spec.adsPitch ?? 0);
+    const eye = (spec.adsEye ? v3(spec.adsEye) : model.sight.clone()).multiplyScalar(spec.scale).applyQuaternion(adsRot);
+    const adsPos = new THREE.Vector3(0, 0, -spec.adsDistance).sub(eye);
     const position = hip.lerp(adsPos, ads);
-    const rotation = hipRot.slerp(new THREE.Quaternion(), ads);
+    const rotation = hipRot.slerp(adsRot, ads);
     // ---- additive layers (x right, y up, z back; pitch up, yaw left, roll left)
     const bobScale = motion * this.movePose * (1 - ads * .85) * (1 + sprint * .9);
     const bobX = Math.sin(this.gait * .5) * .011 * bobScale, bobY = -Math.abs(Math.cos(this.gait * .5)) * .009 * bobScale + .0045 * bobScale;

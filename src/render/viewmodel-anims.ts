@@ -74,7 +74,8 @@ const M4_RELOAD = magSwap([0, -.99, -.12], [-.03, -.09, -.008], [
   { t: .82, L: { space: 'gun', wrist: [-.064, .022, .048], forward: [.1, .3, -1], palm: [1, 0, .1], curl: OPEN }, ease: 'snap', sfx: 'slide-home' },
   { t: .83, p: [-.02, .035, .03], r: [.15, .12, -.24], ease: 'snap' },
   { t: .95, L: { space: 'grip' } },
-]);
+// The long rifle is lifted and rolled higher so the magazine well stays in frame.
+], { p: [-.11, .17, .07], r: [.42, .34, -.62] });
 const SMG_RELOAD = magSwap([0, -1, -.045], [-.03, -.08, -.008], [
   // The cocking lever: pull back and slap it home.
   { t: .77, L: { space: 'gun', wrist: [-.075, .055, -.03], forward: [0, .25, -1], palm: [1, -.2, 0], curl: PINCH } },

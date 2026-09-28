@@ -50,7 +50,7 @@ Priority order follows the brief: POV, weapons, character, map, graphics, combat
 - [x] B1 All ten rebuilt in the v2 pipeline (pistol, revolver, SMG, M4 + red dot, Doze with side saddle, Lança-coco bamboo launcher with hopper, Carabina 3x, bolt sniper, facão, estilingão with live tubing)
 - [x] B2 Third-person and ground versions simplified from the same models, one 1024 atlas (`tools/blender/build-world-arsenal.mjs`)
 - [ ] B3 Per-weapon feel: sounds, muzzle, tracers, recoil patterns (visual recoil per weapon done)
-- [ ] B4 Remaining polish: M4 mag swap is low in frame; shotgun/coco ADS see the stock; slingshot paw placement; scope overlay review
+- [x] B4 Polish: M4 reload lifted so the magazine swap stays in frame; per-weapon ADS eye point and pitch (Doze sights over its tall receiver down the rib to the bead, Lança-coco aims from above its hopper); scoped guns raise to the eye before the optic takes over; scope overlay redrawn with a bezel, lens tint, duplex + red dot (Sniper) and chevron (Carabina); slingshot paws reviewed, no change needed
 
 ### C. Character
 - [x] C1 Character v4 (`tools/blender/capybara_v4.py`): metaball sculpt of the turnaround proportions, remeshed skin, clothing shells (shirt, vest with pouches, shorts, belt), team-masked bandana, backpack and bedroll, inset eyes with iris/pupil/glint, brows, ears, nostrils, digits and claws; baked occlusion in vertex colour; LODs 38k/8k/2.2k (far LOD drops sub-pixel parts); heat weights on the closed skin transferred to garments
