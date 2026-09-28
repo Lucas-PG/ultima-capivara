@@ -16,7 +16,7 @@ import kitMetrics from '../../public/models/kit/metrics.json';
 import supplyMetrics from '../../public/models/supply-drop/metrics.json';
 import { KIT_PIECES } from '../shared/kit-collision';
 import { KIT_ASSET_PATH } from './kit';
-import { paintedWeaponsEnabled } from './painted-weapons';
+import { fpManifest } from './viewmodel-specs';
 import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
@@ -106,10 +106,11 @@ export class GameRenderer {
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
     instrumentGpu(this.gl);
-    const weaponManifest: readonly AssetEntry[] = paintedWeaponsEnabled() ? [
-      ...ASSET_MANIFEST.filter(asset => !asset.path.startsWith('models/service-pistol/') && !asset.path.startsWith('models/m700/')),
+    const weaponManifest: readonly AssetEntry[] = [
+      ...ASSET_MANIFEST,
       { path: 'models/weapons/painted-weapons.glb', kind: 'glb', bytes: weaponMetrics.bytes, label: 'Armas da ilha' },
-    ] : ASSET_MANIFEST;
+      ...fpManifest(),
+    ];
     const manifest: readonly AssetEntry[] = [...weaponManifest, ...(world.pieces?.length ? [{
       path: KIT_ASSET_PATH, kind: 'glb' as const, bytes: kitMetrics.bytes, label: 'Casas e caminhos da ilha',
     }] : []), {
