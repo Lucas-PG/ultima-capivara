@@ -40,16 +40,17 @@ HUD
 Priority order follows the brief: POV, weapons, character, map, graphics, combat/audio/VFX, gameplay, UI, perf, multiplayer, final review.
 
 ### A. First-person foundation
-- [ ] A1 Weapon asset pipeline v2 (Blender): bevelled geometry, baked AO + edge light in vertex colours, sockets (grip_r, grip_l, mag, action, muzzle, eject, sight)
-- [ ] A2 Capybara FP arms: skinned, fingerless gloves, fur clumps, IK to weapon sockets, finger poses
-- [ ] A3 Viewmodel animation: framing, sway/inertia, bob, sprint per class, ADS, recoil + mechanism, per-weapon reloads, draw/holster, jump/land, crouch, lean, swim, melee
-- [ ] A4 FOV semantics (horizontal FOV setting, sane default) and viewmodel FOV
-- [ ] A5 Weapon switching and inventory UX
+- [x] A1 Weapon asset pipeline v2 (`tools/blender/arsenal_lib.py`, `arsenal.py`, `build-fp.mjs`): profile-extruded parts with bevels, one UV layout per weapon, Cycles bakes (material id, AO, bevel-edge mask, object normal) composited into a painted albedo + ORM; moving parts with pivots; sockets muzzle/eject/sight
+- [x] A2 FP arms (`tools/blender/fp_arms.py`, `src/render/fp-arms.ts`): skin-modifier forearms + 3 fingers and thumb, claws, cloth wrap, scalloped fur ruff, per-vertex AO; runtime two-bone IK with bend-plane frames, finger curls; procedural fur-strand shader
+- [x] A3 Viewmodel (`src/render/weapons.ts`, `viewmodel-specs.ts`, `viewmodel-choreo.ts`, `viewmodel-anims.ts`): per-weapon hip/ADS/sprint framing, look inertia, gait bob, strafe tilt, jump/land/crouch springs, per-weapon recoil springs, slide/hammer/pump/bolt/cylinder mechanics, keyframed reloads for every family (pistol, rifle mag swaps with bolt slap/HK slap/charging handle, bolt sniper, revolver swing-out + ejector + speedloader, shell-by-shell shotgun, coco hopper refill, slingshot redraw), holster/draw
+- [x] A4 FOV is horizontal degrees at 16:9 (default 100, range 80-120; old vertical saves converted); viewmodel FOV 58 vertical
+- [~] A5 Wheel cycling follows hotbar box order (tested). HUD redesign of the weapon strip still open (moved to G3)
 
 ### B. Weapons (hero pass for all 10)
-- [ ] B1 Pistol, Revolver, SMG, M4, Doze, Lança-coco, Carbine, Sniper, Facão, Estilingão rebuilt to the new standard
-- [ ] B2 Third-person and ground versions from the same source (LOD)
-- [ ] B3 Per-weapon feel: recoil patterns, sounds, muzzle, tracers, handling
+- [x] B1 All ten rebuilt in the v2 pipeline (pistol, revolver, SMG, M4 + red dot, Doze with side saddle, Lança-coco bamboo launcher with hopper, Carabina 3x, bolt sniper, facão, estilingão with live tubing)
+- [x] B2 Third-person and ground versions simplified from the same models, one 1024 atlas (`tools/blender/build-world-arsenal.mjs`)
+- [ ] B3 Per-weapon feel: sounds, muzzle, tracers, recoil patterns (visual recoil per weapon done)
+- [ ] B4 Remaining polish: M4 mag swap is low in frame; shotgun/coco ADS see the stock; slingshot paw placement; scope overlay review
 
 ### C. Character
 - [ ] C1 Capybara redesign and rebuild (model, face, fur, gear), LODs
@@ -82,11 +83,14 @@ Priority order follows the brief: POV, weapons, character, map, graphics, combat
 
 ## Decisions
 
+- New FP arsenal replaces the painted palette guns entirely (the painted GLB is no longer loaded). Baked textures per weapon (1024 albedo + ORM, WebP in GLB) instead of a shared 32-colour palette: the palette could not carry light, wear or edges.
+- Arms are one rig for all weapons with IK to authored grips (weapon space), instead of paws baked into each weapon mesh: this is what makes reloads and pump/bolt work possible.
 - Keep Three.js + TypeScript + Vite + worker simulation + PeerJS. The architecture works and is tested; the weaknesses are content and presentation, not the stack.
 
 ## Rejected experiments
 
-(none yet)
+- Spiky fin fur tufts on the FP arms (read as scales/spikes); replaced with a displaced scalloped ruff + shader strands.
+- First character build at 8.5 mm voxels with AO and heat weights on the full mesh: over 11 minutes; restructured to decimate first.
 
 ## Test state
 
