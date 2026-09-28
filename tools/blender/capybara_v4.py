@@ -449,7 +449,7 @@ bpy.ops.object.parent_set(type='ARMATURE_AUTO')
 # influence onto the torso. Only vertices on the arm capsules keep it.
 def on_arm(p):
     for side in 'LR':
-        for a, b, r in [(REST['arm_' + side][0], REST['arm_' + side][1], .1), (REST['forearm_' + side][0], REST['forearm_' + side][1], .085),
+        for a, b, r in [(REST['arm_' + side][0], REST['arm_' + side][1], .135), (REST['forearm_' + side][0], REST['forearm_' + side][1], .1),
                         (REST['paw_' + side][0], REST['paw_' + side][1] + (REST['paw_' + side][1] - REST['paw_' + side][0]) * .5, .09)]:
             ab = b - a
             t = (p - a).dot(ab) / ab.length_squared

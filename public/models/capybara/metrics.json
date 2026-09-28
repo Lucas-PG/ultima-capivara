@@ -97,10 +97,10 @@
   "materials": 1,
   "skins": 1,
   "joints": 35,
-  "bytes": 715288,
+  "bytes": 715112,
+  "statueBytes": 151532,
   "rawBytes": 2380308,
   "texture": {
     "format": "vertex colour"
-  },
-  "statueBytes": 151532
+  }
 }

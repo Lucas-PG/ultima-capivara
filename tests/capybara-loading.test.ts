@@ -226,6 +226,9 @@ describe('capybara asset readiness', () => {
     expect(entries).toEqual([{
       path: 'models/capybara/capybara.glb', kind: 'glb',
       bytes: statSync('public/models/capybara/capybara.glb').size, label: 'Capivara',
+    }, {
+      path: 'models/capybara/statue.glb', kind: 'glb',
+      bytes: statSync('public/models/capybara/statue.glb').size, label: 'Capivara Redentora',
     }]);
   });
 
