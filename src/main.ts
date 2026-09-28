@@ -3,7 +3,7 @@ import { createWorld } from './shared/world';
 import { moveActor } from './shared/collision';
 import { clamp } from './shared/math';
 import { closestInteraction as findInteraction } from './shared/interaction';
-import { indexOfBox } from './shared/inventory';
+import { indexOfBox, nextBoxSlot } from './shared/inventory';
 import { WEAPONS } from './shared/weapons';
 import { DEATH_CAM_SECONDS } from './shared/death-cam';
 import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot } from './shared/types';
@@ -325,8 +325,9 @@ input.onInspect = () => renderer?.inspectWeapon();
 input.onCycle = direction => {
   const me = snapshot?.actors.find(a => a.id === playerId);
   if (!me || me.weapons.length < 2) return;
-  const slot = (me.slot + direction + me.weapons.length) % me.weapons.length;
-  sendAction({ type: 'slot', id: input.actionIdNext(), slot });
+  // Follow the hotbar: boxes 1 to 4 in order, skipping empty boxes.
+  const slot = nextBoxSlot(me.weapons, me.slot, direction);
+  if (slot !== me.slot) sendAction({ type: 'slot', id: input.actionIdNext(), slot });
 };
 input.onBox = box => {
   const me = snapshot?.actors.find(a => a.id === playerId), slot = me ? indexOfBox(me.weapons, box) : -1;

@@ -56,3 +56,11 @@ export function validLoadout(weapons: readonly { box?: unknown }[]) {
 // Swimming keeps one paw free: only the sidearm box can be held or fired.
 export const swimReady = (id: WeaponId | undefined) => !!id && WEAPON_CLASS[id] === 'sidearm';
 export const sidearmIndex = (weapons: readonly WeaponState[]) => weapons.findIndex(w => swimReady(w.id));
+
+/** The carried weapon in the next occupied box (hotbar order), wrapping around. */
+export function nextBoxSlot(weapons: readonly WeaponState[], held: number, direction: 1 | -1): number {
+  const order = weapons.map((weapon, index) => ({ index, box: weapon.box ?? index })).sort((a, b) => a.box - b.box);
+  const at = order.findIndex(entry => entry.index === held);
+  if (at < 0 || !order.length) return held;
+  return order[(at + direction + order.length) % order.length].index;
+}
