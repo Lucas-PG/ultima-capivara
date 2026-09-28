@@ -53,16 +53,16 @@ Priority order follows the brief: POV, weapons, character, map, graphics, combat
 - [ ] B4 Remaining polish: M4 mag swap is low in frame; shotgun/coco ADS see the stock; slingshot paw placement; scope overlay review
 
 ### C. Character
-- [ ] C1 Capybara redesign and rebuild (model, face, fur, gear), LODs
-- [ ] C2 Animation set and runtime blending (locomotion, aim, reload, hit, death, parachute, swim)
+- [x] C1 Character v4 (`tools/blender/capybara_v4.py`): metaball sculpt of the turnaround proportions, remeshed skin, clothing shells (shirt, vest with pouches, shorts, belt), team-masked bandana, backpack and bedroll, inset eyes with iris/pupil/glint, brows, ears, nostrils, digits and claws; baked occlusion in vertex colour; LODs 38k/8k/2.2k (far LOD drops sub-pixel parts); heat weights on the closed skin transferred to garments
+- [~] C2 New run (lean, bounce, counter-twist, ear flop) and walk (waddle) clips, new TP reload; held guns ride the right paw with left-arm IK. Still open: strafe/backpedal review in motion, death and hit review, swim and parachute review
 
 ### D. Map and world
-- [ ] D1 Macro layout review, districts with identity, landmarks, routes
-- [ ] D2 Architecture variety and working interiors
-- [ ] D3 Environment art (vegetation, rocks, shore, props)
+- [x] D1 Capivara Redentora on the summit (visible from the plaza and the plane); Campinho football pitch in the empty north-east field (new district, route, signs)
+- [x] D2 New architecture: Morro laje houses with rooftop terraces reached by outside stairs (11), colonial sobrados around the Vila (3), veranda farmhouses on the outskirts (4); per-lot facade colours for every house; walked by the traversal tests
+- [ ] D3 Environment art (vegetation, rocks, shore, props); remaining empty areas (south-east corner, west near Lagoa)
 
 ### E. Graphics and water
-- [ ] E1 Lighting, sky, grading, AO, fog
+- [~] E1 Sun raised to ~39 degrees (one shared sun direction); remaining: sky, grading, AO, fog review
 - [ ] E2 Water (sea, river, shore, underwater)
 
 ### F. Combat, audio, VFX
@@ -95,7 +95,9 @@ Priority order follows the brief: POV, weapons, character, map, graphics, combat
 ## Test state
 
 - Baseline at 7f48b7d: see `docs/overhaul/progress.md` (vitest 718/718, e2e 5/5).
+- e81df9b: vitest 697/697 (obsolete painted-weapon tests replaced by `tests/viewmodel.test.ts`; asset contract tests rewritten for the vertex-painted character). e2e not yet re-run.
 
 ## Performance state
 
 - Baseline: live Correria p50/p99 16.7/16.8 ms, 248 draws, 1.53M tris (from previous record).
+- 2026-09-28 live Correria (dev server): p50 16.7, p99 33.4 (17 of 1200 frames over 33 ms, mostly load), 203 draws, 1.30M tris, JS heap 551 MB (to investigate: ten 1024 weapon texture pairs, kit 8 MB).
