@@ -31,6 +31,7 @@ type QaApi = {
   names(): string[];
   motion(weapon: WeaponId, action: 'reload' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
+  tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit', seconds: number): Promise<void>;
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
 };
 
@@ -398,6 +399,44 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       // earlier HUD write expire before capturing this action's ammo/progress.
       await new Promise(resolve => setTimeout(resolve, 80));
       deps.ui.update(s, me.id, 0, false, 60, null);
+    },
+    async tpMotion(weapon, action, seconds) {
+      await pose(`tp-${weapon}`);
+      const s = current!, bot = s.actors.find(actor => actor.id === 'bot-qa')!;
+      // Review on the open, level campinho pitch, facing -x.
+      bot.pos = { x: 84, y: terrainHeight(84, -58), z: -58 }; bot.yaw = Math.PI / 2;
+      bot.weapons = [{ id: weapon, ammo: 10, reserve: 30, rarity: 0, box: 0 }]; bot.slot = 0;
+      const speed = action === 'run' ? 6.4 : action === 'crouch' ? 2.1 : ['walk', 'strafe', 'backpedal'].includes(action) ? 3.9 : 0;
+      bot.sprint = action === 'run'; bot.crouch = action === 'crouch';
+      const heading = bot.yaw + (action === 'strafe' ? Math.PI / 2 : action === 'backpedal' ? Math.PI : 0);
+      const dir = { x: -Math.sin(heading), z: -Math.cos(heading) };
+      const start = { ...bot.pos };
+      if (action === 'reload') bot.reloadUntil = s.time + WEAPON_DEFS[weapon].reload;
+      if (action === 'jump') { bot.grounded = false; bot.velocity.y = 6; }
+      const step = 1 / 60;
+      let hurt = false;
+      for (let t = 0; t < seconds - 1e-6; t += step) {
+        s.time += step;
+        if (speed) {
+          // The actor slides in place on a treadmill so the camera frames it; animation reads velocity.
+          bot.velocity.x = dir.x * speed; bot.velocity.z = dir.z * speed;
+          bot.pos = { ...start };
+        }
+        if (action === 'jump') {
+          bot.velocity.y -= 20 * step; bot.pos = { ...bot.pos, y: bot.pos.y + bot.velocity.y * step };
+          if (bot.pos.y <= start.y) { bot.pos.y = start.y; bot.grounded = true; bot.velocity.y = 0; }
+        }
+        if (action === 'death' && bot.alive && t > .05) {
+          bot.alive = false; bot.hp = 0;
+          renderer!.event({ type: 'kill', id: 900, actor: 'practice', target: bot.id, weapon: 'm4', head: false } as never);
+        }
+        if (action === 'hit' && !hurt && t > .05) {
+          hurt = true;
+          renderer!.event({ type: 'damage', id: 901, actor: 'practice', target: bot.id, amount: 30, head: false, pos: bot.pos } as never);
+        }
+        renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: step, playing: true, spectateId: null, simulationTime: s.time }, false);
+      }
+      renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, true);
     },
     quality(quality) { if (!renderer) throw new Error('Call start first'); deps.settings.graphics = quality; renderer.setSettings(deps.settings); draw(); },
     actors(count) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; },

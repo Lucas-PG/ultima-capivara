@@ -544,10 +544,14 @@ export function capybaraCrownHeight(body: THREE.SkinnedMesh): number {
   return body.worldToLocal(runtime.crownScratch).y;
 }
 
-// Held weapons ride in the visible rig's right paw (so reload and aim clips carry
-// them) using the first-person grip data; the left paw reaches the support grip by IK.
+// Third-person weapon handling. The gun is placed against the chest (rifles at
+// the right shoulder, pistols out in both paws) in the spine's frame, so body
+// lean and gait carry it; both arms then reach its first-person grips by IK.
+// Aim pitch, sprint carry and a short reload are posed here, procedurally.
 const ikA = new THREE.Vector3(), ikB = new THREE.Vector3(), ikC = new THREE.Vector3(), ikT = new THREE.Vector3(), ikE = new THREE.Vector3();
 const ikQ = new THREE.Quaternion(), ikQ2 = new THREE.Quaternion(), ikD = new THREE.Vector3(), ikD2 = new THREE.Vector3();
+const holdMatrix = new THREE.Matrix4(), holdQuat = new THREE.Quaternion(), holdEuler = new THREE.Euler(0, 0, 0, 'YXZ'), holdPos = new THREE.Vector3();
+const ONE = new THREE.Vector3(1, 1, 1), ikMatrix = new THREE.Matrix4();
 function aimBone(bone: THREE.Bone, from: THREE.Vector3, to: THREE.Vector3, want: THREE.Vector3) {
   ikD.subVectors(to, from).normalize(); ikD2.subVectors(want, from).normalize();
   if (ikD.dot(ikD2) > .99999) return;
@@ -557,39 +561,88 @@ function aimBone(bone: THREE.Bone, from: THREE.Vector3, to: THREE.Vector3, want:
   bone.quaternion.copy(ikQ).multiply(ikQ2);
   bone.updateMatrixWorld(true);
 }
-export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, id: WeaponId | null, reloading = false): void {
+interface ArmChain { upper: THREE.Bone; fore: THREE.Bone; paw: THREE.Bone; pawBind: THREE.Quaternion }
+function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun: THREE.Quaternion) {
+  arm.upper.getWorldPosition(ikA); arm.fore.getWorldPosition(ikB); arm.paw.getWorldPosition(ikC);
+  const l1 = ikA.distanceTo(ikB), l2 = ikB.distanceTo(ikC);
+  const dir = ikE.subVectors(target, ikA), distance = dir.length(), reach = Math.min(distance, (l1 + l2) * .999);
+  dir.divideScalar(Math.max(distance, 1e-6));
+  const cos = THREE.MathUtils.clamp((l1 * l1 + reach * reach - l2 * l2) / (2 * l1 * reach), -1, 1);
+  const bend = ikD2.copy(pole).addScaledVector(dir, -pole.dot(dir)).normalize();
+  const elbow = holdPos.copy(ikA).addScaledVector(dir, l1 * cos).addScaledVector(bend, l1 * Math.sqrt(1 - cos * cos));
+  aimBone(arm.upper, ikA, ikB, elbow);
+  arm.fore.getWorldPosition(ikB); arm.paw.getWorldPosition(ikC);
+  aimBone(arm.fore, ikB, ikC, target);
+  // The paw keeps its bind relationship to the gun, so it wraps the grip.
+  arm.paw.parent!.getWorldQuaternion(ikQ).invert();
+  arm.paw.quaternion.copy(ikQ).multiply(ikQ2.copy(gun).multiply(arm.pawBind));
+  arm.paw.updateMatrixWorld(true);
+}
+type HoldClass = 'rifle' | 'pistol' | 'melee' | 'sling';
+const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'pistol', smg: 'rifle', m4: 'rifle', shotgun: 'rifle', dmr: 'rifle', sniper: 'rifle', coco: 'rifle', machete: 'melee', slingshot: 'sling' };
+// Gun origin (the firing paw's web) in character space at rest, and its extra yaw/roll.
+const HOLD_POSE: Record<HoldClass, { pos: readonly [number, number, number]; yaw: number; roll: number }> = {
+  rifle: { pos: [.14, 1.12, -.2], yaw: .06, roll: 0 },
+  pistol: { pos: [.03, 1.22, -.36], yaw: 0, roll: 0 },
+  melee: { pos: [.3, .98, -.2], yaw: 0, roll: 0 },
+  sling: { pos: [-.04, 1.28, -.4], yaw: 0, roll: 0 },
+};
+interface HoldRig { spine: THREE.Bone; charQuat: THREE.Quaternion; R: ArmChain; L: ArmChain }
+const holdRigs = new WeakMap<THREE.SkinnedMesh, HoldRig>();
+export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, actor: ActorState, simulationTime: number): void {
   const runtime = characterInstances.get(body);
   if (!runtime) return;
-  if (!runtime.hold) {
+  let rig = holdRigs.get(body);
+  if (!rig) {
     const bone = (name: string) => runtime.scene.getObjectByName(name) as THREE.Bone;
-    const pawR = bone('paw_R'); if (!pawR) return;
-    // The bind pose faces -Z like the weapon models; bind the gun to that frame.
-    const index = runtime.skeleton.bones.indexOf(pawR);
-    const bind = runtime.skeleton.boneInverses[index].clone().invert();
-    const rest = new THREE.Quaternion().setFromRotationMatrix(bind);
-    runtime.hold = { pawR, restInv: rest.invert(), armL: bone('arm_L'), forearmL: bone('forearm_L'), pawL: bone('paw_L') };
+    const bind = (b: THREE.Bone) => runtime.skeleton.boneInverses[runtime.skeleton.bones.indexOf(b)].clone().invert();
+    const spine = bone('spine'); if (!spine) return;
+    const chain = (side: 'L' | 'R'): ArmChain => {
+      const paw = bone(`paw_${side}`);
+      return { upper: bone(`arm_${side}`), fore: bone(`forearm_${side}`), paw, pawBind: new THREE.Quaternion().setFromRotationMatrix(bind(paw)) };
+    };
+    rig = { spine, charQuat: new THREE.Quaternion(), R: chain('R'), L: chain('L') };
+    holdRigs.set(body, rig);
   }
-  const hold = runtime.hold;
-  if (weapon.parent !== hold.pawR) hold.pawR.add(weapon);
-  if (!id) return;
-  const grips = VIEW_SPECS[id].grips;
-  weapon.quaternion.copy(hold.restInv);
-  weapon.position.set(-grips.R.wrist[0], -grips.R.wrist[1], -grips.R.wrist[2]).applyQuaternion(hold.restInv);
-  // The authored reload owns the support arm; otherwise it stays on the gun.
-  if (!grips.L || !weapon.visible || reloading) return;
-  // Two-bone reach for the support paw, elbow dropping down and out.
-  weapon.updateMatrixWorld(true);
-  ikT.set(grips.L.wrist[0], grips.L.wrist[1], grips.L.wrist[2]).applyMatrix4(weapon.matrixWorld);
-  const { armL, forearmL, pawL } = hold;
-  armL.getWorldPosition(ikA); forearmL.getWorldPosition(ikB); pawL.getWorldPosition(ikC);
-  const l1 = ikA.distanceTo(ikB), l2 = ikB.distanceTo(ikC), reach = Math.min(ikA.distanceTo(ikT), (l1 + l2) * .999);
-  const dir = ikD.subVectors(ikT, ikA).normalize().clone();
-  const cos = THREE.MathUtils.clamp((l1 * l1 + reach * reach - l2 * l2) / (2 * l1 * reach), -1, 1);
-  body.parent?.getWorldQuaternion(ikQ);
-  const pole = ikE.set(-.6, -1, .2).applyQuaternion(ikQ);
-  pole.addScaledVector(dir, -pole.dot(dir)).normalize();
-  const elbow = ikA.clone().addScaledVector(dir, l1 * cos).addScaledVector(pole, l1 * Math.sqrt(1 - cos * cos));
-  aimBone(armL, ikA, ikB, elbow);
-  forearmL.getWorldPosition(ikB); pawL.getWorldPosition(ikC);
-  aimBone(forearmL, ikB, ikC, ikT);
+  if (weapon.parent !== rig.spine) rig.spine.add(weapon);
+  const id = actor.weapons[actor.slot]?.id;
+  if (!id || !actor.alive || actor.stage !== 'ground' || (actor.emote && actor.emoteUntil > simulationTime)) return;
+  const hold = HOLD_CLASS[id], pose = HOLD_POSE[hold], grips = VIEW_SPECS[id].grips;
+  // Aim, sprint carry and reload tilt, all about the shoulders.
+  const pitch = THREE.MathUtils.clamp(actor.pitch, -1, 1) * .85;
+  const sprint = actor.sprint && !actor.swimming ? 1 : 0;
+  const reload = actor.reloadUntil > simulationTime ? 1 - (actor.reloadUntil - simulationTime) / Math.max(.3, WEAPONS[id].reload || 1) : -1;
+  const tilt = reload >= 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(reload, 0, 1)) : 0;
+  const lowReady = sprint * (hold === 'pistol' ? .9 : .55);
+  holdEuler.set(pitch - lowReady + tilt * .25, pose.yaw + sprint * (hold === 'rifle' ? .55 : .2) + tilt * .25, pose.roll - tilt * (hold === 'pistol' ? .5 : .7), 'YXZ');
+  holdQuat.setFromEuler(holdEuler);
+  // Pivot at shoulder height so aiming swings the muzzle, not the stock.
+  const pivot = ikT.set(.08, 1.22, 0);
+  holdPos.set(pose.pos[0], pose.pos[1], pose.pos[2]).sub(pivot).applyQuaternion(holdQuat).add(pivot);
+  holdPos.y -= sprint * .06 + tilt * .05; holdPos.x -= sprint * (hold === 'rifle' ? .06 : 0);
+  // Character frame -> world, then into the spine's current frame. The chest's
+  // own bob and crouch (the spine's height above its rest) carry the gun.
+  const character = body.parent ?? body;
+  character.updateWorldMatrix(true, false); rig.spine.updateWorldMatrix(true, false);
+  const spineY = character.worldToLocal(rig.spine.getWorldPosition(ikB)).y;
+  holdPos.y += spineY - .6;
+  holdMatrix.compose(holdPos, holdQuat, ONE).premultiply(character.matrixWorld).premultiply(ikMatrix.copy(rig.spine.matrixWorld).invert());
+  holdMatrix.decompose(weapon.position, weapon.quaternion, weapon.scale);
+  weapon.updateWorldMatrix(true, false);
+  const gunQuat = weapon.getWorldQuaternion(ikQ2.clone());
+  // Poles: elbows drop down and out to each side (in the character's frame).
+  body.parent?.getWorldQuaternion(rig.charQuat);
+  const poleR = ikD.set(.8, -1, .3).normalize().applyQuaternion(rig.charQuat).clone();
+  const poleL = ikD.set(-.8, -1, .2).normalize().applyQuaternion(rig.charQuat).clone();
+  const target = (grip: { wrist: readonly number[] }) => new THREE.Vector3(grip.wrist[0], grip.wrist[1], grip.wrist[2]).applyMatrix4(weapon.matrixWorld);
+  reachArm(rig.R, target(grips.R), poleR, gunQuat);
+  if (!grips.L) return;
+  const support = target(grips.L);
+  if (tilt > 0) {
+    // The support paw drops to the belt for a fresh magazine and comes back.
+    const fetch = Math.sin(Math.PI * THREE.MathUtils.clamp((reload - .15) / .6, 0, 1));
+    const belt = ikE.set(-.18, .85, -.12).applyQuaternion(rig.charQuat).add(body.getWorldPosition(new THREE.Vector3()));
+    support.lerp(belt, fetch);
+  }
+  reachArm(rig.L, support, poleL, gunQuat);
 }

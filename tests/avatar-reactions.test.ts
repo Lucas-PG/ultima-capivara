@@ -70,7 +70,8 @@ describe('authoritative character reactions', () => {
     expect(h.visual.weapon.geometry).toBe(far);
     camera.position.z = 11; h.advance(1 / 60);
     expect(h.visual.weapon.geometry).toBe(near);
-    expect(h.visual.weapon.position.equals(socket)).toBe(true);
+    // The hold pose breathes with the idle clip; the LOD swap itself must not move the gun.
+    expect(h.visual.weapon.position.distanceTo(socket)).toBeLessThan(.02);
     expect(h.actor.weapons[0].id).toBe('pistol');
   });
 
