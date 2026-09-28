@@ -19,6 +19,8 @@ export interface Key {
   mag?: PartKey;
   /** Named mechanical channels: slide, bolt, pump, cylinder, gate... */
   parts?: Record<string, number>;
+  /** Foley cue fired when the choreography passes this key. */
+  sfx?: string;
 }
 export type Choreography = readonly Key[];
 

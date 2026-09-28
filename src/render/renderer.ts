@@ -296,6 +296,7 @@ export class GameRenderer {
   }
 
   inspectWeapon(): void { this.weaponView.inspect(); }
+  set onFoley(callback: (cue: string) => void) { this.weaponView.onFoley = callback; }
 
   event(event: GameEvent): void {
     const frame = this.lastFrame, viewed = frame?.spectateId || frame?.playerId;

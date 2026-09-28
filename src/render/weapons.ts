@@ -247,6 +247,7 @@ export class WeaponView {
       if (this.holster >= 1) {
         this.models[this.active].group.visible = false; this.drawFrom = this.active; this.active = requested; this.models[this.active].group.visible = true;
         this.draw = 1; this.holster = 0; this.reloadEnd = 0; this.ads = 0; this.kickZ.reset(); this.kickPitch.reset();
+        this.onFoley(this.active === 'machete' ? 'draw' : 'grab');
         this.meleeTime = MELEE_SECONDS; this.meleeStop = 0;
       }
     } else this.holster = damp(this.holster, 0, 20, dt);
@@ -341,6 +342,11 @@ export class WeaponView {
     // ---- reload choreography (weapon part)
     const keys = sortedReloads[weapon];
     const sample = reload >= 0 && keys ? sampleChoreo(keys, reload, this.sample) : null;
+    // Foley: every key the reload passed since the last frame plays its cue once.
+    if (keys && reload >= 0) {
+      for (const key of keys) if (key.sfx && key.t > this.lastReload && key.t <= reload) this.onFoley(key.sfx);
+      this.lastReload = reload;
+    } else this.lastReload = -1;
     const choreo = reload >= 0 && !keys ? this.reloadPose(model, reload) : null;
     if (choreo) { px += choreo.px; py += choreo.py; pz += choreo.pz; rx += choreo.rx; ry += choreo.ry; rz += choreo.rz; }
     if (sample) { px += sample.p.x; py += sample.p.y; pz += sample.p.z; rx += sample.r.x; ry += sample.r.y; rz += sample.r.z; }
@@ -474,6 +480,9 @@ export class WeaponView {
   }
 
   private reloadHold = 0;
+  private lastReload = -1;
+  /** Local Foley cues (reload mechanics, draws). */
+  onFoley: (cue: string) => void = () => {};
   private cylinderSpin = 0;
   private cylinderTarget = 0;
   private boltHand = 0;

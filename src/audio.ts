@@ -483,7 +483,10 @@ export class SoundEngine {
       this.noise(output, now + .14, .08, 'lowpass', 600, .07 * level, .004);
       return;
     }
-    if (id !== 'revolver' && this.playSample(id, output, (id === 'shotgun' || id === 'sniper' ? .48 : .42) * level, now, .48)) return;
+    if (id !== 'revolver' && this.playSample(id, output, (id === 'shotgun' || id === 'sniper' ? .48 : .42) * level, now, .48)) {
+      this.shotLayers(id, output, level, now);
+      return;
+    }
     const voice = VOICES[id];
     const size = id === 'shotgun' || id === 'sniper' ? 1.18 : id === 'smg' ? .72 : 1;
     this.noise(output, now, .042, 'highpass', voice.crack, .34 * size * level, .001);
@@ -495,6 +498,56 @@ export class SoundEngine {
     if (id === 'sniper' || id === 'dmr') {
       this.metalClick(output, now + .28, 2200, .12 * level);
       this.metalClick(output, now + .5, 900, .12 * level);
+    }
+  }
+
+  // Layers over the recorded report: the gun's own mechanism and, close up, a
+  // low punch that gives the shot weight without raising its loudness.
+  private shotLayers(id: WeaponId, output: AudioNode, level: number, now: number) {
+    const own = level >= 1;
+    const voice = VOICES[id];
+    if (own) {
+      this.tone(output, now, voice.bass * 1.6, voice.bass * .55, .12 + voice.length * .08, (id === 'shotgun' || id === 'sniper' ? .2 : .13) * level, 'sine');
+      this.noise(output, now + .002, .06, 'lowpass', 380, .09 * level, .001, true);
+    }
+    if (id === 'pistol') this.metalClick(output, now + .03, 3200, .05 * level);
+    else if (id === 'smg' || id === 'm4') this.metalClick(output, now + .022, id === 'smg' ? 3400 : 2800, .045 * level);
+    else if (id === 'dmr') this.metalClick(output, now + .035, 2400, .06 * level);
+    else if (id === 'shotgun') { this.foleyAt(output, 'pump-back', now + .28, level); this.foleyAt(output, 'pump-home', now + .4, level); }
+    else if (id === 'sniper') { this.foleyAt(output, 'bolt-open', now + .1, level); this.foleyAt(output, 'bolt-back', now + .2, level); this.foleyAt(output, 'bolt-home', now + .32, level); }
+  }
+
+  /** First-person Foley cue from the viewmodel choreography (magazine, slide, bolt, pump...). */
+  foley(cue: string): void {
+    const ctx = this.context;
+    if (!ctx || !this.buses || ctx.state !== 'running' || this.disposed) return;
+    this.localReloadEnd = ctx.currentTime + .6;
+    this.foleyAt(this.buses.effects, cue, ctx.currentTime, 1);
+  }
+
+  private foleyAt(output: AudioNode, cue: string, now: number, level: number) {
+    const v = level;
+    switch (cue) {
+      case 'mag-out': this.metalClick(output, now, 1900, .07 * v); this.noise(output, now + .01, .09, 'bandpass', 900, .04 * v, .004); break;
+      case 'mag-drop': this.noise(output, now, .1, 'bandpass', 520, .05 * v, .003); this.tone(output, now, 260, 140, .08, .03 * v, 'triangle'); break;
+      case 'mag-in': this.noise(output, now, .05, 'bandpass', 1300, .06 * v, .002); this.metalClick(output, now + .045, 1500, .11 * v); break;
+      case 'slide-back': this.noise(output, now, .08, 'bandpass', 2300, .05 * v, .004); this.metalClick(output, now + .06, 2600, .07 * v); break;
+      case 'slide-home': this.metalClick(output, now, 2100, .13 * v); this.tone(output, now, 700, 380, .05, .03 * v, 'triangle'); break;
+      case 'bolt-open': this.metalClick(output, now, 1700, .08 * v); break;
+      case 'bolt-back': this.noise(output, now, .09, 'bandpass', 1500, .06 * v, .01); this.metalClick(output, now + .08, 1300, .07 * v); break;
+      case 'bolt-home': this.noise(output, now, .07, 'bandpass', 1600, .05 * v, .008); this.metalClick(output, now + .06, 2000, .11 * v); break;
+      case 'pump-back': this.noise(output, now, .09, 'bandpass', 900, .08 * v, .006); this.metalClick(output, now + .06, 1100, .1 * v); break;
+      case 'pump-home': this.noise(output, now, .07, 'bandpass', 1100, .07 * v, .004); this.metalClick(output, now + .05, 1450, .13 * v); break;
+      case 'shell-in': this.metalClick(output, now, 2400, .06 * v); this.noise(output, now + .02, .06, 'bandpass', 1800, .04 * v, .003); break;
+      case 'cylinder-open': this.metalClick(output, now, 2000, .08 * v); this.tone(output, now, 900, 600, .1, .02 * v, 'triangle'); break;
+      case 'eject': this.noise(output, now, .06, 'bandpass', 2600, .05 * v, .002); for (let i = 0; i < 4; i++) this.metalClick(output, now + .12 + i * .045 + Math.random() * .02, 3600 + Math.random() * 900, .025 * v); break;
+      case 'speedloader': this.noise(output, now, .06, 'bandpass', 1900, .05 * v, .003); this.metalClick(output, now + .04, 2300, .07 * v); break;
+      case 'cylinder-close': this.metalClick(output, now, 1500, .14 * v); this.tone(output, now, 520, 300, .06, .04 * v, 'triangle'); break;
+      case 'coconut-in': this.tone(output, now, 180, 90, .12, .08 * v, 'sine'); this.noise(output, now, .08, 'lowpass', 600, .06 * v, .004, true); break;
+      case 'grab': this.noise(output, now, .05, 'bandpass', 700, .035 * v, .004); break;
+      case 'draw': this.noise(output, now, .12, 'bandpass', 1100, .035 * v, .03); this.metalClick(output, now + .1, 2000, .035 * v); break;
+      case 'stone': this.noise(output, now, .05, 'lowpass', 900, .05 * v, .003, true); this.tone(output, now, 300, 240, .05, .02 * v, 'triangle'); break;
+      default: break;
     }
   }
 

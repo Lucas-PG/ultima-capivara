@@ -144,6 +144,7 @@ function ensureRenderer() {
         if (room?.phase === 'lobby' && !rendererWarmed) ui.setRoomLoading(fraction);
       }); } catch (error) { throw new RendererUnavailableError('Renderer construction failed', { cause: error }); }
       renderer.resize();
+      renderer.onFoley = cue => sound.foley(cue);
       await renderer.warmup();
       rendererWarmed = true;
     })();

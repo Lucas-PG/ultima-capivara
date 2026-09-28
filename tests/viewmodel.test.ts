@@ -151,4 +151,14 @@ describe('first-person viewmodel', () => {
     const expected = new THREE.Vector3(.03, 0, .092).applyMatrix4(view.holder.matrixWorld);
     expect(view.targetR.wrist.distanceTo(expected)).toBeLessThan(1e-6);
   });
+
+  it('plays each reload Foley cue once, in the order the mechanism moves', async () => {
+    const h = await harness(); for (let i = 0; i < 20; i++) h.step();
+    const cues: string[] = [];
+    h.view.onFoley = cue => cues.push(cue);
+    h.actor.reloadUntil = h.now() + WEAPONS.pistol.reload;
+    while (h.now() < h.actor.reloadUntil) h.step(1 / 30);
+    h.actor.reloadUntil = 0; for (let i = 0; i < 5; i++) h.step();
+    expect(cues).toEqual(['mag-out', 'mag-drop', 'mag-in', 'slide-back', 'slide-home']);
+  });
 });
