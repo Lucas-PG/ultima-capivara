@@ -1,6 +1,6 @@
 import { supplyDropPhase } from '../shared/supply-drops';
 import type { ConnectionStatus } from '../network/session';
-import { DEFAULT_CONFIG, PLAYER_COLORS, type ActorState, type ConsumableId, type GameEvent, type MatchResult, type Mode, type RoomConfig, type RoomState, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../shared/types';
+import { DEFAULT_CONFIG, PLAYER_COLORS, isArenaMode, type ActorState, type ConsumableId, type GameEvent, type MatchResult, type Mode, type RoomConfig, type RoomState, type Settings, type WeaponId, type WorldSnapshot, type WorldSpec } from '../shared/types';
 import { clamp } from '../shared/math';
 import { rarityOf } from '../shared/rarity';
 import { ARENA } from '../shared/layout';
@@ -429,7 +429,7 @@ export class GameUI {
     else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando'}</small>`; }
     else if (me.stage === 'ground') {
       const boundary = boundaryFeedback(me.pos, this.world, snapshot.config.mode);
-      if (boundary) banner = `${boundary.message}<small>Siga de volta para a área de jogo</small>`;
+      if (boundary) banner = `${boundary.message}<small>${this.snapshot && isArenaMode(this.snapshot.config.mode) ? 'Siga de volta para a área de jogo' : 'A correnteza está forte: nade de volta'}</small>`;
     }
     this.toggle(this.el('banner'), 'countdown', snapshot.phase === 'countdown');
     this.setBanner(banner);

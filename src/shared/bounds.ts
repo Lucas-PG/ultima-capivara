@@ -13,5 +13,5 @@ export function boundaryFeedback(pos: Pick<Vec3, 'x' | 'z'>, world: Pick<WorldSp
   const distance = Math.hypot(dx, dz);
   if (distance === 0) return null;
   return { x: dx / distance, z: dz / distance, strength: Math.min(1, distance / 3),
-    message: isArenaMode(mode) ? 'Volte para a Vila' : 'A correnteza está forte. Volte para a ilha' };
+    message: isArenaMode(mode) ? 'Volte para a Vila' : 'Volte para a ilha!' };
 }
