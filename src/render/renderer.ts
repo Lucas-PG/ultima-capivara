@@ -17,6 +17,7 @@ import supplyMetrics from '../../public/models/supply-drop/metrics.json';
 import { KIT_PIECES } from '../shared/kit-collision';
 import { KIT_ASSET_PATH } from './kit';
 import { fpManifest } from './viewmodel-specs';
+import { verticalFov } from '../settings';
 import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
@@ -137,7 +138,7 @@ export class GameRenderer {
     this.weaponView.scene.environmentIntensity = .35;
     this.scene.background = new THREE.Color(PAINT.fog);
     this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
-    this.camera = new THREE.PerspectiveCamera(settings.fov, 1, .07, 850);
+    this.camera = new THREE.PerspectiveCamera(verticalFov(settings.fov), 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
     this.avatars = new AvatarView(this.scene, this.camera, world);
     this.cameraRig = new CameraRig(this.camera, world, settings, this.avatars);
@@ -462,7 +463,7 @@ export class GameRenderer {
     this.resolutionScale = 1; this.applyPreset(settings);
     this.worldView.setSettings(settings);
     this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
-    this.camera.fov = settings.fov; this.camera.updateProjectionMatrix(); this.resize();
+    this.camera.fov = verticalFov(settings.fov); this.camera.updateProjectionMatrix(); this.resize();
   }
 
   // The spectate hand-off waits for the camera's own clock, which is clamped per frame.

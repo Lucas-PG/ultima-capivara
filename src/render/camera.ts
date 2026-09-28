@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { timing } from './timing';
 import { Spring } from './spring';
 import { damp } from '../shared/math';
+import { verticalFov } from '../settings';
 import { actorEye } from '../shared/collision';
 import { colliderGrid } from '../shared/collider-grid';
 import { capybaraHasClip } from './capybara';
@@ -106,8 +107,9 @@ export class CameraRig {
     this.camera.quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, look, this.camera.up));
     // Narrow the view so a 2 m capybara fills about a quarter of the frame.
     const distance = position.distanceTo(look);
-    const framed = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(2 * Math.atan(4 / Math.max(1, distance))), 32, this.settings.fov);
-    this.camera.fov = THREE.MathUtils.lerp(this.settings.fov, cam.killerId || cam.killerPos ? framed : this.settings.fov, k);
+    const base = verticalFov(this.settings.fov);
+    const framed = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(2 * Math.atan(4 / Math.max(1, distance))), 32, base);
+    this.camera.fov = THREE.MathUtils.lerp(base, cam.killerId || cam.killerPos ? framed : base, k);
     this.camera.updateProjectionMatrix();
     this.wasDeathCam = true;
   }
@@ -179,7 +181,7 @@ export class CameraRig {
       this.wasDeathCam = false;
       this.cameraMode = mode;
       const position = this.position, quaternion = this.quaternion;
-      let fov = this.settings.fov;
+      let fov = verticalFov(this.settings.fov);
       if (mode === 'orbit') {
         // Orbit the plane with the mouse, like the legacy build. Level mouse
         // looks down at the island instead of at the horizon.
@@ -188,7 +190,7 @@ export class CameraRig {
         quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(this.planePosition).setY(this.planePosition.y + 1), this.camera.up));
       } else if (mode === 'emote') {
         this.poseEmote(actor, position, quaternion);
-        fov = Math.min(settings.fov, actor.emote === 'chill' && capybaraHasClip('chill') ? 52 : 58);
+        fov = Math.min(verticalFov(settings.fov), actor.emote === 'chill' && capybaraHasClip('chill') ? 52 : 58);
       } else if (mode === 'chase') {
         const body = this.avatars.get(actor.id)?.group.position || this.target.copy(actor.pos);
         const chute = actor.stage === 'parachute', distance = chute ? 7.5 : 6;
@@ -196,7 +198,7 @@ export class CameraRig {
         position.set(body.x + Math.sin(yaw) * reach, body.y + 2.4 - Math.sin(chasePitch) * distance, body.z + Math.cos(yaw) * reach);
         position.y = Math.max(position.y, terrainHeight(position.x, position.z) + .6);
         quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(body).setY(body.y + (chute ? 2.2 : 1.2)), this.camera.up));
-        fov = this.settings.fov + 6;
+        fov = verticalFov(this.settings.fov) + 6;
       } else {
         const predicted = own && frame.predicted ? frame.predicted : actor.pos;
         const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
@@ -234,7 +236,7 @@ export class CameraRig {
         quaternion.setFromEuler(this.rotation.set(pitch, yaw, actor.lean * -.045));
         const ads = own ? this.adsAmount : actor.ads && !actor.sprint ? 1 : 0;
         const zoom = actor.weapons[actor.slot]?.id === 'sniper' ? 5.5 : actor.weapons[actor.slot]?.id === 'dmr' ? 2.9 : 1.25;
-        fov = this.settings.fov / (1 + ads * (zoom - 1));
+        fov = verticalFov(this.settings.fov) / (1 + ads * (zoom - 1));
       }
       if (this.cameraBlend > 0) {
         this.cameraBlend = Math.max(0, this.cameraBlend - frame.dt / this.cameraBlendDuration);

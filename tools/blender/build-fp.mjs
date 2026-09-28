@@ -40,6 +40,6 @@ if (!args.length || weapons.length) {
     report[id].bytes = await pack(`${root}/output/arsenal/${id}.glb`, `${root}/public/models/arsenal/${id}.glb`);
     console.log(id, report[id].bytes, report[id].triangles);
   }
-  const previous = await readFile(`${root}/public/models/arsenal/metrics.json`, 'utf8').then(JSON.parse).catch(() => ({}));
-  await writeFile(`${root}/public/models/arsenal/metrics.json`, JSON.stringify({ ...previous, ...report }, null, 2) + '\n');
+  for (const id of Object.keys(report)) report[id].bytes = (await stat(`${root}/public/models/arsenal/${id}.glb`)).size;
+  await writeFile(`${root}/public/models/arsenal/metrics.json`, JSON.stringify(report, null, 2) + '\n');
 }

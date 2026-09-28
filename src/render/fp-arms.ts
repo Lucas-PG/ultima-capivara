@@ -124,6 +124,37 @@ class Arm {
   }
 }
 
+// Painted fur: strands follow the arm (rest-pose space, so they never swim while
+// the skin deforms), darker roots between clumps, lighter tips catching the key.
+// Only warm, saturated vertex colours (fur) receive it; the dark paws stay leathery.
+function applyFurStrands(material: THREE.MeshStandardMaterial) {
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vRest;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = position;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vRest;
+        float furHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float furNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(furHash(i), furHash(i + vec2(1, 0)), f.x), mix(furHash(i + vec2(0, 1)), furHash(i + vec2(1, 1)), f.x), f.y); }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float furMask = smoothstep(.08, .2, vColor.r - vColor.b) * smoothstep(.02, .08, vColor.r);
+        float around = atan(vRest.x - sign(vRest.x) * .2, vRest.y);
+        vec2 strandUv = vec2(around * 9.0, vRest.z * 38.0);
+        float clump = furNoise(strandUv * vec2(1.0, .35));
+        float strand = furNoise(strandUv * vec2(4.0, .6) + clump * 2.0);
+        float fur = mix(.72, 1.12, smoothstep(.15, .85, clump * .6 + strand * .4));
+        diffuseColor.rgb *= mix(1.0, fur, furMask);`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        {
+          float furN = furMask * (furNoise(strandUv * vec2(3.0, .5)) - .5);
+          normal = normalize(normal + vec3(furN * .35, furN * .2, 0.0));
+        }`);
+  };
+  material.customProgramCacheKey = () => 'fp-fur-strands-v1';
+}
+
 export class ArmsRig {
   readonly group = new THREE.Group();
   readonly right: Arm;
@@ -138,6 +169,7 @@ export class ArmsRig {
         object.frustumCulled = false; object.castShadow = false;
         const material = object.material as THREE.MeshStandardMaterial;
         material.vertexColors = true; material.roughness = .92; material.metalness = 0;
+        applyFurStrands(material);
         applyCharacterStyle(material, 4);
         this.meshes.push(object);
       }

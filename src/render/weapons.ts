@@ -27,11 +27,13 @@ const ease = (t: number) => { const x = THREE.MathUtils.clamp(t, 0, 1); return x
 const window01 = (t: number, a: number, b: number) => ease((t - a) / (b - a));
 const bump = (t: number, a: number, peak: number, b: number) => window01(t, a, peak) * (1 - window01(t, peak, b));
 
-interface Parts { slide?: THREE.Object3D; mag?: THREE.Object3D; trigger?: THREE.Object3D; hammer?: THREE.Object3D; action?: THREE.Object3D }
+interface Parts { slide?: THREE.Object3D; mag?: THREE.Object3D; trigger?: THREE.Object3D; hammer?: THREE.Object3D; action?: THREE.Object3D;
+  cylinder?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; pouch?: THREE.Object3D }
 interface Model {
   id: WeaponId; spec: ViewSpec; group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; sight: THREE.Vector3;
   parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
   grips: { R: GripSpec; L?: GripSpec }; magAxis: THREE.Vector3; painted?: PaintedWeaponModel; rarity: number;
+  crane?: THREE.Vector3; bands?: THREE.Mesh[]; tips?: THREE.Object3D[];
 }
 const sortedReloads = Object.fromEntries(Object.entries(RELOADS).map(([id, keys]) => [id, [...keys!].sort((a, b) => a.t - b.t)]));
 
@@ -51,7 +53,7 @@ export class WeaponView {
   private readonly holder = new THREE.Group();
   private readonly key = new THREE.DirectionalLight(PAINT.sun, 3.1);
   private readonly rim = new THREE.DirectionalLight(PAINT.rim, .8);
-  private readonly fill = new THREE.DirectionalLight('#9fc3e6', .55);
+  private readonly fill = new THREE.DirectionalLight('#9fc3e6', .4);
   private readonly inverseView = new THREE.Quaternion();
   private readonly models = {} as Record<WeaponId, Model>;
   private readonly painted = new PaintedWeaponSet();
@@ -110,7 +112,7 @@ export class WeaponView {
   readonly assets: Promise<void>;
 
   constructor(private readonly loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.05));
+    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .75));
     this.key.position.set(-70, 32, -30); this.rim.position.set(-70, 65, -30); this.fill.position.set(60, 10, 40);
     this.scene.add(this.key, this.rim, this.fill);
     this.warmupVariants.visible = false; this.scene.add(this.warmupVariants);
@@ -171,11 +173,22 @@ export class WeaponView {
     });
     const spec = VIEW_SPECS[id];
     const model: Model = { id, spec, group, muzzle, eject, sight: sight.position.clone(),
-      parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action') },
+      parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action'),
+        cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), pouch: get('pouch') },
       rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: 0 };
     // Blender axis (x, y, z) is (x, z, -y) here.
     const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
     if (axis) model.magAxis.set(axis[0], axis[2], -axis[1]).normalize();
+    const crane = (arsenalMetrics as Record<string, { crane?: number[] }>)[id]?.crane;
+    if (crane) model.crane = new THREE.Vector3(crane[0], crane[2], -crane[1]);
+    if (id === 'slingshot') {
+      // Surgical tubing: two unit cylinders stretched each frame from the fork tips to the pouch.
+      const material = new THREE.MeshStandardMaterial({ color: '#f07a2a', roughness: .55 });
+      const geometry = new THREE.CylinderGeometry(.0042, .0042, 1, 10, 1, true); geometry.translate(0, .5, 0);
+      model.bands = [new THREE.Mesh(geometry, material), new THREE.Mesh(geometry, material)];
+      model.tips = [get('tip_l')!, get('tip_r')!];
+      for (const band of model.bands) { band.frustumCulled = false; root.add(band); }
+    }
     this.remember(model);
     group.visible = false; this.holder.add(group);
     return model;
@@ -215,6 +228,7 @@ export class WeaponView {
     if (id === 'machete') {
       this.meleeTime = 0; this.meleeSide *= -1; this.meleeHit = contact; this.meleeStop = 0;
     } else {
+      if (id === 'revolver') this.cylinderTarget += Math.PI / 3;
       const recoil = this.models[id]?.spec.recoil ?? VIEW_SPECS[id].recoil;
       const scale = 1 - this.adsAmount * .45;
       const alternate = this.shotCount++ % 2 ? 1 : -1;
@@ -261,7 +275,7 @@ export class WeaponView {
     const rarity = actor.weapons[actor.slot]?.rarity ?? 0;
     if (model.painted && rarity !== model.rarity) { this.painted.setRarity(model.painted, rarity); model.rarity = rarity; }
     const motion = settings.reducedMotion ? .35 : 1;
-    this.time += dt;
+    this.time += dt; this.lastDt = dt;
     const reloading = requested === weapon && actor.reloadUntil > simulationTime;
     this.inspectAllowed = requested === weapon && !actor.swimming && !actor.ads && !actor.sprint && !reloading &&
       this.shotLife <= 0 && (weapon !== 'machete' || this.meleeTime >= MELEE_SECONDS);
@@ -338,6 +352,9 @@ export class WeaponView {
     const choreo = reload >= 0 && !keys ? this.reloadPose(model, reload) : null;
     if (choreo) { px += choreo.px; py += choreo.py; pz += choreo.pz; rx += choreo.rx; ry += choreo.ry; rz += choreo.rz; }
     if (sample) { px += sample.p.x; py += sample.p.y; pz += sample.p.z; rx += sample.r.x; ry += sample.r.y; rz += sample.r.z; }
+    // Shell-by-shell reloads keep the loading port canted toward the paw between shells.
+    this.reloadHold = damp(this.reloadHold, reloading && spec.reload === 'shotgun' ? 1 : 0, 9, dt);
+    if (this.reloadHold > .001) { const h = this.reloadHold; px -= .03 * h; py += .035 * h; pz += .02 * h; rx += .22 * h; ry += .1 * h; rz -= .6 * h; }
     this.holder.position.set(position.x + px, position.y + py, position.z + pz);
     this.offset.setFromEuler(this.euler.set(rx, ry, rz, 'YXZ'));
     this.holder.quaternion.copy(rotation).multiply(this.offset);
@@ -415,7 +432,33 @@ export class WeaponView {
     if (action && model.painted) action.position.z += cycle * .03;
     if (trigger) trigger.rotation.x -= (this.shotLife > total * .5 ? .3 : 0);
     if (hammer) hammer.rotation.x += cycle * -.6;
-    if (mag && sample?.mag) {
+    const phase = this.shotLife > 0 ? THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1) : 1;
+    const { cylinder, pump, bolt, charge } = model.parts;
+    if (pump) {
+      // Rack after the shot: back, then home. Reloads can drive it too.
+      const racked = window01(phase, .25, .5) * (1 - window01(phase, .6, .85));
+      pump.position.z += Math.max(racked, sample?.parts.pump ?? 0) * (model.id === 'coco' ? .07 : .085);
+    }
+    if (cylinder && model.crane) {
+      this.cylinderSpin = damp(this.cylinderSpin, this.cylinderTarget, 22, this.lastDt);
+      const swing = (sample?.parts.swing ?? 0) * 1.3;
+      const rest = model.rest.get(cylinder)!;
+      this.offset.setFromAxisAngle(AXIS_Z, swing);
+      cylinder.position.copy(rest.position).sub(model.crane).applyQuaternion(this.offset).add(model.crane);
+      cylinder.position.z -= (sample?.parts.eject ?? 0) * .018;
+      cylinder.quaternion.copy(this.offset).multiply(rest.quaternion).multiply(this.quat.setFromAxisAngle(AXIS_Z, -this.cylinderSpin));
+    }
+    if (bolt) {
+      const cycled = model.id === 'sniper' && this.shotLife > 0 ? phase : -1;
+      const open = cycled >= 0 ? window01(cycled, .12, .3) * (1 - window01(cycled, .74, .9)) : sample?.parts.bolt ?? 0;
+      const pull = cycled >= 0 ? window01(cycled, .3, .47) * (1 - window01(cycled, .52, .72)) : sample?.parts.boltPull ?? 0;
+      bolt.quaternion.multiply(this.quat.setFromAxisAngle(AXIS_Z, open * 1.1));
+      bolt.position.z += pull * .075;
+      this.boltHand = cycled >= 0 ? window01(cycled, .02, .14) * (1 - window01(cycled, .86, 1)) : sample?.parts.boltHand ?? 0;
+    } else this.boltHand = 0;
+    if (charge) charge.position.z += (sample?.parts.charge ?? 0) * .065;
+    if (mag && !sample?.mag && (model.spec.reload === 'revolver' || model.spec.reload === 'shotgun')) mag.visible = false;
+    else if (mag && sample?.mag) {
       const m = sample.mag;
       mag.visible = m.visible;
       mag.position.addScaledVector(model.magAxis, m.out).add(m.p);
@@ -435,13 +478,22 @@ export class WeaponView {
         mag.visible = true;
         mag.position.addScaledVector(model.magAxis, choreo.magOut * .06);
       }
-    } else if (mag) mag.visible = true;
+    } else if (mag && model.spec.reload !== 'revolver' && model.spec.reload !== 'shotgun') mag.visible = true;
     void reload;
   }
 
+  private reloadHold = 0;
+  private cylinderSpin = 0;
+  private cylinderTarget = 0;
+  private boltHand = 0;
+  private lastDt = 1 / 60;
+
   private gripTarget(model: Model, grip: GripSpec, out: HandTarget) {
     const m = this.holder.matrixWorld;
-    out.wrist.set(grip.wrist[0], grip.wrist[1], grip.wrist[2]).applyMatrix4(m);
+    out.wrist.set(grip.wrist[0], grip.wrist[1], grip.wrist[2]);
+    const follow = grip.part ? model.parts[grip.part as keyof Parts] : undefined;
+    if (follow) out.wrist.add(follow.position).sub(model.rest.get(follow)!.position);
+    out.wrist.applyMatrix4(m);
     const rot = this.quat.setFromRotationMatrix(m);
     out.forward.set(grip.forward[0], grip.forward[1], grip.forward[2]).normalize().applyQuaternion(rot);
     out.palm.set(grip.palm[0], grip.palm[1], grip.palm[2]).normalize().applyQuaternion(rot);
@@ -454,7 +506,22 @@ export class WeaponView {
     if (!arms) return;
     this.holder.updateMatrixWorld(true);
     this.gripTarget(model, grips.R, this.targetR);
+    if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);
+    if (this.boltHand > 0 && model.parts.bolt) {
+      // The firing paw leaves the grip to work the bolt knob.
+      const knob = model.parts.bolt.localToWorld(this.handA.wrist.set(.05, -.024, -.004));
+      this.targetR.wrist.lerp(knob.add(this.handB.wrist.set(.03, -.075, .07)), this.boltHand);
+      this.targetR.forward.lerp(this.handB.forward.set(-.35, .7, -.6).normalize(), this.boltHand).normalize();
+      this.targetR.palm.lerp(this.handB.palm.set(-.75, .1, -.6).normalize(), this.boltHand).normalize();
+      this.targetR.curl = blendCurl(this.targetR.curl, BOLT_CURL, this.boltHand);
+    }
+    if (model.id === 'slingshot' && this.shotLife > 0) {
+      // Release: the pinching paw springs toward the fork, then draws a new stone.
+      const release = 1 - window01(1 - this.shotLife / weaponShotDuration('slingshot'), .15, 1);
+      this.targetR.wrist.lerp(this.handA.wrist.set(.02, .02, .08).applyMatrix4(this.holder.matrixWorld), release * .85);
+    }
     arms.right.solve(this.shoulderR, this.targetR);
+    if (model.parts.pouch && model.bands && model.tips) this.stretchBands(model);
     const L = grips.L;
     arms.setVisible(true, !!L || this.swimPose > .5);
     if (L) {
@@ -470,6 +537,20 @@ export class WeaponView {
       if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
       arms.left.solve(this.shoulderL, this.targetL);
     }
+  }
+
+  private stretchBands(model: Model) {
+    // The pouch sits in the right paw's pinch; the tubing runs from each fork tip to it.
+    const pouch = model.parts.pouch!, root = pouch.parent!;
+    const pinch = this.handA.wrist.copy(this.targetR.wrist).addScaledVector(this.targetR.forward, .085).addScaledVector(this.targetR.palm, -.012);
+    root.updateMatrixWorld(true);
+    pouch.position.copy(root.worldToLocal(pinch));
+    model.bands!.forEach((band, i) => {
+      const tip = root.worldToLocal(model.tips![i].getWorldPosition(this.handB.wrist));
+      const span = this.handB.forward.subVectors(pouch.position, tip);
+      band.position.copy(tip); band.scale.set(1, span.length(), 1);
+      band.quaternion.setFromUnitVectors(UP, span.normalize());
+    });
   }
 
   private readonly handA: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };
@@ -570,6 +651,8 @@ export class WeaponView {
 
 interface Choreo { px: number; py: number; pz: number; rx: number; ry: number; rz: number;
   support: number; supportPos: THREE.Vector3; mag: 'in' | 'drop' | 'hand'; magOut: number; slide: number }
+const AXIS_Z = new THREE.Vector3(0, 0, 1), UP = new THREE.Vector3(0, 1, 0);
+const BOLT_CURL: HandCurl = { index: [1, .9, .6], middle: [1.2, 1.1, .8], ring: [1.3, 1.1, .8], thumb: [.8, .5, .3] };
 const OPEN_CURL: HandCurl = { index: [.35, .3, .2], middle: [.4, .35, .2], ring: [.45, .35, .25], thumb: [.2, .1, .1] };
 function blendCurl(a: HandCurl, b: HandCurl, t: number): HandCurl {
   const mix = (x: readonly [number, number, number], y: readonly [number, number, number]) => [x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t] as const;

@@ -37,8 +37,8 @@ PALETTE = {
     'gunmetal': ('3A3F44', .42, .75, .85, 'A9B4B8'),
     'blued': ('2B3138', .34, .8, .9, '9DB0BF'),
     'steel': ('7D858A', .3, .85, .7, 'D8DEE0'),
-    'dark': ('23272A', .6, .3, .45, '6D7478'),
-    'polymer': ('2F3230', .72, 0, .35, '6B706A'),
+    'dark': ('2A2F33', .55, .3, .6, '7F8A90'),
+    'polymer': ('34383A', .7, 0, .5, '7A807A'),
     'tan': ('B39A6E', .7, 0, .4, 'E3D2A8'),
     'olive': ('5E6340', .72, 0, .4, '9EA27A'),
     'wood': ('9A5A32', .55, 0, .3, 'D29A63'),
@@ -59,6 +59,8 @@ PALETTE = {
     'bone': ('E8DCC0', .6, 0, .2, 'FFFFFF'),
     'emissive_red': ('FF3B2E', .4, 0, 0, 'FF3B2E'),
     'blade': ('9AA3A6', .22, .9, 1.0, 'F2F6F7'),
+    'bamboo': ('C8A657', .6, 0, .35, 'EDD9A0'),
+    'stone': ('8F8C86', .8, 0, .3, 'C9C6BE'),
 }
 MAT_IDS = {name: i + 1 for i, name in enumerate(PALETTE)}
 _materials = {}
@@ -487,7 +489,7 @@ def _pixels(image):
     return arr.reshape(size, size, 4)
 
 
-def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radius=.0035):
+def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radius=.005):
     """UV unwrap all parts together and bake albedo (with painted light) and ORM."""
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
@@ -611,9 +613,9 @@ def composite(ids, ao, edge, normals, size):
     # Warm bounce in the occlusion, like painted cavities.
     cavity = np.stack([np.ones_like(occ), .82 + .18 * occ, .7 + .3 * occ], -1)
     shade = (.5 + .5 * occ ** 1.15)[..., None] * np.where(occ[..., None] < .999, cavity, 1)
-    gradient = (1 + .12 * up)[..., None]
+    gradient = (1 + .16 * up)[..., None]
     albedo = base * shade * gradient
-    albedo = albedo + (tint - albedo) * (e * edge_k)[..., None] * .75
+    albedo = albedo + (tint - albedo) * np.clip(e * edge_k * 1.15, 0, 1)[..., None]
     # Faint low-frequency tone variation so broad panels never look flat.
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32) / size
     wobble = 1 + .035 * np.sin(xx * 37 + np.sin(yy * 23) * 2) * np.sin(yy * 29 + xx * 7)

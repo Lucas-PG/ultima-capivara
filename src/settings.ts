@@ -11,7 +11,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
 // Keys by KeyboardEvent.code, mouse buttons as 'Mouse' + event.button. Escape stays reserved for the menu.
 export const BINDABLE_CODE = /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Backquote|Arrow(Up|Down|Left|Right)|Mouse[0-4])$/;
 export const DEFAULT_SETTINGS: Settings = {
-  sensitivity: 1, fov: 78, graphics: 'medium', frameLimit: 60, reducedMotion: false,
+  sensitivity: 1, fov: 100, graphics: 'medium', frameLimit: 60, reducedMotion: false,
   master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
   showFps: false, uiScale: 1, crosshairColor: 'white', hitPalette: 'default',
 };
@@ -22,8 +22,10 @@ export function loadSettings(): Settings {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     const value = stored || JSON.parse(localStorage.getItem('uc-settings') || '{}');
     for (const key of ['sensitivity', 'fov', 'master', 'effects', 'ambience', 'music'] as const) {
-      const number = key === 'sensitivity' ? value.sensitivity ?? value.sens : value[key];
-      if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? 60 : key === 'sensitivity' ? .2 : 0, key === 'fov' ? 105 : key === 'sensitivity' ? 3 : 1);
+      let number = key === 'sensitivity' ? value.sensitivity ?? value.sens : value[key];
+      // Saves before v3 stored a vertical field of view; convert it to the horizontal (16:9) scale.
+      if (key === 'fov' && typeof number === 'number' && value.fovScale !== 'horizontal') number = horizontalFov(number);
+      if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? FOV_RANGE[0] : key === 'sensitivity' ? .2 : 0, key === 'fov' ? FOV_RANGE[1] : key === 'sensitivity' ? 3 : 1);
     }
     if (['low', 'medium', 'high'].includes(value.graphics)) result.graphics = value.graphics;
     if (value.frameLimit === 30 || value.frameLimit === 60) result.frameLimit = value.frameLimit;
@@ -45,7 +47,11 @@ export function loadSettings(): Settings {
   } catch { /* Blocked storage and old preferences must never prevent playing. */ }
   return result;
 }
-export function saveSettings(settings: Settings) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch { /* Ephemeral browser mode. */ } }
+export function saveSettings(settings: Settings) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, fovScale: 'horizontal' })); } catch { /* Ephemeral browser mode. */ } }
+// Field of view is shown and stored as horizontal degrees at 16:9 (Hor+: wider screens see more).
+export const FOV_RANGE = [80, 120] as const;
+export const verticalFov = (horizontal: number) => 2 * Math.atan(Math.tan(horizontal * Math.PI / 360) / (16 / 9)) * 180 / Math.PI;
+export const horizontalFov = (vertical: number) => 2 * Math.atan(Math.tan(vertical * Math.PI / 360) * (16 / 9)) * 180 / Math.PI;
 export function loadProfile(): { name: string; color: string } {
   try { const color = localStorage.getItem('uc-color') || ''; return { name: (localStorage.getItem('uc-nick') || '').replace(/[\x00-\x1f\x7f<>]/g, '').slice(0, 18), color: PLAYER_COLORS.includes(color) ? color : PLAYER_COLORS[0] }; }
   catch { return { name: '', color: PLAYER_COLORS[0] }; }
