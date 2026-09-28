@@ -5,7 +5,8 @@ import { chromium } from '@playwright/test';
 const [out, mode = 'deathmatch', stepsJson = '[]'] = process.argv.slice(2);
 const steps = JSON.parse(stepsJson);
 const browser = await chromium.launch(process.env.BUNDLED ? {} : { channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const size = { width: 1280, height: 720 };
+const page = await browser.newPage({ viewport: size, ...(process.env.VIDEO ? { recordVideo: { dir: process.env.VIDEO, size } } : {}) });
 page.on('pageerror', e => console.error('pageerror', e.message));
 await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?networkQa=1&calm${process.env.QUERY || ''}`);
 await page.locator(`[data-mode="${mode}"]`).click();
@@ -18,7 +19,14 @@ for (const step of steps) {
   if (kind === 'wait') await page.waitForTimeout(a * 1000);
   else if (kind === 'key') { await page.evaluate(c => window.__networkQA.key(c, true), a); await page.waitForTimeout((b ?? .1) * 1000); await page.evaluate(c => window.__networkQA.key(c, false), a); }
   else if (kind === 'tap') { await page.evaluate(c => { window.__networkQA.key(c, true); window.__networkQA.key(c, false); }, a); }
-  else if (kind === 'look') await page.evaluate(([y, p]) => window.__networkQA.look(y, p), [a, b]);
+  else if (kind === 'look') await page.evaluate(([y, p]) => { window.__qaYaw = y; window.__qaPitch = p; window.__networkQA.look(y, p); }, [a, b]);
+  else if (kind === 'down' || kind === 'up') await page.evaluate(([c, d]) => window.__networkQA.key(c, d), [a, kind === 'down']);
+  else if (kind === 'mdown' || kind === 'mup') await page.evaluate(([button, d]) => document.dispatchEvent(new MouseEvent(d ? 'mousedown' : 'mouseup', { button, bubbles: true })), [a, kind === 'mdown']);
+  // ["turn", dyaw, seconds, dpitch?]: rotate the view smoothly by dyaw radians.
+  else if (kind === 'turn') {
+    const n = Math.max(1, Math.round(b * 30));
+    for (let i = 0; i < n; i++) { await page.evaluate(([dy, dp]) => { const f = window.__capivara.input?.frame; window.__networkQA.look((window.__qaYaw ??= 0) + dy, (window.__qaPitch ??= 0) + dp); window.__qaYaw += dy; window.__qaPitch += dp; }, [a / n, (step[3] ?? 0) / n]); await page.waitForTimeout(33); }
+  }
   else if (kind === 'fire') for (let i = 0; i < a; i++) { await page.evaluate(() => window.__networkQA.fire()); await page.waitForTimeout(90); }
   else if (kind === 'shot') await page.screenshot({ path: `${out}/${a}.png` });
   else if (kind === 'me') console.log(a || 'me', JSON.stringify(await me()));
@@ -54,4 +62,5 @@ for (const step of steps) {
     console.log('hunt', JSON.stringify(await me()));
   }
 }
-await browser.close();
+await page.close(); await browser.close();
+if (process.env.VIDEO) console.log('video', await page.video()?.path());
