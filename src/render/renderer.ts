@@ -11,7 +11,6 @@ import { PLAYER_COLORS, isArenaMode, type GameEvent, type RenderFrame, type Sett
 import { AssetLoader } from './assets';
 import { ASSET_MANIFEST, type AssetEntry } from './asset-manifest';
 import capybaraMetrics from '../../public/models/capybara/metrics.json';
-import weaponMetrics from '../../public/models/weapons/metrics.json';
 import kitMetrics from '../../public/models/kit/metrics.json';
 import supplyMetrics from '../../public/models/supply-drop/metrics.json';
 import { KIT_PIECES } from '../shared/kit-collision';
@@ -109,7 +108,6 @@ export class GameRenderer {
     instrumentGpu(this.gl);
     const weaponManifest: readonly AssetEntry[] = [
       ...ASSET_MANIFEST,
-      { path: 'models/weapons/painted-weapons.glb', kind: 'glb', bytes: weaponMetrics.bytes, label: 'Armas da ilha' },
       ...fpManifest(),
     ];
     const manifest: readonly AssetEntry[] = [...weaponManifest, ...(world.pieces?.length ? [{

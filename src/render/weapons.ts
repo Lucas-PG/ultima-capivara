@@ -1,17 +1,15 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
-import { PaintedWeaponSet, PAINTED_WEAPON_IDS, type PaintedWeaponModel } from './painted-weapons';
-import { WEAPON_HIP_POSES } from './weapon-framing';
 import { ArmsRig, FP_ARMS_URL, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { RELOADS } from './viewmodel-anims';
-import weaponMetrics from '../../public/models/weapons/metrics.json';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
 import { PAINT } from './materials';
+import { RARITY } from '../shared/rarity';
 import { advanceAds, WEAPONS } from '../shared/weapons';
 import { sampleMelee, smoothPose, weaponShotDuration,
   MELEE_SECONDS, MELEE_CONTACT, MELEE_HIT_STOP, type MeleePose } from '../shared/weapon-presentation';
@@ -32,19 +30,27 @@ interface Parts { slide?: THREE.Object3D; mag?: THREE.Object3D; trigger?: THREE.
 interface Model {
   id: WeaponId; spec: ViewSpec; group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; sight: THREE.Vector3;
   parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
-  grips: { R: GripSpec; L?: GripSpec }; magAxis: THREE.Vector3; painted?: PaintedWeaponModel; rarity: number;
+  grips: { R: GripSpec; L?: GripSpec }; magAxis: THREE.Vector3; rarity: number; accent: ReturnType<typeof applyRarityAccent>[];
   crane?: THREE.Vector3; bands?: THREE.Mesh[]; tips?: THREE.Object3D[];
 }
 const sortedReloads = Object.fromEntries(Object.entries(RELOADS).map(([id, keys]) => [id, [...keys!].sort((a, b) => a.t - b.t)]));
 
-// Legacy painted guns keep their baked paws hidden; their palm anchors seed the IK grips.
-function legacyGrips(id: WeaponId, spec: ViewSpec): { R: GripSpec; L?: GripSpec } {
-  const metrics = (weaponMetrics as { weapons: { id: string; gripAnchors: Record<string, number[]> }[] }).weapons.find(w => w.id === id);
-  const right = metrics?.gripAnchors.right, left = metrics?.gripAnchors.left;
-  const R: GripSpec = right ? { ...spec.grips.R, wrist: [right[0] - .02, right[1] + .01, right[2] + .1] } : spec.grips.R;
-  if (id === 'machete') return { R: { ...R, forward: [0, .15, -1], palm: [-1, 0, 0], curl: { index: [1.4, 1.2, .8], middle: [1.45, 1.3, .9], ring: [1.5, 1.3, .9], thumb: [.6, .4, .3] } } };
-  const L: GripSpec | undefined = left && spec.grips.L ? { ...spec.grips.L, wrist: [left[0] - .03, left[1] - .04, left[2] + .04] } : spec.grips.L;
-  return { R, L };
+const WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot', 'revolver', 'coco'];
+
+// Rarity recolours the weapon's teal accents (Comum keeps them) and lights them for Lendária.
+function applyRarityAccent(material: THREE.MeshStandardMaterial) {
+  const uniforms = { rarityColor: { value: new THREE.Color() }, rarityAmount: { value: 0 }, rarityGlow: { value: 0 } };
+  material.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 rarityColor; uniform float rarityAmount, rarityGlow; float rarityMask;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        rarityMask = smoothstep(.12, .22, diffuseColor.g - diffuseColor.r) * smoothstep(.06, .14, diffuseColor.b - diffuseColor.r);
+        diffuseColor.rgb = mix(diffuseColor.rgb, rarityColor * (.35 + 1.6 * dot(diffuseColor.rgb, vec3(.3, .55, .15))), rarityMask * rarityAmount);`)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += rarityColor * rarityMask * rarityGlow;');
+  };
+  material.customProgramCacheKey = () => 'arsenal-rarity-v1';
+  return uniforms;
 }
 
 export class WeaponView {
@@ -56,8 +62,6 @@ export class WeaponView {
   private readonly fill = new THREE.DirectionalLight('#9fc3e6', .4);
   private readonly inverseView = new THREE.Quaternion();
   private readonly models = {} as Record<WeaponId, Model>;
-  private readonly painted = new PaintedWeaponSet();
-  private readonly warmupVariants = new THREE.Group();
   private arms: ArmsRig | null = null;
   private active: WeaponId = 'pistol';
   private ads = 0;
@@ -115,7 +119,6 @@ export class WeaponView {
     this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .75));
     this.key.position.set(-70, 32, -30); this.rim.position.set(-70, 65, -30); this.fill.position.set(60, 10, 40);
     this.scene.add(this.key, this.rim, this.fill);
-    this.warmupVariants.visible = false; this.scene.add(this.warmupVariants);
     this.scene.add(this.holder);
     this.smear.name = 'Machete motion smear'; this.smear.visible = false; this.smear.frustumCulled = false;
     this.smear.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
@@ -131,31 +134,11 @@ export class WeaponView {
   }
 
   private async load() {
-    const v2 = PAINTED_WEAPON_IDS.filter(id => VIEW_SPECS[id].url);
-    const [arms, , ...gltfs] = await Promise.all([
-      this.loader.gltf(FP_ARMS_URL), this.painted.preload(url => this.loader.gltf(url)),
-      ...v2.map(id => this.loader.gltf(VIEW_SPECS[id].url!)),
-    ]);
+    const [arms, ...gltfs] = await Promise.all([this.loader.gltf(FP_ARMS_URL), ...WEAPON_IDS.map(id => this.loader.gltf(VIEW_SPECS[id].url))]);
     if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
     this.arms = new ArmsRig(arms);
     this.scene.add(this.arms.group);
-    v2.forEach((id, i) => { this.models[id] = this.fromArsenal(id, gltfs[i]); });
-    for (const id of PAINTED_WEAPON_IDS) {
-      if (this.models[id]) continue;
-      const painted = this.painted.create(id);
-      for (const side of ['right', 'left']) {
-        const paw = painted.group.getObjectByName(`${id}_${side}_paw`); if (paw) paw.visible = false;
-      }
-      const spec = VIEW_SPECS[id], hip = WEAPON_HIP_POSES[id];
-      const legacySpec: ViewSpec = { ...spec, scale: hip.scale, hip: { pos: [hip.x, hip.y, hip.z], rot: [hip.pitch ?? 0, hip.yaw ?? 0, hip.roll ?? 0] } };
-      const model: Model = { id, spec: legacySpec, group: painted.group, muzzle: painted.muzzle, eject: painted.eject,
-        sight: new THREE.Vector3(0, painted.sightY, 0), parts: { mag: painted.magazine, action: painted.action },
-        rest: new Map(), grips: legacyGrips(id, spec), magAxis: new THREE.Vector3(0, -1, 0), painted, rarity: 0 };
-      this.remember(model);
-      this.models[id] = model;
-      painted.group.visible = false; this.holder.add(painted.group);
-      for (let rarity = 1; rarity < 4; rarity++) this.warmupVariants.add(this.painted.create(id, rarity).group);
-    }
+    WEAPON_IDS.forEach((id, i) => { this.models[id] = this.fromArsenal(id, gltfs[i]); });
   }
 
   private fromArsenal(id: WeaponId, gltf: GLTF): Model {
@@ -165,17 +148,20 @@ export class WeaponView {
     const get = (part: string) => root.getObjectByName(`${id}_${part}`);
     const muzzle = get('muzzle'), eject = get('eject'), sight = get('sight');
     if (!muzzle || !eject || !sight) throw new Error(`Arma sem encaixes: ${id}.`);
+    const accent: ReturnType<typeof applyRarityAccent>[] = [];
+    const seen = new Set<THREE.Material>();
     root.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = false;
       const material = object.material as THREE.MeshStandardMaterial;
-      material.envMapIntensity = .8;
+      if (seen.has(material)) return;
+      seen.add(material); material.envMapIntensity = .8; accent.push(applyRarityAccent(material));
     });
     const spec = VIEW_SPECS[id];
     const model: Model = { id, spec, group, muzzle, eject, sight: sight.position.clone(),
       parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action'),
         cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), pouch: get('pouch') },
-      rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: 0 };
+      rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent };
     // Blender axis (x, y, z) is (x, z, -y) here.
     const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
     if (axis) model.magAxis.set(axis[0], axis[2], -axis[1]).normalize();
@@ -201,7 +187,7 @@ export class WeaponView {
 
   // Warm-up only: show every model at once so one render compiles and uploads all of them.
   revealAll(on: boolean) {
-    this.holder.visible = on; this.warmupVariants.visible = on;
+    this.holder.visible = on;
     for (const [id, model] of Object.entries(this.models) as [WeaponId, Model][]) model.group.visible = on || id === this.active;
     if (this.arms) this.arms.group.visible = on || this.holder.visible;
   }
@@ -273,7 +259,13 @@ export class WeaponView {
     }
     model.group.visible = true;
     const rarity = actor.weapons[actor.slot]?.rarity ?? 0;
-    if (model.painted && rarity !== model.rarity) { this.painted.setRarity(model.painted, rarity); model.rarity = rarity; }
+    if (rarity !== model.rarity) {
+      model.rarity = rarity;
+      for (const uniforms of model.accent) {
+        uniforms.rarityColor.value.set(RARITY[rarity]?.color ?? RARITY[0].color);
+        uniforms.rarityAmount.value = rarity > 0 ? 1 : 0; uniforms.rarityGlow.value = rarity === 3 ? .45 : 0;
+      }
+    }
     const motion = settings.reducedMotion ? .35 : 1;
     this.time += dt; this.lastDt = dt;
     const reloading = requested === weapon && actor.reloadUntil > simulationTime;
@@ -337,9 +329,9 @@ export class WeaponView {
     const drawTwist = this.draw > 0 ? Math.sin(this.draw * Math.PI) * .25 : 0;
     const swimLow = this.swimPose * (swimReady(weapon) ? .35 : 1);
     let px = bobX + swayYaw * .12 + strafe * .012 - this.leanPose * .01;
-    let py = bobY + breath + landing * .025 * motion + crouchDip * .02 * motion + swayPitch * .1 - lowered * .32 - swimLow * .12 - this.wallPose * .07;
+    let py = bobY + breath + landing * .025 * motion + crouchDip * .02 * motion + swayPitch * .1 - lowered * .2 - swimLow * .12 - this.wallPose * .07;
     let pz = kickZ * .016 + this.wallPose * .06 + lowered * .05;
-    let rx = kickPitch * .016 + swayPitch + landing * .03 * motion - lowered * .9 + this.wallPose * .5 - swimLow * .3 + breath * .6;
+    let rx = kickPitch * .016 + swayPitch + landing * .03 * motion - lowered * .75 + this.wallPose * .5 - swimLow * .3 + breath * .6;
     let ry = swayYaw + kickYaw * .01 + drawTwist * .5 + strafe * .02;
     let rz = swayRoll + kickRoll * .01 + Math.sin(this.gait * .5) * .018 * bobScale + strafe * .07 - this.leanPose * .12 + drawTwist;
     // Sprint carries the gun across the chest, muzzle high for pistols, canted for long guns.
@@ -363,7 +355,7 @@ export class WeaponView {
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.quaternion);
     if (this.inspectTime >= 0) this.applyInspect(weapon, dt, settings.reducedMotion);
     this.animateParts(model, reload, choreo, sample);
-    this.solveArms(model, model.spec.url ? spec.grips : model.grips, choreo, sample);
+    this.solveArms(model, spec.grips, choreo, sample);
     if (import.meta.env.DEV) this.debugOrbit();
   }
 
@@ -429,7 +421,6 @@ export class WeaponView {
     const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
     const locked = sample?.parts.slide ?? choreo?.slide ?? 0;
     if (slide) slide.position.z += Math.max(cycle, locked) * .028;
-    if (action && model.painted) action.position.z += cycle * .03;
     if (trigger) trigger.rotation.x -= (this.shotLife > total * .5 ? .3 : 0);
     if (hammer) hammer.rotation.x += cycle * -.6;
     const phase = this.shotLife > 0 ? THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1) : 1;
@@ -634,7 +625,6 @@ export class WeaponView {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
-    this.painted.dispose();
     this.arms?.dispose();
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
     this.scene.traverse(object => {

@@ -10,8 +10,8 @@ export type HandlingClass = 'pistol' | 'rifle' | 'heavy' | 'melee' | 'sling';
 export type ReloadStyle = 'pistol' | 'revolver' | 'rifle' | 'shotgun' | 'bolt' | 'coco' | 'sling' | 'none';
 export interface GripSpec { wrist: V3; forward: V3; palm: V3; curl: HandCurl; pole: V3; /** Follow an animated part (the pump). */ part?: string }
 export interface ViewSpec {
-  /** v2 asset (models/arsenal). Without it the legacy painted model is used. */
-  url?: string;
+  /** First-person model (models/arsenal). */
+  url: string;
   scale: number;
   handling: HandlingClass;
   reload: ReloadStyle;
@@ -43,7 +43,7 @@ const UNDERHAND_L = (wrist: V3, part?: string): GripSpec => ({ wrist, forward: [
 const FOREGRIP_L = (wrist: V3): GripSpec => ({ wrist, forward: [.05, -.2, -1], palm: [1, 0, 0], curl: PISTOL_R, pole: [-.8, -1, .2] });
 const RIFLE_GRIP_R = (wrist: V3 = [.032, -.004, .094]): GripSpec => ({ wrist, forward: [-.05, -.3, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] });
 const RECOIL = { light: { kick: 1.1, climb: 2.2, roll: 1.2, frequency: 22 }, rifle: { kick: 1.4, climb: 3, roll: 1.4, frequency: 21 } };
-const LONG_SPRINT = { pos: [-.04, -.06, .07] as V3, rot: [.3, .85, .5] as V3 };
+const LONG_SPRINT = { pos: [-.03, -.05, .06] as V3, rot: [.22, .6, .38] as V3 };
 
 export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   pistol: {
@@ -126,7 +126,7 @@ const ARSENAL_BYTES = arsenalMetrics as Record<string, { bytes: number }>;
 export function fpManifest(): AssetEntry[] {
   return [
     { path: 'models/fp/fp-arms.glb', kind: 'glb', bytes: 84976, label: 'Patas da capivara' },
-    ...Object.values(VIEW_SPECS).filter(spec => spec.url).map(spec => ({ path: spec.url!, kind: 'glb' as const,
-      bytes: ARSENAL_BYTES[spec.url!.split('/').pop()!.replace('.glb', '')]?.bytes ?? 0, label: 'Arsenal' })),
+    ...Object.values(VIEW_SPECS).map(spec => ({ path: spec.url, kind: 'glb' as const,
+      bytes: ARSENAL_BYTES[spec.url.split('/').pop()!.replace('.glb', '')]?.bytes ?? 0, label: 'Arsenal' })),
   ];
 }

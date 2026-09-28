@@ -49,7 +49,7 @@ const add = (a: Vec, b: Vec, k = 1): Vec => [a[0] + b[0] * k, a[1] + b[1] * k, a
 
 // Magazine swap shared by the box-magazine long guns. `grab` is the support
 // paw's wrist when it holds the seated magazine; it slides with the magazine.
-function magSwap(axis: Vec, grab: Vec, finish: Choreography, tilt: { p: Vec; r: Vec } = { p: [-.03, .03, .015], r: [.12, .1, -.32] }): Choreography {
+function magSwap(axis: Vec, grab: Vec, finish: Choreography, tilt: { p: Vec; r: Vec } = { p: [-.085, .1, .045], r: [.2, .3, -.55] }): Choreography {
   const hand = (out: number, curlKey = HOLD_MAG) => ({ space: 'gun' as const, wrist: add(grab, axis, out), forward: [.1, -.2, -1] as Vec, palm: [1, 0, 0] as Vec, curl: curlKey });
   return [
     { t: .08, p: tilt.p, r: tilt.r, ease: 'out' },
@@ -116,13 +116,14 @@ const SNIPER_RELOAD: Choreography = [
 ];
 // Swing out, punch the ejector, index a speedloader, flick the cylinder shut.
 const REVOLVER_RELOAD: Choreography = [
+  { t: 0, mag: { visible: false } },
   { t: .1, p: [-.07, .05, .02], r: [.3, .3, .35], ease: 'out' },
   { t: .09, L: { space: 'gun', wrist: [-.075, .0, .05], forward: [.2, .4, -1], palm: [1, 0, .1], curl: OPEN } },
   { t: .12, parts: { swing: 0 } },
   { t: .18, parts: { swing: 1 }, ease: 'snap' },
   { t: .22, p: [-.07, .05, .02], r: [.3, .3, .35] },
   { t: .3, p: [-.05, .07, .03], r: [1.05, .25, .3] },
-  { t: .26, L: { space: 'gun', wrist: [-.06, .03, -.12], forward: [.3, -.1, 1], palm: [0, 1, 0], curl: PINCH } },
+  { t: .26, L: { space: 'gun', wrist: [-.07, -.03, -.1], forward: [.35, .3, 1], palm: [.2, 1, 0], curl: PINCH } },
   { t: .3, parts: { eject: 0 } },
   { t: .33, parts: { eject: 1 }, ease: 'snap' },
   { t: .37, parts: { eject: 0 } },
@@ -141,6 +142,7 @@ const REVOLVER_RELOAD: Choreography = [
 ];
 // One shell per cycle; the gun's cant is held separately while the reload lasts.
 const SHOTGUN_SHELL: Choreography = [
+  { t: 0, mag: { visible: false } },
   { t: .2, L: { space: 'view', wrist: [-.18, -.46, -.04], forward: [.3, .5, -1], palm: [.8, .2, .2], curl: PINCH }, mag: { visible: false } },
   { t: .32, mag: { visible: true, p: [-.04, -.1, .07] } },
   { t: .55, L: { space: 'gun', wrist: [-.02, -.09, .06], forward: [.25, .6, -1], palm: [.3, .9, 0], curl: PINCH }, mag: { p: [0, -.028, .025] } },
