@@ -100,4 +100,5 @@ Priority order follows the brief: POV, weapons, character, map, graphics, combat
 ## Performance state
 
 - Baseline: live Correria p50/p99 16.7/16.8 ms, 248 draws, 1.53M tris (from previous record).
-- 2026-09-28 live Correria (dev server): p50 16.7, p99 33.4 (17 of 1200 frames over 33 ms, mostly load), 203 draws, 1.30M tris, JS heap 551 MB (to investigate: ten 1024 weapon texture pairs, kit 8 MB).
+- 2026-09-28 live Correria (dev server): p50 16.7, p99 33.4 (17 of 1200 frames over 33 ms, mostly load), 203 draws, 1.30M tris.
+- Heap, same probe (`tools/qa/heap.mjs`, QA plaza, forced GC, dev server): baseline 7f48b7d 628.5 MB, overhaul de8c3fc 544.8 MB (-84 MB; ArrayBuffer data 549 -> 468 MB). The 190 MB figure in docs/heap-budget.md came from a different probe and earlier build.
