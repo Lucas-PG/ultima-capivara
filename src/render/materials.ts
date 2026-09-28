@@ -10,7 +10,7 @@ export const PAINT = {
 // (x, y, z) toward the sun; overridable in QA with ?sun=x,y,z.
 const sunQuery = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('sun');
 export const SUN_VECTOR: readonly [number, number, number] = (sunQuery?.split(',').map(Number).filter(Number.isFinite).length === 3
-  ? sunQuery.split(',').map(Number) : [-70, 32, -30]) as [number, number, number];
+  ? sunQuery.split(',').map(Number) : [-60, 55, -35]) as [number, number, number];
 export const SUN_DIRECTION = new THREE.Vector3(...SUN_VECTOR).normalize();
 export type ToonMaterialKind = 'terrain' | 'plaster' | 'stone' | 'wood' | 'foliage' | 'fabric' | 'painted-metal' | 'character' | 'weapon';
 
