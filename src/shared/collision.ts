@@ -17,6 +17,9 @@ export const TRAMPOLINE_IMPULSE = 12;
 export const actorHeight = (actor: ActorState) => actor.crouch ? 1.3 : 1.8;
 // Standing eye sits in the head volume; crouched, the head centre drops to ~1.14 m.
 export const actorEye = (actor: ActorState) => actor.crouch ? 1.17 : 1.62;
+// Shot volumes of a standing capybara (facing -z): head sphere and a body cylinder
+// from the feet. Sized to the v4 model so every visible body part registers hits.
+export const STANDING_HIT_SHAPE = { headY: 1.6, headZ: -.07, headR: .29, bodyR: .32, bodyTop: 1.42 } as const;
 
 export function tryTrampoline(actor: ActorState, world: WorldSpec): boolean {
   if (!actor.alive || actor.stage !== 'ground' || !actor.grounded || actor.swimming) return false;

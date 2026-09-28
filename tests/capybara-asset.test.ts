@@ -1,11 +1,11 @@
+import { STANDING_HIT_SHAPE } from '../src/shared/collision';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { NodeIO, type Document } from '@gltf-transform/core';
-import { ALL_EXTENSIONS, type Specular } from '@gltf-transform/extensions';
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { AnimationMixer, Matrix4, SkinnedMesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { readFile } from 'node:fs/promises';
-import { inflateSync } from 'node:zlib';
 
 let asset: Document;
 beforeAll(async () => {
@@ -13,37 +13,21 @@ beforeAll(async () => {
 });
 
 describe('shipped capybara asset contract', () => {
-  it('keeps specular alpha off fur and the mouth, with soft reflection only on eyes, nose and nails', () => {
-    const texture = asset.getRoot().listMaterials()[0].getExtension<Specular>('KHR_materials_specular')?.getSpecularTexture();
-    expect(texture).toBeDefined();
-    const png = Buffer.from(texture!.getImage()!);
-    const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
-    expect(width).toBe(64); expect(height).toBe(64);
-    expect(png[24]).toBe(8); expect(png[25]).toBe(6); // RGBA, not an RGB mask with implicit alpha 1.
-    const chunks: Buffer[] = [];
-    for (let at = 8; at < png.length;) {
-      const length = png.readUInt32BE(at);
-      if (png.toString('ascii', at + 4, at + 8) === 'IDAT') chunks.push(png.subarray(at + 8, at + 8 + length));
-      at += length + 12;
-    }
-    const data = inflateSync(Buffer.concat(chunks)), stride = width * 4, pixels = new Uint8Array(stride * height);
-    for (let y = 0; y < height; y++) {
-      const filter = data[y * (stride + 1)]; expect(filter).toBeLessThanOrEqual(4);
-      for (let x = 0; x < stride; x++) {
-        const left = x < 4 ? 0 : pixels[y * stride + x - 4];
-        const up = y ? pixels[(y - 1) * stride + x] : 0;
-        const corner = y && x >= 4 ? pixels[(y - 1) * stride + x - 4] : 0;
-        const prediction = left + up - corner, dl = Math.abs(prediction - left), du = Math.abs(prediction - up), dc = Math.abs(prediction - corner);
-        const paeth = dl <= du && dl <= dc ? left : du <= dc ? up : corner;
-        const add = filter === 1 ? left : filter === 2 ? up : filter === 3 ? Math.floor((left + up) / 2) : filter === 4 ? paeth : 0;
-        pixels[y * stride + x] = (data[y * (stride + 1) + 1 + x] + add) & 255;
+  it('paints fur and gear in vertex colour and marks only the bandana for the team colour', () => {
+    for (const mesh of asset.getRoot().listMeshes()) {
+      const primitive = mesh.listPrimitives()[0];
+      const colors = primitive.getAttribute('COLOR_0')!, team = primitive.getAttribute('_TEAM')!;
+      expect(colors, mesh.getName()).toBeTruthy(); expect(team, mesh.getName()).toBeTruthy();
+      let masked = 0, warm = 0;
+      for (let i = 0; i < colors.getCount(); i++) {
+        const [r, g, b] = colors.getElement(i, [0, 0, 0, 0]) as number[];
+        if (team.getScalar(i) > .5) { masked++; expect(g > r && b > r, `${mesh.getName()} team vertex ${i}`).toBe(true); }
+        else if (r > b) warm++;
       }
-    }
-    for (let tile = 0; tile < 16; tile++) {
-      const x = (tile % 4) * 16 + 8, y = Math.floor(tile / 4) * 16 + 8;
-      const alpha = pixels[(y * width + x) * 4 + 3];
-      if (tile === 9 || tile === 15) { expect(alpha).toBeGreaterThan(30); expect(alpha).toBeLessThan(128); }
-      else expect(alpha, `matte atlas tile ${tile}`).toBe(0);
+      // A bandana, not a recoloured body: a small share of the character takes the team hue.
+      expect(masked / colors.getCount()).toBeGreaterThan(.005);
+      expect(masked / colors.getCount()).toBeLessThan(.15);
+      expect(warm / colors.getCount()).toBeGreaterThan(.6);
     }
   });
 
@@ -54,32 +38,18 @@ describe('shipped capybara asset contract', () => {
       const mesh = root.listMeshes().find(mesh => mesh.getName() === `Capybara_LOD${i}`)!;
       expect(mesh).toBeDefined();
       const triangles = mesh.listPrimitives().reduce((n, p) => n + p.getIndices()!.getCount() / 3, 0);
-      expect(triangles).toBeLessThanOrEqual([20000, 5000, 1500][i]);
-      // A simplified UV outside the atlas wraps to a different painted material.
-      for (const primitive of mesh.listPrimitives()) {
-        const uv = primitive.getAttribute('TEXCOORD_0')!;
-        const staysInAtlas = Array.from({ length: uv.getCount() }, (_, index) => uv.getElement(index, [])).every(pair => pair.every(value => value >= 0 && value <= 1));
-        expect(staysInAtlas, `LOD${i} painted atlas boundaries`).toBe(true);
-      }
+      expect(triangles).toBeLessThanOrEqual([40000, 8200, 2400][i]);
     }
-    expect(root.listMaterials().length).toBeLessThanOrEqual(3);
+    expect(root.listMaterials().length).toBeLessThanOrEqual(1);
+    expect(root.listTextures()).toHaveLength(0);
     expect(root.listSkins()).toHaveLength(1);
-    expect(root.listMaterials()[0].getNormalTexture()).toBeDefined();
-    expect(root.listMaterials()[0].getMetallicRoughnessTexture()).toBeDefined();
-    // Painted fur must survive export; losing COLOR_0 turns the white carrier atlas into white fur.
+    // Painted fur must survive export; losing COLOR_0 would render a white capybara.
     const colors = root.listMeshes()[0].listPrimitives()[0].getAttribute('COLOR_0');
     expect(colors).toBeDefined();
     expect(Array.from({ length: colors!.getCount() }, (_, i) => colors!.getElement(i, [])).some(rgb => rgb.some(value => value > 0 && value < 1))).toBe(true);
-    const png = root.listTextures()[0].getImage()!;
-    const header = new DataView(png.buffer, png.byteOffset, png.byteLength);
-    expect(header.getUint32(16)).toBeLessThanOrEqual(1024);
-    expect(header.getUint32(20)).toBeLessThanOrEqual(1024);
     const bytes = await readFile('public/models/capybara/capybara.glb');
     const json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
     expect(json.extensionsRequired).toContain('EXT_meshopt_compression');
-    // Uniform specular turned the dark mouth into a bright rim. Keep the authored
-    // nose/eye mask in the shipped asset so fur and the cavity remain matte.
-    expect(json.materials[0].extensions?.KHR_materials_specular?.specularTexture).toBeDefined();
   });
 
   it('fits the normal standing hit shapes in every decoded LOD, except weapon arms', () => {
@@ -100,8 +70,10 @@ describe('shipped capybara asset contract', () => {
           }
           if (influences > 1) smoothlyWeighted++;
           if (armWeight > 0) continue;
-          const inHead = Math.hypot(p.x, p.y - 1.6, p.z + .04) <= .25;
-          const inBody = Math.hypot(p.x, p.z) <= .30 && p.y >= -.002 && p.y <= 1.42;
+          const shape = STANDING_HIT_SHAPE;
+          // One centimetre of slack for decimation rounding; shots use the analytic volumes.
+          const inHead = Math.hypot(p.x, p.y - shape.headY, p.z - shape.headZ) <= shape.headR + .012;
+          const inBody = Math.hypot(p.x, p.z) <= shape.bodyR + .012 && p.y >= -.002 && p.y <= shape.bodyTop + .012;
           expect(inHead || inBody, `${node.getName()} vertex ${i}: ${p.toArray()}`).toBe(true);
         }
         expect(smoothlyWeighted).toBeGreaterThan(20);
@@ -250,11 +222,11 @@ describe('shipped capybara asset contract', () => {
             }
             if (headWeight < .5) continue;
             mesh.getVertexPosition(i, vertex); vertex.applyMatrix4(mesh.matrixWorld);
-            maximum = Math.max(maximum, Math.hypot(vertex.x, vertex.y - 1.6, vertex.z + .04));
+            maximum = Math.max(maximum, Math.hypot(vertex.x, vertex.y - STANDING_HIT_SHAPE.headY, vertex.z - STANDING_HIT_SHAPE.headZ));
           }
         }
       }
-      expect(maximum, name).toBeLessThanOrEqual(.25);
+      expect(maximum, name).toBeLessThanOrEqual(STANDING_HIT_SHAPE.headR + .012);
     }
     mixer.stopAllAction(); mixer.uncacheRoot(gltf.scene);
   });

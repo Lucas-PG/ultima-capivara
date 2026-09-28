@@ -1,3 +1,4 @@
+import { STANDING_HIT_SHAPE } from '../src/shared/collision';
 import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/simulation';
 import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../src/shared/collision';
@@ -726,42 +727,42 @@ describe('authoritative simulation', () => {
     expect(actor.reloadUntil).toBe(0);
   });
 
-  it('uses legacy-sized shapes: a head sphere over a body cylinder, and nothing around them', () => {
+  it('uses a head sphere over a body cylinder sized to the model, and nothing around them', () => {
     const sim = new Simulation(world(), config, profiles, 'rays', 124);
-    const target = sim.snapshot().actors[0];
+    const target = sim.snapshot().actors[0], H = STANDING_HIT_SHAPE;
     target.pos = { x: 0, y: 0, z: 0 };
     const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number) => { distance: number; head: boolean } | null;
     expect(ray({ x: 0, y: .9, z: 0 }, { x: 1, y: 0, z: 0 }, target, 2)).toEqual({ distance: 0, head: false });
-    // Head sphere r .25 at (0, 1.6, -.04).
-    expect(ray({ x: 0, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 - .04 - .25, 5), head: true });
-    expect(ray({ x: .2, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
-    expect(ray({ x: 0, y: 3, z: -.04 }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - 1.85, 5), head: true });
-    // Body cylinder r .3 from the feet to 1.42.
-    expect(ray({ x: 0, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 - .3, 5), head: false });
+    // Head sphere in front of the eyes, reaching the tip of the snout.
+    expect(ray({ x: 0, y: H.headY, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 + H.headZ - H.headR, 5), head: true });
+    expect(ray({ x: H.headR - .05, y: H.headY, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: 3, z: H.headZ }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - H.headY - H.headR, 5), head: true });
+    // Body cylinder from the feet to the shoulders.
+    expect(ray({ x: 0, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 - H.bodyR, 5), head: false });
     expect(ray({ x: 0, y: .05, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
-    expect(ray({ x: .28, y: 3, z: 0 }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - 1.42, 5), head: false });
+    expect(ray({ x: H.bodyR - .02, y: 3, z: 0 }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - H.bodyTop, 5), head: false });
     // Empty space beside the head and body, above the head, and under the feet.
-    expect(ray({ x: .3, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
-    expect(ray({ x: .35, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
-    expect(ray({ x: 0, y: 1.9, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: H.headR + .01, y: H.headY, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: H.bodyR + .03, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: 0, y: H.headY + H.headR + .02, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
     expect(ray({ x: 0, y: -.1, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
   });
 
   it('rotates and crouches the shapes, and favours humans when a bot is shooting', () => {
     const sim = new Simulation(world(), config, profiles, 'posed-rays', 125);
-    const target = sim.snapshot().actors[0];
+    const target = sim.snapshot().actors[0], H = STANDING_HIT_SHAPE;
     target.pos = { x: 0, y: 0, z: 0 }; target.yaw = Math.PI / 2;
     const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number, p?: unknown, c?: unknown, y?: unknown, favoured?: boolean) => { distance: number; head: boolean } | null;
-    // Facing +x the head sphere sits .04 toward -x.
-    expect(ray({ x: -3, y: 1.6, z: 0 }, { x: 1, y: 0, z: 0 }, target, 5)?.distance).toBeCloseTo(3 - .04 - .25, 5);
+    // Facing +x the head sphere sits toward -x by the same forward offset.
+    expect(ray({ x: -3, y: H.headY, z: 0 }, { x: 1, y: 0, z: 0 }, target, 5)?.distance).toBeCloseTo(3 + H.headZ - H.headR, 5);
     target.yaw = 0; target.crouch = true;
     // Crouched, everything scales by 1.3/1.8 from the feet.
     const k = 1.3 / 1.8;
-    expect(ray({ x: 0, y: 1.6 * k, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
-    expect(ray({ x: 0, y: 1.42 * k - .02, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
-    expect(ray({ x: 0, y: 1.45, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: 0, y: H.headY * k, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: H.bodyTop * k - .06, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    expect(ray({ x: 0, y: 1.5, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
     target.crouch = false;
-    // Legacy player-favouring sizes: head r .19, body r .27 up to 1.36.
+    // Bots shooting humans use smaller player-favouring sizes: head r .19, body r .27 up to 1.36.
     expect(ray({ x: .22, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
     expect(ray({ x: .22, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5, undefined, undefined, undefined, true)).toBeNull();
     expect(ray({ x: .285, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);

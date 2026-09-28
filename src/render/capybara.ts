@@ -7,9 +7,7 @@ import { EMOTES, EMOTE_IDS } from '../shared/emotes';
 import { TRAMPOLINE_IMPULSE } from '../shared/collision';
 import type { ActorState, EmoteId } from '../shared/types';
 import type { AvatarReaction } from './effects';
-import palette from './capybara-palette.json';
 import { applyCharacterStyle } from './materials';
-import { createPaintedCharacterAtlas } from './character-atlas';
 import { VIEW_SPECS } from './viewmodel-specs';
 import type { WeaponId } from '../shared/types';
 
@@ -74,16 +72,13 @@ let characterGeneration = 0;
 const characterInstances = new WeakMap<THREE.SkinnedMesh, CharacterInstance>();
 const characterMaterials = new Map<string, THREE.MeshStandardMaterial>();
 
-function shadeBandana(color: THREE.Color): THREE.Color {
-  const base = new THREE.Color('#1FB5A8'), shade = new THREE.Color('#12877E');
-  return color.clone().multiply(new THREE.Color(shade.r / base.r, shade.g / base.g, shade.b / base.b));
-}
 
 // v4 characters are vertex painted; the bandana carries a team mask attribute.
 function teamMaterial(source: THREE.MeshStandardMaterial, tint: THREE.Color): THREE.MeshStandardMaterial {
   const material = source.clone();
   material.vertexColors = true; material.map = null; material.roughness = .86; material.metalness = 0;
   const team = new THREE.Color(tint).convertSRGBToLinear();
+  material.userData.teamColor = team;
   material.onBeforeCompile = shader => {
     shader.uniforms.teamColor = { value: team };
     shader.vertexShader = shader.vertexShader
@@ -104,31 +99,8 @@ function characterMaterial(source: THREE.MeshStandardMaterial, color: string): T
   const tint = new THREE.Color(color), key = `${source.uuid}:${tint.getHexString()}`;
   const cached = characterMaterials.get(key);
   if (cached) return cached;
-  if (!source.map) {
-    const material = teamMaterial(source, tint); material.name = `Capivara_team_${tint.getHexString()}`;
-    material.addEventListener('dispose', () => characterMaterials.delete(key));
-    characterMaterials.set(key, material);
-    return material;
-  }
-  // The same authored atlas drives Blender and runtime. Only bandana colours change.
-  const colors = palette.map(hex => parseInt(hex, 16));
-  colors[5] = tint.getHex(); colors[6] = shadeBandana(tint).getHex();
-  let atlas: THREE.DataTexture;
-  if (characterAtlasColumns === 4) atlas = createPaintedCharacterAtlas(colors);
-  else {
-    const pixels = new Uint8Array(16 * 16 * 4);
-    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-      const hex = colors[x], offset = (y * 16 + x) * 4;
-      pixels.set([hex >> 16 & 255, hex >> 8 & 255, hex & 255, 255], offset);
-    }
-    atlas = new THREE.DataTexture(pixels, 16, 16);
-    atlas.colorSpace = THREE.SRGBColorSpace;
-    atlas.magFilter = atlas.minFilter = THREE.NearestFilter;
-    atlas.generateMipmaps = false; atlas.needsUpdate = true;
-  }
-  const material = applyCharacterStyle(source.clone(), characterAtlasColumns); material.map = atlas;
-  material.name = `Capivara_bandana_${tint.getHexString()}`;
-  material.addEventListener('dispose', () => { atlas.dispose(); characterMaterials.delete(key); });
+  const material = teamMaterial(source, tint); material.name = `Capivara_team_${tint.getHexString()}`;
+  material.addEventListener('dispose', () => characterMaterials.delete(key));
   characterMaterials.set(key, material);
   return material;
 }

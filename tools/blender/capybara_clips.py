@@ -100,11 +100,11 @@ for name, frames in new_clips:
                 contact_leg(side, (t + i * .5) % 1, .27, .17)
                 rig.pose.bones['arm_' + side].rotation_euler.x = .07 * math.sin(2 * phase + .6)
                 rig.pose.bones['ear_' + side].rotation_euler.x = -.12 + .14 * math.sin(2 * phase - .9 + i * .4)
-            rig.pose.bones['root'].location.y = .035 * max(0, math.sin(2 * phase - .5))
-            rig.pose.bones['spine'].rotation_euler.x = -.16 + .035 * math.sin(2 * phase)
-            rig.pose.bones['spine'].rotation_euler.y = .11 * math.sin(phase)
-            rig.pose.bones['spine'].rotation_euler.z = .03 * math.sin(phase)
-            rig.pose.bones['neck'].rotation_euler.x = .12 - .03 * math.sin(2 * phase)
+            rig.pose.bones['spine'].location.y = .025 * max(0, math.sin(2 * phase - .5))
+            rig.pose.bones['spine'].rotation_euler.x = -.03 + .015 * math.sin(2 * phase)
+            rig.pose.bones['spine'].rotation_euler.y = .06 * math.sin(phase)
+            rig.pose.bones['spine'].rotation_euler.z = .02 * math.sin(phase)
+            rig.pose.bones['neck'].rotation_euler.x = .05 - .02 * math.sin(2 * phase)
             rig.pose.bones['neck'].rotation_euler.y = -.08 * math.sin(phase)
             rig.pose.bones['tail'].rotation_euler.z = .25 * math.sin(phase)
         elif name in ['walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_walk']:
@@ -117,13 +117,12 @@ for name, frames in new_clips:
                 rig.pose.bones['arm_' + side].rotation_euler.x = (-1 if i else 1) * .04 * math.sin(phase - .2)
                 rig.pose.bones['ear_' + side].rotation_euler.x = .05 * math.sin(2 * phase - .45 + i * .3)
             # The capybara waddle: weight rolls side to side over the stance foot.
-            rig.pose.bones['spine'].rotation_euler.z = .06 * math.sin(phase)
+            rig.pose.bones['spine'].rotation_euler.z = .035 * math.sin(phase)
             rig.pose.bones['spine'].rotation_euler.y = .05 * math.sin(phase)
-            rig.pose.bones['neck'].rotation_euler.z = -.045 * math.sin(phase)
-            rig.pose.bones['root'].location.y = .018 * max(0, math.sin(2 * phase - .4))
+            rig.pose.bones['neck'].rotation_euler.z = -.035 * math.sin(phase)
             rig.pose.bones['tail'].rotation_euler.z = .18 * math.sin(phase)
             rig.pose.bones['spine'].rotation_euler.x = -.07 if crouch else -.018
-            rig.pose.bones['spine'].location.y = -.12 if crouch else 0
+            rig.pose.bones['spine'].location.y = (-.12 if crouch else 0) + .018 * max(0, math.sin(2 * phase - .4))
             rig.pose.bones['neck'].rotation_euler.x = .07 if crouch else .018
         elif name == 'crouch_idle':
             for side in ['L', 'R']:

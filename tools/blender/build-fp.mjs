@@ -30,6 +30,8 @@ if (arms) {
   run('tools/blender/fp_arms.py');
   await mkdir(`${root}/public/models/fp`, { recursive: true });
   const bytes = await pack(`${root}/output/fp/fp-arms.raw.glb`, `${root}/public/models/fp/fp-arms.glb`);
+  const report = JSON.parse(await readFile(`${root}/output/fp/fp-arms-report.json`, 'utf8'));
+  await writeFile(`${root}/public/models/fp/metrics.json`, JSON.stringify({ ...report, bytes }, null, 2) + '\n');
   console.log('arms', bytes);
 }
 if (!args.length || weapons.length) {

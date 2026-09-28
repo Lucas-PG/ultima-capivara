@@ -133,22 +133,22 @@ def capsule(a, b, ra, rb, steps=None, squash=1.0):
 
 
 # Torso: a pear-shaped barrel with a soft belly and a broad back.
-blob((0, .74, .03), (.3, .26, .27))
-blob((0, .98, 0), (.29, .24, .25))
+blob((0, .74, .03), (.275, .26, .25))
+blob((0, .98, 0), (.275, .24, .235))
 blob((0, 1.17, -.005), (.27, .17, .22))
 blob((0, 1.27, 0), (.255, .1, .18))
-blob((0, .66, .13), (.26, .2, .17))
+blob((0, .66, .11), (.24, .2, .15))
 blob((0, .9, -.1), (.24, .2, .12))
 blob((0, 1.38, -.03), (.17, .12, .165))
 # Head: the capybara box. A flat crown running forward into a long, tall,
 # blunt muzzle; cheeks and a soft chin; no visible neck break at the back.
 blob((0, 1.635, .035), (.16, .13, .165))
 blob((0, 1.695, -.07), (.14, .065, .17))
-blob((0, 1.6, -.2), (.135, .13, .14))
-blob((0, 1.585, -.305), (.118, .118, .07))
+blob((0, 1.6, -.185), (.135, .13, .135))
+blob((0, 1.59, -.262), (.115, .115, .062))
 for s in (-1, 1):
     blob((s * .095, 1.57, -.095), (.09, .1, .1))
-blob((0, 1.505, -.2), (.1, .06, .12))
+blob((0, 1.515, -.18), (.095, .058, .1))
 # Legs: stocky thighs into short shins and long dark feet.
 for s in (-1, 1):
     blob((s * .14, .43, .02), (.13, .14, .14))
@@ -162,7 +162,7 @@ for s, side in [(-1, 'L'), (1, 'R')]:
     capsule(shoulder, elbow, .072, .06)
     capsule(elbow, hand, .058, .043)
     blob(tuple(hand + Vector((0, -.005, -.035))), (.052, .036, .062))
-blob((0, .6, .26), (.05, .045, .05))
+blob((0, .62, .22), (.045, .04, .045))
 dg = bpy.context.evaluated_depsgraph_get()
 body_mesh = bpy.data.meshes.new_from_object(mb_obj.evaluated_get(dg))
 bpy.data.objects.remove(mb_obj)
@@ -316,20 +316,20 @@ for s in (-1, 1):
 rounded_box('buckle', (0, .82, -.305), (.07, .05, .02), C['brass'], bevel=.006)
 rounded_box('vest_buckle', (0, 1.07, -.285), (.05, .03, .02), C['brass'], bevel=.006)
 # Backpack with a rolled bedroll on top.
-rounded_box('backpack', (0, 1.0, .305), (.34, .34, .15), C['pack'], bevel=.04)
-rounded_box('pack_pocket', (0, .92, .39), (.24, .14, .05), C['pouch'], bevel=.02)
+rounded_box('backpack', (0, 1.0, .255), (.32, .34, .09), C['pack'], bevel=.035)
+rounded_box('pack_pocket', (0, .92, .3), (.22, .13, .03), C['pouch'], bevel=.012)
 for s in (-1, 1):
-    rounded_box('pack_strap', (s * .09, 1.02, .39), (.03, .3, .012), C['strap'], bevel=.006)
+    rounded_box('pack_strap', (s * .09, 1.02, .303), (.03, .3, .01), C['strap'], bevel=.005)
 bm = bmesh.new()
-bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=.068, radius2=.068, depth=.36)
+bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=.058, radius2=.058, depth=.34)
 bmesh.ops.rotate(bm, matrix=Matrix.Rotation(math.pi / 2, 3, 'Y'), verts=bm.verts)
-bmesh.ops.translate(bm, vec=V((0, 1.23, .3)), verts=bm.verts)
+bmesh.ops.translate(bm, vec=V((0, 1.21, .24)), verts=bm.verts)
 mesh_from_bm('bedroll', bm, C['roll'], 'cloth')
 for x in (-.12, .12):
     bm = bmesh.new()
-    bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=.072, radius2=.072, depth=.022)
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=24, radius1=.062, radius2=.062, depth=.022)
     bmesh.ops.rotate(bm, matrix=Matrix.Rotation(math.pi / 2, 3, 'Y'), verts=bm.verts)
-    bmesh.ops.translate(bm, vec=V((x, 1.23, .3)), verts=bm.verts)
+    bmesh.ops.translate(bm, vec=V((x, 1.21, .24)), verts=bm.verts)
     mesh_from_bm('roll_strap', bm, C['strap'], 'cloth')
 # Shoulder patch: a small palm emblem on the right sleeve.
 a, b = REST['arm_R']
@@ -403,6 +403,8 @@ def fur_colour(p, n):
 
 
 FACE = ['blink_L', 'blink_R', 'glint_L', 'glint_R', 'brow_L', 'brow_R', 'mouth_cavity', 'ear_L', 'ear_R']
+FINE_PARTS = {'finger', 'claw', 'toe', 'toe_claw', 'iris_L', 'iris_R', 'pupil_L', 'pupil_R', 'glint_L', 'glint_R', 'nostril_L', 'nostril_R',
+              'patch', 'patch_palm', 'pouch_flap', 'cargo_flap', 'roll_strap', 'vest_buckle', 'brow_L', 'brow_R', 'ear_in_L', 'ear_in_R', 'mouth'}
 
 
 def log(message):
@@ -415,8 +417,14 @@ for obj in [body] + parts:
     mesh.color_attributes.new('Color', 'FLOAT_COLOR', 'POINT')
     mesh.attributes.new('_TEAM', 'FLOAT', 'POINT')
     mesh.attributes.new('region_id', 'INT', 'POINT')
+    mesh.attributes.new('fine', 'INT', 'POINT')
     # Adding attributes reallocates storage: fetch every reference afterwards.
     attr, team, rid = mesh.color_attributes['Color'], mesh.attributes['_TEAM'], mesh.attributes['region_id']
+    fine = mesh.attributes['fine']
+    # Sub-pixel beyond ~25 m: dropped from the far LOD instead of decimated.
+    small = obj.name.split('.')[0] in FINE_PARTS
+    for i in range(len(mesh.vertices)):
+        fine.data[i].value = 1 if small else 0
     region = obj.get('region', 'body')
     base = Vector(obj['color']) if obj is not body else None
     for v in mesh.vertices:
@@ -467,6 +475,20 @@ for p in skin.data.polygons:
 skin.data.calc_loop_triangles()
 source_tris = len(skin.data.loop_triangles)
 log(f'joined {source_tris}')
+# Any vertex outside the character's envelope is a construction stray: pull it
+# onto the average of its in-envelope neighbours.
+bm = bm_of(skin)
+def outside(v):
+    g = G(v.co)
+    return math.hypot(g.x, g.z) > .45 or g.y < -.05 or g.y > 1.95
+for _ in range(3):
+    strays = [v for v in bm.verts if outside(v)]
+    for v in strays:
+        near = [e.other_vert(v).co.copy() for e in v.link_edges if not outside(e.other_vert(v))]
+        v.co = sum(near, Vector()) / len(near) if near else V((0, .9, 0))
+log(f'strays {len(strays)}')
+bm.to_mesh(skin.data)
+bm.free()
 log('decimated')
 print('CAPY_DEBUG after decimate', tuple(round(x, 3) for x in skin.data.color_attributes['Color'].data[0].color), len(skin.data.color_attributes))
 # 3. Ambient occlusion into the vertex colour (warm, painted cavities).
@@ -518,6 +540,7 @@ for name, verts in face_verts.items():
     group = groups.get(name) or skin.vertex_groups.new(name=name)
     group.add(verts, 1, 'REPLACE')
 skin.data.attributes.remove(skin.data.attributes['region_id'])
+fine_lods = True
 material = bpy.data.materials.new('Capivara_v4')
 material.use_nodes = True
 bsdf = material.node_tree.nodes.get('Principled BSDF')
@@ -529,7 +552,7 @@ skin.data.materials.clear()
 skin.data.materials.append(material)
 skin.data.calc_loop_triangles()
 lod0 = len(skin.data.loop_triangles)
-report = {'sourceTriangles': source_tris, 'lods': [], 'hitbox': {'head': {'center': [0, 1.6, -.04], 'radius': .25}, 'body': {'radius': .3, 'top': 1.42}},
+report = {'sourceTriangles': source_tris, 'lods': [], 'hitbox': {'head': {'center': [0, 1.6, -.04], 'radius': .29}, 'body': {'radius': .32, 'top': 1.42}},
           'clips': ['idle', 'run', 'jump'], 'material': 'vertex colour + _TEAM mask'}
 for level, budget in enumerate([lod0, 8000, 2200]):
     obj = skin.copy()
@@ -538,14 +561,28 @@ for level, budget in enumerate([lod0, 8000, 2200]):
     obj.name = f'Capybara_LOD{level}'
     obj.data.name = obj.name
     bpy.context.view_layer.objects.active = obj
-    if budget < lod0:
+    if level == 2:
+        bm = bm_of(obj)
+        fine_layer = bm.verts.layers.int.get('fine')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if v[fine_layer]], context='VERTS')
+        bm.to_mesh(obj.data)
+        bm.free()
+    for _attempt in range(3):
+        obj.data.calc_loop_triangles()
+        current = len(obj.data.loop_triangles)
+        if current <= budget * 1.03:
+            break
         dec = obj.modifiers.new('budget', 'DECIMATE')
-        dec.ratio = budget / lod0
+        dec.ratio = budget / current
         dec.use_collapse_triangulate = True
         bpy.ops.object.modifier_apply(modifier=dec.name)
     obj.data.validate(verbose=False, clean_customdata=False)
     obj.data.calc_loop_triangles()
     report['lods'].append({'name': obj.name, 'triangles': len(obj.data.loop_triangles)})
 bpy.data.objects.remove(skin, do_unlink=True)
+for level in range(3):
+    lod = bpy.data.objects[f'Capybara_LOD{level}']
+    if 'fine' in lod.data.attributes:
+        lod.data.attributes.remove(lod.data.attributes['fine'])
 log('lods')
 exec((Path(__file__).resolve().parent / 'capybara_clips.py').read_text())

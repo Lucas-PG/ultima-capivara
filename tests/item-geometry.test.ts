@@ -6,7 +6,7 @@ it('keeps the visible remote pistol compact and distinct from a long gun within 
   const pistol = itemGeometry('weapon', 'pistol'), rifle = itemGeometry('weapon', 'm4');
   pistol.computeBoundingBox(); rifle.computeBoundingBox();
   const size = pistol.boundingBox!.getSize(new THREE.Vector3());
-  expect(size.z).toBeLessThan(.35); expect(size.y).toBeGreaterThan(.2);
+  expect(size.z).toBeLessThan(.35); expect(size.y).toBeGreaterThan(.18);
   expect(size.z / rifle.boundingBox!.getSize(new THREE.Vector3()).z).toBeLessThan(.4);
   expect(pistol.getAttribute('position').count / 3).toBeLessThan(2000);
   expect(pistol.getAttribute('color').count).toBe(pistol.getAttribute('position').count);

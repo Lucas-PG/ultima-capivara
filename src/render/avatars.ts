@@ -236,6 +236,6 @@ export class AvatarView {
   private poseAvatar(visual: Avatar, actor: ActorState, dt: number, simulationTime: number) {
     for (const bone of visual.bones) { bone.rotation.set(0, 0, 0); bone.position.copy(bone.userData.rest as THREE.Vector3); }
     updateCapybaraBody(visual.body, actor, dt, simulationTime);
-    holdWeapon(visual.body, visual.weapon, visual.weaponId, actor.reloadUntil > simulationTime);
+    holdWeapon(visual.body, visual.weapon, actor.weapons[actor.slot]?.id ?? null, actor.reloadUntil > simulationTime);
   }
 }

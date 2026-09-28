@@ -269,7 +269,7 @@ export class WeaponView {
     const motion = settings.reducedMotion ? .35 : 1;
     this.time += dt; this.lastDt = dt;
     const reloading = requested === weapon && actor.reloadUntil > simulationTime;
-    this.inspectAllowed = requested === weapon && !actor.swimming && !actor.ads && !actor.sprint && !reloading &&
+    this.inspectAllowed = requested === weapon && actor.grounded && !actor.swimming && !actor.ads && !actor.sprint && !reloading &&
       this.shotLife <= 0 && (weapon !== 'machete' || this.meleeTime >= MELEE_SECONDS);
     if (!this.inspectAllowed) this.cancelInspect();
     if (reloading && actor.reloadUntil > this.reloadEnd + .01) {
@@ -327,7 +327,7 @@ export class WeaponView {
     const breath = Math.sin(this.time * 1.6) * .0022 * motion * (1 - ads * .8) * (1 - sprint);
     const lowered = smoothPose(Math.min(1, this.holster + this.draw));
     const drawTwist = this.draw > 0 ? Math.sin(this.draw * Math.PI) * .25 : 0;
-    const swimLow = this.swimPose * (swimReady(weapon) ? .35 : 1);
+    const swimLow = this.swimPose * (swimReady(weapon) ? -.3 : 1);
     let px = bobX + swayYaw * .12 + strafe * .012 - this.leanPose * .01;
     let py = bobY + breath + landing * .025 * motion + crouchDip * .02 * motion + swayPitch * .1 - lowered * .2 - swimLow * .12 - this.wallPose * .07;
     let pz = kickZ * .016 + this.wallPose * .06 + lowered * .05;

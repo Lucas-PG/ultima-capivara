@@ -8,7 +8,8 @@ let material: THREE.MeshStandardMaterial | undefined;
 // paint packed into one atlas. Other loot keeps its own paint.
 export function worldWeaponMaterial(): THREE.MeshStandardMaterial {
   if (!material) {
-    const map = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}${WORLD_ARSENAL_ATLAS}`);
+    // Headless tests have no image decoder; the material contract stays the same.
+    const map = typeof document === 'undefined' || typeof document.createElementNS !== 'function' ? new THREE.Texture() : new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}${WORLD_ARSENAL_ATLAS}`);
     map.flipY = false; map.colorSpace = THREE.SRGBColorSpace; map.name = 'world-arsenal';
     material = new THREE.MeshStandardMaterial({ map, vertexColors: true, roughness: .6, metalness: .15 });
     material.name = 'world-arsenal';

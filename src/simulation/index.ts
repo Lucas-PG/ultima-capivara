@@ -1,5 +1,5 @@
 import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
-import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, SWIM_DEPTH, SWIM_DRAFT, tryTrampoline } from '../shared/collision';
+import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, STANDING_HIT_SHAPE, SWIM_DEPTH, SWIM_DRAFT, tryTrampoline } from '../shared/collision';
 import { terrainHeight } from '../shared/terrain';
 import { waterAt } from '../shared/water';
 import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emotes';
@@ -32,14 +32,11 @@ const USE_TIME: Record<ConsumableId, number> = { bandage: 2.5, medkit: 5, guaran
 const CHEST_WEAPONS: WeaponId[] = ['smg', 'shotgun', 'm4', 'dmr', 'sniper', 'slingshot', 'revolver', 'coco', 'smg', 'm4', 'revolver'];
 const CHEST_EXTRA: [LootState['kind'], number][] = [['bandage', 20], ['medkit', 12], ['armor', 18], ['helmet', 12], ['guarana', 14], ['acai', 12], ['rapadura', 12]];
 const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, slingshot: 12, revolver: 24, coco: 8 };
-// Legacy-sized hit shapes on the standing capybara (eye 1.62, facing -z): a head
+// Hit shapes on the standing capybara (eye 1.62, facing -z): a head
 // sphere and a vertical body cylinder from the feet. When a bot shoots a human the
 // legacy player-favouring sizes apply. Crouching scales them by 1.3/1.8 from the feet.
 // Keep the movement capsule narrow enough for doors; shots use these volumes instead.
-const HIT_SHAPES = {
-  normal: { headY: 1.6, headZ: -.04, headR: .25, bodyR: .3, bodyTop: 1.42 },
-  favoured: { headY: 1.6, headZ: -.04, headR: .19, bodyR: .27, bodyTop: 1.36 },
-} as const;
+const HIT_SHAPES = { normal: STANDING_HIT_SHAPE, favoured: { headY: 1.6, headZ: -.04, headR: .19, bodyR: .27, bodyTop: 1.36 } } as const;
 interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; jumpQueuedUntil: number; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;

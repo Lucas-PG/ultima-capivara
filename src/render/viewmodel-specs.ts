@@ -2,6 +2,7 @@ import type { WeaponId } from '../shared/types';
 import type { HandCurl } from './fp-arms';
 import type { AssetEntry } from './asset-manifest';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
+import armsMetrics from '../../public/models/fp/metrics.json';
 
 // First-person presentation data. Weapon space is the model's own space
 // (x right, y up, -z toward the muzzle); the origin is the web of the firing paw.
@@ -125,7 +126,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
 const ARSENAL_BYTES = arsenalMetrics as Record<string, { bytes: number }>;
 export function fpManifest(): AssetEntry[] {
   return [
-    { path: 'models/fp/fp-arms.glb', kind: 'glb', bytes: 84976, label: 'Patas da capivara' },
+    { path: 'models/fp/fp-arms.glb', kind: 'glb', bytes: armsMetrics.bytes, label: 'Patas da capivara' },
     ...Object.values(VIEW_SPECS).map(spec => ({ path: spec.url, kind: 'glb' as const,
       bytes: ARSENAL_BYTES[spec.url.split('/').pop()!.replace('.glb', '')]?.bytes ?? 0, label: 'Arsenal' })),
   ];

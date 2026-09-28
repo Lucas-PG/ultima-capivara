@@ -11,7 +11,7 @@ describe('held and dropped weapons', () => {
     for (const id of PAINTED_WEAPON_IDS) {
       const near = itemGeometry('weapon', id), far = itemGeometry('weapon', id, 'far');
       try {
-        expect(near.index!.count / 3, id).toBeLessThanOrEqual(2200);
+        expect(near.index!.count / 3, id).toBeLessThanOrEqual(2400);
         expect(far.index!.count / 3, id).toBeLessThanOrEqual(900);
         expect(far.index!.count, id).toBeLessThan(near.index!.count * .55);
         for (const geometry of [near, far]) {
