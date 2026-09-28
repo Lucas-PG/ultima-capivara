@@ -5,7 +5,10 @@ import { PaintedWeaponSet, PAINTED_WEAPON_IDS, type PaintedWeaponModel } from '.
 import { WEAPON_HIP_POSES } from './weapon-framing';
 import { ArmsRig, FP_ARMS_URL, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
+import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
+import { RELOADS } from './viewmodel-anims';
 import weaponMetrics from '../../public/models/weapons/metrics.json';
+import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
 import { PAINT } from './materials';
@@ -30,6 +33,7 @@ interface Model {
   parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
   grips: { R: GripSpec; L?: GripSpec }; magAxis: THREE.Vector3; painted?: PaintedWeaponModel; rarity: number;
 }
+const sortedReloads = Object.fromEntries(Object.entries(RELOADS).map(([id, keys]) => [id, [...keys!].sort((a, b) => a.t - b.t)]));
 
 // Legacy painted guns keep their baked paws hidden; their palm anchors seed the IK grips.
 function legacyGrips(id: WeaponId, spec: ViewSpec): { R: GripSpec; L?: GripSpec } {
@@ -169,8 +173,9 @@ export class WeaponView {
     const model: Model = { id, spec, group, muzzle, eject, sight: sight.position.clone(),
       parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action') },
       rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: 0 };
-    const metrics = (gltf.parser.json.nodes as { name?: string; extras?: { magAxis?: number[] } }[] | undefined);
-    void metrics;
+    // Blender axis (x, y, z) is (x, z, -y) here.
+    const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
+    if (axis) model.magAxis.set(axis[0], axis[2], -axis[1]).normalize();
     this.remember(model);
     group.visible = false; this.holder.add(group);
     return model;
@@ -328,8 +333,11 @@ export class WeaponView {
     px += sprintPos.x * sprint; py += sprintPos.y * sprint; pz += sprintPos.z * sprint;
     rx += sprintRot[0] * sprint * (1 + Math.sin(this.gait) * .06); ry += sprintRot[1] * sprint; rz += sprintRot[2] * sprint;
     // ---- reload choreography (weapon part)
-    const choreo = reload >= 0 ? this.reloadPose(model, reload) : null;
+    const keys = sortedReloads[weapon];
+    const sample = reload >= 0 && keys ? sampleChoreo(keys, reload, this.sample) : null;
+    const choreo = reload >= 0 && !keys ? this.reloadPose(model, reload) : null;
     if (choreo) { px += choreo.px; py += choreo.py; pz += choreo.pz; rx += choreo.rx; ry += choreo.ry; rz += choreo.rz; }
+    if (sample) { px += sample.p.x; py += sample.p.y; pz += sample.p.z; rx += sample.r.x; ry += sample.r.y; rz += sample.r.z; }
     this.holder.position.set(position.x + px, position.y + py, position.z + pz);
     this.offset.setFromEuler(this.euler.set(rx, ry, rz, 'YXZ'));
     this.holder.quaternion.copy(rotation).multiply(this.offset);
@@ -337,8 +345,8 @@ export class WeaponView {
     this.updateMelee(weapon, dt, settings.reducedMotion);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.quaternion);
     if (this.inspectTime >= 0) this.applyInspect(weapon, dt, settings.reducedMotion);
-    this.animateParts(model, reload, choreo);
-    this.solveArms(model, model.spec.url ? spec.grips : model.grips, choreo);
+    this.animateParts(model, reload, choreo, sample);
+    this.solveArms(model, model.spec.url ? spec.grips : model.grips, choreo, sample);
     if (import.meta.env.DEV) this.debugOrbit();
   }
 
@@ -397,17 +405,22 @@ export class WeaponView {
     return c;
   }
 
-  private animateParts(model: Model, reload: number, choreo: Choreo | null) {
+  private animateParts(model: Model, reload: number, choreo: Choreo | null, sample: ChoreoSample | null) {
     for (const [part, rest] of model.rest) { part.position.copy(rest.position); part.quaternion.copy(rest.quaternion); }
     const { slide, trigger, hammer, mag, action } = model.parts;
     const total = weaponShotDuration(model.id);
     const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
-    const locked = choreo?.slide ?? 0;
+    const locked = sample?.parts.slide ?? choreo?.slide ?? 0;
     if (slide) slide.position.z += Math.max(cycle, locked) * .028;
     if (action && model.painted) action.position.z += cycle * .03;
     if (trigger) trigger.rotation.x -= (this.shotLife > total * .5 ? .3 : 0);
     if (hammer) hammer.rotation.x += cycle * -.6;
-    if (mag && choreo) {
+    if (mag && sample?.mag) {
+      const m = sample.mag;
+      mag.visible = m.visible;
+      mag.position.addScaledVector(model.magAxis, m.out).add(m.p);
+      mag.quaternion.multiply(this.offset.setFromEuler(this.euler.set(m.r.x, m.r.y, m.r.z, 'XYZ')));
+    } else if (mag && choreo) {
       if (choreo.mag === 'drop') {
         // Falls out along the well, then drops out of frame.
         const out = choreo.magOut;
@@ -436,7 +449,7 @@ export class WeaponView {
     void model;
   }
 
-  private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null) {
+  private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null, sample: ChoreoSample | null) {
     const arms = this.arms;
     if (!arms) return;
     this.holder.updateMatrixWorld(true);
@@ -454,8 +467,33 @@ export class WeaponView {
         this.targetL.palm.lerp(new THREE.Vector3(.6, 0, .2).normalize(), choreo.support).normalize();
         this.targetL.curl = blendCurl(L.curl, OPEN_CURL, choreo.support * .6);
       }
+      if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
       arms.left.solve(this.shoulderL, this.targetL);
     }
+  }
+
+  private readonly handA: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };
+  private readonly handB: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };
+  private readonly sample: ChoreoSample = newSample();
+
+  private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget) {
+    if (key.space === 'grip') { this.gripTarget(model, grip, out); return; }
+    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: key.curl ?? grip.curl, pole: grip.pole };
+    if (key.space === 'gun') { this.gripTarget(model, spec, out); return; }
+    out.wrist.set(spec.wrist[0], spec.wrist[1], spec.wrist[2]);
+    out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
+    out.palm.set(spec.palm[0], spec.palm[1], spec.palm[2]).normalize();
+    out.curl = spec.curl; out.pole.set(grip.pole[0], grip.pole[1], grip.pole[2]).normalize();
+  }
+
+  private blendHand(model: Model, grip: GripSpec, pair: { a: HandKey; b: HandKey; u: number }, out: HandTarget) {
+    this.resolveHand(model, grip, pair.a, this.handA); this.resolveHand(model, grip, pair.b, this.handB);
+    const u = pair.u;
+    out.wrist.copy(this.handA.wrist).lerp(this.handB.wrist, u);
+    out.forward.copy(this.handA.forward).lerp(this.handB.forward, u).normalize();
+    out.palm.copy(this.handA.palm).lerp(this.handB.palm, u).normalize();
+    out.curl = blendCurl(this.handA.curl, this.handB.curl, u);
+    out.pole.copy(this.handA.pole);
   }
 
   private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean) {
