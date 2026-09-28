@@ -57,6 +57,7 @@ const VIEWS: Record<string, [number, number, number, number]> = {
   trampolinePraia: [-38, 101, Math.PI, -.13],
   vilaStreet: [-40, -38, Math.PI - .3, .03],
   capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
+  redentoraVila: [-6, -26, 1.62, .1], redentoraNear: [-70, -40, 1.95, .22], redentoraPlinth: [-97, -29, 1.95, .5],
   swimWaterline: [-60, 2, 0, .04], swimRemote: [-60, 2, 0, .04], swimExit: [-60, 2, Math.PI, .12],
 };
 const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {

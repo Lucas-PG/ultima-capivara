@@ -116,6 +116,8 @@ export class GameRenderer {
       path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
     }, {
       path: SUPPLY_ASSET_PATH, kind: 'glb', bytes: supplyMetrics.bytes, label: 'Entrega do Tucano',
+    }, {
+      path: 'models/capybara/statue.glb', kind: 'glb', bytes: capybaraMetrics.statueBytes ?? 0, label: 'Capivara Redentora',
     }];
     this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
     this.sky = new PaintedSky(this.assets);

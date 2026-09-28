@@ -91,6 +91,12 @@ export function buildLandmark(kind: LandmarkKind, material: THREE.Material): { g
     }
     for (const x of [-5.02, 5.02]) parts.push(box(.1, .22, 8, x, 5, 0, trim));
     for (const [x, z] of [[6.3, 2.5], [6.6, .6], [6.1, -1.4]]) parts.push(tint(new THREE.CylinderGeometry(.75, .75, 1.3, 12).rotateZ(Math.PI / 2).translate(x, .75, z), '#e2c25c'));
+  } else if (kind === 'redentora') {
+    // Soapstone plinth; the statue itself is the sculpted GLB added by the scene.
+    const stone = '#d9cfbd', joint = '#bfb29c';
+    parts.push(box(8, 1, 8, 0, .5, 0, stone)); parts.push(box(8.3, .12, 8.3, 0, .06, 0, joint));
+    parts.push(box(6.2, .8, 6.2, 0, 1.4, 0, stone)); parts.push(box(6.4, .1, 6.4, 0, 1.02, 0, joint));
+    for (const [x, z] of [[-3.7, -3.7], [3.7, -3.7], [-3.7, 3.7], [3.7, 3.7]]) parts.push(tint(new THREE.CylinderGeometry(.35, .4, .5, 10).translate(x, 1.25, z), joint));
   } else {
     // Morro radio mast: a tapering red-and-white lattice with warning lights.
     lattice(parts, 1.4, .35, 0, 9, '#d8d0c4', 5);

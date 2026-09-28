@@ -27,6 +27,9 @@ if (boing) {
   }
 }
 await document.transform(dedup(), resample(), prune(), meshopt({ encoder: MeshoptEncoder, level: 'high', quantizePosition: 16, quantizationVolume: 'scene' }), dedup(), prune());
+const statue = await io.read(`${root}/output/characters/statue.raw.glb`);
+await statue.transform(dedup(), prune(), meshopt({ encoder: MeshoptEncoder, level: 'high', quantizePosition: 16 }));
+await io.write(`${root}/public/models/capybara/statue.glb`, statue);
 const path = `${root}/public/models/capybara/capybara.glb`;
 await io.write(path, document);
 const report = JSON.parse(await readFile(`${root}/output/characters/blender-report.json`, 'utf8'));
@@ -37,6 +40,7 @@ report.skins = decoded.getRoot().listSkins().length;
 report.joints = decoded.getRoot().listSkins()[0].listJoints().length;
 report.clips = decoded.getRoot().listAnimations().map(a => a.getName());
 report.bytes = (await stat(path)).size;
+report.statueBytes = (await stat(`${root}/public/models/capybara/statue.glb`)).size;
 report.rawBytes = (await stat(`${root}/output/characters/capybara.raw.glb`)).size;
 report.texture = { format: "vertex colour" };
 for (let i = 0; i < 3; i++) {

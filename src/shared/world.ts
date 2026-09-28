@@ -64,8 +64,8 @@ export function createWorld(): WorldSpec {
   const detail = (piece: string, x: number, z: number, yaw = 0, scale = 1, y = ground(x, z)) =>
     KIT_PIECES[piece] ? place(piece, x, z, yaw, scale, y) : null;
   // Solid district landmarks: tall silhouettes that make each district findable from afar.
-  const landmark = (kind: LandmarkSpec['kind'], x: number, z: number, yaw: number) => {
-    const spec: LandmarkSpec = { id: id(`landmark-${kind}`), kind, x, y: ground(x, z), z, yaw };
+  const landmark = (kind: LandmarkSpec['kind'], x: number, z: number, yaw: number, y = ground(x, z)) => {
+    const spec: LandmarkSpec = { id: id(`landmark-${kind}`), kind, x, y, z, yaw };
     landmarks.push(spec); colliders.push(...landmarkColliders(spec));
   };
   const lotPoint = (h: HouseLot, x: number, z: number) => {
@@ -357,6 +357,9 @@ export function createWorld(): WorldSpec {
   if (KIT_PIECES.barn) detail('barn', 71, 57);
   else place('market_hall', 71, 57, 0, .85, ground(71, 57), 'barn');
   landmark('windmill', 83, 48, 0); landmark('radio_mast', -104, -78, 0);
+  // Capivara Redentora on the island's summit, arms open toward the village:
+  // the landmark every district can see. The plinth sits on the lowest corner.
+  landmark('redentora', -110, -24, -Math.PI / 2, Math.min(...[[-4, -4], [4, -4], [-4, 4], [4, 4]].map(([dx, dz]) => ground(-110 + dx, -24 + dz))) - .15);
   for (let x = 46; x <= 69; x += 3) {
     obj('box', x, ground(x, 70) + .025, 70, .8, .04, 8, '#b48d57', 'field-row');
     for (let z = 67; z <= 73; z += 2) obj('grass', x, ground(x, z), z, .7, .4, .7, '#b0cc5e', 'crop');

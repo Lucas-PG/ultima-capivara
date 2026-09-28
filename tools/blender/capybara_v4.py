@@ -286,8 +286,8 @@ shirt = shell('shirt', lambda p: .84 < p.y < 1.37 and
               not any(arm_param(p, s)[0] >= .42 for s in 'LR'),
               .01, .008, C['shirt'], cuts=[((0, .84, 0), (0, 1, 0)), ((0, 1.37, 0), (0, 1, 0))] +
               [(tuple(REST['arm_' + s][0].lerp(REST['arm_' + s][1], .42)), tuple(REST['arm_' + s][1] - REST['arm_' + s][0])) for s in 'LR'])
-vest = shell('vest', lambda p: .86 < p.y < 1.33 and abs(p.x) < .235 and not near_arm(p, -.1),
-             .024, .014, C['vest'], cuts=[((0, .86, 0), (0, 1, 0)), ((0, 1.33, 0), (0, 1, 0)), ((.235, 0, 0), (1, 0, 0)), ((-.235, 0, 0), (1, 0, 0))], layers=2)
+vest = shell('vest', lambda p: .86 < p.y < 1.33 and abs(p.x) < .225 and not near_arm(p, -.3),
+             .024, .014, C['vest'], cuts=[((0, .86, 0), (0, 1, 0)), ((0, 1.33, 0), (0, 1, 0)), ((.225, 0, 0), (1, 0, 0)), ((-.225, 0, 0), (1, 0, 0))], layers=2)
 shorts = shell('shorts', lambda p: .27 < p.y < .86 and not (p.y < .5 and abs(abs(p.x) - .14) > .15),
                .014, .01, C['shorts'], cuts=[((0, .27, 0), (0, 1, 0)), ((0, .86, 0), (0, 1, 0))])
 belt = shell('belt', lambda p: .79 < p.y < .85, .024, .012, C['belt'], cuts=[((0, .79, 0), (0, 1, 0)), ((0, .85, 0), (0, 1, 0))])
@@ -445,23 +445,70 @@ body.select_set(True)
 rig.select_set(True)
 bpy.context.view_layer.objects.active = rig
 bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+# The rest pose holds the paws in front of the chest, so diffusion leaks arm
+# influence onto the torso. Only vertices on the arm capsules keep it.
+def on_arm(p):
+    for side in 'LR':
+        for a, b, r in [(REST['arm_' + side][0], REST['arm_' + side][1], .1), (REST['forearm_' + side][0], REST['forearm_' + side][1], .085),
+                        (REST['paw_' + side][0], REST['paw_' + side][1] + (REST['paw_' + side][1] - REST['paw_' + side][0]) * .5, .09)]:
+            ab = b - a
+            t = (p - a).dot(ab) / ab.length_squared
+            if -.15 < t < 1.1 and (p - (a + ab * max(0, min(1, t)))).length < r:
+                return True
+    return False
+
+
+arm_groups = {g.index for g in body.vertex_groups if g.name.startswith(('arm_', 'forearm_', 'paw_'))}
+spine_group = body.vertex_groups.get('spine') or body.vertex_groups.new(name='spine')
+for v in body.data.vertices:
+    if on_arm(G(v.co)):
+        continue
+    leak = [g for g in v.groups if g.group in arm_groups and g.weight > 0]
+    if not leak:
+        continue
+    keep = sum(g.weight for g in v.groups if g.group not in arm_groups)
+    for g in leak:
+        body.vertex_groups[g.group].remove([v.index])
+    if keep < .05:
+        spine_group.add([v.index], 1, 'REPLACE')
+    else:
+        for g in v.groups:
+            if g.group not in arm_groups:
+                body.vertex_groups[g.group].add([v.index], g.weight / keep, 'REPLACE')
 from mathutils.kdtree import KDTree
 body_tree = KDTree(len(body.data.vertices))
 for v in body.data.vertices:
     body_tree.insert(v.co, v.index)
 body_tree.balance()
+# The resting paws sit in front of the chest: garments there must not borrow them.
+torso_ids = [v.index for v in body.data.vertices if not on_arm(G(v.co))]
+torso_tree = KDTree(len(torso_ids))
+for i in torso_ids:
+    torso_tree.insert(body.data.vertices[i].co, i)
+torso_tree.balance()
 body_groups = {g.index: g.name for g in body.vertex_groups}
 for obj in parts:
     if obj.get('region') in FACE:
         continue
     groups = {}
     for v in obj.data.vertices:
-        _co, source, _d = body_tree.find(v.co)
-        for g in body.data.vertices[source].groups:
-            name = body_groups[g.group]
+        # Distance-weighted blend of nearby skin weights: a single nearest
+        # vertex made sleeves and vest tear where torso and arm weights meet.
+        blend = {}
+        found = (body_tree if on_arm(G(v.co)) else torso_tree).find_n(v.co, 8)
+        total = 0.0
+        for _co, source, distance in found:
+            k = 1 / (distance + .01) ** 2
+            total += k
+            for g in body.data.vertices[source].groups:
+                blend[g.group] = blend.get(g.group, 0) + g.weight * k
+        for index, weight in blend.items():
+            if weight / total < .01:
+                continue
+            name = body_groups[index]
             group = groups.get(name) or obj.vertex_groups.new(name=name)
             groups[name] = group
-            group.add([v.index], g.weight, 'REPLACE')
+            group.add([v.index], weight / total, 'REPLACE')
 log('weights transferred')
 bpy.ops.object.select_all(action='DESELECT')
 for obj in [body] + parts:
@@ -586,3 +633,4 @@ for level in range(3):
         lod.data.attributes.remove(lod.data.attributes['fine'])
 log('lods')
 exec((Path(__file__).resolve().parent / 'capybara_clips.py').read_text())
+exec((Path(__file__).resolve().parent / 'capybara_statue.py').read_text())

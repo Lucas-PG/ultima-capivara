@@ -1,13 +1,13 @@
 {
-  "sourceTriangles": 38462,
+  "sourceTriangles": 38250,
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 38462
+      "triangles": 38250
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 7996
+      "triangles": 7997
     },
     {
       "name": "Capybara_LOD2",
@@ -97,9 +97,10 @@
   "materials": 1,
   "skins": 1,
   "joints": 35,
-  "bytes": 721672,
-  "rawBytes": 2387228,
+  "bytes": 715288,
+  "rawBytes": 2380308,
   "texture": {
     "format": "vertex colour"
-  }
+  },
+  "statueBytes": 151532
 }

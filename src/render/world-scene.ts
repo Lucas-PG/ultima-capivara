@@ -5,6 +5,8 @@ import type { AssetLoader } from './assets';
 import { PaintedWater } from './water';
 import { createToonMaterial, type ToonMaterialKind } from './materials';
 import { buildLandmark } from './landmarks';
+import { REDENTORA } from '../shared/landmarks';
+export const STATUE_URL = 'models/capybara/statue.glb';
 import { roadPaintWeight, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
@@ -181,7 +183,7 @@ export class WorldScene {
   readonly group = new THREE.Group();
   readonly arenaBoundary = new THREE.Group();
   readonly water: THREE.Mesh;
-  readonly ready: Promise<void>;
+  ready: Promise<void>;
   private readonly kit: KitScene;
   private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
@@ -201,11 +203,20 @@ export class WorldScene {
     this.disposables.push(this.recreation, this.kit);
     const landmarkPaint = createToonMaterial('painted-metal', { vertexColors: true });
     const landmarkGroup = new THREE.Group(); landmarkGroup.name = 'landmarks'; this.group.add(landmarkGroup);
+    const statues: Promise<void>[] = [];
     for (const spec of world.landmarks ?? []) {
       const { group, spinner } = buildLandmark(spec.kind, landmarkPaint);
       group.position.set(spec.x, spec.y, spec.z); group.rotation.y = spec.yaw; landmarkGroup.add(group);
       if (spinner) this.spinners.push(spinner);
+      if (spec.kind === 'redentora') statues.push(loader.gltf(STATUE_URL).then(gltf => {
+        const statue = gltf.scene.clone(true), stone = createToonMaterial('stone', { vertexColors: true, roughness: .9 });
+        statue.traverse(object => { if (object instanceof THREE.Mesh) { object.material = stone; object.castShadow = true; object.receiveShadow = true; } });
+        statue.scale.setScalar(REDENTORA.scale); statue.position.y = REDENTORA.plinthTop; group.add(statue);
+        this.disposables.push(stone);
+      }));
     }
+    this.ready = Promise.all([this.ready, ...statues]).then(() => {});
+    void this.ready.catch(() => {});
     this.disposables.push({ dispose: () => {
       landmarkGroup.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
       landmarkPaint.dispose();

@@ -1,6 +1,6 @@
 import type { LandmarkSpec } from './landmarks';
 export const PROTOCOL_VERSION = 11;
-export const WORLD_VERSION = 'ilha-v3-rio-11';
+export const WORLD_VERSION = 'ilha-v4-redentora-1';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
