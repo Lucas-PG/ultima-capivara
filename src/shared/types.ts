@@ -64,6 +64,8 @@ export interface KitPlacement extends Vec3 {
   id: string; piece: string; yaw: number; scale?: number;
   paintVariant?: 0 | 1 | 2;
   interiorFloor?: 'wood' | 'warm-tile';
+  /** Atlas tile that replaces the piece's wall colour on this placement. */
+  facadeTile?: number;
 }
 export interface NavigationGraph { points: Vec3[]; links: number[][] }
 export interface BuildingRoute { id: string; pieceId: string; floorId: string; points: Vec3[] }

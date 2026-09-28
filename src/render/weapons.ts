@@ -8,7 +8,7 @@ import { RELOADS } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
-import { PAINT } from './materials';
+import { PAINT, SUN_DIRECTION } from './materials';
 import { RARITY } from '../shared/rarity';
 import { advanceAds, WEAPONS } from '../shared/weapons';
 import { sampleMelee, smoothPose, weaponShotDuration,
@@ -117,7 +117,7 @@ export class WeaponView {
 
   constructor(private readonly loader: AssetLoader, onAssetsReady: () => void = () => {}) {
     this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .75));
-    this.key.position.set(-70, 32, -30); this.rim.position.set(-70, 65, -30); this.fill.position.set(60, 10, 40);
+    this.key.position.copy(SUN_DIRECTION).multiplyScalar(80); this.rim.position.set(-70, 65, -30); this.fill.position.set(60, 10, 40);
     this.scene.add(this.key, this.rim, this.fill);
     this.scene.add(this.holder);
     this.smear.name = 'Machete motion smear'; this.smear.visible = false; this.smear.frustumCulled = false;
@@ -233,11 +233,11 @@ export class WeaponView {
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number, viewRotation?: THREE.Quaternion) {
     if (viewRotation) {
       this.inverseView.copy(viewRotation).invert();
-      this.key.position.set(-70, 32, -30).applyQuaternion(this.inverseView);
+      this.key.position.copy(SUN_DIRECTION).multiplyScalar(80).applyQuaternion(this.inverseView);
       this.rim.position.set(-70, 65, -30).applyQuaternion(this.inverseView);
       this.fill.position.set(60, 10, 40).applyQuaternion(this.inverseView);
     }
-    const ready = !!this.models[this.active];
+    const ready = !!this.models[this.active] && !(import.meta.env.DEV && (globalThis as { __camOverride?: unknown }).__camOverride);
     this.holder.visible = ready && !!actor && actor.alive && actor.stage === 'ground' && !(actor.emote && actor.emoteUntil > simulationTime);
     if (this.arms) this.arms.group.visible = this.holder.visible;
     if (!actor || !this.holder.visible) { this.resetMotion(); return; }

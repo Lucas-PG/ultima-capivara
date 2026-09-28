@@ -58,6 +58,8 @@ const VIEWS: Record<string, [number, number, number, number]> = {
   vilaStreet: [-40, -38, Math.PI - .3, .03],
   capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
   redentoraVila: [-6, -26, 1.62, .1], redentoraNear: [-70, -40, 1.95, .22], redentoraPlinth: [-97, -29, 1.95, .5],
+  morroStreet: [-97, -45, 0, .12], morroRoofs: [-75, -40, 2.2, .05], lajeRoof: [-58, -54, 0, -.1], varandaFazenda: [47, 52, 0, .02],
+  sobradoPlaza: [-20, -21, 2.3, .15], clinicSobrado: [6, -4, 0, .18],
   swimWaterline: [-60, 2, 0, .04], swimRemote: [-60, 2, 0, .04], swimExit: [-60, 2, Math.PI, .12],
 };
 const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {

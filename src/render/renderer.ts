@@ -16,6 +16,7 @@ import supplyMetrics from '../../public/models/supply-drop/metrics.json';
 import { KIT_PIECES } from '../shared/kit-collision';
 import { KIT_ASSET_PATH } from './kit';
 import { fpManifest } from './viewmodel-specs';
+import { SUN_DIRECTION } from './materials';
 import { verticalFov } from '../settings';
 import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
@@ -60,7 +61,7 @@ export class GameRenderer {
   private effectsMatch = '';
   private readonly propellers = this.plane.children.filter(child => child.name === 'propeller');
   private readonly sun: THREE.DirectionalLight;
-  private readonly sunOffset = new THREE.Vector3(-70, 32, -30);
+  private readonly sunOffset = SUN_DIRECTION.clone().multiplyScalar(Math.hypot(70, 32, 30));
   private readonly shadowDirection = this.sunOffset.clone().normalize();
   private readonly shadowRight = new THREE.Vector3(0, 1, 0).cross(this.shadowDirection).normalize();
   private readonly shadowUp = this.shadowDirection.clone().cross(this.shadowRight);
@@ -90,7 +91,7 @@ export class GameRenderer {
     this.litRooms = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
       .map(object => ({ ...object.pos, y: object.pos.y - (object.kind === 'roof' ? 3.1 : 0),
         w: object.scale.x, d: object.scale.z, h: 3.1 }));
-    for (const piece of world.pieces ?? []) if (['house_small', 'house_tall', 'church', 'market_hall'].includes(piece.piece)) {
+    for (const piece of world.pieces ?? []) if (['house_small', 'house_tall', 'house_laje', 'house_laje_b', 'house_varanda', 'sobrado', 'church', 'market_hall'].includes(piece.piece)) {
       const definition = KIT_PIECES[piece.piece], footprint = definition.footprint, scale = piece.scale ?? 1;
       const c = Math.abs(Math.cos(piece.yaw)), s = Math.abs(Math.sin(piece.yaw));
       const room = { x: piece.x, y: piece.y, z: piece.z, h: 3.1 * scale,
@@ -144,7 +145,7 @@ export class GameRenderer {
     this.cameraRig = new CameraRig(this.camera, world, settings, this.avatars);
     this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .88));
     this.scene.add(this.interiorLight);
-    this.sun = new THREE.DirectionalLight(PAINT.sun, 3.5); this.sun.position.set(-70, 32, -30);
+    this.sun = new THREE.DirectionalLight(PAINT.sun, 3.5); this.sun.position.copy(this.sunOffset);
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 170;
     this.sun.shadow.bias = -.00035; this.sun.shadow.normalBias = .12;

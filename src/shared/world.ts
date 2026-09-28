@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BRIDGES, HOUSE_SIZE, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
+import { ARENA, ARENA_CENTER, BRIDGES, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -11,6 +11,8 @@ import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPl
 import { landmarkColliders, type LandmarkSpec } from './landmarks';
 
 const ground = terrainHeight;
+// Shutter tile of each house piece (tiles: 0 cream, 1 coral, 2 teal, 3 yellow, 12 green).
+const FACADE_SHUTTER: Record<string, number> = { house_small: 2, house_medium: 2, house_tall: 1, house_laje: 12, house_laje_b: 2, house_varanda: 12, sobrado: 2 };
 const p = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
 const faceToward = (x: number, z: number, targetX: number, targetZ: number) => Math.atan2(targetX - x, targetZ - z);
 function pathApproach(x: number, z: number) {
@@ -49,6 +51,13 @@ export function createWorld(): WorldSpec {
   const id = (prefix: string) => `${prefix}-${++sequence}`;
   const obj = (kind: MapObject['kind'], x: number, y: number, z: number, sx: number, sy: number, sz: number, color: string, detail: string, rotation = 0) => {
     objects.push({ id: id(detail), kind, pos: p(x, y, z), scale: p(sx, sy, sz), color, detail, rotation });
+  };
+  // Facade colours vary by lot (never the piece's own shutter colour), so a street
+  // of one house type still reads as a row of different homes.
+  const facadeFor = (piece: string, x: number, z: number) => {
+    const shutter = FACADE_SHUTTER[piece] ?? -1, options = [0, 1, 2, 3, 12].filter(tile => tile !== shutter);
+    const hash = Math.abs(Math.imul(Math.round(x * 7), 73856093) ^ Math.imul(Math.round(z * 7), 19349663)) % 997;
+    return options[hash % options.length];
   };
   const place = (piece: string, x: number, z: number, yaw = 0, scale = 1, y = ground(x, z), label = piece) => {
     const instance: KitPlacement = { id: id(`kit-${label}`), piece, x, y, z, yaw, ...(scale === 1 ? {} : { scale }) };
@@ -106,20 +115,21 @@ export function createWorld(): WorldSpec {
 
   // Vila: narrow side streets open onto a church square and a covered market.
   for (const h of [...HOUSES, ...MORRO_LOTS]) {
-    const y = ground(h.x, h.z), [width, depth] = HOUSE_SIZE[h.piece];
+    const y = ground(h.x, h.z), [width, depth] = HOUSE_BODY[h.piece];
     const house = place(h.piece, h.x, h.z, h.yaw ?? 0, 1, y, h.role);
+    house.facadeTile = facadeFor(h.piece, h.x, h.z);
     const furnish = (piece: string, x: number, z: number, yaw = 0) => {
       const point = groundRoomPoint(house, x, z, yaw);
       lotPiece(piece, h, point.x, point.z, point.yaw, 1, y + .11);
     };
     // Furnish the wall bays, preserving the opposing doors and the tall-house stair.
-    if (h.piece === 'house_tall') {
+    if (TWO_STOREY.includes(h.piece)) {
       furnish('interior_counter', width / 2 - 1.7, -depth / 2 + .75);
       if (h.role === 'clinic') furnish('bed', width / 2 - 1.15, .8);
       else if (h.role === 'tailor') furnish('wardrobe', 3.4, .1, -Math.PI / 2);
       else if (h.role === 'workshop') furnish('table', 2.65, .1, -Math.PI / 2);
       else furnish('sofa', 3.25, .1, -Math.PI / 2);
-    } else {
+    } else if (h.piece !== 'house_varanda') {
       furnish('interior_counter', -width / 2 + .75, -.4, Math.PI / 2);
       if (h.role === 'fisher') furnish('hammock', 2.65, .5, -Math.PI / 2);
       else if (['home', 'clinic'].includes(h.role)) furnish('bed', width / 2 - 1.15, .5);
@@ -128,16 +138,20 @@ export function createWorld(): WorldSpec {
   }
   const shopNames = { bakery: 'PADARIA', cafe: 'CAFÉ DA VILA', tailor: 'ATELIÊ', fishmonger: 'PEIXE FRESCO', workshop: 'OFICINA', kiosk: 'ARMAZÉM', home: 'BOM DIA', fisher: 'PEIXE FRESCO', clinic: 'CAPIVARAS' };
   for (const [index, h] of [...HOUSES, ...MORRO_LOTS].entries()) {
-    const y = ground(h.x, h.z), [width, depth] = HOUSE_SIZE[h.piece];
-    const mural = lotPoint(h, width / 2 + .17, -.5), shop = lotPoint(h, -width / 2 - .75, depth / 2 + .45);
-    const laundry = lotPoint(h, 0, depth / 2 + 1.25), bike = lotPoint(h, width / 2 + 1.15, 1.1);
-    obj('box', mural.x, y + 1.75, mural.z, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, (h.yaw ?? 0) + Math.PI / 2);
+    const y = ground(h.x, h.z), [width, depth] = HOUSE_BODY[h.piece], lotWidth = HOUSE_SIZE[h.piece][0];
+    // Laje houses carry their stair on the +x wall, so the mural moves to -x.
+    const muralSide = SMALL_PLAN.includes(h.piece) && h.piece !== 'house_small' ? -1 : 1;
+    const mural = lotPoint(h, muralSide * (width / 2 + .17), -.5), shop = lotPoint(h, -width / 2 - .75, depth / 2 + .45);
+    const laundry = lotPoint(h, 0, HOUSE_SIZE[h.piece][1] / 2 + 1.25), bike = lotPoint(h, lotWidth / 2 + 1.15, 1.1);
+    obj('box', mural.x, y + 1.75, mural.z, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, (h.yaw ?? 0) + muralSide * Math.PI / 2);
     if (!['home', 'fisher'].includes(h.role)) obj('box', shop.x, y + 2.45, shop.z, 1, 1, 1, '#FFFFFF',
       `prop:street-shop:${shopNames[h.role]}`, h.yaw ?? 0);
     if (index % 2 === 0) obj('box', laundry.x, y, laundry.z, 1, 1, 1, '#FFFFFF', 'prop:street-laundry', h.yaw ?? 0);
     if (index % 3 === 0) obj('box', bike.x, y, bike.z, 1, 1, 1,
       index % 2 ? '#BD765A' : '#65A29C', 'prop:street-bike', (h.yaw ?? 0) + Math.PI / 2);
     for (const side of [-1, 1]) {
+      // The laje stair rises on +x: keep its foot clear.
+      if (side > 0 && muralSide < 0) continue;
       const { x, z } = lotPoint(h, side * (width / 2 + .75), depth / 2 + 1);
       if (!occupied(x, z, .6) && !roadAt(x, z, .5)) detail('planter', x, z, 0, .8);
     }
@@ -470,6 +484,7 @@ export function createWorld(): WorldSpec {
   for (const h of [...HOUSES, ...MORRO_LOTS]) {
     const [width, depth] = HOUSE_SIZE[h.piece];
     for (const side of [-1, 1]) {
+      if (side > 0 && ['house_laje', 'house_laje_b'].includes(h.piece)) continue;
       const flowers = KIT_PIECES.flower_bed;
       const { x, z } = lotPoint(h, side * (1.4 + (flowers?.footprint[0] ?? 2.4) / 2), depth / 2 + 1.7);
       if (!roadAt(x, z, 1) && !occupied(x, z, .5)) detail('flower_bed', x, z, h.yaw ?? 0);
@@ -681,7 +696,7 @@ export function createWorld(): WorldSpec {
     if (!target) throw new Error(`Sem margem livre para a árvore ${plant.id}.`);
     plant.pos = target;
   }
-  for (const building of pieces) if (/^house_(small|medium|tall)$/.test(building.piece))
+  for (const building of pieces) if (isHousePiece(building.piece))
     building.interiorFloor = ['clinic', 'workshop', 'fishmonger'].includes(buildingRole(building)) ? 'warm-tile' : 'wood';
   for (const building of [...pieces]) for (const furniture of interiorPlacements(building)) {
     pieces.push(furniture); colliders.push(...kitColliders(furniture));
@@ -745,8 +760,13 @@ export function createWorld(): WorldSpec {
     pickup(back.x, back.z, 'ammo');
     const pos = nearby(bay.x, bay.z, 10); if (pos) chests.push({ id: id('chest'), ...pos });
   }
-  for (const house of pieces.filter(piece => piece.piece === 'house_tall')) {
-    const floor = KIT_PIECES.house_tall.traversal!.floors.find(floor => floor.id === 'upper-room')!;
+  // A reward upstairs in every two-storey house and on every laje terrace.
+  for (const house of pieces.filter(piece => ['house_laje', 'house_laje_b'].includes(piece.piece))) {
+    const pos = buildingPoint(house, [-.8, KIT_PIECES[house.piece].traversal!.floors.find(floor => floor.id === 'roof-terrace')!.y, 1.2]);
+    loot.push({ id: `loot-roof-${house.id}`, ...pos, kind: 'weapon', weapon: random() < .5 ? 'dmr' : 'm4' });
+  }
+  for (const house of pieces.filter(piece => TWO_STOREY.includes(piece.piece))) {
+    const floor = KIT_PIECES[house.piece].traversal!.floors.find(floor => floor.id === 'upper-room')!;
     const pos = buildingPoint(house, [1, floor.y, -1.5]);
     loot.push({ id: `loot-upper-${house.id}`, ...pos, kind: house.id.includes('clinic') ? 'medkit' : 'weapon',
       ...(house.id.includes('clinic') ? {} : { weapon: 'smg' as const }) });

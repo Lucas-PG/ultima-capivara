@@ -222,7 +222,7 @@ for name, piece in PIECES.items():
             # The hollow tower has two complete stair turns and a usable
             # balcony. Preserve those surfaces in the single distant instance.
             budget = [12000, 4500, 2400][level]
-        if name in ['church', 'market_hall', 'warehouse']:
+        if name in ['church', 'market_hall', 'warehouse', 'sobrado']:
             budget = [15000, 3500, 900][level]
         if name.startswith('cliff_'):
             budget = [3400, 1250, 600][level]

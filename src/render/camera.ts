@@ -146,6 +146,14 @@ export class CameraRig {
 
   update(frame: PresentationFrame, settings: Settings, elapsed: number, adsAmount: number) {
     this.settings = settings; this.elapsed = elapsed; this.adsAmount = adsAmount;
+    if (import.meta.env.DEV) {
+      // QA: window.__camOverride = [x, y, z, targetX, targetY, targetZ, fov?] frames the world freely.
+      const view = (globalThis as { __camOverride?: number[] }).__camOverride;
+      if (view) {
+        this.camera.position.set(view[0], view[1], view[2]); this.camera.lookAt(view[3], view[4], view[5]);
+        this.camera.fov = view[6] ?? 55; this.camera.updateProjectionMatrix(); return;
+      }
+    }
     const snapshot = frame.snapshot;
     const viewedId = frame.spectateId || frame.playerId;
     let actor: ActorState | undefined;

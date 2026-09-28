@@ -118,7 +118,7 @@ def roof(p, width, depth, base, rise=1.7, tile=4):
         p.box(x, base - .045, 0, .16, .17, depth + .15, 7)
 
 
-def building(name, width, depth, floors=1, color=1, roof_tile=4):
+def building(name, width, depth, floors=1, color=1, roof_tile=4, roof_style='gable'):
     p = Piece(name, width + .7, depth + .7)
     height = 3.2 * floors
     p.box(0, .055, 0, width, .11, depth, 14, True, bevel=.02)
@@ -203,7 +203,8 @@ def building(name, width, depth, floors=1, color=1, roof_tile=4):
                     dict(id='upper-room', **{'from': 'upper-landing', 'to': 'upper-room'},
                          points=[[-2.725, top, 2.85], [-1.25, top, 2.85], [1, top, 2.85], [1, top, 0]])],
             stairs=[dict(id='main-flight', **{'from': 'ground-room', 'to': 'upper-landing'}, colliderIndices=treads)])
-    roof(p, width + .7, depth + .7, height, 1.65 if width < 10 else 2.0, roof_tile)
+    if roof_style == 'gable':
+        roof(p, width + .7, depth + .7, height, 1.65 if width < 10 else 2.0, roof_tile)
     return p
 
 
@@ -321,6 +322,8 @@ add_flat_access(PIECES)
 add_dock_steps(Piece)
 from interiors import add_interiors
 add_interiors(Piece)
+from architecture import add_architecture
+add_architecture(Piece, building, portal, window)
 
 
 def write_metadata():

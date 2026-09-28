@@ -6,6 +6,12 @@ export const PAINT = {
   fog: '#DBC2AE', interior: '#FFD7A8', rim: '#FFD28A',
   ink: '#3A2418', characterInk: '#2B1B12',
 } as const;
+// One sun for lighting, shadows, sky, water glints and the first-person key.
+// (x, y, z) toward the sun; overridable in QA with ?sun=x,y,z.
+const sunQuery = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('sun');
+export const SUN_VECTOR: readonly [number, number, number] = (sunQuery?.split(',').map(Number).filter(Number.isFinite).length === 3
+  ? sunQuery.split(',').map(Number) : [-70, 32, -30]) as [number, number, number];
+export const SUN_DIRECTION = new THREE.Vector3(...SUN_VECTOR).normalize();
 export type ToonMaterialKind = 'terrain' | 'plaster' | 'stone' | 'wood' | 'foliage' | 'fabric' | 'painted-metal' | 'character' | 'weapon';
 
 // The shared physical-light chunk supplies continuous wrapped sunlight.

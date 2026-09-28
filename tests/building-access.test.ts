@@ -28,13 +28,13 @@ describe('published building routes reach loot from real ground', () => {
       expect(world.buildingRoutes!.some(route => route.pieceId === piece.id && route.floorId === floor.id), `${piece.id}/${floor.id} has no ground access`).toBe(true);
   });
 
-  it('puts a useful pickup upstairs in every tall house and walks to it around the furniture', () => {
+  it('puts a useful pickup upstairs in every two-storey house and on every laje terrace, and walks to it', () => {
     const upstairs = world.loot.filter(loot => loot.y > walkableHeight(loot.x, loot.z, world) + .45);
-    expect(upstairs.length).toBe(world.pieces!.filter(piece => piece.piece === 'house_tall').length);
+    expect(upstairs.length).toBe(world.pieces!.filter(piece => ['house_tall', 'sobrado', 'house_laje', 'house_laje_b'].includes(piece.piece)).length);
     for (const loot of upstairs) {
       const route = floorRoute(world, loot);
       expect(route, loot.id).toBeDefined();
-      expect(route!.floorId).toBe('upper-room');
+      expect(['upper-room', 'roof-terrace']).toContain(route!.floorId);
       const points = [...route!.points, { x: loot.x, y: loot.y, z: loot.z }];
       const up = walkTraversal(world, actor, points);
       expect(up.ok, JSON.stringify({ id: loot.id, reason: up.reason, actual: up.actual, expected: up.expected })).toBe(true);

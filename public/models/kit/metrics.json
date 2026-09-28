@@ -460,7 +460,43 @@
         144
       ],
       "colliders": 0
+    },
+    {
+      "id": "house_laje",
+      "triangles": [
+        10784,
+        2884,
+        663
+      ],
+      "colliders": 35
+    },
+    {
+      "id": "house_laje_b",
+      "triangles": [
+        10784,
+        2884,
+        663
+      ],
+      "colliders": 35
+    },
+    {
+      "id": "house_varanda",
+      "triangles": [
+        11966,
+        2884,
+        660
+      ],
+      "colliders": 32
+    },
+    {
+      "id": "sobrado",
+      "triangles": [
+        14988,
+        3480,
+        702
+      ],
+      "colliders": 43
     }
   ],
-  "bytes": 6620908
+  "bytes": 7837120
 }

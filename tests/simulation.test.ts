@@ -570,7 +570,9 @@ describe('authoritative simulation', () => {
         const x = roof.x + definition.footprint[0] * fraction * scale, z = roof.z;
         const hit = raycastWorld({ x, y: roof.y + definition.height * scale + 2, z }, { x: 0, y: -1, z: 0 }, definition.height * scale + 3, actual);
         expect(hit?.collider.pieceId).toBe(roof.id);
-        expect(hit!.point.y).toBeGreaterThan(roof.y + (roof.piece === 'house_tall' ? 6.4 : 3.2) * scale);
+        // Laje roofs are walkable terraces: their slab top is the roof.
+        const minimum = ['house_tall', 'sobrado'].includes(roof.piece) ? 6.4 : ['house_laje', 'house_laje_b'].includes(roof.piece) ? 3.19 : 3.2;
+        expect(hit!.point.y).toBeGreaterThan(roof.y + minimum * scale);
       }
     }
   });
@@ -607,8 +609,11 @@ describe('authoritative simulation', () => {
       }
       return null;
     };
-    const accessible = [...actual.loot, ...actual.chests].filter(item => approach(item));
-    expect(accessible.length / (actual.loot.length + actual.chests.length)).toBeGreaterThan(.95);
+    // Upstairs and rooftop pickups are walked through their building routes in building-access.test.ts.
+    const grounded = [...actual.loot, ...actual.chests].filter(item => item.y <= walkableHeight(item.x, item.z, actual) + .45);
+    expect(grounded.length).toBeGreaterThan(200);
+    const accessible = grounded.filter(item => approach(item));
+    expect(accessible.length / grounded.length).toBeGreaterThan(.95);
     const example = actual.loot.find(item => item.kind === 'armor' && inArena(item.x, item.z, 2) && approach(item))!;
     const pos = approach(example)!;
     const isolated = { ...actual, spawns: [{ ...pos, mode: 'deathmatch' as const, yaw: 0 }] };

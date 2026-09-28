@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { KIT_PIECES } from '../shared/kit-collision';
+import { HOUSE_PIECES, isHousePiece } from '../shared/layout';
 import type { KitPlacement } from './kit';
+import { SUN_DIRECTION } from './materials';
 
 const ROOM_PALETTES = [
   ['#F3DBBA', '#C57552', '#548F86'], // Sunset cloth, terracotta border, teal motif.
@@ -8,14 +10,18 @@ const ROOM_PALETTES = [
   ['#E8CE91', '#847E54', '#B66545'], // Ochre cloth, olive border, clay motif.
 ].map(palette => palette.map(color => new THREE.Color(color)));
 
+// Painted wall tile of each house piece: a placement's facadeTile swaps it.
+const WALL_TILE: Record<string, number> = { house_small: 1, house_medium: 3, house_tall: 2, house_laje: 2, house_laje_b: 3, house_varanda: 0, sobrado: 3 };
+
 // Called on an owned placement clone before its transform/cell merge. Only
 // existing colour/UV attributes change; positions, normals and indices do not.
 export function paintKitPlacement(geometry: THREE.BufferGeometry, placement: KitPlacement) {
   const palette = placement.paintVariant === undefined ? undefined : ROOM_PALETTES[placement.paintVariant];
   const decor = palette && (placement.piece === 'rug' || placement.piece === 'wall_picture');
-  const floors = placement.interiorFloor && /^house_(small|medium|tall)$/.test(placement.piece)
-    ? KIT_PIECES[placement.piece].traversal?.floors : undefined;
-  if (!decor && !floors) return;
+  const floors = placement.interiorFloor && isHousePiece(placement.piece)
+    ? KIT_PIECES[placement.piece].traversal?.floors.filter(floor => floor.id.endsWith('-room')) : undefined;
+  const wallTile = WALL_TILE[placement.piece], facade = placement.facadeTile !== undefined && wallTile !== undefined && placement.facadeTile !== wallTile ? placement.facadeTile : undefined;
+  if (!decor && !floors && facade === undefined) return;
   const uv = geometry.getAttribute('uv'), color = geometry.getAttribute('color');
   const position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
   const tileAt = (i: number) => Math.floor(uv.getX(i) * 4) + Math.floor(uv.getY(i) * 4) * 4;
@@ -38,6 +44,7 @@ export function paintKitPlacement(geometry: THREE.BufferGeometry, placement: Kit
         color.setXYZ(i, tint.r * ao, tint.g * ao, tint.b * ao);
       }
     }
+    if (facade !== undefined && tile === wallTile) retile(i, facade);
     if (floors && normal.getY(i) > .85 && (tile === 5 || tile === 14) && floors.some(floor =>
       Math.abs(position.getY(i) - floor.y) < .025 && position.getX(i) >= floor.bounds[0] - .01 &&
       position.getX(i) <= floor.bounds[2] + .01 && position.getZ(i) >= floor.bounds[1] - .01 && position.getZ(i) <= floor.bounds[3] + .01)) {
@@ -53,9 +60,10 @@ export function kitInteriorLight(material: THREE.MeshStandardMaterial, model: TH
   placements: readonly KitPlacement[]) {
   const layouts = new Map<string, { floor: number; ceiling: number; half: THREE.Vector2; windows: THREE.Box3[][] }[]>();
   const point = new THREE.Vector3();
-  for (const id of ['house_small', 'house_tall']) {
+  for (const id of ['house_small', 'house_tall', 'house_laje', 'house_laje_b', 'sobrado']) {
     const mesh = model.getObjectByName(`${id}_LOD0`) as THREE.Mesh | undefined;
-    const definition = KIT_PIECES[id], base = definition.colliders[0];
+    const definition = KIT_PIECES[id], base = definition?.colliders[0];
+    if (!definition) continue;
     if (!mesh?.isMesh || base.type !== 'box') continue;
     const floors = definition.colliders.filter(c => c.type === 'box' && c.height < .3 &&
       c.width > base.width * .5 && c.depth > base.depth * .5 && (c === base || c.material === 'wood'));
@@ -83,7 +91,7 @@ export function kitInteriorLight(material: THREE.MeshStandardMaterial, model: TH
     const scale = placement.scale ?? 1;
     const inverse = new THREE.Matrix4().compose(new THREE.Vector3(placement.x, placement.y, placement.z),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), placement.yaw), new THREE.Vector3(scale, scale, scale)).invert();
-    const sun = new THREE.Vector3(-70, 32, -30).transformDirection(inverse);
+    const sun = SUN_DIRECTION.clone().transformDirection(inverse);
     return layout.map(room => ({ ...room, inverse, sun }));
   });
   const uniforms = {
@@ -176,7 +184,7 @@ export function kitInteriorLight(material: THREE.MeshStandardMaterial, model: TH
 export function kitInteriorWindows(model: THREE.Object3D, placements: readonly KitPlacement[]): THREE.Mesh | null {
   const local = new Map<string, { center: THREE.Vector3; size: THREE.Vector2; axis: 'x' | 'z'; sign: number }[]>();
   const point = new THREE.Vector3();
-  for (const id of ['house_small', 'house_medium', 'house_tall']) {
+  for (const id of HOUSE_PIECES) {
     const mesh = model.getObjectByName(`${id}_LOD0`) as THREE.Mesh | undefined;
     const base = KIT_PIECES[id]?.colliders[0];
     if (!mesh?.isMesh || base?.type !== 'box') continue;
@@ -243,7 +251,7 @@ export function kitInteriorWindows(model: THREE.Object3D, placements: readonly K
   // street the back face reads as dark glass in the same frame, hiding the room.
   const material = new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
-    uniforms: { sunDirection: { value: new THREE.Vector3(-70, 32, -30).normalize() } },
+    uniforms: { sunDirection: { value: SUN_DIRECTION.clone() } },
     vertexShader: `varying vec2 vUv; varying vec3 vWorld;
       void main(){ vUv = uv; vec4 world = modelMatrix * vec4(position, 1.0); vWorld = world.xyz; gl_Position = projectionMatrix * viewMatrix * world; }`,
     fragmentShader: `uniform vec3 sunDirection; varying vec2 vUv; varying vec3 vWorld;

@@ -61,8 +61,15 @@ export const HILLS: readonly (readonly [number, number, number, number])[] = [
 export type HouseRole = 'home' | 'bakery' | 'cafe' | 'workshop' | 'tailor' | 'clinic' | 'fisher' | 'fishmonger' | 'kiosk';
 export interface HouseLot {
   x: number; z: number; w: number; d: number; role: HouseRole;
-  material: 'stone' | 'wood'; piece: 'house_small' | 'house_medium' | 'house_tall'; yaw?: number;
+  material: 'stone' | 'wood'; piece: HousePiece; yaw?: number;
 }
+export type HousePiece = 'house_small' | 'house_medium' | 'house_tall' | 'house_laje' | 'house_laje_b' | 'house_varanda' | 'sobrado';
+export const HOUSE_PIECES: readonly HousePiece[] = ['house_small', 'house_medium', 'house_tall', 'house_laje', 'house_laje_b', 'house_varanda', 'sobrado'];
+export const isHousePiece = (piece: string): piece is HousePiece => (HOUSE_PIECES as readonly string[]).includes(piece);
+/** Two floors with the tall-house stair and rooms. */
+export const TWO_STOREY: readonly string[] = ['house_tall', 'sobrado'];
+/** Single rooms with the small-house plan (7 x 6). */
+export const SMALL_PLAN: readonly string[] = ['house_small', 'house_laje', 'house_laje_b'];
 function streetFacing(x: number, z: number) {
   let distance = Infinity, yaw = 0;
   for (const [x0, z0, x1, z1] of ROADS) {
@@ -75,32 +82,41 @@ function streetFacing(x: number, z: number) {
   return yaw;
 }
 // Three footprints (small, wide single-storey shop, tall) keep streets from reading as one repeated box.
-export const HOUSE_SIZE = { house_small: [7, 6], house_medium: [9, 7], house_tall: [8, 7] } as const;
-const home = (x: number, z: number, role: HouseRole = 'home', size: boolean | 'medium' = false, yaw = streetFacing(x, z)): HouseLot => {
-  const piece = size === 'medium' ? 'house_medium' : size ? 'house_tall' : 'house_small';
+// Lot footprints (walls plus stairs and verandas) and the walled body alone.
+export const HOUSE_SIZE: Record<HousePiece, readonly [number, number]> = {
+  house_small: [7, 6], house_medium: [9, 7], house_tall: [8, 7],
+  house_laje: [10, 6.8], house_laje_b: [10, 6.8], house_varanda: [9.8, 8.6], sobrado: [8.8, 8.4],
+};
+export const HOUSE_BODY: Record<HousePiece, readonly [number, number]> = {
+  house_small: [7, 6], house_medium: [9, 7], house_tall: [8, 7],
+  house_laje: [7, 6], house_laje_b: [7, 6], house_varanda: [9, 7.8], sobrado: [8, 7],
+};
+const home = (x: number, z: number, role: HouseRole = 'home', size: boolean | 'medium' | HousePiece = false, yaw = streetFacing(x, z)): HouseLot => {
+  const piece: HousePiece = typeof size === 'string' && size !== 'medium' ? size : size === 'medium' ? 'house_medium' : size ? 'house_tall' : 'house_small';
   const [width, depth] = HOUSE_SIZE[piece], turned = Math.abs(Math.sin(yaw)) > .5;
   return { x, z, w: turned ? depth : width, d: turned ? width : depth, role, material: 'stone', piece, yaw };
 };
 export const HOUSES: readonly HouseLot[] = [
-  home(-43, -29, 'bakery'), home(-29, -29, 'tailor', true),
-  home(-44, -13, 'cafe', 'medium'), home(-28, -9, 'home'), home(10, -13, 'clinic', true),
-  home(45, -14, 'workshop', true), home(43, -44, 'home'), home(22, -44, 'home'),
-  home(-44, 20, 'fisher'), home(-25, 22, 'fishmonger'), home(-10, 24, 'home'),
+  home(-43, -29, 'bakery'), home(-29, -29, 'tailor', 'sobrado'),
+  home(-44, -13, 'cafe', 'medium'), home(-28, -9, 'home'), home(10, -13, 'clinic', 'sobrado'),
+  home(45, -14, 'workshop', 'sobrado'), home(43, -44, 'home'), home(22, -44, 'home', 'house_laje'),
+  home(-44, 20, 'fisher'), home(-25, 22, 'fishmonger'), home(-10, 24, 'home', 'house_laje_b'),
   home(23, 39, 'bakery', 'medium'), home(46, 39, 'cafe'), home(-43, 44, 'workshop', true),
   home(-13, 44, 'kiosk', 'medium'), home(9, 45, 'home', true), home(30, 47, 'tailor'),
   home(87, -13, 'workshop', 'medium'), home(103, 1, 'fisher'), home(87, 16, 'fishmonger'),
-  home(47, 60, 'home'), home(77, 69, 'home', 'medium'), home(-49, 78, 'home'),
-  home(-17, 93, 'fisher'), home(-67, 17, 'fisher', 'medium'), home(-73, -15, 'home'),
+  home(47, 60, 'home', 'house_varanda'), home(77, 69, 'home', 'house_varanda'), home(-49, 78, 'home', 'house_varanda'),
+  home(-17, 93, 'fisher'), home(-67, 17, 'fisher', 'medium'), home(-73, -15, 'home', 'house_varanda'),
 ];
 export const MORRO_LOTS: readonly HouseLot[] = [
-  home(-109, -69, 'home'), home(-108, -54, 'home', true), home(-109, -38, 'home'),
-  home(-86, -68, 'home', true), home(-84, -53, 'home', 'medium'), home(-84, -23, 'home'),
-  home(-71, -63, 'home'), home(-70, -49, 'home', true), home(-68, -25, 'home'),
-  home(-59, -72, 'home'), home(-58, -54, 'home', 'medium'),
+  // The Morro climbs in flat-roofed laje houses: every roof is a terrace reached by its outside stair.
+  home(-109, -69, 'home', 'house_laje'), home(-108, -54, 'home', 'house_laje_b'), home(-109, -38, 'home', 'house_laje'),
+  home(-86, -68, 'home', true), home(-84, -53, 'home', 'house_laje_b'), home(-84, -23, 'home', 'house_laje'),
+  home(-71, -63, 'home', 'house_laje_b'), home(-70, -49, 'home', true), home(-68, -25, 'home', 'house_laje_b'),
+  home(-59, -72, 'home', 'house_laje'), home(-58, -54, 'home', 'house_laje'),
 ];
 export const MORRO_COLS = [-109, -85, -70, -58] as const;
 export const MORRO_Z = [-74, -20] as const;
-export const TOWERS = HOUSES.filter(h => h.piece === 'house_tall').map(h => [h.x, h.z] as const);
+export const TOWERS = HOUSES.filter(h => TWO_STOREY.includes(h.piece)).map(h => [h.x, h.z] as const);
 export const AREAS: readonly { rect: Rect; margin: number; y: number | null; fixed?: boolean }[] = [
   { rect: [-56, -58, 60, 58], margin: 3, y: 2.2 },
   { rect: [-14, -117, 22, -81], margin: 2, y: 15.5, fixed: true },

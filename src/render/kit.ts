@@ -7,7 +7,7 @@ import { kitInteriorLight, kitInteriorWindows, paintKitPlacement } from './kit-i
 
 export interface KitPlacement {
   piece: string; x: number; y: number; z: number; yaw: number; scale?: number;
-  paintVariant?: 0 | 1 | 2; interiorFloor?: 'wood' | 'warm-tile';
+  paintVariant?: 0 | 1 | 2; interiorFloor?: 'wood' | 'warm-tile'; facadeTile?: number;
 }
 export interface KitScene {
   ready: Promise<void>;

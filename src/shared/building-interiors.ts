@@ -1,5 +1,5 @@
 import { KIT_PIECES } from './kit-collision';
-import { HOUSES, MORRO_LOTS, type HouseRole } from './layout';
+import { HOUSES, MORRO_LOTS, SMALL_PLAN, TWO_STOREY, type HouseRole } from './layout';
 import { rng } from './math';
 import type { KitPlacement } from './types';
 
@@ -32,7 +32,7 @@ export function roomVariant(building: Pick<KitPlacement, 'x' | 'z'>): 0 | 1 | 2 
 export function groundRoomPoint(building: Pick<KitPlacement, 'x' | 'z' | 'piece'>, x: number, z: number, yaw = 0) {
   const variant = roomVariant(building);
   if (variant === 1) return { x, z: -z, yaw: Math.PI - yaw };
-  if (variant === 2 && building.piece === 'house_small') return { x: -x, z, yaw: -yaw };
+  if (variant === 2 && SMALL_PLAN.includes(building.piece)) return { x: -x, z, yaw: -yaw };
   return { x, z, yaw };
 }
 
@@ -42,7 +42,7 @@ export function interiorPlacements(building: KitPlacement): KitPlacement[] {
   const cosine = Math.cos(building.yaw), sine = Math.sin(building.yaw);
   const add = (room: RoomFloor, piece: string, x: number, z: number, yaw = 0, size = 1, lift = 0) => {
     if (!KIT_PIECES[piece]) return;
-    if (room.id === 'ground-room' && /^house_(small|tall)$/.test(building.piece))
+    if (room.id === 'ground-room' && (SMALL_PLAN.includes(building.piece) || TWO_STOREY.includes(building.piece)))
       ({ x, z, yaw } = groundRoomPoint(building, x, z, yaw));
     result.push({ id: `${building.id}:interior:${room.id}:${piece}-${result.length}`, piece,
       x: building.x + (x * cosine + z * sine) * scale, y: building.y + (room.y + lift) * scale,
@@ -66,7 +66,7 @@ export function interiorPlacements(building: KitPlacement): KitPlacement[] {
       add(room, 'rug', 2.7, seatZ, Math.PI / 2, .45);
       add(room, 'wall_picture', 3.69, variant === 2 ? -2.5 : bedZ,
         -Math.PI / 2, variant === 1 ? .85 : 1, 1.35);
-    } else if (building.piece === 'house_small') {
+    } else if (SMALL_PLAN.includes(building.piece)) {
       // Existing beds, counters and seats already occupy the long wall bays.
       // These role-specific appliances and storage fill the two end bays.
       const domestic = ['home', 'clinic', 'fisher'].includes(role);
@@ -92,7 +92,19 @@ export function interiorPlacements(building: KitPlacement): KitPlacement[] {
       add(room, 'potted_plant', -3.9, -2.95);
       add(room, 'wall_picture', -4.29, -1.2, Math.PI / 2, 1, 1.35);
       add(room, 'rug', 0, .15, 0, .75);
-    } else if (building.piece === 'house_tall') {
+    } else if (building.piece === 'house_varanda') {
+      // Farmhouse kitchen-living room behind the veranda; the door-to-door aisle stays clear.
+      const domestic = ['home', 'clinic', 'fisher'].includes(role);
+      add(room, 'stove', 3.85, -3.25, -Math.PI / 2);
+      add(room, 'table', -2.95, -1.3, Math.PI / 2);
+      add(room, 'chair', -2.95, -3.25);
+      add(room, 'chair', -2.95, .55, Math.PI);
+      add(room, domestic ? 'bed' : 'crate', 3.5, -1.55, 0, domestic ? 1 : .8);
+      add(room, 'wardrobe', 3.95, .7, -Math.PI / 2);
+      add(room, 'potted_plant', -3.95, 1.15);
+      add(room, 'wall_picture', -4.29, -2.3, Math.PI / 2, 1, 1.35);
+      add(room, 'rug', 0, -1.1, 0, .8);
+    } else if (TWO_STOREY.includes(building.piece)) {
       if (role === 'barracks') {
         add(room, 'interior_counter', 2.3, -2.75);
         add(room, 'table', 2.65, .1, -Math.PI / 2);

@@ -3,6 +3,7 @@ import { terrainHeight } from '../shared/terrain';
 import { RIVER } from '../shared/layout';
 import type { Settings, WorldSpec } from '../shared/types';
 import { WATER_LEVEL as LEVEL, WATER_HALF_SIZE } from '../shared/water';
+import { SUN_VECTOR } from './materials';
 
 const WATER = { shallow: '#62C2AE', middle: '#1A8A9F', deep: '#0D567A', foam: '#F2FBF4', sky: '#8DBFE2', horizon: '#F1D3AE' } as const;
 const DEPTH_RANGE = 12, SHORE_RANGE = 16;
@@ -136,7 +137,7 @@ export class PaintedWater {
             color=mix(color,foam,(line*(.16+.26*shallowness)+fine*.1*shallowness)*patches*detailFade);
           }
           // Crisp toon sun glints on wave crests.
-          vec3 sunDirection=normalize(vec3(-70.0,32.0,-30.0));
+          vec3 sunDirection=normalize(vec3(${SUN_VECTOR.map(v => v.toFixed(3)).join(',')}));
           vec3 halfDirection=normalize(viewDirection+sunDirection);
           float spec=pow(max(0.0,dot(waterNormal,halfDirection)),90.0);
           // Crisp glints only where waves are resolvable; far water gets a smooth sheen instead of stipple.

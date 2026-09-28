@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { AssetLoader } from './assets';
+import { SUN_DIRECTION } from './materials';
 
 const SKY = {
   top: '#376FAD', middle: '#8BB6D1', horizon: '#FFC380', fog: '#DBC2AE',
@@ -43,7 +44,7 @@ export class PaintedSky {
     dome.onBeforeRender = renderer => { renderer.getCurrentViewport(viewport); };
     dome.renderOrder = -1000; dome.frustumCulled = false; this.group.add(dome);
     const geometries: THREE.BufferGeometry[] = [];
-    const transform = new THREE.Object3D(), sunDirection = new THREE.Vector3(-70, 32, -30).normalize();
+    const transform = new THREE.Object3D(), sunDirection = SUN_DIRECTION.clone();
     const right = new THREE.Vector3();
     for (let i = 0; i < 8; i++) {
       const angle = i * Math.PI / 4 + [.17, -.11, .08, -.15, .12, -.06, .19, -.08][i];

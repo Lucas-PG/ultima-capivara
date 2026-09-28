@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SUN_DIRECTION } from './materials';
 
 // Half-resolution contact shading and a soft highlight buffer share one pass.
 // It reuses world depth, so the scene and all skinned meshes are drawn only once.
@@ -11,7 +12,7 @@ export class AtmospherePass {
   enabled = true;
   private readonly sun = new THREE.Vector3();
   private readonly view = new THREE.Vector3();
-  private readonly sunDirection = new THREE.Vector3(-70, 32, -30).normalize();
+  private readonly sunDirection = SUN_DIRECTION.clone();
 
   constructor(color: THREE.Texture, depth: THREE.DepthTexture) {
     this.material = new THREE.ShaderMaterial({
