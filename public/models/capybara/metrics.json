@@ -1,36 +1,17 @@
 {
-  "sourceTriangles": 91450,
-  "nearDetailTriangles": 2146,
-  "palette": [
-    "9A5C36",
-    "B7784C",
-    "4A3327",
-    "331F18",
-    "A97650",
-    "1FB5A8",
-    "12877E",
-    "6E7040",
-    "5A3A22",
-    "1A120C",
-    "FFFFFF",
-    "9C5A3A",
-    "E9B44C",
-    "51532F",
-    "FFFFFF",
-    "4A3327"
-  ],
+  "sourceTriangles": 38305,
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 19800
+      "triangles": 38305
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 4786
+      "triangles": 7998
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 1298
+      "triangles": 2184
     }
   ],
   "hitbox": {
@@ -74,6 +55,7 @@
     "walk",
     "wave"
   ],
+  "material": "vertex colour + _TEAM mask",
   "locomotionSpeed": {
     "walk": 3.9,
     "run": 6.4,
@@ -115,15 +97,9 @@
   "materials": 1,
   "skins": 1,
   "joints": 35,
-  "bytes": 1870184,
-  "rawBytes": 3266580,
+  "bytes": 753640,
+  "rawBytes": 2395152,
   "texture": {
-    "format": "PNG",
-    "width": 1024,
-    "height": 1024,
-    "tiles": [
-      4,
-      4
-    ]
+    "format": "vertex colour"
   }
 }

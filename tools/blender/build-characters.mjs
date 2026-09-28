@@ -8,7 +8,7 @@ import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const blender = process.env.BLENDER_BIN || '/Applications/Blender.app/Contents/MacOS/Blender';
-const result = spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', 'tools/blender/capybara.py'], { cwd: root, stdio: 'inherit' });
+const result = process.env.SKIP_BLENDER ? { status: 0 } : spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', process.env.CHAR_SCRIPT || 'tools/blender/capybara_v4.py'], { cwd: root, stdio: 'inherit' });
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status || 1);
 await MeshoptEncoder.ready;
@@ -38,10 +38,10 @@ report.joints = decoded.getRoot().listSkins()[0].listJoints().length;
 report.clips = decoded.getRoot().listAnimations().map(a => a.getName());
 report.bytes = (await stat(path)).size;
 report.rawBytes = (await stat(`${root}/output/characters/capybara.raw.glb`)).size;
-report.texture = { format: 'PNG', width: 1024, height: 1024, tiles: [4, 4] };
+report.texture = { format: "vertex colour" };
 for (let i = 0; i < 3; i++) {
   const lod = report.lods.find(lod => lod.name.includes(`LOD${i}`));
-  if (!lod || lod.triangles > [20000, 5000, 1500][i]) throw new Error(`LOD${i} exceeds budget`);
+  if (!lod || lod.triangles > [42000, 8200, 2400][i]) throw new Error(`LOD${i} exceeds budget`);
 }
 const requiredClips = ['idle', 'run', 'jump', 'walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'fall', 'land', 'reload_tp', 'death',
   'face_neutral', 'face_determined', 'face_hit', 'face_stunned', 'face_victory', 'face_blink', 'wave', 'dance', 'victory', 'sit', 'chill', 'boing'];

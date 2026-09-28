@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { applyCharacterStyle } from './materials';
-import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
+import { CAPY_BONES, buildCapybaraBody, holdWeapon, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
 import { itemGeometry } from './item-geometry';
 import { worldWeaponMaterial } from './world-weapons';
 import { makeParachute } from './aircraft';
@@ -31,7 +31,7 @@ export function avatar(color: string, name: string): Avatar {
   group.add(body);
   // The held weapon rides on the arms bone, so it aims with the paws.
   const weapon = new THREE.Mesh(new THREE.BufferGeometry(), worldWeaponMaterial());
-  weapon.position.copy(WEAPON_MOUNT); weapon.castShadow = true; bones[CAPY_BONES.arms].add(weapon);
+  weapon.castShadow = true; bones[CAPY_BONES.arms].add(weapon);
   const chute = makeParachute(color); group.add(chute);
   const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
   return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false, bounceAge: Infinity };
@@ -236,5 +236,6 @@ export class AvatarView {
   private poseAvatar(visual: Avatar, actor: ActorState, dt: number, simulationTime: number) {
     for (const bone of visual.bones) { bone.rotation.set(0, 0, 0); bone.position.copy(bone.userData.rest as THREE.Vector3); }
     updateCapybaraBody(visual.body, actor, dt, simulationTime);
+    holdWeapon(visual.body, visual.weapon, visual.weaponId, actor.reloadUntil > simulationTime);
   }
 }

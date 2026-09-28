@@ -10,6 +10,8 @@ import type { AvatarReaction } from './effects';
 import palette from './capybara-palette.json';
 import { applyCharacterStyle } from './materials';
 import { createPaintedCharacterAtlas } from './character-atlas';
+import { VIEW_SPECS } from './viewmodel-specs';
+import type { WeaponId } from '../shared/types';
 
 // Bone layout shared with GameRenderer.updateAvatars():
 // 0 root · 1 torso (pivots at the hips) · 2 head · 3 arms + held weapon (shoulders)
@@ -77,10 +79,37 @@ function shadeBandana(color: THREE.Color): THREE.Color {
   return color.clone().multiply(new THREE.Color(shade.r / base.r, shade.g / base.g, shade.b / base.b));
 }
 
+// v4 characters are vertex painted; the bandana carries a team mask attribute.
+function teamMaterial(source: THREE.MeshStandardMaterial, tint: THREE.Color): THREE.MeshStandardMaterial {
+  const material = source.clone();
+  material.vertexColors = true; material.map = null; material.roughness = .86; material.metalness = 0;
+  const team = new THREE.Color(tint).convertSRGBToLinear();
+  material.onBeforeCompile = shader => {
+    shader.uniforms.teamColor = { value: team };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float teamMask; varying float vTeam;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTeam = teamMask;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 teamColor; varying float vTeam;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        // Keep the painted light (AO) of the authored teal, swap only its hue.
+        float teamShade = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722)) / .36;
+        diffuseColor.rgb = mix(diffuseColor.rgb, teamColor * clamp(teamShade, .35, 1.3), vTeam);`);
+  };
+  material.customProgramCacheKey = () => 'capivara-team-v4';
+  return applyCharacterStyle(material, 4);
+}
+
 function characterMaterial(source: THREE.MeshStandardMaterial, color: string): THREE.MeshStandardMaterial {
   const tint = new THREE.Color(color), key = `${source.uuid}:${tint.getHexString()}`;
   const cached = characterMaterials.get(key);
   if (cached) return cached;
+  if (!source.map) {
+    const material = teamMaterial(source, tint); material.name = `Capivara_team_${tint.getHexString()}`;
+    material.addEventListener('dispose', () => characterMaterials.delete(key));
+    characterMaterials.set(key, material);
+    return material;
+  }
   // The same authored atlas drives Blender and runtime. Only bandana colours change.
   const colors = palette.map(hex => parseInt(hex, 16));
   colors[5] = tint.getHex(); colors[6] = shadeBandana(tint).getHex();
@@ -112,6 +141,7 @@ interface CharacterInstance {
   relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
   gesture: EmoteId | null; gestureDeadline: number; gestureElapsed: number; gestureBlend: number;
   bounceSeq: number | null;
+  hold?: { pawR: THREE.Bone; restInv: THREE.Quaternion; armL: THREE.Bone; forearmL: THREE.Bone; pawL: THREE.Bone };
   gestureJoints: Partial<Record<'forearm_L' | 'forearm_R' | 'paw_L' | 'paw_R' | 'thigh_L' | 'thigh_R' | 'shin_L' | 'shin_R' | 'foot_L' | 'foot_R', THREE.Bone>>;
 }
 
@@ -138,6 +168,9 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
         asset.scene.traverse(object => {
           if (object.userData.paintAtlas === '4x4') paintedAtlas = true;
           if (!(object instanceof THREE.SkinnedMesh)) return;
+          const mask = object.geometry.getAttribute('_team') ?? object.geometry.getAttribute('_TEAM');
+          if (mask) { object.geometry.setAttribute('teamMask', mask); object.geometry.deleteAttribute('_team'); object.geometry.deleteAttribute('_TEAM'); }
+          else if (!object.geometry.getAttribute('teamMask')) object.geometry.setAttribute('teamMask', new THREE.BufferAttribute(new Float32Array(object.geometry.getAttribute('position').count), 1));
           object.castShadow = true; object.receiveShadow = true;
           object.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
         });
@@ -537,4 +570,54 @@ export function capybaraCrownHeight(body: THREE.SkinnedMesh): number {
   runtime.head.updateWorldMatrix(true, false);
   runtime.crownScratch.copy(runtime.crown); runtime.head.localToWorld(runtime.crownScratch);
   return body.worldToLocal(runtime.crownScratch).y;
+}
+
+// Held weapons ride in the visible rig's right paw (so reload and aim clips carry
+// them) using the first-person grip data; the left paw reaches the support grip by IK.
+const ikA = new THREE.Vector3(), ikB = new THREE.Vector3(), ikC = new THREE.Vector3(), ikT = new THREE.Vector3(), ikE = new THREE.Vector3();
+const ikQ = new THREE.Quaternion(), ikQ2 = new THREE.Quaternion(), ikD = new THREE.Vector3(), ikD2 = new THREE.Vector3();
+function aimBone(bone: THREE.Bone, from: THREE.Vector3, to: THREE.Vector3, want: THREE.Vector3) {
+  ikD.subVectors(to, from).normalize(); ikD2.subVectors(want, from).normalize();
+  if (ikD.dot(ikD2) > .99999) return;
+  ikQ.setFromUnitVectors(ikD, ikD2);
+  bone.getWorldQuaternion(ikQ2); ikQ2.premultiply(ikQ);
+  bone.parent!.getWorldQuaternion(ikQ).invert();
+  bone.quaternion.copy(ikQ).multiply(ikQ2);
+  bone.updateMatrixWorld(true);
+}
+export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, id: WeaponId | null, reloading = false): void {
+  const runtime = characterInstances.get(body);
+  if (!runtime) return;
+  if (!runtime.hold) {
+    const bone = (name: string) => runtime.scene.getObjectByName(name) as THREE.Bone;
+    const pawR = bone('paw_R'); if (!pawR) return;
+    // The bind pose faces -Z like the weapon models; bind the gun to that frame.
+    const index = runtime.skeleton.bones.indexOf(pawR);
+    const bind = runtime.skeleton.boneInverses[index].clone().invert();
+    const rest = new THREE.Quaternion().setFromRotationMatrix(bind);
+    runtime.hold = { pawR, restInv: rest.invert(), armL: bone('arm_L'), forearmL: bone('forearm_L'), pawL: bone('paw_L') };
+  }
+  const hold = runtime.hold;
+  if (weapon.parent !== hold.pawR) hold.pawR.add(weapon);
+  if (!id) return;
+  const grips = VIEW_SPECS[id].grips;
+  weapon.quaternion.copy(hold.restInv);
+  weapon.position.set(-grips.R.wrist[0], -grips.R.wrist[1], -grips.R.wrist[2]).applyQuaternion(hold.restInv);
+  // The authored reload owns the support arm; otherwise it stays on the gun.
+  if (!grips.L || !weapon.visible || reloading) return;
+  // Two-bone reach for the support paw, elbow dropping down and out.
+  weapon.updateMatrixWorld(true);
+  ikT.set(grips.L.wrist[0], grips.L.wrist[1], grips.L.wrist[2]).applyMatrix4(weapon.matrixWorld);
+  const { armL, forearmL, pawL } = hold;
+  armL.getWorldPosition(ikA); forearmL.getWorldPosition(ikB); pawL.getWorldPosition(ikC);
+  const l1 = ikA.distanceTo(ikB), l2 = ikB.distanceTo(ikC), reach = Math.min(ikA.distanceTo(ikT), (l1 + l2) * .999);
+  const dir = ikD.subVectors(ikT, ikA).normalize().clone();
+  const cos = THREE.MathUtils.clamp((l1 * l1 + reach * reach - l2 * l2) / (2 * l1 * reach), -1, 1);
+  body.parent?.getWorldQuaternion(ikQ);
+  const pole = ikE.set(-.6, -1, .2).applyQuaternion(ikQ);
+  pole.addScaledVector(dir, -pole.dot(dir)).normalize();
+  const elbow = ikA.clone().addScaledVector(dir, l1 * cos).addScaledVector(pole, l1 * Math.sqrt(1 - cos * cos));
+  aimBone(armL, ikA, ikB, elbow);
+  forearmL.getWorldPosition(ikB); pawL.getWorldPosition(ikC);
+  aimBone(forearmL, ikB, ikC, ikT);
 }
