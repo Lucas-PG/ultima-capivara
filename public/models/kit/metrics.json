@@ -496,7 +496,16 @@
         702
       ],
       "colliders": 43
+    },
+    {
+      "id": "campinho",
+      "triangles": [
+        7560,
+        2888,
+        730
+      ],
+      "colliders": 49
     }
   ],
-  "bytes": 7837120
+  "bytes": 8068500
 }

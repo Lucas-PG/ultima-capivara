@@ -8,6 +8,7 @@ export const CHURCH = [-10, -40] as const;
 export const PLAZA = [-10, -21] as const;
 export const MERCADAO = [29, -20] as const;
 export const LAKE = [-92, -1, 12] as const; // Cachoeira feeder pool.
+export const CAMPINHO = [88, -58] as const; // Neighbourhood football pitch, north-east field.
 
 // First arrival in each district: a usable approach with a recognisable view,
 // rather than a radial sample that can face a wall or the back of a terrace.
@@ -16,6 +17,7 @@ export const DISTRICT_ARRIVALS: Readonly<Record<string, readonly [number, number
   morro: [-97, -66, -95, -35], cachoeira: [-83, -13, -109, -9], porto: [111, 17, 100, -8],
   praia: [-36, 95, -30, 109], farol: [0, 84, 3, 113], mangue: [114, 52, 92, 52],
   fazenda: [53, 78, 70, 60], posto: [-25, 37, -22, 47], lagoa: [-65, 9, -94, -2],
+  campinho: [74, -46, 88, -58],
 };
 
 // Width is the wetted channel width, with another 4 m for each bank.
@@ -125,6 +127,7 @@ export const AREAS: readonly { rect: Rect; margin: number; y: number | null; fix
   { rect: [-53, 93, 47, 115], margin: 2, y: .85 },
   { rect: [-4, 106, 10, 119], margin: 1, y: 5.8 },
   { rect: [87, 43, 118, 67], margin: 2, y: .35 },
+  { rect: [CAMPINHO[0] - 25, CAMPINHO[1] - 15, CAMPINHO[0] + 25, CAMPINHO[1] + 17], margin: 3, y: null },
 ];
 
 // Shared endpoints are junctions. Cover keeps these routes at least 3 m wide.
@@ -144,6 +147,8 @@ export const NAV_ROUTES: readonly (readonly Point[])[] = [
   // Beach traffic joins the graded southern ramp below the fort. A shortcut
   // across the fixed terrace would create an unwalkable cut under its walls.
   [[4, -62], [18, -66], [31, -79], [51, -101], [74, -91], [62, -38]],
+  // The campinho joins the harbour road junction.
+  [[62, -38], [74, -46], [CAMPINHO[0], CAMPINHO[1] - 3]],
 ];
 export function routeDistance(x: number, z: number): number {
   let nearest = Infinity;

@@ -6,4 +6,6 @@ export const SIGN_ART = [
   { label: 'PORTO', accent: '#3D6FB6', aspect: 3.8 / (2.5 * .62) },
   { label: 'PRAIA', accent: '#F28DB2', aspect: 3.8 / (2.5 * .62) },
   { label: 'MIRANTE', accent: '#E9B44C', aspect: 3.8 / (2.5 * .62) },
+  { label: 'CAMPINHO', accent: '#5E9B3A', aspect: 3.8 / (2.5 * .62) },
+  { label: 'MORRO', accent: '#C8553D', aspect: 3.8 / (2.5 * .62) },
 ] as const;

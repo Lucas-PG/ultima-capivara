@@ -6,7 +6,7 @@ const views = JSON.parse(json);
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
-await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1`);
+await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1${process.env.QUERY || ''}`);
 await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 60000 });
 await page.evaluate(() => window.__capyQA.start());
 await page.evaluate(q => window.__capyQA.quality(q), quality);

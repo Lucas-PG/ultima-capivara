@@ -222,3 +222,97 @@ def add_architecture(Piece, building, portal_fn, window_fn):
     laje_house(Piece, 'house_laje_b', color=3)
     varanda_house(Piece)
     sobrado(Piece, building)
+    campinho(Piece)
+
+
+def campinho(Piece, name='campinho'):
+    """Neighbourhood football pitch: goals, a stepped concrete stand you can
+    climb for height, team shelters, a perimeter wall with gaps, four
+    floodlights and a boteco at the corner. The painted pitch is world paint."""
+    L, Wd = 32, 20
+    p = Piece(name, L + 16, Wd + 10)
+    # Goals with nets (posts are solid, nets are soft).
+    for sx in [-1, 1]:
+        x = sx * L / 2
+        for z in [-2.6, 2.6]:
+            p.box(x, 1.15, z, .14, 2.3, .14, 15, True, 'metal', bevel=.03)
+            p.box(x + sx * 1.3, 1.1, z, .08, 2.2, .08, 9, True, 'metal')
+            p.beam((x, 2.25, z), (x + sx * 1.3, 2.15, z), .06, 9)
+        p.box(x, 2.3, 0, .14, .14, 5.34, 15, True, 'metal', bevel=.03)
+        p.box(x + sx * 1.3, 2.15, 0, .08, .08, 5.2, 9, detail=True)
+        for i in range(11):
+            z = -2.5 + i * .5
+            p.box(x + sx * 1.3, 1.1, z, .02, 2.2, .02, 11, detail=True)
+            p.beam((x, 2.28, z), (x + sx * 1.3, 2.14, z), .015, 11, detail=True)
+        for j in range(5):
+            y = .2 + j * .45
+            p.box(x + sx * 1.3, y, 0, .02, .02, 5.2, 11, detail=True)
+            for z in [-2.6, 2.6]:
+                p.beam((x, y, z), (x + sx * 1.3, y, z), .015, 11, detail=True)
+    # The stand (arquibancada): four .42 m concrete tiers, a painted backrest wall.
+    stand_z = Wd / 2 + 1.2
+    for i in range(4):
+        top = (i + 1) * .42
+        z = stand_z + i * .9 + .45
+        p.box(0, top / 2, z, 22, top, .9, 14, True, bevel=.02)
+        p.box(0, top + .01, z - .3, 22, .02, .3, 2 if i % 2 else 3, detail=True)
+    p.box(0, 1.68 + .6, stand_z + 3.75, 22.4, 1.2 + 1.68 * 0 + .0, .25, 2, True)
+    p.box(0, 1.05, stand_z + 3.75, 22.4, 2.1, .25, 14, True)
+    for x in [-11.2, 11.2]:
+        p.box(x, 1.2, stand_z + 1.9, .25, 2.4, 4.0, 14, True)
+    for i in range(7):
+        p.box(-9 + i * 3, 2.9, stand_z + 3.75, 1.6, .5, .08, 1 if i % 2 else 3, detail=True)
+    # Team shelters on the south side.
+    for sx in [-1, 1]:
+        x = sx * 5.5
+        z = -Wd / 2 - 1.6
+        p.box(x, .25, z, 4, .1, .5, 5, True, 'wood')
+        for dx in [-1.9, 1.9]:
+            p.box(x + dx, .12, z, .08, .24, .45, 9)
+            p.box(x + dx, 1.1, z - .45, .1, 2.2, .1, 9, True, 'metal')
+        p.box(x, 2.25, z - .1, 4.3, .08, 1.3, 8, True, 'metal', bevel=.01)
+        p.box(x, 1.1, z - .5, 4.2, 2.2, .06, 10, detail=True)
+    # Perimeter wall with three openings on the south and full ends.
+    wz = -Wd / 2 - 3.2
+    for x0, x1 in [(-24, -9), (-2, 2), (9, 24)]:
+        p.box((x0 + x1) / 2, .5, wz, x1 - x0, 1.0, .25, 0, True)
+        p.box((x0 + x1) / 2, 1.03, wz, x1 - x0 + .1, .08, .35, 15)
+        for i in range(int((x1 - x0) / 2.5)):
+            p.box(x0 + 1.25 + i * 2.5, .5, wz - .14, 1.8, .6, .02, 1 if i % 3 == 0 else 2 if i % 3 == 1 else 3, detail=True)
+    for sx in [-1, 1]:
+        p.box(sx * 24, .5, -2, .25, 1.0, 18, 0, True)
+    # Floodlights.
+    for sx in [-1, 1]:
+        for sz in [-1, 1]:
+            x, z = sx * (L / 2 + 2.2), sz * (Wd / 2 + (2.2 if sz < 0 else 5.5))
+            p.cylinder(x, 4.5, z, .17, 9, 9, True, 'metal', sides=10)
+            p.box(x, 9.2, z, 1.8, .9, .3, 9)
+            for dx in [-.45, .45]:
+                for dy in [-.2, .2]:
+                    p.box(x + dx, 9.2 + dy, z - sz * .16, .36, .3, .04, 15, detail=True)
+    # Boteco: yellow walls, open counter toward the pitch, corrugated roof,
+    # a fridge, beer crates and red plastic tables.
+    bx, bz = L / 2 + 5.5, -Wd / 2 + 1.0
+    p.box(bx, .06, bz, 4.4, .12, 4.0, 14, True)
+    p.box(bx + 2.1, 1.35, bz, .2, 2.7, 4.0, 3, True)
+    p.box(bx, 1.35, bz - 1.9, 4.4, 2.7, .2, 3, True)
+    p.box(bx - 2.1, 1.35, bz - 1.0, .2, 2.7, 2.0, 3, True)
+    p.box(bx - .2, .55, bz + 1.4, 3.4, 1.1, .5, 5, True, 'wood')
+    p.box(bx - .2, 1.12, bz + 1.45, 3.6, .06, .62, 7)
+    p.box(bx, 2.82, bz + .3, 5.2, .1, 5.4, 8, True, 'metal')
+    for i in range(12):
+        p.box(bx - 2.5 + i * .45, 2.9, bz + .3, .06, .06, 5.4, 9, detail=True)
+    for x in [bx - 2.5, bx + 2.5]:
+        p.box(x, 1.4, bz + 2.8, .12, 2.8, .12, 7, True, 'wood')
+    p.box(bx + 1.5, .9, bz - 1.4, .7, 1.8, .6, 15, True)
+    p.box(bx + 1.5, 1.2, bz - 1.08, .6, .9, .02, 10, detail=True)
+    for i, (dx, dz) in enumerate([(-1.2, -1.3), (-.6, -1.3), (-1.2, -.7)]):
+        p.box(bx + dx, .22 + (i // 2) * .44, bz + dz, .5, .44, .5, 5, True, 'wood')
+    p.box(bx, 3.2, bz + 2.75, 3.2, .7, .12, 1)
+    p.box(bx, 3.2, bz + 2.83, 2.6, .4, .02, 15, detail=True)
+    for tx, tz in [(bx - 1.2, bz + 4.5), (bx + 1.4, bz + 5.2)]:
+        p.cylinder(tx, .72, tz, .45, .04, 1, sides=16)
+        p.cylinder(tx, .36, tz, .05, .7, 1, True, sides=8)
+        for a in [0, 2.1, 4.2]:
+            p.cylinder(tx + math.cos(a) * .75, .22, tz + math.sin(a) * .75, .2, .44, 1, sides=12)
+    return p

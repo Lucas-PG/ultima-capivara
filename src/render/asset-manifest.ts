@@ -6,6 +6,6 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { path: 'textures/foliage-atlas.webp', kind: 'texture', bytes: 495674, label: 'Folhas pintadas' },
   { path: 'textures/terrain-color.png', kind: 'texture', bytes: 499277, label: 'Cores da ilha' },
   { path: 'textures/clouds-painted-v4.png', kind: 'texture', bytes: 894096, label: 'Nuvens pintadas' },
-  { path: 'textures/island-signs.png', kind: 'texture', bytes: 64223, label: 'Placas da ilha' },
+  { path: 'textures/island-signs.png', kind: 'texture', bytes: 83386, label: 'Placas da ilha' },
   { path: 'textures/vfx-flipbooks.png', kind: 'texture', bytes: 148876, label: 'Efeitos pintados' },
 ];

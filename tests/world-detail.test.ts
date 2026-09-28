@@ -27,7 +27,7 @@ function walkFrom(spawn: SpawnPoint, yaw: number, mode: Mode) {
 }
 describe('river island gameplay integrity', () => {
   it('keeps the familiar districts while moving the hero fort north and the beach south', () => {
-    expect(new Set(world.districts.map(d => d.id))).toEqual(new Set(['forte', 'vila', 'centro', 'morro', 'cachoeira', 'porto', 'praia', 'farol', 'mangue', 'fazenda', 'posto', 'lagoa']));
+    expect(new Set(world.districts.map(d => d.id))).toEqual(new Set(['forte', 'vila', 'centro', 'morro', 'cachoeira', 'porto', 'praia', 'farol', 'mangue', 'fazenda', 'posto', 'lagoa', 'campinho']));
     expect(world.size).toBe(260);
     const district = (id: string) => world.districts.find(d => d.id === id)!;
     expect(district('forte').z).toBeLessThan(district('vila').z - 50);

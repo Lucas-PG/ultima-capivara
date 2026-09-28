@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BRIDGES, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
+import { ARENA, ARENA_CENTER, BRIDGES, CAMPINHO, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -46,6 +46,7 @@ export function createWorld(): WorldSpec {
     { id: 'fazenda', name: 'Fazenda', x: 62, z: 63, radius: 25, color: '#d7b671' },
     { id: 'posto', name: 'Posto', x: -22, z: 43, radius: 16, color: '#e6a34f' },
     { id: 'lagoa', name: 'Lagoa', x: -76, z: 11, radius: 15, color: '#77a5a0' },
+    { id: 'campinho', name: 'Campinho', x: CAMPINHO[0], z: CAMPINHO[1], radius: 20, color: '#8fb35a' },
   ];
   let sequence = 0;
   const id = (prefix: string) => `${prefix}-${++sequence}`;
@@ -366,6 +367,32 @@ export function createWorld(): WorldSpec {
     obj('box', x, .02, z, 1, 1, 1, '#DB8263', 'prop:street-buoy');
   landmark('crane', 113, -29, Math.PI / 2);
   sign(78, -28, 'PORTO');
+
+  // Campinho: the neighbourhood pitch. A mown pitch with chalk lines (painted,
+  // so the jungle keeps off it), the stand and boteco are one kit piece.
+  {
+    const [cx, cz] = CAMPINHO, cy = ground(cx, cz);
+    place('campinho', cx, cz, 0, 1, cy);
+    obj('box', cx, cy + .02, cz, 34, .03, 22, '#7FA24A', 'courtyard');
+    for (let i = 0; i < 8; i++) obj('box', cx - 14 + i * 4, cy + .027, cz, 2, .02, 20, '#8BAE54', 'pitch-stripe');
+    const line = (x: number, z: number, w: number, d: number) => obj('box', cx + x, cy + .036, cz + z, w, .012, d, '#F2EEDF', 'pitch-line');
+    line(0, -10, 32.1, .12); line(0, 10, 32.1, .12); line(-16, 0, .12, 20.1); line(16, 0, .12, 20.1); line(0, 0, .12, 20);
+    for (const sx of [-1, 1]) {
+      line(sx * 13, 0, .12, 12); line(sx * 14.5, -6, 3, .12); line(sx * 14.5, 6, 3, .12);
+      line(sx * 15, 0, .12, 6); line(sx * 15.5, -3, 1, .12); line(sx * 15.5, 3, 1, .12);
+      obj('box', cx + sx * 15.2, cy + .031, cz, 2.6, .015, 4.6, '#A68A5C', 'pitch-wear');
+    }
+    for (let i = 0; i < 20; i++) {
+      const a = i / 20 * Math.PI * 2, r = 3;
+      obj('box', cx + Math.cos(a) * r, cy + .036, cz + Math.sin(a) * r, 1, .012, .12, '#F2EEDF', 'pitch-line', -a + Math.PI / 2);
+    }
+    obj('box', cx, cy + .031, cz, 2.8, .015, 2.8, '#A68A5C', 'pitch-wear');
+    obj('sphere', cx + 1.2, cy + .11, cz - .8, .22, .22, .22, '#F7F4EA', 'prop:football');
+    // Hedges soften the stand's back and the far touchline.
+    for (const [x, z, yaw] of [[-8, 17.8, 0], [0, 17.8, 0], [8, 17.8, 0], [-22, 6, Math.PI / 2], [22, 9, Math.PI / 2]] as const)
+      place('hedge', cx + x, cz + z, yaw, 1, ground(cx + x, cz + z) - .1, 'undergrowth');
+    sign(cx - 20, cz - 16, 'CAMPINHO');
+  }
 
   // Fazenda and Morro retain warm, recognisable silhouettes above the valley.
   if (KIT_PIECES.barn) detail('barn', 71, 57);
