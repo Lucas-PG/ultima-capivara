@@ -60,6 +60,9 @@ export class WeaponView {
   private readonly key = new THREE.DirectionalLight(PAINT.sun, 3.1);
   private readonly rim = new THREE.DirectionalLight(PAINT.rim, .8);
   private readonly fill = new THREE.DirectionalLight('#9fc3e6', .4);
+  // Always present (zero at rest) so a shot never changes the lighting shader.
+  private readonly muzzleLight = new THREE.PointLight('#ffb25a', 0, 2.4, 2);
+  private flashLight = 0;
   private readonly inverseView = new THREE.Quaternion();
   private readonly models = {} as Record<WeaponId, Model>;
   private arms: ArmsRig | null = null;
@@ -116,9 +119,9 @@ export class WeaponView {
   readonly assets: Promise<void>;
 
   constructor(private readonly loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .75));
+    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .95));
     this.key.position.copy(SUN_DIRECTION).multiplyScalar(80); this.rim.position.set(-70, 65, -30); this.fill.position.set(60, 10, 40);
-    this.scene.add(this.key, this.rim, this.fill);
+    this.scene.add(this.key, this.rim, this.fill, this.muzzleLight);
     this.scene.add(this.holder);
     this.smear.name = 'Machete motion smear'; this.smear.visible = false; this.smear.frustumCulled = false;
     this.smear.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
@@ -215,6 +218,7 @@ export class WeaponView {
       this.meleeTime = 0; this.meleeSide *= -1; this.meleeHit = contact; this.meleeStop = 0;
     } else {
       if (id === 'revolver') this.cylinderTarget += Math.PI / 3;
+      if (id !== 'slingshot') this.flashLight = id === 'shotgun' || id === 'sniper' || id === 'coco' ? 1.4 : 1;
       const recoil = this.models[id]?.spec.recoil ?? VIEW_SPECS[id].recoil;
       const scale = 1 - this.adsAmount * .45;
       const alternate = this.shotCount++ % 2 ? 1 : -1;
@@ -361,6 +365,9 @@ export class WeaponView {
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.quaternion);
     if (this.inspectTime >= 0) this.applyInspect(weapon, dt, settings.reducedMotion);
     this.animateParts(model, reload, choreo, sample);
+    this.flashLight = Math.max(0, this.flashLight - dt / .07);
+    this.muzzleLight.intensity = this.flashLight * this.flashLight * 7;
+    if (this.flashLight > 0) { this.holder.updateMatrixWorld(true); model.muzzle.getWorldPosition(this.muzzleLight.position); }
     this.solveArms(model, spec.grips, choreo, sample);
     if (import.meta.env.DEV) this.debugOrbit();
   }

@@ -57,9 +57,9 @@ const SURFACES: Record<Surface, { puff: string; puffLight: string; bit: string; 
 
 // Flash size in metres (third person) and in first-person scene units.
 const FLASH: Partial<Record<WeaponId, { world: number; fp: number }>> = {
-  pistol: { world: .42, fp: .16 }, smg: { world: .38, fp: .15 }, m4: { world: .5, fp: .19 },
-  shotgun: { world: .7, fp: .28 }, dmr: { world: .55, fp: .21 }, sniper: { world: .7, fp: .26 },
-  revolver: { world: .55, fp: .22 }, coco: { world: .6, fp: .24 },
+  pistol: { world: .42, fp: .2 }, smg: { world: .38, fp: .17 }, m4: { world: .5, fp: .24 },
+  shotgun: { world: .7, fp: .36 }, dmr: { world: .55, fp: .27 }, sniper: { world: .7, fp: .34 },
+  revolver: { world: .55, fp: .27 }, coco: { world: .6, fp: .3 },
 };
 const TRACER_WIDTH: Partial<Record<WeaponId, number>> = { pistol: .018, smg: .016, m4: .02, shotgun: .016, dmr: .024, sniper: .028, revolver: .024 };
 export const MARK_LIFE = 4;
@@ -399,7 +399,7 @@ export class EffectsView {
     }
     const card = (fp ? this.fpCards : this.cards).spawn();
     card.pos.copy(pos); card.motion = Motion.Flash; card.cell = PAINT.flash;
-    card.life = .05; card.fadeOut = .01; card.rot = rand(0, Math.PI * 2);
+    card.life = fp ? .06 : .05; card.fadeOut = .01; card.rot = rand(0, Math.PI * 2);
     card.size0 = card.size1 = (fp ? size.fp * (1 - ads * .4) : size.world) * rand(.9, 1.1);
     // The smallest painted frame is about 45% visible width after rotation and post-processing.
     card.minPx = fp ? 0 : 28; card.maxPx = fp ? 1e5 : 90; card.color.copy(this.white);

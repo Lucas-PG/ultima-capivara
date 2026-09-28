@@ -29,7 +29,7 @@ type QaApi = {
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   names(): string[];
-  motion(weapon: WeaponId, action: 'reload' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land', seconds: number): Promise<void>;
+  motion(weapon: WeaponId, action: 'reload' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
 };
@@ -369,6 +369,11 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
           hit: action.startsWith('hit') });
       };
       if (action === 'reload') { me.weapons[0].ammo = 0; me.reloadUntil = s.time + WEAPON_DEFS[weapon].reload; }
+      else if (action === 'fire') {
+        const origin = { x: me.pos.x, y: me.pos.y + 1.62, z: me.pos.z };
+        renderer!.event({ type: 'shot', id: 300, actor: me.id, weapon, origin,
+          end: { x: origin.x - Math.sin(me.yaw) * 30, y: origin.y, z: origin.z - Math.cos(me.yaw) * 30 }, hit: false });
+      }
       else if (action.includes('right') || action.includes('left')) {
         if (weapon !== 'machete') throw new Error('Swing review requires machete');
         if (action.endsWith('left')) { swing(); advance(.6); }
