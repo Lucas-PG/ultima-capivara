@@ -24,7 +24,7 @@
     "test:load": "tsx scripts/load-test.ts",
     "signaling": "node scripts/signaling.mjs",
     "assets:characters": "node tools/blender/build-characters.mjs",
-    "assets:weapons": "node tools/blender/build-weapons.mjs",
+    "assets:weapons": "node tools/blender/build-fp.mjs && node tools/blender/build-world-arsenal.mjs",
     "assets:kit": "node tools/blender/build-kit.mjs"
   },
   "dependencies": {

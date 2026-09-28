@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { itemGeometry, itemMaterial } from '../src/render/item-geometry';
 import { worldWeaponMaterial } from '../src/render/world-weapons';
 import { LootView } from '../src/render/loot';
-import { PAINTED_WEAPON_IDS } from '../src/render/painted-weapons';
+import { WEAPONS } from '../src/shared/weapons';
+import type { WeaponId } from '../src/shared/types';
+const PAINTED_WEAPON_IDS = Object.keys(WEAPONS) as WeaponId[];
 import type { WorldSnapshot, WorldSpec } from '../src/shared/types';
 
 describe('held and dropped weapons', () => {
