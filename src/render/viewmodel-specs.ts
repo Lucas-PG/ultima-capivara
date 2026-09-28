@@ -106,7 +106,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   },
   machete: {
     url: 'models/arsenal/machete.glb', scale: 1, handling: 'melee', reload: 'none',
-    hip: { pos: [.17, -.2, -.36], rot: [.3, .3, -.5] },
+    hip: { pos: [.16, -.16, -.4], rot: [.9, .6, -.3] },
     sprint: { pos: [0, -.05, .05], rot: [.3, .2, .2] }, adsDistance: .3,
     grips: { R: { wrist: [.035, -.07, .02], forward: [-.1, 1, .15], palm: [-1, 0, 0], curl: curl([1.45, 1.3, .9], [1.5, 1.35, .95], [1.55, 1.35, .95], [.7, .5, .3]), pole: [.8, -1, .3] } },
     recoil: { kick: 0, climb: 0, roll: 0, frequency: 20 }, inertia: .8,

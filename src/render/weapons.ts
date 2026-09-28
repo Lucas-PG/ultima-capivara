@@ -592,7 +592,8 @@ export class WeaponView {
     this.meleeTime = Math.min(MELEE_SECONDS, this.meleeTime + step);
     const pose = sampleMelee(this.meleeTime, this.meleeSide, this.meleePose), amount = reducedMotion ? .55 : 1;
     this.holder.position.x += pose.x * amount; this.holder.position.y += pose.y * amount; this.holder.position.z += pose.z * amount;
-    this.offset.setFromEuler(this.euler.set(pose.pitch * amount, pose.yaw * amount, pose.roll * amount, 'YXZ'));
+    // The blade is held raised, so the cut chops down through the target (pitch reversed).
+    this.offset.setFromEuler(this.euler.set(-pose.pitch * 1.2 * amount, pose.yaw * amount, pose.roll * amount, 'YXZ'));
     this.holder.quaternion.multiply(this.offset);
     this.holder.updateWorldMatrix(true, true);
     this.models.machete.muzzle.getWorldPosition(this.trailTip);
