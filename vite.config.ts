@@ -11,4 +11,6 @@ export default defineConfig({
     ] } } },
   },
   worker: { format: 'es' },
+  // The e2e server must never reload pages mid-match when a source file is saved.
+  server: { hmr: process.env.E2E_NO_HMR !== '1' },
 });

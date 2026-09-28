@@ -63,7 +63,7 @@ Priority order follows the brief: POV, weapons, character, map, graphics, combat
 
 ### E. Graphics and water
 - [~] E1 Sun raised to ~39 degrees (one shared sun direction); remaining: sky, grading, AO, fog review
-- [ ] E2 Water (sea, river, shore, underwater)
+- [x] E2 Water: navy offshore falloff, green-teal rivers (masked by flow speed), caustic cells only in the shallows, broken crest strokes offshore, sparse sun sparkles near the eye, no foam bands in narrow rivers (they met mid-channel as a dashed line)
 
 ### F. Combat, audio, VFX
 - [ ] F1 Shot chain feedback (hit markers, impacts, tracers, kill feedback)
@@ -95,6 +95,7 @@ Priority order follows the brief: POV, weapons, character, map, graphics, combat
 ## Test state
 
 - Baseline at 7f48b7d: see `docs/overhaul/progress.md` (vitest 718/718, e2e 5/5).
+- The slow e2e "full Correria ... rematch" failure (host back to home mid-match) was the e2e Vite server reloading pages when a source file was saved during the run; the e2e server now runs with HMR off (`E2E_NO_HMR`).
 - e81df9b: vitest 697/697 (obsolete painted-weapon tests replaced by `tests/viewmodel.test.ts`; asset contract tests rewritten for the vertex-painted character). e2e not yet re-run.
 
 ## Performance state

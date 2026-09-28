@@ -336,7 +336,11 @@ test('a full Correria ends on both clients and the host starts a clean rematch',
     };
     await start(); step('first match playing');
     const firstMatch = (await inspect(host)).snapshot.matchId;
-    for (const page of [host, guest]) await expect.poll(async () => { const i = await inspect(page); step(`${page === host ? 'host' : 'guest'} ${i.screen} ${i.snapshot?.phase} ${Math.round(i.snapshot?.remaining ?? -1)}`); return i.snapshot?.phase; }, { timeout: 360_000, intervals: [20_000] }).toBe('results');
+    for (const page of [host, guest]) await expect.poll(async () => {
+      const i = await inspect(page), toast = await page.locator('#toast').innerText().catch(() => '');
+      step(`${page === host ? 'host' : 'guest'} ${i.screen} ${i.snapshot?.phase} ${Math.round(i.snapshot?.remaining ?? -1)} ${toast.replace(/\s+/g, ' ').slice(0, 120)} ${errors.slice(-2).join(' | ')}`);
+      return i.snapshot?.phase;
+    }, { timeout: 360_000, intervals: [20_000] }).toBe('results');
     step('results on both');
     // Both see the same winners and bots were counted in the scoreboard.
     const [hostResults, guestResults] = await Promise.all([host, guest].map(async page => (await inspect(page)).snapshot.results.map((r: any) => `${r.name}:${r.kills}:${r.place}`).join('|')));
