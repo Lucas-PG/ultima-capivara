@@ -4,7 +4,7 @@ import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, SHOULDERS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
-import { RELOADS, m4Reload } from './viewmodel-anims';
+import { RELOADS, m4Reload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
@@ -27,7 +27,7 @@ const window01 = (t: number, a: number, b: number) => ease((t - a) / (b - a));
 const bump = (t: number, a: number, peak: number, b: number) => window01(t, a, peak) * (1 - window01(t, peak, b));
 
 interface Parts { slide?: THREE.Object3D; mag?: THREE.Object3D; trigger?: THREE.Object3D; hammer?: THREE.Object3D; action?: THREE.Object3D;
-  cylinder?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; release?: THREE.Object3D }
+  cylinder?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; release?: THREE.Object3D; load1?: THREE.Object3D; load2?: THREE.Object3D }
 interface Model {
   id: WeaponId; spec: ViewSpec; group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; sight: THREE.Vector3;
   parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
@@ -91,6 +91,11 @@ export class WeaponView {
   private shotCount = 0;
   private reloadEnd = 0;
   private reloadEmpty = false;
+  private reloadAmmo = 0;
+  private shotgunReloading = false;
+  private shotgunBeganEmpty = false;
+  private shotgunPumpLife = 0;
+  private lastShotCycle = -1;
   private reloadDuration = 1;
   private wallPose = 0;
   private leanPose = 0;
@@ -168,7 +173,7 @@ export class WeaponView {
     const spec = VIEW_SPECS[id];
     const model: Model = { id, spec, group, muzzle, eject, sight: sight.position.clone(),
       parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action'),
-        cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), release: get('release') },
+        cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), release: get('release'), load1: get('load1'), load2: get('load2') },
       rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent };
     // Blender axis (x, y, z) is (x, z, -y) here.
     const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
@@ -225,6 +230,7 @@ export class WeaponView {
       this.kickYaw.impulse((Math.random() - .5) * recoil.roll * .5 * scale);
     }
     this.shotLife = weaponShotDuration(id);
+    this.shotgunPumpLife = 0; this.lastShotCycle = -1;
   }
 
   // Barrel tip and ejection port of the held weapon, in this scene's (camera) space.
@@ -274,19 +280,29 @@ export class WeaponView {
     if (this.arms && this.furPreset !== settings.graphics) { this.furPreset = settings.graphics; this.arms.setFurShells(FUR_BY_PRESET[settings.graphics]); }
     this.time += dt; this.lastDt = dt;
     const reloading = requested === weapon && actor.reloadUntil > simulationTime;
+    const ammo = actor.weapons[actor.slot]?.ammo ?? 0;
+    if (weapon === 'shotgun' && requested === weapon) {
+      if (reloading && !this.shotgunReloading) this.shotgunBeganEmpty = ammo === 0;
+      if (!reloading && this.shotgunReloading && this.shotgunBeganEmpty && ammo > 0 && this.shotLife <= 0) this.shotgunPumpLife = .42;
+      this.shotgunReloading = reloading;
+      const before = this.shotgunPumpLife;
+      this.shotgunPumpLife = Math.max(0, before - dt);
+      if (before > .31 && this.shotgunPumpLife <= .31) this.onFoley('pump-back');
+      if (before > .12 && this.shotgunPumpLife <= .12) this.onFoley('pump-home');
+    } else { this.shotgunReloading = false; this.shotgunBeganEmpty = false; this.shotgunPumpLife = 0; }
     this.inspectAllowed = requested === weapon && actor.grounded && !actor.swimming && !actor.ads && !actor.sprint && !reloading &&
-      this.shotLife <= 0 && (weapon !== 'machete' || this.meleeTime >= MELEE_SECONDS);
+      this.shotLife <= 0 && this.shotgunPumpLife <= 0 && (weapon !== 'machete' || this.meleeTime >= MELEE_SECONDS);
     if (!this.inspectAllowed) this.cancelInspect();
     if (reloading && actor.reloadUntil > this.reloadEnd + .01) {
       this.reloadEnd = actor.reloadUntil;
-      this.reloadEmpty = (actor.weapons[actor.slot]?.ammo ?? 0) === 0;
+      this.reloadEmpty = ammo === 0; this.reloadAmmo = ammo;
       this.lastReload = -1;
       this.reloadDuration = weapon === 'm4' ? WEAPONS.m4.reload : Math.max(.3, Math.min(WEAPONS[weapon].reload || 1, actor.reloadUntil - simulationTime + .02));
     }
     const reload = reloading ? THREE.MathUtils.clamp(1 - (this.reloadEnd - simulationTime) / this.reloadDuration, 0, 1) : -1;
 
     // ---- aim state
-    const wantAds = actor.ads && !actor.swimming && !reloading && !actor.sprint && weapon !== 'machete' && this.draw < .5;
+    const wantAds = actor.ads && !actor.swimming && !reloading && this.shotgunPumpLife <= 0 && !actor.sprint && weapon !== 'machete' && this.draw < .5;
     this.ads = advanceAds(weapon, this.ads, wantAds, dt);
     const ads = this.adsAmount;
     // ---- look inertia: the gun trails the view and settles with a slight overshoot.
@@ -347,8 +363,15 @@ export class WeaponView {
     px += sprintPos.x * sprint; py += sprintPos.y * sprint; pz += sprintPos.z * sprint;
     rx += sprintRot[0] * sprint * (1 + Math.sin(this.gait) * .06); ry += sprintRot[1] * sprint; rz += sprintRot[2] * sprint;
     // ---- reload choreography (weapon part)
-    const keys = weapon === 'm4' ? m4Reload(this.reloadEmpty) : sortedReloads[weapon];
-    const sample = reload >= 0 && keys ? sampleChoreo(keys, reload, this.sample) : null;
+    const keys = weapon === 'm4' ? m4Reload(this.reloadEmpty) : weapon === 'dmr' ? dmrReload(this.reloadEmpty) :
+      weapon === 'sniper' ? sniperReload(this.reloadEmpty) : weapon === 'coco' ? cocoReload(this.reloadAmmo) : sortedReloads[weapon];
+    const cycling = weapon === 'sniper' && this.shotLife > 0 && reload < 0;
+    const shotPhase = 1 - this.shotLife / weaponShotDuration(weapon);
+    const sample = reload >= 0 && keys ? sampleChoreo(keys, reload, this.sample) : cycling ? sampleChoreo(SNIPER_CYCLE, shotPhase, this.sample) : null;
+    if (cycling) {
+      for (const key of SNIPER_CYCLE) if (key.sfx && key.t > this.lastShotCycle && key.t <= shotPhase) this.onFoley(key.sfx);
+      this.lastShotCycle = shotPhase;
+    } else this.lastShotCycle = -1;
     // Foley: every key the reload passed since the last frame plays its cue once.
     if (keys && reload >= 0) {
       for (const key of keys) if (key.sfx && key.t > this.lastReload && key.t <= reload) this.onFoley(key.sfx);
@@ -367,7 +390,7 @@ export class WeaponView {
     this.updateMelee(weapon, dt, settings.reducedMotion);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.quaternion);
     if (this.inspectTime >= 0) this.applyInspect(weapon, dt, settings.reducedMotion);
-    this.animateParts(model, reload, choreo, sample);
+    this.animateParts(model, reload, choreo, sample, ammo);
     this.flashLight = Math.max(0, this.flashLight - dt / .07);
     this.muzzleLight.intensity = this.flashLight * this.flashLight * 7;
     if (this.flashLight > 0) { this.holder.updateMatrixWorld(true); model.muzzle.getWorldPosition(this.muzzleLight.position); }
@@ -386,7 +409,8 @@ export class WeaponView {
 
   private resetMotion() {
     if (this.reloadEnd && this.models[this.active]) this.animateParts(this.models[this.active], -1, null, null);
-    this.lastReload = -1; this.reloadEmpty = false;
+    this.lastReload = -1; this.reloadEmpty = false; this.reloadAmmo = 0;
+    this.shotgunReloading = false; this.shotgunBeganEmpty = false; this.shotgunPumpLife = 0; this.lastShotCycle = -1;
     this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined;
     for (const spring of [this.kickZ, this.kickPitch, this.kickRoll, this.kickYaw, this.swayYaw, this.swayPitch, this.swayRoll, this.strafe, this.land, this.crouchDip]) spring.reset();
     this.swimPose = 0; this.swimming = false; this.sprintPose = 0; this.movePose = 0; this.wallPose = 0; this.leanPose = 0;
@@ -432,7 +456,7 @@ export class WeaponView {
     return c;
   }
 
-  private animateParts(model: Model, reload: number, choreo: Choreo | null, sample: ChoreoSample | null) {
+  private animateParts(model: Model, reload: number, choreo: Choreo | null, sample: ChoreoSample | null, ammo = WEAPONS[model.id].magazine) {
     for (const [part, rest] of model.rest) { part.position.copy(rest.position); part.quaternion.copy(rest.quaternion); }
     const { slide, trigger, hammer, mag, action } = model.parts;
     const total = weaponShotDuration(model.id);
@@ -446,7 +470,9 @@ export class WeaponView {
     if (pump) {
       // Rack after the shot: back, then home. Reloads can drive it too.
       const racked = window01(phase, .25, .5) * (1 - window01(phase, .6, .85));
-      pump.position.z += Math.max(racked, sample?.parts.pump ?? 0) * (model.id === 'coco' ? .07 : .085);
+      const finish = model.id === 'shotgun' && this.shotgunPumpLife > 0 ? 1 - this.shotgunPumpLife / .42 : 0;
+      const finalRack = window01(finish, .05, .35) * (1 - window01(finish, .60, .90));
+      pump.position.z += Math.max(racked, finalRack, sample?.parts.pump ?? 0) * (model.id === 'coco' ? .07 : .085);
     }
     if (cylinder && model.crane) {
       this.cylinderSpin = damp(this.cylinderSpin, this.cylinderTarget, 22, this.lastDt);
@@ -459,15 +485,10 @@ export class WeaponView {
     }
     if (bolt && model.id === 'm4') {
       bolt.position.z += Math.max(cycle, sample?.parts.bolt ?? 0) * .035;
-      this.boltHand = 0;
-    } else if (bolt) {
-      const cycled = model.id === 'sniper' && this.shotLife > 0 ? phase : -1;
-      const open = cycled >= 0 ? window01(cycled, .12, .3) * (1 - window01(cycled, .74, .9)) : sample?.parts.bolt ?? 0;
-      const pull = cycled >= 0 ? window01(cycled, .3, .47) * (1 - window01(cycled, .52, .72)) : sample?.parts.boltPull ?? 0;
-      bolt.quaternion.multiply(this.quat.setFromAxisAngle(AXIS_Z, open * 1.1));
-      bolt.position.z += pull * .075;
-      this.boltHand = cycled >= 0 ? window01(cycled, .02, .14) * (1 - window01(cycled, .86, 1)) : sample?.parts.boltHand ?? 0;
-    } else this.boltHand = 0;
+    } else if (bolt && model.id === 'sniper') {
+      bolt.quaternion.multiply(this.quat.setFromAxisAngle(AXIS_Z, (sample?.parts.bolt ?? 0) * 1.1));
+      bolt.position.z += (sample?.parts.boltPull ?? 0) * .075;
+    }
     if (model.parts.release) model.parts.release.rotation.z += (sample?.parts.release ?? 0) * .20;
     if (charge) charge.position.z += (sample?.parts.charge ?? 0) * .065;
     if (mag && !sample?.mag && (model.spec.reload === 'revolver' || model.spec.reload === 'shotgun')) mag.visible = false;
@@ -492,6 +513,11 @@ export class WeaponView {
         mag.position.addScaledVector(model.magAxis, choreo.magOut * .06);
       }
     } else if (mag && model.spec.reload !== 'revolver' && model.spec.reload !== 'shotgun') mag.visible = true;
+    if (model.id === 'coco') {
+      if (mag && !sample?.mag) mag.visible = ammo >= 4;
+      if (model.parts.load1) model.parts.load1.visible = (sample?.parts.load1 ?? (ammo >= 3 ? 1 : 0)) >= .5;
+      if (model.parts.load2) model.parts.load2.visible = (sample?.parts.load2 ?? (ammo >= 2 ? 1 : 0)) >= .5;
+    }
     void reload;
   }
 
@@ -502,7 +528,6 @@ export class WeaponView {
   onFoley: (cue: string) => void = () => {};
   private cylinderSpin = 0;
   private cylinderTarget = 0;
-  private boltHand = 0;
   private lastDt = 1 / 60;
 
   private gripTarget(model: Model, grip: GripSpec, out: HandTarget) {
@@ -524,14 +549,6 @@ export class WeaponView {
     this.holder.updateMatrixWorld(true);
     this.gripTarget(model, grips.R, this.targetR);
     if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);
-    if (this.boltHand > 0 && model.parts.bolt) {
-      // The firing paw leaves the grip to work the bolt knob.
-      const knob = model.parts.bolt.localToWorld(this.handA.wrist.set(.05, -.024, -.004));
-      this.targetR.wrist.lerp(knob.add(this.handB.wrist.set(.03, -.075, .07)), this.boltHand);
-      this.targetR.forward.lerp(this.handB.forward.set(-.35, .7, -.6).normalize(), this.boltHand).normalize();
-      this.targetR.palm.lerp(this.handB.palm.set(-.75, .1, -.6).normalize(), this.boltHand).normalize();
-      this.targetR.curl = blendCurl(this.targetR.curl, BOLT_CURL, this.boltHand);
-    }
     v3((shoulders ?? SHOULDERS).R, this.shoulderR); v3((shoulders ?? SHOULDERS).L, this.shoulderL);
     arms.right.solve(this.shoulderR, this.targetR);
     const L = grips.L;
@@ -586,10 +603,12 @@ export class WeaponView {
     this.inspectTime += dt;
     const progress = Math.min(1, this.inspectTime / 1.8);
     const look = Math.sin(Math.PI * progress) ** 2 * (reducedMotion ? .35 : 1);
-    const showLongGun = weapon === 'm4';
+    const showLongGun = weapon === 'm4' || weapon === 'shotgun' || weapon === 'sniper' || weapon === 'dmr' || weapon === 'coco';
     this.holder.position.x -= look * .08; this.holder.position.y += look * .05;
     this.holder.position.z += look * (showLongGun ? -.16 : .05);
-    this.offset.setFromEuler(this.euler.set(look * .2, -look * (weapon === 'machete' ? .2 : .75), look * (weapon === 'machete' ? -.3 : .45), 'YXZ'));
+    const rotation = weapon === 'coco' ? [.08, .5, .08] : showLongGun ? [.1, .45, -.25] :
+      weapon === 'machete' ? [.2, -.2, -.3] : [.2, -.75, .45];
+    this.offset.setFromEuler(this.euler.set(look * rotation[0], look * rotation[1], look * rotation[2], 'YXZ'));
     this.holder.quaternion.multiply(this.offset);
     if (progress === 1) this.inspectTime = -1;
   }
@@ -660,5 +679,4 @@ interface Choreo { px: number; py: number; pz: number; rx: number; ry: number; r
   support: number; supportPos: THREE.Vector3; mag: 'in' | 'drop' | 'hand'; magOut: number; slide: number }
 const AXIS_Z = new THREE.Vector3(0, 0, 1), UP = new THREE.Vector3(0, 1, 0);
 const FUR_BY_PRESET: Record<Settings['graphics'], number> = { low: 4, medium: 8, high: 12 };
-const BOLT_CURL: HandCurl = { index: [1, .9, .6], middle: [1.2, 1.1, .8], ring: [1.3, 1.1, .8], thumb: [.8, .5, .3] };
 const OPEN_CURL: HandCurl = { index: [.35, .3, .2], middle: [.4, .35, .2], ring: [.45, .35, .25], thumb: [.2, .1, .1] };
