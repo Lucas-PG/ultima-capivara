@@ -330,6 +330,8 @@ from casario import add_casario
 add_casario(Piece)
 from dressing import add_dressing
 add_dressing(Piece)
+from palafitas import add_palafitas
+add_palafitas(Piece)
 
 
 def write_metadata():
