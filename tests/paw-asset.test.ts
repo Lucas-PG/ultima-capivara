@@ -82,3 +82,40 @@ it('keeps the visible M4 trigger clear of the magazine and exports its own pivot
   expect(new Vector3().fromArray(trigger.node.getTranslation()).length()).toBeGreaterThan(.001);
   expect(doc.getRoot().listNodes().some(node => node.getName() === 'm4_release')).toBe(true);
 });
+
+// The arms are dressed with the character's surface atlas at runtime: embedding
+// a second copy would double the download and the GPU texture memory, and
+// dropping the UVs would render them as flat untextured fur.
+it('ships the arms without their own textures but with the UVs the shared character atlas needs', async () => {
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
+  const arms = await io.read('public/models/fp/fp-arms.glb'), character = await io.read('public/models/capybara/capybara.glb');
+  expect(arms.getRoot().listTextures()).toHaveLength(0);
+  for (const material of arms.getRoot().listMaterials()) expect(material.getExtras()).toMatchObject({ capySurfaceAtlas: true, sharedSurfaces: 'models/capybara/capybara.glb' });
+  const surfaced = character.getRoot().listMaterials().filter(material => material.getExtras().capySurfaceAtlas && material.getBaseColorTexture());
+  expect(surfaced.length).toBeGreaterThan(0);
+  for (const mesh of arms.getRoot().listMeshes()) for (const primitive of mesh.listPrimitives()) expect(primitive.getAttribute('TEXCOORD_0'), mesh.getName()).not.toBeNull();
+});
+
+it('binds the character surface maps onto the first-person arm materials', async () => {
+  const THREE = await import('three');
+  const { ArmsRig } = await import('../src/render/fp-arms');
+  const texture = new THREE.Texture();
+  const characterMaterial = new THREE.MeshStandardMaterial({ map: texture, normalMap: texture });
+  characterMaterial.userData.capySurfaceAtlas = true;
+  const character = new THREE.Group(); character.add(new THREE.Mesh(new THREE.BoxGeometry(), characterMaterial));
+  const scene = new THREE.Group();
+  for (const side of ['R', 'L']) {
+    const bones = ['upper', 'fore', 'fore_twist', 'hand', 'index1', 'index2', 'index3', 'middle1', 'middle2', 'middle3', 'ring1', 'ring2', 'ring3', 'thumb1', 'thumb2', 'thumb3']
+      .map(name => { const bone = new THREE.Bone(); bone.name = `${name}_${side}`; return bone; });
+    for (let i = 1; i < 4; i++) bones[i - 1].add(bones[i]);
+    for (let i = 4; i < bones.length; i++) (i % 3 === 1 ? bones[3] : bones[i - 1]).add(bones[i]);
+    scene.add(bones[0]);
+    const material = new THREE.MeshStandardMaterial(); material.userData = { capySurfaceAtlas: true, sharedSurfaces: 'models/capybara/capybara.glb' };
+    const mesh = new THREE.SkinnedMesh(new THREE.BoxGeometry(), material); mesh.name = `arm_${side}`; mesh.bind(new THREE.Skeleton(bones)); scene.add(mesh);
+  }
+  const rig = new ArmsRig({ scene } as never, { scene: character } as never);
+  const materials: THREE.MeshStandardMaterial[] = [];
+  rig.group.traverse(object => { if (object instanceof THREE.SkinnedMesh) materials.push(object.material as THREE.MeshStandardMaterial); });
+  expect(materials).toHaveLength(2);
+  for (const material of materials) { expect(material.map).toBe(texture); expect(material.normalMap).toBe(texture); }
+});

@@ -187,19 +187,33 @@ function applyFurStrands(material: THREE.MeshStandardMaterial) {
   material.customProgramCacheKey = () => 'fp-fur-strands-v1';
 }
 
+// The arms ship without textures: they use the character's surface atlas (same
+// tiles, same UV projection), so the maps are downloaded and uploaded once.
+const SURFACE_MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap'] as const;
+function sharedSurfaces(character?: GLTF): THREE.MeshStandardMaterial | null {
+  let found: THREE.MeshStandardMaterial | null = null;
+  character?.scene.traverse(object => {
+    const material = (object as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+    if (!found && material?.userData?.capySurfaceAtlas && material.map) found = material;
+  });
+  return found;
+}
+
 export class ArmsRig {
   readonly group = new THREE.Group();
   readonly right: Arm;
   readonly left: Arm;
   private readonly meshes: THREE.SkinnedMesh[] = [];
-  constructor(gltf: GLTF) {
+  constructor(gltf: GLTF, character?: GLTF) {
     const scene = gltf.scene;
     this.group.name = 'fp-arms';
     this.group.add(scene);
+    const surfaces = sharedSurfaces(character);
     scene.traverse(object => {
       if (object instanceof THREE.SkinnedMesh) {
         object.frustumCulled = false; object.castShadow = false;
         const material = object.material as THREE.MeshStandardMaterial;
+        if (surfaces && material.userData.sharedSurfaces) for (const key of SURFACE_MAPS) material[key] = surfaces[key];
         material.vertexColors = true; material.roughness = .92; material.metalness = 0;
         if (!material.userData.capySurfaceAtlas) applyFurStrands(material);
         applyCharacterStyle(material, 4);

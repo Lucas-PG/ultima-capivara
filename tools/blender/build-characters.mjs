@@ -5,6 +5,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, prune, resample, meshopt } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
+import sharp from 'sharp';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const blender = process.env.BLENDER_BIN || '/Applications/Blender.app/Contents/MacOS/Blender';
@@ -28,6 +29,12 @@ if (boing) {
   }
 }
 await document.transform(dedup(), resample(), prune(), meshopt({ encoder: MeshoptEncoder, level: 'high', quantizePosition: 16, quantizationVolume: 'scene' }), dedup(), prune());
+// Blender writes q95 WebP. The detail and ORM maps are grayscale multipliers that
+// hold up at q85; the normal map keeps q90 so the fine fur relief survives.
+for (const texture of document.getRoot().listTextures()) {
+  const quality = texture.getName().endsWith('_normal') ? 90 : 85;
+  texture.setImage(new Uint8Array(await sharp(texture.getImage()).webp({ quality, effort: 6 }).toBuffer())).setMimeType('image/webp');
+}
 if (!characterOnly) {
   const statue = await io.read(`${root}/output/characters/statue.raw.glb`);
   await statue.transform(dedup(), prune(), meshopt({ encoder: MeshoptEncoder, level: 'high', quantizePosition: 16 }));
