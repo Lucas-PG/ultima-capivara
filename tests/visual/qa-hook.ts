@@ -29,7 +29,7 @@ type QaApi = {
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   names(): string[];
-  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'inspect' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
+  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
   tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit', seconds: number): Promise<void>;
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
@@ -360,9 +360,14 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         const end = s.time + duration; let elapsed = 0;
         while (elapsed < duration - 1e-8) {
           const dt = Math.min(1 / 120, duration - elapsed); elapsed += dt; s.time += dt;
-          if ((action === 'reload' || action === 'reload-partial') && me.reloadUntil > 0 && s.time >= me.reloadUntil) {
-            me.reloadUntil = 0; me.weapons[0].ammo = weapon === 'shotgun' ? 1 : WEAPON_DEFS[weapon].magazine;
-            me.weapons[0].reserve -= me.weapons[0].ammo;
+          if ((action === 'reload' || action === 'reload-partial' || action === 'reload-chain') && me.reloadUntil > 0 && s.time >= me.reloadUntil) {
+            if (action === 'reload-chain' && weapon === 'shotgun') {
+              me.weapons[0].ammo++; me.weapons[0].reserve--;
+              me.reloadUntil = me.weapons[0].ammo < WEAPON_DEFS.shotgun.magazine ? me.reloadUntil + WEAPON_DEFS.shotgun.reload : 0;
+            } else {
+              const loaded = weapon === 'shotgun' ? 1 : WEAPON_DEFS[weapon].magazine - me.weapons[0].ammo;
+              me.reloadUntil = 0; me.weapons[0].ammo += loaded; me.weapons[0].reserve -= loaded;
+            }
           }
           frame(dt);
         }
@@ -374,8 +379,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
           end: { x: origin.x - Math.sin(me.yaw) * 1.7, y: origin.y, z: origin.z - Math.cos(me.yaw) * 1.7 },
           hit: action.startsWith('hit') });
       };
-      if (action === 'reload' || action === 'reload-partial') {
-        me.weapons[0].ammo = action === 'reload' ? 0 : Math.max(1, Math.floor(WEAPON_DEFS[weapon].magazine / 2));
+      if (action === 'reload' || action === 'reload-partial' || action === 'reload-chain') {
+        me.weapons[0].ammo = action !== 'reload-partial' ? 0 : Math.max(1, Math.floor(WEAPON_DEFS[weapon].magazine / 2));
         me.reloadUntil = s.time + WEAPON_DEFS[weapon].reload;
       }
       else if (action === 'inspect') renderer!.inspectWeapon();

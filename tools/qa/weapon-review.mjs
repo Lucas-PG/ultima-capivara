@@ -27,12 +27,12 @@ try {
     for (const action of actionsCsv.split(',')) {
       const times = (['hip', 'ads', 'world', 'tp'].includes(action) || (['sprint', 'inspect'].includes(action) && process.env.TIMED !== '1')) ? [action === 'inspect' ? .9 : .7] : timesCsv.split(',').map(Number);
       for (const phase of times) {
-        const seconds = action.startsWith('reload') ? phase * reload : action === 'fire' ? phase * (weapon === 'sniper' ? 1.1 : .72) : phase;
+        const seconds = action.startsWith('reload') && action !== 'reload-chain' ? phase * reload : action === 'fire' ? phase * (weapon === 'sniper' ? 1.1 : .72) : phase;
         const pose = async () => {
           if (['hip', 'ads', 'world', 'tp'].includes(action)) await page.evaluate(p => window.__capyQA.pose(p), `${action === 'hip' ? 'fp' : action}-${weapon}`);
           else await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [weapon, action, seconds]);
         };
-        await page.evaluate(() => { window.__vmOrbit = undefined; });
+        await page.evaluate(a => { window.__vmOrbit = undefined; window.__vmProbe.scene.visible = !['world', 'tp'].includes(a); }, action);
         await pose();
         const row = { weapon, action, phase, seconds };
         if (process.env.MEASURE !== '0' && !['world', 'tp'].includes(action)) {

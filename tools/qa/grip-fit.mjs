@@ -7,6 +7,7 @@
 // Intent (degrees around the bore: 0 right, 90 top, 180 left, 270 bottom; ranges may wrap):
 //   { "side": "L", "zone": [zMin, zMax], "digits": { "index": { "tip": [a, b], "base": [a, b] }, ... },
 //     "part": "mag", "partOffset": [0, .15, 0],
+//     "contactParts": { "thumb": "mag" }, "palmFacing": [x, y, z, maxDegrees],
 //     "palm": [a, b], "thumbAlong": deg, "wristBend": deg, "contact": ["palm", "index", ...], "free": ["thumb"] }
 import { chromium } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -50,7 +51,7 @@ try {
         palm: new V3(...grip.palm).applyQuaternion(partRotation).toArray() } : grip;
       const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
       // ---- gun triangles in weapon space, bucketed in a grid for nearest queries
-      const tris = [];
+      const tris = [], partTris = {};
       model.group.traverse(o => {
         if (!o.isMesh || o.isSkinnedMesh || !o.geometry.attributes.position) return;
         for (let parent = o; parent; parent = parent.parent) if (!parent.visible) return;
@@ -59,7 +60,14 @@ try {
         const at = i => new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m).multiplyScalar(scale);
         for (let i = 0; i < count; i += 3) {
           const a = at(i), b = at(i + 1), c = at(i + 2), n = new V3().subVectors(b, a).cross(new V3().subVectors(c, a));
-          if (n.lengthSq() > 1e-16) tris.push({ a, b, c, n });
+          if (n.lengthSq() > 1e-16) {
+            const triangle = { a, b, c, n }; tris.push(triangle);
+            for (const part of new Set(Object.values(intent.contactParts ?? {}))) {
+              for (let ancestor = o; ancestor; ancestor = ancestor.parent) if (ancestor === model.parts[part]) {
+                (partTris[part] ??= []).push(triangle); break;
+              }
+            }
+          }
         }
       });
       // A static BVH avoids thousands of string-key grid lookups for each skin
@@ -73,7 +81,7 @@ try {
         const mid = items.length >> 1;
         return { lo, hi, left: buildTree(items.slice(0, mid)), right: buildTree(items.slice(mid)) };
       };
-      const tree = buildTree(tris);
+      const tree = buildTree(tris), partTrees = Object.fromEntries(Object.entries(partTris).map(([name, triangles]) => [name, buildTree(triangles)]));
       console.log(`Fit ready: ${tris.length} triangles`);
       const bound = (p, node) => {
         const x = Math.max(0, node.lo.x - p.x, p.x - node.hi.x), y = Math.max(0, node.lo.y - p.y, p.y - node.hi.y), z = Math.max(0, node.lo.z - p.z, p.z - node.hi.z);
@@ -91,9 +99,9 @@ try {
         if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) return out.copy(b).addScaledVector(q.subVectors(c, b), (d4 - d3) / ((d4 - d3) + (d5 - d6)));
         const den = 1 / (va + vb + vc); return out.copy(a).addScaledVector(ab, vb * den).addScaledVector(ac, vc * den);
       }
-      function signed(p) {
+      function signed(p, root = tree) {
         let best = Infinity, sign = 1;
-        const stack = [tree];
+        const stack = [root];
         while (stack.length) {
           const node = stack.pop();
           if (bound(p, node) > best + 1e-10) continue;
@@ -154,6 +162,8 @@ try {
           const g = v.palm ? 'palm' : v.bone.replace(/[0-9]$/, '') + (/[23]$/.test(v.bone) ? '' : v.bone.endsWith('1') ? '1' : '');
           const G = groups[g] ??= { min: Infinity, n: 0, sum: new V3() };
           G.min = Math.min(G.min, v.d); G.n++; G.sum.add(v.p);
+          const contactTree = partTrees[intent.contactParts?.[g]];
+          if (contactTree) G.contact = Math.min(G.contact ?? Infinity, Math.abs(signed(v.p, contactTree)));
           if (v.bone.endsWith('3') || v.bone.endsWith('1')) { const T = groups[v.bone] ??= { min: Infinity, n: 0, sum: new V3() }; T.min = Math.min(T.min, v.d); T.n++; T.sum.add(v.p); }
           const depth = (intent.clearance ?? .0008) - v.d; if (depth > 0) pen += (depth * 1000) ** 2;
         }
@@ -162,10 +172,15 @@ try {
         terms.gap = 0;
         for (const g of intent.contact ?? []) {
           const G = groups[g]; if (!G) continue;
-          const gap = Math.max(0, G.min - .0008) * 1000; terms.gap += gap * gap * .6;
+          const gap = Math.max(0, (G.contact ?? G.min) - .0008) * 1000; terms.gap += gap * gap * .6;
         }
         // Placement around the bore and along the gun.
         terms.place = 0;
+        if (intent.palmFacing) {
+          const normal = new V3(...grip.palm).normalize(), desired = new V3(...intent.palmFacing.slice(0, 3)).normalize();
+          const angle = Math.acos(Math.max(-1, Math.min(1, normal.dot(desired)))) * 180 / Math.PI;
+          terms.place += (Math.max(0, angle - (intent.palmFacing[3] ?? 12)) / 4) ** 2;
+        }
         const centre = name => groups[name] ? new V3().copy(groups[name].sum).multiplyScalar(1 / groups[name].n) : null;
         const where = {};
         for (const [digit, spec] of Object.entries(intent.digits ?? {})) {
@@ -211,7 +226,7 @@ try {
       const P0 = [...P];
       const lock = new Set(intent.lock ?? []);
       let steps = [.006, .006, .006, .15, .1, .15, ...Array(12).fill(.2), .15];
-      let best = evaluate(P), count = 1;
+      let best = evaluate(P), count = 1, stalled = 0;
       const initial = evaluate(P, true);
       const lo = [-Infinity, -Infinity, -Infinity, -Infinity, -1.2, -Infinity, ...Array(12).fill(-.1), -.6];
       const hi = [Infinity, Infinity, Infinity, Infinity, 1.2, Infinity, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.4, 1.2, 1, 1.2];
@@ -219,14 +234,17 @@ try {
         let improved = false;
         for (let i = 0; i < P.length && count < maxEvals; i++) {
           if (lock.has(i)) continue;
+          let moved = false;
           for (const dir of [1, -1]) {
             const T = [...P]; T[i] = Math.min(hi[i], Math.max(lo[i], T[i] + dir * steps[i]));
             if (T[i] === P[i]) continue;
             const c = evaluate(T); count++;
-            if (c < best - 1e-9) { best = c; P = T; improved = true; steps[i] *= 1.4; break; }
+            if (c < best - 1e-9) { best = c; P = T; improved = moved = true; steps[i] *= 1.15; break; }
           }
+          if (!moved) steps[i] = Math.max(i < 3 ? .00006 : .0006, steps[i] * .55);
         }
-        if (!improved) steps = steps.map(s => s * .5);
+        stalled = improved ? 0 : stalled + 1;
+        if (stalled >= 8) break;
         console.log(`fit ${count}/${maxEvals} cost ${best.toFixed(2)}`);
       }
       const final = evaluate(P, true);
