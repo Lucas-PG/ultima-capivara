@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, CAPELA_STAIR, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
+import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, CAPELA_STAIR, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, ROADS, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -535,10 +535,24 @@ export function createWorld(): WorldSpec {
   // Capivara Redentora on the island's summit, arms open toward the village:
   // the landmark every district can see. The plinth sits on the lowest corner.
   landmark('redentora', -110, -24, -Math.PI / 2, Math.min(...[[-4, -4], [4, -4], [-4, 4], [4, 4]].map(([dx, dz]) => ground(-110 + dx, -24 + dz))) - .15);
-  for (let x = 46; x <= 69; x += 3) {
-    obj('box', x, ground(x, 70) + .025, 70, .8, .04, 8, '#b48d57', 'field-row');
+  // The farm's soil strips run north-south either side of the farm road. A
+  // strip never crosses a road or paving, a lot or a solid: those lanes stay
+  // grass, so each plot reads as a field beside the road, not under it.
+  const FIELD_Z = 70, FIELD_HALF = 4, ROW_HALF = .4, FIELD_MARGIN = .8;
+  for (let x = 43; x <= 72; x += 3) {
+    const z0 = FIELD_Z - FIELD_HALF, z1 = FIELD_Z + FIELD_HALF;
+    if (ROADS.some(([rx0, rz0, rx1, rz1]) => x + ROW_HALF + FIELD_MARGIN > rx0 && x - ROW_HALF - FIELD_MARGIN < rx1 &&
+      z1 + FIELD_MARGIN > rz0 && z0 - FIELD_MARGIN < rz1)) continue;
+    let clear = true;
+    for (let z = z0; z <= z1 && clear; z += 1) clear = !occupied(x, z, ROW_HALF + .3);
+    if (!clear) continue;
+    obj('box', x, ground(x, FIELD_Z) + .025, FIELD_Z, ROW_HALF * 2, .04, FIELD_HALF * 2, '#b48d57', 'field-row');
     for (let z = 67; z <= 73; z += 2) obj('grass', x, ground(x, z), z, .7, .4, .7, '#b0cc5e', 'crop');
   }
+  const fieldRows = objects.filter(o => o.detail === 'field-row');
+  /** A farm strip (with a margin): nothing but its crops grows on one. */
+  const fieldAt = (x: number, z: number, margin: number) => fieldRows.some(row =>
+    Math.abs(x - row.pos.x) < row.scale.x / 2 + margin && Math.abs(z - row.pos.z) < row.scale.z / 2 + margin);
   sign(49, 79, 'FAZENDA'); sign(-91, -33, 'MORRO');
 
   // Long southern beach and a lighthouse at the final cape.
@@ -656,7 +670,7 @@ export function createWorld(): WorldSpec {
     }
     if (h.role === 'home' || h.role === 'fisher') {
       const { x, z } = lotPoint(h, -width / 2 - 2, -1);
-      if (!roadAt(x, z, 1) && !occupied(x, z, .8)) detail('bush_cluster', x, z, 0, .85);
+      if (!roadAt(x, z, 1) && !occupied(x, z, .8) && !fieldAt(x, z, 1.6)) detail('bush_cluster', x, z, 0, .85);
     }
   }
   for (const [x, z, yaw] of [[-14.5, -29.5, 0], [-1.5, -29.5, 0], [-14.5, -7.5, 0], [-1.5, -7.5, 0]] as const)
@@ -742,7 +756,7 @@ export function createWorld(): WorldSpec {
     return Math.abs(dx * c - dz * s) < width / 2 + margin && Math.abs(dx * s + dz * c) < depth / 2 + margin;
   });
   const plantBlocked = (x: number, z: number, margin: number) => {
-    if (playAreaAt(x, z, margin + .6) || lotAt(x, z, margin) || hollowAt(x, z, margin)) return true;
+    if (playAreaAt(x, z, margin + .6) || lotAt(x, z, margin) || hollowAt(x, z, margin) || fieldAt(x, z, margin)) return true;
     const y = ground(x, z);
     return anySolid(x - margin, z - margin, x + margin, z + margin, c => c.max.y > y + .3 && c.min.y < y + 2 &&
       x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);

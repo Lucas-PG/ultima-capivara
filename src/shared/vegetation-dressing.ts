@@ -113,9 +113,11 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     const dx = x - p.x, dz = z - p.z, c = Math.cos(p.yaw), s = Math.sin(p.yaw);
     return Math.abs(dx * c - dz * s) < hw + margin && Math.abs(dx * s + dz * c) < hd + margin;
   });
-  /** Can a soft plant of this radius and height stand here? */
-  const free = (x: number, z: number, radius: number, height: number, ignore?: KitPlacement) => {
+  const rows = fieldRows(world);
+  /** Can a soft plant of this radius and height stand here? Only crops grow on the farm's soil strips. */
+  const free = (x: number, z: number, radius: number, height: number, ignore?: KitPlacement, crop = false) => {
     const y = terrainHeight(x, z);
+    if (!crop && rows.some(r => Math.abs(x - r.pos.x) < r.scale.x / 2 + radius + .3 && Math.abs(z - r.pos.z) < r.scale.z / 2 + radius + .3)) return false;
     if (y < .35 || Math.abs(terrainHeight(x + .8, z) - terrainHeight(x - .8, z)) > .7 || Math.abs(terrainHeight(x, z + .8) - terrainHeight(x, z - .8)) > .7) return false;
     if (ROADS.some(([x0, z0, x1, z1]) => x > x0 - radius - .6 && x < x1 + radius + .6 && z > z0 - radius - .6 && z < z1 + radius + .6)) return false;
     if (paved.some(o => Math.abs(x - o.pos.x) < o.scale.x / 2 + radius + .3 && Math.abs(z - o.pos.z) < o.scale.z / 2 + radius + .3)) return false;
@@ -276,7 +278,7 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
       const id = `${row.id}:crop:${i}`, along = -length / 2 + (i + .5) * length / n + (hash(id, 1) - .5) * .2;
       const x = row.pos.x + (alongZ ? (hash(id, 2) - .5) * .16 : along), z = row.pos.z + (alongZ ? along : (hash(id, 2) - .5) * .16);
       // A road or path laid across a plot interrupts the row.
-      if (!free(x, z, .2, 1)) continue;
+      if (!free(x, z, .2, 1, undefined, true)) continue;
       add(id, 'crop', Math.floor(hash(id, 3) * 2), x, z, hash(id, 4) * Math.PI * 2, .72 + hash(id, 5) * .3);
     }
   }
