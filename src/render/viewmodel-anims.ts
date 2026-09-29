@@ -1,6 +1,6 @@
 import type { WeaponId } from '../shared/types';
 import type { HandCurl } from './fp-arms';
-import type { Choreography } from './viewmodel-choreo';
+import type { Choreography, HandKey } from './viewmodel-choreo';
 
 // Authored first-person reloads. Coordinates: gun offsets in camera space
 // (x right, y up, z back; pitch up, yaw left, roll counter-clockwise), hands and
@@ -68,14 +68,42 @@ function magSwap(axis: Vec, grab: Vec, finish: Choreography, tilt: { p: Vec; r: 
   ];
 }
 
-const M4_RELOAD = magSwap([0, -.99, -.12], [-.03, -.09, -.008], [
-  // Slap the bolt release on the left of the receiver.
-  { t: .78, L: { space: 'gun', wrist: [-.085, .015, .065], forward: [.1, .3, -1], palm: [1, 0, .1], curl: OPEN } },
-  { t: .82, L: { space: 'gun', wrist: [-.064, .022, .048], forward: [.1, .3, -1], palm: [1, 0, .1], curl: OPEN }, ease: 'snap', sfx: 'slide-home' },
-  { t: .83, p: [-.02, .035, .03], r: [.15, .12, -.24], ease: 'snap' },
-  { t: .95, L: { space: 'grip' } },
-// The long rifle is lifted and rolled higher so the magazine well stays in frame.
-], { p: [-.11, .17, .07], r: [.42, .34, -.62] });
+// Contact keys live in the magazine's own frame, so its rotation and the paw
+// cannot drift apart. These normalized phases also drive the nearby world rig.
+export const M4_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-.033, -.105, .042],
+  forward: [.08, -.15, -1], palm: [1, .08, .05], curl: curl([.7, .65, .35], [.8, .7, .4], [.85, .7, .4], [.6, .45, .25]) };
+const M4_SWAP: Choreography = [
+  { t: 0, L: { space: 'grip' }, mag: { out: 0 } },
+  { t: .12, p: [-.068, .105, .025], r: [.20, .22, -.36], ease: 'out',
+    L: { space: 'gun', wrist: [-.063, -.073, .034], forward: [.08, -.15, -1], palm: [1, .08, .05], curl: OPEN } },
+  { t: .17, L: M4_MAG_HAND },
+  { t: .20, L: M4_MAG_HAND, mag: { out: 0 }, sfx: 'mag-out' },
+  { t: .30, L: M4_MAG_HAND, mag: { out: .13, p: [-.008, 0, .01], r: [.06, 0, .04] }, ease: 'in' },
+  { t: .40, L: M4_MAG_HAND, mag: { out: .39, p: [-.10, -.20, .10], r: [.24, -.18, .28] } },
+  { t: .42, L: M4_MAG_HAND, mag: { visible: false, out: .39, p: [-.10, -.20, .10], r: [.24, -.18, .28] } },
+  { t: .48, L: M4_MAG_HAND, mag: { visible: false, out: .39, p: [-.10, -.20, .10], r: [.24, -.18, .28] } },
+  { t: .50, L: M4_MAG_HAND, mag: { out: .39, p: [-.10, -.20, .10], r: [.24, -.18, .28] } },
+  { t: .60, L: M4_MAG_HAND, mag: { out: .16, p: [-.015, 0, .005], r: [.06, 0, .05] }, ease: 'out' },
+  { t: .65, L: M4_MAG_HAND, mag: { out: .035 }, p: [-.068, .105, .025], r: [.20, .22, -.36] },
+  { t: .70, L: M4_MAG_HAND, mag: { out: 0 }, ease: 'snap', sfx: 'mag-in' },
+  { t: .712, L: M4_MAG_HAND, p: [-.069, .115, .024], r: [.225, .22, -.35], ease: 'snap' },
+  { t: .74, p: [-.068, .105, .025], r: [.20, .22, -.36] },
+];
+export const M4_RELOAD_EMPTY: Choreography = [
+  { t: 0, parts: { bolt: 1 } },
+  ...M4_SWAP,
+  { t: .78, L: { space: 'gun', wrist: [-.070, .002, .085], forward: [.08, .24, -1], palm: [1, 0, .08], curl: OPEN }, parts: { bolt: 1, release: 0 } },
+  { t: .815, L: { space: 'gun', wrist: [-.041, .008, .080], forward: [.08, .24, -1], palm: [1, 0, .08], curl: OPEN }, parts: { bolt: 1, release: 1 }, ease: 'snap' },
+  { t: .825, parts: { bolt: 0, release: 1 }, sfx: 'slide-home', ease: 'snap', p: [-.060, .103, .032], r: [.215, .20, -.31] },
+  { t: .845, parts: { release: 0 } },
+  { t: .94, L: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
+];
+export const M4_RELOAD_PARTIAL: Choreography = [
+  ...M4_SWAP,
+  { t: .83, L: { space: 'grip' } },
+  { t: .94, p: [0, 0, 0], r: [0, 0, 0] },
+];
+export const m4Reload = (empty: boolean): Choreography => empty ? M4_RELOAD_EMPTY : M4_RELOAD_PARTIAL;
 const SMG_RELOAD = magSwap([0, -1, -.045], [-.03, -.08, -.008], [
   // The cocking lever: pull back and slap it home.
   { t: .77, L: { space: 'gun', wrist: [-.075, .055, -.03], forward: [0, .25, -1], palm: [1, -.2, 0], curl: PINCH } },
@@ -173,6 +201,6 @@ const SLING_RELOAD: Choreography = [
 ];
 
 export const RELOADS: Partial<Record<WeaponId, Choreography>> = {
-  pistol: PISTOL_RELOAD, m4: M4_RELOAD, smg: SMG_RELOAD, dmr: DMR_RELOAD, sniper: SNIPER_RELOAD,
+  pistol: PISTOL_RELOAD, m4: M4_RELOAD_EMPTY, smg: SMG_RELOAD, dmr: DMR_RELOAD, sniper: SNIPER_RELOAD,
   revolver: REVOLVER_RELOAD, shotgun: SHOTGUN_SHELL, coco: COCO_RELOAD, slingshot: SLING_RELOAD,
 };

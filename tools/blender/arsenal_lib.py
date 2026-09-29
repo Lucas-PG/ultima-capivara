@@ -34,6 +34,8 @@ def srgb_to_linear(hex_value):
 
 # name: (albedo hex, roughness, metalness, edge highlight strength, edge tint hex)
 PALETTE = {
+    'wornsteel': ('555C60', .48, .60, .40, 'A9B4B8'),
+    'coral': ('DE8568', .65, 0, .15, 'F8C9B4'),
     'gunmetal': ('3A3F44', .42, .75, .85, 'A9B4B8'),
     'blued': ('2B3138', .34, .8, .9, '9DB0BF'),
     'steel': ('7D858A', .3, .85, .7, 'D8DEE0'),
@@ -61,6 +63,7 @@ PALETTE = {
     'blade': ('9AA3A6', .22, .9, 1.0, 'F2F6F7'),
     'bamboo': ('C8A657', .6, 0, .35, 'EDD9A0'),
     'stone': ('8F8C86', .8, 0, .3, 'C9C6BE'),
+    'navy': ('344C63', .53, .32, .42, '9BAAB9'),
 }
 MAT_IDS = {name: i + 1 for i, name in enumerate(PALETTE)}
 _materials = {}
@@ -536,7 +539,53 @@ def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radi
     normals = bake('EMIT', normal_img)
     _restore(saved)
     albedo, orm = composite(ids, ao, edge, normals, size)
+    if name == 'm4':
+        rng = np.random.default_rng(4814)
+        grain = rng.random((size, size), dtype=np.float32)
+        # Restrained mottling and grain survive at first-person viewing distance.
+        coarse = rng.random((64, 64), dtype=np.float32)
+        for _ in range(6): coarse = (coarse * 4 + np.roll(coarse, 1, 0) + np.roll(coarse, -1, 0) + np.roll(coarse, 1, 1) + np.roll(coarse, -1, 1)) / 8
+        coarse = np.repeat(np.repeat(coarse, size // 64, 0), size // 64, 1)
+        pid = np.rint(ids[..., 0] * 64).astype(int)
+        metal = np.isin(pid, [MAT_IDS[k] for k in ('wornsteel', 'gunmetal', 'dark', 'navy')])
+        variation = (coarse - .5) * .7 + (grain - .5) * .10
+        albedo *= (1 + variation * metal)[..., None]
+        # Short hairline handling marks break broad panels without white outlines.
+        scratches = np.zeros((size, size), np.float32)
+        for _ in range(1100):
+            x, y = rng.integers(0, size, 2); length = rng.integers(3, 17); slope = rng.uniform(-.6, .6)
+            for step in range(length):
+                xx, yy = x + step, int(y + slope * step)
+                if xx < size and 0 <= yy < size: scratches[yy, xx] = .035 * math.sin(math.pi * step / length)
+        albedo += (scratches * metal)[..., None]
+        orm[..., 1] = np.clip(orm[..., 1] + variation * .45 - scratches * 2, .12, .95)
     return albedo, orm
+
+
+def bake_relief(objects, name, size=2048):
+    """Bake material grain into a proper tangent-space normal texture."""
+    seen = set()
+    for obj in objects:
+        for material in obj.data.materials:
+            if material.name in seen:
+                continue
+            seen.add(material.name)
+            nt = material.node_tree
+            noise = nt.nodes.new('ShaderNodeTexNoise')
+            noise.inputs['Scale'].default_value = 650
+            noise.inputs['Detail'].default_value = 2
+            position = nt.nodes.new('ShaderNodeNewGeometry')
+            nt.links.new(position.outputs['Position'], noise.inputs['Vector'])
+            bump = nt.nodes.new('ShaderNodeBump')
+            bump.inputs['Strength'].default_value = .24
+            bump.inputs['Distance'].default_value = .00032
+            nt.links.new(noise.outputs['Fac'], bump.inputs['Height'])
+            nt.links.new(bump.outputs['Normal'], nt.nodes.get('Principled BSDF').inputs['Normal'])
+    image = _bake_image(f'{name}_relief_bake', size, True)
+    _set_bake_target(objects, image)
+    bpy.context.scene.cycles.samples = 16
+    bpy.ops.object.bake(type='NORMAL', normal_space='TANGENT')
+    return save_png(f'{name}_normal', _pixels(image)[..., :3], srgb=False)
 
 
 def _id_color(nt, m):
@@ -662,7 +711,7 @@ def save_png(name, rgb, srgb=True):
     return img
 
 
-def export_material(name, albedo_img, orm_img):
+def export_material(name, albedo_img, orm_img, normal_img=None):
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
@@ -677,4 +726,9 @@ def export_material(name, albedo_img, orm_img):
     nt.links.new(orm.outputs['Color'], sep.inputs['Color'])
     nt.links.new(sep.outputs['Green'], bsdf.inputs['Roughness'])
     nt.links.new(sep.outputs['Blue'], bsdf.inputs['Metallic'])
+    if normal_img is not None:
+        tex_normal = nt.nodes.new('ShaderNodeTexImage'); tex_normal.image = normal_img
+        normal = nt.nodes.new('ShaderNodeNormalMap')
+        nt.links.new(tex_normal.outputs['Color'], normal.inputs['Color'])
+        nt.links.new(normal.outputs['Normal'], bsdf.inputs['Normal'])
     return m

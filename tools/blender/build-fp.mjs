@@ -36,7 +36,9 @@ if (arms) {
 }
 if (!args.length || weapons.length) {
   run('tools/blender/arsenal.py', weapons);
-  const report = JSON.parse(await readFile(`${root}/output/arsenal/report.json`, 'utf8'));
+  // A targeted build must retain metadata for the untouched shipped weapons.
+  const report = { ...JSON.parse(await readFile(`${root}/public/models/arsenal/metrics.json`, 'utf8')),
+    ...JSON.parse(await readFile(`${root}/output/arsenal/report.json`, 'utf8')) };
   await mkdir(`${root}/public/models/arsenal`, { recursive: true });
   for (const id of weapons.length ? weapons : Object.keys(report)) {
     report[id].bytes = await pack(`${root}/output/arsenal/${id}.glb`, `${root}/public/models/arsenal/${id}.glb`);

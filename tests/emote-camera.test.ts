@@ -23,7 +23,7 @@ function fixture(blocked = false, reducedMotion = false) {
   const frame = { snapshot: { actors: [actor], time: 10 }, playerId: actor.id, input: emptyInput(), dt: 1 / 60,
     playing: true, spectateId: null } as RenderFrame;
   const step = (count = 1) => { for (let i = 0; i < count; i++) rig.update(frame, settings, i / 60, 0); };
-  return { actor, camera, rig, step };
+  return { actor, camera, rig, step, frame, settings };
 }
 
 it('shows the local gesture from the front and returns to the eyes after cancellation without moving the actor', () => {
@@ -61,4 +61,20 @@ it('retains collider avoidance for the low forward loaf camera', () => {
   vi.mocked(capybaraHasClip).mockReturnValue(true);
   const h = fixture(true, true); h.actor.emote = 'chill'; h.actor.emoteUntil = 22; h.actor.crouch = true; h.step();
   expect(h.camera.position.z).toBeGreaterThan(h.actor.pos.z);
+});
+
+it('preserves peripheral vision with mild M4 aim without a second FOV damping stage', () => {
+  const h = fixture(); h.actor.weapons[0]!.id = 'm4';
+  for (const fov of [80, 100, 120]) {
+    h.settings.fov = fov;
+    let hipTangent = 0;
+    for (const ads of [0, .25, .5, 1, 0]) {
+      h.rig.update(h.frame, h.settings, 0, ads);
+      const tangent = Math.tan(h.camera.fov * Math.PI / 360);
+      if (!ads) hipTangent = tangent;
+      expect(hipTangent / tangent).toBeCloseTo(1 + ads * .15, 5);
+      const horizontal = 2 * Math.atan(tangent * 16 / 9) * 180 / Math.PI;
+      expect(horizontal).toBeGreaterThan(fov - 9);
+    }
+  }
 });

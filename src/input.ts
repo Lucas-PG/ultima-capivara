@@ -1,5 +1,6 @@
 import type { InputFrame, PlayerAction, Settings } from './shared/types';
 import { clamp, emptyInput } from './shared/math';
+import { verticalFov } from './settings';
 import { RECOIL } from './shared/weapons';
 import type { WeaponId } from './shared/types';
 
@@ -32,6 +33,7 @@ export class InputController {
   onBox: (box: number) => void = () => {};
   private wheelAt = 0;
   private jumpPressedAt = -Infinity;
+  private aimSensitivity = 1;
   private recoilPitch = 0;
   private recoilYaw = 0;
   private recoilShots = 0;
@@ -48,7 +50,7 @@ export class InputController {
     document.addEventListener('mousemove', event => {
       if (!this.locked) return;
       if (this.emoteWheel) { this.onEmoteMove(event.movementX, event.movementY); return; }
-      const scale = .002 * this.settings.sensitivity * (this.frame.ads ? .55 : 1);
+      const scale = .002 * this.settings.sensitivity * this.aimSensitivity;
       this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw - event.movementX * scale), Math.cos(this.frame.yaw - event.movementX * scale));
       this.frame.pitch = clamp(this.frame.pitch - event.movementY * scale, -1.48, 1.48);
     }, { signal });
@@ -68,6 +70,11 @@ export class InputController {
     }, { signal, passive: false });
     window.addEventListener('blur', () => { this.onCancelEmote(); this.clear(); }, { signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.onCancelEmote(); this.clear(); } }, { signal });
+  }
+  /** Match movement near the reticle to the rendered lens, including ADS transitions. */
+  setAimFov(fov: number) {
+    this.aimSensitivity = Number.isFinite(fov) && fov > 0 && fov < 180
+      ? clamp(Math.tan(fov * Math.PI / 360) / Math.tan(verticalFov(this.settings.fov) * Math.PI / 360), .05, 1) : 1;
   }
   private key(event: KeyboardEvent, down: boolean) {
     if (!this.locked) return;
@@ -155,7 +162,7 @@ export class InputController {
   }
   reset(yaw = 0) { this.sequence = 0; this.actionId = 0; this.clear(); Object.assign(this.frame, emptyInput(), { yaw }); }
   closeEmoteWheel(commit = false) { if (!this.emoteWheel) return; this.emoteWheel = false; this.onEmoteClose(commit); }
-  clear() { this.closeEmoteWheel(); this.keys.clear(); this.frame.fire = false; delete this.frame.firePressId; this.frame.moveX = this.frame.moveZ = this.frame.lean = 0; this.adsHeld = this.adsToggled = false; this.scoreboard = false; this.jumpPressedAt = -Infinity; this.recoilPitch = this.recoilYaw = this.recoilShots = 0; }
+  clear() { this.aimSensitivity = 1; this.closeEmoteWheel(); this.keys.clear(); this.frame.fire = false; delete this.frame.firePressId; this.frame.moveX = this.frame.moveZ = this.frame.lean = 0; this.adsHeld = this.adsToggled = false; this.scoreboard = false; this.jumpPressedAt = -Infinity; this.recoilPitch = this.recoilYaw = this.recoilShots = 0; }
   setSettings(settings: Settings) { this.settings = settings; }
   async lock() {
     try { await this.canvas.requestPointerLock(); }

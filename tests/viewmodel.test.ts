@@ -15,7 +15,7 @@ function armsAsset() {
       const b = new THREE.Bone(); b.name = `${name}_${side}`; b.position.set(...position); parent.add(b); bones.push(b); return b;
     };
     const upper = bone('upper', scene, [side === 'R' ? .2 : -.2, 0, 0]);
-    const fore = bone('fore', upper, [0, 0, -.245]), hand = bone('hand', fore, [0, 0, -.2]);
+    const fore = bone('fore', upper, [0, 0, -.245]), twist = bone('fore_twist', fore, [0, 0, 0]), hand = bone('hand', twist, [0, 0, -.2]);
     for (const [finger, x] of [['index', -.028], ['middle', 0], ['ring', .028], ['thumb', -.04]] as const) {
       const f1 = bone(`${finger}1`, hand, [x, 0, -.1]), f2 = bone(`${finger}2`, f1, [0, 0, -.03]), f3 = bone(`${finger}3`, f2, [0, 0, -.025]);
       void f3;
@@ -32,6 +32,7 @@ function weaponAsset(id: WeaponId) {
     object.name = `${id}_${name}`; object.position.set(...position); root.add(object); return object;
   };
   add('body', [0, 0, 0], true); add('mag', [0, .02, -.02], true); add('slide', [0, .05, 0], true);
+  if (id === 'm4') { root.getObjectByName('m4_mag')!.position.z = -.071; add('bolt', [0, .062, -.062], true); add('release', [-.019, .026, -.01], true); }
   add('muzzle', [0, .05, -.3]); add('eject', [.02, .05, -.05]); add('sight', [0, .08, .03]);
   return { scene } as never;
 }
@@ -168,8 +169,23 @@ describe('first-person viewmodel', () => {
     h.actor.velocity.z = -3.9;
     for (let i = 0; i < 90; i++) { h.actor.yaw += .01; h.step(); }
     const view = h.view as unknown as { targetR: { wrist: THREE.Vector3 }; holder: THREE.Group };
-    const expected = new THREE.Vector3(.03, 0, .092).applyMatrix4(view.holder.matrixWorld);
+    const expected = new THREE.Vector3(.033, -.024, .052).applyMatrix4(view.holder.matrixWorld);
     expect(view.targetR.wrist.distanceTo(expected)).toBeLessThan(1e-6);
+  });
+
+  it('rolls the forearms toward the gripping palms instead of twisting the wrist skin backwards', async () => {
+    const h = await harness(); h.actor.weapons = [{ id: 'm4', rarity: 0, ammo: 30, reserve: 60, box: 0 }];
+    for (let i = 0; i < 60; i++) h.step();
+    const view = h.view as unknown as { arms: import('../src/render/fp-arms').ArmsRig; targetR: import('../src/render/fp-arms').HandTarget; targetL: import('../src/render/fp-arms').HandTarget };
+    for (const [arm, target] of [[view.arms.right, view.targetR], [view.arms.left, view.targetL]] as const) {
+      const fore = arm.fore.bone, hand = arm.hand.bone;
+      const axis = hand.getWorldPosition(new THREE.Vector3()).sub(fore.getWorldPosition(new THREE.Vector3())).normalize();
+      const expected = new THREE.Vector3().crossVectors(target.forward, target.palm);
+      expected.addScaledVector(axis, -expected.dot(axis)).normalize();
+      const actual = new THREE.Vector3(-1, 0, 0).applyQuaternion(arm.twist!.restWorld.clone().invert()).applyQuaternion(arm.twist!.bone.getWorldQuaternion(new THREE.Quaternion()));
+      actual.addScaledVector(axis, -actual.dot(axis)).normalize();
+      expect(actual.dot(expected)).toBeGreaterThan(.5);
+    }
   });
 
   it('plays each reload Foley cue once, in the order the mechanism moves', async () => {
@@ -180,5 +196,68 @@ describe('first-person viewmodel', () => {
     while (h.now() < h.actor.reloadUntil) h.step(1 / 30);
     h.actor.reloadUntil = 0; for (let i = 0; i < 5; i++) h.step();
     expect(cues).toEqual(['mag-out', 'mag-drop', 'mag-in', 'slide-back', 'slide-home']);
+  });
+
+  for (const fps of [30, 60, 120]) for (const empty of [false, true]) it(`keeps M4 magazine contact and reload timing at ${fps} FPS (${empty ? 'empty' : 'partial'})`, async () => {
+    const { M4_MAG_HAND } = await import('../src/render/viewmodel-anims');
+    const h = await harness(); h.actor.weapons = [{ id: 'm4', rarity: 0, ammo: empty ? 0 : 14, reserve: 60, box: 0 }];
+    for (let i = 0; i < fps; i++) h.step(1 / fps);
+    const cues: string[] = []; h.view.onFoley = cue => cues.push(cue);
+    const start = h.now(); h.actor.reloadUntil = start + WEAPONS.m4.reload; h.actor.ads = true; h.actor.velocity.z = -3;
+    const internal = h.view as unknown as { targetL: import('../src/render/fp-arms').HandTarget; arms: import('../src/render/fp-arms').ArmsRig };
+    const mag = h.view.scene.getObjectByName('m4_mag')!, bolt = h.view.scene.getObjectByName('m4_bolt')!;
+    let contacts = 0;
+    while (h.now() < start + 2.5) {
+      h.step(1 / fps, { ...DEFAULT_SETTINGS, reducedMotion: fps === 120 });
+      const phase = (h.now() - start) / 2.5;
+      expect(h.actor.weapons[0]!.ammo).toBe(empty ? 0 : 14);
+      if (phase > .21 && phase < .70) {
+        const expected = new THREE.Vector3().fromArray(M4_MAG_HAND.wrist!).applyMatrix4(mag.matrixWorld);
+        expect(internal.targetL.wrist.distanceTo(expected)).toBeLessThan(1e-6);
+        expect(internal.arms.left.hand.bone.getWorldPosition(new THREE.Vector3()).distanceTo(expected)).toBeLessThan(1e-5);
+        contacts++;
+      }
+      if (!empty) expect(bolt.position.z).toBeCloseTo(-.062, 6);
+    }
+    expect(contacts).toBeGreaterThan(20);
+    expect(cues).toEqual(empty ? ['mag-out', 'mag-in', 'slide-home'] : ['mag-out', 'mag-in']);
+    h.actor.reloadUntil = 0;
+    for (let i = 0; i < fps / 2; i++) h.step(1 / fps);
+    expect(mag.visible).toBe(true); expect(mag.position.distanceTo(new THREE.Vector3(0, .02, -.071))).toBeLessThan(1e-6);
+    expect(h.view.adsAmount).toBe(1);
+    h.view.dispose();
+  });
+
+  it('restarts magazine handling and Foley on consecutive M4 reloads without re-equipping', async () => {
+    const h = await harness(); h.actor.weapons = [{ id: 'm4', rarity: 0, ammo: 0, reserve: 90, box: 0 }];
+    for (let i = 0; i < 60; i++) h.step();
+    const cues: string[] = []; h.view.onFoley = cue => cues.push(cue);
+    for (const ammo of [0, 14, 0]) {
+      h.actor.weapons[0].ammo = ammo;
+      h.actor.reloadUntil = h.now() + WEAPONS.m4.reload;
+      while (h.now() < h.actor.reloadUntil) h.step();
+      h.actor.reloadUntil = 0; h.step();
+      const mag = h.view.scene.getObjectByName('m4_mag')!;
+      expect(mag.visible).toBe(true);
+      expect(mag.position.distanceTo(new THREE.Vector3(0, .02, -.071))).toBeLessThan(1e-6);
+    }
+    expect(cues).toEqual(['mag-out', 'mag-in', 'slide-home', 'mag-out', 'mag-in', 'mag-out', 'mag-in', 'slide-home']);
+    h.view.dispose();
+  });
+
+  for (const cancel of ['cancel', 'death', 'switch'] as const) it(`restores M4 mechanisms after ${cancel} during a hidden-magazine phase`, async () => {
+    const h = await harness(); h.actor.weapons[0] = { id: 'm4', rarity: 0, ammo: 0, reserve: 60, box: 0 };
+    for (let i = 0; i < 60; i++) h.step();
+    h.actor.reloadUntil = h.now() + 2.5;
+    for (let i = 0; i < 69; i++) h.step();
+    const mag = h.view.scene.getObjectByName('m4_mag')!, bolt = h.view.scene.getObjectByName('m4_bolt')!;
+    expect(mag.visible).toBe(false);
+    if (cancel === 'death') h.actor.alive = false;
+    else if (cancel === 'switch') h.actor.slot = 1;
+    else h.actor.reloadUntil = 0;
+    h.step();
+    expect(mag.visible).toBe(true); expect(mag.position.distanceTo(new THREE.Vector3(0, .02, -.071))).toBeLessThan(1e-6);
+    expect(bolt.position.z).toBeCloseTo(-.062, 6);
+    h.view.dispose();
   });
 });

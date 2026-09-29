@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { InputController } from '../src/input';
-import { DEFAULT_SETTINGS, loadSettings } from '../src/settings';
+import { DEFAULT_SETTINGS, loadSettings, verticalFov } from '../src/settings';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -10,6 +10,26 @@ describe('local input feel', () => {
     vi.stubGlobal('window', { addEventListener: () => {} });
     return new InputController({ addEventListener: () => {} } as unknown as HTMLCanvasElement, DEFAULT_SETTINGS);
   }
+
+  it('keeps reticle tracking consistent with the rendered lens throughout aiming', () => {
+    const listeners = new Map<string, (event: any) => void>();
+    vi.stubGlobal('document', { addEventListener: (name: string, fn: (event: any) => void) => listeners.set(name, fn) });
+    vi.stubGlobal('window', { addEventListener: () => {} });
+    const input = new InputController({ addEventListener: () => {} } as unknown as HTMLCanvasElement, DEFAULT_SETTINGS);
+    input.locked = true;
+    const base = verticalFov(DEFAULT_SETTINGS.fov), tangent = Math.tan(base * Math.PI / 360);
+    for (const magnification of [1, 1.05, 1.15, 3, 5.5, 1]) {
+      const fov = 2 * Math.atan(tangent / magnification) * 180 / Math.PI;
+      input.frame.ads = magnification > 1; input.frame.yaw = 0;
+      input.setAimFov(fov); listeners.get('mousemove')!({ movementX: 2, movementY: 0 });
+      const screenMotion = Math.tan(-input.frame.yaw) / Math.tan(fov * Math.PI / 360);
+      expect(screenMotion).toBeCloseTo(Math.tan(.004 * DEFAULT_SETTINGS.sensitivity) / tangent, 6);
+    }
+    // Pressing ADS before the lens moves must not abruptly halve mouse response.
+    input.frame.ads = true; input.frame.yaw = 0;
+    listeners.get('mousemove')!({ movementX: 10, movementY: 0 });
+    expect(input.frame.yaw).toBeCloseTo(-.02 * DEFAULT_SETTINGS.sensitivity);
+  });
 
   it('raises the muzzle while alternating sideways recoil, then returns on release', () => {
     const input = controller();

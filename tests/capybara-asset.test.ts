@@ -38,11 +38,21 @@ describe('shipped capybara asset contract', () => {
       const mesh = root.listMeshes().find(mesh => mesh.getName() === `Capybara_LOD${i}`)!;
       expect(mesh).toBeDefined();
       const triangles = mesh.listPrimitives().reduce((n, p) => n + p.getIndices()!.getCount() / 3, 0);
-      expect(triangles).toBeLessThanOrEqual([40000, 8200, 2400][i]);
+      expect(triangles).toBeLessThanOrEqual([50000, 10000, 2500][i]);
     }
     expect(root.listMaterials().length).toBeLessThanOrEqual(1);
-    expect(root.listTextures()).toHaveLength(0);
+    expect(root.listTextures()).toHaveLength(3);
+    const surface = root.listMaterials()[0];
+    expect(surface.getBaseColorTexture()).toBeTruthy();
+    expect(surface.getNormalTexture()).toBeTruthy();
+    expect(surface.getMetallicRoughnessTexture()).toBeTruthy();
+    expect(surface.getExtras().capySurfaceAtlas).toBe(true);
     expect(root.listSkins()).toHaveLength(1);
+    const joints = root.listSkins()[0].listJoints().map(joint => joint.getName());
+    for (const side of ['L', 'R']) {
+      const digits = joints.filter(name => /^paw_(index|middle|ring|thumb)[1-3]_/.test(name) && name.endsWith(side));
+      expect(digits).toHaveLength(12);
+    }
     // Painted fur must survive export; losing COLOR_0 would render a white capybara.
     const colors = root.listMeshes()[0].listPrimitives()[0].getAttribute('COLOR_0');
     expect(colors).toBeDefined();

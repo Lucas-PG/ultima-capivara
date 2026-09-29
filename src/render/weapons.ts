@@ -4,7 +4,7 @@ import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
-import { RELOADS } from './viewmodel-anims';
+import { RELOADS, m4Reload } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
@@ -27,7 +27,7 @@ const window01 = (t: number, a: number, b: number) => ease((t - a) / (b - a));
 const bump = (t: number, a: number, peak: number, b: number) => window01(t, a, peak) * (1 - window01(t, peak, b));
 
 interface Parts { slide?: THREE.Object3D; mag?: THREE.Object3D; trigger?: THREE.Object3D; hammer?: THREE.Object3D; action?: THREE.Object3D;
-  cylinder?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; pouch?: THREE.Object3D }
+  cylinder?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; pouch?: THREE.Object3D; release?: THREE.Object3D }
 interface Model {
   id: WeaponId; spec: ViewSpec; group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; sight: THREE.Vector3;
   parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
@@ -90,6 +90,7 @@ export class WeaponView {
   private shotLife = 0;
   private shotCount = 0;
   private reloadEnd = 0;
+  private reloadEmpty = false;
   private reloadDuration = 1;
   private wallPose = 0;
   private leanPose = 0;
@@ -165,7 +166,7 @@ export class WeaponView {
     const spec = VIEW_SPECS[id];
     const model: Model = { id, spec, group, muzzle, eject, sight: sight.position.clone(),
       parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action'),
-        cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), pouch: get('pouch') },
+        cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), pouch: get('pouch'), release: get('release') },
       rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent };
     // Blender axis (x, y, z) is (x, z, -y) here.
     const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
@@ -259,11 +260,13 @@ export class WeaponView {
     } else this.holster = damp(this.holster, 0, 20, dt);
     const weapon = this.active, model = this.models[weapon];
     let spec = model.spec;
+    let viewmodelFov = spec.viewmodelFov ?? VIEWMODEL_FOV;
     if (import.meta.env.DEV) {
       // QA tuning: window.__vmTune = { pistol: { hip: {...}, grips: {...}, fov } } overrides the spec live.
       const tune = (globalThis as { __vmTune?: Record<string, Partial<ViewSpec> & { fov?: number }> }).__vmTune?.[weapon];
-      if (tune) { spec = { ...spec, ...tune, grips: { ...model.grips, ...tune.grips } }; if (tune.fov) { this.camera.fov = tune.fov; this.camera.updateProjectionMatrix(); } }
+      if (tune) { spec = { ...spec, ...tune, grips: { ...model.grips, ...tune.grips } }; if (tune.fov) viewmodelFov = tune.fov; }
     }
+    if (this.camera.fov !== viewmodelFov) { this.camera.fov = viewmodelFov; this.camera.updateProjectionMatrix(); }
     model.group.visible = true;
     const rarity = actor.weapons[actor.slot]?.rarity ?? 0;
     if (rarity !== model.rarity) {
@@ -281,7 +284,9 @@ export class WeaponView {
     if (!this.inspectAllowed) this.cancelInspect();
     if (reloading && actor.reloadUntil > this.reloadEnd + .01) {
       this.reloadEnd = actor.reloadUntil;
-      this.reloadDuration = Math.max(.3, Math.min(WEAPONS[weapon].reload || 1, actor.reloadUntil - simulationTime + .02));
+      this.reloadEmpty = (actor.weapons[actor.slot]?.ammo ?? 0) === 0;
+      this.lastReload = -1;
+      this.reloadDuration = weapon === 'm4' ? WEAPONS.m4.reload : Math.max(.3, Math.min(WEAPONS[weapon].reload || 1, actor.reloadUntil - simulationTime + .02));
     }
     const reload = reloading ? THREE.MathUtils.clamp(1 - (this.reloadEnd - simulationTime) / this.reloadDuration, 0, 1) : -1;
 
@@ -347,7 +352,7 @@ export class WeaponView {
     px += sprintPos.x * sprint; py += sprintPos.y * sprint; pz += sprintPos.z * sprint;
     rx += sprintRot[0] * sprint * (1 + Math.sin(this.gait) * .06); ry += sprintRot[1] * sprint; rz += sprintRot[2] * sprint;
     // ---- reload choreography (weapon part)
-    const keys = sortedReloads[weapon];
+    const keys = weapon === 'm4' ? m4Reload(this.reloadEmpty) : sortedReloads[weapon];
     const sample = reload >= 0 && keys ? sampleChoreo(keys, reload, this.sample) : null;
     // Foley: every key the reload passed since the last frame plays its cue once.
     if (keys && reload >= 0) {
@@ -385,6 +390,8 @@ export class WeaponView {
   }
 
   private resetMotion() {
+    if (this.reloadEnd && this.models[this.active]) this.animateParts(this.models[this.active], -1, null, null);
+    this.lastReload = -1; this.reloadEmpty = false;
     this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined;
     for (const spring of [this.kickZ, this.kickPitch, this.kickRoll, this.kickYaw, this.swayYaw, this.swayPitch, this.swayRoll, this.strafe, this.land, this.crouchDip]) spring.reset();
     this.swimPose = 0; this.swimming = false; this.sprintPose = 0; this.movePose = 0; this.wallPose = 0; this.leanPose = 0;
@@ -455,7 +462,10 @@ export class WeaponView {
       cylinder.position.z -= (sample?.parts.eject ?? 0) * .018;
       cylinder.quaternion.copy(this.offset).multiply(rest.quaternion).multiply(this.quat.setFromAxisAngle(AXIS_Z, -this.cylinderSpin));
     }
-    if (bolt) {
+    if (bolt && model.id === 'm4') {
+      bolt.position.z += Math.max(cycle, sample?.parts.bolt ?? 0) * .035;
+      this.boltHand = 0;
+    } else if (bolt) {
       const cycled = model.id === 'sniper' && this.shotLife > 0 ? phase : -1;
       const open = cycled >= 0 ? window01(cycled, .12, .3) * (1 - window01(cycled, .74, .9)) : sample?.parts.bolt ?? 0;
       const pull = cycled >= 0 ? window01(cycled, .3, .47) * (1 - window01(cycled, .52, .72)) : sample?.parts.boltPull ?? 0;
@@ -463,6 +473,7 @@ export class WeaponView {
       bolt.position.z += pull * .075;
       this.boltHand = cycled >= 0 ? window01(cycled, .02, .14) * (1 - window01(cycled, .86, 1)) : sample?.parts.boltHand ?? 0;
     } else this.boltHand = 0;
+    if (model.parts.release) model.parts.release.rotation.z += (sample?.parts.release ?? 0) * .20;
     if (charge) charge.position.z += (sample?.parts.charge ?? 0) * .065;
     if (mag && !sample?.mag && (model.spec.reload === 'revolver' || model.spec.reload === 'shotgun')) mag.visible = false;
     else if (mag && sample?.mag) {
@@ -575,6 +586,13 @@ export class WeaponView {
     out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
     out.palm.set(spec.palm[0], spec.palm[1], spec.palm[2]).normalize();
     out.curl = spec.curl; out.pole.set(grip.pole[0], grip.pole[1], grip.pole[2]).normalize();
+    if (key.space === 'part') {
+      const part = model.parts[key.part as keyof Parts];
+      if (!part) throw new Error(`Reload contact part missing: ${model.id}/${key.part}`);
+      out.wrist.applyMatrix4(part.matrixWorld);
+      part.getWorldQuaternion(this.quat);
+      out.forward.applyQuaternion(this.quat); out.palm.applyQuaternion(this.quat);
+    }
   }
 
   private blendHand(model: Model, grip: GripSpec, pair: { a: HandKey; b: HandKey; u: number }, out: HandTarget) {

@@ -1,17 +1,17 @@
 {
-  "sourceTriangles": 38250,
+  "sourceTriangles": 39814,
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 38250
+      "triangles": 39814
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 7997
+      "triangles": 9799
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 2198
+      "triangles": 2443
     }
   ],
   "hitbox": {
@@ -21,10 +21,10 @@
         1.6,
         -0.04
       ],
-      "radius": 0.29
+      "radius": 0.25
     },
     "body": {
-      "radius": 0.32,
+      "radius": 0.3,
       "top": 1.42
     }
   },
@@ -55,7 +55,7 @@
     "walk",
     "wave"
   ],
-  "material": "vertex colour + _TEAM mask",
+  "material": "UV fur/canvas/leather + normal/ORM + vertex palette + _TEAM mask",
   "locomotionSpeed": {
     "walk": 3.9,
     "run": 6.4,
@@ -96,11 +96,13 @@
   },
   "materials": 1,
   "skins": 1,
-  "joints": 35,
-  "bytes": 715112,
+  "joints": 61,
+  "bytes": 4483244,
   "statueBytes": 151532,
-  "rawBytes": 2380308,
+  "rawBytes": 8121256,
   "texture": {
-    "format": "vertex colour"
+    "format": "UV detail + normal + ORM",
+    "count": 3,
+    "size": 2048
   }
 }

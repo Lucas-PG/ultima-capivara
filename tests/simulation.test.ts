@@ -715,6 +715,21 @@ describe('authoritative simulation', () => {
     expect(snap.actors.find(a => a.id === 'b')!.protectionUntil - snap.time).toBeCloseTo(2, 4);
   });
 
+  for (const ammo of [0, 14]) it(`finishes an M4 reload only after 2.5 seconds (${ammo} rounds initially)`, () => {
+    const sim = new Simulation(world(), config, [profiles[0]], 'm4-reload', 123);
+    advance(sim, 5.1);
+    const actor = (sim as any).actors.get('a').state as ActorState;
+    actor.weapons = [{ id: 'm4', ammo, reserve: 40, rarity: 0, box: 0 }]; actor.slot = 0;
+    const start = sim.snapshot().time;
+    sim.action('a', { type: 'reload', id: 1 });
+    expect(actor.reloadUntil - start).toBeCloseTo(2.5, 6);
+    advance(sim, 2.49);
+    expect(actor.weapons[0].ammo).toBe(ammo); expect(actor.weapons[0].reserve).toBe(40);
+    advance(sim, .05); // Cross the deadline on the next authoritative fixed tick.
+    expect(actor.weapons[0].ammo).toBe(30); expect(actor.weapons[0].reserve).toBe(40 - (30 - ammo));
+    expect(actor.reloadUntil).toBe(0);
+  });
+
   it('loads shotgun shells one at a time and lets a loaded shell interrupt reloading', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'shells', 123);
     advance(sim, 5.1);

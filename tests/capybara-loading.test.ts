@@ -171,7 +171,7 @@ describe('capybara cosmetic colour contract', () => {
       const material = meshes[0].material as THREE.MeshStandardMaterial;
       expect(meshes.every(mesh => mesh.material === material)).toBe(true);
       expect(material.userData.toonCharacter).toBe(true);
-      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v3');
+      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v4');
       expect(material.vertexColors).toBe(true);
       expect(material.emissiveMap).toBe(sourceMaterial.emissiveMap);
       expect(material.normalMap).toBe(sourceMaterial.normalMap); expect(material.roughnessMap).toBe(sourceMaterial.roughnessMap);
@@ -179,8 +179,8 @@ describe('capybara cosmetic colour contract', () => {
       expect((material as THREE.MeshPhysicalMaterial).specularColorMap).toBe(sourceMaterial.specularColorMap);
       expect(material.emissive.getHexString()).toBe('ffffff');
       expect((copy.body.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material).toBe(material);
-      // v4 is vertex painted: no atlas, only the bandana's masked vertices take the team colour.
-      expect(material.map).toBeNull();
+      // Detail maps and vertex paint survive team recolouring; only the bandana is masked.
+      expect(material.map).toBe(sourceMaterial.map);
       expect((material.userData.teamColor as THREE.Color).getHexString()).toBe(new THREE.Color(color).convertSRGBToLinear().getHexString());
       if (baseTiles.length) expect(material).not.toBe(baseTiles[0] as unknown as THREE.Material);
       baseTiles = [material as unknown as string];

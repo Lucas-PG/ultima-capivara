@@ -244,7 +244,12 @@ export class CameraRig {
         quaternion.setFromEuler(this.rotation.set(pitch, yaw, actor.lean * -.045));
         const ads = own ? this.adsAmount : actor.ads && !actor.sprint ? 1 : 0;
         const zoom = actor.weapons[actor.slot]?.id === 'sniper' ? 5.5 : actor.weapons[actor.slot]?.id === 'dmr' ? 2.9 : 1.25;
-        fov = verticalFov(this.settings.fov) / (1 + ads * (zoom - 1));
+        // The M4 keeps the player's peripheral FOV with a mild, optical 1.15x
+        // zoom. Scope magnification on existing weapons retains its contract.
+        const baseFov = verticalFov(this.settings.fov);
+        fov = actor.weapons[actor.slot]?.id === 'm4'
+          ? 2 * Math.atan(Math.tan(baseFov * Math.PI / 360) / (1 + ads * .15)) * 180 / Math.PI
+          : baseFov / (1 + ads * (zoom - 1));
       }
       if (this.cameraBlend > 0) {
         this.cameraBlend = Math.max(0, this.cameraBlend - frame.dt / this.cameraBlendDuration);
@@ -253,7 +258,7 @@ export class CameraRig {
       }
       this.camera.position.copy(position); this.camera.quaternion.copy(quaternion);
       this.cameraInitialized = true; this.lastViewedId = viewedId;
-      this.camera.fov = snap ? fov : damp(this.camera.fov, fov, 13, frame.dt);
+      this.camera.fov = snap || mode === 'fps' ? fov : damp(this.camera.fov, fov, 13, frame.dt);
       this.camera.updateProjectionMatrix();
       return;
     }

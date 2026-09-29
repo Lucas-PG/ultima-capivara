@@ -1,9 +1,10 @@
 {
-  "triangles": 8432,
-  "vertices": 4358,
+  "triangles": 7264,
+  "vertices": 4552,
   "bones": [
     "upper",
     "fore",
+    "fore_twist",
     "hand",
     "index1",
     "index2",
@@ -19,5 +20,8 @@
     "thumb3"
   ],
   "shoulderOffsetX": 0.2,
-  "bytes": 64096
+  "material": "UV fur/canvas/paw detail + normal + ORM",
+  "digits": 4,
+  "textureSize": 2048,
+  "bytes": 3053840
 }

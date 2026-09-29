@@ -18,8 +18,19 @@ export function worldWeaponMaterial(): THREE.MeshStandardMaterial {
 }
 
 export function worldWeaponGeometry(id: WeaponId, detail: 'near' | 'far'): THREE.BufferGeometry {
-  const packed = data[id][detail], geometry = new THREE.BufferGeometry();
-  geometry.name = `painted-world:${id}:${detail}`;
+  return unpack(data[id][detail], `painted-world:${id}:${detail}`);
+}
+
+export function worldM4PartGeometry(part: 'nearBody' | 'nearMag'): THREE.BufferGeometry {
+  const packed = (data.m4 as unknown as Record<string, typeof data.m4.near>)[part];
+  const geometry = unpack(packed, `painted-world:m4:${part}`);
+  if (part === 'nearMag') geometry.translate(0, -.02, .071);
+  return geometry;
+}
+
+function unpack(packed: typeof data.m4.near, name: string): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  geometry.name = name;
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(packed.position.map(value => value / 100000), 3));
   geometry.setAttribute('normal', new THREE.Int16BufferAttribute(packed.normal, 3, true));
   geometry.setAttribute('uv', new THREE.Uint16BufferAttribute(packed.uv, 2, true));

@@ -16,7 +16,7 @@ for name, frames in [('idle', 75), ('jump', 30)]:
             p.rotation_euler = (0, 0, 0)
             p.location = (0, 0, 0)
             p.scale = (1, 1, 1)
-        rig.pose.bones['mouth_cavity'].scale.y = .18
+        rig.pose.bones['mouth_cavity'].scale.y = .6
         if name == 'idle':
             rig.pose.bones['spine'].scale.x = 1 + .003 * math.sin(phase)
             rig.pose.bones['head'].rotation_euler.z = .025 * math.sin(phase)
@@ -59,13 +59,16 @@ def contact_leg(side, phase, stride, lift, lateral=0, reverse=False, crouch=0):
         travel = -1 + 2 * smooth01(swing)
         height = .065 + lift * math.sin(math.pi * swing) ** 1.4
     forward = travel * stride * (-1 if reverse else 1)
-    down = .39 - .055 - crouch - height
-    # Analytic two-bone solve, preserving the original rig and foot orientation.
-    upper, lower = .17, math.hypot(.14, .05)
+    thigh_rest = rig.data.bones['thigh_' + side]
+    shin_rest = rig.data.bones['shin_' + side]
+    down = thigh_rest.head_local.z - .055 - crouch - height
+    # Read the authored lengths so proportion changes retain planted feet.
+    upper, lower = thigh_rest.length, shin_rest.length
     reach = min(upper + lower - .0002, max(.055, math.hypot(forward, down)))
     knee = math.acos(max(-1, min(1, (reach * reach - upper * upper - lower * lower) / (2 * upper * lower))))
     hip = math.atan2(forward, max(.025, down)) + math.atan2(lower * math.sin(knee), upper + lower * math.cos(knee))
-    shin = -knee - math.atan2(.05, .14)
+    rest_shin = shin_rest.tail_local - shin_rest.head_local
+    shin = -knee - math.atan2(abs(rest_shin.y), abs(rest_shin.z))
     thigh_bone = rig.pose.bones['thigh_' + side]
     thigh_bone.location.y = .055 + crouch
     thigh_bone.rotation_euler.x = hip
@@ -92,7 +95,7 @@ for name, frames in new_clips:
             p.rotation_euler = (0, 0, 0)
             p.location = (0, 0, 0)
             p.scale = (1, 1, 1)
-        rig.pose.bones['mouth_cavity'].scale.y = .18
+        rig.pose.bones['mouth_cavity'].scale.y = .6
         if name == 'run':
             # A short-legged dash: quick pinwheel legs, forward lean, a bounce at
             # each push-off, shoulders counter-twisting the hips, ears flopping.
@@ -195,7 +198,7 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
             p.rotation_euler = (0, 0, 0)
             p.location = (0, 0, 0)
             p.scale = (1, 1, 1)
-        rig.pose.bones['mouth_cavity'].scale.y = 1 if expression in ['hit', 'stunned', 'victory'] else .18
+        rig.pose.bones['mouth_cavity'].scale.y = 1 if expression in ['hit', 'stunned', 'victory'] else .6
         if expression == 'victory':
             rig.pose.bones['mouth_cavity'].scale.x = 1.25
             # Almost closed, with raised corners: a grin rather than an open O.
@@ -256,6 +259,6 @@ for p in rig.pose.bones:
     p.location = (0, 0, 0)
     p.scale = (1, 1, 1)
 scene.frame_start, scene.frame_end = 0, 120
-bpy.ops.export_scene.gltf(filepath=str(OUT / 'capybara.raw.glb'), export_format='GLB', export_vertex_color='NAME', export_vertex_color_name='Color', export_animations=True, export_animation_mode='ACTIONS', export_nla_strips=False, export_frame_range=False, export_force_sampling=True, export_skins=True, export_influence_nb=4, export_yup=True, export_extras=True, export_cameras=False, export_lights=False, export_attributes=True)
+bpy.ops.export_scene.gltf(filepath=str(OUT / 'capybara.raw.glb'), export_format='GLB', export_vertex_color='NAME', export_vertex_color_name='Color', export_animations=True, export_animation_mode='ACTIONS', export_nla_strips=False, export_frame_range=False, export_force_sampling=True, export_skins=True, export_influence_nb=4, export_yup=True, export_extras=True, export_cameras=False, export_lights=False, export_attributes=True, export_image_format='WEBP', export_image_quality=95)
 (OUT / 'blender-report.json').write_text(json.dumps(report, indent=2) + '\n')
 print('CAPYBARA_REPORT ' + json.dumps(report))

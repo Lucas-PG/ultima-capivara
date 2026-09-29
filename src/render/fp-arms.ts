@@ -37,9 +37,42 @@ function frameQuaternion(primary: THREE.Vector3, secondary: THREE.Vector3, out: 
 
 interface ChainBone { bone: THREE.Bone; restWorld: THREE.Quaternion; restLocal: THREE.Quaternion; length: number }
 interface FingerBone { bone: THREE.Bone; restLocal: THREE.Quaternion; hinge: THREE.Vector3 }
+/** Shared articulation for the world character and first-person paws. */
+export class PawPose {
+  private readonly fingers = {} as Record<Finger, FingerBone[]>;
+  constructor(root: THREE.Object3D, side: Side, prefix = '', skeleton?: THREE.Skeleton) {
+    root.updateMatrixWorld(true);
+    const bind = (bone: THREE.Bone) => {
+      const index = skeleton?.bones.indexOf(bone) ?? -1;
+      return index >= 0 ? skeleton!.boneInverses[index].clone().invert() : bone.matrixWorld.clone();
+    };
+    for (const finger of FINGERS) {
+      this.fingers[finger] = [];
+      for (let i = 1; i <= 3; i++) {
+        const bone = root.getObjectByName(`${prefix}${finger}${i}_${side}`);
+        if (!(bone instanceof THREE.Bone)) {
+          if (!skeleton) throw new Error(`Pata sem osso ${prefix}${finger}${i}_${side}.`);
+          continue;
+        }
+        const worldMatrix = bind(bone), world = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(worldMatrix));
+        const local = skeleton && bone.parent instanceof THREE.Bone
+          ? new THREE.Quaternion().setFromRotationMatrix(bind(bone.parent).invert().multiply(worldMatrix)) : bone.quaternion.clone();
+        const hinge = finger === 'thumb' ? new THREE.Vector3(-.63, side === 'R' ? -.63 : .63, side === 'R' ? .455 : -.455).normalize()
+          : new THREE.Vector3(-1, 0, 0);
+        this.fingers[finger].push({ bone, restLocal: local, hinge: hinge.applyQuaternion(world.invert()).normalize() });
+      }
+    }
+  }
+  apply(curl: HandCurl) {
+    for (const finger of FINGERS) this.fingers[finger].forEach((f, i) =>
+      f.bone.quaternion.copy(f.restLocal).multiply(tmpQ.setFromAxisAngle(f.hinge, curl[finger][i])));
+  }
+}
+
 class Arm {
   readonly upper: ChainBone; readonly fore: ChainBone; readonly hand: ChainBone;
-  readonly fingers = {} as Record<Finger, FingerBone[]>;
+  readonly twist?: ChainBone;
+  readonly paw: PawPose;
   // Rest frames (world, arm pointing -Z, palm down).
   private readonly restChain: THREE.Quaternion;
   private readonly restHand: THREE.Quaternion;
@@ -57,21 +90,13 @@ class Arm {
         length: b.getWorldPosition(new THREE.Vector3()).distanceTo(c.getWorldPosition(new THREE.Vector3())) };
     };
     this.upper = chain('upper', 'fore'); this.fore = chain('fore', 'hand'); this.hand = chain('hand', 'middle1');
+    if (root.getObjectByName(`fore_twist_${side}`)) this.twist = chain('fore_twist', 'hand');
     this.upper.bone.getWorldPosition(this.shoulderRest);
     // Chain rest frame: along -Z, hinge normal -X (elbow drops under the arm).
     this.restChain = frameQuaternion(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Quaternion());
     // Hand rest frame: fingers -Z, palm -Y.
     this.restHand = frameQuaternion(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, -1, 0), new THREE.Quaternion());
-    for (const finger of FINGERS) {
-      this.fingers[finger] = [1, 2, 3].map(i => {
-        const b = bone(`${finger}${i}`);
-        const world = b.getWorldQuaternion(new THREE.Quaternion());
-        // Digits curl toward the palm; the thumb folds across it.
-        const hingeWorld = finger === 'thumb' ? new THREE.Vector3(-.63, side === 'R' ? -.63 : .63, side === 'R' ? .455 : -.455).normalize()
-          : new THREE.Vector3(-1, 0, 0);
-        return { bone: b, restLocal: b.quaternion.clone(), hinge: hingeWorld.applyQuaternion(world.clone().invert()).normalize() };
-      });
-    }
+    this.paw = new PawPose(root, side);
   }
 
   private setWorld(chain: ChainBone, world: THREE.Quaternion) {
@@ -109,18 +134,25 @@ class Arm {
     const q = new THREE.Quaternion();
     frameQuaternion(upperDir, normal, q).multiply(tmpQ.copy(this.restChain).invert()).multiply(this.upper.restWorld);
     this.upper.bone.updateMatrixWorld(true); this.setWorld(this.upper, q);
-    // The forearm twists halfway toward the paw's roll so the wrist never candy-wraps.
+    // The elbow keeps its bend plane. Skin weights distribute the distal roll
+    // along a separate twist joint, with a shared wrist loop at the palm.
     const handSide = new THREE.Vector3().crossVectors(target.forward, target.palm).normalize();
-    const foreNormal = new THREE.Vector3().copy(normal).lerp(handSide.multiplyScalar(-1), .45);
-    frameQuaternion(foreDir, foreNormal.lengthSq() > 1e-6 ? foreNormal : normal, q)
+    frameQuaternion(foreDir, normal, q)
       .multiply(tmpQ.copy(this.restChain).invert()).multiply(this.fore.restWorld);
     this.setWorld(this.fore, q);
+    if (this.twist) {
+      const proximal = q.clone();
+      const projected = handSide.addScaledVector(foreDir, -handSide.dot(foreDir) / foreDir.lengthSq());
+      frameQuaternion(foreDir, projected.lengthSq() > 1e-6 ? projected : normal, q)
+        .multiply(tmpQ.copy(this.restChain).invert()).multiply(this.twist.restWorld);
+      // Split a large roll across both joints: linear skinning must never blend
+      // directly across an almost 180-degree forearm rotation.
+      this.setWorld(this.fore, proximal.slerp(q, .5));
+      this.setWorld(this.twist, q);
+    }
     frameQuaternion(target.forward, target.palm, q).multiply(tmpQ.copy(this.restHand).invert()).multiply(this.hand.restWorld);
     this.setWorld(this.hand, q);
-    for (const finger of FINGERS) {
-      const bones = this.fingers[finger], curl = target.curl[finger];
-      bones.forEach((f, i) => f.bone.quaternion.copy(f.restLocal).multiply(tmpQ.setFromAxisAngle(f.hinge, curl[i])));
-    }
+    this.paw.apply(target.curl);
   }
 }
 
@@ -169,7 +201,7 @@ export class ArmsRig {
         object.frustumCulled = false; object.castShadow = false;
         const material = object.material as THREE.MeshStandardMaterial;
         material.vertexColors = true; material.roughness = .92; material.metalness = 0;
-        applyFurStrands(material);
+        if (!material.userData.capySurfaceAtlas) applyFurStrands(material);
         applyCharacterStyle(material, 4);
         this.meshes.push(object);
       }

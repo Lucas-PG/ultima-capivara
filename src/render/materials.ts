@@ -33,8 +33,13 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
   styled.add(material);
   const previous = material.onBeforeCompile, previousKey = material.customProgramCacheKey.bind(material);
   const cacheKey = previousKey();
+  const surfaceAtlas = material.userData.capySurfaceAtlas === true;
   material.userData.toonCharacter = true;
-  material.roughness = Math.max(.85, material.roughness); material.metalness = 0;
+  if (surfaceAtlas) {
+    // The new character atlas authors cloth, eyes, claws and hardware separately.
+    material.roughness = 1; material.metalness = 1;
+    material.normalScale.set(.85, .85);
+  } else { material.roughness = Math.max(.85, material.roughness); material.metalness = 0; }
   material.onBeforeCompile = function (shader, renderer) {
     previous.call(this, shader, renderer);
     shader.uniforms.characterRim = { value: rim };
@@ -43,10 +48,10 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
       float rimAmount = pow(grazing, 3.0);
       float furSurface = 0.0;
       #ifdef USE_MAP
-        vec2 atlasCell = floor(clamp(vMapUv, vec2(0.0), vec2(.99999)) * ${atlasColumns.toFixed(1)});
+        vec2 atlasCell = floor(clamp(vMapUv, vec2(0.0), vec2(.99999)) * ${surfaceAtlas ? 'vec2(4.0, 2.0)' : atlasColumns.toFixed(1)});
         float paletteIndex = atlasCell.x ${atlasColumns === 4 ? '+ atlasCell.y * 4.0' : ''};
         // Mouth, eyes, nails, brass and cloth keep their authored response.
-        furSurface = float(paletteIndex < 2.5 || abs(paletteIndex - 4.0) < .1 || abs(paletteIndex - 14.0) < .1);
+        furSurface = ${surfaceAtlas ? 'float(atlasCell.x < .5 && atlasCell.y > .5)' : 'float(paletteIndex < 2.5 || abs(paletteIndex - 4.0) < .1 || abs(paletteIndex - 14.0) < .1)'};
       #endif
       float sunEdge = .5;
       #if NUM_DIR_LIGHTS > 0
@@ -61,7 +66,7 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
       outgoingLight += furSheen * sqrt(max(diffuseColor.rgb, vec3(0.0))) * pow(grazing, 2.5) * furSurface * rimSurface;
       #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v3:${atlasColumns}`;
+  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v4:${atlasColumns}:${surfaceAtlas}`;
   material.needsUpdate = true;
   return material;
 }

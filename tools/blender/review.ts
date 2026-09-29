@@ -8,9 +8,10 @@ import { GameRenderer } from '../../src/render/renderer';
 import { createCapybaraHitboxOverlay, setCapybaraExpression, type CapybaraExpression } from '../../src/render/capybara';
 import { createWorld } from '../../src/shared/world';
 import { terrainHeight } from '../../src/shared/terrain';
+import { WEAPONS } from '../../src/shared/weapons';
 import { DEFAULT_SETTINGS } from '../../src/settings';
 import { emptyInput } from '../../src/shared/math';
-import type { ActorState, RenderFrame } from '../../src/shared/types';
+import type { ActorState, RenderFrame, WeaponId } from '../../src/shared/types';
 
 const params = new URLSearchParams(location.search);
 const world = createWorld();
@@ -26,6 +27,11 @@ const actor: ActorState = {
   kills: 0, deaths: 0, damage: 0, weapons: [], slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
   reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, heat: 0,
 };
+const heldWeapon = params.get('weapon');
+if (heldWeapon && Object.hasOwn(WEAPONS, heldWeapon)) {
+  const id = heldWeapon as WeaponId;
+  actor.weapons = [{ id, rarity: 0, ammo: WEAPONS[id].magazine, reserve: 90, box: 0 }];
+}
 // Access is confined to this dev fixture, so production renderer needs no debug API.
 const view = renderer as unknown as {
   scene: THREE.Scene; gl: THREE.WebGLRenderer; pipeline: RenderPipeline; avatars: AvatarView; weaponView: WeaponView; interiorLight: THREE.PointLight;
@@ -42,13 +48,18 @@ const avatar = view.avatars.get(actor.id)!;
 avatar.label.visible = false;
 const hitboxes = createCapybaraHitboxOverlay(); avatar.group.add(hitboxes);
 
-function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean; labels?: boolean } = {}) {
+const clay = new THREE.MeshStandardMaterial({ color: '#b9b3a8', roughness: .85 });
+function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean; labels?: boolean; clay?: boolean } = {}) {
   const { angle = 'three-quarter', distance = 3, clip = 'idle', time = .3, overlay = false } = options;
   setCapybaraExpression(avatar.body, options.expression || null);
-  actor.velocity.z = clip === 'run' ? -6 : 0;
-  actor.grounded = clip !== 'jump';
+  avatar.group.visible = true;
+  actor.velocity.z = clip === 'run' ? -6 : clip === 'walk' ? -3.9 : clip === 'crouch_walk' ? -2.1 : 0;
+  actor.velocity.y = clip === 'jump' ? 2 : clip === 'fall' ? -5 : 0;
+  actor.crouch = clip.startsWith('crouch'); actor.sprint = clip === 'run';
+  actor.stage = clip === 'freefall' ? 'falling' : clip === 'parachute' ? 'parachute' : 'ground';
+  actor.grounded = !['jump', 'fall', 'freefall', 'parachute'].includes(clip);
   hitboxes.visible = overlay;
-  const azimuth = angle === 'side' ? Math.PI / 2 : angle === 'front' ? 0 : angle === 'back' ? Math.PI : Math.PI / 4;
+  const azimuth = angle === 'side' ? Math.PI / 2 : angle === 'front' ? 0 : angle === 'back' ? Math.PI : angle === 'left' ? -Math.PI / 4 : Math.PI / 4;
   // The near paw advances toward the lens during run, requiring extra room at 1 m.
   renderer.camera.fov = options.head ? 42 : distance === 1 ? 120 : 60;
   const focusY = options.head ? 1.6 : .94;
@@ -60,26 +71,42 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
     lod.autoUpdate = false; lod.levels.forEach((level, i) => { level.object.visible = i === options.lod; });
   }
   renderer.resize();
-  for (let i = 0; i < Math.ceil(time * 30); i++) view.avatars.update(frame, 0, elapsed += 1 / 30);
+  frame.dt = 1 / 30;
+  for (let i = 0; i < Math.ceil(time * 30); i++) {
+    frame.snapshot!.time = elapsed += 1 / 30;
+    view.avatars.update(frame, 0, elapsed);
+  }
   if (!options.labels) avatar.label.visible = false;
   const stats = { drawCalls: 0, triangles: 0 };
+  view.scene.overrideMaterial = options.clay ? clay : null;
   view.pipeline.render(view.scene, renderer.camera, stats);
+  view.scene.overrideMaterial = null;
   document.querySelector<HTMLElement>('#caption')!.hidden = params.has('clean');
   document.querySelector('#caption')!.innerHTML = `<strong>CAPIVARA • ${clip.toUpperCase()}</strong><br>${angle} · ${distance} m · ${overlay ? 'hitbox cabeça r 0,25 / corpo r 0,30' : 'paleta Pincel · rig do jogo'}<br><small>Renderer do jogo · câmera fixa de revisão · FOV ${renderer.camera.fov}° · ${room ? 'interior' : 'exterior'}</small>`;
   return { name: avatar.body.name, children: avatar.body.children.length, triangles: stats.triangles };
 }
 function advance(seconds: number, firstPerson = false) {
-  for (let i = 0; i < Math.ceil(seconds * 60); i++) {
-    frame.dt = 1 / 60; elapsed += frame.dt;
+  for (let remaining = seconds; remaining > 1e-8; remaining -= frame.dt) {
+    frame.dt = Math.min(remaining, 1 / 60); elapsed += frame.dt;
+    frame.snapshot!.time = elapsed;
     view.avatars.update(frame, 0, elapsed);
     view.weaponView.update(actor, frame.dt, DEFAULT_SETTINGS, 0, elapsed);
   }
   avatar.label.visible = false;
-  if (firstPerson) avatar.group.visible = false;
+  avatar.group.visible = !firstPerson;
   view.pipeline.render(view.scene, renderer.camera, { drawCalls: 0, triangles: 0 }, firstPerson ? view.weaponView.scene : undefined, firstPerson ? view.weaponView.camera : undefined);
 }
 (window as unknown as { capyReview: unknown }).capyReview = {
   shot, advance, renderer, actor, avatar, frame, ready: true,
+  get time() { return elapsed; },
+  reload: (empty = true, seconds = 0, firstPerson = true) => {
+    actor.stage = 'ground'; actor.alive = true; actor.grounded = true; actor.crouch = false; actor.sprint = false;
+    actor.velocity = { x: 0, y: 0, z: 0 }; actor.ads = false; actor.reloadUntil = 0;
+    view.weaponView.update(undefined, 0, DEFAULT_SETTINGS, 0, elapsed);
+    advance(.35, firstPerson);
+    actor.weapons[actor.slot].ammo = empty ? 0 : 14; actor.reloadUntil = elapsed + WEAPONS.m4.reload;
+    advance(seconds, firstPerson);
+  },
   react: (reaction: AvatarReaction) => view.avatars.react(actor.id, reaction),
   respawn: () => view.avatars.respawn(actor.id),
   inspect: () => view.weaponView.inspect(),

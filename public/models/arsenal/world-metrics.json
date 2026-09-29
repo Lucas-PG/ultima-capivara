@@ -17,9 +17,9 @@
       "far": 408
     },
     "m4": {
-      "source": 10980,
+      "source": 20960,
       "near": 2400,
-      "far": 420
+      "far": 412
     },
     "shotgun": {
       "source": 7226,
@@ -52,5 +52,5 @@
       "far": 420
     }
   },
-  "bundledBytes": 1889108
+  "bundledBytes": 2105044
 }

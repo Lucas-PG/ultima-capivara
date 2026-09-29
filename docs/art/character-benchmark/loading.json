@@ -1,0 +1,23 @@
+{
+  "conditions": "Fresh browser contexts, local production server, unthrottled network; GPU driver already warm. Browser-process and driver caches were not cleared.",
+  "samples": [
+    {
+      "measuredAt": "2026-09-29T00:27:09.661Z",
+      "build": "Before the final hip-weight and garment-hem refinement",
+      "preset": "high",
+      "viewport": "1280x720",
+      "menuMs": 1203,
+      "practiceToReadyMs": 18095,
+      "totalMs": 19298
+    },
+    {
+      "measuredAt": "2026-09-29T00:44:49.207Z",
+      "build": "Final assets",
+      "preset": "high",
+      "viewport": "1280x720",
+      "menuMs": 963,
+      "practiceToReadyMs": 6935,
+      "totalMs": 7898
+    }
+  ]
+}

@@ -89,7 +89,7 @@ def add_emotes(rig, scene, report, contact_leg):
                 bone.rotation_euler = (0, 0, 0)
                 bone.location = (0, 0, 0)
                 bone.scale = (1, 1, 1)
-            rig.pose.bones['mouth_cavity'].scale.y = .18
+            rig.pose.bones['mouth_cavity'].scale.y = .6
             envelope = 1 if loop else ease(t / .16) * (1 - ease((t - .82) / .18))
             elapsed = t * seconds
             tuck = ease(elapsed / .10) * (1 - ease((elapsed - .18) / .20))
@@ -130,7 +130,7 @@ def add_emotes(rig, scene, report, contact_leg):
                 spine.rotation_euler.x = -.035 * tuck + .025 * star
                 rig.pose.bones['head'].rotation_euler.x = -.065 * star
                 rig.pose.bones['jaw'].rotation_euler.x = .045 * star
-                rig.pose.bones['mouth_cavity'].scale.y = .18 + .12 * star
+                rig.pose.bones['mouth_cavity'].scale.y = .6 + .12 * star
                 for sign, side in [(-1, 'L'), (1, 'R')]:
                     rig.pose.bones['thigh_' + side].rotation_euler.x = .65 * tuck - .12 * star
                     rig.pose.bones['thigh_' + side].rotation_euler.z = sign * .38 * star

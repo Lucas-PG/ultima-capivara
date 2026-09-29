@@ -415,6 +415,7 @@ function frame(now: number) {
     renderFrame.spectateId = spectateId; renderFrame.predicted = renderFrame.localActor?.pos;
     const renderAt = timing.begin();
     renderer?.update(renderFrame);
+    if (renderer) input.setAimFov(renderer.camera.fov);
     timing.end('render', renderAt);
     renderedRemoteTime = remoteInterpolation.time;
     renderedFrames++; frameCount++; dirtyFrame = false;

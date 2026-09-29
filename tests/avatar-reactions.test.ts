@@ -37,6 +37,28 @@ function harness() {
 }
 
 describe('authoritative character reactions', () => {
+  it('keeps the nearby M4 magazine in the support paw throughout removal and insertion, with a combined far LOD', async () => {
+    const { M4_MAG_HAND } = await import('../src/render/viewmodel-anims');
+    const h = harness(); h.actor.weapons = [{ id: 'm4', ammo: 0, reserve: 60, rarity: 0, box: 0 }];
+    h.actor.reloadUntil = 3.5;
+    const mag = h.visual.weapon.getObjectByName('m4_mag')!;
+    for (const phase of [.22, .30, .39, .52, .60, .69]) {
+      h.snapshot.time = 1 + phase * 2.5;
+      view.update(h.frame, 0, h.snapshot.time);
+      h.visual.group.updateMatrixWorld(true);
+      const expected = new THREE.Vector3().fromArray(M4_MAG_HAND.wrist!).applyMatrix4(mag.matrixWorld);
+      const paw = h.visual.body.getObjectByName('paw_L')!.getWorldPosition(new THREE.Vector3());
+      expect(paw.distanceTo(expected), `contact at ${phase}`).toBeLessThan(.008);
+      expect(mag.visible).toBe(true);
+    }
+    h.snapshot.time = 2.15; view.update(h.frame, 0, h.snapshot.time); expect(mag.visible).toBe(false);
+    camera.position.z = 18; view.update(h.frame, 0, h.snapshot.time);
+    expect(h.visual.weapon.geometry.name).toBe('painted-world:m4:far'); expect(mag.visible).toBe(false);
+    camera.position.z = 5; h.actor.reloadUntil = 0; view.update(h.frame, 0, h.snapshot.time);
+    expect(h.visual.weapon.geometry.name).toBe('painted-world:m4:nearBody'); expect(mag.visible).toBe(true);
+    expect(mag.position.toArray()).toEqual([0, .02, -.071]);
+  });
+
   it('squashes then stretches a trampoline capy around the feet without moving its actor, and clears the cue', () => {
     const h = harness(); h.actor.grounded = false; h.actor.velocity.y = 12;
     const state = structuredClone(h.actor), root = h.visual.group.position.clone();

@@ -1,0 +1,89 @@
+{
+  "checkedAt": "2026-09-29T00:39:19.007Z",
+  "branch": "isolated/daytime-work",
+  "weapons": [
+    {
+      "id": "pistol",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "31916da5dbeff4e3defe3a5f33a3e95fca0c24ff11cba7579a37054c272bd019"
+    },
+    {
+      "id": "revolver",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "060e7ad161f5c4049fa80759eceea4bfa402ffc17d9750aef7044234b2197276"
+    },
+    {
+      "id": "smg",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "7ebdf5f0e17a45e7eb13e9c2b6332b535d13024cb47f2f459acc50651cd0bc13"
+    },
+    {
+      "id": "shotgun",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "1fe2a0c9c16f4ee7da23c94dae26a2610ea4271d69935042b2a7bab50d1e1bab"
+    },
+    {
+      "id": "coco",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "f78302e20ec3c3db2e99f0e48df1f72b37ce5e8e22b8935569d25e9bb4a9afcd"
+    },
+    {
+      "id": "dmr",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "5c266e55cd9c0167adbce5e180bee66dfa34d18d7b57ffb11eb62df898e9c466"
+    },
+    {
+      "id": "sniper",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "92e6688a3363281127492b4ec110b68b6049af2a94978e36d073855993e123db"
+    },
+    {
+      "id": "machete",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "c2ff426706ec9983da7e2ee9410c900d95af9d519cfb3fa12d9848e482991d05"
+    },
+    {
+      "id": "slingshot",
+      "glbUnchanged": true,
+      "worldUnchanged": true,
+      "metadataUnchanged": true,
+      "sha256": "9f67168f941b0df1dfb1024670859e6b13c9b1d7590b0ad21c495df494b7463a"
+    }
+  ],
+  "atlasOutsideM4ChangedChannels": 0,
+  "assets": [
+    {
+      "path": "public/models/capybara/capybara.glb",
+      "bytes": 4483244
+    },
+    {
+      "path": "public/models/fp/fp-arms.glb",
+      "bytes": 3053840
+    },
+    {
+      "path": "public/models/arsenal/m4.glb",
+      "bytes": 1060948
+    },
+    {
+      "path": "public/textures/world-arsenal.webp",
+      "bytes": 569754
+    }
+  ],
+  "totalBytes": 9167786
+}
