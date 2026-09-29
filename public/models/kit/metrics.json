@@ -516,6 +516,15 @@
       "colliders": 2
     },
     {
+      "id": "quay_wall_b",
+      "triangles": [
+        1636,
+        308,
+        308
+      ],
+      "colliders": 2
+    },
+    {
       "id": "quay_stair",
       "triangles": [
         2024,
@@ -523,6 +532,42 @@
         768
       ],
       "colliders": 19
+    },
+    {
+      "id": "quay_corner",
+      "triangles": [
+        836,
+        176,
+        176
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "bridge_arch",
+      "triangles": [
+        7956,
+        2888,
+        702
+      ],
+      "colliders": 18
+    },
+    {
+      "id": "bridge_chapel",
+      "triangles": [
+        6028,
+        2828,
+        748
+      ],
+      "colliders": 11
+    },
+    {
+      "id": "bridge_wood",
+      "triangles": [
+        4228,
+        2556,
+        716
+      ],
+      "colliders": 35
     },
     {
       "id": "row_terrea",
@@ -561,6 +606,6 @@
       "colliders": 22
     }
   ],
-  "bytes": 9105080,
-  "gzipBytes": 2686359
+  "bytes": 9811228,
+  "gzipBytes": 2847969
 }
