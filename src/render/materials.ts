@@ -34,8 +34,12 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
   const previous = material.onBeforeCompile, previousKey = material.customProgramCacheKey.bind(material);
   const cacheKey = previousKey();
   const surfaceAtlas = material.userData.capySurfaceAtlas === true;
+  // First-person arms v3: own baked maps; a `_fur` vertex attribute marks the pelt.
+  const bakedFur = material.userData.capyArmsV3 === true;
   material.userData.toonCharacter = true;
-  if (surfaceAtlas) {
+  if (bakedFur) {
+    material.roughness = 1; material.metalness = 1;
+  } else if (surfaceAtlas) {
     // The new character atlas authors cloth, eyes, claws and hardware separately.
     material.roughness = 1; material.metalness = 1;
     material.normalScale.set(.85, .85);
@@ -43,11 +47,18 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
   material.onBeforeCompile = function (shader, renderer) {
     previous.call(this, shader, renderer);
     shader.uniforms.characterRim = { value: rim };
+    if (bakedFur) {
+      shader.vertexShader = `attribute float _fur;\nvarying float vFurMask;\n${shader.vertexShader}`
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFurMask = _fur;');
+      shader.fragmentShader = `varying float vFurMask;\n${shader.fragmentShader}`;
+    }
     shader.fragmentShader = `uniform vec3 characterRim;\n${shader.fragmentShader}`.replace('#include <opaque_fragment>', `
       float grazing = 1.0 - saturate(dot(normalize(normal), normalize(vViewPosition)));
       float rimAmount = pow(grazing, 3.0);
       float furSurface = 0.0;
-      #ifdef USE_MAP
+      #if ${bakedFur ? 1 : 0}
+        furSurface = clamp(vFurMask * 2.0, 0.0, 1.0);
+      #elif defined(USE_MAP)
         vec2 atlasCell = floor(clamp(vMapUv, vec2(0.0), vec2(.99999)) * ${surfaceAtlas ? 'vec2(4.0, 2.0)' : atlasColumns.toFixed(1)});
         float paletteIndex = atlasCell.x ${atlasColumns === 4 ? '+ atlasCell.y * 4.0' : ''};
         // Mouth, eyes, nails, brass and cloth keep their authored response.
@@ -66,7 +77,7 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
       outgoingLight += furSheen * sqrt(max(diffuseColor.rgb, vec3(0.0))) * pow(grazing, 2.5) * furSurface * rimSurface;
       #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v4:${atlasColumns}:${surfaceAtlas}`;
+  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v4:${atlasColumns}:${surfaceAtlas}:${bakedFur}`;
   material.needsUpdate = true;
   return material;
 }

@@ -22,14 +22,6 @@ const run = (script, extra = []) => {
 };
 await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
-// The arms use the character's surface maps (same atlas and UV tiles): the game
-// binds that texture set at runtime, so it is downloaded and uploaded once.
-const shareSurfaces = () => document => {
-  for (const material of document.getRoot().listMaterials()) {
-    material.setBaseColorTexture(null).setNormalTexture(null).setMetallicRoughnessTexture(null).setOcclusionTexture(null);
-    material.setExtras({ ...material.getExtras(), sharedSurfaces: 'models/capybara/capybara.glb' });
-  }
-};
 async function pack(source, target, extra = []) {
   const document = await io.read(source);
   // UVs and tangents stay even when no texture ships in the file (shared surfaces).
@@ -40,7 +32,8 @@ async function pack(source, target, extra = []) {
 if (arms) {
   if (!repackOnly) run('tools/blender/fp_arms.py');
   await mkdir(`${root}/public/models/fp`, { recursive: true });
-  const bytes = await pack(`${root}/output/fp/fp-arms.raw.glb`, `${root}/public/models/fp/fp-arms.glb`, [shareSurfaces()]);
+  // The arms carry their own baked maps (sculpted paw, fur, pads, claws, linen).
+  const bytes = await pack(`${root}/output/fp/fp-arms.raw.glb`, `${root}/public/models/fp/fp-arms.glb`);
   const report = JSON.parse(await readFile(`${root}/output/fp/fp-arms-report.json`, 'utf8'));
   await writeFile(`${root}/public/models/fp/metrics.json`, JSON.stringify({ ...report, bytes }, null, 2) + '\n');
   console.log('arms', bytes);

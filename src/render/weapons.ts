@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
-import { CAPYBARA_ASSET_URL } from './capybara';
 import { VIEW_SPECS, SHOULDERS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { RELOADS, m4Reload } from './viewmodel-anims';
@@ -143,11 +142,9 @@ export class WeaponView {
   }
 
   private async load() {
-    // The character asset is shared with the avatars: its surface maps dress the arms.
-    const [arms, character, ...gltfs] = await Promise.all([this.loader.gltf(FP_ARMS_URL), this.loader.gltf(CAPYBARA_ASSET_URL),
-      ...WEAPON_IDS.map(id => this.loader.gltf(VIEW_SPECS[id].url))]);
+    const [arms, ...gltfs] = await Promise.all([this.loader.gltf(FP_ARMS_URL), ...WEAPON_IDS.map(id => this.loader.gltf(VIEW_SPECS[id].url))]);
     if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
-    this.arms = new ArmsRig(arms, character);
+    this.arms = new ArmsRig(arms);
     this.scene.add(this.arms.group);
     WEAPON_IDS.forEach((id, i) => { this.models[id] = this.fromArsenal(id, gltfs[i]); });
   }

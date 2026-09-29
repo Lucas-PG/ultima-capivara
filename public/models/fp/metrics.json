@@ -1,6 +1,6 @@
 {
-  "triangles": 7680,
-  "vertices": 4760,
+  "triangles": 22688,
+  "vertices": 11368,
   "bones": [
     "upper",
     "fore",
@@ -20,8 +20,8 @@
     "thumb3"
   ],
   "shoulderOffsetX": 0.2,
-  "material": "UV fur/canvas/paw detail + normal + ORM",
+  "material": "baked sculpt: albedo + normal + ORM, fur shells from _FUR",
   "digits": 4,
   "textureSize": 2048,
-  "bytes": 112468
+  "bytes": 1341480
 }

@@ -189,37 +189,6 @@ class Arm {
   }
 }
 
-// Painted fur: strands follow the arm (rest-pose space, so they never swim while
-// the skin deforms), darker roots between clumps, lighter tips catching the key.
-// Only warm, saturated vertex colours (fur) receive it; the dark paws stay leathery.
-function applyFurStrands(material: THREE.MeshStandardMaterial) {
-  material.onBeforeCompile = shader => {
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vRest;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = position;');
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>
-        varying vec3 vRest;
-        float furHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-        float furNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-          return mix(mix(furHash(i), furHash(i + vec2(1, 0)), f.x), mix(furHash(i + vec2(0, 1)), furHash(i + vec2(1, 1)), f.x), f.y); }`)
-      .replace('#include <color_fragment>', `#include <color_fragment>
-        float furMask = smoothstep(.08, .2, vColor.r - vColor.b) * smoothstep(.02, .08, vColor.r);
-        float around = atan(vRest.x - sign(vRest.x) * .2, vRest.y);
-        vec2 strandUv = vec2(around * 9.0, vRest.z * 38.0);
-        float clump = furNoise(strandUv * vec2(1.0, .35));
-        float strand = furNoise(strandUv * vec2(4.0, .6) + clump * 2.0);
-        float fur = mix(.72, 1.12, smoothstep(.15, .85, clump * .6 + strand * .4));
-        diffuseColor.rgb *= mix(1.0, fur, furMask);`)
-      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        {
-          float furN = furMask * (furNoise(strandUv * vec2(3.0, .5)) - .5);
-          normal = normalize(normal + vec3(furN * .35, furN * .2, 0.0));
-        }`);
-  };
-  material.customProgramCacheKey = () => 'fp-fur-strands-v1';
-}
-
 // Shell fur: the fur faces repeated as offset shells in one skinned draw. Each
 // shell keeps only the strands of a 3D noise field anchored to the bind pose,
 // thinning toward the tips and combed toward the paw, so the silhouette reads
@@ -227,17 +196,16 @@ function applyFurStrands(material: THREE.MeshStandardMaterial) {
 export const FUR_SHELLS = 12;
 const FUR_LENGTH = .0055;
 function furShellMesh(mesh: THREE.SkinnedMesh, base: THREE.MeshStandardMaterial): THREE.SkinnedMesh | null {
-  const source = mesh.geometry, index = source.index, uv = source.getAttribute('uv');
-  const skinIndex = source.getAttribute('skinIndex'), skinWeight = source.getAttribute('skinWeight');
-  if (!index || !uv || !skinIndex || !skinWeight) return null;
-  const paw = new Set(mesh.skeleton.bones.map((bone, i) => /^(hand|index|middle|ring|thumb)/.test(bone.name) ? i : -1).filter(i => i >= 0));
-  // The paw keeps its sculpted shape (knuckles, claws): mostly-paw vertices get no shells.
-  const onPaw = (v: number) => { let w = 0; for (let k = 0; k < 4; k++) if (paw.has(skinIndex.getComponent(v, k))) w += skinWeight.getComponent(v, k); return w > .5; };
+  const source = mesh.geometry, index = source.index;
+  if (!index) return null;
+  // The pelt is baked as a `_fur` length per vertex (0 on pads, claws and cloth).
+  const furLength = source.getAttribute('_fur');
+  if (!furLength) return null;
+  const grows = (v: number) => furLength.getX(v) > .02;
   const fur: number[] = [];
-  // Fur faces sit in the atlas' fur tile (column 0, upper row after the glTF flip).
   for (let i = 0; i < index.count; i += 3) {
     const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
-    if ([a, b, c].every(v => uv.getX(v) < .25 && uv.getY(v) > .5 && !onPaw(v))) fur.push(a, b, c);
+    if (grows(a) && grows(b) && grows(c)) fur.push(a, b, c);
   }
   const used = [...new Set(fur)], remap = new Map(used.map((v, i) => [v, i]));
   const geometry = new THREE.BufferGeometry();
@@ -260,6 +228,9 @@ function furShellMesh(mesh: THREE.SkinnedMesh, base: THREE.MeshStandardMaterial)
   const shell = new Float32Array(used.length * FUR_SHELLS);
   for (let s = 0; s < FUR_SHELLS; s++) shell.fill((s + 1) / FUR_SHELLS, s * used.length, (s + 1) * used.length);
   geometry.setAttribute('furShell', new THREE.BufferAttribute(shell, 1));
+  const lengths = new Float32Array(used.length * FUR_SHELLS);
+  used.forEach((v, i) => { for (let s = 0; s < FUR_SHELLS; s++) lengths[s * used.length + i] = furLength.getX(v); });
+  geometry.setAttribute('furLength', new THREE.BufferAttribute(lengths, 1));
   const indices = new Uint32Array(fur.length * FUR_SHELLS);
   for (let s = 0; s < FUR_SHELLS; s++) fur.forEach((v, i) => { indices[s * fur.length + i] = s * used.length + remap.get(v)!; });
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
@@ -270,7 +241,7 @@ function furShellMesh(mesh: THREE.SkinnedMesh, base: THREE.MeshStandardMaterial)
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
     shader.uniforms.uFurSpan = { get value() { return material.userData.furSpan; } };
-    shader.vertexShader = `attribute float furShell;\nattribute vec3 furRest;\nuniform float uFurLength, uFurSpan;\nvarying float vFurShell;\nvarying vec3 vFurRest;\n${shader.vertexShader}`
+    shader.vertexShader = `attribute float furShell;\nattribute float furLength;\nattribute vec3 furRest;\nuniform float uFurLength, uFurSpan;\nvarying float vFurShell;\nvarying vec3 vFurRest;\n${shader.vertexShader}`
       .replace('#include <skinning_vertex>', `#include <skinning_vertex>
         float shellHeight = min(1.0, furShell * uFurSpan);
         vFurShell = shellHeight; vFurRest = furRest;
@@ -279,7 +250,8 @@ function furShellMesh(mesh: THREE.SkinnedMesh, base: THREE.MeshStandardMaterial)
           furComb = normalize((skinMatrix * vec4(furComb, 0.0)).xyz);
         #endif
         vec3 furUp = normalize(objectNormal);
-        transformed += furUp * shellHeight * uFurLength + (furComb - furUp * dot(furComb, furUp)) * shellHeight * shellHeight * uFurLength * .9;`);
+        float furReach = uFurLength * furLength;
+        transformed += furUp * shellHeight * furReach + (furComb - furUp * dot(furComb, furUp)) * shellHeight * shellHeight * furReach * .9;`);
     shader.fragmentShader = `varying float vFurShell;\nvarying vec3 vFurRest;
       float furHash3(vec3 p) { p = fract(p * .3183099 + .1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
       float furNoise3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
@@ -298,18 +270,6 @@ function furShellMesh(mesh: THREE.SkinnedMesh, base: THREE.MeshStandardMaterial)
   return shells;
 }
 
-// The arms ship without textures: they use the character's surface atlas (same
-// tiles, same UV projection), so the maps are downloaded and uploaded once.
-const SURFACE_MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap'] as const;
-function sharedSurfaces(character?: GLTF): THREE.MeshStandardMaterial | null {
-  let found: THREE.MeshStandardMaterial | null = null;
-  character?.scene.traverse(object => {
-    const material = (object as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
-    if (!found && material?.userData?.capySurfaceAtlas && material.map) found = material;
-  });
-  return found;
-}
-
 export class ArmsRig {
   readonly group = new THREE.Group();
   readonly right: Arm;
@@ -317,28 +277,25 @@ export class ArmsRig {
   private readonly meshes: THREE.SkinnedMesh[] = [];
   private readonly shells: THREE.SkinnedMesh[] = [];
   private readonly sides = new Map<THREE.SkinnedMesh, Side>();
-  constructor(gltf: GLTF, character?: GLTF) {
+  constructor(gltf: GLTF) {
     const scene = gltf.scene;
     this.group.name = 'fp-arms';
     this.group.add(scene);
-    const surfaces = sharedSurfaces(character);
     scene.updateMatrixWorld(true);
     scene.traverse(object => { if (object instanceof THREE.SkinnedMesh && !object.name.endsWith('_fur')) this.meshes.push(object); });
     for (const mesh of this.meshes) {
       mesh.frustumCulled = false; mesh.castShadow = false;
+      // The arms carry their own baked sculpt maps (colour, normal, roughness).
       const material = mesh.material as THREE.MeshStandardMaterial;
-      if (surfaces && material.userData.sharedSurfaces) for (const key of SURFACE_MAPS) material[key] = surfaces[key];
-      material.vertexColors = true; material.roughness = .92; material.metalness = 0;
+      material.vertexColors = false;
       const side: Side = mesh.name.endsWith('R') ? 'R' : 'L';
       this.sides.set(mesh, side);
-      if (material.userData.capySurfaceAtlas) {
-        let shells = (mesh.parent!.getObjectByName(`${mesh.name}_fur`) as THREE.SkinnedMesh | undefined) ?? null;
-        if (!shells && (shells = furShellMesh(mesh, material))) {
-          applyCharacterStyle(shells.material as THREE.MeshStandardMaterial, 4);
-          mesh.parent!.add(shells);
-        }
-        if (shells) { this.shells.push(shells); this.sides.set(shells, side); }
-      } else applyFurStrands(material);
+      let shells = (mesh.parent!.getObjectByName(`${mesh.name}_fur`) as THREE.SkinnedMesh | undefined) ?? null;
+      if (!shells && (shells = furShellMesh(mesh, material))) {
+        applyCharacterStyle(shells.material as THREE.MeshStandardMaterial, 4);
+        mesh.parent!.add(shells);
+      }
+      if (shells) { this.shells.push(shells); this.sides.set(shells, side); }
       applyCharacterStyle(material, 4);
     }
     this.right = new Arm(scene, 'R');
