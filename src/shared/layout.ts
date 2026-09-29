@@ -151,7 +151,8 @@ export const ARENA = { minX: -56, maxX: 60, minZ: -58, maxZ: 58 } as const;
 export const ARENA_CENTER = { x: 2, z: 0 };
 export const inArena = (x: number, z: number, margin = 0) =>
   x >= ARENA.minX + margin && x <= ARENA.maxX - margin && z >= ARENA.minZ + margin && z <= ARENA.maxZ - margin;
-export const ROADS: readonly Rect[] = [
+/** Streets and squares: the lanes that lamps line, houses face and signs look along. */
+export const STREETS: readonly Rect[] = [
   // Rua Direita: the long east-west street from the Morro to the harbour.
   [-100, -38, 112, -33],
   [-101, -66, -94, -26], [1, -88, 7, -38], [80, -33, 86, 16],
@@ -164,6 +165,18 @@ export const ROADS: readonly Rect[] = [
   // Paved squares share the cobbled street paint.
   PLAZA_RECT, MARKET_RECT, ROSARIO_RECT,
 ];
+/** Becos: the paved alleys left between terraced houses, filled in by frontage(). */
+const becos: Rect[] = [];
+/** Stone paving off the streets: sidewalks run to the walls, becos through the blocks. */
+export const PAVING: Rect[] = [
+  [-56, -33, 60, -31],  // Rua Direita's south sidewalk, up to the block corners
+  [-16, -58, 0, -38],   // the Matriz's adro
+  [62, -33, 124, -3],   // the harbour yard behind the Rua Direita houses
+  [24, 20, 60, 33],     // the south-bank riverside walk east of the timber bridge
+  [-56, -4, 22, 5],     // the north-bank quayside, where the blocks meet the quay stones
+];
+/** Everything paved: street paint, impact surfaces, the map and ground cover all read this. */
+export const ROADS: Rect[] = [...STREETS, ...PAVING];
 export const HILLS: readonly (readonly [number, number, number, number])[] = [
   [-98, -57, 48, 26], [-112, -20, 28, 23], [-67, -79, 31, 12],
   [4, -104, 37, 17], [54, -76, 43, 11], [-76, 66, 34, 14],
@@ -183,7 +196,7 @@ export const TWO_STOREY: readonly string[] = ['house_tall', 'sobrado'];
 export const SMALL_PLAN: readonly string[] = ['house_small', 'house_laje', 'house_laje_b'];
 function streetFacing(x: number, z: number) {
   let distance = Infinity, yaw = 0;
-  for (const [x0, z0, x1, z1] of ROADS) {
+  for (const [x0, z0, x1, z1] of STREETS) {
     const horizontal = x1 - x0 > z1 - z0;
     const px = horizontal ? Math.max(x0, Math.min(x1, x)) : (x0 + x1) / 2;
     const pz = horizontal ? (z0 + z1) / 2 : Math.max(z0, Math.min(z1, z));
@@ -263,7 +276,15 @@ function frontage(street: Side, line: number, from: number, to: number, codes: s
   for (let index = 0; index < 64; index++) {
     const code = codes[index % codes.length], remaining = (to - cursor) * direction;
     const gap = code === '|' ? 3.2 : code === '.' ? 1 : 0;
-    if (gap) { cursor += direction * gap; continue; }
+    if (gap) {
+      // A beco is paved from the street through the block, one row deep.
+      if (code === '|') {
+        const a = cursor, b = cursor + direction * gap, inner = line - outward * 8.2;
+        const [u0, u1] = [Math.min(a, b), Math.max(a, b)], [v0, v1] = [Math.min(line, inner), Math.max(line, inner)];
+        becos.push(along ? [u0, v0, u1, v1] : [v0, u0, v1, u1]);
+      }
+      cursor += direction * gap; continue;
+    }
     if (remaining >= widthOf(code) - .01) { cursor += direction * (put(code, cursor) + .15); continue; }
     const filler = FILLERS.filter(piece => ROW_SIZE[piece][0] <= remaining + .01)
       .sort((a, b) => ROW_SIZE[b][0] - ROW_SIZE[a][0])[0];
@@ -315,6 +336,8 @@ for (let i = houses.length - 1; i >= 0; i--) {
   rows.push({ x: round(front.x - Math.sin(h.yaw ?? 0) * rd / 2), z: round(front.z - Math.cos(h.yaw ?? 0) * rd / 2),
     w: turned ? rd : rw, d: turned ? rw : rd, yaw: h.yaw ?? 0, piece });
 }
+PAVING.push(...becos);
+ROADS.push(...becos);
 export const HOUSES: readonly HouseLot[] = [
   // Harbour, beach, farm and fishing houses keep their individual lots.
   home(47, 60, 'home', 'house_varanda'), home(-40, 80, 'home', 'house_varanda', Math.PI / 2),
@@ -325,6 +348,9 @@ export const HOUSES: readonly HouseLot[] = [
   ...houses,
 ];
 export const ROW_LOTS: readonly RowLot[] = rows;
+/** Enterable houses that stand in a street frontage, and the becos left between terraces. */
+export const FRONTAGE_HOUSES: readonly HouseLot[] = houses;
+export const BECOS: readonly Rect[] = becos;
 export const MORRO_LOTS: readonly HouseLot[] = [
   // The Morro climbs in flat-roofed laje houses: every roof is a terrace reached by its outside stair.
   home(-109, -69, 'home', 'house_laje'), home(-108, -54, 'home', 'house_laje_b'), home(-109, -38, 'home', 'house_laje'),

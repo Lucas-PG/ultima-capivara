@@ -4,7 +4,7 @@ import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
 import type { Mode, SpawnPoint } from '../src/shared/types';
-import { ARENA, BRIDGE_PLANS, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSE_BODY, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, QUAYS, RIVER, ROADS, ROSARIO_RECT, inArena, riverSample, routeDistance } from '../src/shared/layout';
+import { ARENA, BRIDGE_PLANS, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSE_BODY, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, QUAYS, RIVER, ROADS, ROSARIO_RECT, STREETS, inArena, riverSample, routeDistance } from '../src/shared/layout';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
 import { WORLD_PALETTE, roadPaintWeight, terrainColor, terrainHeight } from '../src/shared/terrain';
@@ -151,7 +151,7 @@ describe('river island gameplay integrity', () => {
   });
 
   it('faces district signs toward a public approach', () => {
-    const routes = [...NAV_ROUTES, ...ROADS.map(([x0, z0, x1, z1]) => x1 - x0 > z1 - z0 ?
+    const routes = [...NAV_ROUTES, ...STREETS.map(([x0, z0, x1, z1]) => x1 - x0 > z1 - z0 ?
       [[x0, (z0 + z1) / 2], [x1, (z0 + z1) / 2]] : [[(x0 + x1) / 2, z0], [(x0 + x1) / 2, z1]])];
     for (const sign of world.objects.filter(object => object.kind === 'sign')) {
       let nearest = Infinity, alignment = -1;
@@ -180,7 +180,7 @@ describe('river island gameplay integrity', () => {
   });
 
   it('faces each house frontage toward the street, square or path serving its lot', () => {
-    const access = (x: number, z: number) => Math.min(routeDistance(x, z) - 1.5, ...ROADS.map(([x0, z0, x1, z1]) =>
+    const access = (x: number, z: number) => Math.min(routeDistance(x, z) - 1.5, ...STREETS.map(([x0, z0, x1, z1]) =>
       Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1))));
     for (const h of [...HOUSES, ...MORRO_LOTS]) {
       const reach = HOUSE_BODY[h.piece][1] / 2 + 1.5, dx = Math.sin(h.yaw ?? 0), dz = Math.cos(h.yaw ?? 0);
@@ -453,11 +453,14 @@ describe('painted terrain regions', () => {
     expect(Math.abs(brightness(WORLD_PALETTE.road) - brightness(WORLD_PALETTE.grass))).toBeGreaterThan(20);
   });
   it('retains a green tropical island while making room for cliffs and beaches', () => {
+    // Streets and town paving are built ground by design; the rest must stay green.
     let land = 0, grass = 0, dry = 0, high = -Infinity, low = Infinity;
     for (let z = -120; z <= 120; z += 4) for (let x = -120; x <= 120; x += 4) {
       const y = terrainHeight(x, z); if (y < .5) continue;
       const slope = Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z), terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
-      const color = terrainColor(x, z, y, slope); land++; high = Math.max(high, y); low = Math.min(low, y);
+      const color = terrainColor(x, z, y, slope); high = Math.max(high, y); low = Math.min(low, y);
+      if (color === WORLD_PALETTE.road || color === WORLD_PALETTE.curb) continue;
+      land++;
       if ([WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass].some(c => c === color)) grass++;
       if (color === WORLD_PALETTE.dryGrass) dry++;
     }

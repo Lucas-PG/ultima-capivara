@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, DISTRICTS, ENGENHO, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, ROADS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
+import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, DISTRICTS, ENGENHO, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -9,6 +9,7 @@ import { buildingRole, buildingRooms, groundRoomPoint, interiorPlacements } from
 import { buildBuildingRoutes, buildingPoint } from './building-access';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 import { landmarkColliders, type LandmarkSpec } from './landmarks';
+import { dressStreets } from './street-life';
 
 const ground = terrainHeight;
 // The quay stones' height (bottom-centred piece) and their promenade top.
@@ -21,7 +22,7 @@ const p = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
 const faceToward = (x: number, z: number, targetX: number, targetZ: number) => Math.atan2(targetX - x, targetZ - z);
 function pathApproach(x: number, z: number) {
   let distance = Infinity, point = { x, z };
-  const paths = [...NAV_ROUTES, ...ROADS.map(([x0, z0, x1, z1]) => x1 - x0 > z1 - z0 ?
+  const paths = [...NAV_ROUTES, ...STREETS.map(([x0, z0, x1, z1]) => x1 - x0 > z1 - z0 ?
     [[x0, (z0 + z1) / 2], [x1, (z0 + z1) / 2]] : [[(x0 + x1) / 2, z0], [(x0 + x1) / 2, z1]])];
   for (const path of paths) for (let i = 1; i < path.length; i++) {
     const [ax, az] = path[i - 1], [bx, bz] = path[i], dx = bx - ax, dz = bz - az;
@@ -101,7 +102,7 @@ export function createWorld(): WorldSpec {
     if (SIGN_ART.some(art => art.label === label)) obj('sign', x, ground(x, z) + 1.6, z, 3.8, 1.2, .16, '#eccb8b', label,
       faceToward(x, z, approach.x, approach.z));
   };
-  const roadAt = (x: number, z: number, margin = 0) => ROADS.some(([x0, z0, x1, z1]) =>
+  const roadAt = (x: number, z: number, margin = 0) => STREETS.some(([x0, z0, x1, z1]) =>
     x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
   const playAreaAt = (x: number, z: number, margin: number) => [mudBaths, trampolines].some(sites =>
     sites.some(site => Math.hypot(site.x - x, site.z - z) < site.radius + margin));
@@ -193,8 +194,8 @@ export function createWorld(): WorldSpec {
   // Shrub beds along the market facades and the quay.
   for (const [x, z] of [[42.4, -24], [42.4, -16], [22.4, 7]] as const)
     if (KIT_PIECES.bush_cluster) place('bush_cluster', x, z, Math.PI / 2, .7, ground(x, z) - .1, 'undergrowth');
-  // Praça gardens: low shrubs soften the corners without closing the axis.
-  for (const [x, z] of [[-18.5, -22], [2.5, -22], [-18.5, -15], [2.5, -15]] as const)
+  // Praça gardens: low shrubs soften the west corners; the café terrace takes the east side.
+  for (const [x, z] of [[-18.5, -22], [-18.5, -15]] as const)
     if (KIT_PIECES.bush_cluster) place('bush_cluster', x, z, Math.PI / 2, .8, ground(x, z) - .1, 'undergrowth');
   for (const [x, z] of [[-18, -28], [2, -28], [-18, -9], [2, -9]] as const) detail('planter', x, z);
   for (const [x, z] of [[-20.3, -18], [4.3, -18], [-20.3, -8], [4.3, -8], [19.6, -6], [43.4, -6]] as const) detail('lamp_post', x, z);
@@ -282,6 +283,9 @@ export function createWorld(): WorldSpec {
       obj('grass', xx, y, z, 1, 1.2 + i * .18, 1, '#709A63', 'reeds');
     }
   }
+  // Vida das ruas: door pots and goods, shop signs, cables across the streets,
+  // laundry over the becos (src/shared/street-life.ts).
+  dressStreets({ detail, marker: obj, occupied, ground });
   // Entry markers sit beside open routes, so the warning has visible context.
   for (const [x, z, yaw] of [
     [-48, ARENA.minZ, 0], [-32, ARENA.minZ, 0], [-16, ARENA.minZ, 0], [21, ARENA.minZ, 0], [38, ARENA.minZ, 0], [54, ARENA.minZ, 0],
@@ -775,7 +779,7 @@ export function createWorld(): WorldSpec {
     if (y < .3 || occupied(x, z, 1) || roadAt(x, z, .5) || routeDistance(x, z) < 1.5) continue;
     obj('grass', x, y, z, .5, .4, .5, '#9CC756', 'tuft');
   }
-  for (const [x0, z0, x1, z1] of ROADS) {
+  for (const [x0, z0, x1, z1] of STREETS) {
     const horizontal = x1 - x0 > z1 - z0;
     for (let along = 9; along < (horizontal ? x1 - x0 : z1 - z0) - 4; along += 18) {
       const x = horizontal ? x0 + along : x1 + 1, z = horizontal ? z1 + 1 : z0 + along;

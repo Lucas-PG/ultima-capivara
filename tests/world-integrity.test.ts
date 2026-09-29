@@ -37,14 +37,11 @@ describe('island physical integrity', () => {
     const faults: string[] = [];
     for (const piece of world.pieces!) {
       if (WATERSIDE.test(piece.piece) || ROOTED.test(piece.piece) || interior(piece)) continue;
-      const shapes = solids.get(piece.id);
-      if (!shapes?.length) continue;
-      const base = Math.min(...shapes.map(c => c.min.y));
-      const feet = shapes.filter(c => c.min.y < base + .05);
-      // Sample under every footing solid: a stand-alone prop on a slope may lift
-      // one corner a little, but not its whole base.
-      const gaps = feet.map(c => { const p = centre(c); return base - support(p.x, p.z, base, piece.id); });
-      const height = Math.max(...shapes.map(c => c.max.y)) - base;
+      const definition = KIT_PIECES[piece.piece];
+      // Kit pieces are bottom-centred: the placement height is the visual base.
+      const [width, depth] = definition.footprint, base = piece.y, height = definition.height * (piece.scale ?? 1);
+      const samples = [[0, 0], [-.4, -.4], [.4, -.4], [.4, .4], [-.4, .4]].map(([u, v]) => at(piece, u * width, v * depth));
+      const gaps = samples.map(p => base - support(p.x, p.z, base, piece.id));
       if (Math.min(...gaps) > .15) faults.push(`${piece.id} hovers ${Math.min(...gaps).toFixed(2)} m`);
       if (Math.max(...gaps) < -Math.max(.45, height * .35)) faults.push(`${piece.id} is sunk ${(-Math.max(...gaps)).toFixed(2)} m`);
     }

@@ -161,7 +161,8 @@ export function beachDistance(x: number, z: number): number {
 // stretching a road rectangle down the cut. Both paving and curb fade together.
 export function roadPaintWeight(x: number, z: number, y: number, slope = 0): number {
   const coastal = 1 - ease((beachDistance(x, z) + 1) / 3) * (1 - ease((y - 2.5) / .75));
-  return coastal * (1 - ease((slope - .85) / .5));
+  // Paving never runs down under the water onto a river or harbour bed.
+  return coastal * (1 - ease((slope - .85) / .5)) * ease((y - .15) / .45);
 }
 export function terrainColor(x: number, z: number, y: number, slope: number,
   includeRoads = true, includeBeach = true, includeWet = true): string {
