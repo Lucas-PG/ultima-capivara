@@ -13,7 +13,9 @@ export const MERCADAO = [31, -22] as const;
 export const MARKET_RECT: Rect = [21, -31, 44, 12];
 export const LAKE = [-92, -1, 12] as const; // Cachoeira feeder pool.
 export const CAMPINHO = [88, -60] as const; // Neighbourhood football pitch, north-east field.
-export const ENGENHO = [-70, 20] as const; // Ruined sugar mill on the western river bank.
+export const ENGENHO = [-84, 16] as const; // The sugar mill hall on the upper river's south bank.
+/** The mill's water wheel stands in the river edge below the hall. */
+export const WATER_WHEEL = [-82, 5.2] as const;
 export const CAPELA = [-76, 66] as const; // Hilltop chapel above the south-west woods.
 export const ROSARIO = [-21, 26] as const; // Largo do Rosário, south bank square.
 /** Lagoa da Maré: the tidal lagoon of the south-east palafitas, wading deep and open to the sea. */
@@ -33,7 +35,7 @@ export const DISTRICT_ARRIVALS: Readonly<Record<string, readonly [number, number
   forte: [4, -78, 4, -99], vila: [-8, -8, -8, -40], mercado: [42, -7, 31, -22],
   morro: [-97, -66, -95, -35], cachoeira: [-83, -13, -109, -9], porto: [83, -8, 107, 12],
   praia: [-36, 95, -30, 109], farol: [-6, 76, -6, 115], mangue: [96, 40, 112, 50],
-  fazenda: [53, 78, 70, 60], rosario: [-21, 36, -21, 20], engenho: [-56, 26, -70, 20],
+  fazenda: [53, 78, 70, 60], rosario: [-21, 36, -21, 20], engenho: [-60, 35.5, -104, 35.5],
   campinho: [74, -48, 88, -60], capela: [-58, 70, -76, 66], palafitas: [84, 82, 96, 97],
 };
 export interface DistrictPlan { id: string; name: string; x: number; z: number; radius: number; color: string }
@@ -49,7 +51,7 @@ export const DISTRICTS: readonly DistrictPlan[] = [
   { id: 'mangue', name: 'Mangue', x: 110, z: 48, radius: 20, color: '#617c56' },
   { id: 'fazenda', name: 'Fazenda', x: 62, z: 64, radius: 24, color: '#d7b671' },
   { id: 'rosario', name: 'Rosário', x: -21, z: 36, radius: 18, color: '#e6a34f' },
-  { id: 'engenho', name: 'Engenho', x: -70, z: 22, radius: 17, color: '#b98a5e' },
+  { id: 'engenho', name: 'Engenho', x: -84, z: 24, radius: 20, color: '#b98a5e' },
   { id: 'campinho', name: 'Campinho', x: CAMPINHO[0], z: CAMPINHO[1], radius: 20, color: '#8fb35a' },
   { id: 'capela', name: 'Capela', x: -76, z: 64, radius: 15, color: '#a9b98a' },
   { id: 'palafitas', name: 'Palafitas', x: 92, z: 93, radius: 17, color: '#5fa8b0' },
@@ -165,6 +167,8 @@ export const STREETS: readonly Rect[] = [
   [-44, -33, -39, 7], [-44, 18, -39, 33],
   // South bank: Rua do Sul, the streets from the arch and timber bridges, the beach road.
   [-56, 33, 60, 38], [-10.5, 7, -5.5, 33], [33.5, 23, 38.5, 33],
+  // Rua do Engenho: the workers' street running west to the mill and the casa-grande.
+  [-106, 33, -56, 38],
   [-33, 38, -27, 89], [-30, 75, 71, 81], [57, 38, 63, 77], [-50, 97, 39, 103], [-10.5, 38, -5.5, 97],
   [80, 29, 86, 44],
   // Paved squares share the cobbled street paint.
@@ -325,6 +329,8 @@ frontage('n', 38, -5, 56.5, 'AqS|LTSmL|AS');
 // --- Porto: the harbour end of Rua Direita, the working quay behind it ----
 frontage('n', -33, 63, 79.5, 'hT');
 frontage('n', -33, 86.5, 118.1, 'Apwh');
+// --- Engenho: the workers' terrace on Rua do Engenho, a beco to the mill yard.
+frontage('s', 33, -102, -61, 'TT|kTh');
 // Enterable houses need both doorways open: a house whose back door would
 // open onto another building becomes a solid terraced front instead.
 for (let i = houses.length - 1; i >= 0; i--) {
@@ -346,10 +352,9 @@ ROADS.push(...becos);
 export const HOUSES: readonly HouseLot[] = [
   // Harbour, beach, farm and fishing houses keep their individual lots.
   home(47, 60, 'home', 'house_varanda'), home(-40, 80, 'home', 'house_varanda', Math.PI / 2),
-  home(-17, 90, 'fisher'), home(-64, 44, 'home', 'house_varanda'), home(-92, 26, 'home', 'house_varanda', Math.PI / 2),
-  home(62, 44, 'home', 'medium', -Math.PI / 2),
-  // Engenho workers' cottages and the fishermen's houses on the mangrove shore.
-  home(-62, 26, 'workshop'), home(101, 47, 'fisher', false, Math.PI),
+  home(-17, 90, 'fisher'), home(62, 44, 'home', 'medium', -Math.PI / 2),
+  // The Engenho's casa-grande looks over the mill yard; a fisherman's house on the mangrove shore.
+  home(-108, 20, 'home', 'house_varanda', Math.PI / 2), home(101, 47, 'fisher', false, Math.PI),
   ...houses,
 ];
 export const ROW_LOTS: readonly RowLot[] = rows;
@@ -377,7 +382,8 @@ export const AREAS: readonly { rect: Rect; margin: number; y: number | null; fix
   { rect: [12, 93, 47, 115], margin: 2, y: .85 },
   { rect: [-13, 109, 1, 122], margin: 1, y: 9.5, fixed: true },
   { rect: [CAMPINHO[0] - 25, CAMPINHO[1] - 15, CAMPINHO[0] + 25, CAMPINHO[1] + 17], margin: 3, y: null },
-  { rect: [-84, 12, -60, 32], margin: 3, y: null },
+  // The Engenho's mill yard and workers' street, level with the river terrace.
+  { rect: [-110, 9, -60, 38], margin: 3, y: 2.6 },
   // The coast road's timber bridge over the river mouth lands level on both banks.
   { rect: [77, 2, 85, 10], margin: 2, y: 2 }, { rect: [77, 32, 85, 40], margin: 2, y: 2 },
   // The palafitas' shore, level with the stilt decks over the lagoon.
@@ -404,9 +410,11 @@ export const NAV_ROUTES: readonly (readonly Point[])[] = [
   // Rua do Sul along the south bank.
   [[-60, 35.5], [-41.5, 35.5], [-30, 35.5], [-8, 35.5], [36, 35.5], [60, 35.5], [60, 44], [60, 78]],
   [[-97, -36], [-83, -13], [-66, -11], [-56, -12]],
-  // West: the Engenho on the river bank, the lake shore and the hill chapel.
-  [[-60, 35.5], [-66, 36], [-74, 40], [-86, 34], [-86, 18]],
-  [[-66, 36], [-60, 50], [-62, 58], [-70, 60], [-76, 58]],
+  // West: Rua do Engenho to the casa-grande, a beco down to the mill hall and
+  // its water wheel, and the climb to the hill chapel.
+  [[-60, 35.5], [-66, 35.5], [-85.7, 35.5], [-104, 35.5], [-101.5, 28], [-101.5, 20]],
+  [[-85.7, 35.5], [-85.7, 23.5], [-85.7, 12], [-90, 8]],
+  [[-66, 35.5], [-60, 50], [-62, 58], [-70, 60], [-76, 58]],
   [[-30, 35.5], [-30, 61], [-30, 78], [-45, 100], [-8, 100], [36, 100], [60, 78]],
   [[-30, 78], [3, 78], [60, 78], [80, 54], [100, 44]],
   // Down from the farm road to the palafitas' shore and the boardwalk.

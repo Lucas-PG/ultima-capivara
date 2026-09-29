@@ -1,12 +1,13 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, DISTRICTS, ENGENHO, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
+import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
 import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
 import { buildingRole, buildingRooms, groundRoomPoint, interiorPlacements } from './building-interiors';
 import { buildBuildingRoutes, buildingPoint } from './building-access';
+import { WATER_LEVEL } from './water';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 import { landmarkColliders, type LandmarkSpec } from './landmarks';
 import { dressStreets } from './street-life';
@@ -450,6 +451,20 @@ export function createWorld(): WorldSpec {
     obj('box', x, .02, z, 1, 1, 1, '#DB8263', 'prop:street-buoy');
   landmark('crane', 101, -9, 0);
   sign(80, -30, 'PORTO');
+
+  // Engenho: the sugar mill hall on the river terrace, its brick chimney, the
+  // water wheel turning in the river below and cane on the hill behind the
+  // workers' terrace.
+  {
+    const [ex, ez] = ENGENHO, ey = ground(ex, ez);
+    if (KIT_PIECES.engenho) place('engenho', ex, ez, 0, 1, ey);
+    detail('chamine', ex + 10.8, ez - 3.2, 0, 1, ground(ex + 10.8, ez - 3.2));
+    landmark('waterwheel', WATER_WHEEL[0], WATER_WHEEL[1], 0, WATER_LEVEL);
+    for (const [x, z, yaw] of [[-100, 44, .05], [-93, 45.5, -.04], [-86, 44, .1], [-79, 46, 0], [-114, 26, 1.6], [-114, 34, 1.5], [-114, 42, 1.62]] as const)
+      detail('canavial', x, z, yaw, 1, ground(x, z) - .05);
+    for (const [piece, x, z, yaw] of [['sacos', -95, 12.2, .2], ['sacos', -94, 23.5, 0], ['barrel', -76.5, 23.8, 0], ['barrel', -75.6, 24.4, 0],
+      ['carrinho_coco', -92, 27.5, 1.2], ['crate', -77, 9.5, .3]] as const) if (!occupied(x, z, .3)) detail(piece, x, z, yaw, piece === 'crate' ? .85 : 1);
+  }
 
   // Palafitas: the fishing village on stilts in the Lagoa da Maré. A boardwalk
   // leaves the beach for a junction deck, runs east past a second junction to

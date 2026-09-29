@@ -48,7 +48,7 @@ describe('river island gameplay integrity', () => {
     }
     // Landmarks are drawn from the same spec their colliders come from.
     for (const landmark of landmarks.values()) expect(world.colliders.filter(c => c.pieceId === landmark.id)).toEqual(landmarkColliders(landmark));
-    expect([...landmarks.values()].map(l => l.kind).sort()).toEqual(['crane', 'radio_mast', 'redentora', 'windmill']);
+    expect([...landmarks.values()].map(l => l.kind).sort()).toEqual(['crane', 'radio_mast', 'redentora', 'waterwheel', 'windmill']);
     for (const piece of pieces.values()) {
       expect(KIT_PIECES[piece.piece], `missing mesh contract ${piece.piece}`).toBeDefined();
       expect(world.colliders.filter(c => c.pieceId === piece.id)).toEqual(kitColliders(piece));
