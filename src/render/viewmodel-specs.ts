@@ -88,8 +88,8 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     // thumb resting along the right of the receiver, claws of the other digits showing on the grip's
     // left side (the middle digit brushes the guard bar, under 3 mm, hidden). L (underhand): palm under the
     // handguard, thumb along its left side, the three digits wrapping up the right side, no clipping.
-    grips: { R: { wrist: [.038, -.027, .088], forward: [.059, -.255, -.965], palm: [-.949, .286, -.133], curl: curl([.475, .614, .429], [1.253, .127, .478], [1.177, .752, .412], [-.032, .369, .647], -.315), pole: [.8, -1, .3] },
-      L: { wrist: [-.041, .015, -.234], forward: [.914, 0, -.405], palm: [.075, .983, .167], curl: curl([.315, .765, .867], [.337, .939, .962], [.451, 1.074, .764], [.252, .096, .258], .662), pole: [-.8, -1, .1] } },
+    grips: { R: { wrist: [.043, -.027, .088], forward: [.181, -.069, -.981], palm: [-.937, .29, -.193], curl: curl([.475, .614, .429], [1.253, .127, .478], [1.181, .756, .413], [-.039, .369, .647], -.315), pole: [.8, -1, .3] },
+      L: { wrist: [-.037, .014, -.235], forward: [.926, .007, -.377], palm: [-.012, 1, -.011], curl: curl([.144, .696, .86], [.336, .939, .962], [.494, 1.076, .749], [.252, .096, .258], .662), pole: [-.8, -1, .1] } },
     recoil: RECOIL.rifle, inertia: 1,
   },
   shotgun: {
