@@ -54,7 +54,18 @@ Priority order follows the brief: POV, weapons, character, map, graphics, combat
 
 ### C. Character
 - [x] C1 Character v4 (`tools/blender/capybara_v4.py`): metaball sculpt of the turnaround proportions, remeshed skin, clothing shells (shirt, vest with pouches, shorts, belt), team-masked bandana, backpack and bedroll, inset eyes with iris/pupil/glint, brows, ears, nostrils, digits and claws; baked occlusion in vertex colour; LODs 38k/8k/2.2k (far LOD drops sub-pixel parts); heat weights on the closed skin transferred to garments
-- [~] C2 New run (lean, bounce, counter-twist, ear flop) and walk (waddle) clips, new TP reload; held guns ride the right paw with left-arm IK. Still open: strafe/backpedal review in motion, death and hit review, swim and parachute review
+- [~] C2 New run (lean, bounce, counter-twist, ear flop) and walk (waddle) clips, new TP reload; held guns ride the right paw with left-arm IK. Remaining review moved to I7 (new rig)
+
+### I. Guns, holding and character pass (requested 2026-09-28)
+Base: the isolated benchmark (`docs/art/character-benchmark/`), ported whole in 369fed9 because it was built on our exact HEAD (71c3902) and its paws, fur/cloth surfaces, M4 finish and aiming were judged better than ours in side-by-side renders. Known problems carried in: odd straight M4 magazine, support paw gripping the handguard from below with fingers pointing up, M4 reload feel, +7.6 MB of assets.
+- [x] I1 Port: character v5 (surface atlas, four-digit articulated paws, forearm twist joints), FP arms, M4 v2 with open irons, FOV-relative mouse sensitivity, mild tangent-correct M4 zoom, per-weapon viewmodel FOV, part-anchored reload contacts, empty/partial M4 reload, TP bind-scale fix, separate nearby TP magazine
+- [ ] I2 Asset budget: one shared surface texture set for character and FP arms, texture size/compression review, measured load time against the pre-port build
+- [ ] I3 M4: curved stylized magazine, natural support grip on the handguard, reload re-authored (weight, visibility, tactical vs empty)
+- [ ] I4 Shared systems for every magazine gun: empty/partial reloads and part-anchored paws (pistol, SMG, Carabina); one aiming model (tangent zoom, FOV-relative sensitivity, per-weapon lens) reviewed on all ten
+- [ ] I5 The other nine weapons brought to the M4's finish (material hierarchy, wear, hardware) and regripped for the new paws: hip, ADS, sprint, reload, inspect sheets per weapon
+- [ ] I6 Third-person holding on the new character for every class (rifle, pistol, heavy, melee, slingshot) incl. reload, sprint, crouch; no clipping at the camera distances players see
+- [ ] I7 Character: proportions, face, LODs at distance, team colour readability; animation review on the new rig (walk, run, strafe, backpedal, crouch, jump, hit, death, swim, parachute, emotes); replaces C2
+- [ ] I8 Concept references via Codex image generation where a design question is open (magazine, weapon family sheet, holding poses); references only, never runtime assets
 
 ### D. Map and world
 - [x] D1 Capivara Redentora on the summit (visible from the plaza and the plane); Campinho football pitch in the empty north-east field (new district, route, signs)
