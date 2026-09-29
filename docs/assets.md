@@ -570,6 +570,90 @@ Native Metal review on the Apple M2 compares the same 3 m, 15 m, 60 m, underside
 
 Real walking circles the plaza ipê and traverses the repaired tailor house up and down without jumping or position corrections after the entrance. The existing single indoor fill now follows upper floor slabs from kit metadata, improving stair and room readability on Medium and Low without new lights or shadow maps. Window-light patches, ceiling tone and furniture remain separate follow-ups. Trunk rendering and the exported tapered/leaned stem API share geometry; Mapa's authoritative trunk collider/navigation consumer remains pending. New collision or gameplay behavior is not claimed here. Overall cover parity remains open.
 
+### Codex-painted fronds, bougainvillea and garden plants, 2026-09-29
+
+Four original paintings made with Codex's built-in image generation tool (`image_gen`, no API key, account or payment; no external reference image) extend the foliage atlas. They are kept unchanged as sources:
+
+| Source | Size | SHA-256 | Built-in output |
+| --- | --- | --- | --- |
+| `tools/art/foliage-garden-codex.png` | 1254x1254 RGBA | `9e2de6f8299ea82ad1b639939050b1f6cd067c3a0844c017cb23f7395cf9f64f` | `~/.codex/generated_images/01a0eda4-e69d-7240-893c-9ff9d5453c91/exec-4d7ca30b-b8bf-452c-aafb-0efc388efb39.png` |
+| `tools/art/foliage-fronds-codex.png` | 1254x1254 RGBA | `09909625437dc934a85166b7fb3de88a4fb9b2b76cd188347b67aee4c92252de` | `~/.codex/generated_images/01a0eda8-575c-74b3-ab42-06fa3f7507d1/exec-3d34424e-6d9f-4bba-84b6-1e7d324acee6.png` |
+| `tools/art/foliage-vines-codex.png` | 1254x1254 RGBA | `40f430962c430019298ebb885be4a46b45fb8f96fd6a949f49750b21c4c7b1d7` | `~/.codex/generated_images/01a0eda8-575d-79a3-b670-143a1df25579/exec-65c79ab2-b76a-4244-9732-018f3ef74c7d.png` |
+| `tools/art/foliage-blooms-codex.png` | 1254x1254 RGBA | `67234f36aec98e98cc1cee970bddb0c86e0994d6c9c3e80bd633aa3d129615f6` | `~/.codex/generated_images/01a0edff-bc08-7de1-9ab6-b6278c32e454/exec-982adabe-9554-462a-bd3e-629d1e304a81.png` |
+
+`node tools/art/build-foliage-atlas.mjs` cleans each sheet in memory with `tools/art/prepare-foliage-sheet.mjs` (alpha below 28 becomes 0, above 196 becomes 255, specks under 24 pixels are dropped, each subject is the set of painted components centred in its cell) and packs the tiles into `public/textures/foliage-atlas.webp` (2048 square) and `public/textures/ground-atlas.webp` (1024 square) with MaxRects packing, 6-pixel transparent guards and 10-pixel colour bleed. RGB is WebP quality 80, alpha lossless. Only the first 3 pixels around the paint carry its edge colour; every other transparent texel carries the tile's mean paint, so mip levels keep the painted brightness at range. The ipe and flamboyant crowns use the bloom paintings whole (the earlier procedural SVG blooms and fronds are retired). The wild-grass tuft is graded toward the terrain's grass paint; the distant coconut frond is the same painting with its leaflet gaps closed (5 pixels). Tile rects, roots, sources and each tile's mean colour are recorded in `tools/art/*-atlas.metrics.json`. No colour was repainted by hand.
+
+Garden sheet prompt (4x4 grid):
+
+```text
+Use case: stylized-concept. Create ONE production foliage sprite atlas for the original painted tropical Brazilian cartoon game Ultima Capivara. Square canvas, 2048 x 2048 pixels if possible, RGBA PNG with a genuinely transparent background (alpha 0), not a checkerboard illustration and not a coloured backdrop. The canvas is an exact 4 by 4 grid of sixteen equal square cells. No visible grid, labels, numbers, borders, text, ground, soil, pots, backdrop, cast shadows, glow, or white outlines. Each cell contains ONE isolated botanical subject fully inside its own cell, inside the central 84 percent of the cell, never touching or crossing the cell edges. Gaps between leaves, leaflets and blades are fully transparent. Leaves, petals and stems are fully opaque with antialiased silhouette edges only, no translucent interiors.
+
+Style: premium hand-painted storybook cartoon foliage, like the painted leaves of a high-end stylized game (Overwatch or Fortnite finish), matching warm golden-hour cover art. Rounded organic shapes, readable veins, visible soft brushwork, lively hue variation, warm yellow-green highlights and cool blue-green shadows painted into the leaves, natural not neon. Viewed flat and front-on (orthographic), evenly lit from the upper left, no perspective.
+
+Exact reading order, top-left first, one subject per cell:
+ROW 1:
+0: one full coconut palm frond seen from directly above: a perfectly straight vertical midrib from the bottom-centre of the cell to the top-centre, many long slender leaflets on BOTH sides, mirror-symmetric, each leaflet sweeping toward the tip and slightly drooping, the frond widest in its lower-middle and tapering to a point at the top. The frond spans nearly the full cell height and about one third of its width. Fresh green leaflets with yellow-green tips.
+1: the same kind of straight coconut palm frond but older: olive and yellow-ochre leaflets with a few dry brown tips, same symmetric layout, straight vertical midrib.
+2: a long cascading bougainvillea vine hanging DOWN from the top-centre of the cell: a short woody stem at the top edge, then small green leaves and many dense clusters of vivid magenta papery bracts, the trail spreading wider as it falls, ragged irregular lower outline.
+3: a rounded dense mound of bougainvillea: vivid magenta and hot pink papery bract clusters with some green leaves, front view, flat base.
+ROW 2:
+4: a long cascading bougainvillea vine hanging down from the top-centre, like cell 2 but with warm coral-orange and apricot bracts.
+5: a hibiscus branch with glossy dark green leaves and three large open scarlet red hibiscus flowers with long yellow stamens.
+6: an upright heliconia flower spike: alternating scarlet red boat-shaped bracts with yellow and green lips on a zig-zag stem, two tall green paddle leaves behind it, base at bottom-centre.
+7: a bird-of-paradise (strelitzia) plant: two orange and blue crane-shaped flowers and three long upright paddle leaves, base at bottom-centre.
+ROW 3:
+8: a croton shrub sprig: glossy leathery leaves variegated in yellow, orange, red and green, dense cluster.
+9: one big heart-shaped taro (elephant ear, colocasia) leaf on a long stalk, leaf tip pointing down and to the side, stalk base at bottom-centre, green with lighter veins.
+10: a short dense lawn grass tuft: many fine curved blades in fresh green with yellow-green tips and darker bases, fanning out wide, root at bottom-centre, width about twice its height.
+11: a taller wild grass tuft with arching blades and a few feathery golden seed heads, olive and yellow-green, root at bottom-centre.
+ROW 4:
+12: a beach dune grass tuft: long thin arching blades in pale sage green and straw yellow, root at bottom-centre.
+13: a low patch of small tropical wildflowers: pink, magenta and white five-petal blossoms (impatiens) among small green leaves, flat base.
+14: a mango tree leaf spray: long lanceolate glossy dark green leaves with a few young bronze-red leaves at the tip, branching twig.
+15: a bromeliad rosette in side view: stiff arching green leaves with a bright red and yellow flower bract in the centre, base at bottom-centre.
+
+Prioritise: the precise regular 4x4 grid, clean true transparency, every subject separated inside its own cell with wide transparent margins, and botanical readability when the sprite is shrunk to a small game texture. No capybaras, characters, pots, containers, ground or scene elements.
+```
+
+Frond prompt:
+
+```text
+Use case: stylized-concept. A production game sprite: TWO isolated coconut palm fronds side by side on a square canvas, RGBA PNG with a genuinely transparent background (alpha 0), no checkerboard, no backdrop, no shadow, no text. Each frond occupies its own half of the canvas (left half and right half), centred in that half, never crossing the centre line or the canvas edges, with a clear transparent margin.
+
+Each frond is seen from directly above, perfectly straight: its midrib is a straight vertical line from the bottom edge region (the stalk end) to the top (the tapered tip), running the full canvas height minus a small margin. Many long, slender, pointed leaflets grow on BOTH sides of the midrib, mirror-symmetric, densely packed with thin transparent gaps between them, each leaflet angled about 40 degrees toward the tip and gently curving outward and down at its end. The frond outline is a long narrow feather: widest at about one third of its length from the stalk, about one quarter as wide as it is long, tapering to a point at the tip, and the lowest 8 percent is a bare stalk with no leaflets.
+
+LEFT frond: healthy young frond, fresh saturated green leaflets with yellow-green sunlit tips and a pale golden midrib.
+RIGHT frond: an older frond, olive green fading to ochre-yellow toward the tips, a few dry tan leaflet tips.
+
+Style: premium hand-painted storybook cartoon foliage for a stylized 3D game (Overwatch or Fortnite finish): clean readable shapes, soft visible brushwork, a lighter stripe along each leaflet's centre, warm highlights and cool blue-green shadows painted in, natural not neon. Flat orthographic top view, evenly lit, no perspective. Leaflets fully opaque with antialiased edges, gaps fully transparent.
+```
+
+Bougainvillea prompt:
+
+```text
+Use case: stylized-concept. A production game sprite sheet on a square canvas, RGBA PNG with a genuinely transparent background (alpha 0), no checkerboard, no backdrop, no wall, no shadow, no text. The canvas is split into FOUR equal vertical columns; each column holds ONE isolated bougainvillea subject centred in its column, never crossing into the next column or touching the canvas edges.
+
+Column 1: a long cascading bougainvillea vine hanging straight DOWN from the top edge: a short woody stem at the very top, then small oval green leaves and many dense clusters of vivid magenta papery bracts with tiny cream flowers, the trail widening as it falls, a ragged irregular lower outline with a few loose hanging tendrils; it spans nearly the full canvas height.
+Column 2: the same kind of hanging vine but shorter (two thirds of the height), hot pink and magenta bracts, fuller at the top.
+Column 3: a hanging vine like column 1 but with warm coral-orange and apricot bracts.
+Column 4: a hanging vine like column 1 but mostly green leaves with fewer, scattered magenta bract clusters, a leafier trail.
+
+Style: premium hand-painted storybook cartoon foliage for a stylized 3D game (Overwatch or Fortnite finish), matching warm golden-hour tropical cover art: papery bracts in soft painted clusters, readable leaf shapes, visible soft brushwork, warm highlights and cool shadows painted in, rich but natural colours. Flat front view, evenly lit, no perspective. Bracts and leaves fully opaque with antialiased edges; gaps between clusters fully transparent.
+```
+
+Bloom prompt (2x2 grid):
+
+```text
+Use case: stylized-concept. A production foliage sprite sheet for a stylized 3D game: a square canvas split into an exact 2 by 2 grid of four equal cells, RGBA PNG with a genuinely transparent background (alpha 0), no checkerboard, no backdrop, no ground, no shadow, no text, no grid lines. Each cell holds ONE isolated rounded cluster, centred, filling about 80 percent of its cell and never touching or crossing the cell edges. Gaps between flowers and leaves are fully transparent; flowers and leaves are fully opaque with antialiased edges.
+
+TOP LEFT: a dense rounded cluster of golden yellow ipe (Handroanthus) trumpet flowers, as on a tree in full bloom with no leaves: dozens of ruffled trumpet blossoms in warm saturated golden yellow with orange throats, soft lighter petal edges, a few thin brown twigs showing between them.
+TOP RIGHT: the same kind of dense cluster in pink ipe: vivid pink and magenta trumpet blossoms with pale throats, no leaves, a few thin brown twigs.
+BOTTOM LEFT: a dense cluster of flamboyant (royal poinciana, Delonix regia) flowers: scarlet red and flame orange five-petal blossoms with one streaked yellow-white petal each, among a few fine feathery bright green leaves.
+BOTTOM RIGHT: a spray of flamboyant foliage only: fine feathery fern-like bipinnate leaves in fresh bright green with yellow-green highlights, many tiny leaflets.
+
+Style: premium hand-painted storybook cartoon foliage (Overwatch or Fortnite finish), matching warm golden-hour tropical Brazilian cover art: soft visible brushwork, warm highlights and cool shadows painted into the petals and leaves, rich saturated but natural colour, readable when shrunk to a small texture. Flat front view, evenly lit from the upper left, no perspective.
+```
+
 ### Connected tall-house stairs and walking surfaces, 2026-09-26
 
 Original geometry in `tools/blender/kit/spec.py` repairs the tall house with eight deep wooden treads, a clear starter approach, an open stairwell and a visible upper landing. The landing closes the former 0.75 m lateral gap and meets the room floor at 3.22 m. Each flight post rests on its tread; the upper guard rests on the room slab. Floors, entrances, route points and tread indices are exported alongside the collision shapes from the same authored primitives. No movement physics or invisible support was added. The world version is `ilha-v3-rio-7`.
