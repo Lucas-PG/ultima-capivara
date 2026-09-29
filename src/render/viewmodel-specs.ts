@@ -82,14 +82,12 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   },
   m4: {
     url: 'models/arsenal/m4.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: { pos: [.17, -.195, -.37], rot: [.06, .24, -.12] },
+    hip: { pos: [.15, -.14, -.45], rot: [.04, .18, -.10] },
     sprint: LONG_SPRINT, adsDistance: .15, viewmodelFov: 64, shoulders: RIFLE_SHOULDERS,
-    // Fitted with tools/qa/grip-fit.mjs. R: index through the enlarged guard onto the trigger face,
-    // thumb resting along the right of the receiver, claws of the other digits showing on the grip's
-    // left side (the middle digit brushes the guard bar, under 3 mm, hidden). L (underhand): palm under the
-    // handguard, thumb along its left side, the three digits wrapping up the right side, no clipping.
-    grips: { R: { wrist: [.043, -.027, .088], forward: [.181, -.069, -.981], palm: [-.937, .29, -.193], curl: curl([.475, .614, .429], [1.253, .127, .478], [1.181, .756, .413], [-.039, .369, .647], -.315), pole: [.8, -1, .3] },
-      L: { wrist: [-.037, .014, -.235], forward: [.926, .007, -.377], palm: [-.012, 1, -.011], curl: curl([.144, .696, .86], [.336, .939, .962], [.494, 1.076, .749], [.252, .096, .258], .662), pole: [-.8, -1, .1] } },
+    // Right index occupies the roomy guard; support wraps the rear handguard.
+    // Contact coordinates are measured against the packed asset in metres.
+    grips: { R: {wrist: [0.043291, -0.034263, 0.076335], forward: [0.24894, -0.287327, -0.924917], palm: [-0.968176, -0.048426, -0.245539], pole: [0.8, -1, 0.3], curl: {index: [1.233688, 0.498791, 0.198466], middle: [1.640656, 0.978047, 0.615716], ring: [1.157106, 0.842412, 0.390713], thumb: [0.44918, 0.426999, 0.725114], spread: 0.237084}},
+      L: {wrist: [-0.066016, 0.060359, -0.141015], forward: [0.074714, 0.399403, -0.913726], palm: [0.898035, -0.425303, -0.112475], pole: [-0.8, -1, 0.1], curl: {index: [0.571759, 1.513912, 0.276212], middle: [0.400614, 1.310437, 1.17425], ring: [1.361137, -0.1, 0.430514], thumb: [-0.1, -0.1, 0.583421], spread: -0.479682}} },
     recoil: RECOIL.rifle, inertia: 1,
   },
   shotgun: {

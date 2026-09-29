@@ -557,12 +557,12 @@ export class WeaponView {
 
   private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget) {
     if (key.space === 'grip') { this.gripTarget(model, grip, out); return; }
-    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: key.curl ?? grip.curl, pole: grip.pole };
+    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: key.curl ?? grip.curl, pole: key.pole ?? grip.pole };
     if (key.space === 'gun') { this.gripTarget(model, spec, out); return; }
     out.wrist.set(spec.wrist[0], spec.wrist[1], spec.wrist[2]);
     out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
     out.palm.set(spec.palm[0], spec.palm[1], spec.palm[2]).normalize();
-    out.curl = spec.curl; out.pole.set(grip.pole[0], grip.pole[1], grip.pole[2]).normalize();
+    out.curl = spec.curl; out.pole.set(spec.pole[0], spec.pole[1], spec.pole[2]).normalize();
     if (key.space === 'part') {
       const part = model.parts[key.part as keyof Parts];
       if (!part) throw new Error(`Reload contact part missing: ${model.id}/${key.part}`);
@@ -579,7 +579,7 @@ export class WeaponView {
     out.forward.copy(this.handA.forward).lerp(this.handB.forward, u).normalize();
     out.palm.copy(this.handA.palm).lerp(this.handB.palm, u).normalize();
     out.curl = blendCurl(this.handA.curl, this.handB.curl, u);
-    out.pole.copy(this.handA.pole);
+    out.pole.copy(this.handA.pole).lerp(this.handB.pole, u).normalize();
   }
 
   private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean) {
