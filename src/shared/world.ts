@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
+import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, CAPELA_STAIR, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -184,6 +184,10 @@ export function createWorld(): WorldSpec {
   // Capela do Rosário faces its largo across Rua do Sul; a smaller chapel crowns the south-west hill.
   place('church', ROSARIO[0], 45.5, Math.PI, 1, ground(ROSARIO[0], 45.5), 'capela-rosario');
   place('church', CAPELA[0], CAPELA[1], Math.PI / 2, 1, ground(CAPELA[0], CAPELA[1]), 'capela-morro');
+  // Its stone stair climbs the hill's east face on the chapel's axis; the
+  // cruzeiro stands on the adro between the stair head and the door.
+  detail('escadaria', CAPELA_STAIR.x, CAPELA_STAIR.z, CAPELA_STAIR.yaw, 1, CAPELA_STAIR.foot);
+  detail('cruzeiro', CAPELA[0] + 11.2, CAPELA[1], Math.PI / 2, 1, ground(CAPELA[0] + 11.2, CAPELA[1]));
   place('market_hall', ...MERCADAO);
   detail('fountain', PLAZA[0], PLAZA[1]);
   for (const [x, z] of [[-15, -25], [-1, -25], [-15, -13], [-1, -13]] as const)
@@ -347,6 +351,9 @@ export function createWorld(): WorldSpec {
     }
     // Keep the visible lip, curved water and splash pool open between the banks.
     if (bottom < 17 && x + halfX > -119 && x - halfX < -106 && z + halfZ > -13 && z - halfZ < -4) return false;
+    // The Capela's stair and its walls stay clear, a metre each side.
+    const stairHalf = CAPELA_STAIR.risers * CAPELA_STAIR.run / 2 + 1, stairWide = CAPELA_STAIR.halfWidth + 1;
+    if (Math.abs(x - CAPELA_STAIR.x) < halfX + stairHalf && Math.abs(z - CAPELA_STAIR.z) < halfZ + stairWide) return false;
     const radius = Math.max(...definition.footprint) * scale * .72 + 1.4;
     const routes = cliffRoutes.filter(point => Math.abs(point.x - x) < radius && Math.abs(point.z - z) < radius);
     const houses = [...HOUSES, ...MORRO_LOTS].filter(h => Math.abs(h.x - x) < radius + h.w / 2 && Math.abs(h.z - z) < radius + h.d / 2);
@@ -811,6 +818,8 @@ export function createWorld(): WorldSpec {
       const angle = i * 2.399 + district.x * .04, radius = district.radius * (.68 + i % 3 * .12);
       understory(district.x + Math.cos(angle) * radius, district.z + Math.sin(angle) * radius, .8 + foliageRandom() * .45);
     }
+    // The Capela's stair climbs between planted banks.
+    for (const x of [-45, -50, -55]) for (const side of [-1, 1]) understory(x, CAPELA_STAIR.z + side * 3.6, .85);
   }
   for (let i = 0; i < 160; i++) {
     const x = -120 + random() * 240, z = -120 + random() * 240, y = ground(x, z);

@@ -17,6 +17,11 @@ export const ENGENHO = [-84, 16] as const; // The sugar mill hall on the upper r
 /** The mill's water wheel stands in the river edge below the hall. */
 export const WATER_WHEEL = [-82, 5.2] as const;
 export const CAPELA = [-76, 66] as const; // Hilltop chapel above the south-west woods.
+/** The Capela's stone stair: one straight flight on the chapel's axis, from
+ * the foot of the hill (x) up the east face to the adro at 14 m. Its treads
+ * match the escadaria kit piece (tools/blender/kit/capela.py); the ground
+ * under the flight is cut to it. */
+export const CAPELA_STAIR = { x: -52, z: 66, yaw: Math.PI / 2, foot: 2.6, risers: 40, rise: .285, run: .5, halfWidth: 2.3 } as const;
 export const ROSARIO = [-21, 26] as const; // Largo do Rosário, south bank square.
 /** Lagoa da Maré: the tidal lagoon of the south-east palafitas, wading deep and open to the sea. */
 export const MARE = { x: 96, z: 97, rx: 17, rz: 12, bed: -.8 } as const;
@@ -36,7 +41,7 @@ export const DISTRICT_ARRIVALS: Readonly<Record<string, readonly [number, number
   morro: [-97, -66, -95, -35], cachoeira: [-83, -13, -109, -9], porto: [83, -8, 107, 12],
   praia: [-36, 95, -30, 109], farol: [-6, 76, -6, 115], mangue: [96, 40, 112, 50],
   fazenda: [53, 78, 70, 60], rosario: [-21, 36, -21, 20], engenho: [-60, 35.5, -104, 35.5],
-  campinho: [74, -48, 88, -60], capela: [-58, 70, -76, 66], palafitas: [84, 82, 96, 97],
+  campinho: [74, -48, 88, -60], capela: [-37.5, 66, -76, 66], palafitas: [84, 82, 96, 97],
 };
 export interface DistrictPlan { id: string; name: string; x: number; z: number; radius: number; color: string }
 export const DISTRICTS: readonly DistrictPlan[] = [
@@ -53,7 +58,7 @@ export const DISTRICTS: readonly DistrictPlan[] = [
   { id: 'rosario', name: 'Rosário', x: -21, z: 36, radius: 18, color: '#e6a34f' },
   { id: 'engenho', name: 'Engenho', x: -84, z: 24, radius: 20, color: '#b98a5e' },
   { id: 'campinho', name: 'Campinho', x: CAMPINHO[0], z: CAMPINHO[1], radius: 20, color: '#8fb35a' },
-  { id: 'capela', name: 'Capela', x: -76, z: 64, radius: 15, color: '#a9b98a' },
+  { id: 'capela', name: 'Capela', x: -64, z: 66, radius: 22, color: '#a9b98a' },
   { id: 'palafitas', name: 'Palafitas', x: 92, z: 93, radius: 17, color: '#5fa8b0' },
 ];
 
@@ -183,6 +188,8 @@ export const PAVING: Rect[] = [
   [62, -33, 124, -3],   // the harbour yard behind the Rua Direita houses
   [24, 20, 60, 33],     // the south-bank riverside walk east of the timber bridge
   [-56, -4, 22, 5],     // the north-bank quayside, where the blocks meet the quay stones
+  [-67.7, 59, -62, 73], // the Capela's adro, between the chapel door and the stair head
+  [-42, 63.6, -33, 68.4], // the landing at the stair foot, off the Capela street
 ];
 /** Everything paved: street paint, impact surfaces, the map and ground cover all read this. */
 export const ROADS: Rect[] = [...STREETS, ...PAVING];
@@ -390,7 +397,7 @@ export const AREAS: readonly { rect: Rect; margin: number; y: number | null; fix
   { rect: MARE_SHORE, margin: 3, y: 1.15 },
   // The fishing village's shore terrace above the mangrove.
   { rect: [92, 42, 128, 64], margin: 3, y: 2.2 },
-  { rect: [CAPELA[0] - 10, CAPELA[1] - 7, CAPELA[0] + 10, CAPELA[1] + 7], margin: 2, y: 14, fixed: true },
+  { rect: [CAPELA[0] - 10, CAPELA[1] - 7, CAPELA[0] + 14, CAPELA[1] + 7], margin: 2, y: 14, fixed: true },
 ];
 
 // Shared endpoints are junctions. Cover keeps these routes at least 3 m wide.
@@ -415,13 +422,14 @@ export const NAV_ROUTES: readonly (readonly Point[])[] = [
   [[-60, 35.5], [-66, 35.5], [-85.7, 35.5], [-104, 35.5], [-101.5, 28], [-101.5, 20]],
   [[-85.7, 35.5], [-85.7, 23.5], [-85.7, 12], [-90, 8]],
   [[-66, 35.5], [-60, 50], [-62, 58], [-70, 60], [-76, 58]],
-  [[-30, 35.5], [-30, 61], [-30, 78], [-45, 100], [-8, 100], [36, 100], [60, 78]],
+  [[-30, 35.5], [-30, 61], [-30, 66], [-30, 78], [-45, 100], [-8, 100], [36, 100], [60, 78]],
   [[-30, 78], [3, 78], [60, 78], [80, 54], [100, 44]],
   // Down from the farm road to the palafitas' shore and the boardwalk.
   [[60, 78], [71, 79], [79, 82], [86, 84.5]],
   // The lighthouse path climbs the cape's north face in two long ramps.
   [[-8, 78], [-8, 97], [4, 96], [14, 102], [10, 109], [0, 112]],
-  [[-30, 61], [-63, 61], [-64, 87], [-45, 100]],
+  // Up the Capela's stair to the adro, and down the hill's east shoulder to the beach.
+  [[-30, 66], [-41, 66], [-62.5, 66], [-63.5, 73], [-64, 87], [-45, 100]],
   [[-8, 35.5], [-8, 78]],
   // Beach traffic joins the graded southern ramp below the fort. A shortcut
   // across the fixed terrace would create an unwalkable cut under its walls.

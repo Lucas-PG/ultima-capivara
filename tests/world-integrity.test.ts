@@ -3,6 +3,7 @@ import { createWorld } from '../src/shared/world';
 import { KIT_PIECES } from '../src/shared/kit-collision';
 import { terrainHeight } from '../src/shared/terrain';
 import { WATER_LEVEL } from '../src/shared/water';
+import { walkableHeight } from '../src/shared/navigation';
 import { BRIDGE_PLANS, QUAYS, QUAY_X, ROADS, quayFaceAt } from '../src/shared/layout';
 import type { Collider, KitPlacement } from '../src/shared/types';
 
@@ -26,7 +27,8 @@ function support(x: number, z: number, y: number, own: string) {
 // Standing in water by design: their piles or footings reach the bed, tested below.
 const WATERSIDE = /^(quay_|bridge_|dock_wood$|boat$|passarela|palafita|bar_mare$)/;
 // Deliberately rooted in the ground: rock skins and the soft planting beds.
-const ROOTED = /^(cliff_|flower_bed$|bush_cluster$|hedge$|mud_bath$|trampoline$)/;
+// The Capela's stair is cut into its hillside, tested below.
+const ROOTED = /^(cliff_|flower_bed$|bush_cluster$|hedge$|mud_bath$|trampoline$|escadaria$)/;
 const interior = (piece: KitPlacement) => piece.id.includes(':interior:');
 const at = (piece: KitPlacement, x: number, z: number) => {
   const scale = piece.scale ?? 1, c = Math.cos(piece.yaw), s = Math.sin(piece.yaw);
@@ -67,6 +69,27 @@ describe('island physical integrity', () => {
       }
     }
     expect(faults).toEqual([]);
+  });
+
+  it('stands the Capela stair on the hillside cut to it, every tread on the ground from foot to adro', () => {
+    const stair = world.pieces!.find(piece => piece.piece === 'escadaria')!;
+    expect(stair, 'the hill chapel needs its stair').toBeDefined();
+    const definition = KIT_PIECES.escadaria, flight = definition.traversal!.stairs[0];
+    const treads = flight.colliderIndices.map(index => world.colliders.find(c => c.id === `${stair.id}:${index}`)!);
+    expect(treads.every(Boolean)).toBe(true);
+    for (const tread of treads) {
+      const p = centre(tread), top = tread.max.y;
+      // Ground under the tread: never above it, never more than one step below it.
+      for (const [dx, dz] of [[0, 0], [-.2, 0], [.2, 0], [0, -1.2], [0, 1.2]]) {
+        const ground = terrainHeight(p.x + dx, p.z + dz);
+        expect(ground, `${tread.id} is buried at ${(p.x + dx).toFixed(1)},${(p.z + dz).toFixed(1)}`).toBeLessThanOrEqual(top - .02);
+        expect(top - ground, `${tread.id} floats over the hillside`).toBeLessThanOrEqual(.45);
+      }
+      expect(walkableHeight(p.x, p.z, world), `${tread.id} is not the walking surface`).toBeCloseTo(top, 3);
+    }
+    // The top tread is the adro: the chapel door is a level walk from the stair head.
+    const head = treads.reduce((a, b) => (a.max.y > b.max.y ? a : b)), door = world.pieces!.find(piece => piece.id.includes('capela-morro'))!;
+    expect(Math.abs(head.max.y - door.y)).toBeLessThan(.05);
   });
 
   it('keeps every pier over water on piles that reach the bed', () => {

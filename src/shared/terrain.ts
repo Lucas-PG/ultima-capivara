@@ -1,4 +1,4 @@
-import { AREAS, BAY, BRIDGE_PLANS, HILLS, HOUSES, MARE, MORRO_LOTS, NAV_ROUTES, PORTO_QUAY_X, PORTO_QUAY_Z, QUAY_DEPTH, QUAY_FACE, QUAYS, ROADS, ROW_LOTS, riverSample, type Rect } from './layout';
+import { AREAS, BAY, BRIDGE_PLANS, CAPELA_STAIR, HILLS, HOUSES, MARE, MORRO_LOTS, NAV_ROUTES, PORTO_QUAY_X, PORTO_QUAY_Z, QUAY_DEPTH, QUAY_FACE, QUAYS, ROADS, ROW_LOTS, riverSample, type Rect } from './layout';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const ease = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
@@ -84,6 +84,18 @@ export function quayWeight(x: number, side: -1 | 1) {
 }
 /** Half the length of a bridge deck: its ends rest on the banks at this distance from the channel centre. */
 export const BRIDGE_REACH = 8;
+/** The hillside under the Capela's stair is cut to its flight: 0.1 m under
+ * the back of every tread (0.4 m under each nosing), so each step stands on
+ * the ground and walking height never leaves the treads. It blends back into
+ * the hill over 3 m to each side and in front of the foot. */
+function stairCut(x: number, z: number, h: number) {
+  const { x: sx, z: sz, yaw, foot, risers, rise, run, halfWidth } = CAPELA_STAIR;
+  const length = risers * run, c = Math.cos(yaw), s = Math.sin(yaw);
+  const across = Math.abs((x - sx) * c - (z - sz) * s), along = length / 2 - ((x - sx) * s + (z - sz) * c);
+  if (across > halfWidth + 3 || along < -3 || along > length) return h;
+  const target = foot - .1 + Math.max(0, along) * rise / run;
+  return lerp(h, target, (1 - ease((across - halfWidth) / 3)) * (1 - ease(-along / 3)));
+}
 // A 2 m field shared by collision, bots, map painting and the terrain mesh.
 const SIDE = 151, STEP = 2, ORIGIN = 150;
 const heights = new Float32Array(SIDE * SIDE);
@@ -113,6 +125,7 @@ for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
     if (weight > 0 && weight >= terraceWeight) { terraceWeight = weight; terraceY = p.y; }
   }
   h = lerp(h, terraceY, Math.min(1, terraceWeight));
+  h = stairCut(x, z, h);
   // Carve last so neither town pads nor roads can dam the river. The town
   // reach drops straight to its bed at the quay walls; elsewhere the banks
   // shelve naturally into the channel.
