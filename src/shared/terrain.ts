@@ -1,4 +1,4 @@
-import { AREAS, HILLS, HOUSES, MORRO_LOTS, NAV_ROUTES, ROADS, riverSample, type Rect } from './layout';
+import { AREAS, BAY, BRIDGE_PLANS, HILLS, HOUSES, MORRO_LOTS, NAV_ROUTES, PORTO_QUAY_X, PORTO_QUAY_Z, QUAY_DEPTH, QUAY_FACE, QUAYS, ROADS, ROW_LOTS, riverSample, type Rect } from './layout';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const ease = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
@@ -31,7 +31,7 @@ function rawHeight(x: number, z: number) {
 interface Pad { rect: Rect; margin: number; y: number; fixed?: boolean }
 const pads: Pad[] = [
   ...AREAS.map(a => ({ ...a, y: a.y ?? Math.max(.85, rawHeight((a.rect[0] + a.rect[2]) / 2, (a.rect[1] + a.rect[3]) / 2)) })),
-  ...[...HOUSES, ...MORRO_LOTS].map(h => ({ rect: [h.x - h.w / 2 - 1.5, h.z - h.d / 2 - 1.5, h.x + h.w / 2 + 1.5, h.z + h.d / 2 + 1.5] as Rect,
+  ...[...HOUSES, ...MORRO_LOTS, ...ROW_LOTS].map(h => ({ rect: [h.x - h.w / 2 - 1.5, h.z - h.d / 2 - 1.5, h.x + h.w / 2 + 1.5, h.z + h.d / 2 + 1.5] as Rect,
     margin: 1.3, y: Math.max(.85, rawHeight(h.x, h.z)) })),
 ];
 const housePads = pads.slice(AREAS.length);
@@ -71,6 +71,19 @@ function paddedHeight(x: number, z: number) {
   height = lerp(height, target, Math.min(1, weight));
   return height;
 }
+/** Signed distance to the harbour basin (negative inside), with rounded corners. */
+export function bayDistance(x: number, z: number) {
+  const [x0, z0, x1, z1] = BAY, radius = 8;
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, hx = (x1 - x0) / 2 - radius, hz = (z1 - z0) / 2 - radius;
+  const qx = Math.abs(x - cx) - hx, qz = Math.abs(z - cz) - hz;
+  return Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - radius;
+}
+/** 1 on a walled stretch of one bank of the river, fading to natural banks past its ends. */
+export function quayWeight(x: number, side: -1 | 1) {
+  return Math.max(0, ...QUAYS[side].map(([x0, x1]) => ease((x - x0 + 2) / 3) * ease((x1 + 2 - x) / 3)));
+}
+/** Half the length of a bridge deck: its ends rest on the banks at this distance from the channel centre. */
+export const BRIDGE_REACH = 8;
 // A 2 m field shared by collision, bots, map painting and the terrain mesh.
 const SIDE = 151, STEP = 2, ORIGIN = 150;
 const heights = new Float32Array(SIDE * SIDE);
@@ -100,9 +113,26 @@ for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
     if (weight > 0 && weight >= terraceWeight) { terraceWeight = weight; terraceY = p.y; }
   }
   h = lerp(h, terraceY, Math.min(1, terraceWeight));
-  // Carve last so neither town pads nor roads can dam the river.
+  // Carve last so neither town pads nor roads can dam the river. The town
+  // reach drops straight to its bed at the quay walls; elsewhere the banks
+  // shelve naturally into the channel.
   const river = riverSample(x, z), bank = river.distance - river.width / 2;
-  if (bank < 4.5) h = lerp(-1.2, h, ease((bank + 1) / 5.5));
+  const quay = quayWeight(x, z < river.z ? -1 : 1);
+  // Outside the quays, bridge abutments keep their banks: the channel narrows
+  // under each deck instead of leaving the deck ends above a sloping bank.
+  const bridge = BRIDGE_PLANS.some(plan => Math.abs(x - plan.x) < 4.5);
+  const natural = bank < 4.5 && !(bridge && river.distance > BRIDGE_REACH - 2.5) ? lerp(-1.2, h, ease((bank + 1) / 5.5)) : h;
+  // A vertical step cannot live on a 2 m grid: it sits mid-way under the 5 m
+  // deep quay stones, so neither a lip nor a dip shows on either side of them.
+  // Bridge abutments keep their land right up to the water face.
+  const walled = bank < (bridge ? QUAY_FACE : QUAY_FACE + QUAY_DEPTH / 2 - .1) ? -1.4 : h;
+  h = lerp(natural, walled, quay);
+  // The harbour basin: a straight quay face on the north side (PORTO_QUAY_X),
+  // shelving elsewhere. Beside the quay the bed matches the walled river, so
+  // the town's own quay stones and stairs stand on it; it deepens seaward.
+  const basin = bayDistance(x, z), bed = lerp(-1.4, -2.8, ease((z - PORTO_QUAY_Z - 6) / 16));
+  if (x > PORTO_QUAY_X[0] && x < PORTO_QUAY_X[1] && z < PORTO_QUAY_Z + 4) { if (basin < QUAY_DEPTH / 2 - .1) h = Math.min(h, bed); }
+  else if (basin < 7) h = lerp(bed, h, ease(basin / 7));
   heights[j * SIDE + i] = h;
 }
 export function terrainHeight(x: number, z: number): number {

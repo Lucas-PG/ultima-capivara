@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BRIDGES, CAMPINHO, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, ROADS, inArena, riverDistance, riverSample, routeDistance, type HouseLot } from './layout';
+import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, DISTRICTS, ENGENHO, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, ROADS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -11,8 +11,12 @@ import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPl
 import { landmarkColliders, type LandmarkSpec } from './landmarks';
 
 const ground = terrainHeight;
+// The quay stones' height (bottom-centred piece) and their promenade top.
+const QUAY_WALL_HEIGHT = 4.2;
 // Shutter tile of each house piece (tiles: 0 cream, 1 coral, 2 teal, 3 yellow, 12 green).
 const FACADE_SHUTTER: Record<string, number> = { house_small: 2, house_medium: 2, house_tall: 1, house_laje: 12, house_laje_b: 2, house_varanda: 12, sobrado: 2 };
+// Shutter and door tile of each terraced street house (tools/blender/kit/casario.py).
+const ROW_SHUTTER: Record<string, number> = { row_terrea: 2, row_sobrado: 12, row_loja: 8, row_alto: 1 };
 const p = (x: number, y: number, z: number): Vec3 => ({ x, y, z });
 const faceToward = (x: number, z: number, targetX: number, targetZ: number) => Math.atan2(targetX - x, targetZ - z);
 function pathApproach(x: number, z: number) {
@@ -33,21 +37,7 @@ export function createWorld(): WorldSpec {
   const pieces: KitPlacement[] = [], objects: MapObject[] = [], colliders: Collider[] = [], walkways: Collider[] = [];
   const loot: LootSpawn[] = [], chests: ChestSpec[] = [], spawns: SpawnPoint[] = [], arenaBoundary: string[] = [];
   const mudBaths: MudBathSpec[] = [], trampolines: TrampolineSpec[] = [], landmarks: LandmarkSpec[] = [];
-  const districts: District[] = [
-    { id: 'forte', name: 'Forte', x: 4, z: -99, radius: 25, color: '#c47c57' },
-    { id: 'vila', name: 'Vila', x: -22, z: -18, radius: 32, color: '#e39973' },
-    { id: 'centro', name: 'Centro', x: 29, z: -20, radius: 25, color: '#c59aaa' },
-    { id: 'morro', name: 'Morro', x: -87, z: -53, radius: 29, color: '#c88465' },
-    { id: 'cachoeira', name: 'Cachoeira', x: -104, z: -8, radius: 19, color: '#7db7bd' },
-    { id: 'porto', name: 'Porto', x: 97, z: -9, radius: 25, color: '#638caf' },
-    { id: 'praia', name: 'Praia', x: -26, z: 104, radius: 30, color: '#e9c47d' },
-    { id: 'farol', name: 'Farol', x: 3, z: 113, radius: 14, color: '#d86c53' },
-    { id: 'mangue', name: 'Mangue', x: 101, z: 52, radius: 22, color: '#617c56' },
-    { id: 'fazenda', name: 'Fazenda', x: 62, z: 63, radius: 25, color: '#d7b671' },
-    { id: 'posto', name: 'Posto', x: -22, z: 43, radius: 16, color: '#e6a34f' },
-    { id: 'lagoa', name: 'Lagoa', x: -76, z: 11, radius: 15, color: '#77a5a0' },
-    { id: 'campinho', name: 'Campinho', x: CAMPINHO[0], z: CAMPINHO[1], radius: 20, color: '#8fb35a' },
-  ];
+  const districts: District[] = DISTRICTS.map(district => ({ ...district }));
   // Placement queries run many thousands of times while the island is built:
   // an incremental 8 m grid answers them without scanning every solid.
   const solidCells = new Map<number, Collider[]>(), SOLID_CELL = 8;
@@ -85,7 +75,7 @@ export function createWorld(): WorldSpec {
     pieces.push(instance);
     const shapes = kitColliders(instance);
     addSolids(shapes);
-    if (piece === 'bridge_stone' || piece === 'dock_wood')
+    if (/^bridge_/.test(piece) || piece === 'dock_wood')
       walkways.push(...shapes.filter(c => c.max.y - c.min.y < .7 * scale && c.max.x - c.min.x > 2 && c.max.z - c.min.z > 2));
     return instance;
   };
@@ -116,7 +106,7 @@ export function createWorld(): WorldSpec {
   const playAreaAt = (x: number, z: number, margin: number) => [mudBaths, trampolines].some(sites =>
     sites.some(site => Math.hypot(site.x - x, site.z - z) < site.radius + margin));
   // A house lot is occupied as a whole: its hollow room is not open ground for dressing.
-  const lotAt = (x: number, z: number, margin: number) => [...HOUSES, ...MORRO_LOTS].some(h =>
+  const lotAt = (x: number, z: number, margin: number) => [...HOUSES, ...MORRO_LOTS, ...ROW_LOTS].some(h =>
     Math.abs(x - h.x) < h.w / 2 + margin && Math.abs(z - h.z) < h.d / 2 + margin);
   const occupied = (x: number, z: number, margin: number) => playAreaAt(x, z, margin) || lotAt(x, z, margin) ||
     anySolid(x - margin, z - margin, x + margin, z + margin, c => x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
@@ -177,54 +167,115 @@ export function createWorld(): WorldSpec {
       if (!occupied(x, z, .6) && !roadAt(x, z, .5)) detail('planter', x, z, 0, .8);
     }
   }
-  for (const [x, z, yaw] of [[-36, -38, Math.PI / 2], [20, -38, Math.PI / 2], [52, -38, Math.PI / 2],
-    [4, -60, 0], [4, -3, 0], [-40, -4, 0], [44, 10, 0], [-30, 49, 0], [16, 33, Math.PI / 2],
-    [82, -23, 0], [-30, 100, Math.PI / 2], [36, 100, Math.PI / 2], [-97, -55, 0]] as const)
-    obj('box', x, ground(x, z), z, 1, 1, 1, '#FFFFFF', 'prop:street-lights', yaw);
-  place('church', ...CHURCH);
-  place('market_hall', ...MERCADAO);
-  pavement(...PLAZA, 18, 17);
-  pavement(...MERCADAO, 18, 14, '#cdb790');
-  detail('fountain', PLAZA[0], PLAZA[1]);
-  for (const [x, z] of [[-17, -24], [-3, -18], [-17, -17]] as const)
-    detail('bench', x, z, faceToward(x, z, ...PLAZA));
-  detail('bench', 35, -10, Math.PI);
-  for (const [x, z] of [[-19, -28], [-1, -28], [-19, -13], [-1, -13], [21, -10], [37, -10]] as const) detail('planter', x, z);
-  for (const [x, z] of [[-19, -30], [-1, -30], [-19, -11], [1, -14], [20, -10], [39, -11]] as const) detail('lamp_post', x, z);
-  for (const [x, z] of [[24, -23], [34, -23], [24, -16], [34, -16]] as const)
-    detail('market_stall', x, z, z < MERCADAO[1] ? 0 : Math.PI);
-  detail('market_stall', -34, 39, Math.PI);
-  sign(-40, -41, 'VILA'); sign(39, -9, 'MERCADÃO'); sign(-21, 37, 'POSTO');
-  // Three crossings have a continuous deck level with the banks.
-  for (const [x, z] of BRIDGES) place('bridge_stone', x, z, 0, 1, 1.75);
-  // Submerged lower treads meet the bed; the upper treads meet the quay.
-  // Openings remain part of the visible wall layout, with no water blockers.
-  const riverSteps = KIT_PIECES.river_steps;
-  const riverEntries = riverSteps ? [{ x: -13, side: -1 }, { x: 27, side: 1 }] : [];
-  for (const { x, side } of riverEntries) {
-    const sample = riverSample(x, 10), z = sample.z + side * (sample.width / 2 + 1.2);
-    const scale = 1.5, treadTop = Math.max(...riverSteps.colliders.map(shape =>
-      shape.type === 'box' && shape.width >= riverSteps.footprint[0] * .9 ? shape.y + shape.height / 2 : 0)) * scale;
-    const landing = ground(x, z + side * riverSteps.footprint[1] * scale / 2);
-    detail('river_steps', x, z, side < 0 ? Math.PI : 0, scale, landing - treadTop);
+  // Casario: solid terraced fronts fill the streets between the enterable houses.
+  // Neighbours along a street never share a colour, and no front is painted
+  // the colour of its own shutters and doors.
+  let previousFacade = -1;
+  for (const lot of ROW_LOTS) {
+    const placed = detail(lot.piece, lot.x, lot.z, lot.yaw, 1, ground(lot.x, lot.z));
+    if (!placed) continue;
+    const options = [0, 1, 2, 3, 12].filter(tile => tile !== ROW_SHUTTER[lot.piece] && tile !== previousFacade);
+    const hash = Math.abs(Math.imul(Math.round(lot.x * 7), 73856093) ^ Math.imul(Math.round(lot.z * 7), 19349663)) % 997;
+    placed.facadeTile = previousFacade = options[hash % options.length];
   }
-  for (let x = -51; x < 57; x += 4) {
-    if (BRIDGES.some(([bx]) => Math.abs(x - bx) < 6)) continue;
-    const sample = riverSample(x, 10);
-    for (const side of [-1, 1]) {
-      if (riverEntries.some(entry => entry.side === side && Math.abs(x - entry.x) < 4.7)) continue;
-      const z = sample.z + side * (sample.width / 2 + 5.4);
-      if (KIT_PIECES.river_wall) detail('river_wall', x, z, 0, .5, ground(x, z) - .12);
-      else place('fort_wall', x, z, 0, .42, ground(x, z) - .2, 'river-wall');
+  place('church', CHURCH[0], CHURCH[1], 0);
+  // Capela do Rosário faces its largo across Rua do Sul; a smaller chapel crowns the south-west hill.
+  place('church', ROSARIO[0], 45.5, Math.PI, 1, ground(ROSARIO[0], 45.5), 'capela-rosario');
+  place('church', CAPELA[0], CAPELA[1], Math.PI / 2, 1, ground(CAPELA[0], CAPELA[1]), 'capela-morro');
+  place('market_hall', ...MERCADAO);
+  detail('fountain', PLAZA[0], PLAZA[1]);
+  for (const [x, z] of [[-15, -25], [-1, -25], [-15, -13], [-1, -13]] as const)
+    detail('bench', x, z, faceToward(x, z, ...PLAZA));
+  // The Largo do Rosário looks down its river beach; the feira has seats by the stalls.
+  for (const [x, z] of [[-26, 22], [-21, 21], [-15, 22]] as const) detail('bench', x, z, faceToward(x, z, x, 0));
+  for (const [x, z] of [[23, -4.3], [42, -4.3]] as const) detail('bench', x, z, x < 30 ? Math.PI / 2 : -Math.PI / 2);
+  for (const x of [100, 117]) detail('bench', x, PORTO_QUAY_Z - 6.5, 0);
+  // Shrub beds along the market facades and the quay.
+  for (const [x, z] of [[42.4, -24], [42.4, -16], [22.4, 7]] as const)
+    if (KIT_PIECES.bush_cluster) place('bush_cluster', x, z, Math.PI / 2, .7, ground(x, z) - .1, 'undergrowth');
+  // Praça gardens: low shrubs soften the corners without closing the axis.
+  for (const [x, z] of [[-18.5, -22], [2.5, -22], [-18.5, -15], [2.5, -15]] as const)
+    if (KIT_PIECES.bush_cluster) place('bush_cluster', x, z, Math.PI / 2, .8, ground(x, z) - .1, 'undergrowth');
+  for (const [x, z] of [[-18, -28], [2, -28], [-18, -9], [2, -9]] as const) detail('planter', x, z);
+  for (const [x, z] of [[-20.3, -18], [4.3, -18], [-20.3, -8], [4.3, -8], [19.6, -6], [43.4, -6]] as const) detail('lamp_post', x, z);
+  // Feira: two facing rows of stalls between the market hall and the quay.
+  for (const x of [25, 30, 35, 40]) {
+    detail('market_stall', x, -9.5, 0);
+    detail('market_stall', x, 1, Math.PI);
+  }
+  sign(-58, -40.5, 'VILA'); sign(42.5, -12, 'MERCADÃO');
+  // Four crossings: each continues a street on both banks.
+  for (const bridge of BRIDGE_PLANS) {
+    // The deck meets the higher of its two landings; the other stays within one step.
+    const kind = KIT_PIECES[bridge.kind] ? bridge.kind : 'bridge_stone', deck = KIT_PIECES[kind].traversal!.floors[0].y;
+    const reach = KIT_PIECES[kind].footprint[1] / 2 + .5;
+    const landing = Math.max(ground(bridge.x, bridge.z - reach), ground(bridge.x, bridge.z + reach));
+    place(kind, bridge.x, bridge.z, bridge.yaw, 1, landing - deck);
+  }
+  // Stone quays follow the mitred water face of each bank: every straight run
+  // is filled with wall stones, a square block covers each bend's joint, and
+  // runs stop only at a bridge abutment, a landing stair or a natural bank.
+  // Overlapping neighbours alternate two stone variants whose coping and face
+  // differ by a few millimetres, so no two surfaces coincide; every solid top
+  // stays exactly level with the promenade behind it.
+  const quayStairs = KIT_PIECES.quay_stair ? [{ x: -25, side: -1 as const }, { x: 8, side: -1 as const }, { x: 22, side: 1 as const }, { x: 52, side: 1 as const }] : [];
+  // Local +z of every quay piece faces the water; its land side is local -z.
+  const quayYaw = (dirX: number, dirZ: number, side: -1 | 1) => Math.atan2(side * dirZ, -side * dirX);
+  // The stones' top is the promenade: the land just behind them.
+  const quayTop = (x: number, z: number, yaw: number) => ground(x - Math.sin(yaw) * 5.6, z - Math.cos(yaw) * 5.6);
+  const quayStone = (piece: string, x: number, z: number, yaw: number) => detail(piece, x, z, yaw, 1, quayTop(x, z, yaw) - QUAY_WALL_HEIGHT);
+  for (const { x, side } of quayStairs) {
+    const face = quayFaceAt(x, side), yaw = quayYaw(face.dirX, face.dirZ, side), top = quayTop(face.x, face.z, yaw);
+    detail('quay_stair', face.x, face.z, yaw, 1, top - 3.6);
+  }
+  for (const side of [-1, 1] as const) {
+    // Stones stop flush against each bridge's abutment, whatever its width.
+    const bridgeHalf = (kind: string) => (KIT_PIECES[kind] ?? KIT_PIECES.bridge_stone).footprint[0] / 2;
+    const blocked = [...BRIDGE_PLANS.filter(bridge => bridge.x > QUAY_X[0] && bridge.x < QUAY_X[1]).map(bridge => [bridge.x - bridgeHalf(bridge.kind), bridge.x + bridgeHalf(bridge.kind)]),
+      // A stair covers 8 m along the face, which spans less than 8 m of x on a slanting reach.
+      ...quayStairs.filter(stair => stair.side === side).map(stair => {
+        const half = 4 * quayFaceAt(stair.x, side).dirX;
+        return [stair.x - half, stair.x + half];
+      })].sort((a, b) => a[0] - b[0]);
+    const spans: [number, number][] = [];
+    for (const [x0, x1] of QUAYS[side]) {
+      let start: number = x0;
+      for (const [a, b] of blocked) { if (b <= start || a >= x1) continue; if (a > start) spans.push([start, a]); start = Math.max(start, b); }
+      if (start < x1) spans.push([start, x1]);
+    }
+    const face = QUAY_FACES[side];
+    let alternate = 0;
+    for (const [a, b] of spans) {
+      // Straight runs between the bends inside this span, measured along the face.
+      const breaks = [a, ...face.map(point => point.x).filter(x => x > a + .5 && x < b - .5), b];
+      for (let i = 1; i < breaks.length; i++) {
+        const from = quayFaceAt(breaks[i - 1] + 1e-6, side), to = quayFaceAt(breaks[i] - 1e-6, side);
+        const length = Math.hypot(to.x - from.x, to.z - from.z), yaw = quayYaw(from.dirX, from.dirZ, side);
+        if (length < .6) continue;
+        const count = Math.max(1, Math.ceil(length / 8 - .02));
+        // A span end (abutment, stair, natural bank) is hard: stones stop flush
+        // with it. A bend is soft: a single short stone may run into its corner block.
+        const hardStart = i === 1, hardEnd = i === breaks.length - 1;
+        for (let n = 0; n < count; n++) {
+          const along = count > 1 ? 4 + (length - 8) * n / (count - 1) :
+            hardStart && !hardEnd ? 4 : hardEnd && !hardStart ? length - 4 : length / 2;
+          quayStone(alternate++ % 2 ? 'quay_wall_b' : 'quay_wall', from.x + from.dirX * along, from.z + from.dirZ * along, yaw);
+        }
+        if (i < breaks.length - 1) {
+          const next = quayFaceAt(breaks[i] + 1e-6, side), corner = quayYaw(from.dirX + next.dirX, from.dirZ + next.dirZ, side);
+          quayStone('quay_corner', to.x, to.z, corner);
+        }
+      }
     }
   }
-  for (const [x, z] of [[-29, 7], [19, 13], [55, 25]] as const) {
-    detail('boat', x, z, Math.PI / 2, .8, -.15);
-    if (!KIT_PIECES.boat) obj('boat', x, .05, z, 4.2, 1.1, 1.7, '#e6c17d', 'fishing');
+  for (const x of [-30, 12, 47]) {
+    detail('boat', x, riverAtX(x).z, Math.PI / 2 - .12, .8, -.15);
+    if (!KIT_PIECES.boat) obj('boat', x, .05, riverAtX(x).z, 4.2, 1.1, 1.7, '#e6c17d', 'fishing');
   }
-  for (let x = -78; x <= 78; x += 7) {
-    if (BRIDGES.some(([bx]) => Math.abs(bx - x) < 5)) continue;
-    const river = riverSample(x, 10);
+  for (let x = -90; x <= 92; x += 7) {
+    if (x > QUAY_X[0] - 3 && x < QUAY_X[1] + 3) continue;
+    if (BRIDGE_PLANS.some(bridge => Math.abs(bridge.x - x) < 5)) continue;
+    const river = riverSample(x, riverAtX(x).z);
     for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
       const xx = x + i * .55, z = river.z + side * (river.width / 2 + 2.8 + Math.sin(x + i) * .4), y = ground(xx, z);
       if (y < -.2 || occupied(xx, z, .35) || roadAt(xx, z, .5)) continue;
@@ -234,9 +285,9 @@ export function createWorld(): WorldSpec {
   // Entry markers sit beside open routes, so the warning has visible context.
   for (const [x, z, yaw] of [
     [-48, ARENA.minZ, 0], [-32, ARENA.minZ, 0], [-16, ARENA.minZ, 0], [21, ARENA.minZ, 0], [38, ARENA.minZ, 0], [54, ARENA.minZ, 0],
-    [-49, ARENA.maxZ, 0], [-13, ARENA.maxZ, 0], [7, ARENA.maxZ, 0], [27, ARENA.maxZ, 0], [46, ARENA.maxZ, 0],
-    [ARENA.minX, -49, Math.PI / 2], [ARENA.minX, -25, Math.PI / 2], [ARENA.minX, 18, Math.PI / 2], [ARENA.minX, 44, Math.PI / 2],
-    [ARENA.maxX, -48, Math.PI / 2], [ARENA.maxX, -17, Math.PI / 2], [ARENA.maxX, 39, Math.PI / 2], [ARENA.maxX, 51, Math.PI / 2],
+    [-49, ARENA.maxZ, 0], [-18, ARENA.maxZ, 0], [7, ARENA.maxZ, 0], [27, ARENA.maxZ, 0], [46, ARENA.maxZ, 0],
+    [ARENA.minX, -49, Math.PI / 2], [ARENA.minX, -12, Math.PI / 2], [ARENA.minX, 20, Math.PI / 2], [ARENA.minX, 52, Math.PI / 2],
+    [ARENA.maxX, -48, Math.PI / 2], [ARENA.maxX, -17, Math.PI / 2], [ARENA.maxX, 44, Math.PI / 2], [ARENA.maxX, 52, Math.PI / 2],
   ]) {
     if (occupied(x, z, 2.5)) continue;
     const piece = KIT_PIECES.fence ? 'fence' : 'fort_wall';
@@ -353,7 +404,7 @@ export function createWorld(): WorldSpec {
     for (const [dx, dz, scale] of [[-2.2, -.9, .28], [1.9, -1, .33], [-1.7, 1.2, .22], [1.8, 1.1, .25]])
       detail('cliff_rock_low', x + dx, z + dz, Math.PI / 2, scale, ground(x + dx, z + dz) - .3);
   }
-  for (const [x, z] of [[54, -92], [43, -104], [61, -113], [-29, 118], [32, 118], [119, -7], [119, 9]] as const) {
+  for (const [x, z] of [[54, -92], [43, -104], [61, -113], [-29, 118], [32, 118], [126, -9], [92, -6]] as const) {
     for (let i = 0; i < 3; i++) {
       const xx = x + i * .42, zz = z + i * .35;
       obj('box', xx, ground(xx, zz) + .07, zz, 1.4 + i * .55, .14, .16 + i * .025, '#92704D', 'crate', -.45 + i * .57);
@@ -369,24 +420,32 @@ export function createWorld(): WorldSpec {
     obj('grass', x, ground(x, z), z, 4.2, .38, 3.5, '#A7B876', 'dune-grass');
   sign(21, -82, 'FORTE');
 
-  // Porto: an open warehouse court, stacked containers and piers out to sea.
-  if (KIT_PIECES.warehouse) detail('warehouse', 100, -12);
-  else place('market_hall', 100, -12, 0, 1, ground(100, -12), 'warehouse');
-  for (const [x, z, yaw, stack] of [[90, -29, 0, 0], [103, -29, 0, 1], [113, -18, Math.PI / 2, 1],
-    [90, 1, Math.PI / 2, 0], [113, 3, Math.PI / 2, 0], [101, 13, 0, 1]] as const) {
+  // Porto: the working harbour behind the Rua Direita houses. A cut-stone quay
+  // lines the basin with a landing stair down to the water; a long timber pier
+  // with a T head stands on piles among the moored boats; the warehouse, crane,
+  // containers and cargo stacks fill the quay yard.
+  const portoY = ground(98, -16);
+  if (KIT_PIECES.warehouse) detail('warehouse', 97, -16, 0, 1, portoY);
+  else place('market_hall', 97, -16, 0, 1, portoY, 'warehouse');
+  for (const [x, z, yaw, stack] of [[119, -13, Math.PI / 2, 1], [113, -21, 0, 0], [84, -20, Math.PI / 2, 1]] as const) {
     const y = ground(x, z); place('container', x, z, yaw, 1, y);
     if (stack) place('container', x, z, yaw, 1, y + KIT_PIECES.container.height);
   }
   const dock = KIT_PIECES.dock_wood.colliders[0], dockTop = dock.y + dock.height / 2;
-  for (const z of [-22, -7, 9]) for (const x of [120, 130])
-    place('dock_wood', x, z, Math.PI / 2, 1, (z === -22 ? 2.22 : 1.60) - dockTop);
-  detail('dock_steps', 112.2, -22, -Math.PI / 2, 1, ground(112.2, -22));
-  detail('boat', 125, -15, Math.PI / 2, 1.1, -.05);
-  detail('boat', 128, 2, Math.PI / 2, .9, -.05);
-  for (const [x, z] of [[122, -14], [124, -13], [126, -14], [125, 3], [127, 4], [129, 3]])
+  const portoQuayTop = ground(110, PORTO_QUAY_Z - 6);
+  const slots = [103, 111, 119];
+  for (const x of slots) {
+    if (x === 119) detail('quay_stair', x, PORTO_QUAY_Z, 0, 1, portoQuayTop - 3.6);
+    else detail('quay_wall', x, PORTO_QUAY_Z, 0, 1, portoQuayTop - QUAY_WALL_HEIGHT);
+  }
+  // The pier's landward end rests on the quay stones and starts on dry land.
+  for (const z of [PORTO_QUAY_Z + 1.5, PORTO_QUAY_Z + 13.5]) place('dock_wood', 106, z, 0, 1, portoQuayTop + .05 - dockTop);
+  for (const [x, z, yaw, scale] of [[101, 8, .08, 1], [111.2, 5, -.05, .95], [111, 15, .1, 1.05], [100.8, 19, -.12, .9], [115, 25, 1.45, 1]] as const)
+    detail('boat', x, z, yaw, scale, -.15);
+  for (const [x, z] of [[119, 12], [121, 14], [123, 12], [96, 24], [98, 26]])
     obj('box', x, .02, z, 1, 1, 1, '#DB8263', 'prop:street-buoy');
-  landmark('crane', 113, -29, Math.PI / 2);
-  sign(78, -28, 'PORTO');
+  landmark('crane', 101, -9, 0);
+  sign(80, -30, 'PORTO');
 
   // Campinho: the neighbourhood pitch. A mown pitch with chalk lines (painted,
   // so the jungle keeps off it), the stand and boteco are one kit piece.
@@ -428,7 +487,7 @@ export function createWorld(): WorldSpec {
   sign(49, 79, 'FAZENDA'); sign(-91, -33, 'MORRO');
 
   // Long southern beach and a lighthouse at the final cape.
-  for (const x of [-45, -30, -14, 25, 40]) {
+  for (const x of [-46, -34, 20, 33]) {
     if (KIT_PIECES.beach_kiosk) detail('beach_kiosk', x, 109, Math.PI);
     else place('house_small', x, 109, Math.PI, .7, ground(x, 109), 'beach-kiosk');
     for (const dx of [-3, 3]) {
@@ -439,7 +498,7 @@ export function createWorld(): WorldSpec {
   }
   if (KIT_PIECES.lighthouse) detail('lighthouse', ...FAROL);
   else place('fort_tower', ...FAROL, 0, 1.5);
-  sign(-42, 92, 'PRAIA'); sign(13, 107, 'FAROL');
+  sign(-42, 92, 'PRAIA');
   // The lighthouse stood on a bare sand dome: seat it on a rocky headland,
   // half-buried outcrops on the sea and flank sides, the northern path left open.
   for (const [angle, distance, piece, scale, sink] of [[1.1, 11, 'cliff_rock_low', .8, .9], [1.9, 12.5, 'cliff_rock', .7, 1.4],
@@ -463,10 +522,14 @@ export function createWorld(): WorldSpec {
     }
   }
   sign(-86, -15, 'MIRANTE');
-  // Boardwalks offer a dry second route around the estuary.
-  for (const [x, z, yaw] of [[105, 45, 0], [117, 45, 0], [111, 51, Math.PI / 2]])
-    place('dock_wood', x, z, yaw, 1, .68 - dockTop);
-  sign(90, 65, 'MANGUE');
+  // Fishing jetties run from the mangrove shore out over the basin on piles.
+  // Each jetty's deck is one short flight above its own landing on the shore.
+  for (const x of [110, 120]) {
+    const shore = ground(x, 41.2);
+    place('dock_wood', x, 31, 0, 1, shore + .72 - dockTop);
+    detail('dock_steps', x, 38.8, 0, 1, shore);
+  }
+
   if (KIT_PIECES.cliff_rock_low && KIT_PIECES.cliff_rock_tall) {
     // Six former scatter slots now fund the authored fort and western cuts.
     // Keep the same total formation budget while improving the hero views.
@@ -541,17 +604,16 @@ export function createWorld(): WorldSpec {
       if (!roadAt(x, z, 1) && !occupied(x, z, .8)) detail('bush_cluster', x, z, 0, .85);
     }
   }
-  for (const [x, z, yaw] of [[-20, -28, Math.PI / 2], [-20, -15, Math.PI / 2], [0, -28, Math.PI / 2],
-    [0, -15, Math.PI / 2], [-17, -31, 0], [-3, -31, 0], [20, -11, 0], [38, -11, 0]] as const)
+  for (const [x, z, yaw] of [[-14.5, -29.5, 0], [-1.5, -29.5, 0], [-14.5, -7.5, 0], [-1.5, -7.5, 0]] as const)
     if (!occupied(x, z, 1)) detail('hedge', x, z, yaw);
-  for (let x = -48; x <= 52; x += 12) {
-    const sample = riverSample(x, 10);
-    for (const side of [-1, 1]) {
-      const z = sample.z + side * (sample.width / 2 + 8.4);
-      if (BRIDGES.some(([bx]) => Math.abs(x - bx) < 6) || occupied(x, z, 1.4) || roadAt(x, z, 1.2)) continue;
-      detail('bench', x, z, faceToward(x, z, sample.x, sample.z));
-      detail('planter', x + 2.3, z);
-      detail('bush_cluster', x - 2.4, z, 0, .8);
+  // Quay promenades: benches look over the water between the stairs and bridges.
+  for (let x = -50; x <= 56; x += 9) {
+    const river = riverAtX(x);
+    for (const side of [-1, 1] as const) {
+      const z = river.z + side * (river.width / 2 + 3.2);
+      if (BRIDGE_PLANS.some(bridge => Math.abs(x - bridge.x) < 7) || occupied(x, z, 1.4) || roadAt(x, z, .2)) continue;
+      detail('bench', x, z, faceToward(x, z, x, river.z));
+      if (!occupied(x + 2.4, z, .9)) detail('planter', x + 2.4, z);
     }
   }
   for (const [x, z] of [[23, -91], [29, -107], [40, -116], [66, -105], [-107, -28], [-114, -14],
@@ -566,8 +628,8 @@ export function createWorld(): WorldSpec {
   // Contact surfaces and interaction radii come from the same exported solids
   // as the visible bath and pad. Their entrances face a public walking route.
   for (const [piece, sites] of [
-    ['mud_bath', [[19, 25], [51, 51], [103, 63]]],
-    ['trampoline', [[25, -7], [55, -107], [-38, 107]]],
+    ['mud_bath', [[-24, 24], [50, 53], [106, 56]]],
+    ['trampoline', [[-16, 28], [55, -107], [-38, 107]]],
   ] as const) {
     const interaction = KIT_PIECES[piece]?.interaction;
     if (!interaction) continue;
@@ -595,8 +657,8 @@ export function createWorld(): WorldSpec {
     if (coverGroups++ % 2 === 0) place('crate', x + .1, z, Math.PI / 2, .65, y + KIT_PIECES.crate.height);
     return true;
   };
-  for (const [x, z] of [[-35, -18], [-25, -18], [17, -25], [43, -30], [-36, 48], [-4, 36], [19, 41],
-    [52, 48], [-49, -48], [12, -49], [7, -88], [12, -105], [89, -6], [108, 20]] as const) coverGroup(x, z);
+  for (const [x, z] of [[-17, -10], [1, -29], [27, 3.5], [41, -14], [-50, -12], [-34, 11], [3, 22], [17, 16],
+    [52, 48], [-49, -50], [12, -50], [7, -88], [12, -105], [89, -6], [96, 27]] as const) coverGroup(x, z);
   for (let i = 0, placed = 0; i < 2200 && placed < 28; i++) {
     const x = Math.round(-111 + random() * 222), z = Math.round(-113 + random() * 226);
     const y = ground(x, z), route = routeDistance(x, z);
@@ -606,8 +668,8 @@ export function createWorld(): WorldSpec {
   }
   // Plants are decorative, with no independently authored trunk boxes.
   const planted: PointLike[] = [];
-  const blocksHeroView = (x: number, z: number) => [[-1, -10, -10, -40, 4.8], [36, -6, 29, -20, 2.7],
-    [60, -86, 4, -99, 4.2]].some(([ax, az, bx, bz, width]) => {
+  const blocksHeroView = (x: number, z: number) => [[-8, -8, -8, -40, 4.8], [42, -7, 31, -22, 2.7],
+    [60, -86, 4, -99, 4.2], [-8, 40, -6, 110, 3]].some(([ax, az, bx, bz, width]) => {
     const dx = bx - ax, dz = bz - az, t = ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz);
     return t >= 0 && t <= 1 && Math.hypot(x - ax - dx * t, z - az - dz * t) < width;
   });
@@ -625,7 +687,7 @@ export function createWorld(): WorldSpec {
     obj(kind, x, ground(x, z) - .08, z, 1.1, height, 1.1, '#5FA544', species, random() * Math.PI * 2);
     planted.push({ x, z });
   };
-  tree(-20, -21, 8.4, 'tree', 'ipe-yellow'); tree(47, -31, 8, 'tree', 'ipe-pink');
+  tree(-17, -17, 8.4, 'tree', 'ipe-yellow'); tree(1, -21, 8, 'tree', 'ipe-pink');
   tree(-63, -55, 9.2, 'tree', 'flamboyant'); tree(77, 78, 4.8, 'tree', 'banana'); tree(-60, 84, 5.2, 'tree', 'banana');
   // Low, broad crowns at the rock toes give the escarpment a living foreground.
   // They share the existing instanced foliage and replace part of the scatter.
@@ -798,6 +860,12 @@ export function createWorld(): WorldSpec {
     }
     return null;
   };
+  // Each district's authored arrival is reserved before any pickup is placed,
+  // so a crate or chest can never take the composed spot and view.
+  const arrivals = new Map(districts.map(d => {
+    const arrival = DISTRICT_ARRIVALS[d.id];
+    return [d.id, nearby(arrival[0], arrival[1], 6, { x: arrival[2], z: arrival[3] })] as const;
+  }));
   const pickup = (x: number, z: number, kind: LootSpawn['kind'], weapon?: WeaponId) => {
     const pos = nearby(x, z, 10); if (pos) loot.push({ id: id('loot'), ...pos, kind, ...(kind === 'weapon' ? { weapon: weapon ?? 'pistol' } : {}) });
   };
@@ -845,7 +913,7 @@ export function createWorld(): WorldSpec {
   for (const d of districts) for (let i = 0; i < 5; i++) {
     const angle = i * Math.PI * 2 / 5, arrival = DISTRICT_ARRIVALS[d.id];
     const look = i === 0 ? { x: arrival[2], z: arrival[3] } : d;
-    const pos = i === 0 ? nearby(arrival[0], arrival[1], 6, look) :
+    const pos = i === 0 ? arrivals.get(d.id) ?? null :
       nearby(d.x + Math.cos(angle) * d.radius * .6, d.z + Math.sin(angle) * d.radius * .6, 14);
     if (pos) spawns.push({ ...pos, mode: 'battle-royale', district: d.id, yaw: Math.atan2(pos.x - look.x, pos.z - look.z) });
   }
