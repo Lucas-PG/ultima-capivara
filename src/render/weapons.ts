@@ -586,7 +586,9 @@ export class WeaponView {
     this.inspectTime += dt;
     const progress = Math.min(1, this.inspectTime / 1.8);
     const look = Math.sin(Math.PI * progress) ** 2 * (reducedMotion ? .35 : 1);
-    this.holder.position.x -= look * .08; this.holder.position.y += look * .05; this.holder.position.z += look * .05;
+    const showLongGun = weapon === 'm4';
+    this.holder.position.x -= look * .08; this.holder.position.y += look * .05;
+    this.holder.position.z += look * (showLongGun ? -.16 : .05);
     this.offset.setFromEuler(this.euler.set(look * .2, -look * (weapon === 'machete' ? .2 : .75), look * (weapon === 'machete' ? -.3 : .45), 'YXZ'));
     this.holder.quaternion.multiply(this.offset);
     if (progress === 1) this.inspectTime = -1;

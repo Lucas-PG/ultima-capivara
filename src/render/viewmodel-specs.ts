@@ -82,11 +82,11 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   },
   m4: {
     url: 'models/arsenal/m4.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: { pos: [.15, -.14, -.45], rot: [.04, .18, -.10] },
-    sprint: LONG_SPRINT, adsDistance: .15, viewmodelFov: 64, shoulders: RIFLE_SHOULDERS,
+    hip: { pos: [.16, -.085, -.50], rot: [.04, .38, -.10] },
+    sprint: { pos: [-.03, -.045, .015], rot: [-.12, .6, .1] }, adsDistance: .15, viewmodelFov: 62, shoulders: RIFLE_SHOULDERS,
     // Right index occupies the roomy guard; support wraps the rear handguard.
     // Contact coordinates are measured against the packed asset in metres.
-    grips: { R: {wrist: [0.043291, -0.034263, 0.076335], forward: [0.24894, -0.287327, -0.924917], palm: [-0.968176, -0.048426, -0.245539], pole: [0.8, -1, 0.3], curl: {index: [1.233688, 0.498791, 0.198466], middle: [1.640656, 0.978047, 0.615716], ring: [1.157106, 0.842412, 0.390713], thumb: [0.44918, 0.426999, 0.725114], spread: 0.237084}},
+    grips: { R: {wrist: [0.03673, -0.085649, 0.101657], forward: [0.14615, 0.41919, -0.896058], palm: [-0.929482, -0.251912, -0.26945], pole: [0.8, -1, 0.3], curl: {index: [0.410279, 0.181295, 0.101941], middle: [0.839068, 0.627801, 0.810085], ring: [1.245737, 0.765474, -0.011606], thumb: [-0.1, 0.213327, 0.303182], spread: 0.203024}},
       L: {wrist: [-0.066016, 0.060359, -0.141015], forward: [0.074714, 0.399403, -0.913726], palm: [0.898035, -0.425303, -0.112475], pole: [-0.8, -1, 0.1], curl: {index: [0.571759, 1.513912, 0.276212], middle: [0.400614, 1.310437, 1.17425], ring: [1.361137, -0.1, 0.430514], thumb: [-0.1, -0.1, 0.583421], spread: -0.479682}} },
     recoil: RECOIL.rifle, inertia: 1,
   },
