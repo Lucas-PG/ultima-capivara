@@ -384,12 +384,12 @@ export class WeaponView {
     this.holder.scale.setScalar(spec.scale);
     this.updateMelee(weapon, dt, settings.reducedMotion);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.quaternion);
-    if (this.inspectTime >= 0) this.applyInspect(weapon, dt, settings.reducedMotion);
+    const inspect = this.inspectTime >= 0 ? this.applyInspect(weapon, dt, settings.reducedMotion) : null;
     this.animateParts(model, reload, choreo, sample);
     this.flashLight = Math.max(0, this.flashLight - dt / .07);
     this.muzzleLight.intensity = this.flashLight * this.flashLight * 7;
     if (this.flashLight > 0) { this.holder.updateMatrixWorld(true); model.muzzle.getWorldPosition(this.muzzleLight.position); }
-    this.solveArms(model, spec.grips, choreo, sample, spec.shoulders);
+    this.solveArms(model, spec.grips, choreo, sample ?? inspect, spec.shoulders);
     if (import.meta.env.DEV) this.debugOrbit();
   }
 
@@ -648,7 +648,7 @@ export class WeaponView {
     out.pole.copy(this.handA.pole);
   }
 
-  private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean) {
+  private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean): ChoreoSample | null {
     this.inspectTime += dt;
     const progress = Math.min(1, this.inspectTime / 1.8);
     const authored = SHORT_INSPECTS[weapon];
@@ -658,13 +658,14 @@ export class WeaponView {
       this.offset.setFromEuler(this.euler.set(pose.r.x * amount, pose.r.y * amount, pose.r.z * amount, 'YXZ'));
       this.holder.quaternion.multiply(this.offset);
       if (progress === 1) this.inspectTime = -1;
-      return;
+      return progress < 1 ? pose : null;
     }
     const look = Math.sin(Math.PI * progress) ** 2 * (reducedMotion ? .35 : 1);
     this.holder.position.x -= look * .08; this.holder.position.y += look * .05; this.holder.position.z += look * .05;
     this.offset.setFromEuler(this.euler.set(look * .2, -look * (weapon === 'machete' ? .2 : .75), look * (weapon === 'machete' ? -.3 : .45), 'YXZ'));
     this.holder.quaternion.multiply(this.offset);
     if (progress === 1) this.inspectTime = -1;
+    return null;
   }
 
   private updateMelee(weapon: WeaponId, dt: number, reducedMotion: boolean) {

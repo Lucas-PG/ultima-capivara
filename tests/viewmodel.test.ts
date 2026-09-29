@@ -102,6 +102,19 @@ describe('first-person viewmodel', () => {
     expect(h.view.inspect()).toBe(false);
   });
 
+  it('releases the SMG support paw for the far-side inspect and restores its foregrip contact', async () => {
+    const h = await harness(); h.actor.slot = 1;
+    for (let i = 0; i < 60; i++) h.step();
+    const internal = h.view as unknown as { targetL: { wrist: THREE.Vector3 } };
+    expect(h.view.inspect()).toBe(true);
+    for (let i = 0; i < 84; i++) h.step();
+    expect(internal.targetL.wrist.distanceTo(new THREE.Vector3(-.25, -.25, -.40))).toBeLessThan(.002);
+    for (let i = 0; i < 36; i++) h.step();
+    const { VIEW_SPECS } = await import('../src/render/viewmodel-specs');
+    const contact = new THREE.Vector3(...VIEW_SPECS.smg.grips.L!.wrist).applyMatrix4(h.holder.matrixWorld);
+    expect(internal.targetL.wrist.distanceTo(contact)).toBeLessThan(1e-6);
+  });
+
   it('fires from the shot weapon even while the previous one is still holstering', async () => {
     const h = await harness(); for (let i = 0; i < 10; i++) h.step();
     h.actor.slot = 1; h.step();

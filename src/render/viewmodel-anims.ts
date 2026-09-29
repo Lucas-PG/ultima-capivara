@@ -262,9 +262,14 @@ export const RELOADS: Partial<Record<WeaponId, Choreography>> = {
 export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
   smg: [
     { t: .22, p: [-.035, .04, -.045], r: [.16, .45, -.20], ease: 'out' },
+    { t: .42, L: { space: 'grip' } },
     { t: .46, p: [-.035, .04, -.045], r: [.16, .50, -.22] },
-    { t: .72, p: [-.075, .035, -.11], r: [.10, -.66, .24] },
-    { t: .82, p: [-.075, .035, -.11], r: [.10, -.66, .24] },
+    { t: .50, L: { space: 'grip', offset: [-.085, -.045, 0] } },
+    { t: .62, L: { space: 'view', wrist: [-.25, -.25, -.40], forward: [.1, .2, -1], palm: [.2, -.95, -.1], curl: OPEN } },
+    { t: .72, p: [-.13, .035, -.18], r: [.08, -1.15, .12] },
+    { t: .82, p: [-.13, .035, -.18], r: [.08, -1.15, .12], L: { space: 'view', wrist: [-.25, -.25, -.40], forward: [.1, .2, -1], palm: [.2, -.95, -.1], curl: OPEN } },
+    { t: .93, L: { space: 'grip', offset: [-.085, -.045, 0] } },
+    { t: .99, L: { space: 'grip' } },
   ],
   revolver: [
     { t: .24, p: [-.035, .018, .025], r: [.12, -.60, .20], ease: 'out' },
