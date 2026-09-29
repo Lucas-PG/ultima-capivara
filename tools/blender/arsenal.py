@@ -136,65 +136,95 @@ def pistol():
 # ------------------------------------------------------------------ revolver
 @weapon
 def revolver():
-    """Trinta-e-oito: blued six-shooter with a full under-lug, vent rib and jacaranda grip."""
-    parts = {'body': [], 'cylinder': [], 'hammer': [], 'trigger': [], 'mag': []}
-    frame = prism('frame', [(-.036, .066), (-.03, .086, 1), (.094, .086, 1), (.097, .078), (.097, .02, 1), (.078, .01), (.02, .006),
-                            (-.004, -.004), (-.03, -.008), (-.046, .01), (-.048, .045)], .027, 'blued', bevel=.002, smooth=2, raw=True)
-    cut(frame, cutter_box((0, .046, .05), (.05, .05, .049)))
-    cut(frame, cutter_box((0, -.022, .088), (.006, .016, .01)))
+    """Trinta-e-oito: blued bull barrel, engraved case frame and a porcelain capy medallion."""
+    parts = {'body': [], 'cylinder': [], 'crane': [], 'action': [], 'rounds': [], 'hammer': [], 'trigger': [], 'mag': [], 'release': []}
+    centre, chamber, bore = .045, .0175, .0625
+    frame = prism('frame', [(-.037, .067), (-.030, .087), (.095, .087), (.102, .076), (.100, .021), (.078, .010),
+                            (.012, .004), (-.031, -.009), (-.046, .01), (-.049, .047)], .029, 'case', bevel=.0022, radius=.004, raw=True)
+    cut(frame, cutter_box((0, .046, .046), (.08, .057, .063)))
     parts['body'] += [complete(frame)]
-    parts['body'] += [cyl('barrel', (0, .096, .05), (0, .205, .05), .0115, 'blued', sides=28)]
-    parts['body'] += [tube('crown', (0, .199, .05), (0, .2065, .05), .0118, .0052, 'steel')]
-    parts['body'] += [prism('underlug', [(.094, .04, 1), (.203, .04, 1), (.206, .033), (.202, .024), (.1, .02)], .021, 'blued', bevel=.002, smooth=2)]
-    rib = prism('rib', [(.09, .06, 1), (.206, .06, 1), (.206, .068), (.09, .07)], .012, 'blued', bevel=.0015, raw=True)
-    cut(rib, join([cutter_box((0, .1 + i * .013, .07), (.02, .007, .006)) for i in range(8)], 'vents'))
+    parts['body'] += [cyl('barrel', (0, .097, bore), (0, .269, bore), .0115, 'blued', sides=32)]
+    parts['body'] += [tube('crown', (0, .263, bore), (0, .271, bore), .012, .0052, 'brass', sides=28)]
+    parts['body'] += [tube('barrel_band', (0, .101, bore), (0, .105, bore), .0125, .0108, 'brass', sides=28, bevel=.0006)]
+    lug = prism('underlug', [(.099, .052), (.264, .052), (.270, .044), (.263, .029), (.108, .025), (.099, .032)], .023, 'blued', bevel=.002, radius=.003, raw=True)
+    cut(lug, cutter_box((-.010, .107, centre), (.019, .065, .012)))
+    parts['body'] += [complete(lug)]
+    rib = box('vent_rib', (0, .181, .078), (.013, .178, .009), 'blued', .0013, raw=True)
+    cut(rib, join([cutter_box((0, .111 + i * .025, .075), (.018, .018, .006)) for i in range(6)], 'rib_vents'))
     parts['body'] += [complete(rib)]
-    parts['body'] += [prism('front_blade', [(.186, .068), (.2, .068), (.2, .076), (.19, .082)], .004, 'dark', bevel=.001)]
-    parts['body'] += [box('front_insert', (0, .1925, .078), (.0045, .004, .006), 'orange', .001)]
-    grip = prism('grip', [(-.034, .012, 1), (.014, .006, 1), (.02, -.018), (.013, -.048), (.018, -.074), (.006, -.104), (-.02, -.12),
-                          (-.052, -.11), (-.062, -.082), (-.054, -.042), (-.05, -.012)], .033, 'wood', bevel=.003, smooth=3)
+    parts['body'] += [prism('front_blade', [(.244, .081), (.266, .081), (.266, .089), (.251, .095)], .006, 'dark', bevel=.001)]
+    parts['body'] += [box('front_insert', (0, .251, .0917), (.0045, .004, .0056), 'red', .0007)]
+    rear = box('adjustable_rear', (0, -.026, .09), (.029, .023, .013), 'dark', .0016, raw=True)
+    cut(rear, cutter_box((0, -.026, .096), (.007, .032, .009)))
+    parts['body'] += [complete(rear)]
+    for side in (-1, 1):
+        screw = cyl('sight_adjuster', (side * .014, -.025, .09), (side * .0162, -.025, .09), .0038, 'brass', sides=18, bevel=.0005)
+        cut(screw, cutter_box((side * .0163, -.025, .09), (.002, .005, .001)))
+        parts['body'] += [screw]
+    grip = prism('wood_grip', [(-.028, .012), (.010, .004), (.014, -.018), (.009, -.049), (.013, -.077), (.003, -.106), (-.017, -.119),
+                               (-.043, -.111), (-.050, -.083), (-.043, -.040), (-.041, -.012)], .033, 'wood_red', bevel=.003, radius=.006)
     parts['body'] += [grip]
     for side in (-1, 1):
-        parts['body'] += [cyl('medallion', (side * .0166, -.02, -.035), (side * .0178, -.02, -.035), .0075, 'brass', sides=20, bevel=.0008)]
-        parts['body'] += [cyl('grip_screw', (side * .0166, -.028, -.075), (side * .0172, -.028, -.075), .0035, 'steel', sides=12, bevel=.0005)]
-    guard = prism('guard', [(.006, .01, 1), (.064, .01, 1), (.066, -.01), (.056, -.03), (.036, -.036), (.016, -.03), (.006, -.014)],
-                  .012, 'blued', bevel=.0015, smooth=2, raw=True)
-    cut(guard, cutter_prism([(.014, .004), (.056, .004), (.055, -.012), (.046, -.025), (.03, -.028), (.018, -.022), (.013, -.01)], .03))
+        parts['body'] += [cyl('medallion_rim', (side * .0164, -.014, -.031), (side * .0184, -.014, -.031), .012, 'brass', sides=32, bevel=.0007)]
+        parts['body'] += [cyl('porcelain', (side * .0181, -.014, -.031), (side * .0187, -.014, -.031), .0102, 'ivory', sides=32, bevel=.0004)]
+        for i in range(12):
+            a = i * math.tau / 12
+            y, z = -.014 + math.cos(a) * .009, -.031 + math.sin(a) * .009
+            parts['body'] += [cyl('porcelain_border', (side * .0187, y, z), (side * .0189, y, z), .0006, 'navy', sides=8, bevel=0)]
+        screw = cyl('grip_screw', (side * .016, -.024, -.078), (side * .0172, -.024, -.078), .0038, 'brass', sides=18, bevel=.0005)
+        cut(screw, cutter_box((side * .0175, -.024, -.078), (.002, .005, .001)))
+        parts['body'] += [screw]
+    guard = prism('guard', [(-.010, .012), (.069, .012), (.077, -.005), (.066, -.038), (.048, -.047), (-.001, -.041), (-.010, -.023)],
+                  .017, 'blued', bevel=.0018, radius=.006, raw=True)
+    cut(guard, cutter_prism([(.003, .004), (.062, .004), (.065, -.007), (.056, -.033), (.003, -.032)], .04))
     parts['body'] += [complete(guard)]
-    parts['body'] += [box('thumb_latch', (-.0145, .005, .058), (.004, .012, .007), 'steel', .001)]
-    # Cylinder: fluted, six chambers with brass case heads at the back.
-    drum = lathe('cylinder', [(0, 0), (.021, 0), (.0235, .004), (.0235, .041), (.021, .045), (0, .045)], 'blued', p0=(0, .024, .05), sides=36)
-    flutes = join([cutter_cyl((math.cos(a) * .0262, .03, .05 + math.sin(a) * .0262), (math.cos(a) * .0262, .075, .05 + math.sin(a) * .0262), .0062)
-                   for a in [i * math.tau / 6 + math.tau / 12 for i in range(6)]], 'flutes')
-    cut(drum, flutes)
-    chambers = join([cutter_cyl((math.cos(a) * .0138, .06, .05 + math.sin(a) * .0138), (math.cos(a) * .0138, .08, .05 + math.sin(a) * .0138), .0052)
-                     for a in [i * math.tau / 6 for i in range(6)]], 'chambers')
-    cut(drum, chambers)
+    parts['body'] += [prism('sideplate', [(-.034, .012), (-.041, .036), (-.035, .064), (-.016, .078), (-.007, .075), (-.007, .017)],
+                            .0015, 'case', x=.015, bevel=.0006, radius=.002)]
+    for side in (-1, 1):
+        for y, z in [(-.027, .061), (-.030, .020), (.088, .073), (.085, .018)]:
+            screw = cyl('frame_screw', (side * .014, y, z), (side * .0167, y, z), .0034, 'steel', sides=18, bevel=.0005)
+            cut(screw, cutter_box((side * .0168, y, z), (.002, .0045, .0008)))
+            parts['body'] += [screw]
+    parts['release'] += [box('thumb_latch', (-.016, .002, .06), (.005, .015, .008), 'brass', .001)]
+    angles = [math.pi / 2 + i * math.tau / 6 for i in range(6)]
+    drum = lathe('cylinder', [(0, 0), (.026, 0), (.028, .004), (.028, .042), (.026, .047), (0, .047)], 'blued', p0=(0, .022, centre), sides=42)
+    cut(drum, join([cutter_cyl((math.cos(a) * .031, .031, centre + math.sin(a) * .031),
+                              (math.cos(a) * .031, .064, centre + math.sin(a) * .031), .007, 20) for a in angles], 'flutes'))
+    cut(drum, join([cutter_cyl((math.cos(a) * chamber, .018, centre + math.sin(a) * chamber),
+                              (math.cos(a) * chamber, .073, centre + math.sin(a) * chamber), .0054, 20) for a in angles], 'chambers'))
     parts['cylinder'] += [drum]
-    for a in [i * math.tau / 6 for i in range(6)]:
-        x, z = math.cos(a) * .0138, .05 + math.sin(a) * .0138
-        parts['cylinder'] += [cyl('case_head', (x, .0232, z), (x, .0262, z), .0058, 'brass', sides=16, bevel=.0005)]
-        parts['cylinder'] += [cyl('bullet_nose', (x, .0655, z), (x, .0685, z), .0042, 'copper', sides=12, bevel=.0008)]
-    parts['cylinder'] += [cyl('ejector_rod', (0, .069, .05), (0, .094, .05), .0035, 'steel', sides=12, bevel=.0005)]
-    parts['cylinder'] += [prism('crane', [(.066, .03), (.072, .03), (.072, .02), (.066, .02)], .012, 'blued', x=-.004, bevel=.001)]
-    hammer = prism('hammer', [(-.004, -.006, 1), (.005, -.006, 1), (.004, .012), (-.004, .02), (-.016, .024), (-.02, .018), (-.012, .01), (-.006, .002)],
-                   .009, 'blued', bevel=.0012, smooth=2)
-    move(hammer, (0, -.03, .058))
-    parts['hammer'] += [hammer]
-    trig = prism('trigger', [(.03, .01, 1), (.037, .01, 1), (.04, -.004), (.033, -.02), (.027, -.02), (.031, -.004)], .008, 'steel', bevel=.001, smooth=2)
-    parts['trigger'] += [trig]
-    # Speedloader: teal body holding six rounds; hidden until the reload.
-    loader = [lathe('speedloader', [(0, 0), (.021, 0), (.023, .006), (.021, .018), (.009, .024), (.006, .036), (0, .036)], 'teal', p0=(0, 0, 0), axis=(0, -1, 0), sides=28)]
-    for a in [i * math.tau / 6 for i in range(6)]:
-        x, z = math.cos(a) * .0138, math.sin(a) * .0138
-        loader += [cyl('round', (x, .0, z), (x, .038, z), .0052, 'brass', sides=14, bevel=.0006)]
-        loader += [cyl('round_nose', (x, .038, z), (x, .046, z), .0048, 'copper', r1=.003, sides=12, bevel=.0006)]
-    speed = join(loader, 'speedloader')
-    move(speed, (0, .0235, .05))
-    parts['mag'] += [speed]
-    sockets = {'muzzle': (0, .208, .05), 'eject': (-.02, .045, .05), 'sight': (0, -.032, .0825)}
-    pivots = {'cylinder': (0, .045, .05), 'hammer': (0, -.03, .058), 'mag': (0, .0235, .05)}
-    return parts, sockets, pivots, {'magAxis': [0, -1, 0], 'crane': [-.013, .045, .026]}
+    # Separate cartridges and extractor: the cylinder itself never translates during ejection.
+    # Hollow spent cases become separate rigid parts only while they tumble out.
+    for i, a in enumerate(angles):
+        x, z = math.cos(a) * chamber, centre + math.sin(a) * chamber
+        parts['rounds'] += [cyl('case', (x, .023, z), (x, .061, z), .005, 'brass', sides=16, bevel=.0005),
+                            cyl('case_rim', (x, .021, z), (x, .024, z), .0058, 'brass', sides=18, bevel=.0005),
+                            cyl('primer', (x, .0207, z), (x, .0212, z), .002, 'copper', sides=12, bevel=.0002),
+                            cyl('bullet', (x, .061, z), (x, .069, z), .0048, 'copper', r1=.0028, sides=16, bevel=.0005)]
+        parts[f'case{i}'] = [tube(f'spent_case_{i}', (x, .024, z), (x, .061, z), .005, .0039, 'brass', sides=12, bevel=0),
+                             cyl(f'spent_rim_{i}', (x, .021, z), (x, .024, z), .0058, 'brass', sides=12, bevel=0),
+                             cyl(f'spent_primer_{i}', (x, .0207, z), (x, .0212, z), .002, 'copper', sides=10, bevel=0)]
+        parts['action'] += [cyl('extractor_spoke', (0, .0205, centre), (x * .8, .0205, centre + (z - centre) * .8), .002, 'steel', sides=10, bevel=.0004)]
+    parts['action'] += [cyl('ejector_rod', (0, .02, centre), (0, .113, centre), .0028, 'steel', sides=16, bevel=.0004),
+                        cyl('ejector_knob', (0, .107, centre), (0, .116, centre), .0044, 'brass', sides=18, bevel=.0007)]
+    parts['crane'] += [cyl('crane_arm', (-.013, .072, .022), (-.013, .072, centre), .0045, 'blued', sides=16, bevel=.0008),
+                       cyl('crane_axle', (-.013, .072, centre), (0, .072, centre), .004, 'steel', sides=16, bevel=.0006)]
+    hammer = prism('hammer', [(-.004, -.006), (.005, -.006), (.004, .012), (-.004, .024), (-.019, .03), (-.023, .023), (-.012, .012)], .01, 'brass', bevel=.0012, radius=.002)
+    move(hammer, (0, -.032, .061)); parts['hammer'] += [hammer]
+    parts['trigger'] += [prism('trigger', [(.031, .011), (.038, .011), (.041, -.006), (.032, -.024), (.026, -.023), (.031, -.004)], .008, 'brass', bevel=.001, radius=.002)]
+    for obj in parts['trigger']: move(obj, (0, -.017, 0))
+    parts['mag'] += [lathe('speedloader', [(0, 0), (.025, 0), (.027, .006), (.025, .014), (.009, .022), (.007, .038), (0, .038)], 'dark', p0=(0, .021, centre), axis=(0, -1, 0), sides=32)]
+    for a in angles:
+        parts['mag'] += [cyl('loader_detent', (math.cos(a) * chamber, .020, centre + math.sin(a) * chamber),
+                            (math.cos(a) * chamber, .023, centre + math.sin(a) * chamber), .0022, 'brass', sides=10, bevel=.0003)]
+    for obj in parts['body']:
+        if obj.name.split('.')[0] in {'wood_grip', 'medallion_rim', 'porcelain', 'porcelain_border', 'grip_screw'}:
+            obj.data.transform(Matrix.Diagonal((1, .80, 1, 1))); obj.data.update()
+    sockets = {'muzzle': (0, .273, bore), 'eject': (-.02, .023, centre), 'sight': (0, -.038, .0945)}
+    pivots = {'cylinder': (0, .045, centre), 'crane': (0, .045, centre), 'action': (0, .045, centre), 'rounds': (0, .021, centre),
+              'hammer': (0, -.032, .061), 'trigger': (0, .016, .008), 'mag': (0, .021, centre), 'release': (-.016, .002, .06)}
+    pivots.update({f'case{i}': (0, .021, centre) for i in range(6)})
+    return parts, sockets, pivots, {'magAxis': [0, -1, 0], 'crane': [-.013, .045, .022]}
 
 
 # ------------------------------------------------------------------ m4
@@ -632,6 +662,11 @@ LIVERY = {
     'smg': [
         {'stencil': 'star', 'at': (-.035, .064), 'size': .038, 'colour': '245EB1', 'on': ('yellow',)},
     ],
+    'revolver': [
+        {'stencil': 'vine', 'at': (-.013, .040), 'size': .064, 'colour': 'D5AF62', 'on': ('case',), 'metal': True},
+        {'stencil': 'vine', 'at': (.088, .045), 'size': .051, 'rotate': 180, 'colour': 'D5AF62', 'on': ('case',), 'metal': True},
+        {'stencil': 'capybara', 'at': (-.014, -.031), 'size': .017, 'colour': '274C83', 'on': ('ivory',)},
+    ],
     'm4': [
         {'stencil': 'frond', 'at': (.258, .064), 'size': .115, 'rotate': -16, 'colour': 'E27A5A', 'on': ('navy',)},
         {'stencil': 'frond', 'at': (.318, .060), 'size': .085, 'rotate': 14, 'colour': 'F0A07A', 'on': ('navy',), 'opacity': .8},
@@ -657,12 +692,12 @@ def build(weapon_id):
         meshes.append(obj)
     for name, location in sockets.items():
         empty(f'{weapon_id}_{name}', location, root)
-    size = 2048 if weapon_id in ('m4', 'pistol', 'smg') else 1024
-    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id in ('m4', 'pistol', 'smg') else .005,
+    size = 2048 if weapon_id in ('m4', 'pistol', 'smg', 'revolver') else 1024
+    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id in ('m4', 'pistol', 'smg', 'revolver') else .005,
                                 livery=LIVERY.get(weapon_id, ()))
     albedo_img = L.save_png(f'{weapon_id}_albedo', albedo)
     orm_img = L.save_png(f'{weapon_id}_orm', orm, srgb=False)
-    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id in ('m4', 'pistol', 'smg') else None
+    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id in ('m4', 'pistol', 'smg', 'revolver') else None
     material = L.export_material(f'{weapon_id}_mat', albedo_img, orm_img, normal_img)
     triangles = 0
     for obj in meshes:
