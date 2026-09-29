@@ -1,7 +1,8 @@
 // Stills of plant templates from the plant lab (tools/qa/plant-lab.html) on a running dev server.
 // node tools/qa/plant-lab.mjs <outDir> <species,...>       standard sheet per species: variants, LODs, 3/15/60 m, back-lit, below
 // node tools/qa/plant-lab.mjs <outDir> '<json {name: LabScene}>'   custom scenes (see plant-lab.ts)
-//   env: BASE (default http://127.0.0.1:5176), WIND=seconds renders 4 frames of wind per scene instead of one.
+//   env: BASE (default http://127.0.0.1:5176), WIND=seconds renders 4 frames of wind per scene instead of one,
+//        QUERY (e.g. ?defaultDepth to compare against three's default shadow material).
 import { chromium } from '@playwright/test';
 
 const [out, what] = process.argv.slice(2);
@@ -29,7 +30,7 @@ const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angl
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 page.on('console', m => { if (m.type() === 'error') console.error('console.error', m.text().slice(0, 300)); });
-await page.goto(`${process.env.BASE || 'http://127.0.0.1:5176'}/tools/qa/plant-lab.html`);
+await page.goto(`${process.env.BASE || 'http://127.0.0.1:5176'}/tools/qa/plant-lab.html${process.env.QUERY || ''}`);
 await page.waitForFunction(() => !!window.__lab, null, { timeout: 60000 });
 await page.evaluate(() => window.__lab.ready());
 SPECIES = await page.evaluate(() => window.__lab.species);

@@ -42,7 +42,7 @@ wall.castShadow = wall.receiveShadow = true; wall.visible = false; scene.add(wal
 
 const atlas = new THREE.TextureLoader().load('/textures/foliage-atlas.webp');
 atlas.colorSpace = THREE.SRGBColorSpace; atlas.minFilter = THREE.LinearMipmapLinearFilter; atlas.anisotropy = 8;
-const { material, uniforms } = createFoliageMaterial(atlas);
+const { material, uniforms, depthMaterial } = createFoliageMaterial(atlas);
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .07, 850);
 let batch: THREE.BatchedMesh | null = null;
 const cache = new Map<SpeciesId, THREE.BufferGeometry[][]>();
@@ -60,6 +60,7 @@ function show(spec: LabScene) {
   }
   batch = new THREE.BatchedMesh(spec.plants.length, vertices, indices, material);
   batch.castShadow = batch.receiveShadow = true; batch.frustumCulled = false;
+  if (!new URLSearchParams(location.search).has('defaultDepth')) batch.customDepthMaterial = depthMaterial;
   for (const g of used.keys()) used.set(g, batch.addGeometry(g));
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
   for (const p of spec.plants) {

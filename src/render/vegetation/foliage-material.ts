@@ -9,28 +9,9 @@ export interface FoliageUniforms {
   uWind: { value: number };
 }
 
-/**
- * One material paints every plant. Vertex attribute `aux` carries
- * (wind sway weight, KIND, LOD id); vertex colour carries painted light and
- * occlusion. Works with BatchedMesh: the wind is applied in the world frame
- * after the per-instance matrix, so a gust moves every crown the same way.
- */
-export function createFoliageMaterial(atlas?: THREE.Texture) {
-  const uniforms: FoliageUniforms = { uTime: { value: 0 }, uWind: { value: WIND } };
-  const material = createToonMaterial('foliage', { vertexColors: true, roughness: .92, side: THREE.DoubleSide,
-    map: atlas ?? null, alphaTest: .42 });
-  const previousCompile = material.onBeforeCompile;
-  material.onBeforeCompile = function (shader, renderer) {
-    previousCompile.call(this, shader, renderer);
-    Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = `attribute vec3 aux;
-      varying vec3 vAux;
-      varying float vPlantDist;
-      uniform float uTime;
-      uniform float uWind;\n${shader.vertexShader}`
-      .replace('#include <begin_vertex>', `#include <begin_vertex>
-        vAux = aux;`)
-      .replace('#include <project_vertex>', `
+/** Replaces `project_vertex`: the instance matrix, then a world-frame wind offset weighted by
+ * `aux.x`, so a gust moves every plant the same way. Shared by the colour and the shadow pass. */
+const WIND_PROJECT = `
         vec4 mvPosition = vec4( transformed, 1.0 );
         #ifdef USE_BATCHING
           mvPosition = batchingMatrix * mvPosition;
@@ -56,7 +37,31 @@ export function createFoliageMaterial(atlas?: THREE.Texture) {
         }
         mvPosition = modelViewMatrix * mvPosition;
         gl_Position = projectionMatrix * mvPosition;
-      `);
+      `;
+const VERTEX_HEAD = `attribute vec3 aux;
+      varying vec3 vAux;
+      varying float vPlantDist;
+      uniform float uTime;
+      uniform float uWind;\n`;
+
+/**
+ * One material paints every plant. Vertex attribute `aux` carries
+ * (wind sway weight, KIND, LOD id); vertex colour carries painted light and
+ * occlusion. Works with BatchedMesh: the wind is applied in the world frame
+ * after the per-instance matrix, so a gust moves every crown the same way.
+ */
+export function createFoliageMaterial(atlas?: THREE.Texture) {
+  const uniforms: FoliageUniforms = { uTime: { value: 0 }, uWind: { value: WIND } };
+  const material = createToonMaterial('foliage', { vertexColors: true, roughness: .92, side: THREE.DoubleSide,
+    map: atlas ?? null, alphaTest: .42 });
+  const previousCompile = material.onBeforeCompile;
+  material.onBeforeCompile = function (shader, renderer) {
+    previousCompile.call(this, shader, renderer);
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = `${VERTEX_HEAD}${shader.vertexShader}`
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vAux = aux;`)
+      .replace('#include <project_vertex>', WIND_PROJECT);
     shader.fragmentShader = `varying vec3 vAux;
       varying float vPlantDist;\n${shader.fragmentShader}`
       .replace('#include <map_fragment>', `
@@ -104,5 +109,30 @@ export function createFoliageMaterial(atlas?: THREE.Texture) {
       `);
   };
   material.customProgramCacheKey = () => 'ilha-dourada-foliage-v2';
-  return { material, uniforms };
+  return { material, uniforms, depthMaterial: createFoliageDepthMaterial(uniforms) };
+}
+
+/** Shadow pass of the plant batch. Three's default depth material would cut every vertex against
+ * the atlas alpha, so trunks, limbs and fruit (whose UVs are bark coordinates, not leaf tiles) cast
+ * almost no shadow. Here only leaf cards are alpha-tested, and the wind matches the colour pass.
+ * The renderer copies the foliage material's map, alpha test and side onto it each shadow pass. */
+export function createFoliageDepthMaterial(uniforms: FoliageUniforms) {
+  const material = new THREE.MeshDepthMaterial();
+  material.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = `${VERTEX_HEAD}${shader.vertexShader}`
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vAux = aux;`)
+      .replace('#include <project_vertex>', WIND_PROJECT);
+    shader.fragmentShader = `varying vec3 vAux;
+      varying float vPlantDist;\n${shader.fragmentShader}`
+      .replace('#include <alphatest_fragment>', `
+        #ifdef USE_ALPHATEST
+          // Only painted leaf cards are cut by the atlas alpha; bark and fruit are solid.
+          if ( vAux.y > .5 && vAux.y < 1.5 && diffuseColor.a < alphaTest ) discard;
+        #endif
+      `);
+  };
+  material.customProgramCacheKey = () => 'ilha-dourada-foliage-depth-v1';
+  return material;
 }

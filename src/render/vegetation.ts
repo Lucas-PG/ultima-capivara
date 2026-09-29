@@ -10,11 +10,12 @@ import { buildTemplates } from './vegetation/templates';
 export function buildVegetation(world: WorldSpec, atlas?: THREE.Texture) {
   const group = new THREE.Group();
   group.name = 'vegetation-root';
-  const { material, uniforms } = createFoliageMaterial(atlas);
+  const { material, uniforms, depthMaterial } = createFoliageMaterial(atlas);
   const plants = collectPlants(world);
   const templates = buildTemplates(new Set<SpeciesId>(plants.map(plant => plant.species)));
   const batch = new PlantBatch(material, templates, plants.filter(plant => templates[plant.species]));
   batch.mesh.castShadow = true;
+  batch.mesh.customDepthMaterial = depthMaterial;
   batch.mesh.receiveShadow = true;
   group.add(batch.mesh);
   return { group, batch,
@@ -23,5 +24,5 @@ export function buildVegetation(world: WorldSpec, atlas?: THREE.Texture) {
       uniforms.uTime.value = time;
       if (camera) batch.update(camera);
     },
-    dispose() { batch.dispose(); material.dispose(); } };
+    dispose() { batch.dispose(); material.dispose(); depthMaterial.dispose(); } };
 }

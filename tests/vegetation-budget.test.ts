@@ -140,6 +140,21 @@ describe('vegetation batch', () => {
     } finally { vegetation.dispose(); }
   });
 
+  it('casts solid trunk shadows: the shadow pass alpha-tests leaf cards only', () => {
+    // Trunk, limb and fruit UVs are bark coordinates; cut against the atlas alpha they would cast no shadow.
+    const vegetation = buildVegetation({ objects: [], colliders: [] } as unknown as WorldSpec);
+    try {
+      const depth = vegetation.batch.mesh.customDepthMaterial as THREE.MeshDepthMaterial;
+      expect(depth).toBeInstanceOf(THREE.MeshDepthMaterial);
+      const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.depth.vertexShader, fragmentShader: THREE.ShaderLib.depth.fragmentShader } as unknown as THREE.WebGLProgramParametersWithUniforms;
+      depth.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+      expect(shader.fragmentShader).not.toContain('#include <alphatest_fragment>');
+      expect(shader.fragmentShader).toContain(`vAux.y > .5 && vAux.y < 1.5 && diffuseColor.a < alphaTest`);
+      // The shadow sways with the leaves.
+      expect(shader.vertexShader).toContain('uWind');
+    } finally { vegetation.dispose(); }
+  });
+
   it('picks cheaper templates by camera distance, sooner on Low, and holds a LOD across small moves', () => {
     const tree = (x: number): MapObject => ({ id: `t${x}`, kind: 'tree', detail: 'mango', pos: { x, y: 0, z: 0 }, scale: { x: 1, y: 8, z: 1 }, color: '#5FA544' });
     const world = { objects: [tree(0)], colliders: [] } as unknown as WorldSpec;
