@@ -22,8 +22,12 @@ export interface DressingPlant {
 
 /** Kit pieces that are nothing but foliage: the vegetation layer draws these instead of the kit. */
 export const VEGETATION_PIECES: ReadonlySet<string> = new Set(['bush_cluster', 'hedge']);
-/** Buildings whose outer walls may carry bougainvillea and garden beds. */
+/** Buildings besides the houses whose outer walls may carry garden beds. */
 const GARDEN_BUILDINGS = new Set(['church', 'market_hall']);
+/** Kit pieces reviewed as plain walls for bougainvillea drapes. A new piece stays bare until added
+ * here, so a kit building that paints its own bougainvillea never gets a second, clashing one. */
+export const VINE_WALLS: ReadonlySet<string> = new Set(['house_small', 'house_medium', 'house_tall', 'house_laje', 'house_laje_b',
+  'house_varanda', 'sobrado', 'church', 'market_hall']);
 const URBAN = new Set(['vila', 'centro', 'posto', 'morro', 'fazenda', 'praia', 'farol', 'porto']);
 
 interface WallSegment {
@@ -154,7 +158,7 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
   const STYLE_HALF_WIDTH = [1.1, .85, 1.0, 1.3];
   for (const house of houses) {
     const walls = facadeSegments(house.piece), k = house.scale ?? 1;
-    if (!walls.length || hash(house.id, 7) < .1) continue;
+    if (!VINE_WALLS.has(house.piece) || !walls.length || hash(house.id, 7) < .1) continue;
     let placed = 0;
     const budget = 2 + Math.floor(hash(house.id, 8) * 3);
     walls.forEach((w, wi) => {
