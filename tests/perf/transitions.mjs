@@ -91,7 +91,7 @@ try {
   const firstShot = await page.evaluate(() => window.__qaTrace.sample());
   const swaps = [];
   const sweeps = Number(process.env.SWEEPS || 1);
-  for (let sweep = 1; sweep <= sweeps; sweep++) for (const weapon of ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot']) {
+  for (let sweep = 1; sweep <= sweeps; sweep++) for (const weapon of ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete']) {
     await page.evaluate(() => window.__qaTrace.reset());
     const handlerMs = await page.evaluate(id => window.__qaTrace.setWeapon(id), weapon);
     await page.waitForTimeout(1000);

@@ -561,27 +561,6 @@ def machete():
     return parts, sockets, {}, {}
 
 
-# ------------------------------------------------------------------ slingshot
-@weapon
-def slingshot():
-    """Estilingão: guava-branch fork, inner-tube wrap, orange tubing, leather pouch and a pebble."""
-    parts = {'body': [], 'pouch': []}
-    parts['body'] += [sweep('handle', [(0, 0, -.1), (0, .002, -.05), (0, .004, .0), (0, .004, .03)], [.017, .018, .018, .02], 'wood', sides=16)]
-    for side in (-1, 1):
-        parts['body'] += [sweep('arm', [(0, .004, .028), (side * .022, .004, .06), (side * .042, .0, .1), (side * .048, -.004, .13)],
-                                [.017, .014, .012, .011], 'wood', sides=14)]
-        parts['body'] += [lathe('tip_wrap', [(.0125, 0), (.0135, .002), (.0135, .012), (.0125, .014)], 'rubber', p0=(side * .046, -.003, .112), axis=(0, 0, 1), sides=16)]
-    for i in range(5):
-        parts['body'] += [lathe('wrap', [(.0185, 0), (.0195, .002), (.0195, .01), (.0185, .012)], 'rubber', p0=(0, .002, -.085 + i * .016), axis=(0, 0, 1), sides=18)]
-    parts['body'] += [sphere('knot', (0, .002, -.106), (.014, .014, .012), 'wood_dark', 14, 10)]
-    parts['pouch'] += [sweep('pouch', [(-.022, 0, 0), (-.01, -.006, 0), (.01, -.006, 0), (.022, 0, 0)], [.006, .01, .01, .006], 'leather', sides=10, aspect=.45, up=(0, 1, 0))]
-    parts['pouch'] += [sphere('pebble', (0, .004, 0), (.013, .012, .012), 'stone', 16, 12)]
-    sockets = {'muzzle': (0, .02, .13), 'eject': (0, 0, 0), 'sight': (0, -.02, .135), 'tip_l': (-.048, -.004, .128), 'tip_r': (.048, -.004, .128)}
-    pivots = {'pouch': (0, 0, 0)}
-    return parts, sockets, pivots, {}
-
-
-# ------------------------------------------------------------------ pipeline
 # Painted liveries (arsenal_lib.apply_livery): stencilled motifs per weapon,
 # projected onto the baked albedo and chipped with the paint.
 LIVERY = {

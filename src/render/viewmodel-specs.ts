@@ -7,8 +7,8 @@ import armsMetrics from '../../public/models/fp/metrics.json';
 // First-person presentation data. Weapon space is the model's own space
 // (x right, y up, -z toward the muzzle); the origin is the web of the firing paw.
 export type V3 = readonly [number, number, number];
-export type HandlingClass = 'pistol' | 'rifle' | 'heavy' | 'melee' | 'sling';
-export type ReloadStyle = 'pistol' | 'revolver' | 'rifle' | 'shotgun' | 'bolt' | 'coco' | 'sling' | 'none';
+export type HandlingClass = 'pistol' | 'rifle' | 'heavy' | 'melee';
+export type ReloadStyle = 'pistol' | 'revolver' | 'rifle' | 'shotgun' | 'bolt' | 'coco' | 'none';
 export interface GripSpec { wrist: V3; forward: V3; palm: V3; curl: HandCurl; pole: V3; /** Follow an animated part (the pump). */ part?: string }
 export interface ViewSpec {
   /** First-person model (models/arsenal). */
@@ -128,16 +128,6 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     sprint: { pos: [0, -.05, .05], rot: [.3, .2, .2] }, adsDistance: .3,
     grips: { R: { wrist: [.035, -.07, .02], forward: [-.1, 1, .15], palm: [-1, 0, 0], curl: curl([1.45, 1.3, .9], [1.5, 1.35, .95], [1.55, 1.35, .95], [.7, .5, .3]), pole: [.8, -1, .3] } },
     recoil: { kick: 0, climb: 0, roll: 0, frequency: 20 }, inertia: .8,
-  },
-  slingshot: {
-    url: 'models/arsenal/slingshot.glb', scale: 1, handling: 'sling', reload: 'sling',
-    hip: { pos: [-.07, -.08, -.5], rot: [.05, -.05, .15] },
-    sprint: { pos: [.05, -.08, .06], rot: [.4, -.3, -.3] }, adsDistance: .38,
-    grips: {
-      R: { wrist: [.2, -.1, .3], forward: [-.45, .35, -1], palm: [-1, .1, .3], curl: curl([.9, .8, .6], [1.2, 1.1, .8], [1.3, 1.1, .8], [.9, .5, .3]), pole: [.9, -1, .4] },
-      L: { wrist: [-.03, -.06, .085], forward: [.05, .05, -1], palm: [1, 0, 0], curl: PISTOL_R, pole: [-.8, -1, .2] },
-    },
-    recoil: { kick: .6, climb: 1, roll: .5, frequency: 20 }, inertia: .8,
   },
 };
 

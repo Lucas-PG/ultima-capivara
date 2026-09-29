@@ -39,7 +39,7 @@ const CONSUMABLES: ConsumableId[] = ['bandage', 'medkit', 'guarana', 'acai', 'ra
 const USE_LABEL: Record<ConsumableId, string> = { bandage: 'Enfaixando…', medkit: 'Remendando…', guarana: 'Tomando guaraná…', acai: 'Tomando açaí…', rapadura: 'Mastigando rapadura…' };
 const LOOT_LABEL: Record<string, string> = { ammo: 'munição', armor: 'colete', helmet: 'capacete', bandage: 'bandagem', medkit: 'kit médico', guarana: 'guaraná', acai: 'açaí', rapadura: 'rapadura' };
 const nextEliminationLine = tipBag(ELIMINATION_LINES);
-const fireMode = (id: WeaponId) => id === 'machete' ? 'CORTE' : id === 'slingshot' ? 'PEDRA' : id === 'shotgun' ? 'BOMBA' : id === 'sniper' ? 'FERROLHO' : WEAPONS[id].automatic ? 'AUTO' : 'SEMI';
+const fireMode = (id: WeaponId) => id === 'machete' ? 'CORTE' : id === 'shotgun' ? 'BOMBA' : id === 'sniper' ? 'FERROLHO' : WEAPONS[id].automatic ? 'AUTO' : 'SEMI';
 // Result stats the simulation may add (Brasa, M1); cards stay hidden until the fields exist.
 type ResultStats = MatchResult & Partial<{ shots: number; hits: number; headshots: number; survived: number; chests: number; longestShot: number }>;
 const CROSSHAIR_COLORS: Record<Settings['crosshairColor'], string> = { white: '#ffffff', yellow: '#ffe14d', cyan: '#3fd8ff', magenta: '#ff4fd8' };
@@ -407,7 +407,7 @@ export class GameUI {
     // Reload: a ring fills around the crosshair, with a short label under it.
     const reloading = !!weapon && !!def && me.reloadUntil > t && me.alive; this.show('reload', reloading); this.show('rring', reloading);
     if (reloading) {
-      this.text('reloadTxt', weapon.id === 'shotgun' ? 'Botando cartucho' : weapon.id === 'slingshot' ? 'Pegando pedra' : 'Enchendo o pente');
+      this.text('reloadTxt', weapon.id === 'shotgun' ? 'Botando cartucho' : 'Enchendo o pente');
       this.attr(this.el('rringFg'), 'stroke-dasharray', `${(clamp(1 - (me.reloadUntil - t) / Math.max(.1, def.reload), 0, 1) * 100).toFixed(1)} 100`);
     }
     if (me.using && me.useUntil > t) {

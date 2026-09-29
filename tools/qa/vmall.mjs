@@ -1,7 +1,7 @@
 // Every weapon's first-person view (hip, ADS) plus an outside view of the grip.
 // node tools/qa/vmall.mjs <outDir> [weapons csv] [views csv: hip,ads,side,left]
 import { chromium } from '@playwright/test';
-const [out, list = 'pistol,revolver,smg,m4,shotgun,coco,dmr,sniper,machete,slingshot', viewsCsv = 'hip,ads,side'] = process.argv.slice(2);
+const [out, list = 'pistol,revolver,smg,m4,shotgun,coco,dmr,sniper,machete', viewsCsv = 'hip,ads,side'] = process.argv.slice(2);
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 page.on('pageerror', e => console.error('pageerror', e.message));

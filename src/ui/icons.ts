@@ -64,7 +64,6 @@ const WEAPON_PATHS: Record<string, string> = {
   smg: '<path d="M14 9 H64 V16 H56 L54 26 H47 L49 16 H40 L37 22 H30 L32 16 H26 L18 19 H10 Z"/><rect x="64" y="11" width="10" height="3"/><rect x="30" y="4" width="10" height="4"/>',
   dmr: '<path d="M2 11 L18 9 H26 V7 H70 V9 H99 V11 H70 V16 H60 V25 H55 L53 16 H44 L40 27 H33 L36 16 H28 L22 20 H6 Z"/><rect x="32" y="1" width="26" height="5" rx="2"/>',
   machete: '<path d="M18 21 Q55 3 97 7 Q72 19 34 22 Z"/><rect x="2" y="18" width="18" height="7" rx="2"/>',
-  slingshot: '<path d="M50 31 V18 L39 4 M50 18 L61 4" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><path d="M39 5 Q50 17 61 5" fill="none" stroke="#e5412d" stroke-width="2.5"/>',
   pistol: '<path d="M20 6h46v9H40l-3 3-3 14H22l3-14h-5z"/><rect x="62" y="8" width="6" height="3"/>',
   revolver: '<path d="M22 8h8v-2h10v2h36v6H44v4h-4l-3 3-4 11H22l4-12-4-2z"/><circle cx="38" cy="12" r="6"/><rect x="72" y="4" width="3" height="4"/>',
   coco: '<path d="M4 12 L20 8 H30 V5 H84 V19 H44 L40 27 H33 L35 19 H24 L8 22 Z"/><rect x="50" y="1" width="4" height="5"/><circle cx="90" cy="12" r="7"/>',

@@ -61,8 +61,8 @@ describe('Corrente race to the facão', () => {
       expect(sim.snapshot().remaining).toBe(CORRENTE_LADDER.length - level);
       expect(sim.snapshot().phase).toBe('playing');
     }
-    // A stone already in flight may earn another elimination, but cannot finish the race.
-    eliminate(runtime, b, a, 'slingshot');
+    // A coconut already in flight may earn another elimination, but cannot finish the race.
+    eliminate(runtime, b, a, 'coco');
     advance(sim, 1);
     expect(sim.snapshot().phase).toBe('playing'); expect(actor.weaponLevel).toBe(CORRENTE_LADDER.length - 1);
     eliminate(runtime, b, a, 'machete'); advance(sim, 1);

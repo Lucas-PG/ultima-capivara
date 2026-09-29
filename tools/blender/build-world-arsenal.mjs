@@ -11,9 +11,9 @@ import { Matrix3, Matrix4, Vector3 } from 'three';
 import sharp from 'sharp';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const IDS = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete', 'slingshot'];
+const IDS = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete'];
 // Parts that only exist during first-person animations.
-const SKIP = { revolver: ['mag'], shotgun: ['mag'], slingshot: ['pouch'] };
+const SKIP = { revolver: ['mag'], shotgun: ['mag'] };
 const BUDGET = { near: [2400, .012], far: [420, .06] };
 const CELL = 256, ATLAS = 1024, PAD = 6;
 await MeshoptSimplifier.ready;

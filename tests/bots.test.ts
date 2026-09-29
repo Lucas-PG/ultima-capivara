@@ -148,7 +148,7 @@ describe('legacy bot behaviour', () => {
     expect(sim.snapshot().openedChests).toEqual(['chest-1']);
     collect(sim, 8);
     const kinds = bot.state.weapons.map(w => w.id);
-    const took = bot.state.armor > 0 || bot.state.helmet > 0 || kinds.some(id => !['pistol', 'machete', 'slingshot'].includes(id)) ||
+    const took = bot.state.armor > 0 || bot.state.helmet > 0 || kinds.some(id => !['pistol', 'machete'].includes(id)) ||
       Object.values(bot.state.consumables).some(n => n > 0);
     expect(took).toBe(true);
   });

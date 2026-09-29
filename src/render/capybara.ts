@@ -602,14 +602,13 @@ function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun
   arm.fingers.apply(grip.curl);
   arm.paw.updateMatrixWorld(true);
 }
-type HoldClass = 'rifle' | 'pistol' | 'melee' | 'sling';
-const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'pistol', smg: 'rifle', m4: 'rifle', shotgun: 'rifle', dmr: 'rifle', sniper: 'rifle', coco: 'rifle', machete: 'melee', slingshot: 'sling' };
+type HoldClass = 'rifle' | 'pistol' | 'melee';
+const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'pistol', smg: 'rifle', m4: 'rifle', shotgun: 'rifle', dmr: 'rifle', sniper: 'rifle', coco: 'rifle', machete: 'melee' };
 // Gun origin (the firing paw's web) in character space at rest, and its extra yaw/roll.
 const HOLD_POSE: Record<HoldClass, { pos: readonly [number, number, number]; yaw: number; roll: number }> = {
   rifle: { pos: [.12, 1.17, -.345], yaw: .06, roll: 0 },
   pistol: { pos: [.03, 1.22, -.40], yaw: 0, roll: 0 },
   melee: { pos: [.3, .98, -.2], yaw: 0, roll: 0 },
-  sling: { pos: [-.04, 1.28, -.4], yaw: 0, roll: 0 },
 };
 interface HoldRig { spine: THREE.Bone; charQuat: THREE.Quaternion; R: ArmChain; L: ArmChain; reloadEnd: number; reloadEmpty: boolean; sample: ChoreoSample }
 const RELAXED_PAW: HandCurl = { index: [.12, .18, .1], middle: [.18, .22, .1], ring: [.2, .25, .1], thumb: [.18, .12, .06] };

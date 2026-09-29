@@ -8,7 +8,7 @@ export type Mode = 'battle-royale' | 'deathmatch' | 'corrente';
 export const isArenaMode = (mode: Mode | undefined) => mode === 'deathmatch' || mode === 'corrente';
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'results';
 export type Difficulty = 'easy' | 'normal' | 'hard';
-export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'slingshot' | 'revolver' | 'coco';
+export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'revolver' | 'coco';
 export type EmoteId = 'wave' | 'dance' | 'victory' | 'sit' | 'chill';
 export type ConsumableId = 'bandage' | 'medkit' | 'guarana' | 'acai' | 'rapadura';
 export interface Vec3 { x: number; y: number; z: number }
@@ -118,7 +118,7 @@ export type GameEvent =
   | { type: 'bounce'; id: number; actor: string; pos: Vec3 }
   | { type: 'supply'; id: number; drop: string; pos: Vec3; district: string; stage: 'incoming' | 'landed' | 'opened' }
   | { type: 'use'; id: number; actor: string; item: ConsumableId }
-  // A slow projectile (slingshot stone) struck the world after its flight.
+  // A slow projectile (a coconut) struck the world after its flight.
   | { type: 'impact'; id: number; actor: string; weapon: WeaponId; pos: Vec3; surface: Surface; normal: Vec3 }
   // A bot has locked onto a human and will open fire after `delay` seconds.
   | { type: 'alert'; id: number; actor: string; target: string; delay: number }

@@ -17,7 +17,7 @@ it('motion strips advance the rendered clock with the reload deadline and replay
     ui: { update: () => {}, event: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any,
     begin: async () => renderer as any });
   const qa = window.__capyQA!; await qa.start();
-  for (const weapon of ['pistol', 'shotgun', 'slingshot'] as const) {
+  for (const weapon of ['pistol', 'shotgun', 'coco'] as const) {
     await qa.motion(weapon, 'reload', WEAPONS[weapon].reload * .65);
     const actor = last.snapshot.actors[0];
     expect(actor.weapons[0].id).toBe(weapon);

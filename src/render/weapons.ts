@@ -27,16 +27,16 @@ const window01 = (t: number, a: number, b: number) => ease((t - a) / (b - a));
 const bump = (t: number, a: number, peak: number, b: number) => window01(t, a, peak) * (1 - window01(t, peak, b));
 
 interface Parts { slide?: THREE.Object3D; mag?: THREE.Object3D; trigger?: THREE.Object3D; hammer?: THREE.Object3D; action?: THREE.Object3D;
-  cylinder?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; pouch?: THREE.Object3D; release?: THREE.Object3D }
+  cylinder?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; release?: THREE.Object3D }
 interface Model {
   id: WeaponId; spec: ViewSpec; group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; sight: THREE.Vector3;
   parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
   grips: { R: GripSpec; L?: GripSpec }; magAxis: THREE.Vector3; rarity: number; accent: ReturnType<typeof applyRarityAccent>[];
-  crane?: THREE.Vector3; bands?: THREE.Mesh[]; tips?: THREE.Object3D[];
+  crane?: THREE.Vector3;
 }
 const sortedReloads = Object.fromEntries(Object.entries(RELOADS).map(([id, keys]) => [id, [...keys!].sort((a, b) => a.t - b.t)]));
 
-const WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'slingshot', 'revolver', 'coco'];
+const WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'revolver', 'coco'];
 
 // Rarity recolours the weapon's teal accents (Comum keeps them) and lights them for Lendária.
 function applyRarityAccent(material: THREE.MeshStandardMaterial) {
@@ -168,21 +168,13 @@ export class WeaponView {
     const spec = VIEW_SPECS[id];
     const model: Model = { id, spec, group, muzzle, eject, sight: sight.position.clone(),
       parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action'),
-        cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), pouch: get('pouch'), release: get('release') },
+        cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), release: get('release') },
       rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent };
     // Blender axis (x, y, z) is (x, z, -y) here.
     const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
     if (axis) model.magAxis.set(axis[0], axis[2], -axis[1]).normalize();
     const crane = (arsenalMetrics as Record<string, { crane?: number[] }>)[id]?.crane;
     if (crane) model.crane = new THREE.Vector3(crane[0], crane[2], -crane[1]);
-    if (id === 'slingshot') {
-      // Surgical tubing: two unit cylinders stretched each frame from the fork tips to the pouch.
-      const material = new THREE.MeshStandardMaterial({ color: '#f07a2a', roughness: .55 });
-      const geometry = new THREE.CylinderGeometry(.0042, .0042, 1, 10, 1, true); geometry.translate(0, .5, 0);
-      model.bands = [new THREE.Mesh(geometry, material), new THREE.Mesh(geometry, material)];
-      model.tips = [get('tip_l')!, get('tip_r')!];
-      for (const band of model.bands) { band.frustumCulled = false; root.add(band); }
-    }
     this.remember(model);
     group.visible = false; this.holder.add(group);
     return model;
@@ -223,7 +215,7 @@ export class WeaponView {
       this.meleeTime = 0; this.meleeSide *= -1; this.meleeHit = contact; this.meleeStop = 0;
     } else {
       if (id === 'revolver') this.cylinderTarget += Math.PI / 3;
-      if (id !== 'slingshot') this.flashLight = id === 'shotgun' || id === 'sniper' || id === 'coco' ? 1.4 : 1;
+      this.flashLight = id === 'shotgun' || id === 'sniper' || id === 'coco' ? 1.4 : 1;
       const recoil = this.models[id]?.spec.recoil ?? VIEW_SPECS[id].recoil;
       const scale = 1 - this.adsAmount * .45;
       const alternate = this.shotCount++ % 2 ? 1 : -1;
@@ -540,14 +532,8 @@ export class WeaponView {
       this.targetR.palm.lerp(this.handB.palm.set(-.75, .1, -.6).normalize(), this.boltHand).normalize();
       this.targetR.curl = blendCurl(this.targetR.curl, BOLT_CURL, this.boltHand);
     }
-    if (model.id === 'slingshot' && this.shotLife > 0) {
-      // Release: the pinching paw springs toward the fork, then draws a new stone.
-      const release = 1 - window01(1 - this.shotLife / weaponShotDuration('slingshot'), .15, 1);
-      this.targetR.wrist.lerp(this.handA.wrist.set(.02, .02, .08).applyMatrix4(this.holder.matrixWorld), release * .85);
-    }
     v3((shoulders ?? SHOULDERS).R, this.shoulderR); v3((shoulders ?? SHOULDERS).L, this.shoulderL);
     arms.right.solve(this.shoulderR, this.targetR);
-    if (model.parts.pouch && model.bands && model.tips) this.stretchBands(model);
     const L = grips.L;
     arms.setVisible(true, !!L || this.swimPose > .5);
     if (L) {
@@ -563,20 +549,6 @@ export class WeaponView {
       if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
       arms.left.solve(this.shoulderL, this.targetL);
     }
-  }
-
-  private stretchBands(model: Model) {
-    // The pouch sits in the right paw's pinch; the tubing runs from each fork tip to it.
-    const pouch = model.parts.pouch!, root = pouch.parent!;
-    const pinch = this.handA.wrist.copy(this.targetR.wrist).addScaledVector(this.targetR.forward, .085).addScaledVector(this.targetR.palm, -.012);
-    root.updateMatrixWorld(true);
-    pouch.position.copy(root.worldToLocal(pinch));
-    model.bands!.forEach((band, i) => {
-      const tip = root.worldToLocal(model.tips![i].getWorldPosition(this.handB.wrist));
-      const span = this.handB.forward.subVectors(pouch.position, tip);
-      band.position.copy(tip); band.scale.set(1, span.length(), 1);
-      band.quaternion.setFromUnitVectors(UP, span.normalize());
-    });
   }
 
   private readonly handA: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };

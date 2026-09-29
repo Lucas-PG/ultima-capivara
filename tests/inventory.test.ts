@@ -80,7 +80,7 @@ describe('inventory', () => {
     const weapons = [{ id: 'smg', box: 0 }, { id: 'm4', box: 1 }, { id: 'pistol', box: 2 }, { id: 'machete', box: 3 }].map(w => ({ ...w, ammo: 1, reserve: 1, rarity: 0 })) as any;
     expect(planPickup(weapons, 1, 'sniper')).toEqual({ kind: 'swap', index: 1, box: 1 });
     expect(planPickup(weapons, 3, 'sniper')).toEqual({ kind: 'swap', index: 0, box: 0 }); // holding the facão
-    expect(planPickup(weapons, 0, 'slingshot')).toEqual({ kind: 'swap', index: 2, box: 2 });
+    expect(planPickup(weapons, 0, 'revolver')).toEqual({ kind: 'swap', index: 2, box: 2 });
     expect(planPickup(weapons, 0, 'm4')).toEqual({ kind: 'merge', index: 1 });
   });
 

@@ -27,7 +27,6 @@ export const BOT_WEAPON: Record<WeaponId, { tier: number; range: number; sight: 
   dmr: { tier: 3, range: 38, sight: 140, cooldown: [.55, .9] },
   sniper: { tier: 3, range: 55, sight: 170, cooldown: [1.4, 2.2] },
   machete: { tier: 0, range: 1, sight: 10, cooldown: [.45, .7] },
-  slingshot: { tier: 0, range: 18, sight: 60, cooldown: [1.2, 1.6] },
   revolver: { tier: 2, range: 20, sight: 90, cooldown: [.45, .7] },
   coco: { tier: 3, range: 20, sight: 70, cooldown: [1.1, 1.5] },
 };

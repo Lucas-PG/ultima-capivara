@@ -29,9 +29,9 @@ const STORM = [
   { wait: 15, shrink: 15, radius: 0, damage: 14 },
 ];
 const USE_TIME: Record<ConsumableId, number> = { bandage: 2.5, medkit: 5, guarana: 2, acai: 3, rapadura: 1.5 };
-const CHEST_WEAPONS: WeaponId[] = ['smg', 'shotgun', 'm4', 'dmr', 'sniper', 'slingshot', 'revolver', 'coco', 'smg', 'm4', 'revolver'];
+const CHEST_WEAPONS: WeaponId[] = ['smg', 'shotgun', 'm4', 'dmr', 'sniper', 'revolver', 'coco', 'smg', 'm4', 'revolver'];
 const CHEST_EXTRA: [LootState['kind'], number][] = [['bandage', 20], ['medkit', 12], ['armor', 18], ['helmet', 12], ['guarana', 14], ['acai', 12], ['rapadura', 12]];
-const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, slingshot: 12, revolver: 24, coco: 8 };
+const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, revolver: 24, coco: 8 };
 // Hit shapes on the standing capybara (eye 1.62, facing -z): a head
 // sphere and a vertical body cylinder from the feet. When a bot shoots a human the
 // legacy player-favouring sizes apply. Crouching scales them by 1.3/1.8 from the feet.
@@ -119,7 +119,7 @@ export class Simulation {
     this.personalityRandom = rng(seed ^ 0x63617079);
     // Snapshots must not carry undefined fields: finiteTree() rejects them and the
     // host would stop publishing. Non-weapon spawns may come with `weapon: undefined`.
-    this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: weapon === 'slingshot' ? 3 : Math.floor(this.random() * 4), respawnAt: 0 }));
+    this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: Math.floor(this.random() * 4), respawnAt: 0 }));
     if (config.mode === 'corrente') {
       for (const item of this.loot) item.active = false;
       for (const chest of world.chests) this.openedChests.add(chest.id);
@@ -554,7 +554,7 @@ export class Simulation {
   // in a fan facing whoever opened it; they are then picked up one by one.
   private spillChest(chest: ChestSpec, opener: ActorState) {
     const weapon = CHEST_WEAPONS[Math.floor(this.random() * CHEST_WEAPONS.length)];
-    const roll = this.random(), rarity = weapon === 'slingshot' ? 3 : roll < .55 ? 1 : roll < .87 ? 2 : 3;
+    const roll = this.random(), rarity = roll < .55 ? 1 : roll < .87 ? 2 : 3;
     let pickRoll = this.random() * CHEST_EXTRA.reduce((sum, [, weight]) => sum + weight, 0), extra: LootState['kind'] = 'bandage';
     for (const [kind, weight] of CHEST_EXTRA) { if ((pickRoll -= weight) < 0) { extra = kind; break; } }
     const kinds: LootState['kind'][] = ['weapon', 'ammo', extra];
@@ -664,7 +664,7 @@ export class Simulation {
     if (!def.melee) w.ammo--;
     a.shots++;
     const origin = center(s), forward = aim ? aim.dir : aimDirection(s.yaw, s.pitch);
-    const range = w.id === 'pistol' || w.id === 'smg' ? 60 : w.id === 'slingshot' ? 25 : def.melee ? 0 : 90;
+    const range = w.id === 'pistol' || w.id === 'smg' ? 60 : def.melee ? 0 : 90;
     if (range) this.alertBots(s.pos, range);
     origin.x += Math.cos(s.yaw) * s.lean * .32; origin.z -= Math.sin(s.yaw) * s.lean * .32;
     if (def.projectile) {

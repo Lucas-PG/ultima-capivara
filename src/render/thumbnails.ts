@@ -5,7 +5,7 @@ import { worldWeaponMaterial } from './world-weapons';
 
 // Hotbar thumbnails: every weapon's painted ground-loot model rendered once, three-quarter view, softly lit,
 // with a thick sticker outline stamped in 2D. Cached as data URLs; the WebGL context is released after.
-const WEAPON_IDS: WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete', 'slingshot'];
+const WEAPON_IDS: WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete'];
 const WIDTH = 256, HEIGHT = 160, OUTLINE = 5, INK = '#16120e';
 const cache = new Map<WeaponId, string>();
 let pending: Promise<Map<WeaponId, string>> | null = null;

@@ -37,7 +37,7 @@ type QaApi = {
 
 declare global { interface Window { __capyQA?: QaApi } }
 
-const WEAPONS: WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete', 'slingshot'];
+const WEAPONS: WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete'];
 const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
 const TRAMPOLINE_POSES = ['trampolineBounce', 'trampolineAir'];
 const SUPPLY_POSES = ['supplyIncoming', 'supplyDescending', 'supplyLanded', 'supplyOpened'];

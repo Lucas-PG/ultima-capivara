@@ -1,6 +1,6 @@
 import type { WeaponId } from './types';
 
-export const CORRENTE_LADDER = ['pistol', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'revolver', 'slingshot', 'machete'] as const satisfies readonly WeaponId[];
+export const CORRENTE_LADDER = ['pistol', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'revolver', 'machete'] as const satisfies readonly WeaponId[];
 
 export interface WeaponDefinition {
   name: string; shortName: string; description: string; ammo: string | null;
@@ -10,7 +10,7 @@ export interface WeaponDefinition {
 }
 
 export const ADS_TIME: Record<WeaponId, number> = {
-  pistol: .16, smg: .16, m4: .22, shotgun: .22, dmr: .22, sniper: .3, machete: .16, slingshot: .16, revolver: .18, coco: .24,
+  pistol: .16, smg: .16, m4: .22, shotgun: .22, dmr: .22, sniper: .3, machete: .16, revolver: .18, coco: .24,
 };
 export const RECOIL: Record<WeaponId, { pitch: number; yaw: number; recovery: number }> = {
   pistol: { pitch: .014, yaw: .002, recovery: .45 },
@@ -20,7 +20,6 @@ export const RECOIL: Record<WeaponId, { pitch: number; yaw: number; recovery: nu
   dmr: { pitch: .028, yaw: .004, recovery: .5 },
   sniper: { pitch: .055, yaw: .003, recovery: .6 },
   machete: { pitch: 0, yaw: 0, recovery: .4 },
-  slingshot: { pitch: .01, yaw: .002, recovery: .45 },
   revolver: { pitch: .038, yaw: .004, recovery: .5 },
   coco: { pitch: .05, yaw: .003, recovery: .6 },
 };
@@ -37,7 +36,6 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
   revolver: { name: 'Trinta-e-oito', shortName: '38', description: 'Revólver de seis tiros', ammo: '38', magazine: 6, damage: 46, rpm: 175, reload: 2.3, range: 110, headMultiplier: 2, spread: 1.1, adsSpread: .08 },
   // Arcing coconut that bursts on contact: splash clears cover and punishes camping.
   coco: { name: 'Lança-coco', shortName: 'Coco', description: 'Coco explosivo em arco', ammo: 'coco', magazine: 4, damage: 90, rpm: 60, reload: 2.8, range: 70, headMultiplier: 1, spread: .7, adsSpread: .3, projectile: true, speed: 30, splash: 4.2 },
-  slingshot: { name: 'Estilingão', shortName: 'Estilingão', description: 'Pedrada de estilingue', ammo: 'pedra', magazine: 1, damage: 75, rpm: 75, reload: .6, range: 90, headMultiplier: 1.6, spread: .4, adsSpread: .12, projectile: true, speed: 50 },
 };
 
 // Distances in metres: full damage to start, then a linear taper to the floor.

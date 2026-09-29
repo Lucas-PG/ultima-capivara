@@ -194,13 +194,8 @@ const COCO_RELOAD: Choreography = [
   { t: .92, parts: { pump: 0 }, ease: 'snap', sfx: 'pump-home' },
 ];
 // After each stone: fetch a new one and draw back to the anchor.
-const SLING_RELOAD: Choreography = [
-  { t: .0, R: { space: 'gun', wrist: [.02, .03, .09], forward: [-.3, .3, -1], palm: [-1, 0, .2], curl: OPEN } },
-  { t: .3, R: { space: 'view', wrist: [.2, -.36, -.12], forward: [-.2, .5, -1], palm: [-.8, 0, .3], curl: PINCH } },
-  { t: .6, R: { space: 'gun', wrist: [.03, .03, .1], forward: [-.3, .3, -1], palm: [-1, 0, .2], curl: PINCH }, sfx: 'stone' },
-];
 
 export const RELOADS: Partial<Record<WeaponId, Choreography>> = {
   pistol: PISTOL_RELOAD, m4: M4_RELOAD_EMPTY, smg: SMG_RELOAD, dmr: DMR_RELOAD, sniper: SNIPER_RELOAD,
-  revolver: REVOLVER_RELOAD, shotgun: SHOTGUN_SHELL, coco: COCO_RELOAD, slingshot: SLING_RELOAD,
+  revolver: REVOLVER_RELOAD, shotgun: SHOTGUN_SHELL, coco: COCO_RELOAD,
 };

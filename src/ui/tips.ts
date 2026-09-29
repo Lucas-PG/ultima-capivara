@@ -18,7 +18,6 @@ export const TIPS: readonly string[] = [
   'Fora da área segura, a tempestade morde a cada segundo. Não vire churrasco.',
   'A tempestade fecha em 6 fases. A última é apertada de verdade.',
   'Capivaras nadam muito bem. Os bots, não: eles nunca entram na água.',
-  'O Estilingão é lento, mas uma pedrada bem dada derruba muita capivara.',
   'Recarregue ({reload}) atrás de uma parede, não no meio da praça.',
   'Mirar com o botão direito deixa o tiro muito mais preciso. Do quadril, só de pertinho.',
   'O Mercadão tem muito saque. E muita gente pensando a mesma coisa.',

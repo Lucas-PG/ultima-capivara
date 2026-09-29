@@ -311,7 +311,7 @@ export class EffectsView {
       weaponView.shot(weapon, event.hit || !!event.surface);
       const fp = weaponView.muzzleWorld(this.t1), ads = weaponView.adsAmount;
       this.flash(fp, weapon, true, ads);
-      if (weapon !== 'machete' && weapon !== 'slingshot' && weapon !== 'coco' && weapon !== 'revolver') {
+      if (weapon !== 'machete' && weapon !== 'coco' && weapon !== 'revolver') {
         const eject = weaponView.ejectWorld(this.t2);
         this.fpCasings.spawn(eject, this.n.set(rand(.9, 1.3), rand(.8, 1.2), rand(.1, .35)), weapon === 'shotgun', .7);
       }
@@ -325,7 +325,7 @@ export class EffectsView {
         visual.weapon.updateWorldMatrix(true, false);
         muzzle.copy(this.tips.get(weapon)!).applyMatrix4(visual.weapon.matrixWorld);
         this.flash(muzzle, weapon, false, 0);
-        if (weapon !== 'machete' && weapon !== 'slingshot' && weapon !== 'coco' && weapon !== 'revolver' && f && muzzle.distanceToSquared(f.camera.position) < 30 * 30) {
+        if (weapon !== 'machete' && weapon !== 'coco' && weapon !== 'revolver' && f && muzzle.distanceToSquared(f.camera.position) < 30 * 30) {
           // Ejected to the shooter's right from above the grip, a little behind the tip.
           const yaw = visual.group.rotation.y, g = visual.group.position;
           this.a.set(muzzle.x + (g.x - muzzle.x) * .6, muzzle.y, muzzle.z + (g.z - muzzle.z) * .6);
@@ -337,7 +337,7 @@ export class EffectsView {
         if (event.actor === playerId) streak = false;
       }
     }
-    if (weapon === 'slingshot' || weapon === 'coco') { this.pebble(muzzle, event); return; }
+    if (weapon === 'coco') { this.pebble(muzzle, event); return; }
     if (streak && FLASH[weapon]) {
       const hostile = !!playerId && event.actor !== playerId && this.passesNear(muzzle, end, snapshot, playerId);
       this.tracers.spawn(muzzle, end, .11, TRACER_WIDTH[weapon] || .018, own ? .7 : .95,
@@ -449,7 +449,7 @@ export class EffectsView {
 
   private impact(pos: THREE.Vector3, surface: Surface, normal: THREE.Vector3, weapon: WeaponId, scale: number) {
     const s = this.surface[surface], spec = SURFACES[surface];
-    const big = weapon === 'sniper' || weapon === 'dmr' || weapon === 'slingshot' ? 1.3 : weapon === 'shotgun' ? .75 : 1;
+    const big = weapon === 'sniper' || weapon === 'dmr' ? 1.3 : weapon === 'shotgun' ? .75 : 1;
     const k = big * scale;
     if (surface === 'water') {
       this.decals.spawn(pos, normal, CELL.ring, .15 * k, 1.1 * k, .45, .6, .9, s.mark, s.markLight, rand(0, 6.3));

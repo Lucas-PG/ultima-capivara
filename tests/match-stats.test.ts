@@ -59,7 +59,7 @@ describe('authoritative longest successful ranged shot', () => {
   it('measures a projectile from its firing origin even after the shooter moves', () => {
     const { runtime, shooter, target, fire } = match();
     target.state.protectionUntil = 0;
-    fire(10, 'slingshot');
+    fire(10, 'coco');
     shooter.state.pos.x = 100;
     for (let i = 0; i < 30; i++) runtime.updateProjectiles();
     expect(target.state.hp).toBeLessThan(100);

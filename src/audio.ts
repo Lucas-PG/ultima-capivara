@@ -23,7 +23,6 @@ const VOICES: Record<WeaponId, ShotVoice> = {
   dmr: { crack: 1230, body: 125, tail: 410, bass: 73, metal: 2250, length: .62 },
   sniper: { crack: 1050, body: 88, tail: 290, bass: 54, metal: 1850, length: .9 },
   machete: { crack: 0, body: 0, tail: 0, bass: 0, metal: 0, length: .23 },
-  slingshot: { crack: 0, body: 0, tail: 0, bass: 0, metal: 0, length: .3 },
   revolver: { crack: 1150, body: 120, tail: 420, bass: 70, metal: 2100, length: .7 },
   coco: { crack: 0, body: 0, tail: 0, bass: 0, metal: 0, length: .5 },
 };
@@ -475,12 +474,6 @@ export class SoundEngine {
       this.tone(output, now, 150, 55, .22, .22 * level, 'sine');
       this.noise(output, now, .09, 'lowpass', 500, .18 * level, .002);
       this.noise(output, now + .05, .3, 'bandpass', 700, .05 * level, .02);
-      return;
-    }
-    if (id === 'slingshot') {
-      this.tone(output, now, 390, 86, .16, .11 * level, 'triangle');
-      this.noise(output, now + .035, .13, 'bandpass', 1100, .085 * level, .002);
-      this.noise(output, now + .14, .08, 'lowpass', 600, .07 * level, .004);
       return;
     }
     if (id !== 'revolver' && this.playSample(id, output, (id === 'shotgun' || id === 'sniper' ? .48 : .42) * level, now, .48)) {
