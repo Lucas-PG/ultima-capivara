@@ -43,20 +43,20 @@ def move(obj, offset):
 # ------------------------------------------------------------------ pistol
 @weapon
 def pistol():
-    """Chunky 9 mm service pistol: gunmetal slide, tan polymer frame, external hammer."""
-    parts = {'body': [], 'slide': [], 'mag': [], 'trigger': [], 'hammer': []}
+    """Pistola: enamel slide, bronze frame and palm-inlaid jacaranda scales."""
+    parts = {'body': [], 'slide': [], 'mag': [], 'trigger': [], 'hammer': [], 'release': []}
     # Slide with a front chamfer, rear serrations and an ejection port.
     slide = prism('slide', [(-.038, .033), (.168, .033), (.176, .041), (.176, .052), (.165, .069), (-.028, .069), (-.038, .061)],
-                  .031, 'gunmetal', bevel=.0025, radius=[.002, .002, .004, .003, .006, .006, .004], raw=True)
-    grooves = join([cutter_box((s * .0165, -.022 + i * .0042, .052), (.004, .0019, .03)) for s in (-1, 1) for i in range(7)], 'grooves')
+                  .035, 'teal', bevel=.0025, radius=[.002, .002, .004, .003, .006, .006, .004], raw=True)
+    grooves = join([cutter_box((s * .0185, -.022 + i * .0042, .052), (.004, .0019, .03)) for s in (-1, 1) for i in range(7)], 'grooves')
     cut(slide, grooves)
     cut(slide, cutter_box((.012, .052, .066), (.018, .042, .016)))
-    front_grooves = join([cutter_box((s * .0165, .128 + i * .0042, .055), (.004, .0019, .022)) for s in (-1, 1) for i in range(4)], 'fg')
+    front_grooves = join([cutter_box((s * .0185, .128 + i * .0042, .055), (.004, .0019, .022)) for s in (-1, 1) for i in range(4)], 'fg')
     cut(slide, front_grooves)
     cut(slide, cutter_cyl((0, .15, .049), (0, .19, .049), .0072))
     parts['slide'] += [complete(slide)]
-    parts['slide'] += [box('barrel_hood', (.001, .053, .058), (.016, .036, .012), 'steel', .0015)]
-    parts['slide'] += [tube('muzzle_crown', (0, .166, .049), (0, .1765, .049), .0098, .0062, 'steel')]
+    parts['body'] += [box('barrel_hood', (.001, .053, .058), (.016, .036, .012), 'brass', .0015)]
+    parts['body'] += [tube('muzzle_crown', (0, .166, .049), (0, .1765, .049), .0098, .0062, 'brass')]
     # Sights: rear notch with teal dots, front post with an orange dot.
     rear = box('rear_sight', (0, -.023, .074), (.03, .013, .011), 'dark', .002, raw=True)
     cut(rear, cutter_box((0, -.023, .079), (.0075, .02, .01)))
@@ -67,49 +67,70 @@ def pistol():
     parts['slide'] += [cyl('front_dot', (0, .1515, .0765), (0, .1525, .0765), .0021, 'orange', sides=12, bevel=0)]
     # Frame: dust cover with a light rail, then the raked grip with a beavertail.
     frame = prism('frame', [(-.034, .034), (.162, .034), (.162, .018), (.09, .014), (.074, .011), (.02, .011), (-.034, .02)],
-                  .028, 'tan', bevel=.002, radius=.003, raw=True)
+                  .030, 'case', bevel=.002, radius=.003, raw=True)
     rail = join([cutter_box((0, .105 + i * .012, .0125), (.04, .005, .004)) for i in range(4)], 'rail')
     cut(frame, rail)
     parts['body'] += [complete(frame)]
     grip = prism('grip', [(-.056, .034, 1), (-.03, .031, 1), (.019, .015, 1), (.022, .001), (.015, -.026), (.021, -.05), (.013, -.074),
                           (.006, -.106), (.001, -.115), (-.064, -.116), (-.068, -.108), (-.057, -.06), (-.048, -.018), (-.047, .005), (-.062, .02)],
-                 .0305, 'tan', bevel=.003, smooth=3)
+                 .029, 'case', bevel=.003, smooth=3)
     parts['body'] += [grip]
-    # Stippled grip panels in dark polymer, one per side.
-    for s in (-1, 1):
-        panel = prism('grip_panel', [(-.052, .0), (-.002, -.006), (-.01, -.092), (-.058, -.092)], .004, 'polymer',
-                      x=s * .0148, bevel=.001, radius=.006)
-        parts['body'] += [panel]
-        # Relief dots that catch the light.
-        for row in range(6):
-            for col in range(4):
-                y = -.05 + col * .011 + row * -.0012 + (.0055 if row % 2 else 0)
-                z = -.012 - row * .013
-                parts['body'] += [sphere('stipple', (s * .0168, y, z), (.0016, .0022, .0022), 'polymer', 8, 6)]
+    # Raised wood scales, flush brass screws and a clear inlay field.
+    for side in (-1, 1):
+        parts['body'] += [prism('grip_scale', [(-.048, .006), (-.005, -.005), (-.014, -.098), (-.058, -.101)],
+                               .005, 'wood_red', x=side * .0148, bevel=.0018, radius=.004)]
+        for y, z in [(-.029, -.013), (-.039, -.084)]:
+            parts['body'] += [cyl('scale_escutcheon', (side * .017, y, z), (side * .018, y, z), .0052, 'brass', sides=20, bevel=.0006)]
+            screw = cyl('scale_screw', (side * .0178, y, z), (side * .0185, y, z), .0028, 'case', sides=16, bevel=.0003)
+            cut(screw, cutter_box((side * .0187, y, z), (.002, .004, .0008)))
+            parts['body'] += [screw]
+        parts['body'] += [cyl('frame_pin', (side * .0151, .0, .02), (side * .016, .0, .02), .0025, 'steel', sides=12, bevel=.0004)]
+    # Back strap ribs stay below the beavertail and leave the inlay unobstructed.
+    for i in range(9):
+        z = -.02 - i * .009
+        parts['body'] += [box('backstrap_rib', (0, -.049 - i * .0012, z), (.018, .0026, .003), 'polymer', .0007)]
     # Trigger guard with a squared, grooved front.
-    guard = prism('guard', [(.013, .013, 1), (.07, .013, 1), (.08, .004), (.075, -.03), (.062, -.036), (.017, -.034), (.012, -.02)],
-                  .019, 'tan', bevel=.002, smooth=2, raw=True)
-    cut(guard, cutter_prism([(.022, .006), (.064, .006), (.067, -.02), (.059, -.026), (.022, -.026)], .03))
+    guard = prism('guard', [(-.010, .014, 1), (.077, .014, 1), (.088, .002), (.082, -.037), (.067, -.046), (-.004, -.043), (-.010, -.027)],
+                  .022, 'case', bevel=.002, radius=.003, raw=True)
+    cut(guard, cutter_prism([(.003, .006), (.072, .006), (.077, -.002), (.071, -.032), (.060, -.037), (.003, -.034)], .04))
+    # Shorten only the guard's forward bow; its opening still clears a paw digit.
+    for vertex in guard.data.vertices:
+        if vertex.co.y > .033: vertex.co.y = .033 + (vertex.co.y - .033) * .75
     parts['body'] += [complete(guard)]
-    parts['body'] += [box('slide_stop', (-.0158, .03, .03), (.004, .03, .006), 'dark', .0015)]
-    parts['body'] += [box('takedown', (-.0152, .085, .026), (.003, .012, .006), 'dark', .001)]
+    parts['release'] += [box('slide_stop', (-.017, .029, .027), (.004, .028, .006), 'brass', .0012)]
+    for i in range(4):
+        parts['release'] += [box('release_rib', (-.0191, .019 + i * .005, .027), (.001, .0016, .004), 'case', .0003)]
+    parts['body'] += [box('takedown', (-.0165, .085, .026), (.003, .012, .006), 'dark', .001)]
+    parts['body'] += [cyl('mag_catch', (-.0158, .009, -.005), (-.019, .009, -.005), .0045, 'brass', sides=16, bevel=.0007)]
+    parts['body'] += [prism('safety', [(-.052, .034), (-.028, .034), (-.028, .043), (-.048, .041)], .005, 'brass', x=-.017, bevel=.001)]
+    parts['body'] += [cyl('guide_rod', (0, .16, .024), (0, .168, .024), .004, 'brass', sides=16, bevel=.0007)]
     # Trigger (animated), hammer (animated, pivot at its pin).
-    trig = prism('trigger', [(.034, .012, 1), (.041, .012, 1), (.043, .0), (.037, -.017), (.032, -.019), (.034, -.004)], .0075, 'dark', bevel=.0012, smooth=2)
+    trig = prism('trigger', [(.034, .012, 1), (.041, .012, 1), (.043, .0), (.037, -.017), (.032, -.019), (.034, -.004)], .0075, 'brass', bevel=.0012, smooth=2)
+    move(trig, (0, -.020, 0))
     parts['trigger'] += [trig]
-    hammer = prism('hammer', [(-.004, -.006, 1), (.004, -.006, 1), (.003, .006), (-.004, .011), (-.011, .011), (-.012, .005), (-.006, .0)], .01, 'dark', bevel=.0015, smooth=2)
+    hammer = prism('hammer', [(-.004, -.006, 1), (.004, -.006, 1), (.003, .006), (-.004, .011), (-.011, .011), (-.012, .005), (-.006, .0)], .01, 'brass', bevel=.0015, smooth=2)
     move(hammer, (0, -.036, .058))
     parts['hammer'] += [hammer]
     # Magazine: steel body inside the well, teal base plate. Built upright, then raked.
     mag_body = prism('mag_body', [(-.02, 0), (.02, 0), (.02, -.112), (-.02, -.112)], .02, 'steel', bevel=.0015, radius=.002)
-    plate = prism('mag_plate', [(-.035, -.11, 1), (.033, -.11, 1), (.036, -.12), (-.037, -.123)], .032, 'teal', bevel=.002, smooth=2)
+    plate = prism('mag_plate', [(-.035, -.11, 1), (.033, -.11, 1), (.036, -.12), (-.037, -.123)], .035, 'brass', bevel=.002, smooth=2)
     top_round = cyl('mag_round', (0, -.012, -.004), (0, .012, -.004), .0048, 'brass', sides=14, bevel=.0008)
     mag = join([mag_body, plate, top_round], 'mag')
     rot_x(mag, -10)
-    move(mag, (0, -.012, .02))
+    move(mag, (0, -.012, 0))
     parts['mag'] += [mag]
+    # Short, thick paw digits need a 42 mm backstrap-to-frontstrap span.
+    # Keep the slide and guard at service-pistol proportions.
+    grip_parts = {'grip', 'grip_scale', 'scale_escutcheon', 'scale_screw', 'backstrap_rib'}
+    for obj in parts['body'] + parts['mag']:
+        if obj in parts['mag'] or obj.name.split('.')[0] in grip_parts:
+            obj.data.transform(Matrix.Diagonal((1, .50, 1, 1)))
+            for vertex in obj.data.vertices:
+                if vertex.co.z < 0: vertex.co.z *= .88
+            obj.data.update()
     sockets = {'muzzle': (0, .178, .049), 'eject': (.016, .052, .064), 'sight': (0, -.03, .0795)}
-    pivots = {'hammer': (0, -.036, .058), 'mag': (0, -.012, .02)}
-    return parts, sockets, pivots, {'magAxis': [0, -math.sin(math.radians(10)), -math.cos(math.radians(10))]}
+    pivots = {'hammer': (0, -.036, .058), 'mag': (0, -.006, 0), 'trigger': (0, .016, .009), 'release': (-.017, .029, .027)}
+    return parts, sockets, pivots, {'magAxis': [0, -.50 * math.sin(math.radians(10)), -.88 * math.cos(math.radians(10))]}
 
 
 # ------------------------------------------------------------------ revolver
@@ -564,6 +585,9 @@ def machete():
 # Painted liveries (arsenal_lib.apply_livery): stencilled motifs per weapon,
 # projected onto the baked albedo and chipped with the paint.
 LIVERY = {
+    'pistol': [
+        {'stencil': 'palm', 'at': (-.0165, -.046), 'size': .034, 'rotate': -8, 'colour': 'D9B86C', 'on': ('wood_red',), 'metal': True},
+    ],
     'm4': [
         {'stencil': 'frond', 'at': (.258, .064), 'size': .115, 'rotate': -16, 'colour': 'E27A5A', 'on': ('navy',)},
         {'stencil': 'frond', 'at': (.318, .060), 'size': .085, 'rotate': 14, 'colour': 'F0A07A', 'on': ('navy',), 'opacity': .8},
@@ -589,12 +613,12 @@ def build(weapon_id):
         meshes.append(obj)
     for name, location in sockets.items():
         empty(f'{weapon_id}_{name}', location, root)
-    size = 2048 if weapon_id == 'm4' else 1024
-    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id == 'm4' else .005,
+    size = 2048 if weapon_id in ('m4', 'pistol') else 1024
+    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id in ('m4', 'pistol') else .005,
                                 livery=LIVERY.get(weapon_id, ()))
     albedo_img = L.save_png(f'{weapon_id}_albedo', albedo)
     orm_img = L.save_png(f'{weapon_id}_orm', orm, srgb=False)
-    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id == 'm4' else None
+    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id in ('m4', 'pistol') else None
     material = L.export_material(f'{weapon_id}_mat', albedo_img, orm_img, normal_img)
     triangles = 0
     for obj in meshes:
