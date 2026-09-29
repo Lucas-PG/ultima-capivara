@@ -6,9 +6,11 @@ import { SPECIES, type PlantKind, type SpeciesId } from '../../shared/vegetation
 export const LOD_DISTANCES = {
   low: [14, 40], medium: [28, 70], high: [36, 90],
 } as const satisfies Record<Settings['graphics'], readonly [number, number]>;
-/** Small plants vanish sooner than crowns; nothing tall ever disappears. Bushes stay past the
- * ranges where someone could crouch behind one, so cover never pops out from under a player. */
-export const HIDE_DISTANCE: Record<PlantKind, number> = { palm: Infinity, tree: Infinity, banana: 140, shrub: 110, vine: 120, ground: 55 };
+/** Only wall drapes vanish at range. Anything a capybara could crouch behind stays drawn: if a bush
+ * or a taioba disappeared at range, a player hidden in it would stand in the open for a distant
+ * viewer while believing itself hidden. Everyone sees the same cover at every range; the far
+ * templates of small plants cost a handful of triangles. */
+export const HIDE_DISTANCE: Record<PlantKind, number> = { palm: Infinity, tree: Infinity, banana: Infinity, shrub: Infinity, ground: Infinity, vine: 150 };
 
 export interface PlantInstance {
   species: SpeciesId;

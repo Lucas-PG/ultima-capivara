@@ -164,11 +164,9 @@ describe('vegetation batch', () => {
     } finally { vegetation.dispose(); }
   });
 
-  it('keeps bushes drawn at every range where someone could crouch behind one', () => {
-    // Sniper duels happen out to about 100 m: a bush must not vanish from under a hiding player.
-    expect(HIDE_DISTANCE.shrub).toBeGreaterThanOrEqual(100);
-    expect(HIDE_DISTANCE.tree).toBe(Infinity);
-    expect(HIDE_DISTANCE.palm).toBe(Infinity);
+  it('never hides cover at range, so a crouched player is hidden or exposed alike for every viewer', () => {
+    // Only wall drapes may drop out: they hang on solid walls and hide nobody.
+    for (const species of SPECIES_IDS) if (SPECIES[species].kind !== 'vine') expect(HIDE_DISTANCE[SPECIES[species].kind], species).toBe(Infinity);
   });
 
   it('keeps the densest 360 degree view within the triangle budget', () => {
