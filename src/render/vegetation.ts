@@ -11,7 +11,7 @@ export function buildVegetation(world: WorldSpec, atlas?: THREE.Texture) {
   const group = new THREE.Group();
   group.name = 'vegetation-root';
   const { material, uniforms } = createFoliageMaterial(atlas);
-  const plants = collectPlants(world.objects);
+  const plants = collectPlants(world);
   const templates = buildTemplates(new Set<SpeciesId>(plants.map(plant => plant.species)));
   const batch = new PlantBatch(material, templates, plants.filter(plant => templates[plant.species]));
   batch.mesh.castShadow = true;

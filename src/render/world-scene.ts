@@ -10,6 +10,7 @@ export const STATUE_URL = 'models/capybara/statue.glb';
 import { roadPaintWeight, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
+import { VEGETATION_PIECES } from '../shared/vegetation-dressing';
 import { createIslandBackdrop } from './island-backdrop';
 import { createStreetDressing } from './street-dressing';
 import { createWaterfalls } from './waterfall';
@@ -197,7 +198,9 @@ export class WorldScene {
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
     this.recreation = new RecreationView(world, loader, settings.graphics); this.group.add(this.recreation.group);
-    this.kit = createKit(this.group, loader, (world.pieces ?? []).filter(piece => !this.recreation.pieceIds.has(piece.id)), settings.graphics);
+    // Foliage-only kit pieces (bush clusters, hedges) are drawn by the vegetation batch instead.
+    this.kit = createKit(this.group, loader, (world.pieces ?? []).filter(piece => !this.recreation.pieceIds.has(piece.id) &&
+      !VEGETATION_PIECES.has(piece.piece)), settings.graphics);
     this.ready = Promise.all([this.kit.ready, this.recreation.ready]).then(() => {});
     void this.ready.catch(() => {});
     this.disposables.push(this.recreation, this.kit);
@@ -685,8 +688,7 @@ export class WorldScene {
       return atlas;
     };
     const foliageAtlas = paintedAtlas('textures/foliage-atlas.webp'), groundAtlas = paintedAtlas('textures/ground-atlas.webp');
-    const vegetation = this.vegetation = buildVegetation({ ...world, objects: world.objects.filter(object => object.kind !== 'grass' ||
-      ['reeds', 'crop', 'fern', 'monstera', 'ground-litter'].includes(object.detail || '')) }, foliageAtlas), props = buildProps(world), wallArt = buildWallArt(world);
+    const vegetation = this.vegetation = buildVegetation(world, foliageAtlas), props = buildProps(world), wallArt = buildWallArt(world);
     this.group.add(vegetation.group, props.group, wallArt.group);
     this.disposables.push(vegetation, props, wallArt);
     this.groundCover = new GroundCover(world, groundAtlas); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
