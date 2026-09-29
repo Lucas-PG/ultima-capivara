@@ -1,0 +1,48 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch / Fortnite / Valorant, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, simulation in a Web Worker, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Blender 5.0.1 headless at /Applications/Blender.app/Contents/MacOS/Blender. The user's top priorities are the first-person view and the weapons, and they asked for a much higher bar on hands and guns.
+
+YOUR JOB
+Bring your weapons (listed below) to hero quality in first person, end to end: model, livery, first-person grips and framing, aim, sprint, inspect and reloads, and the third-person/world versions. Work autonomously until each weapon is genuinely excellent; reject your own mediocre results and iterate.
+
+PIPELINE (read the code before changing it)
+- Weapons are built procedurally in tools/blender/arsenal.py with the primitives of tools/blender/arsenal_lib.py (prism, box, cyl, tube, lathe, sweep, cut, finish, ...). The bake composites material ids, AO, a bevel-edge mask, normals and weapon-space position into a painted albedo + ORM, then wood_grain(), apply_livery() (stencilled motifs from tools/art/stencils: monstera, frond, palm, parrot, capybara, star, vine, azulejo; configured per weapon in the LIVERY dict of arsenal.py, see the M4 entry) and weather() (chipped paint, grime, scratches). Palette entries live in arsenal_lib.PALETTE (append new ones at the end so ids stay stable).
+- Build: node tools/blender/build-fp.mjs <ids> (Blender + pack into public/models/arsenal), then node tools/blender/build-world-arsenal.mjs (third-person and ground versions simplified from the same models, one atlas). Stills: blender -b --python tools/blender/weapon_preview.py -- <outDir> output/arsenal/<id>.glb (its camera framing is poor for small guns; fix it if you need to).
+- Runtime: src/render/viewmodel-specs.ts (per weapon: hip, sprint, ADS distance and eye point, viewmodel FOV, grips R and L in weapon space, hidden shoulders, recoil), src/render/viewmodel-anims.ts (reload choreographies), src/render/viewmodel-choreo.ts, src/render/weapons.ts (moving parts by name: slide, mag, trigger, hammer, action, cylinder, pump, bolt, charge, release; sockets muzzle, eject, sight). Part names and pivots are a contract between arsenal.py and weapons.ts.
+- Arms: the v3 sculpted paws (tools/blender/paw_sculpt.py, fp_arms.py, src/render/fp-arms.ts). Do not change the arms; if you find a real defect in them, describe it in your report.
+- QA tools (read their headers): tools/qa/grip-probe.mjs (per-digit penetration, digit angles, close-up and x-ray views), tools/qa/grip-fit.mjs (pattern-search grip solver from an intent JSON), tools/qa/vmtune.mjs (live overrides of hip, grips, fov, shoulders), tools/qa/vmall.mjs (all views), tools/qa/vmmotion.mjs (motion strips such as reload), tools/qa/capture.mjs. They take BASE=http://127.0.0.1:<your port>. Contact sheets: montage -font /System/Library/Fonts/Supplemental/Arial.ttf -label '%t' -pointsize 14 <files> -tile 3x -geometry 560x315+2+2 out.jpg
+- Editing src/ reloads open QA pages: do not edit sources while a long grip-fit run is loading.
+
+REFERENCES (open them; they are guides, not gospel)
+For each weapon <id>: /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/weapon-<id>.png (design sheet: silhouette, materials, livery), /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/<id>-fp-board.png (first-person hip, ADS and grip close-up), /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/<id>-reload-board.png (six reload key poses; for the machete: melee poses) and /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/<id>-research.md (how CoD, Battlefield, Valorant and Apex present that class: framing, ADS, sprint, inspect, tactical and empty reload key poses with timings). The last three are being generated right now by an image model; if one is missing when you need it, start with the model and look again later. Also: /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/fp-rifle-board.png (approved rifle framing), /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/fp-rifle-research.md, /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/paw-sheet.png (paw design). Generated references contain mistakes (earlier boards put a support paw over the muzzle and drew paws backwards): check anatomy and mechanics yourself and fix them in your version.
+
+PAW ANATOMY RULES
+- The paws are a mirror pair like human hands: seen from its back, the RIGHT paw has its thumb on its left edge; the LEFT paw has its thumb on its right edge. Three thick fingers and one thumb each.
+- Firing (right) paw on a pistol grip: palm and pads against the back strap and right side of the grip; fingers wrap the FRONT of the grip below the guard; the index on the trigger inside the guard; the thumb on the left side of the grip or along the receiver; the wrist continues straight back. From the eye you see the back of this paw, never its palm.
+- Support (left) paw on a long gun: at the base of the barrel (rear of the handguard just ahead of the magazine well, or on the pump/foregrip where the weapon has one), never near the muzzle; it arrives from the lower-left with a straight wrist; thumb-over grip (palm against the left side, back of the paw toward the camera, thumb along the top pointing forward, fingers curling under) or a cupped underhand grip if the reference and the weapon call for it, but always readable from the eye. Fingers never point back toward the player.
+
+QUALITY BAR
+- Model to the design sheet: silhouette, chunky stylized proportions, clean bevels, three or four clear material zones, hardware detail where the camera looks (receiver sides and top, sights, controls), the livery motifs placed like the sheet. Trigger guards roomy for a paw digit about 2.8 cm thick. Budgets: at most about 25k triangles per first-person weapon; textures 1024 (albedo 2048 only for long guns that visibly need it); each packed GLB at most about 1.3 MB.
+- First person: at hip both paws read clearly from the eye; zero paw-gun penetration (grip-probe worst above -0.5 mm) in every pose you ship, including during reloads; ADS sight picture clean and centred (keep tests/viewmodel ADS alignment green); sprint and inspect poses that show the weapon off; reloads re-authored from the reload board and research (tactical vs empty where the weapon has both), with anticipation, weight, a readable magazine/shell/round path, part-anchored paws and no clipping (check motion strips from several angles, not only the eye).
+- Judge every change visually from several angles and at real gameplay framing (1280x720, medium preset) before committing. Tests passing is not quality.
+
+RULES
+- Work ONLY inside your git worktree (given below). Never push, open PRs, deploy or touch other worktrees or the main checkout (reading the reference images from the main checkout paths above is fine).
+- Never spend money, create accounts or access personal apps or data.
+- Never use the em dash character anywhere (code, docs, commit messages).
+- Commit in small logical commits (at least one per weapon); commit messages carry no co-author or agent lines.
+- Keep green: npx tsc --noEmit and npx vitest run. Do not run the Playwright e2e suite. Ports 5173, 5174, 5175, 5176, 9001 and 4186 belong to others.
+- You may use your image generation tool if a reference you need is missing or wrong.
+- Start your own dev server in the background: cd <worktree> && nohup env VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port> > /tmp/vite-<your port>.log 2>&1 &. Keep one dev server and at most two Chrome instances at a time; stop them when you finish.
+- Your shell may reset its working directory: use absolute paths or cd <worktree> && ... in every command.
+- When done, write docs/overhaul/<your report name> in your worktree (per weapon: what changed, before/after contact sheets saved as jpg under docs/overhaul/evidence/guns/ at most 300 KB each, triangle and byte counts, known issues) and commit it. Your final reply to the orchestrator: under 200 words. End it with the line ALL WEAPONS DONE only when every weapon meets the quality bar; otherwise end with CONTINUING and a one-line next step, and keep working when resumed.
+
+YOUR WEAPONS AND WORKTREE
+Worktree: /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/guns-short (branch guns-short). Dev server port: 5178. Report name: guns-short-report.md.
+Weapons, in this order: pistol, smg, revolver, machete.
+- pistol (Pistola): two-handed grip (the support paw cups the firing paw), slide lock on empty, magazine swap with a palm seat, slide release or overhand rack.
+- smg (SMG Canarinho, yellow and green with a blue star): the support paw on its vertical foregrip; magazine swap; charging-handle slap when empty.
+- revolver (Trinta-e-oito): swing-out cylinder, ejector-rod punch with the muzzle up, speedloader, cylinder closed with the support paw.
+- machete (Facao): melee idle, slashes with follow-through, heavy chop and inspect; the blade must never cross the camera in a way that hides the view for long.
+Another agent owns tools/blender/arsenal_lib.py and edits it in parallel: do not edit it. If you need a library feature, implement it inside arsenal.py next to your weapons or describe it in your report. Inside arsenal.py, viewmodel-specs.ts, viewmodel-anims.ts and weapons.ts touch only your weapons' sections and keep any shared runtime change small and additive.
+
+Work continuously. Do not stop after one weapon or at a progress summary: finish all your weapons.

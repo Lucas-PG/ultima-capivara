@@ -1,0 +1,37 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Blender 5.0.1 headless for assets at /Applications/Blender.app/Contents/MacOS/Blender. The target is a commercial-quality stylized game (Overwatch / Fortnite finish) with a Brazilian, tropical, capybara identity.
+
+USER FEEDBACK ON THE MAP (verbatim essence)
+The map is boring, empty, small and predictable. Examples the user found (examples only, find the rest yourself): bridges ending in bare grass with no road onto them; gaps in the quay walls; floating landing stairs; an east-beach dock sitting on sand; blob trees; empty south-east and Lagoa-west areas; not enough detail on things; vegetation looks bad. The user said the map may look 100 percent different at the end, as long as it is a very clear jump in quality. You have full creative freedom.
+Reference mood images (open them): /Users/lucas_gaspe/dev/ultima-capivara/docs/art/character-benchmark/wide-aim-reference.jpg and /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/fp-hip-board.png: dense lived-in streets with bougainvillea, arches, balconies, awnings, crates, barrels, potted plants, wires and lamps, a harbour and a lighthouse hill.
+
+RULES
+- Work ONLY inside your worktree (given below). Never touch the main checkout, other worktrees, or remote git. Never push, never open PRs, never deploy.
+- Never spend money, never create accounts, never access personal apps or data. External assets only with licences compatible with a commercial game (CC0 preferred), documented in docs/assets.md.
+- Never use the em dash character anywhere (code, docs, commit messages).
+- Commit continuously in small logical commits on your worktree branch. Commit messages carry no co-author or agent lines.
+- Tests you must keep green: `npx tsc --noEmit` and `npx vitest run`. Do not run the Playwright e2e suite; ports 5173, 5174, 9001, 4186 are reserved for others.
+- Performance budget at the medium preset in the busiest views: about 260 draw calls and 1.8M triangles at most. Measure it (renderer.info via the QA hooks) before and after.
+- Judge your work visually, at player eye height from many spots and from above for the layout, at gameplay framing. Reject your own mediocre results and iterate. Tests passing does not mean quality.
+- Gameplay integrity: spawns, routes, collision, bots and the traversal tests (every building floor reachable) must keep working.
+- QA tooling: start your own dev server as a background Bash command (run_in_background) with `VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port>` and use the scripts in tools/qa (cam.mjs free camera, capture.mjs named poses, play.mjs live match driver; they take a BASE env like BASE=http://127.0.0.1:<port>). Read each script's header for usage. Contact sheets: `montage -font /System/Library/Fonts/Supplemental/Arial.ttf -label '%t' -pointsize 14 <files> -tile 3x -geometry 560x315+2+2 out.jpg`.
+- Downscaled JPEGs look brighter than real pixels; sample actual values before judging colour.
+- When you finish (or if you must stop), write a short report at docs/overhaul/<your report name> in your worktree: what changed and why, before/after evidence (jpg files under docs/overhaul/evidence/world/, each under 300 KB), measured perf, test results, remaining issues. Commit it.
+- Work autonomously until the job is genuinely done to a high bar. Do not stop at a progress report.
+- Your shell may reset its working directory between commands: always use absolute paths or `cd <worktree> && ...` in every command.
+- Keep at most one dev server and one Chrome running at a time, and stop them when you finish.
+- Your final message goes back to the orchestrator: keep it under 200 words (what changed, commit list, test and perf numbers, report path, known issues).
+ROLE
+You are the vegetation and ground-cover lead: palms, broadleaf trees, bushes, flowering plants (bougainvillea, hibiscus, heliconia, banana plants, monstera), grass, ground cover and the foliage atlas.
+
+WORKTREE
+/Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/agent-a79a28e80df904562 (branch worktree-agent-a79a28e80df904562). Your dev server port: 5176. Report name: vegetation-report.md.
+
+STATE
+A previous agent was stopped mid-task by a usage limit. Real commits: 1d1e349 (vegetation review tool, tools/qa/veg*.mjs and veg-views.json) and 6f8a8ee (trees and palms rebuilt: one BatchedMesh with per-instance LOD, coconut palms with arching fronds, broadleaf crowns from leaf-cluster cards, a foliage atlas built by tools/art/build-foliage-atlas.mjs). Its last commit 3647c9b is an unverified WIP (understory, grass blades, a ground atlas). Review it: keep what is good, fix or finish the rest, then rewrite the WIP into proper small commits (git reset --soft is fine inside your branch). Read docs/overhaul/autonomous-progress.md (section D) for context.
+
+OWNERSHIP
+You own vegetation and ground cover: src/render/vegetation/*, src/shared/vegetation-*.ts, tools/art/*foliage*, tools/art/*ground*, the vegetation parts of src/render/world-scene.ts, related tests and QA tools. Another agent is changing the layout, terrain, kit and props in parallel: do not edit src/shared/layout.ts, world.ts, terrain.ts or the kit. Also do not touch weapons, viewmodel, arms, character or HUD code.
+
+GOALS
+Vegetation that looks great and reads as a lush Brazilian tropical island in the stylized painted look of the game, never as blobs: coconut palms with graceful fronds, big broadleaf trees with readable branch structure and layered leaf clusters, bushes, flowering plants (bougainvillea on walls and pergolas especially), banana plants and monstera in gardens and planters, grass and ground cover that break up flat fields, mangroves at the shore. Check it from 3 m, 15 m and 60 m and in motion (wind sway), at gameplay framing. Keep sightlines fair for combat (no instant hiding in grass at range), keep collision coherent with trunks, and stay inside the perf budget. Codex image generation may be used to paint leaf and flower sprites (save sources under tools/art and document them).

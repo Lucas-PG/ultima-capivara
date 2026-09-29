@@ -4,6 +4,26 @@ Branch: `overhaul/aaa-autonomous` (local), started from `overhaul/m1-inventory` 
 M1 (`overhaul/m1-inventory`) is not touched until the whole overhaul is finished; then it is integrated, re-verified and pushed.
 Previous session record: `docs/overhaul/progress.md` (kept for history).
 
+## PAUSED 2026-09-29 about 17:00 (user request): resume exactly from here
+
+Everything was stopped at a graceful point: both Codex gun agents interrupted (threads saved), all dev servers stopped. The user's own Blender window (MCP add-on) was left running. On the user's go-ahead, resume in this order:
+
+1. Restart both Codex gun agents on their saved threads, each as a background command from the repo root (they resume from their worktree state; the loop waits out capacity errors):
+   - `docs/overhaul/briefs/keep-codex.sh long .claude/worktrees/guns-long 01a0edd7-92c0-7cf1-a03e-c3201f67e91d docs/overhaul/briefs/guns-long.codex.txt`
+   - `docs/overhaul/briefs/keep-codex.sh short .claude/worktrees/guns-short 01a0edd7-9659-70d1-a596-9e7870be86ce docs/overhaul/briefs/guns-short.codex.txt`
+   - At pause: guns-long had 12 commits since 9934dda (all five models rebuilt, M4 composition and reload, shotgun reload chain, contact tools) and 20 uncommitted files; guns-short had 9 commits (pistol, SMG, revolver, machete hero models, world models, reload mechanisms and melee handling, QA tools) and 3 uncommitted files. Uncommitted work was left in place on purpose.
+2. Restart the dev server with the preview tools (`.claude/launch.json` "dev").
+3. Continue the combined-world review of `overhaul/aaa-autonomous` at bca1c9a (structure merged in 0fa29c9, vegetation in bca1c9a). Merged captures at medium already showed 103 to 151 draws and 1.23M to 1.54M triangles over eight poses (was 159 to 449 draws before the world pass). Still to do:
+   - look at the merged captures (town top, Palafitas, Engenho street, Lagoa west, Capela stair, plaza, river, Redentora, Morro, fort beach, fazenda, mangue, Morro roofs) and fix what they show;
+   - retarget the stale QA poses in `tests/visual/qa-hook.ts` (vilaStreet now inside a new house, quayNorth and quaySouth staring at deck planks);
+   - fill the empty Engenho street-level space (flat lawn between blank walls);
+   - bots reach the Capela by the south path, not the new stair; farm soil strips cross a road; dead `SOFT_LANDSCAPE` in the kit renderer; trees still have no collision (pre-existing);
+   - re-run the full vitest when the machine is idle: at merge 777/778, the ground-cover culling test timed out (19 s against 15 s) under load and passes alone.
+4. When the gun agents report ALL WEAPONS DONE, review them rigorously and independently before merging (per weapon: design sheet next to Blender stills, in-game hip/ADS/side/left, grip-probe penetration for both paws, reload strips from the eye and two outside angles, the paw anatomy checklist, budgets and tests), send defects back, then merge both branches and regenerate the shared world-arsenal atlas once from the combined models.
+5. Only after that (user decision, 2026-09-29): character rebuild, audio and VFX, HUD and menus, sky and grading, then the release gate (perf, multiplayer with real clients, playtests, report, M1 integration and push).
+
+Delegation records: briefs, the Codex restart script and the review log are in `docs/overhaul/briefs/`. References: `docs/art/references/` (README logs the anatomy checklist per image; boards guide framing, not anatomy).
+
 ## Resume here
 
 1. Read "Open task list" below; the first unchecked item is the next action.
