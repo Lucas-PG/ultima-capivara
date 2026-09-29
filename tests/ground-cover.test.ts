@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { expect, it } from 'vitest';
+import { afterAll, expect, it } from 'vitest';
 import { GROUND_COVER, GROUND_COVER_MAX_HEIGHT, GroundCover } from '../src/render/ground-cover';
 import { createWorld } from '../src/shared/world';
 import { ROADS } from '../src/shared/layout';
@@ -9,10 +9,13 @@ import { vegetationDressing } from '../src/shared/vegetation-dressing';
 import { SPECIES } from '../src/shared/vegetation-species';
 
 const world = createWorld();
+// One island's ground cover serves every read-only check below: building it is the slow part.
+const shared = new GroundCover(world);
+afterAll(() => shared.dispose());
 
 it('grows the lawn from plain blades tinted by the ground, away from roads and solids', () => {
-  const cover = new GroundCover(world);
-  try {
+  const cover = shared;
+  {
     const lawns = cover.group.children.filter((node): node is THREE.InstancedMesh => node instanceof THREE.InstancedMesh);
     expect(lawns.length).toBeGreaterThan(20);
     const tuft = lawns[0].geometry, paint = tuft.getAttribute('coverPaint'), position = tuft.getAttribute('position');
@@ -37,12 +40,12 @@ it('grows the lawn from plain blades tinted by the ground, away from roads and s
     }
     expect(violations).toEqual([]);
     expect(tinted / lawns.reduce((n, m) => n + m.count, 0)).toBeGreaterThan(.98);
-  } finally { cover.dispose(); }
+  }
 });
 
 it('keeps every accent shorter than a crouched capybara and flat patches on the ground', () => {
-  const cover = new GroundCover(world);
-  try {
+  const cover = shared;
+  {
     let flat = 0;
     for (const node of cover.group.children) {
       if (!(node instanceof THREE.Mesh) || node instanceof THREE.InstancedMesh) continue;
@@ -57,7 +60,7 @@ it('keeps every accent shorter than a crouched capybara and flat patches on the 
     }
     expect(flat, 'clover and fallen leaves must exist').toBeGreaterThan(100);
     expect(GROUND_COVER_MAX_HEIGHT).toBeLessThan(.7);
-  } finally { cover.dispose(); }
+  }
 });
 
 it('keeps meadow drifts in the plant batch as low as ground cover, so open fields never hide anyone', () => {
@@ -71,8 +74,8 @@ it('keeps meadow drifts in the plant batch as low as ground cover, so open field
 });
 
 it('stays out of the depth buffer so the ink pass never outlines grass, but draws after the solids', () => {
-  const cover = new GroundCover(world);
-  try {
+  const cover = shared;
+  {
     for (const node of cover.group.children) {
       const mesh = node as THREE.Mesh;
       expect((mesh.material as THREE.Material).depthWrite).toBe(false);
@@ -80,10 +83,11 @@ it('stays out of the depth buffer so the ink pass never outlines grass, but draw
       expect(mesh.renderOrder).toBeGreaterThan(0);
       expect(mesh.castShadow).toBe(false);
     }
-  } finally { cover.dispose(); }
+  }
 });
 
-it('culls distant cells, grows denser on High and switches off on Low', () => {
+it('culls distant cells, grows denser on High, switches off on Low and disposes everything', () => {
+  // This one changes quality and disposes, so it builds its own cover.
   const cover = new GroundCover(world), camera = new THREE.PerspectiveCamera();
   try {
     camera.position.set(-35, 4, 61); cover.setQuality('medium'); cover.update(camera, 1, false);
