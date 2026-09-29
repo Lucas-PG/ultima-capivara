@@ -528,47 +528,91 @@ def dmr():
 # ------------------------------------------------------------------ sniper
 @weapon
 def sniper():
-    """Bolt-action .308: olive stock, fluted heavy barrel, brake, big scope with teal turret."""
+    """Precision rifle: carved thumbhole walnut, blued flutes and brass optic hardware."""
     parts = {'body': [], 'bolt': [], 'mag': [], 'trigger': []}
-    bore = .058
-    parts['body'] += [cyl('receiver', (0, -.03, bore), (0, .17, bore), .019, 'blued', sides=28)]
-    stock = prism('stock', [(-.03, .06, 1), (-.08, .06), (-.33, .05), (-.35, .044), (-.35, -.1), (-.33, -.11), (-.2, -.06), (-.07, -.034),
-                            (-.026, -.04), (.004, .006), (.03, .036), (.5, .04), (.52, .032), (.5, .018), (.16, .012), (.04, .02, 1)],
-                   .048, 'olive', bevel=.003, smooth=3, raw=True)
-    cut(stock, cutter_box((0, .08, .058), (.03, .2, .04)))
+    bore, sz = .074, .151
+    receiver = cyl('receiver', (0, -.085, bore), (0, .191, bore), .023, 'blued', sides=28)
+    cut(receiver, cutter_box((.018, .037, .083), (.024, .086, .025)))
+    parts['body'] += [receiver]
+    stock = prism('thumbhole_walnut', [(-.082, .059, 1), (-.134, .027), (-.202, .004), (-.245, .035), (-.395, .031), (-.414, .017),
+                   (-.414, -.127), (-.398, -.142), (-.27, -.092), (-.174, -.065), (-.111, -.125), (-.064, -.119),
+                   (-.022, -.027), (.058, .004), (.176, .009), (.414, .027), (.437, .037), (.425, .058), (.19, .056), (.153, .06)],
+                  .058, 'walnut', bevel=.007, smooth=2, raw=True)
+    # The thumb window reaches the backstrap so a paw can wrap the grip.
+    cut(stock, cutter_prism([(-.137 + .041 * math.cos(a), -.035 + .042 * math.sin(a)) for a in [i * math.tau / 28 for i in range(28)]], .072))
+    cut(stock, cutter_box((0, .02, .066), (.04, .23, .045)))
+    cut(stock, cutter_box((0, .107, .016), (.034, .074, .049)))
     parts['body'] += [complete(stock)]
-    parts['body'] += [prism('cheek', [(-.09, .058), (-.24, .052), (-.24, .07), (-.11, .074)], .036, 'tan', bevel=.004, smooth=2)]
-    parts['body'] += [prism('buttpad', [(-.35, .046), (-.364, .046), (-.364, -.108), (-.35, -.108)], .05, 'rubber', bevel=.004)]
-    barrel = lathe('barrel', [(.0155, 0), (.0152, .3), (.0128, .62), (.0128, .64)], 'blued', p0=(0, .17, bore), sides=24)
-    cut(barrel, join([cutter_box((math.cos(a) * .0165, .4, bore + math.sin(a) * .0165), (.006, .28, .006)) for a in [i * math.tau / 6 for i in range(6)]], 'flutes'))
-    parts['body'] += [barrel]
-    brake = box('brake', (0, .835, bore), (.034, .06, .03), 'dark', .004, raw=True)
-    cut(brake, join([cutter_box((0, .82 + i * .016, bore), (.05, .008, .018)) for i in range(3)], 'ports'))
-    parts['body'] += [complete(brake)]
-    sz = .135
-    for y in (.02, .13):
-        parts['body'] += [box('ring_base', (0, y, .09), (.026, .02, .03), 'dark', .002)]
-        parts['body'] += [tube('ring', (0, y - .009, sz), (0, y + .009, sz), .025, .0195, 'dark', sides=28)]
-    parts['body'] += [cyl('scope_tube', (0, -.05, sz), (0, .2, sz), .0195, 'dark', sides=32)]
-    parts['body'] += [lathe('objective', [(.0195, 0), (.036, .05), (.036, .1), (.033, .105)], 'dark', p0=(0, .2, sz), sides=36)]
-    parts['body'] += [lathe('ocular', [(.0195, 0), (.026, .02), (.026, .06), (.023, .064)], 'dark', p0=(0, -.05, sz), axis=(0, -1, 0), sides=32)]
-    parts['body'] += [cyl('lens_front', (0, .302, sz), (0, .304, sz), .031, 'glass', sides=36, bevel=0)]
-    parts['body'] += [cyl('lens_rear', (0, -.112, sz), (0, -.11, sz), .021, 'glass', sides=32, bevel=0)]
-    parts['body'] += [cyl('turret_top', (0, .075, sz + .02), (0, .075, sz + .042), .0125, 'teal', sides=24)]
-    parts['body'] += [cyl('turret_side', (.02, .075, sz), (.04, .075, sz), .0115, 'dark', sides=24)]
+    parts['body'] += [prism('cheek_rest', [(-.372, .034), (-.258, .035), (-.25, .049), (-.255, .065), (-.379, .061), (-.384, .052)], .043, 'dark', bevel=.004, smooth=1)]
+    parts['body'] += [prism('brass_butt_spacer', [(-.409, .022), (-.42, .018), (-.42, -.133), (-.409, -.138)], .051, 'brass', bevel=.002)]
+    parts['body'] += [prism('butt_pad', [(-.42, .018), (-.438, .012), (-.438, -.126), (-.43, -.138), (-.42, -.135)], .053, 'rubber', bevel=.005)]
     for side in (-1, 1):
-        parts['body'] += [cyl('bipod_leg', (side * .012, .44, .005), (side * .014, .3, -.01), .0055, 'dark', sides=12)]
-    parts['body'] += [box('bipod_mount', (0, .45, .01), (.03, .02, .016), 'dark', .002)]
-    parts['bolt'] += [cyl('bolt_body', (0, -.045, bore), (0, .02, bore), .0105, 'steel', sides=20)]
-    parts['bolt'] += [cyl('bolt_arm', (0, .0, bore), (.045, -.005, bore - .02), .005, 'steel', sides=14)]
-    parts['bolt'] += [sphere('bolt_knob', (.05, -.006, bore - .024), (.011, .011, .011), 'dark', 18, 12)]
-    parts['trigger'] += [prism('trigger', [(.04, .006, 1), (.047, .006, 1), (.048, -.006), (.043, -.018), (.038, -.017), (.042, -.006)], .007, 'steel', bevel=.001, smooth=1)]
-    guard = prism('guard', [(.014, .01, 1), (.09, .01, 1), (.09, -.004), (.08, -.02), (.014, -.02)], .018, 'dark', bevel=.0015, raw=True)
-    cut(guard, cutter_box((0, .052, -.006), (.03, .064, .014)))
+        panel = prism('grip_checkering', [(-.054, -.035), (-.024, -.029), (-.067, -.108), (-.1, -.112), (-.092, -.087)], .0015, 'wood_dark', x=side * .025, bevel=.0005)
+        parts['body'] += [panel]
+        for y, z in ((-.365, .046), (-.268, .047), (.176, .031), (.36, .04), (-.303, -.006)):
+            parts['body'] += [cyl('stock_screw', (side * .024, y, z), (side * .026, y, z), .005, 'brass', sides=16, bevel=.0006)]
+            parts['body'] += [box('screw_slot', (side * .0262, y, z), (.0006, .006, .0009), 'dark', .0002)]
+        for i in range(6):
+            parts['body'] += [sweep('checkering', [(side * .026, -.048 - i * .006, -.045), (side * .026, -.08 - i * .003, -.094)], [.0007] * 2, 'walnut', sides=5)]
+    barrel = lathe('fluted_barrel', [(.019, 0), (.018, .045), (.016, .52), (.015, .585)], 'blued', p0=(0, .181, bore), sides=28)
+    # Long rounded flutes end before the brass muzzle collar.
+    for a in [i * math.tau / 6 for i in range(6)]:
+        x, z = math.cos(a) * .0192, bore + math.sin(a) * .0192
+        cut(barrel, cutter_cyl((x, .26, z), (x, .713, z), .0053, sides=12))
+    parts['body'] += [barrel]
+    parts['body'] += [tube('muzzle_collar', (0, .738, bore), (0, .755, bore), .02, .013, 'brass', sides=24)]
+    brake = tube('three_port_brake', (0, .754, bore), (0, .832, bore), .023, .008, 'blued', sides=24)
+    cut(brake, join([cutter_box((0, .772 + i * .022, bore), (.058, .012, .028)) for i in range(3)], 'brake_ports'))
+    parts['body'] += [brake]
+    parts['body'] += [box('scope_rail', (0, .031, .104), (.027, .225, .008), 'dark', .0015)]
+    for i in range(15):
+        parts['body'] += [box('rail_tooth', (0, -.068 + i * .014, .11), (.029, .007, .004), 'blued', .0006)]
+    # Open scope bores, inset blue glass, mounting feet, brass bands and knurled turrets.
+    parts['body'] += [tube('scope_tube', (0, -.056, sz), (0, .184, sz), .022, .018, 'blued', sides=28)]
+    parts['body'] += [lathe('scope_objective', [(.022, 0), (.037, .055), (.037, .111), (.033, .116), (.03, .111), (.03, .058), (.018, 0)], 'blued', p0=(0, .184, sz), sides=32)]
+    parts['body'] += [lathe('scope_ocular', [(.022, 0), (.03, .017), (.03, .061), (.027, .066), (.023, .061), (.023, .019), (.018, 0)], 'blued', p0=(0, -.056, sz), axis=(0, -1, 0), sides=28)]
+    for y, radius in ((-.112, .031), (.286, .038)):
+        parts['body'] += [tube('scope_brass_ring', (0, y, sz), (0, y + .012, sz), radius, radius - .005, 'brass', sides=28, bevel=.001)]
+    for y in (-.018, .132):
+        parts['body'] += [box('scope_foot', (0, y, .119), (.032, .022, .022), 'blued', .002)]
+        parts['body'] += [tube('scope_mount', (0, y - .009, sz), (0, y + .009, sz), .026, .021, 'brass', sides=24)]
+        for side in (-1, 1):
+            parts['body'] += [cyl('mount_bolt', (side * .015, y, .119), (side * .019, y, .119), .0047, 'steel', sides=12, bevel=.0005)]
+    parts['body'] += [cyl('objective_glass', (0, .286, sz), (0, .288, sz), .0298, 'glass', sides=28, bevel=0)]
+    parts['body'] += [cyl('ocular_glass', (0, -.113, sz), (0, -.111, sz), .0228, 'glass', sides=28, bevel=0)]
+    for start, end in [((0, .06, sz + .018), (0, .06, sz + .044)), ((.018, .06, sz), (.041, .06, sz))]:
+        parts['body'] += [cyl('turret', start, end, .0145, 'brass', sides=20, bevel=.001)]
+    for i in range(16):
+        a = i * math.tau / 16
+        parts['body'] += [cyl('turret_knurl', (math.cos(a) * .0145, .06 + math.sin(a) * .0145, sz + .032),
+                             (math.cos(a) * .0145, .06 + math.sin(a) * .0145, sz + .043), .001, 'dark', sides=6, bevel=0)]
+    # Raised flip caps repeat the two circles in the reference without covering the eye.
+    for y, radius in ((-.118, .028), (.30, .035)):
+        parts['body'] += [cyl('cap_hinge', (-.012, y, sz + radius), (.012, y, sz + radius), .004, 'brass', sides=12)]
+        parts['body'] += [cyl('flip_cap', (0, y + .012, sz + radius * 1.75), (0, y + .016, sz + radius * 1.75), radius * .93, 'dark', sides=24, bevel=.001)]
+    # Folded bipod with distinct hinges, telescoping legs, brass collars and feet.
+    parts['body'] += [box('bipod_mount', (0, .359, .021), (.037, .036, .019), 'dark', .002)]
+    for side in (-1, 1):
+        parts['body'] += [cyl('bipod_hinge', (side * .012, .36, .012), (side * .029, .36, .012), .01, 'brass', sides=16)]
+        parts['body'] += [cyl('folded_leg', (side * .025, .35, .005), (side * .025, .55, .012), .008, 'blued', sides=14)]
+        parts['body'] += [cyl('bipod_collar', (side * .025, .496, .01), (side * .025, .51, .011), .0095, 'brass', sides=14)]
+        parts['body'] += [cyl('bipod_foot', (side * .025, .542, .012), (side * .025, .558, .012), .012, 'rubber', sides=16)]
+    parts['bolt'] += [cyl('bolt_body', (0, -.104, bore), (0, .071, bore), .014, 'steel', sides=24)]
+    parts['bolt'] += [cyl('bolt_shroud', (0, -.108, bore), (0, -.073, bore), .019, 'blued', sides=20)]
+    parts['bolt'] += [cyl('bolt_arm', (.014, -.061, bore), (.05, -.074, .047), .006, 'blued', sides=14)]
+    parts['bolt'] += [sphere('bolt_knob', (.058, -.077, .042), (.014, .014, .014), 'blued', 20, 12)]
+    guard = prism('guard', [(-.025, .012), (.062, .012), (.063, -.022), (.047, -.049), (-.013, -.049), (-.031, -.031)], .018, 'blued', bevel=.002, raw=True, smooth=1)
+    cut(guard, cutter_prism([(-.019, .004), (.05, .004), (.049, -.021), (.038, -.038), (-.009, -.038), (-.02, -.026)], .034))
     parts['body'] += [complete(guard)]
-    parts['mag'] += [prism('mag', [(.1, .02, 1), (.15, .02, 1), (.152, -.03), (.102, -.03)], .03, 'dark', bevel=.0025, radius=.003)]
-    sockets = {'muzzle': (0, .87, bore), 'eject': (.022, .0, bore + .005), 'sight': (0, -.12, sz)}
-    pivots = {'bolt': (0, -.01, bore), 'mag': (0, .125, .02)}
+    parts['trigger'] += [prism('trigger', [(.001, .006), (.009, .006), (.008, -.01), (-.001, -.029), (-.008, -.03), (-.002, -.01)], .007, 'steel', bevel=.001, smooth=1)]
+    parts['mag'] += [prism('box_magazine', [(.071, .023), (.145, .023), (.145, -.072), (.135, -.079), (.074, -.079)], .033, 'blued', bevel=.002)]
+    parts['mag'] += [box('mag_floor', (0, .108, -.078), (.039, .083, .009), 'gunmetal', .0015)]
+    for side in (-1, 1):
+        for y in (.083, .106, .13):
+            parts['mag'] += [box('mag_flute', (side * .017, y, -.035), (.0017, .004, .057), 'gunmetal', .0007)]
+    parts['mag'] += [cyl('top_round', (0, .079, .025), (0, .139, .025), .005, 'brass', sides=12, bevel=.0005)]
+    sockets = {'muzzle': (0, .837, bore), 'eject': (.027, .03, .085), 'sight': (0, -.122, sz)}
+    pivots = {'bolt': (0, -.061, bore), 'mag': (0, .108, .023), 'trigger': (0, .005, .006)}
     return parts, sockets, pivots, {'magAxis': [0, 0, -1]}
 
 
@@ -604,6 +648,10 @@ LIVERY = {
         {'stencil': 'monstera', 'at': (-.296, -.035), 'size': .153, 'rotate': -12, 'colour': '268B84', 'on': ('walnut',)},
         {'stencil': 'frond', 'at': (.335, .039), 'size': .088, 'rotate': -14, 'colour': '299A90', 'on': ('walnut',)},
         {'stencil': 'palm', 'at': (.114, .066), 'size': .063, 'colour': 'D6A348', 'on': ('blued',), 'metal': True},
+    ],
+    'sniper': [
+        {'stencil': 'monstera', 'at': (-.327, -.05), 'size': .15, 'rotate': 10, 'colour': '278980', 'on': ('walnut',)},
+        {'stencil': 'monstera', 'at': (.056, .027), 'size': .125, 'rotate': -18, 'colour': '29948A', 'on': ('walnut',)},
     ],
 }
 
