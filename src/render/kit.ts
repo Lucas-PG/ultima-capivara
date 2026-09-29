@@ -4,6 +4,7 @@ import type { AssetLoader } from './assets';
 import pieces from '../shared/kit-pieces.json';
 import { createToonMaterial } from './materials';
 import { kitInteriorLight, kitInteriorWindows, paintKitPlacement } from './kit-interior';
+import { releaseAfterUpload } from './memory';
 
 export interface KitPlacement {
   piece: string; x: number; y: number; z: number; yaw: number; scale?: number;
@@ -185,7 +186,8 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
           cell.lod.addLevel(empty, far, .12);
           continue;
         }
-        geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
+        // Merged cell geometry is static and never raycast: its arrays can go once uploaded.
+        geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(releaseAfterUpload(geometry));
         const mesh = new THREE.Mesh(geometry, cell.material ?? sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
         mesh.castShadow = !cell.landscape && !cell.furniture; mesh.receiveShadow = true;
         cell.lod.addLevel(mesh, level === 2 ? far : level ? near : 0, .12);
