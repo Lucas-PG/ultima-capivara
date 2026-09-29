@@ -11,3 +11,4 @@ output/
 .vitest/
 tests/visual/baselines/
 tests/perf/results/
+__pycache__/
