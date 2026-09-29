@@ -436,49 +436,88 @@ def shotgun():
 # ------------------------------------------------------------------ coco
 @weapon
 def coco():
-    """Lança-coco: bamboo tube launcher with a copper bell, rope wraps and a hopper of coconuts."""
-    parts = {'body': [], 'pump': [], 'mag': [], 'trigger': []}
-    bore = .085
-    profile = [(.0, .0)]
-    for seg in range(4):
-        y0 = seg * .13
-        profile += [(.044, y0 + .002), (.048, y0 + .01), (.045, y0 + .03), (.043, y0 + .1), (.047, y0 + .122)]
-    profile += [(.046, .52), (0, .52)]
-    parts['body'] += [lathe('bamboo', [(r, d) for r, d in profile], 'bamboo', p0=(0, -.02, bore), sides=32)]
-    parts['body'] += [lathe('bell', [(.044, 0), (.05, .02), (.062, .07), (.076, .1), (.078, .108), (.07, .11), (.06, .085), (.048, .03), (.04, 0)],
-                            'copper', p0=(0, .49, bore), sides=40)]
-    # The loaded coconut sits in the bell mouth.
-    parts['body'] += [sphere('coconut_loaded', (0, .57, bore), (.043, .046, .043), 'coconut', 28, 18)]
-    parts['body'] += [sphere('coconut_eyes', (0, .614, bore + .008), (.012, .004, .012), 'wood_dark', 12, 8)]
-    for y, mat in [(.1, 'rope'), (.23, 'teal'), (.36, 'rope'), (.46, 'orange')]:
-        parts['body'] += [lathe(f'band_{y}', [(.05, 0), (.052, .004), (.052, .024), (.05, .028)], mat, p0=(0, y, bore), sides=32)]
-    parts['body'] += [cyl('breech_cap', (0, -.045, bore), (0, -.018, bore), .05, 'gunmetal', sides=32, bevel=.003)]
-    grip = prism('grip', [(-.006, .04, 1), (.032, .04, 1), (.03, .02), (.02, -.02), (.012, -.06), (.004, -.09), (-.03, -.096), (-.042, -.08),
-                          (-.032, -.04), (-.024, -.004), (-.028, .02)], .033, 'wood_dark', bevel=.003, smooth=3)
+    """Lança-coco: painted bamboo, open parrot hopper and a separate walnut pump."""
+    parts = {'body': [], 'pump': [], 'mag': [], 'load1': [], 'load2': [], 'trigger': []}
+    bore = .112
+    parts['body'] += [lathe('painted_bamboo', [(.044, 0), (.046, .01), (.045, .11), (.045, .47), (.043, .5)], 'yellow', p0=(0, -.055, bore), sides=28)]
+    # A hollow wood bell with a brass lip; nothing plugs the launcher's mouth.
+    parts['body'] += [lathe('wood_bell', [(.043, 0), (.054, .04), (.078, .095), (.079, .108), (.071, .113), (.066, .095), (.038, .025), (.037, 0)],
+                            'wood_red', p0=(0, .436, bore), sides=32, bevel=.001)]
+    parts['body'] += [tube('bell_lip', (0, .536, bore), (0, .55, bore), .08, .07, 'brass', sides=32)]
+    parts['body'] += [cyl('breech', (0, -.098, bore), (0, -.045, bore), .049, 'blued', sides=28, bevel=.003)]
+    for y in (-.079, .098, .286, .43):
+        parts['body'] += [tube('brass_barrel_band', (0, y, bore), (0, y + .013, bore), .0485, .042, 'brass', sides=24)]
+        for side in (-1, 1):
+            parts['body'] += [cyl('band_rivet', (side * .048, y + .006, bore), (side * .05, y + .006, bore), .0033, 'dark', sides=12, bevel=.0005)]
+    # Rope turns have real relief; their contrasting narrow lines remain legible in the hip view.
+    for y in (-.106, .131, .41):
+        for turn in range(3):
+            pts = [(math.cos(a) * .05, y + turn * .005 + a / math.tau * .005, bore + math.sin(a) * .05) for a in [i * math.tau / 20 for i in range(21)]]
+            parts['body'] += [sweep('sisal_rope', pts, [.0028] * len(pts), 'sisal', sides=5)]
+    # Low brass action housing and an exposed sprung linkage on each side.
+    parts['body'] += [prism('action_frame', [(-.096, .067), (.133, .067), (.14, .025), (.116, .012), (-.07, .014), (-.096, .031)], .047, 'blued', bevel=.003, smooth=1)]
+    for side in (-1, 1):
+        parts['body'] += [box('action_rail', (side * .049, .021, .079), (.007, .16, .017), 'brass', .0015)]
+        parts['body'] += [cyl('spring_rod', (side * .054, -.045, .096), (side * .054, .09, .096), .004, 'steel', sides=12)]
+        pts = [(side * .054 + math.cos(a) * .0065, -.039 + .12 * i / 72, .096 + math.sin(a) * .0065) for i, a in enumerate([j * math.tau * 8 / 72 for j in range(73)])]
+        parts['body'] += [sweep('action_spring', pts, [.0015] * len(pts), 'steel', sides=4)]
+        for y in (-.058, .1):
+            parts['body'] += [cyl('action_wheel', (side * .045, y, .076), (side * .06, y, .076), .017, 'brass', sides=20, bevel=.0015)]
+            parts['body'] += [cyl('axle_head', (side * .06, y, .076), (side * .063, y, .076), .0085, 'steel', sides=14, bevel=.001)]
+    grip = prism('walnut_grip', [(-.091, .022), (-.033, .022), (-.037, -.006), (-.054, -.064), (-.045, -.097), (-.091, -.11), (-.111, -.094), (-.098, -.062), (-.099, -.021)],
+                 .034, 'walnut', bevel=.004, smooth=2)
     parts['body'] += [grip]
-    parts['body'] += [prism('grip_mount', [(-.03, .045), (.05, .045), (.05, .04), (-.03, .04)], .03, 'gunmetal', bevel=.002)]
-    guard = prism('guard', [(.02, .04, 1), (.07, .04, 1), (.07, .025), (.062, .012), (.02, .012)], .018, 'gunmetal', bevel=.0015, raw=True)
-    cut(guard, cutter_box((0, .045, .025), (.03, .04, .014)))
+    parts['body'] += [prism('grip_brass_cap', [(-.094, -.097), (-.045, -.091), (-.041, -.104), (-.09, -.119), (-.109, -.103)], .038, 'brass', bevel=.002, smooth=1)]
+    for side in (-1, 1):
+        for y, z in ((-.07, -.025), (-.073, -.076)):
+            parts['body'] += [cyl('grip_screw', (side * .017, y, z), (side * .019, y, z), .004, 'brass', sides=12, bevel=.0005)]
+    guard = prism('brass_guard', [(-.031, .018), (.058, .018), (.061, -.02), (.044, -.047), (-.019, -.047), (-.039, -.025)], .019, 'brass', bevel=.0025, smooth=1, raw=True)
+    cut(guard, cutter_prism([(-.025, .009), (.047, .009), (.049, -.018), (.036, -.036), (-.014, -.036), (-.029, -.023)], .034))
     parts['body'] += [complete(guard)]
-    stock = prism('stock', [(-.045, .06, 1), (-.24, .03), (-.255, .022), (-.255, -.07), (-.235, -.08), (-.12, -.02), (-.045, .03, 1)], .04, 'wood', bevel=.003, smooth=3)
-    parts['body'] += [stock]
-    # Leaf sight with an orange post and a rear notch.
-    parts['body'] += [prism('front_leaf', [(.42, bore + .044), (.44, bore + .044), (.436, bore + .072), (.426, bore + .072)], .006, 'gunmetal', bevel=.001)]
-    parts['body'] += [box('front_dot', (0, .431, bore + .07), (.007, .006, .007), 'orange', .001)]
-    rear = box('rear_leaf', (0, .0, bore + .064), (.036, .01, .03), 'gunmetal', .002, raw=True)
-    cut(rear, cutter_box((0, .0, bore + .078), (.009, .02, .012)))
+    parts['trigger'] += [prism('trigger', [(-.001, .01), (.007, .01), (.009, -.008), (.001, -.028), (-.008, -.03), (-.002, -.01)], .008, 'brass', bevel=.001, smooth=2)]
+    parts['body'] += [prism('walnut_stock', [(-.099, .106), (-.157, .084), (-.211, .068), (-.363, .082), (-.397, .07), (-.397, -.102), (-.374, -.116), (-.246, -.059), (-.19, -.025), (-.105, .059)],
+                            .056, 'walnut', bevel=.007, smooth=3)]
+    parts['body'] += [prism('stock_brass_cap', [(-.392, .077), (-.407, .07), (-.407, -.1), (-.397, -.116), (-.389, -.11)], .061, 'brass', bevel=.003, smooth=1)]
+    # Hopper: four tapered walls and an open top, with wood corner battens and a rolled rim.
+    hopper = prism('hopper_bin', [(-.048, .167), (.225, .167), (.253, .262), (-.071, .262)], .126, 'yellow', bevel=.003, raw=True)
+    cut(hopper, cutter_prism([(-.037, .177), (.215, .177), (.242, .28), (-.059, .28)], .108))
+    parts['body'] += [complete(hopper)]
+    for side in (-1, 1):
+        parts['body'] += [box('hopper_rim', (side * .064, .091, .261), (.008, .332, .01), 'walnut', .002)]
+        for y0, y1 in ((-.047, -.07), (.224, .252)):
+            parts['body'] += [sweep('corner_batten', [(side * .062, y0, .172), (side * .063, y1, .256)], [.006] * 2, 'walnut', sides=6)]
+            for z, y in ((.186, y0), (.246, y1)):
+                parts['body'] += [cyl('hopper_rivet', (side * .065, y, z), (side * .068, y, z), .0042, 'brass', sides=12, bevel=.0006)]
+    for y in (-.07, .252):
+        parts['body'] += [box('hopper_end_rim', (0, y, .261), (.133, .008, .01), 'walnut', .002)]
+    for i, y in enumerate((.002, .092, .182)):
+        dest = parts['mag' if i == 0 else f'load{i}']
+        dest += [sphere('green_coconut', (0, y, .246), (.043, .041, .048), 'coconut_green', 16, 12)]
+        dest += [cyl('coconut_stem', (0, y, .288), (0, y, .295), .009, 'coconut_fibre', r1=.004, sides=12, bevel=.0008)]
+        for a in [j * math.tau / 6 for j in range(6)]:
+            pts = [(math.cos(a) * .042 * math.sin(t), y + math.sin(a) * .04 * math.sin(t), .246 + .047 * math.cos(t)) for t in (.24, .6, 1, 1.5, 2.1, 2.6)]
+            dest += [sweep('coconut_fibre', pts, [.001] * len(pts), 'coconut_fibre', sides=5)]
+    # The pump slides on its own lower rod, clear of the large barrel and hopper.
+    parts['body'] += [cyl('pump_rod', (0, .111, .012), (0, .445, .012), .009, 'brass', sides=18)]
+    parts['body'] += [box('pump_rod_mount', (0, .433, .039), (.025, .025, .055), 'blued', .003)]
+    profile = [(.01, 0), (.025, .008)]
+    for i in range(10):
+        d = .015 + i * .013
+        profile += [(.027, d), (.023, d + .0025), (.023, d + .005), (.027, d + .008)]
+    profile += [(.024, .153), (.01, .16)]
+    parts['pump'] += [lathe('walnut_pump', profile, 'walnut', p0=(0, .191, .012), sides=18, bevel=0)]
+    # Sight lane sits left of the hopper, so no coconut blocks the aim point.
+    parts['body'] += [box('rear_sight_outrigger', (-.056, -.087, .159), (.083, .016, .01), 'brass', .002)]
+    rear = box('rear_notch', (-.085, -.087, .176), (.033, .012, .029), 'blued', .002, raw=True)
+    cut(rear, cutter_box((-.085, -.087, .189), (.012, .025, .02)))
     parts['body'] += [complete(rear)]
-    # Hopper on top: a woven basket holding the reserve coconuts.
-    parts['body'] += [box('hopper', (0, .19, bore + .075), (.07, .12, .05), 'rope', .006)]
-    parts['body'] += [box('hopper_rim', (0, .19, bore + .1), (.076, .126, .008), 'teal', .003)]
-    for i in range(2):
-        parts['mag'] += [sphere('coconut', (0, .16 + i * .06, bore + .1), (.03, .032, .03), 'coconut', 20, 14)]
-    pump = lathe('pump', [(.047, 0), (.055, .006), (.056, .07), (.047, .076)], 'wood', p0=(0, .26, bore), sides=32)
-    parts['pump'] += [pump]
-    parts['pump'] += [box('pump_handle', (0, .295, bore - .07), (.03, .05, .04), 'wood', .006)]
-    parts['trigger'] += [prism('trigger', [(.03, .038, 1), (.038, .038, 1), (.039, .028), (.033, .018), (.028, .02), (.032, .03)], .008, 'gunmetal', bevel=.001, smooth=1)]
-    sockets = {'muzzle': (0, .62, bore), 'eject': (0, .19, bore + .1), 'sight': (0, -.03, bore + .078)}
-    pivots = {'pump': (0, .26, bore), 'mag': (0, .19, bore + .1)}
+    parts['body'] += [box('front_sight_outrigger', (-.057, .452, .158), (.09, .018, .013), 'brass', .002)]
+    leaf = prism('leaf_sight', [(.439, .164), (.468, .164), (.474, .193), (.457, .226), (.437, .198)], .006, 'blued', x=-.085, bevel=.0015, raw=True)
+    cut(leaf, cutter_prism([(.445, .184), (.463, .184), (.459, .209), (.451, .215), (.444, .196)], .014, x=-.085))
+    parts['body'] += [complete(leaf)]
+    parts['body'] += [box('front_post', (-.085, .455, .18), (.0028, .006, .031), 'brass', .0005)]
+    sockets = {'muzzle': (0, .554, bore), 'eject': (0, .09, .254), 'sight': (-.085, -.087, .194)}
+    pivots = {'pump': (0, .191, .012), 'mag': (0, .002, .246), 'load1': (0, .092, .246), 'load2': (0, .182, .246), 'trigger': (0, .004, .009)}
     return parts, sockets, pivots, {'magAxis': [0, 0, 1]}
 
 
@@ -714,6 +753,14 @@ LIVERY = {
         {'stencil': 'frond', 'at': (-.296, -.034), 'size': .18, 'rotate': -18, 'colour': 'DF805F', 'on': ('walnut',)},
         {'stencil': 'frond', 'at': (.235, .066), 'size': .125, 'rotate': 14, 'colour': 'E58865', 'on': ('walnut',)},
         {'stencil': 'frond', 'at': (.287, .057), 'size': .10, 'rotate': -18, 'colour': '3D8374', 'on': ('walnut',)},
+    ],
+    'coco': [
+        {'bands': (.23, .05), 'at': (.05, .112), 'size': 1, 'rotate': 28, 'colour': '367443', 'on': ('yellow',), 'wrap': True, 'depth': (-.049, .049)},
+        {'stencil': 'frond', 'at': (.165, .213), 'size': .16, 'rotate': -12, 'colour': '407B3D', 'on': ('yellow',), 'depth': (-.08, -.052)},
+        {'stencil': 'frond', 'at': (.165, .213), 'size': .16, 'rotate': -12, 'colour': '407B3D', 'on': ('yellow',), 'depth': (.052, .08)},
+        {'stencil': 'parrot', 'at': (.051, .215), 'size': .085, 'colour': '197C9B', 'on': ('yellow',)},
+        {'bands': (.22, .052), 'at': (-.30, -.02), 'size': 1, 'rotate': 28, 'colour': '3D7040', 'on': ('walnut',)},
+        {'stencil': 'frond', 'at': (-.339, -.025), 'size': .143, 'rotate': 14, 'colour': '729143', 'on': ('walnut',)},
     ],
 }
 
