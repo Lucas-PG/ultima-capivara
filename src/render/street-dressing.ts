@@ -43,7 +43,7 @@ function paintedPanels() {
   return texture;
 }
 
-/** Small original street props, merged by material and cell. No gameplay solids. */
+/** Small original street props, merged by material and 96 m cell. No gameplay solids. */
 export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
   const group = new THREE.Group(); group.name = 'vida-das-ruas';
   const atlas = paintedPanels();
@@ -62,7 +62,8 @@ export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(values, 3));
     geometry.applyMatrix4(root);
-    const key = `${material}:${Math.floor(marker.pos.x / 48)}:${Math.floor(marker.pos.z / 48)}`;
+    // 96 m cells: a district's dressing is a handful of draws, still culled by quarter.
+    const key = `${material}:${Math.floor(marker.pos.x / 96)}:${Math.floor(marker.pos.z / 96)}`;
     const bucket = buckets.get(key) ?? { material, parts: [] }; bucket.parts.push(geometry); buckets.set(key, bucket);
   };
   const box = (x: number, y: number, z: number, w: number, h: number, d: number, color: string) =>

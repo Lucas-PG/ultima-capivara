@@ -474,7 +474,15 @@ export class WorldScene {
       geometry.applyMatrix4(new THREE.Matrix4().compose(midpoint, rotation, new THREE.Vector3(radius, length, radius)));
       stash(surface, paintGeometry(geometry, c(tint).lerp(c('#ffffff'), .15), tileMeters[surface]), midpoint.x, midpoint.z);
     };
-    const glassPanels: THREE.BufferGeometry[] = [];
+    const glassPanels: THREE.BufferGeometry[] = [], signBoards: THREE.BufferGeometry[] = [], signFaces: THREE.BufferGeometry[] = [];
+    // Rounded boards come unindexed: every board part is, so they merge.
+    const tinted = (source: THREE.BufferGeometry, color: string) => {
+      const geometry = source.index ? source.toNonIndexed() : source;
+      if (geometry !== source) source.dispose();
+      const tint = c(color), count = geometry.getAttribute('position').count, colors = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) colors.set([tint.r, tint.g, tint.b], i * 3);
+      return geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    };
     const glass = (x: number, y: number, z: number, sx: number, sy: number, sz: number) =>
       glassPanels.push(coloredGeometry(box, c('#b9ced0'), new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz)));
     const decorateHouse = (roof: MapObject) => {
@@ -543,22 +551,21 @@ export class WorldScene {
         const atlasIndex = SIGN_ART.findIndex(sign => sign.label === detail);
         if (atlasIndex < 0) throw new Error(`Unapproved island sign: ${detail}`);
         const board = twoSidedTextSign(scale.x, scale.y * .62, signMaterial, SIGN_ART[atlasIndex].accent, atlasIndex);
-        board.group.position.set(pos.x, pos.y + .4, pos.z); board.group.rotation.y = rotation; this.group.add(board.group);
+        board.group.position.set(pos.x, pos.y + .4, pos.z); board.group.rotation.y = rotation; board.group.updateMatrixWorld(true);
+        // Every place sign shares two draws: painted boards and posts, and the lettering.
+        const [edge, ...faces] = board.group.children as THREE.Mesh[];
+        signBoards.push(tinted(edge.geometry.clone().applyMatrix4(edge.matrixWorld), SIGN_ART[atlasIndex].accent));
+        for (const face of faces) signFaces.push(face.geometry.clone().applyMatrix4(face.matrixWorld));
         const boardBottom = board.group.position.y - scale.y * .31;
-        const postMaterial = new THREE.MeshStandardMaterial({ color: '#8A5E3C', roughness: 1 });
         for (const side of [-1, 1]) {
           const offset = side * (scale.x / 2 - .24);
           const postX = pos.x + Math.cos(rotation) * offset;
           const postZ = pos.z - Math.sin(rotation) * offset;
           const groundY = terrainHeight(postX, postZ);
           const postHeight = Math.max(.1, boardBottom - groundY);
-          const postGeometry = new THREE.BoxGeometry(.08, postHeight, .08);
-          const post = new THREE.Mesh(postGeometry, postMaterial);
-          post.position.set(postX, groundY + postHeight / 2, postZ);
-          post.rotation.y = rotation;
-          this.group.add(post); this.disposables.push(postGeometry);
+          signBoards.push(tinted(new THREE.BoxGeometry(.08, postHeight, .08).rotateY(rotation).translate(postX, groundY + postHeight / 2, postZ), '#8A5E3C'));
         }
-        this.disposables.push(board.geometry, board.edgeGeometry, board.edgeMaterial, postMaterial);
+        board.geometry.dispose(); board.edgeGeometry.dispose(); board.edgeMaterial.dispose();
         continue;
       }
       if (kind === 'lamp') {
@@ -652,6 +659,14 @@ export class WorldScene {
             alongX ? .045 : scale.x + .02, scale.y * .85, alongX ? scale.z + .02 : .045);
         }
       }
+    }
+    if (signBoards.length) {
+      const boards = mergeGeometries(signBoards, false), lettering = mergeGeometries(signFaces, false);
+      [...signBoards, ...signFaces].forEach(geometry => geometry.dispose());
+      if (!boards || !lettering) throw new Error('Could not batch the island signs');
+      const boardMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+      this.group.add(new THREE.Mesh(boards, boardMaterial), new THREE.Mesh(lettering, signMaterial));
+      this.disposables.push(boards, lettering, boardMaterial);
     }
     if (glassPanels.length) {
       const glazing = mergeGeometries(glassPanels, false);
