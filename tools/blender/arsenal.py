@@ -235,7 +235,10 @@ def m4():
     grip = prism('grip', [(-.006, .012, 1), (.031, .012, 1), (.03, -.003), (.022, -.028), (.017, -.04), (.02, -.05), (.012, -.072),
                           (.004, -.099), (-.031, -.105), (-.043, -.091), (-.035, -.052), (-.028, -.02), (-.036, -.004), (-.03, .004)],
                   .032, 'polymer', bevel=.0032, smooth=3)
-    move(grip, (0, -.064, 0))
+    # Paw-sized grip depth: the heel can contact the backstrap while the index
+    # reaches the trigger, without hiding the whole hand on the far side.
+    grip.data.transform(Matrix.Diagonal((1, .65, 1, 1)))
+    move(grip, (0, -.05, 0))
     parts['body'] += [grip]
     # Enlarged trigger guard, open front for gloved (or clawed) fingers.
     # Oversized guard: a paw's trigger digit fits between trigger and guard.
@@ -274,7 +277,8 @@ def m4():
     for s in (-1, 1):
         # Receiver seams, brass pin heads and a selector; they give the receiver its scale.
         inset = prism('grip_inset', [(-.019, -.020), (.014, -.027), (-.001, -.086), (-.027, -.083)], .0018, 'rubber', x=s * .0165, bevel=.0006, radius=.004)
-        move(inset, (0, -.064, 0)); parts['body'] += [inset]
+        inset.data.transform(Matrix.Diagonal((1, .65, 1, 1)))
+        move(inset, (0, -.05, 0)); parts['body'] += [inset]
         for y, z in [(-.058, .031), (.112, .026)]:
             parts['body'] += [cyl('pin', (s * .0182, y, z), (s * .0205, y, z), .0042, 'brass', sides=16, bevel=.0005)]
         parts['body'] += [prism('receiver_seam', [(-.064, .0455), (.123, .0455), (.123, .0475), (-.064, .0475)], .0008, 'steel', x=s * .0181, bevel=.0003)]
@@ -594,7 +598,7 @@ def build(weapon_id):
                                 livery=LIVERY.get(weapon_id, ()))
     albedo_img = L.save_png(f'{weapon_id}_albedo', albedo)
     orm_img = L.save_png(f'{weapon_id}_orm', orm, srgb=False)
-    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id == 'm4' else None
+    normal_img = L.bake_relief(meshes, weapon_id, 1024) if weapon_id == 'm4' else None
     material = L.export_material(f'{weapon_id}_mat', albedo_img, orm_img, normal_img)
     triangles = 0
     for obj in meshes:

@@ -26,6 +26,17 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 async function pack(source, target, extra = []) {
   const document = await io.read(source);
   if (target.includes('/arsenal/')) {
+    // Meshopt quantization rewrites mesh-node transforms. Keep animation pivots
+    // and part-anchored paw coordinates in authored metres on a parent frame.
+    for (const node of [...document.getRoot().listNodes()]) {
+      if (!node.getMesh() || !/_(mag|slide|trigger|hammer|action|cylinder|pump|bolt|charge|release)$/.test(node.getName())) continue;
+      const parent = node.getParentNode() ?? document.getRoot().listScenes().find(scene => scene.listChildren().includes(node));
+      if (!parent) throw new Error(`Unparented animated weapon part: ${node.getName()}`);
+      const frame = document.createNode(node.getName()).setTranslation(node.getTranslation()).setRotation(node.getRotation()).setScale(node.getScale());
+      parent.removeChild(node).addChild(frame);
+      node.setName(`${node.getName()}_mesh`).setTranslation([0, 0, 0]).setRotation([0, 0, 0, 1]).setScale([1, 1, 1]);
+      frame.addChild(node);
+    }
     const albedos = new Set(document.getRoot().listMaterials().map(material => material.getBaseColorTexture()));
     for (const texture of document.getRoot().listTextures()) {
       const limit = albedos.has(texture) && source.endsWith('/m4.glb') ? 2048 : 1024;

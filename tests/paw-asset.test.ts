@@ -61,11 +61,14 @@ it('keeps the visible M4 trigger clear of the magazine and exports its own pivot
   const doc = await io.read('public/models/arsenal/m4.glb');
   const bounds = (name: string) => {
     const node = doc.getRoot().listNodes().find(node => node.getName() === name)!;
-    const box = new Box3(), matrix = new Matrix4().fromArray(node.getWorldMatrix());
-    for (const primitive of node.getMesh()!.listPrimitives()) {
-      const p = primitive.getAttribute('POSITION')!;
-      for (let i = 0; i < p.getCount(); i++) box.expandByPoint(new Vector3().fromArray(p.getElement(i, [])).applyMatrix4(matrix));
-    }
+    const box = new Box3();
+    node.traverse(child => {
+      const matrix = new Matrix4().fromArray(child.getWorldMatrix());
+      for (const primitive of child.getMesh()?.listPrimitives() ?? []) {
+        const p = primitive.getAttribute('POSITION')!;
+        for (let i = 0; i < p.getCount(); i++) box.expandByPoint(new Vector3().fromArray(p.getElement(i, [])).applyMatrix4(matrix));
+      }
+    });
     return { node, box };
   };
   const trigger = bounds('m4_trigger'), mag = bounds('m4_mag');
