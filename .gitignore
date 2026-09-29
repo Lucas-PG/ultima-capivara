@@ -12,3 +12,7 @@ output/
 tests/visual/baselines/
 tests/perf/results/
 __pycache__/
+
+# Reference boards: the repo keeps compact JPG copies; PNG masters and generation attempts stay local.
+docs/art/references/*.png
+docs/art/references/qa/
