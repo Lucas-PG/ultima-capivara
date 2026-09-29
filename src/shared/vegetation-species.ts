@@ -44,6 +44,9 @@ export const SPECIES = {
   bromeliad: { kind: 'ground', height: .6, variants: 2 },
   reeds: { kind: 'ground', height: 1.6, variants: 3 },
   crop: { kind: 'ground', height: .8, variants: 2 },
+  /** The planting of the kit's round planter (origin at the planter base) and flower bed (bed centre). */
+  pot: { kind: 'shrub', height: 1.9, variants: 4 },
+  bed: { kind: 'shrub', height: .9, variants: 4 },
   /** Bougainvillea hanging from a wall top: origin on the wall's outer face at the top, drop downward. */
   vine: { kind: 'vine', height: 2, variants: 4 },
 } as const satisfies Record<string, { kind: PlantKind; height: number; variants: number }>;

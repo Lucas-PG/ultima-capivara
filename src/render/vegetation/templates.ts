@@ -4,7 +4,7 @@ import type { TemplateSet } from './batch';
 import { broadleafBuilder, CROWNS } from './broadleaf';
 import { buildBanana, buildBromeliad, buildCrop, buildFern, buildHeliconia, buildMonstera, buildReeds, buildStrelitzia, buildTaro } from './garden';
 import { buildCoconut, buildRoyal, type Lod } from './palms';
-import { buildCroton, buildHedge, buildShrub, buildThicket } from './shrubs';
+import { buildBed, buildCroton, buildHedge, buildPot, buildShrub, buildThicket } from './shrubs';
 import { buildVine } from './vines';
 
 type Builder = (variant: number, lod: Lod) => THREE.BufferGeometry;
@@ -31,6 +31,8 @@ const BUILDERS: Partial<Record<SpeciesId, Builder>> = {
   reeds: buildReeds,
   crop: buildCrop,
   vine: buildVine,
+  pot: buildPot,
+  bed: buildBed,
 };
 
 export function buildTemplates(used: ReadonlySet<SpeciesId>): TemplateSet {

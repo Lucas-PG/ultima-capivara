@@ -127,6 +127,13 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     add(p.id, species, variant, p.x, p.z, p.yaw, SPECIES[species].height * (p.scale ?? 1), p.y);
   }
 
+  // 1b. The kit's planters and flower beds get real plants over their painted mounds.
+  for (const p of pieces) {
+    if (p.piece !== 'planter' && p.piece !== 'flower_bed') continue;
+    const species: SpeciesId = p.piece === 'planter' ? 'pot' : 'bed';
+    add(`${p.id}:planting`, species, Math.floor(hash(p.id, 5) * 4), p.x, p.z, p.yaw, SPECIES[species].height * (p.scale ?? 1), p.y);
+  }
+
   // 2. Bougainvillea over house walls: drapes spilling from the eaves and parapets, and climbers
   // rising from a bush at a corner of the lower houses. Doors stay clear (drapes never cross a gap).
   const STYLE_HALF_WIDTH = [1.1, .85, 1.0, 1.3];

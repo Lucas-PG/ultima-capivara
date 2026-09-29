@@ -33,8 +33,10 @@ describe('plant templates', () => {
       if (triangles(mid) > 100) expect(triangles(far), label).toBeLessThan(triangles(mid) * .5);
       else expect(triangles(far), label).toBeLessThanOrEqual(triangles(mid));
       const [n, m, f] = [near, mid, far].map(extent);
-      // Crowns and bushes are cover and landmarks: width and height hold within 22 %. Floor plants and wall drapes, 35 %.
-      const tolerance = SPECIES[species].kind === 'ground' || SPECIES[species].kind === 'vine' ? .35 : .22;
+      // Crowns and bushes are cover and landmarks: width and height hold within 22 %. Floor plants, wall drapes and
+      // the planting on kit planters and beds (whose solid kit piece carries the silhouette), 35 %.
+      const decorative = SPECIES[species].kind === 'ground' || SPECIES[species].kind === 'vine' || species === 'pot' || species === 'bed';
+      const tolerance = decorative ? .35 : .22;
       for (const [name, e] of [['mid', m], ['far', f]] as const) {
         expect(Math.abs(e.x / n.x - 1), `${label} ${name} width`).toBeLessThan(tolerance);
         expect(Math.abs(e.y / n.y - 1), `${label} ${name} height`).toBeLessThan(tolerance);

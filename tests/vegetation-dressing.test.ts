@@ -38,13 +38,25 @@ describe('vegetation dressing', () => {
       const c = Math.cos(p.yaw), s = Math.sin(p.yaw), k = p.scale ?? 1;
       return { x: p.x + (e.point[0] * c + e.point[2] * s) * k, z: p.z + (e.point[2] * c - e.point[0] * s) * k };
     }));
-    const planted = dressing.filter(p => p.species !== 'vine' && !VEGETATION_PIECES.has(world.pieces!.find(piece => piece.id === p.id)?.piece ?? ''));
+    // Kit replacements and the planting of the kit's own planters and beds stand where the kit put them.
+    const planted = dressing.filter(p => p.species !== 'vine' && p.species !== 'pot' && p.species !== 'bed' &&
+      !VEGETATION_PIECES.has(world.pieces!.find(piece => piece.id === p.id)?.piece ?? ''));
     expect(planted.length).toBeGreaterThan(150);
     for (const p of planted) {
       expect(ROADS.some(([x0, z0, x1, z1]) => p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1), `${p.id} on a road`).toBe(false);
       expect(entrances.some(e => Math.hypot(p.x - e.x, p.z - e.z) < 1.3), `${p.id} blocks a doorway`).toBe(false);
       expect(inside(p.x, p.y + .3, p.z) || inside(p.x, p.y + 1, p.z), `${p.id} grows inside a solid`).toBe(false);
       expect(Math.abs(p.y - terrainHeight(p.x, p.z)), `${p.id} floats or sinks`).toBeLessThan(.1);
+    }
+  });
+
+  it('plants every kit planter and flower bed exactly on its piece', () => {
+    for (const piece of world.pieces!.filter(p => p.piece === 'planter' || p.piece === 'flower_bed')) {
+      const plants = dressing.filter(p => p.id === `${piece.id}:planting`);
+      expect(plants, piece.id).toHaveLength(1);
+      expect(plants[0].species).toBe(piece.piece === 'planter' ? 'pot' : 'bed');
+      expect(Math.hypot(plants[0].x - piece.x, plants[0].y - piece.y, plants[0].z - piece.z)).toBeLessThan(1e-6);
+      expect(plants[0].height / SPECIES[plants[0].species].height).toBeCloseTo(piece.scale ?? 1, 6);
     }
   });
 
