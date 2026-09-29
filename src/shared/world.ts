@@ -832,11 +832,16 @@ export function createWorld(): WorldSpec {
     if (y < .3 || occupied(x, z, 1) || roadAt(x, z, .5) || routeDistance(x, z) < 1.5) continue;
     obj('grass', x, y, z, .5, .4, .5, '#9CC756', 'tuft');
   }
+  // A lamp never stands in the first steps of a district arrival's view.
+  const inArrivalView = (x: number, z: number) => Object.values(DISTRICT_ARRIVALS).some(([ax, az, lx, lz]) => {
+    const d = Math.hypot(lx - ax, lz - az), t = Math.max(0, Math.min(8, ((x - ax) * (lx - ax) + (z - az) * (lz - az)) / d));
+    return Math.hypot(ax + (lx - ax) / d * t - x, az + (lz - az) / d * t - z) < 1.6;
+  });
   for (const [x0, z0, x1, z1] of STREETS) {
     const horizontal = x1 - x0 > z1 - z0;
     for (let along = 9; along < (horizontal ? x1 - x0 : z1 - z0) - 4; along += 18) {
       const x = horizontal ? x0 + along : x1 + 1, z = horizontal ? z1 + 1 : z0 + along;
-      if (occupied(x, z, .8)) continue;
+      if (occupied(x, z, .8) || inArrivalView(x, z)) continue;
       if (!detail('lamp_post', x, z)) obj('lamp', x, ground(x, z), z, .12, 4.2, .12, '#c1ab78', 'street');
     }
   }

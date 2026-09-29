@@ -39,9 +39,9 @@ export const PORTO_QUAY_X = [99, 123] as const;
 export const DISTRICT_ARRIVALS: Readonly<Record<string, readonly [number, number, number, number]>> = {
   forte: [4, -78, 4, -99], vila: [-8, -8, -8, -40], mercado: [42, -7, 31, -22],
   morro: [-97, -66, -95, -35], cachoeira: [-83, -13, -109, -9], porto: [83, -8, 107, 12],
-  praia: [-36, 95, -30, 109], farol: [-6, 76, -6, 115], mangue: [96, 40, 112, 50],
+  praia: [-36, 95, -30, 109], farol: [-8, 79, -6, 115], mangue: [96, 40, 112, 50],
   fazenda: [53, 78, 70, 60], rosario: [-21, 36, -21, 20], engenho: [-60, 35.5, -104, 35.5],
-  campinho: [74, -48, 88, -60], capela: [-37.5, 66, -76, 66], palafitas: [84, 82, 96, 97],
+  campinho: [68, -50, 88, -60], capela: [-37.5, 66, -76, 66], palafitas: [84, 82, 96, 97],
 };
 export interface DistrictPlan { id: string; name: string; x: number; z: number; radius: number; color: string }
 export const DISTRICTS: readonly DistrictPlan[] = [
