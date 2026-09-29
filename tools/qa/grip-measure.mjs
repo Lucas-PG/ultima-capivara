@@ -50,17 +50,49 @@ export function measureGrip([weapon, side]) {
   lo.subScalar(.03); hi.addScalar(.03);
   const near = tris.filter(([a, b, c]) => Math.max(a.x, b.x, c.x) > lo.x && Math.min(a.x, b.x, c.x) < hi.x && Math.max(a.y, b.y, c.y) > lo.y &&
     Math.min(a.y, b.y, c.y) < hi.y && Math.max(a.z, b.z, c.z) > lo.z && Math.min(a.z, b.z, c.z) < hi.z);
+  // A median BVH keeps the full-vertex pass exact while avoiding a scan of
+  // every weapon triangle for every skin vertex. Bounds only prune surfaces
+  // farther than the closest triangle already found, including tie tolerance.
+  const bounds = list => {
+    const min = new V3(Infinity, Infinity, Infinity), max = new V3(-Infinity, -Infinity, -Infinity);
+    for (const t of list) for (let i = 0; i < 3; i++) { min.min(t[i]); max.max(t[i]); }
+    return { min, max };
+  };
+  function tree(list) {
+    const node = bounds(list);
+    if (list.length <= 16) return { ...node, triangles: list };
+    const size = new V3().subVectors(node.max, node.min);
+    const axis = size.x >= size.y && size.x >= size.z ? 'x' : size.y >= size.z ? 'y' : 'z';
+    list.sort((a, b) => a[0][axis] + a[1][axis] + a[2][axis] - b[0][axis] - b[1][axis] - b[2][axis]);
+    const mid = list.length >> 1;
+    return { ...node, left: tree(list.slice(0, mid)), right: tree(list.slice(mid)) };
+  }
+  const root = tree([...near]);
+  const distanceToBox = (p, node) => {
+    let d = 0;
+    for (const axis of ['x', 'y', 'z']) d += Math.max(0, node.min[axis] - p[axis], p[axis] - node.max[axis]) ** 2;
+    return d;
+  };
   const c0 = new V3();
   for (const v of measured) {
     let best = Infinity, sign = 1;
-    for (const [a, b, c, part] of near) {
-      closest(v.p, a, b, c, c0);
-      const d = c0.distanceToSquared(v.p);
-      if (d < best - 1e-12) {
-        best = d; v.part = part; n.subVectors(b, a).cross(ac.subVectors(c, a));
-        sign = n.dot(q.subVectors(v.p, c0)) < 0 ? -1 : 1;
-      } else if (d < best + 1e-10) { n.subVectors(b, a).cross(ac.subVectors(c, a)); if (n.dot(q.subVectors(v.p, c0)) >= 0) sign = 1; }
-    }
+    const visit = node => {
+      if (distanceToBox(v.p, node) > best + 1e-10) return;
+      if (!node.triangles) {
+        const leftFirst = distanceToBox(v.p, node.left) <= distanceToBox(v.p, node.right);
+        visit(leftFirst ? node.left : node.right); visit(leftFirst ? node.right : node.left);
+        return;
+      }
+      for (const [a, b, c, part] of node.triangles) {
+        closest(v.p, a, b, c, c0);
+        const d = c0.distanceToSquared(v.p);
+        if (d < best - 1e-12) {
+          best = d; v.part = part; n.subVectors(b, a).cross(ac.subVectors(c, a));
+          sign = n.dot(q.subVectors(v.p, c0)) < 0 ? -1 : 1;
+        } else if (d < best + 1e-10) { n.subVectors(b, a).cross(ac.subVectors(c, a)); if (n.dot(q.subVectors(v.p, c0)) >= 0) sign = 1; }
+      }
+    };
+    visit(root);
     v.d = Math.sqrt(best) * sign;
     const g = groups[v.bone] ??= { n: 0, inside: 0, min: Infinity, tip: null, tipAlong: -Infinity };
     g.n++; if (v.d < -.0005) g.inside++; if (v.d < g.min) { g.min = v.d; g.part = v.part; g.at = [v.p.x, v.p.y, v.p.z].map(n => Math.round(n * 1000)); }
@@ -82,4 +114,3 @@ export function measureGrip([weapon, side]) {
   return { summary, digits, bore: [bore.x, bore.y, bore.z].map(x => +(x * 1000).toFixed(0)), trianglesNear: near.length,
     centroid: [centroid.x, centroid.y, centroid.z], worst: +(Math.min(...measured.map(v => v.d)) * 1000).toFixed(1) };
 }
-

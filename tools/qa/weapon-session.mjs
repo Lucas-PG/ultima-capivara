@@ -2,6 +2,8 @@
 // BASE=... node tools/qa/weapon-session.mjs
 // {op:'fit', weapon, intent, start?, evals?, out?}; {op:'pose'|'probe', weapon,
 // action:'hip'|'ads'|'reload'|'reload-partial'|'inspect'|'sprint'|'fire', seconds?, tune?, out?, views?}; {op:'close'}
+// For world review, use tp:true with a tpMotion action, or pose:'world-<id>'.
+// camera:[x,y,z,targetX,targetY,targetZ,fov] frames either from a free camera.
 import { chromium } from '@playwright/test';
 import { createInterface } from 'node:readline';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -30,12 +32,14 @@ try {
       const c = JSON.parse(line);
       if (c.op === 'close') break;
       await ready();
-      await page.evaluate(([w, tune]) => { window.__vmOrbit = undefined; window.__vmTune = { [w]: tune ?? {} }; }, [c.weapon, c.tune]);
+      await page.evaluate(([w, tune]) => { window.__vmOrbit = undefined; window.__camOverride = undefined; window.__vmTune = { [w]: tune ?? {} }; }, [c.weapon, c.tune]);
       const action = c.action ?? 'hip', motion = c.intent?.motion;
-      if (c.pose) await page.evaluate(name => window.__capyQA.pose(name), c.pose);
+      if (c.tp) await page.evaluate(([w, a, t]) => window.__capyQA.tpMotion(w, a, t), [c.weapon, action, c.seconds ?? 0]);
+      else if (c.pose) await page.evaluate(name => window.__capyQA.pose(name), c.pose);
       else if (motion) await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [c.weapon, motion.action, motion.seconds]);
       else if (['hip', 'ads'].includes(action)) await page.evaluate(([w, a]) => window.__capyQA.pose(`${a === 'ads' ? 'ads' : 'fp'}-${w}`), [c.weapon, action]);
       else await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [c.weapon, action, c.seconds ?? 0]);
+      if (c.camera) await page.evaluate(camera => { window.__camOverride = camera; window.__capyQA.quality('medium'); }, c.camera);
       let result;
       if (c.op === 'fit') {
         const start = c.start ?? await page.evaluate(([w, s]) => window.__vmProbe.models[w].grips[s], [c.weapon, c.intent.side]);
