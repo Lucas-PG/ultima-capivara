@@ -2,6 +2,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { expect, it } from 'vitest';
+import * as THREE from 'three';
 import { Box3, Matrix4, Vector3 } from 'three';
 
 it('ships four articulated digits per paw without skin influence leaking between fingers', async () => {
@@ -97,7 +98,6 @@ it('ships the arms without their own textures but with the UVs the shared charac
 });
 
 it('binds the character surface maps onto the first-person arm materials', async () => {
-  const THREE = await import('three');
   const { ArmsRig } = await import('../src/render/fp-arms');
   const texture = new THREE.Texture();
   const characterMaterial = new THREE.MeshStandardMaterial({ map: texture, normalMap: texture });

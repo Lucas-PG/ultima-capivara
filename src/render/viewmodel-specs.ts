@@ -78,7 +78,8 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     hip: { pos: [.17, -.195, -.37], rot: [.06, .24, -.12] },
     sprint: LONG_SPRINT, adsDistance: .15, viewmodelFov: 64,
     grips: { R: RIFLE_GRIP_R([.037, -.030, .111]),
-      L: { wrist: [-.048, .006, -.178], forward: [.18, .18, -1], palm: [.8, .6, .25], curl: HANDGUARD_L, pole: [-.75, -1, .25] } },
+      // Underhand: the palm carries the handguard, claws wrap its near side (reference: wide-aim-reference).
+      L: { wrist: [-.055, -.02, -.21], forward: [.8, .45, -.4], palm: [.45, 1, .1], curl: curl([1.35, 1.2, .8], [1.4, 1.2, .8], [1.45, 1.2, .8], [.15, .1, .05]), pole: [-.8, -1, .1] } },
     recoil: RECOIL.rifle, inertia: 1,
   },
   shotgun: {
