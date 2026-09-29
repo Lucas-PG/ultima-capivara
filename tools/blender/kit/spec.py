@@ -324,6 +324,8 @@ from interiors import add_interiors
 add_interiors(Piece)
 from architecture import add_architecture
 add_architecture(Piece, building, portal, window)
+from waterfront import add_waterfront
+add_waterfront(Piece)
 
 
 def write_metadata():

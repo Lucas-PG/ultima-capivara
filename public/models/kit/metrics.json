@@ -505,8 +505,26 @@
         730
       ],
       "colliders": 49
+    },
+    {
+      "id": "quay_wall",
+      "triangles": [
+        1636,
+        308,
+        308
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "quay_stair",
+      "triangles": [
+        2024,
+        1100,
+        768
+      ],
+      "colliders": 19
     }
   ],
-  "bytes": 8068500,
-  "gzipBytes": 2360957
+  "bytes": 8207804,
+  "gzipBytes": 2391818
 }
