@@ -7,7 +7,7 @@ import { KIND, TRUNK_KINDS } from '../src/render/vegetation/mesh-builder';
 import { plantMatrix } from '../src/render/vegetation/plants';
 import { buildTemplates } from '../src/render/vegetation/templates';
 import { createWorld } from '../src/shared/world';
-import { vegetationDressing } from '../src/shared/vegetation-dressing';
+import { fieldRows, onFieldRow, vegetationDressing } from '../src/shared/vegetation-dressing';
 import { isBatchedPlant, plantSpecies, SPECIES, SPECIES_IDS, type SpeciesId } from '../src/shared/vegetation-species';
 import type { MapObject, WorldSpec } from '../src/shared/types';
 
@@ -108,7 +108,8 @@ describe('vegetation batch', () => {
   it('draws every authored plant and every dressing plant as one instance in one batched mesh, at its authored place and size', () => {
     const world = createWorld(), vegetation = buildVegetation(world);
     try {
-      const authored = world.objects.filter(isBatchedPlant), dressing = vegetationDressing(world);
+      // Seedlings on the farm's field rows give way to the full rows the dressing plants there.
+      const rows = fieldRows(world), authored = world.objects.filter(o => isBatchedPlant(o) && !onFieldRow(o, rows)), dressing = vegetationDressing(world);
       expect(vegetation.batch.size).toBe(authored.length + dressing.length);
       // Species and variants live inside the batch: the whole island's plants cost one draw call.
       const meshes = vegetation.group.children.filter((c): c is THREE.BatchedMesh => c instanceof THREE.BatchedMesh);

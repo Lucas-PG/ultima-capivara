@@ -166,16 +166,24 @@ export function buildFern(variant: number, lod: Lod) {
   return mb.build();
 }
 
-/** Cassava plant: a low fan of palmate leaves on red stems. */
+/** Mandioca (cassava): a slender red stem carrying tiers of palmate leaves on long petioles,
+ * the crop of every Brazilian farm plot. 0.8 m template; the rows plant it at 0.7 to 1 m. */
 export function buildCrop(variant: number, lod: Lod) {
   const mb = new MeshBuilder(lod), seed = variant * 31 + 8, tile = FOLIAGE_TILES['palm-fan'], rand = (i: number) => plantHash(seed, i);
-  const leaves = [7, 5, 3][lod];
+  const lean = v3((rand(1) - .5) * .12, 0, (rand(2) - .5) * .12), top = v3(lean.x, .72, lean.z);
+  if (lod < 2) tube(mb, [v3(0, 0, 0), v3(lean.x * .4, .36, lean.z * .4), top], [.022, .017, .01],
+    { sides: lod === 0 ? 4 : 3, kind: KIND.limb, swayBase: 0, swayTop: .12, uvScale: 1, color: t => hex('#8a4a36').lerp(hex('#6f7a3a'), t * .6) });
+  const leaves = [9, 5, 3][lod];
   for (let k = 0; k < leaves; k++) {
-    const a = k * 137.5 * DEG, out = v3(Math.cos(a), 0, Math.sin(a)), el = (35 + rand(k) * 25) * DEG;
+    // Leaves spiral up the stem; the lower ones reach out farther and droop.
+    const h = .28 + .44 * (k + .5) / leaves, a = k * 137.5 * DEG + variant, out = v3(Math.cos(a), 0, Math.sin(a));
+    const el = (18 + 40 * (k + .5) / leaves + rand(k) * 10) * DEG;
     const up = out.clone().multiplyScalar(Math.cos(el)).addScaledVector(UP, Math.sin(el));
     const right = new THREE.Vector3().crossVectors(up, UP).normalize(), face = new THREE.Vector3().crossVectors(right, up).normalize();
-    card(mb, tile, v3(out.x * .06, .12 + rand(k + 4) * .25, out.z * .06), right, up, { width: .5 + rand(k + 8) * .12, anchor: 'root', bow: .04, segmentsY: lod === 0 ? 2 : 1,
-      color: new THREE.Color(.98, 1.02, .82), sway: .35, swayTip: .7, kind: KIND.leaf, normal: () => face.clone().multiplyScalar(.5).addScaledVector(UP, .5).normalize() });
+    const at = v3(lean.x * h / .72 + out.x * .03, h, lean.z * h / .72 + out.z * .03), shade = .86 + .24 * (k + .5) / leaves;
+    card(mb, tile, at, right, up, { width: (.36 + rand(k + 8) * .08) * (lod === 2 ? 1.25 : 1), anchor: 'root', bow: .04, segmentsY: lod === 0 ? 2 : 1,
+      color: new THREE.Color(.96 * shade, 1.02 * shade, .84 * shade), sway: .2, swayTip: .55, kind: KIND.leaf, flip: rand(k + 9) < .5,
+      normal: () => face.clone().multiplyScalar(.5).addScaledVector(UP, .5).normalize() });
   }
   return mb.build();
 }

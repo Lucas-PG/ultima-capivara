@@ -2,7 +2,7 @@ import { colliderGrid } from './collider-grid';
 import { KIT_PIECES } from './kit-collision';
 import { isHousePiece, ROADS } from './layout';
 import { fbm, terrainColor, terrainHeight, WORLD_PALETTE } from './terrain';
-import type { KitPlacement, WorldSpec } from './types';
+import type { KitPlacement, MapObject, WorldSpec } from './types';
 import { plantHash, plantSpecies, SPECIES, type SpeciesId } from './vegetation-species';
 
 /**
@@ -69,6 +69,13 @@ const toWorld = (p: KitPlacement, lx: number, lz: number) => {
 };
 /** Yaw that turns template +z toward a local outward normal of the piece. */
 const facingYaw = (p: KitPlacement, w: WallSegment) => p.yaw + (w.along === 'x' ? (w.sign > 0 ? 0 : Math.PI) : (w.sign > 0 ? Math.PI / 2 : -Math.PI / 2));
+
+/** The farm's soil strips (authored as thin boxes). */
+export const fieldRows = (world: Pick<WorldSpec, 'objects'>) => world.objects.filter(o => o.detail === 'field-row');
+/** Authored crop seedlings standing on a field row: the rows are planted in full by the dressing, so these are skipped. */
+export function onFieldRow(object: MapObject, rows: MapObject[]) {
+  return object.detail === 'crop' && rows.some(r => Math.abs(object.pos.x - r.pos.x) < r.scale.x / 2 + .05 && Math.abs(object.pos.z - r.pos.z) < r.scale.z / 2 + .05);
+}
 
 export function vegetationDressing(world: WorldSpec): DressingPlant[] {
   const out: DressingPlant[] = [], grid = colliderGrid(world), pieces = world.pieces ?? [];
@@ -239,7 +246,19 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
       add(`${id}:floor:${i}`, pick, Math.floor(hash(id, 40 + i) * 3), x, z, hash(id, 50 + i) * Math.PI * 2, SPECIES[pick].height * (.75 + hash(id, 60 + i) * .5));
     }
   }
-  // 5. Meadow patches break up the open fields: wild grass and flowers in drifts, never tall enough
+  // 5. Farm plots: the field-row strips carry full rows of mandioca instead of a few seedlings.
+  for (const row of fieldRows(world)) {
+    const alongZ = row.scale.z > row.scale.x, length = Math.max(row.scale.x, row.scale.z);
+    for (let i = 0, n = Math.floor(length / .8); i < n; i++) {
+      const id = `${row.id}:crop:${i}`, along = -length / 2 + (i + .5) * length / n + (hash(id, 1) - .5) * .2;
+      const x = row.pos.x + (alongZ ? (hash(id, 2) - .5) * .16 : along), z = row.pos.z + (alongZ ? along : (hash(id, 2) - .5) * .16);
+      // A road or path laid across a plot interrupts the row.
+      if (!free(x, z, .2, 1)) continue;
+      add(id, 'crop', Math.floor(hash(id, 3) * 2), x, z, hash(id, 4) * Math.PI * 2, .72 + hash(id, 5) * .3);
+    }
+  }
+
+  // 6. Meadow patches break up the open fields: wild grass and flowers in drifts, never tall enough
   // to hide anyone, kept off roads, paving, doorways and solids like every other planting.
   const step = 5.5, half = world.size / 2;
   for (let gz = -half; gz < half; gz += step) for (let gx = -half; gx < half; gx += step) {

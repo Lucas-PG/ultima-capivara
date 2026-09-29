@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { MapObject, WorldSpec } from '../../shared/types';
-import { vegetationDressing } from '../../shared/vegetation-dressing';
+import { fieldRows, onFieldRow, vegetationDressing } from '../../shared/vegetation-dressing';
 import { isBatchedPlant, plantHash, SPECIES } from '../../shared/vegetation-species';
 import { plantTransform } from '../../shared/vegetation-trunks';
 import { groundPaint } from '../ground-cover';
@@ -39,9 +39,9 @@ const meadowTint = (x: number, z: number, variant: number) => {
 /** Every tree, palm and authored ground plant of the world spec, plus the derived dressing
  * (kit bushes, wall vines, garden beds, forest floor), becomes one plant instance. */
 export function collectPlants(world: Pick<WorldSpec, 'objects'> & Partial<WorldSpec>): PlantInstance[] {
-  const plants: PlantInstance[] = [];
+  const plants: PlantInstance[] = [], rows = fieldRows(world);
   for (const object of world.objects) {
-    if (!isBatchedPlant(object)) continue;
+    if (!isBatchedPlant(object) || onFieldRow(object, rows)) continue;
     const t = plantTransform(object);
     plants.push({ species: t.species, variant: t.variant, matrix: plantMatrix(object),
       position: new THREE.Vector3(object.pos.x, object.pos.y, object.pos.z), color: tint(object.pos.x, object.pos.z) });
