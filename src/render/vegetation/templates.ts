@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import { SPECIES, type SpeciesId } from '../../shared/vegetation-species';
 import type { TemplateSet } from './batch';
 import { broadleafBuilder, CROWNS } from './broadleaf';
-import { buildCoconut, type Lod } from './palms';
+import { buildBanana, buildBromeliad, buildCrop, buildFern, buildHeliconia, buildMonstera, buildReeds, buildStrelitzia, buildTaro } from './garden';
+import { buildCoconut, buildRoyal, type Lod } from './palms';
+import { buildCroton, buildHedge, buildShrub, buildThicket } from './shrubs';
+import { buildVine } from './vines';
 
 type Builder = (variant: number, lod: Lod) => THREE.BufferGeometry;
 
@@ -10,7 +13,24 @@ type Builder = (variant: number, lod: Lod) => THREE.BufferGeometry;
  * authored and reviewed on its own before it is switched on. */
 const BUILDERS: Partial<Record<SpeciesId, Builder>> = {
   coconut: buildCoconut,
+  royal: buildRoyal,
   ...Object.fromEntries((Object.keys(CROWNS) as SpeciesId[]).map(species => [species, broadleafBuilder(species)])),
+  banana: buildBanana,
+  shrub: (variant, lod) => buildShrub('shrub', variant, lod),
+  thicket: buildThicket,
+  hedge: buildHedge,
+  hibiscus: (variant, lod) => buildShrub('hibiscus', variant, lod),
+  bougainvillea: (variant, lod) => buildShrub('bougainvillea', variant, lod),
+  croton: buildCroton,
+  heliconia: buildHeliconia,
+  strelitzia: buildStrelitzia,
+  fern: buildFern,
+  monstera: buildMonstera,
+  taro: buildTaro,
+  bromeliad: buildBromeliad,
+  reeds: buildReeds,
+  crop: buildCrop,
+  vine: buildVine,
 };
 
 export function buildTemplates(used: ReadonlySet<SpeciesId>): TemplateSet {

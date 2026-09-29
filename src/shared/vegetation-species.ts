@@ -7,7 +7,9 @@ export function plantHash(n: number, salt: number) {
   return (x >>> 0) / 4294967296;
 }
 
-export type PlantKind = 'palm' | 'tree' | 'banana' | 'shrub';
+/** How far a plant stays drawn: crowns always, `ground` plants (ferns, reeds, crops) fade first,
+ * `vine` drapes hang on walls. */
+export type PlantKind = 'palm' | 'tree' | 'banana' | 'shrub' | 'ground' | 'vine';
 
 /**
  * Every plant species the island renders. `height` is the template height in
@@ -27,6 +29,23 @@ export const SPECIES = {
   mangrove: { kind: 'tree', height: 6, variants: 2 },
   banana: { kind: 'banana', height: 4.5, variants: 3 },
   shrub: { kind: 'shrub', height: 1.4, variants: 3 },
+  /** A low spread of several bushes: the island's undergrowth patches (3.6 x 2.6 m at scale 1). */
+  thicket: { kind: 'shrub', height: 1.15, variants: 4 },
+  /** A clipped garden hedge (4 x 1.5 m at scale 1). */
+  hedge: { kind: 'shrub', height: 1.15, variants: 2 },
+  hibiscus: { kind: 'shrub', height: 1.6, variants: 2 },
+  bougainvillea: { kind: 'shrub', height: 1.6, variants: 2 },
+  croton: { kind: 'shrub', height: 1.1, variants: 2 },
+  heliconia: { kind: 'shrub', height: 1.8, variants: 2 },
+  strelitzia: { kind: 'shrub', height: 1.5, variants: 2 },
+  fern: { kind: 'ground', height: 1, variants: 3 },
+  monstera: { kind: 'ground', height: 1.2, variants: 2 },
+  taro: { kind: 'ground', height: 1.3, variants: 2 },
+  bromeliad: { kind: 'ground', height: .6, variants: 2 },
+  reeds: { kind: 'ground', height: 1.6, variants: 3 },
+  crop: { kind: 'ground', height: .8, variants: 2 },
+  /** Bougainvillea hanging from a wall top: origin on the wall's outer face at the top, drop downward. */
+  vine: { kind: 'vine', height: 2, variants: 4 },
 } as const satisfies Record<string, { kind: PlantKind; height: number; variants: number }>;
 
 export type SpeciesId = keyof typeof SPECIES;
@@ -40,10 +59,12 @@ const DETAIL_SPECIES: Record<string, SpeciesId> = {
   'ipe-yellow': 'ipe-yellow', 'ipe-pink': 'ipe-pink', flamboyant: 'umbrella', banana: 'banana',
   orchard: 'mango', mangrove: 'mangrove', royal: 'royal', mango: 'mango', almond: 'almond',
   jungle: 'jungle', cashew: 'cashew', coconut: 'coconut', shrub: 'shrub',
+  hibiscus: 'hibiscus', bougainvillea: 'bougainvillea', heliconia: 'heliconia', croton: 'croton', strelitzia: 'strelitzia',
+  fern: 'fern', monstera: 'monstera', taro: 'taro', bromeliad: 'bromeliad', reeds: 'reeds', crop: 'crop',
 };
 
-/** Which species stands at this authored tree or palm. Generic scatter is
- * assigned by position so neighbouring crowns differ. */
+/** Which species stands at this authored plant. Generic scatter is assigned
+ * by position so neighbouring crowns differ. */
 export function plantSpecies(object: MapObject): SpeciesId {
   const named = object.detail ? DETAIL_SPECIES[object.detail] : undefined;
   if (named) return named;
@@ -53,6 +74,12 @@ export function plantSpecies(object: MapObject): SpeciesId {
   // Shore and dune trees: broad, tiered almond trees and low cashews. Inland, mango and tall jungle crowns.
   if (object.pos.y < SHORE_HEIGHT) return roll < .6 ? 'almond' : 'cashew';
   return roll < .55 ? 'mango' : roll < .8 ? 'jungle' : roll < .92 ? 'almond' : 'cashew';
+}
+
+/** Objects of these kinds are drawn by the plant batch (grass patches with an unknown detail belong to ground cover). */
+export function isBatchedPlant(object: MapObject) {
+  if (object.kind === 'tree' || object.kind === 'palm') return true;
+  return object.kind === 'grass' && !!object.detail && object.detail in DETAIL_SPECIES;
 }
 
 export function plantVariant(object: MapObject, species: SpeciesId) {

@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import type { Settings } from '../../shared/types';
-import { SPECIES, type SpeciesId } from '../../shared/vegetation-species';
+import { SPECIES, type PlantKind, type SpeciesId } from '../../shared/vegetation-species';
 
 /** Distances (metres) where each template LOD hands over to the next, per graphics preset. */
 export const LOD_DISTANCES = {
   low: [14, 40], medium: [28, 70], high: [36, 90],
 } as const satisfies Record<Settings['graphics'], readonly [number, number]>;
-/** Small plants vanish sooner than crowns; nothing tall ever disappears. */
-export const HIDE_DISTANCE = { palm: Infinity, tree: Infinity, banana: 130, shrub: 75 } as const;
+/** Small plants vanish sooner than crowns; nothing tall ever disappears. Bushes stay past the
+ * ranges where someone could crouch behind one, so cover never pops out from under a player. */
+export const HIDE_DISTANCE: Record<PlantKind, number> = { palm: Infinity, tree: Infinity, banana: 140, shrub: 110, vine: 120, ground: 55 };
 
 export interface PlantInstance {
   species: SpeciesId;
