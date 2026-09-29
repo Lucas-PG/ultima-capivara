@@ -328,6 +328,8 @@ from waterfront import add_waterfront
 add_waterfront(Piece)
 from casario import add_casario
 add_casario(Piece)
+from dressing import add_dressing
+add_dressing(Piece)
 
 
 def write_metadata():

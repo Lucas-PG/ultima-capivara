@@ -604,8 +604,71 @@
         486
       ],
       "colliders": 22
+    },
+    {
+      "id": "vaso",
+      "triangles": [
+        622,
+        304,
+        304
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "vaso_alto",
+      "triangles": [
+        472,
+        256,
+        256
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "vaso_flor",
+      "triangles": [
+        622,
+        304,
+        304
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "mesa_bar",
+      "triangles": [
+        800,
+        608,
+        256
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "carrinho_coco",
+      "triangles": [
+        768,
+        504,
+        504
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "rede_pesca",
+      "triangles": [
+        616,
+        254,
+        254
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "sacos",
+      "triangles": [
+        404,
+        224,
+        224
+      ],
+      "colliders": 1
     }
   ],
-  "bytes": 9811328,
-  "gzipBytes": 2847724
+  "bytes": 10008464,
+  "gzipBytes": 2915435
 }
