@@ -35,19 +35,24 @@ for glb in glbs:
     reset()
     bpy.ops.import_scene.gltf(filepath=glb)
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
-    lo = Vector((1e9, 1e9, 1e9)); hi = -lo
+    lo = Vector((1e9, 1e9, 1e9)); hi = -lo; corners = []
     for o in meshes:
         for corner in o.bound_box:
-            w = o.matrix_world @ Vector(corner); lo = Vector(map(min, lo, w)); hi = Vector(map(max, hi, w))
+            w = o.matrix_world @ Vector(corner); corners.append(w); lo = Vector(map(min, lo, w)); hi = Vector(map(max, hi, w))
     centre, radius = (lo + hi) / 2, (hi - lo).length / 2
-    cam_data = bpy.data.cameras.new('cam'); cam_data.lens = 50
+    cam_data = bpy.data.cameras.new('cam'); cam_data.lens = 50; cam_data.sensor_fit = 'HORIZONTAL'
     cam = bpy.data.objects.new('cam', cam_data); bpy.context.scene.collection.objects.link(cam)
     bpy.context.scene.camera = cam
     stem = Path(glb).stem
     for view, (yaw, pitch) in {'right': (90, 8), 'left': (-90, 8), 'three': (35, 22), 'front': (170, 12)}.items():
-        d = radius * 2.35
         direction = Vector((math.sin(math.radians(yaw)) * math.cos(math.radians(pitch)), -math.cos(math.radians(yaw)) * math.cos(math.radians(pitch)),
                             math.sin(math.radians(pitch))))
+        rotation = (-direction).to_track_quat('-Z', 'Y')
+        right, up = rotation @ Vector((1, 0, 0)), rotation @ Vector((0, 1, 0))
+        tan_h = cam_data.sensor_width / (2 * cam_data.lens)
+        tan_v = tan_h * 720 / 1280
+        d = max((p - centre).dot(direction) + max(abs((p - centre).dot(right)) / tan_h,
+                abs((p - centre).dot(up)) / tan_v) for p in corners) * 1.12
         cam.location = centre + direction * d
         cam.rotation_euler = (centre - cam.location).to_track_quat('-Z', 'Y').to_euler()
         bpy.context.scene.render.filepath = str(out / f'{stem}-{view}.png')

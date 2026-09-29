@@ -1,6 +1,6 @@
 // Builds the first-person arms and the v2 arsenal, then packs them for the game.
 // node tools/blender/build-fp.mjs [arms] [weapon ids...]   (no args: everything)
-// --pack repacks the last Blender export of the arms without running Blender.
+// --pack repacks the selected existing Blender exports without running Blender.
 import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, prune, meshopt } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
+import sharp from 'sharp';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const blender = process.env.BLENDER_BIN || '/Applications/Blender.app/Contents/MacOS/Blender';
@@ -24,6 +25,17 @@ await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
 async function pack(source, target, extra = []) {
   const document = await io.read(source);
+  if (target.includes('/arsenal/')) {
+    const albedos = new Set(document.getRoot().listMaterials().map(material => material.getBaseColorTexture()));
+    for (const texture of document.getRoot().listTextures()) {
+      const limit = albedos.has(texture) && source.endsWith('/m4.glb') ? 2048 : 1024;
+      const size = texture.getSize();
+      if (size && Math.max(...size) > limit) {
+        texture.setImage(await sharp(texture.getImage()).resize({ width: limit, height: limit, fit: 'inside' }).webp({ quality: 90 }).toBuffer());
+        texture.setMimeType('image/webp');
+      }
+    }
+  }
   // UVs and tangents stay even when no texture ships in the file (shared surfaces).
   await document.transform(...extra, dedup(), prune({ keepLeaves: true, keepAttributes: true }), meshopt({ encoder: MeshoptEncoder, level: 'high', quantizePosition: 16 }), dedup());
   await io.write(target, document);
@@ -38,8 +50,8 @@ if (arms) {
   await writeFile(`${root}/public/models/fp/metrics.json`, JSON.stringify({ ...report, bytes }, null, 2) + '\n');
   console.log('arms', bytes);
 }
-if (!repackOnly && (!args.length || weapons.length)) {
-  run('tools/blender/arsenal.py', weapons);
+if (!args.length || weapons.length) {
+  if (!repackOnly) run('tools/blender/arsenal.py', weapons);
   // A targeted build must retain metadata for the untouched shipped weapons.
   const report = { ...JSON.parse(await readFile(`${root}/public/models/arsenal/metrics.json`, 'utf8')),
     ...JSON.parse(await readFile(`${root}/output/arsenal/report.json`, 'utf8')) };

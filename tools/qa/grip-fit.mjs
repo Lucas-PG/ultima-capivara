@@ -21,12 +21,20 @@ await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1`);
 await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 60000 });
 await page.evaluate(() => window.__capyQA.start());
 await page.evaluate(p => window.__capyQA.pose(p), `${mode}-${weapon}`);
+if (intent.motion) await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [weapon, ...intent.motion]);
 
 const result = await page.evaluate(([weapon, intent, start, maxEvals]) => {
   const vm = window.__vmProbe, model = vm.models[weapon], holder = vm.holder, side = intent.side;
   const M4 = holder.matrixWorld.constructor, V3 = holder.position.constructor, Q = holder.quaternion.constructor;
   vm.scene.updateMatrixWorld(true);
-  const toGun = new M4().copy(holder.matrixWorld).invert(), scale = holder.scale.x;
+  const reference = intent.part ? model.parts[intent.part] : holder;
+  const toGun = new M4().copy(reference.matrixWorld).invert(), scale = holder.scale.x;
+  const partToGun = new M4().copy(holder.matrixWorld).invert().multiply(reference.matrixWorld);
+  const partRotation = new Q().setFromRotationMatrix(partToGun);
+  const asWeaponGrip = grip => intent.part ? { ...grip, part: undefined,
+    wrist: new V3(...grip.wrist).applyMatrix4(partToGun).toArray(),
+    forward: new V3(...grip.forward).applyQuaternion(partRotation).toArray(),
+    palm: new V3(...grip.palm).applyQuaternion(partRotation).toArray() } : grip;
   const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
   // ---- gun triangles in weapon space, bucketed in a grid for nearest queries
   const tris = [];
@@ -40,15 +48,23 @@ const result = await page.evaluate(([weapon, intent, start, maxEvals]) => {
       if (n.lengthSq() > 1e-16) tris.push({ a, b, c, n });
     }
   });
-  const CELL = .008, grid = new Map(), key = (i, j, k) => `${i},${j},${k}`;
-  for (const t of tris) {
-    const lo = new V3().copy(t.a).min(t.b).min(t.c), hi = new V3().copy(t.a).max(t.b).max(t.c);
-    for (let i = Math.floor(lo.x / CELL); i <= Math.floor(hi.x / CELL); i++)
-      for (let j = Math.floor(lo.y / CELL); j <= Math.floor(hi.y / CELL); j++)
-        for (let k = Math.floor(lo.z / CELL); k <= Math.floor(hi.z / CELL); k++) {
-          const id = key(i, j, k); if (!grid.has(id)) grid.set(id, []); grid.get(id).push(t);
-        }
-  }
+  // A static BVH avoids thousands of string-key grid lookups for each skin
+  // vertex on every candidate. Nearest triangle and sign remain exact.
+  const buildTree = items => {
+    const lo = new V3(Infinity, Infinity, Infinity), hi = new V3(-Infinity, -Infinity, -Infinity);
+    for (const t of items) { lo.min(t.a).min(t.b).min(t.c); hi.max(t.a).max(t.b).max(t.c); }
+    if (items.length <= 8) return { lo, hi, items };
+    const extent = hi.clone().sub(lo), axis = extent.x > extent.y && extent.x > extent.z ? 'x' : extent.y > extent.z ? 'y' : 'z';
+    items.sort((a, b) => (a.a[axis] + a.b[axis] + a.c[axis]) - (b.a[axis] + b.b[axis] + b.c[axis]));
+    const mid = items.length >> 1;
+    return { lo, hi, left: buildTree(items.slice(0, mid)), right: buildTree(items.slice(mid)) };
+  };
+  const tree = buildTree(tris);
+  console.log(`Fit ready: ${tris.length} triangles`);
+  const bound = (p, node) => {
+    const x = Math.max(0, node.lo.x - p.x, p.x - node.hi.x), y = Math.max(0, node.lo.y - p.y, p.y - node.hi.y), z = Math.max(0, node.lo.z - p.z, p.z - node.hi.z);
+    return x * x + y * y + z * z;
+  };
   const ab = new V3(), ac = new V3(), ap = new V3(), bp = new V3(), cp = new V3(), q = new V3(), c0 = new V3();
   function closest(p, a, b, c, out) {
     ab.subVectors(b, a); ac.subVectors(c, a); ap.subVectors(p, a);
@@ -61,22 +77,20 @@ const result = await page.evaluate(([weapon, intent, start, maxEvals]) => {
     if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) return out.copy(b).addScaledVector(q.subVectors(c, b), (d4 - d3) / ((d4 - d3) + (d5 - d6)));
     const den = 1 / (va + vb + vc); return out.copy(a).addScaledVector(ab, vb * den).addScaledVector(ac, vc * den);
   }
-  // Signed distance (negative inside), exact within 5 cells, +Infinity beyond.
   function signed(p) {
-    const ci = Math.floor(p.x / CELL), cj = Math.floor(p.y / CELL), ck = Math.floor(p.z / CELL);
-    let best = Infinity, sign = 1; const seen = new Set();
-    for (let r = 0; r <= 5; r++) {
-      for (let i = ci - r; i <= ci + r; i++) for (let j = cj - r; j <= cj + r; j++) for (let k = ck - r; k <= ck + r; k++) {
-        if (Math.max(Math.abs(i - ci), Math.abs(j - cj), Math.abs(k - ck)) !== r) continue;
-        const cell = grid.get(key(i, j, k)); if (!cell) continue;
-        for (const t of cell) {
-          if (seen.has(t)) continue; seen.add(t);
+    let best = Infinity, sign = 1;
+    const stack = [tree];
+    while (stack.length) {
+      const node = stack.pop();
+      if (bound(p, node) > best + 1e-10) continue;
+      if (node.items) {
+        for (const t of node.items) {
           closest(p, t.a, t.b, t.c, c0);
           const d = c0.distanceToSquared(p), s = t.n.dot(q.subVectors(p, c0)) < 0 ? -1 : 1;
           if (d < best - 1e-12) { best = d; sign = s; } else if (d < best + 1e-10 && s > 0) sign = 1;
         }
-      }
-      if (best < Infinity && Math.sqrt(best) <= r * CELL) break;
+      } else if (bound(p, node.left) < bound(p, node.right)) stack.push(node.right, node.left);
+      else stack.push(node.left, node.right);
     }
     return Math.sqrt(best) * sign;
   }
@@ -87,6 +101,7 @@ const result = await page.evaluate(([weapon, intent, start, maxEvals]) => {
   // Bind pose: the arm points -z with the palm facing -y; the hand bone sits at the wrist.
   const wristBind = new V3().setFromMatrixPosition(new M4().copy(mesh.skeleton.boneInverses[bones.indexOf('hand')]).invert());
   const verts = [];
+  const stride = Math.max(1, intent.stride ?? 1);
   for (let i = 0; i < position.count; i++) {
     let best = -1, w = 0;
     for (let k = 0; k < 4; k++) { const wk = skinWeight.getComponent(i, k); if (wk > w) { w = wk; best = skinIndex.getComponent(i, k); } }
@@ -95,6 +110,7 @@ const result = await page.evaluate(([weapon, intent, start, maxEvals]) => {
     const local = new V3().fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
     // Only the wrist end of the forearm can reach the gun.
     if (bone === 'fore_twist' && local.z > .07) continue;
+    if (i % stride) continue;
     verts.push({ i, bone, palm: bone === 'hand' && local.y < -.006 && local.z < -.012, p: new V3(), d: 0 });
   }
   const arm = side === 'L' ? vm.arms.left : vm.arms.right;
@@ -115,7 +131,7 @@ const result = await page.evaluate(([weapon, intent, start, maxEvals]) => {
   const wristW = new V3(), elbowW = new V3(), knuckleW = new V3();
   function evaluate(P, detail = false) {
     const grip = build(P);
-    vm.solveArms(model, { ...model.grips, [side]: grip }, null, null, intent.shoulders);
+    vm.solveArms(model, { ...model.grips, [side]: asWeaponGrip(grip) }, null, null, intent.shoulders);
     vm.arms.group.updateMatrixWorld(true);
     const groups = {};
     let pen = 0;
@@ -198,6 +214,7 @@ const result = await page.evaluate(([weapon, intent, start, maxEvals]) => {
       }
     }
     if (!improved) steps = steps.map(s => s * .5);
+    console.log(`fit ${count}/${maxEvals} cost ${best.toFixed(2)}`);
   }
   const final = evaluate(P, true);
   return { initial, final, evals: count };
