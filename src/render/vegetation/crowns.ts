@@ -98,7 +98,9 @@ export function clump(mb: MeshBuilder, c: ClumpSpec, crown: CrownVolume, lod: Lo
     // Height in the whole crown picks lit or shaded tiles; height in the clump paints its own light.
     const high = smooth(p.y - crown.center.y, -crown.radii.y * .6, crown.radii.y * .9);
     const own = smooth(dir.y, -.75, .8);
-    const name = pick(high > .42 || !c.shaded ? c.tiles : c.shaded, rand(k + 600));
+    // Far templates have few cards: pick tiles on a low-discrepancy sequence so every tile keeps its
+    // share (a flamboyant stays red at 100 m), near ones pick freely.
+    const name = pick(high > .42 || !c.shaded ? c.tiles : c.shaded, lod === 2 ? (k * .6180339 + seed * .1) % 1 : rand(k + 600));
     const tile = FOLIAGE_TILES[name], tone = TILE_TINT[name] ?? [1, 1, 1];
     // Painted light: bright warm tops, cool shaded undersides, dark inside the mass.
     const inside = Math.hypot((p.x - crown.center.x) / crown.radii.x, (p.y - crown.center.y) / crown.radii.y, (p.z - crown.center.z) / crown.radii.z);
