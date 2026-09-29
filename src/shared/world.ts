@@ -156,11 +156,15 @@ export function createWorld(): WorldSpec {
     const muralSide = SMALL_PLAN.includes(h.piece) && h.piece !== 'house_small' ? -1 : 1;
     const mural = lotPoint(h, muralSide * (width / 2 + .17), -.5), shop = lotPoint(h, -width / 2 - .75, depth / 2 + .45);
     const laundry = lotPoint(h, 0, HOUSE_SIZE[h.piece][1] / 2 + 1.25), bike = lotPoint(h, lotWidth / 2 + 1.15, 1.1);
-    obj('box', mural.x, y + 1.75, mural.z, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, (h.yaw ?? 0) + muralSide * Math.PI / 2);
+    // A house in a terraced front has neighbours at its sides and the street at
+    // its door: no side mural against the next wall, no laundry across the
+    // pavement, no bike inside the next house (its yard and door life cover it).
+    if (!lotAt(mural.x, mural.z, .05))
+      obj('box', mural.x, y + 1.75, mural.z, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, (h.yaw ?? 0) + muralSide * Math.PI / 2);
     if (!['home', 'fisher'].includes(h.role)) obj('box', shop.x, y + 2.45, shop.z, 1, 1, 1, '#FFFFFF',
       `prop:street-shop:${shopNames[h.role]}`, h.yaw ?? 0);
-    if (index % 2 === 0) obj('box', laundry.x, y, laundry.z, 1, 1, 1, '#FFFFFF', 'prop:street-laundry', h.yaw ?? 0);
-    if (index % 3 === 0) obj('box', bike.x, y, bike.z, 1, 1, 1,
+    if (index % 2 === 0 && !roadAt(laundry.x, laundry.z, 1.5)) obj('box', laundry.x, y, laundry.z, 1, 1, 1, '#FFFFFF', 'prop:street-laundry', h.yaw ?? 0);
+    if (index % 3 === 0 && !lotAt(bike.x, bike.z, .4)) obj('box', bike.x, y, bike.z, 1, 1, 1,
       index % 2 ? '#BD765A' : '#65A29C', 'prop:street-bike', (h.yaw ?? 0) + Math.PI / 2);
     for (const side of [-1, 1]) {
       // The laje stair rises on +x: keep its foot clear.

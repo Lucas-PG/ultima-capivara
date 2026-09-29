@@ -28,6 +28,9 @@ const FREE_WALL: Record<string, readonly number[]> = {
   row_terrea: [-.7, 1.4, 3.0], row_sobrado: [-.1, 2.6, -2.8], row_loja: [0, -3.75, 3.75], row_alto: [-.1, 2.5, -2.55],
 };
 const SHOP_SIGNS = ['FARMÁCIA', 'BAR DO ZÉ', 'SORVETES', 'BARBEARIA', 'AÇAÍ', 'PASTÉIS', 'CACHAÇA', 'SAPATARIA', 'ARMAZÉM', 'PADARIA'];
+const WALL_ADVERTS = ['SORVETES', 'AÇAÍ', 'CAPIVARAS', 'CACHAÇA', 'PASTÉIS', 'BOM DIA', 'CAFÉ DA VILA'];
+const inside = (rects: readonly Rect[], x: number, z: number, margin: number) =>
+  rects.some(([x0, z0, x1, z1]) => x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
 interface Front { x: number; z: number; yaw: number; width: number; depth: number; piece: string; row: boolean }
 const fronts: Front[] = [
   ...ROW_LOTS.map((lot: RowLot) => ({ x: lot.x, z: lot.z, yaw: lot.yaw, width: ROW_SIZE[lot.piece][0], depth: ROW_SIZE[lot.piece][1], piece: lot.piece, row: true })),
@@ -63,7 +66,7 @@ export function dressStreets(api: StreetLifeApi) {
   const squares: readonly Rect[] = [PLAZA_RECT, MARKET_RECT, ROSARIO_RECT];
   // Door life: pots beside the doors, goods outside the shops, a sign over
   // each shop, a bike against a wall now and then.
-  let shop = 0;
+  let shop = 0, advert = 0;
   for (const front of fronts) {
     const spots = front.row ? FREE_WALL[front.piece] : [-front.width / 2 + .6, front.width / 2 - .6];
     spots.forEach((spot, index) => {
@@ -86,6 +89,14 @@ export function dressStreets(api: StreetLifeApi) {
     if (front.piece === 'row_loja') {
       const side = hash(front.x, front.z, 9) < .5 ? -1 : 1, sign = local(front, side * (front.width / 2 - .55), front.depth / 2 + .55);
       marker('box', sign.x, ground(front.x, front.z) + 3.25, sign.z, 1, 1, 1, '#FFFFFF', `prop:street-shop:${SHOP_SIGNS[shop++ % SHOP_SIGNS.length]}`, front.yaw);
+    }
+    // A terrace's blank end wall that faces a street or square (not a beco) carries a painted advert.
+    if (front.row) for (const side of [-1, 1]) {
+      const out = local(front, side * (front.width / 2 + .6), 0);
+      if (!inside(ROADS, out.x, out.z, .2) || inside(BECOS, out.x, out.z, .1) || inside(LOT_RECTS, out.x, out.z, .1)) continue;
+      const at = local(front, side * (front.width / 2 + .06), -front.depth * .12), tall = EAVES[front.piece] > 5;
+      marker('box', at.x, ground(front.x, front.z) + (tall ? 3.4 : 2.3), at.z, tall ? 2 : 1.6, tall ? 2 : 1.6, 1, '#FFFFFF',
+        `prop:street-panel:${WALL_ADVERTS[advert++ % WALL_ADVERTS.length]}`, front.yaw + side * Math.PI / 2);
     }
   }
 
@@ -164,8 +175,6 @@ function wallRun(api: StreetLifeApi, run: FrontageRun) {
   const world = (u: number, v: number) => along ? { x: u, z: v } : { x: v, z: u };
   const far = run.back - outward * YARD;
   const [u0, u1] = [Math.min(run.from, run.to), Math.max(run.from, run.to)];
-  const inside = (rects: readonly Rect[], x: number, z: number, margin: number) =>
-    rects.some(([x0, z0, x1, z1]) => x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
   // A column of the yard is free when every sample across it is open, level ground.
   const free = (u: number) => {
     if (run.becos.some(([a, b]) => u > a - 1 && u < b + 1)) return false;
