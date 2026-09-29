@@ -11,7 +11,7 @@ from pathlib import Path
 from mathutils import Vector, Matrix
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from capy_paw import arm_geometry, digit_bones
+from capy_paw import arm_geometry, digit_bones, ARM_WRIST
 from character_surfaces import make_material, map_surfaces, FUR, PAW, CLOTH, NAIL
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,11 +24,11 @@ def srgb(value):
     return Vector([x / 12.92 if x <= .04045 else ((x + .055) / 1.055) ** 2.4 for x in c])
 
 
-COLORS = {FUR: srgb('976440'), PAW: srgb('665044'), CLOTH: srgb('D4C9B2'), NAIL: srgb('3A302A')}
-WRIST = Vector((0, .447, 0))
-BONES = {'upper': (Vector((0, 0, 0)), Vector((0, .245, 0)), None),
-         'fore': (Vector((0, .245, 0)), WRIST, 'upper'),
-         'fore_twist': (Vector((0, .245, 0)), WRIST, 'fore'),
+COLORS = {FUR: srgb('8F6048'), PAW: srgb('5F4A40'), CLOTH: srgb('CFC2A6'), NAIL: srgb('2E2622')}
+WRIST, ELBOW = Vector((0, ARM_WRIST, 0)), Vector((0, .30, 0))
+BONES = {'upper': (Vector((0, 0, 0)), ELBOW, None),
+         'fore': (ELBOW, WRIST, 'upper'),
+         'fore_twist': (ELBOW, WRIST, 'fore'),
          'hand': (WRIST, WRIST + Vector((0, .052, 0)), 'fore_twist')}
 for name, (a, b, parent) in digit_bones().items():
     BONES[name] = (a + WRIST, b + WRIST, parent)

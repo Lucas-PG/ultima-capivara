@@ -49,10 +49,10 @@ it('exports one continuous wrist loop without an internal cap or unconnected pal
       });
       const seam = new Map<string, Set<string>>();
       const key = (v: Vector3) => v.toArray().map(n => Math.round(n * 100000)).join(',');
-      for (const point of points) if (Math.abs(point.z + .447) < .00002) seam.set(key(point), new Set());
+      for (const point of points) if (Math.abs(point.z + .6) < .00002) seam.set(key(point), new Set());
       for (let i = 0; i < index.getCount(); i += 3) {
         const face = [0, 1, 2].map(j => points[index.getScalar(i + j)]);
-        const before = face.some(v => v.z > -.44698), after = face.some(v => v.z < -.44702);
+        const before = face.some(v => v.z > -.59998), after = face.some(v => v.z < -.60002);
         for (const v of face) {
           const sides = seam.get(key(v));
           if (sides) { if (before) sides.add('forearm'); if (after) sides.add('palm'); }

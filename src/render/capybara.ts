@@ -9,7 +9,7 @@ import type { ActorState, EmoteId } from '../shared/types';
 import type { AvatarReaction } from './effects';
 import { applyCharacterStyle } from './materials';
 import { VIEW_SPECS, type GripSpec } from './viewmodel-specs';
-import { PawPose, type HandCurl } from './fp-arms';
+import { PawPose, blendCurl, type HandCurl } from './fp-arms';
 import type { WeaponId } from '../shared/types';
 import { m4Reload } from './viewmodel-anims';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
@@ -695,8 +695,7 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
     };
     const a = resolve(sample.L.a), b = resolve(sample.L.b), u = sample.L.u;
     const mix = (v: readonly number[], w: readonly number[]) => new THREE.Vector3().fromArray(v).lerp(new THREE.Vector3().fromArray(w), u).toArray();
-    const curl = {} as HandCurl;
-    for (const finger of ['index', 'middle', 'ring', 'thumb'] as const) curl[finger] = mix(a.curl[finger], b.curl[finger]);
+    const curl = blendCurl(a.curl, b.curl, u);
     leftGrip = { wrist: mix(a.wrist, b.wrist), forward: mix(a.forward, b.forward), palm: mix(a.palm, b.palm), curl, pole: grips.L.pole };
   }
   const support = target(leftGrip);

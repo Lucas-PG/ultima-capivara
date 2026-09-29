@@ -1,6 +1,6 @@
 {
-  "triangles": 7264,
-  "vertices": 4552,
+  "triangles": 7680,
+  "vertices": 4760,
   "bones": [
     "upper",
     "fore",
@@ -23,5 +23,5 @@
   "material": "UV fur/canvas/paw detail + normal + ORM",
   "digits": 4,
   "textureSize": 2048,
-  "bytes": 108548
+  "bytes": 112468
 }

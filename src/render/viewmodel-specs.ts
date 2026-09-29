@@ -26,13 +26,20 @@ export interface ViewSpec {
   /** Aim point in weapon space when the sight socket is blocked by the gun's own body, and the muzzle-up pitch that puts the front sight on the crosshair. */
   adsEye?: V3; adsPitch?: number;
   grips: { R: GripSpec; L?: GripSpec };
+  /** Hidden shoulder joints (camera space) the arms hang from; they set where each forearm enters the frame. */
+  shoulders?: { R: V3; L: V3 };
   /** Visual recoil: back kick (m/s), muzzle climb and roll (rad/s), spring frequency. */
   recoil: { kick: number; climb: number; roll: number; frequency: number };
   /** Heavier guns lag more behind the view. */
   inertia: number;
 }
 
-const curl = (index: V3, middle: V3, ring: V3, thumb: V3): HandCurl => ({ index, middle, ring, thumb });
+const curl = (index: V3, middle: V3, ring: V3, thumb: V3, spread?: number): HandCurl => ({ index, middle, ring, thumb, spread });
+// Hidden shoulders behind and below the eye: the firing forearm rises from the
+// lower right in line with its paw; long guns bring the support shoulder forward
+// so that arm reaches the handguard with a bent elbow instead of a locked one.
+export const SHOULDERS = { R: [.2, -.36, .25] as V3, L: [-.2, -.36, .2] as V3 };
+const RIFLE_SHOULDERS = { R: [.2, -.36, .25] as V3, L: [-.18, -.26, -.14] as V3 };
 // Wrapped digits, trigger finger resting on the trigger, thumb along the frame.
 const PISTOL_R = curl([.25, .65, .35], [1.0, .7, .4], [1.05, .7, .4], [.5, .3, .2]);
 const PISTOL_L = curl([1.3, 1.2, .8], [1.4, 1.2, .8], [1.45, 1.25, .85], [.1, .1, .05]);
@@ -69,24 +76,27 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   smg: {
     url: 'models/arsenal/smg.glb', scale: 1, handling: 'rifle', reload: 'rifle',
     hip: { pos: [.16, -.18, -.35], rot: [.06, .24, -.12] },
-    sprint: LONG_SPRINT, adsDistance: .2,
+    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .2,
     grips: { R: RIFLE_GRIP_R([.037, -.025, .045]), L: FOREGRIP_L([-.032, -.036, -.1]) },
     recoil: { kick: .9, climb: 1.8, roll: 1.4, frequency: 24 }, inertia: .85,
   },
   m4: {
     url: 'models/arsenal/m4.glb', scale: 1, handling: 'rifle', reload: 'rifle',
     hip: { pos: [.17, -.195, -.37], rot: [.06, .24, -.12] },
-    sprint: LONG_SPRINT, adsDistance: .15, viewmodelFov: 64,
-    grips: { R: RIFLE_GRIP_R([.037, -.030, .111]),
-      // Underhand: the palm carries the handguard, claws wrap its near side (reference: wide-aim-reference).
-      L: { wrist: [-.055, -.02, -.21], forward: [.8, .45, -.4], palm: [.45, 1, .1], curl: curl([1.35, 1.2, .8], [1.4, 1.2, .8], [1.45, 1.2, .8], [.15, .1, .05]), pole: [-.8, -1, .1] } },
+    sprint: LONG_SPRINT, adsDistance: .15, viewmodelFov: 64, shoulders: RIFLE_SHOULDERS,
+    // Fitted with tools/qa/grip-fit.mjs. R: index through the enlarged guard onto the trigger face,
+    // thumb resting along the right of the receiver, claws of the other digits showing on the grip's
+    // left side (the middle digit brushes the guard bar, under 3 mm, hidden). L (underhand): palm under the
+    // handguard, thumb along its left side, the three digits wrapping up the right side, no clipping.
+    grips: { R: { wrist: [.038, -.027, .088], forward: [.059, -.255, -.965], palm: [-.949, .286, -.133], curl: curl([.475, .614, .429], [1.253, .127, .478], [1.177, .752, .412], [-.032, .369, .647], -.315), pole: [.8, -1, .3] },
+      L: { wrist: [-.041, .015, -.234], forward: [.914, 0, -.405], palm: [.075, .983, .167], curl: curl([.315, .765, .867], [.337, .939, .962], [.451, 1.074, .764], [.252, .096, .258], .662), pole: [-.8, -1, .1] } },
     recoil: RECOIL.rifle, inertia: 1,
   },
   shotgun: {
     url: 'models/arsenal/shotgun.glb', scale: 1, handling: 'heavy', reload: 'shotgun',
     hip: { pos: [.17, -.19, -.37], rot: [.06, .22, -.12] },
     // The receiver stands taller than the rib: sight from above it, down the rib to the bead.
-    sprint: LONG_SPRINT, adsDistance: .3, adsEye: [0, .13, .02], adsPitch: .07,
+    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .3, adsEye: [0, .13, .02], adsPitch: .07,
     grips: { R: { wrist: [.036, -.014, .052], forward: [-.05, -.25, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] }, L: UNDERHAND_L([-.052, -.03, -.33], 'pump') },
     recoil: { kick: 2.4, climb: 6.5, roll: 2.5, frequency: 17 }, inertia: 1.25,
   },
@@ -94,21 +104,21 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     url: 'models/arsenal/coco.glb', scale: 1, handling: 'heavy', reload: 'coco',
     hip: { pos: [.2, -.22, -.46], rot: [.06, .2, -.1] },
     // The hopper stands over the tube: aim from above it, the notch and hopper lined up on the target.
-    sprint: LONG_SPRINT, adsDistance: .2, adsEye: [-.03, .26, .03], adsPitch: .18,
+    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .2, adsEye: [-.03, .26, .03], adsPitch: .18,
     grips: { R: RIFLE_GRIP_R([.037, -.025, .045]), L: UNDERHAND_L([-.055, -.035, -.25], 'pump') },
     recoil: { kick: 2.6, climb: 7.5, roll: 1.6, frequency: 16 }, inertia: 1.3,
   },
   dmr: {
     url: 'models/arsenal/dmr.glb', scale: 1, handling: 'rifle', reload: 'rifle',
     hip: { pos: [.17, -.195, -.38], rot: [.06, .22, -.12] },
-    sprint: LONG_SPRINT, adsDistance: .12,
+    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .12,
     grips: { R: { wrist: [.036, -.011, .052], forward: [-.05, -.25, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] }, L: UNDERHAND_L([-.052, -.01, -.27]) },
     recoil: { kick: 1.7, climb: 4.2, roll: 1.6, frequency: 20 }, inertia: 1.05,
   },
   sniper: {
     url: 'models/arsenal/sniper.glb', scale: 1, handling: 'heavy', reload: 'bolt',
     hip: { pos: [.17, -.2, -.39], rot: [.06, .22, -.12] },
-    sprint: LONG_SPRINT, adsDistance: .12,
+    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .12,
     grips: { R: { wrist: [.036, -.014, .052], forward: [-.05, -.25, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] }, L: UNDERHAND_L([-.052, -.008, -.3]) },
     recoil: { kick: 2.8, climb: 7, roll: 2, frequency: 15 }, inertia: 1.35,
   },

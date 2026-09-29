@@ -34,13 +34,13 @@ def srgb_to_linear(hex_value):
 
 # name: (albedo hex, roughness, metalness, edge highlight strength, edge tint hex)
 PALETTE = {
-    'wornsteel': ('555C60', .48, .60, .40, 'A9B4B8'),
+    'wornsteel': ('626A71', .46, .62, .48, 'C3CDD2'),
     'coral': ('DE8568', .65, 0, .15, 'F8C9B4'),
-    'gunmetal': ('3A3F44', .42, .75, .85, 'A9B4B8'),
+    'gunmetal': ('4A5159', .40, .75, .9, 'C8D2D8'),
     'blued': ('2B3138', .34, .8, .9, '9DB0BF'),
     'steel': ('7D858A', .3, .85, .7, 'D8DEE0'),
-    'dark': ('2A2F33', .55, .3, .6, '7F8A90'),
-    'polymer': ('34383A', .7, 0, .5, '7A807A'),
+    'dark': ('353B41', .55, .3, .65, '8F9AA1'),
+    'polymer': ('3E4346', .68, 0, .55, '8A908A'),
     'tan': ('B39A6E', .7, 0, .4, 'E3D2A8'),
     'olive': ('5E6340', .72, 0, .4, '9EA27A'),
     'wood': ('9A5A32', .55, 0, .3, 'D29A63'),
@@ -51,7 +51,7 @@ PALETTE = {
     'orange': ('E0662D', .45, 0, .6, 'FFD2A6'),
     'yellow': ('F0C23B', .45, 0, .5, 'FFF0B0'),
     'red': ('C8392E', .45, 0, .5, 'FFB3A0'),
-    'rubber': ('1C1D1E', .85, 0, .15, '4A4B4C'),
+    'rubber': ('27292B', .85, 0, .2, '55585A'),
     'leather': ('7A4A2C', .7, 0, .25, 'B98A62'),
     'rope': ('BFA674', .9, 0, .2, 'E6D6A8'),
     'fabric': ('4F5A3A', .92, 0, .15, '7D8A63'),
@@ -63,7 +63,7 @@ PALETTE = {
     'blade': ('9AA3A6', .22, .9, 1.0, 'F2F6F7'),
     'bamboo': ('C8A657', .6, 0, .35, 'EDD9A0'),
     'stone': ('8F8C86', .8, 0, .3, 'C9C6BE'),
-    'navy': ('344C63', .53, .32, .42, '9BAAB9'),
+    'navy': ('3A5875', .5, .3, .45, 'A8B8C8'),
 }
 MAT_IDS = {name: i + 1 for i, name in enumerate(PALETTE)}
 _materials = {}
@@ -539,26 +539,7 @@ def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radi
     normals = bake('EMIT', normal_img)
     _restore(saved)
     albedo, orm = composite(ids, ao, edge, normals, size)
-    if name == 'm4':
-        rng = np.random.default_rng(4814)
-        grain = rng.random((size, size), dtype=np.float32)
-        # Restrained mottling and grain survive at first-person viewing distance.
-        coarse = rng.random((64, 64), dtype=np.float32)
-        for _ in range(6): coarse = (coarse * 4 + np.roll(coarse, 1, 0) + np.roll(coarse, -1, 0) + np.roll(coarse, 1, 1) + np.roll(coarse, -1, 1)) / 8
-        coarse = np.repeat(np.repeat(coarse, size // 64, 0), size // 64, 1)
-        pid = np.rint(ids[..., 0] * 64).astype(int)
-        metal = np.isin(pid, [MAT_IDS[k] for k in ('wornsteel', 'gunmetal', 'dark', 'navy')])
-        variation = (coarse - .5) * .7 + (grain - .5) * .10
-        albedo *= (1 + variation * metal)[..., None]
-        # Short hairline handling marks break broad panels without white outlines.
-        scratches = np.zeros((size, size), np.float32)
-        for _ in range(1100):
-            x, y = rng.integers(0, size, 2); length = rng.integers(3, 17); slope = rng.uniform(-.6, .6)
-            for step in range(length):
-                xx, yy = x + step, int(y + slope * step)
-                if xx < size and 0 <= yy < size: scratches[yy, xx] = .035 * math.sin(math.pi * step / length)
-        albedo += (scratches * metal)[..., None]
-        orm[..., 1] = np.clip(orm[..., 1] + variation * .45 - scratches * 2, .12, .95)
+    albedo, orm = weather(albedo, orm, ids, ao, edge, normals, size, seed=sum(map(ord, name)))
     return albedo, orm
 
 
@@ -673,6 +654,63 @@ def composite(ids, ao, edge, normals, size):
     rough = np.clip(rough - e * edge_k * .25 * (metal > .5), .05, 1)
     orm = np.stack([np.ones_like(occ), rough, metal], -1)
     orm[~valid] = [1, .8, 0]
+    return np.clip(albedo, 0, 1), orm
+
+
+def _noise(rng, size, cells, rounds=4):
+    """Smooth value noise in [0, 1] at roughly size/cells feature size."""
+    grid = rng.random((cells, cells), dtype=np.float32)
+    for _ in range(rounds):
+        grid = (grid * 4 + np.roll(grid, 1, 0) + np.roll(grid, -1, 0) + np.roll(grid, 1, 1) + np.roll(grid, -1, 1)) / 8
+    grid = (grid - grid.min()) / max(1e-6, grid.max() - grid.min())
+    up = np.repeat(np.repeat(grid, size // cells, 0), size // cells, 1)
+    for _ in range(2):
+        up = (up * 4 + np.roll(up, 1, 0) + np.roll(up, -1, 0) + np.roll(up, 1, 1) + np.roll(up, -1, 1)) / 8
+    return up
+
+
+PAINTED = ('navy', 'teal', 'coral', 'orange', 'yellow', 'red', 'olive', 'tan')
+METALS = ('wornsteel', 'gunmetal', 'blued', 'steel', 'dark', 'blade')
+
+
+def weather(albedo, orm, ids, ao, edge, normals, size, seed=1):
+    """Stylised wear: paint chipped back to steel on exposed edges, cavity grime,
+    mottled and scratched metal, scuffed wood, a whisper of dust on top faces."""
+    rng = np.random.default_rng(seed)
+    pid = np.rint(ids[..., 0] * 64).astype(np.int32)
+    mask = lambda names: np.isin(pid, [MAT_IDS[k] for k in names])
+    painted, metal, wood = mask(PAINTED), mask(METALS), mask(('wood', 'wood_dark', 'bamboo'))
+    fine, mid, coarse = _noise(rng, size, size // 8), _noise(rng, size, size // 32), _noise(rng, size, 16)
+    e = np.clip(edge[..., 0], 0, 1)
+    occ = np.clip(ao[..., 0], 0, 1)
+    up = np.clip(normals[..., 2] * 2 - 1, -1, 1)
+    # Chipped paint: edges plus a broken noise front, revealing polished steel.
+    chip = np.clip((e ** .7 * 1.35 + (mid - .5) * .8 + (fine - .5) * .45 - .62) * 7, 0, 1) * painted
+    steel = np.array(srgb_to_linear('9AA3A8'), np.float32)
+    albedo = albedo * (1 - chip[..., None]) + steel * chip[..., None] * (.85 + .3 * fine[..., None])
+    orm[..., 1] = orm[..., 1] * (1 - chip) + .3 * chip
+    orm[..., 2] = orm[..., 2] * (1 - chip) + .85 * chip
+    # Metal: broad mottling, fine grain and short hairline scratches.
+    variation = (coarse - .5) * .22 + (fine - .5) * .08
+    albedo *= (1 + variation * metal)[..., None]
+    scratches = np.zeros((size, size), np.float32)
+    for _ in range(int(900 * (size / 1024) ** 2)):
+        x, y = rng.integers(0, size, 2); length = int(rng.integers(3, 14) * size / 1024); slope = rng.uniform(-.7, .7)
+        for step in range(length):
+            xx, yy = x + step, int(y + slope * step)
+            if xx < size and 0 <= yy < size: scratches[yy, xx] = max(scratches[yy, xx], .05 * math.sin(math.pi * step / max(1, length)))
+    albedo += (scratches * (metal | (painted & (chip > .5))))[..., None]
+    orm[..., 1] = np.clip(orm[..., 1] + variation * .5 * metal - scratches * 2.5, .1, .97)
+    # Wood: lighter scuffed edges and grain-direction streaks.
+    albedo *= (1 + (e * .35 + (fine - .5) * .12) * wood)[..., None]
+    # Cavity grime (warm, darker, rougher) and faint dust on upward faces.
+    cavity = np.clip(1 - occ, 0, 1) ** 1.4
+    grime = np.array(srgb_to_linear('3B3027'), np.float32)
+    g = np.clip(cavity * (.55 + .45 * mid), 0, .6)[..., None]
+    albedo = albedo * (1 - g * .55) + grime * g * .55
+    orm[..., 1] = np.clip(orm[..., 1] + cavity * .15, .1, .97)
+    dust = np.clip((up - .55) * 2.5, 0, 1) * (.4 + .6 * coarse) * .07
+    albedo = albedo * (1 - dust[..., None]) + np.array(srgb_to_linear('C9B79A'), np.float32) * dust[..., None]
     return np.clip(albedo, 0, 1), orm
 
 

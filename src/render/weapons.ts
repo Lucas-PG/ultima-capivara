@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
-import { ArmsRig, FP_ARMS_URL, type HandTarget, type HandCurl } from './fp-arms';
+import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
 import { CAPYBARA_ASSET_URL } from './capybara';
-import { VIEW_SPECS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
+import { VIEW_SPECS, SHOULDERS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { RELOADS, m4Reload } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
@@ -111,8 +111,8 @@ export class WeaponView {
   private inspectAllowed = false;
   private readonly restPosition = new THREE.Vector3();
   private readonly restRotation = new THREE.Quaternion();
-  private readonly shoulderR = new THREE.Vector3(.27, -.36, .14);
-  private readonly shoulderL = new THREE.Vector3(-.27, -.36, .14);
+  private readonly shoulderR = new THREE.Vector3();
+  private readonly shoulderL = new THREE.Vector3();
   private readonly targetR: HandTarget;
   private readonly targetL: HandTarget;
   private readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -133,6 +133,8 @@ export class WeaponView {
     const target = (): HandTarget => ({ wrist: new THREE.Vector3(), forward: new THREE.Vector3(0, 0, -1), palm: new THREE.Vector3(0, -1, 0),
       curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3(0, -1, 0) });
     this.targetR = target(); this.targetL = target();
+    // QA probe (tools/qa/grip-probe.mjs): measures paw-to-gun contact on the live rig.
+    if (import.meta.env.DEV) (globalThis as { __vmProbe?: WeaponView }).__vmProbe = this;
     this.assets = this.load().then(() => {
       if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
       onAssetsReady();
@@ -280,6 +282,7 @@ export class WeaponView {
       }
     }
     const motion = settings.reducedMotion ? .35 : 1;
+    if (this.arms && this.furPreset !== settings.graphics) { this.furPreset = settings.graphics; this.arms.setFurShells(FUR_BY_PRESET[settings.graphics]); }
     this.time += dt; this.lastDt = dt;
     const reloading = requested === weapon && actor.reloadUntil > simulationTime;
     this.inspectAllowed = requested === weapon && actor.grounded && !actor.swimming && !actor.ads && !actor.sprint && !reloading &&
@@ -379,7 +382,7 @@ export class WeaponView {
     this.flashLight = Math.max(0, this.flashLight - dt / .07);
     this.muzzleLight.intensity = this.flashLight * this.flashLight * 7;
     if (this.flashLight > 0) { this.holder.updateMatrixWorld(true); model.muzzle.getWorldPosition(this.muzzleLight.position); }
-    this.solveArms(model, spec.grips, choreo, sample);
+    this.solveArms(model, spec.grips, choreo, sample, spec.shoulders);
     if (import.meta.env.DEV) this.debugOrbit();
   }
 
@@ -503,6 +506,7 @@ export class WeaponView {
     void reload;
   }
 
+  private furPreset: Settings['graphics'] | null = null;
   private reloadHold = 0;
   private lastReload = -1;
   /** Local Foley cues (reload mechanics, draws). */
@@ -525,7 +529,7 @@ export class WeaponView {
     void model;
   }
 
-  private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null, sample: ChoreoSample | null) {
+  private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null, sample: ChoreoSample | null, shoulders = model.spec.shoulders) {
     const arms = this.arms;
     if (!arms) return;
     this.holder.updateMatrixWorld(true);
@@ -544,6 +548,7 @@ export class WeaponView {
       const release = 1 - window01(1 - this.shotLife / weaponShotDuration('slingshot'), .15, 1);
       this.targetR.wrist.lerp(this.handA.wrist.set(.02, .02, .08).applyMatrix4(this.holder.matrixWorld), release * .85);
     }
+    v3((shoulders ?? SHOULDERS).R, this.shoulderR); v3((shoulders ?? SHOULDERS).L, this.shoulderL);
     arms.right.solve(this.shoulderR, this.targetR);
     if (model.parts.pouch && model.bands && model.tips) this.stretchBands(model);
     const L = grips.L;
@@ -683,9 +688,6 @@ export class WeaponView {
 interface Choreo { px: number; py: number; pz: number; rx: number; ry: number; rz: number;
   support: number; supportPos: THREE.Vector3; mag: 'in' | 'drop' | 'hand'; magOut: number; slide: number }
 const AXIS_Z = new THREE.Vector3(0, 0, 1), UP = new THREE.Vector3(0, 1, 0);
+const FUR_BY_PRESET: Record<Settings['graphics'], number> = { low: 4, medium: 8, high: 12 };
 const BOLT_CURL: HandCurl = { index: [1, .9, .6], middle: [1.2, 1.1, .8], ring: [1.3, 1.1, .8], thumb: [.8, .5, .3] };
 const OPEN_CURL: HandCurl = { index: [.35, .3, .2], middle: [.4, .35, .2], ring: [.45, .35, .25], thumb: [.2, .1, .1] };
-function blendCurl(a: HandCurl, b: HandCurl, t: number): HandCurl {
-  const mix = (x: readonly [number, number, number], y: readonly [number, number, number]) => [x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t] as const;
-  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb) };
-}
