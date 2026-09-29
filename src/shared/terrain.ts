@@ -41,9 +41,28 @@ for (const p of housePads) {
   if (area?.y != null) p.y = area.y;
 }
 const structuralPads = [...pads.filter(p => p.fixed), ...housePads];
+// The field below visits every 2 m sample: bucket each influence by 8 m cell
+// (keeping list order, so ties resolve exactly as a full scan would).
+function buckets<T>(items: readonly T[], reach: (item: T) => Rect) {
+  const CELL = 8, cells = new Map<number, T[]>();
+  for (const item of items) {
+    const [x0, z0, x1, z1] = reach(item);
+    for (let cx = Math.floor(x0 / CELL); cx <= Math.floor(x1 / CELL); cx++)
+      for (let cz = Math.floor(z0 / CELL); cz <= Math.floor(z1 / CELL); cz++) {
+        const key = cx * 4096 + cz, list = cells.get(key);
+        if (list) list.push(item); else cells.set(key, [item]);
+      }
+  }
+  const none: T[] = [];
+  return (x: number, z: number) => cells.get(Math.floor(x / CELL) * 4096 + Math.floor(z / CELL)) ?? none;
+}
+const grow = (rect: Rect, by: number): Rect => [rect[0] - by, rect[1] - by, rect[2] + by, rect[3] + by];
+// A pad pulls the ground within its margin plus a 7 m blend; a structural pad within 3 m.
+const padsAt = buckets(pads, p => grow(p.rect, p.margin + 7.01));
+const structuralPadsAt = buckets(structuralPads, p => grow(p.rect, 3.01));
 function paddedHeight(x: number, z: number) {
   let height = rawHeight(x, z), weight = 0, target = height;
-  for (const p of pads) {
+  for (const p of padsAt(x, z)) {
     const [x0, z0, x1, z1] = p.rect;
     const d = Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1));
     const w = d === 0 ? 2 : 1 - ease((d - p.margin) / 7);
@@ -59,10 +78,12 @@ const routes = NAV_ROUTES.flatMap(route => route.slice(1).map((b, i) => {
   const a = route[i];
   return { ax: a[0], az: a[1], bx: b[0], bz: b[1], ay: paddedHeight(...a), by: paddedHeight(...b) };
 }));
+// Only a route within 5 m grades the ground.
+const routesAt = buckets(routes, r => grow([Math.min(r.ax, r.bx), Math.min(r.az, r.bz), Math.max(r.ax, r.bx), Math.max(r.az, r.bz)], 5.01));
 for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
   const x = i * STEP - ORIGIN, z = j * STEP - ORIGIN;
   let h = paddedHeight(x, z), best = Infinity, pathY = h;
-  for (const r of routes) {
+  for (const r of routesAt(x, z)) {
     const dx = r.bx - r.ax, dz = r.bz - r.az;
     const t = Math.max(0, Math.min(1, ((x - r.ax) * dx + (z - r.az) * dz) / (dx * dx + dz * dz)));
     const distance = Math.hypot(x - r.ax - dx * t, z - r.az - dz * t);
@@ -72,7 +93,7 @@ for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
   // Hill paths can approach a terrace but cannot cut through a house floor.
   // The extra apron also keeps both doorway thresholds level with the room.
   let terraceWeight = 0, terraceY = h;
-  for (const p of structuralPads) {
+  for (const p of structuralPadsAt(x, z)) {
     const [x0, z0, x1, z1] = p.rect;
     const distance = Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1));
     const weight = distance === 0 ? 2 : 1 - ease(distance / 3);

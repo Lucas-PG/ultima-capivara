@@ -48,6 +48,26 @@ export function createWorld(): WorldSpec {
     { id: 'lagoa', name: 'Lagoa', x: -76, z: 11, radius: 15, color: '#77a5a0' },
     { id: 'campinho', name: 'Campinho', x: CAMPINHO[0], z: CAMPINHO[1], radius: 20, color: '#8fb35a' },
   ];
+  // Placement queries run many thousands of times while the island is built:
+  // an incremental 8 m grid answers them without scanning every solid.
+  const solidCells = new Map<number, Collider[]>(), SOLID_CELL = 8;
+  const addSolids = (shapes: readonly Collider[]) => {
+    colliders.push(...shapes);
+    for (const c of shapes) for (let cx = Math.floor(c.min.x / SOLID_CELL); cx <= Math.floor(c.max.x / SOLID_CELL); cx++)
+      for (let cz = Math.floor(c.min.z / SOLID_CELL); cz <= Math.floor(c.max.z / SOLID_CELL); cz++) {
+        const key = cx * 4096 + cz, list = solidCells.get(key);
+        if (list) list.push(c); else solidCells.set(key, [c]);
+      }
+  };
+  /** True when any solid near the rectangle passes the test (the test does the exact overlap). */
+  const anySolid = (x0: number, z0: number, x1: number, z1: number, test: (c: Collider) => boolean) => {
+    for (let cx = Math.floor(x0 / SOLID_CELL); cx <= Math.floor(x1 / SOLID_CELL); cx++)
+      for (let cz = Math.floor(z0 / SOLID_CELL); cz <= Math.floor(z1 / SOLID_CELL); cz++) {
+        const list = solidCells.get(cx * 4096 + cz);
+        if (list) for (const c of list) if (test(c)) return true;
+      }
+    return false;
+  };
   let sequence = 0;
   const id = (prefix: string) => `${prefix}-${++sequence}`;
   const obj = (kind: MapObject['kind'], x: number, y: number, z: number, sx: number, sy: number, sz: number, color: string, detail: string, rotation = 0) => {
@@ -64,7 +84,7 @@ export function createWorld(): WorldSpec {
     const instance: KitPlacement = { id: id(`kit-${label}`), piece, x, y, z, yaw, ...(scale === 1 ? {} : { scale }) };
     pieces.push(instance);
     const shapes = kitColliders(instance);
-    colliders.push(...shapes);
+    addSolids(shapes);
     if (piece === 'bridge_stone' || piece === 'dock_wood')
       walkways.push(...shapes.filter(c => c.max.y - c.min.y < .7 * scale && c.max.x - c.min.x > 2 && c.max.z - c.min.z > 2));
     return instance;
@@ -76,7 +96,7 @@ export function createWorld(): WorldSpec {
   // Solid district landmarks: tall silhouettes that make each district findable from afar.
   const landmark = (kind: LandmarkSpec['kind'], x: number, z: number, yaw: number, y = ground(x, z)) => {
     const spec: LandmarkSpec = { id: id(`landmark-${kind}`), kind, x, y, z, yaw };
-    landmarks.push(spec); colliders.push(...landmarkColliders(spec));
+    landmarks.push(spec); addSolids(landmarkColliders(spec));
   };
   const lotPoint = (h: HouseLot, x: number, z: number) => {
     const c = Math.cos(h.yaw ?? 0), s = Math.sin(h.yaw ?? 0);
@@ -98,8 +118,8 @@ export function createWorld(): WorldSpec {
   // A house lot is occupied as a whole: its hollow room is not open ground for dressing.
   const lotAt = (x: number, z: number, margin: number) => [...HOUSES, ...MORRO_LOTS].some(h =>
     Math.abs(x - h.x) < h.w / 2 + margin && Math.abs(z - h.z) < h.d / 2 + margin);
-  const occupied = (x: number, z: number, margin: number) => playAreaAt(x, z, margin) || lotAt(x, z, margin) || colliders.some(c =>
-    x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
+  const occupied = (x: number, z: number, margin: number) => playAreaAt(x, z, margin) || lotAt(x, z, margin) ||
+    anySolid(x - margin, z - margin, x + margin, z + margin, c => x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
   const pavement = (x: number, z: number, width: number, depth: number, color = '#d5c1a0') => {
     const y = ground(x, z);
     obj('box', x, y + .026, z, width, .035, depth, color, 'courtyard');
@@ -598,7 +618,7 @@ export function createWorld(): WorldSpec {
   const plantBlocked = (x: number, z: number, margin: number) => {
     if (playAreaAt(x, z, margin + .6) || lotAt(x, z, margin)) return true;
     const y = ground(x, z);
-    return colliders.some(c => c.max.y > y + .3 && c.min.y < y + 2 &&
+    return anySolid(x - margin, z - margin, x + margin, z + margin, c => c.max.y > y + .3 && c.min.y < y + 2 &&
       x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
   };
   const tree = (x: number, z: number, height: number, kind: 'tree' | 'palm' = 'tree', species = 'foliage') => {
@@ -726,7 +746,7 @@ export function createWorld(): WorldSpec {
   for (const building of pieces) if (isHousePiece(building.piece))
     building.interiorFloor = ['clinic', 'workshop', 'fishmonger'].includes(buildingRole(building)) ? 'warm-tile' : 'wood';
   for (const building of [...pieces]) for (const furniture of interiorPlacements(building)) {
-    pieces.push(furniture); colliders.push(...kitColliders(furniture));
+    pieces.push(furniture); addSolids(kitColliders(furniture));
   }
   const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary, mudBaths, trampolines, landmarks };
   world.buildingRoutes = buildBuildingRoutes(world);
@@ -759,8 +779,8 @@ export function createWorld(): WorldSpec {
     const y = walkableHeight(x, z, world);
     if (y < .55 || Math.abs(x) > 120 || Math.abs(z) > 120) return false;
     if (Math.hypot(ground(x + .6, z) - ground(x - .6, z), ground(x, z + .6) - ground(x, z - .6)) / 1.2 > .6) return false;
-    if (!colliders.every(c => y >= c.max.y - .015 || y + 1.8 <= c.min.y ||
-      x + radius <= c.min.x || x - radius >= c.max.x || z + radius <= c.min.z || z - radius >= c.max.z)) return false;
+    if (anySolid(x - radius, z - radius, x + radius, z + radius, c => !(y >= c.max.y - .015 || y + 1.8 <= c.min.y ||
+      x + radius <= c.min.x || x - radius >= c.max.x || z + radius <= c.min.z || z - radius >= c.max.z))) return false;
     const arena = inArena(x, z, .5), routes = arena ? townRoutes : mainRoutes;
     return routes.some(index => Math.hypot(graph.points[index].x - x, graph.points[index].z - z) < 10 &&
       walkableSegment(world, { x, z }, graph.points[index], arena));
@@ -804,7 +824,7 @@ export function createWorld(): WorldSpec {
   // Outdoor caches keep plane landings spread across the whole island. A
   // town-only loot pool would funnel bots onto the same few roof-free spots.
   for (let z = -102; z <= 104; z += 28) for (let x = -102; x <= 104; x += 28) {
-    if (colliders.some(c => x > c.min.x - 3 && x < c.max.x + 3 && z > c.min.z - 3 && z < c.max.z + 3 && c.max.y > ground(x, z) + 2)) continue;
+    if (anySolid(x - 3, z - 3, x + 3, z + 3, c => x > c.min.x - 3 && x < c.max.x + 3 && z > c.min.z - 3 && z < c.max.z + 3 && c.max.y > ground(x, z) + 2)) continue;
     pickup(x, z, 'ammo');
   }
   for (let i = 0; loot.length < 192 && i < 1800; i++) {
