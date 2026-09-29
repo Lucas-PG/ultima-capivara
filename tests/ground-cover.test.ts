@@ -9,7 +9,9 @@ import { vegetationDressing } from '../src/shared/vegetation-dressing';
 import { SPECIES } from '../src/shared/vegetation-species';
 
 const world = createWorld();
-// One island's ground cover serves every read-only check below: building it is the slow part.
+// One island's ground cover serves every check below: building it is the slow part, and a second
+// build inside a test ran past the timeout on a loaded machine. Tests that change its quality put
+// it back; the last test disposes it (afterAll only covers a failure before that).
 const shared = new GroundCover(world);
 afterAll(() => shared.dispose());
 
@@ -28,10 +30,11 @@ it('grows the lawn from plain blades tinted by the ground, away from roads and s
     let tinted = 0;
     for (const node of lawns) {
       const nearby = world.colliders.filter(c => c.max.x >= node.position.x - 1 && c.min.x <= node.position.x + 25 && c.max.z >= node.position.z - 1 && c.min.z <= node.position.z + 25);
+      const roads = ROADS.filter(([x0, z0, x1, z1]) => x1 >= node.position.x - 1 && x0 <= node.position.x + 25 && z1 >= node.position.z - 1 && z0 <= node.position.z + 25);
       for (let i = 0; i < node.count; i++) {
         node.getMatrixAt(i, matrix);
         const x = matrix.elements[12] + node.position.x, y = matrix.elements[13] + .02, z = matrix.elements[14] + node.position.z;
-        if (ROADS.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) violations.push(`road ${x.toFixed(1)},${z.toFixed(1)}`);
+        if (roads.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) violations.push(`road ${x.toFixed(1)},${z.toFixed(1)}`);
         if (nearby.some(c => c.min.y < y + .4 && c.max.y > y && x > c.min.x && x < c.max.x && z > c.min.z && z < c.max.z)) violations.push(`solid ${x.toFixed(1)},${z.toFixed(1)}`);
         node.getColorAt(i, color);
         // Instance tint is the ground's own green: more green than red or blue, never a flat white.
@@ -86,9 +89,8 @@ it('stays out of the depth buffer so the ink pass never outlines grass, but draw
   }
 });
 
-it('culls distant cells, grows denser on High, switches off on Low and disposes everything', () => {
-  // This one changes quality and disposes, so it builds its own cover.
-  const cover = new GroundCover(world), camera = new THREE.PerspectiveCamera();
+it('culls distant cells, grows denser on High and switches off on Low', () => {
+  const cover = shared, camera = new THREE.PerspectiveCamera();
   try {
     camera.position.set(-35, 4, 61); cover.setQuality('medium'); cover.update(camera, 1, false);
     const visible = cover.group.children.filter(node => node.visible);
@@ -102,6 +104,10 @@ it('culls distant cells, grows denser on High, switches off on Low and disposes 
     cover.setQuality('low'); cover.update(camera, 2, false);
     expect(cover.group.visible).toBe(false);
     expect(cover.group.children.every(node => !node.visible)).toBe(true);
-  } finally { cover.dispose(); }
-  expect(cover.group.children).toHaveLength(0);
+  } finally { cover.setQuality('medium'); }
+});
+
+it('disposes everything it built', () => {
+  shared.dispose();
+  expect(shared.group.children).toHaveLength(0);
 });
