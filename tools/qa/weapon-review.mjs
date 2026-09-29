@@ -37,7 +37,7 @@ try {
         row.L = await page.evaluate(measure, [weapon, 'L']);
         console.log(`${weapon} ${action} ${phase}: R ${row.R.worst} mm, L ${row.L.worst} mm`);
       }
-      for (const view of viewsCsv.split(',')) {
+      for (const view of process.env.CAPTURE === '0' ? [] : viewsCsv.split(',')) {
         if (['ads', 'world', 'tp'].includes(action) && view !== 'eye') continue;
         await page.evaluate(v => { window.__vmOrbit = v ? { yaw: v[0], pitch: v[1], distance: v[2], target: [.03, -.09, -.43] } : undefined; }, views[view]);
         await pose();

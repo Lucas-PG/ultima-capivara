@@ -50,16 +50,41 @@ export function measure([weapon, side]) {
   lo.subScalar(.03); hi.addScalar(.03);
   const near = tris.filter(([a, b, c]) => Math.max(a.x, b.x, c.x) > lo.x && Math.min(a.x, b.x, c.x) < hi.x && Math.max(a.y, b.y, c.y) > lo.y &&
     Math.min(a.y, b.y, c.y) < hi.y && Math.max(a.z, b.z, c.z) > lo.z && Math.min(a.z, b.z, c.z) < hi.z);
+  // Exact nearest queries over the complete mesh also measure a paw while it
+  // is away from the gun. A BVH keeps dense motion strips practical.
+  const buildTree = items => {
+    const lo = new V3(Infinity, Infinity, Infinity), hi = new V3(-Infinity, -Infinity, -Infinity);
+    for (const [a, b, c] of items) { lo.min(a).min(b).min(c); hi.max(a).max(b).max(c); }
+    if (items.length <= 8) return { lo, hi, items };
+    const extent = hi.clone().sub(lo), axis = extent.x > extent.y && extent.x > extent.z ? 'x' : extent.y > extent.z ? 'y' : 'z';
+    items.sort((a, b) => a[0][axis] + a[1][axis] + a[2][axis] - b[0][axis] - b[1][axis] - b[2][axis]);
+    const mid = items.length >> 1;
+    return { lo, hi, left: buildTree(items.slice(0, mid)), right: buildTree(items.slice(mid)) };
+  };
+  const valid = tris.filter(([a, b, c]) => n.subVectors(b, a).cross(ac.subVectors(c, a)).lengthSq() > 1e-16);
+  const tree = buildTree(valid);
+  const bound = (p, node) => {
+    const x = Math.max(0, node.lo.x - p.x, p.x - node.hi.x), y = Math.max(0, node.lo.y - p.y, p.y - node.hi.y), z = Math.max(0, node.lo.z - p.z, p.z - node.hi.z);
+    return x * x + y * y + z * z;
+  };
   const c0 = new V3();
   for (const v of measured) {
     let best = Infinity, sign = 1;
-    for (const [a, b, c] of near) {
-      closest(v.p, a, b, c, c0);
-      const d = c0.distanceToSquared(v.p);
-      if (d < best - 1e-12) {
-        best = d; n.subVectors(b, a).cross(ac.subVectors(c, a));
-        sign = n.dot(q.subVectors(v.p, c0)) < 0 ? -1 : 1;
-      } else if (d < best + 1e-10) { n.subVectors(b, a).cross(ac.subVectors(c, a)); if (n.dot(q.subVectors(v.p, c0)) >= 0) sign = 1; }
+    const stack = [tree];
+    while (stack.length) {
+      const node = stack.pop();
+      if (bound(v.p, node) > best + 1e-10) continue;
+      if (node.items) {
+        for (const [a, b, c] of node.items) {
+          closest(v.p, a, b, c, c0);
+          const d = c0.distanceToSquared(v.p);
+          if (d < best - 1e-12) {
+            best = d; n.subVectors(b, a).cross(ac.subVectors(c, a));
+            sign = n.dot(q.subVectors(v.p, c0)) < 0 ? -1 : 1;
+          } else if (d < best + 1e-10) { n.subVectors(b, a).cross(ac.subVectors(c, a)); if (n.dot(q.subVectors(v.p, c0)) >= 0) sign = 1; }
+        }
+      } else if (bound(v.p, node.left) < bound(v.p, node.right)) stack.push(node.right, node.left);
+      else stack.push(node.left, node.right);
     }
     v.d = Math.sqrt(best) * sign;
     const g = groups[v.bone] ??= { n: 0, inside: 0, min: Infinity, tip: null, tipAlong: -Infinity };
@@ -82,4 +107,3 @@ export function measure([weapon, side]) {
   return { summary, digits, bore: [bore.x, bore.y, bore.z].map(x => +(x * 1000).toFixed(0)), trianglesNear: near.length,
     centroid: [centroid.x, centroid.y, centroid.z], worst: +(Math.min(...measured.map(v => v.d)) * 1000).toFixed(1) };
 }
-
