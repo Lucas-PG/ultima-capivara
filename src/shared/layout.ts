@@ -16,6 +16,10 @@ export const CAMPINHO = [88, -60] as const; // Neighbourhood football pitch, nor
 export const ENGENHO = [-70, 20] as const; // Ruined sugar mill on the western river bank.
 export const CAPELA = [-76, 66] as const; // Hilltop chapel above the south-west woods.
 export const ROSARIO = [-21, 26] as const; // Largo do Rosário, south bank square.
+/** Lagoa da Maré: the tidal lagoon of the south-east palafitas, wading deep and open to the sea. */
+export const MARE = { x: 96, z: 97, rx: 17, rz: 12, bed: -.8 } as const;
+/** The village shore where the boardwalk starts, level with the stilt decks. */
+export const MARE_SHORE: Rect = [76, 76, 96, 86];
 export const ROSARIO_RECT: Rect = [-30, 17, -12, 33];
 // Harbour basin: a straight stone quay on its north side, mangrove on the south.
 export const BAY: Rect = [94, -3, 150, 31];
@@ -30,7 +34,7 @@ export const DISTRICT_ARRIVALS: Readonly<Record<string, readonly [number, number
   morro: [-97, -66, -95, -35], cachoeira: [-83, -13, -109, -9], porto: [83, -8, 107, 12],
   praia: [-36, 95, -30, 109], farol: [-6, 76, -6, 115], mangue: [96, 40, 112, 50],
   fazenda: [53, 78, 70, 60], rosario: [-21, 36, -21, 20], engenho: [-56, 26, -70, 20],
-  campinho: [74, -48, 88, -60], capela: [-58, 70, -76, 66],
+  campinho: [74, -48, 88, -60], capela: [-58, 70, -76, 66], palafitas: [84, 82, 96, 97],
 };
 export interface DistrictPlan { id: string; name: string; x: number; z: number; radius: number; color: string }
 export const DISTRICTS: readonly DistrictPlan[] = [
@@ -48,6 +52,7 @@ export const DISTRICTS: readonly DistrictPlan[] = [
   { id: 'engenho', name: 'Engenho', x: -70, z: 22, radius: 17, color: '#b98a5e' },
   { id: 'campinho', name: 'Campinho', x: CAMPINHO[0], z: CAMPINHO[1], radius: 20, color: '#8fb35a' },
   { id: 'capela', name: 'Capela', x: -76, z: 64, radius: 15, color: '#a9b98a' },
+  { id: 'palafitas', name: 'Palafitas', x: 92, z: 93, radius: 17, color: '#5fa8b0' },
 ];
 
 // Width is the wetted channel width. Inside town the river runs between stone
@@ -375,6 +380,8 @@ export const AREAS: readonly { rect: Rect; margin: number; y: number | null; fix
   { rect: [-84, 12, -60, 32], margin: 3, y: null },
   // The coast road's timber bridge over the river mouth lands level on both banks.
   { rect: [77, 2, 85, 10], margin: 2, y: 2 }, { rect: [77, 32, 85, 40], margin: 2, y: 2 },
+  // The palafitas' shore, level with the stilt decks over the lagoon.
+  { rect: MARE_SHORE, margin: 3, y: 1.15 },
   // The fishing village's shore terrace above the mangrove.
   { rect: [92, 42, 128, 64], margin: 3, y: 2.2 },
   { rect: [CAPELA[0] - 10, CAPELA[1] - 7, CAPELA[0] + 10, CAPELA[1] + 7], margin: 2, y: 14, fixed: true },
@@ -402,6 +409,8 @@ export const NAV_ROUTES: readonly (readonly Point[])[] = [
   [[-66, 36], [-60, 50], [-62, 58], [-70, 60], [-76, 58]],
   [[-30, 35.5], [-30, 61], [-30, 78], [-45, 100], [-8, 100], [36, 100], [60, 78]],
   [[-30, 78], [3, 78], [60, 78], [80, 54], [100, 44]],
+  // Down from the farm road to the palafitas' shore and the boardwalk.
+  [[60, 78], [71, 79], [79, 82], [86, 84.5]],
   // The lighthouse path climbs the cape's north face in two long ramps.
   [[-8, 78], [-8, 97], [4, 96], [14, 102], [10, 109], [0, 112]],
   [[-30, 61], [-63, 61], [-64, 87], [-45, 100]],

@@ -1,4 +1,4 @@
-import { AREAS, BAY, BRIDGE_PLANS, HILLS, HOUSES, MORRO_LOTS, NAV_ROUTES, PORTO_QUAY_X, PORTO_QUAY_Z, QUAY_DEPTH, QUAY_FACE, QUAYS, ROADS, ROW_LOTS, riverSample, type Rect } from './layout';
+import { AREAS, BAY, BRIDGE_PLANS, HILLS, HOUSES, MARE, MORRO_LOTS, NAV_ROUTES, PORTO_QUAY_X, PORTO_QUAY_Z, QUAY_DEPTH, QUAY_FACE, QUAYS, ROADS, ROW_LOTS, riverSample, type Rect } from './layout';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const ease = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
@@ -133,6 +133,10 @@ for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
   const basin = bayDistance(x, z), bed = lerp(-1.4, -2.8, ease((z - PORTO_QUAY_Z - 6) / 16));
   if (x > PORTO_QUAY_X[0] && x < PORTO_QUAY_X[1] && z < PORTO_QUAY_Z + 4) { if (basin < QUAY_DEPTH / 2 - .1) h = Math.min(h, bed); }
   else if (basin < 7) h = lerp(bed, h, ease(basin / 7));
+  // Lagoa da Maré: a wading-deep tidal lagoon under the palafitas, its banks
+  // shelving over 5 m and its east side open to the sea.
+  const mare = Math.hypot((x - MARE.x) / MARE.rx, (z - MARE.z) / MARE.rz);
+  if (mare < 1.45) h = Math.min(h, lerp(MARE.bed, h, ease(((mare - 1) * Math.min(MARE.rx, MARE.rz) + 1) / 5)));
   heights[j * SIDE + i] = h;
 }
 export function terrainHeight(x: number, z: number): number {

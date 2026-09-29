@@ -23,7 +23,8 @@ function support(x: number, z: number, y: number, own: string) {
     x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z) top = c.max.y;
   return top;
 }
-const WATERSIDE = /^(quay_|bridge_|dock_wood$|boat$)/;
+// Standing in water by design: their piles or footings reach the bed, tested below.
+const WATERSIDE = /^(quay_|bridge_|dock_wood$|boat$|passarela|palafita|bar_mare$)/;
 // Deliberately rooted in the ground: rock skins and the soft planting beds.
 const ROOTED = /^(cliff_|flower_bed$|bush_cluster$|hedge$|mud_bath$|trampoline$)/;
 const interior = (piece: KitPlacement) => piece.id.includes(':interior:');

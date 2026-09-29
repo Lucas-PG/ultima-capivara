@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, DISTRICTS, ENGENHO, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
+import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, DISTRICTS, ENGENHO, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -76,7 +76,7 @@ export function createWorld(): WorldSpec {
     pieces.push(instance);
     const shapes = kitColliders(instance);
     addSolids(shapes);
-    if (/^bridge_/.test(piece) || piece === 'dock_wood')
+    if (/^(bridge_|passarela|palafita|bar_mare)/.test(piece) || piece === 'dock_wood')
       walkways.push(...shapes.filter(c => c.max.y - c.min.y < .7 * scale && c.max.x - c.min.x > 2 && c.max.z - c.min.z > 2));
     return instance;
   };
@@ -450,6 +450,29 @@ export function createWorld(): WorldSpec {
     obj('box', x, .02, z, 1, 1, 1, '#DB8263', 'prop:street-buoy');
   landmark('crane', 101, -9, 0);
   sign(80, -30, 'PORTO');
+
+  // Palafitas: the fishing village on stilts in the Lagoa da Maré. A boardwalk
+  // leaves the beach for a junction deck, runs east past a second junction to
+  // the Bar da Maré at the lagoon mouth; four painted plank houses open onto
+  // the junctions. Every deck stands the same height above the lagoon bed.
+  {
+    const bed = MARE.bed;
+    for (const z of [82.9, 90.9]) place('passarela', 86, z, 0, 1, bed);
+    for (const x of [91.3, 101.9]) place('passarela', x, 96.2, Math.PI / 2, 1, bed);
+    for (const x of [86, 96.6]) place('passarela_no', x, 96.2, 0, 1, bed);
+    for (const [piece, x, z, yaw, tile] of [['palafita', 86, 101.3, Math.PI, 2], ['palafita_b', 80.9, 96.2, Math.PI / 2, 1],
+      ['palafita', 96.6, 91.1, 0, 3], ['palafita_b', 96.6, 101.3, Math.PI, 12], ['bar_mare', 109.7, 96.2, -Math.PI / 2, 2]] as const) {
+      if (KIT_PIECES[piece]) place(piece, x, z, yaw, 1, bed).facadeTile = tile;
+    }
+    detail('mirante', 92, 77.8, Math.PI, 1, ground(92, 77.8));
+    // Canoes moored among the stilts and two drawn up on the beach; nets on the decks.
+    for (const [x, z, yaw, scale] of [[90.6, 99.6, .3, .8], [101.2, 92.6, 1.25, .75], [83.4, 104.4, -.45, .8], [106.2, 101.5, .1, .85]] as const)
+      detail('boat', x, z, yaw, scale, -.15);
+    for (const [x, z, yaw] of [[91.5, 80.8, .9], [93.4, 82.6, 1.2]] as const) detail('boat', x, z, yaw, .75, ground(x, z) - .08);
+    const deck = bed + (KIT_PIECES.passarela?.traversal?.floors[0].y ?? 2);
+    detail('rede_pesca', 96.6, 96.4, .4, .8, deck); detail('rede_pesca', 88.6, 83.4, 1.2, 1, ground(88.6, 83.4));
+    sign(76.5, 83, 'PALAFITAS');
+  }
 
   // Campinho: the neighbourhood pitch. A mown pitch with chalk lines (painted,
   // so the jungle keeps off it), the stand and boteco are one kit piece.
