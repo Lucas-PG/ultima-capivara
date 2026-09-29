@@ -363,45 +363,73 @@ def smg():
 # ------------------------------------------------------------------ shotgun
 @weapon
 def shotgun():
-    """Doze: pump twelve-gauge, wooden stock and forend, side saddle of red shells."""
+    """Doze: walnut pump gun, brass fittings, teal foliage and a red recoil pad."""
     parts = {'body': [], 'pump': [], 'mag': [], 'trigger': []}
-    bore = .056
-    rec = prism('receiver', [(.0, .014, 1), (.19, .014, 1), (.19, .084), (.17, .094), (.02, .094), (.0, .076)], .038, 'gunmetal', bevel=.003, smooth=1, raw=True)
-    cut(rec, cutter_box((.018, .09, .064), (.014, .06, .02)))
-    cut(rec, cutter_box((0, .11, .012), (.022, .07, .014)))
-    parts['body'] += [complete(rec)]
-    parts['body'] += [cyl('shell_in_port_hull', (.008, .07, .064), (.008, .115, .064), .0095, 'red', sides=18)]
-    parts['body'] += [cyl('shell_in_port_base', (.008, .062, .064), (.008, .07, .064), .0098, 'brass', sides=18)]
-    parts['body'] += [cyl('barrel', (0, .19, bore), (0, .7, bore), .0132, 'blued', sides=28)]
-    parts['body'] += [tube('muzzle', (0, .69, bore), (0, .702, bore), .0138, .0098, 'steel', sides=28)]
-    parts['body'] += [box('vent_rib', (0, .445, bore + .016), (.01, .5, .005), 'blued', .0015)]
-    parts['body'] += [sphere('bead', (0, .69, bore + .023), (.0032, .0032, .0032), 'brass', 12, 8)]
-    parts['body'] += [cyl('mag_tube', (0, .19, .022), (0, .62, .022), .0118, 'blued', sides=24)]
-    parts['body'] += [cyl('mag_cap', (0, .62, .022), (0, .645, .022), .0125, 'gunmetal', sides=24)]
-    parts['body'] += [box('barrel_clamp', (0, .6, .04), (.02, .014, .044), 'gunmetal', .002)]
-    stock = prism('stock', [(.004, .07, 1), (-.06, .05), (-.3, .036), (-.318, .032), (-.318, -.1), (-.3, -.11), (-.19, -.07), (-.07, -.036),
-                            (-.024, -.036), (.004, .012, 1)], .042, 'wood', bevel=.003, smooth=3)
+    bore = .078
+    receiver = prism('receiver', [(-.065, .012, 1), (.177, .012, 1), (.181, .086), (.164, .105), (-.038, .105), (-.065, .083)],
+                     .045, 'blued', bevel=.003, smooth=1, raw=True)
+    cut(receiver, cutter_box((.022, .083, .077), (.019, .079, .024)))
+    cut(receiver, cutter_box((0, .093, .012), (.028, .086, .024)))
+    parts['body'] += [complete(receiver)]
+    parts['body'] += [box('port_bolt', (.013, .083, .076), (.006, .073, .017), 'steel', .002)]
+    parts['body'] += [box('loading_lifter', (0, .093, .025), (.024, .077, .003), 'steel', .001)]
+    parts['body'] += [cyl('barrel', (0, .17, bore), (0, .657, bore), .0155, 'blued', sides=28)]
+    parts['body'] += [tube('muzzle_crown', (0, .644, bore), (0, .667, bore), .017, .0112, 'steel', sides=28)]
+    # A genuinely vented rib: individual bridges leave daylight above the barrel.
+    parts['body'] += [box('rib', (0, .411, .104), (.01, .492, .004), 'blued', .0008)]
+    for y in (.19, .267, .344, .421, .498, .575, .646):
+        parts['body'] += [box('rib_bridge', (0, y, .098), (.009, .013, .012), 'blued', .0008)]
+    parts['body'] += [sphere('bead', (0, .651, .111), (.0028, .0028, .0028), 'brass', 12, 8)]
+    # Low rear ramp stays below the bead line.
+    parts['body'] += [prism('rear_ramp', [(-.045, .105), (-.024, .105), (-.027, .11), (-.04, .113)], .015, 'blued', bevel=.001)]
+    parts['body'] += [cyl('mag_tube', (0, .17, .031), (0, .588, .031), .0135, 'blued', sides=24)]
+    parts['body'] += [cyl('mag_cap', (0, .581, .031), (0, .604, .031), .0165, 'gunmetal', sides=24)]
+    for y in (.585, .59, .595, .6):
+        parts['body'] += [tube('cap_knurl', (0, y, .031), (0, y + .0017, .031), .017, .014, 'dark', sides=20, bevel=.0003)]
+    parts['body'] += [prism('barrel_band', [(.548, .017), (.561, .017), (.561, .089), (.548, .089)], .023, 'brass', bevel=.002)]
+    stock = prism('walnut_stock', [(-.064, .079, 1), (-.11, .052), (-.174, .046), (-.212, .065), (-.364, .036),
+                    (-.38, .027), (-.38, -.114), (-.365, -.124), (-.257, -.08), (-.15, -.041), (-.093, -.027),
+                    (-.068, -.067), (-.041, -.048), (-.013, .0), (-.032, .026), (-.064, .037, 1)],
+                  .054, 'walnut', bevel=.008, smooth=3)
     parts['body'] += [stock]
-    parts['body'] += [prism('buttpad', [(-.318, .036), (-.332, .036), (-.332, -.108), (-.318, -.108)], .044, 'rubber', bevel=.004)]
-    guard = prism('guard', [(.03, .016, 1), (.11, .016, 1), (.11, .004), (.1, -.012), (.03, -.012)], .018, 'gunmetal', bevel=.0015, raw=True)
-    cut(guard, cutter_box((0, .07, .0), (.03, .064, .012)))
+    parts['body'] += [prism('butt_spacer', [(-.377, .031), (-.387, .028), (-.387, -.117), (-.377, -.12)], .048, 'dark', bevel=.002)]
+    pad = prism('red_recoil_pad', [(-.385, .028), (-.403, .022), (-.403, -.11), (-.396, -.122), (-.385, -.119)], .05, 'rubber_red', bevel=.004, raw=True)
+    cut(pad, join([cutter_box((0, -.395, -.096 + i * .019), (.06, .007, .009)) for i in range(6)], 'pad_vents'))
+    parts['body'] += [complete(pad)]
+    # Brass stock collar and receiver nose band, with recessed slotted screws.
+    for y, z, h in ((-.062, .051, .067), (.174, .059, .088)):
+        parts['body'] += [box('receiver_band', (0, y, z), (.047, .008, h), 'brass', .002)]
+    for side in (-1, 1):
+        for y, z in ((-.045, .072), (-.039, .033), (.146, .034)):
+            parts['body'] += [cyl('pin', (side * .022, y, z), (side * .0242, y, z), .0043, 'brass', sides=14, bevel=.0005)]
+            parts['body'] += [box('pin_slot', (side * .0243, y, z), (.0005, .005, .0008), 'dark', .0002)]
+    guard = prism('guard', [(-.038, .014, 1), (.053, .014, 1), (.056, -.022), (.041, -.045), (-.017, -.045), (-.038, -.024)],
+                  .018, 'blued', bevel=.002, smooth=1, raw=True)
+    cut(guard, cutter_prism([(-.027, .006), (.043, .006), (.042, -.02), (.033, -.034), (-.016, -.035), (-.027, -.02)], .035))
     parts['body'] += [complete(guard)]
-    # Side saddle: four shells on the left of the receiver.
-    parts['body'] += [box('saddle', (-.023, .1, .052), (.008, .09, .036), 'dark', .002)]
+    parts['trigger'] += [prism('trigger', [(.001, .009), (.009, .009), (.011, -.007), (.002, -.025), (-.005, -.027), (.0, -.009)], .007, 'brass', bevel=.001, smooth=2)]
+    # Four visible red shells, brass case heads and a retaining strap.
+    parts['body'] += [box('saddle_back', (-.025, .022, .063), (.008, .113, .05), 'dark', .002)]
     for i in range(4):
-        y = .066 + i * .022
-        parts['body'] += [cyl('saddle_hull', (-.03, y, .05), (-.03, y, .085), .0092, 'red', sides=16)]
-        parts['body'] += [cyl('saddle_base', (-.03, y, .042), (-.03, y, .05), .0096, 'brass', sides=16)]
-    pump = lathe('pump', [(.0125, 0), (.027, .004), (.029, .02), (.029, .16), (.027, .176), (.0125, .18)], 'wood', p0=(0, .29, .026), sides=28)
-    cut(pump, join([cutter_cyl((0, .31 + i * .018, .026), (0, .315 + i * .018, .026), .04, 24) for i in range(8)], 'grooves'))
-    parts['pump'] += [pump]
-    parts['trigger'] += [prism('trigger', [(.052, .012, 1), (.06, .012, 1), (.061, .0), (.055, -.012), (.05, -.011), (.054, .0)], .007, 'gunmetal', bevel=.001, smooth=1)]
-    shell = [cyl('shell_hull', (0, .0, 0), (0, .052, 0), .0095, 'red', sides=18), cyl('shell_base', (0, -.008, 0), (0, .0, 0), .0098, 'brass', sides=18)]
-    parts['mag'] += [join(shell, 'shell')]
-    for obj in parts['mag']:
-        move(obj, (0, .11, .012))
-    sockets = {'muzzle': (0, .706, bore), 'eject': (.022, .09, .066), 'sight': (0, -.02, bore + .026)}
-    pivots = {'pump': (0, .29, .026), 'mag': (0, .11, .012)}
+        y = -.018 + i * .026
+        parts['body'] += [cyl('saddle_hull', (-.035, y, .05), (-.035, y, .094), .0105, 'red', sides=16, bevel=.001)]
+        parts['body'] += [cyl('saddle_base', (-.035, y, .039), (-.035, y, .05), .0112, 'brass', sides=16, bevel=.001)]
+        parts['body'] += [box('shell_clip', (-.045, y, .064), (.003, .021, .013), 'dark', .001)]
+        parts['body'] += [cyl('clip_rivet', (-.047, y, .064), (-.048, y, .064), .0024, 'brass', sides=10, bevel=.0003)]
+    # Continuous ribbed pump, never boolean-sliced into disconnected discs.
+    profile = [(.014, 0), (.025, .004), (.029, .012)]
+    for i in range(10):
+        d = .019 + i * .013
+        profile += [(.029, d), (.0255, d + .002), (.0255, d + .0045), (.029, d + .007)]
+    profile += [(.029, .156), (.025, .164), (.014, .168)]
+    parts['pump'] += [lathe('walnut_pump', profile, 'walnut', p0=(0, .222, .031), sides=24, bevel=.0007)]
+    for side in (-1, 1):
+        parts['pump'] += [box('action_bar', (side * .014, .206, .022), (.004, .12, .008), 'steel', .001)]
+    # One shell enters the loading port; hidden outside shell choreography.
+    parts['mag'] += [cyl('shell_hull', (0, .076, .012), (0, .128, .012), .0105, 'red', sides=18, bevel=.001)]
+    parts['mag'] += [cyl('shell_base', (0, .067, .012), (0, .076, .012), .0112, 'brass', sides=18, bevel=.0008)]
+    sockets = {'muzzle': (0, .671, bore), 'eject': (.026, .083, .077), 'sight': (0, -.03, .113)}
+    pivots = {'pump': (0, .222, .031), 'mag': (0, .067, .012), 'trigger': (0, .005, .007)}
     return parts, sockets, pivots, {'magAxis': [0, 1, 0]}
 
 
@@ -571,6 +599,11 @@ LIVERY = {
     'm4': [
         {'stencil': 'frond', 'at': (.258, .064), 'size': .115, 'rotate': -16, 'colour': 'E27A5A', 'on': ('navy',)},
         {'stencil': 'frond', 'at': (.318, .060), 'size': .085, 'rotate': 14, 'colour': 'F0A07A', 'on': ('navy',), 'opacity': .8},
+    ],
+    'shotgun': [
+        {'stencil': 'monstera', 'at': (-.296, -.035), 'size': .153, 'rotate': -12, 'colour': '268B84', 'on': ('walnut',)},
+        {'stencil': 'frond', 'at': (.335, .039), 'size': .088, 'rotate': -14, 'colour': '299A90', 'on': ('walnut',)},
+        {'stencil': 'palm', 'at': (.114, .066), 'size': .063, 'colour': 'D6A348', 'on': ('blued',), 'metal': True},
     ],
 }
 

@@ -6,7 +6,7 @@ import metrics from '../public/models/arsenal/metrics.json';
 
 // A magazine contact point is authored in metres around the Blender pivot.
 // Quantization must not turn that coordinate frame into a mesh decode matrix.
-for (const id of ['m4'] as const) {
+for (const id of ['m4', 'shotgun'] as const) {
   it(`${id} preserves mechanical pivots and metre-scale hand contacts after packing`, async () => {
     const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
     const document = await io.read(`public/models/arsenal/${id}.glb`);
