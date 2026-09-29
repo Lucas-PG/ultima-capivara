@@ -1,6 +1,6 @@
 // One real Chrome instance for iterative weapon QA. JSON commands arrive on stdin.
 // BASE=... node tools/qa/weapon-session.mjs
-// {op:'fit', weapon, intent, start?, evals?, out?}; {op:'pose'|'probe', weapon,
+// {op:'fit', weapon, intent, start?, startLive?, evals?, out?}; {op:'pose'|'probe', weapon,
 // action:'hip'|'ads'|'reload'|'reload-partial'|'inspect'|'sprint'|'fire', seconds?, tune?, out?, views?}; {op:'close'}
 // For world review, use tp:true with a tpMotion action, or pose:'world-<id>'.
 // camera:[x,y,z,targetX,targetY,targetZ,fov] frames either from a free camera.
@@ -42,7 +42,15 @@ try {
       if (c.camera) await page.evaluate(camera => { window.__camOverride = camera; window.__capyQA.quality('medium'); }, c.camera);
       let result;
       if (c.op === 'fit') {
-        const start = c.start ?? await page.evaluate(([w, s]) => window.__vmProbe.models[w].grips[s], [c.weapon, c.intent.side]);
+        const start = c.start ?? await page.evaluate(([w, side, live]) => {
+          const vm = window.__vmProbe, grip = vm.models[w].grips[side];
+          if (!live) return grip;
+          const target = vm[`target${side}`], inverse = vm.holder.matrixWorld.clone().invert();
+          const rotation = vm.holder.quaternion.clone().invert();
+          return { ...grip, wrist: target.wrist.clone().applyMatrix4(inverse).toArray(),
+            forward: target.forward.clone().applyQuaternion(rotation).toArray(),
+            palm: target.palm.clone().applyQuaternion(rotation).toArray(), curl: target.curl };
+        }, [c.weapon, c.intent.side, c.startLive]);
         result = await page.evaluate(fitGrip, [c.weapon, c.intent, start, c.evals ?? 1000]);
         console.log('FIT', JSON.stringify({ evals: result.evals, ...result.final, handKey: result.handKey }));
       } else {
