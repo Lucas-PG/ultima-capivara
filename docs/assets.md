@@ -572,15 +572,16 @@ Real walking circles the plaza ipê and traverses the repaired tailor house up a
 
 ### Codex-painted fronds, bougainvillea and garden plants, 2026-09-29
 
-Three original paintings made with Codex's built-in image generation tool (`image_gen`, no API key, account or payment; no external reference image) extend the foliage atlas. They are kept unchanged as sources:
+Four original paintings made with Codex's built-in image generation tool (`image_gen`, no API key, account or payment; no external reference image) extend the foliage atlas. They are kept unchanged as sources:
 
 | Source | Size | SHA-256 | Built-in output |
 | --- | --- | --- | --- |
 | `tools/art/foliage-garden-codex.png` | 1254x1254 RGBA | `9e2de6f8299ea82ad1b639939050b1f6cd067c3a0844c017cb23f7395cf9f64f` | `~/.codex/generated_images/01a0eda4-e69d-7240-893c-9ff9d5453c91/exec-4d7ca30b-b8bf-452c-aafb-0efc388efb39.png` |
 | `tools/art/foliage-fronds-codex.png` | 1254x1254 RGBA | `09909625437dc934a85166b7fb3de88a4fb9b2b76cd188347b67aee4c92252de` | `~/.codex/generated_images/01a0eda8-575c-74b3-ab42-06fa3f7507d1/exec-3d34424e-6d9f-4bba-84b6-1e7d324acee6.png` |
 | `tools/art/foliage-vines-codex.png` | 1254x1254 RGBA | `40f430962c430019298ebb885be4a46b45fb8f96fd6a949f49750b21c4c7b1d7` | `~/.codex/generated_images/01a0eda8-575d-79a3-b670-143a1df25579/exec-65c79ab2-b76a-4244-9732-018f3ef74c7d.png` |
+| `tools/art/foliage-blooms-codex.png` | 1254x1254 RGBA | `67234f36aec98e98cc1cee970bddb0c86e0994d6c9c3e80bd633aa3d129615f6` | `~/.codex/generated_images/01a0edff-bc08-7de1-9ab6-b6278c32e454/exec-982adabe-9554-462a-bd3e-629d1e304a81.png` |
 
-`node tools/art/build-foliage-atlas.mjs` cleans each sheet in memory with `tools/art/prepare-foliage-sheet.mjs` (alpha below 28 becomes 0, above 196 becomes 255, specks under 24 pixels are dropped, each subject is the set of painted components centred in its cell) and packs the tiles into `public/textures/foliage-atlas.webp` (2048 square) and `public/textures/ground-atlas.webp` (1024 square) with MaxRects packing, 6-pixel transparent guards and 10-pixel colour bleed. RGB is WebP quality 84, alpha lossless. The lawn tuft is graded toward the terrain's grass paint; the distant coconut frond is the same painting with its leaflet gaps closed (5 pixels). Tile rects, roots, sources and each tile's mean colour are recorded in `tools/art/*-atlas.metrics.json`. No colour was repainted by hand.
+`node tools/art/build-foliage-atlas.mjs` cleans each sheet in memory with `tools/art/prepare-foliage-sheet.mjs` (alpha below 28 becomes 0, above 196 becomes 255, specks under 24 pixels are dropped, each subject is the set of painted components centred in its cell) and packs the tiles into `public/textures/foliage-atlas.webp` (2048 square) and `public/textures/ground-atlas.webp` (1024 square) with MaxRects packing, 6-pixel transparent guards and 10-pixel colour bleed. RGB is WebP quality 80, alpha lossless. Only the first 3 pixels around the paint carry its edge colour; every other transparent texel carries the tile's mean paint, so mip levels keep the painted brightness at range. The ipe and flamboyant crowns use the bloom paintings whole (the earlier procedural SVG blooms and fronds are retired). The wild-grass tuft is graded toward the terrain's grass paint; the distant coconut frond is the same painting with its leaflet gaps closed (5 pixels). Tile rects, roots, sources and each tile's mean colour are recorded in `tools/art/*-atlas.metrics.json`. No colour was repainted by hand.
 
 Garden sheet prompt (4x4 grid):
 
@@ -638,6 +639,19 @@ Column 3: a hanging vine like column 1 but with warm coral-orange and apricot br
 Column 4: a hanging vine like column 1 but mostly green leaves with fewer, scattered magenta bract clusters, a leafier trail.
 
 Style: premium hand-painted storybook cartoon foliage for a stylized 3D game (Overwatch or Fortnite finish), matching warm golden-hour tropical cover art: papery bracts in soft painted clusters, readable leaf shapes, visible soft brushwork, warm highlights and cool shadows painted in, rich but natural colours. Flat front view, evenly lit, no perspective. Bracts and leaves fully opaque with antialiased edges; gaps between clusters fully transparent.
+```
+
+Bloom prompt (2x2 grid):
+
+```text
+Use case: stylized-concept. A production foliage sprite sheet for a stylized 3D game: a square canvas split into an exact 2 by 2 grid of four equal cells, RGBA PNG with a genuinely transparent background (alpha 0), no checkerboard, no backdrop, no ground, no shadow, no text, no grid lines. Each cell holds ONE isolated rounded cluster, centred, filling about 80 percent of its cell and never touching or crossing the cell edges. Gaps between flowers and leaves are fully transparent; flowers and leaves are fully opaque with antialiased edges.
+
+TOP LEFT: a dense rounded cluster of golden yellow ipe (Handroanthus) trumpet flowers, as on a tree in full bloom with no leaves: dozens of ruffled trumpet blossoms in warm saturated golden yellow with orange throats, soft lighter petal edges, a few thin brown twigs showing between them.
+TOP RIGHT: the same kind of dense cluster in pink ipe: vivid pink and magenta trumpet blossoms with pale throats, no leaves, a few thin brown twigs.
+BOTTOM LEFT: a dense cluster of flamboyant (royal poinciana, Delonix regia) flowers: scarlet red and flame orange five-petal blossoms with one streaked yellow-white petal each, among a few fine feathery bright green leaves.
+BOTTOM RIGHT: a spray of flamboyant foliage only: fine feathery fern-like bipinnate leaves in fresh bright green with yellow-green highlights, many tiny leaflets.
+
+Style: premium hand-painted storybook cartoon foliage (Overwatch or Fortnite finish), matching warm golden-hour tropical Brazilian cover art: soft visible brushwork, warm highlights and cool shadows painted into the petals and leaves, rich saturated but natural colour, readable when shrunk to a small texture. Flat front view, evenly lit from the upper left, no perspective.
 ```
 
 ### Connected tall-house stairs and walking surfaces, 2026-09-26

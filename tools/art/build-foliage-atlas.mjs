@@ -1,4 +1,4 @@
-// Builds the runtime foliage atlases from the Codex-painted source tiles plus procedural tiles.
+// Builds the runtime foliage atlases from the Codex-painted source sheets (see docs/assets.md).
 //   node tools/art/build-foliage-atlas.mjs            builds both atlases
 //   node tools/art/build-foliage-atlas.mjs foliage    only the plants atlas
 // Outputs public/textures/<name>-atlas.webp and tools/art/<name>-atlas.metrics.json.
@@ -11,7 +11,6 @@ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import * as procedural from './foliage-tiles.mjs';
 import { prepareSheet } from './prepare-foliage-sheet.mjs';
 
 const SOURCE = 'tools/art/foliage-codex-source.png';
@@ -22,7 +21,7 @@ const BLEED = 10;     // transparent margin kept around each tile (edge colour, 
 
 // `codex` tiles are cut out of the first Codex painting (fixed 512 cells, bounds in its metrics).
 // `sheet` tiles are cut out of a later Codex painting, cleaned by prepare-foliage-sheet.mjs.
-// `make` tiles come from foliage-tiles.mjs. `cluster` tiles compose several cut tiles into one leafy mass.
+// `cluster` tiles compose several cut tiles into one leafy mass.
 // `grade` follows sharp.modulate; `close` fills the gaps between leaflets (pixels) for distant cards.
 const SHEETS = {
   garden: { file: 'tools/art/foliage-garden-codex.png', grid: [4, 4], names: ['palm-frond', 'palm-frond-old', 'bougainvillea-trail^',
@@ -30,6 +29,7 @@ const SHEETS = {
     'dune-grass', 'impatiens', 'mango-leaves', 'bromeliad'] },
   fronds: { file: 'tools/art/foliage-fronds-codex.png', grid: [2, 1], names: ['frond', 'frond-old'] },
   vines: { file: 'tools/art/foliage-vines-codex.png', grid: [4, 1], names: ['trail-magenta^', 'trail-pink^', 'trail-coral^', 'trail-leafy^'] },
+  blooms: { file: 'tools/art/foliage-blooms-codex.png', grid: [2, 2], names: ['ipe-yellow-bloom', 'ipe-pink-bloom', 'flamboyant-bloom', 'flamboyant-leaves'] },
 };
 const ATLASES = {
   foliage: {
@@ -40,21 +40,20 @@ const ATLASES = {
       { name: 'lime', codex: 'lime-broadleaf', scale: .82, grade: { brightness: 1.12, saturation: 1.02, hue: -3 }, hidden: true },
       { name: 'guava', codex: 'mangrove-guava', scale: .82, grade: { brightness: 1.16, saturation: 1.02, hue: -3 }, hidden: true },
       { name: 'teal', codex: 'shadow-broadleaf', scale: .82, grade: { brightness: 1.2, saturation: 1.0, hue: 6 }, hidden: true },
-      { name: 'ipe-yellow', codex: 'yellow-ipe', scale: .82, hidden: true },
-      { name: 'ipe-pink', codex: 'pink-ipe', scale: .82, hidden: true },
       { name: 'bougainvillea', codex: 'bougainvillea', scale: .82, hidden: true },
       { name: 'mango', sheet: 'garden', tile: 'mango-leaves', scale: 1.2, grade: { brightness: 1.08, saturation: 1.0, hue: -2 }, hidden: true },
       { name: 'hibiscus-sprig', sheet: 'garden', tile: 'hibiscus', scale: 1.1, hidden: true },
-      { name: 'flame-flower', make: ['bloom', { seed: 13, outer: '#EB4A22', inner: '#A81E12', tip: '#F58A2C', streak: '#FFE38A' }], hidden: true },
       // Leafy masses: many sprigs composed into one card, so a large card carries 20 to 30 cm leaves.
       { name: 'cluster-lime', cluster: { from: ['lime', 'emerald', 'lime'], count: 8, size: 352, seed: 1 } },
       { name: 'cluster-emerald', cluster: { from: ['emerald', 'guava', 'lime'], count: 8, size: 352, seed: 2 } },
       { name: 'cluster-guava', cluster: { from: ['guava', 'emerald', 'teal'], count: 8, size: 352, seed: 3 } },
       { name: 'cluster-teal', cluster: { from: ['teal', 'emerald', 'guava'], count: 8, size: 320, seed: 4 } },
       { name: 'cluster-mango', cluster: { from: ['mango', 'emerald', 'mango'], count: 8, size: 352, seed: 10, scale: [.46, .7] } },
-      { name: 'cluster-ipe-yellow', cluster: { from: ['ipe-yellow', 'ipe-yellow', 'lime'], count: 7, size: 320, seed: 5, scale: [.5, .78] } },
-      { name: 'cluster-ipe-pink', cluster: { from: ['ipe-pink', 'ipe-pink', 'lime'], count: 7, size: 320, seed: 6, scale: [.5, .78] } },
-      { name: 'cluster-flame', cluster: { from: ['flame-flower', 'lime', 'flame-flower', 'flame-flower', 'lime'], count: 9, size: 320, seed: 7, scale: [.28, .5] } },
+      // Trees in bloom: whole painted flower clusters from the blooms sheet.
+      { name: 'cluster-ipe-yellow', sheet: 'blooms', tile: 'ipe-yellow-bloom', scale: .52 },
+      { name: 'cluster-ipe-pink', sheet: 'blooms', tile: 'ipe-pink-bloom', scale: .52 },
+      { name: 'cluster-flame', sheet: 'blooms', tile: 'flamboyant-bloom', scale: .52 },
+      { name: 'flamboyant-leaves', sheet: 'blooms', tile: 'flamboyant-leaves', scale: .52 },
       { name: 'cluster-hibiscus', cluster: { from: ['hibiscus-sprig', 'emerald', 'lime'], count: 7, size: 320, seed: 9, scale: [.42, .62] } },
       { name: 'cluster-bougainvillea', cluster: { from: ['bougainvillea', 'emerald', 'bougainvillea'], count: 8, size: 320, seed: 8, scale: [.5, .78] } },
       // Coconut fronds: the painted frond is split along its midrib onto the two folded halves of a blade.
@@ -168,11 +167,6 @@ async function graded(image, w, h, grade) {
 }
 
 async function cut(spec) {
-  if (spec.make) {
-    const tile = procedural[spec.make[0]](spec.make[1]);
-    const { data, info } = await sharp(Buffer.from(tile.svg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    return { data, w: info.width, h: info.height, root: tile.root };
-  }
   let image, bw, bh, root;
   if (spec.sheet) {
     const s = await sheet(spec.sheet), t = s.tiles[spec.tile];
@@ -319,7 +313,7 @@ async function build(name) {
     if (spec.hidden) continue;
     const grown = bleed(raw, BLEED);
     cutTiles.push({ name: spec.name, ...grown, contentW: raw.w, contentH: raw.h, root: raw.root,
-      source: spec.make ? 'procedural' : spec.cluster ? 'cluster' : spec.sheet ? `sheet:${spec.sheet}` : 'codex' });
+      source: spec.cluster ? 'cluster' : spec.sheet ? `sheet:${spec.sheet}` : 'codex' });
   }
   const { placed, used } = pack(cutTiles, size);
   const atlas = Buffer.alloc(size * size * 4);
@@ -339,8 +333,8 @@ async function build(name) {
   const dir = mkdtempSync(join(tmpdir(), 'atlas-'));
   const png = join(dir, `${name}.png`), webp = `public/textures/${name}-atlas.webp`;
   await sharp(atlas, { raw: { width: size, height: size, channels: 4 } }).png().toFile(png);
-  // WebP keeps alpha losslessly; only the painted RGB uses quality compression (q84: q90 cost 20 percent more bytes for no visible gain on these brush paintings).
-  execFileSync('cwebp', ['-q', '84', '-alpha_q', '100', '-m', '6', '-sharp_yuv', '-exact', png, '-o', webp], { stdio: 'ignore' });
+  // WebP keeps alpha losslessly; only the painted RGB uses quality compression (q80: q90 cost 30 percent more bytes for no visible gain on these brush paintings).
+  execFileSync('cwebp', ['-q', '80', '-alpha_q', '100', '-m', '6', '-sharp_yuv', '-exact', png, '-o', webp], { stdio: 'ignore' });
   const file = readFileSync(webp), stats = { transparent: 0, opaque: 0, antialiased: 0 };
   for (let i = 3; i < atlas.length; i += 4) stats[atlas[i] === 0 ? 'transparent' : atlas[i] === 255 ? 'opaque' : 'antialiased']++;
   writeFileSync(`tools/art/${name}-atlas.metrics.json`, JSON.stringify({

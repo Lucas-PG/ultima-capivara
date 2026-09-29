@@ -14,7 +14,10 @@ const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 /** Tint each tile so the canopy sits in the bible's three values: lit #86BD4F, mid #5FA544, core #3F8A4A. */
 const TILE_TINT: Record<string, [number, number, number]> = {
   'cluster-lime': [1.0, 1.0, .93], 'cluster-emerald': [.98, 1, .98], 'cluster-guava': [.96, 1, .97], 'cluster-teal': [.9, .98, 1],
-  'cluster-mango': [.96, 1, .96],
+  'cluster-mango': [.96, 1, .96], 'flamboyant-leaves': [.92, .96, .9],
+  // Blooms keep their hue under the warm sun: the pink ipe must stay pink, not turn red, and the
+  // yellow ipe golden, not ochre.
+  'cluster-ipe-pink': [1.02, 1.5, 1.85], 'cluster-ipe-yellow': [1.06, 1.4, .85], 'cluster-flame': [1.04, 1.06, 1],
 };
 
 export interface ClumpSpec {

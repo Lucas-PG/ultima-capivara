@@ -75,11 +75,13 @@ const cashew: CrownSpec = {
 const umbrella: CrownSpec = {
   species: 'umbrella', center: v3(0, 7, 0), radii: v3(4.8, 1.3, 4.8), limb: .5, arch: .2,
   clumps: (v, rand) => {
-    const tiles: Tiles = [['cluster-lime', .45], ['cluster-emerald', .15], ['cluster-flame', .4]];
+    // A flaming umbrella: scarlet blooms over fine feathery leaves.
+    const tiles: Tiles = [['cluster-flame', .58], ['flamboyant-leaves', .42]];
+    const shaded: Tiles = [['flamboyant-leaves', .55], ['cluster-flame', .3], ['cluster-emerald', .15]];
     return [
-      one([0, 7.5, 0], [2.2, .85, 2.2], 1.2, tiles, DARK),
-      ...ring({ n: 6, radius: 3.1, y: 7.0, radii: [1.8, .7, 1.8], size: 1.2, tiles, shaded: DARK, lift: .12 }, rand, v, 100),
-      ...ring({ n: 7, radius: 4.6, y: 6.4, radii: [1.3, .55, 1.3], size: 1.15, phase: .08, tiles, shaded: DARK, lift: .1 }, rand, v, 200),
+      one([0, 7.5, 0], [2.2, .85, 2.2], 1.2, tiles, shaded),
+      ...ring({ n: 6, radius: 3.1, y: 7.0, radii: [1.8, .7, 1.8], size: 1.2, tiles, shaded, lift: .12 }, rand, v, 100),
+      ...ring({ n: 7, radius: 4.6, y: 6.4, radii: [1.3, .55, 1.3], size: 1.15, phase: .08, tiles, shaded, lift: .1 }, rand, v, 200),
     ];
   },
 };
@@ -87,7 +89,8 @@ const umbrella: CrownSpec = {
 /** Ipê: a vase of bare limbs smothered in trumpet flowers. */
 function ipe(species: 'ipe-yellow' | 'ipe-pink'): CrownSpec {
   const bloom: FoliageTile = species === 'ipe-yellow' ? 'cluster-ipe-yellow' : 'cluster-ipe-pink';
-  const tiles: Tiles = [[bloom, .82], ['cluster-lime', .1], ['cluster-emerald', .08]], shaded: Tiles = [[bloom, .55], ['cluster-emerald', .45]];
+  // In bloom the ipe is nearly leafless: flowers over the whole crown, a little green deep inside.
+  const tiles: Tiles = [[bloom, .92], ['cluster-lime', .08]], shaded: Tiles = [[bloom, .72], ['cluster-emerald', .28]];
   return { species, center: v3(0, 5.8, 0), radii: v3(3.1, 2.1, 3.1), limb: .5, arch: .35,
     clumps: (v, rand) => [
       one([0, 6.9, 0], [1.7, 1.1, 1.7], 1.1, tiles, shaded, .95),

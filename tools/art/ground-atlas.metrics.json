@@ -16,14 +16,18 @@
     {
       "file": "tools/art/foliage-vines-codex.png",
       "sha256": "40f430962c430019298ebb885be4a46b45fb8f96fd6a949f49750b21c4c7b1d7"
+    },
+    {
+      "file": "tools/art/foliage-blooms-codex.png",
+      "sha256": "67234f36aec98e98cc1cee970bddb0c86e0994d6c9c3e80bd633aa3d129615f6"
     }
   ],
   "size": 1024,
   "usedRows": 992,
   "guard": 6,
   "output": "public/textures/ground-atlas.webp",
-  "bytes": 269822,
-  "sha256": "2c64b8f5d25e183826e36b6d0457a7311ac344938926ae954549adc8c299567f",
+  "bytes": 249858,
+  "sha256": "bb09a79395ff51226b59eef154db68bd446b159f87583093ef61579dc42aea95",
   "alpha": {
     "transparent": 751127,
     "opaque": 211168,
