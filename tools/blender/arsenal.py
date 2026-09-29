@@ -582,6 +582,16 @@ def slingshot():
 
 
 # ------------------------------------------------------------------ pipeline
+# Painted liveries (arsenal_lib.apply_livery): stencilled motifs per weapon,
+# projected onto the baked albedo and chipped with the paint.
+LIVERY = {
+    'm4': [
+        {'stencil': 'frond', 'at': (.258, .064), 'size': .115, 'rotate': -16, 'colour': 'E27A5A', 'on': ('navy',)},
+        {'stencil': 'frond', 'at': (.318, .060), 'size': .085, 'rotate': 14, 'colour': 'F0A07A', 'on': ('navy',), 'opacity': .8},
+    ],
+}
+
+
 def build(weapon_id):
     L.reset_scene()
     L._materials.clear()
@@ -601,7 +611,8 @@ def build(weapon_id):
     for name, location in sockets.items():
         empty(f'{weapon_id}_{name}', location, root)
     size = 2048 if weapon_id == 'm4' else 1024
-    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id == 'm4' else .005)
+    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id == 'm4' else .005,
+                                livery=LIVERY.get(weapon_id, ()))
     albedo_img = L.save_png(f'{weapon_id}_albedo', albedo)
     orm_img = L.save_png(f'{weapon_id}_orm', orm, srgb=False)
     normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id == 'm4' else None

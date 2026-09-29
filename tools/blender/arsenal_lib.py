@@ -34,20 +34,20 @@ def srgb_to_linear(hex_value):
 
 # name: (albedo hex, roughness, metalness, edge highlight strength, edge tint hex)
 PALETTE = {
-    'wornsteel': ('626A71', .46, .62, .48, 'C3CDD2'),
+    'wornsteel': ('626A71', .46, .62, .34, 'C3CDD2'),
     'coral': ('DE8568', .65, 0, .15, 'F8C9B4'),
-    'gunmetal': ('4A5159', .40, .75, .9, 'C8D2D8'),
-    'blued': ('2B3138', .34, .8, .9, '9DB0BF'),
-    'steel': ('7D858A', .3, .85, .7, 'D8DEE0'),
-    'dark': ('353B41', .55, .3, .65, '8F9AA1'),
-    'polymer': ('3E4346', .68, 0, .55, '8A908A'),
+    'gunmetal': ('4A5159', .40, .75, .5, 'C8D2D8'),
+    'blued': ('2B3138', .34, .8, .45, '9DB0BF'),
+    'steel': ('7D858A', .3, .85, .45, 'D8DEE0'),
+    'dark': ('353B41', .55, .3, .38, '8F9AA1'),
+    'polymer': ('3E4346', .68, 0, .34, '8A908A'),
     'tan': ('B39A6E', .7, 0, .4, 'E3D2A8'),
     'olive': ('5E6340', .72, 0, .4, '9EA27A'),
     'wood': ('9A5A32', .55, 0, .3, 'D29A63'),
     'wood_dark': ('5E3520', .55, 0, .3, 'A0673E'),
     'brass': ('C9973E', .3, .9, .6, 'F4DB8F'),
     'copper': ('B8683F', .35, .9, .5, 'F0B08A'),
-    'teal': ('1E9E97', .45, 0, .7, 'CFEFE6'),
+    'teal': ('1E9E97', .45, 0, .45, 'CFEFE6'),
     'orange': ('E0662D', .45, 0, .6, 'FFD2A6'),
     'yellow': ('F0C23B', .45, 0, .5, 'FFF0B0'),
     'red': ('C8392E', .45, 0, .5, 'FFB3A0'),
@@ -60,10 +60,18 @@ PALETTE = {
     'coconut_fibre': ('8C6440', .95, 0, .15, 'BF9868'),
     'bone': ('E8DCC0', .6, 0, .2, 'FFFFFF'),
     'emissive_red': ('FF3B2E', .4, 0, 0, 'FF3B2E'),
-    'blade': ('9AA3A6', .22, .9, 1.0, 'F2F6F7'),
+    'blade': ('9AA3A6', .22, .9, .7, 'F2F6F7'),
     'bamboo': ('C8A657', .6, 0, .35, 'EDD9A0'),
     'stone': ('8F8C86', .8, 0, .3, 'C9C6BE'),
-    'navy': ('3A5875', .5, .3, .45, 'A8B8C8'),
+    'navy': ('3A5875', .5, .3, .35, 'A8B8C8'),
+    # Livery pass (2026-09-29): appended so existing palette ids stay stable.
+    'green': ('2F7D3B', .5, 0, .4, 'BFE3B0'),
+    'wood_red': ('7A3A22', .48, 0, .3, 'C98A5E'),
+    'case': ('5D5650', .36, .8, .45, 'C9C0B5'),
+    'ivory': ('E6DCC4', .5, 0, .2, 'FFFFFF'),
+    'rubber_red': ('A5382C', .82, 0, .15, 'D98A7E'),
+    'sisal': ('C9A86A', .92, 0, .15, 'EAD7A8'),
+    'leaf_green': ('4E7A2E', .8, 0, .2, '9BC56E'),
 }
 MAT_IDS = {name: i + 1 for i, name in enumerate(PALETTE)}
 _materials = {}
@@ -492,7 +500,7 @@ def _pixels(image):
     return arr.reshape(size, size, 4)
 
 
-def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radius=.005):
+def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radius=.005, livery=()):
     """UV unwrap all parts together and bake albedo (with painted light) and ORM."""
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
@@ -538,8 +546,15 @@ def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radi
     saved = _emission_override(objects, lambda nt, m: _object_normal(nt))
     normals = bake('EMIT', normal_img)
     _restore(saved)
+    # 5. Weapon-space position (encoded p * .5 + .5) for stencils and wood grain.
+    pos_img = _bake_image(f'{name}_p', size, True)
+    saved = _emission_override(objects, lambda nt, m: _position(nt))
+    pos = (bake('EMIT', pos_img)[..., :3] - .5) * 2
+    _restore(saved)
     albedo, orm = composite(ids, ao, edge, normals, size)
-    albedo, orm = weather(albedo, orm, ids, ao, edge, normals, size, seed=sum(map(ord, name)))
+    albedo = wood_grain(albedo, ids, pos, size)
+    albedo, orm, paint = apply_livery(albedo, orm, ids, pos, normals, livery)
+    albedo, orm = weather(albedo, orm, ids, ao, edge, normals, size, seed=sum(map(ord, name)), paint=paint)
     return albedo, orm
 
 
@@ -615,6 +630,125 @@ def _object_normal(nt):
     return remap.outputs[0]
 
 
+def _position(nt):
+    geo = nt.nodes.new('ShaderNodeNewGeometry')
+    remap = nt.nodes.new('ShaderNodeVectorMath'); remap.operation = 'MULTIPLY_ADD'
+    remap.inputs[1].default_value = (.5, .5, .5); remap.inputs[2].default_value = (.5, .5, .5)
+    nt.links.new(geo.outputs['Position'], remap.inputs[0])
+    return remap.outputs[0]
+
+
+STENCILS = ROOT / 'tools/art/stencils'
+_stencil_cache = {}
+
+
+def stencil(name):
+    """A painted-motif mask (tools/art/stencils/<name>.png, white motif on black) as [0, 1] floats."""
+    if name not in _stencil_cache:
+        img = bpy.data.images.load(str(STENCILS / f'{name}.png'), check_existing=True)
+        w, h = img.size
+        px = np.empty(w * h * 4, np.float32); img.pixels.foreach_get(px)
+        _stencil_cache[name] = px.reshape(h, w, 4)[..., 0]
+    return _stencil_cache[name]
+
+
+def _sample(mask, u, v):
+    """Bilinear lookup; u right, v up, both in [0, 1]; zero outside."""
+    h, w = mask.shape
+    x = np.clip(u, 0, 1) * (w - 1); y = np.clip(v, 0, 1) * (h - 1)
+    x0, y0 = np.floor(x).astype(np.int32), np.floor(y).astype(np.int32)
+    x1, y1 = np.minimum(x0 + 1, w - 1), np.minimum(y0 + 1, h - 1)
+    fx, fy = x - x0, y - y0
+    val = (mask[y0, x0] * (1 - fx) + mask[y0, x1] * fx) * (1 - fy) + (mask[y1, x0] * (1 - fx) + mask[y1, x1] * fx) * fy
+    inside = (u >= 0) & (u <= 1) & (v >= 0) & (v <= 1)
+    return np.where(inside, val, 0)
+
+
+def apply_livery(albedo, orm, ids, pos, normals, livery):
+    """Paint stencilled motifs onto the baked albedo by planar projection.
+
+    Each entry: stencil (name in tools/art/stencils), at (centre: (y, z) for axis 'x'
+    or (x, y) for axis 'z'), size (metres, the stencil square), rotate (degrees),
+    colour (hex), on (palette names it may paint), side (+1 right, -1 left, 0 both),
+    mirror (flip on the left so the motif faces the muzzle on both sides), depth
+    (min, max) along the projection axis, opacity, metal (brass or gold inlay).
+    Returns the paint coverage so weathering chips it like the rest of the paint.
+    """
+    pid = np.rint(ids[..., 0] * 64).astype(np.int32)
+    n = normals[..., :3] * 2 - 1
+    names = list(PALETTE)
+    base = np.zeros(albedo.shape, np.float32)
+    for i, name in enumerate(names):
+        base[pid == i + 1] = srgb_to_linear(PALETTE[name][0])
+    lum = lambda c: c[..., 0] * .2126 + c[..., 1] * .7152 + c[..., 2] * .0722
+    light = np.clip(lum(albedo) / np.maximum(lum(base), 1e-3), .45, 1.35)[..., None]
+    paint = np.zeros(pid.shape, np.float32)
+    for d in livery:
+        axis = d.get('axis', 'x')
+        if axis == 'x':
+            a, b, depth, facing = pos[..., 1], pos[..., 2], pos[..., 0], n[..., 0]
+        else:
+            a, b, depth, facing = pos[..., 0], pos[..., 1], pos[..., 2], n[..., 2]
+        side = d.get('side', 0)
+        face = np.clip((np.abs(facing) - .3) / .25, 0, 1)
+        if side:
+            face *= (np.sign(facing) == side)
+        if 'depth' in d:
+            face *= (depth >= d['depth'][0]) & (depth <= d['depth'][1])
+        if 'on' in d:
+            face *= np.isin(pid, [MAT_IDS[k] for k in d['on']])
+        ang = math.radians(d.get('rotate', 0))
+        da, db = a - d['at'][0], b - d['at'][1]
+        u = (da * math.cos(ang) + db * math.sin(ang)) / d['size'] + .5
+        v = (-da * math.sin(ang) + db * math.cos(ang)) / d['size'] + .5
+        if axis == 'x' and d.get('mirror', True):
+            # Seen from the left the weapon's forward axis points the other way.
+            u = np.where(facing < 0, 1 - u, u)
+        m = _sample(stencil(d['stencil']), u, v) * face * d.get('opacity', .95)
+        colour = np.array(srgb_to_linear(d['colour']), np.float32)
+        albedo = albedo * (1 - m[..., None]) + colour * light * m[..., None]
+        if d.get('metal'):
+            orm[..., 1] = orm[..., 1] * (1 - m) + .3 * m; orm[..., 2] = orm[..., 2] * (1 - m) + .9 * m
+        else:
+            orm[..., 1] = orm[..., 1] * (1 - m) + .5 * m; orm[..., 2] = orm[..., 2] * (1 - m)
+            paint = np.maximum(paint, m)
+    return albedo, orm, paint
+
+
+def wood_grain(albedo, ids, pos, size):
+    """Streaky grain along the weapon's length, fine dark lines and pores on wood and bamboo."""
+    pid = np.rint(ids[..., 0] * 64).astype(np.int32)
+    wood = np.isin(pid, [MAT_IDS[k] for k in ('wood', 'wood_dark', 'wood_red', 'bamboo') if k in MAT_IDS])
+    if not wood.any():
+        return albedo
+    p = pos[wood]
+    streak = _vnoise(p * np.array([140, 9, 140], np.float32), 1) * .65 + _vnoise(p * np.array([420, 30, 420], np.float32), 2) * .35
+    warp = _vnoise(p * np.array([35, 3, 35], np.float32), 3)
+    rings = np.sin((p[:, 0] * 90 + p[:, 2] * 330 + warp * 7) * math.tau) * .5 + .5
+    lines = rings ** 10
+    pores = _vnoise(p * np.array([2600, 260, 2600], np.float32), 4)
+    tone = (.82 + .26 * streak) * (1 - .22 * lines) * (.96 + .08 * pores)
+    out = albedo.copy()
+    out[wood] = albedo[wood] * tone[:, None]
+    return out
+
+
+def _vnoise(p, seed):
+    """3D value noise in [0, 1] for an (n, 3) array."""
+    i = np.floor(p).astype(np.int64); f = p - i; f = f * f * (3 - 2 * f)
+    def h(x, y, z):
+        v = (x * 73856093) ^ (y * 19349663) ^ (z * 83492791) ^ (seed * 2654435761)
+        v = (v ^ (v >> 13)) * 1274126177
+        return ((v ^ (v >> 16)) & 0xffffff).astype(np.float32) / 0xffffff
+    out = np.zeros(len(p), np.float32)
+    for dx in (0, 1):
+        for dy in (0, 1):
+            for dz in (0, 1):
+                w = (f[:, 0] if dx else 1 - f[:, 0]) * (f[:, 1] if dy else 1 - f[:, 1]) * (f[:, 2] if dz else 1 - f[:, 2])
+                out += w * h(i[:, 0] + dx, i[:, 1] + dy, i[:, 2] + dz)
+    return out
+
+
 def composite(ids, ao, edge, normals, size):
     """Painted light: albedo x warm AO, rim highlight on rounded edges, a soft
     top-light gradient and a cool underside. Metal edges read as worn polish."""
@@ -669,17 +803,20 @@ def _noise(rng, size, cells, rounds=4):
     return up
 
 
-PAINTED = ('navy', 'teal', 'coral', 'orange', 'yellow', 'red', 'olive', 'tan')
+PAINTED = ('navy', 'teal', 'coral', 'orange', 'yellow', 'red', 'olive', 'tan', 'green')
 METALS = ('wornsteel', 'gunmetal', 'blued', 'steel', 'dark', 'blade')
 
 
-def weather(albedo, orm, ids, ao, edge, normals, size, seed=1):
+def weather(albedo, orm, ids, ao, edge, normals, size, seed=1, paint=None):
     """Stylised wear: paint chipped back to steel on exposed edges, cavity grime,
     mottled and scratched metal, scuffed wood, a whisper of dust on top faces."""
     rng = np.random.default_rng(seed)
     pid = np.rint(ids[..., 0] * 64).astype(np.int32)
     mask = lambda names: np.isin(pid, [MAT_IDS[k] for k in names])
-    painted, metal, wood = mask(PAINTED), mask(METALS), mask(('wood', 'wood_dark', 'bamboo'))
+    painted, metal, wood = mask(PAINTED), mask(METALS + ('case',)), mask(('wood', 'wood_dark', 'wood_red', 'bamboo'))
+    if paint is not None:
+        # Livery motifs chip like the paint they are (on wood they wear, not flake to steel).
+        painted = painted | ((paint > .3) & ~wood)
     fine, mid, coarse = _noise(rng, size, size // 8), _noise(rng, size, size // 32), _noise(rng, size, 16)
     e = np.clip(edge[..., 0], 0, 1)
     occ = np.clip(ao[..., 0], 0, 1)
@@ -690,6 +827,12 @@ def weather(albedo, orm, ids, ao, edge, normals, size, seed=1):
     albedo = albedo * (1 - chip[..., None]) + steel * chip[..., None] * (.85 + .3 * fine[..., None])
     orm[..., 1] = orm[..., 1] * (1 - chip) + .3 * chip
     orm[..., 2] = orm[..., 2] * (1 - chip) + .85 * chip
+    # Case-hardened steel: blue, straw and plum mottling under the grime.
+    case = mask(('case',))
+    if case.any():
+        hue = np.stack([coarse, mid, 1 - coarse], -1)
+        tint = np.array(srgb_to_linear('3E4E7A'), np.float32) * hue[..., 2:3] + np.array(srgb_to_linear('9A7A48'), np.float32) * hue[..., :1] + np.array(srgb_to_linear('6A4A62'), np.float32) * hue[..., 1:2]
+        albedo = np.where(case[..., None], albedo * .55 + tint * .55 * (albedo.mean(-1, keepdims=True) / .12).clip(.4, 1.4), albedo)
     # Metal: broad mottling, fine grain and short hairline scratches.
     variation = (coarse - .5) * .22 + (fine - .5) * .08
     albedo *= (1 + variation * metal)[..., None]
