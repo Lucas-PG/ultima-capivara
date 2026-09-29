@@ -334,6 +334,8 @@ from palafitas import add_palafitas
 add_palafitas(Piece)
 from engenho import add_engenho
 add_engenho(Piece)
+from capela import add_capela
+add_capela(Piece)
 
 
 def write_metadata():

@@ -4,11 +4,13 @@ fishing nets, sacks and a cargo pallet. Game coordinates, bottom-centred.
 Soft props carry no collision; anything a player could hide behind does.
 """
 import math
+import random
 from rocks import surface
 
 WALL, CORAL, TEAL, YELLOW, ROOF, WOOD, BLOCK, DARK, NAVY, IRON, GLASS, CANVAS, GREEN, BRICK, STONE, TRIM = range(16)
 LEAF = [.62, .86, .6]
 RED = [.86, .22, .18]
+MAGENTA = [.76, .1, .44]
 
 
 def flag(p, **values):
@@ -140,6 +142,63 @@ def sacos(Piece, name='sacos'):
     return p
 
 
+MURO_H, MURO_T = 1.35, .3
+BARRA = [.4, .54, .66]
+
+
+def coping(p, x0, x1, y):
+    """Clay-tile coping: a shallow ridge over the wall, overhanging both faces."""
+    v = [(x0, y, -.2), (x0, y + .13, 0), (x0, y, .2), (x1, y, -.2), (x1, y + .13, 0), (x1, y, .2)]
+    surface(p, v, [(0, 1, 4, 3), (1, 2, 5, 4), (0, 2, 1), (3, 4, 5), (0, 3, 5, 2)], ROOF, detail=False)
+    flag(p, planar=True)
+
+
+def pillar(p, x, solid=True):
+    p.box(x, .8, 0, .42, 1.6, .42, WALL, solid, bevel=.025)
+    p.box(x, 1.64, 0, .5, .08, .5, STONE, bevel=.015)
+
+
+def muro(Piece, name='muro', length=3.0, kind='plain'):
+    """A whitewashed quintal wall at chest height, cover for a crouching
+    player: a painted barra, a clay-tile coping and a pillar at its +x end, so
+    walls chain along a yard line. 'gate' leaves a 1.2 m opening with its
+    timber leaf swung open into the yard (-z); 'flor' spills bougainvillea
+    over the lane side (+z)."""
+    p = Piece(name, length + .45, 1.0 if kind == 'flor' else .5)
+    spans = [(-length / 2, -.6), (.6, length / 2)] if kind == 'gate' else [(-length / 2, length / 2)]
+    for x0, x1 in spans:
+        p.box((x0 + x1) / 2, MURO_H / 2, 0, x1 - x0, MURO_H, MURO_T, WALL, True, bevel=.02)
+        for side in [-1, 1]:
+            p.box((x0 + x1) / 2, .21, side * (MURO_T / 2 + .006), x1 - x0, .42, .012, CANVAS, bevel=0)
+            flag(p, tint=BARRA, mid=True)
+        coping(p, x0, x1, MURO_H)
+    pillar(p, length / 2)
+    if kind == 'gate':
+        for x in [-.8, .8]:
+            pillar(p, x)
+        p.box(-.57, .72, -.62, .05, 1.2, 1.1, WOOD, True, 'wood', bevel=.01)
+        for z in [-.3, -.62, -.94]:
+            p.box(-.54, .72, z, .012, 1.16, .03, DARK, bevel=0, detail=True)
+    if kind == 'flor':
+        # Bougainvillea from the yard: a leafy mound along the coping and a
+        # cascade of small magenta bracts down the lane face.
+        rng = random.Random(7)
+        for i in range(8):
+            x = -1.25 + i * .34 + rng.uniform(-.06, .06)
+            p.orb(x, MURO_H + .2 + (i % 3) * .05, -.03, .42, .34, .46, GREEN, False)
+            flag(p, segments=(6, 4), tint=LEAF if i % 2 else [.5, .76, .48])
+        for i in range(9):
+            x, drop = -1.0 + i * .26 + rng.uniform(-.05, .05), rng.uniform(.15, .75)
+            p.orb(x, MURO_H + .05 - drop, MURO_T / 2 + .08, .3, .34, .16, GREEN, False)
+            flag(p, segments=(5, 3), tint=[.5, .76, .48])
+        for i in range(26):
+            x, drop = rng.uniform(-1.2, 1.1), rng.random() ** 1.4 * .85
+            size = .1 + rng.random() * .09
+            p.orb(x, MURO_H + .28 - drop, MURO_T / 2 + .14 + (1 - drop) * .06, size, size * .85, size * .6, CANVAS, i % 3 == 2)
+            flag(p, segments=(5, 3), tint=MAGENTA if i % 4 else [.9, .3, .6], mid=True)
+    return p
+
+
 def add_dressing(Piece):
     vaso(Piece, 'vaso', .32, .55, .45, flowers=[.86, .2, .35])
     vaso(Piece, 'vaso_alto', .26, .8, .38, tall=1.5)
@@ -148,3 +207,8 @@ def add_dressing(Piece):
     carrinho(Piece)
     rede(Piece)
     sacos(Piece)
+    muro(Piece)
+    muro(Piece, 'muro_portao', kind='gate')
+    muro(Piece, 'muro_flor', kind='flor')
+    p = Piece('muro_pilar', .5, .5)
+    pillar(p, 0)

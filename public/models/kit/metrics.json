@@ -669,6 +669,42 @@
       "colliders": 1
     },
     {
+      "id": "muro",
+      "triangles": [
+        164,
+        164,
+        140
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "muro_portao",
+      "triangles": [
+        496,
+        460,
+        412
+      ],
+      "colliders": 6
+    },
+    {
+      "id": "muro_flor",
+      "triangles": [
+        1598,
+        788,
+        476
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "muro_pilar",
+      "triangles": [
+        88,
+        88,
+        88
+      ],
+      "colliders": 1
+    },
+    {
       "id": "passarela",
       "triangles": [
         624,
@@ -748,8 +784,26 @@
         508
       ],
       "colliders": 0
+    },
+    {
+      "id": "escadaria",
+      "triangles": [
+        3372,
+        2888,
+        748
+      ],
+      "colliders": 84
+    },
+    {
+      "id": "cruzeiro",
+      "triangles": [
+        420,
+        376,
+        376
+      ],
+      "colliders": 6
     }
   ],
-  "bytes": 10981300,
-  "gzipBytes": 3254623
+  "bytes": 11287440,
+  "gzipBytes": 3331843
 }
