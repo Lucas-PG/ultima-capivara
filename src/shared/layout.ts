@@ -245,7 +245,15 @@ export const ROW_SIZE: Record<RowPiece, readonly [number, number]> = {
   row_sobrado: [6.6, 8], row_loja: [8.4, 8], row_terrea: [7.2, 7], row_alto: [6, 8],
 };
 export interface RowLot { x: number; z: number; w: number; d: number; yaw: number; piece: RowPiece }
-type Side = 'n' | 's' | 'e' | 'w';
+export type Side = 'n' | 's' | 'e' | 'w';
+/** One continuous street front laid by frontage(): its building line, the
+ * block's back line behind it, the becos through it and the enterable
+ * houses' positions along it. `yards` fronts have walled quintais behind:
+ * only those whose back lane stays open to the streets at both ends. */
+export interface FrontageRun {
+  street: Side; line: number; from: number; to: number; back: number;
+  becos: (readonly [number, number])[]; doors: number[]; yards: boolean;
+}
 const ENTERABLE: Record<string, [HousePiece, HouseRole]> = {
   h: ['house_small', 'home'], m: ['house_medium', 'kiosk'], t: ['house_tall', 'home'], o: ['sobrado', 'tailor'],
   b: ['house_small', 'bakery'], c: ['house_medium', 'cafe'], k: ['house_small', 'workshop'], f: ['house_small', 'fishmonger'],
@@ -259,7 +267,7 @@ const ENTERABLE_WIDTH: Record<HousePiece, number> = {
 const ENTERABLE_DEPTH: Record<HousePiece, number> = {
   house_small: 6.7, house_medium: 7.7, house_tall: 7.7, sobrado: 8.4, house_laje: 6.7, house_laje_b: 6.7, house_varanda: 8.6,
 };
-const houses: HouseLot[] = [], rows: RowLot[] = [];
+const houses: HouseLot[] = [], rows: RowLot[] = [], runs: FrontageRun[] = [];
 const FILLERS: readonly RowPiece[] = ['row_terrea', 'row_sobrado', 'row_alto'];
 /**
  * Lines one street edge with buildings. `line` is the street-side building
@@ -268,14 +276,17 @@ const FILLERS: readonly RowPiece[] = ['row_terrea', 'row_sobrado', 'row_alto'];
  * h m t o b c k f p d w q, gaps | (3.2 m beco) and . (1 m). The last slot
  * takes the widest filler row that still fits, so fronts stay continuous.
  */
-function frontage(street: Side, line: number, from: number, to: number, codes: string) {
+function frontage(street: Side, line: number, from: number, to: number, codes: string, yards = false) {
   const along = street === 'n' || street === 's', yaw = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 }[street];
   const outward = street === 's' || street === 'e' ? 1 : -1, direction = Math.sign(to - from) || 1;
+  const run: FrontageRun = { street, line, from, to: from, back: line, becos: [], doors: [], yards };
   const put = (code: string, cursor: number) => {
     const enterable = ENTERABLE[code], row = ROW_CODES[code];
     const width = enterable ? ENTERABLE_WIDTH[enterable[0]] : ROW_SIZE[row][0];
     const depth = enterable ? ENTERABLE_DEPTH[enterable[0]] : ROW_SIZE[row][1];
     const centreAlong = cursor + direction * width / 2, centreAcross = line - outward * depth / 2;
+    run.back = outward > 0 ? Math.min(run.back, line - depth) : Math.max(run.back, line + depth);
+    if (enterable) run.doors.push(round(centreAlong));
     const x = along ? centreAlong : centreAcross, z = along ? centreAcross : centreAlong;
     if (enterable) {
       const [piece, role] = enterable, [bw, bd] = HOUSE_SIZE[piece];
@@ -298,22 +309,24 @@ function frontage(street: Side, line: number, from: number, to: number, codes: s
         const a = cursor, b = cursor + direction * gap, inner = line - outward * 8.2;
         const [u0, u1] = [Math.min(a, b), Math.max(a, b)], [v0, v1] = [Math.min(line, inner), Math.max(line, inner)];
         becos.push(along ? [u0, v0, u1, v1] : [v0, u0, v1, u1]);
+        run.becos.push([u0, u1]);
       }
       cursor += direction * gap; continue;
     }
-    if (remaining >= widthOf(code) - .01) { cursor += direction * (put(code, cursor) + .15); continue; }
+    if (remaining >= widthOf(code) - .01) { cursor += direction * (put(code, cursor) + .15); run.to = cursor - direction * .15; continue; }
     const filler = FILLERS.filter(piece => ROW_SIZE[piece][0] <= remaining + .01)
       .sort((a, b) => ROW_SIZE[b][0] - ROW_SIZE[a][0])[0];
-    if (filler) put(Object.keys(ROW_CODES).find(key => ROW_CODES[key] === filler)!, cursor);
+    if (filler) run.to = cursor + direction * put(Object.keys(ROW_CODES).find(key => ROW_CODES[key] === filler)!, cursor);
     break;
   }
+  runs.push(run);
 }
 const round = (value: number) => Math.round(value * 100) / 100;
 
 // --- North bank: Vila (praça and church) and Mercado ---------------------
 // Rua Direita, north side, either side of the church and the fort road.
-frontage('s', -38, -56, -14, 'ShoTS|LAL');
-frontage('s', -38, 8, 60, 'AStL|SmTt|AL');
+frontage('s', -38, -56, -14, 'ShoTS|LAL', true);
+frontage('s', -38, 8, 60, 'AStL|SmTt|AL', true);
 // West blocks: Rua da Capelinha and the praça's west side, back to back.
 frontage('e', -44, -31, 1, 'TStL|SA');
 frontage('w', -39, -31, .5, 'LAk|TS');
@@ -331,19 +344,19 @@ frontage('s', 33, -5, 24, 'SfA|LTo');
 frontage('e', -30, 24.5, 32, 'TS');
 frontage('e', -44, 22.5, 32, 'LS');
 // Rua do Sul, south side; the Capela do Rosário stands in its middle.
-frontage('n', 38, -56, -33.5, 'SLpT');
+frontage('n', 38, -56, -33.5, 'SLpT', true);
 frontage('n', 38, -5, 56.5, 'AqS|LTSmL|AS');
 // --- Rua da Praia: from Rua do Sul down to the beach road -----------------
 // Both sides below the Capela do Rosário on a terrace level with Rua do Sul,
 // a corner shop and a bakery; a cottage row on down to the beach.
-frontage('e', -10.5, 54.5, 74.6, 'AhA');
-frontage('w', -5.5, 46.3, 74.9, 'LbAA');
-frontage('w', -5.5, 81.4, 96.6, 'Th');
+frontage('e', -10.5, 54.5, 74.6, 'AhA', true);
+frontage('w', -5.5, 46.3, 74.9, 'LbAA', true);
+frontage('w', -5.5, 81.4, 96.6, 'Th', true);
 // --- Porto: the harbour end of Rua Direita, the working quay behind it ----
 frontage('n', -33, 63, 79.5, 'hT');
 frontage('n', -33, 86.5, 118.1, 'Apwh');
 // --- Engenho: the workers' terrace on Rua do Engenho, a beco to the mill yard.
-frontage('s', 33, -102, -61, 'TT|kTh');
+frontage('s', 33, -102, -61, 'TT|kTh', true);
 // Enterable houses need both doorways open: a house whose back door would
 // open onto another building becomes a solid terraced front instead.
 for (let i = houses.length - 1; i >= 0; i--) {
@@ -374,6 +387,7 @@ export const ROW_LOTS: readonly RowLot[] = rows;
 /** Enterable houses that stand in a street frontage, and the becos left between terraces. */
 export const FRONTAGE_HOUSES: readonly HouseLot[] = houses;
 export const BECOS: readonly Rect[] = becos;
+export const FRONTAGE_RUNS: readonly FrontageRun[] = runs;
 export const MORRO_LOTS: readonly HouseLot[] = [
   // The Morro climbs in flat-roofed laje houses: every roof is a terrace reached by its outside stair.
   home(-109, -69, 'home', 'house_laje'), home(-108, -54, 'home', 'house_laje_b'), home(-109, -38, 'home', 'house_laje'),

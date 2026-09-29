@@ -1,4 +1,4 @@
-import { BECOS, FRONTAGE_HOUSES, HOUSE_BODY, LOT_RECTS, MARKET_RECT, PLAZA_RECT, ROSARIO_RECT, ROW_LOTS, ROW_SIZE, STREETS, type HouseLot, type Rect, type RowLot } from './layout';
+import { BECOS, FRONTAGE_HOUSES, FRONTAGE_RUNS, HOUSE_BODY, LOT_RECTS, MARKET_RECT, PLAZA_RECT, ROADS, ROSARIO_RECT, ROW_LOTS, ROW_SIZE, STREETS, routeDistance, type FrontageRun, type HouseLot, type Rect, type RowLot } from './layout';
 import type { KitPlacement, MapObject } from './types';
 
 // The lived-in layer of the town, placed from the same lots and streets the
@@ -137,5 +137,88 @@ export function dressStreets(api: StreetLifeApi) {
     }
     const end = narrowX ? { x: (u0 + u1) / 2 + .7, z: v0 + run * .85 } : { x: u0 + run * .85, z: (v0 + v1) / 2 + .7 };
     if (!occupied(end.x, end.z, .6)) detail(hash(end.x, end.z, 2) < .5 ? 'barrel' : 'crate', end.x, end.z, .3, .85);
+  }
+}
+
+// Quintais: the yards behind a street front, walled at chest height with
+// whitewashed muros (3 m pieces), a gate here and there, bougainvillea over
+// the lane side, laundry drying inside. Only open, level ground is walled,
+// never a street, a route, a beco, a lot or anything already standing; the
+// ground behind every enterable house stays open so its back door leads
+// straight out to the lane. Called once the island's structures stand.
+export function wallYards(api: StreetLifeApi) {
+  for (const run of FRONTAGE_RUNS) if (run.yards) wallRun(api, run);
+}
+const YARD = 6.3, MURO = 3;
+// The open ground behind every enterable house, out through the yard line and
+// on across the lane beyond, whichever run's yards would reach it.
+const BACKDOORS: readonly Rect[] = FRONTAGE_RUNS.flatMap(run => run.doors.map(door => {
+  const along = run.street === 'n' || run.street === 's', outward = run.street === 's' || run.street === 'e' ? 1 : -1;
+  const [v0, v1] = [run.back + outward * 1, run.back - outward * (YARD + 5)].sort((a, b) => a - b);
+  return (along ? [door - 3.6, v0, door + 3.6, v1] : [v0, door - 3.6, v1, door + 3.6]) as Rect;
+}));
+const FRONT_YAW: Record<FrontageRun['street'], number> = { s: 0, n: Math.PI, e: Math.PI / 2, w: -Math.PI / 2 };
+function wallRun(api: StreetLifeApi, run: FrontageRun) {
+  const { detail, marker, occupied, ground } = api;
+  const along = run.street === 'n' || run.street === 's', outward = run.street === 's' || run.street === 'e' ? 1 : -1;
+  const world = (u: number, v: number) => along ? { x: u, z: v } : { x: v, z: u };
+  const far = run.back - outward * YARD;
+  const [u0, u1] = [Math.min(run.from, run.to), Math.max(run.from, run.to)];
+  const inside = (rects: readonly Rect[], x: number, z: number, margin: number) =>
+    rects.some(([x0, z0, x1, z1]) => x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin);
+  // A column of the yard is free when every sample across it is open, level ground.
+  const free = (u: number) => {
+    if (run.becos.some(([a, b]) => u > a - 1 && u < b + 1)) return false;
+    const reference = ground(world(u, run.back - outward * .5).x, world(u, run.back - outward * .5).z);
+    for (let d = .5; d <= YARD + .35; d += .9) {
+      const { x, z } = world(u, run.back - outward * d);
+      const y = ground(x, z);
+      if (y < .6 || Math.abs(y - reference) > .9 || inside(LOT_RECTS, x, z, .3) || inside(ROADS, x, z, .6) || inside(BACKDOORS, x, z, .3) ||
+        routeDistance(x, z) < 2.4 || occupied(x, z, .15)) return false;
+    }
+    return true;
+  };
+  let start: number | undefined;
+  for (let u = u0 + .5; u <= u1 + .01; u += .5) {
+    const open = u <= u1 - .49 && free(u);
+    if (open && start === undefined) start = u - .5;
+    if ((!open || u > u1 - .49) && start !== undefined) {
+      const end = open ? u1 : u - .5;
+      if (end - start >= 2 * MURO) yard(start, end);
+      start = undefined;
+    }
+  }
+  function yard(a: number, b: number) {
+    const count = Math.floor((b - a) / MURO), first = a + (b - a - count * MURO) / 2, last = first + count * MURO;
+    const place = (piece: string, u: number, v: number, dir: readonly [number, number], y?: number) => {
+      // dir is the piece's local +x in (u, v); its yaw follows from the world axis.
+      const { x, z } = world(u, v), dx = along ? dir[0] : dir[1], dz = along ? dir[1] : dir[0];
+      detail(piece, x, z, Math.atan2(-dz, dx), 1, y ?? ground(x, z) - .04);
+    };
+    // Along the lane: +z of every piece faces away from the houses, so its
+    // local +x (and each piece's end pillar) runs this way along the yard.
+    const laneDir: [number, number] = [along ? -outward : outward, 0], plus = laneDir[0] > 0;
+    for (let k = 0; k < count; k++) {
+      const u = first + (k + .5) * MURO, roll = hash(u, far, 11), { x, z } = world(u, far);
+      const piece = (roll < .3 && k % 3 === 1) || (count < 4 && k === 1) ? 'muro_portao' : roll > .7 ? 'muro_flor' : 'muro';
+      // A wall piece on a slope sits on its lowest corner, never hovering.
+      const ends = [-1.4, 1.4].map(offset => { const p = world(u + offset, far); return ground(p.x, p.z); });
+      place(piece, u, far, laneDir, Math.min(ground(x, z), ...ends) - .04);
+    }
+    const bare = plus ? first : last, bareAt = world(bare, far);
+    detail('muro_pilar', bareAt.x, bareAt.z, 0, 1, ground(bareAt.x, bareAt.z) - .04);
+    // Side walls from the far corners back to the houses, pillars toward the houses.
+    for (const u of [first, last]) for (let k = 0; k < 2; k++) {
+      const v = far + outward * (k + .5) * MURO, { x, z } = world(u, v);
+      const ends = [-1.4, 1.4].map(offset => { const p = world(u, v + offset); return ground(p.x, p.z); });
+      place('muro', u, v, [0, outward], Math.min(ground(x, z), ...ends) - .04);
+    }
+    // Laundry drying across the yard, one frame every 12 m.
+    for (let u = first + 3.4; u <= last - 3.2; u += 12) {
+      const v = (run.back + far) / 2, { x, z } = world(u, v);
+      const ends = [-2.8, 2.8].map(offset => world(u + offset, v));
+      if (ends.some(p => occupied(p.x, p.z, .3)) || hash(u, v, 13) < .2) continue;
+      marker('box', x, ground(x, z), z, 1, 1, 1, '#FFFFFF', 'prop:street-laundry', along ? 0 : -Math.PI / 2);
+    }
   }
 }

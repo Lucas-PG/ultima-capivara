@@ -10,7 +10,7 @@ import { buildBuildingRoutes, buildingPoint } from './building-access';
 import { WATER_LEVEL } from './water';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 import { landmarkColliders, type LandmarkSpec } from './landmarks';
-import { dressStreets } from './street-life';
+import { dressStreets, wallYards } from './street-life';
 
 const ground = terrainHeight;
 // The quay stones' height (bottom-centred piece) and their promenade top.
@@ -692,6 +692,8 @@ export function createWorld(): WorldSpec {
     }
   }
 
+  // Quintais walled behind the street fronts, now that everything else stands.
+  wallYards({ detail, marker: obj, occupied, ground });
   // Supplies sit in working groups beside routes, with a low side prop and
   // an occasional stack that breaks eye-level sightlines across open ground.
   let coverGroups = 0;
