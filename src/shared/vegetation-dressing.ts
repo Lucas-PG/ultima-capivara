@@ -1,7 +1,7 @@
 import { colliderGrid } from './collider-grid';
 import { KIT_PIECES } from './kit-collision';
 import { isHousePiece, ROADS } from './layout';
-import { terrainHeight } from './terrain';
+import { fbm, terrainColor, terrainHeight, WORLD_PALETTE } from './terrain';
 import type { KitPlacement, WorldSpec } from './types';
 import { plantHash, plantSpecies, SPECIES, type SpeciesId } from './vegetation-species';
 
@@ -80,7 +80,22 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     const [w, d] = KIT_PIECES[p.piece]?.footprint ?? [0, 0], k = p.scale ?? 1;
     return { p, hw: w * k / 2, hd: d * k / 2 };
   });
-  const insideFootprint = (x: number, z: number, margin: number, ignore?: KitPlacement) => footprints.some(({ p, hw, hd }) => {
+  // Footprints and doorways bucketed by 16 m cell: placement tests only their neighbours.
+  const BUCKET = 16, bucketKey = (x: number, z: number) => `${Math.floor(x / BUCKET)}:${Math.floor(z / BUCKET)}`;
+  const bucketed = <T,>(items: T[], at: (item: T) => { x: number; z: number; r: number }) => {
+    const map = new Map<string, T[]>();
+    for (const item of items) {
+      const { x, z, r } = at(item);
+      for (let bx = Math.floor((x - r) / BUCKET); bx <= Math.floor((x + r) / BUCKET); bx++) for (let bz = Math.floor((z - r) / BUCKET); bz <= Math.floor((z + r) / BUCKET); bz++) {
+        const key = `${bx}:${bz}`, list = map.get(key);
+        if (list) list.push(item); else map.set(key, [item]);
+      }
+    }
+    return (x: number, z: number) => map.get(bucketKey(x, z)) ?? [];
+  };
+  const footprintsNear = bucketed(footprints, f => ({ x: f.p.x, z: f.p.z, r: Math.hypot(f.hw, f.hd) + 3 }));
+  const entrancesNear = bucketed(entrances, e => ({ x: e.x + e.dx / 2, z: e.z + e.dz / 2, r: Math.hypot(e.dx, e.dz) / 2 + 4 }));
+  const insideFootprint = (x: number, z: number, margin: number, ignore?: KitPlacement) => footprintsNear(x, z).some(({ p, hw, hd }) => {
     if (p === ignore) return false;
     const dx = x - p.x, dz = z - p.z, c = Math.cos(p.yaw), s = Math.sin(p.yaw);
     return Math.abs(dx * c - dz * s) < hw + margin && Math.abs(dx * s + dz * c) < hd + margin;
@@ -91,7 +106,7 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     if (y < .35 || Math.abs(terrainHeight(x + .8, z) - terrainHeight(x - .8, z)) > .7 || Math.abs(terrainHeight(x, z + .8) - terrainHeight(x, z - .8)) > .7) return false;
     if (ROADS.some(([x0, z0, x1, z1]) => x > x0 - radius - .6 && x < x1 + radius + .6 && z > z0 - radius - .6 && z < z1 + radius + .6)) return false;
     if (paved.some(o => Math.abs(x - o.pos.x) < o.scale.x / 2 + radius + .3 && Math.abs(z - o.pos.z) < o.scale.z / 2 + radius + .3)) return false;
-    for (const e of entrances) {
+    for (const e of entrancesNear(x, z)) {
       // A doorway keeps a clear apron and the walk leading away from it.
       const t = Math.max(0, Math.min(1, ((x - e.x) * e.dx + (z - e.z) * e.dz) / (e.dx * e.dx + e.dz * e.dz)));
       if (Math.hypot(x - e.x - e.dx * t, z - e.z - e.dz * t) < 1.35 + radius * .5) return false;
@@ -219,6 +234,20 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
       if (!free(x, z, .5, 1)) continue;
       add(`${id}:floor:${i}`, pick, Math.floor(hash(id, 40 + i) * 3), x, z, hash(id, 50 + i) * Math.PI * 2, SPECIES[pick].height * (.75 + hash(id, 60 + i) * .5));
     }
+  }
+  // 5. Meadow patches break up the open fields: wild grass and flowers in drifts, never tall enough
+  // to hide anyone, kept off roads, paving, doorways and solids like every other planting.
+  const step = 5.5, half = world.size / 2;
+  for (let gz = -half; gz < half; gz += step) for (let gx = -half; gx < half; gx += step) {
+    const id = `meadow:${Math.round(gx)}:${Math.round(gz)}`;
+    const x = gx + hash(id, 1) * step, z = gz + hash(id, 2) * step, y = terrainHeight(x, z);
+    if (y < .9 || fbm(x / 26 + 17, z / 26 - 11) < .12 || hash(id, 3) > .6) continue;
+    const slope = Math.max(Math.abs(terrainHeight(x + 1, z) - y), Math.abs(terrainHeight(x, z + 1) - y));
+    const paint = terrainColor(x, z, y, slope);
+    if (paint !== WORLD_PALETTE.grass && paint !== WORLD_PALETTE.grassLight && paint !== WORLD_PALETTE.dryGrass) continue;
+    if (!free(x, z, 1.6, .7)) continue;
+    const variant = hash(id, 4) < .5 ? 0 : 1;
+    add(id, 'meadow', variant, x, z, hash(id, 5) * Math.PI * 2, SPECIES.meadow.height * (.8 + hash(id, 6) * .2), y - .02);
   }
   return out;
 }

@@ -44,6 +44,8 @@ export const SPECIES = {
   bromeliad: { kind: 'ground', height: .6, variants: 2 },
   reeds: { kind: 'ground', height: 1.6, variants: 3 },
   crop: { kind: 'ground', height: .8, variants: 2 },
+  /** Drifts of long wild grass in the open fields, never taller than ground cover. */
+  meadow: { kind: 'ground', height: .56, variants: 2 },
   /** The planting of the kit's round planter (origin at the planter base) and flower bed (bed centre). */
   pot: { kind: 'shrub', height: 1.9, variants: 4 },
   bed: { kind: 'shrub', height: .9, variants: 4 },

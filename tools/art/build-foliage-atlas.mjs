@@ -75,6 +75,8 @@ const ATLASES = {
       { name: 'taro', sheet: 'garden', tile: 'taro', scale: 1 },
       { name: 'bromeliad', sheet: 'garden', tile: 'bromeliad', scale: .9 },
       { name: 'impatiens', sheet: 'garden', tile: 'impatiens', scale: .78 },
+      // Meadow patches in the open fields (drawn by the plant batch, so they reach past the lawn).
+      { name: 'wild-grass', sheet: 'garden', tile: 'wild-grass', scale: .66, grade: { brightness: 1.12, saturation: .86 } },
       { name: 'palm-fan', codex: 'palm-fan', scale: .7, grade: { brightness: 1.12, saturation: 1.05, hue: -3 } },
       { name: 'banana-leaf', codex: 'banana', scale: .9, grade: { brightness: 1.08, saturation: 1.05, hue: -2 } },
       { name: 'monstera', codex: 'monstera', scale: .8, grade: { brightness: 1.12, saturation: 1.0, hue: -3 } },

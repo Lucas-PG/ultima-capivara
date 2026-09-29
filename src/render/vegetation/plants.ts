@@ -3,6 +3,8 @@ import type { MapObject, WorldSpec } from '../../shared/types';
 import { vegetationDressing } from '../../shared/vegetation-dressing';
 import { isBatchedPlant, plantHash, SPECIES } from '../../shared/vegetation-species';
 import { plantTransform } from '../../shared/vegetation-trunks';
+import { groundPaint } from '../ground-cover';
+import { FOLIAGE_TILES } from './atlas';
 import type { PlantInstance } from './batch';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -25,6 +27,15 @@ const tint = (x: number, z: number) => {
   return new THREE.Color(.94 + v * .08, .97 + v * .04, 1.03 - v * .13);
 };
 
+/** Meadow drifts take the ground's paint (a little lighter: long grass catches more sun), so they
+ * read as the field grown long rather than as dark tufts on it. Linear-space tint over the tile mean. */
+const meadowTint = (x: number, z: number, variant: number) => {
+  const mean = FOLIAGE_TILES['wild-grass'].mean ?? [.5, .5, .5], ground = groundPaint(x, z);
+  const have = new THREE.Color().setRGB(mean[0], mean[1], mean[2], THREE.SRGBColorSpace);
+  const lift = variant ? [1.12, 1.12, 1.02] : [1.2, 1.12, .9];
+  return new THREE.Color(ground.r / have.r * lift[0], ground.g / have.g * lift[1], ground.b / have.b * lift[2]);
+};
+
 /** Every tree, palm and authored ground plant of the world spec, plus the derived dressing
  * (kit bushes, wall vines, garden beds, forest floor), becomes one plant instance. */
 export function collectPlants(world: Pick<WorldSpec, 'objects'> & Partial<WorldSpec>): PlantInstance[] {
@@ -37,7 +48,7 @@ export function collectPlants(world: Pick<WorldSpec, 'objects'> & Partial<WorldS
   }
   if (world.colliders && world.districts) for (const d of vegetationDressing(world as WorldSpec)) {
     const s = d.height / SPECIES[d.species].height, position = new THREE.Vector3(d.x, d.y, d.z);
-    plants.push({ species: d.species, variant: d.variant, position, color: tint(d.x, d.z),
+    plants.push({ species: d.species, variant: d.variant, position, color: d.species === 'meadow' ? meadowTint(d.x, d.z, d.variant) : tint(d.x, d.z),
       matrix: new THREE.Matrix4().compose(position, yaw.setFromAxisAngle(UP, d.yaw).clone(), scale.set(s * (d.widthScale ?? 1), s, s)) });
   }
   return plants;

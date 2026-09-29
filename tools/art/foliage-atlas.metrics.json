@@ -22,12 +22,12 @@
   "usedRows": 2025,
   "guard": 6,
   "output": "public/textures/foliage-atlas.webp",
-  "bytes": 1047068,
-  "sha256": "58277d768658e81bceb557f2a1fa4014e39b851afd803e96120ce9dec20f5bcf",
+  "bytes": 1075406,
+  "sha256": "d36df596bd94a8b00cc99bca55f56d9916de237451957679593e804440c74415",
   "alpha": {
-    "transparent": 2485682,
-    "opaque": 1413185,
-    "antialiased": 295437
+    "transparent": 2466394,
+    "opaque": 1422346,
+    "antialiased": 305564
   },
   "tiles": {
     "cluster-lime": {
@@ -428,6 +428,22 @@
         0.471,
         0.405,
         0.275
+      ]
+    },
+    "wild-grass": {
+      "x": 1078,
+      "y": 721,
+      "w": 179,
+      "h": 192,
+      "root": [
+        0.48,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.509,
+        0.543,
+        0.253
       ]
     },
     "palm-fan": {

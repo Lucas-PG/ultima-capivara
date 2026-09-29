@@ -196,3 +196,29 @@ export function buildReeds(variant: number, lod: Lod) {
   }
   return mb.build();
 }
+
+// ---------------------------------------------------------------- meadow patches
+
+/** A drift of wild grass tussocks about 3 m across and never taller than 0.6 m: it breaks up an open
+ * field without hiding anyone. The plant batch tints each patch with the ground's own paint, so the
+ * drift reads as the field grown long; the vertex colour only carries root-to-tip light. */
+export function buildMeadow(variant: number, lod: Lod) {
+  const mb = new MeshBuilder(lod), seed = variant * 61 + 29, rand = (i: number) => plantHash(seed, i), tile = FOLIAGE_TILES['wild-grass'];
+  const tussocks = [9, 5, 4][lod];
+  for (let k = 0; k < tussocks; k++) {
+    // Sunflower spiral: dense in the middle, thinning to the rim. Far templates keep the spread
+    // (the outermost tussocks sit on the same rim at every LOD).
+    const t = tussocks === 9 ? (k + .5) / 9 : .15 + .85 * k / (tussocks - 1), r = 1.35 * Math.sqrt(t);
+    const a = (tussocks === 9 ? k * 2.39996 : k * Math.PI * 2 / tussocks) + rand(0) * 6 + variant;
+    const at = v3(Math.cos(a) * r, 0, Math.sin(a) * r), width = .5 * (.8 + rand(k + 20) * .2) * (1 - t * .2);
+    const cards = [3, 2, 1][lod];
+    for (let c = 0; c < cards; c++) {
+      const yaw = rand(k + 30) * Math.PI + c * Math.PI / cards, right = v3(Math.cos(yaw), 0, Math.sin(yaw));
+      const up = UP.clone().applyAxisAngle(right, (rand(k + 40 + c) - .5) * .3), face = new THREE.Vector3().crossVectors(right, up).normalize();
+      card(mb, tile, at, right, up, { width, anchor: 'root', bow: width * .06, segmentsY: lod === 0 ? 2 : 1,
+        color: new THREE.Color(1, 1, 1), sway: 0, swayTip: .3, kind: KIND.leaf, flip: rand(k + 60) < .5,
+        normal: () => face.clone().multiplyScalar(.3).addScaledVector(UP, .7).normalize() });
+    }
+  }
+  return mb.build();
+}

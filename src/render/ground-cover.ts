@@ -112,7 +112,7 @@ type Accent = keyof typeof ACCENTS;
  * paints that scripts/generate-terrain-colors.ts bakes, so tufts can take the ground's own colour. */
 const soften = (value: number) => { const t = Math.max(0, Math.min(1, value)); return t * t * (3 - 2 * t); };
 const GRASS = new THREE.Color(WORLD_PALETTE.grass), GRASS_LIGHT = new THREE.Color(WORLD_PALETTE.grassLight), DRY = new THREE.Color(WORLD_PALETTE.dryGrass);
-function groundPaint(x: number, z: number, target = new THREE.Color()) {
+export function groundPaint(x: number, z: number, target = new THREE.Color()) {
   const greenMix = soften((fbm(x / 36 + 7, z / 36 + 3) + .2) / .4), dryMix = soften((fbm(x / 48 - 4, z / 48 + 9) - .18) / .24);
   return target.copy(GRASS).lerp(GRASS_LIGHT, greenMix).lerp(DRY, dryMix);
 }

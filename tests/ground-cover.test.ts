@@ -4,6 +4,9 @@ import { GROUND_COVER, GROUND_COVER_MAX_HEIGHT, GroundCover } from '../src/rende
 import { createWorld } from '../src/shared/world';
 import { ROADS } from '../src/shared/layout';
 import { terrainHeight } from '../src/shared/terrain';
+import { buildTemplates } from '../src/render/vegetation/templates';
+import { vegetationDressing } from '../src/shared/vegetation-dressing';
+import { SPECIES } from '../src/shared/vegetation-species';
 
 const world = createWorld();
 
@@ -55,6 +58,16 @@ it('keeps every accent shorter than a crouched capybara and flat patches on the 
     expect(flat, 'clover and fallen leaves must exist').toBeGreaterThan(100);
     expect(GROUND_COVER_MAX_HEIGHT).toBeLessThan(.7);
   } finally { cover.dispose(); }
+});
+
+it('keeps meadow drifts in the plant batch as low as ground cover, so open fields never hide anyone', () => {
+  const box = new THREE.Box3();
+  for (const lods of buildTemplates(new Set(['meadow'])).meadow) for (const g of lods) {
+    box.setFromBufferAttribute(g.getAttribute('position') as THREE.BufferAttribute);
+    expect(box.max.y).toBeLessThanOrEqual(GROUND_COVER_MAX_HEIGHT);
+  }
+  // Instances only ever shrink the template.
+  for (const plant of vegetationDressing(world).filter(p => p.species === 'meadow')) expect(plant.height).toBeLessThanOrEqual(SPECIES.meadow.height);
 });
 
 it('stays out of the depth buffer so the ink pass never outlines grass, but draws after the solids', () => {

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SPECIES, type SpeciesId } from '../../shared/vegetation-species';
 import type { TemplateSet } from './batch';
 import { broadleafBuilder, CROWNS } from './broadleaf';
-import { buildBanana, buildBromeliad, buildCrop, buildFern, buildHeliconia, buildMonstera, buildReeds, buildStrelitzia, buildTaro } from './garden';
+import { buildBanana, buildBromeliad, buildCrop, buildFern, buildHeliconia, buildMeadow, buildMonstera, buildReeds, buildStrelitzia, buildTaro } from './garden';
 import { buildCoconut, buildRoyal, type Lod } from './palms';
 import { buildBed, buildCroton, buildHedge, buildPot, buildShrub, buildThicket } from './shrubs';
 import { buildVine } from './vines';
@@ -30,6 +30,7 @@ const BUILDERS: Partial<Record<SpeciesId, Builder>> = {
   bromeliad: buildBromeliad,
   reeds: buildReeds,
   crop: buildCrop,
+  meadow: buildMeadow,
   vine: buildVine,
   pot: buildPot,
   bed: buildBed,
