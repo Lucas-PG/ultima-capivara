@@ -28,7 +28,7 @@ try {
       if (['hip', 'ads'].includes(action)) await page.evaluate(([w, a]) => window.__capyQA.pose(`${a === 'ads' ? 'ads' : 'fp'}-${w}`), [weapon, action]);
       else await page.evaluate(([w, a, s]) => window.__capyQA.motion(w, a, s), [weapon, action, t * (action.startsWith('reload') ? durations[weapon] : action === 'inspect' ? 1.8 : action.includes('right') || action.includes('left') ? .55 : 1)]);
       const frame = { action, t, paws: {} };
-      if (process.env.MEASURE !== '0') for (const side of weapon === 'machete' ? ['R'] : ['R', 'L']) {
+      if (process.env.MEASURE !== '0') for (const side of ['R', 'L']) {
         const result = await page.evaluate(measureGrip, [weapon, side]);
         frame.paws[side] = { worst: result.worst, digits: result.digits, summary: result.summary };
         console.log(`${weapon} ${action} ${t} ${side}: ${result.worst} mm`);

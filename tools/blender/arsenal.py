@@ -677,13 +677,13 @@ LIVERY = {
     'pistol': [
         {'stencil': 'palm', 'at': (-.0165, -.046), 'size': .034, 'rotate': -8, 'colour': 'D9B86C', 'on': ('wood_red',), 'metal': True},
     ],
-    'smg': [
-        {'stencil': 'star', 'at': (-.035, .064), 'size': .038, 'colour': '245EB1', 'on': ('yellow',)},
-    ],
     'revolver': [
         {'stencil': 'vine', 'at': (-.013, .040), 'size': .064, 'colour': 'D5AF62', 'on': ('case',), 'metal': True},
         {'stencil': 'vine', 'at': (.088, .045), 'size': .051, 'rotate': 180, 'colour': 'D5AF62', 'on': ('case',), 'metal': True},
         {'stencil': 'capybara', 'at': (-.014, -.031), 'size': .017, 'colour': '274C83', 'on': ('ivory',)},
+    ],
+    'smg': [
+        {'stencil': 'star', 'at': (-.035, .064), 'size': .038, 'colour': '245EB1', 'on': ('yellow',)},
     ],
     'machete': [
         {'stencil': 'frond', 'at': (.006, -.003), 'size': .061, 'rotate': -24, 'colour': '258D82', 'on': ('wood_red',)},
@@ -715,7 +715,7 @@ def build(weapon_id):
         meshes.append(obj)
     for name, location in sockets.items():
         empty(f'{weapon_id}_{name}', location, root)
-    size = 2048 if weapon_id in ('m4', 'pistol', 'smg', 'revolver', 'machete') else 1024
+    size = 2048 if weapon_id == 'm4' else 1024
     albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id in ('m4', 'pistol', 'smg', 'revolver', 'machete') else .005,
                                 livery=LIVERY.get(weapon_id, ()))
     albedo_img = L.save_png(f'{weapon_id}_albedo', albedo)

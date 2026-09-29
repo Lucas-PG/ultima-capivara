@@ -36,7 +36,7 @@ for glb in glbs:
     bpy.ops.import_scene.gltf(filepath=glb)
     stem = Path(glb).stem
     for obj in bpy.context.scene.objects:
-        if stem in ('revolver', 'shotgun') and obj.name == f'{stem}_mag':
+        if (stem in ('revolver', 'shotgun') and obj.name == f'{stem}_mag') or (stem == 'revolver' and obj.name.startswith('revolver_case')):
             obj.hide_render = True
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH' and not o.hide_render]
     lo = Vector((1e9, 1e9, 1e9)); hi = -lo

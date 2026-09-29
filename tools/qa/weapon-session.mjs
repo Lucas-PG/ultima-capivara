@@ -32,7 +32,8 @@ try {
       await ready();
       await page.evaluate(([w, tune]) => { window.__vmOrbit = undefined; window.__vmTune = { [w]: tune ?? {} }; }, [c.weapon, c.tune]);
       const action = c.action ?? 'hip', motion = c.intent?.motion;
-      if (motion) await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [c.weapon, motion.action, motion.seconds]);
+      if (c.pose) await page.evaluate(name => window.__capyQA.pose(name), c.pose);
+      else if (motion) await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [c.weapon, motion.action, motion.seconds]);
       else if (['hip', 'ads'].includes(action)) await page.evaluate(([w, a]) => window.__capyQA.pose(`${a === 'ads' ? 'ads' : 'fp'}-${w}`), [c.weapon, action]);
       else await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [c.weapon, action, c.seconds ?? 0]);
       let result;
@@ -42,7 +43,7 @@ try {
         console.log('FIT', JSON.stringify({ evals: result.evals, ...result.final, handKey: result.handKey }));
       } else {
         result = {};
-        if (c.op === 'probe') for (const side of c.weapon === 'machete' ? ['R'] : ['R', 'L']) {
+        if (c.op === 'probe') for (const side of ['R', 'L']) {
           result[side] = await page.evaluate(measureGrip, [c.weapon, side]);
           console.log('CLEARANCE', c.weapon, action, c.seconds ?? 0, side, result[side].worst);
         }

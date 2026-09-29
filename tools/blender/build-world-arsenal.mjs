@@ -13,7 +13,7 @@ import sharp from 'sharp';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const IDS = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete'];
 // Parts that only exist during first-person animations.
-const SKIP = { revolver: ['mag'], shotgun: ['mag'] };
+const SKIP = { revolver: ['mag', 'case0', 'case1', 'case2', 'case3', 'case4', 'case5'], shotgun: ['mag'] };
 const BUDGET = { near: [2400, .012], far: [420, .06] };
 const CELL = 256, ATLAS = 1024, PAD = 6;
 await MeshoptSimplifier.ready;
@@ -23,7 +23,11 @@ const selected = process.argv.slice(2);
 for (const id of selected) if (!IDS.includes(id)) throw new Error(`Unknown weapon: ${id}`);
 if (selected.length) {
   Object.assign(result, JSON.parse(await readFile(`${root}/src/render/world-weapon-data.json`, 'utf8')));
-  Object.assign(report.weapons, JSON.parse(await readFile(`${root}/public/models/arsenal/world-metrics.json`, 'utf8')).weapons);
+  const previous = JSON.parse(await readFile(`${root}/public/models/arsenal/world-metrics.json`, 'utf8')).weapons;
+  for (const [id, geometry] of Object.entries(result)) {
+    const counts = { near: geometry.near.index.length / 3, far: geometry.far.index.length / 3 };
+    report.weapons[id] = !Array.isArray(previous) && previous[id] ? { ...previous[id], ...counts } : counts;
+  }
 }
 const composites = [];
 for (const [slot, id] of IDS.entries()) {
@@ -82,8 +86,8 @@ const atlasPath = `${root}/public/textures/world-arsenal.webp`;
 const atlas = selected.length ? sharp(await readFile(atlasPath)) : sharp({ create: { width: ATLAS, height: ATLAS, channels: 3, background: '#555555' } });
 // Preserve the decoded pixels of untouched cells during a targeted rebuild.
 await writeFile(atlasPath, await atlas.composite(composites).webp(selected.length ? { lossless: true } : { quality: 88 }).toBuffer());
-const data = JSON.stringify(result) + '\n';
-report.bundledBytes = Buffer.byteLength(data);
+const data = JSON.stringify(result, null, 2) + '\n';
+report.bundledBytes = Buffer.byteLength(JSON.stringify(result) + '\n');
 await writeFile(`${root}/src/render/world-weapon-data.json`, data);
 await writeFile(`${root}/public/models/arsenal/world-metrics.json`, JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify(report, null, 2));
