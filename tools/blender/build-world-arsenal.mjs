@@ -23,7 +23,13 @@ const selected = process.argv.slice(2);
 for (const id of selected) if (!IDS.includes(id)) throw new Error(`Unknown weapon: ${id}`);
 if (selected.length) {
   Object.assign(result, JSON.parse(await readFile(`${root}/src/render/world-weapon-data.json`, 'utf8')));
-  Object.assign(report.weapons, JSON.parse(await readFile(`${root}/public/models/arsenal/world-metrics.json`, 'utf8')).weapons);
+  const previous = JSON.parse(await readFile(`${root}/public/models/arsenal/world-metrics.json`, 'utf8')).weapons;
+  // Older reports only listed ids. Preserve measured entries without turning
+  // that list into numbered object keys during a targeted rebuild.
+  for (const id of IDS) {
+    if (previous[id]) report.weapons[id] = previous[id];
+    else if (result[id]) report.weapons[id] = { near: result[id].near.index.length / 3, far: result[id].far.index.length / 3 };
+  }
 }
 const composites = [];
 for (const [slot, id] of IDS.entries()) {
@@ -54,7 +60,10 @@ for (const [slot, id] of IDS.entries()) {
   const budgets = id === 'm4' ? { ...BUDGET, nearBody: [2000, .012], nearMag: [400, .012] } : BUDGET;
   for (const [lod, [budget, error]] of Object.entries(budgets)) {
     const sourceIndices = lod === 'nearBody' ? new Uint32Array(bodyIndices) : lod === 'nearMag' ? new Uint32Array(magIndices) : original;
-    const [reduced] = MeshoptSimplifier.simplifyWithAttributes(sourceIndices, p, 3, a, 5, [.1, .1, .1, .6, .6], null,
+    // The Carabina's hanging sling is part of its silhouette, even at far LOD.
+    // Its thin ribbon would otherwise be removed completely by the error limit.
+    const locks = id === 'dmr' && lod === 'far' ? Uint8Array.from({ length: p.length / 3 }, (_, i) => p[i * 3 + 1] < -.135 ? 1 : 0) : null;
+    const [reduced] = MeshoptSimplifier.simplifyWithAttributes(sourceIndices, p, 3, a, 5, [.1, .1, .1, .6, .6], locks,
       Math.min(budget * 3, sourceIndices.length), error, ['Permissive']);
     const used = new Map(), packed = { position: [], normal: [], uv: [], color: [], index: [] };
     for (const source of reduced) {
@@ -82,7 +91,7 @@ const atlasPath = `${root}/public/textures/world-arsenal.webp`;
 const atlas = selected.length ? sharp(await readFile(atlasPath)) : sharp({ create: { width: ATLAS, height: ATLAS, channels: 3, background: '#555555' } });
 // Preserve the decoded pixels of untouched cells during a targeted rebuild.
 await writeFile(atlasPath, await atlas.composite(composites).webp(selected.length ? { lossless: true } : { quality: 88 }).toBuffer());
-const data = JSON.stringify(result) + '\n';
+const data = JSON.stringify(result, null, 2) + '\n';
 report.bundledBytes = Buffer.byteLength(data);
 await writeFile(`${root}/src/render/world-weapon-data.json`, data);
 await writeFile(`${root}/public/models/arsenal/world-metrics.json`, JSON.stringify(report, null, 2) + '\n');

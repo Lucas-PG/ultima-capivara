@@ -359,7 +359,12 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const advance = (duration: number) => {
         const end = s.time + duration; let elapsed = 0;
         while (elapsed < duration - 1e-8) {
-          const dt = Math.min(1 / 120, duration - elapsed); elapsed += dt; s.time += dt; frame(dt);
+          const dt = Math.min(1 / 120, duration - elapsed); elapsed += dt; s.time += dt;
+          if ((action === 'reload' || action === 'reload-partial') && me.reloadUntil > 0 && s.time >= me.reloadUntil) {
+            me.reloadUntil = 0; me.weapons[0].ammo = weapon === 'shotgun' ? 1 : WEAPON_DEFS[weapon].magazine;
+            me.weapons[0].reserve -= me.weapons[0].ammo;
+          }
+          frame(dt);
         }
         s.time = end;
       };
@@ -392,12 +397,6 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         me.grounded = true; me.velocity.y = 0;
       }
       advance(seconds);
-      if ((action === 'reload' || action === 'reload-partial') && seconds >= WEAPON_DEFS[weapon].reload) {
-        // Complete the displayed fixture too. These strips review the pose;
-        // authoritative inventory completion has separate simulation intents.
-        me.reloadUntil = 0; me.weapons[0].ammo = weapon === 'shotgun' ? 1 : WEAPON_DEFS[weapon].magazine;
-        me.weapons[0].reserve -= me.weapons[0].ammo;
-      }
       frame(0, true);
       // The game HUD deliberately updates at a lower cadence. Let the pose's
       // earlier HUD write expire before capturing this action's ammo/progress.

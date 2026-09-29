@@ -6,6 +6,7 @@
 // node tools/qa/grip-fit.mjs <weapon> '<intent json>' ['<start grip json>'] [--evals N] [--fp|--ads]
 // Intent (degrees around the bore: 0 right, 90 top, 180 left, 270 bottom; ranges may wrap):
 //   { "side": "L", "zone": [zMin, zMax], "digits": { "index": { "tip": [a, b], "base": [a, b] }, ... },
+//     "part": "mag", "partOffset": [0, .15, 0],
 //     "palm": [a, b], "thumbAlong": deg, "wristBend": deg, "contact": ["palm", "index", ...], "free": ["thumb"] }
 import { chromium } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -33,6 +34,10 @@ try {
     const result = await page.evaluate(([weapon, intent, start, maxEvals]) => {
       const vm = window.__vmProbe, model = vm.models[weapon], holder = vm.holder, side = intent.side;
       const M4 = holder.matrixWorld.constructor, V3 = holder.position.constructor, Q = holder.quaternion.constructor;
+      if (intent.partOffset && intent.part) {
+        model.parts[intent.part].position.add(new V3(...intent.partOffset));
+        model.parts[intent.part].visible = true;
+      }
       vm.scene.updateMatrixWorld(true);
       if (intent.part === 'bolt') vm.boltHand = 0;
       const reference = intent.part ? model.parts[intent.part] : holder;
