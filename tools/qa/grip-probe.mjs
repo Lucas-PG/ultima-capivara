@@ -24,7 +24,7 @@ for (const [name, override] of Object.entries(variants)) {
   await page.evaluate(p => window.__capyQA.pose(p), `${mode}-${weapon}`);
   const result = await page.evaluate(measureGrip, [weapon, side]);
   console.log(JSON.stringify({ variant: name, worst: result.worst, bore: result.bore, digits: result.digits }));
-  console.log(Object.entries(result.summary).map(([k, v]) => `${k}:${v.min}${v.inside ? `(${v.inside}/${v.n} in @${v.at})` : ''}`).join('  '));
+  console.log(Object.entries(result.summary).map(([k, v]) => `${k}:${v.min}${v.inside ? `(${v.inside}/${v.n} in ${v.part} @${v.at})` : ''}`).join('  '));
   if (out === '-' || !viewList) continue;
   for (const view of viewList.split(',')) {
     const xray = view.startsWith('x') && view !== 'eye', key = xray ? view.slice(1) : view;

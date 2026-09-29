@@ -56,7 +56,9 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
       }
       if (best < Infinity && Math.sqrt(best) <= r * CELL) break;
     }
-    return Math.sqrt(best) * sign;
+    // Outside the searched radius a bucket can contain a distant triangle whose
+    // normal is not the nearest surface. Do not turn that into false penetration.
+    return best <= (5 * CELL) ** 2 ? Math.sqrt(best) * sign : Infinity;
   }
   // ---- paw vertices grouped by their dominant bone; palm side from the bind pose (palm faces -y at rest)
   const mesh = vm.arms.meshes.find(m => m.name.endsWith(side));

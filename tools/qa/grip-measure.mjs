@@ -14,7 +14,7 @@ export function measureGrip([weapon, side]) {
     const m = new M4().multiplyMatrices(toGun, o.matrixWorld), pos = o.geometry.attributes.position, idx = o.geometry.index;
     const count = idx ? idx.count : pos.count;
     const at = i => new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m).multiplyScalar(scale);
-    for (let i = 0; i < count; i += 3) tris.push([at(i), at(i + 1), at(i + 2)]);
+    for (let i = 0; i < count; i += 3) tris.push([at(i), at(i + 1), at(i + 2), o.name]);
   });
   const mesh = vm.arms.meshes.find(m => m.name.endsWith(side));
   const bones = mesh.skeleton.bones.map(b => b.name.replace(/_[LR]$/, ''));
@@ -53,17 +53,17 @@ export function measureGrip([weapon, side]) {
   const c0 = new V3();
   for (const v of measured) {
     let best = Infinity, sign = 1;
-    for (const [a, b, c] of near) {
+    for (const [a, b, c, part] of near) {
       closest(v.p, a, b, c, c0);
       const d = c0.distanceToSquared(v.p);
       if (d < best - 1e-12) {
-        best = d; n.subVectors(b, a).cross(ac.subVectors(c, a));
+        best = d; v.part = part; n.subVectors(b, a).cross(ac.subVectors(c, a));
         sign = n.dot(q.subVectors(v.p, c0)) < 0 ? -1 : 1;
       } else if (d < best + 1e-10) { n.subVectors(b, a).cross(ac.subVectors(c, a)); if (n.dot(q.subVectors(v.p, c0)) >= 0) sign = 1; }
     }
     v.d = Math.sqrt(best) * sign;
     const g = groups[v.bone] ??= { n: 0, inside: 0, min: Infinity, tip: null, tipAlong: -Infinity };
-    g.n++; if (v.d < -.0005) g.inside++; if (v.d < g.min) { g.min = v.d; g.at = [v.p.x, v.p.y, v.p.z].map(n => Math.round(n * 1000)); }
+    g.n++; if (v.d < -.0005) g.inside++; if (v.d < g.min) { g.min = v.d; g.part = v.part; g.at = [v.p.x, v.p.y, v.p.z].map(n => Math.round(n * 1000)); }
   }
   // Around the bore: 0 = right (+x), 90 = top, 180 = left, -90 = bottom.
   const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
@@ -77,7 +77,7 @@ export function measureGrip([weapon, side]) {
     digits[f] = { base: [+(b.x * 1000).toFixed(0), +(b.y * 1000).toFixed(0), +(b.z * 1000).toFixed(0)], baseAngle: angle(b),
       tip: [+(t.x * 1000).toFixed(0), +(t.y * 1000).toFixed(0), +(t.z * 1000).toFixed(0)], tipAngle: angle(t) };
   }
-  const summary = Object.fromEntries(Object.entries(groups).map(([k, g]) => [k, { min: +(g.min * 1000).toFixed(1), inside: g.inside, n: g.n, at: g.at }]));
+  const summary = Object.fromEntries(Object.entries(groups).map(([k, g]) => [k, { min: +(g.min * 1000).toFixed(1), inside: g.inside, n: g.n, at: g.at, part: g.part }]));
   const centroid = measured.filter(v => v.bone === 'hand').reduce((s, v) => s.add(v.world), new V3()).multiplyScalar(1 / Math.max(1, measured.filter(v => v.bone === 'hand').length));
   return { summary, digits, bore: [bore.x, bore.y, bore.z].map(x => +(x * 1000).toFixed(0)), trianglesNear: near.length,
     centroid: [centroid.x, centroid.y, centroid.z], worst: +(Math.min(...measured.map(v => v.d)) * 1000).toFixed(1) };
