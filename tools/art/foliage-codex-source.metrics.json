@@ -1,0 +1,257 @@
+{
+  "source": "tools/art/ui-source/foliage-atlas.png",
+  "sourceDimensions": [
+    1254,
+    1254
+  ],
+  "sourceBytes": 1800082,
+  "output": "public/textures/foliage-atlas.webp",
+  "dimensions": [
+    2048,
+    2048
+  ],
+  "channels": "RGBA8",
+  "bytes": 495674,
+  "sha256": "36943982cd4478d92bb96c9241c49f26cc38326758fe42bcde510d165ef67af5",
+  "tileSize": 512,
+  "minimumPadding": 36,
+  "alpha": {
+    "transparent": 2570413,
+    "opaque": 1511638,
+    "antialiased": 112253
+  },
+  "tiles": [
+    {
+      "index": 0,
+      "name": "emerald-broadleaf",
+      "bounds": [
+        36,
+        58,
+        476,
+        476
+      ],
+      "root": [
+        0.356,
+        0.925
+      ]
+    },
+    {
+      "index": 1,
+      "name": "lime-broadleaf",
+      "bounds": [
+        36,
+        62,
+        476,
+        476
+      ],
+      "root": [
+        0.335,
+        0.89
+      ]
+    },
+    {
+      "index": 2,
+      "name": "mangrove-guava",
+      "bounds": [
+        36,
+        64,
+        476,
+        476
+      ],
+      "root": [
+        0.357,
+        0.89
+      ]
+    },
+    {
+      "index": 3,
+      "name": "yellow-ipe",
+      "bounds": [
+        36,
+        55,
+        476,
+        476
+      ],
+      "root": [
+        0.32,
+        0.925
+      ]
+    },
+    {
+      "index": 4,
+      "name": "pink-ipe",
+      "bounds": [
+        36,
+        38,
+        476,
+        476
+      ],
+      "root": [
+        0.35,
+        0.925
+      ]
+    },
+    {
+      "index": 5,
+      "name": "bougainvillea",
+      "bounds": [
+        36,
+        49,
+        476,
+        476
+      ],
+      "root": [
+        0.3,
+        0.9
+      ]
+    },
+    {
+      "index": 6,
+      "name": "coconut-frond",
+      "bounds": [
+        59,
+        36,
+        452,
+        476
+      ],
+      "root": [
+        0.308,
+        0.925
+      ]
+    },
+    {
+      "index": 7,
+      "name": "palm-fan",
+      "bounds": [
+        36,
+        55,
+        476,
+        476
+      ],
+      "root": [
+        0.555,
+        0.925
+      ]
+    },
+    {
+      "index": 8,
+      "name": "banana",
+      "bounds": [
+        122,
+        36,
+        390,
+        476
+      ],
+      "root": [
+        0.443,
+        0.925
+      ]
+    },
+    {
+      "index": 9,
+      "name": "monstera",
+      "bounds": [
+        37,
+        36,
+        474,
+        476
+      ],
+      "root": [
+        0.436,
+        0.925
+      ]
+    },
+    {
+      "index": 10,
+      "name": "clover",
+      "bounds": [
+        36,
+        71,
+        476,
+        476
+      ],
+      "root": [
+        0.51,
+        0.925
+      ]
+    },
+    {
+      "index": 11,
+      "name": "wildflowers",
+      "bounds": [
+        49,
+        36,
+        462,
+        476
+      ],
+      "root": [
+        0.46,
+        0.91
+      ]
+    },
+    {
+      "index": 12,
+      "name": "grass",
+      "bounds": [
+        36,
+        62,
+        476,
+        476
+      ],
+      "root": [
+        0.5,
+        0.925
+      ]
+    },
+    {
+      "index": 13,
+      "name": "fallen-leaves",
+      "bounds": [
+        36,
+        94,
+        476,
+        476
+      ],
+      "root": [
+        0.5,
+        0.8
+      ]
+    },
+    {
+      "index": 14,
+      "name": "fern",
+      "bounds": [
+        55,
+        36,
+        457,
+        476
+      ],
+      "root": [
+        0.362,
+        0.925
+      ]
+    },
+    {
+      "index": 15,
+      "name": "shadow-broadleaf",
+      "bounds": [
+        36,
+        66,
+        476,
+        476
+      ],
+      "root": [
+        0.33,
+        0.925
+      ]
+    }
+  ],
+  "packed": "tools/art/foliage-atlas-packed.png",
+  "packedBytes": 2953375,
+  "packedSha256": "b59588bbf42591f4758609e219092f99bef8ca59772798a4c7613ccd4aa7a0a9",
+  "compression": {
+    "rgbQuality": 90,
+    "losslessAlpha": true,
+    "sharpYuv": true
+  }
+}

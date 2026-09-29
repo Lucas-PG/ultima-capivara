@@ -1,0 +1,83 @@
+{
+  "generator": "tools/art/build-foliage-atlas.mjs",
+  "source": "tools/art/foliage-codex-source.png",
+  "size": 1024,
+  "usedRows": 487,
+  "guard": 6,
+  "output": "public/textures/ground-atlas.webp",
+  "bytes": 158250,
+  "sha256": "54cb50bfa2ce5e96d14ed937bfea78ae0ced6019a83e978e8e5def9031c3087d",
+  "alpha": {
+    "transparent": 884982,
+    "opaque": 127443,
+    "antialiased": 36151
+  },
+  "tiles": {
+    "clover": {
+      "x": 16,
+      "y": 268,
+      "w": 220,
+      "h": 203,
+      "root": [
+        0.512,
+        0.994
+      ],
+      "source": "codex"
+    },
+    "wildflowers": {
+      "x": 16,
+      "y": 16,
+      "w": 207,
+      "h": 220,
+      "root": [
+        0.452,
+        0.977
+      ],
+      "source": "codex"
+    },
+    "grass": {
+      "x": 721,
+      "y": 16,
+      "w": 220,
+      "h": 207,
+      "root": [
+        0.5,
+        0.994
+      ],
+      "source": "codex"
+    },
+    "fallen-leaves": {
+      "x": 262,
+      "y": 268,
+      "w": 220,
+      "h": 191,
+      "root": [
+        0.5,
+        0.826
+      ],
+      "source": "codex"
+    },
+    "fern": {
+      "x": 249,
+      "y": 16,
+      "w": 201,
+      "h": 220,
+      "root": [
+        0.324,
+        0.995
+      ],
+      "source": "codex"
+    },
+    "monstera": {
+      "x": 476,
+      "y": 16,
+      "w": 219,
+      "h": 220,
+      "root": [
+        0.426,
+        0.995
+      ],
+      "source": "codex"
+    }
+  }
+}

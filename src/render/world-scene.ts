@@ -676,16 +676,20 @@ export class WorldScene {
       this.group.add(mesh); this.disposables.push(merged);
     }
     buckets.clear();
-    const foliageAtlas = loader.texture('textures/foliage-atlas.webp');
-    foliageAtlas.colorSpace = THREE.SRGBColorSpace;
-    foliageAtlas.minFilter = THREE.LinearMipmapLinearFilter;
-    foliageAtlas.magFilter = THREE.LinearFilter;
-    this.disposables.push(foliageAtlas);
+    const paintedAtlas = (path: string) => {
+      const atlas = loader.texture(path);
+      atlas.colorSpace = THREE.SRGBColorSpace;
+      atlas.minFilter = THREE.LinearMipmapLinearFilter;
+      atlas.magFilter = THREE.LinearFilter;
+      this.disposables.push(atlas);
+      return atlas;
+    };
+    const foliageAtlas = paintedAtlas('textures/foliage-atlas.webp'), groundAtlas = paintedAtlas('textures/ground-atlas.webp');
     const vegetation = this.vegetation = buildVegetation({ ...world, objects: world.objects.filter(object => object.kind !== 'grass' ||
       ['reeds', 'crop', 'fern', 'monstera', 'ground-litter'].includes(object.detail || '')) }, foliageAtlas), props = buildProps(world), wallArt = buildWallArt(world);
     this.group.add(vegetation.group, props.group, wallArt.group);
     this.disposables.push(vegetation, props, wallArt);
-    this.groundCover = new GroundCover(world, foliageAtlas); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
+    this.groundCover = new GroundCover(world, groundAtlas); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
     const fountain = world.objects.find(object => object.detail === 'prop:plaza');
     if (fountain) {
       const waterGeometry = new THREE.RingGeometry(.73, 1.85, 48, 3).rotateX(-Math.PI / 2);
@@ -766,7 +770,7 @@ export class WorldScene {
 
   update(time: number, camera?: THREE.Camera, actors: readonly ActorState[] = [], localActor?: ActorState) {
     if (camera) { this.kit.update(camera, time); this.groundCover.update(camera, time, this.reducedMotion); }
-    this.vegetation.update(this.reducedMotion ? 0 : time);
+    this.vegetation.update(this.reducedMotion ? 0 : time, camera);
     for (const spinner of this.spinners) spinner.rotation.z = (this.reducedMotion ? .15 : .7) * time;
     this.waterfalls.update(time, this.reducedMotion);
     this.paintedWater.update(time, this.reducedMotion);

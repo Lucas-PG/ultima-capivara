@@ -4,6 +4,9 @@ import { terrainColor, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ROADS } from '../shared/layout';
 import type { Settings, WorldSpec } from '../shared/types';
 import { createToonMaterial } from './materials';
+import { GROUND_TILES, type GroundTile } from './vegetation/atlas';
+
+const TILE_NAMES: GroundTile[] = ['clover', 'clover', 'clover', 'clover', 'clover', 'clover', 'clover', 'clover', 'clover', 'monstera', 'clover', 'wildflowers', 'grass', 'fallen-leaves', 'fern', 'fern'];
 
 const CELL = 24, CANDIDATES = 2600;
 export const GROUND_COVER = {
@@ -30,7 +33,7 @@ function blades() {
       for (const side of [-1, 1]) {
         positions.push(ca * .13 * side + sa * (spread + bend), t * (.09 + fan * .007), sa * .13 * side - ca * (spread + bend));
         const shade = .93 + .07 * t; colors.push(shade, shade, shade * .97); masks.push(1);
-        uv.push((side < 0 ? .012 : .988) / 4, 1 - (3.988 - t * .976) / 4);
+        { const g = GROUND_TILES.grass; uv.push(g.u0 + (g.u1 - g.u0) * (side < 0 ? 0 : 1), g.v0 + (g.v1 - g.v0) * t); }
       }
     }
     indices.push(offset, offset + 1, offset + 2, offset + 1, offset + 3, offset + 2);
@@ -68,8 +71,8 @@ function groundCard(tile: number, width: number, height: number, flat = false) {
   }
   const uv = geometry.getAttribute('uv'), normals = geometry.getAttribute('normal');
   for (let i = 0; i < uv.count; i++) {
-    uv.setXY(i, (tile % 4 + .012 + uv.getX(i) * .976) / 4,
-      1 - (Math.floor(tile / 4) + .988 - uv.getY(i) * .976) / 4);
+    const g = GROUND_TILES[TILE_NAMES[tile]];
+    uv.setXY(i, g.u0 + (g.u1 - g.u0) * uv.getX(i), g.v0 + (g.v1 - g.v0) * uv.getY(i));
     normals.setXYZ(i, 0, 1, 0);
   }
   geometry.setAttribute('paintMask', new THREE.Float32BufferAttribute(new Array(uv.count).fill(1), 1));

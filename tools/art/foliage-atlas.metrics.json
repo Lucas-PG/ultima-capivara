@@ -1,257 +1,171 @@
 {
-  "source": "tools/art/ui-source/foliage-atlas.png",
-  "sourceDimensions": [
-    1254,
-    1254
-  ],
-  "sourceBytes": 1800082,
+  "generator": "tools/art/build-foliage-atlas.mjs",
+  "source": "tools/art/foliage-codex-source.png",
+  "size": 2048,
+  "usedRows": 1848,
+  "guard": 6,
   "output": "public/textures/foliage-atlas.webp",
-  "dimensions": [
-    2048,
-    2048
-  ],
-  "channels": "RGBA8",
-  "bytes": 495674,
-  "sha256": "36943982cd4478d92bb96c9241c49f26cc38326758fe42bcde510d165ef67af5",
-  "tileSize": 512,
-  "minimumPadding": 36,
+  "bytes": 634334,
+  "sha256": "e60b83a1c8751ea4d58eff05baa94a0f5404bf08cd5f7ef6d87cdd1fb30634af",
   "alpha": {
-    "transparent": 2570413,
-    "opaque": 1511638,
-    "antialiased": 112253
+    "transparent": 3175030,
+    "opaque": 876516,
+    "antialiased": 142758
   },
-  "tiles": [
-    {
-      "index": 0,
-      "name": "emerald-broadleaf",
-      "bounds": [
-        36,
-        58,
-        476,
-        476
-      ],
-      "root": [
-        0.356,
-        0.925
-      ]
-    },
-    {
-      "index": 1,
-      "name": "lime-broadleaf",
-      "bounds": [
-        36,
-        62,
-        476,
-        476
-      ],
-      "root": [
-        0.335,
-        0.89
-      ]
-    },
-    {
-      "index": 2,
-      "name": "mangrove-guava",
-      "bounds": [
-        36,
-        64,
-        476,
-        476
-      ],
-      "root": [
-        0.357,
-        0.89
-      ]
-    },
-    {
-      "index": 3,
-      "name": "yellow-ipe",
-      "bounds": [
-        36,
-        55,
-        476,
-        476
-      ],
-      "root": [
-        0.32,
-        0.925
-      ]
-    },
-    {
-      "index": 4,
-      "name": "pink-ipe",
-      "bounds": [
-        36,
-        38,
-        476,
-        476
-      ],
-      "root": [
-        0.35,
-        0.925
-      ]
-    },
-    {
-      "index": 5,
-      "name": "bougainvillea",
-      "bounds": [
-        36,
-        49,
-        476,
-        476
-      ],
-      "root": [
-        0.3,
-        0.9
-      ]
-    },
-    {
-      "index": 6,
-      "name": "coconut-frond",
-      "bounds": [
-        59,
-        36,
-        452,
-        476
-      ],
-      "root": [
-        0.308,
-        0.925
-      ]
-    },
-    {
-      "index": 7,
-      "name": "palm-fan",
-      "bounds": [
-        36,
-        55,
-        476,
-        476
-      ],
-      "root": [
-        0.555,
-        0.925
-      ]
-    },
-    {
-      "index": 8,
-      "name": "banana",
-      "bounds": [
-        122,
-        36,
-        390,
-        476
-      ],
-      "root": [
-        0.443,
-        0.925
-      ]
-    },
-    {
-      "index": 9,
-      "name": "monstera",
-      "bounds": [
-        37,
-        36,
-        474,
-        476
-      ],
-      "root": [
-        0.436,
-        0.925
-      ]
-    },
-    {
-      "index": 10,
-      "name": "clover",
-      "bounds": [
-        36,
-        71,
-        476,
-        476
-      ],
-      "root": [
-        0.51,
-        0.925
-      ]
-    },
-    {
-      "index": 11,
-      "name": "wildflowers",
-      "bounds": [
-        49,
-        36,
-        462,
-        476
-      ],
-      "root": [
-        0.46,
-        0.91
-      ]
-    },
-    {
-      "index": 12,
-      "name": "grass",
-      "bounds": [
-        36,
-        62,
-        476,
-        476
-      ],
+  "tiles": {
+    "cluster-lime": {
+      "x": 671,
+      "y": 16,
+      "w": 376,
+      "h": 384,
       "root": [
         0.5,
-        0.925
-      ]
-    },
-    {
-      "index": 13,
-      "name": "fallen-leaves",
-      "bounds": [
-        36,
-        94,
-        476,
-        476
+        0.5
       ],
+      "source": "cluster"
+    },
+    "cluster-emerald": {
+      "x": 364,
+      "y": 1480,
+      "w": 384,
+      "h": 346,
       "root": [
         0.5,
-        0.8
-      ]
-    },
-    {
-      "index": 14,
-      "name": "fern",
-      "bounds": [
-        55,
-        36,
-        457,
-        476
+        0.5
       ],
-      "root": [
-        0.362,
-        0.925
-      ]
+      "source": "cluster"
     },
-    {
-      "index": 15,
-      "name": "shadow-broadleaf",
-      "bounds": [
-        36,
-        66,
-        476,
-        476
-      ],
+    "cluster-guava": {
+      "x": 426,
+      "y": 1072,
+      "w": 384,
+      "h": 365,
       "root": [
-        0.33,
-        0.925
-      ]
+        0.5,
+        0.5
+      ],
+      "source": "cluster"
+    },
+    "cluster-teal": {
+      "x": 836,
+      "y": 1072,
+      "w": 384,
+      "h": 364,
+      "root": [
+        0.5,
+        0.5
+      ],
+      "source": "cluster"
+    },
+    "cluster-ipe-yellow": {
+      "x": 1463,
+      "y": 16,
+      "w": 384,
+      "h": 383,
+      "root": [
+        0.5,
+        0.5
+      ],
+      "source": "cluster"
+    },
+    "cluster-ipe-pink": {
+      "x": 1073,
+      "y": 16,
+      "w": 364,
+      "h": 384,
+      "root": [
+        0.5,
+        0.5
+      ],
+      "source": "cluster"
+    },
+    "cluster-flame": {
+      "x": 16,
+      "y": 1072,
+      "w": 384,
+      "h": 376,
+      "root": [
+        0.5,
+        0.5
+      ],
+      "source": "cluster"
+    },
+    "cluster-bougainvillea": {
+      "x": 1246,
+      "y": 1072,
+      "w": 373,
+      "h": 355,
+      "root": [
+        0.5,
+        0.5
+      ],
+      "source": "cluster"
+    },
+    "palm-fan": {
+      "x": 774,
+      "y": 1480,
+      "w": 352,
+      "h": 337,
+      "root": [
+        0.564,
+        0.994
+      ],
+      "source": "codex"
+    },
+    "banana-leaf": {
+      "x": 404,
+      "y": 16,
+      "w": 241,
+      "h": 396,
+      "root": [
+        0.391,
+        0.995
+      ],
+      "source": "codex"
+    },
+    "monstera": {
+      "x": 1645,
+      "y": 1072,
+      "w": 350,
+      "h": 352,
+      "root": [
+        0.426,
+        0.995
+      ],
+      "source": "codex"
+    },
+    "fern": {
+      "x": 16,
+      "y": 1480,
+      "w": 322,
+      "h": 352,
+      "root": [
+        0.324,
+        0.995
+      ],
+      "source": "codex"
+    },
+    "frond": {
+      "x": 16,
+      "y": 16,
+      "w": 168,
+      "h": 1024,
+      "root": [
+        0.054,
+        0.985
+      ],
+      "source": "procedural"
+    },
+    "frond-solid": {
+      "x": 210,
+      "y": 16,
+      "w": 168,
+      "h": 1024,
+      "root": [
+        0.054,
+        0.985
+      ],
+      "source": "procedural"
     }
-  ],
-  "packed": "tools/art/foliage-atlas-packed.png",
-  "packedBytes": 2953375,
-  "packedSha256": "b59588bbf42591f4758609e219092f99bef8ca59772798a4c7613ccd4aa7a0a9",
-  "compression": {
-    "rgbQuality": 90,
-    "losslessAlpha": true,
-    "sharpYuv": true
   }
 }

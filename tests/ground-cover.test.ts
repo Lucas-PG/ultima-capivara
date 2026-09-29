@@ -4,6 +4,7 @@ import { GroundCover } from '../src/render/ground-cover';
 import { createWorld } from '../src/shared/world';
 import { ROADS } from '../src/shared/layout';
 import { terrainHeight } from '../src/shared/terrain';
+import { GROUND_TILES } from '../src/render/vegetation/atlas';
 
 it('keeps grass away from roads and solids, culls distant cells and disables it on Low', () => {
   const world = createWorld(), cover = new GroundCover(world), camera = new THREE.PerspectiveCamera();
@@ -42,8 +43,9 @@ it('keeps grass away from roads and solids, culls distant cells and disables it 
       const position = node.geometry.getAttribute('position'), uv = node.geometry.getAttribute('uv');
       const paint = node.geometry.getAttribute('paintMask');
       for (let i = 0; i < position.count; i++) {
-        const tile = Math.floor(uv.getX(i) * 4) + Math.floor((1 - uv.getY(i)) * 4) * 4;
-        if (paint.getX(i) < .5 || tile !== 10 && tile !== 13) continue;
+        const flat = [GROUND_TILES.clover, GROUND_TILES['fallen-leaves']].some(t =>
+          uv.getX(i) >= t.u0 - 1e-6 && uv.getX(i) <= t.u1 + 1e-6 && uv.getY(i) >= t.v0 - 1e-6 && uv.getY(i) <= t.v1 + 1e-6);
+        if (paint.getX(i) < .5 || !flat) continue;
         const clearance = position.getY(i) + node.position.y - terrainHeight(position.getX(i) + node.position.x,
           position.getZ(i) + node.position.z);
         minClearance = Math.min(minClearance, clearance); maxClearance = Math.max(maxClearance, clearance); groundedPaint++;
