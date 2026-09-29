@@ -95,7 +95,15 @@ def quay_corner(Piece, name='quay_corner', length=5.0):
 # Bridges: local origin 3.6 m below the deck top (the walled river bed), the
 # crossing along local z. The deck ends are flush with the quay promenade.
 DECK = QUAY_TOP
-BRIDGE_HALF = 9.5          # half length: the abutments are as deep as the quay stones
+BRIDGE_HALF = 9.5          # half length of the bridge being built (set per bridge below)
+
+
+def span(face):
+    """Each bridge's abutments are exactly as deep as the quay stones they
+    replace, so a deck ends flush with the quay's landward edge."""
+    global BRIDGE_HALF
+    BRIDGE_HALF = face + QUAY_DEPTH
+    return BRIDGE_HALF
 STONE, TRIM, BLOCK, WOOD, DARK, IRON, WALL, ROOF, GREEN, CANVAS = 14, 15, 6, 5, 7, 9, 0, 4, 12, 11
 
 
@@ -216,6 +224,7 @@ def bridge_arch(Piece, name='bridge_arch'):
     cutwater pier, voussoirs, a moulded string course, a balustrade with
     pedestals and four lanterns."""
     width, face = 7.0, 4.5
+    span(face)
     p = Piece(name, width, BRIDGE_HALF * 2)
     deck = bridge_deck(p, width - .2)
     abutments(p, face, width)
@@ -248,6 +257,7 @@ def bridge_chapel(Piece, name='bridge_chapel'):
     """Ponte da Capelinha: one whitewashed segmental arch with a solid
     parapet, and a little oratório with a tiled hood over the downstream side."""
     width, face = 6.4, 5.0
+    span(face)
     p = Piece(name, width, BRIDGE_HALF * 2)
     deck = bridge_deck(p, width - .2)
     abutments(p, face, width, WALL)
@@ -286,7 +296,8 @@ def bridge_chapel(Piece, name='bridge_chapel'):
 def bridge_wood(Piece, name='bridge_wood'):
     """Ponte da Feira: timber deck on stringers over two braced trestle bents,
     between masonry abutments; rails with X-bracing and lantern posts."""
-    width, face = 6.0, 5.7
+    width, face = 6.0, 5.5
+    span(face)
     p = Piece(name, width, BRIDGE_HALF * 2)
     deck = len(p.colliders)
     p.box(0, DECK - .15, 0, width - .1, .3, BRIDGE_HALF * 2, WOOD, True, 'wood', bevel=.015)
