@@ -62,7 +62,18 @@ for (const [slot, id] of IDS.entries()) {
     const sourceIndices = lod === 'nearBody' ? new Uint32Array(bodyIndices) : lod === 'nearMag' ? new Uint32Array(magIndices) : original;
     // The Carabina's hanging sling is part of its silhouette, even at far LOD.
     // Its thin ribbon would otherwise be removed completely by the error limit.
-    const locks = id === 'dmr' && lod === 'far' ? Uint8Array.from({ length: p.length / 3 }, (_, i) => p[i * 3 + 1] < -.135 ? 1 : 0) : null;
+    let locks = null;
+    if (id === 'dmr' && lod === 'far') {
+      locks = new Uint8Array(p.length / 3);
+      const low = Array.from({ length: p.length / 3 }, (_, i) => i).filter(i => p[i * 3 + 1] < -.135);
+      const front = Math.min(...low.map(i => p[i * 3 + 2])), rear = Math.max(...low.map(i => p[i * 3 + 2]));
+      // Preserve the lower outline, not every stitch and cross section. Pinning
+      // the whole dense strap would consume the budget and erase the barrel.
+      for (let bin = 0; bin < 8; bin++) {
+        const candidates = low.filter(i => Math.min(7, Math.floor((p[i * 3 + 2] - front) / (rear - front) * 8)) === bin);
+        if (candidates.length) locks[candidates.reduce((a, b) => p[a * 3 + 1] < p[b * 3 + 1] ? a : b)] = 1;
+      }
+    }
     const [reduced] = MeshoptSimplifier.simplifyWithAttributes(sourceIndices, p, 3, a, 5, [.1, .1, .1, .6, .6], locks,
       Math.min(budget * 3, sourceIndices.length), error, ['Permissive']);
     const used = new Map(), packed = { position: [], normal: [], uv: [], color: [], index: [] };

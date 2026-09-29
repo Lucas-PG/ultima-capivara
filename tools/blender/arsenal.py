@@ -381,7 +381,7 @@ def shotgun():
         parts['body'] += [box('rib_bridge', (0, y, .098), (.009, .013, .012), 'blued', .0008)]
     parts['body'] += [sphere('bead', (0, .651, .111), (.0028, .0028, .0028), 'brass', 12, 8)]
     # Low rear ramp stays below the bead line.
-    parts['body'] += [prism('rear_ramp', [(-.045, .105), (-.024, .105), (-.027, .11), (-.04, .113)], .015, 'blued', bevel=.001)]
+    parts['body'] += [prism('rear_ramp', [(-.045, .105), (-.024, .105), (-.027, .108), (-.04, .108)], .015, 'blued', bevel=.001)]
     parts['body'] += [cyl('mag_tube', (0, .17, .031), (0, .588, .031), .0135, 'blued', sides=24)]
     parts['body'] += [cyl('mag_cap', (0, .581, .031), (0, .604, .031), .0165, 'gunmetal', sides=24)]
     for y in (.585, .59, .595, .6):
@@ -430,7 +430,7 @@ def shotgun():
     profile += [(.029, .156), (.025, .164), (.014, .168)]
     parts['pump'] += [lathe('walnut_pump', profile, 'walnut', p0=(0, .277, .031), sides=24, bevel=.0007)]
     for side in (-1, 1):
-        parts['pump'] += [box('action_bar', (side * .014, .22, .022), (.004, .19, .008), 'steel', .001)]
+        parts['pump'] += [box('action_bar', (side * .025, .22, .022), (.004, .19, .008), 'steel', .001)]
     # One shell enters the loading port; hidden outside shell choreography.
     parts['mag'] += [cyl('shell_hull', (0, .076, .012), (0, .128, .012), .0105, 'red', sides=18, bevel=.001)]
     parts['mag'] += [cyl('shell_base', (0, .067, .012), (0, .076, .012), .0112, 'brass', sides=18, bevel=.0008)]
@@ -451,6 +451,14 @@ def coco():
                             'wood_red', p0=(0, .436, bore), sides=32, bevel=.001)]
     parts['body'] += [tube('bell_lip', (0, .536, bore), (0, .55, bore), .08, .07, 'brass', sides=32)]
     parts['body'] += [cyl('breech', (0, -.098, bore), (0, -.045, bore), .049, 'blued', sides=28, bevel=.003)]
+    # A domed service cap reads as a closed breech from the first-person eye.
+    parts['body'] += [lathe('breech_cap', [(.012, 0), (.035, .001), (.043, .005), (.043, .011)],
+                            'steel', p0=(0, -.114, bore), sides=24)]
+    parts['body'] += [cyl('cap_lock', (0, -.118, bore), (0, -.113, bore), .009, 'brass', sides=12, bevel=.0005, segments=1)]
+    parts['body'] += [box('cap_lock_slot', (0, -.1184, bore), (.012, .001, .002), 'dark', .0003)]
+    for angle in (0, math.pi / 2, math.pi, 3 * math.pi / 2):
+        x, z = math.cos(angle) * .034, bore + math.sin(angle) * .034
+        parts['body'] += [cyl('cap_screw', (x, -.116, z), (x, -.109, z), .0035, 'brass', sides=8, bevel=.0005, segments=1)]
     for y in (-.079, .098, .286, .43):
         parts['body'] += [tube('brass_barrel_band', (0, y, bore), (0, y + .013, bore), .0485, .042, 'brass', sides=24)]
         for side in (-1, 1):
@@ -634,8 +642,30 @@ def dmr():
     # Sling follows the lower silhouette and stays outside the hand and magazine travel.
     for y, z in ((-.327, -.099), (.41, .039)):
         parts['body'] += [tube('sling_loop', (-.008, y, z), (.008, y, z), .012, .008, 'brass', sides=16, bevel=.0007)]
-    parts['body'] += [sweep('leather_sling', [(0, -.327, -.105), (.052, -.244, -.152), (.08, -.07, -.184), (.08, .13, -.167), (.052, .307, -.1), (0, .41, .033)],
-                           [.008] * 6, 'leather', sides=4, aspect=.22, up=(0, 0, 1))]
+    anchors = [Vector(p) for p in [(0, -.327, -.105), (.052, -.244, -.190), (.08, -.07, -.210), (.08, .13, -.190), (.052, .307, -.1), (0, .41, .033)]]
+    strap = []
+    for i in range(len(anchors) - 1):
+        a, b, c, d = anchors[max(0, i - 1)], anchors[i], anchors[i + 1], anchors[min(len(anchors) - 1, i + 2)]
+        for step in range(6):
+            t = step / 6
+            strap.append((2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t) * .5)
+    strap.append(anchors[-1])
+    # The broad leather face hangs vertically; its thin edge faces the ground.
+    parts['body'] += [sweep('leather_sling', strap, [.012] * len(strap), 'leather', sides=8, aspect=.16, up=(1, 0, 0))]
+    for edge in (-1, 1):
+        seam = []
+        for i, point in enumerate(strap):
+            tangent = (strap[min(i + 1, len(strap) - 1)] - strap[max(0, i - 1)]).normalized()
+            wide = tangent.cross(Vector((1, 0, 0))).normalized()
+            seam.append(point + wide * (edge * .0095) + Vector((-.002, 0, 0)))
+        parts['body'] += [sweep('sling_seam', seam, [.00065] * len(seam), 'rope', sides=4)]
+    centre = anchors[-2] + Vector((-.003, 0, 0))
+    tangent = (anchors[-1] - anchors[-3]).normalized()
+    wide = tangent.cross(Vector((1, 0, 0))).normalized()
+    corners = [centre + tangent * along + wide * across for along, across in [(-.019, -.016), (.019, -.016), (.019, .016), (-.019, .016)]]
+    for i in range(4):
+        parts['body'] += [cyl('sling_buckle', corners[i], corners[(i + 1) % 4], .0023, 'brass', sides=10, bevel=.0003)]
+    parts['body'] += [cyl('buckle_pin', centre - wide * .016, centre + wide * .016, .0015, 'brass', sides=8, bevel=.0003)]
     sockets = {'muzzle': (0, .68, bore), 'eject': (.026, .055, .074), 'sight': (0, -.106, sz)}
     pivots = {'mag': (0, .081, .022), 'charge': (.023, .061, .074), 'trigger': (0, .004, .006)}
     return parts, sockets, pivots, {'magAxis': [0, .052, -.999]}
@@ -656,6 +686,10 @@ def sniper():
                   .058, 'walnut', bevel=.007, smooth=2, raw=True)
     # The thumb window reaches the backstrap so a paw can wrap the grip.
     cut(stock, cutter_prism([(-.137 + .041 * math.cos(a), -.035 + .042 * math.sin(a)) for a in [i * math.tau / 28 for i in range(28)]], .072))
+    # The short paw sits higher than a human wrist. A right-side relief keeps
+    # the lower thumbhole bridge clear without losing the left stock silhouette.
+    cut(stock, cutter_prism([(-.137 + .043 * math.cos(a), -.063 + .067 * math.sin(a))
+                            for a in [i * math.tau / 28 for i in range(28)]], .04, x=.028))
     cut(stock, cutter_box((0, .02, .066), (.04, .23, .045)))
     cut(stock, cutter_box((0, .107, .016), (.034, .074, .049)))
     # Carve the grip waist independently of the broad cheek and shoulder stock.
@@ -789,7 +823,8 @@ LIVERY = {
         {'bands': (.23, .05), 'at': (.05, .112), 'size': 1, 'rotate': 28, 'colour': '367443', 'on': ('yellow',), 'wrap': True, 'depth': (-.049, .049)},
         {'stencil': 'frond', 'at': (.165, .213), 'size': .16, 'rotate': -12, 'colour': '407B3D', 'on': ('yellow',), 'depth': (-.08, -.052)},
         {'stencil': 'frond', 'at': (.165, .213), 'size': .16, 'rotate': -12, 'colour': '407B3D', 'on': ('yellow',), 'depth': (.052, .08)},
-        {'stencil': 'parrot', 'at': (.051, .215), 'size': .085, 'colour': '197C9B', 'on': ('yellow',)},
+        {'stencil': 'parrot', 'at': (.08, .15), 'size': .23, 'colour': '197C9B', 'on': ('yellow',), 'depth': (-.08, -.052)},
+        {'stencil': 'parrot', 'at': (.08, .15), 'size': .23, 'colour': '197C9B', 'on': ('yellow',), 'depth': (.052, .08)},
         {'bands': (.22, .052), 'at': (-.30, -.02), 'size': 1, 'rotate': 28, 'colour': '3D7040', 'on': ('walnut',)},
         {'stencil': 'frond', 'at': (-.339, -.025), 'size': .143, 'rotate': 14, 'colour': '729143', 'on': ('walnut',)},
     ],

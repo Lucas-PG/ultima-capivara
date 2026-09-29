@@ -21,27 +21,27 @@
     "shotgun": {
       "source": 20418,
       "near": 2400,
-      "far": 420
-    },
-    "coco": {
-      "source": 23702,
-      "near": 2366,
-      "far": 400
-    },
-    "dmr": {
-      "source": 20746,
-      "near": 2400,
       "far": 418
     },
+    "coco": {
+      "source": 24466,
+      "near": 2372,
+      "far": 404
+    },
+    "dmr": {
+      "source": 23006,
+      "near": 2392,
+      "far": 416
+    },
     "sniper": {
-      "source": 21556,
+      "source": 21740,
       "near": 2400,
-      "far": 414
+      "far": 410
     },
     "machete": {
       "near": 2260,
       "far": 420
     }
   },
-  "bundledBytes": 5910125
+  "bundledBytes": 5913681
 }
