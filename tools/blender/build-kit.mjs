@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
+import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -20,7 +21,10 @@ const path = `${root}/public/models/kit/kit.glb`;
 await io.write(path, document);
 const report = JSON.parse(await readFile(`${root}/output/kit/blender-report.json`, 'utf8'));
 report.bytes = (await stat(path)).size;
+// Pages serves the GLB compressed; meshopt buffers are built to shrink again under gzip.
+report.gzipBytes = gzipSync(await readFile(path), { level: 9 }).length;
 report.materials = document.getRoot().listMaterials().length;
-if (report.materials !== 1 || report.bytes > 8 * 1024 * 1024) throw new Error('Island kit exceeds its material or download budget');
+if (report.materials !== 1 || report.bytes > 14 * 1024 * 1024 || report.gzipBytes > 4 * 1024 * 1024)
+  throw new Error('Island kit exceeds its material or download budget');
 await writeFile(`${root}/public/models/kit/metrics.json`, JSON.stringify(report, null, 2) + '\n');
-console.log(`Island kit: ${report.pieces.length} pieces, ${report.materials} material, ${report.bytes} bytes`);
+console.log(`Island kit: ${report.pieces.length} pieces, ${report.materials} material, ${report.bytes} bytes (${report.gzipBytes} gzip)`);

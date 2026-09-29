@@ -507,5 +507,6 @@
       "colliders": 49
     }
   ],
-  "bytes": 8068500
+  "bytes": 8068500,
+  "gzipBytes": 2360957
 }
