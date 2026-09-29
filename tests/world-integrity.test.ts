@@ -92,6 +92,20 @@ describe('island physical integrity', () => {
     expect(Math.abs(head.max.y - door.y)).toBeLessThan(.05);
   });
 
+  it('grows nothing and moors nothing under the roof of an open-floored building', () => {
+    const hollow = world.pieces!.filter(piece => /^(church|market_hall|warehouse|engenho|beach_kiosk|lighthouse|bar_mare|palafita)/.test(piece.piece));
+    const under = (x: number, z: number) => hollow.find(piece => {
+      const local = { x: (x - piece.x) * Math.cos(piece.yaw) - (z - piece.z) * Math.sin(piece.yaw), z: (x - piece.x) * Math.sin(piece.yaw) + (z - piece.z) * Math.cos(piece.yaw) };
+      const [width, depth] = KIT_PIECES[piece.piece].footprint;
+      return Math.abs(local.x) < width / 2 - .3 && Math.abs(local.z) < depth / 2 - .3;
+    });
+    const faults = [
+      ...world.objects.filter(o => ['tree', 'palm'].includes(o.kind) && under(o.pos.x, o.pos.z)).map(o => `${o.kind} ${o.id}`),
+      ...world.pieces!.filter(p => ['bush_cluster', 'hedge', 'boat'].includes(p.piece) && under(p.x, p.z)).map(p => p.id),
+    ].map(id => `${id} stands inside a building`);
+    expect(faults).toEqual([]);
+  });
+
   it('keeps every pier over water on piles that reach the bed', () => {
     const docks = world.pieces!.filter(piece => piece.piece === 'dock_wood');
     expect(docks.length).toBeGreaterThanOrEqual(3);

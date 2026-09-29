@@ -492,7 +492,7 @@ export function createWorld(): WorldSpec {
     }
     detail('mirante', 92, 77.8, Math.PI, 1, ground(92, 77.8));
     // Canoes moored among the stilts and two drawn up on the beach; nets on the decks.
-    for (const [x, z, yaw, scale] of [[90.6, 99.6, .3, .8], [101.2, 92.6, 1.25, .75], [83.4, 104.4, -.45, .8], [106.2, 101.5, .1, .85]] as const)
+    for (const [x, z, yaw, scale] of [[90.6, 99.6, .3, .8], [101.2, 92.6, 1.25, .75], [88.6, 107.2, 1.5, .8], [106.2, 101.5, .1, .85]] as const)
       detail('boat', x, z, yaw, scale, -.15);
     for (const [x, z, yaw] of [[91.5, 80.8, .9], [93.4, 82.6, 1.2]] as const) detail('boat', x, z, yaw, .75, ground(x, z) - .08);
     const deck = bed + (KIT_PIECES.passarela?.traversal?.floors[0].y ?? 2);
@@ -732,8 +732,15 @@ export function createWorld(): WorldSpec {
     Math.abs(x - o.pos.x) < o.scale.x / 2 + 1.4 && Math.abs(z - o.pos.z) < o.scale.z / 2 + 1.4);
   // Buried cliff solids should not erase the jungle above them. Keep roots on
   // terrain and reject only geometry that actually rises through the planting.
+  // Open-floored buildings: nothing grows on their floors, under their roofs.
+  const hollow = pieces.filter(piece => /^(church|market_hall|warehouse|engenho|beach_kiosk|lighthouse|bar_mare|palafita)/.test(piece.piece));
+  const hollowAt = (x: number, z: number, margin: number) => hollow.some(piece => {
+    const [width, depth] = KIT_PIECES[piece.piece].footprint, c = Math.cos(piece.yaw), s = Math.sin(piece.yaw);
+    const dx = x - piece.x, dz = z - piece.z;
+    return Math.abs(dx * c - dz * s) < width / 2 + margin && Math.abs(dx * s + dz * c) < depth / 2 + margin;
+  });
   const plantBlocked = (x: number, z: number, margin: number) => {
-    if (playAreaAt(x, z, margin + .6) || lotAt(x, z, margin)) return true;
+    if (playAreaAt(x, z, margin + .6) || lotAt(x, z, margin) || hollowAt(x, z, margin)) return true;
     const y = ground(x, z);
     return anySolid(x - margin, z - margin, x + margin, z + margin, c => c.max.y > y + .3 && c.min.y < y + 2 &&
       x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
@@ -824,8 +831,11 @@ export function createWorld(): WorldSpec {
       const angle = i * 2.399 + district.x * .04, radius = district.radius * (.68 + i % 3 * .12);
       understory(district.x + Math.cos(angle) * radius, district.z + Math.sin(angle) * radius, .8 + foliageRandom() * .45);
     }
-    // The Capela's stair climbs between planted banks.
+    // The Capela's stair climbs between planted banks; the Rosário chapel's east flank is planted.
     for (const x of [-45, -50, -55]) for (const side of [-1, 1]) understory(x, CAPELA_STAIR.z + side * 3.6, .85);
+    for (const z of [42.4, 50.2]) understory(-13.8, z, .8);
+    // The palafitas' shore keeps a little scrub either side of the boardwalk foot.
+    for (const [x, z] of [[83, 79], [89.5, 86.8]] as const) understory(x, z, .8);
   }
   for (let i = 0; i < 160; i++) {
     const x = -120 + random() * 240, z = -120 + random() * 240, y = ground(x, z);
