@@ -2,7 +2,7 @@
 // npx tsx tools/qa/trunk-error.ts <detail> <height> [kind]
 import * as THREE from 'three';
 import { plantMatrix } from '../../src/render/vegetation/plants';
-import { KIND } from '../../src/render/vegetation/mesh-builder';
+import { TRUNK_KINDS } from '../../src/render/vegetation/mesh-builder';
 import { buildTemplates } from '../../src/render/vegetation/templates';
 import { plantSpecies, plantVariant } from '../../src/shared/vegetation-species';
 import { plantTrunkSections } from '../../src/shared/vegetation-trunks';
@@ -14,7 +14,7 @@ const g = buildTemplates(new Set([species]))[species][plantVariant(object, speci
 const pos = g.getAttribute('position'), aux = g.getAttribute('aux'), m = plantMatrix(object);
 let worst = { e: -Infinity, y: 0, i: 0 };
 for (let i = 0; i < pos.count; i++) {
-  if (aux.getY(i) !== KIND.trunk) continue;
+  if (!TRUNK_KINDS.includes(aux.getY(i))) continue;
   const v = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(m);
   const e = Math.min(...sections.map((s, k) => {
     const a = new THREE.Vector3().copy(s.a), b = new THREE.Vector3().copy(s.b), axis = b.clone().sub(a);

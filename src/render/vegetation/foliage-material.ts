@@ -66,22 +66,28 @@ export function createFoliageMaterial(atlas?: THREE.Texture) {
         #endif
       `)
       .replace('#include <color_fragment>', `#include <color_fragment>
-        // Painted bark: coconut rings and soft vertical grain. Rings are in template metres.
+        // Painted bark: palm growth rings and soft vertical grain. Rings are in template metres.
         float barkKind = 1.0 - step( .5, vAux.y ) * step( vAux.y, 3.5 );
-        if ( vAux.y < .5 ) {
+        if ( vAux.y > 4.5 ) {
           float ring = pow( .5 + .5 * cos( vMapUv.y * 19.5 ), 3.0 );
           diffuseColor.rgb *= 1.0 - .26 * ring;
         }
         if ( barkKind > .5 ) {
           float grain = fract( sin( floor( vMapUv.x * 22.0 ) * 12.9898 ) * 43758.5453 );
-          diffuseColor.rgb *= .93 + .1 * grain;
+          float streak = .5 + .5 * sin( vMapUv.y * 3.1 + vMapUv.x * 17.0 );
+          diffuseColor.rgb *= .92 + .1 * grain + .04 * streak;
         }
       `)
       .replace('#include <alphatest_fragment>', `
         #ifdef USE_ALPHATEST
           // Mip averaging thins alpha with distance. Lower the cut so crowns keep their body.
-          float thin = smoothstep( 22.0, 75.0, vPlantDist ) * step( .5, vAux.y ) * step( vAux.y, 1.5 );
-          if ( diffuseColor.a < mix( alphaTest, .16, thin ) ) discard;
+          float leafCard = step( .5, vAux.y ) * step( vAux.y, 1.5 );
+          float thin = smoothstep( 22.0, 75.0, vPlantDist ) * leafCard;
+          // A card seen edge-on smears its painting into a stretched strip: near the eye it fades out.
+          vec3 faceNormal = normalize( cross( dFdx( vViewPosition ), dFdy( vViewPosition ) ) );
+          float facing = abs( dot( faceNormal, normalize( vViewPosition ) ) );
+          float edgeOn = ( 1.0 - smoothstep( .1, .34, facing ) ) * leafCard * ( 1.0 - smoothstep( 18.0, 40.0, vPlantDist ) );
+          if ( diffuseColor.a < mix( mix( alphaTest, .16, thin ), 1.01, edgeOn ) ) discard;
         #endif
       `)
       .replace('#include <opaque_fragment>', `
@@ -97,6 +103,6 @@ export function createFoliageMaterial(atlas?: THREE.Texture) {
         #include <opaque_fragment>
       `);
   };
-  material.customProgramCacheKey = () => 'ilha-dourada-foliage-v1';
+  material.customProgramCacheKey = () => 'ilha-dourada-foliage-v2';
   return { material, uniforms };
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { expect, it } from 'vitest';
 import { plantMatrix } from '../src/render/vegetation/plants';
-import { KIND } from '../src/render/vegetation/mesh-builder';
+import { KIND, TRUNK_KINDS } from '../src/render/vegetation/mesh-builder';
 import { buildTemplates } from '../src/render/vegetation/templates';
 import { plantSpecies, plantVariant, type SpeciesId } from '../src/shared/vegetation-species';
 import { hasSolidTrunk, plantTrunkSections } from '../src/shared/vegetation-trunks';
@@ -28,7 +28,7 @@ it('renders each solid trunk from the same tapered sections a collider would use
     const geometry = buildTemplates(new Set([species]))[species][plantVariant(plant, species)][0];
     const position = geometry.getAttribute('position'), aux = geometry.getAttribute('aux');
     const matrix = plantMatrix(plant), vertices: THREE.Vector3[] = [];
-    for (let i = 0; i < position.count; i++) if (aux.getY(i) === KIND.trunk)
+    for (let i = 0; i < position.count; i++) if (TRUNK_KINDS.includes(aux.getY(i)))
       vertices.push(new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(matrix));
     expect(vertices.length, `${species} has no collision-flagged trunk vertices`).toBeGreaterThan(60);
     for (const vertex of vertices) {

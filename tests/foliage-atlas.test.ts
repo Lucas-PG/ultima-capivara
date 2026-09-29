@@ -6,7 +6,9 @@ import foliage from '../tools/art/foliage-atlas.metrics.json';
 import ground from '../tools/art/ground-atlas.metrics.json';
 
 interface Metrics { size: number; bytes: number; sha256: string; guard: number; tiles: Record<string, { x: number; y: number; w: number; h: number }> }
-const LIMITS = { foliage: 800_000, ground: 250_000 };
+// Download budgets. The foliage atlas carries palm fronds, bougainvillea trails and the garden
+// flowers besides the leaf clusters (28 tiles); the ground atlas the lawn, wild and dune grasses.
+const LIMITS = { foliage: 1_200_000, ground: 330_000 };
 
 // Tiles are alpha-tested cards: a guard band that is not transparent would let mip levels smear one
 // painting into its neighbour, and a translucent interior would punch holes in every crown.

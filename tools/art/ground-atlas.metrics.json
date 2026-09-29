@@ -1,83 +1,194 @@
 {
   "generator": "tools/art/build-foliage-atlas.mjs",
-  "source": "tools/art/foliage-codex-source.png",
+  "sources": [
+    {
+      "file": "tools/art/foliage-codex-source.png",
+      "sha256": "b59588bbf42591f4758609e219092f99bef8ca59772798a4c7613ccd4aa7a0a9"
+    },
+    {
+      "file": "tools/art/foliage-garden-codex.png",
+      "sha256": "9e2de6f8299ea82ad1b639939050b1f6cd067c3a0844c017cb23f7395cf9f64f"
+    },
+    {
+      "file": "tools/art/foliage-fronds-codex.png",
+      "sha256": "09909625437dc934a85166b7fb3de88a4fb9b2b76cd188347b67aee4c92252de"
+    },
+    {
+      "file": "tools/art/foliage-vines-codex.png",
+      "sha256": "40f430962c430019298ebb885be4a46b45fb8f96fd6a949f49750b21c4c7b1d7"
+    }
+  ],
   "size": 1024,
-  "usedRows": 487,
+  "usedRows": 992,
   "guard": 6,
   "output": "public/textures/ground-atlas.webp",
-  "bytes": 158250,
-  "sha256": "54cb50bfa2ce5e96d14ed937bfea78ae0ced6019a83e978e8e5def9031c3087d",
+  "bytes": 290986,
+  "sha256": "a1333547448782edc0b8e404b8a9032bfb2d7eeb62f7152c407dc102f5bd226e",
   "alpha": {
-    "transparent": 884982,
-    "opaque": 127443,
-    "antialiased": 36151
+    "transparent": 751127,
+    "opaque": 211168,
+    "antialiased": 86281
   },
   "tiles": {
     "clover": {
       "x": 16,
-      "y": 268,
+      "y": 772,
       "w": 220,
       "h": 203,
       "root": [
         0.512,
         0.994
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.251,
+        0.536,
+        0.124
+      ]
     },
     "wildflowers": {
-      "x": 16,
-      "y": 16,
+      "x": 286,
+      "y": 286,
       "w": 207,
       "h": 220,
       "root": [
         0.452,
         0.977
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.565,
+        0.607,
+        0.259
+      ]
     },
     "grass": {
-      "x": 721,
-      "y": 16,
+      "x": 16,
+      "y": 539,
       "w": 220,
       "h": 207,
       "root": [
         0.5,
         0.994
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.412,
+        0.585,
+        0.189
+      ]
     },
     "fallen-leaves": {
       "x": 262,
-      "y": 268,
+      "y": 785,
       "w": 220,
       "h": 191,
       "root": [
         0.5,
         0.826
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.811,
+        0.398,
+        0.15
+      ]
     },
     "fern": {
-      "x": 249,
-      "y": 16,
+      "x": 262,
+      "y": 539,
       "w": 201,
       "h": 220,
       "root": [
         0.324,
         0.995
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.336,
+        0.521,
+        0.126
+      ]
     },
     "monstera": {
-      "x": 476,
-      "y": 16,
+      "x": 607,
+      "y": 203,
       "w": 219,
       "h": 220,
       "root": [
         0.426,
         0.995
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.214,
+        0.458,
+        0.182
+      ]
+    },
+    "lawn": {
+      "x": 16,
+      "y": 16,
+      "w": 275,
+      "h": 209,
+      "root": [
+        0.54,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.494,
+        0.626,
+        0.381
+      ]
+    },
+    "wild-grass": {
+      "x": 16,
+      "y": 251,
+      "w": 244,
+      "h": 262,
+      "root": [
+        0.48,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.515,
+        0.548,
+        0.255
+      ]
+    },
+    "dune-grass": {
+      "x": 317,
+      "y": 16,
+      "w": 264,
+      "h": 244,
+      "root": [
+        0.491,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.504,
+        0.549,
+        0.264
+      ]
+    },
+    "impatiens": {
+      "x": 607,
+      "y": 16,
+      "w": 227,
+      "h": 161,
+      "root": [
+        0.516,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.47,
+        0.405,
+        0.273
+      ]
     }
   }
 }

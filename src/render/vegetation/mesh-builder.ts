@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 /** How a vertex is shaded. The values are stored in the `aux.y` attribute. */
 export const KIND = {
-  /** Collision trunk: bark with painted rings, no atlas. Rendered from `plantTrunkSections`. */
+  /** Collision trunk: plain bark, no atlas. Rendered from `plantTrunkSections`. */
   trunk: 0,
   /** Painted atlas leaf card with alpha. */
   leaf: 1,
@@ -10,7 +10,12 @@ export const KIND = {
   solid: 2,
   /** Non-collision bark: limbs, roots, stems. */
   limb: 4,
+  /** Collision trunk of a palm: bark with painted growth rings. */
+  palmTrunk: 5,
 } as const;
+
+/** Vertex kinds that belong to a trunk a collider would be built from (`plantTrunkSections`). */
+export const TRUNK_KINDS: readonly number[] = [KIND.trunk, KIND.palmTrunk];
 
 /** Every template geometry shares this layout, which is what BatchedMesh requires. */
 export class MeshBuilder {
@@ -136,7 +141,11 @@ export interface CardOptions {
   flip?: boolean;
 }
 
-export interface TileUv { u0: number; v0: number; u1: number; v1: number; aspect: number; root: readonly [number, number] }
+export interface TileUv {
+  u0: number; v0: number; u1: number; v1: number; aspect: number; root: readonly [number, number];
+  /** Mean sRGB colour of the tile's painted pixels. */
+  mean?: readonly [number, number, number];
+}
 
 /** A bent, textured card. `right` and `up` span its plane; `face` is right x up. */
 export function card(mb: MeshBuilder, tile: TileUv, origin: THREE.Vector3, right: THREE.Vector3, up: THREE.Vector3, o: CardOptions) {

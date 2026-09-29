@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as procedural from './foliage-tiles.mjs';
+import { prepareSheet } from './prepare-foliage-sheet.mjs';
 
 const SOURCE = 'tools/art/foliage-codex-source.png';
 const source = JSON.parse(readFileSync('tools/art/foliage-codex-source.metrics.json', 'utf8'));
@@ -19,8 +20,17 @@ const codex = Object.fromEntries(source.tiles.map(t => [t.name, t]));
 const GUARD = 6;      // transparent pixels around every tile
 const BLEED = 10;     // colour bleed into transparent pixels
 
-// `codex` tiles are cut out of the Codex painting at `scale`, optionally regraded.
-// `make` tiles come from foliage-tiles.mjs. `grade` follows sharp.modulate.
+// `codex` tiles are cut out of the first Codex painting (fixed 512 cells, bounds in its metrics).
+// `sheet` tiles are cut out of a later Codex painting, cleaned by prepare-foliage-sheet.mjs.
+// `make` tiles come from foliage-tiles.mjs. `cluster` tiles compose several cut tiles into one leafy mass.
+// `grade` follows sharp.modulate; `close` fills the gaps between leaflets (pixels) for distant cards.
+const SHEETS = {
+  garden: { file: 'tools/art/foliage-garden-codex.png', grid: [4, 4], names: ['palm-frond', 'palm-frond-old', 'bougainvillea-trail^',
+    'bougainvillea-mound', 'bougainvillea-coral^', 'hibiscus', 'heliconia', 'strelitzia', 'croton', 'taro', 'lawn-grass', 'wild-grass',
+    'dune-grass', 'impatiens', 'mango-leaves', 'bromeliad'] },
+  fronds: { file: 'tools/art/foliage-fronds-codex.png', grid: [2, 1], names: ['frond', 'frond-old'] },
+  vines: { file: 'tools/art/foliage-vines-codex.png', grid: [4, 1], names: ['trail-magenta^', 'trail-pink^', 'trail-coral^', 'trail-leafy^'] },
+};
 const ATLASES = {
   foliage: {
     size: 2048,
@@ -33,21 +43,41 @@ const ATLASES = {
       { name: 'ipe-yellow', codex: 'yellow-ipe', scale: .82, hidden: true },
       { name: 'ipe-pink', codex: 'pink-ipe', scale: .82, hidden: true },
       { name: 'bougainvillea', codex: 'bougainvillea', scale: .82, hidden: true },
+      { name: 'mango', sheet: 'garden', tile: 'mango-leaves', scale: 1.2, grade: { brightness: 1.08, saturation: 1.0, hue: -2 }, hidden: true },
+      { name: 'hibiscus-sprig', sheet: 'garden', tile: 'hibiscus', scale: 1.1, hidden: true },
+      { name: 'flame-flower', make: ['bloom', { seed: 13, outer: '#EB4A22', inner: '#A81E12', tip: '#F58A2C', streak: '#FFE38A' }], hidden: true },
       // Leafy masses: many sprigs composed into one card, so a large card carries 20 to 30 cm leaves.
-      { name: 'cluster-lime', cluster: { from: ['lime', 'emerald', 'lime'], count: 8, size: 384, seed: 1 } },
-      { name: 'cluster-emerald', cluster: { from: ['emerald', 'guava', 'lime'], count: 8, size: 384, seed: 2 } },
-      { name: 'cluster-guava', cluster: { from: ['guava', 'emerald', 'teal'], count: 8, size: 384, seed: 3 } },
-      { name: 'cluster-teal', cluster: { from: ['teal', 'emerald', 'guava'], count: 8, size: 384, seed: 4 } },
-      { name: 'cluster-ipe-yellow', cluster: { from: ['ipe-yellow', 'ipe-yellow', 'lime'], count: 7, size: 384, seed: 5, scale: [.5, .78] } },
-      { name: 'cluster-ipe-pink', cluster: { from: ['ipe-pink', 'ipe-pink', 'lime'], count: 7, size: 384, seed: 6, scale: [.5, .78] } },
-      { name: 'cluster-flame', cluster: { from: ['bougainvillea', 'lime', 'bougainvillea'], count: 7, size: 384, seed: 7, scale: [.5, .78], tint: { hue: 52, saturation: 1.2, brightness: 1.05 }, tintOnly: ['bougainvillea'] } },
-      { name: 'cluster-bougainvillea', cluster: { from: ['bougainvillea', 'emerald', 'bougainvillea'], count: 8, size: 384, seed: 8, scale: [.5, .78] } },
-      { name: 'palm-fan', codex: 'palm-fan', scale: .8, grade: { brightness: 1.12, saturation: 1.05, hue: -3 } },
+      { name: 'cluster-lime', cluster: { from: ['lime', 'emerald', 'lime'], count: 8, size: 352, seed: 1 } },
+      { name: 'cluster-emerald', cluster: { from: ['emerald', 'guava', 'lime'], count: 8, size: 352, seed: 2 } },
+      { name: 'cluster-guava', cluster: { from: ['guava', 'emerald', 'teal'], count: 8, size: 352, seed: 3 } },
+      { name: 'cluster-teal', cluster: { from: ['teal', 'emerald', 'guava'], count: 8, size: 320, seed: 4 } },
+      { name: 'cluster-mango', cluster: { from: ['mango', 'emerald', 'mango'], count: 8, size: 352, seed: 10, scale: [.46, .7] } },
+      { name: 'cluster-ipe-yellow', cluster: { from: ['ipe-yellow', 'ipe-yellow', 'lime'], count: 7, size: 320, seed: 5, scale: [.5, .78] } },
+      { name: 'cluster-ipe-pink', cluster: { from: ['ipe-pink', 'ipe-pink', 'lime'], count: 7, size: 320, seed: 6, scale: [.5, .78] } },
+      { name: 'cluster-flame', cluster: { from: ['flame-flower', 'lime', 'flame-flower', 'flame-flower', 'lime'], count: 9, size: 320, seed: 7, scale: [.28, .5] } },
+      { name: 'cluster-hibiscus', cluster: { from: ['hibiscus-sprig', 'emerald', 'lime'], count: 7, size: 320, seed: 9, scale: [.42, .62] } },
+      { name: 'cluster-bougainvillea', cluster: { from: ['bougainvillea', 'emerald', 'bougainvillea'], count: 8, size: 320, seed: 8, scale: [.5, .78] } },
+      // Coconut fronds: the painted frond is split along its midrib onto the two folded halves of a blade.
+      { name: 'frond', sheet: 'fronds', tile: 'frond', scale: .66 },
+      { name: 'frond-old', sheet: 'fronds', tile: 'frond-old', scale: .5 },
+      { name: 'frond-far', sheet: 'fronds', tile: 'frond', scale: .3, close: 5 },
+      // Bougainvillea trails hang from their root at the top of the tile.
+      { name: 'trail-magenta', sheet: 'vines', tile: 'trail-magenta', scale: .62 },
+      { name: 'trail-pink', sheet: 'vines', tile: 'trail-pink', scale: .62 },
+      { name: 'trail-coral', sheet: 'vines', tile: 'trail-coral', scale: .62 },
+      { name: 'trail-leafy', sheet: 'vines', tile: 'trail-leafy', scale: .62 },
+      { name: 'bougainvillea-mound', sheet: 'garden', tile: 'bougainvillea-mound', scale: 1 },
+      // Garden and understory plants.
+      { name: 'hibiscus', sheet: 'garden', tile: 'hibiscus', scale: 1 },
+      { name: 'heliconia', sheet: 'garden', tile: 'heliconia', scale: 1.1 },
+      { name: 'strelitzia', sheet: 'garden', tile: 'strelitzia', scale: 1 },
+      { name: 'croton', sheet: 'garden', tile: 'croton', scale: 1 },
+      { name: 'taro', sheet: 'garden', tile: 'taro', scale: 1 },
+      { name: 'bromeliad', sheet: 'garden', tile: 'bromeliad', scale: .9 },
+      { name: 'palm-fan', codex: 'palm-fan', scale: .7, grade: { brightness: 1.12, saturation: 1.05, hue: -3 } },
       { name: 'banana-leaf', codex: 'banana', scale: .9, grade: { brightness: 1.08, saturation: 1.05, hue: -2 } },
       { name: 'monstera', codex: 'monstera', scale: .8, grade: { brightness: 1.12, saturation: 1.0, hue: -3 } },
       { name: 'fern', codex: 'fern', scale: .8, grade: { brightness: 1.14, saturation: 1.0, hue: -4 } },
-      { name: 'frond', make: ['frondHalf', { seed: 7 }] },
-      { name: 'frond-solid', make: ['frondHalf', { solid: true, seed: 11 }] },
     ],
   },
   ground: {
@@ -59,9 +89,80 @@ const ATLASES = {
       { name: 'fallen-leaves', codex: 'fallen-leaves', scale: .5 },
       { name: 'fern', codex: 'fern', scale: .5, grade: { brightness: 1.14, saturation: 1.0, hue: -4 } },
       { name: 'monstera', codex: 'monstera', scale: .5, grade: { brightness: 1.12, saturation: 1.0, hue: -3 } },
+      // Lawn tufts are graded toward the terrain's grass paint; runtime tints finish the match per spot.
+      { name: 'lawn', sheet: 'garden', tile: 'lawn-grass', scale: .9, grade: { brightness: 1.32, saturation: .74, hue: 6 } },
+      { name: 'wild-grass', sheet: 'garden', tile: 'wild-grass', scale: .9, grade: { brightness: 1.12, saturation: .86 } },
+      { name: 'dune-grass', sheet: 'garden', tile: 'dune-grass', scale: .9 },
+      { name: 'impatiens', sheet: 'garden', tile: 'impatiens', scale: .8 },
     ],
   },
 };
+
+const sheets = new Map();
+async function sheet(name) {
+  if (!sheets.has(name)) {
+    const { file, grid, names } = SHEETS[name];
+    sheets.set(name, await prepareSheet(file, grid[0], grid[1], names));
+  }
+  return sheets.get(name);
+}
+
+/** Fills the colour of transparent pixels from painted neighbours (alpha untouched). */
+function fillColour(data, w, h, passes) {
+  let known = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) known[i] = data[i * 4 + 3] > 0 ? 1 : 0;
+  for (let pass = 0; pass < passes; pass++) {
+    const next = known.slice();
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (known[i]) continue;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const j = yy * w + xx;
+        if (!known[j]) continue;
+        r += data[j * 4]; g += data[j * 4 + 1]; b += data[j * 4 + 2]; n++;
+      }
+      if (n) { data[i * 4] = r / n; data[i * 4 + 1] = g / n; data[i * 4 + 2] = b / n; next[i] = 1; }
+    }
+    known = next;
+  }
+}
+
+/** Morphological closing of the alpha channel: gaps narrower than 2 * radius fill in. */
+function closeAlpha(data, w, h, radius) {
+  const alpha = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) alpha[i] = data[i * 4 + 3];
+  const pass = (src, pick) => {
+    const out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let v = pick === 'max' ? 0 : 255;
+      for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+        if (dx * dx + dy * dy > radius * radius) continue;
+        const xx = x + dx, yy = y + dy;
+        const a = xx < 0 || yy < 0 || xx >= w || yy >= h ? 0 : src[yy * w + xx];
+        v = pick === 'max' ? Math.max(v, a) : Math.min(v, a);
+      }
+      out[y * w + x] = v;
+    }
+    return out;
+  };
+  const closed = pass(pass(alpha, 'max'), 'min');
+  for (let i = 0; i < w * h; i++) data[i * 4 + 3] = Math.max(alpha[i], closed[i]);
+}
+
+async function graded(image, w, h, grade) {
+  // Grade only the colour: split alpha, modulate, rejoin.
+  const rgba = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  if (!grade) return rgba.data;
+  const alpha = Buffer.alloc(w * h);
+  for (let i = 0; i < w * h; i++) alpha[i] = rgba.data[i * 4 + 3];
+  const rgb = await sharp(rgba.data, { raw: { width: w, height: h, channels: 4 } }).removeAlpha().modulate(grade).raw().toBuffer();
+  const out = Buffer.alloc(w * h * 4);
+  for (let i = 0; i < w * h; i++) { out[i * 4] = rgb[i * 3]; out[i * 4 + 1] = rgb[i * 3 + 1]; out[i * 4 + 2] = rgb[i * 3 + 2]; out[i * 4 + 3] = alpha[i]; }
+  return out;
+}
 
 async function cut(spec) {
   if (spec.make) {
@@ -69,23 +170,27 @@ async function cut(spec) {
     const { data, info } = await sharp(Buffer.from(tile.svg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     return { data, w: info.width, h: info.height, root: tile.root };
   }
-  const t = codex[spec.codex], [bx0, by0, bx1, by1] = t.bounds;
-  const cellX = t.index % 4 * 512, cellY = Math.floor(t.index / 4) * 512;
-  let image = sharp(SOURCE).extract({ left: cellX + bx0, top: cellY + by0, width: bx1 - bx0, height: by1 - by0 });
-  const w = Math.round((bx1 - bx0) * spec.scale), h = Math.round((by1 - by0) * spec.scale);
-  image = image.resize(w, h, { kernel: 'lanczos3' });
-  if (spec.grade) {
-    // Grade only the colour: split alpha, modulate, rejoin.
-    const rgba = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    const alpha = Buffer.alloc(w * h);
-    for (let i = 0; i < w * h; i++) alpha[i] = rgba.data[i * 4 + 3];
-    const graded = await sharp(rgba.data, { raw: { width: w, height: h, channels: 4 } }).removeAlpha().modulate(spec.grade).raw().toBuffer();
-    const out = Buffer.alloc(w * h * 4);
-    for (let i = 0; i < w * h; i++) { out[i * 4] = graded[i * 3]; out[i * 4 + 1] = graded[i * 3 + 1]; out[i * 4 + 2] = graded[i * 3 + 2]; out[i * 4 + 3] = alpha[i]; }
-    return { data: out, w, h, root: [(t.root[0] * 512 - bx0) / (bx1 - bx0), (t.root[1] * 512 - by0) / (by1 - by0)] };
+  let image, bw, bh, root;
+  if (spec.sheet) {
+    const s = await sheet(spec.sheet), t = s.tiles[spec.tile];
+    if (!t) throw new Error(`No tile ${spec.tile} in sheet ${spec.sheet}`);
+    const [x0, y0, x1, y1] = t.rect;
+    // Colour under transparent pixels is whatever the painting left; bleed it before any filtering.
+    const region = Buffer.alloc((x1 - x0) * (y1 - y0) * 4);
+    for (let y = y0; y < y1; y++) s.data.copy(region, (y - y0) * (x1 - x0) * 4, (y * s.width + x0) * 4, (y * s.width + x1) * 4);
+    fillColour(region, x1 - x0, y1 - y0, 6);
+    image = sharp(region, { raw: { width: x1 - x0, height: y1 - y0, channels: 4 } });
+    bw = x1 - x0; bh = y1 - y0; root = t.root;
+  } else {
+    const t = codex[spec.codex], [bx0, by0, bx1, by1] = t.bounds;
+    const cellX = t.index % 4 * 512, cellY = Math.floor(t.index / 4) * 512;
+    image = sharp(SOURCE).extract({ left: cellX + bx0, top: cellY + by0, width: bx1 - bx0, height: by1 - by0 });
+    bw = bx1 - bx0; bh = by1 - by0; root = [(t.root[0] * 512 - bx0) / bw, (t.root[1] * 512 - by0) / bh];
   }
-  const { data } = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  return { data, w, h, root: [(t.root[0] * 512 - bx0) / (bx1 - bx0), (t.root[1] * 512 - by0) / (by1 - by0)] };
+  const w = Math.round(bw * spec.scale), h = Math.round(bh * spec.scale);
+  const data = await graded(image.resize(w, h, { kernel: 'lanczos3' }), w, h, spec.grade);
+  if (spec.close) { fillColour(data, w, h, spec.close + 2); closeAlpha(data, w, h, spec.close); }
+  return { data, w, h, root };
 }
 
 // Composes one leafy mass from several already-cut tiles: rotated, mirrored and tone-varied copies
@@ -159,17 +264,34 @@ function bleed(tile, extra) {
 }
 
 function pack(tiles, size) {
-  // Shelf packer, tallest first.
-  const order = tiles.map((t, i) => i).sort((a, b) => tiles[b].h - tiles[a].h);
+  // MaxRects, best short side fit, biggest tiles first. Every placement splits all free rectangles
+  // it overlaps, so short tiles fill the gaps beside tall ones.
+  const order = tiles.map((t, i) => i).sort((a, b) => Math.max(tiles[b].w, tiles[b].h) * 1e4 + tiles[b].w * tiles[b].h - Math.max(tiles[a].w, tiles[a].h) * 1e4 - tiles[a].w * tiles[a].h);
+  let free = [{ x: GUARD, y: GUARD, w: size - GUARD * 2, h: size - GUARD * 2 }];
   const placed = new Array(tiles.length);
-  let x = GUARD, y = GUARD, row = 0;
+  let used = 0;
   for (const i of order) {
     const t = tiles[i], w = t.w + GUARD, h = t.h + GUARD;
-    if (x + w > size) { x = GUARD; y += row + GUARD; row = 0; }
-    if (y + h > size) throw new Error(`Atlas overflow at ${t.name}: ${x},${y}`);
-    placed[i] = { x, y }; x += w; row = Math.max(row, h);
+    let best = null, shortSide = Infinity, longSide = Infinity;
+    for (const r of free) if (r.w >= w && r.h >= h) {
+      const a = Math.min(r.w - w, r.h - h), b = Math.max(r.w - w, r.h - h);
+      if (a < shortSide || (a === shortSide && b < longSide)) { best = r; shortSide = a; longSide = b; }
+    }
+    if (!best) throw new Error(`Atlas overflow at ${t.name}`);
+    const p = { x: best.x, y: best.y, w, h };
+    placed[i] = { x: p.x, y: p.y }; used = Math.max(used, p.y + h);
+    const next = [];
+    for (const r of free) {
+      if (p.x >= r.x + r.w || p.x + p.w <= r.x || p.y >= r.y + r.h || p.y + p.h <= r.y) { next.push(r); continue; }
+      if (p.x > r.x) next.push({ x: r.x, y: r.y, w: p.x - r.x, h: r.h });
+      if (p.x + p.w < r.x + r.w) next.push({ x: p.x + p.w, y: r.y, w: r.x + r.w - p.x - p.w, h: r.h });
+      if (p.y > r.y) next.push({ x: r.x, y: r.y, w: r.w, h: p.y - r.y });
+      if (p.y + p.h < r.y + r.h) next.push({ x: r.x, y: p.y + p.h, w: r.w, h: r.y + r.h - p.y - p.h });
+    }
+    // Drop rectangles fully inside another.
+    free = next.filter((a, ia) => !next.some((b, ib) => ia !== ib && a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h && (ia > ib || a.x !== b.x || a.y !== b.y || a.w !== b.w || a.h !== b.h)));
   }
-  return { placed, used: y + row };
+  return { placed, used };
 }
 
 async function build(name) {
@@ -180,7 +302,8 @@ async function build(name) {
     cache.set(spec.name, raw);
     if (spec.hidden) continue;
     const grown = bleed(raw, BLEED);
-    cutTiles.push({ name: spec.name, ...grown, contentW: raw.w, contentH: raw.h, root: raw.root, source: spec.make ? 'procedural' : spec.cluster ? 'cluster' : 'codex' });
+    cutTiles.push({ name: spec.name, ...grown, contentW: raw.w, contentH: raw.h, root: raw.root,
+      source: spec.make ? 'procedural' : spec.cluster ? 'cluster' : spec.sheet ? `sheet:${spec.sheet}` : 'codex' });
   }
   const { placed, used } = pack(cutTiles, size);
   const atlas = Buffer.alloc(size * size * 4);
@@ -189,17 +312,25 @@ async function build(name) {
     const { x, y } = placed[i];
     for (let row = 0; row < t.h; row++) t.data.copy(atlas, ((y + row) * size + x) * 4, row * t.w * 4, (row + 1) * t.w * 4);
     // The rect is the painted content; the BLEED margin around it holds coloured, transparent pixels.
-    rects[t.name] = { x: x + BLEED, y: y + BLEED, w: t.contentW, h: t.contentH, root: t.root.map(v => Math.round(v * 1000) / 1000), source: t.source };
+    // Mean sRGB of the painted pixels, so runtime tints can match a tile to the ground it grows from.
+    const sum = [0, 0, 0]; let painted = 0;
+    for (let row = BLEED; row < BLEED + t.contentH; row++) for (let col = BLEED; col < BLEED + t.contentW; col++) {
+      const at = (row * t.w + col) * 4;
+      if (t.data[at + 3] > 128) { sum[0] += t.data[at]; sum[1] += t.data[at + 1]; sum[2] += t.data[at + 2]; painted++; }
+    }
+    rects[t.name] = { x: x + BLEED, y: y + BLEED, w: t.contentW, h: t.contentH, root: t.root.map(v => Math.round(v * 1000) / 1000), source: t.source,
+      mean: sum.map(v => Math.round(v / Math.max(1, painted) / 255 * 1000) / 1000) };
   });
   const dir = mkdtempSync(join(tmpdir(), 'atlas-'));
   const png = join(dir, `${name}.png`), webp = `public/textures/${name}-atlas.webp`;
   await sharp(atlas, { raw: { width: size, height: size, channels: 4 } }).png().toFile(png);
-  // WebP keeps alpha losslessly; only the painted RGB uses quality compression.
-  execFileSync('cwebp', ['-q', '90', '-alpha_q', '100', '-m', '6', '-sharp_yuv', '-exact', png, '-o', webp], { stdio: 'ignore' });
+  // WebP keeps alpha losslessly; only the painted RGB uses quality compression (q84: q90 cost 20 percent more bytes for no visible gain on these brush paintings).
+  execFileSync('cwebp', ['-q', '84', '-alpha_q', '100', '-m', '6', '-sharp_yuv', '-exact', png, '-o', webp], { stdio: 'ignore' });
   const file = readFileSync(webp), stats = { transparent: 0, opaque: 0, antialiased: 0 };
   for (let i = 3; i < atlas.length; i += 4) stats[atlas[i] === 0 ? 'transparent' : atlas[i] === 255 ? 'opaque' : 'antialiased']++;
   writeFileSync(`tools/art/${name}-atlas.metrics.json`, JSON.stringify({
-    generator: 'tools/art/build-foliage-atlas.mjs', source: SOURCE, size, usedRows: used, guard: GUARD,
+    generator: 'tools/art/build-foliage-atlas.mjs', sources: [SOURCE, ...Object.values(SHEETS).map(sheet => sheet.file)].map(file =>
+      ({ file, sha256: createHash('sha256').update(readFileSync(file)).digest('hex') })), size, usedRows: used, guard: GUARD,
     output: webp, bytes: file.length, sha256: createHash('sha256').update(file).digest('hex'), alpha: stats, tiles: rects,
   }, null, 2) + '\n');
   console.log(name, `${size}px`, `${file.length} bytes`, `rows ${used}/${size}`, Object.keys(rects).length, 'tiles');

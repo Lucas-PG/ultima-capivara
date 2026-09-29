@@ -1,171 +1,482 @@
 {
   "generator": "tools/art/build-foliage-atlas.mjs",
-  "source": "tools/art/foliage-codex-source.png",
+  "sources": [
+    {
+      "file": "tools/art/foliage-codex-source.png",
+      "sha256": "b59588bbf42591f4758609e219092f99bef8ca59772798a4c7613ccd4aa7a0a9"
+    },
+    {
+      "file": "tools/art/foliage-garden-codex.png",
+      "sha256": "9e2de6f8299ea82ad1b639939050b1f6cd067c3a0844c017cb23f7395cf9f64f"
+    },
+    {
+      "file": "tools/art/foliage-fronds-codex.png",
+      "sha256": "09909625437dc934a85166b7fb3de88a4fb9b2b76cd188347b67aee4c92252de"
+    },
+    {
+      "file": "tools/art/foliage-vines-codex.png",
+      "sha256": "40f430962c430019298ebb885be4a46b45fb8f96fd6a949f49750b21c4c7b1d7"
+    }
+  ],
   "size": 2048,
-  "usedRows": 1848,
+  "usedRows": 2025,
   "guard": 6,
   "output": "public/textures/foliage-atlas.webp",
-  "bytes": 634334,
-  "sha256": "e60b83a1c8751ea4d58eff05baa94a0f5404bf08cd5f7ef6d87cdd1fb30634af",
+  "bytes": 1112166,
+  "sha256": "84951cf6c337fc1c00482a9eb40019deb23830b3ed12bde330cfb62fa8479477",
   "alpha": {
-    "transparent": 3175030,
-    "opaque": 876516,
-    "antialiased": 142758
+    "transparent": 2511934,
+    "opaque": 1390982,
+    "antialiased": 291388
   },
   "tiles": {
     "cluster-lime": {
-      "x": 671,
+      "x": 594,
       "y": 16,
-      "w": 376,
-      "h": 384,
+      "w": 345,
+      "h": 352,
       "root": [
         0.5,
         0.5
       ],
-      "source": "cluster"
+      "source": "cluster",
+      "mean": [
+        0.39,
+        0.579,
+        0.158
+      ]
     },
     "cluster-emerald": {
-      "x": 364,
-      "y": 1480,
-      "w": 384,
-      "h": 346,
+      "x": 972,
+      "y": 377,
+      "w": 352,
+      "h": 318,
       "root": [
         0.5,
         0.5
       ],
-      "source": "cluster"
+      "source": "cluster",
+      "mean": [
+        0.324,
+        0.539,
+        0.187
+      ]
     },
     "cluster-guava": {
-      "x": 426,
-      "y": 1072,
-      "w": 384,
-      "h": 365,
+      "x": 965,
+      "y": 16,
+      "w": 352,
+      "h": 335,
       "root": [
         0.5,
         0.5
       ],
-      "source": "cluster"
+      "source": "cluster",
+      "mean": [
+        0.226,
+        0.479,
+        0.248
+      ]
     },
     "cluster-teal": {
-      "x": 836,
-      "y": 1072,
-      "w": 384,
-      "h": 364,
+      "x": 1681,
+      "y": 716,
+      "w": 320,
+      "h": 304,
       "root": [
         0.5,
         0.5
       ],
-      "source": "cluster"
+      "source": "cluster",
+      "mean": [
+        0.227,
+        0.489,
+        0.267
+      ]
+    },
+    "cluster-mango": {
+      "x": 594,
+      "y": 394,
+      "w": 352,
+      "h": 336,
+      "root": [
+        0.5,
+        0.5
+      ],
+      "source": "cluster",
+      "mean": [
+        0.29,
+        0.428,
+        0.157
+      ]
     },
     "cluster-ipe-yellow": {
-      "x": 1463,
-      "y": 16,
-      "w": 384,
-      "h": 383,
+      "x": 1541,
+      "y": 373,
+      "w": 320,
+      "h": 317,
       "root": [
         0.5,
         0.5
       ],
-      "source": "cluster"
+      "source": "cluster",
+      "mean": [
+        0.603,
+        0.621,
+        0.088
+      ]
     },
     "cluster-ipe-pink": {
-      "x": 1073,
-      "y": 16,
-      "w": 364,
-      "h": 384,
+      "x": 1350,
+      "y": 716,
+      "w": 305,
+      "h": 320,
       "root": [
         0.5,
         0.5
       ],
-      "source": "cluster"
+      "source": "cluster",
+      "mean": [
+        0.703,
+        0.457,
+        0.393
+      ]
     },
     "cluster-flame": {
-      "x": 16,
-      "y": 1072,
-      "w": 384,
-      "h": 376,
+      "x": 1791,
+      "y": 16,
+      "w": 228,
+      "h": 225,
       "root": [
         0.5,
         0.5
       ],
-      "source": "cluster"
+      "source": "cluster",
+      "mean": [
+        0.843,
+        0.454,
+        0.126
+      ]
+    },
+    "cluster-hibiscus": {
+      "x": 1412,
+      "y": 1367,
+      "w": 307,
+      "h": 296,
+      "root": [
+        0.5,
+        0.5
+      ],
+      "source": "cluster",
+      "mean": [
+        0.482,
+        0.381,
+        0.11
+      ]
     },
     "cluster-bougainvillea": {
-      "x": 1246,
-      "y": 1072,
-      "w": 373,
-      "h": 355,
+      "x": 1681,
+      "y": 1046,
+      "w": 310,
+      "h": 295,
       "root": [
         0.5,
         0.5
       ],
-      "source": "cluster"
+      "source": "cluster",
+      "mean": [
+        0.38,
+        0.418,
+        0.224
+      ]
+    },
+    "frond": {
+      "x": 16,
+      "y": 16,
+      "w": 363,
+      "h": 776,
+      "root": [
+        0.517,
+        1
+      ],
+      "source": "sheet:fronds",
+      "mean": [
+        0.326,
+        0.547,
+        0.163
+      ]
+    },
+    "frond-old": {
+      "x": 421,
+      "y": 779,
+      "w": 283,
+      "h": 588,
+      "root": [
+        0.48,
+        1
+      ],
+      "source": "sheet:fronds",
+      "mean": [
+        0.468,
+        0.491,
+        0.169
+      ]
+    },
+    "frond-far": {
+      "x": 1350,
+      "y": 16,
+      "w": 165,
+      "h": 353,
+      "root": [
+        0.517,
+        1
+      ],
+      "source": "sheet:fronds",
+      "mean": [
+        0.327,
+        0.537,
+        0.138
+      ]
+    },
+    "trail-magenta": {
+      "x": 16,
+      "y": 818,
+      "w": 184,
+      "h": 753,
+      "root": [
+        0.422,
+        0
+      ],
+      "source": "sheet:vines",
+      "mean": [
+        0.618,
+        0.227,
+        0.313
+      ]
+    },
+    "trail-pink": {
+      "x": 421,
+      "y": 1393,
+      "w": 169,
+      "h": 520,
+      "root": [
+        0.443,
+        0
+      ],
+      "source": "sheet:vines",
+      "mean": [
+        0.672,
+        0.266,
+        0.329
+      ]
+    },
+    "trail-coral": {
+      "x": 226,
+      "y": 818,
+      "w": 169,
+      "h": 741,
+      "root": [
+        0.574,
+        0
+      ],
+      "source": "sheet:vines",
+      "mean": [
+        0.683,
+        0.393,
+        0.222
+      ]
+    },
+    "trail-leafy": {
+      "x": 405,
+      "y": 16,
+      "w": 163,
+      "h": 737,
+      "root": [
+        0.556,
+        0
+      ],
+      "source": "sheet:vines",
+      "mean": [
+        0.46,
+        0.375,
+        0.238
+      ]
+    },
+    "bougainvillea-mound": {
+      "x": 616,
+      "y": 1771,
+      "w": 278,
+      "h": 238,
+      "root": [
+        0.772,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.59,
+        0.189,
+        0.315
+      ]
+    },
+    "hibiscus": {
+      "x": 992,
+      "y": 1689,
+      "w": 291,
+      "h": 298,
+      "root": [
+        0.603,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.611,
+        0.197,
+        0.121
+      ]
+    },
+    "heliconia": {
+      "x": 1541,
+      "y": 16,
+      "w": 224,
+      "h": 331,
+      "root": [
+        0.478,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.43,
+        0.356,
+        0.1
+      ]
+    },
+    "strelitzia": {
+      "x": 1745,
+      "y": 1687,
+      "w": 268,
+      "h": 290,
+      "root": [
+        0.504,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.387,
+        0.406,
+        0.157
+      ]
+    },
+    "croton": {
+      "x": 1745,
+      "y": 1367,
+      "w": 277,
+      "h": 294,
+      "root": [
+        0.401,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.534,
+        0.378,
+        0.103
+      ]
+    },
+    "taro": {
+      "x": 1412,
+      "y": 1062,
+      "w": 216,
+      "h": 267,
+      "root": [
+        0.171,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.285,
+        0.486,
+        0.204
+      ]
+    },
+    "bromeliad": {
+      "x": 992,
+      "y": 1383,
+      "w": 255,
+      "h": 245,
+      "root": [
+        0.724,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.426,
+        0.424,
+        0.139
+      ]
     },
     "palm-fan": {
-      "x": 774,
-      "y": 1480,
-      "w": 352,
-      "h": 337,
+      "x": 1078,
+      "y": 1062,
+      "w": 308,
+      "h": 295,
       "root": [
         0.564,
         0.994
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.313,
+        0.541,
+        0.149
+      ]
     },
     "banana-leaf": {
-      "x": 404,
-      "y": 16,
+      "x": 16,
+      "y": 1597,
       "w": 241,
       "h": 396,
       "root": [
         0.391,
         0.995
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.327,
+        0.576,
+        0.122
+      ]
     },
     "monstera": {
-      "x": 1645,
-      "y": 1072,
+      "x": 616,
+      "y": 1393,
       "w": 350,
       "h": 352,
       "root": [
         0.426,
         0.995
       ],
-      "source": "codex"
+      "source": "codex",
+      "mean": [
+        0.214,
+        0.458,
+        0.182
+      ]
     },
     "fern": {
-      "x": 16,
-      "y": 1480,
+      "x": 730,
+      "y": 756,
       "w": 322,
       "h": 352,
       "root": [
         0.324,
         0.995
       ],
-      "source": "codex"
-    },
-    "frond": {
-      "x": 16,
-      "y": 16,
-      "w": 168,
-      "h": 1024,
-      "root": [
-        0.054,
-        0.985
-      ],
-      "source": "procedural"
-    },
-    "frond-solid": {
-      "x": 210,
-      "y": 16,
-      "w": 168,
-      "h": 1024,
-      "root": [
-        0.054,
-        0.985
-      ],
-      "source": "procedural"
+      "source": "codex",
+      "mean": [
+        0.335,
+        0.521,
+        0.126
+      ]
     }
   }
 }
