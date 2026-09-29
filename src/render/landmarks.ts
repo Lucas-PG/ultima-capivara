@@ -91,6 +91,35 @@ export function buildLandmark(kind: LandmarkKind, material: THREE.Material): { g
     }
     for (const x of [-5.02, 5.02]) parts.push(box(.1, .22, 8, x, 5, 0, trim));
     for (const [x, z] of [[6.3, 2.5], [6.6, .6], [6.1, -1.4]]) parts.push(tint(new THREE.CylinderGeometry(.75, .75, 1.3, 12).rotateZ(Math.PI / 2).translate(x, .75, z), '#e2c25c'));
+  } else if (kind === 'waterwheel') {
+    // Overshot mill wheel between two stone piers, fed by a timber flume; it
+    // turns with the current. Origin at the water surface, axle along z.
+    const stone = '#b9ab92', joint = '#9c8f78', wood = '#7a5334', dark = '#4d3a2a', wet = '#5e7a70';
+    for (const z of [-1.4, 1.4]) {
+      parts.push(box(1.3, 4.6, .7, 0, .7, z, stone));
+      for (const y of [-.4, .8, 2]) parts.push(box(1.36, .08, .76, 0, y, z, joint));
+      parts.push(box(.5, .5, .9, 0, 2.95, z, dark));
+    }
+    parts.push(box(1.36, .4, 3.5, 0, -1.4, 0, wet));
+    // The flume: a trough on posts bringing the race to the top of the wheel.
+    parts.push(box(6, .45, .9, -4.2, 6.05, 0, wood)); parts.push(box(6, .08, .7, -4.2, 6.3, 0, '#6aa7b0'));
+    for (const x of [-6.6, -3.6]) parts.push(box(.2, 6.2, .2, x, 3, 0, dark));
+    const hub = new THREE.Group(); hub.position.set(0, 2.6, 0); spinner = hub; group.add(hub);
+    const wheel: Part[] = [];
+    for (const z of [-.85, .85]) {
+      wheel.push(tint(new THREE.TorusGeometry(3, .09, 5, 32).translate(0, 0, z), wood));
+      wheel.push(tint(new THREE.TorusGeometry(2.55, .06, 4, 32).translate(0, 0, z), wood));
+      for (let i = 0; i < 8; i++) {
+        const a = i / 8 * Math.PI * 2;
+        wheel.push(beam(V(0, 0, z), V(Math.cos(a) * 2.95, Math.sin(a) * 2.95, z), .07, dark));
+      }
+    }
+    for (let i = 0; i < 18; i++) {
+      const a = i / 18 * Math.PI * 2, bucket = box(.5, .09, 1.8, 2.78, 0, 0, wood);
+      bucket.rotateZ(a); wheel.push(bucket);
+    }
+    wheel.push(tint(new THREE.CylinderGeometry(.28, .28, 2.2, 10).rotateX(Math.PI / 2), dark));
+    hub.add(mesh(wheel, material));
   } else if (kind === 'redentora') {
     // Soapstone plinth; the statue itself is the sculpted GLB added by the scene.
     const stone = '#d9cfbd', joint = '#bfb29c';

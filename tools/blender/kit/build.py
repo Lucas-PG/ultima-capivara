@@ -85,6 +85,9 @@ def make_part(part, level=0):
         faces += [[i, (i + 1) % n, (i + 1) % n + n, i + n] for i in range(n)]
     elif shape == 'orb':
         n, rings = (6, 3) if level == 2 else (8, 5) if level == 1 else (8, 4) if max(part['size']) < .18 else (12, 8)
+        if 'segments' in part:
+            # Foliage masses and flower heads stay faceted and cheap at every level.
+            n, rings = part['segments'] if level == 0 else (max(4, part['segments'][0] - 2), max(2, part['segments'][1] - 1))
         vertices = []
         w, h, d = part['size']
         for j in range(rings + 1):
@@ -122,6 +125,12 @@ for name, piece in PIECES.items():
         for part in piece.parts:
             if level and part.get('detail'):
                 continue
+            # Mid-distance trims (frames, shutters, railings) leave the far silhouette.
+            if level == 2 and part.get('mid'):
+                continue
+            # Authored stand-ins: a part may belong to an explicit set of levels.
+            if 'lods' in part and level not in part['lods']:
+                continue
             if level and 'farBevel' in part:
                 part = dict(part, bevel=part['farBevel'])
             if level == 2 and hasattr(piece, 'traversal') and part.get('solid'):
@@ -136,7 +145,7 @@ for name, piece in PIECES.items():
             smooth_faces.extend([part['shape'] in ['orb', 'rock'] or part.get('smooth', False)] * len(ff))
             tints.extend([part.get('tint', [1, 1, 1])] * len(ff))
             for face_index, face in enumerate(ff):
-                if part['shape'] == 'rock':
+                if part['shape'] == 'rock' or part.get('planar'):
                     normal = (vv[face[1]] - vv[face[0]]).cross(vv[face[2]] - vv[face[0]]).normalized()
                     axes = [0, 1] if abs(normal.z) > .6 else [1, 2] if abs(normal.x) > .6 else [0, 2]
                     bounds = [(min(v[a] for v in vv), max(v[a] for v in vv)) for a in axes]
@@ -226,6 +235,10 @@ for name, piece in PIECES.items():
             budget = [15000, 3500, 900][level]
         if name.startswith('cliff_'):
             budget = [3400, 1250, 600][level]
+        if name.startswith('row_'):
+            budget = [11000, 3200, 900][level]
+        if name.startswith('row_') and len(obj.data.loop_triangles) > budget:
+            print('KIT_OVER_BUDGET', name, level, len(obj.data.loop_triangles), flush=True)
         if len(obj.data.loop_triangles) > budget:
             bpy.context.view_layer.objects.active = obj
             modifier = obj.modifiers.new('Distance triangle budget', 'DECIMATE')

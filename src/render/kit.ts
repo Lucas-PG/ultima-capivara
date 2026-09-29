@@ -4,6 +4,7 @@ import type { AssetLoader } from './assets';
 import pieces from '../shared/kit-pieces.json';
 import { createToonMaterial } from './materials';
 import { kitInteriorLight, kitInteriorWindows, paintKitPlacement } from './kit-interior';
+import { releaseAfterUpload } from './memory';
 
 export interface KitPlacement {
   piece: string; x: number; y: number; z: number; yaw: number; scale?: number;
@@ -44,7 +45,11 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   placements: readonly KitPlacement[], quality = 'medium'): KitScene {
   const root = new THREE.Group(); root.name = 'Ilha_modular'; scene.add(root);
   const cells = new Map<string, { origin: THREE.Vector3; placements: KitPlacement[]; lod: THREE.LOD;
-    landscape: boolean; furniture: boolean; fades: boolean; material?: THREE.MeshStandardMaterial }>();
+    landscape: boolean; furniture: boolean; fades: boolean; material?: THREE.MeshStandardMaterial; far?: number }>();
+  // Room furniture and flower beds keep their own near levels, but past their
+  // far distance every cell's simplified mesh draws from one island-wide batch:
+  // a hundred interiors cost one draw call instead of one each.
+  let farBatch: THREE.BatchedMesh | undefined;
   const geometries = new Set<THREE.BufferGeometry>();
   const temporaryMaterials = new Set<THREE.Material>();
   let disposed = false;
@@ -140,6 +145,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         if (mesh?.isMesh) sourceGeometry.set(`${id}:${level}`, editableGeometry(mesh.geometry).applyMatrix4(mesh.matrixWorld));
       }
     }
+    const farParts: { cell: typeof cells extends Map<string, infer C> ? C : never; geometry: THREE.BufferGeometry; level: THREE.Object3D }[] = [];
     for (const cell of cells.values()) {
       if (cell.fades) {
         // Opaque alpha hashing fades soft cover without sorted transparent layers.
@@ -170,13 +176,33 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         const geometry = mergeGeometries(parts);
         parts.forEach(part => part.dispose());
         if (!geometry) throw new Error('Não foi possível montar as peças da ilha.');
-        geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
-        const mesh = new THREE.Mesh(geometry, cell.material ?? sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
-        mesh.castShadow = !cell.landscape && !cell.furniture; mesh.receiveShadow = true;
         const near = cell.furniture ? (quality === 'low' ? 8 : quality === 'high' ? 12 : 10) : cell.landscape ? (quality === 'low' ? 9 : 14) : quality === 'low' ? 24 : FAR_LOD;
         const far = cell.furniture ? (quality === 'low' ? 20 : quality === 'high' ? 27 : 23) : cell.landscape ? (quality === 'low' ? 20 : 27) : quality === 'low' ? 65 : 90;
+        if (level === 2 && (cell.furniture || (cell.landscape && !cell.fades))) {
+          // World-space geometry under an identity instance: the interior light
+          // reads model-space points, so batching adds no transform of its own.
+          const empty = new THREE.Object3D(); empty.name = `${cell.lod.name}:far`;
+          farParts.push({ cell, geometry: geometry.translate(cell.origin.x, cell.origin.y, cell.origin.z), level: empty });
+          cell.lod.addLevel(empty, far, .12);
+          continue;
+        }
+        // Merged cell geometry is static and never raycast: its arrays can go once uploaded.
+        geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(releaseAfterUpload(geometry));
+        const mesh = new THREE.Mesh(geometry, cell.material ?? sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
+        mesh.castShadow = !cell.landscape && !cell.furniture; mesh.receiveShadow = true;
         cell.lod.addLevel(mesh, level === 2 ? far : level ? near : 0, .12);
       }
+    }
+    if (farParts.length) {
+      const vertices = farParts.reduce((sum, part) => sum + part.geometry.getAttribute('position').count, 0);
+      const indices = farParts.reduce((sum, part) => sum + (part.geometry.getIndex()?.count ?? 0), 0);
+      farBatch = new THREE.BatchedMesh(farParts.length, vertices, indices, sourceMaterial);
+      farBatch.name = 'kit:far-rooms'; farBatch.castShadow = false; farBatch.receiveShadow = true;
+      for (const part of farParts) {
+        part.cell.far = part.level.userData.farInstance = farBatch.addInstance(farBatch.addGeometry(part.geometry));
+        farBatch.setVisibleAt(part.cell.far, false); part.geometry.dispose();
+      }
+      root.add(farBatch);
     }
     sourceGeometry.forEach(geometry => geometry.dispose());
     temporaryMaterials.forEach(material => material.dispose()); temporaryMaterials.clear();
@@ -201,11 +227,12 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         }
         // LOD handles distance and hysteresis; Three frustum-culls cell geometry.
         cell.lod.update(camera);
+        if (cell.far !== undefined) farBatch!.setVisibleAt(cell.far, cell.lod.getCurrentLevel() === 2);
       }
     },
     dispose() {
       if (disposed) return;
-      disposed = true; root.removeFromParent();
+      disposed = true; root.removeFromParent(); farBatch?.dispose();
       geometries.forEach(geometry => geometry.dispose()); geometries.clear();
       temporaryMaterials.forEach(material => material.dispose()); temporaryMaterials.clear();
       cells.forEach(cell => cell.material?.dispose());

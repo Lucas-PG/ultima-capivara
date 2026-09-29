@@ -1,4 +1,4 @@
-import { AREAS, HILLS, HOUSES, MORRO_LOTS, NAV_ROUTES, ROADS, riverSample, type Rect } from './layout';
+import { AREAS, BAY, BRIDGE_PLANS, CAPELA_STAIR, HILLS, HOUSES, MARE, MORRO_LOTS, NAV_ROUTES, PORTO_QUAY_X, PORTO_QUAY_Z, QUAY_DEPTH, QUAY_FACE, QUAYS, ROADS, ROW_LOTS, riverSample, type Rect } from './layout';
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const ease = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
@@ -31,7 +31,7 @@ function rawHeight(x: number, z: number) {
 interface Pad { rect: Rect; margin: number; y: number; fixed?: boolean }
 const pads: Pad[] = [
   ...AREAS.map(a => ({ ...a, y: a.y ?? Math.max(.85, rawHeight((a.rect[0] + a.rect[2]) / 2, (a.rect[1] + a.rect[3]) / 2)) })),
-  ...[...HOUSES, ...MORRO_LOTS].map(h => ({ rect: [h.x - h.w / 2 - 1.5, h.z - h.d / 2 - 1.5, h.x + h.w / 2 + 1.5, h.z + h.d / 2 + 1.5] as Rect,
+  ...[...HOUSES, ...MORRO_LOTS, ...ROW_LOTS].map(h => ({ rect: [h.x - h.w / 2 - 1.5, h.z - h.d / 2 - 1.5, h.x + h.w / 2 + 1.5, h.z + h.d / 2 + 1.5] as Rect,
     margin: 1.3, y: Math.max(.85, rawHeight(h.x, h.z)) })),
 ];
 const housePads = pads.slice(AREAS.length);
@@ -41,9 +41,28 @@ for (const p of housePads) {
   if (area?.y != null) p.y = area.y;
 }
 const structuralPads = [...pads.filter(p => p.fixed), ...housePads];
+// The field below visits every 2 m sample: bucket each influence by 8 m cell
+// (keeping list order, so ties resolve exactly as a full scan would).
+function buckets<T>(items: readonly T[], reach: (item: T) => Rect) {
+  const CELL = 8, cells = new Map<number, T[]>();
+  for (const item of items) {
+    const [x0, z0, x1, z1] = reach(item);
+    for (let cx = Math.floor(x0 / CELL); cx <= Math.floor(x1 / CELL); cx++)
+      for (let cz = Math.floor(z0 / CELL); cz <= Math.floor(z1 / CELL); cz++) {
+        const key = cx * 4096 + cz, list = cells.get(key);
+        if (list) list.push(item); else cells.set(key, [item]);
+      }
+  }
+  const none: T[] = [];
+  return (x: number, z: number) => cells.get(Math.floor(x / CELL) * 4096 + Math.floor(z / CELL)) ?? none;
+}
+const grow = (rect: Rect, by: number): Rect => [rect[0] - by, rect[1] - by, rect[2] + by, rect[3] + by];
+// A pad pulls the ground within its margin plus a 7 m blend; a structural pad within 3 m.
+const padsAt = buckets(pads, p => grow(p.rect, p.margin + 7.01));
+const structuralPadsAt = buckets(structuralPads, p => grow(p.rect, 3.01));
 function paddedHeight(x: number, z: number) {
   let height = rawHeight(x, z), weight = 0, target = height;
-  for (const p of pads) {
+  for (const p of padsAt(x, z)) {
     const [x0, z0, x1, z1] = p.rect;
     const d = Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1));
     const w = d === 0 ? 2 : 1 - ease((d - p.margin) / 7);
@@ -52,6 +71,31 @@ function paddedHeight(x: number, z: number) {
   height = lerp(height, target, Math.min(1, weight));
   return height;
 }
+/** Signed distance to the harbour basin (negative inside), with rounded corners. */
+export function bayDistance(x: number, z: number) {
+  const [x0, z0, x1, z1] = BAY, radius = 8;
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, hx = (x1 - x0) / 2 - radius, hz = (z1 - z0) / 2 - radius;
+  const qx = Math.abs(x - cx) - hx, qz = Math.abs(z - cz) - hz;
+  return Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - radius;
+}
+/** 1 on a walled stretch of one bank of the river, fading to natural banks past its ends. */
+export function quayWeight(x: number, side: -1 | 1) {
+  return Math.max(0, ...QUAYS[side].map(([x0, x1]) => ease((x - x0 + 2) / 3) * ease((x1 + 2 - x) / 3)));
+}
+/** Half the length of a bridge deck: its ends rest on the banks at this distance from the channel centre. */
+export const BRIDGE_REACH = 8;
+/** The hillside under the Capela's stair is cut to its flight: 0.1 m under
+ * the back of every tread (0.4 m under each nosing), so each step stands on
+ * the ground and walking height never leaves the treads. It blends back into
+ * the hill over 3 m to each side and in front of the foot. */
+function stairCut(x: number, z: number, h: number) {
+  const { x: sx, z: sz, yaw, foot, risers, rise, run, halfWidth } = CAPELA_STAIR;
+  const length = risers * run, c = Math.cos(yaw), s = Math.sin(yaw);
+  const across = Math.abs((x - sx) * c - (z - sz) * s), along = length / 2 - ((x - sx) * s + (z - sz) * c);
+  if (across > halfWidth + 3 || along < -3 || along > length) return h;
+  const target = foot - .1 + Math.max(0, along) * rise / run;
+  return lerp(h, target, (1 - ease((across - halfWidth) / 3)) * (1 - ease(-along / 3)));
+}
 // A 2 m field shared by collision, bots, map painting and the terrain mesh.
 const SIDE = 151, STEP = 2, ORIGIN = 150;
 const heights = new Float32Array(SIDE * SIDE);
@@ -59,10 +103,12 @@ const routes = NAV_ROUTES.flatMap(route => route.slice(1).map((b, i) => {
   const a = route[i];
   return { ax: a[0], az: a[1], bx: b[0], bz: b[1], ay: paddedHeight(...a), by: paddedHeight(...b) };
 }));
+// Only a route within 5 m grades the ground.
+const routesAt = buckets(routes, r => grow([Math.min(r.ax, r.bx), Math.min(r.az, r.bz), Math.max(r.ax, r.bx), Math.max(r.az, r.bz)], 5.01));
 for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
   const x = i * STEP - ORIGIN, z = j * STEP - ORIGIN;
   let h = paddedHeight(x, z), best = Infinity, pathY = h;
-  for (const r of routes) {
+  for (const r of routesAt(x, z)) {
     const dx = r.bx - r.ax, dz = r.bz - r.az;
     const t = Math.max(0, Math.min(1, ((x - r.ax) * dx + (z - r.az) * dz) / (dx * dx + dz * dz)));
     const distance = Math.hypot(x - r.ax - dx * t, z - r.az - dz * t);
@@ -72,16 +118,38 @@ for (let j = 0; j < SIDE; j++) for (let i = 0; i < SIDE; i++) {
   // Hill paths can approach a terrace but cannot cut through a house floor.
   // The extra apron also keeps both doorway thresholds level with the room.
   let terraceWeight = 0, terraceY = h;
-  for (const p of structuralPads) {
+  for (const p of structuralPadsAt(x, z)) {
     const [x0, z0, x1, z1] = p.rect;
     const distance = Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1));
     const weight = distance === 0 ? 2 : 1 - ease(distance / 3);
     if (weight > 0 && weight >= terraceWeight) { terraceWeight = weight; terraceY = p.y; }
   }
   h = lerp(h, terraceY, Math.min(1, terraceWeight));
-  // Carve last so neither town pads nor roads can dam the river.
+  h = stairCut(x, z, h);
+  // Carve last so neither town pads nor roads can dam the river. The town
+  // reach drops straight to its bed at the quay walls; elsewhere the banks
+  // shelve naturally into the channel.
   const river = riverSample(x, z), bank = river.distance - river.width / 2;
-  if (bank < 4.5) h = lerp(-1.2, h, ease((bank + 1) / 5.5));
+  const quay = quayWeight(x, z < river.z ? -1 : 1);
+  // Outside the quays, bridge abutments keep their banks: the channel narrows
+  // under each deck instead of leaving the deck ends above a sloping bank.
+  const bridge = BRIDGE_PLANS.some(plan => Math.abs(x - plan.x) < 4.5);
+  const natural = bank < 4.5 && !(bridge && river.distance > BRIDGE_REACH - 2.5) ? lerp(-1.2, h, ease((bank + 1) / 5.5)) : h;
+  // A vertical step cannot live on a 2 m grid: it sits mid-way under the 5 m
+  // deep quay stones, so neither a lip nor a dip shows on either side of them.
+  // Bridge abutments keep their land right up to the water face.
+  const walled = bank < (bridge ? QUAY_FACE : QUAY_FACE + QUAY_DEPTH / 2 - .1) ? -1.4 : h;
+  h = lerp(natural, walled, quay);
+  // The harbour basin: a straight quay face on the north side (PORTO_QUAY_X),
+  // shelving elsewhere. Beside the quay the bed matches the walled river, so
+  // the town's own quay stones and stairs stand on it; it deepens seaward.
+  const basin = bayDistance(x, z), bed = lerp(-1.4, -2.8, ease((z - PORTO_QUAY_Z - 6) / 16));
+  if (x > PORTO_QUAY_X[0] && x < PORTO_QUAY_X[1] && z < PORTO_QUAY_Z + 4) { if (basin < QUAY_DEPTH / 2 - .1) h = Math.min(h, bed); }
+  else if (basin < 7) h = lerp(bed, h, ease(basin / 7));
+  // Lagoa da Maré: a wading-deep tidal lagoon under the palafitas, its banks
+  // shelving over 5 m and its east side open to the sea.
+  const mare = Math.hypot((x - MARE.x) / MARE.rx, (z - MARE.z) / MARE.rz);
+  if (mare < 1.45) h = Math.min(h, lerp(MARE.bed, h, ease(((mare - 1) * Math.min(MARE.rx, MARE.rz) + 1) / 5)));
   heights[j * SIDE + i] = h;
 }
 export function terrainHeight(x: number, z: number): number {
@@ -110,7 +178,8 @@ export function beachDistance(x: number, z: number): number {
 // stretching a road rectangle down the cut. Both paving and curb fade together.
 export function roadPaintWeight(x: number, z: number, y: number, slope = 0): number {
   const coastal = 1 - ease((beachDistance(x, z) + 1) / 3) * (1 - ease((y - 2.5) / .75));
-  return coastal * (1 - ease((slope - .85) / .5));
+  // Paving never runs down under the water onto a river or harbour bed.
+  return coastal * (1 - ease((slope - .85) / .5)) * ease((y - .15) / .45);
 }
 export function terrainColor(x: number, z: number, y: number, slope: number,
   includeRoads = true, includeBeach = true, includeWet = true): string {

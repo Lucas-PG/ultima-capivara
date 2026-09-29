@@ -31,7 +31,9 @@ const layouts: Record<string, KitPlacement[]> = {
     {piece:'fort_wall',x:-7,y:0,z:-4,yaw:Math.PI/2},{piece:'dock_wood',x:2,y:0,z:12,yaw:0},
     {piece:'bridge_stone',x:-10,y:0,z:13,yaw:0}],
 };
-const placements = params.has('piece') ? [{piece:params.get('piece')!,x:0,y:0,z:0,yaw:0}] : layouts[params.get('view') || 'vila'];
+// ?layout=[{piece,x,y,z,yaw,facadeTile?}] reviews an arbitrary street; ?cam=x,y,z,tx,ty,tz frames it.
+const placements: KitPlacement[] = params.has('layout') ? JSON.parse(params.get('layout')!) :
+  params.has('piece') ? [{piece:params.get('piece')!,x:0,y:0,z:0,yaw:0}] : layouts[params.get('view') || 'vila'];
 const assets = new AssetLoader(gl);
 const kit = createKit(scene, assets, placements, params.get('quality') || 'medium');
 await kit.ready;
@@ -39,4 +41,5 @@ const draw = () => { kit.update(camera); gl.render(scene, camera); document.quer
 controls.addEventListener('change', draw);
 window.addEventListener('resize',()=>{gl.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();draw();});
 (window as unknown as { kitReview: unknown }).kitReview = { ready:true, scene, camera, gl, kit, draw, shot: (x:number,y:number,z:number,tx=0,ty=3,tz=0)=>{camera.position.set(x,y,z);controls.target.set(tx,ty,tz);controls.update();draw();} };
+if (params.has('cam')) { const [x, y, z, tx, ty, tz] = params.get('cam')!.split(',').map(Number); camera.position.set(x, y, z); controls.target.set(tx, ty, tz); controls.update(); }
 draw();

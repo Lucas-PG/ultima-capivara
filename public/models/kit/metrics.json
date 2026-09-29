@@ -87,8 +87,8 @@
       "id": "crate",
       "triangles": [
         420,
-        420,
-        420
+        132,
+        12
       ],
       "colliders": 1
     },
@@ -96,8 +96,8 @@
       "id": "barrel",
       "triangles": [
         1004,
-        872,
-        768
+        264,
+        28
       ],
       "colliders": 1
     },
@@ -204,8 +204,8 @@
       "id": "fence",
       "triangles": [
         1088,
-        864,
-        776
+        352,
+        192
       ],
       "colliders": 16
     },
@@ -258,8 +258,8 @@
       "id": "boat",
       "triangles": [
         2484,
-        2388,
-        768
+        660,
+        660
       ],
       "colliders": 29
     },
@@ -285,17 +285,17 @@
       "id": "bench",
       "triangles": [
         572,
-        572,
-        572
+        156,
+        156
       ],
       "colliders": 11
     },
     {
       "id": "planter",
       "triangles": [
-        4020,
-        980,
-        540
+        1280,
+        660,
+        600
       ],
       "colliders": 2
     },
@@ -303,15 +303,15 @@
       "id": "lamp_post",
       "triangles": [
         468,
-        468,
-        468
+        244,
+        88
       ],
       "colliders": 2
     },
     {
       "id": "market_stall",
       "triangles": [
-        8364,
+        3180,
         1452,
         766
       ],
@@ -505,7 +505,305 @@
         730
       ],
       "colliders": 49
+    },
+    {
+      "id": "quay_wall",
+      "triangles": [
+        1636,
+        308,
+        308
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "quay_wall_b",
+      "triangles": [
+        1636,
+        308,
+        308
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "quay_stair",
+      "triangles": [
+        2024,
+        1100,
+        768
+      ],
+      "colliders": 19
+    },
+    {
+      "id": "quay_corner",
+      "triangles": [
+        836,
+        176,
+        176
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "bridge_arch",
+      "triangles": [
+        7956,
+        2888,
+        702
+      ],
+      "colliders": 18
+    },
+    {
+      "id": "bridge_chapel",
+      "triangles": [
+        6028,
+        2828,
+        748
+      ],
+      "colliders": 11
+    },
+    {
+      "id": "bridge_wood",
+      "triangles": [
+        4228,
+        2556,
+        716
+      ],
+      "colliders": 35
+    },
+    {
+      "id": "row_terrea",
+      "triangles": [
+        7578,
+        2022,
+        318
+      ],
+      "colliders": 13
+    },
+    {
+      "id": "row_sobrado",
+      "triangles": [
+        8460,
+        2448,
+        420
+      ],
+      "colliders": 20
+    },
+    {
+      "id": "row_loja",
+      "triangles": [
+        9286,
+        2254,
+        442
+      ],
+      "colliders": 21
+    },
+    {
+      "id": "row_alto",
+      "triangles": [
+        10478,
+        3114,
+        486
+      ],
+      "colliders": 22
+    },
+    {
+      "id": "vaso",
+      "triangles": [
+        622,
+        304,
+        92
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "vaso_alto",
+      "triangles": [
+        472,
+        256,
+        92
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "vaso_flor",
+      "triangles": [
+        622,
+        304,
+        92
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "mesa_bar",
+      "triangles": [
+        800,
+        608,
+        256
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "carrinho_coco",
+      "triangles": [
+        768,
+        504,
+        504
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "rede_pesca",
+      "triangles": [
+        616,
+        254,
+        254
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "sacos",
+      "triangles": [
+        404,
+        224,
+        224
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "muro",
+      "triangles": [
+        164,
+        164,
+        140
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "muro_portao",
+      "triangles": [
+        496,
+        460,
+        412
+      ],
+      "colliders": 6
+    },
+    {
+      "id": "muro_flor",
+      "triangles": [
+        1598,
+        788,
+        476
+      ],
+      "colliders": 2
+    },
+    {
+      "id": "muro_pilar",
+      "triangles": [
+        88,
+        88,
+        88
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "passarela",
+      "triangles": [
+        624,
+        516,
+        356
+      ],
+      "colliders": 13
+    },
+    {
+      "id": "passarela_no",
+      "triangles": [
+        292,
+        184,
+        152
+      ],
+      "colliders": 5
+    },
+    {
+      "id": "palafita",
+      "triangles": [
+        2862,
+        1490,
+        732
+      ],
+      "colliders": 40
+    },
+    {
+      "id": "palafita_b",
+      "triangles": [
+        4286,
+        1290,
+        732
+      ],
+      "colliders": 40
+    },
+    {
+      "id": "bar_mare",
+      "triangles": [
+        2946,
+        1650,
+        744
+      ],
+      "colliders": 44
+    },
+    {
+      "id": "mirante",
+      "triangles": [
+        1488,
+        1224,
+        560
+      ],
+      "colliders": 26
+    },
+    {
+      "id": "engenho",
+      "triangles": [
+        11988,
+        2726,
+        745
+      ],
+      "colliders": 29
+    },
+    {
+      "id": "chamine",
+      "triangles": [
+        696,
+        696,
+        696
+      ],
+      "colliders": 6
+    },
+    {
+      "id": "canavial",
+      "triangles": [
+        5460,
+        2888,
+        508
+      ],
+      "colliders": 0
+    },
+    {
+      "id": "escadaria",
+      "triangles": [
+        3372,
+        2888,
+        748
+      ],
+      "colliders": 84
+    },
+    {
+      "id": "cruzeiro",
+      "triangles": [
+        420,
+        376,
+        376
+      ],
+      "colliders": 6
     }
   ],
-  "bytes": 8068500
+  "bytes": 11007700,
+  "gzipBytes": 3273057
 }

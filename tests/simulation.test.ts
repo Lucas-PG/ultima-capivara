@@ -854,7 +854,8 @@ describe('authoritative simulation', () => {
 
   it('lands and remains on a pitched roof in the island world', () => {
     const actual = createWorld();
-    const roof = actual.pieces!.find(piece => piece.piece === 'house_small')!;
+    // A gable runs along the house's depth: walk across a lot square to the street.
+    const roof = actual.pieces!.find(piece => piece.piece === 'house_small' && Math.abs(Math.sin(piece.yaw)) < .01)!;
     const x = roof.x + KIT_PIECES[roof.piece].footprint[0] * .25;
     const top = Math.max(...actual.colliders.filter(c => c.pieceId === roof.id && x >= c.min.x && x <= c.max.x && roof.z >= c.min.z && roof.z <= c.max.z).map(c => c.max.y));
     const sim = new Simulation(actual, { ...config, mode: 'battle-royale' }, profiles, 'island-roof', 130);

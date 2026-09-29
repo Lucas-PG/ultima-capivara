@@ -239,20 +239,28 @@ describe('island kit geometry and traversal contract', () => {
     const move = (distance: number) => {
       camera.position.set(1.5, 1.7, 1 + distance); camera.updateMatrixWorld(true); kit.update(camera);
     };
-    move(3); expect(furniture.getCurrentLevel()).toBe(0);
+    // Past its far distance a room's simplified furniture draws from the one
+    // island-wide batch; it must be shown exactly then, never with its near
+    // levels, so solids are visible at every distance and never doubled.
+    const batch = scene.getObjectByName('kit:far-rooms') as THREE.BatchedMesh;
+    const farOf = (lod: THREE.LOD) => lod.levels[2].object.userData.farInstance as number;
+    move(3); expect(furniture.getCurrentLevel()).toBe(0); expect(batch.getVisibleAt(farOf(furniture))).toBe(false);
     move(16); expect(furniture.getCurrentLevel()).toBe(1); expect(house.getCurrentLevel()).toBe(0);
-    move(33); expect(furniture.getCurrentLevel()).toBe(2);
+    expect(batch.getVisibleAt(farOf(furniture))).toBe(false);
+    move(33); expect(furniture.getCurrentLevel()).toBe(2); expect(batch.getVisibleAt(farOf(furniture))).toBe(true);
     move(120); expect(furniture.visible).toBe(true); expect(upperFurniture.visible).toBe(true);
-    for (const entry of [...furniture.levels, ...upperFurniture.levels]) {
-      const mesh = entry.object as THREE.Mesh, material = mesh.material as THREE.MeshStandardMaterial;
+    for (const id of [farOf(furniture), farOf(upperFurniture)]) expect(batch.getVisibleAt(id)).toBe(true);
+    for (const object of [...[furniture, upperFurniture].flatMap(lod => lod.levels.slice(0, 2).map(entry => entry.object)), batch]) {
+      const mesh = object as THREE.Mesh, material = mesh.material as THREE.MeshStandardMaterial;
       expect(mesh.castShadow).toBe(false); expect(mesh.receiveShadow).toBe(true);
       expect(material.opacity).toBe(1); expect(material.transparent).toBe(false);
     }
     expect((house.levels[0].object as THREE.Mesh).castShadow).toBe(true);
     const near = (furniture.levels[0].object as THREE.Mesh).geometry.index!.count;
-    const far = (furniture.levels[2].object as THREE.Mesh).geometry.index!.count;
+    const far = batch.getGeometryRangeAt(batch.getGeometryIdAt(farOf(furniture)))!.indexCount;
+    expect(far).toBeGreaterThan(0);
     expect(far).toBeLessThan(near * .4);
-    move(3); expect(furniture.getCurrentLevel()).toBe(0);
+    move(3); expect(furniture.getCurrentLevel()).toBe(0); expect(batch.getVisibleAt(farOf(furniture))).toBe(false);
     kit.dispose(); expect(scene.children).toHaveLength(0);
   });
 });
