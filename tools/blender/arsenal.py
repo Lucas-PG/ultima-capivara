@@ -635,22 +635,40 @@ def sniper():
 # ------------------------------------------------------------------ machete
 @weapon
 def machete():
-    """Facão: broad Brazilian machete, dark carbon steel with a polished edge, wooden scales."""
-    parts = {'body': []}
-    spine = [(.055, .016, 1), (.2, .02), (.36, .026), (.46, .032), (.52, .03), (.545, .016)]
-    edge = [(.54, -.004), (.51, -.03), (.44, -.042), (.3, -.036), (.12, -.026), (.055, -.018, 1)]
-    blade = prism('blade_body', spine + [(.53, .0), (.44, -.016), (.3, -.014), (.12, -.01), (.055, -.006, 1)], .0055, 'gunmetal', bevel=.0012, smooth=2)
-    edge_band = prism('blade_edge', [(.055, -.004, 1), (.12, -.008), (.3, -.012), (.44, -.014), (.535, .004)] + edge[1:], .0035, 'blade', bevel=.0008, smooth=2)
-    parts['body'] += [blade, edge_band]
-    parts['body'] += [prism('bolster', [(.04, .022, 1), (.062, .022, 1), (.062, -.026, 1), (.04, -.026, 1)], .02, 'brass', bevel=.002)]
-    parts['body'] += [prism('handle', [(-.085, .014), (-.07, .02), (.04, .018, 1), (.04, -.022, 1), (-.07, -.024), (-.09, -.018), (-.098, -.004)],
-                            .026, 'wood', bevel=.003, smooth=2)]
-    for y in (-.06, -.015, .025):
-        parts['body'] += [cyl('rivet', (-.0145, y, -.002), (.0145, y, -.002), .0045, 'brass', sides=14, bevel=.0008)]
-    parts['body'] += [lathe('lanyard_ring', [(.008, 0), (.011, .002), (.011, .004), (.008, .006)], 'steel', p0=(0, -.094, -.008), axis=(1, 0, 0), sides=16)]
-    parts['body'] += [sweep('lanyard', [(0, -.095, -.012), (.004, -.11, -.03), (-.004, -.118, -.05), (0, -.11, -.068)], [.0035] * 4, 'leather', sides=8)]
-    sockets = {'muzzle': (0, .545, .01), 'eject': (0, 0, 0), 'sight': (0, 0, .06)}
-    return parts, sockets, {}, {}
+    """Facao: swept carbon-steel belly, polished edge and palm-painted jacaranda."""
+    parts = {'body': [], 'ribbons': []}
+    # The broad belly and upswept nose remain readable edge-on in the raised idle.
+    spine = [(.050, .018), (.16, .018), (.30, .017), (.41, .021), (.49, .035), (.548, .060)]
+    bevel_line = [(.523, .020), (.484, -.012), (.410, -.027), (.29, -.029), (.15, -.021), (.05, -.012)]
+    edge_line = [(.510, -.005), (.470, -.033), (.400, -.046), (.28, -.045), (.14, -.035), (.05, -.026)]
+    parts['body'] += [prism('blade_body', spine + bevel_line, .0056, 'wornsteel', bevel=.0008, smooth=3)]
+    parts['body'] += [prism('honed_edge', [spine[-1]] + edge_line + list(reversed(bevel_line)), .0028, 'blade', bevel=.0006, smooth=3)]
+    # Full tang visible between the rounded scales, with a brass throat and pommel.
+    handle = [(-.108, .022), (-.086, .023), (-.047, .016), (.042, .018), (.045, -.026),
+              (-.021, -.019), (-.070, -.025), (-.100, -.034), (-.113, -.018)]
+    parts['body'] += [prism('tang', handle, .007, 'steel', bevel=.001, smooth=2)]
+    for side in (-1, 1):
+        parts['body'] += [prism('wood_scale', handle, .013, 'wood_red', x=side * .009, bevel=.0024, smooth=3)]
+    parts['body'] += [prism('bolster', [(.037, .023), (.060, .023), (.060, -.030), (.037, -.030)], .027, 'brass', bevel=.0025, radius=.003)]
+    pommel = prism('pommel', [(-.094, .023), (-.108, .027), (-.121, .016), (-.120, -.017), (-.104, -.037), (-.095, -.032)], .032, 'brass', bevel=.002, radius=.005, raw=True)
+    cut(pommel, cutter_cyl((-.025, -.110, -.007), (.025, -.110, -.007), .0062, 24))
+    parts['body'] += [complete(pommel)]
+    for y, z in [(-.077, -.005), (-.026, -.002), (.021, -.003)]:
+        for side in (-1, 1):
+            parts['body'] += [cyl('rivet_bezel', (side * .015, y, z), (side * .0165, y, z), .0052, 'brass', sides=20, bevel=.0007)]
+            rivet = cyl('rivet', (side * .0161, y, z), (side * .017, y, z), .0038, 'brass', sides=20, bevel=.0005)
+            cut(rivet, cutter_box((side * .0171, y, z), (.002, .0048, .0008)))
+            parts['body'] += [rivet]
+    parts['body'] += [sweep('lanyard_loop', [(-.016, -.108, -.007), (-.020, -.120, -.015), (0, -.126, -.025), (.020, -.120, -.015), (.016, -.108, -.007)], [.0026] * 5, 'teal', sides=10)]
+    # Three broad cloth strips with different folds and forked, frayed ends.
+    for i, (mat, x, length) in enumerate([('teal', -.007, .10), ('yellow', 0, .112), ('red', .007, .094)]):
+        points = [(-.122, -.022), (-.135, -.035), (-.137 + i * .004, -.065), (-.150 + i * .006, -.022 - length),
+                  (-.144 + i * .006, -.015 - length), (-.141 + i * .006, -.024 - length),
+                  (-.135 + i * .006, -.018 - length), (-.124 + i * .004, -.066), (-.122, -.038)]
+        parts['ribbons'] += [prism('ribbon_' + mat, points, .0014, mat, x=x, bevel=.00025, radius=.001)]
+    parts['body'] += [sphere('lanyard_knot', (0, -.127, -.027), (.009, .007, .006), 'leather', 16, 10)]
+    sockets = {'muzzle': (0, .548, .055), 'eject': (0, 0, 0), 'sight': (0, 0, .06)}
+    return parts, sockets, {'ribbons': (0, -.127, -.027)}, {}
 
 
 # Painted liveries (arsenal_lib.apply_livery): stencilled motifs per weapon,
@@ -666,6 +684,11 @@ LIVERY = {
         {'stencil': 'vine', 'at': (-.013, .040), 'size': .064, 'colour': 'D5AF62', 'on': ('case',), 'metal': True},
         {'stencil': 'vine', 'at': (.088, .045), 'size': .051, 'rotate': 180, 'colour': 'D5AF62', 'on': ('case',), 'metal': True},
         {'stencil': 'capybara', 'at': (-.014, -.031), 'size': .017, 'colour': '274C83', 'on': ('ivory',)},
+    ],
+    'machete': [
+        {'stencil': 'frond', 'at': (.006, -.003), 'size': .061, 'rotate': -24, 'colour': '258D82', 'on': ('wood_red',)},
+        {'stencil': 'frond', 'at': (-.079, -.002), 'size': .053, 'rotate': 151, 'colour': '258D82', 'on': ('wood_red',)},
+        {'stencil': 'capybara', 'at': (.085, .002), 'size': .024, 'rotate': -5, 'colour': '252A2A', 'on': ('wornsteel',), 'metal': True},
     ],
     'm4': [
         {'stencil': 'frond', 'at': (.258, .064), 'size': .115, 'rotate': -16, 'colour': 'E27A5A', 'on': ('navy',)},
@@ -692,12 +715,12 @@ def build(weapon_id):
         meshes.append(obj)
     for name, location in sockets.items():
         empty(f'{weapon_id}_{name}', location, root)
-    size = 2048 if weapon_id in ('m4', 'pistol', 'smg', 'revolver') else 1024
-    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id in ('m4', 'pistol', 'smg', 'revolver') else .005,
+    size = 2048 if weapon_id in ('m4', 'pistol', 'smg', 'revolver', 'machete') else 1024
+    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id in ('m4', 'pistol', 'smg', 'revolver', 'machete') else .005,
                                 livery=LIVERY.get(weapon_id, ()))
     albedo_img = L.save_png(f'{weapon_id}_albedo', albedo)
     orm_img = L.save_png(f'{weapon_id}_orm', orm, srgb=False)
-    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id in ('m4', 'pistol', 'smg', 'revolver') else None
+    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id in ('m4', 'pistol', 'smg', 'revolver', 'machete') else None
     material = L.export_material(f'{weapon_id}_mat', albedo_img, orm_img, normal_img)
     triangles = 0
     for obj in meshes:
