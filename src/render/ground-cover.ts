@@ -8,6 +8,8 @@ import { createToonMaterial } from './materials';
 import { GROUND_TILES, type GroundTile } from './vegetation/atlas';
 
 const CELL = 24;
+/** Cells nearer than this (metres from the camera to the cell) draw the full nine-blade lawn tuft. */
+const LAWN_NEAR = 10;
 /** Painted grass reach per preset. Tufts shrink into the ground over the outer quarter of the reach. */
 export const GROUND_COVER = {
   low: { fraction: 0, distance: 0 },
@@ -65,13 +67,13 @@ function tuft({ tile, width, height, cards, lean = .12, flat }: CardSet, base: T
 /** The lawn: a tuft of plain curved blades, no texture and no alpha test. Colour runs from a dark
  * root to lit tips; each instance multiplies in the ground albedo under it, so a lawn is the
  * terrain's own paint standing up. */
-function bladeTuft(blades = 9) {
+function bladeTuft(blades: number, widen = 1) {
   const positions: number[] = [], colors: number[] = [], roots: number[] = [], sway: number[] = [], index: number[] = [];
   const p = new THREE.Vector3();
   for (let b = 0; b < blades; b++) {
     const a = b * 2.399 + hash(b, 1, 40) * .6, ca = Math.cos(a), sa = Math.sin(a);
     const r = .02 + Math.sqrt(hash(b, 2, 40)) * .13, height = .17 + hash(b, 3, 40) * .19, lean = .2 + hash(b, 4, 40) * .35;
-    const width = .036 + hash(b, 5, 40) * .018, first = positions.length / 3;
+    const width = (.036 + hash(b, 5, 40) * .018) * widen, first = positions.length / 3;
     const rx = ca * r, rz = sa * r, side = [-sa, ca];
     const at = (t: number) => p.set(rx + ca * lean * height * t * t, height * t, rz + sa * lean * height * t * t);
     for (const [t, w, shade] of [[0, 1, .6], [.55, .62, .98], [1, 0, 1.2]] as const) {
@@ -137,6 +139,8 @@ export class GroundCover {
   private readonly eye = { value: new THREE.Vector3() };
   private readonly reach = { value: GROUND_COVER.medium.distance as number };
   private readonly lawnGeometry: THREE.BufferGeometry;
+  /** The same tufts with fewer blades, for cells beyond LAWN_NEAR. */
+  private readonly farLawnGeometry: THREE.BufferGeometry;
   private readonly cells: { x: number; z: number; lawn: THREE.InstancedMesh | null; accents: THREE.Mesh | null; count: number }[] = [];
   private quality: Settings['graphics'] = 'medium';
 
@@ -178,7 +182,7 @@ export class GroundCover {
     this.material.customProgramCacheKey = () => 'painted-ground-cover-v8';
     this.group.name = 'ground-cover';
     // The lawn tuft carries only its root-to-tip light; each instance carries the ground's albedo.
-    this.lawnGeometry = bladeTuft();
+    this.lawnGeometry = bladeTuft(9); this.farLawnGeometry = bladeTuft(5, 1.2);
     const grid = colliderGrid(world);
     const dunes = world.objects.filter(object => object.detail === 'dune-grass');
     const trees = world.objects.filter(object => (object.kind === 'tree' || object.kind === 'palm') && object.scale.y >= 2.5);
@@ -278,13 +282,17 @@ export class GroundCover {
     const reach = GROUND_COVER[this.quality].distance;
     for (const cell of this.cells) {
       const distance = Math.hypot(Math.max(0, Math.abs(cell.x - camera.position.x) - CELL / 2), Math.max(0, Math.abs(cell.z - camera.position.z) - CELL / 2));
-      if (cell.lawn) cell.lawn.visible = reach > 0 && distance < reach;
+      if (cell.lawn) {
+        cell.lawn.visible = reach > 0 && distance < reach;
+        // Past a few metres a tuft is a handful of pixels: draw it with five blades instead of nine.
+        cell.lawn.geometry = distance < LAWN_NEAR ? this.lawnGeometry : this.farLawnGeometry;
+      }
       if (cell.accents) cell.accents.visible = reach > 0 && distance < reach;
     }
   }
 
   dispose() {
     for (const cell of this.cells) { cell.lawn?.dispose(); cell.accents?.geometry.dispose(); }
-    this.lawnGeometry.dispose(); this.material.dispose(); this.group.clear();
+    this.lawnGeometry.dispose(); this.farLawnGeometry.dispose(); this.material.dispose(); this.group.clear();
   }
 }
