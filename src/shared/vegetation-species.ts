@@ -76,9 +76,11 @@ export function plantSpecies(object: MapObject): SpeciesId {
   if (object.kind === 'palm') return 'coconut';
   if (object.scale.y < SOLID_TRUNK_HEIGHT) return 'shrub';
   const roll = plantHash(Math.round(object.pos.x * 10), Math.round(object.pos.z * 10));
-  // Shore and dune trees: broad, tiered almond trees and low cashews. Inland, mango and tall jungle crowns.
+  // Shore and dune trees: broad, tiered almond trees and low cashews. Inland, mango and tall jungle
+  // crowns, with one tree in eight in bloom (yellow and pink ipe, flamboyant) dotting the hills.
   if (object.pos.y < SHORE_HEIGHT) return roll < .6 ? 'almond' : 'cashew';
-  return roll < .55 ? 'mango' : roll < .8 ? 'jungle' : roll < .92 ? 'almond' : 'cashew';
+  return roll < .5 ? 'mango' : roll < .72 ? 'jungle' : roll < .82 ? 'almond' : roll < .88 ? 'cashew'
+    : roll < .93 ? 'ipe-yellow' : roll < .965 ? 'ipe-pink' : 'umbrella';
 }
 
 /** Objects of these kinds are drawn by the plant batch (grass patches with an unknown detail belong to ground cover). */
