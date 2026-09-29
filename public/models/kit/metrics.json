@@ -87,8 +87,8 @@
       "id": "crate",
       "triangles": [
         420,
-        420,
-        420
+        132,
+        12
       ],
       "colliders": 1
     },
@@ -96,8 +96,8 @@
       "id": "barrel",
       "triangles": [
         1004,
-        872,
-        768
+        264,
+        28
       ],
       "colliders": 1
     },
@@ -204,8 +204,8 @@
       "id": "fence",
       "triangles": [
         1088,
-        864,
-        776
+        352,
+        192
       ],
       "colliders": 16
     },
@@ -258,8 +258,8 @@
       "id": "boat",
       "triangles": [
         2484,
-        2388,
-        768
+        660,
+        660
       ],
       "colliders": 29
     },
@@ -285,17 +285,17 @@
       "id": "bench",
       "triangles": [
         572,
-        572,
-        572
+        156,
+        156
       ],
       "colliders": 11
     },
     {
       "id": "planter",
       "triangles": [
-        4020,
-        980,
-        540
+        1280,
+        660,
+        600
       ],
       "colliders": 2
     },
@@ -303,15 +303,15 @@
       "id": "lamp_post",
       "triangles": [
         468,
-        468,
-        468
+        244,
+        88
       ],
       "colliders": 2
     },
     {
       "id": "market_stall",
       "triangles": [
-        8364,
+        3180,
         1452,
         766
       ],
@@ -610,7 +610,7 @@
       "triangles": [
         622,
         304,
-        304
+        92
       ],
       "colliders": 0
     },
@@ -619,7 +619,7 @@
       "triangles": [
         472,
         256,
-        256
+        92
       ],
       "colliders": 0
     },
@@ -628,7 +628,7 @@
       "triangles": [
         622,
         304,
-        304
+        92
       ],
       "colliders": 0
     },
@@ -804,6 +804,6 @@
       "colliders": 6
     }
   ],
-  "bytes": 11287440,
-  "gzipBytes": 3331843
+  "bytes": 11007700,
+  "gzipBytes": 3273057
 }

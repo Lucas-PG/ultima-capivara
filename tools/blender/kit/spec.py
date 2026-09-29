@@ -310,6 +310,10 @@ for side in [-1, 1]:
         p.box(0, yy, side * .6, 1.2, .15, .10, 7)
         p.box(side * .6, yy, 0, .10, .15, 1.2, 7)
     p.beam((-.48, .2, side * .62), (.48, 1.0, side * .62), .12, 7)
+# Past 32 m the bands lose their bevels; past 90 m only the plain box remains.
+for part in p.parts:
+    part['farBevel'] = 0
+    part['mid'] = part is not p.parts[0]
 
 
 from extensions import extend

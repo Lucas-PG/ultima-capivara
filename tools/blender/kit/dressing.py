@@ -28,8 +28,12 @@ def pot(p, x, z, radius, height, tile=ROOF, tint=None):
             a, b = row * sides + i, row * sides + (i + 1) % sides
             faces.append((a, a + sides, b + sides, b))
     surface(p, vertices, faces, tile, detail=False, tint=tint)
-    flag(p, smooth=True)
+    flag(p, smooth=True, lods=[0, 1])
     p.cylinder(x, height * .97, z, radius * .98, .04, DARK, sides=10)
+    flag(p, mid=True)
+    # Far: a plain six-sided pot.
+    p.cylinder(x, height / 2, z, radius * .95, height, tile, top=radius * 1.08, sides=6)
+    flag(p, lods=[2], tint=tint or [1, 1, 1])
 
 
 def leaves(p, x, y, z, spread, count, seed, tall=1.0):
@@ -39,7 +43,7 @@ def leaves(p, x, y, z, spread, count, seed, tall=1.0):
         r = spread * (.35 + .4 * ((i * 7) % 5) / 4)
         size = spread * (.75 + .25 * math.sin(a * 1.7))
         p.orb(x + math.cos(a) * r, y + spread * (.25 + .45 * (i % 3) / 2) * tall, z + math.sin(a) * r, size, size * .85 * tall, size, GREEN, i > count - 3)
-        flag(p, segments=(6, 4), tint=LEAF if i % 2 else [.52, .78, .5])
+        flag(p, segments=(6, 4), tint=LEAF if i % 2 else [.52, .78, .5], mid=i >= 3)
 
 
 def vaso(Piece, name, radius, height, spread, flowers=None, tall=1.0):
@@ -50,7 +54,7 @@ def vaso(Piece, name, radius, height, spread, flowers=None, tall=1.0):
         for i in range(5):
             a = i * 1.3
             p.orb(math.cos(a) * spread * .5, height + spread * (.55 + .2 * (i % 2)) * tall, math.sin(a) * spread * .5, .16, .14, .16, CANVAS, i > 2)
-            flag(p, segments=(5, 3), tint=flowers)
+            flag(p, segments=(5, 3), tint=flowers, mid=True)
     return p
 
 
