@@ -11,6 +11,7 @@ import { WATER_LEVEL } from './water';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 import { landmarkColliders, type LandmarkSpec } from './landmarks';
 import { dressStreets, wallYards } from './street-life';
+import { plantCrown, walkingSurfaces } from './vegetation-crowns';
 
 const ground = terrainHeight;
 // The quay stones' height (bottom-centred piece) and their promenade top.
@@ -899,6 +900,26 @@ export function createWorld(): WorldSpec {
     pieces.push(furniture); addSolids(kitColliders(furniture));
   }
   const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary, mudBaths, trampolines, landmarks };
+  // No crown hangs into a walker's face: over every street, route, deck and
+  // roof terrace the foliage keeps clear of the band from the waist to above
+  // the head (src/shared/vegetation-crowns.ts). A tree that would is moved to
+  // the nearest clear spot away from the walk, or dropped when there is none.
+  const surfaces = walkingSurfaces(world);
+  for (let index = objects.length - 1; index >= 0; index--) {
+    const plant = objects[index], crown = plantCrown(plant);
+    if (!crown || !surfaces.underCrown(crown)) continue;
+    let target: Vec3 | undefined;
+    for (let radius = 1.5; radius <= 12 && !target; radius += 1.5) for (let i = 0; i < 16; i++) {
+      const angle = i * Math.PI / 8, x = plant.pos.x + Math.cos(angle) * radius, z = plant.pos.z + Math.sin(angle) * radius;
+      const y = ground(x, z);
+      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 || riverDistance(x, z) < 1 ||
+        objects.some(other => other !== plant && (other.kind === 'tree' || other.kind === 'palm') && Math.hypot(other.pos.x - x, other.pos.z - z) < 3)) continue;
+      const moved = plantCrown({ ...plant, pos: { x, y: y - .08, z } });
+      if (moved && surfaces.underCrown(moved)) continue;
+      target = { x, y: y - .08, z }; break;
+    }
+    if (target) plant.pos = target; else objects.splice(index, 1);
+  }
   world.buildingRoutes = buildBuildingRoutes(world);
   const graph = world.navigation = buildNavigation(world, NAV_ROUTES), seen = new Set<number>();
   let mainRoutes: number[] = [];

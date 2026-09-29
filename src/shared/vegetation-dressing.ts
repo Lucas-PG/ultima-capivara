@@ -4,6 +4,7 @@ import { isHousePiece, ROADS } from './layout';
 import { fbm, terrainColor, terrainHeight, WORLD_PALETTE } from './terrain';
 import type { KitPlacement, MapObject, WorldSpec } from './types';
 import { plantHash, plantSpecies, SPECIES, type SpeciesId } from './vegetation-species';
+import { crownAt, walkingSurfaces } from './vegetation-crowns';
 
 /**
  * Decorative planting derived from the world spec: the kit's soft bush pieces, bougainvillea on
@@ -247,7 +248,11 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
         const lx = w.along === 'x' ? along : w.sign * offset, lz = w.along === 'x' ? w.sign * offset : along;
         const at = toWorld(house, lx, lz);
         if (!free(at.x, at.z, radius * k * (banana ? .5 : .8), Math.min(height, 2), house)) continue;
-        add(`${house.id}:bed:${wi}:${i}`, species, Math.floor(hash(house.id, salt + 5) * 4), at.x, at.z, hash(house.id, salt + 6) * Math.PI * 2, height * (.9 + hash(house.id, salt + 7) * .2));
+        const variant = Math.min(SPECIES[species].variants - 1, Math.floor(hash(house.id, salt + 5) * 4)), size = height * (.9 + hash(house.id, salt + 7) * .2);
+        // A banana's leaves spread wide at head height: never over a street or path.
+        const crown = banana ? crownAt(species, variant, at.x, terrainHeight(at.x, at.z) - .04, at.z, size) : null;
+        if (crown && walkingSurfaces(world).underCrown(crown)) continue;
+        add(`${house.id}:bed:${wi}:${i}`, species, variant, at.x, at.z, hash(house.id, salt + 6) * Math.PI * 2, size);
         placed++;
       }
     });
