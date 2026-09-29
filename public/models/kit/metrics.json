@@ -523,8 +523,44 @@
         768
       ],
       "colliders": 19
+    },
+    {
+      "id": "row_terrea",
+      "triangles": [
+        7578,
+        2022,
+        318
+      ],
+      "colliders": 13
+    },
+    {
+      "id": "row_sobrado",
+      "triangles": [
+        8460,
+        2448,
+        420
+      ],
+      "colliders": 20
+    },
+    {
+      "id": "row_loja",
+      "triangles": [
+        9286,
+        2254,
+        442
+      ],
+      "colliders": 21
+    },
+    {
+      "id": "row_alto",
+      "triangles": [
+        10478,
+        3114,
+        486
+      ],
+      "colliders": 22
     }
   ],
-  "bytes": 8207804,
-  "gzipBytes": 2391818
+  "bytes": 9105080,
+  "gzipBytes": 2686359
 }
