@@ -690,7 +690,7 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
         wrist.applyQuaternion(magazine.quaternion).add(magazine.position);
         forward.applyQuaternion(magazine.quaternion); palm.applyQuaternion(magazine.quaternion);
       }
-      return { wrist: wrist.toArray(), forward: forward.toArray(), palm: palm.toArray(), curl: key.curl ?? grips.L!.curl, pole: grips.L!.pole };
+      return { wrist: wrist.toArray(), forward: forward.toArray(), palm: palm.toArray(), curl: { ...grips.L!.curl, ...key.curl }, pole: grips.L!.pole };
     };
     const a = resolve(sample.L.a), b = resolve(sample.L.b), u = sample.L.u;
     const mix = (v: readonly number[], w: readonly number[]) => new THREE.Vector3().fromArray(v).lerp(new THREE.Vector3().fromArray(w), u).toArray();

@@ -60,9 +60,15 @@ const LONG_SPRINT = { pos: [-.03, -.05, .06] as V3, rot: [.22, .6, .38] as V3 };
 export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   pistol: {
     url: 'models/arsenal/pistol.glb', scale: 1, handling: 'pistol', reload: 'pistol',
-    hip: { pos: [.135, -.105, -.36], rot: [.05, .24, -.09] },
-    sprint: { pos: [-.02, -.05, .07], rot: [.95, .25, .3] },
-    adsDistance: .3, grips: PISTOL_GRIPS,
+    hip: { pos: [.12, -.115, -.40], rot: [.025, .20, -.08] },
+    sprint: { pos: [-.025, -.025, .035], rot: [.62, .18, .22] },
+    adsDistance: .32, viewmodelFov: 64,
+    grips: {
+      R: { wrist: [.04260, -.03700, .03940], forward: [.24386, -.01941, -.96962], palm: [-.95820, .14941, -.24398],
+        curl: curl([1.41, .21, .3092], [.76, .7, .4], [.9, .97, .53], [-.05, .2, .2], -.45), pole: [.7, -1, .2] },
+      L: { wrist: [-.07408, -.10542, .01206], forward: [.35567, .47016, -.80774], palm: [.92615, -.29330, .23709],
+        curl: curl([1.04, -.00045, .32], [1.07842, .18, .05871], [1.6, -.1, .12705], [-.1, -.1, .1], .093), pole: [-.6, -1, .1] },
+    },
     recoil: { kick: 1.25, climb: 5.2, roll: 1.5, frequency: 26 }, inertia: .7,
   },
   revolver: {
@@ -75,9 +81,13 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   },
   smg: {
     url: 'models/arsenal/smg.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: { pos: [.16, -.18, -.35], rot: [.06, .24, -.12] },
-    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .2,
-    grips: { R: RIFLE_GRIP_R([.037, -.025, .045]), L: FOREGRIP_L([-.032, -.036, -.1]) },
+    hip: { pos: [.15, -.10, -.40], rot: [-.08, .25, -.10] },
+    sprint: { pos: [-.025, -.02, .035], rot: [.30, .45, .28] },
+    shoulders: { R: [.2, -.36, .25], L: [-.24, -.35, .10] }, adsDistance: .23, viewmodelFov: 64,
+    grips: { R: { wrist: [.03965, -.06249, .04687], forward: [.27072, .24256, -.93160], palm: [-.96249, .05029, -.26661],
+        curl: curl([.7625, .755, .267], [.686, 1.426, .2075], [.81, 1.1695, .2425], [-.1, -.1, .1175], -.3), pole: [.7, -1, .2] },
+      L: { wrist: [-.05377, -.05397, -.14114], forward: [.25038, .22888, -.94071], palm: [.91867, .2505, .30546],
+        curl: curl([.7875, .1975, .3247], [.6625, .8075, .282], [.9025, .4525, .387], [-.1, .014, .133], -.36825), pole: [-.6, -1, .2] } },
     recoil: { kick: .9, climb: 1.8, roll: 1.4, frequency: 24 }, inertia: .85,
   },
   m4: {
@@ -124,9 +134,14 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   },
   machete: {
     url: 'models/arsenal/machete.glb', scale: 1, handling: 'melee', reload: 'none',
-    hip: { pos: [.16, -.16, -.4], rot: [.9, .6, -.3] },
-    sprint: { pos: [0, -.05, .05], rot: [.3, .2, .2] }, adsDistance: .3,
-    grips: { R: { wrist: [.035, -.07, .02], forward: [-.1, 1, .15], palm: [-1, 0, 0], curl: curl([1.45, 1.3, .9], [1.5, 1.35, .95], [1.55, 1.35, .95], [.7, .5, .3]), pole: [.8, -1, .3] } },
+    hip: { pos: [.19, -.12, -.48], rot: [.70, .85, 2.0] },
+    sprint: { pos: [.03, -.08, .04], rot: [.18, -.35, .15] }, adsDistance: .3, viewmodelFov: 64,
+    grips: {
+      R: { wrist: [.04108, .03977, .04622], forward: [.09536, -.9793, -.17856], palm: [-.95228, -.03749, -.30293],
+        curl: curl([.9, .255, .042], [.48, 1.16, .4], [.74, .88, -.014], [.12, .119, .096], -.2), pole: [.8, -1, .3] },
+      L: { wrist: [-.18, -.16, .05], forward: [.18, .12, -1], palm: [.2, -.95, -.05],
+        curl: curl([.3, .35, .2], [.35, .4, .25], [.4, .4, .25], [.3, .15, .1], .3), pole: [-.8, -1, .1] },
+    },
     recoil: { kick: 0, climb: 0, roll: 0, frequency: 20 }, inertia: .8,
   },
 };

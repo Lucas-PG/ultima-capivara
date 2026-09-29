@@ -33,6 +33,14 @@ function weaponAsset(id: WeaponId) {
   };
   add('body', [0, 0, 0], true); add('mag', [0, .02, -.02], true); add('slide', [0, .05, 0], true);
   if (id === 'm4') { root.getObjectByName('m4_mag')!.position.z = -.071; add('bolt', [0, .062, -.062], true); add('release', [-.019, .026, -.01], true); }
+  if (id === 'pistol') { add('hammer', [0, .0605, .0399], true); add('release', [-.017, .027, -.029], true); }
+  if (id === 'smg') { add('charge', [-.038, .083, -.149], true); add('action', [0, .067, -.059], true); }
+  if (id === 'revolver') {
+    for (const part of ['cylinder', 'crane', 'action']) add(part, [0, .045, -.045], true);
+    add('rounds', [0, .045, -.021], true);
+    for (let i = 0; i < 6; i++) add(`case${i}`, [0, .045, -.021], true);
+    root.getObjectByName('revolver_mag')!.position.set(0, .045, -.021);
+  }
   add('muzzle', [0, .05, -.3]); add('eject', [.02, .05, -.05]); add('sight', [0, .08, .03]);
   return { scene } as never;
 }
@@ -142,6 +150,71 @@ describe('first-person viewmodel', () => {
     expect(mag.visible).toBe(true);
   });
 
+  for (const empty of [false, true]) it(`pistol ${empty ? 'empty' : 'tactical'} reload preserves the chamber state until the release`, async () => {
+    const h = await harness(); h.actor.weapons[0].ammo = empty ? 0 : 3;
+    for (let i = 0; i < 30; i++) h.step();
+    const slide = h.holder.getObjectByName('pistol_slide')!;
+    expect(slide.position.z).toBeCloseTo(empty ? .028 : 0, 5);
+    const start = h.now(); h.actor.reloadUntil = start + WEAPONS.pistol.reload;
+    while (h.now() < start + WEAPONS.pistol.reload * .75) h.step();
+    expect(slide.position.z).toBeCloseTo(empty ? .028 : 0, 5);
+    while (h.now() < start + WEAPONS.pistol.reload * .9) h.step();
+    expect(slide.position.z).toBeCloseTo(0, 5);
+    h.actor.reloadUntil = 0; h.actor.weapons[0].ammo = 12; h.step();
+    expect(slide.position.z).toBeCloseTo(0, 5);
+  });
+
+  it('keeps the pistol hammer pivot fixed after packing recenters its mesh', async () => {
+    const h = await harness(); for (let i = 0; i < 30; i++) h.step();
+    const hammer = h.holder.getObjectByName('pistol_hammer')!, geometry = hammer.children[0];
+    expect(hammer.position.toArray()).toEqual([0, .058, .036]);
+    expect(geometry.position.clone().add(hammer.position).distanceTo(new THREE.Vector3(0, .0605, .0399))).toBeLessThan(1e-6);
+    h.view.shot('pistol'); h.step(.04);
+    expect(hammer.position.toArray()).toEqual([0, .058, .036]);
+    expect(Math.abs(hammer.rotation.x)).toBeGreaterThan(.2);
+  });
+
+  for (const empty of [false, true]) it(`SMG ${empty ? 'empty' : 'tactical'} reload cycles only the required action`, async () => {
+    const h = await harness(); h.actor.slot = 1; h.actor.weapons[1].ammo = empty ? 0 : 8;
+    for (let i = 0; i < 30; i++) h.step();
+    const handle = h.holder.getObjectByName('smg_charge')!, rest = handle.position.clone();
+    const cues: string[] = []; h.view.onFoley = cue => cues.push(cue);
+    h.actor.reloadUntil = h.now() + WEAPONS.smg.reload; let travel = 0;
+    while (h.now() < h.actor.reloadUntil) { h.step(); travel = Math.max(travel, handle.position.distanceTo(rest)); }
+    expect(travel).toBeCloseTo(empty ? .065 : 0, 3);
+    expect(cues.filter(c => c === 'slide-back' || c === 'slide-home')).toEqual(empty ? ['slide-back', 'slide-home'] : []);
+    h.actor.reloadUntil = 0; h.step(); expect(handle.position.distanceTo(rest)).toBeLessThan(1e-6);
+  });
+
+  it('ejects revolver cartridges without translating the cylinder, and leaves fresh rounds seated when the loader withdraws', async () => {
+    const h = await harness(); h.actor.weapons = [{ id: 'revolver', rarity: 0, ammo: 0, reserve: 24, box: 0 }];
+    for (let i = 0; i < 30; i++) h.step();
+    const drum = h.holder.getObjectByName('revolver_cylinder')!, rod = h.holder.getObjectByName('revolver_action')!;
+    const rounds = h.holder.getObjectByName('revolver_rounds')!, loader = h.holder.getObjectByName('revolver_mag')!;
+    expect(loader.visible).toBe(false);
+    const start = h.now(), z = drum.position.z; h.actor.reloadUntil = start + WEAPONS.revolver.reload;
+    const to = (phase: number) => { while (h.now() < start + WEAPONS.revolver.reload * phase) h.step(1 / 240); };
+    to(.33);
+    expect(drum.position.z).toBeCloseTo(z, 6);
+    expect(rod.position.z - z).toBeCloseTo(.03, 3);
+    const cases = Array.from({ length: 6 }, (_, i) => h.holder.getObjectByName(`revolver_case${i}`)!);
+    expect(rounds.visible).toBe(false);
+    expect(cases.every(part => part.visible && part.position.z > .01)).toBe(true);
+    expect(cases[0].quaternion.angleTo(cases[1].quaternion)).toBeGreaterThan(.1);
+    to(.42); expect(rounds.visible).toBe(false); expect(loader.visible).toBe(false);
+    expect(cases.every(part => !part.visible)).toBe(true);
+    to(.64); expect(rounds.position.distanceTo(loader.position)).toBeLessThan(1e-6);
+    to(.70); const seated = rounds.position.clone();
+    to(.75);
+    expect(rounds.visible).toBe(true);
+    expect(rounds.position.distanceTo(seated)).toBeLessThan(1e-6);
+    expect(loader.position.z - rounds.position.z).toBeGreaterThan(.15);
+    to(.9); expect(loader.visible).toBe(false); expect(drum.position.x).toBeCloseTo(0, 5);
+    h.actor.reloadUntil = 0; h.actor.weapons[0].ammo = 6; h.step();
+    expect(rounds.position.toArray()).toEqual([0, .045, -.021]);
+    expect(loader.visible).toBe(false);
+  });
+
   it('pauses only on confirmed blade contact and alternates swing sides', async () => {
     const h = await harness(); h.actor.slot = 2; for (let i = 0; i < 40; i++) h.step();
     const view = h.view as unknown as { meleeTime: number; meleeSide: number };
@@ -151,6 +224,19 @@ describe('first-person viewmodel', () => {
     for (let i = 0; i < 40; i++) h.step();
     expect(view.meleeTime).toBe(MELEE_SECONDS);
     const side = view.meleeSide; h.view.shot('machete', false); expect(view.meleeSide).toBe(-side);
+  });
+
+  it('gives the third machete cut a heavier overhead path while the free paw guards clear and recovery finishes on time', async () => {
+    const h = await harness(); h.actor.slot = 2; for (let i = 0; i < 40; i++) h.step();
+    const view = h.view as unknown as { meleeTime: number; meleePose: { pitch: number }; targetL: { wrist: THREE.Vector3 } };
+    const cuts: number[] = [];
+    for (let cut = 0; cut < 3; cut++) {
+      h.view.shot('machete', false); h.step(.075); cuts.push(view.meleePose.pitch);
+      expect(view.targetL.wrist.x).toBeLessThan(-.16);
+      expect(view.targetL.wrist.y).toBeLessThan(-.18);
+      h.step(MELEE_SECONDS); expect(view.meleeTime).toBe(MELEE_SECONDS);
+    }
+    expect(Math.abs(cuts[2] - cuts[0])).toBeGreaterThan(.1);
   });
 
   it('reduced motion suppresses the melee trail, hit-stop and camera kick', async () => {
@@ -169,7 +255,8 @@ describe('first-person viewmodel', () => {
     h.actor.velocity.z = -3.9;
     for (let i = 0; i < 90; i++) { h.actor.yaw += .01; h.step(); }
     const view = h.view as unknown as { targetR: { wrist: THREE.Vector3 }; holder: THREE.Group };
-    const expected = new THREE.Vector3(.033, -.024, .052).applyMatrix4(view.holder.matrixWorld);
+    const { VIEW_SPECS } = await import('../src/render/viewmodel-specs');
+    const expected = new THREE.Vector3(...VIEW_SPECS.pistol.grips.R.wrist).applyMatrix4(view.holder.matrixWorld);
     expect(view.targetR.wrist.distanceTo(expected)).toBeLessThan(1e-6);
   });
 
@@ -188,14 +275,14 @@ describe('first-person viewmodel', () => {
     }
   });
 
-  it('plays each reload Foley cue once, in the order the mechanism moves', async () => {
-    const h = await harness(); for (let i = 0; i < 20; i++) h.step();
+  for (const empty of [false, true]) it(`plays each pistol reload Foley cue once (${empty ? 'empty' : 'tactical'})`, async () => {
+    const h = await harness(); h.actor.weapons[0].ammo = empty ? 0 : 3; for (let i = 0; i < 20; i++) h.step();
     const cues: string[] = [];
     h.view.onFoley = cue => cues.push(cue);
     h.actor.reloadUntil = h.now() + WEAPONS.pistol.reload;
     while (h.now() < h.actor.reloadUntil) h.step(1 / 30);
     h.actor.reloadUntil = 0; for (let i = 0; i < 5; i++) h.step();
-    expect(cues).toEqual(['mag-out', 'mag-drop', 'mag-in', 'slide-back', 'slide-home']);
+    expect(cues).toEqual(['mag-out', ...(empty ? ['mag-drop'] : []), 'mag-in', ...(empty ? ['slide-home'] : [])]);
   });
 
   for (const fps of [30, 60, 120]) for (const empty of [false, true]) it(`keeps M4 magazine contact and reload timing at ${fps} FPS (${empty ? 'empty' : 'partial'})`, async () => {
