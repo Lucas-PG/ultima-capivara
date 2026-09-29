@@ -33,9 +33,9 @@ Canarinho now follows the yellow receiver, green stripe and grips, blue star and
 
 The magazine path includes a palm seat and an outward clearance step before the hand rotates toward the charging handle. Empty reload pulls and releases the handle; tactical reload leaves the action closed. Inspect and hip framing have been adjusted to reduce stock dominance.
 
-Evidence: [before](evidence/guns/smg-before.jpg), [model after](evidence/guns/smg-model-after.jpg).
+Evidence: [before](evidence/guns/smg-before.jpg), [model after](evidence/guns/smg-model-after.jpg), [first-person motion](evidence/guns/smg-motion-after.jpg).
 
-Verified: hip and ADS skin clearances of 0.8 mm right and 1.3 mm left. Magazine contact is 0.8 mm; the final charging contact is 1.3 mm. Targeted checks of the corrected acquisition, withdrawal and handle-release transitions pass. Remaining: final motion sheets, inspect/carry review and third-person hold review.
+Verified: all 55 sampled hip, ADS, sprint, inspect, empty and tactical reload poses clear both paws. Magazine contact is 0.8 mm; charging contact is 1.3 mm. The final far-side inspect releases the support paw before the turn, preventing a forearm collision with the magazine. Twelve additional samples of that departure, hold and return pass, with 0.8 mm minimum right-paw clearance and at least 1.3 mm on the left. Eye and both side views are captured. The motion sheet includes the seated magazine, charging-handle release and final inspect. Close third-person presentation review remains.
 
 ## Revolver
 
@@ -59,7 +59,8 @@ Verified: the revised elbow pole is installed. All 28 sampled hip, ADS, sprint, 
 
 ## Verification and limitations
 
-- TypeScript passes. The latest full Vitest run passed 95 files and 728 tests with two workers. The focused viewmodel suite passes 37 tests. No Playwright e2e suite was run.
+- TypeScript passes. The latest full Vitest run passed 95 files and 729 tests with two workers. The focused viewmodel suite passes 38 tests. No Playwright e2e suite was run.
+- Held and ground weapons now use the renderer's existing sky-reflection texture at the same intensity as the first-person scene. This restores readable steel edges in world lighting without adding a texture or render pass.
 - The grip solver now treats points outside its spatial-search radius as out of range, avoiding false deep penetrations against a distant triangle. Final acceptance uses the separate full-vertex probe, which also reports the struck weapon part.
 - The full probe uses a triangle bounding hierarchy. A comparison with its original exhaustive calculation matched every reported minimum and penetration count for the pistol, SMG and machete right paws; the measured calculation took about one fifth of the time.
 - `weapon-session.mjs` keeps browser startup costs low. `short-weapon-review.mjs` checks both paws and saves motion strips. `weapon_preview.py` frames small guns and hides reload-only props. `build-fp.mjs --pack <ids>` repacks completed exports without rebaking.
