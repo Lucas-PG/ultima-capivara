@@ -28,6 +28,8 @@ const GARDEN_BUILDINGS = new Set(['church', 'market_hall']);
  * here, so a kit building that paints its own bougainvillea never gets a second, clashing one. */
 export const VINE_WALLS: ReadonlySet<string> = new Set(['house_small', 'house_medium', 'house_tall', 'house_laje', 'house_laje_b',
   'house_varanda', 'sobrado', 'church', 'market_hall']);
+/** Pieces whose outermost corner posts may carry a climbing bougainvillea. */
+export const POST_CLIMBERS: ReadonlySet<string> = new Set(['beach_kiosk', 'market_stall', 'house_varanda']);
 const URBAN = new Set(['vila', 'centro', 'posto', 'morro', 'fazenda', 'praia', 'farol', 'porto']);
 
 interface WallSegment {
@@ -128,13 +130,13 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     return !insideFootprint(x, z, radius * .6, ignore);
   };
   /** Samples the slab in front of a wall face (rotated with it) against every solid. */
-  const blockedInFront = (x: number, z: number, yaw: number, halfWidth: number, bottom: number, top: number) => {
+  const blockedInFront = (x: number, z: number, yaw: number, halfWidth: number, bottom: number, top: number, own?: KitPlacement) => {
     const nx = Math.sin(yaw), nz = Math.cos(yaw), tx = Math.cos(yaw), tz = -Math.sin(yaw), reach = halfWidth + .5;
     const near = grid.query(x - reach, z - reach, x + reach, z + reach).filter(c => c.max.y > bottom && c.min.y < top);
     for (const a of [-1, -.5, 0, .5, 1]) for (const o of [.12, .3, .45]) {
       const px = x + tx * a * halfWidth + nx * o, pz = z + tz * a * halfWidth + nz * o;
       if (near.some(c => px > c.min.x && px < c.max.x && pz > c.min.z && pz < c.max.z)) return true;
-      if (insideFootprint(px, pz, 0)) return true;
+      if (insideFootprint(px, pz, 0, own)) return true;
     }
     return false;
   };
@@ -199,6 +201,27 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
           if (free(bx, bz, .5, 1.4, house)) add(`${house.id}:vine-foot:${wi}:${si}`, 'bougainvillea', Math.floor(roll * 2), bx, bz, yaw, 1.3 + roll * .4);
         }
       });
+    });
+  }
+
+  // 2b. Bougainvillea climbing the corner posts of pergola-like pieces (beach kiosks, market stalls,
+  // veranda porches) and spilling along their beams, on the side faces so fronts stay open.
+  for (const p of pieces) {
+    if (!POST_CLIMBERS.has(p.piece)) continue;
+    const def = KIT_PIECES[p.piece], k = p.scale ?? 1;
+    const posts = def.colliders.flatMap(c => c.type === 'box' && c.width <= .3 && c.depth <= .3 && c.height >= 2.4 ? [c] : []);
+    if (!posts.length) continue;
+    const outer = Math.max(...posts.map(c => Math.abs(c.x)));
+    posts.filter(c => Math.abs(c.x) > outer - .1).forEach((c, i) => {
+      if (hash(p.id, 90 + i) < .55) return;
+      const side = c.x > 0 ? 1 : -1, lx = c.x + side * (c.width / 2 + .04);
+      const at = toWorld(p, lx, c.z), yaw = p.yaw + side * Math.PI / 2;
+      const top = p.y + (c.y + c.height / 2) * k - .05, drop = (c.height - .4) * k, variant = hash(p.id, 100 + i) < .6 ? 0 : 1;
+      const halfWidth = STYLE_HALF_WIDTH[variant] * drop / 2 * .42;
+      if (blockedInFront(at.x, at.z, yaw, halfWidth, top - drop + .15, top - .05, p)) return;
+      add(`${p.id}:post-vine:${i}`, 'vine', variant, at.x, at.z, yaw, drop, top, .42);
+      const bx = at.x + Math.sin(yaw) * .5, bz = at.z + Math.cos(yaw) * .5;
+      if (free(bx, bz, .45, 1.4, p)) add(`${p.id}:post-foot:${i}`, 'bougainvillea', variant, bx, bz, yaw, 1.2 + hash(p.id, 110 + i) * .3);
     });
   }
 

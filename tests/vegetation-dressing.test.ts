@@ -60,8 +60,19 @@ describe('vegetation dressing', () => {
     }
   });
 
+  it('climbs bougainvillea only up a real corner post, on its outer side', () => {
+    const climbers = dressing.filter(p => p.id.includes(':post-vine:'));
+    expect(climbers.length).toBeGreaterThan(3);
+    for (const vine of climbers) {
+      const nx = Math.sin(vine.yaw), nz = Math.cos(vine.yaw);
+      // Just behind the origin, half-way down: the post.
+      expect(inside(vine.x - nx * .1, vine.y - vine.height * .5, vine.z - nz * .1), `${vine.id} has no post behind it`).toBe(true);
+      expect(inside(vine.x + nx * .3, vine.y - vine.height * .5, vine.z + nz * .3), `${vine.id} is buried in a solid`).toBe(false);
+    }
+  });
+
   it('hangs bougainvillea only over solid wall, never across a door or off the end of a building', () => {
-    const vines = dressing.filter(p => p.species === 'vine'), templates = buildTemplates(new Set(['vine']));
+    const vines = dressing.filter(p => p.species === 'vine' && !p.id.includes(':post-vine:')), templates = buildTemplates(new Set(['vine']));
     expect(vines.length).toBeGreaterThan(40);
     // World colliders approximate rotated walls with strips; test against the piece's own solids.
     const solidOf = (id: string) => {
