@@ -125,8 +125,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       s.supplyDrops = [drop];
       const close = name === 'supplyLanded' || name === 'supplyOpened';
       const prospective = close ? { ...s, time: landsAt + 1 } : s;
-      const observer = (close ? [2.4] : [18, 16, 20]).flatMap(distance =>
-        [[0, 1], [1, 0], [0, -1], [-1, 0]].map(([dx, dz]) => {
+      const observer = (close ? [2.4] : [18, 16, 20, 14, 22]).flatMap(distance =>
+        [[0, 1], [1, 0], [0, -1], [-1, 0], [.71, .71], [.71, -.71], [-.71, -.71], [-.71, .71]].map(([dx, dz]) => {
           const x = supply.x + dx * distance, z = supply.z + dz * distance;
           return { x, y: terrainHeight(x, z), z };
         })).find(to => {

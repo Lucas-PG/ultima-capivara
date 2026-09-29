@@ -900,7 +900,7 @@ export function createWorld(): WorldSpec {
   }
   const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary, mudBaths, trampolines, landmarks };
   world.buildingRoutes = buildBuildingRoutes(world);
-  const graph = world.navigation = buildNavigation(world), seen = new Set<number>();
+  const graph = world.navigation = buildNavigation(world, NAV_ROUTES), seen = new Set<number>();
   let mainRoutes: number[] = [];
   for (let start = 0; start < graph.points.length; start++) {
     if (seen.has(start)) continue;

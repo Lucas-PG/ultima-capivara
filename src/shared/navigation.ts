@@ -24,6 +24,8 @@ export function walkableHeight(x: number, z: number, world: WorldSpec): number {
   return y;
 }
 
+/** The step moveActor climbs without a jump. */
+const STEP_UP = .45;
 export function walkableSegment(world: WorldSpec, from: Pick<Vec3, 'x' | 'z'>, to: Pick<Vec3, 'x' | 'z'>, arena = false): boolean {
   const distance = Math.hypot(to.x - from.x, to.z - from.z), steps = Math.max(1, Math.ceil(distance / .8));
   let previous = walkableHeight(from.x, from.z, world);
@@ -32,14 +34,18 @@ export function walkableSegment(world: WorldSpec, from: Pick<Vec3, 'x' | 'z'>, t
     const y = walkableHeight(x, z, world);
     if (Math.abs(x) > 124 || Math.abs(z) > 124 || (arena && !inArena(x, z, .5))) return false;
     if (i && Math.abs(y - previous) > Math.max(.45, distance / steps * .85)) return false;
-    if (nearby(world, x, z, .32).some(c => y < c.max.y - .01 && y + 1.8 > c.min.y &&
+    // A solid whose top is one legal step up (moveActor's 0.45 m) is climbed, not
+    // a wall: the next tread of a stair in front of the feet does not block it.
+    if (nearby(world, x, z, .32).some(c => y < c.max.y - .01 && c.max.y - y > STEP_UP && y + 1.8 > c.min.y &&
       x + .32 > c.min.x && x - .32 < c.max.x && z + .32 > c.min.z && z - .32 < c.max.z)) return false;
     previous = y;
   }
   return true;
 }
 
-export function buildNavigation(world: WorldSpec): NavigationGraph {
+/** `routes` are the authored walking routes (layout NAV_ROUTES): stairs, ramps and paths that
+ * may run between the grid's rows. */
+export function buildNavigation(world: WorldSpec, routes: readonly (readonly (readonly [number, number])[])[] = []): NavigationGraph {
   const points: Vec3[] = [], links: number[][] = [];
   const side = 61, step = 4, indices = new Int32Array(side * side).fill(-1);
   for (let iz = 0; iz < side; iz++) for (let ix = 0; ix < side; ix++) {
@@ -76,6 +82,38 @@ export function buildNavigation(world: WorldSpec): NavigationGraph {
     if (a === b || Math.hypot(points[a].x - points[b].x, points[a].z - points[b].z) > 10) continue;
     if (links[a].includes(b) || !walkableSegment(world, points[a], points[b])) continue;
     links[a].push(b); links[b].push(a);
+  }
+  // The grid can also miss a whole authored route: both 4 m rows of the Capela's
+  // stair fall within a body width of its cheek walls, so bots climbed to the
+  // chapel by the long south path. Every route is walked at 3 m samples, each
+  // a node of its own (or the grid node it stands on). Consecutive samples link
+  // along the route, and each new node joins the grid nodes it can reach within 6 m.
+  const link = (a: number, b: number) => { if (a !== b && !links[a].includes(b)) { links[a].push(b); links[b].push(a); } };
+  const gridNear = (x: number, z: number, radius: number) => {
+    const found: number[] = [];
+    for (let iz = Math.max(0, Math.ceil((z - radius + 120) / step)); iz <= Math.min(side - 1, Math.floor((z + radius + 120) / step)); iz++)
+      for (let ix = Math.max(0, Math.ceil((x - radius + 120) / step)); ix <= Math.min(side - 1, Math.floor((x + radius + 120) / step)); ix++) {
+        const index = indices[iz * side + ix];
+        if (index >= 0 && Math.hypot(points[index].x - x, points[index].z - z) <= radius) found.push(index);
+      }
+    return found.sort((a, b) => Math.hypot(points[a].x - x, points[a].z - z) - Math.hypot(points[b].x - x, points[b].z - z));
+  };
+  for (const route of routes) {
+    let previous = -1;
+    for (let i = 1; i < route.length; i++) {
+      const [ax, az] = route[i - 1], [bx, bz] = route[i], samples = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 3));
+      for (let k = i === 1 ? 0 : 1; k <= samples; k++) {
+        const x = ax + (bx - ax) * k / samples, z = az + (bz - az) * k / samples;
+        if (!walkableSegment(world, { x, z }, { x, z })) { previous = -1; continue; }
+        let node: number | undefined = gridNear(x, z, .75)[0];
+        if (node === undefined) {
+          node = points.length; points.push({ x, y: walkableHeight(x, z, world), z }); links.push([]);
+          for (const index of gridNear(x, z, 6)) if (walkableSegment(world, points[node], points[index])) link(node, index);
+        }
+        if (previous >= 0 && walkableSegment(world, points[previous], points[node])) link(previous, node);
+        previous = node;
+      }
+    }
   }
   return { points, links };
 }
