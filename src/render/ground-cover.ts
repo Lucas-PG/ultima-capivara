@@ -221,8 +221,10 @@ export class GroundCover {
         const r = hash(gx, gz, 3), r2 = hash(gx, gz, 4);
         if (sand) {
           // Dune grass only inside the authored dune patches; the open beach stays clean sand.
+          // Dune grass fills the authored dune patches and, sparser, drifts over the dry upper beach.
           const inDune = dunes.some(p => ((x - p.pos.x) / (p.scale.x * .6)) ** 2 + ((z - p.pos.z) / (p.scale.z * .6)) ** 2 < 1);
-          if (inDune && r < .16) accent('dune', x, y, z, r2, groundTint('dune-grass', new THREE.Color('#C9C98A')));
+          const drift = y > 1.05 && fbm(x / 9 + 41, z / 9 - 23) > .22;
+          if ((inDune && r < .16) || (drift && r < .035)) accent('dune', x, y, z, r2, groundTint('dune-grass', new THREE.Color('#C9C98A')), drift && !inDune ? .8 : 1);
           continue;
         }
         // Lawn density follows broad painted clumps: lush patches, thinner worn ones, never uniform speckle.
