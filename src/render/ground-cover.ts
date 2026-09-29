@@ -141,7 +141,7 @@ export class GroundCover {
   private readonly lawnGeometry: THREE.BufferGeometry;
   /** The same tufts with fewer blades, for cells beyond LAWN_NEAR. */
   private readonly farLawnGeometry: THREE.BufferGeometry;
-  private readonly cells: { x: number; z: number; lawn: THREE.InstancedMesh | null; accents: THREE.Mesh | null; count: number }[] = [];
+  private readonly cells: { x: number; z: number; bottom: number; top: number; lawn: THREE.InstancedMesh | null; accents: THREE.Mesh | null; count: number }[] = [];
   private quality: Settings['graphics'] = 'medium';
 
   constructor(world: WorldSpec, atlas?: THREE.Texture) {
@@ -159,7 +159,8 @@ export class GroundCover {
             coverLocal = (instanceMatrix * vec4(coverRoot, 1.0)).xyz;
           #endif
           vec3 coverWorld = (modelMatrix * vec4(coverLocal, 1.0)).xyz;
-          float coverFade = 1.0 - smoothstep(coverReach * .74, coverReach, length(coverWorld.xz - coverEye.xz));
+          // Full 3D distance: from a rooftop or the plane, grass far below fades like grass far away.
+          float coverFade = 1.0 - smoothstep(coverReach * .74, coverReach, length(coverWorld - coverEye));
           float coverWind = sin(coverTime * 1.7 + coverWorld.x * .31 + coverWorld.z * .19) * .055 + sin(coverTime * 2.9 + coverWorld.z * .63 + coverWorld.x * .21) * .022;
           transformed.x += coverWind * coverSway;
           transformed.z += coverWind * .5 * coverSway;
@@ -264,7 +265,8 @@ export class GroundCover {
         accentMesh.name = `grass-accents:${cx}:${cz}`;
         this.group.add(accentMesh);
       }
-      this.cells.push({ x: x0 + CELL / 2, z: z0 + CELL / 2, lawn: lawnMesh, accents: accentMesh, count: lawn.length });
+      const heights = [lawnMesh, accentMesh].flatMap(mesh => { if (!mesh) return []; const box = new THREE.Box3().setFromObject(mesh); return [box.min.y, box.max.y]; });
+      this.cells.push({ x: x0 + CELL / 2, z: z0 + CELL / 2, bottom: Math.min(...heights), top: Math.max(...heights), lawn: lawnMesh, accents: accentMesh, count: lawn.length });
     }
   }
 
@@ -281,7 +283,8 @@ export class GroundCover {
     this.time.value = reducedMotion ? 0 : time; this.eye.value.copy(camera.position);
     const reach = GROUND_COVER[this.quality].distance;
     for (const cell of this.cells) {
-      const distance = Math.hypot(Math.max(0, Math.abs(cell.x - camera.position.x) - CELL / 2), Math.max(0, Math.abs(cell.z - camera.position.z) - CELL / 2));
+      const distance = Math.hypot(Math.max(0, Math.abs(cell.x - camera.position.x) - CELL / 2), Math.max(0, Math.abs(cell.z - camera.position.z) - CELL / 2),
+        Math.max(0, camera.position.y - cell.top, cell.bottom - camera.position.y));
       if (cell.lawn) {
         cell.lawn.visible = reach > 0 && distance < reach;
         // Past a few metres a tuft is a handful of pixels: draw it with five blades instead of nine.
