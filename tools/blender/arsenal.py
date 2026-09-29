@@ -332,48 +332,89 @@ def m4():
 # ------------------------------------------------------------------ smg
 @weapon
 def smg():
-    """Compact SMG: dark receiver with teal panels, perforated shroud, angled foregrip, stick magazine."""
-    parts = {'body': [], 'mag': [], 'charge': [], 'trigger': []}
-    bore = .058
-    rec = prism('receiver', [(-.062, .028, 1), (.172, .028, 1), (.184, .04), (.184, .082), (.172, .092, 1), (-.05, .092, 1), (-.064, .08)],
-                .042, 'dark', bevel=.003, smooth=1, raw=True)
-    cut(rec, cutter_box((.02, .05, .066), (.012, .045, .016)))
+    """Canarinho: yellow receiver, green paw grips, blue star and a folding wire stock."""
+    parts = {'body': [], 'mag': [], 'charge': [], 'trigger': [], 'action': []}
+    bore = .064
+    rec = prism('receiver', [(-.064, .025), (.182, .025), (.198, .04), (.198, .087), (.184, .099), (-.053, .099), (-.064, .087)],
+                .042, 'yellow', bevel=.0045, radius=.006, raw=True)
+    cut(rec, cutter_box((.021, .06, .067), (.012, .059, .017)))
+    cut(rec, cutter_box((-.021, .095, .083), (.012, .152, .010)))
     parts['body'] += [complete(rec)]
+    # Stamped top cover seam and a raised rear cap catch light in the eye view.
+    parts['body'] += [box('cover_seam', (0, .078, .0988), (.034, .181, .0012), 'gunmetal', .0005),
+                       box('top_cover', (0, .078, .100), (.032, .179, .0028), 'yellow', .0012)]
+    parts['body'] += [prism('rear_cap', [(-.066, .030), (-.056, .030), (-.056, .094), (-.066, .087)], .044, 'yellow', bevel=.002, radius=.003)]
+    parts['body'] += [box('charging_track', (-.017, .095, .083), (.003, .154, .009), 'dark', .001)]
+    parts['action'] += [box('bolt_face', (.0175, .059, .067), (.005, .057, .014), 'steel', .001)]
     for side in (-1, 1):
-        parts['body'] += [prism('panel', [(.0, .04), (.15, .04), (.15, .078), (.0, .078)], .004, 'teal', x=side * .0215, bevel=.0012, radius=.006)]
-    parts['body'] += [box('top_rail', (0, .06, .097), (.022, .1, .008), 'dark', .0015)]
-    shroud = tube('shroud', (0, .18, bore), (0, .262, bore), .019, .012, 'dark', sides=28)
-    cut(shroud, join([cutter_cyl((0, .2 + i * .02, bore + .03), (0, .2 + i * .02, bore - .03), .0045, 12) for i in range(3)] +
-                     [cutter_cyl((.03, .2 + i * .02, bore), (-.03, .2 + i * .02, bore), .0045, 12) for i in range(3)], 'holes'))
-    parts['body'] += [shroud]
-    parts['body'] += [cyl('barrel', (0, .19, bore), (0, .28, bore), .008, 'gunmetal', sides=16)]
-    parts['body'] += [tube('muzzle', (0, .262, bore), (0, .292, bore), .0125, .006, 'gunmetal', sides=24)]
-    # Rear drum sight and a hooded front post: ADS looks through both rings.
-    parts['body'] += [box('rear_base', (0, -.03, .1), (.024, .02, .012), 'dark', .002)]
-    parts['body'] += [tube('rear_ring', (0, -.036, .116), (0, -.022, .116), .013, .0068, 'teal', sides=28)]
-    parts['body'] += [box('front_base', (0, .165, .1), (.02, .016, .012), 'dark', .002)]
-    parts['body'] += [tube('front_hood', (0, .158, .116), (0, .172, .116), .012, .0095, 'dark', sides=28)]
-    parts['body'] += [box('front_post', (0, .165, .11), (.0028, .004, .012), 'orange', .0008)]
-    grip = prism('grip', [(-.006, .03, 1), (.032, .03, 1), (.031, .012), (.022, -.02), (.014, -.06), (.006, -.088), (-.028, -.094), (-.04, -.08),
-                          (-.032, -.042), (-.024, -.008), (-.026, .014)], .032, 'polymer', bevel=.003, smooth=3)
-    parts['body'] += [grip]
-    guard = prism('guard', [(.02, .03, 1), (.052, .03, 1), (.052, .012), (.046, .004), (.02, .004)], .018, 'dark', bevel=.0015, raw=True)
-    cut(guard, cutter_box((0, .036, .016), (.03, .024, .014)))
+        parts['body'] += [prism('green_sash', [(-.022, .030), (.003, .030), (.043, .096), (.018, .096)],
+                               .0008, 'green', x=side * .0214, bevel=.0002)]
+        for y, z in [(-.047, .039), (.075, .038), (.18, .043), (-.048, .084)]:
+            parts['body'] += [cyl('receiver_pin', (side * .021, y, z), (side * .0227, y, z), .0034, 'gunmetal', sides=16, bevel=.0005)]
+            parts['body'] += [cyl('pin_centre', (side * .0227, y, z), (side * .023, y, z), .0014, 'dark', sides=10, bevel=.0002)]
+        parts['body'] += [cyl('selector_pivot', (side * .021, -.026, .027), (side * .024, -.026, .027), .006, 'gunmetal', sides=20, bevel=.0008)]
+        parts['body'] += [cyl('takedown_pivot', (side * .021, .018, .033), (side * .0245, .018, .033), .0067, 'gunmetal', sides=18, bevel=.001),
+                           prism('takedown_lever', [(.012, .033), (.024, .033), (.027, .050), (.021, .054), (.014, .050)], .003, 'dark', x=side * .024, bevel=.001)]
+        parts['body'] += [box('selector_lever', (side * .024, -.037, .027), (.003, .023, .005), 'dark', .001)]
+    # Open, slotted steel shroud and an actual bore at the muzzle.
+    shroud = tube('shroud', (0, .192, bore), (0, .271, bore), .020, .012, 'gunmetal', sides=28)
+    for z in (-1, 1):
+        cut(shroud, join([cutter_box((x, .233, bore + z * .018), (.006, .044, .012)) for x in (-.009, .009)], 'top_slots'))
+    for side in (-1, 1):
+        cut(shroud, cutter_box((side * .018, .234, bore), (.012, .045, .009)))
+    parts['body'] += [shroud, cyl('barrel', (0, .198, bore), (0, .28, bore), .008, 'blued', sides=20)]
+    muzzle = tube('compensator', (0, .269, bore), (0, .302, bore), .0135, .006, 'gunmetal', sides=28)
+    cut(muzzle, join([cutter_box((side * .012, .285, bore), (.009, .016, .005)) for side in (-1, 1)], 'comp_ports'))
+    parts['body'] += [muzzle]
+    # Low ghost ring: a clear opening and a warm front post on the same sight line.
+    parts['body'] += [box('rear_base', (0, -.038, .104), (.027, .022, .012), 'dark', .002)]
+    parts['body'] += [tube('rear_ring', (0, -.044, .122), (0, -.031, .122), .0125, .0075, 'gunmetal', sides=32)]
+    parts['body'] += [box('front_base', (0, .177, .102), (.025, .021, .012), 'dark', .002)]
+    hood = tube('front_hood', (0, .169, .122), (0, .182, .122), .012, .0095, 'gunmetal', sides=28)
+    cut(hood, cutter_box((0, .176, .134), (.016, .02, .011)))
+    parts['body'] += [hood]
+    parts['body'] += [box('front_post', (0, .176, .116), (.0032, .004, .012), 'orange', .0008)]
+    for side in (-1, 1):
+        parts['body'] += [cyl('sight_screw', (side * .013, -.038, .105), (side * .015, -.038, .105), .0035, 'steel', sides=16, bevel=.0005)]
+    parts['body'] += [prism('grip', [(-.051, .026), (-.014, .022), (.017, .009), (.022, -.007), (.016, -.03), (.02, -.058), (.009, -.104),
+                                    (-.049, -.116), (-.063, -.104), (-.050, -.027)], .031, 'green', bevel=.003, radius=.006)]
+    for side in (-1, 1):
+        parts['body'] += [prism('grip_insert', [(-.04, -.013), (.004, -.022), (-.005, -.092), (-.049, -.099)], .002, 'polymer', x=side * .0157, bevel=.001, radius=.004)]
+    guard = prism('guard', [(-.008, .020), (.068, .020), (.075, .008), (.071, -.034), (.06, -.042), (-.003, -.039)], .019, 'dark', bevel=.002, radius=.004, raw=True)
+    cut(guard, cutter_prism([(.003, .012), (.062, .012), (.065, .005), (.06, -.031), (.003, -.031)], .035))
     parts['body'] += [complete(guard)]
-    well = prism('magwell', [(.05, .03, 1), (.108, .03, 1), (.106, .006), (.054, .006)], .034, 'dark', bevel=.0025)
-    parts['body'] += [well]
-    parts['body'] += [prism('foregrip', [(.128, .03, 1), (.168, .03, 1), (.16, -.02), (.154, -.066), (.13, -.07), (.126, -.03)], .03, 'polymer', bevel=.003, smooth=2)]
+    parts['trigger'] += [prism('trigger', [(.035, .016), (.042, .016), (.042, .002), (.035, -.021), (.030, -.020), (.035, -.003)], .0075, 'steel', bevel=.001, radius=.002)]
+    well = prism('magwell', [(.071, .026), (.123, .026), (.124, -.013), (.070, -.013)], .034, 'yellow', bevel=.002, raw=True)
+    cut(well, cutter_box((0, .097, -.006), (.028, .044, .041)))
+    parts['body'] += [complete(well), box('mag_release', (-.021, .08, .012), (.007, .015, .017), 'dark', .0015)]
+    # Full vertical grip at the rear of the shroud; the paw stays behind the muzzle.
+    fore = prism('foregrip', [(.143, .026), (.192, .026), (.19, .009), (.181, -.092), (.144, -.092), (.138, -.08)], .032, 'green', bevel=.003, radius=.005, raw=True)
+    for i in range(6):
+        cut(fore, cutter_box((0, .142, -.019 - i * .011), (.039, .010, .003)))
+    parts['body'] += [complete(fore), box('foregrip_mount', (0, .168, .023), (.037, .06, .014), 'gunmetal', .002)]
+    parts['body'] += [cyl('foregrip_bolt', (-.02, .168, .018), (.02, .168, .018), .004, 'steel', sides=16, bevel=.0006)]
+    parts['body'] += [box('stock_hinge', (0, -.07, .059), (.041, .018, .063), 'gunmetal', .002)]
+    for y0, z0, z1 in [(-.077, .083, .08), (-.077, .035, -.025)]:
+        parts['body'] += [cyl('stock_strut', (0, y0, z0), (0, -.267, z1), .0058, 'gunmetal', sides=16, bevel=.001)]
+    pad = prism('stock_pad', [(-.263, .105), (-.28, .105), (-.28, -.05), (-.263, -.05)], .04, 'rubber', bevel=.004, radius=.008)
+    parts['body'] += [pad]
+    for i in range(8):
+        parts['body'] += [box('stock_tread', (0, -.2805, -.029 + i * .016), (.033, .002, .004), 'rubber', .0006)]
+    parts['charge'] += [box('charging_arm', (-.029, .149, .083), (.022, .012, .008), 'steel', .001)]
+    parts['charge'] += [box('charging_knob', (-.044, .149, .083), (.016, .019, .015), 'dark', .002)]
+    for i in range(4):
+        parts['charge'] += [box('charging_rib', (-.052, .143 + i * .004, .083), (.0016, .0014, .010), 'gunmetal', .0004)]
+    mag = prism('mag_body', [(.075, .019), (.119, .019), (.128, -.177), (.084, -.177)], .026, 'gunmetal', bevel=.002, radius=.003, raw=True)
     for side in (-1, 1):
-        parts['body'] += [cyl('stock_rod', (side * .016, -.06, .06), (side * .016, -.2, .055), .0055, 'steel', sides=14)]
-    parts['body'] += [prism('stock_pad', [(-.2, .085, 1), (-.216, .085, 1), (-.216, .005, 1), (-.2, .005, 1)], .046, 'teal', bevel=.004)]
-    parts['charge'] += [prism('cocking_lever', [(.12, .075), (.15, .075), (.152, .084), (.12, .084)], .016, 'gunmetal', x=-.028, bevel=.0015)]
-    parts['charge'] += [cyl('cocking_knob', (-.036, .15, .08), (-.046, .15, .08), .006, 'gunmetal', sides=14)]
-    parts['trigger'] += [prism('trigger', [(.034, .026, 1), (.041, .026, 1), (.042, .016), (.036, .008), (.032, .01), (.036, .018)], .007, 'gunmetal', bevel=.001, smooth=1)]
-    mag = prism('mag', [(.056, .02, 1), (.1, .02, 1), (.108, -.17), (.064, -.17)], .026, 'dark', bevel=.0025, radius=.004)
-    plate = prism('mag_plate', [(.06, -.166, 1), (.112, -.166, 1), (.114, -.18), (.062, -.18)], .03, 'teal', bevel=.002, radius=.003)
-    parts['mag'] += [join([mag, plate], 'mag')]
-    sockets = {'muzzle': (0, .296, bore), 'eject': (.022, .05, .066), 'sight': (0, -.045, .116)}
-    pivots = {'mag': (0, .078, .02), 'charge': (-.028, .136, .08)}
+        cut(mag, cutter_box((side * .013, .103, -.091), (.004, .005, .128)))
+    parts['mag'] += [complete(mag), box('mag_shoe', (0, .105, -.177), (.030, .051, .009), 'dark', .0015),
+                     cyl('top_round', (0, .082, .018), (0, .112, .018), .005, 'brass', sides=14, bevel=.0006)]
+    for obj in parts['body']:
+        if obj.name.split('.')[0] in {'grip', 'grip_insert'}:
+            obj.data.transform(Matrix.Diagonal((1, .67, 1, 1))); obj.data.update()
+    for obj in parts['trigger']: move(obj, (0, -.020, 0))
+    sockets = {'muzzle': (0, .304, bore), 'eject': (.023, .059, .067), 'sight': (0, -.045, .122)}
+    pivots = {'mag': (0, .097, .019), 'charge': (-.038, .149, .083), 'trigger': (0, .017, .014), 'action': (0, .059, .067)}
     return parts, sockets, pivots, {'magAxis': [0, .045, -1]}
 
 
@@ -588,6 +629,9 @@ LIVERY = {
     'pistol': [
         {'stencil': 'palm', 'at': (-.0165, -.046), 'size': .034, 'rotate': -8, 'colour': 'D9B86C', 'on': ('wood_red',), 'metal': True},
     ],
+    'smg': [
+        {'stencil': 'star', 'at': (-.035, .064), 'size': .038, 'colour': '245EB1', 'on': ('yellow',)},
+    ],
     'm4': [
         {'stencil': 'frond', 'at': (.258, .064), 'size': .115, 'rotate': -16, 'colour': 'E27A5A', 'on': ('navy',)},
         {'stencil': 'frond', 'at': (.318, .060), 'size': .085, 'rotate': 14, 'colour': 'F0A07A', 'on': ('navy',), 'opacity': .8},
@@ -613,12 +657,12 @@ def build(weapon_id):
         meshes.append(obj)
     for name, location in sockets.items():
         empty(f'{weapon_id}_{name}', location, root)
-    size = 2048 if weapon_id in ('m4', 'pistol') else 1024
-    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id in ('m4', 'pistol') else .005,
+    size = 2048 if weapon_id in ('m4', 'pistol', 'smg') else 1024
+    albedo, orm = L.bake_weapon(meshes, weapon_id, size=size, edge_radius=.0025 if weapon_id in ('m4', 'pistol', 'smg') else .005,
                                 livery=LIVERY.get(weapon_id, ()))
     albedo_img = L.save_png(f'{weapon_id}_albedo', albedo)
     orm_img = L.save_png(f'{weapon_id}_orm', orm, srgb=False)
-    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id in ('m4', 'pistol') else None
+    normal_img = L.bake_relief(meshes, weapon_id, size) if weapon_id in ('m4', 'pistol', 'smg') else None
     material = L.export_material(f'{weapon_id}_mat', albedo_img, orm_img, normal_img)
     triangles = 0
     for obj in meshes:
