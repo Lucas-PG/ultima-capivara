@@ -721,8 +721,35 @@
         560
       ],
       "colliders": 26
+    },
+    {
+      "id": "engenho",
+      "triangles": [
+        11988,
+        2726,
+        745
+      ],
+      "colliders": 29
+    },
+    {
+      "id": "chamine",
+      "triangles": [
+        696,
+        696,
+        696
+      ],
+      "colliders": 6
+    },
+    {
+      "id": "canavial",
+      "triangles": [
+        5460,
+        2888,
+        508
+      ],
+      "colliders": 0
     }
   ],
-  "bytes": 10426704,
-  "gzipBytes": 2989453
+  "bytes": 10981300,
+  "gzipBytes": 3254623
 }

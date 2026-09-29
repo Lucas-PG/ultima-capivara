@@ -332,6 +332,8 @@ from dressing import add_dressing
 add_dressing(Piece)
 from palafitas import add_palafitas
 add_palafitas(Piece)
+from engenho import add_engenho
+add_engenho(Piece)
 
 
 def write_metadata():
