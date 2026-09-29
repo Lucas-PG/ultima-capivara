@@ -157,33 +157,35 @@ describe('island kit geometry and traversal contract', () => {
     kit.dispose(); expect(scene.children).toHaveLength(0);
   });
 
-  it('reduces dense planting at walking distance without hiding solid kit collision', async () => {
+  it('reduces flower beds at walking distance without ever hiding their collision', async () => {
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
     const kit = createKit(scene, { gltf: async () => asset } as unknown as AssetLoader, [
-      { piece: 'bush_cluster', x: 1, y: 0, z: 1, yaw: 0 },
-      { piece: 'hedge', x: 2, y: 0, z: 1, yaw: 0 },
       { piece: 'flower_bed', x: 1, y: 0, z: 2, yaw: 0 },
+      { piece: 'flower_bed', x: 4, y: 0, z: 2, yaw: 0 },
       { piece: 'house_small', x: 3, y: 0, z: 3, yaw: 0 },
     ]);
     await kit.ready; scene.updateMatrixWorld(true);
-    const plants = scene.getObjectByName('kit:plants:0:0') as THREE.LOD;
     const flowers = scene.getObjectByName('kit:flowers:0:0') as THREE.LOD;
     const house = scene.getObjectByName('kit:solid:0:0') as THREE.LOD;
+    const batch = scene.getObjectByName('kit:far-rooms') as THREE.BatchedMesh;
+    const far = flowers.levels[2].object.userData.farInstance as number;
     const move = (distance: number) => {
-      camera.position.set(1.5, 2, 1 + distance); camera.updateMatrixWorld(true); kit.update(camera);
+      camera.position.set(2.5, 2, 2 + distance); camera.updateMatrixWorld(true); kit.update(camera);
     };
-    move(3); expect(plants.getCurrentLevel()).toBe(0);
-    move(20); expect(plants.getCurrentLevel()).toBe(1); expect(flowers.getCurrentLevel()).toBe(1);
-    const near = (plants.levels[0].object as THREE.Mesh).geometry.index!.count;
-    const middle = (plants.levels[1].object as THREE.Mesh).geometry.index!.count;
-    expect(middle).toBeLessThan(near * .4);
-    for (const entry of [...plants.levels, ...flowers.levels]) expect((entry.object as THREE.Mesh).castShadow).toBe(false);
-    move(40);
-    expect(plants.getCurrentLevel()).toBe(2); expect(plants.visible).toBe(true);
-    expect(((plants.levels[2].object as THREE.Mesh).material as THREE.MeshStandardMaterial).opacity).toBeCloseTo(.5);
-    move(55); expect(plants.visible).toBe(false);
-    expect(flowers.visible).toBe(true); expect(house.visible).toBe(true);
-    move(3); expect(plants.visible).toBe(true); expect(plants.getCurrentLevel()).toBe(0);
+    move(3); expect(flowers.getCurrentLevel()).toBe(0);
+    move(20); expect(flowers.getCurrentLevel()).toBe(1);
+    const near = (flowers.levels[0].object as THREE.Mesh).geometry.index!.count;
+    const middle = (flowers.levels[1].object as THREE.Mesh).geometry.index!.count;
+    expect(middle).toBeLessThan(near);
+    for (const entry of flowers.levels.slice(0, 2)) expect((entry.object as THREE.Mesh).castShadow).toBe(false);
+    // A bed is solid: past its far distance it draws from the island batch, at any range, fully opaque.
+    for (const distance of [40, 80, 160]) {
+      move(distance);
+      expect(flowers.visible).toBe(true); expect(flowers.getCurrentLevel()).toBe(2);
+      expect(batch.getVisibleAt(far)).toBe(true); expect(house.visible).toBe(true);
+    }
+    expect((batch.material as THREE.MeshStandardMaterial).opacity).toBe(1);
+    move(3); expect(flowers.getCurrentLevel()).toBe(0); expect(batch.getVisibleAt(far)).toBe(false);
     kit.dispose(); expect(scene.children).toHaveLength(0);
   });
 
