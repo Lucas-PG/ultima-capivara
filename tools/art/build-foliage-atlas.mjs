@@ -18,7 +18,7 @@ const SOURCE = 'tools/art/foliage-codex-source.png';
 const source = JSON.parse(readFileSync('tools/art/foliage-codex-source.metrics.json', 'utf8'));
 const codex = Object.fromEntries(source.tiles.map(t => [t.name, t]));
 const GUARD = 6;      // transparent pixels around every tile
-const BLEED = 10;     // colour bleed into transparent pixels
+const BLEED = 10;     // transparent margin kept around each tile (edge colour, then mean paint)
 
 // `codex` tiles are cut out of the first Codex painting (fixed 512 cells, bounds in its metrics).
 // `sheet` tiles are cut out of a later Codex painting, cleaned by prepare-foliage-sheet.mjs.
@@ -74,6 +74,7 @@ const ATLASES = {
       { name: 'croton', sheet: 'garden', tile: 'croton', scale: 1 },
       { name: 'taro', sheet: 'garden', tile: 'taro', scale: 1 },
       { name: 'bromeliad', sheet: 'garden', tile: 'bromeliad', scale: .9 },
+      { name: 'impatiens', sheet: 'garden', tile: 'impatiens', scale: .78 },
       { name: 'palm-fan', codex: 'palm-fan', scale: .7, grade: { brightness: 1.12, saturation: 1.05, hue: -3 } },
       { name: 'banana-leaf', codex: 'banana', scale: .9, grade: { brightness: 1.08, saturation: 1.05, hue: -2 } },
       { name: 'monstera', codex: 'monstera', scale: .8, grade: { brightness: 1.12, saturation: 1.0, hue: -3 } },
@@ -237,13 +238,24 @@ async function composeCluster(spec, cut) {
   return { data, w: info.width, h: info.height, root: [.5, .5] };
 }
 
-// Flatten antialiasing on the way in: keep the painted alpha, but bleed colour outward.
+/** Mean straight RGB of a tile's opaque paint. */
+function opaqueMean(data, w, h) {
+  const sum = [0, 0, 0]; let n = 0;
+  for (let i = 0; i < w * h; i++) if (data[i * 4 + 3] > 200) { sum[0] += data[i * 4]; sum[1] += data[i * 4 + 1]; sum[2] += data[i * 4 + 2]; n++; }
+  return sum.map(v => v / Math.max(1, n));
+}
+
+// Colour under transparent pixels decides what the GPU's mips average to. The first EDGE pixels
+// around the paint take its edge colour (clean magnified silhouettes); everything else transparent,
+// holes between leaves included, takes the tile's mean paint, so distant crowns keep their
+// brightness instead of averaging toward dark outlines and black background.
+const EDGE = 3;
 function bleed(tile, extra) {
   const W = tile.w + extra * 2, H = tile.h + extra * 2, data = Buffer.alloc(W * H * 4);
   for (let y = 0; y < tile.h; y++) tile.data.copy(data, ((y + extra) * W + extra) * 4, y * tile.w * 4, (y + 1) * tile.w * 4);
   let known = new Uint8Array(W * H);
   for (let i = 0; i < W * H; i++) known[i] = data[i * 4 + 3] > 0 ? 1 : 0;
-  for (let pass = 0; pass < BLEED; pass++) {
+  for (let pass = 0; pass < EDGE; pass++) {
     const next = known.slice();
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const i = y * W + x;
@@ -260,7 +272,9 @@ function bleed(tile, extra) {
     }
     known = next;
   }
-  return { data, w: W, h: H };
+  const mean = opaqueMean(tile.data, tile.w, tile.h);
+  for (let i = 0; i < W * H; i++) if (!known[i]) { data[i * 4] = mean[0]; data[i * 4 + 1] = mean[1]; data[i * 4 + 2] = mean[2]; }
+  return { data, w: W, h: H, mean };
 }
 
 function pack(tiles, size) {
@@ -307,19 +321,18 @@ async function build(name) {
   }
   const { placed, used } = pack(cutTiles, size);
   const atlas = Buffer.alloc(size * size * 4);
+  // Between tiles, the transparent sheet carries the mean of every tile, for the deepest mips.
+  const area = cutTiles.reduce((n, t) => n + t.contentW * t.contentH, 0);
+  const global = [0, 1, 2].map(c => cutTiles.reduce((sum, t) => sum + t.mean[c] * t.contentW * t.contentH, 0) / area);
+  for (let i = 0; i < size * size; i++) { atlas[i * 4] = global[0]; atlas[i * 4 + 1] = global[1]; atlas[i * 4 + 2] = global[2]; }
   const rects = {};
   cutTiles.forEach((t, i) => {
     const { x, y } = placed[i];
     for (let row = 0; row < t.h; row++) t.data.copy(atlas, ((y + row) * size + x) * 4, row * t.w * 4, (row + 1) * t.w * 4);
     // The rect is the painted content; the BLEED margin around it holds coloured, transparent pixels.
     // Mean sRGB of the painted pixels, so runtime tints can match a tile to the ground it grows from.
-    const sum = [0, 0, 0]; let painted = 0;
-    for (let row = BLEED; row < BLEED + t.contentH; row++) for (let col = BLEED; col < BLEED + t.contentW; col++) {
-      const at = (row * t.w + col) * 4;
-      if (t.data[at + 3] > 128) { sum[0] += t.data[at]; sum[1] += t.data[at + 1]; sum[2] += t.data[at + 2]; painted++; }
-    }
     rects[t.name] = { x: x + BLEED, y: y + BLEED, w: t.contentW, h: t.contentH, root: t.root.map(v => Math.round(v * 1000) / 1000), source: t.source,
-      mean: sum.map(v => Math.round(v / Math.max(1, painted) / 255 * 1000) / 1000) };
+      mean: t.mean.map(v => Math.round(v / 255 * 1000) / 1000) };
   });
   const dir = mkdtempSync(join(tmpdir(), 'atlas-'));
   const png = join(dir, `${name}.png`), webp = `public/textures/${name}-atlas.webp`;
