@@ -333,6 +333,12 @@ frontage('e', -44, 22.5, 32, 'LS');
 // Rua do Sul, south side; the Capela do Rosário stands in its middle.
 frontage('n', 38, -56, -33.5, 'SLpT');
 frontage('n', 38, -5, 56.5, 'AqS|LTSmL|AS');
+// --- Rua da Praia: from Rua do Sul down to the beach road -----------------
+// Both sides below the Capela do Rosário on a terrace level with Rua do Sul,
+// a corner shop and a bakery; a cottage row on down to the beach.
+frontage('e', -10.5, 54.5, 74.6, 'AhA');
+frontage('w', -5.5, 46.3, 74.9, 'LbAA');
+frontage('w', -5.5, 81.4, 96.6, 'Th');
 // --- Porto: the harbour end of Rua Direita, the working quay behind it ----
 frontage('n', -33, 63, 79.5, 'hT');
 frontage('n', -33, 86.5, 118.1, 'Apwh');
@@ -389,6 +395,10 @@ export const AREAS: readonly { rect: Rect; margin: number; y: number | null; fix
   { rect: [12, 93, 47, 115], margin: 2, y: .85 },
   { rect: [-13, 109, 1, 122], margin: 1, y: 9.5, fixed: true },
   { rect: [CAMPINHO[0] - 25, CAMPINHO[1] - 15, CAMPINHO[0] + 25, CAMPINHO[1] + 17], margin: 3, y: null },
+  // The Rua da Praia's upper block, level with Rua do Sul: its terraced rows share one floor.
+  { rect: [-19, 46, 3, 75], margin: 2, y: 2.2 },
+  // Its cottage pair below the Rua do Farol shares a floor too.
+  { rect: [-6, 81, 2, 97], margin: 2, y: 3.35 },
   // The Engenho's mill yard and workers' street, level with the river terrace.
   { rect: [-110, 9, -60, 38], margin: 3, y: 2.6 },
   // The coast road's timber bridge over the river mouth lands level on both banks.
