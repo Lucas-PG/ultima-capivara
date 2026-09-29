@@ -53,14 +53,15 @@ Facao has a swept blade, separate honed edge, capy stamp, brass bolster and pomm
 
 The carry roll exposes the back of the gripping paw and clears the handle from the forearm. Slashes rotate in camera space so the carry roll does not distort their cutting arc. Every third attack presents a heavier chop within the existing hit and recovery timing; damage and cadence are unchanged.
 
-Evidence: [before](evidence/guns/machete-before.jpg), [model after](evidence/guns/machete-model-after.jpg).
+Evidence: [before](evidence/guns/machete-before.jpg), [model after](evidence/guns/machete-model-after.jpg), [first-person motion](evidence/guns/machete-motion-after.jpg).
 
-Verified: both light slash strips pass the full probe. A revised elbow pole clears the two heavy-chop samples that previously touched the pommel. Remaining: install that pole and repeat the complete carry/inspect/slash/chop pass and third-person hold review.
+Verified: the revised elbow pole is installed. All 28 sampled hip, ADS, sprint, inspect, slash and heavy-chop poses pass the full probe, with a minimum right-paw clearance of 0.5 mm. Both paws were measured and each pose was captured from the eye, left and right. Close third-person hold views also show the rebuilt blade and grip. Ground-item framing and the final world presentation review remain outstanding.
 
 ## Verification and limitations
 
 - TypeScript passes. The latest full Vitest run passed 95 files and 728 tests with two workers. The focused viewmodel suite passes 37 tests. No Playwright e2e suite was run.
 - The grip solver now treats points outside its spatial-search radius as out of range, avoiding false deep penetrations against a distant triangle. Final acceptance uses the separate full-vertex probe, which also reports the struck weapon part.
+- The full probe uses a triangle bounding hierarchy. A comparison with its original exhaustive calculation matched every reported minimum and penetration count for the pistol, SMG and machete right paws; the measured calculation took about one fifth of the time.
 - `weapon-session.mjs` keeps browser startup costs low. `short-weapon-review.mjs` checks both paws and saves motion strips. `weapon_preview.py` frames small guns and hides reload-only props. `build-fp.mjs --pack <ids>` repacks completed exports without rebaking.
 - Local Vite and Vitest configurations under ignored `output/playwright/guns-short/` redirect caches into this worktree. The provided dependency directory is a symlink; initial default cache paths were discovered and then redirected. Shared caches were not cleaned or modified deliberately.
 - Third-person weapons currently use the rebuilt static LODs and shared hold rig. Complete close third-person presentation review remains outstanding.
