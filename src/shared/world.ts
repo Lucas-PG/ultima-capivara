@@ -163,7 +163,9 @@ export function createWorld(): WorldSpec {
       obj('box', mural.x, y + 1.75, mural.z, 1, 1, 1, '#FFFFFF', `prop:street-panel:${shopNames[h.role]}`, (h.yaw ?? 0) + muralSide * Math.PI / 2);
     if (!['home', 'fisher'].includes(h.role)) obj('box', shop.x, y + 2.45, shop.z, 1, 1, 1, '#FFFFFF',
       `prop:street-shop:${shopNames[h.role]}`, h.yaw ?? 0);
-    if (index % 2 === 0 && !roadAt(laundry.x, laundry.z, 1.5)) obj('box', laundry.x, y, laundry.z, 1, 1, 1, '#FFFFFF', 'prop:street-laundry', h.yaw ?? 0);
+    const posts = [-2.8, 2.8].map(offset => lotPoint(h, offset, HOUSE_SIZE[h.piece][1] / 2 + 1.25));
+    if (index % 2 === 0 && ![laundry, ...posts].some(point => roadAt(point.x, point.z, 1.5)))
+      obj('box', laundry.x, y, laundry.z, 1, 1, 1, '#FFFFFF', 'prop:street-laundry', h.yaw ?? 0);
     if (index % 3 === 0 && !lotAt(bike.x, bike.z, .4)) obj('box', bike.x, y, bike.z, 1, 1, 1,
       index % 2 ? '#BD765A' : '#65A29C', 'prop:street-bike', (h.yaw ?? 0) + Math.PI / 2);
     for (const side of [-1, 1]) {

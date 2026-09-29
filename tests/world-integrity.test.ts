@@ -4,7 +4,7 @@ import { KIT_PIECES } from '../src/shared/kit-collision';
 import { terrainHeight } from '../src/shared/terrain';
 import { WATER_LEVEL } from '../src/shared/water';
 import { walkableHeight } from '../src/shared/navigation';
-import { BRIDGE_PLANS, QUAYS, QUAY_X, ROADS, quayFaceAt } from '../src/shared/layout';
+import { BRIDGE_PLANS, LOT_RECTS, QUAYS, QUAY_X, ROADS, STREETS, quayFaceAt } from '../src/shared/layout';
 import type { Collider, KitPlacement } from '../src/shared/types';
 
 // Physical integrity of the built island, the class of defect players notice
@@ -103,6 +103,28 @@ describe('island physical integrity', () => {
       ...world.objects.filter(o => ['tree', 'palm'].includes(o.kind) && under(o.pos.x, o.pos.z)).map(o => `${o.kind} ${o.id}`),
       ...world.pieces!.filter(p => ['bush_cluster', 'hedge', 'boat'].includes(p.piece) && under(p.x, p.z)).map(p => p.id),
     ].map(id => `${id} stands inside a building`);
+    expect(faults).toEqual([]);
+  });
+
+  it('stands street props in the open: no laundry across a street, no bike or line post inside a wall', () => {
+    const inRect = (rects: readonly (readonly number[])[], x: number, z: number, inset: number) =>
+      rects.some(([x0, z0, x1, z1]) => x > x0 + inset && x < x1 - inset && z > z0 + inset && z < z1 - inset);
+    const inWall = (x: number, z: number) => inRect(LOT_RECTS, x, z, .2) || world.colliders.some(c => c.max.y - c.min.y > 1.2 &&
+      x > c.min.x + .05 && x < c.max.x - .05 && z > c.min.z + .05 && z < c.max.z - .05);
+    const faults: string[] = [];
+    for (const object of world.objects) {
+      const kind = object.detail?.startsWith('prop:street-') ? object.detail.slice(12).split(':')[0] : '';
+      // Wall-mounted signs and spans anchor on facades by design.
+      if (!kind || ['panel', 'shop', 'wire', 'line'].includes(kind)) continue;
+      if (inWall(object.pos.x, object.pos.z)) faults.push(`${object.id} stands inside a wall`);
+      if (kind !== 'laundry') continue;
+      const r = object.rotation ?? 0;
+      for (const offset of [-2.8, 2.8]) {
+        const x = object.pos.x + Math.cos(r) * offset, z = object.pos.z - Math.sin(r) * offset;
+        if (inWall(x, z)) faults.push(`${object.id} has a post inside a wall`);
+        if (inRect(STREETS, x, z, 0)) faults.push(`${object.id} hangs across a street`);
+      }
+    }
     expect(faults).toEqual([]);
   });
 
