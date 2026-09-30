@@ -549,7 +549,8 @@ export class EffectsView {
     const dusty = surface === 'sand' || surface === 'dirt';
     const puff = this.cards.spawn();
     puff.pos.copy(pos).addScaledVector(normal, .08); puff.cell = dusty ? PAINT.plume : PAINT.dust + (Math.random() < .5 ? 0 : 1);
-    puff.life = rand(.38, .48); puff.rot = dusty ? rand(-.15, .15) : rand(-.4, .4); puff.minPx = 14; puff.maxPx = 110;
+    // Capped on screen: a round into a wall at arm's length must not paint over the view.
+    puff.life = rand(.38, .48); puff.rot = dusty ? rand(-.15, .15) : rand(-.4, .4); puff.minPx = 14; puff.maxPx = 80;
     puff.size0 = .5 * k; puff.size1 = (metal ? .65 : dusty ? 1.3 : 1.05) * k; puff.fadeOut = .55; puff.alpha = .92; puff.pop = !this.frame?.reducedMotion;
     puff.vel.copy(normal).multiplyScalar(dusty ? .5 : .8); puff.vel.y += dusty ? .7 : .35; puff.drag = 3;
     // The painted plume is ochre: sand keeps it, earth darkens it toward brown-grey.
@@ -558,7 +559,7 @@ export class EffectsView {
     if (!metal) {
       const haze = this.cards.spawn();
       haze.pos.copy(pos).addScaledVector(normal, .15); haze.cell = PAINT.dust + (Math.random() < .5 ? 0 : 1); haze.life = rand(.9, 1.2);
-      haze.fadeIn = .1; haze.fadeOut = .7; haze.size0 = .45 * k; haze.size1 = 1.45 * k; haze.alpha = .34; haze.minPx = 10; haze.rot = rand(0, 6.3);
+      haze.fadeIn = .1; haze.fadeOut = .7; haze.size0 = .45 * k; haze.size1 = 1.45 * k; haze.alpha = .34; haze.minPx = 10; haze.maxPx = 90; haze.rot = rand(0, 6.3);
       haze.vel.copy(normal).multiplyScalar(.3); haze.vel.y += .22; haze.drag = 1.5; haze.color.copy(s.puffLight);
     }
     for (let i = 0; i < Math.round(spec.bits * scale * q); i++) {
