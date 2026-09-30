@@ -15,6 +15,7 @@ import type { WeaponId } from '../shared/types';
 import { m4Reload } from './viewmodel-anims';
 import { isShortGun, shortReload, animateShortWorld, shortWorldGrip, type WorldParts } from './short-world-parts';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
+import { attachFurShells, disposeFurShells, FUR_RANGE } from './capybara-fur';
 
 // Bone layout shared with GameRenderer.updateAvatars():
 // 0 root · 1 torso (pivots at the hips) · 2 head · 3 arms + held weapon (shoulders)
@@ -124,6 +125,7 @@ interface CharacterInstance {
   relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
   gesture: EmoteId | null; gestureDeadline: number; gestureElapsed: number; gestureBlend: number;
   bounceSeq: number | null;
+  fur: THREE.SkinnedMesh | null;
   hold?: { pawR: THREE.Bone; restInv: THREE.Quaternion; armL: THREE.Bone; forearmL: THREE.Bone; pawL: THREE.Bone };
   gestureJoints: Partial<Record<'forearm_L' | 'forearm_R' | 'paw_L' | 'paw_R' | 'thigh_L' | 'thigh_R' | 'shin_L' | 'shin_R' | 'foot_L' | 'foot_R', THREE.Bone>>;
 }
@@ -177,6 +179,7 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
 
 function disposeCharacterSource(asset: GLTF): void {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
+  asset.scene.traverse(object => { if (object instanceof THREE.SkinnedMesh) disposeFurShells(object.geometry); });
   const textures = new Set<THREE.Texture>(), skeletons = new Set<THREE.Skeleton>();
   asset.scene.traverse(object => {
     if (!(object instanceof THREE.SkinnedMesh)) return;
@@ -249,6 +252,12 @@ export function celebrateCapybara(body: THREE.SkinnedMesh): void {
   runtime.emoteTime = 1.8; runtime.expression = 'victory'; runtime.faceTime = 1.8;
 }
 
+/** Close-range pelt: only capybaras near the camera draw their fur shells. */
+export function setCapybaraViewDistance(body: THREE.SkinnedMesh, distance: number): void {
+  const fur = characterInstances.get(body)?.fur;
+  if (fur) fur.visible = distance < FUR_RANGE;
+}
+
 export function capybaraIsDead(body: THREE.SkinnedMesh): boolean {
   return (characterInstances.get(body)?.deathTime ?? -1) >= 0;
 }
@@ -273,6 +282,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     mesh.skeleton = skeleton;
     lod.addLevel(mesh, [0, 12, 28][i], .1);
   }
+  const fur = attachFurShells(meshes[0]);
   const mixer = new THREE.AnimationMixer(scene);
   const actions: Record<string, THREE.AnimationAction> = {};
   const neutral = characterAsset.animations.find(clip => clip.name === 'face_neutral');
@@ -300,7 +310,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   const runtime: CharacterInstance = {
     scene, mixer, actions, weights, targets, grounded: true, swimming: false, swimBlend: 0, landing: 0,
     gesture: null, gestureDeadline: 0, gestureElapsed: 0, gestureBlend: 0, gestureJoints: {},
-    bounceSeq: null,
+    bounceSeq: null, fur,
     spine: scene.getObjectByName('spine') as THREE.Bone | undefined, crown: new THREE.Vector3(0, characterHeadTop, 0), crownScratch: new THREE.Vector3(), faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
     hitTime: 0, hitX: 0, hitZ: 0, deathTime: -1, deathSide: 1, emoteTime: 0, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,

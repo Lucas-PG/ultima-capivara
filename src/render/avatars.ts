@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { applyCharacterStyle } from './materials';
-import { CAPY_BONES, buildCapybaraBody, holdWeapon, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
+import { CAPY_BONES, buildCapybaraBody, setCapybaraViewDistance, holdWeapon, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
 import { itemGeometry } from './item-geometry';
 import { worldWeaponMaterial, worldM4PartGeometry, worldShortPartGeometries } from './world-weapons';
 import { isShortGun, type ShortGun, type WorldParts } from './short-world-parts';
@@ -208,6 +208,7 @@ export class AvatarView {
         }
       }
       const weaponDistance = visual.group.position.distanceToSquared(this.camera.position);
+      setCapybaraViewDistance(visual.body, Math.sqrt(weaponDistance));
       const distant = held ? this.distantWeapons.get(held)! : null;
       const distantWeapon = distant && weaponDistance > (visual.weapon.geometry === distant ? 12 * 12 : 14 * 14);
       visual.weapon.geometry = distantWeapon ? distant : short ? short.body : held === 'm4' ? this.m4Body : this.weapons.get(held)!;

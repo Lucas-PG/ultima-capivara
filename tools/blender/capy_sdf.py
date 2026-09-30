@@ -372,12 +372,14 @@ class Material(Node):
         return d, np.full(len(p), self.mat, np.int16)
 
 
-def evaluate(node, p):
-    """Distance and material at arbitrary points (chunked)."""
+def evaluate(node, p, cull=True):
+    """Distance and material at arbitrary points (chunked). With cull=False every primitive is
+    evaluated, so distances stay true far from the surface (gradients, projections)."""
     d = np.empty(len(p), F); m = np.empty(len(p), np.int16)
+    wide = np.full(3, 1e9, F)
     for s in range(0, len(p), 65536):
         q = p[s:s + 65536].astype(F)
-        d[s:s + 65536], m[s:s + 65536] = node.dm(q, q.min(0), q.max(0))
+        d[s:s + 65536], m[s:s + 65536] = node.dm(q, q.min(0), q.max(0)) if cull else node.dm(q, -wide, wide)
     return d, m
 
 

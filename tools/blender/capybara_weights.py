@@ -133,6 +133,10 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             h = float(ss(.86, .70, p[1])); w = {'spine': 1 - h, 'hipcloth': h}
         elif m in (M['leather'], M['brass']) and p[1] < 1.0:
             w = {'spine': 1.0}
+        elif m in (M['denim'], M['strap'], M['brass']):
+            # The vest and its straps ride the torso: arm weights would tear them at the armhole
+            # when the arms come up to a gun.
+            w = {k: val for k, val in w.items() if not k.startswith(('arm_', 'forearm_'))} or {'chest': 1.0}
         if partv[i] == 1:
             w = {'blink_' + ('R' if p[0] > 0 else 'L'): 1.0}
         elif 'head' in w and w['head'] > .5:
@@ -140,7 +144,7 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             e, out_dir = C.eye_point(s)
             de = float(np.linalg.norm(p - e))
             lid = float(ss(C.EYE_R + .016, C.EYE_R + .004, de)) * float((p - e) @ out_dir > -.004)
-            ear_c = C.side((.100, 1.786, .090), s)
+            ear_c = C.side(C.EAR, s)
             ear = float(ss(.050, .030, np.linalg.norm(p - ear_c))) * float(p[1] > 1.745)
             brow = float(ss(.030, .012, np.linalg.norm(p - (e + np.array([0, .030, 0], F))))) * .6
             mc = C.side((.052, 1.540, -.262), s)
@@ -160,5 +164,17 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
         total = sum(v for _, v in top)
         out.append({k: v / total for k, v in top if v / total > .002})
     team = np.isin(mat, [M[k] for k in C.TEAM]).astype(F)
+    # Fur length for the close-range shells: full on the pelt, short on the muzzle, none on the
+    # nose pad, lids, paws (their skin and the digits) and the toes.
     fur = (mat == M['fur']).astype(F)
-    return out, team, fur
+    head = pts[:, 1] > 1.45
+    # Shorter toward the muzzle and gone on the nose, fading so the pelt has no hard edge.
+    fur *= np.where(head, np.clip((pts[:, 2] + .30) / .12, 0, 1) * .8 + .2 * (pts[:, 2] > -.26), 1.0)
+    for s in (-1, 1):
+        e, _ = C.eye_point(s)
+        fur *= np.linalg.norm(pts - e, axis=1) > C.EYE_R + .010
+        fur *= np.linalg.norm(pts - C.wrist(s), axis=1) > .045
+        fur *= ~((np.abs(pts[:, 0] - s * .132) < .12) & (pts[:, 1] < .09) & (pts[:, 2] < -.06))
+    paw = soft[:, names.index('paw_L')] + soft[:, names.index('paw_R')]
+    fur *= paw < .5
+    return out, team, fur.astype(F)

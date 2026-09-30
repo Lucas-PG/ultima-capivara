@@ -73,6 +73,7 @@ def paint(root, P_map, N_obj, N_tan, AO, eye_texels, covered, log=print):
     eye = eye_texels.ravel()[idx]
     mat = materials_at(root, p, log)
     mat[eye] = M['eye']
+    mat = _mode_filter(mat, idx, covered.shape)
     log('texel materials', len(p))
     col = np.zeros((len(p), 3), F); rough = np.full(len(p), .8, F); metal = np.zeros(len(p), F); hgt = np.zeros(len(p), F)
     team = np.isin(mat, [M[k] for k in C.TEAM]).astype(F)
@@ -241,6 +242,26 @@ def paint(root, P_map, N_obj, N_tan, AO, eye_texels, covered, log=print):
     albedo, orm = _dilate(albedo, covered), _dilate(orm, covered)
     log('painted')
     return albedo, orm, normal.astype(F)
+
+
+def _mode_filter(mat, idx, shape, radius=2):
+    """Majority vote over a (2r+1)^2 texel window: removes isolated texels whose baked position
+    landed on a neighbouring surface (collar texels that hit the scarf, say)."""
+    H, W = shape
+    grid = np.full(H * W, -1, np.int16); grid[idx] = mat; grid = grid.reshape(H, W)
+    best = np.zeros((H, W), np.int16); score = np.full((H, W), -1.0, np.float32)
+    k = 2 * radius + 1
+    for m in np.unique(mat):
+        a = (grid == m).astype(np.float32)
+        c = np.cumsum(np.cumsum(np.pad(a, ((radius + 1, radius), (radius + 1, radius))), 0), 1)
+        box = c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]
+        better = box > score
+        best[better] = m; score[better] = box[better]
+    out = best.ravel()[idx]
+    # Only the team cloth is cleaned (its specks are what shows: coral dots on a cream collar);
+    # small genuine features elsewhere (snaps, claw tips) keep their texels.
+    team = np.isin(mat, [M[k] for k in C.TEAM]); team_out = np.isin(out, [M[k] for k in C.TEAM])
+    return np.where(team != team_out, out, mat).astype(np.int16)
 
 
 def _dilate(img, mask, rounds=8):

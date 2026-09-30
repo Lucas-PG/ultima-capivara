@@ -20,7 +20,9 @@ F = np.float32
 MATERIALS = ['fur', 'muzzle', 'nose', 'pad', 'claw', 'shirt', 'denim', 'scarf', 'leather', 'pack', 'canvas',
              'trouser', 'brass', 'eye', 'ear_in', 'hipcloth', 'lip', 'button', 'strap', 'sole']
 M = {name: i for i, name in enumerate(MATERIALS)}
-TEAM = ('scarf', 'hipcloth')
+# The team colour: the scarf (high, by the face), the hip rag (low, on the moving silhouette)
+# and the bedroll on the pack (a large block seen from behind and the sides at distance).
+TEAM = ('scarf', 'hipcloth', 'canvas')
 
 
 def v(*a):
@@ -34,13 +36,16 @@ def norm(a):
 # ------------------------------------------------------------------ skeleton (bind pose)
 SHOULDER = v(.228, 1.300, .000)
 UPPER_ARM, FOREARM_LEN = .276, .246
-ARM_DIR = norm((.34, -.86, -.30))
-FORE_DIR = norm((-.14, -.36, -.92))
+# Bind pose between the hanging rest and the gun hold, so both deform moderately: the upper
+# arm forward and out at about 55 degrees, the forearm reaching in front of the belly.
+ARM_DIR = norm((.30, -.60, -.55))
+FORE_DIR = norm((-.25, -.10, -.96))
 HIP = v(.118, .770, .018)
 KNEE = v(.128, .440, -.012)
 ANKLE = v(.132, .112, .030)
 TOE = v(.134, .040, -.150)
-EYE = v(.122, 1.716, -.052)
+EYE = v(.140, 1.716, -.052)
+EAR = v(.112, 1.776, .082)
 # The world paw is the first-person paw scaled up (it reads the weapon at distance); held
 # weapons scale with it, so first-person grip specs stay valid in weapon space.
 PAW_SCALE = 1.1
@@ -95,7 +100,7 @@ def bones():
     b['hipcloth'] = (v(.214, .905, -.070), v(.226, .640, -.070), 'spine')
     for s, n in ((-1, 'L'), (1, 'R')):
         eye = eye_point(s)[0]
-        b['ear_' + n] = (side(v(.100, 1.772, .058), s), side(v(.112, 1.832, .062), s), 'head')
+        b['ear_' + n] = (side(EAR + v(-.006, -.022, -.004), s), side(EAR + v(.004, .040, .002), s), 'head')
         for part in ('socket', 'blink'):
             b[f'{part}_{n}'] = (eye, eye + v(0, .044, 0), 'head')
         for part in ('tip', 'peak'):
@@ -123,8 +128,8 @@ def on_surface(node, p, offset=0.0, steps=6):
     p = np.atleast_2d(np.asarray(p, F)).copy()
     e = F(.0015)
     for _ in range(steps):
-        d, _m = S.evaluate(node, p)
-        g = np.stack([S.evaluate(node, p + v(*o))[0] - S.evaluate(node, p - v(*o))[0]
+        d, _m = S.evaluate(node, p, cull=False)
+        g = np.stack([S.evaluate(node, p + v(*o), cull=False)[0] - S.evaluate(node, p - v(*o), cull=False)[0]
                       for o in ((e, 0, 0), (0, e, 0), (0, 0, e))], 1)
         g /= np.maximum(np.linalg.norm(g, axis=1, keepdims=True), 1e-9)
         p = p - g * (d - offset)[:, None]
@@ -156,19 +161,19 @@ def neck():
 
 # Head profile stations: (z, top, bottom, half-width at the crown, half-width at the jaw, exponent).
 HEAD_STATIONS = [
-    (0.182, 1.690, 1.600, 0.037, 0.048, 2.0),
-    (0.165, 1.742, 1.560, 0.088, 0.110, 2.0),
-    (0.125, 1.778, 1.495, 0.136, 0.150, 2.1),
-    (0.070, 1.795, 1.462, 0.156, 0.170, 2.2),
-    (0.000, 1.793, 1.455, 0.160, 0.172, 2.3),
-    (-0.070, 1.781, 1.465, 0.150, 0.162, 2.3),
-    (-0.140, 1.763, 1.484, 0.130, 0.146, 2.4),
-    (-0.209, 1.742, 1.500, 0.114, 0.134, 2.5),
-    (-0.260, 1.722, 1.512, 0.110, 0.125, 2.5),
-    (-0.299, 1.708, 1.530, 0.105, 0.114, 2.4),
-    (-0.320, 1.700, 1.548, 0.095, 0.099, 2.3),
-    (-0.324, 1.690, 1.575, 0.075, 0.075, 2.2),
-    (-0.330, 1.676, 1.610, 0.040, 0.037, 2.0),
+    (0.182, 1.690, 1.600, 0.040, 0.052, 2.0),
+    (0.165, 1.742, 1.560, 0.098, 0.122, 2.0),
+    (0.125, 1.778, 1.495, 0.152, 0.172, 2.1),
+    (0.070, 1.795, 1.462, 0.176, 0.196, 2.2),
+    (0.000, 1.793, 1.455, 0.182, 0.198, 2.3),
+    (-0.070, 1.781, 1.465, 0.170, 0.186, 2.3),
+    (-0.140, 1.763, 1.484, 0.146, 0.164, 2.4),
+    (-0.209, 1.742, 1.500, 0.122, 0.130, 2.5),
+    (-0.260, 1.722, 1.512, 0.112, 0.116, 2.5),
+    (-0.299, 1.708, 1.530, 0.104, 0.104, 2.4),
+    (-0.320, 1.700, 1.548, 0.093, 0.090, 2.3),
+    (-0.324, 1.690, 1.575, 0.080, 0.080, 2.2),
+    (-0.330, 1.676, 1.610, 0.043, 0.040, 2.0),
 ]
 
 
@@ -224,7 +229,7 @@ def head():
         face = Cut(face, Ellipsoid(e + out * .010 - E[:, 2] * .001, (.024, .016, .0115), R=E), k=.003)
     ears = []
     for s in (-1, 1):
-        c = side((.100, 1.786, .090), s)
+        c = side(EAR, s)
         R = rot(yaw=s * .85) @ rot(roll=-s * .30) @ rot(pitch=-.15)
         shell = Ellipsoid(c, (.036, .034, .019), R=R, mat=M['fur'])
         cup = Ellipsoid(c + (R @ v(0, .005, -.013)), (.025, .023, .012), R=R)
@@ -345,9 +350,8 @@ def shirt(parts):
         sleeves.append(Union([sleeve, roll], k=.012))
     folds = lambda p: (.0035 * np.sin(p[:, 0] * 55 + p[:, 1] * 23) * np.sin(p[:, 2] * 41 + p[:, 1] * 9) +
                        .002 * np.sin(p[:, 1] * 90 + p[:, 0] * 30))
-    collar = Union([RoundBox(side((.078, 1.378, -.170), s), (.040, .032, .003), r=.004, R=rot(yaw=s * .50) @ rot(pitch=-.30) @ rot(roll=-s * .55)) for s in (-1, 1)])
     placket = RoundBox((0, 1.12, -.222), (.017, .20, .004), r=.003, R=rot(pitch=.06))
-    return Material(Union([Displace(Union([body] + sleeves, k=.02), folds, .006), collar, placket], k=.004), M['shirt'])
+    return Material(Union([Displace(Union([body] + sleeves, k=.02), folds, .006), placket], k=.004), M['shirt'])
 
 
 def vest(parts):

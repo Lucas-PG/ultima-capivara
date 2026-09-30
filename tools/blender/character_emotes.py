@@ -92,7 +92,7 @@ def add_emotes(rig, scene, report, leg, author, secondary, blink):
                 pb['head'].rotation_euler.y = -.10 * env
                 swing = math.sin(sec * 7.5)
                 hands[-1] = (REST_HAND[-1], REST_ELBOW[-1])
-                hands[1] = (mix(REST_HAND[1], (.34 + .05 * swing, 1.58, -.16), env), mix(REST_ELBOW[1], (.44, 1.26, -.02), env))
+                hands[1] = (mix(REST_HAND[1], (.46 + .05 * swing, 1.74, -.12), env), mix(REST_ELBOW[1], (.52, 1.38, .02), env))
             elif name == 'dance':
                 # Samba: hips roll on the beat, knees pump, paws roll forward and clap every bar.
                 beat = ph * 8
@@ -121,7 +121,7 @@ def add_emotes(rig, scene, report, leg, author, secondary, blink):
                 pb['neck'].rotation_euler.x = -.06 * env
                 pb['head'].rotation_euler.x = -.10 * env
                 for s, n in SIDES:
-                    hands[s] = (mix(REST_HAND[s], (s * .30, 1.72 + .02 * math.sin(ph * 6), -.10), env), mix(REST_ELBOW[s], (s * .44, 1.40, -.02), env))
+                    hands[s] = (mix(REST_HAND[s], (s * .42, 1.86 + .02 * math.sin(ph * 6), -.06), env), mix(REST_ELBOW[s], (s * .52, 1.50, .02), env))
             elif name == 'sit':
                 # Back on the haunches, belly out, paws resting on the knees.
                 for s, n in SIDES:

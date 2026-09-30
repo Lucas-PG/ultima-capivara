@@ -9,6 +9,7 @@ import { createCapybaraHitboxOverlay, setCapybaraExpression, type CapybaraExpres
 import { createWorld } from '../../src/shared/world';
 import { terrainHeight } from '../../src/shared/terrain';
 import { WEAPONS } from '../../src/shared/weapons';
+import { EMOTES } from '../../src/shared/emotes';
 import { DEFAULT_SETTINGS } from '../../src/settings';
 import { emptyInput } from '../../src/shared/math';
 import type { ActorState, RenderFrame, WeaponId } from '../../src/shared/types';
@@ -41,7 +42,7 @@ if (room) {
   view.interiorLight.position.set(room.pos.x + room.scale.x / 2 - 1.95, room.pos.y + .93, room.pos.z - room.scale.z * .24);
   view.interiorLight.color.set('#ffae62'); view.interiorLight.intensity = 4.3;
 }
-let elapsed = 0;
+let elapsed = 0, lastClip = '';
 const frame: RenderFrame = { snapshot: { actors: [actor] } as RenderFrame['snapshot'], playerId: 'camera', playing: false, input: emptyInput(), spectateId: null, dt: 1 / 30 };
 view.avatars.update(frame, 0, 0);
 const avatar = view.avatars.get(actor.id)!;
@@ -57,6 +58,16 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
   actor.velocity.y = clip === 'jump' ? 2 : clip === 'fall' ? -5 : 0;
   actor.crouch = clip.startsWith('crouch'); actor.sprint = clip === 'run';
   actor.stage = clip === 'freefall' ? 'falling' : clip === 'parachute' ? 'parachute' : 'ground';
+  // Emotes, reactions and reloads start once when the clip changes, then play on.
+  if (clip !== lastClip) {
+    lastClip = clip;
+    actor.emote = null; actor.emoteUntil = 0; actor.reloadUntil = 0; actor.alive = true;
+    if (clip in EMOTES) { actor.emote = clip as ActorState['emote']; actor.emoteUntil = elapsed + EMOTES[clip as keyof typeof EMOTES].duration; }
+    if (clip === 'death') { view.avatars.react(actor.id, { kind: 'death', head: false, weapon: 'm4', from: { x: center.x + 3, y: floor + 1.4, z: center.z } }); actor.alive = false; }
+    if (clip === 'hit') view.avatars.react(actor.id, { kind: 'hit', head: false, amount: 30, from: { x: center.x + 3, y: floor + 1.4, z: center.z - 1 } });
+    if (clip === 'reload' && actor.weapons.length) { actor.weapons[actor.slot].ammo = 0; actor.reloadUntil = elapsed + (WEAPONS[actor.weapons[actor.slot].id].reload || 1); }
+    if (clip === 'swim') actor.swimming = true; else actor.swimming = false;
+  }
   actor.grounded = !['jump', 'fall', 'freefall', 'parachute'].includes(clip);
   hitboxes.visible = overlay;
   const azimuth = angle === 'side' ? Math.PI / 2 : angle === 'front' ? 0 : angle === 'back' ? Math.PI : angle === 'left' ? -Math.PI / 4 : Math.PI / 4;
