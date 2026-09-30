@@ -1,7 +1,7 @@
 // Character review stills from the real renderer (tools/blender/review.html), one browser session.
 // node tools/qa/charshots.mjs <outDir> <spec> [spec...]
 // spec: name:key=value,key=value  keys: angle (front|side|back|left|three-quarter), distance, clip, time,
-// head (1), lod (0-2), clay (1), expression, weapon, color, overlay (1)
+// head (1), lod (0-2), clay (1), expression, weapon, color, overlay (1), ads (1: aiming)
 // Weapon and colour are page-level: shots are grouped by them, one page load per group.
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -41,7 +41,7 @@ for (const [key, shots] of groups) {
       focus: options.focus === undefined ? undefined : Number(options.focus),
       tx: options.tx === undefined ? undefined : Number(options.tx), tz: options.tz === undefined ? undefined : Number(options.tz),
     };
-    const result = await page.evaluate(o => window.capyReview.shot(o), o);
+    const result = await page.evaluate(([o, ads]) => { window.capyReview.actor.ads = ads; return window.capyReview.shot(o); }, [o, options.ads === '1']);
     await page.screenshot({ path: `${out}/${name}.png` });
     console.log(name, JSON.stringify(result));
   }

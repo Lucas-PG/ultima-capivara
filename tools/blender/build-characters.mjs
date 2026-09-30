@@ -18,8 +18,13 @@ for (const script of process.env.SKIP_BLENDER ? [] : [...(characterOnly ? [] : [
   if (result.status !== 0) { console.error(`${script}: exit ${result.status ?? result.signal}`); process.exit(result.status || 1); }
 }
 // The character's maps are painted from the bake cache after Blender exits (see capybara_maps.py).
+// With the build machine as BLENDER_BIN the paint runs there too, inside Blender (one machine
+// makes every shipped map, and the 4K paint's memory stays off this Mac).
 if (!statueOnly && !process.env.SKIP_PAINT) {
-  const result = spawnSync(process.env.BLENDER_PYTHON || '/Applications/Blender.app/Contents/Resources/5.0/python/bin/python3.11', ['tools/blender/capybara_maps.py'], { cwd: root, stdio: 'inherit' });
+  const remote = /remote-blender\.sh$/.test(blender) && !process.env.BLENDER_PYTHON;
+  const result = remote
+    ? spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', 'tools/blender/capybara_maps.py'], { cwd: root, stdio: 'inherit' })
+    : spawnSync(process.env.BLENDER_PYTHON || '/Applications/Blender.app/Contents/Resources/5.0/python/bin/python3.11', ['tools/blender/capybara_maps.py'], { cwd: root, stdio: 'inherit' });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status || 1);
 }

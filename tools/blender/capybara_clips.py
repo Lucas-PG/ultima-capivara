@@ -55,7 +55,7 @@ def head_of(name):
 
 
 def leg(n, travel=0.0, lift=0.0, lateral=0.0, drop=0.0, foot_pitch=0.0, toe=0.0, spread=0.0):
-    """Place one leg: ankle `travel` forward of rest, `lift` above the ground, `lateral` outward,
+    """Place one leg: ankle `travel` behind its rest spot (toward game +z), `lift` above the ground, `lateral` outward,
     the hip lowered by `drop` (the knee bends to keep the foot there). Pitch rolls the foot,
     toe curls the toes (positive = toes up at push-off)."""
     s = -1 if n == 'L' else 1
@@ -67,7 +67,9 @@ def leg(n, travel=0.0, lift=0.0, lateral=0.0, drop=0.0, foot_pitch=0.0, toe=0.0,
     dist = min(max(d.length, abs(l1 - l2) + 1e-4), l1 + l2 - 1e-4)
     axis = d.normalized()
     ankle = hip + axis * dist
-    pole = Vector((s * spread, -1, 0))  # knees point forward (Blender -Y is game forward)
+    # Knees point forward: game forward (-z) is Blender +Y (Vg maps game z to Blender -y). A -Y
+    # pole bent every authored knee backwards, the hock read of round 2.
+    pole = Vector((s * spread, 1, 0))
     pole = (pole - axis * pole.dot(axis)).normalized()
     a = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist)
     h = math.sqrt(max(0.0, l1 * l1 - a * a))
