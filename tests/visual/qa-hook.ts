@@ -1,6 +1,6 @@
 import { Simulation } from '../../src/simulation';
 import { terrainHeight } from '../../src/shared/terrain';
-import { hasLineOfSight, moveActor } from '../../src/shared/collision';
+import { clearSpawn, hasLineOfSight, moveActor } from '../../src/shared/collision';
 import { emptyInput, rng } from '../../src/shared/math';
 import { EMOTES, EMOTE_IDS } from '../../src/shared/emotes';
 import { closestInteraction } from '../../src/shared/interaction';
@@ -55,6 +55,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   const fixture = new Simulation(deps.world, { ...DEFAULT_CONFIG, bots: false },
     [{ id: 'practice', name: 'Capivara', color: '#bd8956', ready: true, connected: true }], 'qa-seed-2026', 0x5eed2026);
   const base = fixture.snapshot();
+  let reviews = 0;
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let pendingFrame: number | null = null;
   let preparedIdentities = '';
@@ -96,6 +97,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     const stance = named ? viewStance(deps.world, named) : undefined;
     if (name.startsWith('world-')) pitch = -.5;
     const s = structuredClone(base), me = s.actors[0];
+    // Each review is its own match to the renderer, so smoke, decals and poses from the previous one never linger.
+    s.matchId = `${base.matchId}:${name}:${++reviews}`;
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
     if (spawn) s.config.mode = 'battle-royale';
     if (supply) {
@@ -238,6 +241,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (name === 'capyFront' || name === 'capySide' || name.startsWith('tp-')) {
       const bot = structuredClone(me); bot.id = 'bot-qa'; bot.name = 'Capivara'; bot.bot = true;
       bot.pos = { x, y: me.pos.y, z: z - 2 }; bot.yaw = name === 'capyFront' ? Math.PI : Math.PI / 2;
+      // The reviewed capybara must stand in the open, never through a bench or a wall.
+      if (!clearSpawn(bot.pos, deps.world)) throw new Error(`The ${name} capybara stands inside a solid.`);
       s.actors.push(bot);
     }
     if (name.startsWith('world-') && weaponReview) {
