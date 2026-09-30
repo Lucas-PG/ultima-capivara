@@ -7,11 +7,12 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { AtmospherePass } from './atmosphere-pass';
 
 // Full-resolution character silhouettes stay thin. Medium/High use SMAA;
-// Low uses FXAA and omits ambient occlusion and bloom.
+// Low uses FXAA and omits ambient occlusion and bloom, but keeps a short-reach
+// sun shadow: without it crates, carts and players floated on flat ground.
 // World depth stays single-sampled: resolving even two samples across overlapping
 // R6 skin parts rejects mask pixels at the chin/bandana seam (TATU40).
 export const PRESETS = {
-  low: { dpr: .75, samples: 0, shadows: false, shadowReach: 0, shadowSize: 1024, interior: true, atmosphere: false, smaa: false },
+  low: { dpr: .75, samples: 0, shadows: true, shadowReach: 22, shadowSize: 1024, interior: true, atmosphere: false, smaa: false },
   medium: { dpr: 2, samples: 0, shadows: true, shadowReach: 36, shadowSize: 1024, interior: true, atmosphere: true, smaa: true },
   high: { dpr: 2, samples: 0, shadows: true, shadowReach: 64, shadowSize: 2048, interior: true, atmosphere: true, smaa: true },
 } as const;
