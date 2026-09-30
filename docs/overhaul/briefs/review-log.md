@@ -58,3 +58,8 @@
 - Graphics (the Codex lighting draft was replaced because it washed colour out): blue sky, one shared haze warming toward the sun, warm sun and cool shadows, colour grade, daylight clouds, turquoise water, short-range shadows on Low; 16.7 ms on every preset.
 - My before/after from four cameras: PASS (subtle, cleaner daylight closer to the wide-aim reference; the coast lost its orange horizon for a clear blue sky). Merged.
 - Found: a walled garden near (6, 68) traps players (sent to the integration agent with a connectivity test requirement).
+
+## Integration (Claude Opus takeover of a Codex start, integration, 41 commits) - 09:20
+- Settings built from the controls model (every option and binding), crosshair FOV fixed, incoming-fire cue, music default migration, scope flash redone, QA retargets; the Tucano supply drop is a hot-air balloon, so burner sounds replace a propeller; every walled yard has a gate (two had none: (5.5, 68) and (14.6, -49.1)) with an island test that no pocket, roof, spawn or pickup traps a player; pause menu key cards; Correria and Corrente results count falls; QA effects no longer leak between poses. 165 visual baselines checked by eye and installed; 11 full rounds, 0 page errors, 58-61 fps fresh.
+- My check: settings screen PASS (cohesive, all new controls present). Merged.
+- Open: character-mask.spec.ts also fails on the base branch (for the character agent); frame drops in long runs under shared load (recheck on a quiet machine in the release gate); bougainvillea through a Morro wall; spectator camera squeezed against the target about 6% of the time; new sounds need a human listen.
