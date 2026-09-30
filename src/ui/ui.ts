@@ -11,7 +11,7 @@ import { BOX_LABELS, indexOfBox, planPickup, sidearmIndex } from '../shared/inve
 import { DEFAULT_BINDINGS, FOV_RANGE, adaptNote } from '../settings';
 import { CONTROL_OPTIONS, type ControlOptionKey } from '../controls';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon, emoteIcon } from './icons';
-import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, tipBag } from './hud-logic';
+import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
 import { fillTip, tipCategory, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 import { EMOTES, EMOTE_IDS } from '../shared/emotes';
@@ -340,7 +340,7 @@ export class GameUI {
     this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
     const key = (code: string) => esc(keyName(code));
     const face = capybara(this.profile.color);
-    this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><u></u><em></em></div>`
+    this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><span class="scope-flash" aria-hidden="true" style="--flash-sheet:url('${publicUrl('textures/vfx-flipbooks.png')}')"></span><i></i><b></b><u></u><em></em></div>`
       // Top left: the match at a glance. Top centre: compass with the safe zone bearing. Top right: map and feed.
       + `<div id="topL" class="plate"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
       + `<div id="ladder" class="plate" hidden><div class="ladder-heading"><b>CORRENTE</b><span id="ladderStep">1 / ${CORRENTE_LADDER.length}</span></div><div class="ladder-track" aria-hidden="true">${CORRENTE_LADDER.map((_, i) => `<i id="ladder-${i}"></i>`).join('')}</div><span id="ladderNext"></span></div>`
@@ -837,7 +837,15 @@ export class GameUI {
     this.openModal('INSTINTO DE SOBREVIVÊNCIA.', `<div class="how-grid"><div>${icon('users')}<h3>CHAME A TURMA</h3><p>Crie uma sala e compartilhe o link. Quem cria mantém o jogo aberto. Sem cadastro, sem instalação.</p></div><div>${icon('crown')}<h3>ÚLTIMA DE PÉ</h3><p>Salte do avião, abra baús e encontre armas. A tempestade fecha a ilha. Sobreviva até o fim.</p></div><div>${icon('bolt')}<h3>CORRERIA</h3><p>Mais eliminações vence. Você reaparece depois de cair, pronto para voltar à luta.</p></div><div>${icon('crown')}<h3>CORRENTE</h3><p>Cada eliminação troca sua arma. Seja a primeira a completar a sequência com o facão.</p></div></div><div class="controls-grid">${this.controlsList().map(([keys, text]) => `<span><kbd>${esc(keys)}</kbd> ${text}</span>`).join('')}</div>`);
   }
   event(event: GameEvent) {
-    if (event.type === 'shot' && event.actor === this.localId) this.crosshairSpread.onShot(event.weapon, performance.now());
+    if (event.type === 'shot' && event.actor === this.localId) {
+      this.crosshairSpread.onShot(event.weapon, performance.now());
+      const scope = this.root.querySelector<HTMLElement>('#scope-overlay');
+      if (scope && !scope.hidden && scope.dataset.kind === event.weapon) {
+        const flash = scope.querySelector<HTMLElement>('.scope-flash')!;
+        flash.getAnimations().forEach(animation => animation.cancel());
+        flash.animate([{ opacity: this.reducedMotion() ? .28 : .7 }, { opacity: 0 }], { duration: 100, easing: 'ease-out' });
+      }
+    }
     if (event.type === 'notice' && event.text !== 'A partida começou!' && !(event.text === 'A tempestade está fechando!' && this.snapshot?.zone.phase === 0)) this.toast(event.text);
     if (this.screen !== 'game' || !this.root.querySelector('#hud')) return;
     if (event.type === 'supply') {

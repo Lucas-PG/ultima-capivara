@@ -770,3 +770,10 @@ body.reduce-motion .settings-modal .seg button{animation:none!important;transiti
 .settings-modal .control-options .check-row{margin-top:0}
 .settings-modal .slider-label .setting-help{grid-column:1/-1;letter-spacing:0;line-height:1.4;font-weight:600}
 @media(max-width:700px){.settings-modal .control-options{grid-template-columns:1fr}}
+
+/* A brief muzzle glow inside the lens, below the reticle. The viewmodel is hidden here. */
+.scope-overlay .scope-flash{position:absolute;left:50%;top:50%;width:61vmin;height:61vmin;transform:translate(-50%,-50%);border-radius:50%;opacity:0;background:radial-gradient(ellipse at 50% 108%,#fff7c4 0%,#ffc36a 14%,#ed83394d 34%,transparent 58%);pointer-events:none}
+/* Existing painted front flash (PAINT.front, cell 5,2 of the 8x4 sheet). */
+.scope-overlay .scope-flash{overflow:hidden}
+.scope-overlay .scope-flash:after{content:"";position:absolute;left:50%;bottom:-6vmin;transform:translateX(-50%);width:18vmin;height:18vmin;background:var(--flash-sheet) 71.428571% 66.666667%/800% 400% no-repeat}
+.scope-overlay[data-kind=dmr] .scope-flash:after{width:15vmin;height:15vmin;bottom:-5vmin}

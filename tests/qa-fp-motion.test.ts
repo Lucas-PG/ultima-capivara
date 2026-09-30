@@ -14,7 +14,7 @@ it('motion strips advance the rendered clock with the reload deadline and replay
   const renderer = { update: (frame: any) => { last = frame; }, prepareMatch: async () => {}, event: (event: any) => events.push(event),
     cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 } };
   installQa({ world: createWorld(), settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
-    ui: { update: () => {}, event: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any,
+    ui: { update: () => {}, event: () => {}, frameCompass: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any,
     begin: async () => renderer as any });
   const qa = window.__capyQA!; await qa.start();
   for (const weapon of ['pistol', 'shotgun', 'coco'] as const) {
