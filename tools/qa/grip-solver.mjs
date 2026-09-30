@@ -1,4 +1,6 @@
 // Browser-side solver shared by one-shot and persistent weapon QA.
+// Optional bones:['index'] scores only named digits for a locked-wrist fit.
+// Always follow a restricted fit with the full-vertex grip probe.
 export function fitGrip([weapon, intent, start, maxEvals]) {
   const vm = window.__vmProbe, model = vm.models[weapon], holder = vm.holder, side = intent.side;
   const M4 = holder.matrixWorld.constructor, V3 = holder.position.constructor, Q = holder.quaternion.constructor;
@@ -94,6 +96,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     let best = -1, w = 0;
     for (let k = 0; k < 4; k++) { const wk = skinWeight.getComponent(i, k); if (wk > w) { w = wk; best = skinIndex.getComponent(i, k); } }
     const bone = bones[best];
+    if (intent.bones?.length && !intent.bones.some(name => bone === name || bone.startsWith(name))) continue;
     if (i % Math.max(1, intent.stride ?? 1)) continue;
     if (bone === 'upper' || bone === 'fore') continue;
     const local = new V3().fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
