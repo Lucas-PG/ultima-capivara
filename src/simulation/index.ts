@@ -7,7 +7,7 @@ import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emote
 import { MUD_HEAL_PER_SECOND, MUD_HURT_COOLDOWN, mudBathAt } from '../shared/recreation';
 import { chooseSupplyLanding, SUPPLY_APPROACH_SECONDS, SUPPLY_DESCENT_SECONDS, SUPPLY_DROP_TIMES } from '../shared/supply-drops';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
-import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
+import { navigationWaypoint, onMainNetwork, walkableHeight, walkableSegment } from '../shared/navigation';
 import { BotBuildingRoutes } from './building-routes';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
 import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, HANDLING, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
@@ -85,6 +85,7 @@ export class Simulation {
   private readonly buildingRoutes: BotBuildingRoutes;
   private readonly diff: BotDifficulty;
   private readonly landings: Vec3[] = [];
+  private landingSpots: Vec3[] | undefined;
   private botCount = 0;
   private readonly spentDrops = new Map<LootState, number>();
   // Guns players let go of: arena copies fade after a while, royale piles stay but are capped.
@@ -904,13 +905,19 @@ export class Simulation {
     const side = (p: Vec3) => Math.abs((p.x - S.x) * -d.z + (p.z - S.z) * d.x);
     // Only spots within gliding reach of the route (about 100 m from 115 m up).
     // Open-sky spots only: a parachute aimed at loot under a roof lands on the roof.
-    const spots = [...this.world.loot, ...this.world.chests].filter(p => this.dryAround(p.x, p.z) && Math.abs(p.y - terrainHeight(p.x, p.z)) < .35 && Math.abs(p.x) < 118 && Math.abs(p.z) < 118 && side(p) < 90 && !this.roofed(p.x, p.y, p.z, 1.5));
+    // A sealed garden behind a row of houses is open sky, but a bot that lands
+    // in it can never walk out. Only spots on the island-wide network qualify.
+    this.landingSpots ??= [...this.world.loot, ...this.world.chests].filter(p => this.dryAround(p.x, p.z) && Math.abs(p.y - terrainHeight(p.x, p.z)) < .35 &&
+      Math.abs(p.x) < 118 && Math.abs(p.z) < 118 && !this.roofed(p.x, p.y, p.z, 1.5) && onMainNetwork(this.world, p));
+    let spots = this.landingSpots.filter(p => side(p) < 90);
+    if (!spots.length && this.landingSpots.length) spots = [...this.landingSpots].sort((p, q) => side(p) - side(q)).slice(0, 3);
     if (!spots.length) { b.land = { x: this.rnd(-60, 60), y: 0, z: this.rnd(-60, 60) }; b.jumpAt = this.rnd(5, 12); return; }
     let spot = spots[Math.floor(this.random() * spots.length)];
     for (let k = 0; k < 30 && this.landings.some(l => Math.hypot(l.x - spot.x, l.z - spot.z) < 26); k++) spot = spots[Math.floor(this.random() * spots.length)];
     this.landings.push(spot);
     b.land = { x: spot.x + this.rnd(-3, 3), y: 0, z: spot.z + this.rnd(-3, 3) };
-    if (!this.dryAround(b.land.x, b.land.z) || this.roofed(b.land.x, spot.y, b.land.z, 1.5)) b.land = { x: spot.x, y: 0, z: spot.z };
+    if (!this.dryAround(b.land.x, b.land.z) || this.roofed(b.land.x, spot.y, b.land.z, 1.5) ||
+      !onMainNetwork(this.world, { x: b.land.x, y: walkableHeight(b.land.x, b.land.z, this.world), z: b.land.z })) b.land = { x: spot.x, y: 0, z: spot.z };
     const along = (b.land.x - S.x) * d.x + (b.land.z - S.z) * d.z;
     b.jumpAt = clamp(3 + (along - 20) / PLANE_SPEED + this.rnd(-1.2, .8), 4.5, 3 + PLANE_ROUTE / PLANE_SPEED - 1);
   }
@@ -1005,7 +1012,7 @@ export class Simulation {
         if (!this.walkable(x, z)) break;
         const landing = this.standAt(x, z, s.pos.y);
         if (landing < s.pos.y - 1.5) {
-          if (r < bd && s.pos.y - landing < 6 && !waterAt(x, z) &&
+          if (r < bd && s.pos.y - landing < 6 && !waterAt(x, z) && onMainNetwork(this.world, { x, y: landing, z }, isArenaMode(this.config.mode)) &&
             this.grid.sees({ ...s.pos, y: s.pos.y + .46 }, { x, y: s.pos.y + .46, z }) &&
             this.grid.sees({ ...s.pos, y: s.pos.y + 1.78 }, { x, y: s.pos.y + 1.78, z })) { bd = r; best = { x, y: s.pos.y, z }; }
           break;
@@ -1040,7 +1047,7 @@ export class Simulation {
       if (!this.walkable(x, z) || !walkableSegment(this.world, { x, z }, { x, z }, isArenaMode(this.config.mode))) continue;
       if (!isArenaMode(this.config.mode) && Math.hypot(x - sc.x, z - sc.z) > sc.r * .95 && k < 15) continue;
       const y = walkableHeight(x, z, this.world), water = waterAt(x, z);
-      if (water && y < water.surfaceY) continue;
+      if (water && y < water.surfaceY || !onMainNetwork(this.world, { x, y, z }, isArenaMode(this.config.mode))) continue;
       return { x, y, z };
     }
     return this.walkable(sc.x, sc.z) ? groundPoint(sc.x, sc.z) : { ...s.pos };
@@ -1299,6 +1306,7 @@ export class Simulation {
     b.trackT = fighting ? b.trackT + dt : Math.max(0, b.trackT - dt * 2);
     if (this.botLeisure(a, rethink)) return;
     let mx = 0, mz = 0, speed = 0, face = s.yaw, crouch = false, jump = false, pitch = s.pitch * Math.exp(-4 * dt), preciseBuilding = false;
+    let steer: Vec3 | null = null;
     const atCover = b.mode === 'cover' && !!b.coverPt && Math.hypot(b.coverPt.x - s.pos.x, b.coverPt.z - s.pos.z) <= .7;
     // Rotation is urgent by definition of zoneNeed. A visible enemy must not
     // pin a bot outside the circle, including while hiding or using a heal.
@@ -1406,7 +1414,7 @@ export class Simulation {
           if (Math.abs(g.y - s.pos.y) < 1.6) this.interact(a, b.loot.id);
           b.loot = null; b.lootScanAt = now - .9;
         } else if (kind === 'chase') b.lastSeenAt = -99;
-      } else { mx = dx / stepDist; mz = dz / stepDist; speed = preciseBuilding ? Math.min(3.9, stepDist / .35 * 3.9) : run ? 5.8 : 4.2; }
+      } else { mx = dx / stepDist; mz = dz / stepDist; speed = preciseBuilding ? Math.min(3.9, stepDist / .35 * 3.9) : run ? 5.8 : 4.2; steer = step; }
       if (now < b.alertUntil && b.hearPos && !run) face = Math.atan2(-(b.hearPos.x - s.pos.x), -(b.hearPos.z - s.pos.z));
       else if (speed > 0) face = Math.atan2(-mx, -mz);
       if (this.heals(s) > 0 && s.hp < 75 && now >= b.hurtUntil && !run) this.botHeal(a);
@@ -1423,8 +1431,11 @@ export class Simulation {
       if (!preciseBuilding && now >= b.avoidAt) {
         b.avoidAt = now + .15;
         const angle = Math.atan2(-mx, -mz);
+        // A straight walk the capsule clears needs no side-step. Fanned probes
+        // at a 1 m garden gate failed on its posts and wiggled bots in place.
+        if (steer && walkableSegment(this.world, s.pos, steer, isArenaMode(this.config.mode))) b.avoidOff = 0;
         // Hold a side-step for at least 0.6 s before straightening, so bots do not wobble along walls.
-        if (this.probe(s, angle + b.avoidOff * .6)) { if (b.avoidOff && now >= b.avoidHold && this.probe(s, angle)) b.avoidOff = 0; }
+        else if (this.probe(s, angle + b.avoidOff * .6)) { if (b.avoidOff && now >= b.avoidHold && this.probe(s, angle)) b.avoidOff = 0; }
         else {
           let found = false; const sign = this.random() < .5 ? 1 : -1;
           for (const o of [1, -1, 2, -2, 3, -3]) if (this.probe(s, angle + o * sign * .6)) { b.avoidOff = o * sign; b.avoidHold = now + .6; found = true; break; }

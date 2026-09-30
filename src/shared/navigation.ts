@@ -124,17 +124,91 @@ export function buildNavigation(world: WorldSpec, routes: readonly (readonly (re
       }
     }
   }
+  bridgeComponents(world, points, links, link);
   return { points, links };
 }
 
+// Walled yards, garden gates and stilt-house decks are narrower than the 4 m
+// grid, so their nodes formed islands: a bot that walked in through the gate
+// could never plan its way out again. Each small island is joined to another
+// component through one standing point on a 1 m lattice that walks cleanly
+// to both. Islands that need a jump or a climb stay unlinked.
+function bridgeComponents(world: WorldSpec, points: Vec3[], links: number[][], link: (a: number, b: number) => void) {
+  const REACH = 6, failed = new Set<number>();
+  for (let pass = 0; pass < 3; pass++) {
+    const component = new Int32Array(points.length).fill(-1), sizes: number[] = [];
+    for (let start = 0; start < points.length; start++) {
+      if (component[start] >= 0 || !links[start].length) continue;
+      const queue = [start]; component[start] = sizes.length;
+      for (let i = 0; i < queue.length; i++) for (const next of links[queue[i]]) if (component[next] < 0) { component[next] = sizes.length; queue.push(next); }
+      sizes.push(queue.length);
+    }
+    const largest = sizes.indexOf(Math.max(...sizes));
+    let joined = false;
+    for (let id = 0; id < sizes.length; id++) {
+      if (id === largest || sizes[id] > 60) continue;
+      const members = points.map((_, index) => index).filter(index => component[index] === id);
+      if (failed.has(members[0])) continue;
+      let best: { x: number; z: number; inside: number; outside: number; cost: number } | null = null;
+      const minX = Math.min(...members.map(i => points[i].x)) - REACH, maxX = Math.max(...members.map(i => points[i].x)) + REACH;
+      const minZ = Math.min(...members.map(i => points[i].z)) - REACH, maxZ = Math.max(...members.map(i => points[i].z)) + REACH;
+      const around = points.map((_, index) => index).filter(index => component[index] >= 0 && component[index] !== id &&
+        points[index].x > minX - REACH && points[index].x < maxX + REACH && points[index].z > minZ - REACH && points[index].z < maxZ + REACH);
+      const others = (x: number, z: number) => around.filter(index => Math.hypot(points[index].x - x, points[index].z - z) <= REACH);
+      for (let x = Math.ceil(minX); x <= maxX; x++) for (let z = Math.ceil(minZ); z <= maxZ; z++) {
+        const inside = members.filter(i => Math.hypot(points[i].x - x, points[i].z - z) <= REACH)
+          .sort((a, b) => Math.hypot(points[a].x - x, points[a].z - z) - Math.hypot(points[b].x - x, points[b].z - z));
+        if (!inside.length || !walkableSegment(world, { x, z }, { x, z })) continue;
+        const from = inside.find(i => walkableSegment(world, points[i], { x, z }));
+        if (from === undefined) continue;
+        const outside = others(x, z).sort((a, b) => Math.hypot(points[a].x - x, points[a].z - z) - Math.hypot(points[b].x - x, points[b].z - z))
+          .find(i => walkableSegment(world, { x, z }, points[i]));
+        if (outside === undefined) continue;
+        const cost = Math.hypot(points[from].x - x, points[from].z - z) + Math.hypot(points[outside].x - x, points[outside].z - z);
+        if (!best || cost < best.cost) best = { x, z, inside: from, outside, cost };
+      }
+      if (!best) { failed.add(members[0]); continue; }
+      const node = points.length; points.push({ x: best.x, y: walkableHeight(best.x, best.z, world), z: best.z }); links.push([]);
+      link(node, best.inside); link(node, best.outside); joined = true;
+    }
+    if (!joined) return;
+  }
+}
+
 // Shared attachment rule for routing and recovery. The endpoint must reach an
-// actual graph link, rather than merely stand on a collision-free patch.
+// actual graph link, rather than merely stand on a collision-free patch. Dense
+// boardwalk nodes can crowd out the one reachable node, so look beyond the nearest few.
 export function navigationAnchor(world: WorldSpec, pos: Vec3, arena = false): number | undefined {
   const graph = world.navigation;
   return graph?.points.map((point, index) => ({ index, distance: Math.hypot(pos.x - point.x, pos.z - point.z) }))
     .filter(candidate => graph.links[candidate.index].length && candidate.distance < 36 && (!arena || inArena(graph.points[candidate.index].x, graph.points[candidate.index].z, .5)))
-    .sort((a, b) => a.distance - b.distance).slice(0, 16)
+    .sort((a, b) => a.distance - b.distance).slice(0, 48)
     .find(candidate => walkableSegment(world, pos, graph.points[candidate.index], arena))?.index;
+}
+
+const networks = new WeakMap<NavigationGraph, { component: Int32Array; main: number }>();
+/** Connected components of the route graph; `main` is the island-wide network. */
+export function navigationNetwork(graph: NavigationGraph) {
+  let network = networks.get(graph);
+  if (network) return network;
+  const component = new Int32Array(graph.points.length).fill(-1), sizes: number[] = [];
+  for (let start = 0; start < graph.points.length; start++) {
+    if (component[start] >= 0 || !graph.links[start].length) continue;
+    const queue = [start]; component[start] = sizes.length;
+    for (let i = 0; i < queue.length; i++) for (const next of graph.links[queue[i]])
+      if (component[next] < 0) { component[next] = sizes.length; queue.push(next); }
+    sizes.push(queue.length);
+  }
+  network = { component, main: sizes.indexOf(Math.max(...sizes)) };
+  networks.set(graph, network);
+  return network;
+}
+/** True when `pos` walks onto the island-wide network, not a sealed yard or ledge. */
+export function onMainNetwork(world: WorldSpec, pos: Vec3, arena = false) {
+  const graph = world.navigation;
+  if (!graph) return true;
+  const anchor = navigationAnchor(world, pos, arena), network = navigationNetwork(graph);
+  return anchor !== undefined && network.component[anchor] === network.main;
 }
 
 // A sampled route graph supplies bridges and hill paths to the existing

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/simulation';
 import { createBrain, recoveryDirection } from '../src/simulation/bots';
-import { walkableHeight } from '../src/shared/navigation';
+import { navigationNetwork, onMainNetwork, walkableHeight } from '../src/shared/navigation';
 import { createWorld } from '../src/shared/world';
 import type { ActorState, InputFrame } from '../src/shared/types';
 
@@ -34,6 +34,9 @@ describe('connected routes on the rebuilt island', () => {
     ['Engenho lane', [-85.7, 35.5], [-85.7, 23.5]],
     ['Palafitas junctions', [86, 80], [103, 96.2]],
     ['west approach', [-112, 13], [-101.5, 35.5]],
+    // A 1 m garden gate is narrower than the route grid and its posts used to
+    // trap bots in the yard, wiggling between side-steps.
+    ['garden gate on Rua do Porto', [44, -48], [47, -58]],
   ] as const)('walks the %s and collects the destination loot without swimming', (_, start, goal) => {
     const { sim, bot } = fixture(point(start[0], start[1]), point(goal[0], goal[1]));
     let swam = false, collected = false;
@@ -70,5 +73,22 @@ describe('connected routes on the rebuilt island', () => {
     for (let i = 0; i < 16 * 60; i++) { sim.step(1 / 60); sim.drainEvents(); swam ||= bot.state.swimming; }
     expect(Math.hypot(bot.state.pos.x - start.x, bot.state.pos.z - start.z), JSON.stringify(bot.state.pos)).toBeGreaterThan(5);
     expect(swam).toBe(false);
+  });
+
+  it('joins walled yards to the island network and never lands a bot in a sealed one', () => {
+    const graph = base.navigation!, network = navigationNetwork(graph);
+    // The yard behind the Rua do Porto sobrado is entered by its gate.
+    expect(onMainNetwork(base, point(44, -48))).toBe(true);
+    // The garden behind the Rua do Sul row houses has no opening at all.
+    expect(onMainNetwork(base, point(6, 68))).toBe(false);
+    const islands = new Set([...network.component].filter(id => id >= 0 && id !== network.main));
+    expect(islands.size).toBeLessThan(16);
+    const runtime = new Simulation(base, { mode: 'battle-royale', capacity: 8, bots: true, difficulty: 'normal', duration: 300 }, [], 'landing', 11) as any;
+    for (let i = 0; i < 40; i++) {
+      const brain = createBrain(false, 2, point(0, 0), 1);
+      runtime.planLanding(brain);
+      const land = { x: brain.land!.x, y: walkableHeight(brain.land!.x, brain.land!.z, base), z: brain.land!.z };
+      expect(onMainNetwork(base, land), JSON.stringify(land)).toBe(true);
+    }
   });
 });
