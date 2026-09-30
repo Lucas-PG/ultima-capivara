@@ -705,6 +705,24 @@
       "colliders": 1
     },
     {
+      "id": "varal_peixe",
+      "triangles": [
+        1824,
+        764,
+        764
+      ],
+      "colliders": 3
+    },
+    {
+      "id": "covo",
+      "triangles": [
+        540,
+        108,
+        44
+      ],
+      "colliders": 1
+    },
+    {
       "id": "passarela",
       "triangles": [
         624,
@@ -762,8 +780,8 @@
       "id": "engenho",
       "triangles": [
         11988,
-        2726,
-        745
+        2628,
+        779
       ],
       "colliders": 29
     },
@@ -786,6 +804,51 @@
       "colliders": 0
     },
     {
+      "id": "carro_boi",
+      "triangles": [
+        2144,
+        1208,
+        746
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "feixe_cana",
+      "triangles": [
+        3528,
+        1512,
+        690
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "garapeira",
+      "triangles": [
+        868,
+        612,
+        612
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "lenha",
+      "triangles": [
+        1928,
+        1136,
+        752
+      ],
+      "colliders": 1
+    },
+    {
+      "id": "cocho",
+      "triangles": [
+        136,
+        136,
+        132
+      ],
+      "colliders": 1
+    },
+    {
       "id": "escadaria",
       "triangles": [
         3372,
@@ -804,6 +867,6 @@
       "colliders": 6
     }
   ],
-  "bytes": 11007700,
-  "gzipBytes": 3273057
+  "bytes": 11441328,
+  "gzipBytes": 3424644
 }
