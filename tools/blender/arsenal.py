@@ -106,7 +106,7 @@ def pistol():
     parts['body'] += [prism('safety', [(-.052, .034), (-.028, .034), (-.028, .043), (-.048, .041)], .005, 'brass', x=-.017, bevel=.001)]
     parts['body'] += [cyl('guide_rod', (0, .16, .024), (0, .168, .024), .004, 'brass', sides=16, bevel=.0007)]
     # Trigger (animated), hammer (animated, pivot at its pin).
-    trig = prism('trigger', [(.034, .012, 1), (.041, .012, 1), (.043, .0), (.037, -.017), (.032, -.019), (.034, -.004)], .012, 'brass', bevel=.0012, smooth=2)
+    trig = prism('trigger', [(.034, .012, 1), (.041, .012, 1), (.043, .0), (.037, -.017), (.032, -.019), (.034, -.004)], .0175, 'brass', bevel=.0012, smooth=2)
     move(trig, (0, -.028, 0))
     parts['trigger'] += [trig]
     hammer = prism('hammer', [(-.004, -.006, 1), (.004, -.006, 1), (.003, .006), (-.004, .011), (-.011, .011), (-.012, .005), (-.006, .0)], .01, 'brass', bevel=.0015, smooth=2)
