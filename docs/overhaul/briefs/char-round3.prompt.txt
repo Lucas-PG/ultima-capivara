@@ -14,6 +14,9 @@ WORKTREE AND RULES
 - Never spend money, create accounts or access personal apps or data. Codex CLI only for images (codex exec --skip-git-repo-check -m gpt-6.1-sol, asking its image generation tool to save a PNG at an exact path) if you want extra reference views; record prompts in docs/assets.md. External assets only with commercial-compatible licences, recorded in docs/assets.md.
 - Never use the em dash character anywhere. Small logical commits with no co-author or agent lines; commit finished pieces as you go. Keep green: npx tsc --noEmit, npx vitest run --maxWorkers=2, npm run build.
 
+ART DIRECTION (from the user, it overrides everything below where they differ)
+The references show the kind of thing we want; they are not a spec to copy. The character should feel like a fun, cartoonized capybara humanoid. It must obviously read as a capybara and keep a family resemblance to the references, but you are completely free to upgrade it, fix gaps in the references, raise the quality far beyond them, or take a different route if it is better. Judge by appeal and readability: bold, simple, clean shapes; an expressive, charming head that reads at 1 to 30 m; a hero that could sit next to the best stylized shooters' characters.
+
 TARGETS
 docs/art/character-benchmark/character-design.jpg (turnaround, head, paws, feet), holding-reference.jpg (holding and aiming), the cover art public/assets/cover-1672.webp (the face and fur the players know), the HUD portrait public/assets/ui/capy-e76f51.webp. Current state against the target: /Users/lucas_gaspe/dev/ultima-capivara/output/review/char-r2/evolution-body.jpg and evolution-face.jpg (target, round 1, round 2, same cameras).
 
