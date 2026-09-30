@@ -81,6 +81,22 @@ describe('follow camera', () => {
     expect(squeezed).toBeLessThanOrEqual(4);
   });
 
+  it('eases in front of a crown behind the target instead of snapping like a wall', () => {
+    // A low cashew crown behind the target, its outer boughs where the lens sits: the lens may not end among its leaves, and because
+    // leaves are soft it glides in (a runner passing palms would otherwise pump the view).
+    const y = ground(0, 5.2), cashew = { id: 'cashew', kind: 'tree' as const, detail: 'cashew', pos: { x: 0, y, z: 5.2 }, scale: { x: 1, y: 5, z: 1 }, color: '#2f7d3a' };
+    const open = world(), planted = { ...world(), objects: [cashew] } as WorldSpec;
+    const crown = plantCrown(cashew as never)!, leafy = (p: THREE.Vector3) => { const span = foliageSpan(crown, p.x, p.z); return !!span && p.y > span[0] && p.y < span[1]; };
+    const cam = new FollowCamera(), t = target(0, 0);
+    for (let i = 0; i < 30; i++) cam.update(open, t, 1 / 60);
+    expect(leafy(cam.position)).toBe(true);
+    let previous = cam.reach, steepest = 0;
+    for (let i = 0; i < 90; i++) { cam.update(planted, t, 1 / 60); steepest = Math.max(steepest, previous - cam.reach); previous = cam.reach; }
+    expect(steepest).toBeLessThanOrEqual(FOLLOW.leafInSpeed / 60 + 1e-6);
+    expect(leafy(cam.position)).toBe(false);
+    expect(cam.reach).toBeGreaterThan(1.2);
+  });
+
   it('keeps the lens out of crowns and bushes next to the watched capybara', () => {
     // Plants have no collision, so the lens used to sink into a crown or a bush beside the target
     // and show only leaves: at 78 of 400 seeded spots 1 to 5 m from a plant on the real island (about 49 of these 250).

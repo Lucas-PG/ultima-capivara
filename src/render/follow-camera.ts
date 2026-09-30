@@ -13,7 +13,7 @@ export const FOLLOW = {
   distance: 3.2, crouchDistance: 2.7, downDistance: 4.4,
   height: 1.5, crouchHeight: 1.1, swimHeight: .75, downHeight: .7,
   shoulder: .5, probe: .24, clearance: .35,
-  aimRate: 11, pullOutSpeed: 3.5, pitchScale: .72, pitchBias: -.1,
+  aimRate: 11, pullOutSpeed: 3.5, leafInSpeed: 6, pitchScale: .72, pitchBias: -.1,
   minPitch: -1.0, maxPitch: .75,
   // Mouse orbit returns behind the target after this long without input.
   orbitIdle: 2.2, orbitReturn: 2.4,
@@ -40,9 +40,10 @@ export function sweepBox(origin: Vec3, dir: Vec3, length: number, min: Vec3, max
 }
 
 // Plants have no collision, but a lens inside a crown or a bush shows nothing but leaves. Their foliage
-// volumes (the profiles world placement uses) stop the lens like the ground does, past the first
-// FOLIAGE_GRACE metres so a target standing in a bush can still be framed.
-const FOLIAGE_CELL = 8, FOLIAGE_GRACE = .6;
+// volumes (the profiles world placement uses) hold the lens back. Unlike a wall they are soft: the
+// lens eases in front of them instead of snapping (a runner passing a palm would pump the view), and
+// a plant the target itself stands in is ignored (the view would collapse into its head).
+const FOLIAGE_CELL = 8;
 const foliageIndex = new WeakMap<WorldSpec, Map<number, CrownShape[]>>();
 function foliageCells(world: WorldSpec) {
   let cells = foliageIndex.get(world);
@@ -64,9 +65,17 @@ function foliageCells(world: WorldSpec) {
   foliageIndex.set(world, cells);
   return cells;
 }
-function inFoliage(cells: Map<number, CrownShape[]>, x: number, y: number, z: number) {
-  const list = cells.get(Math.floor(x / FOLIAGE_CELL) * 4096 + Math.floor(z / FOLIAGE_CELL));
-  return !!list?.some(shape => { const span = foliageSpan(shape, x, z); return !!span && y > span[0] && y < span[1]; });
+const within = (shape: CrownShape, x: number, y: number, z: number) => { const span = foliageSpan(shape, x, z); return !!span && y > span[0] && y < span[1]; };
+/** How far a lens can travel from `origin` along unit `dir` before entering the foliage of a plant the origin is not already inside. */
+export function foliageDistance(world: WorldSpec, origin: Vec3, dir: Vec3, length: number): number {
+  const cells = foliageCells(world), key = (x: number, z: number) => Math.floor(x / FOLIAGE_CELL) * 4096 + Math.floor(z / FOLIAGE_CELL);
+  const around = cells.get(key(origin.x, origin.z))?.filter(shape => within(shape, origin.x, origin.y, origin.z));
+  const steps = Math.max(4, Math.ceil(length / .3));
+  for (let i = 1; i <= steps; i++) {
+    const t = length * i / steps, x = origin.x + dir.x * t, y = origin.y + dir.y * t, z = origin.z + dir.z * t;
+    if (cells.get(key(x, z))?.some(shape => !around?.includes(shape) && within(shape, x, y, z))) return length * (i - 1) / steps;
+  }
+  return length;
 }
 
 /** How far a probe of `radius` can travel from `origin` along unit `dir` before touching a collider or the ground. */
@@ -82,11 +91,11 @@ export function clearDistance(world: WorldSpec, origin: Vec3, dir: Vec3, length:
     const hit = sweepBox(origin, dir, allowed, collider.min, collider.max, radius);
     if (hit < allowed) allowed = Math.max(0, hit);
   }
-  // Terrain and foliage: march the segment and stop before the lens dips under a slope or into leaves.
-  const steps = Math.max(4, Math.ceil(allowed / .4)), cells = foliageCells(world);
+  // Terrain: march the segment and stop before the lens dips under a slope.
+  const steps = Math.max(4, Math.ceil(allowed / .4));
   for (let i = 1; i <= steps; i++) {
     const t = allowed * i / steps, x = origin.x + dir.x * t, y = origin.y + dir.y * t, z = origin.z + dir.z * t;
-    if (y < terrainHeight(x, z) + clearance || t > FOLIAGE_GRACE && inFoliage(cells, x, y, z)) { allowed = Math.max(0, allowed * (i - 1) / steps); break; }
+    if (y < terrainHeight(x, z) + clearance) { allowed = Math.max(0, allowed * (i - 1) / steps); break; }
   }
   return allowed;
 }
@@ -102,6 +111,7 @@ export class FollowCamera {
   private orbitPitch = 0;
   private idle = Infinity;
   private distance = FOLLOW.distance;
+  private leafFree = FOLLOW.distance;
   private lift = 0;
   private swing = 0;
   private liftGoal = 0;
@@ -145,33 +155,40 @@ export class FollowCamera {
     this.head.set(target.pos.x, target.pos.y + height, target.pos.z);
     this.reframe(world, baseYaw, basePitch, wanted, step, reducedMotion || !this.initialized);
     const yaw = baseYaw + this.swing, pitch = Math.max(FOLLOW.liftPitch, basePitch - this.lift);
-    const free = this.clearBehind(world, yaw, pitch, wanted, down);
+    const hard = this.clearBehind(world, yaw, pitch, wanted, down), free = Math.min(hard, this.leafFree);
     const back = this.dir;
-    // In at once when blocked, back out at a walking pace so a doorway does not pump the view.
-    if (!this.initialized || free < this.distance || reducedMotion) this.distance = free;
-    else this.distance = Math.min(free, this.distance + FOLLOW.pullOutSpeed * step);
+    // In at once when a wall blocks, in front of leaves at a run, back out at a walking pace so a doorway does not pump the view.
+    if (!this.initialized || reducedMotion) this.distance = free;
+    else {
+      if (hard < this.distance) this.distance = hard;
+      this.distance = free < this.distance ? Math.max(free, this.distance - FOLLOW.leafInSpeed * step) : Math.min(free, this.distance + FOLLOW.pullOutSpeed * step);
+    }
     this.reach = this.distance;
     this.position.copy(this.pivot).addScaledVector(back, this.distance);
     this.initialized = true;
   }
 
-  /** Room for the lens behind the target along (yaw, pitch); leaves the pivot, orientation and back direction set. */
+  /** Room for the lens behind the target along (yaw, pitch) before a wall or the ground, with the room before
+   * foliage in `leafFree`; leaves the pivot, orientation and back direction set. */
   private clearBehind(world: WorldSpec, yaw: number, pitch: number, wanted: number, down: boolean) {
     // Shoulder offset first: a target hugging a wall on its right keeps the pivot inside the room, with
     // room left for the lens probe (a thinner shoulder probe parked the pivot where the lens could not move).
     const right = this.dir.set(Math.cos(yaw), 0, -Math.sin(yaw));
-    const side = down ? 0 : clearDistance(world, this.head, right, FOLLOW.shoulder, FOLLOW.probe + .02, 0);
+    const side = down ? 0 : foliageDistance(world, this.head, right, clearDistance(world, this.head, right, FOLLOW.shoulder, FOLLOW.probe + .02, 0));
     this.pivot.copy(this.head).addScaledVector(right, side);
     // Back along the view direction, with a probe sphere so the near plane stays out of the wall.
     this.euler.set(pitch, yaw, 0); this.quaternion.setFromEuler(this.euler);
     const back = this.dir.set(0, 0, 1).applyQuaternion(this.quaternion);
-    return clearDistance(world, this.pivot, back, wanted, FOLLOW.probe);
+    const hard = clearDistance(world, this.pivot, back, wanted, FOLLOW.probe);
+    this.leafFree = foliageDistance(world, this.pivot, back, hard);
+    return hard;
   }
 
   /** With the target backed into a wall, picks the smallest lift and swing that give the lens room, and eases toward it. */
   private reframe(world: WorldSpec, yaw: number, pitch: number, wanted: number, step: number, cut: boolean) {
+    // Room behind the target, clear of walls and of leaves.
     const roomy = Math.min(FOLLOW.roomy, wanted * .6), room = (lift: number, swing: number) =>
-      this.clearBehind(world, yaw + swing, Math.max(FOLLOW.liftPitch, pitch - lift), wanted, false);
+      Math.min(this.clearBehind(world, yaw + swing, Math.max(FOLLOW.liftPitch, pitch - lift), wanted, false), this.leafFree);
     if (room(0, 0) >= roomy) { this.liftGoal = this.swingGoal = 0; }
     else if (room(this.liftGoal, this.swingGoal) < roomy) {
       // Cheapest first: a small lift, then swings along the wall, then both.
