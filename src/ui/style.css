@@ -253,8 +253,7 @@ h1{font-family:var(--heading);font-weight:400;letter-spacing:1px;line-height:.98
 
 .pause-panel .adapt-note{display:inline-block;margin:10px 0 0;padding:6px 12px;font-size:13px;background:var(--cream,#fff3d9);color:#1d1712;transform:rotate(-.6deg)}
 
-/* M1 HUD (style bible §12-13). The HUD is laid out at 1600x900 and scales with --ui (viewport ratio x "Tamanho da interface"). */
-#safe,#hOut,#mapWrap,#feed,#banner,#spec,#dmQuit,#prompt,#reload,#use,#alt,#vitals,#stance,#wpnbox,#consbar,#coach){zoom:var(--ui,1)}
+/* M1 HUD (style bible §12-13). The HUD is laid out at 1600x900 and scales with --ui (viewport ratio x "Tamanho da interface"); the scaling rule lives in hud.css. */
 /* Top-left: one strip with icons; storm phases as dots. */
 /* Fixed rows so every label and value shares one baseline across cells (the storm dots take an extra row). */
 /* Crosshair: player colour with a 1 px ink outline; hit markers differ by shape as well as colour. */
