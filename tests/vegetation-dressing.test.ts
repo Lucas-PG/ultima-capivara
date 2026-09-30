@@ -6,6 +6,7 @@ import { ROADS } from '../src/shared/layout';
 import { terrainHeight } from '../src/shared/terrain';
 import { VEGETATION_PIECES, vegetationDressing } from '../src/shared/vegetation-dressing';
 import { SPECIES } from '../src/shared/vegetation-species';
+import { foliageAt, walkingSurfaces } from '../src/shared/vegetation-crowns';
 import { createWorld } from '../src/shared/world';
 
 const world = createWorld(), dressing = vegetationDressing(world), grid = colliderGrid(world);
@@ -21,16 +22,32 @@ describe('vegetation dressing', () => {
   it('replaces each foliage-only kit piece one to one, at its place, heading and size', () => {
     const pieces = world.pieces!.filter(p => VEGETATION_PIECES.has(p.piece));
     expect(pieces.length).toBeGreaterThan(50);
+    let trimmed = 0;
     for (const piece of pieces) {
       // Skipping these pieces in the kit renderer must not change collision: they have none.
       expect(KIT_PIECES[piece.piece].colliders, piece.piece).toHaveLength(0);
       const plants = dressing.filter(p => p.id === piece.id);
+      if (!plants.length) {
+        // A patch the layout pressed into a house wall is left out when even trimmed its leaves show indoors.
+        trimmed++;
+        const species = piece.piece === 'hedge' ? 'hedge' : 'thicket', small = SPECIES[species].height * (piece.scale ?? 1) * .55;
+        expect([0, 1, 2, 3].slice(0, SPECIES[species].variants).every(v => walkingSurfaces(world).inRoom(foliageAt(species, v, piece.x, piece.y, piece.z, small)!)), `${piece.id} left out without cause`).toBe(true);
+        continue;
+      }
       expect(plants, piece.id).toHaveLength(1);
       const [plant] = plants;
       expect(Math.hypot(plant.x - piece.x, plant.z - piece.z), piece.id).toBeLessThan(1e-6);
       expect(plant.yaw).toBeCloseTo(piece.yaw, 6);
-      expect(plant.height / SPECIES[plant.species].height).toBeCloseTo(piece.scale ?? 1, 6);
+      const scale = plant.height / SPECIES[plant.species].height, full = piece.scale ?? 1;
+      if (Math.abs(scale - full) < 1e-6) continue;
+      // Only a patch set against a house is trimmed, and only as far as keeps its leaves out of the rooms.
+      trimmed++;
+      expect(scale, piece.id).toBeLessThan(full);
+      expect(scale, piece.id).toBeGreaterThanOrEqual(full * .55);
+      const foliage = foliageAt(plant.species, plant.variant, plant.x, plant.y, plant.z, SPECIES[plant.species].height * full)!;
+      expect(walkingSurfaces(world).inRoom(foliage), `${piece.id} trimmed without cause`).not.toBeNull();
     }
+    expect(trimmed).toBeLessThan(pieces.length * .1);
   });
 
   it('keeps planted beds and forest floor off roads, out of doorways and out of solids', () => {

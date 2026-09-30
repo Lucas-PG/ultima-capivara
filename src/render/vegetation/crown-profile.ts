@@ -6,6 +6,9 @@ import { buildTemplates } from './templates';
 
 /** Crowns that can hang over a walker: trees, palms and bananas. Shrubs and ground plants stay below head height. */
 export const CROWN_SPECIES = (Object.keys(SPECIES) as SpeciesId[]).filter(species => ['palm', 'tree', 'banana'].includes(SPECIES[species].kind));
+/** Every template with a foliage profile: the crowns, and the bushes and ground plants, which may
+ * not reach into a room (src/shared/vegetation-crowns.ts). Wall drapes hang flat on a wall instead. */
+export const PROFILED_SPECIES = (Object.keys(SPECIES) as SpeciesId[]).filter(species => SPECIES[species].kind !== 'vine');
 /** Radial band width of a profile, template metres. */
 export const CROWN_BAND = .5;
 

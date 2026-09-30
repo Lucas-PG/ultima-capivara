@@ -4,13 +4,14 @@ import { isHousePiece, ROADS } from './layout';
 import { fbm, terrainColor, terrainHeight, WORLD_PALETTE } from './terrain';
 import type { KitPlacement, MapObject, WorldSpec } from './types';
 import { plantHash, plantSpecies, SPECIES, type SpeciesId } from './vegetation-species';
-import { crownAt, walkingSurfaces } from './vegetation-crowns';
+import { crownAt, foliageAt, walkingSurfaces } from './vegetation-crowns';
 
 /**
  * Decorative planting derived from the world spec: the kit's soft bush pieces, bougainvillea on
  * house walls, garden plants along house walls and ferns under forest trees. None of it has
  * collision (like every plant on the island), so it is placed only where it cannot sit on a
- * road, a doorway, a solid or another piece, and gameplay never sees it.
+ * road, a doorway, a solid or another piece, and gameplay never sees it. Nothing grows indoors:
+ * no leaf may reach into a room, however near the wall the plant stands.
  */
 export interface DressingPlant {
   id: string; species: SpeciesId; variant: number;
@@ -143,8 +144,34 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     }
     return false;
   };
+  const surfaces = walkingSurfaces(world);
+  /** Would a wall drape reach into a room: its own, through a thin wall (the mass on top sits a
+   * little behind the face), or a neighbour's standing close in front? Template extents per metre
+   * of scale: 0.22 behind the face, 0.9 in front, the top mass 0.25 above the wall top. */
+  const vineIntoRoom = (x: number, z: number, yaw: number, halfWidth: number, top: number, drop: number) => {
+    const s = drop / SPECIES.vine.height, nx = Math.sin(yaw), nz = Math.cos(yaw), tx = Math.cos(yaw), tz = -Math.sin(yaw);
+    return !!surfaces.findRoom(x, z, halfWidth + s, (rx, floor, ceiling, rz) => {
+      const across = (rx - x) * tx + (rz - z) * tz, out = (rx - x) * nx + (rz - z) * nz;
+      // A tip grazing the inner face within 5 cm at the ceiling line stays hidden behind the ceiling trim.
+      return Math.abs(across) < halfWidth + .1 && out > -.22 * s + .05 && out < .9 * s && floor < top + .25 * s && ceiling > top - drop;
+    });
+  };
   const add = (id: string, species: SpeciesId, variant: number, x: number, z: number, yaw: number, height: number, y = terrainHeight(x, z) - .04, widthScale?: number) =>
     out.push({ id, species, variant: Math.min(SPECIES[species].variants - 1, variant), x, y, z, yaw, height, ...(widthScale ? { widthScale } : {}) });
+  /** Would this plant's foliage reach into a room? A bush's leaves spread well past its stems. */
+  const intoRoom = (species: SpeciesId, variant: number, x: number, y: number, z: number, height: number) => {
+    const foliage = foliageAt(species, Math.min(SPECIES[species].variants - 1, variant), x, y, z, height);
+    return !!foliage && !!surfaces.inRoom(foliage);
+  };
+  /** A bush in front of a wall: the nearest spot out along the wall normal and the largest size
+   * (down to 60%) that stand free and keep every leaf out of the rooms behind the wall. */
+  const besideWall = (x: number, z: number, nx: number, nz: number, species: SpeciesId, variant: number, height: number, radius: number, own?: KitPlacement) => {
+    for (const away of [0, .3, .6]) for (const size of [1, .8, .6]) {
+      const px = x + nx * away, pz = z + nz * away;
+      if (free(px, pz, radius, Math.min(height * size, 2), own) && !intoRoom(species, variant, px, terrainHeight(px, pz) - .04, pz, height * size)) return { x: px, z: pz, height: height * size };
+    }
+    return null;
+  };
 
   // 1. The kit's bush clusters and hedges, redrawn as painted shrubs at the same place and size.
   const houses = pieces.filter(p => isHousePiece(p.piece) || GARDEN_BUILDINGS.has(p.piece));
@@ -155,7 +182,12 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     const species: SpeciesId = p.piece === 'hedge' ? 'hedge' : 'thicket';
     // Wild undergrowth stays green; beside houses, the patches flower.
     const variant = species === 'hedge' ? (roll < .5 ? 0 : 1) : near ? (roll < .3 ? 1 : roll < .62 ? 2 : roll < .85 ? 3 : 0) : (roll < .82 ? 0 : 1);
-    add(p.id, species, variant, p.x, p.z, p.yaw, SPECIES[species].height * (p.scale ?? 1), p.y);
+    // A patch the layout set against a house is trimmed back until no leaf shows indoors.
+    const full = SPECIES[species].height * (p.scale ?? 1);
+    let height = full;
+    while (height > full * .6 && intoRoom(species, variant, p.x, p.y, p.z, height)) height *= .9;
+    if (intoRoom(species, variant, p.x, p.y, p.z, height)) continue;
+    add(p.id, species, variant, p.x, p.z, p.yaw, height, p.y);
   }
 
   // 1b. The kit's planters and flower beds get real plants over their painted mounds.
@@ -196,12 +228,13 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
         const at = toWorld(house, lx, lz), yaw = facingYaw(house, w), top = house.y + w.top * k - .06;
         // Nothing may stand in front of the drape: stairs, balconies, awnings, a neighbour's wall.
         if (blockedInFront(at.x, at.z, yaw, halfWidth, top - drop + .15, top - .05)) return;
+        if (vineIntoRoom(at.x, at.z, yaw, halfWidth, top, drop)) return;
         add(`${house.id}:vine:${wi}:${si}`, 'vine', variant, at.x, at.z, yaw, drop, top, widthScale);
         placed++;
         if (climber) {
           // The climber's own bush at its foot.
-          const bx = at.x + Math.sin(yaw) * .55, bz = at.z + Math.cos(yaw) * .55;
-          if (free(bx, bz, .5, 1.4, house)) add(`${house.id}:vine-foot:${wi}:${si}`, 'bougainvillea', Math.floor(roll * 2), bx, bz, yaw, 1.3 + roll * .4);
+          const variant = Math.floor(roll * 2), foot = besideWall(at.x + Math.sin(yaw) * .55, at.z + Math.cos(yaw) * .55, Math.sin(yaw), Math.cos(yaw), 'bougainvillea', variant, 1.3 + roll * .4, .5, house);
+          if (foot) add(`${house.id}:vine-foot:${wi}:${si}`, 'bougainvillea', variant, foot.x, foot.z, yaw, foot.height);
         }
       });
     });
@@ -221,10 +254,10 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
       const at = toWorld(p, lx, c.z), yaw = p.yaw + side * Math.PI / 2;
       const top = p.y + (c.y + c.height / 2) * k - .05, drop = (c.height - .4) * k, variant = hash(p.id, 100 + i) < .6 ? 0 : 1;
       const halfWidth = STYLE_HALF_WIDTH[variant] * drop / 2 * .42;
-      if (blockedInFront(at.x, at.z, yaw, halfWidth, top - drop + .15, top - .05, p)) return;
+      if (blockedInFront(at.x, at.z, yaw, halfWidth, top - drop + .15, top - .05, p) || vineIntoRoom(at.x, at.z, yaw, halfWidth, top, drop)) return;
       add(`${p.id}:post-vine:${i}`, 'vine', variant, at.x, at.z, yaw, drop, top, .42);
-      const bx = at.x + Math.sin(yaw) * .5, bz = at.z + Math.cos(yaw) * .5;
-      if (free(bx, bz, .45, 1.4, p)) add(`${p.id}:post-foot:${i}`, 'bougainvillea', variant, bx, bz, yaw, 1.2 + hash(p.id, 110 + i) * .3);
+      const foot = besideWall(at.x + Math.sin(yaw) * .5, at.z + Math.cos(yaw) * .5, Math.sin(yaw), Math.cos(yaw), 'bougainvillea', variant, 1.2 + hash(p.id, 110 + i) * .3, .45, p);
+      if (foot) add(`${p.id}:post-foot:${i}`, 'bougainvillea', variant, foot.x, foot.z, yaw, foot.height);
     });
   }
 
@@ -246,13 +279,14 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
         const [species, height, radius] = banana ? ['banana', 3.6 + hash(house.id, salt + 3) * 1.4, 1.3] as const : BEDS[Math.floor(hash(house.id, salt + 4) * BEDS.length)];
         const offset = w.plane + radius * .9 + .15;
         const lx = w.along === 'x' ? along : w.sign * offset, lz = w.along === 'x' ? w.sign * offset : along;
-        const at = toWorld(house, lx, lz);
-        if (!free(at.x, at.z, radius * k * (banana ? .5 : .8), Math.min(height, 2), house)) continue;
-        const variant = Math.min(SPECIES[species].variants - 1, Math.floor(hash(house.id, salt + 5) * 4)), size = height * (.9 + hash(house.id, salt + 7) * .2);
+        const base = toWorld(house, lx, lz), yaw = facingYaw(house, w);
+        const variant = Math.min(SPECIES[species].variants - 1, Math.floor(hash(house.id, salt + 5) * 4));
+        const at = besideWall(base.x, base.z, Math.sin(yaw), Math.cos(yaw), species, variant, height * (.9 + hash(house.id, salt + 7) * .2), radius * k * (banana ? .5 : .8), house);
+        if (!at) continue;
         // A banana's leaves spread wide at head height: never over a street or path.
-        const crown = banana ? crownAt(species, variant, at.x, terrainHeight(at.x, at.z) - .04, at.z, size) : null;
-        if (crown && walkingSurfaces(world).underCrown(crown)) continue;
-        add(`${house.id}:bed:${wi}:${i}`, species, variant, at.x, at.z, hash(house.id, salt + 6) * Math.PI * 2, size);
+        const crown = banana ? crownAt(species, variant, at.x, terrainHeight(at.x, at.z) - .04, at.z, at.height) : null;
+        if (crown && surfaces.underCrown(crown)) continue;
+        add(`${house.id}:bed:${wi}:${i}`, species, variant, at.x, at.z, hash(house.id, salt + 6) * Math.PI * 2, at.height);
         placed++;
       }
     });
@@ -272,8 +306,9 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
       const x = tree.pos.x + Math.cos(a) * r, z = tree.pos.z + Math.sin(a) * r;
       let roll = hash(id, 30 + i), pick: SpeciesId = 'fern';
       for (const [s, wgt] of FLOOR) { if (roll < wgt) { pick = s; break; } roll -= wgt; }
-      if (!free(x, z, .5, 1)) continue;
-      add(`${id}:floor:${i}`, pick, Math.floor(hash(id, 40 + i) * 3), x, z, hash(id, 50 + i) * Math.PI * 2, SPECIES[pick].height * (.75 + hash(id, 60 + i) * .5));
+      const variant = Math.floor(hash(id, 40 + i) * 3), height = SPECIES[pick].height * (.75 + hash(id, 60 + i) * .5);
+      if (!free(x, z, .5, 1) || intoRoom(pick, variant, x, terrainHeight(x, z) - .04, z, height)) continue;
+      add(`${id}:floor:${i}`, pick, variant, x, z, hash(id, 50 + i) * Math.PI * 2, height);
     }
   }
   // 5. Farm plots: the field-row strips carry full rows of mandioca instead of a few seedlings.
@@ -298,9 +333,9 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     const slope = Math.max(Math.abs(terrainHeight(x + 1, z) - y), Math.abs(terrainHeight(x, z + 1) - y));
     const paint = terrainColor(x, z, y, slope);
     if (paint !== WORLD_PALETTE.grass && paint !== WORLD_PALETTE.grassLight && paint !== WORLD_PALETTE.dryGrass) continue;
-    if (!free(x, z, 1.6, .7)) continue;
-    const variant = hash(id, 4) < .5 ? 0 : 1;
-    add(id, 'meadow', variant, x, z, hash(id, 5) * Math.PI * 2, SPECIES.meadow.height * (.8 + hash(id, 6) * .2), y - .02);
+    const variant = hash(id, 4) < .5 ? 0 : 1, height = SPECIES.meadow.height * (.8 + hash(id, 6) * .2);
+    if (!free(x, z, 1.6, .7) || intoRoom('meadow', variant, x, y - .02, z, height)) continue;
+    add(id, 'meadow', variant, x, z, hash(id, 5) * Math.PI * 2, height, y - .02);
   }
   return out;
 }
