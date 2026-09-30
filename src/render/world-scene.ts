@@ -18,6 +18,7 @@ import { RecreationView } from './recreation';
 import { GroundCover } from './ground-cover';
 import { createKit, type KitScene } from './kit';
 import { releaseAfterUpload } from './memory';
+import { STONE_GLSL } from './stone-detail';
 import { buildProps } from './props';
 import { buildWallArt } from './wall-art';
 import { textSignMaterial, twoSidedTextSign } from './signage';
@@ -266,7 +267,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v13:${ROADS.length}`;
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v14:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -329,6 +330,7 @@ export class WorldScene {
           return terrainNoise(point) * 0.6 + terrainNoise(point * 2.1 + vec2(5.2, 1.3)) * 0.28 +
             terrainNoise(point * 4.3 + vec2(9.1, 3.7)) * 0.12;
         }
+        ${STONE_GLSL}
         float terrainRectDistance(vec2 point, vec4 rect) {
           vec2 center = (rect.xy + rect.zw) * 0.5;
           vec2 halfSize = (rect.zw - rect.xy) * 0.5;
@@ -380,7 +382,16 @@ export class WorldScene {
         triWeights/=max(dot(triWeights,vec3(1.0)),.001);
         float rockWash=dot(triWeights,vec3(terrainFbm(terrainPoint.yz/3.5),terrainFbm(terrainPoint.xz/3.5),terrainFbm(terrainPoint.xy/3.5)));
         vec3 rockPaint=mix(terrainRockPaint,terrainRockTop,smoothstep(-.3,.3,rockWash))*(.97+rockWash*.1);
-        diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
+        // World-space joints, grain and streaks: the 2 m colour grid alone smears up close.
+        float rockShare = rockMask * (1.0 - asphaltMask - curbMask);
+        if (rockShare > 0.001) {
+          vec3 rockNormal = normalize(cross(dFdx(terrainPoint), dFdy(terrainPoint)));
+          rockNormal *= sign(rockNormal.y + 1e-4);
+          vec4 stone = stonePaint(terrainPoint, rockNormal, length(fwidth(terrainPoint)));
+          rockPaint *= stone.rgb;
+          pavingRelief += stone.w * rockShare;
+        }
+        diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockShare);
         // Fine sand detail is expressed in metres, independent of the colour
         // map resolution. Filter the ripples analytically at grazing distance.
         float sandRatio=diffuseColor.r/max(diffuseColor.b,.001);
