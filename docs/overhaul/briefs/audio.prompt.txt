@@ -1,0 +1,28 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Read docs/overhaul/autonomous-progress.md for context. You have full creative freedom inside your scope: research, experiment, be creative, and reject your own mediocre results.
+
+RULES
+- Work only in your git worktree (given below). Never push, open PRs, deploy or touch other worktrees or the main checkout.
+- Two Codex agents are rebuilding the weapons in other worktrees and use Blender heavily, so the machine runs hot: keep your load light. At most one Chrome instance at a time, capture at 1280x720 or smaller, prefer offline analysis and unit tests to live renders where they prove the same thing, never run Blender, and stop servers and browsers when idle and when done.
+- Do not touch weapon models, the viewmodel, arms, character or world code (tools/blender/*, src/render/weapons.ts, viewmodel-*, fp-arms.ts, capybara*, layout.ts, world.ts, terrain.ts, the kit, vegetation) unless a one-line hook is unavoidable; say so in your report.
+- Never spend money, create accounts or access personal apps or data. External assets only with licences compatible with a commercial game (CC0 preferred) and downloadable without an account; record source and licence in docs/assets.md.
+- Never use the em dash character anywhere (code, docs, commit messages, UI text). Commit in small logical commits with no co-author or agent lines.
+- Keep green: npx tsc --noEmit and npx vitest run.
+- Start your dev server as a background command: cd <worktree> && VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port>. QA tools in tools/qa (capture.mjs named poses, cam.mjs free camera, play.mjs live match driver) take BASE=http://127.0.0.1:<your port>. Use absolute paths or cd <worktree> && ... in every command.
+- Codex CLI may be used only for images: codex exec --skip-git-repo-check -m gpt-6.1-sol with a prompt asking its image generation tool to create and save an image at an exact path.
+- When done, write docs/overhaul/<your report name> in your worktree (what changed and why, evidence, measurements, tests, known issues) and commit it. Final reply to the orchestrator: under 200 words.
+
+ROLE AND WORKTREE
+You are the audio director and sound designer. Worktree: /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/audio (branch audio-pass). Dev server port 5175. Report: docs/overhaul/audio-report.md.
+
+WHAT THE USER SAID (verbatim essence, top priority)
+1. "On the island, there is this weird kind of white noise sound that's always on, which is very annoying. It's like a background noise that's just always on when you're playing."
+2. "Gun firing sounds like footsteps, so you can never tell what's going on by sound. Let's make sure to be extra careful about that."
+
+GOALS
+1. Find the always-on noise and prove its source: instrument or render the game's audio graph (for example with an OfflineAudioContext through the QA hooks, or by capturing the master output in Chrome) and measure the idle island mix (spectrum, level, modulation). Fix it at the source. Ambience must be designed, not a constant hiss: layered, band-limited, spatial and modulated beds (surf by the shore, wind on heights, birds and insects in the trees, harbour and town life), quiet under combat.
+2. Make combat readable by ear. Every weapon gets a distinct, punchy signature (transient crack, body and tail, plus its mechanics: slide, bolt, pump, cylinder, magazine), with distance cues (far shots darker, with a delayed tail or echo). Footsteps are material-based (stone, wood, sand, grass, shallow water), shorter, quieter and clearly directional, and enemy footsteps stay readable for gameplay while your own are subtler. Gunfire and footsteps must be unmistakably different in loudness, spectrum and envelope.
+3. Mix and feedback: a loudness hierarchy (your own and enemy gunfire, hits and kills, reloads, footsteps, ambience), ambience ducking under combat, a master limiter so nothing clips, distinct hit, headshot and kill confirmation sounds, UI sounds consistent with the painted style, and positional audio that tells direction and distance.
+4. Research how Call of Duty, Valorant, Apex Legends, Overwatch 2 and Battlefield design weapon, footstep and ambience audio for readability (frequency separation, loudness hierarchy, distance cues, occlusion) and write docs/overhaul/audio-research.md with sources.
+5. Tests that protect the intent: measure rendered sounds (loudness, spectral centroid, envelope) and fail if gunfire and footsteps overlap too much, if the idle ambience contains a constant broadband noise floor above a threshold you justify, or if the master can clip.
+Stay inside a sensible audio budget (voices, pooling, decoding cost on Low).

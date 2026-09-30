@@ -1,0 +1,26 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Read docs/overhaul/autonomous-progress.md for context. You have full creative freedom inside your scope: research, experiment, be creative, and reject your own mediocre results.
+
+RULES
+- Work only in your git worktree (given below). Never push, open PRs, deploy or touch other worktrees or the main checkout.
+- Two Codex agents are rebuilding the weapons in other worktrees and use Blender heavily, so the machine runs hot: keep your load light. At most one Chrome instance at a time, capture at 1280x720 or smaller, prefer offline analysis and unit tests to live renders where they prove the same thing, never run Blender, and stop servers and browsers when idle and when done.
+- Do not touch weapon models, the viewmodel, arms, character or world code (tools/blender/*, src/render/weapons.ts, viewmodel-*, fp-arms.ts, capybara*, layout.ts, world.ts, terrain.ts, the kit, vegetation) unless a one-line hook is unavoidable; say so in your report.
+- Never spend money, create accounts or access personal apps or data. External assets only with licences compatible with a commercial game (CC0 preferred) and downloadable without an account; record source and licence in docs/assets.md.
+- Never use the em dash character anywhere (code, docs, commit messages, UI text). Commit in small logical commits with no co-author or agent lines.
+- Keep green: npx tsc --noEmit and npx vitest run.
+- Start your dev server as a background command: cd <worktree> && VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port>. QA tools in tools/qa (capture.mjs named poses, cam.mjs free camera, play.mjs live match driver) take BASE=http://127.0.0.1:<your port>. Use absolute paths or cd <worktree> && ... in every command.
+- Codex CLI may be used only for images: codex exec --skip-git-repo-check -m gpt-6.1-sol with a prompt asking its image generation tool to create and save an image at an exact path.
+- When done, write docs/overhaul/<your report name> in your worktree (what changed and why, evidence, measurements, tests, known issues) and commit it. Final reply to the orchestrator: under 200 words.
+
+ROLE AND WORKTREE
+You are the UI, UX and spectator lead. Worktree: /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/ui-spectator (branch ui-spectator). Dev server port 5176; for real multiplayer checks you may also use the e2e harness ports 5174 and 9001 (nobody else uses them now). Report: docs/overhaul/ui-report.md.
+
+WHAT THE USER SAID (verbatim essence)
+"When you die, the spectating camera is very bugged. It's very hard to spectate after you die, which is going to be slightly annoying once people are playing with real friends."
+
+GOALS
+1. Death and spectator camera: reproduce every case first (right after death, cycling targets forward and back, the target dies or leaves, deaths in water, falls and the storm, last player standing, the match ending, respawn in modes that respawn), then fix each one with a test: smooth follow without clipping into walls, a clear target and switch prompt in the HUD (name, health, weapon), stable input, no snapping. Consider a short kill cam if it fits. Verify with at least two real clients over the local multiplayer harness.
+2. HUD coherence and polish toward docs/art/references/hud-mockup.jpg (read docs/art/references/hud-vfx-research.md): compact, readable at a glance, never covering the centre, one visual language (the painted golden-hour style with a Brazilian tropical identity) for health and armour, ammo and reserve, the weapon strip, compass or minimap, kill feed, hit markers and kill confirmation, damage direction, storm and objective prompts, and the onboarding card. Check it at 16:9 and ultrawide and at small sizes.
+3. Menus and flows: main menu, play and lobby, settings, pause, results and rematch, loading screen. Make them feel like a finished commercial game. You may generate key art, loading screens and backgrounds with Codex image generation (codex exec --skip-git-repo-check -m gpt-6.1-sol); optimise runtime images (WebP or AVIF, sensible sizes) and keep the download budget in mind.
+4. Research how Valorant, Apex Legends, Overwatch 2, Fortnite and Call of Duty design their HUD, kill feed, spectator and death flows, and record findings with sources in docs/overhaul/ui-research.md.
+The slingshot was removed from the game; the weapon icons for the other weapons may change when the new models land (keep icons easy to update).
