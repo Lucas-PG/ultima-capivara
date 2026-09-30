@@ -14,7 +14,7 @@
       "far": 408
     },
     "m4": {
-      "source": 22130,
+      "source": 21306,
       "near": 2400,
       "far": 418
     },
@@ -30,18 +30,18 @@
     },
     "dmr": {
       "source": 23006,
-      "near": 2392,
-      "far": 416
+      "near": 2396,
+      "far": 420
     },
     "sniper": {
       "source": 21740,
       "near": 2400,
-      "far": 410
+      "far": 408
     },
     "machete": {
       "near": 2260,
       "far": 420
     }
   },
-  "bundledBytes": 5910208
+  "bundledBytes": 5858212
 }
