@@ -808,10 +808,11 @@ function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun
 }
 type HoldClass = 'rifle' | 'heavy' | 'pistol' | 'melee';
 const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'pistol', smg: 'rifle', m4: 'rifle', shotgun: 'heavy', dmr: 'rifle', sniper: 'heavy', coco: 'heavy', machete: 'melee' };
-/** Held world weapons share the world paw's scale (the first-person paw, enlarged so both
- * read at distance), so first-person grip specs stay valid in weapon space. */
-export const TP_WEAPON_SCALE = 1.1;
-const TP_GRIP_BACK = .023, TP_GRIP_OUT = .016, TP_CURL = .82;
+/** Held world weapons are scaled to the world paw (a big leathery hand, about 1.8 times the
+ * first-person paw): at this scale the first-person grip specs, placed in weapon space, put the
+ * larger palm on the same surfaces, with a small wrist offset (tpGripOffset) for the rest. */
+export const TP_WEAPON_SCALE = 1.3;
+const TP_GRIP_BACK = .008, TP_GRIP_OUT = .010, TP_CURL = .9;
 /** Where the world paw's wrist goes for a first-person grip, relative to that grip's wrist (in the
  * grip's own space): backed off along the digits and out of the palm, for the larger hand. */
 export function tpGripOffset(forward: readonly number[], palm: readonly number[]): THREE.Vector3 {
