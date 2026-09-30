@@ -42,7 +42,7 @@ for (const [key, shots] of groups) {
       tx: options.tx === undefined ? undefined : Number(options.tx), tz: options.tz === undefined ? undefined : Number(options.tz),
     };
     const result = await page.evaluate(([o, ads]) => { window.capyReview.actor.ads = ads; return window.capyReview.shot(o); }, [o, options.ads === '1']);
-    await page.screenshot({ path: `${out}/${name}.png` });
+    await page.screenshot({ path: `${out}/${name}.png`, timeout: 120000 });
     console.log(name, JSON.stringify(result));
   }
 }

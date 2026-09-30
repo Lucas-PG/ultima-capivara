@@ -20,7 +20,7 @@ for (const clip of clips.split(',')) {
   await page.evaluate(o => window.capyReview.shot(o), { clip, time: Number(process.env.SETTLE ?? 1), angle, distance: Number(distance), ...frame });
   for (let i = 0; i < Number(frames); i++) {
     await page.evaluate(o => window.capyReview.shot(o), { clip, time: Number(step), angle, distance: Number(distance), ...frame });
-    await page.screenshot({ path: `${out}/${clip}-${angle}-${String(i).padStart(2, '0')}.png` });
+    await page.screenshot({ path: `${out}/${clip}-${angle}-${String(i).padStart(2, '0')}.png`, timeout: 120000 });
   }
 }
 await browser.close();
