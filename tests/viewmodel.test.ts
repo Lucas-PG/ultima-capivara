@@ -33,6 +33,13 @@ function weaponAsset(id: WeaponId) {
   };
   add('body', [0, 0, 0], true); add('mag', [0, .02, -.02], true); add('slide', [0, .05, 0], true);
   if (id === 'm4') { root.getObjectByName('m4_mag')!.position.z = -.071; add('bolt', [0, .062, -.062], true); add('release', [-.019, .026, -.01], true); }
+  if (id === 'shotgun') { add('pump', [0, .031, -.277], true); root.getObjectByName('shotgun_mag')!.position.set(0, .012, -.067); }
+  if (id === 'sniper') { add('bolt', [0, .074, .061], true); root.getObjectByName('sniper_mag')!.position.set(0, .023, -.108); }
+  if (id === 'dmr') { add('charge', [.023, .074, -.061], true); root.getObjectByName('dmr_mag')!.position.set(0, .022, -.081); }
+  if (id === 'coco') {
+    add('pump', [0, .012, -.226], true); root.getObjectByName('coco_mag')!.position.set(0, .246, -.002);
+    add('load1', [0, .246, -.092], true); add('load2', [0, .246, -.182], true);
+  }
   if (id === 'pistol') { add('hammer', [0, .0605, .0399], true); add('release', [-.017, .027, -.029], true); }
   if (id === 'smg') { add('charge', [-.038, .083, -.149], true); add('action', [0, .067, -.059], true); }
   if (id === 'revolver') {
@@ -149,6 +156,21 @@ describe('first-person viewmodel', () => {
     h.actor.slot = 1;
     for (let i = 0; i < 30 && h.view.weapon !== 'smg'; i++) h.step();
     expect(h.view.weapon).toBe('smg'); expect(h.view.adsAmount).toBeLessThan(.05);
+  });
+
+  // The simulation lets a swapped weapon fire HANDLING.draw seconds after the swap;
+  // the viewmodel must be up by then, and must not look ready before it can fire.
+  for (const id of ['m4', 'sniper'] as const) it(`raises the ${id} exactly within its draw time`, async () => {
+    const { HANDLING } = await import('../src/shared/weapons');
+    const h = await harness(); h.actor.weapons[1] = { id, rarity: 0, ammo: 5, reserve: 10, box: 0 } as ActorState['weapons'][number];
+    for (let i = 0; i < 30; i++) h.step();
+    const lowered = () => { const v = h.view as unknown as { draw: number; holster: number }; return v.draw + v.holster; };
+    h.actor.slot = 1;
+    const frames = Math.round(HANDLING[id].draw * 60);
+    for (let i = 0; i < frames - 2; i++) h.step();
+    expect(h.view.weapon).toBe(id); expect(lowered()).toBeGreaterThan(.02);
+    for (let i = 0; i < 3; i++) h.step();
+    expect(lowered()).toBe(0);
   });
 
   it('the pistol reload takes the magazine out, seats a fresh one and leaves every part at rest', async () => {
@@ -409,6 +431,109 @@ describe('first-person viewmodel', () => {
     h.step();
     expect(mag.visible).toBe(true); expect(mag.position.distanceTo(new THREE.Vector3(0, .02, -.071))).toBeLessThan(1e-6);
     expect(bolt.position.z).toBeCloseTo(-.062, 6);
+    h.view.dispose();
+  });
+});
+
+describe('long-gun mechanisms', () => {
+  async function equip(id: WeaponId, ammo: number) {
+    const h = await harness(); h.actor.weapons = [{ id, rarity: 0, ammo, reserve: 30, box: 0 }];
+    for (let i = 0; i < 60; i++) h.step();
+    const cues: string[] = []; h.view.onFoley = cue => cues.push(cue);
+    return { ...h, cues };
+  }
+
+  for (const id of ['dmr', 'sniper'] as const) for (const empty of [false, true]) it(`${id} ${empty ? 'empty' : 'tactical'} reload preserves support and chamber state`, async () => {
+    const { VIEW_SPECS } = await import('../src/render/viewmodel-specs');
+    const h = await equip(id, empty ? 0 : 3), start = h.now();
+    const part = h.view.scene.getObjectByName(`${id}_${id === 'sniper' ? 'bolt' : 'charge'}`)!;
+    const rest = part.position.clone(), rotation = part.quaternion.clone();
+    const state = h.view as unknown as { targetR: import('../src/render/fp-arms').HandTarget; targetL: import('../src/render/fp-arms').HandTarget };
+    let motion = 0;
+    h.actor.reloadUntil = start + WEAPONS[id].reload;
+    while (h.now() < h.actor.reloadUntil) {
+      h.step(); h.holder.updateMatrixWorld(true);
+      motion = Math.max(motion, part.position.distanceTo(rest));
+      const phase = (h.now() - start) / WEAPONS[id].reload;
+      if (empty && id === 'sniper' && phase > .25 && phase < .89) {
+        expect(part.quaternion.angleTo(rotation)).toBeCloseTo(1.1, 5);
+        expect(part.position.z - rest.z).toBeCloseTo(.075, 5);
+      }
+      if (!empty) {
+        expect(part.position.distanceTo(rest)).toBeLessThan(1e-7);
+        expect(part.quaternion.angleTo(rotation)).toBeLessThan(1e-7);
+      }
+      const gripR = new THREE.Vector3(...VIEW_SPECS[id].grips.R.wrist).applyMatrix4(h.holder.matrixWorld);
+      const gripL = new THREE.Vector3(...VIEW_SPECS[id].grips.L!.wrist).applyMatrix4(h.holder.matrixWorld);
+      if (empty && id === 'dmr' && part.position.distanceTo(rest) > .001)
+        expect(state.targetL.wrist.distanceTo(gripL)).toBeLessThan(1e-6);
+      // A heavy rifle must always retain at least one hand on its main grip.
+      expect(Math.min(state.targetR.wrist.distanceTo(gripR), state.targetL.wrist.distanceTo(gripL))).toBeLessThan(1e-6);
+    }
+    if (empty) expect(motion).toBeGreaterThan(.06);
+    expect(h.cues.filter(cue => cue === 'mag-in')).toHaveLength(1);
+    expect(h.cues.filter(cue => cue === 'mag-out')).toHaveLength(1);
+    expect(h.cues.filter(cue => cue === (id === 'sniper' ? 'bolt-back' : 'slide-back'))).toHaveLength(empty ? 1 : 0);
+    h.actor.reloadUntil = 0; h.step();
+    expect(part.position.distanceTo(rest)).toBeLessThan(1e-7);
+    h.view.dispose();
+  });
+
+  it('keeps the sniper firing paw attached to the turning and translating bolt knob', async () => {
+    const { SNIPER_BOLT_HAND } = await import('../src/render/viewmodel-anims');
+    const { weaponShotDuration } = await import('../src/shared/weapon-presentation');
+    const h = await equip('sniper', 4);
+    const bolt = h.view.scene.getObjectByName('sniper_bolt')!;
+    const state = h.view as unknown as { targetR: import('../src/render/fp-arms').HandTarget };
+    h.view.shot('sniper');
+    let contacts = 0;
+    for (let t = 0; t < weaponShotDuration('sniper') + .1; t += 1 / 120) {
+      h.step(1 / 120);
+      const phase = (t + 1 / 120) / weaponShotDuration('sniper');
+      if (phase > .23 && phase < .83) {
+        const anchor = new THREE.Vector3(...SNIPER_BOLT_HAND.wrist!).applyMatrix4(bolt.matrixWorld);
+        expect(state.targetR.wrist.distanceTo(anchor)).toBeLessThan(1e-6); contacts++;
+      }
+    }
+    expect(contacts).toBeGreaterThan(40);
+    expect(h.cues).toEqual(['bolt-open', 'bolt-back', 'bolt-home']);
+    h.view.dispose();
+  });
+
+  for (const initial of [0, 3]) it(`loads six shotgun shells from ${initial} and racks only after an empty sequence`, async () => {
+    const h = await equip('shotgun', initial), pump = h.view.scene.getObjectByName('shotgun_pump')!;
+    const rest = pump.position.z;
+    h.actor.reloadUntil = h.now() + WEAPONS.shotgun.reload;
+    let cycles = 0, travel = 0;
+    while (h.actor.weapons[0].ammo < 6) {
+      if (h.now() + 1 / 120 >= h.actor.reloadUntil) {
+        h.actor.weapons[0].ammo++; cycles++;
+        h.actor.reloadUntil = h.actor.weapons[0].ammo < 6 ? h.actor.reloadUntil + WEAPONS.shotgun.reload : 0;
+      }
+      h.step(1 / 120);
+      travel = Math.max(travel, pump.position.z - rest);
+    }
+    for (let i = 0; i < 65; i++) { h.step(1 / 120); travel = Math.max(travel, pump.position.z - rest); }
+    expect(cycles).toBe(6 - initial);
+    expect(h.cues.filter(cue => cue === 'shell-in')).toHaveLength(6 - initial);
+    expect(h.cues.filter(cue => cue === 'pump-back')).toHaveLength(initial === 0 ? 1 : 0);
+    expect(h.cues.filter(cue => cue === 'pump-home')).toHaveLength(initial === 0 ? 1 : 0);
+    expect(travel).toBeCloseTo(initial === 0 ? .085 : 0, 3);
+    expect(pump.position.z).toBeCloseTo(rest, 7);
+    h.view.dispose();
+  });
+
+  for (const ammo of [0, 1, 2, 3]) it(`refills exactly ${4 - ammo} coconuts and preserves the chamber when it contains a round`, async () => {
+    const h = await equip('coco', ammo);
+    const mag = h.view.scene.getObjectByName('coco_mag')!, middle = h.view.scene.getObjectByName('coco_load1')!, front = h.view.scene.getObjectByName('coco_load2')!;
+    expect(Number(mag.visible) + Number(middle.visible) + Number(front.visible)).toBe(Math.max(0, ammo - 1));
+    h.actor.reloadUntil = h.now() + WEAPONS.coco.reload;
+    while (h.now() < h.actor.reloadUntil) h.step(1 / 120);
+    expect(h.cues.filter(cue => cue === 'coconut-in')).toHaveLength(4 - ammo);
+    expect(h.cues.filter(cue => cue === 'pump-back')).toHaveLength(ammo === 0 ? 1 : 0);
+    expect(h.cues.filter(cue => cue === 'pump-home')).toHaveLength(ammo === 0 ? 1 : 0);
+    h.actor.reloadUntil = 0; h.actor.weapons[0].ammo = 4; h.step();
+    expect(mag.visible && middle.visible && front.visible).toBe(true);
     h.view.dispose();
   });
 });

@@ -1,0 +1,303 @@
+{
+  "weapon": "shotgun",
+  "status": "support grip corrected; hip framing pending",
+  "viewport": [
+    1280,
+    720
+  ],
+  "quality": "medium",
+  "support": {
+    "summary": {
+      "ring3": {
+        "min": 1.1,
+        "inside": 0,
+        "n": 298,
+        "at": [
+          28,
+          18,
+          -264
+        ]
+      },
+      "ring2": {
+        "min": 7.3,
+        "inside": 0,
+        "n": 91,
+        "at": [
+          27,
+          11,
+          -263
+        ]
+      },
+      "ring1": {
+        "min": 17.2,
+        "inside": 0,
+        "n": 130,
+        "at": [
+          24,
+          1,
+          -256
+        ]
+      },
+      "hand": {
+        "min": 4.3,
+        "inside": 0,
+        "n": 743,
+        "at": [
+          -6,
+          -1,
+          -288
+        ]
+      },
+      "middle1": {
+        "min": 13.6,
+        "inside": 0,
+        "n": 139,
+        "at": [
+          18,
+          -7,
+          -287
+        ]
+      },
+      "middle2": {
+        "min": 9.8,
+        "inside": 0,
+        "n": 107,
+        "at": [
+          26,
+          2,
+          -290
+        ]
+      },
+      "middle3": {
+        "min": 1.1,
+        "inside": 0,
+        "n": 326,
+        "at": [
+          29,
+          24,
+          -296
+        ]
+      },
+      "fore_twist": {
+        "min": 17.7,
+        "inside": 0,
+        "n": 1027,
+        "at": [
+          -41,
+          8,
+          -231
+        ]
+      },
+      "thumb1": {
+        "min": 12.1,
+        "inside": 0,
+        "n": 163,
+        "at": [
+          -25,
+          -1,
+          -291
+        ]
+      },
+      "index1": {
+        "min": 13.3,
+        "inside": 0,
+        "n": 129,
+        "at": [
+          4,
+          -11,
+          -308
+        ]
+      },
+      "index2": {
+        "min": 7.7,
+        "inside": 0,
+        "n": 107,
+        "at": [
+          11,
+          -4,
+          -317
+        ]
+      },
+      "thumb2": {
+        "min": 7,
+        "inside": 0,
+        "n": 131,
+        "at": [
+          -32,
+          13,
+          -315
+        ]
+      },
+      "thumb3": {
+        "min": 1.2,
+        "inside": 0,
+        "n": 324,
+        "at": [
+          -29,
+          23,
+          -331
+        ]
+      },
+      "index3": {
+        "min": 1.1,
+        "inside": 0,
+        "n": 306,
+        "at": [
+          17,
+          6,
+          -321
+        ]
+      }
+    },
+    "digits": {
+      "index": {
+        "base": [
+          8,
+          -22,
+          -307
+        ],
+        "baseAngle": -86,
+        "tip": [
+          27,
+          -1,
+          -326
+        ],
+        "tipAngle": -71,
+        "direction": [
+          0.567,
+          0.608,
+          -0.556
+        ],
+        "along": 56,
+        "pump": {
+          "baseAngle": -82,
+          "tipAngle": -49
+        }
+      },
+      "middle": {
+        "base": [
+          22,
+          -18,
+          -285
+        ],
+        "baseAngle": -77,
+        "tip": [
+          37,
+          11,
+          -297
+        ],
+        "tipAngle": -61,
+        "direction": [
+          0.427,
+          0.846,
+          -0.318
+        ],
+        "along": 71,
+        "pump": {
+          "baseAngle": -66,
+          "tipAngle": -28
+        }
+      },
+      "ring": {
+        "base": [
+          24,
+          -11,
+          -262
+        ],
+        "baseAngle": -75,
+        "tip": [
+          41,
+          17,
+          -267
+        ],
+        "tipAngle": -56,
+        "direction": [
+          0.528,
+          0.837,
+          -0.143
+        ],
+        "along": 82,
+        "pump": {
+          "baseAngle": -61,
+          "tipAngle": -18
+        }
+      },
+      "thumb": {
+        "base": [
+          -44,
+          -6,
+          -304
+        ],
+        "baseAngle": -118,
+        "tip": [
+          -38,
+          16,
+          -329
+        ],
+        "tipAngle": -122,
+        "direction": [
+          0.175,
+          0.655,
+          -0.735
+        ],
+        "along": 43,
+        "pump": {
+          "baseAngle": -140,
+          "tipAngle": -159
+        }
+      }
+    },
+    "bore": [
+      0,
+      78,
+      -671
+    ],
+    "trianglesNear": 4897,
+    "centroid": [
+      0.053482988275441554,
+      -0.1000253869014282,
+      -0.7816309542226152
+    ],
+    "presentation": {
+      "onScreen": 1,
+      "palmToEyeDegrees": 95,
+      "bounds": [
+        -0.012,
+        -0.264,
+        0.136,
+        -0.1
+      ]
+    },
+    "worst": 1.1
+  },
+  "motions": {
+    "hip": {
+      "samples": 1,
+      "worstMm": 0.8
+    },
+    "ads": {
+      "samples": 1,
+      "worstMm": 0.8
+    },
+    "sprint": {
+      "samples": 1,
+      "worstMm": 0.8
+    },
+    "inspect": {
+      "samples": 1,
+      "worstMm": 0.8
+    },
+    "reload": {
+      "samples": 25,
+      "worstMm": 0.1
+    },
+    "reload-partial": {
+      "samples": 25,
+      "worstMm": 0.1
+    },
+    "fire": {
+      "samples": 25,
+      "worstMm": 0.8
+    }
+  }
+}

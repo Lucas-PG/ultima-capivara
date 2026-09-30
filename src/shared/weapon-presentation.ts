@@ -13,7 +13,7 @@ export const MELEE_SECONDS = .46;
 export const MELEE_CONTACT = .135;
 export const MELEE_HIT_STOP = .035;
 export const weaponShotDuration = (id: WeaponId) => id === 'machete' ? MELEE_SECONDS :
-  id === 'shotgun' ? .42 : id === 'sniper' ? .58 : Math.min(.16, 60 / WEAPONS[id].rpm * .8);
+  id === 'shotgun' ? .42 : id === 'sniper' ? .95 : id === 'coco' ? .64 : Math.min(.16, 60 / WEAPONS[id].rpm * .8);
 export interface MeleePose { x: number; y: number; z: number; pitch: number; yaw: number; roll: number; smear: number; kick: number }
 export function sampleMelee(seconds: number, side: number, out: MeleePose): MeleePose {
   const t = Math.max(0, seconds);

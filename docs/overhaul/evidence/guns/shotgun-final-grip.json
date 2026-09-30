@@ -1,0 +1,135 @@
+{
+ "weapon": "shotgun",
+ "resolution": [
+  1280,
+  720
+ ],
+ "preset": "medium",
+ "browser": "Chrome, ANGLE Metal",
+ "digitAngles": {
+  "L": {
+   "ring3": [
+    303,
+    -282
+   ],
+   "ring1": [
+    260,
+    -283
+   ],
+   "hand": [
+    218,
+    -282
+   ],
+   "middle1": [
+    254,
+    -311
+   ],
+   "middle3": [
+    286,
+    -317
+   ],
+   "thumb1": [
+    177,
+    -307
+   ],
+   "index1": [
+    235,
+    -328
+   ],
+   "thumb3": [
+    146,
+    -326
+   ],
+   "index3": [
+    263,
+    -351
+   ],
+   "indexAlong": 45,
+   "middleAlong": 80,
+   "ringAlong": 92,
+   "thumbAlong": 57
+  },
+  "R": {
+   "ring3": [
+    280,
+    30
+   ],
+   "ring1": [
+    291,
+    41
+   ],
+   "hand": [
+    285,
+    68
+   ],
+   "middle1": [
+    295,
+    33
+   ],
+   "middle3": [
+    282,
+    16
+   ],
+   "thumb1": [
+    267,
+    75
+   ],
+   "index1": [
+    290,
+    43
+   ],
+   "index3": [
+    294,
+    13
+   ],
+   "thumb3": [
+    254,
+    49
+   ],
+   "indexAlong": 33,
+   "middleAlong": 58,
+   "ringAlong": 71,
+   "thumbAlong": 42
+  }
+ },
+ "clearanceMm": {
+  "R": {
+   "worst": 1,
+   "mins": {
+    "ring3": 3,
+    "ring2": 15.7,
+    "ring1": 27.5,
+    "hand": 1,
+    "middle1": 19.8,
+    "middle2": 14.4,
+    "middle3": 1.3,
+    "fore_twist": 42.6,
+    "thumb1": 11.1,
+    "index1": 1.8,
+    "index2": 5.6,
+    "index3": 1.3,
+    "thumb2": 2.6,
+    "thumb3": 1.2
+   }
+  },
+  "L": {
+   "worst": 0.7,
+   "mins": {
+    "ring3": 0.7,
+    "ring2": 4,
+    "ring1": 12.3,
+    "hand": 1.2,
+    "middle1": 15.5,
+    "middle2": 13.8,
+    "middle3": 1.1,
+    "fore_twist": 23.7,
+    "thumb1": 9.9,
+    "index1": 9.2,
+    "index2": 8.7,
+    "thumb2": 4.1,
+    "thumb3": 0.7,
+    "index3": 1.2
+   }
+  }
+ }
+}
