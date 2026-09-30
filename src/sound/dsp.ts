@@ -92,6 +92,7 @@ export function band(x: Float32Array, rate: number, rng: Rng, o: {
   }
   const f = o.freq;
   svf(layer, rate, o.mode, typeof f === 'function' ? (t: number) => f(t) : f, o.q ?? .707);
+  fadeOut(layer, rate, .004);
   return mix(x, layer, Math.round(o.start * rate), o.gain);
 }
 
@@ -104,6 +105,7 @@ export function tone(x: Float32Array, rate: number, o: {
   const to = o.to ?? o.from, glide = Math.max(1, Math.round((o.glide ?? o.dur) * rate)), attack = Math.max(1, Math.round((o.attack ?? .002) * rate));
   const ratio = (to / o.from) ** (1 / glide), decay = Math.exp(-1 / (o.tau * rate)), vib = o.vibrato;
   let phase = o.phase ?? 0, f = o.from, e = 0;
+  const releaseSamples = Math.max(1, Math.round(rate * .004));
   for (let i = 0; i < n && a + i < x.length; i++) {
     if (i < glide) f *= ratio;
     const fi = vib ? f * (1 + vib[1] * Math.sin(TAU * vib[0] * i / rate)) : f;
@@ -111,7 +113,9 @@ export function tone(x: Float32Array, rate: number, o: {
     const p = phase - Math.floor(phase);
     const w = o.shape === 'tri' ? 1 - 4 * Math.abs(p - .5) : o.shape === 'saw' ? 2 * p - 1 : o.shape === 'square' ? (p < .5 ? 1 : -1) : Math.sin(TAU * p);
     e = i < attack ? i / attack : i === attack ? 1 : e * decay;
-    if (a + i >= 0) x[a + i] += w * e * o.gain;
+    // A 4 ms release at the end so a cut-short tone never clicks.
+    const release = Math.min(1, (n - i) / releaseSamples);
+    if (a + i >= 0) x[a + i] += w * e * release * o.gain;
   }
   return x;
 }
