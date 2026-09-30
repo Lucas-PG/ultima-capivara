@@ -230,3 +230,12 @@ describe('master output', () => {
     expect(peak(out)).toBeLessThan(.99);
   });
 });
+
+
+it('makes the incoming report bright and brief, distinct from the low gun body and the moving whiz', () => {
+  const incoming = sound('shot:incoming'), body = sound('far:m4'), whiz = sound('whiz');
+  expect(centroid(incoming.x, incoming.rate)).toBeGreaterThan(centroid(body.x, body.rate) * 2);
+  expect(incoming.x.length / incoming.rate).toBeLessThan(.15);
+  expect(incoming.x.length / incoming.rate).toBeLessThan(whiz.x.length / whiz.rate);
+  expect(low('shot:incoming')).toBeLessThan(.05);
+});

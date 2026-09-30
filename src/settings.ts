@@ -19,6 +19,9 @@ export function loadSettings(): Settings {
     const value = stored || JSON.parse(localStorage.getItem('uc-settings') || '{}');
     for (const key of ['sensitivity', 'fov', 'master', 'effects', 'ambience', 'music'] as const) {
       let number = key === 'sensitivity' ? value.sensitivity ?? value.sens : value[key];
+      // Before the procedural score, .25 was the default. A version marker lets
+      // players deliberately choose .25 again without another migration.
+      if (key === 'music' && value.musicMix !== 2 && number === .25) number = DEFAULT_SETTINGS.music;
       // Saves before v3 stored a vertical field of view; convert it to the horizontal (16:9) scale.
       if (key === 'fov' && typeof number === 'number' && value.fovScale !== 'horizontal') number = horizontalFov(number);
       if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? FOV_RANGE[0] : key === 'sensitivity' ? .2 : 0, key === 'fov' ? FOV_RANGE[1] : key === 'sensitivity' ? 3 : 1);
@@ -37,7 +40,7 @@ export function loadSettings(): Settings {
   } catch { /* Blocked storage and old preferences must never prevent playing. */ }
   return result;
 }
-export function saveSettings(settings: Settings) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, fovScale: 'horizontal' })); } catch { /* Ephemeral browser mode. */ } }
+export function saveSettings(settings: Settings) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, fovScale: 'horizontal', musicMix: 2 })); } catch { /* Ephemeral browser mode. */ } }
 // Field of view is shown and stored as horizontal degrees at 16:9 (Hor+: wider screens see more).
 export const FOV_RANGE = [80, 120] as const;
 export const verticalFov = (horizontal: number) => 2 * Math.atan(Math.tan(horizontal * Math.PI / 360) / (16 / 9)) * 180 / Math.PI;

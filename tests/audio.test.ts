@@ -3,6 +3,7 @@ import { LOW_HP, SoundEngine, STORM_LEVEL } from '../src/audio';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import { SOUND_BY_ID, SOUNDS } from '../src/sound/bank';
 import { LEVEL, levelGain, safetyCurve } from '../src/sound/mix';
+import { supplyPlanePosition } from '../src/shared/supply-drops';
 import { terrainSurface } from '../src/simulation/surface';
 import type { WorldSpec } from '../src/shared/types';
 import { FakeBuffer, FakeContext, FakeNode, type FakeSource } from './audio/fake-context';
@@ -493,5 +494,49 @@ describe('world, pickups and flow', () => {
     audio.event({ id: 1, type: 'shot', actor: 'self', weapon: 'pistol', origin: here, end: here, hit: true }, here, 0, 'self');
     audio.update(actor(), snapshot([actor()]), 1 / 60, false);
     expect(audio.buses.ambienceDuck.gain.value).toBeLessThan(.5);
+  });
+});
+
+
+describe('combat and supply audio integration', () => {
+  it('adds a spatial forward report only to hostile rounds reaching toward the listener', async () => {
+    const { audio, ctx } = await engine();
+    const event = { id: 1, type: 'shot', actor: 'enemy', weapon: 'm4', origin: { x: 60, y: 0, z: 0 }, end: here, hit: true };
+    audio.event(event, here, 0, 'self');
+    const cue = voices(ctx, 'shot:incoming')[0];
+    expect(cue).toBeDefined(); expect(spatial(cue)).toBe(true);
+    expect(cue.started).toBeCloseTo(1 + 60 / 343);
+    // Sideways, away, a wall stops the round early, local fire, projectiles and melee.
+    for (const change of [{ end: { x: 60, y: 0, z: 60 } }, { end: { x: 120, y: 0, z: 0 } },
+      { end: { x: 30, y: 0, z: 0 } }, { actor: 'self' }, { weapon: 'coco' }, { weapon: 'machete' }]) {
+      audio.event({ ...event, ...change }, here, 0, 'self');
+    }
+    expect(voices(ctx, 'shot:incoming')).toHaveLength(1);
+    audio.occluded = () => true;
+    audio.event(event, here, 0, 'self');
+    expect(voices(ctx, 'shot:incoming')).toHaveLength(1);
+  });
+
+  it('moves the supply engine with its carrier, lowers pitch on departure and releases it on exit', async () => {
+    const { audio, ctx } = await engine(), me = actor(); me.velocity = { x: 0, y: 0, z: 0 };
+    const drop = { id: 'one', district: 'vila', pos: { x: 0, y: 0, z: 0 }, heading: Math.PI / 2, announcedAt: 45, releaseAt: 50, landsAt: 62, opened: false };
+    const update = (time: number, extra = {}, menu = false) => audio.update(me,
+      snapshot([me], { time, config: { mode: 'battle-royale' }, supplyDrops: [drop], ...extra }), 1 / 60, menu);
+    update(44); expect(audio.loops.has('supply-plane:one')).toBe(false);
+    update(46);
+    const loop = audio.loops.get('supply-plane:one'), before = loop.gain.gain.value, rate = loop.source.playbackRate.value;
+    expect(loop).toBeDefined(); expect(spatial(loop.source)).toBe(true);
+    update(50);
+    expect(loop.gain.gain.value).toBeGreaterThan(before);
+    const pos = supplyPlanePosition(drop, 50);
+    expect([loop.panner.positionX.value, loop.panner.positionY.value, loop.panner.positionZ.value]).toEqual([pos.x, pos.y, pos.z]);
+    update(53); expect(loop.source.playbackRate.value).toBeLessThan(rate);
+    expect(voices(ctx, 'bed:engine')).toHaveLength(1);
+    update(72); expect(audio.loops.has('supply-plane:one')).toBe(false); expect(loop.source.stopped).not.toBeNull();
+    for (const exit of ['menu', 'results', 'snapshot']) {
+      update(46); const active = audio.loops.get('supply-plane:one');
+      update(47, exit === 'results' ? { phase: 'results' } : exit === 'snapshot' ? { supplyDrops: [] } : {}, exit === 'menu');
+      expect(audio.loops.has('supply-plane:one')).toBe(false); expect(active.source.stopped).not.toBeNull();
+    }
   });
 });

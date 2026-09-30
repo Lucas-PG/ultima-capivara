@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { supplyDropPhase, supplyDropPosition, SUPPLY_RELEASE_HEIGHT } from '../shared/supply-drops';
+import { SUPPLY_FLYBY_SECONDS, supplyPlanePosition, supplyDropPhase, supplyDropPosition, SUPPLY_RELEASE_HEIGHT } from '../shared/supply-drops';
 import type { Settings, WorldSnapshot } from '../shared/types';
 import type { AssetLoader } from './assets';
 
@@ -113,11 +113,10 @@ export class SupplyDropView {
       const sway = reduced || incoming ? 0 : Math.exp(-Math.max(0, sinceLanding) * 10);
       delivery.crate.rotation.set(Math.sin(time * 1.3) * .025 * sway, drop.heading, Math.sin(time * 1.7) * .04 * sway);
 
-      delivery.carrier.visible = sinceRelease < 22;
-      delivery.carrier.position.set(drop.pos.x + x * sinceRelease * 12,
-        drop.pos.y + SUPPLY_RELEASE_HEIGHT + 1.2 + Math.max(0, sinceRelease) * 1.5, drop.pos.z + z * sinceRelease * 12);
+      delivery.carrier.visible = sinceRelease < SUPPLY_FLYBY_SECONDS;
+      delivery.carrier.position.copy(supplyPlanePosition(drop, time));
       delivery.carrier.rotation.set(0, drop.heading, reduced ? 0 : Math.sin(time * 1.1) * .025);
-      delivery.carrier.scale.setScalar(1 - THREE.MathUtils.smoothstep(sinceRelease, 18, 22));
+      delivery.carrier.scale.setScalar(1 - THREE.MathUtils.smoothstep(sinceRelease, SUPPLY_FLYBY_SECONDS - 4, SUPPLY_FLYBY_SECONDS));
 
       delivery.chute.visible = !incoming && sinceLanding < 1.2 && phase !== 'opened';
       delivery.chute.position.copy(position); delivery.chute.rotation.copy(delivery.crate.rotation);
