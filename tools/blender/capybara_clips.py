@@ -263,15 +263,15 @@ author('run', .40, run, stabilize=.9)
 # ------------------------------------------------------------------ crouch: low on the haunches
 # The crouched hit shape is the standing one scaled by 1.3/1.8 (head centre ~1.16 m): the
 # capybara hunkers down on folded legs with its belly low and its back rounded.
-CROUCH_DROP = .30
+CROUCH_DROP = .34
 
 
 def crouch_pose(ph, drop=CROUCH_DROP):
     pb['spine'].location.y = -drop
-    pb['spine'].rotation_euler.x = -.30
-    pb['chest'].rotation_euler.x = -.12
-    pb['neck'].rotation_euler.x = .30
-    pb['head'].rotation_euler.x = .10
+    pb['spine'].rotation_euler.x = -.40
+    pb['chest'].rotation_euler.x = -.16
+    pb['neck'].rotation_euler.x = -.08      # the neck folds forward and down into the shoulders
+    pb['head'].rotation_euler.x = .62       # the face still looks ahead
 
 
 def crouch_idle(t, sec):
@@ -289,7 +289,7 @@ def crouch_idle(t, sec):
     secondary(sec, 0, 0)
 
 
-author('crouch_idle', 4.0, crouch_idle)
+author('crouch_idle', 4.0, crouch_idle, stabilize=.95)
 
 
 def crouch_walk(t, sec):
@@ -304,7 +304,7 @@ def crouch_walk(t, sec):
     secondary(sec, math.cos(2 * ph), roll)
 
 
-author('crouch_walk', .64, crouch_walk, stabilize=.9)
+author('crouch_walk', .64, crouch_walk, stabilize=.95)
 
 
 # ------------------------------------------------------------------ air

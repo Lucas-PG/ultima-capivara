@@ -419,7 +419,8 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   } else if (actor.swimming) { weight('idle', 1); runtime.landing = 0; }
   else if (runtime.emoteTime > 0) weight('idle', 1);
   else if (actor.stage !== 'ground' || !actor.grounded) {
-    const airborne = bouncing ? 'boing' : actor.velocity.y < (actor.bounceProtected && actions.boing ? 0 : -.15) ? 'fall' : 'jump';
+    const airborne = actor.stage === 'falling' && actions.skydive ? 'skydive' : actor.stage === 'parachute' && actions.parachute ? 'parachute'
+      : bouncing ? 'boing' : actor.velocity.y < (actor.bounceProtected && actions.boing ? 0 : -.15) ? 'fall' : 'jump';
     weight(airborne, 1, 'jump');
     if (runtime.grounded && airborne !== 'boing') actions[actions[airborne] ? airborne : 'jump'].reset().play();
   } else {
@@ -507,7 +508,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
     runtime.scene.rotation.x = -1.25;
     runtime.scene.position.set(0, .9 * (1 - Math.cos(-1.25)), -.9 * Math.sin(-1.25));
   } else if (actor.stage === 'parachute') {
-    for (const arm of arms) arm.rotateX(2.4);
+    if (!actions.parachute) for (const arm of arms) arm.rotateX(2.4);
     root.rotation.z += Math.sin(runtime.elapsed * 2.2) * .025;
   }
   if (runtime.hitTime > 0) {

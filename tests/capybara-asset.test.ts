@@ -244,3 +244,32 @@ describe('shipped capybara asset contract', () => {
   });
 
 });
+
+// Shots at a crouched capybara use the standing shapes scaled by 1.3 / 1.8 about the feet, so
+// the visible crouched head must sit where that smaller head sphere is.
+it('crouches its head into the crouched head volume', async () => {
+  const bytes = await readFile('public/models/capybara/capybara.glb');
+  vi.stubGlobal('self', globalThis);
+  vi.stubGlobal('createImageBitmap', async () => ({ width: 16, height: 16, close() {} }));
+  let gltf;
+  try {
+    gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+  } finally { vi.unstubAllGlobals(); }
+  gltf.scene.updateMatrixWorld(true);
+  const head = gltf.scene.getObjectByName('head')!;
+  const shape = STANDING_HIT_SHAPE, k = 1.3 / 1.8;
+  // The standing head centre, carried by the head bone.
+  const local = head.worldToLocal(new Vector3(0, shape.headY, shape.headZ));
+  const mixer = new AnimationMixer(gltf.scene);
+  for (const name of ['crouch_idle', 'crouch_walk']) {
+    const clip = gltf.animations.find(clip => clip.name === name)!;
+    mixer.stopAllAction(); mixer.clipAction(clip).play();
+    for (let sample = 0; sample < 6; sample++) {
+      mixer.setTime(clip.duration * sample / 6); gltf.scene.updateMatrixWorld(true);
+      const centre = head.localToWorld(local.clone());
+      const target = new Vector3(0, shape.headY * k, shape.headZ * k);
+      expect(centre.distanceTo(target), `${name} ${sample}`).toBeLessThan(shape.headR * k * .4);
+    }
+  }
+  mixer.stopAllAction(); mixer.uncacheRoot(gltf.scene);
+});

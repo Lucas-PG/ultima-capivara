@@ -146,6 +146,30 @@ def add_emotes(rig, scene, report, leg, author, secondary, blink):
                 pb['belly'].scale.z = 1 + .03 * breath
                 for s, n in SIDES:
                     hands[s] = ((s * .22, .07, -.78), (s * .34, .22, -.52))
+            elif name == 'skydive':
+                # Freefall (the runtime pitches the body face down): a spread belly-flop, paws
+                # wide, legs trailing apart, head up to look ahead, ears and rag streaming.
+                flap = math.sin(ph * 6)
+                for i, (s, n) in enumerate(SIDES):
+                    leg(n, -.30, .12 + .02 * math.sin(ph * 4 + i * 2), .10, 0, -.60, .3, spread=.6)
+                pb['neck'].rotation_euler.x = .55
+                pb['head'].rotation_euler.x = .35
+                spine.rotation_euler.x = .12
+                for s, n in SIDES:
+                    hands[s] = ((s * .62, 1.28 + .02 * flap, -.10), (s * .48, 1.36, .06))
+                    pb['ear_' + n].rotation_euler.x = .35 + .12 * math.sin(ph * 14 + s)
+                pb['hipcloth'].rotation_euler.x = .9 + .15 * math.sin(ph * 16)
+                pb['jaw'].rotation_euler.x = .05 + .03 * math.sin(ph * 10)
+            elif name == 'parachute':
+                # Hanging in the harness: paws up on the risers, legs dangling and swinging.
+                swing = math.sin(ph)
+                for i, (s, n) in enumerate(SIDES):
+                    leg(n, .08 + .05 * math.sin(ph + i * 1.3), .10, .03, 0, .25, 0)
+                spine.rotation_euler.x = .03 * swing
+                for s, n in SIDES:
+                    hands[s] = ((s * .24, 1.80, -.06), (s * .40, 1.52, .02))
+                pb['head'].rotation_euler.z = .05 * math.sin(ph * 2)
+                pb['head'].rotation_euler.x = -.08
             elif name == 'boing':
                 # Airborne tuck opening into a happy star (the host owns the flight).
                 elapsed = t * seconds
@@ -176,6 +200,10 @@ def add_emotes(rig, scene, report, leg, author, secondary, blink):
                     paw(n, (0, 0, -1), (0, -1, 0))
                 elif name == 'boing':
                     paw(n, (s * .3, 1, 0), (0, 0, -1), 1.0)
+                elif name == 'parachute':
+                    paw(n, (0, 0, -1), (-s, 0, 0), 1.0); curl(n, 1.2)
+                elif name == 'skydive':
+                    paw(n, (s, .1, -.3), (0, -1, 0), 1.0)
                 else:
                     curl(n, .25)
                 pb['blink_' + n].scale.y = (.30 + .02 * math.sin(ph)) if name == 'chill' else blink(t, .68, .03)
@@ -186,5 +214,8 @@ def add_emotes(rig, scene, report, leg, author, secondary, blink):
         action = author(name, seconds, emote(name, seconds, loop), loop=loop)
         action['loop'] = loop
         action['inPlace'] = True
+    # In-air poses chosen by the runtime from the actor's stage (not emotes).
+    for name, seconds in (('skydive', 2.0), ('parachute', 4.0)):
+        author(name, seconds, emote(name, seconds, True), loop=True)
     report['emotes'] = {name: dict(seconds=seconds, loop=loop, inPlace=True) for name, seconds, loop in specs if name != 'boing'}
     report['bounce'] = dict(clip='boing', seconds=1.05, starAt=.35, inPlace=True)
