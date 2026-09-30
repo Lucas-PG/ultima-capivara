@@ -205,7 +205,9 @@ for name, piece in PIECES.items():
                     paint = [channel * (1 - moss) + green * moss for channel, green in zip(tint, [.34, .52, .26])]
                 else:
                     paint = tint
-                color.data[loop_index].color = (*[ao * strata * channel for channel in paint], 1)
+                # Alpha 0 marks natural rock: the runtime adds its world-space stone detail there.
+                natural = 0 if name.startswith('cliff_') and tile == 14 else 1
+                color.data[loop_index].color = (*[ao * strata * channel for channel in paint], natural)
             poly.use_smooth = smooth
         # Rounded fruit and plants share continuous contact values across faces.
         totals, counts = [[0.0, 0.0, 0.0] for _ in mesh.vertices], [0] * len(mesh.vertices)
@@ -222,7 +224,7 @@ for name, piece in PIECES.items():
                 for loop in poly.loop_indices:
                     vertex = mesh.loops[loop].vertex_index
                     shade = [value / max(1, counts[vertex]) for value in totals[vertex]]
-                    color.data[loop].color = (*shade, 1)
+                    color.data[loop].color = (*shade, color.data[loop].color[3])
         # Collapse hidden bevel rings before tile silhouettes. Three LOD budgets
         # bound complete houses, not each submesh, while keeping one atlas draw.
         obj.data.calc_loop_triangles()
@@ -231,7 +233,7 @@ for name, piece in PIECES.items():
             # The hollow tower has two complete stair turns and a usable
             # balcony. Preserve those surfaces in the single distant instance.
             budget = [12000, 4500, 2400][level]
-        if name in ['church', 'market_hall', 'warehouse', 'sobrado']:
+        if name in ['church', 'church_hill', 'market_hall', 'warehouse', 'sobrado']:
             budget = [15000, 3500, 900][level]
         if name.startswith('cliff_'):
             budget = [3400, 1250, 600][level]

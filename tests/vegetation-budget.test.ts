@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { buildVegetation } from '../src/render/vegetation';
+import { isletPalms } from '../src/render/island-backdrop';
 import { HIDE_DISTANCE } from '../src/render/vegetation/batch';
 import { FOLIAGE_TILES } from '../src/render/vegetation/atlas';
 import { KIND, TRUNK_KINDS } from '../src/render/vegetation/mesh-builder';
@@ -110,7 +111,10 @@ describe('vegetation batch', () => {
     try {
       // Seedlings on the farm's field rows give way to the full rows the dressing plants there.
       const rows = fieldRows(world), authored = world.objects.filter(o => isBatchedPlant(o) && !onFieldRow(o, rows)), dressing = vegetationDressing(world);
-      expect(vegetation.batch.size).toBe(authored.length + dressing.length);
+      // Plus the palms on the offshore islets' coves, after the island's own plants.
+      const islets = isletPalms(world);
+      expect(islets.length).toBeGreaterThan(30);
+      expect(vegetation.batch.size).toBe(authored.length + dressing.length + islets.length);
       // Species and variants live inside the batch: the whole island's plants cost one draw call.
       const meshes = vegetation.group.children.filter((c): c is THREE.BatchedMesh => c instanceof THREE.BatchedMesh);
       expect(meshes).toHaveLength(1);
@@ -152,6 +156,24 @@ describe('vegetation batch', () => {
       expect(shader.fragmentShader).toContain(`vAux.y > .5 && vAux.y < 1.5 && diffuseColor.a < alphaTest`);
       // The shadow sways with the leaves.
       expect(shader.vertexShader).toContain('uWind');
+    } finally { vegetation.dispose(); }
+  });
+
+  it('dissolves leaves at the lens for the local camera only, never in the shadow other players see cast', () => {
+    // Plants have no collision: a player walking through a bush, or dying in one, had the screen
+    // filled with leaves. The colour pass dithers foliage out by distance to the lens; the shadow
+    // pass, which draws the plant the same for every view, must not.
+    const vegetation = buildVegetation({ objects: [], colliders: [] } as unknown as WorldSpec);
+    try {
+      const colour = vegetation.batch.mesh.material as THREE.MeshStandardMaterial;
+      const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader } as unknown as THREE.WebGLProgramParametersWithUniforms;
+      colour.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+      expect(shader.fragmentShader).toMatch(/float lens = length\( vViewPosition \);[\s\S]*nearFade[\s\S]*gl_FragCoord[\s\S]*discard/);
+      const depth = vegetation.batch.mesh.customDepthMaterial as THREE.MeshDepthMaterial;
+      const shadow = { uniforms: {}, vertexShader: THREE.ShaderLib.depth.vertexShader, fragmentShader: THREE.ShaderLib.depth.fragmentShader } as unknown as THREE.WebGLProgramParametersWithUniforms;
+      depth.onBeforeCompile(shadow, {} as THREE.WebGLRenderer);
+      expect(shadow.fragmentShader).not.toContain('nearFade');
+      expect(shadow.fragmentShader).not.toContain('gl_FragCoord');
     } finally { vegetation.dispose(); }
   });
 

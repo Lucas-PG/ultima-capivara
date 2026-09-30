@@ -25,11 +25,11 @@ export interface DressingPlant {
 /** Kit pieces that are nothing but foliage: the vegetation layer draws these instead of the kit. */
 export const VEGETATION_PIECES: ReadonlySet<string> = new Set(['bush_cluster', 'hedge']);
 /** Buildings besides the houses whose outer walls may carry garden beds. */
-const GARDEN_BUILDINGS = new Set(['church', 'market_hall']);
+const GARDEN_BUILDINGS = new Set(['church', 'church_hill', 'market_hall']);
 /** Kit pieces reviewed as plain walls for bougainvillea drapes. A new piece stays bare until added
  * here, so a kit building that paints its own bougainvillea never gets a second, clashing one. */
 export const VINE_WALLS: ReadonlySet<string> = new Set(['house_small', 'house_medium', 'house_tall', 'house_laje', 'house_laje_b',
-  'house_varanda', 'sobrado', 'church', 'market_hall']);
+  'house_varanda', 'sobrado', 'church', 'church_hill', 'market_hall']);
 /** Pieces whose outermost corner posts may carry a climbing bougainvillea. */
 export const POST_CLIMBERS: ReadonlySet<string> = new Set(['beach_kiosk', 'market_stall', 'house_varanda']);
 const URBAN = new Set(['vila', 'centro', 'posto', 'morro', 'fazenda', 'praia', 'farol', 'porto']);
@@ -101,7 +101,7 @@ function deriveDressing(world: WorldSpec): DressingPlant[] {
   // Soft pieces and planting beds have no colliders; plants must not grow through them either.
   const footprints = pieces.filter(p => !isHousePiece(p.piece) && !GARDEN_BUILDINGS.has(p.piece)).map(p => {
     const [w, d] = KIT_PIECES[p.piece]?.footprint ?? [0, 0], k = p.scale ?? 1;
-    return { p, hw: w * k / 2, hd: d * k / 2 };
+    return { p, hw: w * k / 2, hd: d * k / 2, top: p.y + (KIT_PIECES[p.piece]?.height ?? 0) * k };
   });
   // Footprints and doorways bucketed by 16 m cell: placement tests only their neighbours.
   const BUCKET = 16, bucketKey = (x: number, z: number) => `${Math.floor(x / BUCKET)}:${Math.floor(z / BUCKET)}`;
@@ -118,8 +118,10 @@ function deriveDressing(world: WorldSpec): DressingPlant[] {
   };
   const footprintsNear = bucketed(footprints, f => ({ x: f.p.x, z: f.p.z, r: Math.hypot(f.hw, f.hd) + 3 }));
   const entrancesNear = bucketed(entrances, e => ({ x: e.x + e.dx / 2, z: e.z + e.dz / 2, r: Math.hypot(e.dx, e.dz) / 2 + 4 }));
-  const insideFootprint = (x: number, z: number, margin: number, ignore?: KitPlacement) => footprintsNear(x, z).some(({ p, hw, hd }) => {
-    if (p === ignore) return false;
+  /** Is (x, z) on a piece's footprint? With a height band, only pieces reaching into it count
+   * (a pot at the door does not stand in front of a drape hanging from the eaves). */
+  const insideFootprint = (x: number, z: number, margin: number, ignore?: KitPlacement, band?: [number, number]) => footprintsNear(x, z).some(({ p, hw, hd, top }) => {
+    if (p === ignore || (band && (top < band[0] || p.y > band[1]))) return false;
     const dx = x - p.x, dz = z - p.z, c = Math.cos(p.yaw), s = Math.sin(p.yaw);
     return Math.abs(dx * c - dz * s) < hw + margin && Math.abs(dx * s + dz * c) < hd + margin;
   });
@@ -148,7 +150,7 @@ function deriveDressing(world: WorldSpec): DressingPlant[] {
     for (const a of [-1, -.5, 0, .5, 1]) for (const o of [.12, .3, .45]) {
       const px = x + tx * a * halfWidth + nx * o, pz = z + tz * a * halfWidth + nz * o;
       if (near.some(c => px > c.min.x && px < c.max.x && pz > c.min.z && pz < c.max.z)) return true;
-      if (insideFootprint(px, pz, 0, own)) return true;
+      if (insideFootprint(px, pz, 0, own, [bottom, top])) return true;
     }
     return false;
   };
@@ -274,6 +276,56 @@ function deriveDressing(world: WorldSpec): DressingPlant[] {
       add(`${p.id}:post-vine:${i}`, 'vine', variant, at.x, at.z, yaw, drop, top, .42);
       const foot = besideWall(at.x + Math.sin(yaw) * .5, at.z + Math.cos(yaw) * .5, Math.sin(yaw), Math.cos(yaw), 'bougainvillea', variant, 1.2 + hash(p.id, 110 + i) * .3, .45, p);
       if (foot) add(`${p.id}:post-foot:${i}`, 'bougainvillea', variant, foot.x, foot.z, yaw, foot.height);
+    });
+  }
+
+  // 2c. Plants the kit authors as anchors (the terraced fronts, pots, window boxes, yard walls): the
+  // kit draws only the wall, pot or box. Drapes are laid out by the kit clear of every door and window;
+  // here they are chosen per front for variety, split into trails of natural width and coloured.
+  for (const p of pieces) {
+    const anchors = KIT_PIECES[p.piece]?.plantings;
+    if (!anchors) continue;
+    const k = p.scale ?? 1, bare = !p.piece.startsWith('muro') && hash(p.id, 200) < .2;
+    anchors.forEach((a, ai) => {
+      const at = toWorld(p, a.x, a.z), y = p.y + a.y * k, id = `${p.id}:${a.type}:${ai}`;
+      if (a.type === 'drape') {
+        // About one front in five stays bare; on the others each drape grows at even odds.
+        if (bare || (!p.piece.startsWith('muro') && hash(p.id, 210 + ai) < .4)) return;
+        const drop = a.drop * k * (.9 + hash(p.id, 220 + ai) * .1), s = drop / SPECIES.vine.height, width = a.width * k;
+        // Mostly magenta and pink, one drape in four the coral bougainvillea.
+        const family = hash(p.id, 230 + ai) < .75 ? [0, 1, 3] : [2, 2, 0];
+        const first = Math.floor(hash(p.id, 240 + ai) * family.length);
+        const natural = STYLE_HALF_WIDTH.reduce((sum, h) => sum + h * 2, 0) / STYLE_HALF_WIDTH.length * s;
+        // Trails a little closer than the template's own spacing: a lush cascade, not a few wisps.
+        const n = Math.max(1, Math.ceil(width / (natural * .72))), segment = width / n;
+        if (blockedInFront(at.x, at.z, p.yaw, width / 2, y - drop + .15, y - .05, p) || vineIntoRoom(at.x, at.z, p.yaw, width / 2, y, drop)) return;
+        for (let i = 0; i < n; i++) {
+          const variant = family[(first + i) % family.length], along = -width / 2 + (i + .5) * segment;
+          const o = toWorld(p, a.x + along / k, a.z);
+          add(`${id}:${i}`, 'vine', variant, o.x, o.z, p.yaw, drop, y, segment / (STYLE_HALF_WIDTH[variant] * 2 * s));
+          // A shorter second layer a hand in front, staggered: the mass over the edge reads full.
+          const front = family[(first + i + 1) % family.length], shift = (hash(p.id, 280 + ai * 7 + i) - .5) * segment * .4;
+          const f = toWorld(p, a.x + (along + shift) / k, a.z + .07 / k);
+          add(`${id}:${i}:front`, 'vine', front, f.x, f.z, p.yaw, drop * .62, y + .04, segment * .85 / (STYLE_HALF_WIDTH[front] * 2 * s * .62));
+        }
+      } else if (a.type === 'box') {
+        const variant = Math.floor(hash(p.id, 250 + ai) * SPECIES.windowbox.variants), height = SPECIES.windowbox.height * a.width * k;
+        // The box hangs in front of the wall, its plants wholly outside the room behind (the
+        // radial foliage profile would wrongly reach through the wall): only spawns are checked.
+        const foliage = foliageAt('windowbox', variant, at.x, y, at.z, height);
+        if (!foliage || !overSpawn(foliage)) add(id, 'windowbox', variant, at.x, at.z, p.yaw, height, y);
+      } else if (a.type === 'pot') {
+        // The pot template's rim (radius 0.74 at 0.98 of scale 1) is set on the kit pot's rim, the
+        // mound a little fuller than the pot so it overflows it.
+        const s = a.radius * k * 1.2 / .74, roll = hash(p.id, 260);
+        const variant = a.style === 'tall' ? (roll < .5 ? 1 : 2) : [0, 2, 3, 0][Math.floor(roll * 4)];
+        const base = y - .98 * s, height = SPECIES.pot.height * s;
+        if (!intrudes('pot', variant, at.x, base, at.z, height)) add(id, 'pot', variant, at.x, at.z, hash(p.id, 261) * Math.PI * 2, height, base);
+      } else {
+        const variant = Math.floor(hash(p.id, 270) * SPECIES[a.species].variants);
+        const foot = besideWall(at.x, at.z, -Math.sin(p.yaw), -Math.cos(p.yaw), a.species, variant, a.height * k, .7, p);
+        if (foot) add(id, a.species, variant, foot.x, foot.z, p.yaw, foot.height);
+      }
     });
   }
 

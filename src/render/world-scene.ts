@@ -18,6 +18,7 @@ import { RecreationView } from './recreation';
 import { GroundCover } from './ground-cover';
 import { createKit, type KitScene } from './kit';
 import { releaseAfterUpload } from './memory';
+import { STONE_GLSL } from './stone-detail';
 import { buildProps } from './props';
 import { buildWallArt } from './wall-art';
 import { textSignMaterial, twoSidedTextSign } from './signage';
@@ -189,6 +190,7 @@ export class WorldScene {
   private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly waterfalls: ReturnType<typeof createWaterfalls>;
+  private readonly backdrop: ReturnType<typeof createIslandBackdrop>;
   private readonly recreation: RecreationView;
   private readonly vegetation: ReturnType<typeof buildVegetation>;
   private readonly groundCover: GroundCover;
@@ -265,7 +267,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v13:${ROADS.length}`;
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v15:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -328,6 +330,7 @@ export class WorldScene {
           return terrainNoise(point) * 0.6 + terrainNoise(point * 2.1 + vec2(5.2, 1.3)) * 0.28 +
             terrainNoise(point * 4.3 + vec2(9.1, 3.7)) * 0.12;
         }
+        ${STONE_GLSL}
         float terrainRectDistance(vec2 point, vec4 rect) {
           vec2 center = (rect.xy + rect.zw) * 0.5;
           vec2 halfSize = (rect.zw - rect.xy) * 0.5;
@@ -335,7 +338,15 @@ export class WorldScene {
           return length(max(outside, 0.0)) + min(max(outside.x, outside.y), 0.0);
         }
       `).replace('#include <map_fragment>', `
-        #include <map_fragment>
+        // The colour map holds one texel per 0.5 m: near the eye its soft blends between grass,
+        // earth and sand read as smudges. A small world-space warp of the lookup breaks every
+        // blend into an irregular painted edge, and a fine wash adds grain; both fade with range.
+        float terrainNear = 1.0 - smoothstep(12.0, 40.0, length(vViewPosition));
+        vec2 terrainWarp = (vec2(terrainFbm(vTerrainXZ / 1.1 + vec2(3.1, 8.7)), terrainFbm(vTerrainXZ / 1.1 + vec2(11.4, 2.9))) * .7 +
+          vec2(terrainNoise(vTerrainXZ / .32 + vec2(5.0, 1.0)), terrainNoise(vTerrainXZ / .32 + vec2(2.0, 9.0))) * .45) * terrainNear;
+        vec4 sampledDiffuseColor = texture2D(map, vMapUv + terrainWarp / ${world.size.toFixed(1)});
+        diffuseColor *= sampledDiffuseColor;
+        diffuseColor.rgb *= 1.0 + (terrainNoise(vTerrainXZ / .23) * .035 + terrainNoise(vTerrainXZ / .07) * .02) * terrainNear;
         float distanceToRoad = 1e6;
         for (int road = 0; road < ${ROADS.length}; road++)
           distanceToRoad = min(distanceToRoad, terrainRectDistance(vTerrainXZ, terrainRoads[road]));
@@ -379,7 +390,16 @@ export class WorldScene {
         triWeights/=max(dot(triWeights,vec3(1.0)),.001);
         float rockWash=dot(triWeights,vec3(terrainFbm(terrainPoint.yz/3.5),terrainFbm(terrainPoint.xz/3.5),terrainFbm(terrainPoint.xy/3.5)));
         vec3 rockPaint=mix(terrainRockPaint,terrainRockTop,smoothstep(-.3,.3,rockWash))*(.97+rockWash*.1);
-        diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockMask * (1.0 - asphaltMask - curbMask));
+        // World-space joints, grain and streaks: the 2 m colour grid alone smears up close.
+        float rockShare = rockMask * (1.0 - asphaltMask - curbMask);
+        if (rockShare > 0.001) {
+          vec3 rockNormal = normalize(cross(dFdx(terrainPoint), dFdy(terrainPoint)));
+          rockNormal *= sign(rockNormal.y + 1e-4);
+          vec4 stone = stonePaint(terrainPoint, rockNormal, length(fwidth(terrainPoint)));
+          rockPaint *= stone.rgb;
+          pavingRelief += stone.w * rockShare;
+        }
+        diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockShare);
         // Fine sand detail is expressed in metres, independent of the colour
         // map resolution. Filter the ripples analytically at grazing distance.
         float sandRatio=diffuseColor.r/max(diffuseColor.b,.001);
@@ -411,7 +431,7 @@ export class WorldScene {
     };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
-    const backdrop = createIslandBackdrop(world); this.group.add(backdrop.mesh); this.disposables.push(backdrop);
+    const backdrop = this.backdrop = createIslandBackdrop(world); this.group.add(backdrop.mesh); this.disposables.push(backdrop);
     const street = createStreetDressing(world); this.group.add(street.group); this.disposables.push(street);
     this.waterfalls = createWaterfalls(world, settings.graphics); this.group.add(this.waterfalls.group); this.disposables.push(this.waterfalls);
 
@@ -790,6 +810,7 @@ export class WorldScene {
     this.vegetation.update(this.reducedMotion ? 0 : time, camera);
     for (const spinner of this.spinners) spinner.rotation.z = (this.reducedMotion ? .15 : .7) * time;
     this.waterfalls.update(time, this.reducedMotion);
+    this.backdrop.update(this.reducedMotion ? 0 : time);
     this.paintedWater.update(time, this.reducedMotion);
     this.recreation.update(time, camera, this.reducedMotion, actors, localActor);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);

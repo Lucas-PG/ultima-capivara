@@ -5,7 +5,7 @@ FORT_DECK_TOP = 3.26
 
 
 def add_flat_access(pieces):
-    for name in ['house_small', 'house_medium', 'church', 'market_hall', 'warehouse', 'beach_kiosk', 'bridge_stone', 'dock_wood']:
+    for name in ['house_small', 'house_medium', 'church', 'church_hill', 'market_hall', 'warehouse', 'beach_kiosk', 'bridge_stone', 'dock_wood']:
         piece = pieces[name]
         slab = piece.colliders[0]
         floor_id = 'deck' if name in ['bridge_stone', 'dock_wood'] else 'ground-room'

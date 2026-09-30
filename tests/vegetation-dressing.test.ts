@@ -60,7 +60,7 @@ describe('vegetation dressing', () => {
       return { x: p.x + (e.point[0] * c + e.point[2] * s) * k, z: p.z + (e.point[2] * c - e.point[0] * s) * k };
     }));
     // Kit replacements and the planting of the kit's own planters and beds stand where the kit put them.
-    const planted = dressing.filter(p => p.species !== 'vine' && p.species !== 'pot' && p.species !== 'bed' &&
+    const planted = dressing.filter(p => p.species !== 'vine' && p.species !== 'pot' && p.species !== 'bed' && p.species !== 'windowbox' &&
       !VEGETATION_PIECES.has(world.pieces!.find(piece => piece.id === p.id)?.piece ?? ''));
     expect(planted.length).toBeGreaterThan(150);
     for (const p of planted) {
@@ -93,7 +93,7 @@ describe('vegetation dressing', () => {
   });
 
   it('hangs bougainvillea only over solid wall, never across a door or off the end of a building', () => {
-    const vines = dressing.filter(p => p.species === 'vine' && !p.id.includes(':post-vine:')), templates = buildTemplates(new Set(['vine']));
+    const vines = dressing.filter(p => p.species === 'vine' && !p.id.includes(':post-vine:') && !p.id.includes(':drape:')), templates = buildTemplates(new Set(['vine']));
     expect(vines.length).toBeGreaterThan(40);
     // World colliders approximate rotated walls with strips; test against the piece's own solids.
     const solidOf = (id: string) => {
@@ -143,5 +143,66 @@ describe('vegetation dressing', () => {
       }
     }
     expect(faults).toEqual([]);
+  });
+
+  it('hangs the kit-authored drapes over solid wall, clear of every door and window, with variety', () => {
+    // The terraced fronts used to bake faceted flower heads into the kit, some across a window.
+    // The drapes that replace them must have masonry behind every trail (a balcony drape hangs in
+    // front of its railing, so only below the slab), and the fronts must not all look alike.
+    const drapes = dressing.filter(p => p.id.includes(':drape:')), templates = buildTemplates(new Set(['vine']));
+    expect(drapes.length).toBeGreaterThan(60);
+    const faults: string[] = [];
+    for (const vine of drapes) {
+      const piece = world.pieces!.find(p => vine.id.startsWith(`${p.id}:`))!, c = Math.cos(piece.yaw), s = Math.sin(piece.yaw), k = piece.scale ?? 1;
+      const anchor = KIT_PIECES[piece.piece].plantings![Number(vine.id.split(':drape:')[1].split(':')[0])];
+      expect(anchor.type).toBe('drape');
+      const slab = anchor.type === 'drape' ? anchor.slab : undefined;
+      const boxes = KIT_PIECES[piece.piece].colliders.flatMap(b => b.type === 'box' ? [b] : []);
+      const solid = (x: number, y: number, z: number) => {
+        const dx = x - piece.x, dz = z - piece.z, lx = (dx * c - dz * s) / k, lz = (dx * s + dz * c) / k, ly = (y - piece.y) / k;
+        return boxes.some(b => Math.abs(lx - b.x) <= b.width / 2 && Math.abs(lz - b.z) <= b.depth / 2 && Math.abs(ly - b.y) <= b.height / 2);
+      };
+      // The real extent of this variant's trails, as drawn.
+      const position = templates.vine[vine.variant][0].getAttribute('position');
+      let reach = 0, low = 0;
+      for (let i = 0; i < position.count; i++) if (position.getY(i) < -.45) { reach = Math.max(reach, Math.abs(position.getX(i))); low = Math.min(low, position.getY(i)); }
+      const scale = vine.height / SPECIES.vine.height, half = reach * scale * (vine.widthScale ?? 1), bottom = low * scale;
+      const nx = Math.sin(vine.yaw), nz = Math.cos(vine.yaw), tx = Math.cos(vine.yaw), tz = -Math.sin(vine.yaw);
+      // Only a short way behind the drape: an opening's recess (0.3 m) must never count as wall.
+      // The shorter front layer hangs 7 cm further out.
+      const front = vine.id.endsWith(':front') ? [.45] : [];
+      const depths = slab === undefined ? [.15, .3, ...front] : [.15, .3, .45, .6, .75, .9, 1.05];
+      for (let i = 0; i <= 6; i++) for (let j = 1; j <= 6; j++) {
+        const across = (i / 3 - 1) * half * .95, y = vine.y + bottom * j / 6;
+        // The top 15 cm is the mass resting on the coping or cornice, above the wall itself.
+        if (vine.y - y < (front.length ? .2 : .15) || (slab !== undefined && y > piece.y + slab * k)) continue;
+        const x = vine.x + tx * across, z = vine.z + tz * across;
+        if (y < terrainHeight(x, z) + .2) continue;
+        if (!depths.some(d => solid(x - nx * d, y, z - nz * d))) { faults.push(`${vine.id} over an opening at ${across.toFixed(2)}, ${(y - piece.y).toFixed(2)}`); break; }
+      }
+    }
+    expect(faults).toEqual([]);
+    // Variety: some fronts carry no drape, and the colours are mixed along a street.
+    const rows = world.pieces!.filter(p => KIT_PIECES[p.piece].plantings?.some(a => a.type === 'drape') && !p.piece.startsWith('muro'));
+    const draped = rows.filter(p => drapes.some(d => d.id.startsWith(`${p.id}:`)));
+    expect(draped.length / rows.length).toBeGreaterThan(.45);
+    expect(draped.length / rows.length).toBeLessThan(.85);
+    expect(new Set(drapes.map(d => d.variant)).size).toBe(SPECIES.vine.variants);
+  });
+
+  it('plants every kit window box and pot where the kit put it', () => {
+    for (const piece of world.pieces!) for (const [i, anchor] of (KIT_PIECES[piece.piece].plantings ?? []).entries()) {
+      if (anchor.type !== 'box' && anchor.type !== 'pot') continue;
+      const plant = dressing.find(p => p.id === `${piece.id}:${anchor.type}:${i}`);
+      // A plant is only left out when its leaves would fill a spawn point.
+      if (!plant) continue;
+      const c = Math.cos(piece.yaw), s = Math.sin(piece.yaw), k = piece.scale ?? 1;
+      expect(Math.hypot(plant.x - piece.x - (anchor.x * c + anchor.z * s) * k, plant.z - piece.z - (anchor.z * c - anchor.x * s) * k), plant.id).toBeLessThan(1e-6);
+      if (anchor.type === 'box') expect(plant.y, plant.id).toBeCloseTo(piece.y + anchor.y * k, 6);
+      // The pot template's rim lands on the kit pot's rim.
+      else expect(plant.y + .98 * plant.height / SPECIES.pot.height, plant.id).toBeCloseTo(piece.y + anchor.y * k, 6);
+    }
+    const boxes = world.pieces!.flatMap(p => (KIT_PIECES[p.piece].plantings ?? []).filter(a => a.type === 'box'));
+    expect(dressing.filter(p => p.species === 'windowbox').length).toBeGreaterThan(boxes.length * .9);
   });
 });

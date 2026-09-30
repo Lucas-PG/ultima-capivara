@@ -11,7 +11,7 @@ export function buildingRooms(building: KitPlacement): RoomFloor[] {
   const definition = KIT_PIECES[building.piece];
   if (!definition) return [];
   if (definition.traversal) return definition.traversal.floors.filter(floor => floor.id.endsWith('-room'));
-  if (!/^(house_|church$|market_hall$|warehouse$|beach_kiosk$)/.test(building.piece)) return [];
+  if (!/^(house_|church(_hill)?$|market_hall$|warehouse$|beach_kiosk$)/.test(building.piece)) return [];
   const slab = definition.colliders.find(shape => shape.type === 'box' && shape.height < .5 && shape.width > 3 && shape.depth > 3);
   if (!slab || slab.type !== 'box') return [];
   return [{ id: 'ground-room', y: slab.y + slab.height / 2,
@@ -114,7 +114,7 @@ export function interiorPlacements(building: KitPlacement): KitPlacement[] {
       add(room, 'potted_plant', 3.3, 2.55);
       add(room, 'chair', 1.85, -1.3, Math.PI);
       add(room, 'rug', 1.65, .55, Math.PI / 2, .65);
-    } else if (building.piece === 'church') {
+    } else if (building.piece === 'church' || building.piece === 'church_hill') {
       for (const side of [-1, 1]) for (const x of [2.2, 3.1]) for (const z of [-2.8, 0, 2.8])
         add(room, 'chair', side * x, z, Math.PI);
       add(room, 'table', 2.8, -6.5);

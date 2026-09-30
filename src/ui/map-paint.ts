@@ -66,7 +66,7 @@ export function paintIslandMap(canvas: HTMLCanvasElement, world: WorldSpec, ppm:
   // A roof is a single warm block from the kit footprint, never individual wall colliders.
   for (const piece of world.pieces ?? []) {
     const def = KIT_PIECES[piece.piece]; if (!def) continue;
-    const roof = /^(house_|church$|market_hall$|warehouse$|barn$|beach_kiosk$)/.test(piece.piece);
+    const roof = /^(house_|church(_hill)?$|market_hall$|warehouse$|barn$|beach_kiosk$)/.test(piece.piece);
     const stone = /^(fort_wall|fort_tower|fort_gate|lighthouse|bridge_stone)$/.test(piece.piece);
     const dock = piece.piece === 'dock_wood';
     if (!roof && !stone && !dock) continue;

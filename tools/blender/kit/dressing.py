@@ -4,13 +4,10 @@ fishing nets, sacks and a cargo pallet. Game coordinates, bottom-centred.
 Soft props carry no collision; anything a player could hide behind does.
 """
 import math
-import random
 from rocks import surface
 
 WALL, CORAL, TEAL, YELLOW, ROOF, WOOD, BLOCK, DARK, NAVY, IRON, GLASS, CANVAS, GREEN, BRICK, STONE, TRIM = range(16)
-LEAF = [.62, .86, .6]
 RED = [.86, .22, .18]
-MAGENTA = [.76, .1, .44]
 
 
 def flag(p, **values):
@@ -36,25 +33,12 @@ def pot(p, x, z, radius, height, tile=ROOF, tint=None):
     flag(p, lods=[2], tint=tint or [1, 1, 1])
 
 
-def leaves(p, x, y, z, spread, count, seed, tall=1.0):
-    """A leafy plant: overlapping faceted blobs over the pot."""
-    for i in range(count):
-        a = seed + i * 2.4
-        r = spread * (.35 + .4 * ((i * 7) % 5) / 4)
-        size = spread * (.75 + .25 * math.sin(a * 1.7))
-        p.orb(x + math.cos(a) * r, y + spread * (.25 + .45 * (i % 3) / 2) * tall, z + math.sin(a) * r, size, size * .85 * tall, size, GREEN, i > count - 3)
-        flag(p, segments=(6, 4), tint=LEAF if i % 2 else [.52, .78, .5], mid=i >= 3)
-
-
-def vaso(Piece, name, radius, height, spread, flowers=None, tall=1.0):
+def vaso(Piece, name, radius, height, spread, style):
+    """A terracotta pot by a door. The kit draws the pot and its soil; the painted plant in it
+    comes from the vegetation layer (anchor 'pot': rim height and radius, planting style)."""
     p = Piece(name, spread * 2.2, spread * 2.2)
     pot(p, 0, 0, radius, height)
-    leaves(p, 0, height, 0, spread, 7, len(name), tall)
-    if flowers:
-        for i in range(5):
-            a = i * 1.3
-            p.orb(math.cos(a) * spread * .5, height + spread * (.55 + .2 * (i % 2)) * tall, math.sin(a) * spread * .5, .16, .14, .16, CANVAS, i > 2)
-            flag(p, segments=(5, 3), tint=flowers, mid=True)
+    p.plant('pot', 0, height * .97, 0, radius=radius * 1.08, style=style)
     return p
 
 
@@ -184,29 +168,17 @@ def muro(Piece, name='muro', length=3.0, kind='plain'):
         for z in [-.3, -.62, -.94]:
             p.box(-.54, .72, z, .012, 1.16, .03, DARK, bevel=0, detail=True)
     if kind == 'flor':
-        # Bougainvillea from the yard: a leafy mound along the coping and a
-        # cascade of small magenta bracts down the lane face.
-        rng = random.Random(7)
-        for i in range(8):
-            x = -1.25 + i * .34 + rng.uniform(-.06, .06)
-            p.orb(x, MURO_H + .2 + (i % 3) * .05, -.03, .42, .34, .46, GREEN, False)
-            flag(p, segments=(6, 4), tint=LEAF if i % 2 else [.5, .76, .48])
-        for i in range(9):
-            x, drop = -1.0 + i * .26 + rng.uniform(-.05, .05), rng.uniform(.15, .75)
-            p.orb(x, MURO_H + .05 - drop, MURO_T / 2 + .08, .3, .34, .16, GREEN, False)
-            flag(p, segments=(5, 3), tint=[.5, .76, .48])
-        for i in range(26):
-            x, drop = rng.uniform(-1.2, 1.1), rng.random() ** 1.4 * .85
-            size = .1 + rng.random() * .09
-            p.orb(x, MURO_H + .28 - drop, MURO_T / 2 + .14 + (1 - drop) * .06, size, size * .85, size * .6, CANVAS, i % 3 == 2)
-            flag(p, segments=(5, 3), tint=MAGENTA if i % 4 else [.9, .3, .6], mid=True)
+        # Bougainvillea from the yard (anchors for the painted vegetation layer): a bush behind the
+        # wall and its cascade spilling over the coping down the lane face.
+        p.plant('bush', 0, 0, -.85, species='bougainvillea', height=1.9)
+        p.plant('drape', -.1, MURO_H + .12, MURO_T / 2 + .05, width=2.5, drop=.85)
     return p
 
 
 def add_dressing(Piece):
-    vaso(Piece, 'vaso', .32, .55, .45, flowers=[.86, .2, .35])
-    vaso(Piece, 'vaso_alto', .26, .8, .38, tall=1.5)
-    vaso(Piece, 'vaso_flor', .22, .38, .32, flowers=[.95, .72, .2])
+    vaso(Piece, 'vaso', .32, .55, .45, 'flower')
+    vaso(Piece, 'vaso_alto', .26, .8, .38, 'tall')
+    vaso(Piece, 'vaso_flor', .22, .38, .32, 'flower')
     mesa_bar(Piece)
     carrinho(Piece)
     rede(Piece)

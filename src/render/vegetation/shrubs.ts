@@ -204,3 +204,24 @@ export function buildBed(variant: number, lod: Lod) {
   });
   return mb.build();
 }
+
+const WINDOW_BOXES: { mound: Tiles; trails: FoliageTile[]; accent?: FoliageTile }[] = [
+  { mound: [['impatiens', .55], ['cluster-emerald', .25], ['cluster-lime', .2]], trails: ['trail-leafy', 'trail-pink'] },
+  { mound: [['bougainvillea-mound', .5], ['cluster-bougainvillea', .3], ['cluster-emerald', .2]], trails: ['trail-magenta', 'trail-pink'] },
+  { mound: [['cluster-hibiscus', .45], ['hibiscus', .25], ['cluster-emerald', .3]], trails: ['trail-coral', 'trail-leafy'] },
+  { mound: [['croton', .35], ['impatiens', .35], ['cluster-lime', .3]], trails: ['trail-leafy'], accent: 'bromeliad' },
+];
+
+/** Planting for a window flower box: a 1 m trough 0.28 m deep, its soil at the template origin and
+ * the street at +z. A low flowering mass fills the trough and trails spill over its front lip. */
+export function buildWindowBox(variant: number, lod: Lod) {
+  const mb = new MeshBuilder(lod), seed = variant * 61 + 29, rand = (i: number) => plantHash(seed, i), style = WINDOW_BOXES[variant % WINDOW_BOXES.length];
+  const volume: CrownVolume = { center: v3(0, .12, .02), radii: v3(.55, .2, .2) };
+  for (const x of [-.26, .26]) clump(mb, { at: v3(x, .1, .02), radii: v3(.3, .15, .16), tiles: style.mound, shaded: SHADE, size: .24, solidBottom: true, spikes: .3, density: 1.2 },
+    volume, lod, rand, seed + Math.round(x * 10));
+  const n = [5, 3, 2][lod];
+  spill(mb, style.trails, Array.from({ length: n }, (_, k) => ({ at: v3(-.4 + .8 * (k + .5) / n + (rand(k + 30) - .5) * .08, .02, .15), out: v3(0, 0, 1) })),
+    .34, rand, 40, lod === 2 ? 1 : 2);
+  if (style.accent && lod < 2) accent(mb, style.accent, v3((rand(70) - .5) * .4, .02, 0), .34, rand, 60, 2);
+  return mb.build();
+}

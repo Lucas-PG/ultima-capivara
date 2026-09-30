@@ -103,4 +103,30 @@ describe('crowns stay clear of walking height', () => {
     }
     expect(faults).toEqual([]);
   });
+
+  it('never starts a player under a tree: no rendered leaf over any spawn, royale districts included', () => {
+    // Four crowns hung over the Cachoeira and Mangue royale spawns: spawns were chosen after the
+    // crowns were moved clear of the walks, so the tree rule never saw them. Every leaf of every
+    // tree is tested against a 0.5 m column over each spawn, from the knee to above the head.
+    expect(world.spawns.filter(s => s.mode === 'battle-royale').length).toBeGreaterThan(50);
+    const templates = new Map<SpeciesId, THREE.BufferGeometry[]>();
+    const vertex = new THREE.Vector3(), matrix = new THREE.Matrix4(), faults: string[] = [];
+    for (const object of world.objects) {
+      const crown = plantCrown(object);
+      if (!crown) continue;
+      const near = world.spawns.filter(spawn => Math.hypot(spawn.x - crown.x, spawn.z - crown.z) < 14);
+      if (!near.length) continue;
+      const t = plantTransform(object);
+      if (!templates.has(t.species)) templates.set(t.species, buildTemplates(new Set([t.species]))[t.species].map(lods => lods[0]));
+      const geometry = templates.get(t.species)![t.variant], position = geometry.getAttribute('position'), aux = geometry.getAttribute('aux');
+      plantMatrix(object, matrix);
+      for (let i = 0; i < position.count; i++) {
+        if (aux.getY(i) !== KIND.leaf) continue;
+        vertex.fromBufferAttribute(position, i).applyMatrix4(matrix);
+        const hit = near.find(spawn => Math.hypot(vertex.x - spawn.x, vertex.z - spawn.z) < .5 && vertex.y > spawn.y + .35 && vertex.y < spawn.y + 2.2);
+        if (hit) { faults.push(`${object.id} over the ${hit.mode} spawn at ${hit.x.toFixed(1)},${hit.z.toFixed(1)} (${hit.district ?? 'arena'})`); break; }
+      }
+    }
+    expect(faults).toEqual([]);
+  });
 });
