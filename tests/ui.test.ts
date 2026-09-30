@@ -40,8 +40,10 @@ describe('loading tips copy', () => {
   });
   it('replaces key placeholders with the player bindings', () => {
     expect(fillTip('{leanLeft} e {leanRight}', { leanLeft: 'Q', leanRight: 'E' })).toBe('Q e E');
-    const keys = { jump: 'Espaço', interact: 'F', leanLeft: 'Q', leanRight: 'E', reload: 'R', crouch: 'C' };
+    const keys = { jump: 'Espaço', interact: 'F', leanLeft: 'Q', leanRight: 'E', reload: 'R', crouch: 'C', map: 'M', scoreboard: 'Tab', ads: 'Mouse dir.' };
     for (const tip of TIPS) expect(fillTip(tip, keys)).not.toMatch(/\{\w+\}/);
+    // A remapped key must never be contradicted by the copy: no tip names a bindable key literally.
+    for (const tip of TIPS) expect(tip).not.toMatch(/Aperte [A-Z]\b|\bTab mostra|botão direito/);
   });
   // Tips quote gameplay numbers; if a retune changes them, the copy must change too.
   it('only states gameplay facts that are true', () => {

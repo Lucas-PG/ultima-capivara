@@ -303,3 +303,6 @@ body.reduce-motion #hud #hitm.on{animation:rm-flash .24s ease-out!important}
 body.reduce-motion #hud :is(.num,.pop){animation:rm-flash .9s ease-out forwards!important}
 body.reduce-motion #hud #aMag.tick,body.reduce-motion #hud #ladder.upgrade{animation:none!important}
 #victory .ord{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:.62em;vertical-align:.5em;margin-left:1px}
+#victory .vactions .wait{flex:1;justify-content:center;color:var(--brown,#3a2418);font-family:var(--sans,sans-serif);font-size:14px;font-weight:800;border-color:rgba(58,36,24,.45);background:rgba(255,244,214,.6)}
+#victory .vactions .wait b{color:var(--terra,#e2623a)}
+#victory .vactions .wait .icon{width:20px;height:20px;flex:none}

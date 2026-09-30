@@ -636,7 +636,8 @@ export class GameUI {
     const awards = me ? ([['kills', 'Caçadora da ilha', 'mais eliminações'], ['damage', 'Mão pesada', 'mais dano'], ['headshots', 'Mira de ouro', 'mais tiros na cabeça'], ['chests', 'Rainha do baú', 'mais baús abertos'], ['survived', 'Sobrevivente', 'mais tempo viva']] as const)
       .filter(([field]) => me[field] !== undefined && best(field)).slice(0, 2).map(([field, name, why]) => `<span class="award"><img src="${uiArt(`award-${field}`)}" alt="" draggable="false"><b>${name}</b><small>${why}</small></span>`).join('') : '';
     const host = !!this.room?.isHost, guest = !!this.room && !host;
-    const primary = guest ? `<span class="wait">${icon('clock')} Esperando quem criou a sala</span>` : `<button class="button primary" data-do="rematch">${icon(host ? 'users' : 'play')} Jogar de novo</button>`;
+    const hostName = this.room?.players.find(player => player.id === this.room?.hostId)?.name;
+    const primary = guest ? `<span class="wait" role="status">${icon('clock')}<span>${hostName ? `<b>${esc(hostName)}</b> chama a revanche` : 'Quem criou a sala chama a revanche'}</span></span>` : `<button class="button primary" data-do="rematch">${icon(host ? 'users' : 'play')} Jogar de novo</button>`;
     // The podium and you: three rows plus yours keeps the panel on screen at 720p.
     const board = [...results].sort((x, y) => x.place - y.place || y.kills - x.kills), top = board.slice(0, 3);
     if (me && !top.includes(me)) top.push(me);
@@ -1133,7 +1134,8 @@ export class GameUI {
   }
   private showTip(immediate = false) {
     const line = this.root.querySelector<HTMLElement>('#loadingOverlay .ltip'); if (!line) return;
-    const b = this.settings.bindings, keys = { jump: keyName(b.jump), interact: keyName(b.interact), leanLeft: keyName(b.leanLeft), leanRight: keyName(b.leanRight), reload: keyName(b.reload), crouch: keyName(b.crouch) };
+    const b = this.settings.bindings, keys = { jump: keyName(b.jump), interact: keyName(b.interact), leanLeft: keyName(b.leanLeft), leanRight: keyName(b.leanRight), reload: keyName(b.reload), crouch: keyName(b.crouch),
+      map: keyName(bindingOf(b, 'map')), scoreboard: keyName(bindingOf(b, 'scoreboard')), ads: keyName(bindingOf(b, 'ads')) };
     const source = nextTip(), tip = fillTip(source, keys), category = tipCategory(source), box = line.closest('.ltipbox')!;
     const reveal = () => { line.textContent = tip; this.textOf(box.querySelector('.dica')!, category.label); box.querySelector('.ltip-icon')!.innerHTML = icon(category.icon); };
     clearTimeout(this.tipIndexTimer);
