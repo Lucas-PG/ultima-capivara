@@ -287,7 +287,12 @@ function acceptEvents(events: GameEvent[]) {
       input.applyRecoil(event.weapon);
     }
     if (event.type === 'notice') ui.toast(event.text);
-    if (event.type === 'kill' && event.target === playerId) { lastKiller = event.actor; killSeen = true; }
+    if (event.type === 'kill' && event.target === playerId) {
+      lastKiller = event.actor; killSeen = true;
+      // The kill can land after the one-second fallback already started watching whoever was nearest: move to the
+      // eliminator unless the player has switched by hand since.
+      if (spectator.active && autoSpectateAt && performance.now() - autoSpectateAt < 5000 && snapshot) spectator.begin(snapshot.actors, playerId, event.actor, fellAt);
+    }
     if (event.type === 'kill') spectator.kill(event.target, event.actor);
   }
 }
@@ -312,16 +317,17 @@ function predict(frame: InputFrame) {
   moveActor(predicted, frame, world, 1 / 60, 1, snapshot.config.mode);
 }
 // Starts watching (your eliminator, or whoever is nearest to where you fell), or steps through the others.
-function beginSpectating() {
-  diedAt = 0; killSeen = false;
+let autoSpectateAt = 0;
+function beginSpectating(auto = true) {
+  diedAt = 0; killSeen = false; autoSpectateAt = auto ? performance.now() : 0;
   if (snapshot) spectator.begin(snapshot.actors, playerId, lastKiller, fellAt);
   dirtyFrame = true;
 }
 function spectateStep(direction: number) {
   const me = snapshot?.actors.find(a => a.id === playerId);
   if (!snapshot || !me || me.alive || snapshot.config.mode !== 'battle-royale' || snapshot.phase !== 'playing') return;
-  if (!spectator.active) beginSpectating();
-  else spectator.cycle(snapshot.actors, playerId, direction < 0 ? -1 : 1);
+  if (!spectator.active) beginSpectating(false);
+  else { spectator.cycle(snapshot.actors, playerId, direction < 0 ? -1 : 1); autoSpectateAt = 0; }
   dirtyFrame = true;
 }
 function closestInteraction() {
@@ -418,7 +424,7 @@ function frame(now: number) {
   // arrive in either order, so a kill that never shows up still hands off after 1 s.
   if (diedAt && snapshot.phase === 'playing' && ((killSeen && !renderer?.deathCamActive) || (!killSeen && now - diedAt > 1000) || now - diedAt > DEATH_CAM_SECONDS * 1000 + 1500)) beginSpectating();
   // Right mouse steps back through the watch order (its press, not its hold).
-  if (watching && input.frame.ads && !spectateAds && spectator.active) spectator.cycle(snapshot.actors, playerId, -1);
+  if (watching && input.frame.ads && !spectateAds && spectator.active) { spectator.cycle(snapshot.actors, playerId, -1); autoSpectateAt = 0; }
   spectateAds = watching && input.frame.ads;
   const view = spectator.active ? spectator.update(snapshot.actors, playerId, now / 1000) : null;
   spectateId = view?.target ?? null;
@@ -479,7 +485,7 @@ if (import.meta.env.DEV) {
   requestAnimationFrame(tick);
   try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
-    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length, spectateId,
+    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length, spectateId, spectate: { lastKiller, killSeen, diedAt, fellAt, target: spectator.target, hold: spectator.hold },
       camera: renderer ? { ...renderer.cameraPosition, fov: renderer.camera.fov } : null,
       clientInput: { ...input.frame, locked: input.locked }, renderState: { loading, readyToReveal, hidden: document.hidden },
       network: { status: session.connectionStatus, latencies: session.latencies, interpolationDelayMs: remoteInterpolation.delay * 1000 },

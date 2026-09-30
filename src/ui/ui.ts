@@ -1106,7 +1106,9 @@ export class GameUI {
     this.loadProgress = 0;
     const b = this.settings.bindings, mode = this.room?.config.mode ?? this.selectedMode;
     const overlay = document.createElement('div'); overlay.id = 'loadingOverlay'; overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-label', 'Carregando a partida');
-    overlay.innerHTML = `<div class="lbg" style="--arrival:url('${uiArt('island-arrival-v3')}')"></div>`
+    // Each mode arrives on its own painted scene: the island from the trail, the town skirmish, the fort rampart.
+    const scene = mode === 'deathmatch' ? 'loading-correria' : mode === 'corrente' ? 'loading-corrente' : 'island-arrival-v3';
+    overlay.innerHTML = `<div class="lbg" style="--arrival:url('${uiArt(scene)}')"></div>`
       + `<div class="lcard"><div class="lhead"><div><p class="eyebrow"><span></span> A AVENTURA ESTÁ CHEGANDO</p><h2>Preparando <em>a ilha</em></h2></div><b class="lpercent" aria-hidden="true">0%</b></div>`
       + `<div class="ltrack"><div class="lbar" role="progressbar" aria-label="Carregamento da ilha" aria-valuemin="0" aria-valuemax="100"><i><img class="lcapy" src="${uiArt('capy-parachute-v3')}" alt="" draggable="false"/></i></div></div>`
       + `<span class="lstatus" role="status">${loadingLabel(0)}</span></div>`
