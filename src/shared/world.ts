@@ -763,8 +763,11 @@ export function createWorld(): WorldSpec {
   }
   // Plants are decorative, with no independently authored trunk boxes.
   const planted: PointLike[] = [];
+  // Hero sightlines stay unplanted: the praça to the Matriz, the market, the
+  // fort from its beach, Rua da Praia to the Farol, and the summit path up to
+  // the Redentora's plinth.
   const blocksHeroView = (x: number, z: number) => [[-8, -8, -8, -40, 4.8], [42, -7, 31, -22, 2.7],
-    [60, -86, 4, -99, 4.2], [-8, 40, -6, 110, 3]].some(([ax, az, bx, bz, width]) => {
+    [60, -86, 4, -99, 4.2], [-8, 40, -6, 110, 3], [-96, -29.5, -108, -24.5, 4.5]].some(([ax, az, bx, bz, width]) => {
     const dx = bx - ax, dz = bz - az, t = ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz);
     return t >= 0 && t <= 1 && Math.hypot(x - ax - dx * t, z - az - dz * t) < width;
   });
@@ -828,7 +831,7 @@ export function createWorld(): WorldSpec {
     for (let i = 0; i < 9; i++) {
       const angle = i * 2.399, radius = 1.8 + Math.sqrt(i) * 1.8;
       const x = gx + Math.cos(angle) * radius, z = gz + Math.sin(angle) * radius, y = ground(x, z);
-      if (y < .8 || plantBlocked(x, z, 1) || roadAt(x, z, 1.8) || routeDistance(x, z) < 3 || paved(x, z) ||
+      if (y < .8 || plantBlocked(x, z, 1) || roadAt(x, z, 1.8) || routeDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) ||
         planted.some(t => Math.hypot(t.x - x, t.z - z) < 3)) continue;
       tree(x, z, 4.6 + random() * 2.5);
     }
@@ -913,7 +916,7 @@ export function createWorld(): WorldSpec {
     for (let radius = 2; radius <= 16 && !target; radius += 2) for (let i = 0; i < 16; i++) {
       const angle = i * Math.PI / 8, x = plant.pos.x + Math.cos(angle) * radius, z = plant.pos.z + Math.sin(angle) * radius;
       const y = ground(x, z);
-      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 1) || routeDistance(x, z) < 2) continue;
+      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 1) || routeDistance(x, z) < 2 || blocksHeroView(x, z)) continue;
       target = { x, y: y - .08, z }; break;
     }
     if (!target) throw new Error(`Sem margem livre para a árvore ${plant.id}.`);
@@ -937,7 +940,7 @@ export function createWorld(): WorldSpec {
     for (let radius = 1.5; radius <= 12 && !target; radius += 1.5) for (let i = 0; i < 16; i++) {
       const angle = i * Math.PI / 8, x = plant.pos.x + Math.cos(angle) * radius, z = plant.pos.z + Math.sin(angle) * radius;
       const y = ground(x, z);
-      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 || riverDistance(x, z) < 1 ||
+      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 || riverDistance(x, z) < 1 || blocksHeroView(x, z) ||
         objects.some(other => other !== plant && (other.kind === 'tree' || other.kind === 'palm') && Math.hypot(other.pos.x - x, other.pos.z - z) < 3)) continue;
       const moved = plantCrown({ ...plant, pos: { x, y: y - .08, z } });
       if (moved && surfaces.underCrown(moved)) continue;
