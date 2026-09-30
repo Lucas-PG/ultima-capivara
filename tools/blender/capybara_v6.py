@@ -198,7 +198,7 @@ log('uv')
 
 # ------------------------------------------------------------------ 3. bake
 scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 1
-scene.render.threads_mode = 'FIXED'; scene.render.threads = 3
+_t = int(__import__('os').environ.get('BLENDER_THREADS', '3')); scene.render.threads_mode = 'AUTO' if _t == 0 else 'FIXED'; scene.render.threads = max(1, _t)
 scene.render.bake.margin = 10; scene.render.bake.use_selected_to_active = True
 scene.render.bake.cage_extrusion = .008; scene.render.bake.max_ray_distance = .02
 hi_pts = coords(hi)
