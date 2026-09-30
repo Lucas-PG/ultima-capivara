@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 1, fov: 100, graphics: 'medium', frameLimit: 60, reducedMotion: false,
   master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
   showFps: false, uiScale: 1, crosshairColor: 'white', hitPalette: 'default',
+  invertY: false, adsSensitivity: 1, damageNumbers: true,
 };
 const STORAGE_KEY = 'uc-v2-settings';
 export function loadSettings(): Settings {
@@ -33,6 +34,9 @@ export function loadSettings(): Settings {
     if (typeof value.adsToggle === 'boolean') result.adsToggle = value.adsToggle;
     if (typeof value.adaptive === 'boolean') result.adaptive = value.adaptive;
     if (typeof value.showFps === 'boolean') result.showFps = value.showFps;
+    if (typeof value.invertY === 'boolean') result.invertY = value.invertY;
+    if (typeof value.damageNumbers === 'boolean') result.damageNumbers = value.damageNumbers;
+    if (typeof value.adsSensitivity === 'number' && Number.isFinite(value.adsSensitivity)) result.adsSensitivity = clamp(value.adsSensitivity, .5, 1.5);
     if (typeof value.uiScale === 'number' && Number.isFinite(value.uiScale)) result.uiScale = clamp(value.uiScale, .8, 1.2);
     if (['white', 'yellow', 'cyan', 'magenta'].includes(value.crosshairColor)) result.crosshairColor = value.crosshairColor;
     if (value.hitPalette === 'default' || value.hitPalette === 'colorblind') result.hitPalette = value.hitPalette;

@@ -31,6 +31,32 @@ describe('local input feel', () => {
     expect(input.frame.yaw).toBeCloseTo(-.02 * DEFAULT_SETTINGS.sensitivity);
   });
 
+  it('applies the aiming speed only while aiming and inverts vertical look on request', () => {
+    const listeners = new Map<string, (event: any) => void>();
+    vi.stubGlobal('document', { addEventListener: (name: string, fn: (event: any) => void) => listeners.set(name, fn) });
+    vi.stubGlobal('window', { addEventListener: () => {} });
+    const settings = { ...DEFAULT_SETTINGS, adsSensitivity: .5, invertY: true };
+    const input = new InputController({ addEventListener: () => {} } as unknown as HTMLCanvasElement, settings);
+    input.locked = true;
+    listeners.get('mousemove')!({ movementX: 10, movementY: 10 });
+    const hipYaw = input.frame.yaw;
+    expect(hipYaw).toBeCloseTo(-.02 * settings.sensitivity);
+    // Mouse down (positive movementY) looks up when inverted.
+    expect(input.frame.pitch).toBeGreaterThan(0);
+    input.frame.yaw = 0; input.frame.ads = true;
+    listeners.get('mousemove')!({ movementX: 10, movementY: 0 });
+    expect(input.frame.yaw).toBeCloseTo(hipYaw * .5);
+  });
+
+  it('loads the aiming comfort settings from storage, clamped and type checked', () => {
+    const store = new Map([['uc-v2-settings', JSON.stringify({ adsSensitivity: 9, invertY: true, damageNumbers: 'no' })]]);
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key) ?? null, setItem: () => {} });
+    const loaded = loadSettings();
+    expect(loaded.adsSensitivity).toBe(1.5);
+    expect(loaded.invertY).toBe(true);
+    expect(loaded.damageNumbers).toBe(true);
+  });
+
   it('raises the muzzle while alternating sideways recoil, then returns on release', () => {
     const input = controller();
     input.frame.fire = true;

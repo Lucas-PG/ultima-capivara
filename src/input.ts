@@ -50,9 +50,9 @@ export class InputController {
     document.addEventListener('mousemove', event => {
       if (!this.locked) return;
       if (this.emoteWheel) { this.onEmoteMove(event.movementX, event.movementY); return; }
-      const scale = .002 * this.settings.sensitivity * this.aimSensitivity;
+      const scale = .002 * this.settings.sensitivity * this.aimSensitivity * (this.frame.ads ? this.settings.adsSensitivity ?? 1 : 1);
       this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw - event.movementX * scale), Math.cos(this.frame.yaw - event.movementX * scale));
-      this.frame.pitch = clamp(this.frame.pitch - event.movementY * scale, -1.48, 1.48);
+      this.frame.pitch = clamp(this.frame.pitch - event.movementY * scale * (this.settings.invertY ? -1 : 1), -1.48, 1.48);
     }, { signal });
     document.addEventListener('keydown', event => this.key(event, true), { signal });
     document.addEventListener('keyup', event => this.key(event, false), { signal });

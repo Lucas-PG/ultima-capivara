@@ -74,7 +74,7 @@ body{
 #hud #mapWrap .tab{position:absolute;left:50%;bottom:-11px;translate:-50% 0;padding:2px 12px;font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--hud-ink);background:var(--hud-gold);border-radius:999px;box-shadow:0 0 0 2px rgba(4,25,26,.55)}
 #hud #mapWrap .net{position:absolute;top:10px;left:10px;padding:1px 7px;font-size:13px;color:var(--hud-ivory);background:rgba(4,25,26,.72);border-radius:6px}
 #hud #feed{position:absolute;top:330px;right:18px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:420px}
-#hud .fd{display:flex;align-items:center;gap:7px;height:32px;padding:0 10px 0 5px;font-size:16px;white-space:nowrap;background:rgba(9,41,45,.84);border:1.5px solid rgba(255,236,196,.16);border-radius:9px;animation:hud-fdin .18s ease-out,hud-fdout .4s ease-in 3.8s forwards}
+#hud .fd{display:flex;align-items:center;gap:7px;height:32px;padding:0 10px 0 5px;font-size:16px;white-space:nowrap;background:rgba(9,41,45,.84);border:1.5px solid rgba(255,236,196,.16);border-radius:9px;animation:hud-fdin .18s ease-out,hud-fdout .4s ease-in var(--life,5.6s) forwards}
 #hud .fd b{max-width:130px;overflow:hidden;text-overflow:ellipsis;font-weight:800}
 #hud .fd em{font-style:normal;font-size:14px;color:var(--hud-muted)}
 #hud .fd .pt{display:block;width:24px;height:24px;flex:none}
@@ -298,8 +298,9 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--hud-coral)}
 /* Results: the island and the results panel only. */
 #hud.ended :is(#topL,#ladder,#compass,#safe,#hOut,#mapWrap,#feed,#banner,#deathCard,#specBar,#coach,#cross,#hitm,#rring,#prompt,#alt,.cbar,#use,#vitals,#stance,#consbar,#hotbar,#wpnbox,#nums,#dmgInd,#vign,#storm,#matchMoment){display:none!important}
 #hud.out :is(#ladder,#reload,#dmgInd,#nums,#vign,#storm,#scope-overlay,#hOut,#safe){display:none}
-body.reduce-motion #hud .fd{animation:rm-in .2s ease-out,rm-out .35s ease-in 3.8s forwards!important}
+body.reduce-motion #hud .fd{animation:rm-in .2s ease-out,rm-out .35s ease-in var(--life,5.6s) forwards!important}
 body.reduce-motion #hud :is(#coach,#deathCard){animation:rm-in .18s ease-out both!important}
 body.reduce-motion #hud #hitm.on{animation:rm-flash .24s ease-out!important}
 body.reduce-motion #hud :is(.num,.pop){animation:rm-flash .9s ease-out forwards!important}
 body.reduce-motion #hud #aMag.tick,body.reduce-motion #hud #ladder.upgrade{animation:none!important}
+#victory .ord{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:.62em;vertical-align:.5em;margin-left:1px}

@@ -131,6 +131,8 @@ export interface Settings {
   adaptive: boolean;
   // HUD preferences: FPS readout, interface size (0.8 to 1.2) and colour-blind friendly aim feedback.
   showFps: boolean; uiScale: number; crosshairColor: 'white' | 'yellow' | 'cyan' | 'magenta'; hitPalette: 'default' | 'colorblind';
+  // Aim comfort: vertical look inversion, mouse speed while aiming (0.5 to 1.5 of the hip speed), floating damage numbers.
+  invertY: boolean; adsSensitivity: number; damageNumbers: boolean;
 }
 export interface RenderFrame { snapshot: WorldSnapshot | null; playerId: string; input: InputFrame; dt: number; playing: boolean; spectateId: string | null; predicted?: Vec3; remoteActors?: ReadonlyMap<string, ActorState> }
 // Kit colours (bandana and vest trim), never fur: every player still reads as a capybara (style bible §3.7).
