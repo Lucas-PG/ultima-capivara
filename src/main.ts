@@ -116,6 +116,7 @@ const ui = new GameUI(world, settings, profile, {
   emote(emote) { sendAction({ type: 'emote', id: input.actionIdNext(), emote }); },
   cancelEmote() { input.closeEmoteWheel(); },
   resume() { void sound.unlock(); void input.lock(); },
+  uiSound(kind) { if (kind !== 'hover') void sound.unlock(); sound.ui(kind); },
   spectate() { cycleSpectator(); void input.lock(); },
   settings(next) {
     if (next.frameLimit !== activeFrameLimit) {

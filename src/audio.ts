@@ -1,103 +1,126 @@
 import { clamp } from './shared/math';
 import { terrainHeight } from './shared/terrain';
+import { waterAt } from './shared/water';
+import { colliderGrid } from './shared/collider-grid';
 import { hasLineOfSight } from './shared/collision';
 import { WEAPONS } from './shared/weapons';
-import type { ActorState, ConsumableId, GameEvent, Settings, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from './shared/types';
+import { weaponShotDuration } from './shared/weapon-presentation';
+import { terrainSurface } from './simulation/surface';
+import type { ActorState, ConsumableId, EmoteId, GameEvent, Settings, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from './shared/types';
+import { bakeOrder, renderSound, type Quality } from './sound/bank';
+import type { BakeMessage, BakeRequest } from './sound/bake.worker';
+import type { StepMaterial } from './sound/foley';
+import {
+  ambienceMix, critterWeights, GUN_RANGE, gunDistance, LEVEL, levelGain, OCCLUDED, safetyCurve, STEP_RANGE, stepDistance, worldDistance, type Place,
+} from './sound/mix';
 
-type AudioBuses = { master: GainNode; effects: GainNode; ambience: GainNode; music: GainNode };
-type ShotVoice = { crack: number; body: number; tail: number; bass: number; metal: number; length: number };
-type LocalPlace = { kind: 'bakery' | 'cafe' | 'harbor'; pos: Vec3; radius: number };
-const SAMPLE_FILES = {
-  pistol: 'pistol.mp3', smg: 'smg.mp3', m4: 'm4.mp3', shotgun: 'shotgun.mp3', dmr: 'dmr.mp3', sniper: 'sniper.mp3',
-  'footstep-0': 'footstep-0.mp3', 'footstep-1': 'footstep-1.mp3', 'footstep-2': 'footstep-2.mp3',
-  'footstep-3': 'footstep-3.mp3', 'footstep-4': 'footstep-4.mp3', 'footstep-5': 'footstep-5.mp3',
-  'reload-mag': 'reload-mag.mp3', 'reload-shell': 'reload-shell.mp3',
-} as const;
-type SampleId = keyof typeof SAMPLE_FILES;
+// Low-health heartbeat threshold (matches the HUD's low-health state) and the storm bed's linear gain.
+export const LOW_HP = 30;
+export const STORM_LEVEL = levelGain(LEVEL.storm);
 
-const VOICES: Record<WeaponId, ShotVoice> = {
-  pistol: { crack: 1550, body: 180, tail: 600, bass: 105, metal: 2450, length: .36 },
-  smg: { crack: 1850, body: 210, tail: 760, bass: 118, metal: 3100, length: .25 },
-  m4: { crack: 1300, body: 145, tail: 450, bass: 85, metal: 2600, length: .52 },
-  shotgun: { crack: 950, body: 90, tail: 330, bass: 63, metal: 1650, length: .7 },
-  dmr: { crack: 1230, body: 125, tail: 410, bass: 73, metal: 2250, length: .62 },
-  sniper: { crack: 1050, body: 88, tail: 290, bass: 54, metal: 1850, length: .9 },
-  machete: { crack: 0, body: 0, tail: 0, bass: 0, metal: 0, length: .23 },
-  revolver: { crack: 1150, body: 120, tail: 420, bass: 70, metal: 2100, length: .7 },
-  coco: { crack: 0, body: 0, tail: 0, bass: 0, metal: 0, length: .5 },
+type VoiceKind = 'shot' | 'step' | 'fx' | 'world';
+const VOICE_CAPS: Record<Quality, Record<VoiceKind, number>> = {
+  high: { shot: 20, step: 10, fx: 24, world: 8 },
+  low: { shot: 12, step: 6, fx: 16, world: 5 },
 };
 
-// Low-health heartbeat threshold (matches the HUD's low-health state) and the storm rumble level.
-export const LOW_HP = 30;
-export const STORM_LEVEL = .07;
-const RARITY_CHIME: readonly (readonly number[])[] = [[], [659.25, 880], [659.25, 830.61, 1046.5], [659.25, 830.61, 987.77, 1318.5]];
+interface PlayOptions {
+  /** Target loudness in LUFS at unity sliders (see sound/mix.ts). */
+  level: number;
+  at?: number;
+  /** World position: the voice is spatialized (direction only; distance is in `level` and `cutoff`). */
+  pos?: Vec3 | null;
+  out?: AudioNode;
+  rate?: number;
+  cutoff?: number;
+  pan?: number;
+  kind?: VoiceKind;
+  loop?: boolean;
+  /** Seconds into the buffer to start from (loops start at a random point). */
+  offset?: number;
+}
+interface Voice { source: AudioBufferSourceNode; gain: GainNode; panner: PannerNode | null; stereo: StereoPannerNode | null; nodes: AudioNode[] }
+interface Loop extends Voice { id: string }
+type Buses = {
+  master: GainNode; effects: GainNode; ambience: GainNode; music: GainNode;
+  ambienceDuck: GainNode; ambienceTone: BiquadFilterNode; musicDuck: GainNode; limiter: DynamicsCompressorNode; clipper: WaveShaperNode;
+};
 
-/** Local sound samples have a synthesized fallback. No AudioContext or hardware is opened before unlock(). */
+const MATERIAL: Record<Surface, StepMaterial> = { dirt: 'dirt', sand: 'sand', foliage: 'grass', stone: 'stone', wood: 'wood', metal: 'metal', water: 'water' };
+const PICKUP_CUE: Record<string, string> = { weapon: 'fb:pick-weapon', ammo: 'fb:pick-ammo', armor: 'fb:pick-armor', helmet: 'fb:pick-helmet' };
+const USE_CUE: Record<ConsumableId, string> = { bandage: 'fb:use-bandage', medkit: 'fb:use-medkit', guarana: 'fb:use-guarana', acai: 'fb:use-acai', rapadura: 'fb:use-rapadura' };
+const EMOTE_VOICE: Partial<Record<EmoteId, string>> = { wave: 'voice:wave', victory: 'voice:cheer', sit: 'voice:purr', chill: 'voice:purr' };
+const GUN_SOUND = (id: WeaponId) => id === 'coco' ? 'shot:coco' : id === 'machete' ? 'swing:machete' : `shot:${id}`;
+const distanceOf = (a: Vec3, b: Vec3) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+
+/**
+ * The game's sound engine. Every sound is baked from code (src/sound) in a
+ * worker after unlock(); the mix table in src/sound/mix.ts sets the loudness
+ * hierarchy. No AudioContext or hardware is opened before unlock().
+ */
 export class SoundEngine {
   private settings: Settings;
   private context: AudioContext | null = null;
-  private buses: AudioBuses | null = null;
-  private noiseBuffer: AudioBuffer | null = null;
-  private lowNoiseBuffer: AudioBuffer | null = null;
-  private samples: Partial<Record<SampleId, AudioBuffer>> = {};
-  private footstepIndex = 0;
-  private ambientSources: AudioBufferSourceNode[] = [];
-  private ambientNodes: AudioNode[] = [];
-  private spatialNodes = new Set<{ panner: PannerNode; filter: BiquadFilterNode }>();
-  private windGain: GainNode | null = null;
-  private surfGain: GainNode | null = null;
-  private insectsGain: GainNode | null = null;
-  private fountainGain: GainNode | null = null;
-  private readonly fountain: Vec3 | null;
-  private readonly interiors: { pos: Vec3; halfX: number; halfZ: number }[];
-  private readonly localPlaces: LocalPlace[];
-  private inside = false;
-  private nearbyPlace: LocalPlace | null = null;
-  private nextRegionCheck = 0;
-  private nextPlaceSound = 0;
-  private shots: number[] = [];
+  private buses: Buses | null = null;
+  private quality: Quality = 'high';
+  private bank = new Map<string, AudioBuffer[]>();
+  private lastVariant = new Map<string, number>();
+  private baker: Worker | null = null;
+  private bakeTimer = 0;
+  private voices: Record<VoiceKind, number[]> = { shot: [], step: [], fx: [], world: [] };
+  private loops = new Map<string, Loop>();
+  private remoteFire: GainNode | null = null;
+  private disposed = false;
+  private myId = '';
+  // World knowledge for ambience, material and occlusion.
+  private readonly trees: Vec3[] = [];
+  private readonly waterfall: Vec3 | null;
+  private readonly harbour: Vec3 | null;
+  private place: Place = { coast: .3, height: 2, canopy: 0, inside: false, harbour: Infinity, waterfall: Infinity, district: null };
+  private seaYaw = 0;
+  private nextPlace = 0;
+  private nextCritter = 0;
   private lastSnapshot: WorldSnapshot | null = null;
+  // Local movement.
   private lastPosition: Vec3 | null = null;
   private lastActorId: string | null = null;
   private lastGrounded = false;
   private lastSwimming = false;
   private lastVelocityY = 0;
+  private lastCrouch = false;
+  private lastStage = '';
   private distanceToStep = 0;
-  private nextWildlife = 0;
-  private nextMusic = 0;
-  private musicDucker: GainNode | null = null;
-  // Other players' gunfire runs through here so local confirms can sit on top of it.
-  private remoteFire: GainNode | null = null;
-  private stormGain: GainNode | null = null;
-  private nextCrackle = 0;
-  private stormLfo: { lfo: OscillatorNode; depth: GainNode } | null = null;
-  private nextHeart = 0;
+  private stepCount = 0;
+  private remoteSteps = new Map<string, { pos: Vec3; travelled: number; grounded: boolean; swimming: boolean; velocityY: number }>();
+  private mudVoices = new Map<string, { next: number; end: number; channel: GainNode | null }>();
+  private soakingActors = new Set<string>();
+  // Combat, feedback and match flow.
   private duckUntil = 0;
   private voiceAt = new Map<string, number>();
   private voiceEnds: number[] = [];
   private pendingHurt = new Set<string>();
   private nextSpotCheck = 0;
   private spottedActor: string | null = null;
-  private phrase = 0;
+  private nextHeart = 0;
+  private nextCrackle = 0;
+  private nextThunder = 0;
   private reloadUntil = 0;
   private reloadGain: GainNode | null = null;
   private localReloadEnd = -Infinity;
-  private disposed = false;
-  private remoteSteps = new Map<string, { pos: Vec3; travelled: number; grounded: boolean; swimming: boolean; velocityY: number }>();
-  private mudVoices = new Map<string, { next: number; end: number; channel: GainNode | null }>();
-  private soakingActors = new Set<string>();
+  private emotes = new Map<string, EmoteId | null>();
+  private phaseSeen = '';
+  private countdownSeen = -1;
+  private shrinkingSeen = false;
+  private stingerMatch = '';
+  private music: string | null = null;
 
   constructor(settings: Settings, private world?: WorldSpec) {
     this.settings = { ...settings };
     const objects = world?.objects || [];
-    this.fountain = objects.find(object => object.detail === 'prop:plaza')?.pos || null;
-    this.interiors = objects.filter(object => object.detail?.startsWith('prop:house:')).map(object => ({
-      pos: object.pos, halfX: object.scale.x / 2 - .2, halfZ: object.scale.z / 2 - .2,
-    }));
-    this.localPlaces = objects.flatMap(object => {
-      const kind = object.detail === 'prop:house:bakery' ? 'bakery' : object.detail === 'prop:house:cafe' ? 'cafe' : object.detail === 'prop:harbor' ? 'harbor' : null;
-      return kind ? [{ kind, pos: object.pos, radius: kind === 'harbor' ? 22 : 11 }] : [];
-    });
+    for (const object of objects) if (object.kind === 'tree' || object.kind === 'palm') this.trees.push(object.pos);
+    this.waterfall = objects.find(object => object.detail === 'waterfall')?.pos || null;
+    const porto = world?.districts.find(d => d.id === 'porto');
+    this.harbour = porto ? { x: porto.x, y: 0, z: porto.z } : null;
   }
 
   async unlock(): Promise<void> {
@@ -105,21 +128,26 @@ export class SoundEngine {
     if (this.context) { if (this.context.state === 'suspended') await this.context.resume(); return; }
     const context = new AudioContext({ latencyHint: 'interactive' });
     this.context = context;
-    const master = context.createGain(), effects = context.createGain(), ambience = context.createGain(), music = context.createGain();
+    this.quality = this.settings.graphics === 'low' ? 'low' : 'high';
+    const gain = () => context.createGain();
+    const master = gain(), effects = gain(), ambience = gain(), music = gain(), ambienceDuck = gain(), musicDuck = gain(), remoteFire = gain();
+    const ambienceTone = context.createBiquadFilter();
+    ambienceTone.type = 'lowpass'; ambienceTone.frequency.value = 20000; ambienceTone.Q.value = .5;
+    // Master chain: a fast limiter, then a soft clipper that can never reach full scale.
     const limiter = context.createDynamicsCompressor();
-    limiter.threshold.value = -12; limiter.knee.value = 12; limiter.ratio.value = 8;
-    limiter.attack.value = .003; limiter.release.value = .18;
-    const musicDucker = context.createGain(); musicDucker.gain.value = 1;
-    effects.connect(master); ambience.connect(master); music.connect(musicDucker); musicDucker.connect(master); master.connect(limiter); limiter.connect(context.destination);
-    this.musicDucker = musicDucker;
-    const remoteFire = context.createGain(); remoteFire.connect(effects); this.remoteFire = remoteFire;
-    this.buses = { master, effects, ambience, music };
-    this.noiseBuffer = this.makeNoise(false);
-    this.lowNoiseBuffer = this.makeNoise(true);
+    limiter.threshold.value = -6; limiter.knee.value = 3; limiter.ratio.value = 20; limiter.attack.value = .002; limiter.release.value = .15;
+    const clipper = context.createWaveShaper();
+    clipper.curve = safetyCurve() as Float32Array<ArrayBuffer>; clipper.oversample = 'none';
+    remoteFire.connect(effects);
+    effects.connect(master);
+    ambience.connect(ambienceDuck); ambienceDuck.connect(ambienceTone); ambienceTone.connect(master);
+    music.connect(musicDuck); musicDuck.connect(master);
+    master.connect(limiter); limiter.connect(clipper); clipper.connect(context.destination);
+    this.buses = { master, effects, ambience, music, ambienceDuck, ambienceTone, musicDuck, limiter, clipper };
+    this.remoteFire = remoteFire;
     this.setSettings(this.settings);
-    this.startAmbience();
+    this.bake(context);
     await context.resume();
-    void this.loadSamples(context);
   }
 
   setSettings(settings: Settings): void {
@@ -132,285 +160,133 @@ export class SoundEngine {
     this.buses.music.gain.setTargetAtTime(clamp(settings.music, 0, 1), time, .08);
   }
 
-  event(event: GameEvent, listener: Vec3, yaw: number, myId: string): void {
-    const ctx = this.context;
-    if (!ctx || !this.buses || ctx.state !== 'running' || this.disposed) return;
-    this.placeListener(listener, yaw);
-    if (event.type === 'shot') {
-      const own = event.actor === myId;
-      const distance = Math.hypot(event.origin.x - listener.x, event.origin.y - listener.y, event.origin.z - listener.z);
-      if (!own && distance > 250) return;
-      const now = ctx.currentTime;
-      if (own || distance < 35) this.duckUntil = Math.max(this.duckUntil, now + 2);
-      this.shots = this.shots.filter(end => end > now);
-      if (this.shots.length >= 24 || (!own && this.shots.length >= 18)) return;
-      this.shots.push(now + VOICES[event.weapon].length + (own ? 0 : distance / 343));
-      const output = own ? this.buses.effects : this.spatial(event.origin, this.remoteFire || this.buses.effects, distance);
-      this.weapon(event.weapon, output, own ? 1 : .72, now + (own ? 0 : distance / 343));
-      if (event.surface && !event.hit) this.impactSound(event.surface, event.end, listener, own);
-    } else if (event.type === 'upgrade') {
-      const own = event.actor === myId, actor = this.lastSnapshot?.actors.find(candidate => candidate.id === event.actor);
-      if (!own && !actor) return;
-      const distance = actor ? Math.hypot(actor.pos.x - listener.x, actor.pos.y - listener.y, actor.pos.z - listener.z) : 0;
-      if (!own && distance > 24) return;
-      const output = own ? this.buses.effects : this.spatial(actor!.pos, this.buses.effects, distance);
-      const base = 440 * 2 ** (clamp(event.level, 0, 7) / 24), volume = own ? .045 : .018;
-      const notes = event.level === 7 ? [1, 1.25, 1.5, 2] : [1, 1.25, 1.5];
-      if (own) this.duckRemoteFire(ctx.currentTime);
-      notes.forEach((ratio, index) => {
-        const pitch = base * ratio, time = ctx.currentTime + .05 + index * .085;
-        this.tone(output, time, pitch, pitch, .3, volume, 'triangle');
-        this.tone(output, time, pitch * 2, pitch * 2, .16, volume * .2, 'sine');
-      });
-    } else if (event.type === 'supply') {
-      const now = ctx.currentTime;
-      if (event.stage === 'incoming') {
-        // A brief delivery call is island-wide; contact sounds stay positional.
-        this.tone(this.buses.effects, now, 660, 880, .13, .024, 'sine');
-        this.tone(this.buses.effects, now + .17, 790, 1185, .22, .02, 'triangle');
-      } else {
-        const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
-        if (distance > (event.stage === 'landed' ? 70 : 28)) return;
-        const output = this.spatial(event.pos, this.buses.effects, distance);
-        if (event.stage === 'landed') {
-          this.noise(output, now, .25, 'lowpass', 620, .11, .01, true);
-          this.tone(output, now, 115, 48, .24, .12, 'sine');
-          this.noise(output, now + .08, .23, 'bandpass', 1700, .035, .035, true);
-        } else {
-          this.metalClick(output, now, 1600, .045);
-          this.tone(output, now + .05, 520, 520, .22, .028, 'triangle');
-          this.tone(output, now + .13, 780, 780, .24, .025, 'sine');
-        }
+  // ---- Bank ----------------------------------------------------------------
+
+  private bake(context: AudioContext) {
+    const accept = (message: BakeMessage) => {
+      if (message.type !== 'sound' || this.disposed || this.context !== context) return;
+      const buffer = context.createBuffer(message.channels.length, message.channels[0].length, message.rate);
+      message.channels.forEach((channel, i) => buffer.copyToChannel(channel as Float32Array<ArrayBuffer>, i));
+      const list = this.bank.get(message.id) || [];
+      list[message.variant] = buffer;
+      this.bank.set(message.id, list);
+    };
+    const request: BakeRequest = { rate: context.sampleRate, quality: this.quality };
+    try {
+      if (typeof Worker === 'undefined') throw new Error('no worker');
+      const worker = new Worker(new URL('./sound/bake.worker.ts', import.meta.url), { type: 'module' });
+      worker.onmessage = event => { accept(event.data); if (event.data.type === 'done') { worker.terminate(); if (this.baker === worker) this.baker = null; } };
+      worker.onerror = () => { worker.terminate(); if (this.baker === worker) { this.baker = null; this.bakeHere(context, accept); } };
+      worker.postMessage(request);
+      this.baker = worker;
+    } catch { this.bakeHere(context, accept); }
+  }
+
+  /** Fallback without workers: bake in small slices so no frame stalls for long. */
+  private bakeHere(context: AudioContext, accept: (message: BakeMessage) => void) {
+    const queue = bakeOrder(this.quality).filter(({ sound, variant }) => !this.bank.get(sound.id)?.[variant]);
+    const step = () => {
+      if (this.disposed || this.context !== context) return;
+      const until = performance.now() + 6;
+      while (queue.length && performance.now() < until) {
+        const { sound, variant } = queue.shift()!;
+        accept({ type: 'sound', ...renderSound(sound, variant, context.sampleRate, this.quality) });
       }
-    } else if (event.type === 'bounce') {
-      const own = event.actor === myId;
-      const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
-      if (!own && distance > 28) return;
-      const output = own ? this.buses.effects : this.spatial(event.pos, this.buses.effects, distance);
-      const volume = own ? 1 : .5, now = ctx.currentTime;
-      this.noise(output, now, .11, 'lowpass', 520, .05 * volume, .008, true);
-      this.tone(output, now, 90, 215, .13, .07 * volume, 'sine');
-      this.tone(output, now + .1, 230, 105, .22, .045 * volume, 'triangle');
-      this.tone(output, now + .25, 155, 85, .2, .02 * volume, 'sine');
-    } else if (event.type === 'water') {
-      const distance = Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z);
-      if (distance > 32) return;
-      const own = event.actor === myId;
-      const output = own ? this.buses.effects : this.spatial(event.pos, this.buses.effects, distance);
-      this.waterSound(output, ctx.currentTime, event.entering, own ? 1 : .7);
-    } else if (event.type === 'impact') {
-      if (event.weapon === 'coco') this.cocoBurst(event.pos, listener);
-      else this.impactSound(event.surface, event.pos, listener, event.actor === myId);
-    } else if (event.type === 'reload') {
-      if (event.actor === myId && ctx.currentTime < this.localReloadEnd + .25) return;
-      const actor = this.lastSnapshot?.actors.find(a => a.id === event.actor);
-      const distance = actor ? Math.hypot(actor.pos.x - listener.x, actor.pos.y - listener.y, actor.pos.z - listener.z) : 0;
-      const output = actor && actor.id !== myId ? this.spatial(actor.pos, this.buses.effects, distance) : this.buses.effects;
-      const reloadSample = event.weapon === 'shotgun' ? 'reload-shell' : 'reload-mag';
-      if (!this.playSample(reloadSample, output, .13, ctx.currentTime, .18)) this.metalClick(output, ctx.currentTime, 1200, .16);
-    } else if (event.type === 'damage') {
-      if (event.actor === myId || event.target === myId || Math.hypot(event.pos.x - listener.x, event.pos.y - listener.y, event.pos.z - listener.z) < 35)
-        this.duckUntil = Math.max(this.duckUntil, ctx.currentTime + 2);
-      const hurt = this.lastSnapshot?.actors.find(a => a.id === event.target);
-      // Damage and kill arrive in the same batch. A microtask lets elimination take the actor's voice slot.
-      if (hurt && !this.pendingHurt.has(hurt.id)) {
-        this.pendingHurt.add(hurt.id);
-        queueMicrotask(() => {
-          if (!this.pendingHurt.delete(hurt.id) || this.disposed || this.context !== ctx) return;
-          this.voiceChirp('hurt', hurt.id, hurt.pos, listener, myId);
-        });
-      }
-      const now = ctx.currentTime;
-      if (event.target === myId && !event.actor) this.stormBite(now);
-      else if (event.target === myId) {
-        // The thump leans toward the side the shot came from.
-        const from = this.lastSnapshot?.actors.find(a => a.id === event.actor);
-        const pan = from ? clamp(Math.sin(Math.atan2(-(from.pos.x - listener.x), -(from.pos.z - listener.z)) - yaw) * -.75, -.75, .75) : 0;
-        const side = this.panned(pan);
-        this.noise(side, now, .18, 'lowpass', 260, .12, .004);
-        this.tone(side, now, 95, 48, .18, .12, 'sine');
-      } else if (event.actor === myId) {
-        this.duckRemoteFire(now);
-        if (event.head) {
-          // Headshot: a bright two-note "ding" that never reads as a body hit.
-          this.metalClick(this.buses.effects, now, 2550, .12);
-          this.tone(this.buses.effects, now, 1568, 1568, .2, .075, 'triangle');
-          this.tone(this.buses.effects, now + .045, 2349, 2349, .24, .05, 'sine');
-        } else this.metalClick(this.buses.effects, now, 1750, .09);
-      }
-      if (event.armorBreak) this.armorBreakSound(event.pos, listener, event.target === myId || event.actor === myId, now);
-    } else if (event.type === 'kill') {
-      this.pendingHurt.delete(event.target);
-      const eliminated = this.lastSnapshot?.actors.find(a => a.id === event.target);
-      if (eliminated) this.voiceChirp('elimination', eliminated.id, eliminated.pos, listener, myId);
-      if (event.actor === myId) { this.duckRemoteFire(ctx.currentTime); this.tone(this.buses.effects, ctx.currentTime, 470, 720, .16, .07, 'triangle'); }
-      if (eliminated && event.target !== myId) this.poof(eliminated.pos, listener, ctx.currentTime);
-    } else if (event.type === 'pickup' && event.actor === myId) {
-      const now = ctx.currentTime, loot = this.lastSnapshot?.loot.find(l => l.id === event.item);
-      const chest = !loot && !!this.world?.chests.some(c => c.id === event.item);
-      this.metalClick(this.buses.effects, now, 1200, .09);
-      this.tone(this.buses.effects, now, 520, 720, .12, .045, 'sine');
-      if (chest) {
-        this.noise(this.buses.effects, now, .22, 'bandpass', 420, .07, .03, true);
-        this.chime(now + .08, [659.25, 830.61, 987.77, 1318.5], .04);
-      } else if (loot?.kind === 'weapon' && loot.rarity > 0) this.chime(now + .05, RARITY_CHIME[loot.rarity], .03 + loot.rarity * .006);
-    } else if (event.type === 'use') {
-      this.useSound(event.item, event.actor === myId, this.lastSnapshot?.actors.find(a => a.id === event.actor)?.pos || listener, listener, ctx.currentTime);
-    } else if (event.type === 'alert' && event.target === myId) {
-      // The bot's pre-attack "hm!" comes from where it stands.
-      const bot = this.lastSnapshot?.actors.find(a => a.id === event.actor);
-      if (bot) this.voiceChirp('spot', bot.id, bot.pos, listener, myId);
-    } else if (event.type === 'respawn' && event.actor === myId) {
-      this.tone(this.buses.effects, ctx.currentTime, 240, 410, .42, .065, 'triangle');
+      if (queue.length) this.bakeTimer = window.setTimeout(step, 16);
+    };
+    step();
+  }
+
+  private buffer(id: string): AudioBuffer | null {
+    const list = this.bank.get(id);
+    if (!list?.length) return null;
+    const ready = list.map((b, i) => b ? i : -1).filter(i => i >= 0);
+    if (!ready.length) return null;
+    // Random variant, never the same one twice in a row.
+    const last = this.lastVariant.get(id) ?? -1;
+    let pick = ready[Math.floor(Math.random() * ready.length)];
+    if (pick === last && ready.length > 1) pick = ready[(ready.indexOf(pick) + 1) % ready.length];
+    this.lastVariant.set(id, pick);
+    return list[pick];
+  }
+
+  // ---- Voices ----------------------------------------------------------------
+
+  private play(id: string, options: PlayOptions): Voice | null {
+    const ctx = this.context, buses = this.buses;
+    if (!ctx || !buses || !Number.isFinite(options.level)) return null;
+    const kind = options.kind ?? 'fx', now = ctx.currentTime, at = Math.max(now, options.at ?? now);
+    const active = this.voices[kind] = this.voices[kind].filter(end => end > now);
+    if (!options.loop && active.length >= VOICE_CAPS[this.quality][kind]) return null;
+    const buffer = this.buffer(id);
+    if (!buffer) return null;
+    const source = ctx.createBufferSource(), gain = ctx.createGain(), nodes: AudioNode[] = [source, gain];
+    source.buffer = buffer; source.loop = !!options.loop;
+    source.playbackRate.value = options.rate ?? 1;
+    gain.gain.value = levelGain(options.level);
+    source.connect(gain);
+    let tail: AudioNode = gain;
+    if (options.cutoff && options.cutoff < 16000) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass'; filter.frequency.value = options.cutoff; filter.Q.value = .6;
+      tail.connect(filter); tail = filter; nodes.push(filter);
     }
-  }
-
-  update(actor: ActorState | null, snapshot: WorldSnapshot | null, dt: number, menu: boolean): void {
-    const ctx = this.context;
-    this.lastSnapshot = snapshot;
-    if (!ctx || !this.buses || ctx.state !== 'running' || this.disposed) return;
-    const now = ctx.currentTime;
-    this.updateAmbient(actor, menu, now);
-    if (menu && this.settings.music > 0 && now >= this.nextMusic) this.menuPhrase(now);
-    if (!menu && actor?.alive && snapshot?.phase === 'playing' && this.settings.music > 0 && now >= this.nextMusic) this.matchPhrase(now);
-    this.musicDucker?.gain.setTargetAtTime(now < this.duckUntil ? .5 : 1, now, now < this.duckUntil ? .025 : .45);
-    this.updateStorm(actor, snapshot, menu, now);
-    if (!menu && actor?.alive && actor.stage === 'ground' && actor.hp > 0 && actor.hp < LOW_HP && snapshot?.phase === 'playing') {
-      if (now >= this.nextHeart) {
-        // Lub-dub, quicker as health drops: 0.95 s at 30 hp down to 0.6 s near zero.
-        const interval = .6 + .35 * actor.hp / LOW_HP;
-        this.tone(this.buses.effects, now, 66, 46, .14, .11, 'sine');
-        this.tone(this.buses.effects, now + .17, 60, 42, .12, .075, 'sine');
-        this.nextHeart = now + interval;
-      }
-    } else this.nextHeart = Math.max(this.nextHeart, now);
-    if (!actor || !snapshot || menu || !Number.isFinite(dt) || dt <= 0) {
-      this.lastPosition = null; this.lastActorId = null; this.lastGrounded = false; this.lastSwimming = false; this.distanceToStep = 0;
-      this.remoteSteps.clear();
-      this.clearMudVoices();
-      this.cancelReload();
-      return;
+    let panner: PannerNode | null = null, stereo: StereoPannerNode | null = null;
+    if (options.pos) {
+      panner = ctx.createPanner();
+      panner.panningModel = this.quality === 'high' && kind !== 'world' ? 'HRTF' : 'equalpower';
+      // Distance is already in the level and the cutoff: the panner only gives direction.
+      panner.distanceModel = 'linear'; panner.rolloffFactor = 0; panner.refDistance = 1; panner.maxDistance = 10000;
+      this.setPosition(panner, options.pos, at);
+      tail.connect(panner); tail = panner; nodes.push(panner);
+    } else if (options.pan !== undefined) {
+      stereo = ctx.createStereoPanner();
+      stereo.pan.value = clamp(options.pan, -1, 1);
+      tail.connect(stereo); tail = stereo; nodes.push(stereo);
     }
-    this.placeListener({ x: actor.pos.x, y: actor.pos.y + 1.5, z: actor.pos.z }, actor.yaw);
-    this.updateSoaking(actor, snapshot, now);
-    this.updateRemoteSteps(actor, snapshot);
-    if (now >= this.nextSpotCheck && actor.alive && actor.stage === 'ground') {
-      this.nextSpotCheck = now + .7;
-      const other = snapshot.actors.find(a => a.id !== actor.id && a.alive && a.stage === 'ground' && Math.hypot(a.pos.x - actor.pos.x, a.pos.z - actor.pos.z) < 24 &&
-        Math.cos(actor.yaw) * (actor.pos.z - a.pos.z) + Math.sin(actor.yaw) * (actor.pos.x - a.pos.x) > 0 &&
-        (!this.world || hasLineOfSight({ ...actor.pos, y: actor.pos.y + 1.5 }, { ...a.pos, y: a.pos.y + 1 }, this.world)));
-      if (other?.id !== this.spottedActor) {
-        this.spottedActor = other?.id || null;
-        if (other) this.voiceChirp('spot', actor.id, actor.pos, actor.pos, actor.id);
-      }
-    }
-    this.updateReload(actor, snapshot, now);
-    if (!actor.alive) { this.lastActorId = null; this.lastPosition = null; this.distanceToStep = 0; return; }
-    const grounded = actor.grounded && actor.stage === 'ground' && !actor.swimming;
-    if (this.lastActorId !== actor.id) {
-      this.lastActorId = actor.id; this.lastPosition = { ...actor.pos };
-      this.lastGrounded = grounded; this.lastSwimming = actor.swimming; this.lastVelocityY = actor.velocity.y; this.distanceToStep = 0;
-      return;
-    }
-    // Ordinary jumps keep stage='ground'. Contact, not stage, owns the cadence.
-    if (actor.swimming && this.lastSwimming && this.lastPosition && Math.hypot(actor.velocity.x, actor.velocity.z) > .15) {
-      const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
-      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
-      if (this.distanceToStep >= 1.6) { this.distanceToStep %= 1.6; this.waterSound(this.buses.effects, now, null, .65); }
-    } else if (!this.lastGrounded && !this.lastSwimming && grounded) {
-      this.footstep(actor.pos, .09 + clamp(-this.lastVelocityY, 0, 18) * .01, true);
-      this.distanceToStep = 0;
-    } else if (this.lastPosition && grounded && this.lastGrounded && Math.hypot(actor.velocity.x, actor.velocity.z) > .1) {
-      const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
-      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
-      const stride = actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
-      if (this.distanceToStep >= stride) {
-        this.distanceToStep %= stride;
-        this.footstep(actor.pos, actor.crouch ? .055 : actor.sprint ? .17 : .115, false);
-        if (actor.sprint) {
-          this.noise(this.buses.effects, now + .08, .11, 'bandpass', 470, .025, .02);
-          this.tone(this.buses.effects, now + .04, 77, 52, .1, .018, 'triangle');
-        }
-      }
-    } else this.distanceToStep = 0;
-    this.lastPosition = { ...actor.pos }; this.lastGrounded = grounded; this.lastSwimming = actor.swimming; this.lastVelocityY = actor.velocity.y;
+    tail.connect(options.out ?? buses.effects);
+    source.onended = () => { for (const node of nodes) node.disconnect(); };
+    source.start(at, options.offset ?? 0);
+    if (!options.loop) active.push(at + buffer.duration / (options.rate ?? 1));
+    return { source, gain, panner, stereo, nodes };
   }
 
-  setHidden(hidden: boolean): void {
-    if (!this.context || this.disposed) return;
-    if (hidden) { this.clearMudVoices(); void this.context.suspend(); }
-    else void this.context.resume();
+  private setPosition(panner: PannerNode, pos: Vec3, at: number) {
+    if (panner.positionX) {
+      panner.positionX.setValueAtTime(pos.x, at); panner.positionY.setValueAtTime(pos.y, at); panner.positionZ.setValueAtTime(pos.z, at);
+    } else panner.setPosition(pos.x, pos.y, pos.z);
   }
 
-  dispose(): void {
-    this.disposed = true;
-    this.cancelReload();
-    this.clearMudVoices();
-    for (const source of this.ambientSources) { try { source.stop(); } catch { /* already stopped */ } source.disconnect(); }
-    if (this.stormLfo) { try { this.stormLfo.lfo.stop(); } catch { /* already stopped */ } this.stormLfo.lfo.disconnect(); this.stormLfo = null; }
-    this.ambientSources = [];
-    for (const node of this.ambientNodes) node.disconnect();
-    this.ambientNodes = [];
-    for (const node of this.spatialNodes) { node.panner.disconnect(); node.filter.disconnect(); }
-    this.spatialNodes.clear();
-    void this.context?.close();
-    this.context = null; this.buses = null; this.noiseBuffer = null; this.lowNoiseBuffer = null;
-    this.musicDucker = null; this.remoteFire = null; this.stormGain = null; this.voiceAt.clear(); this.voiceEnds = []; this.pendingHurt.clear(); this.spottedActor = null;
-    this.samples = {};
+  /** A looping voice kept by key; created once its buffer is baked. */
+  /** A looping voice kept by key, created silent once its buffer is baked; it starts at a random point so beds never line up. */
+  private loop(key: string, id: string, out: AudioNode, options: { pos?: Vec3; pan?: boolean } = {}): Loop | null {
+    const existing = this.loops.get(key);
+    if (existing) return existing;
+    const duration = this.bank.get(id)?.find(Boolean)?.duration;
+    if (!duration) return null;
+    const voice = this.play(id, { level: -200, out, loop: true, pos: options.pos, pan: options.pan ? 0 : undefined, offset: Math.random() * duration });
+    if (!voice) return null;
+    voice.gain.gain.value = 0;
+    const loop: Loop = { ...voice, id };
+    this.loops.set(key, loop);
+    return loop;
   }
 
-  private async loadSamples(context: AudioContext): Promise<void> {
-    await Promise.all((Object.entries(SAMPLE_FILES) as [SampleId, string][]).map(async ([id, file]) => {
-      try {
-        const response = await fetch(`${import.meta.env.BASE_URL}audio/${file}`);
-        if (!response.ok) return;
-        const buffer = await context.decodeAudioData(await response.arrayBuffer());
-        if (!this.disposed && this.context === context) this.samples[id] = buffer;
-      } catch { /* Keep the synthesized fallback if a file cannot load or decode. */ }
-    }));
+  private fadeLoop(key: string, id: string, out: AudioNode, level: number, time = .6, options: { pos?: Vec3; pan?: boolean } = {}) {
+    const ctx = this.context!, existing = this.loops.get(key);
+    if (!Number.isFinite(level)) { if (existing) existing.gain.gain.setTargetAtTime(0, ctx.currentTime, time); return existing ?? null; }
+    const loop = existing ?? this.loop(key, id, out, options);
+    loop?.gain.gain.setTargetAtTime(levelGain(level), ctx.currentTime, time);
+    return loop;
   }
 
-  private playSample(id: SampleId, output: AudioNode, level: number, start: number, cap: number): boolean {
-    const buffer = this.samples[id], ctx = this.context;
-    if (!buffer || !ctx) return false;
-    const source = ctx.createBufferSource(), gain = ctx.createGain();
-    source.buffer = buffer;
-    source.playbackRate.value = .98 + Math.random() * .04;
-    gain.gain.value = clamp(level, 0, cap);
-    source.connect(gain); gain.connect(output);
-    source.onended = () => { source.disconnect(); gain.disconnect(); };
-    source.start(start);
-    return true;
-  }
-
-  private makeNoise(low: boolean): AudioBuffer {
-    const ctx = this.context!;
-    const length = Math.floor(ctx.sampleRate * 2);
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate), channel = buffer.getChannelData(0);
-    let previous = 0;
-    for (let i = 0; i < length; i++) {
-      const white = Math.random() * 2 - 1;
-      previous = low ? previous * .985 + white * .015 : white;
-      channel[i] = low ? previous * 4 : white;
-    }
-    return buffer;
-  }
-
-  private spatial(position: Vec3, output: AudioNode, distance: number): AudioNode {
-    const ctx = this.context!;
-    const panner = ctx.createPanner(), filter = ctx.createBiquadFilter();
-    panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse';
-    panner.refDistance = 3; panner.maxDistance = 250; panner.rolloffFactor = 1.3;
-    filter.type = 'lowpass';
-    filter.frequency.value = clamp(14000 / (1 + distance / 40), 1100, 14000);
-    panner.positionX.setValueAtTime(position.x, ctx.currentTime);
-    panner.positionY.setValueAtTime(position.y + 1.1, ctx.currentTime);
-    panner.positionZ.setValueAtTime(position.z, ctx.currentTime);
-    panner.connect(filter); filter.connect(output);
-    const node = { panner, filter };
-    this.spatialNodes.add(node);
-    window.setTimeout(() => { panner.disconnect(); filter.disconnect(); this.spatialNodes.delete(node); }, 1800);
-    return panner;
+  private stopLoop(key: string) {
+    const loop = this.loops.get(key);
+    if (!loop || !this.context) return;
+    loop.gain.gain.setTargetAtTime(0, this.context.currentTime, .08);
+    const source = loop.source;
+    try { source.stop(this.context.currentTime + .5); } catch { /* stopped */ }
+    this.loops.delete(key);
   }
 
   private placeListener(position: Vec3, yaw: number) {
@@ -431,83 +307,197 @@ export class SoundEngine {
     listener.upX.setValueAtTime(0, now); listener.upY.setValueAtTime(1, now); listener.upZ.setValueAtTime(0, now);
   }
 
-  private noise(output: AudioNode, start: number, duration: number, filterType: BiquadFilterType, frequency: number, volume: number, attack = .001, low = false) {
-    const ctx = this.context!, source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
-    source.buffer = low ? this.lowNoiseBuffer : this.noiseBuffer;
-    source.playbackRate.value = .88 + Math.random() * .25;
-    filter.type = filterType; filter.frequency.value = frequency; filter.Q.value = filterType === 'bandpass' ? .65 : .7;
-    gain.gain.setValueAtTime(0, start);
-    gain.gain.linearRampToValueAtTime(volume, start + Math.min(attack, duration * .3));
-    gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
-    source.connect(filter); filter.connect(gain); gain.connect(output);
-    source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
-    source.start(start, Math.random() * .65, duration);
-    source.stop(start + duration + .01);
+  private occluded(from: Vec3, to: Vec3): boolean {
+    if (!this.world) return false;
+    const d = distanceOf(from, to);
+    if (d < 1) return false;
+    // A grid walk along the ray is cheap even across the island.
+    const hit = colliderGrid(this.world).ray(from, { x: (to.x - from.x) / d, y: (to.y - from.y) / d, z: (to.z - from.z) / d }, d);
+    return hit !== null && hit < d - .6;
   }
 
-  private tone(output: AudioNode, start: number, from: number, to: number, duration: number, volume: number, shape: OscillatorType) {
-    const ctx = this.context!, oscillator = ctx.createOscillator(), gain = ctx.createGain();
-    oscillator.type = shape;
-    oscillator.frequency.setValueAtTime(from, start);
-    oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, to), start + duration);
-    gain.gain.setValueAtTime(.0001, start);
-    gain.gain.exponentialRampToValueAtTime(Math.max(.0002, volume), start + Math.min(.008, duration * .2));
-    gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
-    oscillator.connect(gain); gain.connect(output);
-    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
-    oscillator.start(start); oscillator.stop(start + duration + .01);
+  /** A sound at a world position, heard through the gun, step or world distance model. */
+  private at(id: string, pos: Vec3, listener: Vec3, level: number, model: 'step' | 'world', range: number, extra: Partial<PlayOptions> = {}) {
+    const d = distanceOf(pos, listener);
+    if (d > range) return null;
+    const m = model === 'step' ? stepDistance(d, range) : worldDistance(d, range);
+    return this.play(id, { level: level + m.db, cutoff: m.cutoff, pos, kind: extra.kind ?? (model === 'step' ? 'step' : 'world'), ...extra });
   }
 
-  private metalClick(output: AudioNode, start: number, frequency: number, volume: number) {
-    this.noise(output, start, .035, 'highpass', frequency, volume, .001);
-    this.tone(output, start, frequency * .55, frequency * .27, .045, volume * .3, 'triangle');
+  // ---- Events ----------------------------------------------------------------
+
+  event(event: GameEvent, listener: Vec3, yaw: number, myId: string): void {
+    const ctx = this.context;
+    if (!ctx || !this.buses || ctx.state !== 'running' || this.disposed) return;
+    this.myId = myId;
+    this.placeListener(listener, yaw);
+    const now = ctx.currentTime, actorPos = (id: string | null | undefined) => id ? this.lastSnapshot?.actors.find(a => a.id === id)?.pos : undefined;
+    switch (event.type) {
+      case 'shot': this.shot(event, listener, myId, now); break;
+      case 'damage': this.damage(event, listener, yaw, myId, now); break;
+      case 'kill': {
+        this.pendingHurt.delete(event.target);
+        const eliminated = this.lastSnapshot?.actors.find(a => a.id === event.target);
+        if (eliminated) this.voiceChirp('elimination', eliminated.id, eliminated.pos, listener, myId);
+        if (event.actor === myId) { this.duckRemoteFire(now); this.play('fb:kill', { level: LEVEL.kill, at: now + .03 }); }
+        if (eliminated && event.target !== myId) this.at('fb:poof', eliminated.pos, listener, LEVEL.poof, 'world', 45);
+        break;
+      }
+      case 'pickup': {
+        if (event.actor !== myId) break;
+        const loot = this.lastSnapshot?.loot.find(l => l.id === event.item);
+        const chest = !loot && !!this.world?.chests.some(c => c.id === event.item);
+        if (chest) { this.play('fb:chest', { level: LEVEL.pickup }); break; }
+        this.play(PICKUP_CUE[loot?.kind ?? ''] ?? 'fb:pick-item', { level: LEVEL.pickup });
+        if (loot?.kind === 'weapon' && loot.rarity > 0) this.play(`fb:rare-${clamp(loot.rarity, 1, 3)}`, { level: LEVEL.chime, at: now + .06 });
+        break;
+      }
+      case 'use': {
+        const own = event.actor === myId, pos = actorPos(event.actor);
+        if (own) this.play(USE_CUE[event.item], { level: LEVEL.use });
+        else if (pos) this.at(USE_CUE[event.item], pos, listener, LEVEL.use - 2, 'step', 20);
+        break;
+      }
+      case 'reload': {
+        if (event.actor === myId) break; // The viewmodel plays every mechanism cue.
+        const pos = actorPos(event.actor);
+        if (pos) this.remoteReload(event.weapon, pos, listener, now);
+        break;
+      }
+      case 'respawn': if (event.actor === myId) this.play('fb:respawn', { level: LEVEL.respawn }); break;
+      case 'water': {
+        const own = event.actor === myId;
+        if (own) this.waterSound(null, now, event.entering, LEVEL.splash);
+        else if (distanceOf(event.pos, listener) <= 32) this.waterSound(event.pos, now, event.entering, LEVEL.splash + 2, listener);
+        break;
+      }
+      case 'upgrade': {
+        const own = event.actor === myId, pos = actorPos(event.actor), rate = 2 ** (clamp(event.level, 0, 7) / 24);
+        if (own) { this.duckRemoteFire(now); this.play('fb:upgrade', { level: LEVEL.upgrade + (event.level === 7 ? 3 : 0), rate }); }
+        else if (pos) this.at('fb:upgrade', pos, listener, LEVEL.upgrade - 4, 'world', 24, { rate });
+        break;
+      }
+      case 'bounce': {
+        if (event.actor === myId) this.play('fb:bounce', { level: LEVEL.bounce });
+        else this.at('fb:bounce', event.pos, listener, LEVEL.bounce, 'step', 28);
+        break;
+      }
+      case 'supply':
+        if (event.stage === 'incoming') this.play('fb:supply-incoming', { level: LEVEL.supply });
+        else if (event.stage === 'landed') this.at('fb:supply-land', event.pos, listener, LEVEL.supplyLand, 'world', 90);
+        else this.at('fb:supply-open', event.pos, listener, LEVEL.supply, 'world', 28);
+        break;
+      case 'impact':
+        if (event.weapon === 'coco') this.explosion(event.pos, listener);
+        else this.impact(event.surface, event.pos, listener, event.actor === myId);
+        break;
+      case 'alert': {
+        if (event.target !== myId) break;
+        const bot = this.lastSnapshot?.actors.find(a => a.id === event.actor);
+        if (bot) this.voiceChirp('spot', bot.id, bot.pos, listener, myId);
+        break;
+      }
+      case 'notice': this.play('fb:ui-notice', { level: LEVEL.notice }); break;
+    }
   }
 
-  private weapon(id: WeaponId, output: AudioNode, level: number, now: number) {
-    if (id === 'machete') {
-      this.noise(output, now, .23, 'bandpass', 850, .23 * level, .02);
-      this.tone(output, now + .035, 240, 92, .16, .055 * level, 'triangle');
-      return;
-    }
-    if (id === 'coco') {
-      // A hollow launcher thunk: low pop, air rush, no crack.
-      this.tone(output, now, 150, 55, .22, .22 * level, 'sine');
-      this.noise(output, now, .09, 'lowpass', 500, .18 * level, .002);
-      this.noise(output, now + .05, .3, 'bandpass', 700, .05 * level, .02);
-      return;
-    }
-    if (id !== 'revolver' && this.playSample(id, output, (id === 'shotgun' || id === 'sniper' ? .48 : .42) * level, now, .48)) {
-      this.shotLayers(id, output, level, now);
-      return;
-    }
-    const voice = VOICES[id];
-    const size = id === 'shotgun' || id === 'sniper' ? 1.18 : id === 'smg' ? .72 : 1;
-    this.noise(output, now, .042, 'highpass', voice.crack, .34 * size * level, .001);
-    this.noise(output, now + .004, voice.length * .56, 'lowpass', voice.body * 3.2, .2 * size * level, .003, true);
-    this.tone(output, now, voice.bass * 2.5, voice.bass, .18 + voice.length * .18, .15 * size * level, 'triangle');
-    this.noise(output, now + .035, voice.length, 'bandpass', voice.tail, .095 * size * level, .008);
-    this.metalClick(output, now + (id === 'smg' ? .018 : .045), voice.metal, .1 * level);
-    if (id === 'shotgun') this.metalClick(output, now + .42, 1250, .16 * level);
-    if (id === 'sniper' || id === 'dmr') {
-      this.metalClick(output, now + .28, 2200, .12 * level);
-      this.metalClick(output, now + .5, 900, .12 * level);
-    }
-  }
-
-  // Layers over the recorded report: the gun's own mechanism and, close up, a
-  // low punch that gives the shot weight without raising its loudness.
-  private shotLayers(id: WeaponId, output: AudioNode, level: number, now: number) {
-    const own = level >= 1;
-    const voice = VOICES[id];
+  private shot(event: Extract<GameEvent, { type: 'shot' }>, listener: Vec3, myId: string, now: number) {
+    const own = event.actor === myId, distance = distanceOf(event.origin, listener);
+    if (!own && distance > GUN_RANGE) return;
+    if (own || distance < 40) this.duckUntil = Math.max(this.duckUntil, now + 2.5);
+    const rate = .97 + Math.random() * .06, id = event.weapon;
     if (own) {
-      this.tone(output, now, voice.bass * 1.6, voice.bass * .55, .12 + voice.length * .08, (id === 'shotgun' || id === 'sniper' ? .2 : .13) * level, 'sine');
-      this.noise(output, now + .002, .06, 'lowpass', 380, .09 * level, .001, true);
+      const auto = WEAPONS[id].automatic;
+      const level = id === 'machete' ? LEVEL.ownMelee : id === 'coco' ? LEVEL.ownShot - 3 : auto ? LEVEL.ownShotAuto : LEVEL.ownShot;
+      this.play(GUN_SOUND(id), { level, rate, kind: 'shot' });
+      this.mechanism(id, now, null, listener);
+    } else {
+      const g = gunDistance(distance), occluded = distance > 3 && this.occluded(listener, { ...event.origin, y: event.origin.y + .3 });
+      const base = (id === 'machete' ? LEVEL.remoteMelee : LEVEL.remoteShot) + g.db + (occluded ? OCCLUDED.gunDb : 0);
+      const cutoff = occluded ? Math.min(g.cutoff, OCCLUDED.gunCutoff) : g.cutoff, at = now + g.delay;
+      if (id === 'machete') { if (distance < 25) this.play(GUN_SOUND(id), { level: base, pos: event.origin, cutoff, kind: 'shot', rate }); }
+      else {
+        const far = id === 'coco' ? 0 : g.far;
+        if (g.near > .05) this.play(GUN_SOUND(id), { level: base + 20 * Math.log10(g.near), pos: event.origin, cutoff, at, rate, kind: 'shot', out: this.remoteFire! });
+        if (far > .05) this.play(`far:${id}`, { level: base + 20 * Math.log10(far), pos: event.origin, cutoff: occluded ? cutoff * 1.5 : undefined, at, rate, kind: 'shot', out: this.remoteFire! });
+        if (distance < 25) this.mechanism(id, at, event.origin, listener);
+        this.whizBy(event, listener, now);
+      }
     }
-    if (id === 'pistol') this.metalClick(output, now + .03, 3200, .05 * level);
-    else if (id === 'smg' || id === 'm4') this.metalClick(output, now + .022, id === 'smg' ? 3400 : 2800, .045 * level);
-    else if (id === 'dmr') this.metalClick(output, now + .035, 2400, .06 * level);
-    else if (id === 'shotgun') { this.foleyAt(output, 'pump-back', now + .28, level); this.foleyAt(output, 'pump-home', now + .4, level); }
-    else if (id === 'sniper') { this.foleyAt(output, 'bolt-open', now + .1, level); this.foleyAt(output, 'bolt-back', now + .2, level); this.foleyAt(output, 'bolt-home', now + .32, level); }
+    if (event.surface && !event.hit && id !== 'machete') this.impact(event.surface, event.end, listener, own);
+  }
+
+  /** The gun's action after the shot, timed to the viewmodel's cycle (pump, bolt). */
+  private mechanism(id: WeaponId, at: number, pos: Vec3 | null, listener: Vec3) {
+    const cycle = weaponShotDuration(id);
+    const cues: [string, number][] = id === 'shotgun' ? [['pump-back', .3], ['pump-home', .68]] :
+      id === 'sniper' ? [['bolt-open', .15], ['bolt-back', .38], ['bolt-home', .8]] : [];
+    for (const [cue, t] of cues) {
+      if (pos) this.at(`foley:${cue}`, pos, listener, LEVEL.remoteFoley, 'step', 25, { at: at + cycle * t });
+      else this.play(`foley:${cue}`, { level: LEVEL.ownFoley + 3, at: at + cycle * t });
+    }
+  }
+
+  /** A remote round passing within a couple of metres cracks by at the closest point of its path. */
+  private whizBy(event: Extract<GameEvent, { type: 'shot' }>, listener: Vec3, now: number) {
+    const o = event.origin, e = event.end, dx = e.x - o.x, dy = e.y - o.y, dz = e.z - o.z, length = Math.hypot(dx, dy, dz);
+    if (length < 8) return;
+    const t = clamp(((listener.x - o.x) * dx + (listener.y - o.y) * dy + (listener.z - o.z) * dz) / (length * length), 0, 1);
+    const along = t * length;
+    if (along < 6 || t >= 1) return;
+    const closest = { x: o.x + dx * t, y: o.y + dy * t, z: o.z + dz * t }, miss = distanceOf(closest, listener);
+    if (miss > 2.6) return;
+    this.play('whiz', { level: LEVEL.whiz - miss * 3, pos: closest, at: now + along / 700, kind: 'shot' });
+  }
+
+  private impact(surface: Surface, pos: Vec3, listener: Vec3, own: boolean) {
+    const d = distanceOf(pos, listener);
+    this.at(`impact:${surface}`, pos, listener, LEVEL.impact + (own ? 2 : 0), 'step', own ? 60 : 25, { at: (this.context?.currentTime ?? 0) + d / 343, kind: 'fx' });
+  }
+
+  private explosion(pos: Vec3, listener: Vec3) {
+    const d = distanceOf(pos, listener);
+    if (d > 200) return;
+    const g = gunDistance(d), at = this.context!.currentTime + g.delay;
+    if (d < 40) this.duckUntil = Math.max(this.duckUntil, at + 2.5);
+    if (g.near > .05) this.play('boom:coco', { level: LEVEL.explosion + g.db + 20 * Math.log10(g.near), pos, at, cutoff: g.cutoff, kind: 'shot' });
+    if (g.far > .05) this.play('boom:coco-far', { level: LEVEL.explosion + g.db + 20 * Math.log10(g.far), pos, at, kind: 'shot' });
+  }
+
+  private damage(event: Extract<GameEvent, { type: 'damage' }>, listener: Vec3, yaw: number, myId: string, now: number) {
+    if (event.actor === myId || event.target === myId || distanceOf(event.pos, listener) < 35) this.duckUntil = Math.max(this.duckUntil, now + 2.5);
+    const hurt = this.lastSnapshot?.actors.find(a => a.id === event.target);
+    const ctx = this.context;
+    // Damage and kill arrive in the same batch. A microtask lets elimination take the actor's voice slot.
+    if (hurt && !this.pendingHurt.has(hurt.id)) {
+      this.pendingHurt.add(hurt.id);
+      queueMicrotask(() => {
+        if (!this.pendingHurt.delete(hurt.id) || this.disposed || this.context !== ctx) return;
+        this.voiceChirp('hurt', hurt.id, hurt.pos, listener, myId);
+      });
+    }
+    if (event.target === myId && !event.actor) this.play('fb:storm-bite', { level: LEVEL.stormBite });
+    else if (event.target === myId) {
+      // The thump leans toward the side the shot came from.
+      const from = this.lastSnapshot?.actors.find(a => a.id === event.actor);
+      const pan = from ? clamp(Math.sin(Math.atan2(-(from.pos.x - listener.x), -(from.pos.z - listener.z)) - yaw) * -.75, -.75, .75) : 0;
+      this.play('fb:damage', { level: LEVEL.damageTaken, pan });
+    } else if (event.actor === myId) {
+      this.duckRemoteFire(now);
+      this.play(event.head ? 'fb:head' : 'fb:hit', { level: event.head ? LEVEL.head : LEVEL.hit });
+    } else this.at('flesh', event.pos, listener, LEVEL.flesh, 'step', 30);
+    if (event.armorBreak) {
+      const local = event.target === myId || event.actor === myId;
+      if (local) this.play('fb:armor-break', { level: LEVEL.armorBreak });
+      else this.at('fb:armor-break', event.pos, listener, LEVEL.armorBreak - 4, 'step', 30);
+    }
+  }
+
+  private remoteReload(weapon: WeaponId, pos: Vec3, listener: Vec3, now: number) {
+    const duration = WEAPONS[weapon].reload;
+    const cues: [string, number][] = weapon === 'shotgun' ? [['shell-in', .64]] : weapon === 'revolver' ? [['cylinder-open', .18], ['eject', .33], ['speedloader', .68], ['cylinder-close', .78]] :
+      weapon === 'coco' ? [['coconut-in', .64]] : weapon === 'machete' ? [] : [['mag-out', .2], ['mag-in', .68], [weapon === 'sniper' ? 'bolt-home' : 'slide-home', .86]];
+    for (const [cue, t] of cues) this.at(`foley:${cue}`, pos, listener, LEVEL.remoteFoley, 'step', 18, { at: now + duration * t });
   }
 
   /** First-person Foley cue from the viewmodel choreography (magazine, slide, bolt, pump...). */
@@ -515,141 +505,128 @@ export class SoundEngine {
     const ctx = this.context;
     if (!ctx || !this.buses || ctx.state !== 'running' || this.disposed) return;
     this.localReloadEnd = ctx.currentTime + .6;
-    this.foleyAt(this.buses.effects, cue, ctx.currentTime, 1);
+    if (this.reloadGain) this.cancelReload();
+    this.play(`foley:${cue}`, { level: cue === 'draw' || cue === 'grab' ? LEVEL.ownFoley - 3 : LEVEL.ownFoley });
   }
 
-  private foleyAt(output: AudioNode, cue: string, now: number, level: number) {
-    const v = level;
-    switch (cue) {
-      case 'mag-out': this.metalClick(output, now, 1900, .07 * v); this.noise(output, now + .01, .09, 'bandpass', 900, .04 * v, .004); break;
-      case 'mag-drop': this.noise(output, now, .1, 'bandpass', 520, .05 * v, .003); this.tone(output, now, 260, 140, .08, .03 * v, 'triangle'); break;
-      case 'mag-in': this.noise(output, now, .05, 'bandpass', 1300, .06 * v, .002); this.metalClick(output, now + .045, 1500, .11 * v); break;
-      case 'slide-back': this.noise(output, now, .08, 'bandpass', 2300, .05 * v, .004); this.metalClick(output, now + .06, 2600, .07 * v); break;
-      case 'slide-home': this.metalClick(output, now, 2100, .13 * v); this.tone(output, now, 700, 380, .05, .03 * v, 'triangle'); break;
-      case 'bolt-open': this.metalClick(output, now, 1700, .08 * v); break;
-      case 'bolt-back': this.noise(output, now, .09, 'bandpass', 1500, .06 * v, .01); this.metalClick(output, now + .08, 1300, .07 * v); break;
-      case 'bolt-home': this.noise(output, now, .07, 'bandpass', 1600, .05 * v, .008); this.metalClick(output, now + .06, 2000, .11 * v); break;
-      case 'pump-back': this.noise(output, now, .09, 'bandpass', 900, .08 * v, .006); this.metalClick(output, now + .06, 1100, .1 * v); break;
-      case 'pump-home': this.noise(output, now, .07, 'bandpass', 1100, .07 * v, .004); this.metalClick(output, now + .05, 1450, .13 * v); break;
-      case 'shell-in': this.metalClick(output, now, 2400, .06 * v); this.noise(output, now + .02, .06, 'bandpass', 1800, .04 * v, .003); break;
-      case 'cylinder-open': this.metalClick(output, now, 2000, .08 * v); this.tone(output, now, 900, 600, .1, .02 * v, 'triangle'); break;
-      case 'eject': this.noise(output, now, .06, 'bandpass', 2600, .05 * v, .002); for (let i = 0; i < 4; i++) this.metalClick(output, now + .12 + i * .045 + Math.random() * .02, 3600 + Math.random() * 900, .025 * v); break;
-      case 'speedloader': this.noise(output, now, .06, 'bandpass', 1900, .05 * v, .003); this.metalClick(output, now + .04, 2300, .07 * v); break;
-      case 'cylinder-close': this.metalClick(output, now, 1500, .14 * v); this.tone(output, now, 520, 300, .06, .04 * v, 'triangle'); break;
-      case 'coconut-in': this.tone(output, now, 180, 90, .12, .08 * v, 'sine'); this.noise(output, now, .08, 'lowpass', 600, .06 * v, .004, true); break;
-      case 'grab': this.noise(output, now, .05, 'bandpass', 700, .035 * v, .004); break;
-      case 'draw': this.noise(output, now, .12, 'bandpass', 1100, .035 * v, .03); this.metalClick(output, now + .1, 2000, .035 * v); break;
-      case 'stone': this.noise(output, now, .05, 'lowpass', 900, .05 * v, .003, true); this.tone(output, now, 300, 240, .05, .02 * v, 'triangle'); break;
-      default: break;
-    }
+  /** Menu and HUD interface sounds. */
+  ui(kind: 'hover' | 'click' | 'back'): void {
+    if (!this.context || this.context.state !== 'running' || this.disposed) return;
+    this.play(`fb:ui-${kind}`, { level: kind === 'hover' ? LEVEL.uiHover : LEVEL.ui });
   }
 
-  private startAmbience() {
-    const ctx = this.context!, buses = this.buses!;
-    const loop = (buffer: AudioBuffer, filter: BiquadFilterType, frequency: number, left: number) => {
-      const source = ctx.createBufferSource(), shape = ctx.createBiquadFilter(), pan = ctx.createStereoPanner(), gain = ctx.createGain();
-      source.buffer = buffer; source.loop = true; shape.type = filter; shape.frequency.value = frequency;
-      pan.pan.value = left; gain.gain.value = 0;
-      source.connect(shape); shape.connect(pan); pan.connect(gain); gain.connect(buses.ambience);
-      source.start(0, Math.random() * 1.5); this.ambientSources.push(source); this.ambientNodes.push(shape, pan, gain);
-      return gain;
-    };
-    this.windGain = loop(this.lowNoiseBuffer!, 'lowpass', 460, -.32);
-    this.surfGain = loop(this.noiseBuffer!, 'lowpass', 950, .35);
-    this.insectsGain = loop(this.noiseBuffer!, 'bandpass', 3600, -.15);
-    if (this.fountain) {
-      const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), panner = ctx.createPanner(), gain = ctx.createGain();
-      source.buffer = this.noiseBuffer; source.loop = true;
-      filter.type = 'bandpass'; filter.frequency.value = 950; filter.Q.value = .45;
-      panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse'; panner.refDistance = 2; panner.maxDistance = 70; panner.rolloffFactor = 1.8;
-      panner.positionX.value = this.fountain.x; panner.positionY.value = this.fountain.y + .7; panner.positionZ.value = this.fountain.z;
-      gain.gain.value = 0;
-      source.connect(filter); filter.connect(panner); panner.connect(gain); gain.connect(buses.ambience);
-      source.start(0, Math.random() * 1.5);
-      this.ambientSources.push(source); this.ambientNodes.push(filter, panner, gain); this.fountainGain = gain;
-    }
-    // Storm: a low rumble with a slow swell, silent until the listener is outside the zone.
-    {
-      const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain(), lfo = ctx.createOscillator(), depth = ctx.createGain();
-      source.buffer = this.lowNoiseBuffer; source.loop = true;
-      filter.type = 'lowpass'; filter.frequency.value = 320; gain.gain.value = 0;
-      lfo.frequency.value = .35; depth.gain.value = 0;
-      lfo.connect(depth); depth.connect(gain.gain);
-      source.connect(filter); filter.connect(gain); gain.connect(buses.effects);
-      source.start(0, Math.random() * 1.5); lfo.start();
-      this.ambientSources.push(source); this.ambientNodes.push(filter, gain, depth);
-      this.stormLfo = { lfo, depth }; this.stormGain = gain;
-    }
-    this.nextWildlife = ctx.currentTime + 4;
-  }
+  // ---- Frame update ------------------------------------------------------------
 
-  private updateAmbient(actor: ActorState | null, menu: boolean, now: number) {
-    if (!this.windGain || !this.surfGain || !this.insectsGain || !this.buses) return;
-    if (menu || !actor) { this.inside = false; this.nearbyPlace = null; }
-    else if (now >= this.nextRegionCheck) {
-      this.nextRegionCheck = now + .25;
-      this.inside = actor.stage === 'ground' && this.interiors.some(house =>
-        Math.abs(actor.pos.x - house.pos.x) < house.halfX && Math.abs(actor.pos.z - house.pos.z) < house.halfZ &&
-        actor.pos.y >= house.pos.y - .3 && actor.pos.y < house.pos.y + 2.7);
-      const previous = this.nearbyPlace;
-      let nearest: LocalPlace | null = null, best = Infinity;
-      for (const place of this.localPlaces) {
-        const distance = Math.hypot(actor.pos.x - place.pos.x, actor.pos.z - place.pos.z);
-        if (distance < place.radius && distance < best) { nearest = place; best = distance; }
+  update(actor: ActorState | null, snapshot: WorldSnapshot | null, dt: number, menu: boolean): void {
+    const ctx = this.context;
+    this.lastSnapshot = snapshot;
+    if (!ctx || !this.buses || ctx.state !== 'running' || this.disposed) return;
+    const now = ctx.currentTime;
+    const combat = now < this.duckUntil;
+    this.buses.musicDuck.gain.setTargetAtTime(combat ? .4 : 1, now, combat ? .03 : .6);
+    this.buses.ambienceDuck.gain.setTargetAtTime(combat ? .45 : 1, now, combat ? .05 : 1.2);
+    this.updateAmbient(actor, menu, now, combat);
+    this.updateMusic(actor, snapshot, menu, now);
+    this.updateFlow(snapshot, menu, now);
+    this.updateStorm(actor, snapshot, menu, now);
+    this.updateAir(actor, snapshot, menu, now);
+    if (!menu && actor?.alive && actor.stage === 'ground' && actor.hp > 0 && actor.hp < LOW_HP && snapshot?.phase === 'playing') {
+      if (now >= this.nextHeart) {
+        // Lub-dub, quicker as health drops: 0.95 s at 30 hp down to 0.6 s near zero.
+        this.play('fb:heart', { level: LEVEL.heart });
+        this.nextHeart = now + .6 + .35 * actor.hp / LOW_HP;
       }
-      this.nearbyPlace = nearest;
-      if (nearest !== previous) this.nextPlaceSound = Math.min(this.nextPlaceSound, now + .9);
+    } else this.nextHeart = Math.max(this.nextHeart, now);
+    if (!actor || !snapshot || menu || !Number.isFinite(dt) || dt <= 0) {
+      this.lastPosition = null; this.lastActorId = null; this.lastGrounded = false; this.lastSwimming = false; this.distanceToStep = 0;
+      this.remoteSteps.clear();
+      this.clearMudVoices();
+      this.cancelReload();
+      this.clearEmotes();
+      return;
     }
-    const coast = actor ? clamp((2.5 - terrainHeight(actor.pos.x, actor.pos.z)) / 2.5, 0, 1) : .2;
-    const outdoor = menu ? .25 : actor ? this.inside ? .2 : 1 : .45;
-    this.windGain.gain.setTargetAtTime(.035 * outdoor, now, .8);
-    this.surfGain.gain.setTargetAtTime((.015 + .08 * coast) * outdoor, now, 1.2);
-    this.insectsGain.gain.setTargetAtTime((.004 + .013 * (1 - coast)) * outdoor, now, 1.2);
-    if (this.fountainGain) {
-      const distance = actor && this.fountain ? Math.hypot(actor.pos.x - this.fountain.x, actor.pos.z - this.fountain.z) : Infinity;
-      this.fountainGain.gain.setTargetAtTime(!menu && actor?.stage === 'ground' ? .025 * clamp(1 - distance / 27, 0, 1) : 0, now, .7);
-    }
-    if (!menu && actor && this.settings.ambience > 0 && !this.inside && now >= this.nextWildlife) {
-      this.nextWildlife = now + 5 + Math.random() * 9;
-      const bird = Math.random() < .65;
-      const output = this.buses.ambience;
-      if (bird) {
-        const base = 850 + Math.random() * 360;
-        this.tone(output, now, base, base * 1.45, .12, .015, 'sine');
-        this.tone(output, now + .16, base * 1.2, base * .85, .16, .012, 'sine');
-      } else {
-        this.noise(output, now, .35, 'bandpass', 3800, .018, .06);
-        this.noise(output, now + .44, .25, 'bandpass', 3300, .012, .04);
+    this.placeListener({ x: actor.pos.x, y: actor.pos.y + 1.5, z: actor.pos.z }, actor.yaw);
+    this.updateSoaking(actor, snapshot, now);
+    this.updateRemoteSteps(actor, snapshot);
+    this.updateEmotes(actor, snapshot);
+    if (now >= this.nextSpotCheck && actor.alive && actor.stage === 'ground') {
+      this.nextSpotCheck = now + .7;
+      const other = snapshot.actors.find(a => a.id !== actor.id && a.alive && a.stage === 'ground' && Math.hypot(a.pos.x - actor.pos.x, a.pos.z - actor.pos.z) < 24 &&
+        Math.cos(actor.yaw) * (actor.pos.z - a.pos.z) + Math.sin(actor.yaw) * (actor.pos.x - a.pos.x) > 0 &&
+        (!this.world || hasLineOfSight({ ...actor.pos, y: actor.pos.y + 1.5 }, { ...a.pos, y: a.pos.y + 1 }, this.world)));
+      if (other?.id !== this.spottedActor) {
+        this.spottedActor = other?.id || null;
+        if (other) this.voiceChirp('spot', actor.id, actor.pos, actor.pos, actor.id);
       }
     }
-    if (menu || !actor || this.settings.ambience <= 0 || now < this.nextPlaceSound) return;
-    const place = this.nearbyPlace;
-    if (!place) { this.nextPlaceSound = now + .8; return; }
-    const distance = Math.hypot(actor.pos.x - place.pos.x, actor.pos.z - place.pos.z);
-    const output = this.spatial(place.pos, this.buses.ambience, distance);
-    if (place.kind === 'bakery') {
-      this.noise(output, now, .12, 'highpass', 1250, .015, .004);
-      this.noise(output, now + .16, .09, 'highpass', 1600, .01, .003);
-      this.nextPlaceSound = now + 3 + Math.random() * 3;
-    } else if (place.kind === 'cafe') {
-      this.tone(output, now, 1500, 950, .07, .013, 'sine');
-      this.tone(output, now + .11, 1130, 790, .09, .009, 'sine');
-      this.nextPlaceSound = now + 6 + Math.random() * 5;
-    } else {
-      this.noise(output, now, .4, 'bandpass', 420, .012, .05, true);
-      this.tone(output, now + .06, 190, 105, .42, .011, 'triangle');
-      this.nextPlaceSound = now + 5 + Math.random() * 5;
+    this.updateReload(actor, snapshot, now);
+    if (!actor.alive) { this.lastActorId = null; this.lastPosition = null; this.distanceToStep = 0; return; }
+    const grounded = actor.grounded && actor.stage === 'ground' && !actor.swimming;
+    if (this.lastActorId !== actor.id) {
+      this.lastActorId = actor.id; this.lastPosition = { ...actor.pos };
+      this.lastGrounded = grounded; this.lastSwimming = actor.swimming; this.lastVelocityY = actor.velocity.y; this.distanceToStep = 0; this.lastCrouch = actor.crouch;
+      return;
     }
+    if (actor.crouch !== this.lastCrouch && grounded) this.play('cloth', { level: LEVEL.ownCloth });
+    this.lastCrouch = actor.crouch;
+    // Ordinary jumps keep stage='ground'. Contact, not stage, owns the cadence.
+    if (actor.swimming && this.lastSwimming && this.lastPosition && Math.hypot(actor.velocity.x, actor.velocity.z) > .15) {
+      const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
+      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
+      if (this.distanceToStep >= 1.6) { this.distanceToStep %= 1.6; this.waterSound(null, now, null, LEVEL.swim); }
+    } else if (!this.lastGrounded && !this.lastSwimming && grounded) {
+      this.footstep(actor.pos, LEVEL.ownLand + clamp(-this.lastVelocityY, 0, 18) * .45, true);
+      this.distanceToStep = 0;
+    } else if (this.lastGrounded && !grounded && !actor.swimming && actor.velocity.y > 1.5) {
+      this.play('jump', { level: LEVEL.ownJump });
+    } else if (this.lastPosition && grounded && this.lastGrounded && Math.hypot(actor.velocity.x, actor.velocity.z) > .1) {
+      const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
+      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
+      const stride = actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
+      if (this.distanceToStep >= stride) {
+        this.distanceToStep %= stride;
+        this.footstep(actor.pos, LEVEL.ownStep + (actor.crouch ? -6 : actor.sprint ? 3 : 0), false);
+        if (actor.sprint && this.stepCount++ % 2 === 0) this.play('gear', { level: LEVEL.ownGear, at: now + .05 });
+      }
+    } else this.distanceToStep = 0;
+    this.lastPosition = { ...actor.pos }; this.lastGrounded = grounded; this.lastSwimming = actor.swimming; this.lastVelocityY = actor.velocity.y;
+  }
+
+  /** What the paws are touching: a collider top under the feet, shallow water, or the painted terrain. */
+  materialAt(pos: Vec3): StepMaterial {
+    if (this.world) {
+      let best: StepMaterial | null = null, top = -Infinity;
+      for (const c of [...colliderGrid(this.world).query(pos.x - .05, pos.z - .05, pos.x + .05, pos.z + .05), ...(this.world.walkways || [])]) {
+        if (pos.x < c.min.x || pos.x > c.max.x || pos.z < c.min.z || pos.z > c.max.z) continue;
+        if (c.max.y > pos.y + .15 || c.max.y < pos.y - .4 || c.max.y <= top) continue;
+        top = c.max.y; best = c.material === 'earth' ? 'dirt' : c.material;
+      }
+      if (best) return best;
+    }
+    const water = waterAt(pos.x, pos.z);
+    if (water && pos.y < water.surfaceY + .1) return 'water';
+    return MATERIAL[terrainSurface(pos.x, pos.z)];
+  }
+
+  /** One stride or touchdown. `level` is in LUFS; a remote step passes its distance and listener. */
+  private footstep(position: Vec3, level: number, landing: boolean, remote?: { listener: Vec3; range: number; occluded: boolean }) {
+    const id = `${landing ? 'land' : 'step'}:${this.materialAt(position)}`;
+    if (!remote) { this.play(id, { level, kind: 'step' }); return; }
+    const d = distanceOf(position, remote.listener), m = stepDistance(d, remote.range);
+    this.play(id, {
+      level: level + m.db + (remote.occluded ? OCCLUDED.stepDb : 0), pos: position, kind: 'step',
+      cutoff: remote.occluded ? Math.min(m.cutoff, OCCLUDED.stepCutoff) : m.cutoff,
+    });
   }
 
   private updateRemoteSteps(listener: ActorState, snapshot: WorldSnapshot) {
     // Keep airborne neighbours in the history so a snapshot touchdown sounds
     // once, without carrying their in-air travel into the next walking stride.
     const nearby = snapshot.actors.filter(a => a.id !== listener.id && a.alive && a.stage !== 'plane')
-      .map(actor => ({ actor, distance: Math.hypot(actor.pos.x - listener.pos.x, actor.pos.y - listener.pos.y, actor.pos.z - listener.pos.z) }))
-      .filter(item => item.distance < (item.actor.crouch ? 7 : 28)).sort((a, b) => a.distance - b.distance).slice(0, 6);
-    const seen = new Set<string>();
-    for (const { actor, distance } of nearby) {
+      .map(actor => ({ actor, distance: distanceOf(actor.pos, listener.pos) }))
+      .filter(item => item.distance < (item.actor.crouch ? STEP_RANGE.crouch : STEP_RANGE.sprint)).sort((a, b) => a.distance - b.distance).slice(0, 6);
+    const seen = new Set<string>(), ear = { ...listener.pos, y: listener.pos.y + 1.5 };
+    for (const { actor } of nearby) {
       seen.add(actor.id);
       const grounded = actor.grounded && actor.stage === 'ground' && !actor.swimming;
       const prior = this.remoteSteps.get(actor.id) || { pos: { ...actor.pos }, travelled: 0, grounded, swimming: actor.swimming, velocityY: actor.velocity.y };
@@ -662,27 +639,20 @@ export class SoundEngine {
       const stride = actor.swimming ? 1.6 : actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
       if (!landing && prior.travelled < stride) continue;
       prior.travelled %= stride;
-      const occluded = this.world && !hasLineOfSight({ ...listener.pos, y: listener.pos.y + 1.5 }, { ...actor.pos, y: actor.pos.y + 1 }, this.world);
-      const output = this.spatial(actor.pos, this.buses!.effects, distance);
-      if (actor.swimming) { this.waterSound(output, this.context!.currentTime, null, occluded ? .14 : .45); continue; }
-      const volume = landing ? .12 + clamp(fallSpeed, 0, 18) * .012 : actor.crouch ? .06 : actor.sprint ? .24 : .16;
-      this.footstep(actor.pos, volume * (occluded ? .35 : 1), landing, output);
+      const occluded = this.occluded(ear, { ...actor.pos, y: actor.pos.y + 1 });
+      if (actor.swimming) { this.waterSound(actor.pos, this.context!.currentTime, null, LEVEL.swim + 4 + (occluded ? -8 : 0), listener.pos); continue; }
+      const range = landing ? STEP_RANGE.sprint : actor.crouch ? STEP_RANGE.crouch : actor.sprint ? STEP_RANGE.sprint : STEP_RANGE.walk;
+      const level = landing ? LEVEL.remoteLand + clamp(fallSpeed, 0, 18) * .45 : LEVEL.remoteStep + (actor.crouch ? -8 : actor.sprint ? 3 : 0);
+      this.footstep(actor.pos, level, landing, { listener: ear, range, occluded });
     }
     for (const id of this.remoteSteps.keys()) if (!seen.has(id)) this.remoteSteps.delete(id);
   }
 
-  private waterSound(output: AudioNode, now: number, entering: boolean | null, volume: number) {
-    if (entering === null) {
-      this.noise(output, now, .27, 'bandpass', 620, .055 * volume, .045, true);
-      this.tone(output, now + .05, 155, 235, .13, .019 * volume, 'sine');
-      return;
-    }
-    this.noise(output, now, entering ? .36 : .2, 'lowpass', entering ? 1300 : 1800, (entering ? .19 : .065) * volume, .012, true);
-    if (entering) this.tone(output, now, 135, 48, .22, .075 * volume, 'sine');
-    for (let i = 0; i < 3; i++) {
-      const delay = .08 + i * .085, pitch = 420 + i * 135;
-      this.tone(output, now + delay, pitch, pitch * .6, .06, .023 * volume, 'sine');
-    }
+  /** Swim strokes (entering null) and entry or exit splashes, local (pos null) or at a remote position. */
+  private waterSound(pos: Vec3 | null, now: number, entering: boolean | null, level: number, listener?: Vec3) {
+    const id = entering === null ? 'swim' : entering ? 'splash:in' : 'splash:out';
+    if (!pos || !listener) { this.play(id, { level, at: now }); return; }
+    this.at(id, pos, listener, level, 'step', 32, { at: now });
   }
 
   private clearMudVoices() {
@@ -700,7 +670,7 @@ export class SoundEngine {
       if (!own && actor.id === listener.id) continue;
       if (!actor.soaking || !actor.alive || !actor.grounded || actor.swimming || actor.stage !== 'ground') continue;
       soaking.add(actor.id);
-      const distance = Math.hypot(actor.pos.x - listener.pos.x, actor.pos.y - listener.pos.y, actor.pos.z - listener.pos.z);
+      const distance = distanceOf(actor.pos, listener.pos);
       if (!own && (distance > 12 || heard.size >= 4)) continue;
       heard.add(actor.id);
       let voice = this.mudVoices.get(actor.id);
@@ -709,11 +679,11 @@ export class SoundEngine {
       if (voice.channel && now >= voice.end) { voice.channel.disconnect(); voice.channel = null; }
       if (now < voice.next) continue;
       const channel = this.context!.createGain();
-      channel.connect(own ? this.buses!.effects : this.spatial(actor.pos, this.buses!.effects, distance));
-      voice.channel = channel; voice.end = now + .32;
+      channel.connect(this.buses!.effects);
+      voice.channel = channel; voice.end = now + .5;
       // Schedule one small sound, never a catch-up burst after a paused frame.
       voice.next = now + 1.8 + (actor.pos.x * .17 + actor.pos.z * .31 + now * .19) % 1 * .5;
-      this.mudSound(channel, now, entering, own ? 1 : .42);
+      this.mudSound(channel, own ? null : actor.pos, entering, own ? LEVEL.mud : LEVEL.mud - 2, listener.pos);
     }
     for (const [id, voice] of this.mudVoices) if (!heard.has(id)) {
       voice.channel?.disconnect(); this.mudVoices.delete(id);
@@ -721,32 +691,10 @@ export class SoundEngine {
     this.soakingActors = soaking;
   }
 
-  private mudSound(output: AudioNode, now: number, entering: boolean, volume: number) {
-    if (entering) {
-      this.noise(output, now, .22, 'lowpass', 380, .055 * volume, .025, true);
-      this.tone(output, now, 180, 58, .2, .048 * volume, 'sine');
-    } else {
-      this.tone(output, now, 145, 220, .08, .019 * volume, 'sine');
-      this.tone(output, now + .065, 285, 85, .11, .016 * volume, 'sine');
-    }
-  }
-
-  private footstep(position: Vec3, volume: number, landing: boolean, output: AudioNode = this.buses!.effects) {
-    const ctx = this.context!, now = ctx.currentTime;
-    const sampleId = `footstep-${this.footstepIndex++ % 6}` as SampleId;
-    if (this.playSample(sampleId, output, volume * (landing ? .8 : .68), now, .2)) {
-      if (landing) this.tone(output, now, 110, 45, .17, volume * .42, 'sine');
-      return;
-    }
-    const x = position.x, z = position.z;
-    const dock = x > -91 && x < -56 && z > -86 && z < -48;
-    const town = Math.hypot(x + 42, z + 12) < 32 || Math.hypot(x + 5, z + 48) < 17;
-    const sand = terrainHeight(x, z) < 1.5;
-    const body = dock ? 280 : town ? 520 : sand ? 170 : 340;
-    this.noise(output, now, landing ? .23 : .13, 'lowpass', body * 2, volume, .004, !town);
-    this.tone(output, now, landing ? 110 : 92, 45, landing ? .17 : .085, volume * .42, 'sine');
-    if (dock) this.metalClick(output, now + .02, 600, volume * .22);
-    if (sand) this.noise(output, now + .035, .11, 'highpass', 1150, volume * .18, .008);
+  private mudSound(output: AudioNode, pos: Vec3 | null, entering: boolean, level: number, listener: Vec3) {
+    const id = entering ? 'mud:in' : 'mud:bubble';
+    if (!pos) this.play(id, { level, out: output });
+    else this.at(id, pos, listener, level, 'step', 12, { out: output });
   }
 
   private updateReload(actor: ActorState, snapshot: WorldSnapshot, now: number) {
@@ -755,29 +703,19 @@ export class SoundEngine {
     if (actor.reloadUntil === this.reloadUntil) return;
     this.cancelReload();
     this.reloadUntil = actor.reloadUntil;
+    // Your own reload is voiced by the viewmodel's cues; this covers the capybara you spectate.
+    if (!this.myId || actor.id === this.myId || now < this.localReloadEnd) return;
     const weapon = actor.weapons[actor.slot];
     if (!weapon) return;
-    const duration = WEAPONS[weapon.id].reload;
-    const elapsed = Math.max(0, duration - remaining);
+    const duration = WEAPONS[weapon.id].reload, elapsed = Math.max(0, duration - remaining);
     const channel = this.context!.createGain();
     channel.connect(this.buses!.effects);
     this.reloadGain = channel;
-    const schedule = (at: number, fn: (time: number) => void) => {
-      const offset = at - elapsed;
-      if (offset >= -.03) fn(now + Math.max(0, offset));
-    };
-    if (weapon.id === 'shotgun') {
-      schedule(.06, t => this.metalClick(channel, t, 780, .12));
-      schedule(duration * .64, t => { if (!this.playSample('reload-shell', channel, .14, t, .18)) this.metalClick(channel, t, 1150, .17); });
-      schedule(duration * .92, t => this.metalClick(channel, t, 1600, .13));
-    } else {
-      schedule(.08, t => this.metalClick(channel, t, 900, .1));
-      schedule(duration * .27, t => this.noise(channel, t, .12, 'bandpass', 610, .09, .008));
-      schedule(duration * .58, t => { if (!this.playSample('reload-mag', channel, .16, t, .18)) this.metalClick(channel, t, 1200, .17); });
-      schedule(duration * .68, t => this.tone(channel, t, 390, 170, .09, .07, 'triangle'));
-      schedule(duration * .88, t => this.metalClick(channel, t, weapon.id === 'sniper' ? 900 : 1800, .17));
+    const cues: [string, number][] = weapon.id === 'shotgun' ? [['shell-in', .64], ['pump-home', .92]] : [['mag-out', .2], ['mag-in', .65], ['slide-home', .86]];
+    for (const [cue, t] of cues) {
+      const offset = duration * t - elapsed;
+      if (offset >= -.03) this.play(`foley:${cue}`, { level: LEVEL.ownFoley, at: now + Math.max(0, offset), out: channel });
     }
-    this.localReloadEnd = now + remaining;
   }
 
   private cancelReload() {
@@ -785,34 +723,167 @@ export class SoundEngine {
     this.reloadGain = null; this.reloadUntil = 0;
   }
 
-  private menuPhrase(now: number) {
-    const output = this.buses!.music;
-    // D minor pentatonic. Short changing phrases leave space between notes.
-    const pitches = [293.66, 349.23, 392, 440, 523.25];
-    const patterns = [[0, 2, 3], [1, 3, 2], [2, 4, 1], [0, 1, 4]];
-    const notes = patterns[this.phrase++ % patterns.length];
-    this.tone(output, now, 146.83, 146.83, 1.5, .025, 'sine');
-    notes.forEach((index, i) => {
-      const time = now + i * .58, pitch = pitches[index];
-      this.tone(output, time, pitch, pitch * .997, .9, .027, 'sine');
-      this.tone(output, time, pitch * 2, pitch * 2, .55, .004, 'triangle');
-    });
-    this.nextMusic = now + 3.7 + (this.phrase % 3) * .28;
+  // ---- Emotes ------------------------------------------------------------------
+
+  private updateEmotes(listener: ActorState, snapshot: WorldSnapshot) {
+    const seen = new Set<string>();
+    for (const actor of snapshot.actors) {
+      const own = actor.id === listener.id, a = own ? listener : actor, d = distanceOf(a.pos, listener.pos);
+      if (!own && d > 30) continue;
+      seen.add(a.id);
+      const emote = a.alive ? a.emote : null, before = this.emotes.get(a.id) ?? null;
+      const key = `dance:${a.id}`;
+      if (emote !== before) {
+        this.emotes.set(a.id, emote);
+        if (before === 'dance') this.stopLoop(key);
+        const voice = emote ? EMOTE_VOICE[emote] : undefined;
+        if (voice) { if (own) this.play(voice, { level: LEVEL.voice }); else this.at(voice, a.pos, listener.pos, LEVEL.remoteVoice, 'step', 30); }
+      }
+      if (emote === 'dance') {
+        const dances = [...this.loops.keys()].filter(k => k.startsWith('dance:')).length;
+        if (!this.loops.has(key) && dances >= 2) continue;
+        const level = own ? LEVEL.dance : LEVEL.dance + stepDistance(d, 30).db + 6;
+        const loop = this.fadeLoop(key, 'music:samba', this.buses!.effects, level, .15, own ? {} : { pos: a.pos });
+        if (loop?.panner) this.setPosition(loop.panner, a.pos, this.context!.currentTime);
+      }
+    }
+    for (const id of [...this.emotes.keys()]) if (!seen.has(id)) { this.emotes.delete(id); this.stopLoop(`dance:${id}`); }
   }
-  private matchPhrase(now: number) {
-    const output = this.buses!.music;
-    const notes = [146.83, 174.61, 220, 196];
-    const root = notes[this.phrase++ % notes.length];
-    this.tone(output, now, root / 2, root / 2, 2.1, .009, 'sine');
-    this.tone(output, now + 1.05, root, root * .997, .65, .006, 'triangle');
-    this.nextMusic = now + 4.2;
+
+  private clearEmotes() {
+    for (const id of this.emotes.keys()) this.stopLoop(`dance:${id}`);
+    this.emotes.clear();
   }
-  private panned(pan: number): AudioNode {
-    const ctx = this.context!, panner = ctx.createStereoPanner();
-    panner.pan.value = pan; panner.connect(this.buses!.effects);
-    window.setTimeout(() => panner.disconnect(), 600);
-    return panner;
+
+  // ---- Ambience ------------------------------------------------------------------
+
+  private measurePlace(actor: ActorState): Place {
+    const p = actor.pos;
+    let ocean = 0, total = 0, sx = 0, sz = 0;
+    for (const radius of [10, 22, 40]) for (let k = 0; k < 12; k++) {
+      const a = k / 12 * Math.PI * 2, x = p.x + Math.sin(a) * radius, z = p.z + Math.cos(a) * radius, w = 1 / radius;
+      total += w;
+      if (waterAt(x, z)?.kind === 'ocean') { ocean += w; sx += Math.sin(a) * w; sz += Math.cos(a) * w; }
+    }
+    if (ocean > 0) this.seaYaw = Math.atan2(sx, sz);
+    let trees = 0;
+    for (const t of this.trees) if (Math.abs(t.x - p.x) < 18 && Math.abs(t.z - p.z) < 18 && Math.hypot(t.x - p.x, t.z - p.z) < 18) trees++;
+    const head = { x: p.x, y: p.y + 1.7, z: p.z };
+    const inside = !!this.world && actor.stage === 'ground' && colliderGrid(this.world).ray(head, { x: 0, y: 1, z: 0 }, 9) !== null;
+    let district: string | null = null, best = Infinity;
+    for (const d of this.world?.districts || []) { const dist = Math.hypot(p.x - d.x, p.z - d.z); if (dist < d.radius * 1.3 && dist < best) { best = dist; district = d.id; } }
+    return {
+      coast: clamp(ocean / total * 1.6, 0, 1), height: Math.max(0, p.y), canopy: clamp(trees / 7, 0, 1), inside,
+      harbour: this.harbour ? Math.hypot(p.x - this.harbour.x, p.z - this.harbour.z) : Infinity,
+      waterfall: this.waterfall ? distanceOf(p, this.waterfall) : Infinity, district,
+    };
   }
+
+  private updateAmbient(actor: ActorState | null, menu: boolean, now: number, combat: boolean) {
+    const buses = this.buses!, playing = !menu && !!actor && actor.stage === 'ground';
+    if (playing && now >= this.nextPlace) { this.nextPlace = now + .5; this.place = this.measurePlace(actor!); }
+    const mix = playing ? ambienceMix(this.place) : { surf: -Infinity, wind: -Infinity, leaves: -Infinity, harbour: -Infinity, waterfall: -Infinity };
+    const surf = this.fadeLoop('bed:surf', 'bed:surf', buses.ambience, mix.surf, 1.2, { pan: true });
+    if (surf && actor) {
+      surf.stereo?.pan.setTargetAtTime(clamp(Math.sin(this.seaYaw - Math.atan2(-Math.sin(actor.yaw), -Math.cos(actor.yaw))) * .6, -.6, .6), now, .5);
+    }
+    this.fadeLoop('bed:wind', 'bed:wind', buses.ambience, mix.wind, 1.5);
+    this.fadeLoop('bed:leaves', 'bed:leaves', buses.ambience, mix.leaves, 1.2);
+    if (this.harbour) this.fadeLoop('bed:harbour', 'bed:harbour', buses.ambience, mix.harbour, 1, { pos: { ...this.harbour, y: .5 } });
+    if (this.waterfall) this.fadeLoop('bed:waterfall', 'bed:waterfall', buses.ambience, mix.waterfall, 1, { pos: this.waterfall });
+    buses.ambienceTone.frequency.setTargetAtTime(this.place.inside && playing ? 1100 : 20000, now, .25);
+    if (!playing || this.settings.ambience <= 0 || combat) { this.nextCritter = Math.max(this.nextCritter, now + (combat ? 2 : .5)); return; }
+    if (now < this.nextCritter) return;
+    this.nextCritter = now + 2.5 + Math.random() * 5;
+    const choices = critterWeights(this.place);
+    let r = Math.random() * choices.reduce((s, [, w]) => s + w, 0), id = choices[0][0];
+    for (const [c, w] of choices) { r -= w; if (r <= 0) { id = c; break; } }
+    const p = actor!.pos;
+    const near = this.trees.filter(t => { const d = Math.hypot(t.x - p.x, t.z - p.z); return d > 6 && d < 40; });
+    const tree = ['bemtevi', 'sabia', 'maritaca', 'dove', 'cicada', 'cricket'].includes(id) && near.length ? near[Math.floor(Math.random() * near.length)] : null;
+    const a = Math.random() * Math.PI * 2, r2 = 14 + Math.random() * 24;
+    const pos = tree ? { x: tree.x, y: tree.y + 5, z: tree.z } : { x: p.x + Math.sin(a) * r2, y: p.y + 3, z: p.z + Math.cos(a) * r2 };
+    this.at(`critter:${id}`, pos, p, LEVEL.critter + (id === 'cicada' ? -4 : 0) + (this.place.inside ? -8 : 0), 'world', 70, { out: buses.ambience, kind: 'world', rate: .96 + Math.random() * .08 });
+  }
+
+  // ---- Music, match flow, storm and air --------------------------------------------
+
+  private updateMusic(actor: ActorState | null, snapshot: WorldSnapshot | null, menu: boolean, now: number) {
+    const buses = this.buses!;
+    let want: string | null = null, level = -Infinity;
+    if (menu) { want = 'music:menu'; level = LEVEL.menu; }
+    else if (snapshot?.phase === 'playing' && actor) {
+      const mode = snapshot.config.mode;
+      const endgame = mode === 'battle-royale' ? snapshot.remaining <= 3 : mode === 'deathmatch' ? snapshot.remaining <= 30 : snapshot.remaining <= 2;
+      if (mode === 'battle-royale' && actor.alive && (actor.stage === 'plane' || actor.stage === 'falling' || actor.stage === 'parachute')) { want = 'music:samba'; level = LEVEL.drop; }
+      else if (endgame) { want = 'music:tension'; level = LEVEL.tension; }
+    }
+    if (this.settings.music <= 0) want = null;
+    for (const id of ['music:menu', 'music:samba', 'music:tension']) {
+      const on = want === id;
+      if (on || this.loops.has(id)) this.fadeLoop(id, id, buses.music, on ? level : -Infinity, on ? 1.2 : 1.5);
+    }
+    this.music = want;
+  }
+
+  private updateFlow(snapshot: WorldSnapshot | null, menu: boolean, now: number) {
+    if (!snapshot || menu) { this.phaseSeen = menu ? '' : this.phaseSeen; return; }
+    if (snapshot.phase === 'countdown') {
+      const second = Math.ceil(snapshot.countdown);
+      if (second !== this.countdownSeen && second > 0 && second <= 5) this.play('fb:ui-tick', { level: LEVEL.tick, rate: second === 1 ? 1.12 : 1 });
+      this.countdownSeen = second;
+    }
+    if (snapshot.phase === 'playing' && this.phaseSeen === 'countdown') this.play('fb:ui-go', { level: LEVEL.whistle });
+    if (snapshot.phase === 'results' && this.stingerMatch !== snapshot.matchId && this.phaseSeen === 'playing') {
+      this.stingerMatch = snapshot.matchId;
+      const mine = snapshot.results.find(r => r.id === this.myId);
+      if (mine) this.play(mine.winner ? 'music:victory' : 'music:defeat', { level: mine.winner ? LEVEL.victory : LEVEL.defeat, out: this.buses!.music });
+    }
+    const shrinking = snapshot.config.mode === 'battle-royale' && snapshot.phase === 'playing' && snapshot.zone.shrinking;
+    if (shrinking && !this.shrinkingSeen) this.play('fb:zone-warn', { level: LEVEL.zoneWarn, at: now + .05 });
+    this.shrinkingSeen = shrinking;
+    this.phaseSeen = snapshot.phase;
+  }
+
+  private updateStorm(actor: ActorState | null, snapshot: WorldSnapshot | null, menu: boolean, now: number) {
+    const zone = snapshot?.zone, buses = this.buses!;
+    const live = !menu && !!actor?.alive && actor.stage !== 'plane' && snapshot?.config.mode === 'battle-royale' && snapshot.phase === 'playing' && !!zone;
+    const edge = live ? Math.hypot(actor!.pos.x - zone!.x, actor!.pos.z - zone!.z) - zone!.radius : -Infinity;
+    const outside = edge > 0;
+    // Outside: the full storm. Inside but near the wall: its rumble, growing as you approach.
+    const level = outside ? LEVEL.storm : live && edge > -25 ? LEVEL.stormWall + 20 * Math.log10(1 - -edge / 25) : -Infinity;
+    const loop = this.fadeLoop('bed:storm', 'bed:storm', buses.effects, level, outside ? .35 : .8);
+    if (!loop && Number.isFinite(level)) return;
+    if (outside && now >= this.nextCrackle) {
+      this.nextCrackle = now + 1.2 + Math.random() * 2.2;
+      this.play('fb:crackle', { level: LEVEL.crackle, pan: Math.random() * 1.2 - .6 });
+    }
+    if (outside && now >= this.nextThunder) {
+      this.nextThunder = now + 6 + Math.random() * 8;
+      this.play('fb:thunder', { level: LEVEL.thunder, pan: Math.random() * 1.4 - .7 });
+    }
+    if (!outside) { this.nextThunder = Math.max(this.nextThunder, now + 3); }
+  }
+
+  private updateAir(actor: ActorState | null, snapshot: WorldSnapshot | null, menu: boolean, now: number) {
+    const buses = this.buses!, stage = !menu && actor?.alive ? actor.stage : '';
+    this.fadeLoop('bed:cabin', 'bed:cabin', buses.effects, stage === 'plane' ? LEVEL.cabin : -Infinity, .5);
+    const speed = actor ? Math.hypot(actor.velocity.x, actor.velocity.y, actor.velocity.z) : 0;
+    this.fadeLoop('bed:freefall', 'bed:freefall', buses.effects, stage === 'falling' ? LEVEL.freefall + 20 * Math.log10(clamp(speed / 40, .25, 1)) : -Infinity, .3);
+    this.fadeLoop('bed:canopy', 'bed:canopy', buses.effects, stage === 'parachute' ? LEVEL.canopy : -Infinity, .4);
+    if (stage === 'parachute' && this.lastStage === 'falling') this.play('fb:chute-open', { level: LEVEL.chute });
+    this.lastStage = stage;
+    // The drop plane heard from the ground while anyone is still aboard.
+    const flying = !menu && snapshot?.config.mode === 'battle-royale' && snapshot.phase === 'playing' && snapshot.actors.some(a => a.stage === 'plane');
+    const plane = snapshot?.plane;
+    const d = flying && plane && actor && stage !== 'plane' ? distanceOf(plane, actor.pos) : Infinity;
+    const loop = this.fadeLoop('bed:engine', 'bed:engine', buses.effects, d < 420 ? LEVEL.engine + worldDistance(d, 420).db : -Infinity, .5, plane ? { pos: plane } : {});
+    if (loop?.panner && plane) {
+      loop.panner.positionX.setTargetAtTime(plane.x, now, .1); loop.panner.positionY.setTargetAtTime(plane.y, now, .1); loop.panner.positionZ.setTargetAtTime(plane.z, now, .1);
+    }
+  }
+
+  // ---- Mix helpers --------------------------------------------------------------
 
   // Local confirms (hit, headshot, elimination) dip other players' gunfire by
   // about 6 dB for a quarter second so they are never masked by distant fire.
@@ -824,106 +895,36 @@ export class SoundEngine {
     gain.setTargetAtTime(1, now + .25, .12);
   }
 
-  private chime(start: number, notes: readonly number[], volume: number) {
-    notes.forEach((pitch, i) => {
-      this.tone(this.buses!.effects, start + i * .055, pitch, pitch, .22, volume, 'triangle');
-      this.tone(this.buses!.effects, start + i * .055, pitch * 2, pitch * 2, .12, volume * .25, 'sine');
-    });
-  }
-
-  private impactSound(surface: Surface, pos: Vec3, listener: Vec3, own: boolean) {
-    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
-    if (distance > (own ? 60 : 22)) return;
-    const now = this.context!.currentTime + distance / 343, output = this.spatial(pos, this.buses!.effects, distance), k = own ? 1 : .6;
-    if (surface === 'metal') { this.metalClick(output, now, 2400, .09 * k); this.tone(output, now, 1900, 1650, .16, .03 * k, 'triangle'); }
-    else if (surface === 'wood') { this.noise(output, now, .07, 'bandpass', 700, .09 * k, .002); this.tone(output, now, 240, 160, .06, .03 * k, 'triangle'); }
-    else if (surface === 'stone') this.noise(output, now, .05, 'highpass', 1900, .08 * k, .001);
-    else if (surface === 'water') { this.noise(output, now, .2, 'bandpass', 1300, .07 * k, .01); this.noise(output, now + .05, .16, 'lowpass', 500, .04 * k, .02); }
-    else this.noise(output, now, .08, 'lowpass', surface === 'sand' ? 520 : 700, .07 * k, .003, true);
-  }
-
-  // A cartoon "BOF!": deep thump, crunchy shell crack and a rolling dusty tail, audible across a district.
-  private cocoBurst(pos: Vec3, listener: Vec3) {
-    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
-    if (distance > 90) return;
-    const now = this.context!.currentTime + distance / 343, output = this.spatial(pos, this.buses!.effects, distance);
-    this.tone(output, now, 120, 38, .55, .42, 'sine');
-    this.noise(output, now, .12, 'lowpass', 900, .38, .002, true);
-    this.noise(output, now + .01, .08, 'bandpass', 1800, .16, .001);
-    this.noise(output, now + .06, .9, 'lowpass', 380, .2, .05, true);
-    this.metalClick(output, now + .12, 900, .05); this.metalClick(output, now + .2, 700, .04);
-  }
-
-  private armorBreakSound(pos: Vec3, listener: Vec3, local: boolean, now: number) {
-    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
-    if (!local && distance > 30) return;
-    const output = local ? this.buses!.effects : this.spatial(pos, this.buses!.effects, distance), k = local ? 1 : .6;
-    // Glassy shatter: a bright crack, then falling shards.
-    this.noise(output, now, .09, 'highpass', 3200, .13 * k, .001);
-    this.tone(output, now, 1320, 520, .24, .06 * k, 'triangle');
-    this.metalClick(output, now + .06, 2800, .06 * k); this.metalClick(output, now + .13, 2200, .045 * k);
-  }
-
-  private poof(pos: Vec3, listener: Vec3, now: number) {
-    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
-    if (distance > 45) return;
-    const output = this.spatial(pos, this.buses!.effects, distance);
-    // Cartoon "pof": a soft low puff and a short springy squeak.
-    this.noise(output, now + .02, .26, 'lowpass', 520, .12, .01, true);
-    this.tone(output, now + .03, 330, 700, .12, .035, 'sine');
-  }
-
-  private useSound(item: ConsumableId, local: boolean, pos: Vec3, listener: Vec3, now: number) {
-    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
-    if (!local && distance > 25) return;
-    const output = local ? this.buses!.effects : this.spatial(pos, this.buses!.effects, distance), k = local ? 1 : .55;
-    if (item === 'acai') {
-      // Armor up: a glassy shimmer rising.
-      [880, 1108.7, 1318.5].forEach((pitch, i) => this.tone(output, now + i * .06, pitch, pitch * 1.01, .28, .035 * k, 'triangle'));
-      this.noise(output, now, .3, 'highpass', 4200, .02 * k, .08);
-    } else if (item === 'guarana') {
-      // Fizz and a quick upward zip.
-      this.noise(output, now, .35, 'bandpass', 3000, .05 * k, .02);
-      this.tone(output, now + .05, 420, 980, .22, .045 * k, 'triangle');
-    } else {
-      // Heal: a warm rising arpeggio; the medkit gets one more note.
-      const notes = item === 'medkit' ? [392, 493.88, 587.33, 783.99] : [440, 554.37, 659.25];
-      notes.forEach((pitch, i) => this.tone(output, now + i * .07, pitch, pitch, .24, .04 * k, 'sine'));
-    }
-  }
-
-  private stormBite(now: number) {
-    // One bite per second: a low whump with an electric crackle, distinct from gunfire damage.
-    this.tone(this.buses!.effects, now, 80, 38, .3, .12, 'sine');
-    this.noise(this.buses!.effects, now, .22, 'lowpass', 300, .09, .01, true);
-    this.noise(this.buses!.effects, now + .03, .12, 'highpass', 2600, .045, .002);
-  }
-
-  private updateStorm(actor: ActorState | null, snapshot: WorldSnapshot | null, menu: boolean, now: number) {
-    const zone = snapshot?.zone;
-    const outside = !menu && !!actor?.alive && actor.stage !== 'plane' && snapshot?.config.mode === 'battle-royale' && snapshot.phase === 'playing' &&
-      !!zone && Math.hypot(actor.pos.x - zone.x, actor.pos.z - zone.z) > zone.radius;
-    this.stormGain?.gain.setTargetAtTime(outside ? STORM_LEVEL : 0, now, outside ? .35 : .6);
-    this.stormLfo?.depth.gain.setTargetAtTime(outside ? STORM_LEVEL * .45 : 0, now, .5);
-    if (outside && now >= this.nextCrackle && this.buses) {
-      this.nextCrackle = now + 1.2 + Math.random() * 2.2;
-      this.noise(this.buses.effects, now, .09, 'highpass', 3000 + Math.random() * 1500, .02, .002);
-    }
-  }
-
   private voiceChirp(kind: 'hurt' | 'spot' | 'elimination', id: string, pos: Vec3, listener: Vec3, myId: string) {
     const ctx = this.context!, now = ctx.currentTime;
     if (now - (this.voiceAt.get(id) ?? -Infinity) < 2) return;
-    const distance = Math.hypot(pos.x - listener.x, pos.y - listener.y, pos.z - listener.z);
+    const distance = distanceOf(pos, listener);
     if (id !== myId && distance > 40) return;
     this.voiceEnds = this.voiceEnds.filter(end => end > now);
     if (id !== myId && this.voiceEnds.length >= 6) return;
     this.voiceAt.set(id, now);
-    if (id !== myId) this.voiceEnds.push(now + .42);
-    const output = id === myId ? this.buses!.effects : this.spatial(pos, this.buses!.effects, distance);
-    const base = kind === 'hurt' ? 235 : kind === 'spot' ? 310 : 195;
-    const volume = kind === 'hurt' ? .045 : .036;
-    this.tone(output, now, base, base * (kind === 'spot' ? 1.28 : .76), .14, volume, 'triangle');
-    this.tone(output, now + .11, base * 1.4, base * (kind === 'spot' ? 1.65 : .85), .21, volume * .7, 'sine');
+    if (id !== myId) this.voiceEnds.push(now + .5);
+    if (id === myId) this.play(`voice:${kind}`, { level: LEVEL.voice });
+    else this.at(`voice:${kind}`, pos, listener, LEVEL.remoteVoice, 'step', 40);
+  }
+
+  setHidden(hidden: boolean): void {
+    if (!this.context || this.disposed) return;
+    if (hidden) { this.clearMudVoices(); void this.context.suspend(); }
+    else void this.context.resume();
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.cancelReload();
+    this.clearMudVoices();
+    this.baker?.terminate(); this.baker = null;
+    if (typeof window !== 'undefined') window.clearTimeout(this.bakeTimer);
+    for (const loop of this.loops.values()) { try { loop.source.stop(); } catch { /* already stopped */ } for (const node of loop.nodes) node.disconnect(); }
+    this.loops.clear();
+    void this.context?.close();
+    this.context = null; this.buses = null; this.remoteFire = null;
+    this.voiceAt.clear(); this.voiceEnds = []; this.pendingHurt.clear(); this.spottedActor = null;
+    this.bank.clear();
   }
 }
