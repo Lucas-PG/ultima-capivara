@@ -125,9 +125,10 @@ export class FollowCamera {
 
   /** Room for the lens behind the target along (yaw, pitch); leaves the pivot, orientation and back direction set. */
   private clearBehind(world: WorldSpec, yaw: number, pitch: number, wanted: number, down: boolean) {
-    // Shoulder offset first: a target hugging a wall on its right keeps the pivot inside the room.
+    // Shoulder offset first: a target hugging a wall on its right keeps the pivot inside the room, with
+    // room left for the lens probe (a thinner shoulder probe parked the pivot where the lens could not move).
     const right = this.dir.set(Math.cos(yaw), 0, -Math.sin(yaw));
-    const side = down ? 0 : clearDistance(world, this.head, right, FOLLOW.shoulder, FOLLOW.probe * .7, 0);
+    const side = down ? 0 : clearDistance(world, this.head, right, FOLLOW.shoulder, FOLLOW.probe + .02, 0);
     this.pivot.copy(this.head).addScaledVector(right, side);
     // Back along the view direction, with a probe sphere so the near plane stays out of the wall.
     this.euler.set(pitch, yaw, 0); this.quaternion.setFromEuler(this.euler);

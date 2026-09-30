@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { CameraRig } from '../src/render/camera';
 import { FOLLOW, FollowCamera, clearDistance, sweepBox } from '../src/render/follow-camera';
 import { DEFAULT_SETTINGS } from '../src/settings';
-import { emptyInput } from '../src/shared/math';
+import { emptyInput, rng } from '../src/shared/math';
+import { clearSpawn } from '../src/shared/collision';
+import { walkableHeight } from '../src/shared/navigation';
+import { createWorld } from '../src/shared/world';
 import { terrainHeight } from '../src/shared/terrain';
 import type { ActorState, Collider, RenderFrame, Settings, WorldSnapshot, WorldSpec } from '../src/shared/types';
 
@@ -53,6 +56,27 @@ describe('follow camera', () => {
     expect(inside(cam.position, muro, .1)).toBe(false);
     expect(cam.position.y).toBeGreaterThan(muro.max.y);
     expect(inView(cam, t)).toBe(true);
+  });
+
+  it('keeps room for the lens next to the real island walls, indoors and out', () => {
+    // 400 seeded standing spots within 0.35 to 1.15 m of a building wall, random headings. The first
+    // version squeezed the lens under 0.7 m at 120 of them: besides walls behind the target, a thin
+    // shoulder probe parked the pivot where the lens probe could not move at all.
+    const island = createWorld(), r = rng(1234);
+    const walls = island.colliders.filter(c => c.pieceId && /home|fisher|workshop|cafe|kiosk|tailor|bakery|fishmonger|church|market|house|row_/.test(c.pieceId) && c.max.y - c.min.y > 2);
+    let spots = 0, squeezed = 0;
+    while (spots < 400) {
+      const c = walls[Math.floor(r() * walls.length)], side = Math.floor(r() * 4), gap = .35 + r() * .8;
+      const x = side === 0 ? c.min.x - gap : side === 1 ? c.max.x + gap : c.min.x + r() * (c.max.x - c.min.x);
+      const z = side === 2 ? c.min.z - gap : side === 3 ? c.max.z + gap : c.min.z + r() * (c.max.z - c.min.z);
+      const pos = { x, y: walkableHeight(x, z, island), z };
+      if (!clearSpawn(pos, island)) continue;
+      spots++;
+      const cam = new FollowCamera(), yaw = r() * Math.PI * 2;
+      for (let i = 0; i < 60; i++) cam.update(island, { pos, yaw, pitch: 0, crouch: false, swimming: false, alive: true }, 1 / 60);
+      if (cam.reach < .7) squeezed++;
+    }
+    expect(squeezed).toBeLessThanOrEqual(4);
   });
 
   it('swings along a tall wall the target backs into, and glides home once it steps away', () => {
