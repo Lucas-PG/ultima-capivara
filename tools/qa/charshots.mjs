@@ -39,6 +39,7 @@ for (const [key, shots] of groups) {
       expression: options.expression || null, lod: options.lod === undefined ? undefined : Number(options.lod),
       fov: options.fov === undefined ? undefined : Number(options.fov),
       focus: options.focus === undefined ? undefined : Number(options.focus),
+      tx: options.tx === undefined ? undefined : Number(options.tx), tz: options.tz === undefined ? undefined : Number(options.tz),
     };
     const result = await page.evaluate(o => window.capyReview.shot(o), o);
     await page.screenshot({ path: `${out}/${name}.png` });
