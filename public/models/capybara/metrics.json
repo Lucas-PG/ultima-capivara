@@ -2,15 +2,15 @@
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 26498
+      "triangles": 26499
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 7794
+      "triangles": 7795
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 2175
+      "triangles": 2177
     }
   ],
   "hitbox": {
@@ -111,9 +111,9 @@
   "materials": 1,
   "skins": 1,
   "joints": 67,
-  "bytes": 3118176,
+  "bytes": 3165380,
   "statueBytes": 151532,
-  "rawBytes": 8039880,
+  "rawBytes": 7957336,
   "texture": {
     "format": "UV detail + normal + ORM",
     "count": 3,

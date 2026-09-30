@@ -373,21 +373,31 @@ def vest(parts):
 
 
 def trousers(parts):
-    legs = Union([parts['thigh_L'], parts['thigh_R'], parts['shin_L'], parts['shin_R']], k=.03)
-    base = Union([Intersect(parts['torso'], Plane((0, 1.0, 0), (0, 1, 0))), legs], k=.06)
-    body = Intersect(Offset(base, .030), slab(.315, .975))
+    # Loose cargo legs: their own wide tubes over the thighs and knees, not a skin-tight shell.
+    bags = []
+    for s in (-1, 1):
+        hp, kn, an = side(HIP, s), side(KNEE, s), side(ANKLE, s)
+        cuff = an + (kn - an) * ((.30 - an[1]) / (kn[1] - an[1]))
+        bags.append(Loft([hp + v(0, .06, 0), hp, (hp + kn) * .5, kn, cuff], [.140, .146, .142, .134, .124], [.140, .150, .146, .136, .126]))
+    legs = Union(bags, k=.03)
+    base = Union([Offset(Intersect(parts['torso'], Plane((0, 1.0, 0), (0, 1, 0))), .030), legs], k=.06)
+    body = Intersect(base, slab(.300, .975))
     rolls = []
     for s in (-1, 1):
         kn, an = side(KNEE, s), side(ANKLE, s)
         ax = norm(kn - an)
-        c = an + (kn - an) * ((.33 - an[1]) / (kn[1] - an[1]))
-        rolls.append(Torus(c, .104, .026, R=frame(ax), squash=.85))
-        rolls.append(Torus(c + ax * .040, .106, .022, R=frame(ax), squash=.85))
+        c = an + (kn - an) * ((.318 - an[1]) / (kn[1] - an[1]))
+        rolls.append(Torus(c, .122, .026, R=frame(ax), squash=.85))
+        rolls.append(Torus(c + ax * .042, .126, .022, R=frame(ax), squash=.85))
         # Cargo pocket on the outer thigh with a flap.
-        R = rot(yaw=-s * .55) @ rot(roll=s * -.08)
-        pc = on_surface(Offset(base, .030), side((.262, .56, -.050), s))[0]
-        rolls.append(RoundBox(pc, (.004, .060, .052), r=.008, R=R))
-        rolls.append(RoundBox(pc + (R @ v(s * .003, .060, 0)), (.006, .016, .056), r=.006, R=R))
+        # Cargo pocket sewn on the outer thigh, with a flap: oriented to the cloth it sits on.
+        pc = on_surface(base, side((.262, .56, -.050), s))[0]
+        e = F(.003)
+        g = np.array([S.evaluate(base, (pc + v(*o))[None], cull=False)[0][0] - S.evaluate(base, (pc - v(*o))[None], cull=False)[0][0] for o in ((e, 0, 0), (0, e, 0), (0, 0, e))], F)
+        nrm = norm(g); up = norm(v(0, 1, 0) - nrm * float(nrm[1])); w = np.cross(up, nrm)
+        R = np.stack([nrm, up, w], 1).astype(F)
+        rolls.append(RoundBox(pc, (.002, .058, .050), r=.007, R=R))
+        rolls.append(RoundBox(pc + nrm * .003 + up * .058, (.003, .015, .054), r=.006, R=R))
     folds = lambda p: (.004 * np.sin(p[:, 1] * 70 + np.sin(p[:, 0] * 30) * 2) * np.clip(1 - np.abs(p[:, 1] - .43) / .12, 0, 1) +
                        .0025 * np.sin(p[:, 0] * 40 + p[:, 1] * 35 + p[:, 2] * 20))
     return Material(Union([Displace(body, folds, .006)] + rolls, k=.01), M['trouser'])
@@ -420,19 +430,19 @@ def scarf():
 def hip_cloth():
     """The coral rag tucked in the belt on the right hip (the team colour, low on the body)."""
     def fn(p):
-        q = p - v(.262, .78, -.060)
+        q = p - v(.272, .78, -.060)
         # A hanging sheet following the hip, wavy, tapering to a ragged point.
         u, y = q[:, 2], q[:, 1]
-        width = .075 * np.clip((y + .20) / .32, 0, 1) ** .6 + .008
+        width = .085 * np.clip((y + .30) / .42, 0, 1) ** .6 + .008
         bulge = .02 * (1 - ((y - .05) / .15) ** 2).clip(0, 1) - .03 * u ** 2 / .006
         sheet = np.abs(q[:, 0] - .010 * np.sin(u * 60 + y * 20) - bulge) - .0055
-        edge = np.maximum(np.abs(u + .005 * np.sin(y * 50)) - width, np.maximum(y - .125, -.19 - y + np.abs(u) * .9))
+        edge = np.maximum(np.abs(u + .005 * np.sin(y * 50)) - width, np.maximum(y - .125, -.29 - y + np.abs(u) * .9))
         return np.maximum(sheet, edge)
-    return Material(Field(fn, (.22, .56, -.16), (.31, .92, .04)), M['hipcloth'])
+    return Material(Field(fn, (.23, .46, -.17), (.32, .92, .05)), M['hipcloth'])
 
 
 def backpack(parts):
-    bag = RoundBox((0, 1.110, .240), (.128, .160, .046), r=.032, R=rot(pitch=-.05))
+    bag = RoundBox((0, 1.095, .240), (.132, .180, .046), r=.034, R=rot(pitch=-.05))
     flap = RoundBox((0, 1.225, .258), (.134, .066, .040), r=.030, R=rot(pitch=-.05))
     pocket = RoundBox((0, 1.040, .290), (.090, .070, .014), r=.012)
     sides = Union([RoundBox(side((.166, 1.080, .222), s), (.014, .078, .032), r=.012) for s in (-1, 1)])
