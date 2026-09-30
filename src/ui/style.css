@@ -763,3 +763,10 @@ body.reduce-motion .settings-modal .seg button{animation:none!important;transiti
 @media(max-width:500px){.modal.settings-modal{padding:16px}.settings-modal .modal-mascot{display:none}.settings-modal .modal-heading h2{font-size:22px}.settings-modal .binding-grid{grid-template-columns:1fr}}
 @media(min-width:901px) and (max-height:800px){.modal.settings-modal{padding:12px 20px}.settings-modal .modal-heading{margin-bottom:14px}.settings-modal .modal-mascot{width:48px;height:48px;margin-top:0;margin-bottom:0}.settings-modal .settings-paper{padding:10px}.settings-modal .settings-paper h3{margin-bottom:11px;padding:6px 8px}.settings-modal .slider-label{margin-bottom:8px;gap:4px}.settings-modal .seg button{min-height:32px}.settings-modal .setting-help{min-height:0;margin-top:6px}.settings-modal .check-row{margin-top:10px}.settings-modal .bindings{margin-top:14px;padding:9px 14px}.settings-modal .settings-footer{margin-top:12px}.settings-modal .settings-footer .button{height:42px}}
 @keyframes hs-nope{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* Every control option comes from the input model; keep its help beside the control. */
+.settings-modal .settings-controls{grid-column:1/-1}
+.settings-modal .control-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 24px;align-items:start}
+.settings-modal .control-options .check-row{margin-top:0}
+.settings-modal .slider-label .setting-help{grid-column:1/-1;letter-spacing:0;line-height:1.4;font-weight:600}
+@media(max-width:700px){.settings-modal .control-options{grid-template-columns:1fr}}
