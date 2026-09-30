@@ -149,6 +149,24 @@ function creakBurst(x: Float32Array, rate: number, rng: Rng, t: number, dur: num
   mix(x, layer, Math.round(t * rate), gain);
 }
 
+/**
+ * The Tucano cargo balloon's propane burner: a valve click, then a breathy low
+ * roar with a flickering flame hiss above it, cut off with a short tail. It is
+ * the balloon's signature from the ground, fired every few seconds as it drifts over.
+ */
+export function balloonBurner(rate: number, rng: Rng): Float32Array {
+  const burn = rng.range(1.1, 1.6), total = burn + .45, x = buffer(rate, total);
+  const flicker = smoothCurve(rng, total, 16);
+  const shape = (t: number) => t < .09 ? t / .09 : t < burn ? 1 : Math.exp(-(t - burn) / .11);
+  moving(x, rate, rng, 'lp', () => 180, .8, t => .18 * shape(t) * (.72 + .28 * flicker(t)), true);
+  moving(x, rate, rng, 'lp', t => 650 + 250 * flicker(t), .7, t => .8 * shape(t) * (.7 + .3 * flicker(t)));
+  moving(x, rate, rng, 'bp', t => 1500 + 700 * flicker(t), .8, t => .35 * shape(t) * (.55 + .45 * flicker(t)));
+  modes(x, rate, 0, [[1900, .012, .18], [3300, .006, .09]]);
+  // Keep the roar out of the sub-bass rumble that belongs to explosions.
+  svf(x, rate, 'hp', 55);
+  return fadeOut(x, rate, .05);
+}
+
 export function critter(id: CritterId, rate: number, rng: Rng): Float32Array {
   const x = buffer(rate, LENGTH[id]), j = (f: number) => f * rng.range(.95, 1.05);
   switch (id) {

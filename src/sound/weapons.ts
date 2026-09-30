@@ -119,6 +119,15 @@ export function gunNear(id: GunId, rate: number, rng: Rng): Float32Array {
   return fadeOut(x, rate, .08);
 }
 
+/** A short, bright forward report, separate from the moving near-miss whip. */
+export function incomingReport(rate: number, rng: Rng): Float32Array {
+  const x = buffer(rate, .14);
+  crack(x, rate, rng, 0, .9, 1800, .0005, .003);
+  crack(x, rate, rng, .008, .4, 2400, .0003, .002);
+  band(x, rate, rng, { start: .001, dur: .12, mode: 'bp', freq: 3200, q: .8, attack: .001, tau: .018, gain: .35 });
+  return fadeOut(x, rate, .025);
+}
+
 export function gunFar(id: GunId, rate: number, rng: Rng): Float32Array {
   const s = FAR[id], x = buffer(rate, s.length);
   if (s.snap) crack(x, rate, rng, 0, s.snap, 1800, .0004, .001);

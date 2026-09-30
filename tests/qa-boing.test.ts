@@ -19,7 +19,7 @@ it.each([['trampolineBounce', 5], ['trampolineAir', 20]] as const)('reviews %s a
     event, prepareMatch: async () => {}, cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 },
   };
   installQa({ world: createWorld(), settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
-    ui: { update: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
+    ui: { update: () => {}, frameCompass: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
   await window.__capyQA!.start(); await window.__capyQA!.pose(pose);
   const rising = frames.filter(frame => frame.actor.bounceSeq === 1);
   const warmup = frames.filter(frame => frame.actor.bounceSeq === 0);

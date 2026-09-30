@@ -1,20 +1,21 @@
 import { Simulation } from '../../src/simulation';
 import { terrainHeight } from '../../src/shared/terrain';
-import { moveActor } from '../../src/shared/collision';
+import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../../src/shared/collision';
 import { emptyInput, rng } from '../../src/shared/math';
 import { EMOTES, EMOTE_IDS } from '../../src/shared/emotes';
 import { closestInteraction } from '../../src/shared/interaction';
 import { mudBathAt } from '../../src/shared/recreation';
-import { chooseSupplyLanding, SUPPLY_APPROACH_SECONDS, SUPPLY_DESCENT_SECONDS } from '../../src/shared/supply-drops';
+import { chooseSupplyLanding, supplyPlanePosition, supplyDropPosition, SUPPLY_APPROACH_SECONDS, SUPPLY_DESCENT_SECONDS } from '../../src/shared/supply-drops';
 import { walkableHeight, walkableSegment } from '../../src/shared/navigation';
 import { KIT_PIECES } from '../../src/shared/kit-collision';
 import { buildingPoint, routesToFloor } from '../helpers/building-paths';
 import { walkTraversal } from '../helpers/traversal-probe';
 import { placedBuildingRoutes } from '../helpers/placed-building-routes';
 import { buildingRole, buildingRooms, roomVariant } from '../../src/shared/building-interiors';
+import { foliageSpan, plantCrown } from '../../src/shared/vegetation-crowns';
 import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
-import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
+import { DEFAULT_CONFIG, PLAYER_COLORS, type GameEvent, type InputFrame, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
 import type { GameUI } from '../../src/ui/ui';
 import type { InputController } from '../../src/input';
@@ -32,6 +33,7 @@ type QaApi = {
   /** Uncapped cost of one frame: CPU submission plus GPU completion, median of `frames`. */
   bench(frames: number): Promise<{ medianMs: number; p90Ms: number; gpuMedianMs: number | null; gpuP90Ms: number | null }>;
   names(): string[];
+  event(event: GameEvent): void;
   motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
   tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'reload-partial' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit' | 'slash' | 'slash-left' | 'chop', seconds: number): Promise<void>;
@@ -47,14 +49,15 @@ const SUPPLY_POSES = ['supplyIncoming', 'supplyDescending', 'supplyLanded', 'sup
 const BUILDING_POSES = ['houseGround', 'houseStairBottom', 'houseStairTop', 'houseUpper'];
 const ACCESS_POSES = ['fortStairBottom', 'fortStairTop', 'fortWallNorth', 'lighthouseGround',
   'lighthouseStairBottom', 'lighthouseStairTop', 'lighthouseBalcony', 'dockStairBottom', 'dockStairTop', 'dockPorto', 'dockMangue'];
-const ROOM_POSES = ['home', 'bakery', 'cafe', 'tailor', 'clinic', 'fisher', 'fishmonger', 'workshop', 'kiosk',
+const ROOM_POSES = ['home', 'bakery', 'cafe', 'fisher', 'fishmonger', 'workshop', 'kiosk',
   'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
-  'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks',
+  'upper-home', 'upper-barracks',
   'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2', 'home-back', 'cafe-back', 'upper-home-back'].map(role => `room-${role}`);
 export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputController; settings: Settings; begin(): Promise<GameRenderer> }) {
   const fixture = new Simulation(deps.world, { ...DEFAULT_CONFIG, bots: false },
     [{ id: 'practice', name: 'Capivara', color: '#bd8956', ready: true, connected: true }], 'qa-seed-2026', 0x5eed2026);
   const base = fixture.snapshot();
+  let reviews = 0;
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let pendingFrame: number | null = null;
   let actorPositions: Pick<Vec3, 'x' | 'z'>[] = [];
@@ -62,7 +65,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let placedRoutes: Map<string, Vec3[]> | undefined;
   const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `ads-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES, ...ACCESS_POSES, ...ROOM_POSES,
-    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
+    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results', 'results-correria'];
 
   function draw() {
     if (!renderer || !current) return;
@@ -77,6 +80,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (looping && pendingFrame === null) pendingFrame = requestAnimationFrame(tick);
   }
   async function pose(name: string) {
+    // Each review starts without the previous results layer.
+    document.querySelector('#victory')?.remove();
     if (!renderer) throw new Error('Call start first');
     deps.ui.closeEmoteWheel();
     const district = name.startsWith('district-') ? deps.world.districts.find(d => `district-${d.id}` === name) : null;
@@ -90,13 +95,15 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (SUPPLY_POSES.includes(name) && !supply) throw new Error('A revisão precisa de uma entrega em solo seco e acessível.');
     // Named world views stand on the real walking surface (a deck, a roof terrace), not the terrain under it.
     const named: WorldView | undefined = trampoline || bath || spawn ? undefined : district ? DISTRICT_VIEWS[district.id] ?? [district.x - 8, district.z + 8, -.7, 0] :
-      VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name] || VIEWS.plaza;
-    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : named!;
+      VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name === 'scope' ? 'vilaStreet' : name] || VIEWS.plaza;
+    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, Math.PI / 2, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : named!;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
     const stance = named ? viewStance(deps.world, named) : undefined;
     if (name.startsWith('world-')) pitch = -.5;
     const s = structuredClone(base), me = s.actors[0];
+    // Each review is its own match to the renderer, so smoke, decals and poses from the previous one never linger.
+    s.matchId = `${base.matchId}:${name}:${++reviews}`;
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
     if (spawn) s.config.mode = 'battle-royale';
     if (supply) {
@@ -109,25 +116,38 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       s.supplyDrops = [drop];
       const close = name === 'supplyLanded' || name === 'supplyOpened';
       const prospective = close ? { ...s, time: landsAt + 1 } : s;
+      const target = name === 'supplyIncoming' ? supplyPlanePosition(drop, s.time) : supplyDropPosition(drop, s.time);
+      target.y += close ? .5 : 1;
+      const crowns = deps.world.objects.flatMap(o => { const crown = plantCrown(o); return crown ? [crown] : []; });
       const observer = (close ? [2.4] : [18, 16, 20, 14, 22]).flatMap(distance =>
-        [[0, 1], [1, 0], [0, -1], [-1, 0], [.71, .71], [.71, -.71], [-.71, -.71], [-.71, .71]].map(([dx, dz]) => {
+        Array.from({ length: 16 }, (_, i) => [Math.sin(i * Math.PI / 8), Math.cos(i * Math.PI / 8)]).map(([dx, dz]) => {
           const x = supply.x + dx * distance, z = supply.z + dz * distance;
           return { x, y: terrainHeight(x, z), z };
         })).find(to => {
         // Check the actual prompt and eye-to-crate LOS, not only a walkable path.
         const actor = { ...base.actors[0], pos: to, stage: 'ground' as const, grounded: true };
         const interaction = closestInteraction(deps.world, prospective, actor, { id: '', name: '' });
-        return !waterAt(to.x, to.z) && walkableSegment(deps.world, supply, to) &&
-          (close ? interaction?.id === drop.id : !interaction);
+        if (waterAt(to.x, to.z) || !walkableSegment(deps.world, supply, to) || (close ? interaction?.id !== drop.id : !!interaction)) return false;
+        const eye = { ...to, y: to.y + 1.62 };
+        if (!hasLineOfSight(eye, target, deps.world)) return false;
+        // Nothing solid may fill the frame close to the camera (an eave, a lamp, a wall corner).
+        const lookYaw = Math.atan2(to.x - target.x, to.z - target.z), lookPitch = Math.atan2(target.y - eye.y, Math.hypot(target.x - to.x, target.z - to.z));
+        if (!close) for (const dy of [-.45, 0, .45]) for (const dp of [-.3, 0, .3]) {
+          const y = lookYaw + dy, p = lookPitch + dp;
+          if (raycastWorld(eye, { x: -Math.sin(y) * Math.cos(p), y: Math.sin(p), z: -Math.cos(y) * Math.cos(p) }, 2.5, deps.world)) return false;
+        }
+        // A clear ground route alone can still put the plane behind a flowering crown.
+        const length = Math.hypot(target.x - eye.x, target.y - eye.y, target.z - eye.z);
+        for (let distance = 1; distance < length; distance++) {
+          const t = distance / length, point = { x: eye.x + (target.x - eye.x) * t, y: eye.y + (target.y - eye.y) * t, z: eye.z + (target.z - eye.z) * t };
+          if (crowns.some(crown => { const span = foliageSpan(crown, point.x, point.z); return span && point.y > span[0] - 1 && point.y < span[1] + 1; })) return false;
+        }
+        return true;
       });
       if (!observer) throw new Error('A câmera da entrega precisa de uma aproximação livre.');
       x = observer.x; z = observer.z;
-      // At the middle of its approach the eastbound carrier is still 30 m
-      // behind the landing point. The observer remains on the same dry ground.
-      const targetX = supply.x - (name === 'supplyIncoming' ? SUPPLY_APPROACH_SECONDS / 2 * 12 : 0);
-      yaw = Math.atan2(x - targetX, z - supply.z);
-      pitch = Math.atan2(supply.y + (close ? .5 : name === 'supplyIncoming' ? 34 : 14) - terrainHeight(x, z) - 1.62,
-        Math.hypot(x - targetX, z - supply.z));
+      yaw = Math.atan2(x - target.x, z - target.z);
+      pitch = Math.atan2(target.y - terrainHeight(x, z) - 1.62, Math.hypot(x - target.x, z - target.z));
       drop.opened = name === 'supplyOpened';
       if (name === 'supplyOpened') s.loot.push({ id: 'supply-qa-weapon', kind: 'weapon', weapon: 'm4', rarity: 3, active: true, respawnAt: 0,
         x: supply.x - .9, y: terrainHeight(supply.x - .9, supply.z), z: supply.z, from: { ...supply, y: supply.y + .6 }, spawnedAt: s.time - .7 });
@@ -200,7 +220,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       me.yaw = yaw; me.pitch = pitch;
     }
     const weaponReview = /^(?:fp|ads|tp|world)-(.+)$/.exec(name)?.[1] as WeaponId | undefined;
-    me.ads = name === 'scope' || name.startsWith('ads-'); me.weapons = [{ id: name === 'scope' ? 'sniper' : weaponReview || 'pistol', ammo: 12, reserve: 50, rarity: 0, box: 0 }];
+    const held = name === 'scope' ? 'sniper' : weaponReview || 'pistol';
+    me.ads = name === 'scope' || name.startsWith('ads-');
+    me.weapons = [{ id: held, ammo: Math.min(12, WEAPON_DEFS[held].magazine), reserve: held === 'machete' ? 0 : 50, rarity: 0,
+      box: held === 'machete' ? 3 : held === 'pistol' || held === 'revolver' ? 2 : 0 }];
     me.slot = 0;
     const emote = EMOTE_IDS.find(id => name === `emote-${id}`);
     if (emote) { me.emote = emote; me.emoteUntil = s.time + EMOTES[emote].duration; me.crouch = emote === 'sit' || emote === 'chill'; }
@@ -229,6 +252,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (name === 'capyFront' || name === 'capySide' || name.startsWith('tp-')) {
       const bot = structuredClone(me); bot.id = 'bot-qa'; bot.name = 'Capivara'; bot.bot = true;
       bot.pos = { x, y: me.pos.y, z: z - 2 }; bot.yaw = name === 'capyFront' ? Math.PI : Math.PI / 2;
+      // The reviewed capybara must stand in the open, never through a bench or a wall.
+      if (!clearSpawn(bot.pos, deps.world)) throw new Error(`The ${name} capybara stands inside a solid.`);
       s.actors.push(bot);
     }
     if (name.startsWith('world-') && weaponReview) {
@@ -276,6 +301,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       s.phase = 'results'; s.results = [{ id: me.id, name: me.name, color: me.color, bot: false, kills: 1, deaths: 0, damage: 100, place: 1, winner: true,
         shots: 3, hits: 1, headshots: 0, survived: 30, chests: 0, longestShot: 12.4 }];
     }
+    if (name === 'results-correria') {
+      // A lost Correria round: respawns mean everyone lasted the whole clock.
+      s.phase = 'results'; s.config.mode = 'deathmatch';
+      const row = (id: string, rowName: string, kills: number, deaths: number, place: number) => ({ id, name: rowName, color: id === me.id ? me.color : '#ae825e', bot: id !== me.id,
+        kills, deaths, damage: kills * 95, place, winner: place === 1, shots: kills * 20, hits: kills * 9, headshots: kills, survived: 480, chests: id === me.id ? 2 : 0, longestShot: 41 });
+      s.results = [row('bot-qa-1', 'Bento', 32, 20, 1), row(me.id, me.name, 26, 6, 2), row('bot-qa-2', 'Tico', 21, 14, 3)];
+    }
     // The asset pipeline added match-specific avatar uploads after the initial
     // renderer warmup. Wait for those uploads before taking a fixed frame.
     const identities = JSON.stringify(s.actors.map(actor => [actor.id, actor.name, actor.color]));
@@ -287,7 +319,11 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     current = s;
     deps.input.frame.yaw = yaw; deps.input.frame.pitch = pitch;
     for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
+    // A rapid pose switch can otherwise keep the preceding HUD and scope state.
+    await new Promise(resolve => setTimeout(resolve, 80));
+    deps.ui.scopeReady = renderer.scoped;
     deps.ui.update(s, 'practice', 0, false, 60, bath || supply ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : null);
+    deps.ui.frameCompass(renderer.heading);
     deps.ui.setPaused(name === 'pause');
     if (name === 'emote-wheel') deps.ui.openEmoteWheel();
     if (name === 'corrente-upgrade') {
@@ -326,12 +362,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       renderer.event({ type: 'impact', id: 3, actor: 'bot', weapon: 'coco', pos: { x, y: terrainHeight(x, z), z }, surface: 'dirt', normal: { x: 0, y: 1, z: 0 } });
       for (let i = 0; i < 9; i++) { s.time += 1 / 60; renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 8); }
     }
-    if (name !== 'results') document.querySelector('#victory')?.remove();
+    if (!name.startsWith('results')) document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
   }
   window.__capyQA = {
     async start() { renderer ||= await deps.begin(); },
     pose,
+    event(event) { renderer?.event(event); deps.ui.event(event); },
     async motion(weapon, action, seconds) {
       if (!WEAPONS.includes(weapon) || !Number.isFinite(seconds) || seconds < 0 || seconds > 4) throw new Error('Invalid motion review');
       await pose(`fp-${weapon}`);

@@ -1,6 +1,7 @@
 import { clamp } from '../shared/math';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 import { advanceAds, coolShotHeat, shotHeatGain, shotSpread } from '../shared/weapons';
+import { aimedFov } from '../settings';
 
 export class CrosshairSpread {
   private actorId = '';
@@ -39,11 +40,10 @@ export class CrosshairSpread {
     this.serverHeat = me.shotHeat;
 
     const speed = Math.hypot(me.velocity.x, me.velocity.z);
-    const spread = weapon ? shotSpread(weapon, this.adsAmount, speed, !me.grounded, this.heat) : 0;
+    const spread = weapon ? shotSpread(weapon, this.adsAmount, speed, !me.grounded, this.heat, me.swimming, me.crouch) : 0;
     const height = Math.max(1, viewportHeight);
     const scale = height / 1080;
-    const zoom = weapon === 'sniper' ? 5.5 : weapon === 'dmr' ? 2.9 : 1.25;
-    const fov = settings.fov / (1 + this.adsAmount * (zoom - 1)) * Math.PI / 180;
+    const fov = aimedFov(settings.fov, weapon, this.adsAmount) * Math.PI / 180;
     const target = clamp(Math.tan(spread * Math.PI / 180) * height / (2 * Math.tan(fov / 2)), 4 * scale, 48 * scale);
     if (!this.gapValue || target >= this.gapValue || settings.reducedMotion) this.gapValue = target;
     else this.gapValue = target + (this.gapValue - target) * Math.exp(-dt / .12);

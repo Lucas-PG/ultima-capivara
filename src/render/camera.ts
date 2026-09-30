@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { timing } from './timing';
 import { Spring } from './spring';
 import { damp } from '../shared/math';
-import { verticalFov } from '../settings';
+import { aimedFov, verticalFov } from '../settings';
 import { actorEye } from '../shared/collision';
 import { colliderGrid } from '../shared/collider-grid';
 import { capybaraHasClip } from './capybara';
@@ -245,13 +245,7 @@ export class CameraRig {
         // can flip the horizon when the view crosses east or west.
         quaternion.setFromEuler(this.rotation.set(pitch, yaw, actor.lean * -.045));
         const ads = this.adsAmount;
-        const zoom = actor.weapons[actor.slot]?.id === 'sniper' ? 5.5 : actor.weapons[actor.slot]?.id === 'dmr' ? 2.9 : 1.25;
-        // The M4 keeps the player's peripheral FOV with a mild, optical 1.15x
-        // zoom. Scope magnification on existing weapons retains its contract.
-        const baseFov = verticalFov(this.settings.fov);
-        fov = actor.weapons[actor.slot]?.id === 'm4'
-          ? 2 * Math.atan(Math.tan(baseFov * Math.PI / 360) / (1 + ads * .15)) * 180 / Math.PI
-          : baseFov / (1 + ads * (zoom - 1));
+        fov = aimedFov(this.settings.fov, actor.weapons[actor.slot]?.id ?? null, ads);
       }
       this.applyBlend(position, quaternion, frame.dt);
       this.camera.position.copy(position); this.camera.quaternion.copy(quaternion);

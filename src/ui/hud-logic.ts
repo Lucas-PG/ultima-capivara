@@ -1,4 +1,5 @@
-import { BINDABLE_CODE, DEFAULT_BINDINGS } from '../settings';
+import { BINDABLE_CODE, CONTROL_ACTIONS, DEFAULT_BINDINGS, type ControlGroup } from '../controls';
+export { rebind as remapBinding } from '../controls';
 // Pure HUD rules shared by the UI and its tests: loading progress, tip rotation, interface scale and result formatting.
 
 // Loading copy (style bible §13.1): friendly pt-BR, never technical, in load order.
@@ -108,19 +109,11 @@ export function startButtonState(allReady: boolean, roomLoading: number | null) 
 }
 
 // Key remap (quality bar: remapping covers every action). Codes are KeyboardEvent.code, or 'Mouse' + button index.
-export const BINDING_LABELS: Record<string, string> = {
-  forward: 'Frente', back: 'Trás', left: 'Esquerda', right: 'Direita', sprint: 'Correr', jump: 'Pular / paraquedas', crouch: 'Agachar',
-  leanLeft: 'Espiar à esquerda', leanRight: 'Espiar à direita', fire: 'Atirar', ads: 'Mirar', reload: 'Recarregar', melee: 'Golpe de facão', lastWeapon: 'Arma anterior', interact: 'Pegar / abrir', drop: 'Soltar arma',
-  inspect: 'Inspecionar arma', slot1: 'Primária 1', slot2: 'Primária 2', slot3: 'Pistola', slot4: 'Facão',
-  useBandage: 'Usar bandagem', useMedkit: 'Usar kit médico', useGuarana: 'Tomar guaraná', useAcai: 'Tomar açaí', useRapadura: 'Comer rapadura',
-  scoreboard: 'Placar', map: 'Mapa da ilha', emote: 'Gestos (segurar)',
-};
-export const BINDING_GROUPS: readonly { title: string; actions: readonly string[] }[] = [
-  { title: 'Movimento', actions: ['forward', 'back', 'left', 'right', 'sprint', 'jump', 'crouch', 'leanLeft', 'leanRight'] },
-  { title: 'Combate', actions: ['fire', 'ads', 'reload', 'melee', 'lastWeapon', 'interact', 'drop', 'inspect'] },
-  { title: 'Armas e curas', actions: ['slot1', 'slot2', 'slot3', 'slot4', 'useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] },
-  { title: 'Interface', actions: ['scoreboard', 'map', 'emote'] },
-];
+export const BINDING_LABELS: Record<string, string> = Object.fromEntries(CONTROL_ACTIONS.map(a => [a.id, a.label]));
+const GROUP_TITLES: Record<ControlGroup, string> = { movement: 'Movimento', combat: 'Combate', items: 'Armas e curas', interface: 'Interface' };
+export const BINDING_GROUPS = Object.entries(GROUP_TITLES).map(([group, title]) => ({
+  title, actions: CONTROL_ACTIONS.filter(a => a.group === group).map(a => a.id),
+}));
 export const CONSUMABLE_ACTIONS = ['useBandage', 'useMedkit', 'useGuarana', 'useAcai', 'useRapadura'] as const;
 // Esc stays reserved for the menu; the bindable codes are settings.ts BINDABLE_CODE (Brasa's binding model).
 export const isBindableCode = (code: string) => BINDABLE_CODE.test(code);
@@ -131,14 +124,6 @@ export const bindingOf = (bindings: Record<string, string>, action: string) => b
 // row, the backdrop) cancels the capture, so closing the dialog can never steal the left button from 'fire'.
 export const captureMousePress = (onCapturingChip: boolean, button: number): string | null => onCapturingChip ? `Mouse${button}` : null;
 export const unboundActions = (bindings: Record<string, string>, actions: readonly string[]) => actions.filter(action => !bindingOf(bindings, action));
-// Binding a code already used by another action swaps them, so no two actions ever share a key.
-export function remapBinding(bindings: Record<string, string>, action: string, code: string): Record<string, string> {
-  if (!isBindableCode(code)) return bindings;
-  const next = { ...bindings }, previous = bindingOf(bindings, action);
-  for (const other of Object.keys(next)) if (other !== action && next[other] === code) next[other] = previous;
-  next[action] = code;
-  return next;
-}
 const MOUSE_LABELS = ['Mouse esq.', 'Mouse meio', 'Mouse dir.', 'Mouse 4', 'Mouse 5'];
 const ARROWS: Record<string, string> = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
 export function keyLabel(code: string): string {

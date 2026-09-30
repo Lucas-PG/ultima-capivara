@@ -1,3 +1,4 @@
+import { SUPPLY_FLYBY_SECONDS, supplyPlanePosition } from './shared/supply-drops';
 import { clamp } from './shared/math';
 import { terrainHeight } from './shared/terrain';
 import { waterAt } from './shared/water';
@@ -11,7 +12,7 @@ import { bakeOrder, renderSound, type Quality } from './sound/bank';
 import type { BakeMessage, BakeRequest } from './sound/bake.worker';
 import type { StepMaterial } from './sound/foley';
 import {
-  ambienceMix, critterWeights, GUN_RANGE, gunDistance, LEVEL, levelGain, OCCLUDED, safetyCurve, STEP_RANGE, stepDistance, worldDistance, type Place,
+  ambienceMix, critterWeights, GUN_RANGE, gunDistance, incomingShotWeight, LEVEL, levelGain, OCCLUDED, safetyCurve, STEP_RANGE, stepDistance, worldDistance, type Place,
 } from './sound/mix';
 
 // Low-health heartbeat threshold (matches the HUD's low-health state) and the storm bed's linear gain.
@@ -441,7 +442,12 @@ export class SoundEngine {
         if (g.near > .05) this.play(GUN_SOUND(id), { level: base + 20 * Math.log10(g.near), pos: event.origin, cutoff, at, rate, kind: 'shot', out: this.remoteFire! });
         if (far > .05) this.play(`far:${id}`, { level: base + 20 * Math.log10(far), pos: event.origin, cutoff: occluded ? cutoff * 1.5 : undefined, at, rate, kind: 'shot', out: this.remoteFire! });
         if (distance < 25) this.mechanism(id, at, event.origin, listener);
-        this.whizBy(event, listener, now);
+        if (id !== 'coco') {
+          const toward = occluded ? 0 : incomingShotWeight(event.origin, event.end, listener);
+          if (toward > .05) this.play('shot:incoming', { level: LEVEL.incoming + g.db * .4 + 20 * Math.log10(toward),
+            pos: event.origin, at, rate, kind: 'shot', out: this.remoteFire! });
+          this.whizBy(event, listener, now);
+        }
       }
     }
     if (event.surface && !event.hit && id !== 'machete') this.impact(event.surface, event.end, listener, own);
@@ -550,6 +556,7 @@ export class SoundEngine {
     this.updateFlow(snapshot, menu, now);
     this.updateStorm(actor, snapshot, menu, now);
     this.updateAir(actor, snapshot, menu, now);
+    this.updateSupplyPlanes(actor, snapshot, menu, now);
     if (!menu && actor?.alive && actor.stage === 'ground' && actor.hp > 0 && actor.hp < LOW_HP && snapshot?.phase === 'playing') {
       if (now >= this.nextHeart) {
         // Lub-dub, quicker as health drops: 0.95 s at 30 hp down to 0.6 s near zero.
@@ -903,6 +910,29 @@ export class SoundEngine {
     if (loop?.panner && plane) {
       loop.panner.positionX.setTargetAtTime(plane.x, now, .1); loop.panner.positionY.setTargetAtTime(plane.y, now, .1); loop.panner.positionZ.setTargetAtTime(plane.z, now, .1);
     }
+  }
+
+  // The Tucano delivery is a hot-air cargo balloon: heard as its propane burner
+  // firing every few seconds from where it drifts, never as a propeller.
+  private readonly burners = new Map<string, number>();
+  private updateSupplyPlanes(actor: ActorState | null, snapshot: WorldSnapshot | null, menu: boolean, now: number) {
+    const heard = new Set<string>();
+    if (!menu && actor && snapshot?.phase === 'playing') for (const drop of snapshot.supplyDrops ?? []) {
+      const t = snapshot.time - drop.releaseAt;
+      if (snapshot.time < drop.announcedAt || t >= SUPPLY_FLYBY_SECONDS - 4) continue;
+      heard.add(drop.id);
+      const pos = supplyPlanePosition(drop, snapshot.time), d = distanceOf(pos, actor.pos);
+      const next = this.burners.get(drop.id);
+      if (next === undefined) { this.burners.set(drop.id, snapshot.time + .4); continue; }
+      if (snapshot.time < next) continue;
+      // Pilots burn harder while climbing away after the release.
+      this.burners.set(drop.id, snapshot.time + (t > 0 ? 2.2 : 3.4) + Math.random() * 1.6);
+      if (d < 240) {
+        const far = worldDistance(d, 240);
+        this.play('balloon:burner', { level: LEVEL.burner + far.db, pos, cutoff: far.cutoff, kind: 'world', out: this.buses!.effects, rate: .94 + Math.random() * .12 });
+      }
+    }
+    for (const id of this.burners.keys()) if (!heard.has(id)) this.burners.delete(id);
   }
 
   // ---- Mix helpers --------------------------------------------------------------

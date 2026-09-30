@@ -9,6 +9,14 @@ export const SUPPLY_DROP_TIMES = [45, 125] as const;
 export const SUPPLY_APPROACH_SECONDS = 5;
 export const SUPPLY_DESCENT_SECONDS = 12;
 export const SUPPLY_RELEASE_HEIGHT = 32;
+export const SUPPLY_FLYBY_SECONDS = 22;
+/** Both the carrier mesh and its sound follow the same approach and climb. */
+export function supplyPlanePosition(drop: SupplyDropState, time: number): Vec3 {
+  const t = time - drop.releaseAt;
+  return { x: drop.pos.x + Math.sin(drop.heading) * t * 12,
+    y: drop.pos.y + SUPPLY_RELEASE_HEIGHT + 1.2 + Math.max(0, t) * 1.5,
+    z: drop.pos.z + Math.cos(drop.heading) * t * 12 };
+}
 export const SUPPLY_CRATE_RADIUS = .55;
 // The authored canopy reaches 3.48 m above the crate landing root.
 export const SUPPLY_CANOPY_HEIGHT = 3.5;

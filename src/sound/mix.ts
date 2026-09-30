@@ -3,11 +3,12 @@
 // applies. Levels are momentary loudness (LUFS) at unity sliders for one-shots
 // and mean loudness for beds and music; every baked buffer sits at REF_LUFS.
 import { REF_LUFS } from './bank';
+import type { Vec3 } from '../shared/types';
 
 export const LEVEL = {
   // Gunfire: the top of the hierarchy. Remote shots are given at 2 m.
   ownShot: -14, ownShotAuto: -15.5, remoteShot: -13, explosion: -12,
-  whiz: -19, ownMelee: -20, remoteMelee: -22,
+  whiz: -19, incoming: -24, ownMelee: -20, remoteMelee: -22,
   // Confirmations sit a few dB under your own shot but live above its band.
   hit: -19, head: -17, kill: -16, armorBreak: -18, damageTaken: -17, heart: -25, stormBite: -20,
   // Handling and movement. Remote steps are given at 1.5 m.
@@ -19,7 +20,7 @@ export const LEVEL = {
   supply: -24, supplyLand: -16, bounce: -25, poof: -26, chute: -24, upgrade: -26, respawn: -25,
   // Beds (mean loudness at full presence) and island life.
   surf: -28, wind: -32, leaves: -31, harbour: -28, waterfall: -22, storm: -23, stormWall: -32,
-  cabin: -25, engine: -18, freefall: -24, canopy: -29, critter: -26, thunder: -24, crackle: -34,
+  cabin: -25, engine: -18, burner: -15, freefall: -24, canopy: -29, critter: -26, thunder: -24, crackle: -34,
   // Music.
   menu: -18, drop: -26, tension: -27, dance: -24, victory: -18, defeat: -20,
 } as const;
@@ -40,6 +41,14 @@ const smoothstep = (a: number, b: number, x: number) => { const t = Math.min(1, 
 
 /** Gunfire carries: about -4 dB per doubling past 2 m instead of the physical 6. Audible to GUN_RANGE. */
 export const GUN_RANGE = 260;
+/** The forward report of a shot aimed at the listener, never a sideways or short blocked ray. */
+export function incomingShotWeight(origin: Vec3, end: Vec3, ear: Vec3): number {
+  const dx = end.x - origin.x, dy = end.y - origin.y, dz = end.z - origin.z;
+  const ex = ear.x - origin.x, ey = ear.y - origin.y, ez = ear.z - origin.z;
+  const length = Math.hypot(dx, dy, dz), distance = Math.hypot(ex, ey, ez);
+  if (distance < 3 || length < distance - 3 || length < 1) return 0;
+  return smoothstep(.94, .998, (dx * ex + dy * ey + dz * ez) / (length * distance));
+}
 export function gunDistance(distance: number): { db: number; near: number; far: number; cutoff: number; delay: number } {
   const d = Math.max(2, distance);
   const db = -13 * Math.log10(d / 2);
