@@ -1,7 +1,7 @@
 """Casario: the solid terraced houses that make continuous colonial street fronts.
 
 They are not enterable: a real masonry body with recessed doors, shop arches
-and windows on the street face, balconies, lanterns, bougainvillea and either a
+and windows on the street face, balconies, lanterns, anchors for painted bougainvillea and either a
 tiled eave (beiral with rafter ends) or a platibanda parapet. Game coordinates:
 metres, Y up, bottom-centred origin, the street face at +Z.
 Wall plaster is authored on tile 0 so every placement can repaint it.
@@ -12,8 +12,6 @@ from rocks import surface
 
 WALL, CORAL, TEAL, YELLOW, ROOF, WOOD, BLOCK, DARK, NAVY, IRON, GLASS, CANVAS, GREEN, BRICK, STONE, TRIM = range(16)
 RECESS = .3          # depth of every street-face opening
-MAGENTA = [.76, .1, .44]
-LEAF = [.62, .86, .6]
 
 
 def flag(p, **values):
@@ -136,12 +134,10 @@ def sash(p, x, sill, w, h, zf, shutter=TEAL, closed=False, grille=False, flowers
     if flowers:
         p.box(x, sill + .08, zf + .26, w + .1, .26, .28, ROOF, bevel=.02)
         flag(p, mid=True)
-        for i in range(4):
-            xx = x + (i - 1.5) * w / 4
-            p.orb(xx, sill + .3, zf + .27, .38, .3, .32, GREEN, False)
-            flag(p, segments=(7, 4), tint=LEAF, mid=True)
-            p.orb(xx + .08, sill + .42, zf + .33, .16, .14, .16, CANVAS, True)
-            flag(p, segments=(6, 3), tint=MAGENTA if i % 2 else [.93, .45, .3])
+        # Dark soil, seen only between the painted plants the vegetation layer sets in the box.
+        p.box(x, sill + .2, zf + .26, w, .02, .22, DARK, bevel=0)
+        flag(p, mid=True)
+        p.plant('box', x, sill + .2, zf + .26, width=w + .1)
 
 
 def arched_door(p, x, r, spring, zf, paint, step=True, fanlight=True):
@@ -194,29 +190,22 @@ def downpipe(p, x, top, zf):
     p.box(x, top - .08, zf + .05, .16, .16, .2, IRON, bevel=0, detail=True)
 
 
-def bougainvillea(p, anchors, seed=0):
-    """Cascading magenta masses: a curtain of faceted flower heads over leaf
-    blobs, dense at the top and thinning as it drops down the wall.
-    Each anchor is (x, y_top, z_wall, width[, drop])."""
-    rng = random.Random(seed)
-    for anchor in anchors:
-        x, y, z, width = anchor[:4]
-        drop = anchor[4] if len(anchor) > 4 else width * 1.4
-        shape = lambda v: width / 2 * (1 - .6 * v / drop)
-        for i in range(max(4, round(width * drop * 2.2))):
-            v = drop * rng.random() ** 1.3 * .85
-            u = (rng.random() * 2 - 1) * shape(v) * .8
-            size = .5 + rng.random() * .25
-            p.orb(x + u, y - v, z + .1, size, size * .8, size * .5, GREEN, False)
-            flag(p, segments=(6, 4), tint=LEAF)
-        heads = max(12, min(44, round(width * drop * 15)))
-        for i in range(heads):
-            v = drop * rng.random() ** 1.6
-            u = (rng.random() * 2 - 1) * shape(v)
-            size = .17 + rng.random() * .15
-            depth = (1 - v / drop) * .18 + rng.random() * .1
-            p.orb(x + u, y - v, z + .22 + depth, size, size * .85, size * .6, CANVAS, i % 3 == 2)
-            flag(p, segments=(5, 3), tint=MAGENTA if i % 5 else [.9, .3, .6])
+def drape(p, x, top, z, width, drop, openings, rail_slab=None):
+    """An anchor for a painted bougainvillea drape (drawn by the vegetation layer, not the kit):
+    trails hang from `top` on the plane `z` over `width`, about 1.1 x `drop` at their longest.
+    A drape never crosses a door or window opening (with its moulded frame); a balcony drape
+    (`rail_slab` = the slab underside) hangs in front of its iron railing, so only the part
+    below the slab counts against the openings of the storey under it."""
+    x0, x1, bottom = x - width / 2, x + width / 2, top - 1.1 * drop
+    for o0, o1, h0, h1 in openings:
+        low = bottom if rail_slab is None else min(bottom, rail_slab)
+        high = top if rail_slab is None else rail_slab
+        overlap = x0 < o1 + .12 and x1 > o0 - .12 and low < h1 + .25 and high > h0 - .05
+        assert not overlap, f'{p.name}: drape at {x} crosses the opening {o0}..{o1}'
+    values = dict(width=width, drop=drop)
+    if rail_slab is not None:
+        values['slab'] = rail_slab
+    p.plant('drape', x, top, z, **values)
 
 
 def quoins(p, W, top, zf, tile=TRIM):
@@ -343,7 +332,7 @@ def platibanda(p, W, D, top, height=1.0, color=WALL, finials=True):
     p.cylinder(0, top + rise + .05, ridge, .1, W - .4, ROOF, sides=8, axis='x')
 
 
-def balcony(p, x, y, w, zf, depth=.75, flowers=None):
+def balcony(p, x, y, w, zf, depth=.75):
     """Wrought-iron balcony on a moulded stone slab and corbels."""
     p.box(x, y - .07, zf + depth / 2, w, .14, depth, STONE, bevel=.02)
     flag(p, far=True)
@@ -365,8 +354,6 @@ def balcony(p, x, y, w, zf, depth=.75, flowers=None):
         xx = x - w / 2 + i * w / n
         p.box(xx, (y + top) / 2, zr, .025, top - y, .025, IRON, bevel=0, detail=True)
     p.box(x, y + .12, zr, w, .04, .04, IRON, bevel=0, detail=True)
-    if flowers:
-        bougainvillea(p, flowers, seed=int(x * 10))
 
 
 def french_door(p, x, y, w, h, zf, shutter, closed=False):
@@ -399,6 +386,29 @@ def side_marks(p, W, D, top):
         p.cylinder(side * (W / 2 + .06), top / 2, D / 2 - .35, .05, top, IRON, sides=6, detail=True)
 
 
+def end_walls(p, W, D, sills, h, shutter):
+    """The terrace's end walls, seen wherever it ends at a beco: a stone base course and a
+    closed, shuttered window per storey (a janela cega), so an exposed gable is never blank
+    masonry. Against a neighbour they sit inside its wall, out of sight."""
+    zc = D / 2 - 2.3
+    for side in [-1, 1]:
+        x = side * W / 2
+        p.box(x + side * .035, .275, -RECESS / 2 - .1, .07, .55, D - RECESS - .5, STONE, bevel=.012)
+        flag(p, mid=True)
+        for sill in sills:
+            for dz in [-.62, .62]:
+                p.box(x + side * .035, sill + h / 2, zc + dz, .07, h + .16, .12, TRIM, bevel=.012)
+                flag(p, mid=True)
+            p.box(x + side * .045, sill + h + .1, zc, .09, .14, 1.44, TRIM, bevel=.012)
+            p.box(x + side * .08, sill - .06, zc, .16, .12, 1.4, STONE, bevel=.015)
+            for dz in [-.28, .28]:
+                p.box(x + side * .04, sill + h / 2, zc + dz, .05, h, .54, shutter, bevel=.008)
+                flag(p, mid=True)
+                for i in range(4):
+                    yy = sill + h * (i + .7) / 4.4
+                    p.box(x + side * .07, yy, zc + dz, .03, .05, .44, shutter, bevel=0, detail=True)
+
+
 def body(p, W, D, top, openings, zf):
     """Masonry core behind the street wall, plus the street wall around openings."""
     p.box(0, top / 2, -RECESS / 2, W, top, D - RECESS, WALL, True, bevel=0)
@@ -423,9 +433,12 @@ def row_terrea(Piece, name='row_terrea', W=7.2, D=7.0):
     eave_roof(p, W, D, top + .12)
     lantern(p, door_x + 1.05, 2.75, zf)
     downpipe(p, W / 2 - .45, top, zf)
-    bougainvillea(p, [(W / 2 - 1.0, 4.35, zf, 1.7, 2.6)], seed=2)
+    # Bougainvillea from under the eave over both windows, and down the corner beside the door.
+    drape(p, 1.4, top - .2, zf + .12, 2.9, 1.0, openings)
+    drape(p, -3.15, top - .2, zf + .12, .8, 1.9, openings)
     back_windows(p, W, D, [(2.0, [-1.6, 1.6])])
     side_marks(p, W, D, top)
+    end_walls(p, W, D, [sill], h, TEAL)
     return finish(p)
 
 
@@ -442,7 +455,11 @@ def row_sobrado(Piece, name='row_sobrado', W=6.6, D=8.0):
     arched_door(p, door_x, r, spring, zf, GREEN)
     sash(p, wx, sill, 1.1, h, zf, GREEN, grille=True)
     string_course(p, W, first - .05, zf)
-    balcony(p, .05, first + .1, 5.2, zf, .72, flowers=[(-1.95, first + 1.0, zf + .7, 1.5, 2.1), (2.25, first + .95, zf + .7, .9, 1.3)])
+    balcony(p, .05, first + .1, 5.2, zf, .72)
+    # Over the parapet above the balcony doors, and over the railing between them.
+    drape(p, -1.35, top + .98, zf + .24, 2.3, 1.55, openings)
+    drape(p, 1.75, top + .98, zf + .24, 1.9, 1.35, openings)
+    drape(p, .05, first + 1.08, zf + .74, 1.5, 1.25, openings, rail_slab=first - .04)
     for x in [-1.35, 1.45]:
         french_door(p, x, first + .1, fd_w, fd_h, zf, GREEN)
     plinth(p, W, zf, [(door_x - r - .2, door_x + r + .2)])
@@ -452,6 +469,7 @@ def row_sobrado(Piece, name='row_sobrado', W=6.6, D=8.0):
     downpipe(p, W / 2 - .4, top, zf)
     back_windows(p, W, D, [(2.0, [-1.4, 1.4]), (5.2, [-1.4, 1.4])])
     side_marks(p, W, D, top)
+    end_walls(p, W, D, [sill, first + .75], h, GREEN)
     return finish(p)
 
 
@@ -466,7 +484,7 @@ def shopfront(p, x, r, spring, zf, awning, goods):
     for i in range(5):
         xx = x + (i - 2) * r * .34
         p.orb(xx, 1.18, zb + .32, .26, .22, .26, goods[i % len(goods)], True)
-        flag(p, segments=(6, 4))
+        flag(p, segments=(8, 6), smooth=True)
     for yy in [1.75, 2.3]:
         p.box(x, yy, zb + .1, r * 1.6, .05, .22, WOOD, bevel=0, detail=True)
         for i in range(4):
@@ -509,11 +527,12 @@ def row_loja(Piece, name='row_loja', W=8.4, D=8.0):
     downpipe(p, -W / 2 + .45, top, zf)
     back_windows(p, W, D, [(2.2, [-2.2, 2.2]), (5.4, [-2.2, 0, 2.2])])
     side_marks(p, W, D, top)
+    end_walls(p, W, D, [1.2, sill], h, NAVY)
     return finish(p)
 
 
 def row_alto(Piece, name='row_alto', W=6.0, D=8.0):
-    """Three-storey narrow house: stacked balconies, bougainvillea, tiled eave."""
+    """Three-storey narrow house: stacked balconies, tiled eave."""
     p = Piece(name, W, D)
     zf, f1, f2, top = D / 2, 3.6, 6.9, 10.2
     door_x, r, spring = 1.2, .62, 2.25
@@ -526,7 +545,8 @@ def row_alto(Piece, name='row_alto', W=6.0, D=8.0):
     sash(p, wx, sill, 1.1, h, zf, CORAL, grille=True)
     for i, f in enumerate([f1, f2]):
         string_course(p, W, f - .05, zf)
-        balcony(p, -1.25, f + .1, 1.6, zf, .62, flowers=[(-1.55, f + 1.0, zf + .6, 1.1, 1.7)] if i == 0 else None)
+        balcony(p, -1.25, f + .1, 1.6, zf, .62)
+        drape(p, -1.25, f + 1.08, zf + .64, 1.4, 1.4, openings, rail_slab=f - .04)
         french_door(p, -1.25, f + .1, 1.0, 2.3, zf, CORAL, closed=i == 1)
         sash(p, 1.35, f + .75, 1.0, 1.5, zf, CORAL, flowers=i == 0, closed=i == 1)
     quoins(p, W, top, zf)
@@ -534,9 +554,9 @@ def row_alto(Piece, name='row_alto', W=6.0, D=8.0):
     eave_roof(p, W, D, top + .12, rise=1.45)
     lantern(p, door_x - .95, 2.7, zf)
     downpipe(p, W / 2 - .35, top, zf)
-    bougainvillea(p, [(W / 2 - .75, top + .05, zf, 1.3, 3.4)], seed=5)
     back_windows(p, W, D, [(2.0, [-1.2, 1.2]), (5.3, [-1.2, 1.2]), (8.6, [-1.2, 1.2])])
     side_marks(p, W, D, top)
+    end_walls(p, W, D, [sill, f1 + .75, f2 + .75], h, CORAL)
     return finish(p)
 
 

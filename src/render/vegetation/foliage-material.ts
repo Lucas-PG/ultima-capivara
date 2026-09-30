@@ -94,6 +94,19 @@ export function createFoliageMaterial(atlas?: THREE.Texture) {
           float edgeOn = ( 1.0 - smoothstep( .1, .34, facing ) ) * leafCard * ( 1.0 - smoothstep( 18.0, 40.0, vPlantDist ) );
           if ( diffuseColor.a < mix( mix( alphaTest, .16, thin ), 1.01, edgeOn ) ) discard;
         #endif
+        {
+          // Plants have no collision, so the camera can end up inside one (walking through a bush,
+          // a death in a thicket). Leaves within reach of the lens dissolve in a fine screen-space
+          // dither instead of filling the view; bark only right at the lens. This is the local
+          // camera's own render: what other players see is never touched.
+          float lens = length( vViewPosition );
+          float leafy = step( .5, vAux.y ) * step( vAux.y, 1.5 );
+          float nearFade = 1.0 - smoothstep( mix( .25, .7, leafy ), mix( .5, 1.3, leafy ), lens );
+          if ( nearFade > 0.0 ) {
+            float dither = fract( 52.9829189 * fract( dot( gl_FragCoord.xy, vec2( .06711056, .00583715 ) ) ) );
+            if ( dither < nearFade ) discard;
+          }
+        }
       `)
       .replace('#include <opaque_fragment>', `
         #if NUM_DIR_LIGHTS > 0
@@ -108,7 +121,7 @@ export function createFoliageMaterial(atlas?: THREE.Texture) {
         #include <opaque_fragment>
       `);
   };
-  material.customProgramCacheKey = () => 'ilha-dourada-foliage-v2';
+  material.customProgramCacheKey = () => 'ilha-dourada-foliage-v3';
   return { material, uniforms, depthMaterial: createFoliageDepthMaterial(uniforms) };
 }
 

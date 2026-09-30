@@ -11,7 +11,7 @@ import { WATER_LEVEL } from './water';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 import { landmarkColliders, type LandmarkSpec } from './landmarks';
 import { dressStreets, wallYards } from './street-life';
-import { plantCrown, walkingSurfaces } from './vegetation-crowns';
+import { crownReach, foliageSpan, plantCrown, walkingSurfaces, type CrownShape } from './vegetation-crowns';
 
 const ground = terrainHeight;
 // The quay stones' height (bottom-centred piece) and their promenade top.
@@ -190,7 +190,7 @@ export function createWorld(): WorldSpec {
   place('church', CHURCH[0], CHURCH[1], 0);
   // Capela do Rosário faces its largo across Rua do Sul; a smaller chapel crowns the south-west hill.
   place('church', ROSARIO[0], 45.5, Math.PI, 1, ground(ROSARIO[0], 45.5), 'capela-rosario');
-  place('church', CAPELA[0], CAPELA[1], Math.PI / 2, 1, ground(CAPELA[0], CAPELA[1]), 'capela-morro');
+  place('church_hill', CAPELA[0], CAPELA[1], Math.PI / 2, 1, ground(CAPELA[0], CAPELA[1]), 'capela-morro');
   // Its stone stair climbs the hill's east face on the chapel's axis; the
   // cruzeiro stands on the adro between the stair head and the door.
   detail('escadaria', CAPELA_STAIR.x, CAPELA_STAIR.z, CAPELA_STAIR.yaw, 1, CAPELA_STAIR.foot);
@@ -988,11 +988,20 @@ export function createWorld(): WorldSpec {
     return routes.some(index => Math.hypot(graph.points[index].x - x, graph.points[index].z - z) < 10 &&
       walkableSegment(world, { x, z }, graph.points[index], arena));
   };
+  // Spawns are chosen after the crowns were moved off the walks, so they check the leaves
+  // themselves: no player starts with a crown between the knee and above the head.
+  let crownList: CrownShape[] | undefined;
+  const underLeaves = (x: number, z: number) => {
+    const y = walkableHeight(x, z, world);
+    crownList ??= objects.flatMap(object => { const crown = plantCrown(object); return crown ? [crown] : []; });
+    return crownList.some(crown => Math.hypot(crown.x - x, crown.z - z) < crownReach(crown) + 1 && [[0, 0], [.6, 0], [-.6, 0], [0, .6], [0, -.6]]
+      .some(([dx, dz]) => { const span = foliageSpan(crown, x + dx, z + dz); return !!span && span[0] < y + 2.2 && span[1] > y + .35; }));
+  };
   const used: PointLike[] = [];
-  const nearby = (x: number, z: number, maxRadius: number, look?: PointLike) => {
+  const nearby = (x: number, z: number, maxRadius: number, look?: PointLike, spawn = false) => {
     for (let ring = 0; ring <= maxRadius; ring += 1.5) for (let k = 0; k < (ring ? 16 : 1); k++) {
       const a = k / 16 * Math.PI * 2, px = x + Math.cos(a) * ring, pz = z + Math.sin(a) * ring;
-      if (!clear(px, pz) || used.some(o => Math.hypot(px - o.x, pz - o.z) < 1.5)) continue;
+      if (!clear(px, pz) || used.some(o => Math.hypot(px - o.x, pz - o.z) < 1.5) || (spawn && underLeaves(px, pz))) continue;
       if (look) {
         const dx = look.x - px, dz = look.z - pz, distance = Math.hypot(dx, dz), y = walkableHeight(px, pz, world) + 1.62;
         if (distance < 5 || !hasLineOfSight({ x: px, y, z: pz }, { x: px + dx / distance * 5, y, z: pz + dz / distance * 5 }, world)) continue;
@@ -1005,7 +1014,7 @@ export function createWorld(): WorldSpec {
   // so a crate or chest can never take the composed spot and view.
   const arrivals = new Map(districts.map(d => {
     const arrival = DISTRICT_ARRIVALS[d.id];
-    return [d.id, nearby(arrival[0], arrival[1], 6, { x: arrival[2], z: arrival[3] })] as const;
+    return [d.id, nearby(arrival[0], arrival[1], 6, { x: arrival[2], z: arrival[3] }, true)] as const;
   }));
   const pickup = (x: number, z: number, kind: LootSpawn['kind'], weapon?: WeaponId) => {
     const pos = nearby(x, z, 10); if (pos) loot.push({ id: id('loot'), ...pos, kind, ...(kind === 'weapon' ? { weapon: weapon ?? 'pistol' } : {}) });
@@ -1048,14 +1057,14 @@ export function createWorld(): WorldSpec {
   for (let i = 0; spawns.length < 24 && i < 4000; i++) {
     const x = ARENA.minX + 7 + random() * (ARENA.maxX - ARENA.minX - 14);
     const z = ARENA.minZ + 7 + random() * (ARENA.maxZ - ARENA.minZ - 14);
-    if (!clear(x, z, 1.3) || spawns.some(s => Math.hypot(s.x - x, s.z - z) < 13)) continue;
+    if (!clear(x, z, 1.3) || spawns.some(s => Math.hypot(s.x - x, s.z - z) < 13) || underLeaves(x, z)) continue;
     spawns.push({ x, y: walkableHeight(x, z, world), z, mode: 'deathmatch', yaw: Math.atan2(-(ARENA_CENTER.x - x), -(ARENA_CENTER.z - z)) });
   }
   for (const d of districts) for (let i = 0; i < 5; i++) {
     const angle = i * Math.PI * 2 / 5, arrival = DISTRICT_ARRIVALS[d.id];
     const look = i === 0 ? { x: arrival[2], z: arrival[3] } : d;
     const pos = i === 0 ? arrivals.get(d.id) ?? null :
-      nearby(d.x + Math.cos(angle) * d.radius * .6, d.z + Math.sin(angle) * d.radius * .6, 14);
+      nearby(d.x + Math.cos(angle) * d.radius * .6, d.z + Math.sin(angle) * d.radius * .6, 14, undefined, true);
     if (pos) spawns.push({ ...pos, mode: 'battle-royale', district: d.id, yaw: Math.atan2(pos.x - look.x, pos.z - look.z) });
   }
   return world;

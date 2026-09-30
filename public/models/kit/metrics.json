@@ -5,7 +5,7 @@
     {
       "id": "house_small",
       "triangles": [
-        11988,
+        10828,
         2884,
         714
       ],
@@ -14,7 +14,7 @@
     {
       "id": "house_tall",
       "triangles": [
-        11916,
+        11980,
         2802,
         648
       ],
@@ -28,6 +28,15 @@
         808
       ],
       "colliders": 28
+    },
+    {
+      "id": "church_hill",
+      "triangles": [
+        14922,
+        3472,
+        776
+      ],
+      "colliders": 21
     },
     {
       "id": "market_hall",
@@ -131,7 +140,7 @@
     {
       "id": "house_medium",
       "triangles": [
-        11984,
+        11988,
         2884,
         712
       ],
@@ -140,7 +149,7 @@
     {
       "id": "warehouse",
       "triangles": [
-        14936,
+        14968,
         3484,
         840
       ],
@@ -311,7 +320,7 @@
     {
       "id": "market_stall",
       "triangles": [
-        3180,
+        5340,
         1452,
         766
       ],
@@ -464,7 +473,7 @@
     {
       "id": "house_laje",
       "triangles": [
-        10784,
+        8224,
         2884,
         663
       ],
@@ -473,7 +482,7 @@
     {
       "id": "house_laje_b",
       "triangles": [
-        10784,
+        8224,
         2884,
         663
       ],
@@ -482,7 +491,7 @@
     {
       "id": "house_varanda",
       "triangles": [
-        11966,
+        9872,
         2884,
         660
       ],
@@ -491,7 +500,7 @@
     {
       "id": "sobrado",
       "triangles": [
-        14988,
+        14600,
         3480,
         702
       ],
@@ -500,9 +509,9 @@
     {
       "id": "campinho",
       "triangles": [
-        7560,
-        2888,
-        730
+        7792,
+        2874,
+        684
       ],
       "colliders": 49
     },
@@ -572,8 +581,8 @@
     {
       "id": "row_terrea",
       "triangles": [
-        7578,
-        2022,
+        6230,
+        1362,
         318
       ],
       "colliders": 13
@@ -581,8 +590,8 @@
     {
       "id": "row_sobrado",
       "triangles": [
-        8460,
-        2448,
+        7600,
+        1824,
         420
       ],
       "colliders": 20
@@ -590,8 +599,8 @@
     {
       "id": "row_loja",
       "triangles": [
-        9286,
-        2254,
+        10582,
+        2350,
         442
       ],
       "colliders": 21
@@ -599,8 +608,8 @@
     {
       "id": "row_alto",
       "triangles": [
-        10478,
-        3114,
+        9538,
+        2342,
         486
       ],
       "colliders": 22
@@ -608,27 +617,27 @@
     {
       "id": "vaso",
       "triangles": [
-        622,
-        304,
-        92
+        136,
+        136,
+        20
       ],
       "colliders": 0
     },
     {
       "id": "vaso_alto",
       "triangles": [
-        472,
-        256,
-        92
+        136,
+        136,
+        20
       ],
       "colliders": 0
     },
     {
       "id": "vaso_flor",
       "triangles": [
-        622,
-        304,
-        92
+        136,
+        136,
+        20
       ],
       "colliders": 0
     },
@@ -689,9 +698,9 @@
     {
       "id": "muro_flor",
       "triangles": [
-        1598,
-        788,
-        476
+        164,
+        164,
+        140
       ],
       "colliders": 2
     },
@@ -867,6 +876,6 @@
       "colliders": 6
     }
   ],
-  "bytes": 11441328,
-  "gzipBytes": 3424644
+  "bytes": 11342388,
+  "gzipBytes": 3113859
 }

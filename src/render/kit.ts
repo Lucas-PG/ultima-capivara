@@ -5,6 +5,7 @@ import pieces from '../shared/kit-pieces.json';
 import { createToonMaterial } from './materials';
 import { kitInteriorLight, kitInteriorWindows, paintKitPlacement } from './kit-interior';
 import { releaseAfterUpload } from './memory';
+import { installKitStone } from './stone-detail';
 
 export interface KitPlacement {
   piece: string; x: number; y: number; z: number; yaw: number; scale?: number;
@@ -136,6 +137,7 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
     sourceMaterials.add(sourceMaterial);
     sourceMaterial.roughness = Math.max(.85, sourceMaterial.roughness); sourceMaterial.metalness = 0;
     updateInterior = kitInteriorLight(sourceMaterial, asset.scene, placements);
+    installKitStone(sourceMaterial);
     const windows = kitInteriorWindows(asset.scene, placements);
     if (windows) { root.add(windows); geometries.add(windows.geometry); sourceMaterials.add(windows.material as THREE.Material); }
     const sourceGeometry = new Map<string, THREE.BufferGeometry>();

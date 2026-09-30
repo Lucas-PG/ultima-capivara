@@ -96,7 +96,7 @@ export class GameRenderer {
     this.litRooms = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
       .map(object => ({ ...object.pos, y: object.pos.y - (object.kind === 'roof' ? 3.1 : 0),
         w: object.scale.x, d: object.scale.z, h: 3.1 }));
-    for (const piece of world.pieces ?? []) if (['house_small', 'house_tall', 'house_laje', 'house_laje_b', 'house_varanda', 'sobrado', 'church', 'market_hall'].includes(piece.piece)) {
+    for (const piece of world.pieces ?? []) if (['house_small', 'house_tall', 'house_laje', 'house_laje_b', 'house_varanda', 'sobrado', 'church', 'church_hill', 'market_hall'].includes(piece.piece)) {
       const definition = KIT_PIECES[piece.piece], footprint = definition.footprint, scale = piece.scale ?? 1;
       const c = Math.abs(Math.cos(piece.yaw)), s = Math.abs(Math.sin(piece.yaw));
       const room = { x: piece.x, y: piece.y, z: piece.z, h: 3.1 * scale,

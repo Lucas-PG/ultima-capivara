@@ -70,7 +70,7 @@ export function buildNavigation(world: WorldSpec, routes: readonly (readonly (re
   // and room centre, then connect only genuinely clear walking segments.
   const doors: number[] = [];
   for (const piece of world.pieces ?? []) {
-    if (!/^(house_|palafita|bar_mare$|engenho$|church$|market_hall$|warehouse$|barn$)/.test(piece.piece)) continue;
+    if (!/^(house_|palafita|bar_mare$|engenho$|church(_hill)?$|market_hall$|warehouse$|barn$)/.test(piece.piece)) continue;
     const floor = KIT_PIECES[piece.piece]?.colliders.find(c => c.type === 'box' && c.height < .25 && c.y < .3 && c.width > 3 && c.depth > 3);
     if (!floor || floor.type !== 'box') continue;
     const scale = piece.scale ?? 1;

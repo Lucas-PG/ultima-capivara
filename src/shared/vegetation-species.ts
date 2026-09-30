@@ -49,6 +49,8 @@ export const SPECIES = {
   /** The planting of the kit's round planter (origin at the planter base) and flower bed (bed centre). */
   pot: { kind: 'shrub', height: 1.9, variants: 4 },
   bed: { kind: 'shrub', height: .9, variants: 4 },
+  /** The planting of a kit window flower box: 1 m wide at scale 1, origin on the soil, street at +z. */
+  windowbox: { kind: 'shrub', height: .5, variants: 4 },
   /** Bougainvillea hanging from a wall top: origin on the wall's outer face at the top, drop downward. */
   vine: { kind: 'vine', height: 2, variants: 4 },
 } as const satisfies Record<string, { kind: PlantKind; height: number; variants: number }>;
