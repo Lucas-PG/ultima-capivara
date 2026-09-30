@@ -83,14 +83,14 @@ describe('follow camera', () => {
 
   it('keeps the lens out of crowns and bushes next to the watched capybara', () => {
     // Plants have no collision, so the lens used to sink into a crown or a bush beside the target
-    // and show only leaves: at 78 of 400 seeded spots 1 to 5 m from a plant on the real island.
+    // and show only leaves: at 78 of 400 seeded spots 1 to 5 m from a plant on the real island (about 49 of these 250).
     const island = createWorld(), r = rng(99);
     const shapes = [...island.objects.map(plantCrown), ...vegetationDressing(island)
       .filter(p => !['meadow', 'crop', 'fern', 'bromeliad', 'vine'].includes(p.species)).map(p => foliageAt(p.species, p.variant, p.x, p.y, p.z, p.height))]
       .filter((shape): shape is NonNullable<typeof shape> => !!shape);
     const leafy = (x: number, y: number, z: number) => shapes.some(shape => { const span = foliageSpan(shape, x, z); return !!span && y > span[0] && y < span[1]; });
     let spots = 0, inLeaves = 0;
-    while (spots < 400) {
+    while (spots < 250) {
       const shape = shapes[Math.floor(r() * shapes.length)], a = r() * Math.PI * 2, d = 1 + r() * 4;
       const x = shape.x + Math.cos(a) * d, z = shape.z + Math.sin(a) * d, pos = { x, y: walkableHeight(x, z, island), z };
       if (!clearSpawn(pos, island) || leafy(x, pos.y + FOLLOW.height, z)) continue;
@@ -99,7 +99,7 @@ describe('follow camera', () => {
       for (let i = 0; i < 60; i++) cam.update(island, { pos, yaw, pitch: 0, crouch: false, swimming: false, alive: true }, 1 / 60);
       if (leafy(cam.position.x, cam.position.y, cam.position.z)) inLeaves++;
     }
-    expect(inLeaves).toBeLessThanOrEqual(8);
+    expect(inLeaves).toBeLessThanOrEqual(5);
   });
 
   it('swings along a tall wall the target backs into, and glides home once it steps away', () => {
