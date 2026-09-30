@@ -14,7 +14,7 @@ import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, HANDLING, sho
 import { resolveImpact, type Impact } from './surface';
 import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
 import { MELEE_SECONDS } from '../shared/weapon-presentation';
-import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, RECOVERY_SECONDS, recoveryDirection, type BotBrain, type BotDifficulty } from './bots';
+import { adaptDifficulty, aimLag, aimOffset, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, RECOVERY_SECONDS, recoveryDirection, trackAim, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
@@ -1304,6 +1304,7 @@ export class Simulation {
     const target = b.target ? this.actors.get(b.target) : undefined, t = target?.state;
     const fighting = !!(t && t.alive && b.sees && t.stage === 'ground' && t.protectionUntil <= now);
     b.trackT = fighting ? b.trackT + dt : Math.max(0, b.trackT - dt * 2);
+    if (fighting && t) trackAim(b, t, aimLag(this.diff, b.elite), dt);
     if (this.botLeisure(a, rethink)) return;
     let mx = 0, mz = 0, speed = 0, face = s.yaw, crouch = false, jump = false, pitch = s.pitch * Math.exp(-4 * dt), preciseBuilding = false;
     let steer: Vec3 | null = null;
@@ -1496,8 +1497,9 @@ export class Simulation {
     if (!def.melee && w.ammo <= 0) { this.startReload(a); return; }
     const head = this.random() < (b.elite ? .2 : .1), k = t.crouch ? 1.3 / 1.8 : 1;
     // Aim at the head sphere or the upper body (see HIT_SHAPES).
-    const aim = head ? { x: t.pos.x - Math.sin(t.yaw) * .04 * k, y: t.pos.y + 1.6 * k, z: t.pos.z - Math.cos(t.yaw) * .04 * k }
-      : { x: t.pos.x, y: t.pos.y + 1.0 * k, z: t.pos.z };
+    const lead = aimOffset(b, t, aimLag(this.diff, b.elite));
+    const aim = head ? { x: t.pos.x - Math.sin(t.yaw) * .04 * k + lead.x, y: t.pos.y + 1.6 * k + lead.y, z: t.pos.z - Math.cos(t.yaw) * .04 * k + lead.z }
+      : { x: t.pos.x + lead.x, y: t.pos.y + 1.0 * k + lead.y, z: t.pos.z + lead.z };
     const eye = center(s), dist = Math.hypot(aim.x - eye.x, aim.y - eye.y, aim.z - eye.z);
     const tv = Math.hypot(t.velocity.x, t.velocity.z), sv = Math.hypot(s.velocity.x, s.velocity.z);
     const track = b.elite ? lerp(1.5, .45, clamp(b.trackT / 1.6, 0, 1)) : lerp(1.8, .75, clamp(b.trackT / 2.2, 0, 1));

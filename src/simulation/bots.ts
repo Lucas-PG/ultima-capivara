@@ -9,11 +9,14 @@ import { navigationAnchor, walkableHeight, walkableSegment } from '../shared/nav
 // (reference/legacy.html, "bots" section). Navigation, cover and rotation use
 // the current shared movement and island data.
 
-// Legacy DIFFS: facil / normal / dificil.
-export const DIFFICULTY: Record<Difficulty, { dmg: number; err: number; react: number; sight: number; elites: number }> = {
-  easy: { dmg: .55, err: 1.6, react: .4, sight: .7, elites: 3 },
-  normal: { dmg: .78, err: 1.25, react: .15, sight: .85, elites: 4 },
-  hard: { dmg: 1, err: 1, react: 0, sight: 1, elites: 5 },
+// Legacy DIFFS: facil / normal / dificil. `lag` (seconds) is how slowly a bot's
+// read of its target's motion catches up: a steady run is tracked, but every
+// change of direction is aimed at where the target was heading. Legacy aimed
+// at the exact current position, so strafing barely mattered (85% hits at 10 m).
+export const DIFFICULTY: Record<Difficulty, { dmg: number; err: number; react: number; sight: number; elites: number; lag: number }> = {
+  easy: { dmg: .55, err: 1.6, react: .4, sight: .7, elites: 3, lag: .28 },
+  normal: { dmg: .78, err: 1.25, react: .15, sight: .85, elites: 4, lag: .21 },
+  hard: { dmg: 1, err: 1, react: 0, sight: 1, elites: 5, lag: .15 },
 };
 
 // Legacy botRange / botSight and the fire cadence table from botFire().
@@ -21,7 +24,7 @@ export type BotDifficulty = (typeof DIFFICULTY)[Difficulty];
 // Legacy computeDiff(): the adaptive factor makes bots up to ~20% milder or braver.
 export function adaptDifficulty(base: BotDifficulty, adapt = 0): BotDifficulty {
   const a = Number.isFinite(adapt) ? Math.max(-1, Math.min(1, adapt)) : 0;
-  return { dmg: base.dmg * (1 + a * .22), err: base.err * (1 - a * .18), react: Math.max(0, base.react - a * .12), sight: base.sight * (1 + a * .1), elites: base.elites };
+  return { dmg: base.dmg * (1 + a * .22), err: base.err * (1 - a * .18), react: Math.max(0, base.react - a * .12), sight: base.sight * (1 + a * .1), elites: base.elites, lag: base.lag * (1 - a * .18) };
 }
 
 export const BOT_WEAPON: Record<WeaponId, { tier: number; range: number; sight: number; burst?: boolean; cooldown: [number, number] }> = {
@@ -44,6 +47,8 @@ export interface BotBrain {
   thinkAt: number; alertUntil: number; hurtUntil: number; coverUntil: number; coverCdUntil: number; recentDmg: number;
   target: string | null; sees: boolean; lastSeen: Vec3 | null; lastSeenAt: number; trackT: number; reactT: number;
   fireAt: number; burst: number; strafeDir: number; strafeUntil: number;
+  /** The bot's lagging read of its target's velocity (see DIFFICULTY.lag). */
+  aimVelocity: Vec3 | null; aimFor: string | null;
   mode: 'roam' | 'fight' | 'cover'; coverPt: Vec3 | null; peekPt: Vec3 | null; peekUntil: number; flank: number;
   goal: Vec3 | null; loot: { id: string; kind: 'item' | 'chest' | 'supply'; pos: Vec3 } | null; lootScanAt: number; zoneGoal: Vec3 | null;
   leisure: { kind: 'celebrate' | 'bath' | 'trampoline'; pos: Vec3; exit: Vec3; until: number; bounceSeq: number } | null;
@@ -60,7 +65,7 @@ export function createBrain(elite: boolean, skill: number, pos: Vec3, flank: num
   return {
     elite, skill, thinkAt: 0, alertUntil: -1, hurtUntil: -1, coverUntil: -1, coverCdUntil: -1, recentDmg: 0,
     target: null, sees: false, lastSeen: null, lastSeenAt: -99, trackT: 0, reactT: 0,
-    fireAt: 0, burst: 0, strafeDir: 1, strafeUntil: 0, mode: 'roam', coverPt: null, flank,
+    fireAt: 0, burst: 0, strafeDir: 1, strafeUntil: 0, aimVelocity: null, aimFor: null, mode: 'roam', coverPt: null, flank,
     peekPt: null, peekUntil: 0,
     recoveryYaw: null, recoveryJump: false, recoveryUntil: 0,
     goal: null, loot: null, lootScanAt: -99, zoneGoal: null, hearPos: null, lastAttacker: null,
@@ -70,6 +75,21 @@ export function createBrain(elite: boolean, skill: number, pos: Vec3, flank: num
 }
 
 export const angleDiff = (from: number, to: number) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
+/** Seconds of aim lag for this bot: elites read motion faster. */
+export const aimLag = (diff: BotDifficulty, elite: boolean) => diff.lag * (elite ? .75 : 1);
+/** Ease the bot's read of the target's velocity toward the truth. */
+export function trackAim(brain: BotBrain, target: ActorState, lag: number, dt: number) {
+  if (!brain.aimVelocity || brain.aimFor !== target.id) { brain.aimVelocity = { ...target.velocity }; brain.aimFor = target.id; return; }
+  const k = 1 - Math.exp(-dt / Math.max(.01, lag)), v = brain.aimVelocity;
+  v.x += (target.velocity.x - v.x) * k; v.y += (target.velocity.y - v.y) * k; v.z += (target.velocity.z - v.z) * k;
+}
+/** Where a lagging read of the motion puts the target: exact for a steady run. */
+export function aimOffset(brain: BotBrain, target: ActorState, lag: number): Vec3 {
+  const v = brain.aimFor === target.id ? brain.aimVelocity : null;
+  if (!v) return { x: 0, y: 0, z: 0 };
+  return { x: (v.x - target.velocity.x) * lag, y: (v.y - target.velocity.y) * lag * .5, z: (v.z - target.velocity.z) * lag };
+}
 
 // Only after measured lack of progress: try short walks through the same
 // collision solver used by players. A normal jump is considered only if a

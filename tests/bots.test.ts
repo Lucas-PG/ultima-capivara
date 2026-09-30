@@ -7,6 +7,7 @@ import { WEAPONS } from '../src/shared/weapons';
 import { createWorld } from '../src/shared/world';
 import type { ActorState, Difficulty, GameEvent, InputFrame, WorldSpec } from '../src/shared/types';
 import { swimReady } from '../src/shared/inventory';
+import { emptyInput } from '../src/shared/math';
 
 type Runtime = { state: ActorState; brain: any; input: InputFrame; lastInputAt: number };
 
@@ -227,6 +228,38 @@ describe('legacy bot behaviour', () => {
     const easy = measure('easy'), hard = measure('hard');
     expect(hard.first).toBeLessThan(easy.first);
     expect(hard.damage).toBeGreaterThan(easy.damage * 1.3);
+  });
+
+  it('tracks a steady circle-strafe but is thrown by each change of direction, more so on easier settings', () => {
+    // Legacy bots aimed at the exact current position, so strafing barely
+    // mattered. A lagging read of motion makes side-stepping a real counter.
+    const hitRate = (difficulty: Difficulty, pattern: 'steady' | 'strafe') => {
+      let shots = 0, hits = 0;
+      for (const seed of [1, 2, 3, 4]) {
+        const { sim, player, bot } = duel(12, difficulty, Math.PI, seed);
+        player.hp = 10_000;
+        bot.state.weapons = [{ id: 'smg', ammo: 25, reserve: 300, rarity: 0, box: 0 }]; bot.state.slot = 0;
+        let seq = 1_000_000;
+        for (let tick = 0; tick < 5 * 60; tick++) {
+          // Facing the bot, a constant side-step circles it at an even range;
+          // alternating side-steps stay at the same range but reverse.
+          const now = sim.snapshot().time, direction = pattern === 'steady' ? 1 : Math.floor(now / .55) % 2 ? 1 : -1;
+          const yaw = Math.atan2(-(bot.state.pos.x - player.pos.x), -(bot.state.pos.z - player.pos.z));
+          sim.input('player', { ...emptyInput(), seq: seq++, clientTime: now, yaw, moveX: direction });
+          sim.step(1 / 60);
+          for (const event of sim.drainEvents()) {
+            if (event.type === 'shot' && event.actor === 'bot-1') shots++;
+            if (event.type === 'damage' && event.actor === 'bot-1') hits++;
+          }
+        }
+      }
+      return hits / shots;
+    };
+    const steady = hitRate('normal', 'steady'), strafe = hitRate('normal', 'strafe');
+    expect(steady).toBeGreaterThan(.25);
+    expect(strafe).toBeLessThan(steady * .8);
+    expect(hitRate('easy', 'strafe')).toBeLessThan(strafe);
+    expect(hitRate('hard', 'strafe')).toBeGreaterThan(strafe);
   });
 
   // This exercises 21 bots over 44 simulated seconds on the full island.
