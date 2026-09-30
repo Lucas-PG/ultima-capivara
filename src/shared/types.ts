@@ -34,6 +34,8 @@ export interface InputFrame {
 }
 export type PlayerAction =
   | { type: 'reload'; id: number }
+  // Quick melee: one facão swing without selecting it, then back to the held gun.
+  | { type: 'melee'; id: number }
   | { type: 'slot'; id: number; slot: number }
   | { type: 'interact'; id: number; target: string }
   | { type: 'drop'; id: number }
@@ -132,6 +134,8 @@ export interface Settings {
   sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; frameLimit: 30 | 60; reducedMotion: boolean;
   master: number; effects: number; ambience: number; music: number;
   adsToggle: boolean; bindings: Record<string, string>;
+  // Controls feel (src/controls.ts CONTROL_OPTIONS): hold or toggle, aimed and scoped sensitivity multipliers, camera shake 0 to 1.
+  crouchToggle: boolean; sprintToggle: boolean; invertY: boolean; adsSensitivity: number; scopeSensitivity: number; cameraShake: number;
   // Legacy "Ajuste automático": practice bots adapt to recent placements.
   adaptive: boolean;
   // HUD preferences: FPS readout, interface size (0.8 to 1.2) and colour-blind friendly aim feedback.

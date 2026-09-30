@@ -4,6 +4,7 @@ import { moveActor } from '../src/shared/collision';
 import { pelletDirection } from '../src/shared/ballistics';
 import { terrainHeight } from '../src/shared/terrain';
 import { HANDLING, WEAPONS, shotSpread } from '../src/shared/weapons';
+import { MELEE_SECONDS } from '../src/shared/weapon-presentation';
 import type { ActorState, GameEvent, InputFrame, PlayerProfile, RoomConfig, WeaponId, WorldSpec } from '../src/shared/types';
 
 const world = (): WorldSpec => ({
@@ -81,6 +82,24 @@ describe('combat handling on the host', () => {
     const ticks = Math.round(HANDLING.m4.sprintOut * 60);
     expect(firstShotTick).toBeGreaterThanOrEqual(ticks - 1);
     expect(firstShotTick).toBeLessThanOrEqual(ticks + 1);
+  });
+
+  it('swings the facão on quick melee without selecting it, then returns to the gun, which is drawn again', () => {
+    const { sim, actor, tick, shots } = setup('quick-melee', ['m4', 'pistol', 'machete']);
+    for (let i = 0; i < 20; i++) tick({ sprint: true, moveZ: 1 });
+    sim.action('a', { type: 'melee', id: 50 }); tick({ sprint: true, moveZ: 1 });
+    // Straight out of the run: no sprint-out for the blade.
+    expect(shots().map(s => s.weapon)).toEqual(['machete']);
+    let back = -1;
+    for (let i = 0; i < Math.ceil(MELEE_SECONDS * 60) + 2 && back < 0; i++) { tick(); if (actor.weapons[actor.slot].id === 'm4') back = sim.snapshot().time; }
+    expect(back).toBeGreaterThan(0);
+    let firstM4 = -1;
+    for (let i = 0; i < 40 && firstM4 < 0; i++) { tick({ fire: true }); if (shots().some(s => s.weapon === 'm4')) firstM4 = sim.snapshot().time; }
+    expect(firstM4 - back).toBeGreaterThanOrEqual(HANDLING.m4.draw - 1 / 60);
+    // The swing has its own cadence: spamming the key does not swing faster than the facão.
+    sim.action('a', { type: 'melee', id: 51 }); tick();
+    sim.action('a', { type: 'melee', id: 52 }); tick();
+    expect(shots().filter(s => s.weapon === 'machete')).toHaveLength(1);
   });
 
   it('draws the same seeded pellet directions the shooter\'s client predicts', () => {

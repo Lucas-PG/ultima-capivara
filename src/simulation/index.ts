@@ -13,6 +13,7 @@ import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
 import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, HANDLING, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
 import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
+import { MELEE_SECONDS } from '../shared/weapon-presentation';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
@@ -44,6 +45,8 @@ interface ActorRuntime {
   shots: number; hits: number; headshots: number; chests: number; longestShot: number; eliminatedAt: number | null;
   // Cadence per weapon (a bolt or pump cycle survives a swap) and the end of the last sprint.
   readyAt: Partial<Record<WeaponId, number>>; sprintEndedAt: number; wasSprinting: boolean; triggerAt: number;
+  // Quick melee: a swing due this tick, and the gun to return to when it ends.
+  meleeSwing: boolean; meleeReturn: { box: number; at: number } | null;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
 interface Projectile { owner: string; weapon: WeaponId; origin: Vec3; pos: Vec3; velocity: Vec3; life: number }
@@ -190,7 +193,7 @@ export class Simulation {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [], readyAt: {}, sprintEndedAt: -Infinity, wasSprinting: false, triggerAt: 0 });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [], readyAt: {}, sprintEndedAt: -Infinity, wasSprinting: false, triggerAt: 0, meleeSwing: false, meleeReturn: null });
   }
 
   input(id: string, input: InputFrame) {
@@ -237,6 +240,7 @@ export class Simulation {
       }
     } else if (action.type === 'drop') this.dropHeld(actor);
     else if (action.type === 'reload') this.startReload(actor);
+    else if (action.type === 'melee') this.quickMelee(actor);
     else if (action.type === 'consume') this.startConsume(actor, action.item);
     else if (action.type === 'interact') this.interact(actor, action.target);
   }
@@ -345,6 +349,12 @@ export class Simulation {
       }
       const weaponId = s.weapons[s.slot].id;
       actor.adsAmount = s.swimming ? 0 : advanceAds(weaponId, actor.adsAmount, s.ads && !s.sprint && !s.reloadUntil && weaponId !== 'machete', TICK);
+      if (actor.meleeSwing) { actor.meleeSwing = false; this.fire(actor, inp.clientTime); }
+      else if (actor.meleeReturn && this.time >= actor.meleeReturn.at) {
+        const back = s.weapons.findIndex(w => w.box === actor.meleeReturn!.box);
+        actor.meleeReturn = null;
+        if (back >= 0 && WEAPONS[s.weapons[s.slot].id].melee && (!s.swimming || swimReady(s.weapons[back].id))) this.setSlot(s, back);
+      }
       if (s.alive && (inp.fire || trigger)) {
         const result = this.fire(actor, trigger?.clientTime, trigger?.id);
         // A click during the sprint-out fires as soon as the gun is up, aimed where the view is then.
@@ -621,6 +631,17 @@ export class Simulation {
     s.slot = index; s.reloadUntil = 0; s.useUntil = 0; s.using = null; s.shotHeat = 0;
     if (actor) { actor.shotHeat = 0; actor.adsAmount = 0; this.drawWeapon(actor); }
   }
+  // Quick melee swings the facão at once (even out of a sprint) and returns to
+  // the held gun when the swing ends; that gun then takes its normal draw time.
+  private quickMelee(a: ActorRuntime) {
+    const s = a.state, facao = s.weapons.findIndex(w => WEAPONS[w.id].melee);
+    if (facao < 0 || s.stage !== 'ground' || s.swimming || s.using || s.emote || this.time + 1e-6 < (a.readyAt[s.weapons[facao].id] ?? 0)) return;
+    if (s.slot !== facao) {
+      a.meleeReturn = { box: s.weapons[s.slot].box, at: this.time + MELEE_SECONDS };
+      s.slot = facao; s.reloadUntil = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0;
+    }
+    a.nextShot = this.time; a.wasFiring = false; a.meleeSwing = true;
+  }
   // A newly held weapon fires once it is drawn, and never before its own cycle
   // (bolt, pump) has finished: swapping away and back cannot skip a cycle.
   private drawWeapon(a: ActorRuntime) {
@@ -658,9 +679,9 @@ export class Simulation {
   private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }): 'fired' | 'wait' | 'blocked' {
     const s = a.state, w = s.weapons[s.slot], def = w && WEAPONS[w.id];
     if (!w || !def || s.stage !== 'ground' || s.using || s.emote || this.time + 1e-6 < a.nextShot || (s.swimming && !swimReady(w.id))) return 'blocked';
-    if (!def.melee && !def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return 'blocked';
-    // Firing ends a sprint (moveActor); the gun comes up before the first round.
-    if (s.sprint || this.time + 1e-6 < a.sprintEndedAt + HANDLING[w.id].sprintOut) return 'wait';
+    if (!def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return 'blocked';
+    // Firing ends a sprint (moveActor); the gun comes up before the first round. The facão swings straight out of a run.
+    if (!def.melee && (s.sprint || this.time + 1e-6 < a.sprintEndedAt + HANDLING[w.id].sprintOut)) return 'wait';
     if (s.reloadUntil) {
       if (w.id !== 'shotgun' || w.ammo === 0) return 'blocked';
       s.reloadUntil = 0;
@@ -805,7 +826,7 @@ export class Simulation {
     s.weapons = this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[s.weaponLevel])] :
       [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
-    s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false; a.readyAt = {}; a.sprintEndedAt = -Infinity; a.wasSprinting = false;
+    s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false; a.readyAt = {}; a.sprintEndedAt = -Infinity; a.wasSprinting = false; a.meleeSwing = false; a.meleeReturn = null;
     // Press IDs survive respawn just like lastAction/lastSeq; a delayed reliable
     // copy of a held shot must not fire again in the new life. Reconnect resets IDs.
     a.input = emptyInput(); a.lastInputAt = -Infinity; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; a.boostUntil = 0; a.history = [];
