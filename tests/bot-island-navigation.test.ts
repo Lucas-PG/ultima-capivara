@@ -79,8 +79,8 @@ describe('connected routes on the rebuilt island', () => {
     const graph = base.navigation!, network = navigationNetwork(graph);
     // The yard behind the Rua do Porto sobrado is entered by its gate.
     expect(onMainNetwork(base, point(44, -48))).toBe(true);
-    // The garden behind the Rua do Sul row houses has no opening at all.
-    expect(onMainNetwork(base, point(6, 68))).toBe(false);
+    // The garden behind the Rua do Sul row houses once had no opening; every yard now has a gate.
+    expect(onMainNetwork(base, point(6, 68))).toBe(true);
     const islands = new Set([...network.component].filter(id => id >= 0 && id !== network.main));
     expect(islands.size).toBeLessThan(16);
     const runtime = new Simulation(base, { mode: 'battle-royale', capacity: 8, bots: true, difficulty: 'normal', duration: 300 }, [], 'landing', 11) as any;

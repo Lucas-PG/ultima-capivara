@@ -207,9 +207,13 @@ function wallRun(api: StreetLifeApi, run: FrontageRun) {
     // Along the lane: +z of every piece faces away from the houses, so its
     // local +x (and each piece's end pillar) runs this way along the yard.
     const laneDir: [number, number] = [along ? -outward : outward, 0], plus = laneDir[0] > 0;
+    // Every yard opens onto the lane through at least one gate: a walled yard
+    // without one would seal in a capybara that parachutes or wanders into it.
+    const gated = (k: number) => (hash(first + (k + .5) * MURO, far, 11) < .3 && k % 3 === 1) || (count < 4 && k === 1);
+    const fallbackGate = Array.from({ length: count }, (_, k) => k).some(gated) ? -1 : Math.floor(count / 2);
     for (let k = 0; k < count; k++) {
       const u = first + (k + .5) * MURO, roll = hash(u, far, 11), { x, z } = world(u, far);
-      const piece = (roll < .3 && k % 3 === 1) || (count < 4 && k === 1) ? 'muro_portao' : roll > .7 ? 'muro_flor' : 'muro';
+      const piece = gated(k) || k === fallbackGate ? 'muro_portao' : roll > .7 ? 'muro_flor' : 'muro';
       // A wall piece on a slope sits on its lowest corner, never hovering.
       const ends = [-1.4, 1.4].map(offset => { const p = world(u + offset, far); return ground(p.x, p.z); });
       place(piece, u, far, laneDir, Math.min(ground(x, z), ...ends) - .04);
