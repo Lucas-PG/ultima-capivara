@@ -39,7 +39,7 @@ for s in (-1, 1):
     wrist = C.v(s * .86, 1.37, -.015)
     forms.append(S.RoundCone((s * .69, 1.36, -.015), wrist, .066, .045))
     frame = np.array([[0, s, 0], [-s, 0, 0], [0, 0, 1]], np.float32)
-    forms.append(S.Transform(C.paw(s).a, wrist, frame, C.PAW_SCALE))
+    forms.append(S.Transform(C.paw(s).a, wrist, frame, 1.0))
     forms.append(C.foot(s))
     forms.append(S.RoundCone((s * .08, 1.40, -.10), (s * .21, 1.02, -.16), .020, .013))
 root = S.Intersect(S.Union(forms, k=.024), S.Plane((0, .0015, 0), (0, -1, 0)))

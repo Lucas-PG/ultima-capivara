@@ -127,14 +127,26 @@ def key_all(frame):
 
 
 def secondary(t, bounce, sway, gust=0.0):
-    """Ears, pack and hip rag lag the body: `bounce` is the vertical bob signal, `sway` the roll."""
+    """Ears, pack, blanket, bandana tails and hip rag lag the body: `bounce` is the vertical bob
+    signal, `sway` the roll, `gust` the headwind of a fast gait. The runtime adds springs on top."""
     for s, n in SIDES:
         pb['ear_' + n].rotation_euler.x = -.10 * bounce - .14 * gust + .03 * math.sin(t * 7 + s)
         pb['ear_' + n].rotation_euler.z = s * .05 * sway
+        pb['scarf_' + n].rotation_euler.x = .10 * bounce + .45 * gust
+        pb['scarf_' + n].rotation_euler.z = .10 * sway + s * .06 * gust
     pb['pack'].rotation_euler.x = .05 * bounce
     pb['pack'].location.z = .004 * bounce
+    pb['bedroll'].rotation_euler.x = .06 * bounce
     pb['hipcloth'].rotation_euler.x = -.12 * bounce - .2 * gust
     pb['hipcloth'].rotation_euler.z = .10 * sway
+
+
+def keyed(t, keys):
+    """Piecewise eased value through (time, value) keys on the 0..1 loop: holds with quick moves."""
+    for (t0, v0), (t1, v1) in zip(keys, keys[1:]):
+        if t <= t1:
+            return v0 + (v1 - v0) * ease((t - t0) / max(t1 - t0, 1e-6))
+    return keys[-1][1]
 
 
 def blink(t, at, width=.07):
@@ -155,11 +167,12 @@ def stabilize_head(amount=1.0):
     pb['spine'].location.z += d.y * amount
 
 
-def author(name, seconds, fn, loop=True, stabilize=0.0):
+def author(name, seconds, fn, loop=True, stabilize=0.0, step=1):
     action = bpy.data.actions.new(name); action.use_fake_user = True
     rig.animation_data.action = action
     frames = max(2, round(seconds * FPS))
-    for frame in range(frames + 1):
+    # Long, slow clips are keyed every `step` frames (the export resamples at 60 Hz).
+    for frame in sorted(set(range(0, frames + 1, step)) | {frames}):
         scene.frame_set(frame)
         # Loops close exactly: the last frame repeats the first pose.
         t = (0 if loop and frame == frames else frame / frames)
@@ -179,30 +192,84 @@ reset(); update()
 HEAD_REST = pb['head'].matrix.to_translation().copy()
 
 
-# ------------------------------------------------------------------ idle: a calm, heavy breath
-def idle(t, sec):
-    ph = math.tau * t
-    breath = math.sin(ph * 2)           # two slow breaths in the 4 s loop
-    shift = math.sin(ph)                # one weight shift from foot to foot
-    pb['belly'].scale.x = 1 + .012 * breath; pb['belly'].scale.z = 1 + .030 * breath
-    pb['chest'].rotation_euler.x = -.012 * breath
-    pb['spine'].rotation_euler.z = .018 * shift
-    pb['chest'].rotation_euler.z = -.010 * shift
-    pb['neck'].rotation_euler.z = -.006 * shift
-    look = .05 * math.sin(ph + .6) + .03 * math.sin(ph * 3)
-    pb['head'].rotation_euler.z = look          # a slow look around
-    pb['head'].rotation_euler.x = .02 * math.sin(ph * 2 + 1)
+# ------------------------------------------------------------------ idle: alive while standing
+# A 10 s loop: four breaths in the chest and belly, the weight going from foot to foot twice, the
+# head looking around in small quick turns with holds, ear flicks, three blinks and a nose twitch.
+LOOK_YAW = [(0, 0), (.06, 0), (.09, .15), (.24, .15), (.27, .09), (.38, .09), (.42, -.08), (.55, -.08), (.59, -.16), (.72, -.16), (.76, -.11), (.86, -.11), (.91, 0), (1, 0)]
+LOOK_PITCH = [(0, 0), (.06, 0), (.09, .03), (.24, .03), (.27, -.05), (.38, -.05), (.42, .02), (.55, .02), (.59, -.03), (.72, -.03), (.76, .04), (.86, .04), (.91, 0), (1, 0)]
+BLINKS = (.17, .50, .83)
+
+
+def breathing(t, breaths, depth=1.0):
+    """Chest and belly fill and the shoulders rise a little with each breath."""
+    b = math.sin(math.tau * t * breaths)
+    inhale = .5 + .5 * b
+    pb['belly'].scale.z = 1 + .040 * b * depth; pb['belly'].scale.x = 1 + .018 * b * depth
+    pb['chest'].rotation_euler.x += .022 * b * depth
+    pb['chest'].location.y += .0045 * inhale * depth
+    pb['neck'].rotation_euler.x += -.012 * b * depth
     for s, n in SIDES:
-        leg(n, 0, 0, 0, .004 + .004 * (1 + s * shift) * .5)
-        flick = bump(t, .30, .36) if n == 'L' else bump(t, .71, .76)
-        pb['ear_' + n].rotation_euler.x = .03 * math.sin(ph + s) - .30 * flick
-        pb['blink_' + n].scale.y = blink(t, .62)
-    pb['jaw'].rotation_euler.x = .02 * bump(t, .45, .52)        # a chew
-    pb['pack'].rotation_euler.x = .01 * breath
-    pb['hipcloth'].rotation_euler.z = .04 * math.sin(ph + 1)
+        pb['arm_' + n].rotation_euler.z += s * .020 * b * depth
+    pb['pack'].rotation_euler.x += .012 * b * depth
+    return b
 
 
-author('idle', 4.0, idle, stabilize=.9)
+def alive_face(t, look=1.0):
+    """Looks, ear flicks, blinks and the nose twitch shared by the idles."""
+    pb['head'].rotation_euler.z = keyed(t, LOOK_YAW) * look          # a look around: quick turns, holds
+    pb['head'].rotation_euler.x += keyed(t, LOOK_PITCH) * look
+    pb['neck'].rotation_euler.z += keyed(t, LOOK_YAW) * .25 * look
+    for s, n in SIDES:
+        flick = max(bump(t, .13, .17), bump(t, .62, .655)) if n == 'L' else max(bump(t, .33, .365), bump(t, .88, .915))
+        pb['ear_' + n].rotation_euler.x = .03 * math.sin(math.tau * t * 3 + s) - .38 * flick
+        pb['ear_' + n].rotation_euler.z = s * .10 * flick
+        pb['blink_' + n].scale.y = min(blink(t, at, .018) for at in BLINKS)
+    twitch = max(bump(t, .30, .325), bump(t, .335, .36), bump(t, .70, .725))
+    pb['nose'].rotation_euler.x = .10 * twitch
+    pb['nose'].scale = (1 + .06 * twitch, 1 + .04 * twitch, 1)
+    pb['jaw'].rotation_euler.x = .02 * bump(t, .45, .49) + .02 * bump(t, .49, .53)   # a chew
+
+
+def idle(t, sec):
+    breath = breathing(t, 4)
+    shift = math.sin(math.tau * t * 2 + .4)     # weight from foot to foot, 5 s per cycle
+    settle = ease(abs(shift)) * (1 if shift > 0 else -1)
+    pb['spine'].location.x = .020 * settle       # the body rides over the loaded foot
+    pb['spine'].rotation_euler.z = .030 * settle
+    pb['chest'].rotation_euler.z = -.018 * settle
+    pb['neck'].rotation_euler.z += -.010 * settle
+    alive_face(t)
+    for s, n in SIDES:
+        # The loaded leg straightens, the free knee softens.
+        leg(n, 0, 0, 0, .006 + .012 * max(0, -s * settle) + .003 * (.5 + .5 * breath))
+        pb['scarf_' + n].rotation_euler.z = .03 * settle
+    pb['hipcloth'].rotation_euler.z = .05 * settle
+    pb['bedroll'].rotation_euler.x = .01 * breath
+
+
+author('idle', 10.0, idle, stabilize=.9, step=3)
+
+
+# ------------------------------------------------------------------ armed idle: low ready, leaning in
+def idle_armed(t, sec):
+    """Holding a gun: the left foot forward, knees bent, the weight low and leaning into the gun
+    (the runtime turns the shoulders and places the arms)."""
+    drop = .050
+    breath = breathing(t, 4, .8)
+    sway = math.sin(math.tau * t * 2)
+    leg('L', -.085, 0, .010, drop + .004 * (.5 + .5 * breath), 0, 0)
+    leg('R', .070, 0, .020, drop + .004 * (.5 + .5 * breath), 0, 0)
+    pb['spine'].location.y = -drop - .003 * (.5 + .5 * breath)
+    pb['spine'].location.x = .008 * sway
+    pb['spine'].rotation_euler.x = -.11
+    pb['chest'].rotation_euler.x += -.06
+    pb['neck'].rotation_euler.x += .10
+    pb['head'].rotation_euler.x = .07
+    alive_face(t, .45)
+    secondary(sec, 0, .3 * sway)
+
+
+author('idle_armed', 10.0, idle_armed, stabilize=.9, step=3)
 
 
 # ------------------------------------------------------------------ walk: the waddle
@@ -232,7 +299,7 @@ report['locomotionDirection'] = {**{k: list(v) for k, v in WALK_DIRS.items()}, '
 def walk_like(name, lift, cadence_drop):
     front, back, contact, seconds, sink = GAITS[name]
     right, forward = WALK_DIRS[name]
-    lean = -.05 * max(0, forward) + .04 * max(0, -forward) - .02 * abs(right)
+    lean = -.05 * max(0, forward) + .015 * max(0, -forward) - .02 * abs(right)
     def fn(t, sec):
         ph = math.tau * t
         bob = math.cos(2 * ph)                              # low at each contact

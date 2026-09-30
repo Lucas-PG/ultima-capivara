@@ -121,3 +121,93 @@ their new handguards and fore-ends; no paw clips through a gun in the review pos
 - The first-person arms still use `#8C4E2B` / `#B7784A` fur and their own cloth; see the surface
   design above for matching them.
 - `output/characters/` keeps the build cache (bakes, rig blend) for repaint and reclip.
+
+## Round 2: design, shapes and life
+
+Brief: `docs/overhaul/briefs/char-round2.prompt.txt`, the review boards in
+`output/review/char-r2/`, the HUD portrait and the cover art. Boards (target on top, game below,
+daylight review scene): `docs/overhaul/evidence/char-polish/r2-board-face.jpg`, `r2-board-body.jpg`,
+`r2-board-clay.jpg`, `r2-board-hold.jpg`, `r2-board-idle.jpg`, `r2-holds-a.jpg`, `r2-holds-b.jpg`;
+the round 1 state for comparison is `r2-before-body.jpg`.
+
+### What changed
+- **Face**: a golden head, taller than wide from the front, with a flat brow-to-nose line and a
+  blunt front, a set-back chin and a gentle mouth line. The nose is a grey-brown leather pad shaped
+  like a wide heart at the upper front of the muzzle with two dark nostrils; the philtrum is a groove,
+  not a stripe. Pale buff whisker pads with three rows of whisker roots and real whisker strands on
+  LOD0. Larger eyes set high but turned forward (both read in a level front view), amber iris, dark
+  lid line, catchlight, brow ridge. Dark grey-brown cupped ears, upright, in the silhouette front and
+  back. A thick furred neck with jowls runs into the collar. The head stays inside the head hit
+  sphere in every clip (tested).
+- **Build**: broad round shoulders and a round belly; thick upper arms and forearms carried out from
+  the body; a new paw of its own (`tools/blender/capy_hand.py`, about 25 cm long, 17 cm across the
+  knuckles: four thick digits with short blunt claws, a padded palm, bare leathery skin on the palm
+  and digits, fur on the back up to the knuckles). Two separate thick legs from the crotch in a wide
+  planted stance, toes turned out 12 degrees. The planted-feet test and the ground clamp follow the
+  new foot contact (`metrics.footContact`).
+- **Team cloth**: a bandana worn outside the neck, with a knot and two tails, inside an open shirt
+  collar; a hip rag with vertical pleats and a pointed end that lies on the belt and trouser leg; a
+  rolled blanket with spiral ends and two buckled straps. Detail is value only (sculpted folds,
+  occlusion, weave, hem); checked in red, blue and yellow at 60 m.
+- **Rucksack**: a stuffed canvas body, a top flap with two buckled straps, side pockets with flaps,
+  the blanket roll on top and leather shoulder straps over the shoulders to the vest front.
+- **Clothes**: shirt with an open V neck, a collar above the bandana, buttoned placket, soft sleeve
+  drape and one rolled cuff band; vest with a denim collar and lapels, chest pockets with flaps and
+  studs, double topstitching and the D-ring on the back yoke; trousers with waistband, fly, back
+  pockets, cargo pockets with flaps and studs on both thighs, knee, seat and crotch folds, rolled
+  cuffs; belt with a framed buckle, loops and two pouches with flaps and studs.
+- **Paint**: large value shapes and soft gradients, micro variation under about 8 percent, clean
+  seams; the plaid became a quiet weave; the pale seam streaks are gone. One fur family everywhere.
+- **Life**: a 10 s idle with four breaths (chest, belly, shoulders), weight shifts from foot to foot,
+  quick head turns with holds, ear flicks, three blinks and a nose twitch (new `nose` bone); an armed
+  idle with the left foot forward, knees bent and the weight leaning in, the gun at low ready until the
+  player moves, aims, fires or reloads (it then comes up and stays 1.4 s); the aim pitch runs through
+  spine, chest and head. Springs on the bandana tails, hip rag, blanket, pack and ears react to
+  speed changes, starts, stops and landings (runtime, no cloth simulation).
+- **Holds**: held world weapons scale to the world paw (1.3); a small wrist offset (`tpGripOffset`)
+  and softer finger curls fit the larger hand to the first-person grips. All nine weapons checked
+  from two angles aimed (`r2-holds-*.jpg`) and at the paws.
+- **Cost**: the character now ships in three self-contained files chosen by the quality setting at
+  load (no double download): High `capybara-high.glb` (4096 maps), Medium `capybara.glb` (2048),
+  Low `capybara-low.glb` (1024).
+- **Rig**: 71 joints (added `scarf_L`, `scarf_R`, `bedroll`, `nose`); clips 43 plus 6 faces (eight
+  walk and eight crouch directions, `idle_armed`).
+- **Pipeline**: every Blender step now runs on the Linux build machine
+  (`BLENDER_BIN=tools/blender/remote-blender.sh`, threads from `BLENDER_THREADS`): 204 s for the whole
+  character job against about 18 minutes here. `CAPY_REUSE_BAKES=1` reuses the bake cache when only
+  the rig or clips change. The shipped assets come from one Linux build.
+
+### Measurements
+
+| Tier | File | Download | GPU memory (3 maps, RGBA8 + mips) |
+| --- | --- | ---: | ---: |
+| High | capybara-high.glb | 7.05 MB | 192 MB |
+| Medium (default) | capybara.glb | 3.83 MB | 48 MB |
+| Low | capybara-low.glb | 2.80 MB | 12 MB |
+
+At 50 Mbit/s these load in about 1.1 s, 0.6 s and 0.45 s. LODs: 40,866 / 9,380 / 2,168 triangles.
+Statue 56 KB, 10,000 triangles. Crowd timing, QA plaza with 16 capybaras, 1280x720, quieter machine
+(load average about 10): low 16.7 / 16.8 ms p50/p95, 136 draws, 1.55M triangles; medium 16.7 / 16.7,
+155 draws, 1.75M; high 16.7 / 16.7, 180 draws, 2.11M (vsync bound on all three).
+
+### Tests
+`npx tsc --noEmit` clean, `npx vitest run --maxWorkers=2`: 114 files, 1054 tests pass, `npm run build`
+passes. The hit-shape test now guards the contract only (head vertices inside the head sphere, the
+rest on the ground in a sane envelope); new gait cases for a direction between two clips; the reaction
+tests follow the world paw's grip offset; the label follows the ear tips.
+
+### Final palette for the first-person arm match (sRGB)
+Fur base `#B47C49`, tips `#CC9763`, dark (crown, nape, back) `#8E5A33`, light (cheeks, throat,
+undersides, inner forearm) `#C79B6A`, muzzle buff `#CDB795`. Bare skin (palm, digits, toes)
+`#4E433E` to `#6C5E57`, claws `#2A2320`, nose leather `#6A5E58`, ears `#4E403B` to `#6B5148`.
+Linen `#E4D8C0` with tone-on-tone seams `#CDBFA4`; denim `#51627E` with `#C9944F` topstitching;
+olive canvas `#74755A`; leathers `#6E4A31` and `#55382A`; rucksack canvas `#7E6444`; brass `#C39A52`.
+Fur locks: head 10 x 30 mm, paws 8 x 22 mm, body 16 x 50 mm; shells 6 layers, 11 mm, within 6.5 m.
+The paw: `capy_hand.py` (four digits, lengths 108 to 150 mm from the wrist, radii 20 to 27 mm).
+
+### Known issues
+- Stylized, not photo real: the fur reads as painted locks plus shells, not the sheet's strands.
+- The support paw on the Lanca-coco and the sniper sits slightly below the fore-end in the aimed
+  pose; no clipping, but the thumb does not wrap.
+- At 60 m from behind in shade, the yellow team colour reads weaker than red or blue.
+- The first-person arms still use the round 1 palette (see above to match).

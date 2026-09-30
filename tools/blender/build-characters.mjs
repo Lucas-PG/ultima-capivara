@@ -54,13 +54,24 @@ if (boing) {
 await document.transform(dedup(), resample(), prune({ keepSolidTextures: true }), meshopt({ encoder: MeshoptEncoder, level: 'high', quantizePosition: 16, quantizationVolume: 'scene' }), dedup(), prune({ keepSolidTextures: true }));
 // The exported slots hold placeholders; the painted maps go in as WebP. Albedo and ORM hold
 // up at q85; the normal map keeps q90 so the fine fur and weave relief survives.
-for (const texture of document.getRoot().listTextures()) {
-  const quality = texture.getName().endsWith('_normal') ? 90 : 85;
-  const painted = await readFile(`${root}/output/characters/${texture.getName()}.png`);
-  texture.setImage(new Uint8Array(await sharp(painted).webp({ quality, effort: 6 }).toBuffer())).setMimeType('image/webp');
+// Three self-contained files, one per graphics quality (the loader fetches only its own):
+// High keeps the 4096 bake, Medium (the default file) is 2048, Low 1024; the ORM map is half that.
+const TIERS = { high: ['capybara-high.glb', 4096], medium: ['capybara.glb', 2048], low: ['capybara-low.glb', 1024] };
+const painted = Object.fromEntries(await Promise.all(document.getRoot().listTextures().map(async texture =>
+  [texture.getName(), await readFile(`${root}/output/characters/${texture.getName()}.png`)])));
+const tiers = {};
+for (const [tier, [file, size]] of Object.entries(TIERS)) {
+  for (const texture of document.getRoot().listTextures()) {
+    const name = texture.getName(), quality = name.endsWith('_normal') ? 90 : 85, edge = name.endsWith('_orm') ? size / 2 : size;
+    const image = sharp(painted[name]).resize(edge, edge, { kernel: 'lanczos3' });
+    texture.setImage(new Uint8Array(await image.webp({ quality, effort: 6 }).toBuffer())).setMimeType('image/webp');
+  }
+  await io.write(`${root}/public/models/capybara/${file}`, document);
+  // GPU memory of the three maps as RGBA8 with mips.
+  tiers[tier] = { path: `models/capybara/${file}`, bytes: (await stat(`${root}/public/models/capybara/${file}`)).size, size,
+    gpuMB: +((size * size * 2 + size * size / 4) * 4 * 4 / 3 / 1048576).toFixed(1) };
 }
 const path = `${root}/public/models/capybara/capybara.glb`;
-await io.write(path, document);
 const report = JSON.parse(await readFile(`${root}/output/characters/blender-report.json`, 'utf8'));
 const decoded = await io.read(path);
 report.lods = decoded.getRoot().listMeshes().map(mesh => ({ name: mesh.getName(), triangles: mesh.listPrimitives().reduce((sum, p) => sum + p.getIndices().getCount() / 3, 0) }));
@@ -69,6 +80,7 @@ report.skins = decoded.getRoot().listSkins().length;
 report.joints = decoded.getRoot().listSkins()[0].listJoints().length;
 report.clips = decoded.getRoot().listAnimations().map(a => a.getName());
 report.bytes = (await stat(path)).size;
+report.tiers = tiers;
 report.statueBytes = (await stat(`${root}/public/models/capybara/statue.glb`)).size;
 report.rawBytes = (await stat(`${root}/output/characters/capybara.raw.glb`)).size;
 report.texture = { format: 'baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)', count: decoded.getRoot().listTextures().length,
@@ -79,6 +91,6 @@ for (let i = 0; i < 3; i++) {
 }
 const requiredClips = ['idle', 'run', 'jump', 'walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'crouch_back', 'crouch_strafe_l', 'crouch_strafe_r', 'fall', 'land', 'reload_tp', 'death',
   'face_neutral', 'face_determined', 'face_hit', 'face_stunned', 'face_victory', 'face_blink', 'wave', 'dance', 'victory', 'sit', 'chill', 'boing'];
-if (report.materials !== 1 || report.skins !== 1 || report.joints !== 67 || !requiredClips.every(clip => report.clips.includes(clip))) throw new Error('Character rig/material/animation contract failed');
+if (report.materials !== 1 || report.skins !== 1 || report.joints !== 71 || !requiredClips.every(clip => report.clips.includes(clip))) throw new Error('Character rig/material/animation contract failed');
 await writeFile(`${root}/public/models/capybara/metrics.json`, JSON.stringify(report, null, 2) + '\n');
 console.log(`Capivara: ${report.lods.map(lod => `${lod.name} ${lod.triangles} tris`).join(', ')}; ${report.bytes} bytes (${(report.bytes / report.rawBytes * 100).toFixed(1)}% of raw); ${report.joints} joints; ${report.materials} material; clips ${report.clips.join(', ')}`);
