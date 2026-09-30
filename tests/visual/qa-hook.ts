@@ -25,7 +25,7 @@ type QaApi = {
   start(): Promise<void>;
   pose(name: string): Promise<{ camera: { x: number; y: number; z: number }; drawCalls: number; triangles: number }>;
   quality(quality: Quality): void;
-  actors(count: number): void;
+  actors(count: number, positions?: Pick<Vec3, 'x' | 'z'>[]): void;
   loading(on: boolean): void;
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
@@ -55,6 +55,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   const base = fixture.snapshot();
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let pendingFrame: number | null = null;
+  let actorPositions: Pick<Vec3, 'x' | 'z'>[] = [];
   let preparedIdentities = '';
   let placedRoutes: Map<string, Vec3[]> | undefined;
   const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `ads-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
@@ -219,8 +220,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     for (let i = 1; i < actorCount; i++) {
       const bot = structuredClone(me), angle = i * Math.PI * 2 / (actorCount - 1), radius = 12 + i % 4 * 4;
       bot.id = `bot-qa-${i}`; bot.name = `Bot ${i}`; bot.bot = true; bot.color = PLAYER_COLORS[i % PLAYER_COLORS.length];
-      const bx = x + Math.cos(angle) * radius, bz = z + Math.sin(angle) * radius;
-      bot.pos = { x: bx, y: terrainHeight(bx, bz), z: bz }; bot.yaw = angle + Math.PI;
+      const bx = actorPositions[i - 1]?.x ?? x + Math.cos(angle) * radius, bz = actorPositions[i - 1]?.z ?? z + Math.sin(angle) * radius;
+      bot.pos = { x: bx, y: actorPositions[i - 1] ? walkableHeight(bx, bz, deps.world) : terrainHeight(bx, bz), z: bz }; bot.yaw = angle + Math.PI;
       s.actors.push(bot);
     }
     if (name === 'capyFront' || name === 'capySide' || name.startsWith('tp-')) {
@@ -437,7 +438,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, true);
     },
     quality(quality) { if (!renderer) throw new Error('Call start first'); deps.settings.graphics = quality; renderer.setSettings(deps.settings); draw(); },
-    actors(count) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; },
+    actors(count, positions) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; actorPositions = positions ?? []; },
     loading(on) { deps.ui.setLoading(on); },
     loop(on) {
       if (on === looping) return;

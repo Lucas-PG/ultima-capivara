@@ -1,5 +1,6 @@
 // Identical cameras, deterministic stills and short frame samples at every preset.
 // BASE=http://127.0.0.1:5176 node tools/qa/lighting-review.mjs <outDir>
+// RANGE_ONLY=1 captures only the eye-level player distance checks.
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 const out = process.argv[2];
@@ -13,7 +14,7 @@ const views = {
 };
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
-const rows = [], errors = [];
+const rows = [], rangeRows = [], errors = [];
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', e => errors.push(e.message));
@@ -24,7 +25,7 @@ try {
   await page.addStyleTag({ content: '#app,#confetti,#flash{display:none!important}' });
   for (const quality of ['low', 'medium', 'high']) {
     await page.evaluate(q => window.__capyQA.quality(q), quality);
-    for (const [name, view] of Object.entries(views)) {
+    for (const [name, view] of (process.env.RANGE_ONLY ? [] : Object.entries(views))) {
       await page.evaluate(v => { window.__camOverride = v ?? undefined; }, view);
       for (let i = 0; i < 3; i++) await page.evaluate(() => window.__capyQA.pose('plaza'));
       await page.screenshot({ path: `${out}/${quality}-${name}.jpg`, quality: 86 });
@@ -42,7 +43,18 @@ try {
       });
       rows.push({ quality, name, view, ...result }); console.log(quality, name, result.drawCalls, result.triangles, result.p50.toFixed(1), result.p95.toFixed(1));
     }
+    // Eye-level silhouettes at known distances along Rua Direita.
+    for (const distance of [20, 40, 60]) {
+      await page.evaluate(d => {
+        window.__capyQA.actors(2, [{ x: -30 + d, z: -35.5 }]);
+        window.__camOverride = [-30, 3.82, -35.5, 30, 3.82, -35.5, 65];
+      }, distance);
+      for (let i = 0; i < 3; i++) await page.evaluate(() => window.__capyQA.pose('plaza'));
+      await page.screenshot({ path: `${out}/${quality}-range-${distance}.jpg`, quality: 90 });
+      rangeRows.push({ quality, distance, camera: [-30, 3.82, -35.5, 30, 3.82, -35.5, 65], actor: [-30 + distance, -35.5] });
+    }
+    await page.evaluate(() => window.__capyQA.actors(1));
   }
 } finally { await browser.close(); }
-writeFileSync(`${out}/metrics.json`, JSON.stringify({ viewport: [1280, 720], views, errors, rows }, null, 2) + '\n');
+writeFileSync(`${out}/metrics.json`, JSON.stringify({ viewport: [1280, 720], views, errors, rows, rangeRows }, null, 2) + '\n');
 if (errors.length) throw new Error(errors.join('\n'));

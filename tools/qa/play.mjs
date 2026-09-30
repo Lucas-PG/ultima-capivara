@@ -34,7 +34,7 @@ for (const step of steps) {
   else if (kind === 'shot') await page.screenshot({ path: `${out}/${a}.png` });
   else if (kind === 'me') console.log(a || 'me', JSON.stringify(await me()));
   else if (kind === 'eval') console.log(JSON.stringify(await page.evaluate(a)));
-  // ["spectate", maximumSeconds=900, captureEvery=30]: watch a whole royale.
+  // ["spectate", maximumSeconds=900, captureEvery=30]: watch a complete match.
   // The QA damage removes only the observer; bots use the ordinary worker clock.
   else if (kind === 'spectate') {
     const samples = [], end = Date.now() + (a ?? 900) * 1000; let next = 0, frame = 0;
@@ -48,10 +48,11 @@ for (const step of steps) {
       });
       samples.push(sample);
       if (Date.now() >= next || sample.phase === 'results') {
+        writeFileSync(`${out}/spectate.json`, JSON.stringify(samples) + '\n');
         await page.screenshot({ path: `${out}/spectate-${frame++}.jpg`, quality: 80 });
         console.log('spectate', sample.time.toFixed(1), sample.phase, sample.spectateId, sample.remaining);
         next = Date.now() + (b ?? 30) * 1000;
-        if (sample.phase !== 'results') await page.evaluate(() => { window.__networkQA.key('Space', true); window.__networkQA.key('Space', false); });
+        if (sample.spectateId && sample.phase !== 'results') await page.evaluate(() => { window.__networkQA.key('Space', true); window.__networkQA.key('Space', false); });
       }
       if (sample.phase === 'results') break;
       await page.waitForTimeout(1000);

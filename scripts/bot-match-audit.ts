@@ -1,16 +1,16 @@
 // Complete, seeded matches at 60 Hz, without a renderer or a stationary human target.
-// npx tsx scripts/bot-match-audit.ts <output.json> [seeds=3] [difficulty=normal]
+// npx tsx scripts/bot-match-audit.ts <output.json> [seeds=3] [difficulty=normal] [firstSeed=1]
 import { writeFileSync } from 'node:fs';
 import { Simulation } from '../src/simulation';
 import type { BotBrain } from '../src/simulation/bots';
 import { createWorld } from '../src/shared/world';
 import type { ActorState, Difficulty, InputFrame, Mode, Vec3 } from '../src/shared/types';
 
-const [output, count = '3', difficulty = 'normal'] = process.argv.slice(2);
+const [output, count = '3', difficulty = 'normal', firstSeed = '1'] = process.argv.slice(2);
 const world = createWorld(), rows: unknown[] = [];
 type Runtime = { state: ActorState; input: InputFrame; brain: BotBrain };
-for (const mode of ['battle-royale', 'deathmatch'] as Mode[]) for (let seed = 1; seed <= Number(count); seed++) {
-  const started = performance.now();
+for (const mode of ['battle-royale', 'deathmatch'] as Mode[]) for (let seed = Number(firstSeed); seed < Number(firstSeed) + Number(count); seed++) {
+  const started = performance.now(), cpuStarted = process.cpuUsage();
   const sim = new Simulation(world, { mode, capacity: 8, bots: true, difficulty: difficulty as Difficulty, duration: 300 }, [], `audit-${seed}`, seed);
   const actors = (sim as any).actors as Map<string, Runtime>;
   const last = new Map<string, { pos: Vec3; moving: boolean; stuck: number; deaths: number }>();
@@ -18,8 +18,11 @@ for (const mode of ['battle-royale', 'deathmatch'] as Mode[]) for (let seed = 1;
   const metrics = { botSeconds: 0, movingSeconds: 0, stuckSeconds: 0, longestStuck: 0, swimmingSeconds: 0, stormSeconds: 0,
     engagements: 0, shots: 0, hits: 0, pickups: 0, coverSeconds: 0, fallDeaths: 0, stormDeaths: 0, combatDeaths: 0, deathsInWater: 0 };
   let tick = 0;
+  const tickMs: number[] = [];
   while ((sim as any).phase !== 'results' && tick < 900 * 60) {
+    const tickStart = performance.now();
     sim.step(1 / 60); tick++;
+    tickMs.push(performance.now() - tickStart);
     const time = tick / 60;
     for (const event of sim.drainEvents()) {
       if (event.type === 'shot') {
@@ -61,8 +64,13 @@ for (const mode of ['battle-royale', 'deathmatch'] as Mode[]) for (let seed = 1;
       last.set(s.id, { pos: { ...s.pos }, moving, stuck: seconds, deaths: s.deaths });
     }
   }
+  tickMs.sort((a, b) => a - b);
+  const cpu = process.cpuUsage(cpuStarted);
   const result = { mode, seed, difficulty, complete: (sim as any).phase === 'results', seconds: +(tick / 60).toFixed(2),
-    cpuSeconds: +((performance.now() - started) / 1000).toFixed(2), ...metrics,
+    tickP95Ms: +tickMs[Math.floor(tickMs.length * .95)].toFixed(3),
+    tickP99Ms: +tickMs[Math.floor(tickMs.length * .99)].toFixed(3), tickMaxMs: +tickMs.at(-1)!.toFixed(3),
+    wallSeconds: +((performance.now() - started) / 1000).toFixed(2),
+    cpuSeconds: +((cpu.user + cpu.system) / 1e6).toFixed(2), ...metrics,
     stuckPerBotMinute: +(metrics.stuckSeconds * 60 / metrics.botSeconds).toFixed(3),
     stuckSites: [...stuckSites].sort((a, b) => b[1] - a[1]).slice(0, 20) };
   rows.push(result); writeFileSync(output, JSON.stringify(rows, null, 2) + '\n');
