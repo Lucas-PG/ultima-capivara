@@ -16,20 +16,28 @@ export function rms(x: Float32Array, from = 0, to = x.length): number {
   return Math.sqrt(s / Math.max(1, to - from));
 }
 
+const twiddles = new Map<number, [Float64Array, Float64Array]>();
 /** In-place radix-2 complex FFT. `re` and `im` share a power-of-two length. */
 export function fft(re: Float64Array, im: Float64Array): void {
   const n = re.length;
+  let tw = twiddles.get(n);
+  if (!tw) {
+    tw = [new Float64Array(n / 2), new Float64Array(n / 2)];
+    for (let k = 0; k < n / 2; k++) { tw[0][k] = Math.cos(-2 * Math.PI * k / n); tw[1][k] = Math.sin(-2 * Math.PI * k / n); }
+    twiddles.set(n, tw);
+  }
+  const [cos, sin] = tw;
   for (let i = 1, j = 0; i < n; i++) {
     let bit = n >> 1;
     for (; j & bit; bit >>= 1) j ^= bit;
     j ^= bit;
-    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
   }
   for (let size = 2; size <= n; size <<= 1) {
-    const half = size >> 1, step = -2 * Math.PI / size;
+    const half = size >> 1, stride = n / size;
     for (let start = 0; start < n; start += size) {
       for (let k = 0; k < half; k++) {
-        const wr = Math.cos(step * k), wi = Math.sin(step * k);
+        const wr = cos[k * stride], wi = sin[k * stride];
         const a = start + k, b = a + half;
         const tr = re[b] * wr - im[b] * wi, ti = re[b] * wi + im[b] * wr;
         re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
