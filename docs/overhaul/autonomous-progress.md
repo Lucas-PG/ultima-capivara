@@ -19,9 +19,9 @@ Release gate prepared (12:50): `output/review/m1-base` is a detached M1 worktree
 
 Remaining plan, in order:
 1. Review the character round 2 (same boards, same cameras, target next to game), merge it, then show the user and decide with them how to match the first-person arms to the character (look, and possibly paw shape plus a grip refit on all nine weapons). The user wants to see the character before that step. Also check the pre-rendered capybara portraits in `public/assets/ui/` against the final character.
-3. Release gate: perf on Low, Medium and High on a quiet machine; multiplayer with real clients (`npx playwright test --project=chromium`, harness on 5174 and 9001); full playtests with the defect list closed; before/after evidence against `docs/overhaul/evidence/baseline/`; `npm run check`, `npm test`, `npm run build`, Playwright visual, perf and multiplayer checks.
-4. Write `docs/overhaul/final-overhaul-report.md` (changes, decisions, art direction, POV, weapons, character, world, rendering, combat, audio and VFX, gameplay, technical, tests, multiplayer, perf, assets and licences, before/after, limitations; human audition needed for the new audio).
-5. Integrate into `overhaul/m1-inventory`, re-verify there, commit, push `lucas overhaul/m1-inventory` (pre-approved by the user for this final push only), then brief the user.
+2. Release gate: perf on Low, Medium and High on a quiet machine; multiplayer with real clients (`npx playwright test --project=chromium`, harness on 5174 and 9001); full playtests with the defect list closed; before/after evidence against `docs/overhaul/evidence/baseline/`; `npm run check`, `npm test`, `npm run build`, Playwright visual, perf and multiplayer checks.
+3. Write `docs/overhaul/final-overhaul-report.md` (changes, decisions, art direction, POV, weapons, character, world, rendering, combat, audio and VFX, gameplay, technical, tests, multiplayer, perf, assets and licences, before/after, limitations; human audition needed for the new audio).
+4. Integrate into `overhaul/m1-inventory`, re-verify there, commit, push `lucas overhaul/m1-inventory` (pre-approved by the user for this final push only), then brief the user.
 
 ## Resume here
 
