@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { CameraRig } from '../src/render/camera';
 import { FOLLOW, FollowCamera, clearDistance, sweepBox } from '../src/render/follow-camera';
 import { DEFAULT_SETTINGS } from '../src/settings';
-import { emptyInput } from '../src/shared/math';
+import { emptyInput, rng } from '../src/shared/math';
+import { clearSpawn } from '../src/shared/collision';
+import { walkableHeight } from '../src/shared/navigation';
+import { createWorld } from '../src/shared/world';
+import { foliageAt, foliageSpan, plantCrown } from '../src/shared/vegetation-crowns';
+import { vegetationDressing } from '../src/shared/vegetation-dressing';
 import { terrainHeight } from '../src/shared/terrain';
 import type { ActorState, Collider, RenderFrame, Settings, WorldSnapshot, WorldSpec } from '../src/shared/types';
 
@@ -34,7 +39,109 @@ describe('follow camera', () => {
     cam.update(world([wall]), t, 1 / 60);
     expect(cam.position.z).toBeLessThan(wall.min.z);
     expect(inside(cam.position, wall, .15)).toBe(false);
-    expect(cam.reach).toBeLessThan(1.3);
+    // Straight behind, the lens would have had under 1.3 m; it starts reframed instead.
+    expect(clearDistance(world([wall]), { x: t.pos.x + FOLLOW.shoulder, y: t.pos.y + FOLLOW.height, z: 0 }, { x: 0, y: 0, z: 1 }, FOLLOW.distance, FOLLOW.probe)).toBeLessThan(1.3);
+  });
+
+  // The integration pass measured the watched capybara off screen 6% of the time: the lens squeezed
+  // inside a metre of a target backed against a wall, so the body was hidden and the view was a wall.
+  const inView = (cam: FollowCamera, t: ReturnType<typeof target>) => {
+    const head = new THREE.Vector3(t.pos.x, t.pos.y + 1.2, t.pos.z).sub(cam.position), forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    return head.angleTo(forward) < .55;
+  };
+  it('rises over a low wall the target backs into, keeping the body in view', () => {
+    const y = ground(0, 0), muro = box('muro', [-8, y - 1, .45], [8, y + 1.35, .75]);
+    const cam = new FollowCamera(), t = target(0, 0);
+    cam.update(world([muro]), t, 1 / 60);
+    for (let i = 0; i < 60; i++) cam.update(world([muro]), t, 1 / 60);
+    expect(cam.reach).toBeGreaterThan(1.6);
+    expect(inside(cam.position, muro, .1)).toBe(false);
+    expect(cam.position.y).toBeGreaterThan(muro.max.y);
+    expect(inView(cam, t)).toBe(true);
+  });
+
+  it('keeps room for the lens next to the real island walls, indoors and out', () => {
+    // 400 seeded standing spots within 0.35 to 1.15 m of a building wall, random headings. The first
+    // version squeezed the lens under 0.7 m at 120 of them: besides walls behind the target, a thin
+    // shoulder probe parked the pivot where the lens probe could not move at all.
+    const island = createWorld(), r = rng(1234);
+    const walls = island.colliders.filter(c => c.pieceId && /home|fisher|workshop|cafe|kiosk|tailor|bakery|fishmonger|church|market|house|row_/.test(c.pieceId) && c.max.y - c.min.y > 2);
+    let spots = 0, squeezed = 0;
+    while (spots < 400) {
+      const c = walls[Math.floor(r() * walls.length)], side = Math.floor(r() * 4), gap = .35 + r() * .8;
+      const x = side === 0 ? c.min.x - gap : side === 1 ? c.max.x + gap : c.min.x + r() * (c.max.x - c.min.x);
+      const z = side === 2 ? c.min.z - gap : side === 3 ? c.max.z + gap : c.min.z + r() * (c.max.z - c.min.z);
+      const pos = { x, y: walkableHeight(x, z, island), z };
+      if (!clearSpawn(pos, island)) continue;
+      spots++;
+      const cam = new FollowCamera(), yaw = r() * Math.PI * 2;
+      for (let i = 0; i < 60; i++) cam.update(island, { pos, yaw, pitch: 0, crouch: false, swimming: false, alive: true }, 1 / 60);
+      if (cam.reach < .7) squeezed++;
+    }
+    expect(squeezed).toBeLessThanOrEqual(4);
+  });
+
+  it('eases in front of a crown behind the target instead of snapping like a wall', () => {
+    // A low cashew crown behind the target, its outer boughs where the lens sits: the lens may not end among its leaves, and because
+    // leaves are soft it glides in (a runner passing palms would otherwise pump the view).
+    const y = ground(0, 5.2), cashew = { id: 'cashew', kind: 'tree' as const, detail: 'cashew', pos: { x: 0, y, z: 5.2 }, scale: { x: 1, y: 5, z: 1 }, color: '#2f7d3a' };
+    const open = world(), planted = { ...world(), objects: [cashew] } as WorldSpec;
+    const crown = plantCrown(cashew as never)!, leafy = (p: THREE.Vector3) => { const span = foliageSpan(crown, p.x, p.z); return !!span && p.y > span[0] && p.y < span[1]; };
+    const cam = new FollowCamera(), t = target(0, 0);
+    for (let i = 0; i < 30; i++) cam.update(open, t, 1 / 60);
+    expect(leafy(cam.position)).toBe(true);
+    let previous = cam.reach, steepest = 0;
+    for (let i = 0; i < 90; i++) { cam.update(planted, t, 1 / 60); steepest = Math.max(steepest, previous - cam.reach); previous = cam.reach; }
+    expect(steepest).toBeLessThanOrEqual(FOLLOW.leafInSpeed / 60 + 1e-6);
+    expect(leafy(cam.position)).toBe(false);
+    expect(cam.reach).toBeGreaterThan(1.2);
+  });
+
+  it('keeps the lens out of crowns and bushes next to the watched capybara', () => {
+    // Plants have no collision, so the lens used to sink into a crown or a bush beside the target
+    // and show only leaves: at 78 of 400 seeded spots 1 to 5 m from a plant on the real island (about 49 of these 250).
+    const island = createWorld(), r = rng(99);
+    const shapes = [...island.objects.map(plantCrown), ...vegetationDressing(island)
+      .filter(p => !['meadow', 'crop', 'fern', 'bromeliad', 'vine'].includes(p.species)).map(p => foliageAt(p.species, p.variant, p.x, p.y, p.z, p.height))]
+      .filter((shape): shape is NonNullable<typeof shape> => !!shape);
+    let spots = 0, inLeaves = 0;
+    while (spots < 250) {
+      const shape = shapes[Math.floor(r() * shapes.length)], a = r() * Math.PI * 2, d = 1 + r() * 4;
+      const x = shape.x + Math.cos(a) * d, z = shape.z + Math.sin(a) * d, pos = { x, y: walkableHeight(x, z, island), z };
+      // Only the plants within reach of this spot and its lens matter.
+      const near = shapes.filter(other => Math.hypot(other.x - x, other.z - z) < 16);
+      const leafy = (px: number, py: number, pz: number) => near.some(other => { const span = foliageSpan(other, px, pz); return !!span && py > span[0] && py < span[1]; });
+      if (!clearSpawn(pos, island) || leafy(x, pos.y + FOLLOW.height, z)) continue;
+      spots++;
+      const cam = new FollowCamera(), yaw = r() * Math.PI * 2;
+      for (let i = 0; i < 60; i++) cam.update(island, { pos, yaw, pitch: 0, crouch: false, swimming: false, alive: true }, 1 / 60);
+      if (leafy(cam.position.x, cam.position.y, cam.position.z)) inLeaves++;
+    }
+    expect(inLeaves).toBeLessThanOrEqual(5);
+  });
+
+  it('swings along a tall wall the target backs into, and glides home once it steps away', () => {
+    const y = ground(0, 0), wall = box('wall', [-8, y - 1, .45], [8, y + 6, .75]), walled = world([wall]);
+    const cam = new FollowCamera(), t = target(0, 0);
+    cam.update(walled, t, 1 / 60);
+    const path: THREE.Vector3[] = [];
+    for (let i = 0; i < 180; i++) { cam.update(walled, t, 1 / 60); path.push(cam.position.clone()); }
+    expect(cam.reach).toBeGreaterThan(1.6);
+    expect(cam.position.z).toBeLessThan(wall.min.z);
+    expect(inView(cam, t)).toBe(true);
+    // Settled, not hunting between framings.
+    const last = path.slice(-60), moved = Math.max(...last.slice(1).map((p, i) => p.distanceTo(last[i])));
+    expect(moved).toBeLessThan(.01);
+    // The target walks out into the open: the camera eases back behind it without a cut.
+    let jump = 0, previous = cam.position.clone(), open = t;
+    for (let i = 1; i <= 240; i++) {
+      // Walking at 3 m/s: 5 cm a frame, 6 m in two seconds, then standing.
+      open = target(0, -Math.min(6, i * .05));
+      cam.update(walled, open, 1 / 60); jump = Math.max(jump, cam.position.distanceTo(previous) - .05); previous = cam.position.clone();
+    }
+    expect(jump).toBeLessThan(.25);
+    expect(cam.position.z).toBeGreaterThan(open.pos.z + FOLLOW.distance * .8);
+    expect(Math.abs(cam.position.x - open.pos.x - FOLLOW.shoulder)).toBeLessThan(.15);
   });
 
   it('eases back out after the wall is gone instead of jumping', () => {

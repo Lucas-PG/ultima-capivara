@@ -7,7 +7,7 @@ export const SUPPLY_ASSET_PATH = 'models/supply-drop/supply-drop.glb';
 const ROOTS = ['drop_carrier', 'drop_crate', 'drop_chute'] as const;
 interface Delivery {
   group: THREE.Group; carrier: THREE.LOD; crate: THREE.LOD; chute: THREE.LOD;
-  flare: THREE.Group; ring: THREE.Mesh; glow: THREE.Mesh; smoke: THREE.InstancedMesh;
+  flare: THREE.Group; ring: THREE.Mesh; glow: THREE.Mesh; smoke: THREE.InstancedMesh; beacon: THREE.Mesh;
   fade: THREE.InstancedBufferAttribute;
 }
 
@@ -53,18 +53,37 @@ export class SupplyDropView {
         fragmentShader: `varying vec2 vUv;varying float vFade;void main(){
           float r=length((vUv-.5)*2.);float a=exp(-r*r*2.)*(1.-smoothstep(.3,1.,r));
           vec3 paint=mix(vec3(.44,.19,.055),vec3(.9,.52,.2),vUv.y);
-          gl_FragColor=vec4(paint,a*vFade*.23);
+          gl_FragColor=vec4(paint,a*vFade*.36);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,
       });
+      // A gold light column over the landing spot, from the announcement until the crate is opened:
+      // the delivery reads from anywhere on the island, and fades out as a player walks into it.
+      const beaconGeometry = new THREE.CylinderGeometry(.6, .6, 1, 14, 1, true).translate(0, .5, 0);
+      // Normal blending: an additive gold washes out to white against the bright tropical sky.
+      const beaconMaterial = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+        uniforms: { beaconNear: { value: 1 }, beaconTime: { value: 0 } },
+        vertexShader: `varying vec2 vUv;varying float vFacing;void main(){vUv=uv;vec4 view=modelViewMatrix*vec4(position,1.);
+          vec3 n=normalize(normalMatrix*normal);vFacing=abs(dot(n,normalize(-view.xyz)));gl_Position=projectionMatrix*view;}`,
+        fragmentShader: `uniform float beaconNear,beaconTime;varying vec2 vUv;varying float vFacing;void main(){
+          float rise=smoothstep(0.,.03,vUv.y)*pow(1.-vUv.y,1.3);
+          float band=.82+.18*sin(vUv.y*46.-beaconTime*3.);
+          float a=rise*band*pow(vFacing,1.2)*.62*beaconNear;
+          gl_FragColor=vec4(mix(vec3(1.,.55,.12),vec3(1.,.86,.45),pow(vFacing,3.)),a);
+          #include <colorspace_fragment>
+        }`,
+      });
+      const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial); beacon.name = 'Coluna da entrega'; beacon.renderOrder = 3;
+      beacon.scale.set(1, 46, 1); beacon.frustumCulled = false;
+      this.geometries.add(beaconGeometry); this.materials.add(beaconMaterial);
       const smoke = new THREE.InstancedMesh(smokeGeometry, smokeMaterial, 8);
       smoke.name = 'Fumaça do sinal'; smoke.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fade.setUsage(THREE.DynamicDrawUsage);
       smoke.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 2.5, 0), 5);
-      flare.add(ring, glow, smoke); this.group.add(group);
+      flare.add(ring, glow, smoke, beacon); this.group.add(group);
       this.geometries.add(ringGeometry).add(glowGeometry).add(smokeGeometry);
       this.materials.add(ringMaterial).add(glowMaterial).add(smokeMaterial);
-      this.deliveries.push({ group, carrier, crate, chute, flare, ring, glow, smoke, fade });
+      this.deliveries.push({ group, carrier, crate, chute, flare, ring, glow, smoke, fade, beacon });
     }
     this.ready = assets.gltf(SUPPLY_ASSET_PATH).then(asset => {
       this.source = asset.scene;
@@ -139,6 +158,9 @@ export class SupplyDropView {
         delivery.fade.setX(puff, Math.sin(life * Math.PI) * (1 - THREE.MathUtils.smoothstep(distance, 90 * 90, 120 * 120)));
       }
       delivery.smoke.instanceMatrix.needsUpdate = true; delivery.fade.needsUpdate = true;
+      const beacon = delivery.beacon.material as THREE.ShaderMaterial, across = Math.hypot(camera.position.x - drop.pos.x, camera.position.z - drop.pos.z);
+      beacon.uniforms.beaconNear.value = THREE.MathUtils.smoothstep(across, 3, 14);
+      beacon.uniforms.beaconTime.value = reduced ? 0 : time;
       const pulse = reduced ? 1 : .88 + .12 * Math.sin(time * 2.4);
       delivery.glow.scale.setScalar(pulse);
       (delivery.ring.material as THREE.MeshBasicMaterial).opacity = .22 * pulse;
