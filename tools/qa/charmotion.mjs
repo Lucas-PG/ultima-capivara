@@ -13,8 +13,8 @@ page.on('pageerror', e => console.error('pageerror', e.message));
 const frame = { ...(process.env.FOCUS ? { focus: Number(process.env.FOCUS) } : {}), ...(process.env.FOV ? { fov: Number(process.env.FOV) } : {}) };
 const query = new URLSearchParams({ clean: '', color: '#E76F51', x: process.env.X || '84', z: process.env.Z || '-58' });
 if (weapon !== 'none') query.set('weapon', weapon);
-await page.goto(`${base}/tools/blender/review.html?${query}`);
-await page.waitForFunction(() => window.capyReview?.ready, null, { timeout: 120000 });
+await page.goto(`${base}/tools/blender/review.html?${query}`, { timeout: 300000 });
+await page.waitForFunction(() => window.capyReview?.ready, null, { timeout: 300000 });
 for (const clip of clips.split(',')) {
   await page.evaluate(o => window.capyReview.shot(o), { clip: 'idle', time: .5, angle, distance: Number(distance), ...frame });
   await page.evaluate(o => window.capyReview.shot(o), { clip, time: Number(process.env.SETTLE ?? 1), angle, distance: Number(distance), ...frame });

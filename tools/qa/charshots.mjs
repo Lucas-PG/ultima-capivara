@@ -32,8 +32,8 @@ for (const [key, shots] of groups) {
   if (range) query.set('range', range);
   if (lighting) query.set('lighting', lighting);
   if (graphics) query.set('graphics', graphics);
-  await page.goto(`${base}/tools/blender/review.html?${query}`);
-  await page.waitForFunction(() => window.capyReview?.ready, null, { timeout: 120000 });
+  await page.goto(`${base}/tools/blender/review.html?${query}`, { timeout: 300000 });
+  await page.waitForFunction(() => window.capyReview?.ready, null, { timeout: 300000 });
   for (const { name, options } of shots) {
     const o = {
       angle: options.angle || 'three-quarter', distance: Number(options.distance || 3), clip: options.clip || 'idle',
