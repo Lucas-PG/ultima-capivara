@@ -69,7 +69,7 @@ interface FlashSpec { world: number; fp: number; side: number; length: number; l
 const FLASH: Partial<Record<WeaponId, FlashSpec>> = {
   pistol: { world: .36, fp: .12, side: PAINT.sidePistol, length: 1.3, life: .045, smoke: 1, sights: 1.1 },
   revolver: { world: .5, fp: .17, side: PAINT.sideRevolver, length: 1.5, life: .06, smoke: 1, sights: 1.1 },
-  smg: { world: .3, fp: .1, side: PAINT.sideSmg, length: 1.2, life: .035, smoke: 5, sights: 2 },
+  smg: { world: .3, fp: .1, side: PAINT.sideSmg, length: 1.2, life: .035, smoke: 5, sights: 3.4 },
   m4: { world: .42, fp: .135, side: PAINT.sideRifle, length: 1.6, life: .04, smoke: 5, sights: 2.4 },
   shotgun: { world: .62, fp: .22, side: PAINT.sideShotgun, length: 1.5, life: .065, smoke: 1, sights: 1.4 },
   dmr: { world: .44, fp: .145, side: PAINT.sideDmr, length: 2.1, life: .05, smoke: 1, sights: 1.1 },
