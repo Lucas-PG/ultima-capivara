@@ -189,6 +189,7 @@ export class WorldScene {
   private readonly paintedWater: PaintedWater;
   private readonly smallWaterNormals: THREE.CanvasTexture;
   private readonly waterfalls: ReturnType<typeof createWaterfalls>;
+  private readonly backdrop: ReturnType<typeof createIslandBackdrop>;
   private readonly recreation: RecreationView;
   private readonly vegetation: ReturnType<typeof buildVegetation>;
   private readonly groundCover: GroundCover;
@@ -411,7 +412,7 @@ export class WorldScene {
     };
     const ground = new THREE.Mesh(terrainGeometry(world), groundMaterial);
     ground.receiveShadow = true; this.group.add(ground); this.disposables.push(ground.geometry, ground.material as THREE.Material);
-    const backdrop = createIslandBackdrop(world); this.group.add(backdrop.mesh); this.disposables.push(backdrop);
+    const backdrop = this.backdrop = createIslandBackdrop(world); this.group.add(backdrop.mesh); this.disposables.push(backdrop);
     const street = createStreetDressing(world); this.group.add(street.group); this.disposables.push(street);
     this.waterfalls = createWaterfalls(world, settings.graphics); this.group.add(this.waterfalls.group); this.disposables.push(this.waterfalls);
 
@@ -790,6 +791,7 @@ export class WorldScene {
     this.vegetation.update(this.reducedMotion ? 0 : time, camera);
     for (const spinner of this.spinners) spinner.rotation.z = (this.reducedMotion ? .15 : .7) * time;
     this.waterfalls.update(time, this.reducedMotion);
+    this.backdrop.update(this.reducedMotion ? 0 : time);
     this.paintedWater.update(time, this.reducedMotion);
     this.recreation.update(time, camera, this.reducedMotion, actors, localActor);
     this.smallWaterNormals.offset.set(time * .013, -time * .08);

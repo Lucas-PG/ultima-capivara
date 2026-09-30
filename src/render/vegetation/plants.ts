@@ -4,6 +4,7 @@ import { fieldRows, onFieldRow, vegetationDressing } from '../../shared/vegetati
 import { isBatchedPlant, plantHash, SPECIES } from '../../shared/vegetation-species';
 import { plantTransform } from '../../shared/vegetation-trunks';
 import { groundPaint } from '../ground-cover';
+import { isletPalms } from '../island-backdrop';
 import { FOLIAGE_TILES } from './atlas';
 import type { PlantInstance } from './batch';
 
@@ -51,5 +52,8 @@ export function collectPlants(world: Pick<WorldSpec, 'objects'> & Partial<WorldS
     plants.push({ species: d.species, variant: d.variant, position, color: d.species === 'meadow' ? meadowTint(d.x, d.z, d.variant) : tint(d.x, d.z),
       matrix: new THREE.Matrix4().compose(position, yaw.setFromAxisAngle(UP, d.yaw).clone(), scale.set(s * (d.widthScale ?? 1), s, s)) });
   }
+  // The offshore islets' beach palms join the batch like any other palm, after the island's own.
+  for (const palm of isletPalms(world)) plants.push({ species: 'coconut', variant: plantTransform(palm).variant, matrix: plantMatrix(palm),
+    position: new THREE.Vector3(palm.pos.x, palm.pos.y, palm.pos.z), color: tint(palm.pos.x, palm.pos.z) });
   return plants;
 }

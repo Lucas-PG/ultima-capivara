@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { buildVegetation } from '../src/render/vegetation';
+import { isletPalms } from '../src/render/island-backdrop';
 import { HIDE_DISTANCE } from '../src/render/vegetation/batch';
 import { FOLIAGE_TILES } from '../src/render/vegetation/atlas';
 import { KIND, TRUNK_KINDS } from '../src/render/vegetation/mesh-builder';
@@ -110,7 +111,10 @@ describe('vegetation batch', () => {
     try {
       // Seedlings on the farm's field rows give way to the full rows the dressing plants there.
       const rows = fieldRows(world), authored = world.objects.filter(o => isBatchedPlant(o) && !onFieldRow(o, rows)), dressing = vegetationDressing(world);
-      expect(vegetation.batch.size).toBe(authored.length + dressing.length);
+      // Plus the palms on the offshore islets' coves, after the island's own plants.
+      const islets = isletPalms(world);
+      expect(islets.length).toBeGreaterThan(30);
+      expect(vegetation.batch.size).toBe(authored.length + dressing.length + islets.length);
       // Species and variants live inside the batch: the whole island's plants cost one draw call.
       const meshes = vegetation.group.children.filter((c): c is THREE.BatchedMesh => c instanceof THREE.BatchedMesh);
       expect(meshes).toHaveLength(1);
