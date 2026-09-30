@@ -166,7 +166,9 @@ async function fullMatch(timeout, captureEvery) {
         await page.locator('#vpanel.show').waitFor();
         await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count')));
       }
-      await page.screenshot({ path: `${out}/match-${number}-${String(index++).padStart(2, '0')}-${milestone}.jpg`, type: 'jpeg', quality: 85 });
+      // A starved page can take longer than a screenshot allows; the round itself goes on.
+      await page.screenshot({ path: `${out}/match-${number}-${String(index++).padStart(2, '0')}-${milestone}.jpg`, type: 'jpeg', quality: 85, timeout: 60000 })
+        .catch(error => console.error('screenshot skipped', error.message.split('\n')[0]));
     }
     if (state.phase === 'results') {
       const report = { mode, number, duration: elapsed, errors, stalls, perf: await page.evaluate(() => window.__capivara.perf()), samples, results: state.results };
