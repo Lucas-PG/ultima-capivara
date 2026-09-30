@@ -766,10 +766,14 @@ body.reduce-motion .settings-modal .seg button{animation:none!important;transiti
 
 /* Every control option comes from the input model; keep its help beside the control. */
 .settings-modal .settings-controls{grid-column:1/-1}
-.settings-modal .control-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 24px;align-items:start}
+.settings-modal .control-toggles,.settings-modal .control-ranges{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));gap:14px 24px;align-items:start}
+.settings-modal .control-toggles{--cols:4;margin-bottom:18px}
+.settings-modal .control-ranges{--cols:3}
 .settings-modal .control-options .check-row{margin-top:0}
+.settings-modal .control-ranges .slider-label{margin-bottom:0}
 .settings-modal .slider-label .setting-help{grid-column:1/-1;letter-spacing:0;line-height:1.4;font-weight:600}
-@media(max-width:700px){.settings-modal .control-options{grid-template-columns:1fr}}
+@media(max-width:900px){.settings-modal .control-toggles{--cols:2}}
+@media(max-width:700px){.settings-modal .control-toggles,.settings-modal .control-ranges{--cols:1}}
 
 /* A brief muzzle glow inside the lens, below the reticle. The viewmodel is hidden here. */
 .scope-overlay .scope-flash{position:absolute;left:50%;top:50%;width:61vmin;height:61vmin;transform:translate(-50%,-50%);border-radius:50%;opacity:0;background:radial-gradient(ellipse at 50% 108%,#fff7c4 0%,#ffc36a 14%,#ed83394d 34%,transparent 58%);pointer-events:none}
