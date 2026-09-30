@@ -166,9 +166,15 @@ describe('menu download budget', () => {
     for (const f of ['cover-1672', 'cover-960', 'cover-blur-480']) for (const ext of ['avif', 'webp'])
       expect(statSync(`public/assets/${f}.${ext}`).size).toBeLessThan(f === 'cover-1672' ? 260_000 : 120_000);
   });
-  it('never references the PNG master or the unused Barlow families from the stylesheet', () => {
-    const css = readFileSync('src/ui/style.css', 'utf8');
-    expect(css).not.toMatch(/cover-v2\.png|@fontsource\/barlow|'Barlow/);
+  it('never references the PNG master and loads only font families the stylesheets use', () => {
+    const css = readFileSync('src/ui/style.css', 'utf8') + readFileSync('src/ui/hud.css', 'utf8');
+    expect(css).not.toMatch(/cover-v2\.png/);
+    // The HUD uses Barlow Condensed for its numbers; plain Barlow stays out of the download.
+    expect(css).not.toMatch(/@fontsource\/barlow\//);
+    for (const [, family] of css.matchAll(/@import '@fontsource\/([a-z-]+)\//g)) {
+      const name = family.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+      expect(css, family).toContain(`"${name}"`);
+    }
   });
 });
 

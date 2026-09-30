@@ -1,4 +1,3 @@
-@import '@fontsource/barlow-condensed/latin-600.css';
 @import '@fontsource/barlow-condensed/latin-700.css';
 @import '@fontsource/barlow-condensed/latin-800.css';
 
@@ -82,7 +81,7 @@ body{
 #hud .fd .wi .weapon-icon{display:block;width:44px;height:14px;color:var(--hud-ivory)}
 #hud .fd.me{border-color:var(--hud-gold);box-shadow:inset 3px 0 0 var(--hud-gold)}
 #hud .fd.bad{border-color:var(--hud-coral);box-shadow:inset 3px 0 0 var(--hud-coral)}
-#hud .fd.info{height:28px;padding:0 10px;font-size:15px;color:var(--hud-muted);font-weight:600}
+#hud .fd.info{height:28px;padding:0 10px;font-size:15px;color:var(--hud-muted);font-weight:700}
 #hud .fd.info em{color:var(--hud-gold)}
 
 /* Centre: reticle, hit markers, damage direction, reload ring and short prompts. */
