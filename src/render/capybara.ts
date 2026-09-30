@@ -16,6 +16,7 @@ import { m4Reload } from './viewmodel-anims';
 import { isShortGun, shortReload, animateShortWorld, shortWorldGrip, type WorldParts } from './short-world-parts';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { attachFurShells, disposeFurShells, updateFurShells } from './capybara-fur';
+import characterMetrics from '../../public/models/capybara/metrics.json';
 
 // Bone layout shared with GameRenderer.updateAvatars():
 // 0 root · 1 torso (pivots at the hips) · 2 head · 3 arms + held weapon (shoulders)
@@ -124,7 +125,8 @@ interface CharacterInstance {
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
   relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
   gesture: EmoteId | null; gestureDeadline: number; gestureElapsed: number; gestureBlend: number;
-  bounceSeq: number | null;
+  bounceSeq: number | null; gaitPhase: number;
+  legs?: { thigh: THREE.Bone; shin: THREE.Bone; foot: THREE.Bone }[];
   fur: THREE.SkinnedMesh | null; chest?: THREE.Bone;
   hold?: { pawR: THREE.Bone; restInv: THREE.Quaternion; armL: THREE.Bone; forearmL: THREE.Bone; pawL: THREE.Bone };
   gestureJoints: Partial<Record<'forearm_L' | 'forearm_R' | 'paw_L' | 'paw_R' | 'thigh_L' | 'thigh_R' | 'shin_L' | 'shin_R' | 'foot_L' | 'foot_R', THREE.Bone>>;
@@ -310,7 +312,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   const runtime: CharacterInstance = {
     scene, mixer, actions, weights, targets, grounded: true, swimming: false, swimBlend: 0, landing: 0,
     gesture: null, gestureDeadline: 0, gestureElapsed: 0, gestureBlend: 0, gestureJoints: {},
-    bounceSeq: null, fur, chest: scene.getObjectByName('chest') as THREE.Bone | undefined,
+    bounceSeq: null, gaitPhase: 0, fur, chest: scene.getObjectByName('chest') as THREE.Bone | undefined,
     spine: scene.getObjectByName('spine') as THREE.Bone | undefined, crown: new THREE.Vector3(0, characterHeadTop, 0), crownScratch: new THREE.Vector3(), faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
     hitTime: 0, hitX: 0, hitZ: 0, deathTime: -1, deathSide: 1, emoteTime: 0, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,
@@ -346,6 +348,12 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   // afterwards (the head, arms and the held-weapon stance on spine, chest and neck) is restored
   // to the last mixer output first; otherwise constant tracks would accumulate those offsets.
   const stance = ['spine', 'chest', 'neck'].map(name => scene.getObjectByName(name)).filter((bone): bone is THREE.Bone => bone instanceof THREE.Bone);
+  const legBones = ['L', 'R'].map(side => ['thigh', 'shin', 'foot'].map(part => scene.getObjectByName(`${part}_${side}`)));
+  if (legBones.flat().every(bone => bone instanceof THREE.Bone)) {
+    runtime.legs = legBones.map(([thigh, shin, foot]) => ({ thigh: thigh as THREE.Bone, shin: shin as THREE.Bone, foot: foot as THREE.Bone }));
+    // The sole under each toe hinge, in the foot bone's bind frame (as the gait authoring plants it).
+    for (let i = 0; i < 2; i++) runtime.legs[i].foot.worldToLocal(FOOT_CONTACT[i].set(i ? .132 : -.132, .0015, -.075));
+  }
   runtime.poseBones = [...new Set([runtime.head, runtime.root, ...stance, ...runtime.arms, ...forearms, ...Object.values(runtime.gestureJoints)])];
   runtime.baseRotations = runtime.poseBones.map(bone => bone.quaternion.clone());
   characterInstances.set(body, runtime);
@@ -372,6 +380,102 @@ export function createCapybaraHitboxOverlay(): THREE.Group {
   const body = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, 1.42, 20, 1, true), new THREE.MeshBasicMaterial({ color: '#46e8ff', wireframe: true, depthTest: false, transparent: true, opacity: .4 }));
   body.position.y = .71;
   group.add(head, body); return group;
+}
+
+// Gait clips (metrics: stance speed in m per clip second, stance share of the cycle and the
+// travel direction as right, forward). Walking and crouching come in eight directions each.
+const GAIT_SPEED: Record<string, number> = characterMetrics.locomotionSpeed;
+const GAIT_CONTACT: Record<string, number> = (characterMetrics as { locomotionContact?: Record<string, number> }).locomotionContact ?? {};
+const GAIT_DIRECTION: Record<string, number[]> = (characterMetrics as { locomotionDirection?: Record<string, number[]> }).locomotionDirection ??
+  { walk: [0, 1], backpedal: [0, -1], strafe_l: [-1, 0], strafe_r: [1, 0], run: [0, 1], crouch_walk: [0, 1] };
+const GAITS = Object.keys(GAIT_SPEED);
+const WALK_FAMILY = GAITS.filter(name => name !== 'run' && !name.startsWith('crouch_'));
+const CROUCH_FAMILY = GAITS.filter(name => name.startsWith('crouch_') && name !== 'crouch_idle');
+
+/** Spreads `amount` over a family's clips by direction: the two nearest share it by angle. */
+function directionalWeights(family: readonly string[], actions: Record<string, THREE.AnimationAction>, x: number, forward: number,
+  amount: number, add: (name: string, amount: number) => void): void {
+  const present = family.filter(name => actions[name] && GAIT_DIRECTION[name]);
+  if (!present.length || amount <= 0) return;
+  const heading = Math.atan2(x, forward), width = Math.PI * 2 / present.length;
+  let total = 0;
+  const shares = present.map(name => {
+    const [r, f] = GAIT_DIRECTION[name];
+    let diff = Math.abs(Math.atan2(r, f) - heading); if (diff > Math.PI) diff = Math.PI * 2 - diff;
+    const share = Math.max(0, 1 - diff / width); total += share; return share;
+  });
+  present.forEach((name, i) => { if (shares[i] > 0) add(name, amount * shares[i] / total); });
+}
+
+/**
+ * Planted feet at any speed and blend: every gait clip plays at one shared phase (mid-stance of
+ * the left foot at 0), advanced by the travelled distance over the blended stride (the weighted
+ * sum of each clip's metres per cycle along its own direction), so a stance foot moves under the
+ * body exactly as fast as the actor.
+ */
+function advanceGait(runtime: CharacterInstance, speed: number, step: number): void {
+  let weight = 0, mx = 0, mf = 0;
+  for (const name of GAITS) {
+    const action = runtime.actions[name], w = runtime.weights[name] || 0;
+    if (!action || w <= 0) continue;
+    const metres = GAIT_SPEED[name] * action.getClip().duration, [r, f] = GAIT_DIRECTION[name] ?? [0, 1];
+    weight += w; mx += w * metres * r; mf += w * metres * f;
+  }
+  const stride = Math.hypot(mx, mf);
+  if (weight > 1e-4 && stride > 1e-4) runtime.gaitPhase = (runtime.gaitPhase + step * speed * weight / stride) % 1;
+  for (const name of GAITS) {
+    const action = runtime.actions[name];
+    if (!action) continue;
+    action.paused = true;
+    action.time = ((runtime.gaitPhase + (GAIT_CONTACT[name] ?? .5) / 2) % 1) * action.getClip().duration;
+  }
+}
+
+const FOOT_CONTACT = [new THREE.Vector3(), new THREE.Vector3()];
+const _hip = new THREE.Vector3(), _knee = new THREE.Vector3(), _ankle = new THREE.Vector3(), _toe = new THREE.Vector3();
+const _target = new THREE.Vector3(), _axis = new THREE.Vector3(), _bend = new THREE.Vector3(), _v = new THREE.Vector3();
+const _q = new THREE.Quaternion(), _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _foot = new THREE.Quaternion();
+
+/**
+ * Blending two planted-foot clips (a forward and a side step on a diagonal) interpolates the leg
+ * rotations, and the foot swings along an arc below both authored positions. Lift any sole that
+ * went under the contact plane back onto it with a two-bone solve that keeps the knee's plane and
+ * the foot's world orientation.
+ */
+function groundFeet(runtime: CharacterInstance): void {
+  const legs = runtime.legs;
+  if (!legs) return;
+  runtime.scene.updateMatrixWorld(true);
+  const ground = _v.setFromMatrixPosition(runtime.scene.matrixWorld).y + .0015;
+  for (let i = 0; i < 2; i++) {
+    const { thigh, shin, foot } = legs[i];
+    foot.localToWorld(_toe.copy(FOOT_CONTACT[i]));
+    const deficit = ground - _toe.y;
+    if (deficit < .001) continue;
+    thigh.getWorldPosition(_hip); shin.getWorldPosition(_knee); foot.getWorldPosition(_ankle);
+    foot.getWorldQuaternion(_foot);
+    _target.copy(_ankle).y += deficit;
+    const a = _hip.distanceTo(_knee), b = _knee.distanceTo(_ankle);
+    const d = Math.min(_target.distanceTo(_hip), a + b - 1e-4);
+    _axis.subVectors(_target, _hip).normalize();
+    // Knee direction: the current knee's offset from the hip-ankle line.
+    _bend.subVectors(_knee, _hip); _bend.addScaledVector(_axis, -_bend.dot(_axis)).normalize();
+    const along = (a * a - b * b + d * d) / (2 * d), out = Math.sqrt(Math.max(0, a * a - along * along));
+    const knee = _v.copy(_hip).addScaledVector(_axis, along).addScaledVector(_bend, out);
+    // Swing the thigh onto the new knee, then the shin onto the target, in world space.
+    _q.setFromUnitVectors(_knee.sub(_hip).normalize(), knee.sub(_hip).normalize());
+    thigh.getWorldQuaternion(_qa); thigh.parent!.getWorldQuaternion(_qb);
+    thigh.quaternion.copy(_qb.invert().multiply(_q.multiply(_qa)));
+    thigh.updateMatrixWorld(true);
+    shin.getWorldPosition(_knee); foot.getWorldPosition(_ankle);
+    _q.setFromUnitVectors(_ankle.sub(_knee).normalize(), _target.sub(_knee).normalize());
+    shin.getWorldQuaternion(_qa); shin.parent!.getWorldQuaternion(_qb);
+    shin.quaternion.copy(_qb.invert().multiply(_q.multiply(_qa)));
+    shin.updateMatrixWorld(true);
+    shin.getWorldQuaternion(_qb);
+    foot.quaternion.copy(_qb.invert().multiply(_foot));
+    foot.updateMatrixWorld(true);
+  }
 }
 
 /** Animate the loaded rig without allocating per update. */
@@ -427,15 +531,19 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   } else {
     if (!runtime.grounded && !runtime.swimming && actions.land) { runtime.landing = .24; actions.land.reset().play(); }
     const moving = THREE.MathUtils.smoothstep(speed, .05, .35);
-    if (actor.crouch) { weight('crouch_idle', 1 - moving, 'idle'); weight('crouch_walk', moving); }
-    else {
+    // Directional gaits blend by heading (see directionalWeights and advanceGait).
+    const x = Math.cos(actor.yaw) * actor.velocity.x - Math.sin(actor.yaw) * actor.velocity.z;
+    const forward = -Math.sin(actor.yaw) * actor.velocity.x - Math.cos(actor.yaw) * actor.velocity.z;
+    const add = (name: string, amount: number) => { targets[name] = (targets[name] || 0) + amount; };
+    if (actor.crouch) {
+      weight('crouch_idle', 1 - moving, 'idle');
+      directionalWeights(CROUCH_FAMILY, actions, x, forward, moving, add);
+    } else {
       weight('idle', 1 - moving);
-      const run = THREE.MathUtils.smoothstep(speed, 3.9, 6.4), walking = moving * (1 - run);
-      const x = Math.cos(actor.yaw) * actor.velocity.x - Math.sin(actor.yaw) * actor.velocity.z;
-      const forward = -Math.sin(actor.yaw) * actor.velocity.x - Math.cos(actor.yaw) * actor.velocity.z;
-      const total = Math.abs(x) + Math.abs(forward) || 1;
-      weight(x < 0 ? 'strafe_l' : 'strafe_r', walking * Math.abs(x) / total);
-      weight(forward < 0 ? 'backpedal' : 'walk', walking * Math.abs(forward) / total);
+      // The run clip follows the sprint itself (heavy guns sprint slower than 6.4 m/s): a steady
+      // walk and run mix would put one clip's stance foot on the other's swing.
+      const run = actor.sprint ? 1 : 0, walking = moving * (1 - run);
+      directionalWeights(WALK_FAMILY, actions, x, forward, walking, add);
       weight('run', moving * run);
     }
     if (runtime.landing > 0 && actions.land) {
@@ -452,9 +560,8 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
     if (target > 0 && runtime.weights[name] < .001 && name !== 'death' && name !== 'land' && name !== 'boing' && name !== gesture) action.reset().play();
     runtime.weights[name] = THREE.MathUtils.damp(runtime.weights[name], target, 18, step);
     action.setEffectiveWeight(runtime.weights[name]);
-    const nominal = name === 'run' ? 6.4 : name === 'crouch_walk' ? 2.1 : ['walk', 'backpedal', 'strafe_l', 'strafe_r'].includes(name) ? 3.9 : 0;
-    if (nominal) action.setEffectiveTimeScale(THREE.MathUtils.clamp(speed / nominal, .18, 1.8));
   }
+  advanceGait(runtime, speed, step);
   const reload = actions.reload_tp, held = actor.weapons[actor.slot];
   if (reload) {
     const active = !dead && !bouncing && !!held && actor.reloadUntil > simulationTime;
@@ -477,6 +584,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   const heldRig = holdRigs.get(body);
   if (heldRig) { heldRig.R.fingers.apply(RELAXED_PAW); heldRig.L.fingers.apply(RELAXED_PAW); }
   for (let i = 0; i < runtime.poseBones.length; i++) runtime.baseRotations[i].copy(runtime.poseBones[i].quaternion);
+  if (!dead && !gesture && !actor.swimming && actor.stage === 'ground' && actor.grounded) groundFeet(runtime);
   const bounceWeight = runtime.weights.boing || 0;
   const pitch = dead || gesture ? 0 : THREE.MathUtils.clamp(actor.pitch, -1, 1) * (1 - bounceWeight);
   head.rotateX(pitch * .45);

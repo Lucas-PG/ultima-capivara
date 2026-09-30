@@ -87,26 +87,35 @@ def leg(n, travel=0.0, lift=0.0, lateral=0.0, drop=0.0, foot_pitch=0.0, toe=0.0,
         update()
 
 
-def gait(n, phase, stride, lift, contact=.55, lateral=0.0, reverse=False, drop=0.0, roll=1.0):
-    """A planted-foot gait: stance for `contact` of the cycle (the foot slides back under the
-    body), then a lifted swing. Toes roll up at push-off, the heel lifts before the swing."""
+def gait(n, phase, front, back, lift, contact=.40, direction=(0.0, 1.0), drop=0.0, roll=1.0):
+    """A planted-foot gait. Stance (a `contact` share of the cycle): the foot lands `front` ahead
+    of its rest spot along the travel `direction` (right, forward) and is carried back at constant
+    speed (the runtime matches that speed to the actor) to `back` behind it; stepping forward, the
+    heel peels up over the last third while the toe hinge stays on the ground. Swing: lifted and
+    eased forward again. `drop` lowers the hip; callers lower the body by the same amount, so the
+    pelvis never stretches away from the legs."""
     c = phase % 1.0
+    span = front + back
+    right, forward = direction
+    roll *= max(0.0, forward) ** 2                               # side and back steps stay flat
     if c < contact:
         u = c / contact
-        travel = stride * (1 - 2 * u)
+        fwd = front - span * u
         up = 0.0
-        pitch = -.22 * roll * ease((u - .68) / .32)            # heel peels off before toe-off
+        pitch = -.22 * roll * ease((u - .62) / .38)            # heel peels off before toe-off
         toe = -pitch                                            # toes stay flat on the ground
-        up = .12 * math.sin(-pitch)                             # rolling over the toe base
     else:
         u = (c - contact) / (1 - contact)
-        travel = stride * (-1 + 2 * ease(u))
-        up = lift * math.sin(math.pi * u) ** 1.2
+        fwd = -back + span * ease(u)
+        up = lift * math.sin(math.pi * u) ** .8          # clears the ground quickly at lift-off
         pitch = -.22 * roll * (1 - ease(u / .35)) + .14 * roll * bump(u, .45, 1.0)  # toes up to reach
         toe = .22 * roll * (1 - ease(u / .3)) + .25 * roll * bump(u, .05, .45)      # the toes flick
-    if reverse:
-        travel = -travel; pitch = -pitch * .6
-    leg(n, travel, up, lateral * (1 - 2 * abs(.5 - (c % 1.0))) if lateral else 0.0, drop, pitch, toe)
+    # Rolling about the toe hinge: the ankle rises and moves forward while that contact point stays.
+    up += .112 * (1 - math.cos(pitch)) - .105 * math.sin(pitch)
+    peel = -.105 * (1 - math.cos(pitch)) + .112 * math.sin(pitch)
+    s = -1 if n == 'L' else 1
+    # `leg` travel is positive toward game +z (behind the body), lateral positive outward.
+    leg(n, -forward * fwd + peel, up, s * right * fwd, drop, pitch, toe)
 
 
 def key_all(frame):
@@ -197,16 +206,43 @@ author('idle', 4.0, idle, stabilize=.9)
 
 
 # ------------------------------------------------------------------ walk: the waddle
-def walk_like(stride, lift, cadence_drop, lean, reverse=False, lateral=0.0, crouch=0.0, name_side=None):
+# Gait table: (front, back, contact, seconds, body drop). The stance moves span = front + back
+# in contact * seconds, so the stance speed below is what the runtime plays each clip at. The
+# walk family shares one table row so its clips blend at one phase without skating; the legs
+# reach by bending (the whole body sinks by `drop`), never by stretching away from the hips.
+D = 0.70710678
+# Eight walk and eight crouch directions (right, forward), so a blend spans at most 45 degrees:
+# blending leg rotations between wider apart clips swings the stance foot below the floor.
+WALK_DIRS = {'walk': (0, 1), 'walk_fr': (D, D), 'strafe_r': (1, 0), 'backpedal_r': (D, -D), 'backpedal': (0, -1),
+             'backpedal_l': (-D, -D), 'strafe_l': (-1, 0), 'walk_fl': (-D, D)}
+CROUCH_DIRS = {'crouch_walk': (0, 1), 'crouch_fr': (D, D), 'crouch_strafe_r': (1, 0), 'crouch_br': (D, -D), 'crouch_back': (0, -1),
+               'crouch_bl': (-D, -D), 'crouch_strafe_l': (-1, 0), 'crouch_fl': (-D, D)}
+# Gait table: (front, back, contact, seconds, body drop). The stance moves span = front + back in
+# contact * seconds: that stance speed is what the runtime plays each clip at. One row per family,
+# so its clips blend at one phase without skating; the legs reach by bending (the whole body sinks
+# by `drop`), never by stretching away from the hips.
+WALK_ROW = (.22, .28, .40, 20 / 60, .045)
+CROUCH_ROW = (.13, .17, .50, 24 / 60, 0)
+GAITS = {**{k: WALK_ROW for k in WALK_DIRS}, 'run': (.24, .30, .30, 18 / 60, .045), **{k: CROUCH_ROW for k in CROUCH_DIRS}}
+report['locomotionSpeed'] = {k: (f + b) / (c * sec) for k, (f, b, c, sec, d) in GAITS.items()}
+report['locomotionContact'] = {k: c for k, (f, b, c, sec, d) in GAITS.items()}
+report['locomotionDirection'] = {**{k: list(v) for k, v in WALK_DIRS.items()}, 'run': [0, 1], **{k: list(v) for k, v in CROUCH_DIRS.items()}}
+
+
+def walk_like(name, lift, cadence_drop):
+    front, back, contact, seconds, sink = GAITS[name]
+    right, forward = WALK_DIRS[name]
+    lean = -.05 * max(0, forward) + .04 * max(0, -forward) - .02 * abs(right)
     def fn(t, sec):
         ph = math.tau * t
-        for i, (s, n) in enumerate(SIDES):
-            gait(n, t + i * .5, stride, lift, lateral=lateral, reverse=reverse, drop=crouch + cadence_drop * (.5 + .5 * math.cos(2 * ph)), roll=.7 if crouch else 1.0)
         bob = math.cos(2 * ph)                              # low at each contact
-        pb['spine'].location.y = -crouch - cadence_drop * (.5 + .5 * bob)
+        drop = sink + cadence_drop * (.5 + .5 * bob)
+        for i, (s, n) in enumerate(SIDES):
+            gait(n, t + i * .5, front, back, lift, contact, direction=(right, forward), drop=drop)
+        pb['spine'].location.y = -drop
         roll = math.sin(ph)
-        pb['spine'].rotation_euler.z = .07 * roll           # the waddle: weight over the stance foot
-        pb['spine'].rotation_euler.y = .06 * roll * (-1 if reverse else 1)
+        pb['spine'].rotation_euler.z = .07 * roll + .05 * right   # the waddle: weight over the stance foot
+        pb['spine'].rotation_euler.y = .06 * roll * (1 if forward >= 0 else -1)
         pb['chest'].rotation_euler.z = -.035 * roll
         pb['chest'].rotation_euler.y = -.05 * roll
         pb['spine'].rotation_euler.x = lean
@@ -215,29 +251,26 @@ def walk_like(stride, lift, cadence_drop, lean, reverse=False, lateral=0.0, crou
         pb['head'].rotation_euler.x = -lean * .3 - .012 * bob  # the head floats level
         pb['neck'].rotation_euler.z = -.02 * roll
         pb['belly'].scale.y = 1 - .03 * bob                 # belly settles at contact
-        if lateral:
-            pb['spine'].rotation_euler.z += (.05 if lateral > 0 else -.05)
         secondary(sec, bob, roll)
         for s, n in SIDES:
-            pb['arm_' + n].rotation_euler.x = .10 * math.sin(ph + (0 if n == 'L' else math.pi)) * (-1 if reverse else 1)
+            pb['arm_' + n].rotation_euler.x = .10 * math.sin(ph + (0 if n == 'L' else math.pi)) * (1 if forward >= 0 else -1)
             pb['blink_' + n].scale.y = blink(t, .8, .05)
     return fn
 
 
-report['locomotionSpeed'] = {'walk': 3.9, 'run': 6.4, 'crouch_walk': 2.1}
-author('walk', .56, walk_like(.24, .10, .030, -.04), stabilize=.9)
-author('backpedal', .60, walk_like(.17, .075, .018, .04, reverse=True), stabilize=.9)
-author('strafe_l', .58, walk_like(.08, .075, .018, -.02, lateral=-.10), stabilize=.9)
-author('strafe_r', .58, walk_like(.08, .075, .018, -.02, lateral=.10), stabilize=.9)
+for name, (right, forward) in WALK_DIRS.items():
+    author(name, GAITS[name][3], walk_like(name, .10 if forward > .5 else .08, .022 if forward > .5 else .016), stabilize=.9)
 
 
 # ------------------------------------------------------------------ run: a bounding scurry
 def run(t, sec):
     ph = math.tau * t
-    for i, (s, n) in enumerate(SIDES):
-        gait(n, t + i * .5, .27, .17, contact=.42, drop=.030 * (.5 + .5 * math.cos(2 * ph - .5)))
+    front, back, contact, seconds, sink = GAITS['run']
     bob = math.cos(2 * ph - .5)
-    pb['spine'].location.y = -.030 * (.5 + .5 * bob) + .012
+    drop = sink + .020 * (.5 + .5 * bob)
+    for i, (s, n) in enumerate(SIDES):
+        gait(n, t + i * .5, front, back, .17, contact, drop=drop)
+    pb['spine'].location.y = -drop
     roll = math.sin(ph)
     # A forward drive from the hips; the head is stabilised (it stays in its hit volume and
     # level), so the body leans in under it while the ears, pack and rag lag behind.
@@ -257,7 +290,7 @@ def run(t, sec):
         pb['forearm_' + n].rotation_euler.x = -.25 - .2 * max(0, pump)
 
 
-author('run', .40, run, stabilize=.9)
+author('run', GAITS['run'][3], run, stabilize=.9)
 
 
 # ------------------------------------------------------------------ crouch: low on the haunches
@@ -292,19 +325,24 @@ def crouch_idle(t, sec):
 author('crouch_idle', 4.0, crouch_idle, stabilize=.95)
 
 
-def crouch_walk(t, sec):
-    ph = math.tau * t
-    for i, (s, n) in enumerate(SIDES):
-        gait(n, t + i * .5, .15, .06, drop=CROUCH_DROP + .012 * (.5 + .5 * math.cos(2 * ph)), roll=.6)
-    crouch_pose(ph)
-    roll = math.sin(ph)
-    pb['spine'].rotation_euler.z = .05 * roll
-    pb['spine'].rotation_euler.y = .05 * roll
-    pb['spine'].location.y -= .012 * (.5 + .5 * math.cos(2 * ph))
-    secondary(sec, math.cos(2 * ph), roll)
+def crouch_gait(name):
+    front, back, contact, seconds, sink = GAITS[name]
+    right, forward = CROUCH_DIRS[name]
+    def fn(t, sec):
+        ph = math.tau * t
+        bounce = .012 * (.5 + .5 * math.cos(2 * ph))
+        for i, (s, n) in enumerate(SIDES):
+            gait(n, t + i * .5, front, back, .06, contact, direction=(right, forward), drop=CROUCH_DROP + bounce, roll=.6)
+        crouch_pose(ph, CROUCH_DROP + bounce)
+        roll = math.sin(ph)
+        pb['spine'].rotation_euler.z = .05 * roll + .04 * right
+        pb['spine'].rotation_euler.y = .05 * roll
+        secondary(sec, math.cos(2 * ph), roll)
+    return fn
 
 
-author('crouch_walk', .64, crouch_walk, stabilize=.95)
+for name in CROUCH_DIRS:
+    author(name, GAITS[name][3], crouch_gait(name), stabilize=.95)
 
 
 # ------------------------------------------------------------------ air
@@ -316,7 +354,7 @@ def jump(t, sec):
         pb['arm_' + n].rotation_euler.x = -.25 * ext
         pb['arm_' + n].rotation_euler.z = -.25 * (1 if n == 'L' else -1) * ext
     pb['spine'].rotation_euler.x = .04 * ext - .05 * tuck
-    pb['neck'].rotation_euler.x = .03 * tuck
+    pb['neck'].rotation_euler.x = .03 * tuck - .04 * ext * (1 - tuck)   # the long snout stays in the head volume
     pb['belly'].scale.y = 1 + .04 * ext * (1 - tuck)
     secondary(sec, -ext * .5, 0, gust=.25 * ext)
 
@@ -426,28 +464,35 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
             brow = pb['brow_' + side]
             ear = pb['ear_' + side]
             mouth = pb['mouth_' + side]
+            # Poses sized to read at 3 to 15 m: lids, brows and ears carry most of it (they break the
+            # head silhouette), the mouth corners and jaw the rest.
             if expression == 'determined':
-                lid.scale.y = .66
-                brow.location.y = -.005
-                brow.rotation_euler.z = sign * .22
-                ear.rotation_euler.x = -.14
-            elif expression == 'hit':
-                lid.scale.y = .28
-                brow.location.y = .007
+                lid.scale.y = .50
+                brow.location.y = -.013
+                brow.rotation_euler.z = sign * .45            # inner ends down: a frown
                 ear.rotation_euler.x = -.45
                 mouth.location.y = -.006
-                pb['jaw'].rotation_euler.x = .10
-            elif expression == 'stunned':
-                lid.scale.y = 1.22 if side == 'R' else .52
-                brow.location.y = .008 if side == 'R' else -.003
-                ear.rotation_euler.z = sign * .40
-                ear.location.y = -.012
+            elif expression == 'hit':
+                lid.scale.y = .12
+                brow.location.y = .014
+                brow.rotation_euler.z = -sign * .35           # inner ends up: pain
+                ear.rotation_euler.x = -1.0
+                mouth.location.y = -.010
                 pb['jaw'].rotation_euler.x = .16
+            elif expression == 'stunned':
+                lid.scale.y = 1.30 if side == 'R' else .40
+                brow.location.y = .015 if side == 'R' else -.008
+                ear.rotation_euler.z = sign * .70
+                ear.location.y = -.014
+                mouth.location.y = -.006 if side == 'R' else .004
+                pb['jaw'].rotation_euler.x = .22
             elif expression == 'victory':
-                lid.scale.y = .42
-                brow.location.y = .004
-                mouth.location.y = .009
-                ear.rotation_euler.x = .12
+                lid.scale.y = .30
+                brow.location.y = .014
+                brow.rotation_euler.z = -sign * .15
+                mouth.location.y = .016
+                ear.rotation_euler.x = .35
+                pb['jaw'].rotation_euler.x = .09
             elif expression == 'blink':
                 lid.scale.y = .04
         for p in face_parts:
@@ -462,6 +507,7 @@ for obj in lods:
     for mod in obj.modifiers:
         mod.show_viewport = True
 scene.frame_start, scene.frame_end = 0, 120
+bpy.ops.wm.save_as_mainfile(filepath=str(OUT / 'v6/character.blend'))
 bpy.ops.export_scene.gltf(filepath=str(OUT / 'capybara.raw.glb'), export_format='GLB', export_vertex_color='NAME', export_vertex_color_name='Color', export_animations=True, export_animation_mode='ACTIONS', export_nla_strips=False, export_frame_range=False, export_force_sampling=True, export_skins=True, export_influence_nb=4, export_yup=True, export_extras=True, export_cameras=False, export_lights=False, export_attributes=True, export_tangents=True, export_image_format='WEBP', export_image_quality=95)
 (OUT / 'blender-report.json').write_text(json.dumps(report, indent=2) + '\n')
 print('CAPYBARA_REPORT ' + json.dumps(report))
