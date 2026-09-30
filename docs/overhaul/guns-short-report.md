@@ -10,7 +10,7 @@ All four first-person weapons use 1024 albedo, ORM and relief-normal maps.
 
 | Weapon | FP triangles | Packed GLB bytes | World near / far triangles |
 | --- | ---: | ---: | ---: |
-| Pistol | 13,880 | 410,064 | 2,400 / 420 |
+| Pistol | 13,892 | 410,380 | 2,400 / 420 |
 | SMG | 17,332 | 503,332 | 2,398 / 660 |
 | Revolver | 23,426 | 661,676 | 2,400 / 420 |
 | Machete | 10,490 | 390,560 | 2,400 / 420 |
@@ -19,7 +19,7 @@ The four world models share the existing atlas. Targeted rebuilding preserves al
 
 ## Pistol
 
-Teal enamel slide, case-coloured frame, jacaranda scales, brass palm inlay, brass controls and magazine shoe. The trigger guard is enlarged for the thick paw digit. The stationary barrel is separate from the moving slide, and the slide stop has its own pivot.
+Teal enamel slide, case-coloured frame, jacaranda scales, brass palm inlay, brass controls and magazine shoe. The trigger guard has a thinner lower bridge to separate adjacent thick digits, and a broader trigger closer to the firing digit. The stationary barrel is separate from the moving slide, and the slide stop has its own pivot.
 
 Tactical reload retains the chambered round. Empty reload locks the slide until the support-paw release. Magazine acquisition, removal and the palm seat use a target in magazine space. Inspect presents both sides.
 
@@ -43,9 +43,9 @@ Trinta-e-oito has a blued bull barrel and vent rib, case-coloured engraved frame
 
 The reload sequence swings the cylinder out, raises the muzzle, punches the ejector, releases six separate cases, aligns the loader, leaves the rounds seated when the loader withdraws, and closes the cylinder with the support paw. Part relationships and loaded-round retention have automated coverage.
 
-Evidence: [before](evidence/guns/revolver-before.jpg), [model after](evidence/guns/revolver-model-after.jpg).
+Evidence: [before](evidence/guns/revolver-before.jpg), [model after](evidence/guns/revolver-model-after.jpg), [reload contacts](evidence/guns/revolver-reload-after.jpg).
 
-Remaining: install and visually accept final grips, fit the cylinder/ejector/loader contacts, and verify the complete reload from several angles. The current pose data is not accepted yet.
+Verified: the fitted cylinder, ejector and speedloader contacts are installed. The cylinder contact follows the moving part origin while retaining its orientation in gun space. Digits curl after the crane opens and straighten before closing. Cases travel clear of the firing forearm, and the loader stays held until hidden. The 59-pose carry and reload pass exposed one loader-release collision; nine further samples verify its correction. Eighteen additional samples cover opening and closing. Minimum measured clearance is 0.9 mm on the right and -0.2 mm on the left, within the -0.5 mm acceptance limit. Eye, both sides and top views were reviewed. Remaining: improve the two-paw ready silhouette, then repeat the affected departure and return contacts and finish world presentation.
 
 ## Machete
 
@@ -59,7 +59,7 @@ Verified: the revised elbow pole is installed. All 28 sampled hip, ADS, sprint, 
 
 ## Verification and limitations
 
-- TypeScript passes. The latest full Vitest run passed 95 files and 729 tests with two workers. The focused viewmodel suite passes 38 tests. No Playwright e2e suite was run.
+- TypeScript passes. The latest full Vitest run passed 95 files and 729 tests with two workers. The focused viewmodel suite passes 39 tests, including cylinder-contact orientation through the swing. No Playwright e2e suite was run.
 - Held and ground weapons now use the renderer's existing sky-reflection texture at the same intensity as the first-person scene. This restores readable steel edges in world lighting without adding a texture or render pass.
 - The grip solver now treats points outside its spatial-search radius as out of range, avoiding false deep penetrations against a distant triangle. Final acceptance uses the separate full-vertex probe, which also reports the struck weapon part.
 - The full probe uses a triangle bounding hierarchy. A comparison with its original exhaustive calculation matched every reported minimum and penetration count for the pistol, SMG and machete right paws; the measured calculation took about one fifth of the time.
