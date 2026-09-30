@@ -1,6 +1,6 @@
 # Long-gun overhaul
 
-Status: all five weapons completed and reviewed against the supplied design, first-person and reload references.
+Status: reopened after independent review. Models, livery, budgets and contact passed; support-paw anatomy, firing-paw visibility at hip and the Lança-coco sight picture require correction. The earlier completion claim was premature. The evidence below records that earlier pass until replaced by the corrected review.
 
 Scope: `m4`, `shotgun`, `sniper`, `dmr`, `coco`, in the `guns-long` worktree. The sculpted arm assets and arm solver were not changed. Final gameplay captures use real Chrome with ANGLE Metal at 1280 x 720 and the medium preset. Baseline contact sheets retain the earlier 960 x 540 captures. No Playwright e2e suite was run.
 

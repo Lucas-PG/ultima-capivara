@@ -92,18 +92,32 @@ export function measure([weapon, side]) {
   }
   // Around the bore: 0 = right (+x), 90 = top, 180 = left, -90 = bottom.
   const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
-  const angle = v => Math.round(Math.atan2(v.y - bore.y, v.x - bore.x) * 180 / Math.PI);
+  const pumpAxis = model.parts.pump?.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
+  const angle = (v, axis = bore) => Math.round(Math.atan2(v.y - axis.y, v.x - axis.x) * 180 / Math.PI);
   const digits = {};
   for (const f of ['index', 'middle', 'ring', 'thumb']) {
     const tip = measured.filter(v => v.bone === `${f}3`), base = measured.filter(v => v.bone === `${f}1`);
     if (!tip.length) continue;
     const avg = list => list.reduce((s, v) => s.add(v.p), new V3()).multiplyScalar(1 / list.length);
-    const t = avg(tip), b = avg(base);
+    const t = avg(tip), b = avg(base), direction = t.clone().sub(b).normalize();
     digits[f] = { base: [+(b.x * 1000).toFixed(0), +(b.y * 1000).toFixed(0), +(b.z * 1000).toFixed(0)], baseAngle: angle(b),
-      tip: [+(t.x * 1000).toFixed(0), +(t.y * 1000).toFixed(0), +(t.z * 1000).toFixed(0)], tipAngle: angle(t) };
+      tip: [+(t.x * 1000).toFixed(0), +(t.y * 1000).toFixed(0), +(t.z * 1000).toFixed(0)], tipAngle: angle(t),
+      direction: direction.toArray().map(x => +x.toFixed(3)), along: Math.round(Math.acos(Math.max(-1, Math.min(1, -direction.z))) * 180 / Math.PI) };
+    if (pumpAxis) digits[f].pump = { baseAngle: angle(b, pumpAxis), tipAngle: angle(t, pumpAxis) };
   }
   const summary = Object.fromEntries(Object.entries(groups).map(([k, g]) => [k, { min: +(g.min * 1000).toFixed(1), inside: g.inside, n: g.n, at: g.at }]));
   const centroid = measured.filter(v => v.bone === 'hand').reduce((s, v) => s.add(v.world), new V3()).multiplyScalar(1 / Math.max(1, measured.filter(v => v.bone === 'hand').length));
+  vm.camera.updateMatrixWorld(true);
+  const paw = measured.filter(v => v.bone !== 'fore_twist'), projected = paw.map(v => v.world.clone().project(vm.camera));
+  const visible = projected.filter(v => Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1 && Math.abs(v.z) <= 1).length;
+  const toEye = vm.camera.getWorldPosition(new V3()).sub(centroid).normalize();
+  const palm = (side === 'R' ? vm.targetR : vm.targetL).palm.clone().normalize();
+  const presentation = {
+    onScreen: +(visible / paw.length).toFixed(3),
+    // More than 90 degrees presents the fur side of the palm toward the eye.
+    palmToEyeDegrees: Math.round(Math.acos(Math.max(-1, Math.min(1, palm.dot(toEye)))) * 180 / Math.PI),
+    bounds: [Math.min(...projected.map(v => v.x)), Math.min(...projected.map(v => v.y)), Math.max(...projected.map(v => v.x)), Math.max(...projected.map(v => v.y))].map(x => +x.toFixed(3)),
+  };
   return { summary, digits, bore: [bore.x, bore.y, bore.z].map(x => +(x * 1000).toFixed(0)), trianglesNear: near.length,
-    centroid: [centroid.x, centroid.y, centroid.z], worst: +(Math.min(...measured.map(v => v.d)) * 1000).toFixed(1) };
+    centroid: [centroid.x, centroid.y, centroid.z], presentation, worst: +(Math.min(...measured.map(v => v.d)) * 1000).toFixed(1) };
 }

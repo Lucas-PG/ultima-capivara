@@ -3,14 +3,18 @@
 // digit sits around the bore, the paw's place along the gun and the wrist bend
 // against the forearm. Pattern search from a start grip; prints the fitted spec.
 // Batch: node tools/qa/grip-fit.mjs --batch <jobs.json> (one browser, sequential fits).
+// Jobs may include tune (live view spec) and capture (output directory for eye/near/below/top views).
 // node tools/qa/grip-fit.mjs <weapon> '<intent json>' ['<start grip json>'] [--evals N] [--fp|--ads]
 // Intent (degrees around the bore: 0 right, 90 top, 180 left, 270 bottom; ranges may wrap):
-//   { "side": "L", "zone": [zMin, zMax], "digits": { "index": { "tip": [a, b], "base": [a, b] }, ... },
+//   { "side": "L", "zone": [zMin, zMax], "digits": { "index": { "tip": [a, b], "base": [a, b], "along": 80, "weight": 1 }, ... },
 //     "part": "mag", "partOffset": [0, .15, 0],
+//     "axisOrigin": [x, y, z], // Optional grip axis, e.g. the pump below the barrel.
 //     "contactParts": { "thumb": "mag" }, "palmFacing": [x, y, z, maxDegrees],
-//     "palm": [a, b], "thumbAlong": deg, "wristBend": deg, "contact": ["palm", "index", ...], "free": ["thumb"] }
+//     "palm": [a, b], "thumbAlong": deg, "wristBend": deg, "contact": ["palm", "index", ...],
+//     "curlBounds": { "index": [[min, max], [min, max], [min, max]], "spread": [min, max] } }
 import { chromium } from '@playwright/test';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { measure } from './weapon-contact.mjs';
 const args = process.argv.slice(2);
 const flag = name => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
 const batchFile = flag('--batch');
@@ -29,6 +33,7 @@ try {
   for (const job of jobs) {
     const { weapon, intent } = job;
     console.log(`job ${job.name ?? weapon}`);
+    await page.evaluate(([w, tune]) => { window.__vmTune = tune ? { [w]: tune } : undefined; }, [weapon, job.tune]);
     await page.evaluate(p => window.__capyQA.pose(p), `${job.mode ?? mode}-${weapon}`);
     if (intent.motion) await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [weapon, ...intent.motion]);
 
@@ -49,7 +54,7 @@ try {
         wrist: new V3(...grip.wrist).applyMatrix4(partToGun).toArray(),
         forward: new V3(...grip.forward).applyQuaternion(partRotation).toArray(),
         palm: new V3(...grip.palm).applyQuaternion(partRotation).toArray() } : grip;
-      const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
+      const bore = intent.axisOrigin ? new V3(...intent.axisOrigin).multiplyScalar(scale) : model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
       // ---- gun triangles in weapon space, bucketed in a grid for nearest queries
       const tris = [], partTris = {};
       model.group.traverse(o => {
@@ -132,8 +137,14 @@ try {
         const local = new V3().fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
         // The full distal forearm can cross a grip during magazine and catch work.
         if (i % stride) continue;
-        verts.push({ i, bone, palm: bone === 'hand' && local.y < -.006 && local.z < -.012, p: new V3(), d: 0 });
+        verts.push({ i, bone, palm: bone === 'hand' && local.y < -.006 && local.z < -.012, p: new V3(), d: 0,
+          bind: new V3().fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix),
+          influences: Array.from({ length: 4 }, (_, k) => [skinIndex.getComponent(i, k) * 16, skinWeight.getComponent(i, k)]).filter(([, weight]) => weight > 0) });
       }
+      // Match SkinnedMesh.applyBoneTransform, caching the per-bone matrices once
+      // per candidate instead of multiplying them again for every skin vertex.
+      const skinToGun = new M4().copy(toGun).multiply(mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
+      const skinCheck = new V3();
       const arm = side === 'L' ? vm.arms.left : vm.arms.right;
       const wrap = a => ((a % 360) + 360) % 360;
       const angle = v => wrap(Math.atan2(v.y - bore.y, v.x - bore.x) * 180 / Math.PI);
@@ -152,12 +163,25 @@ try {
       const wristW = new V3(), elbowW = new V3(), knuckleW = new V3();
       function evaluate(P, detail = false) {
         const grip = build(P);
-        vm.solveArms(model, { ...model.grips, [side]: asWeaponGrip(grip) }, null, null, intent.shoulders);
+        vm.solveArms(model, { ...model.grips, [side]: asWeaponGrip(grip) }, null, null, intent.shoulders ?? window.__vmTune?.[weapon]?.shoulders);
         vm.arms.group.updateMatrixWorld(true);
+        mesh.skeleton.update();
+        const boneMatrices = mesh.skeleton.boneMatrices;
         const groups = {};
         let pen = 0;
         for (const v of verts) {
-          mesh.getVertexPosition(v.i, v.p); v.p.applyMatrix4(mesh.matrixWorld).applyMatrix4(toGun).multiplyScalar(scale);
+          const { x, y, z } = v.bind;
+          let px = 0, py = 0, pz = 0;
+          for (const [m, weight] of v.influences) {
+            px += weight * (boneMatrices[m] * x + boneMatrices[m + 4] * y + boneMatrices[m + 8] * z + boneMatrices[m + 12]);
+            py += weight * (boneMatrices[m + 1] * x + boneMatrices[m + 5] * y + boneMatrices[m + 9] * z + boneMatrices[m + 13]);
+            pz += weight * (boneMatrices[m + 2] * x + boneMatrices[m + 6] * y + boneMatrices[m + 10] * z + boneMatrices[m + 14]);
+          }
+          v.p.set(px, py, pz).applyMatrix4(skinToGun).multiplyScalar(scale);
+          if (detail) {
+            mesh.getVertexPosition(v.i, skinCheck); skinCheck.applyMatrix4(mesh.matrixWorld).applyMatrix4(toGun).multiplyScalar(scale);
+            if (skinCheck.distanceTo(v.p) > 1e-6) throw new Error('Cached skin pose differs from Three.js by more than one micrometre');
+          }
           v.d = signed(v.p);
           const g = v.palm ? 'palm' : v.bone.replace(/[0-9]$/, '') + (/[23]$/.test(v.bone) ? '' : v.bone.endsWith('1') ? '1' : '');
           const G = groups[g] ??= { min: Infinity, n: 0, sum: new V3() };
@@ -185,8 +209,14 @@ try {
         const where = {};
         for (const [digit, spec] of Object.entries(intent.digits ?? {})) {
           const tip = centre(`${digit}3`), base = centre(`${digit}1`);
-          if (spec.tip && tip) { const a = angle(tip), o = outside(a, spec.tip); terms.place += (o / 8) ** 2; where[`${digit}Tip`] = Math.round(a); }
-          if (spec.base && base) { const a = angle(base), o = outside(a, spec.base); terms.place += (o / 8) ** 2; where[`${digit}Base`] = Math.round(a); }
+          const weight = spec.weight ?? 1;
+          if (spec.tip && tip) { const a = angle(tip), o = outside(a, spec.tip); terms.place += (o / 8) ** 2 * weight; where[`${digit}Tip`] = Math.round(a); }
+          if (spec.base && base) { const a = angle(base), o = outside(a, spec.base); terms.place += (o / 8) ** 2 * weight; where[`${digit}Base`] = Math.round(a); }
+          if (spec.along != null && tip && base) {
+            const dir = new V3().subVectors(tip, base).normalize();
+            const a = Math.acos(Math.max(-1, Math.min(1, -dir.z))) * 180 / Math.PI;
+            terms.place += (Math.max(0, a - spec.along) / 8) ** 2 * weight; where[`${digit}Along`] = Math.round(a);
+          }
         }
         const palmC = centre('palm');
         if (intent.palm && palmC) { const a = angle(palmC), o = outside(a, intent.palm); terms.place += (o / 8) ** 2; where.palm = Math.round(a); }
@@ -226,10 +256,14 @@ try {
       const P0 = [...P];
       const lock = new Set(intent.lock ?? []);
       let steps = [.006, .006, .006, .15, .1, .15, ...Array(12).fill(.2), .15];
-      let best = evaluate(P), count = 1, stalled = 0;
-      const initial = evaluate(P, true);
       const lo = [-Infinity, -Infinity, -Infinity, -Infinity, -1.2, -Infinity, ...Array(12).fill(-.1), -.6];
       const hi = [Infinity, Infinity, Infinity, Infinity, 1.2, Infinity, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.4, 1.2, 1, 1.2];
+      for (const [finger, offset] of Object.entries({ index: 6, middle: 9, ring: 12, thumb: 15 }))
+        for (const [joint, range] of (intent.curlBounds?.[finger] ?? []).entries()) if (range) [lo[offset + joint], hi[offset + joint]] = range;
+      if (intent.curlBounds?.spread) [lo[18], hi[18]] = intent.curlBounds.spread;
+      P = P.map((x, i) => Math.min(hi[i], Math.max(lo[i], x)));
+      let best = evaluate(P), count = 1, stalled = 0;
+      const initial = evaluate(P, true);
       while (count < maxEvals && Math.max(...steps) > 1e-4) {
         let improved = false;
         for (let i = 0; i < P.length && count < maxEvals; i++) {
@@ -257,5 +291,21 @@ try {
     console.log('mins   ', JSON.stringify(result.final.mins));
     console.log('grip   ', JSON.stringify(round(result.final.grip)));
     if (job.output) await writeFile(job.output, JSON.stringify(result, null, 2) + '\n');
+    if (job.capture && !intent.part) {
+      await mkdir(job.capture, { recursive: true });
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.addStyleTag({ content: '#app,#confetti,#flash{display:none!important}' });
+      const tune = { ...job.tune, grips: { ...job.tune?.grips, [intent.side]: result.final.grip } };
+      await page.evaluate(([w, tune]) => { window.__vmTune = { [w]: tune }; window.__vmOrbit = undefined; }, [weapon, tune]);
+      await page.evaluate(p => window.__capyQA.pose(p), `${job.mode ?? mode}-${weapon}`);
+      const contact = await page.evaluate(measure, [weapon, intent.side]);
+      await writeFile(`${job.capture}/${job.name ?? weapon}-probe.json`, JSON.stringify(contact, null, 2) + '\n');
+      for (const [name, view] of Object.entries({ eye: null, near: [-Math.PI / 2 + .25, .15, .26], below: [.2, -1.1, .26], top: [.3, 1.25, .28] })) {
+        await page.evaluate(([v, target]) => { window.__vmOrbit = v ? { yaw: v[0], pitch: v[1], distance: v[2], target } : undefined; }, [view, contact.centroid]);
+        await page.evaluate(p => window.__capyQA.pose(p), `${job.mode ?? mode}-${weapon}`);
+        await page.screenshot({ path: `${job.capture}/${job.name ?? weapon}-${name}.png` });
+      }
+      await page.evaluate(() => { window.__vmOrbit = undefined; });
+    }
   }
 } finally { await browser.close(); }

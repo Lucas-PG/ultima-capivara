@@ -264,7 +264,7 @@ export class WeaponView {
     if (import.meta.env.DEV) {
       // QA tuning: window.__vmTune = { pistol: { hip: {...}, grips: {...}, fov } } overrides the spec live.
       const tune = (globalThis as { __vmTune?: Record<string, Partial<ViewSpec> & { fov?: number }> }).__vmTune?.[weapon];
-      if (tune) { spec = { ...spec, ...tune, grips: { ...model.grips, ...tune.grips } }; if (tune.fov) viewmodelFov = tune.fov; }
+      if (tune) { spec = { ...spec, ...tune, grips: { ...model.grips, ...tune.grips } }; viewmodelFov = tune.fov ?? spec.viewmodelFov ?? VIEWMODEL_FOV; }
     }
     if (this.camera.fov !== viewmodelFov) { this.camera.fov = viewmodelFov; this.camera.updateProjectionMatrix(); }
     model.group.visible = true;
