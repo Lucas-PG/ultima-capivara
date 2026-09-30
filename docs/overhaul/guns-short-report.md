@@ -10,7 +10,7 @@ All four first-person weapons use 1024 albedo, ORM and relief-normal maps.
 
 | Weapon | FP triangles | Packed GLB bytes | World near / far triangles |
 | --- | ---: | ---: | ---: |
-| Pistol | 13,892 | 410,380 | 2,400 / 420 |
+| Pistol | 13,892 | 414,972 | 2,400 / 420 |
 | SMG | 17,332 | 499,604 | 2,400 / 736 |
 | Revolver | 23,426 | 661,676 | 2,400 / 420 |
 | Machete | 10,490 | 390,560 | 2,400 / 420 |
@@ -21,11 +21,11 @@ The four world models share the existing atlas. Targeted rebuilding preserves al
 
 Teal enamel slide, case-coloured frame, jacaranda scales, brass palm inlay, brass controls and magazine shoe. The trigger guard has a thinner lower bridge to separate adjacent thick digits, and a broader trigger closer to the firing digit. The stationary barrel is separate from the moving slide, and the slide stop has its own pivot.
 
-Tactical reload retains the chambered round. Empty reload locks the slide until the support-paw release. Magazine acquisition, removal and the palm seat use a target in magazine space. Inspect presents both sides.
+Tactical reload retains the chambered round. Empty reload locks the slide until the support-paw release. Magazine acquisition, removal and the palm seat use a target in magazine space. The paw clears below and to the left of the magazine before turning. Inspect releases the support paw for the first turn, presents both sides with a straight trigger index, then restores the cup.
 
-Evidence: [before](evidence/guns/pistol-before.jpg), [model after](evidence/guns/pistol-model-after.jpg).
+Evidence: [before](evidence/guns/pistol-before.jpg), [model after](evidence/guns/pistol-model-after.jpg), [first-person motion](evidence/guns/pistol-motion-after.jpg).
 
-Remaining: settle the two-handed grip with an index on the trigger, then repeat both reloads, ADS and all carry poses with that final grip. Several numerically clear trial grips were rejected for poor anatomy or contact. No arm defect has been established.
+Verified: the firing paw wraps the front strap, presents its back to the eye and reaches the broader trigger. The support paw cups the firing fingers. Hip, ADS, sprint, firing and both inspect turns have been reviewed from the eye and both sides. Dense reload sampling exposed clipping during tactical acquisition and the turn after seating; 36 additional samples verify the corrected paths. The final minimum gun clearance is 0.0 mm on the right and 0.2 mm on the left; seated magazine contact is 0.6 mm. Ready paw-to-paw clearance is 0.1 mm. No arm defect has been established. Close third-person presentation review remains.
 
 ## SMG
 

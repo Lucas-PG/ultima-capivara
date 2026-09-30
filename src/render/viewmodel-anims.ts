@@ -12,9 +12,11 @@ const HOLD_MAG = curl([.9, .9, .6], [1.1, 1, .7], [1.2, 1.05, .75], [.6, .4, .3]
 const PINCH = curl([.7, .9, .7], [1.2, 1.1, .8], [1.3, 1.1, .8], [.9, .6, .4]);
 
 // The support paw remains in magazine space from acquisition through the palm seat.
-const PISTOL_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-.06187, -.12677, .02909],
+const PISTOL_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-.06187, -.12927, .02909],
   forward: [.99713, .07060, -.02726], palm: [-.06953, .99684, .03849],
   curl: { ...curl([.105, .3016, .141], [.2, .3, .15], [.25, .3, .15], [1.254, .386, .13324]), spread: .0865 } };
+const PISTOL_MAG_CLEAR: HandKey = { ...PISTOL_MAG_HAND, wrist: [-.06187, -.15927, .02909] };
+const PISTOL_MAG_OUTSIDE: HandKey = { ...PISTOL_MAG_HAND, wrist: [-.145, -.15927, .02909] };
 const PISTOL_CLEAR: HandKey = { space: 'grip', offset: [-.045, 0, 0] };
 const pistolSwap = (retain: boolean): Choreography => [
   { t: .035, L: PISTOL_CLEAR },
@@ -23,6 +25,8 @@ const pistolSwap = (retain: boolean): Choreography => [
   { t: .99, R: { space: 'grip' } },
   { t: .08, p: [-.035, .018, .015], r: [.18, .12, -.32], ease: 'out' },
   { t: .075, L: { space: 'gun', wrist: [-.125, -.09, .09], forward: [.35, .12, -1], palm: [1, 0, .15], curl: OPEN } },
+  { t: .105, L: retain ? PISTOL_MAG_OUTSIDE : undefined },
+  { t: .12, L: retain ? PISTOL_MAG_CLEAR : undefined },
   { t: .14, L: retain ? PISTOL_MAG_HAND : undefined, mag: { out: 0 }, sfx: 'mag-out' },
   { t: .23, L: retain ? PISTOL_MAG_HAND : undefined, mag: { out: .14, p: [0, -.015, .01], r: [.1, 0, .12] }, ease: 'in' },
   { t: .31, L: retain ? PISTOL_MAG_HAND : undefined, mag: { visible: false, out: .25, p: [.02, -.22, .025], r: [.35, .1, .24] }, sfx: retain ? undefined : 'mag-drop' },
@@ -35,10 +39,13 @@ const pistolSwap = (retain: boolean): Choreography => [
   { t: .67, mag: { out: 0 }, L: PISTOL_MAG_HAND, ease: 'snap', sfx: 'mag-in' },
   { t: .68, p: [-.036, .031, .018], r: [.21, .12, -.30], ease: 'snap' },
   { t: .71, L: PISTOL_MAG_HAND, p: [-.035, .018, .015], r: [.18, .12, -.32] },
+  { t: .735, L: PISTOL_MAG_CLEAR },
+  { t: .75, L: PISTOL_MAG_OUTSIDE },
 ];
 export const PISTOL_RELOAD_EMPTY: Choreography = [
   { t: 0, parts: { slide: 1 } }, ...pistolSwap(false),
-  { t: .76, L: { space: 'gun', wrist: [-.085, -.04, .035], forward: [.25, .4, -1], palm: [1, 0, .1], curl: OPEN }, parts: { slide: 1 } },
+  { t: .775, L: { space: 'gun', wrist: [-.125, -.06, .06], forward: [.25, .4, -1], palm: [1, 0, .1], curl: OPEN } },
+  { t: .795, L: { space: 'gun', wrist: [-.085, -.04, .035], forward: [.25, .4, -1], palm: [1, 0, .1], curl: OPEN }, parts: { slide: 1 } },
   { t: .81, L: { space: 'part', part: 'release', wrist: [-.04228, -.04441, .04857],
     forward: [-.25798, .33335, -.90682], palm: [.95606, -.04722, -.28935],
     curl: { ...curl([.232, .2, .15], [.282, .25, .15], [.368, .25, .2], [.35, .25, -.1]), spread: -.2625 } }, parts: { slide: 1, release: 1 } },
@@ -305,8 +312,16 @@ export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
     { t: .82, p: [-.015, .02, .02], r: [-.18, .10, -.30] },
   ],
   pistol: [
+    { t: .08, R: { space: 'grip', curl: { index: [-.08, .04, .02] } } },
+    { t: .88, R: { space: 'grip', curl: { index: [-.08, .04, .02] } } },
+    { t: .97, R: { space: 'grip' } },
+    { t: .08, L: { space: 'grip', offset: [-.06, 0, 0] } },
+    { t: .18, L: { space: 'view', wrist: [-.20, -.25, -.40], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: OPEN } },
     { t: .24, p: [-.035, .025, .025], r: [.16, -.72, .23], ease: 'out' },
     { t: .48, p: [-.035, .028, .025], r: [.17, -.78, .26] },
+    { t: .52, L: { space: 'view', wrist: [-.20, -.25, -.40], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: OPEN } },
+    { t: .62, L: { space: 'grip', offset: [-.065, 0, 0] } },
+    { t: .70, L: { space: 'grip' } },
     { t: .72, p: [-.015, .015, .015], r: [.12, .10, -.25] },
     { t: .82, p: [-.015, .015, .015], r: [.12, .10, -.25] },
   ],
