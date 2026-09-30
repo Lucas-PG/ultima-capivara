@@ -284,7 +284,8 @@ export const COCO_FRUIT_HAND: HandKey = {space: "part", part: "mag", wrist: [-0.
 function makeCocoReload(ammo: number): Choreography {
   const keys: import('./viewmodel-choreo').Key[] = [
     { t: 0, mag: { visible: false, p: [-.17, -.42, .08] }, parts: { load1: ammo >= 3 ? 1 : 0, load2: ammo >= 2 ? 1 : 0 } },
-    { t: .06, p: [-.055, -.03, -.10], r: [-.04, .15, -.025], ease: 'out', L: { space: 'gun', wrist: [-.18, -.03, -.18] } },
+    { t: .025, L: { space: 'gun', wrist: [-.049897, -.107384, -.246142] } },
+    { t: .06, p: [-.055, -.03, -.10], r: [-.04, .15, -.025], ease: 'out', L: { space: 'gun', wrist: [-.18, -.107384, -.246142] } },
   ];
   const drop = (t: number, slot: number) => {
     const z = -slot * .09;
@@ -294,20 +295,21 @@ function makeCocoReload(ammo: number): Choreography {
       { t: t + .055, L: COCO_FRUIT_HAND, mag: { p: [-.17, .17, z] } },
       { t: t + .072, L: COCO_FRUIT_HAND, mag: { p: [0, .17, z] } },
       { t: t + .096, L: { ...COCO_FRUIT_HAND, wrist: [-.19, -.028, .067], curl: OPEN }, mag: { p: [0, .17, z] } },
-      { t: t + .132, L: { space: 'gun', wrist: [-.21, .38, z + .065], curl: OPEN }, mag: { p: [0, 0, z] }, ease: 'in', sfx: 'coconut-in' },
-      { t: t + .15, L: { space: 'gun', wrist: [-.21, -.16, z + .065], curl: OPEN }, mag: { visible: slot === 0, p: [0, 0, z] } },
+      { t: t + .132, L: { space: 'gun', wrist: [-.32, .38, z + .065], curl: OPEN }, mag: { p: [0, 0, z] }, ease: 'in', sfx: 'coconut-in' },
+      { t: t + .15, L: { space: 'gun', wrist: [-.32, -.16, z + .065], curl: OPEN }, mag: { visible: slot === 0, p: [0, 0, z] } },
     );
     if (slot) keys.push({ t: t + .131, parts: { ['load' + slot]: 0 } }, { t: t + .132, parts: { ['load' + slot]: 1 } });
   };
   if (ammo === 0) {
     drop(.08, 2); drop(.245, 1); drop(.41, 0);
     keys.push(
-      { t: .57, L: { space: 'gun', wrist: [-0.18, 0.00522, -0.224605] } },
+      { t: .57, L: { space: 'gun', wrist: [-.049897, -.107384, -.246142] } },
       { t: .595, L: { space: 'grip' }, parts: { pump: 0 } },
       { t: .63, L: { space: 'grip' }, mag: { p: [0, 0, 0] }, parts: { pump: 1 }, sfx: 'pump-back' },
       { t: .65, mag: { p: [0, -.045, 0] } },
       { t: .66, mag: { visible: false }, parts: { pump: 0 }, ease: 'snap', sfx: 'pump-home' },
-      { t: .69, L: { space: 'gun', wrist: [-0.18, 0.00522, -0.224605] } },
+      { t: .685, L: { space: 'gun', wrist: [-.049897, -.107384, -.246142] } },
+      { t: .70, L: { space: 'gun', wrist: [-.18, -.107384, -.246142] } },
     );
     // Feeding frees the rear hopper pocket; top it up for the fourth round.
     drop(.71, 0);
@@ -318,7 +320,8 @@ function makeCocoReload(ammo: number): Choreography {
   }
   keys.push(
     { t: .88, p: [-.055, -.03, -.10], r: [-.04, .15, -.025] },
-    { t: .91, L: { space: 'gun', wrist: [-0.18, 0.00522, -0.224605] }, mag: { p: [0, 0, 0] } },
+    { t: .91, L: { space: 'gun', wrist: [-.18, -.107384, -.246142] }, mag: { p: [0, 0, 0] } },
+    { t: .94, L: { space: 'gun', wrist: [-.049897, -.107384, -.246142] } },
     { t: .97, L: { space: 'grip' } },
     { t: 1, p: [0, 0, 0], r: [0, 0, 0], mag: { p: [0, 0, 0] }, parts: { load1: 1, load2: 1, pump: 0 } },
   );

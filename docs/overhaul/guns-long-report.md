@@ -58,6 +58,8 @@ Rebuilt the bamboo-yellow tube, flared wood/brass bell, sprung action, separate 
 
 Review correction: moved both sights and the aim point to a matching 170 mm left offset. The target now has open space beside the hopper, with no box or coconut over the aiming point. Rebuilt the first-person and world assets. [New ADS eye view](evidence/guns/coco-sight-review.jpg), 1280 x 720 medium, 174,260 bytes. Support grip, hip framing and motion review remain in progress.
 
+The support paw now cups the separate wooden pump from below, with its thumb forward on the near side and fingers curling up the far side. Reload departures pass below the pump; fruit releases withdraw left before descending past the new rear notch. All four starting ammunition counts pass 224 animation-key and midpoint samples at 0.6 mm minimum clearance. An additional 79-pose gameplay and motion scan reaches 0.4 mm during trigger motion. [Measured support grip and scan summary](evidence/guns/coco-support-contact.json). Hip framing remains pending.
+
 Before: [Lança-coco contact sheet](evidence/guns/coco-before.jpg). After: [gameplay views](evidence/guns/coco-after.jpg), [reload and mechanism views](evidence/guns/coco-reload.jpg).
 
 Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The hopper holds three visible fruits plus one chambered round, so an empty refill deliberately includes a fourth insertion after the pump.
