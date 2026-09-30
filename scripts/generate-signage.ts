@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 import { SIGN_ART } from '../src/shared/signage';
 
 const font = await fs.readFile('node_modules/@fontsource/dela-gothic-one/files/dela-gothic-one-latin-400-normal.woff2');
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.SIGN_CHANNEL ? { channel: process.env.SIGN_CHANNEL } : {}) });
 try {
   const page = await browser.newPage();
   await page.setContent(`<style>@font-face{font-family:SignDela;src:url(data:font/woff2;base64,${font.toString('base64')}) format('woff2');font-weight:400}</style>`);

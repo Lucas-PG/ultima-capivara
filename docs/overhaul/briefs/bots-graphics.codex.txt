@@ -1,0 +1,21 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Read docs/overhaul/autonomous-progress.md for context. You have full creative freedom inside your scope: research, experiment, be creative, and reject your own mediocre results.
+
+RULES
+- Work only in your git worktree (given below). Never push, open PRs, deploy or touch other worktrees or the main checkout.
+- Another agent is baking weapons with Blender, so the machine runs hot: keep your load light. At most one Chrome instance at a time, capture at 1280x720 or smaller, prefer offline analysis and unit tests to live renders where they prove the same thing, never run Blender, and stop servers and browsers when idle and when done.
+- Do not touch weapon models, the viewmodel, arms, character or world code (tools/blender/*, src/render/weapons.ts, viewmodel-*, fp-arms.ts, capybara*, layout.ts, world.ts, terrain.ts, the kit, vegetation) unless a one-line hook is unavoidable; say so in your report.
+- Never spend money, create accounts or access personal apps or data. External assets only with licences compatible with a commercial game (CC0 preferred) and downloadable without an account; record source and licence in docs/assets.md.
+- Never use the em dash character anywhere (code, docs, commit messages, UI text). Commit in small logical commits with no co-author or agent lines.
+- Keep green: npx tsc --noEmit and npx vitest run.
+- Start your dev server as a background command: cd <worktree> && VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port>. QA tools in tools/qa (capture.mjs named poses, cam.mjs free camera, play.mjs live match driver) take BASE=http://127.0.0.1:<your port>. Use absolute paths or cd <worktree> && ... in every command.
+- You may use your image generation tool for references, sprites or texture sources.
+- When done, write docs/overhaul/<your report name> in your worktree (what changed and why, evidence, measurements, tests, known issues) and commit it. Final reply to the orchestrator: under 200 words, ending with the line TASK DONE only when every item is genuinely finished (otherwise end with CONTINUING and the next step, and keep working when resumed).
+
+ROLE AND WORKTREE
+You are the bot designer and the lighting artist. Worktree: /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/bots-graphics (branch bots-graphics). Dev server port 5176. Report: docs/overhaul/bots-graphics-report.md.
+
+ITEMS
+1. Bots on the rebuilt island (src/simulation/bots.ts and its navigation data): watch many full matches (tools/qa/play.mjs, spectate bots), then fix navigation (new streets, bridges, quays, stairs, the Palafitas, the Engenho, the Capela stair, water), looting, fighting (use cover, peek, strafe, retreat on low health, fair reaction times and aim error by difficulty), storm rotation and fun. Bots must feel alive and beatable, never stuck or silly; measure it (stuck time, deaths by fall or water, engagement counts) before and after, with tests for the important rules.
+2. Graphics: review and refine the sky, sun and colour grading, fog and distance haze, ambient occlusion and contact shadows, water colour and shoreline, and the day look overall, so the island matches the golden-hour painted art direction of docs/art/character-benchmark/wide-aim-reference.jpg without losing readability of players at range. Keep Low, Medium and High coherent and inside the perf budget; compare before and after from the same cameras.
+Do not touch the weapon models, the first-person viewmodel or the character model.

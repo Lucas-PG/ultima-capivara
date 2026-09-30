@@ -10,6 +10,7 @@ export const STATUE_URL = 'models/capybara/statue.glb';
 import { roadPaintWeight, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
 import { ARENA, ROADS } from '../shared/layout';
 import { buildVegetation } from './vegetation';
+import { VEGETATION_PIECES } from '../shared/vegetation-dressing';
 import { createIslandBackdrop } from './island-backdrop';
 import { createStreetDressing } from './street-dressing';
 import { createWaterfalls } from './waterfall';
@@ -197,7 +198,9 @@ export class WorldScene {
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
     this.recreation = new RecreationView(world, loader, settings.graphics); this.group.add(this.recreation.group);
-    this.kit = createKit(this.group, loader, (world.pieces ?? []).filter(piece => !this.recreation.pieceIds.has(piece.id)), settings.graphics);
+    // Foliage-only kit pieces (bush clusters, hedges) are drawn by the vegetation batch instead.
+    this.kit = createKit(this.group, loader, (world.pieces ?? []).filter(piece => !this.recreation.pieceIds.has(piece.id) &&
+      !VEGETATION_PIECES.has(piece.piece)), settings.graphics);
     this.ready = Promise.all([this.kit.ready, this.recreation.ready]).then(() => {});
     void this.ready.catch(() => {});
     this.disposables.push(this.recreation, this.kit);
@@ -474,7 +477,15 @@ export class WorldScene {
       geometry.applyMatrix4(new THREE.Matrix4().compose(midpoint, rotation, new THREE.Vector3(radius, length, radius)));
       stash(surface, paintGeometry(geometry, c(tint).lerp(c('#ffffff'), .15), tileMeters[surface]), midpoint.x, midpoint.z);
     };
-    const glassPanels: THREE.BufferGeometry[] = [];
+    const glassPanels: THREE.BufferGeometry[] = [], signBoards: THREE.BufferGeometry[] = [], signFaces: THREE.BufferGeometry[] = [];
+    // Rounded boards come unindexed: every board part is, so they merge.
+    const tinted = (source: THREE.BufferGeometry, color: string) => {
+      const geometry = source.index ? source.toNonIndexed() : source;
+      if (geometry !== source) source.dispose();
+      const tint = c(color), count = geometry.getAttribute('position').count, colors = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) colors.set([tint.r, tint.g, tint.b], i * 3);
+      return geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    };
     const glass = (x: number, y: number, z: number, sx: number, sy: number, sz: number) =>
       glassPanels.push(coloredGeometry(box, c('#b9ced0'), new THREE.Vector3(x, y, z), new THREE.Vector3(sx, sy, sz)));
     const decorateHouse = (roof: MapObject) => {
@@ -543,22 +554,21 @@ export class WorldScene {
         const atlasIndex = SIGN_ART.findIndex(sign => sign.label === detail);
         if (atlasIndex < 0) throw new Error(`Unapproved island sign: ${detail}`);
         const board = twoSidedTextSign(scale.x, scale.y * .62, signMaterial, SIGN_ART[atlasIndex].accent, atlasIndex);
-        board.group.position.set(pos.x, pos.y + .4, pos.z); board.group.rotation.y = rotation; this.group.add(board.group);
+        board.group.position.set(pos.x, pos.y + .4, pos.z); board.group.rotation.y = rotation; board.group.updateMatrixWorld(true);
+        // Every place sign shares two draws: painted boards and posts, and the lettering.
+        const [edge, ...faces] = board.group.children as THREE.Mesh[];
+        signBoards.push(tinted(edge.geometry.clone().applyMatrix4(edge.matrixWorld), SIGN_ART[atlasIndex].accent));
+        for (const face of faces) signFaces.push(face.geometry.clone().applyMatrix4(face.matrixWorld));
         const boardBottom = board.group.position.y - scale.y * .31;
-        const postMaterial = new THREE.MeshStandardMaterial({ color: '#8A5E3C', roughness: 1 });
         for (const side of [-1, 1]) {
           const offset = side * (scale.x / 2 - .24);
           const postX = pos.x + Math.cos(rotation) * offset;
           const postZ = pos.z - Math.sin(rotation) * offset;
           const groundY = terrainHeight(postX, postZ);
           const postHeight = Math.max(.1, boardBottom - groundY);
-          const postGeometry = new THREE.BoxGeometry(.08, postHeight, .08);
-          const post = new THREE.Mesh(postGeometry, postMaterial);
-          post.position.set(postX, groundY + postHeight / 2, postZ);
-          post.rotation.y = rotation;
-          this.group.add(post); this.disposables.push(postGeometry);
+          signBoards.push(tinted(new THREE.BoxGeometry(.08, postHeight, .08).rotateY(rotation).translate(postX, groundY + postHeight / 2, postZ), '#8A5E3C'));
         }
-        this.disposables.push(board.geometry, board.edgeGeometry, board.edgeMaterial, postMaterial);
+        board.geometry.dispose(); board.edgeGeometry.dispose(); board.edgeMaterial.dispose();
         continue;
       }
       if (kind === 'lamp') {
@@ -653,6 +663,14 @@ export class WorldScene {
         }
       }
     }
+    if (signBoards.length) {
+      const boards = mergeGeometries(signBoards, false), lettering = mergeGeometries(signFaces, false);
+      [...signBoards, ...signFaces].forEach(geometry => geometry.dispose());
+      if (!boards || !lettering) throw new Error('Could not batch the island signs');
+      const boardMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+      this.group.add(new THREE.Mesh(boards, boardMaterial), new THREE.Mesh(lettering, signMaterial));
+      this.disposables.push(boards, lettering, boardMaterial);
+    }
     if (glassPanels.length) {
       const glazing = mergeGeometries(glassPanels, false);
       glassPanels.forEach(panel => panel.dispose());
@@ -676,16 +694,19 @@ export class WorldScene {
       this.group.add(mesh); this.disposables.push(merged);
     }
     buckets.clear();
-    const foliageAtlas = loader.texture('textures/foliage-atlas.webp');
-    foliageAtlas.colorSpace = THREE.SRGBColorSpace;
-    foliageAtlas.minFilter = THREE.LinearMipmapLinearFilter;
-    foliageAtlas.magFilter = THREE.LinearFilter;
-    this.disposables.push(foliageAtlas);
-    const vegetation = this.vegetation = buildVegetation({ ...world, objects: world.objects.filter(object => object.kind !== 'grass' ||
-      ['reeds', 'crop', 'fern', 'monstera', 'ground-litter'].includes(object.detail || '')) }, foliageAtlas), props = buildProps(world), wallArt = buildWallArt(world);
+    const paintedAtlas = (path: string) => {
+      const atlas = loader.texture(path);
+      atlas.colorSpace = THREE.SRGBColorSpace;
+      atlas.minFilter = THREE.LinearMipmapLinearFilter;
+      atlas.magFilter = THREE.LinearFilter;
+      this.disposables.push(atlas);
+      return atlas;
+    };
+    const foliageAtlas = paintedAtlas('textures/foliage-atlas.webp'), groundAtlas = paintedAtlas('textures/ground-atlas.webp');
+    const vegetation = this.vegetation = buildVegetation(world, foliageAtlas), props = buildProps(world), wallArt = buildWallArt(world);
     this.group.add(vegetation.group, props.group, wallArt.group);
     this.disposables.push(vegetation, props, wallArt);
-    this.groundCover = new GroundCover(world, foliageAtlas); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
+    this.groundCover = new GroundCover(world, groundAtlas); this.group.add(this.groundCover.group); this.disposables.push(this.groundCover);
     const fountain = world.objects.find(object => object.detail === 'prop:plaza');
     if (fountain) {
       const waterGeometry = new THREE.RingGeometry(.73, 1.85, 48, 3).rotateX(-Math.PI / 2);
@@ -766,7 +787,7 @@ export class WorldScene {
 
   update(time: number, camera?: THREE.Camera, actors: readonly ActorState[] = [], localActor?: ActorState) {
     if (camera) { this.kit.update(camera, time); this.groundCover.update(camera, time, this.reducedMotion); }
-    this.vegetation.update(this.reducedMotion ? 0 : time);
+    this.vegetation.update(this.reducedMotion ? 0 : time, camera);
     for (const spinner of this.spinners) spinner.rotation.z = (this.reducedMotion ? .15 : .7) * time;
     this.waterfalls.update(time, this.reducedMotion);
     this.paintedWater.update(time, this.reducedMotion);

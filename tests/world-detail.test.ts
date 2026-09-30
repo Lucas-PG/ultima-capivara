@@ -4,7 +4,7 @@ import { boundaryFeedback } from '../src/shared/bounds';
 import { emptyInput } from '../src/shared/math';
 import { Simulation } from '../src/simulation';
 import type { Mode, SpawnPoint } from '../src/shared/types';
-import { ARENA, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSES, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, RIVER, ROADS, inArena, riverSample, routeDistance } from '../src/shared/layout';
+import { ARENA, BRIDGE_PLANS, BRIDGES, CHURCH, DISTRICT_ARRIVALS, FORTE, HOUSE_BODY, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, QUAYS, RIVER, ROADS, ROSARIO_RECT, STREETS, inArena, riverSample, routeDistance } from '../src/shared/layout';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../src/shared/navigation';
 import { WORLD_PALETTE, roadPaintWeight, terrainColor, terrainHeight } from '../src/shared/terrain';
@@ -26,8 +26,8 @@ function walkFrom(spawn: SpawnPoint, yaw: number, mode: Mode) {
   return Math.hypot(actor.pos.x - spawn.x, actor.pos.z - spawn.z);
 }
 describe('river island gameplay integrity', () => {
-  it('keeps the familiar districts while moving the hero fort north and the beach south', () => {
-    expect(new Set(world.districts.map(d => d.id))).toEqual(new Set(['forte', 'vila', 'centro', 'morro', 'cachoeira', 'porto', 'praia', 'farol', 'mangue', 'fazenda', 'posto', 'lagoa', 'campinho']));
+  it('keeps the island districts around the river town, the fort north and the beach south', () => {
+    expect(new Set(world.districts.map(d => d.id))).toEqual(new Set(['forte', 'vila', 'mercado', 'morro', 'cachoeira', 'porto', 'praia', 'farol', 'mangue', 'fazenda', 'rosario', 'engenho', 'campinho', 'capela', 'palafitas']));
     expect(world.size).toBe(260);
     const district = (id: string) => world.districts.find(d => d.id === id)!;
     expect(district('forte').z).toBeLessThan(district('vila').z - 50);
@@ -48,7 +48,7 @@ describe('river island gameplay integrity', () => {
     }
     // Landmarks are drawn from the same spec their colliders come from.
     for (const landmark of landmarks.values()) expect(world.colliders.filter(c => c.pieceId === landmark.id)).toEqual(landmarkColliders(landmark));
-    expect([...landmarks.values()].map(l => l.kind).sort()).toEqual(['crane', 'radio_mast', 'redentora', 'windmill']);
+    expect([...landmarks.values()].map(l => l.kind).sort()).toEqual(['crane', 'radio_mast', 'redentora', 'waterwheel', 'windmill']);
     for (const piece of pieces.values()) {
       expect(KIT_PIECES[piece.piece], `missing mesh contract ${piece.piece}`).toBeDefined();
       expect(world.colliders.filter(c => c.pieceId === piece.id)).toEqual(kitColliders(piece));
@@ -113,8 +113,10 @@ describe('river island gameplay integrity', () => {
     for (const bench of benches) {
       const house = [...HOUSES, ...MORRO_LOTS].find(h => Math.abs(bench.x - h.x) < h.w / 2 && Math.abs(bench.z - h.z) < h.d / 2);
       const church = world.pieces!.find(piece => piece.piece === 'church' && bench.id.startsWith(`${piece.id}:interior:`));
+      const inside = ([x0, z0, x1, z1]: readonly number[]) => bench.x >= x0 && bench.x <= x1 && bench.z >= z0 && bench.z <= z1;
+      // Praça seats face the fountain, feira seats look down the stall aisle, the rest look over the water.
       const target = church ? { x: bench.x, z: church.z - 6.5 } : house ? house : Math.hypot(bench.x - PLAZA[0], bench.z - PLAZA[1]) < 12 ? { x: PLAZA[0], z: PLAZA[1] } :
-        Math.hypot(bench.x - MERCADAO[0], bench.z - MERCADAO[1]) < 14 ? { x: bench.x, z: MERCADAO[1] } : riverSample(bench.x, bench.z);
+        inside(MARKET_RECT) ? { x: MERCADAO[0], z: bench.z } : riverSample(bench.x, bench.z);
       const dx = target.x - bench.x, dz = target.z - bench.z;
       expect((Math.sin(bench.yaw) * dx + Math.cos(bench.yaw) * dz) / Math.hypot(dx, dz),
         `bench ${bench.id} turns its back on its view or walkway`).toBeGreaterThanOrEqual(Math.SQRT1_2);
@@ -124,7 +126,8 @@ describe('river island gameplay integrity', () => {
   it('turns serving fronts toward their customer aisle and keeps lamps on path edges', () => {
     for (const piece of world.pieces!) {
       let target: { x: number; z: number } | undefined;
-      if (piece.piece === 'market_stall') target = { x: piece.x, z: piece.z < 0 ? MERCADAO[1] : 33 };
+      // Feira stalls face each other across one aisle between the hall and the quay.
+      if (piece.piece === 'market_stall') target = { x: piece.x, z: -4.25 };
       if (piece.piece === 'beach_kiosk') target = { x: piece.x, z: 100 };
       if (piece.piece === 'interior_counter') target = [...HOUSES, ...MORRO_LOTS]
         .find(h => Math.abs(piece.x - h.x) < h.w / 2 && Math.abs(piece.z - h.z) < h.d / 2);
@@ -136,16 +139,19 @@ describe('river island gameplay integrity', () => {
       if (piece.piece === 'lamp_post') {
         const courts = world.objects.filter(o => o.detail === 'courtyard').map(o =>
           [o.pos.x - o.scale.x / 2, o.pos.z - o.scale.z / 2, o.pos.x + o.scale.x / 2, o.pos.z + o.scale.z / 2]);
+        // Open squares may carry lamps anywhere; streets only along their edges.
+        const squares = [PLAZA_RECT, MARKET_RECT, ROSARIO_RECT];
         expect([...ROADS, ...courts].some(([x0, z0, x1, z1]) => {
           const dx = Math.max(x0 - piece.x, 0, piece.x - x1), dz = Math.max(z0 - piece.z, 0, piece.z - z1);
           return Math.hypot(dx, dz) <= 3.5 && (piece.x <= x0 + .1 || piece.x >= x1 - .1 || piece.z <= z0 + .1 || piece.z >= z1 - .1);
-        }), `lamp ${piece.id} must line an edge, not obstruct a route`).toBe(true);
+        }) || squares.some(([x0, z0, x1, z1]) => piece.x > x0 && piece.x < x1 && piece.z > z0 && piece.z < z1),
+        `lamp ${piece.id} must line an edge, not obstruct a route`).toBe(true);
       }
     }
   });
 
   it('faces district signs toward a public approach', () => {
-    const routes = [...NAV_ROUTES, ...ROADS.map(([x0, z0, x1, z1]) => x1 - x0 > z1 - z0 ?
+    const routes = [...NAV_ROUTES, ...STREETS.map(([x0, z0, x1, z1]) => x1 - x0 > z1 - z0 ?
       [[x0, (z0 + z1) / 2], [x1, (z0 + z1) / 2]] : [[(x0 + x1) / 2, z0], [(x0 + x1) / 2, z1]])];
     for (const sign of world.objects.filter(object => object.kind === 'sign')) {
       let nearest = Infinity, alignment = -1;
@@ -173,17 +179,14 @@ describe('river island gameplay integrity', () => {
     expect(world.pieces!.some(p => p.piece === 'church' && p.x === CHURCH[0] && p.z === CHURCH[1])).toBe(true);
   });
 
-  it('faces each house frontage toward the street serving its lot', () => {
+  it('faces each house frontage toward the street, square or path serving its lot', () => {
+    const access = (x: number, z: number) => Math.min(routeDistance(x, z) - 1.5, ...STREETS.map(([x0, z0, x1, z1]) =>
+      Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1))));
     for (const h of [...HOUSES, ...MORRO_LOTS]) {
-      let distance = Infinity, alignment = -1;
-      for (const [x0, z0, x1, z1] of ROADS) {
-        const horizontal = x1 - x0 > z1 - z0;
-        const x = (horizontal ? Math.max(x0, Math.min(x1, h.x)) : (x0 + x1) / 2) - h.x;
-        const z = (horizontal ? (z0 + z1) / 2 : Math.max(z0, Math.min(z1, h.z))) - h.z;
-        const gap = Math.hypot(x, z);
-        if (gap < distance) { distance = gap; alignment = (Math.sin(h.yaw ?? 0) * x + Math.cos(h.yaw ?? 0) * z) / gap; }
-      }
-      expect(alignment, `house at ${h.x},${h.z} turns its front doorway away from the street`).toBeGreaterThanOrEqual(Math.SQRT1_2 - 1e-6);
+      const reach = HOUSE_BODY[h.piece][1] / 2 + 1.5, dx = Math.sin(h.yaw ?? 0), dz = Math.cos(h.yaw ?? 0);
+      const front = access(h.x + dx * reach, h.z + dz * reach), back = access(h.x - dx * reach, h.z - dz * reach);
+      expect(front, `house at ${h.x},${h.z} opens its front doorway away from any street`).toBeLessThanOrEqual(Math.max(4.5, back));
+      expect(front, `house at ${h.x},${h.z} turns its front doorway away from the street`).toBeLessThanOrEqual(back + 1e-6);
     }
   });
 
@@ -199,37 +202,57 @@ describe('river island gameplay integrity', () => {
     for (const piece of shrubs) expect(KIT_PIECES[piece.piece].colliders, 'low foliage must not add hidden blockers').toHaveLength(0);
   });
 
-  it('carves one continuous river and provides three usable crossings', () => {
+  it('carves one continuous river and crosses it on four different bridges that continue real streets', () => {
     for (let i = 1; i < RIVER.length; i++) {
       const a = RIVER[i - 1], b = RIVER[i];
       for (let n = 0; n <= 8; n++) expect(terrainHeight(a[0] + (b[0] - a[0]) * n / 8, a[1] + (b[1] - a[1]) * n / 8)).toBeLessThan(-.1);
     }
-    expect(world.pieces!.filter(p => p.piece === 'bridge_stone')).toHaveLength(3);
+    const bridges = world.pieces!.filter(p => p.piece.startsWith('bridge_'));
+    expect(bridges).toHaveLength(BRIDGE_PLANS.length);
+    expect(BRIDGE_PLANS.filter(plan => inArena(plan.x, plan.z)).length).toBe(3);
     for (const [x, z] of BRIDGES) {
       expect(walkableHeight(x, z, world)).toBeGreaterThan(terrainHeight(x, z) + 2);
       expect(walkableSegment(world, { x, z: z - 9.5 }, { x, z: z + 9.5 }), `bridge at ${x}`).toBe(true);
+      // No bridge ends in the grass: a paved street continues from both landings.
+      for (const end of [-1, 1]) {
+        const px = x, pz = z + end * 10.5;
+        expect(ROADS.some(([x0, z0, x1, z1]) => px >= x0 && px <= x1 && pz >= z0 && pz <= z1), `bridge at ${x} has no street at ${pz}`).toBe(true);
+      }
     }
   });
 
-  it('provides visible stair exits from swimming depth to both town banks', () => {
-    const steps = world.pieces!.filter(piece => piece.piece === 'river_steps');
-    expect(steps.length).toBeGreaterThanOrEqual(2);
-    expect(steps.some(piece => Math.cos(piece.yaw) > .9)).toBe(true);
-    expect(steps.some(piece => Math.cos(piece.yaw) < -.9)).toBe(true);
-    for (const piece of steps) {
-      const along = KIT_PIECES[piece.piece].footprint[1] * (piece.scale ?? 1) / 2;
-      const x = piece.x - Math.sin(piece.yaw) * (along + .7), z = piece.z - Math.cos(piece.yaw) * (along + .7);
-      const actor = structuredClone(spawnActor);
-      actor.pos = { x, y: waterAt(x, z)!.surfaceY - SWIM_DRAFT, z }; actor.yaw = piece.yaw + Math.PI;
+  it('climbs from swimming depth up quay stairs on both town banks, every tread standing on the bed', () => {
+    const stairs = world.pieces!.filter(piece => piece.piece === 'quay_stair' && inArena(piece.x, piece.z));
+    // Local +z faces the water: north-bank stairs look south (+z), south-bank stairs look north.
+    expect(stairs.filter(piece => Math.cos(piece.yaw) > .9).length).toBeGreaterThanOrEqual(2);
+    expect(stairs.filter(piece => Math.cos(piece.yaw) < -.9).length).toBeGreaterThanOrEqual(2);
+    for (const piece of world.pieces!.filter(piece => piece.piece === 'quay_stair')) {
+      const scale = piece.scale ?? 1, c = Math.cos(piece.yaw), s = Math.sin(piece.yaw);
+      const local = (x: number, z: number) => ({ x: piece.x + (x * c + z * s) * scale, z: piece.z + (z * c - x * s) * scale });
+      // Treads and wall stand on the bed; only kerbs and bollards rest on the stone top.
+      for (const collider of world.colliders.filter(collider => collider.pieceId === piece.id && collider.min.y < piece.y + 3.4 * scale)) {
+        const mid = { x: (collider.min.x + collider.max.x) / 2, z: (collider.min.z + collider.max.z) / 2 };
+        expect(collider.min.y, `${piece.id} floats above the bed at ${mid.x},${mid.z}`).toBeLessThanOrEqual(terrainHeight(mid.x, mid.z) + .05);
+      }
+      // A swimmer just past the bottom tread swims in, walks up along the wall
+      // to the landing, then turns inland onto the quay promenade.
+      const start = local(5, .8), actor = structuredClone(spawnActor);
+      actor.pos = { x: start.x, y: waterAt(start.x, start.z)!.surfaceY - SWIM_DRAFT, z: start.z };
       actor.velocity = { x: 0, y: 0, z: 0 }; actor.stage = 'ground'; actor.grounded = false; actor.swimming = true;
-      moveActor(actor, emptyInput(), world, 1 / 60, 1, 'deathmatch');
-      expect(actor.swimming).toBe(true); expect(actor.grounded).toBe(false);
-      for (let seq = 1; seq <= 360; seq++) moveActor(actor, { ...emptyInput(), seq, moveZ: 1, yaw: actor.yaw }, world, 1 / 60, 1, 'deathmatch');
-      const progress = (actor.pos.x - piece.x) * Math.sin(piece.yaw) + (actor.pos.z - piece.z) * Math.cos(piece.yaw);
-      expect(progress, `${piece.id} must lead all the way onto the quay`).toBeGreaterThan(along);
-      expect(actor.pos.y, `${piece.id} must leave the water`).toBeGreaterThan(1.8);
+      moveActor(actor, emptyInput(), world, 1 / 60, 1, 'battle-royale');
+      expect(actor.swimming, `${piece.id} must start in swimming water`).toBe(true);
+      // Movement follows the actor's facing: forward heads along (-sin yaw, -cos yaw).
+      const heading = (to: { x: number; z: number }) => Math.atan2(actor.pos.x - to.x, actor.pos.z - to.z);
+      for (const target of [local(-3.4, .8), local(-3.4, -3)]) for (let seq = 1; seq <= 300; seq++) {
+        if (Math.hypot(actor.pos.x - target.x, actor.pos.z - target.z) < .25) break;
+        actor.yaw = heading(target);
+        moveActor(actor, { ...emptyInput(), seq, moveZ: 1, yaw: actor.yaw }, world, 1 / 60, 1, 'battle-royale');
+      }
+      expect(actor.pos.y, `${piece.id} must lead all the way up to the promenade`).toBeGreaterThan(piece.y + 3.6 * scale - .15);
       expect(actor.swimming).toBe(false); expect(actor.grounded).toBe(true);
     }
+    // Both banks of the town reach are walled wherever no bridge or stair stands.
+    for (const side of [-1, 1] as const) expect(QUAYS[side].length).toBeGreaterThan(0);
   });
 
   it('keeps the six play spots accessible, clear overhead and tied to visible contact surfaces', () => {
@@ -323,7 +346,7 @@ describe('river island gameplay integrity', () => {
     expect(boundaries.length).toBeGreaterThanOrEqual(12);
     for (const [axis, value] of [['x', ARENA.minX], ['x', ARENA.maxX], ['z', ARENA.minZ], ['z', ARENA.maxZ]] as const)
       expect(boundaries.filter(p => p[axis] === value).length).toBeGreaterThanOrEqual(2);
-    for (const [x, z, dx, dz] of [[ARENA.minX, -38, 3, 0], [ARENA.maxX, -38, 3, 0], [4, ARENA.minZ, 0, 3], [-30, ARENA.maxZ, 0, 3]])
+    for (const [x, z, dx, dz] of [[ARENA.minX, -35.5, 3, 0], [ARENA.maxX, -35.5, 3, 0], [ARENA.minX, 35.5, 3, 0], [ARENA.maxX, 35.5, 3, 0], [4, ARENA.minZ, 0, 3], [-30, ARENA.maxZ, 0, 3], [-8, ARENA.maxZ, 0, 3]])
       expect(walkableSegment(world, { x: x - dx, z: z - dz }, { x: x + dx, z: z + dz }), `gate at ${x},${z}`).toBe(true);
   });
 
@@ -351,7 +374,7 @@ describe('river island gameplay integrity', () => {
     }
     for (const [i, links] of graph.links.entries()) for (const next of links) if (next > i)
       expect(walkableSegment(world, graph.points[i], graph.points[next])).toBe(true);
-    const from = { x: -10, y: terrainHeight(-10, -2), z: -2 }, to = { x: -10, y: terrainHeight(-10, 20), z: 20 };
+    const from = { x: -19, y: walkableHeight(-19, 0, world), z: 0 }, to = { x: -18, y: terrainHeight(-18, 25), z: 25 };
     const via = navigationWaypoint(world, from, to, true);
     expect(via, 'bots must route around the river instead of attempting to wade across').not.toBeNull();
     expect(walkableSegment(world, from, via!, true)).toBe(true);
@@ -399,7 +422,7 @@ describe('painted terrain regions', () => {
       terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
     for (const z of [-76, -72, -68, -64])
       expect(roadPaintWeight(4, z, terrainHeight(4, z), slopeAt(4, z))).toBe(1);
-    for (const [x, z] of [[-75, -35], [-74, -35], [-81, -41]]) {
+    for (const [x, z] of [[-75, -34], [-74, -34], [-88, -34]]) {
       const y = terrainHeight(x, z), slope = slopeAt(x, z);
       expect(roadPaintWeight(x, z, y, slope)).toBe(0);
       expect(terrainColor(x, z, y, slope)).toBe(WORLD_PALETTE.rock);
@@ -430,11 +453,14 @@ describe('painted terrain regions', () => {
     expect(Math.abs(brightness(WORLD_PALETTE.road) - brightness(WORLD_PALETTE.grass))).toBeGreaterThan(20);
   });
   it('retains a green tropical island while making room for cliffs and beaches', () => {
+    // Streets and town paving are built ground by design; the rest must stay green.
     let land = 0, grass = 0, dry = 0, high = -Infinity, low = Infinity;
     for (let z = -120; z <= 120; z += 4) for (let x = -120; x <= 120; x += 4) {
       const y = terrainHeight(x, z); if (y < .5) continue;
       const slope = Math.hypot(terrainHeight(x + 2, z) - terrainHeight(x - 2, z), terrainHeight(x, z + 2) - terrainHeight(x, z - 2)) / 4;
-      const color = terrainColor(x, z, y, slope); land++; high = Math.max(high, y); low = Math.min(low, y);
+      const color = terrainColor(x, z, y, slope); high = Math.max(high, y); low = Math.min(low, y);
+      if (color === WORLD_PALETTE.road || color === WORLD_PALETTE.curb) continue;
+      land++;
       if ([WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass].some(c => c === color)) grass++;
       if (color === WORLD_PALETTE.dryGrass) dry++;
     }

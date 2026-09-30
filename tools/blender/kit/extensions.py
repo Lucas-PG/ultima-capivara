@@ -4,18 +4,46 @@ from rocks import add_cliffs
 from access import build_fort_gate, build_lighthouse
 
 
+def lods(p, *levels, **values):
+    """Keep the last part to these levels (and set any other part values)."""
+    p.parts[-1].update(values, lods=list(levels))
+
+
+def far_plain(p, start=0):
+    """Past 32 m the boxes of a small prop lose their bevels."""
+    for part in p.parts[start:]:
+        if part['shape'] == 'box':
+            part.setdefault('farBevel', 0)
+
+
 def extend(Piece, building, roof, window):
     p = Piece('barrel', 1.05, 1.05)
     p.cylinder(0, .57, 0, .44, 1.14, 5, True, 'wood', sides=20)
+    lods(p, 0)
     for i in range(5):
         r = .44 + .055 * math.sin((i + .5) / 5 * math.pi)
         p.cylinder(0, (i + .5) * .228, 0, r, .228, 5, sides=20)
+        lods(p, 0)
     for y, r in [(.13, .467), (.38, .497), (.82, .497), (1.05, .467)]:
         p.cylinder(0, y, 0, r, .058, 9, sides=20)
+        lods(p, 0)
     p.cylinder(0, 1.16, 0, .45, .08, 7, sides=20)
+    lods(p, 0)
     for z in [-.23, 0, .23]:
         p.box(0, 1.206, z, .64, .02, .014, 5, detail=True)
     p.cylinder(.15, 1.22, .10, .07, .03, 5, sides=10)
+    lods(p, 0)
+    # Middle distance: a bellied 12-sided body under two hoops; far: an 8-sided drum.
+    for i in range(3):
+        p.cylinder(0, (i + .5) * .38, 0, .45 + .05 * math.sin((i + .5) / 3 * math.pi), .38, 5, sides=12)
+        lods(p, 1)
+    for y in [.38, .82]:
+        p.cylinder(0, y, 0, .5, .06, 9, sides=12)
+        lods(p, 1)
+    p.cylinder(0, 1.16, 0, .45, .08, 7, sides=12)
+    lods(p, 1)
+    p.cylinder(0, .58, 0, .47, 1.16, 5, sides=8)
+    lods(p, 2)
     for name, width, depth, count in [('bush_cluster', 3.6, 2.6, 7), ('hedge', 4.0, 1.5, 9)]:
         p = Piece(name, width, depth)
         for i in range(count):
@@ -112,11 +140,13 @@ def extend(Piece, building, roof, window):
     for x in [-1.85, 1.85]:
         p.box(x, .88, 0, .20, 1.76, .20, 15, True, 'wood')
         p.orb(x, 1.82, 0, .27, .22, .27, 15, False)
+        p.parts[-1]['mid'] = True
     for y in [.57, 1.30]:
         p.box(0, y, 0, 3.8, .13, .12, 5, True, 'wood')
     for i in range(12):
         x = (i - 5.5) * .31
         p.box(x, .90, .06, .12, 1.35, .10, 15, True, 'wood', bevel=.028)
+    far_plain(p)
     p = Piece('fence_gate', 4, 2.3)
     for side in [-1, 1]:
         p.box(side * 1.45, 1.0, 0, .3, 2, .3, 15, True, 'wood')
@@ -145,6 +175,7 @@ def extend(Piece, building, roof, window):
     p.beam((0, 2.8, .7), (-1.0, 1.0, -1.9), .035, 11, detail=True)
     p.beam((.4, 1.36, -2), (1.2, 1.36, 2.7), .07, 5)
     p.box(1.18, 1.36, 2.5, .34, .05, .78, 5, bevel=.06)
+    far_plain(p)
 
     p = Piece('interior_counter', 2.8, .9)
     p.box(0, .53, 0, 2.6, 1.06, .76, 2, True, 'wood')
@@ -179,25 +210,39 @@ def extend(Piece, building, roof, window):
         p.box(0, y, -.34, 2.4, .23, .10, 5, True, 'wood')
     for x in [-1.15, 1.15]:
         p.box(x, .95, 0, .13, .12, .90, 9)
+    far_plain(p)
     p = Piece('planter', 1.7, 1.7)
     p.cylinder(0, .40, 0, .64, .80, 4, True, sides=16)
     p.cylinder(0, .83, 0, .76, .15, 14, True, sides=16)
     p.cylinder(0, .92, 0, .64, .04, 7, sides=16)
+    p.parts[-1]['mid'] = True
     for i in range(10):
         a = math.tau * i / 10
         p.orb(math.sin(a) * .44, 1.04, math.cos(a) * .44, .52, .5, .52, 12, False)
+        p.parts[-1]['segments'] = (8, 5)
         p.orb(math.sin(a) * .40, 1.31, math.cos(a) * .4, .18, .16, .18, 1 if i % 2 else 3)
+        p.parts[-1].update(segments=(5, 3), mid=True)
     p = Piece('lamp_post', 1.2, 1.2)
     p.cylinder(0, .14, 0, .4, .28, 6, True, sides=16)
+    lods(p, 0, 1)
     p.cylinder(0, 1.92, 0, .085, 3.56, 9, True, 'metal', sides=12)
+    lods(p, 0, 1)
     p.cylinder(0, .5, 0, .18, .55, 9, sides=12)
+    p.parts[-1]['mid'] = True
     for y in [3.3, 4.18]:
         p.box(0, y, 0, .65, .13, .65, 9)
     p.box(0, 3.73, 0, .48, .76, .48, 11)
     for x in [-.26, .26]:
         for z in [-.26, .26]:
             p.box(x, 3.73, z, .06, .85, .06, 9)
+            p.parts[-1]['mid'] = True
     p.cylinder(0, 4.4, 0, .48, .34, 9, top=.04, sides=4)
+    far_plain(p)
+    # Far: a six-sided base and post under the same lantern.
+    p.cylinder(0, .14, 0, .4, .28, 6, sides=6)
+    lods(p, 2)
+    p.cylinder(0, 1.92, 0, .085, 3.56, 9, sides=6)
+    lods(p, 2)
     p = Piece('market_stall', 3.8, 2.6)
     p.box(0, .48, 0, 3.5, .96, 1.45, 5, True, 'wood')
     p.box(0, 1.04, 0, 3.65, .16, 1.55, 7, True, 'wood')
@@ -213,3 +258,4 @@ def extend(Piece, building, roof, window):
         for a in range(3):
             for b in range(4):
                 p.orb(x + (a - 1) * .23, 1.38, (b - 1.5) * .24, .22, .24, .22, 3 if x < 0 else 1 if x == 0 else 12)
+                p.parts[-1].update(segments=(6, 4), mid=True)

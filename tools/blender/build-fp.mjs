@@ -1,6 +1,6 @@
 // Builds the first-person arms and the v2 arsenal, then packs them for the game.
 // node tools/blender/build-fp.mjs [arms] [weapon ids...]   (no args: everything)
-// --pack repacks the selected existing Blender exports without running Blender.
+// --pack repacks the selected last Blender exports without running Blender.
 import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -64,10 +64,11 @@ if (arms) {
 if (!args.length || weapons.length) {
   if (!repackOnly) run('tools/blender/arsenal.py', weapons);
   // A targeted build must retain metadata for the untouched shipped weapons.
-  const report = { ...JSON.parse(await readFile(`${root}/public/models/arsenal/metrics.json`, 'utf8')),
-    ...JSON.parse(await readFile(`${root}/output/arsenal/report.json`, 'utf8')) };
+  const report = JSON.parse(await readFile(`${root}/public/models/arsenal/metrics.json`, 'utf8'));
+  const built = JSON.parse(await readFile(`${root}/output/arsenal/report.json`, 'utf8'));
   await mkdir(`${root}/public/models/arsenal`, { recursive: true });
-  for (const id of weapons.length ? weapons : Object.keys(report)) {
+  for (const id of weapons.length ? weapons : Object.keys(built)) {
+    report[id] = built[id];
     report[id].bytes = await pack(`${root}/output/arsenal/${id}.glb`, `${root}/public/models/arsenal/${id}.glb`);
     console.log(id, report[id].bytes, report[id].triangles);
   }

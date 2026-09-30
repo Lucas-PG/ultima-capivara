@@ -4,14 +4,14 @@ import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, SHOULDERS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
-import { RELOADS, m4Reload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE } from './viewmodel-anims';
+import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
 import { PAINT, SUN_DIRECTION } from './materials';
 import { RARITY } from '../shared/rarity';
 import { advanceAds, WEAPONS } from '../shared/weapons';
-import { sampleMelee, smoothPose, weaponShotDuration,
+import { sampleMelee, sampleHeavyMelee, smoothPose, weaponShotDuration,
   MELEE_SECONDS, MELEE_CONTACT, MELEE_HIT_STOP, type MeleePose } from '../shared/weapon-presentation';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 import { swimReady } from '../shared/inventory';
@@ -27,12 +27,15 @@ const window01 = (t: number, a: number, b: number) => ease((t - a) / (b - a));
 const bump = (t: number, a: number, peak: number, b: number) => window01(t, a, peak) * (1 - window01(t, peak, b));
 
 interface Parts { slide?: THREE.Object3D; mag?: THREE.Object3D; trigger?: THREE.Object3D; hammer?: THREE.Object3D; action?: THREE.Object3D;
-  cylinder?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; release?: THREE.Object3D; load1?: THREE.Object3D; load2?: THREE.Object3D }
+  cylinder?: THREE.Object3D; crane?: THREE.Object3D; rounds?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; release?: THREE.Object3D; ribbons?: THREE.Object3D;
+  load1?: THREE.Object3D; load2?: THREE.Object3D;
+  case0?: THREE.Object3D; case1?: THREE.Object3D; case2?: THREE.Object3D; case3?: THREE.Object3D; case4?: THREE.Object3D; case5?: THREE.Object3D }
 interface Model {
   id: WeaponId; spec: ViewSpec; group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; sight: THREE.Vector3;
   parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
   grips: { R: GripSpec; L?: GripSpec }; magAxis: THREE.Vector3; rarity: number; accent: ReturnType<typeof applyRarityAccent>[];
   crane?: THREE.Vector3;
+  liveTips?: (THREE.Object3D | undefined)[];
 }
 const sortedReloads = Object.fromEntries(Object.entries(RELOADS).map(([id, keys]) => [id, [...keys!].sort((a, b) => a.t - b.t)]));
 
@@ -96,11 +99,13 @@ export class WeaponView {
   private shotgunBeganEmpty = false;
   private shotgunPumpLife = 0;
   private lastShotCycle = -1;
+  private pistolEmpty = false;
   private reloadDuration = 1;
   private wallPose = 0;
   private leanPose = 0;
   private meleeTime = MELEE_SECONDS;
   private meleeSide = -1;
+  private meleeCount = 0;
   private meleeHit = false;
   private meleeStop = 0;
   private readonly meleePose: MeleePose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, smear: 0, kick: 0 };
@@ -158,6 +163,19 @@ export class WeaponView {
     const group = new THREE.Group(); group.name = id;
     const root = gltf.scene.getObjectByName(id) ?? gltf.scene;
     group.add(root);
+    // Quantization recenters mesh nodes. Restore authored mechanical pivots
+    // with a parent frame while preserving the packed mesh's world transform.
+    if (['pistol', 'smg', 'revolver', 'machete'].includes(id)) {
+      const pivots = (arsenalMetrics as Record<string, { pivots?: Record<string, number[]> }>)[id]?.pivots ?? {};
+      for (const [name, pivot] of Object.entries(pivots)) {
+        const mesh = root.getObjectByName(`${id}_${name}`);
+        if (!mesh?.parent) continue;
+        const parent = mesh.parent, frame = new THREE.Group();
+        frame.name = mesh.name; mesh.name += '_geometry';
+        frame.position.set(pivot[0], pivot[2], -pivot[1]);
+        mesh.position.sub(frame.position); parent.add(frame); frame.add(mesh);
+      }
+    }
     const get = (part: string) => root.getObjectByName(`${id}_${part}`);
     const muzzle = get('muzzle'), eject = get('eject'), sight = get('sight');
     if (!muzzle || !eject || !sight) throw new Error(`Arma sem encaixes: ${id}.`);
@@ -173,8 +191,11 @@ export class WeaponView {
     const spec = VIEW_SPECS[id];
     const model: Model = { id, spec, group, muzzle, eject, sight: sight.position.clone(),
       parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action'),
-        cylinder: get('cylinder'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), release: get('release'), load1: get('load1'), load2: get('load2') },
-      rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent };
+        cylinder: get('cylinder'), crane: get('crane'), rounds: get('rounds'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), release: get('release'), ribbons: get('ribbons'),
+        load1: get('load1'), load2: get('load2'),
+        case0: get('case0'), case1: get('case1'), case2: get('case2'), case3: get('case3'), case4: get('case4'), case5: get('case5') },
+      rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent,
+      liveTips: id === 'revolver' ? Array.from({ length: 6 }, (_, i) => get(`live${i}`)) : undefined };
     // Blender axis (x, y, z) is (x, z, -y) here.
     const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
     if (axis) model.magAxis.set(axis[0], axis[2], -axis[1]).normalize();
@@ -217,7 +238,7 @@ export class WeaponView {
       this.draw = Math.min(this.draw, .35); this.holster = 0; this.ads = 0;
     }
     if (id === 'machete') {
-      this.meleeTime = 0; this.meleeSide *= -1; this.meleeHit = contact; this.meleeStop = 0;
+      this.meleeTime = 0; this.meleeSide *= -1; this.meleeCount++; this.meleeHit = contact; this.meleeStop = 0;
     } else {
       if (id === 'revolver') this.cylinderTarget += Math.PI / 3;
       this.flashLight = id === 'shotgun' || id === 'sniper' || id === 'coco' ? 1.4 : 1;
@@ -281,6 +302,7 @@ export class WeaponView {
     this.time += dt; this.lastDt = dt;
     const reloading = requested === weapon && actor.reloadUntil > simulationTime;
     const ammo = actor.weapons[actor.slot]?.ammo ?? 0;
+    this.pistolEmpty = weapon === 'pistol' && ammo === 0;
     if (weapon === 'shotgun' && requested === weapon) {
       if (reloading && !this.shotgunReloading) this.shotgunBeganEmpty = ammo === 0;
       if (!reloading && this.shotgunReloading && this.shotgunBeganEmpty && ammo > 0 && this.shotLife <= 0) this.shotgunPumpLife = .42;
@@ -363,8 +385,8 @@ export class WeaponView {
     px += sprintPos.x * sprint; py += sprintPos.y * sprint; pz += sprintPos.z * sprint;
     rx += sprintRot[0] * sprint * (1 + Math.sin(this.gait) * .06); ry += sprintRot[1] * sprint; rz += sprintRot[2] * sprint;
     // ---- reload choreography (weapon part)
-    const keys = weapon === 'm4' ? m4Reload(this.reloadEmpty) : weapon === 'dmr' ? dmrReload(this.reloadEmpty) :
-      weapon === 'sniper' ? sniperReload(this.reloadEmpty) : weapon === 'coco' ? cocoReload(this.reloadAmmo) : sortedReloads[weapon];
+    const keys = weapon === 'pistol' ? pistolReload(this.reloadEmpty) : weapon === 'smg' ? smgReload(this.reloadEmpty) : weapon === 'm4' ? m4Reload(this.reloadEmpty) :
+      weapon === 'dmr' ? dmrReload(this.reloadEmpty) : weapon === 'sniper' ? sniperReload(this.reloadEmpty) : weapon === 'coco' ? cocoReload(this.reloadAmmo) : sortedReloads[weapon];
     const cycling = weapon === 'sniper' && this.shotLife > 0 && reload < 0;
     const shotPhase = 1 - this.shotLife / weaponShotDuration(weapon);
     const sample = reload >= 0 && keys ? sampleChoreo(keys, reload, this.sample) : cycling ? sampleChoreo(SNIPER_CYCLE, shotPhase, this.sample) : null;
@@ -389,12 +411,12 @@ export class WeaponView {
     this.holder.scale.setScalar(spec.scale);
     this.updateMelee(weapon, dt, settings.reducedMotion);
     this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.quaternion);
-    if (this.inspectTime >= 0) this.applyInspect(weapon, dt, settings.reducedMotion);
+    const inspect = this.inspectTime >= 0 ? this.applyInspect(weapon, dt, settings.reducedMotion) : null;
     this.animateParts(model, reload, choreo, sample, ammo);
     this.flashLight = Math.max(0, this.flashLight - dt / .07);
     this.muzzleLight.intensity = this.flashLight * this.flashLight * 7;
     if (this.flashLight > 0) { this.holder.updateMatrixWorld(true); model.muzzle.getWorldPosition(this.muzzleLight.position); }
-    this.solveArms(model, spec.grips, choreo, sample, spec.shoulders);
+    this.solveArms(model, spec.grips, choreo, sample ?? inspect, spec.shoulders);
     if (import.meta.env.DEV) this.debugOrbit();
   }
 
@@ -415,7 +437,7 @@ export class WeaponView {
     for (const spring of [this.kickZ, this.kickPitch, this.kickRoll, this.kickYaw, this.swayYaw, this.swayPitch, this.swayRoll, this.strafe, this.land, this.crouchDip]) spring.reset();
     this.swimPose = 0; this.swimming = false; this.sprintPose = 0; this.movePose = 0; this.wallPose = 0; this.leanPose = 0;
     this.gait = 0; this.time = 0;
-    this.meleeTime = MELEE_SECONDS; this.meleeSide = -1; this.meleeStop = 0; this.meleeHit = false; this.smear.visible = false;
+    this.meleeTime = MELEE_SECONDS; this.meleeSide = -1; this.meleeCount = 0; this.meleeStop = 0; this.meleeHit = false; this.smear.visible = false;
     this.shotLife = 0; this.reloadEnd = 0; this.ads = 0; this.draw = 0; this.holster = 0;
     sampleMelee(MELEE_SECONDS, this.meleeSide, this.meleePose);
   }
@@ -461,12 +483,12 @@ export class WeaponView {
     const { slide, trigger, hammer, mag, action } = model.parts;
     const total = weaponShotDuration(model.id);
     const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
-    const locked = sample?.parts.slide ?? choreo?.slide ?? 0;
+    const locked = sample?.parts.slide ?? choreo?.slide ?? (model.id === 'pistol' && this.pistolEmpty ? 1 : 0);
     if (slide) slide.position.z += Math.max(cycle, locked) * .028;
     if (trigger) trigger.rotation.x -= (this.shotLife > total * .5 ? .3 : 0);
     if (hammer) hammer.rotation.x += cycle * -.6;
     const phase = this.shotLife > 0 ? THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1) : 1;
-    const { cylinder, pump, bolt, charge } = model.parts;
+    const { cylinder, crane, rounds, pump, bolt, charge } = model.parts;
     if (pump) {
       // Rack after the shot: back, then home. Reloads can drive it too.
       const racked = window01(phase, .25, .5) * (1 - window01(phase, .6, .85));
@@ -476,12 +498,41 @@ export class WeaponView {
     }
     if (cylinder && model.crane) {
       this.cylinderSpin = damp(this.cylinderSpin, this.cylinderTarget, 22, this.lastDt);
-      const swing = (sample?.parts.swing ?? 0) * 1.3;
-      const rest = model.rest.get(cylinder)!;
-      this.offset.setFromAxisAngle(AXIS_Z, swing);
-      cylinder.position.copy(rest.position).sub(model.crane).applyQuaternion(this.offset).add(model.crane);
-      cylinder.position.z -= (sample?.parts.eject ?? 0) * .018;
-      cylinder.quaternion.copy(this.offset).multiply(rest.quaternion).multiply(this.quat.setFromAxisAngle(AXIS_Z, -this.cylinderSpin));
+      this.offset.setFromAxisAngle(AXIS_Z, (sample?.parts.swing ?? 0) * 1.3);
+      const cases = [model.parts.case0, model.parts.case1, model.parts.case2, model.parts.case3, model.parts.case4, model.parts.case5];
+      for (const part of [cylinder, crane, action, rounds, ...cases]) if (part) {
+        const rest = model.rest.get(part)!;
+        part.position.copy(rest.position).sub(model.crane).applyQuaternion(this.offset).add(model.crane);
+        part.quaternion.copy(this.offset).multiply(rest.quaternion);
+        if (part !== crane) part.quaternion.multiply(this.quat.setFromAxisAngle(AXIS_Z, -this.cylinderSpin));
+      }
+      if (action) action.position.z += (sample?.parts.eject ?? 0) * .030;
+      if (rounds) {
+        const spent = sample?.parts.spent ?? 0, fresh = sample?.parts.fresh ?? 0;
+        rounds.visible = fresh > .5 || spent < .002;
+      }
+      const spent = sample?.parts.spent ?? 0;
+      cases.forEach((part, i) => {
+        if (!part) return;
+        part.visible = spent > .001 && spent < .995;
+        const tip = model.liveTips?.[i];
+        if (tip) tip.visible = part.visible && i < this.reloadAmmo;
+        if (!part.visible) return;
+        const free = Math.max(0, spent - .18), a = i * Math.PI / 3;
+        part.position.z += spent * .20;
+        part.position.x += (Math.cos(a) * .045 - .14) * free;
+        part.position.y += Math.sin(a) * free * .03 - free * free * .08;
+        part.rotation.x += free * (i % 2 ? 2.2 : -1.8);
+        part.rotation.y += free * (i - 2.5) * .55;
+        if (tip) { tip.position.copy(part.position); tip.quaternion.copy(part.quaternion); }
+      });
+    }
+    if (model.parts.ribbons) {
+      const moving = this.meleeTime < MELEE_SECONDS ? Math.sin(this.meleeTime * 22 - .8) : 0;
+      // The cloth hangs in world gravity as the blade rolls in the paw.
+      model.parts.ribbons.quaternion.copy(this.holder.quaternion).invert().multiply(this.inverseView);
+      model.parts.ribbons.rotation.x += Math.sin(this.time * 4.1) * .055 + moving * .34;
+      model.parts.ribbons.rotation.z += Math.sin(this.time * 3.7 + .6) * .045 + moving * .20;
     }
     if (bolt && model.id === 'm4') {
       bolt.position.z += Math.max(cycle, sample?.parts.bolt ?? 0) * .035;
@@ -489,7 +540,11 @@ export class WeaponView {
       bolt.quaternion.multiply(this.quat.setFromAxisAngle(AXIS_Z, (sample?.parts.bolt ?? 0) * 1.1));
       bolt.position.z += (sample?.parts.boltPull ?? 0) * .075;
     }
-    if (model.parts.release) model.parts.release.rotation.z += (sample?.parts.release ?? 0) * .20;
+    if (model.parts.release) {
+      if (model.id === 'revolver') model.parts.release.position.z -= (sample?.parts.release ?? 0) * .004;
+      else model.parts.release.rotation.z += (sample?.parts.release ?? 0) * .20;
+    }
+    if (model.id === 'smg' && action) action.position.z += Math.max(cycle, sample?.parts.charge ?? 0) * .052;
     if (charge) charge.position.z += (sample?.parts.charge ?? 0) * .065;
     if (mag && !sample?.mag && (model.spec.reload === 'revolver' || model.spec.reload === 'shotgun')) mag.visible = false;
     else if (mag && sample?.mag) {
@@ -517,6 +572,10 @@ export class WeaponView {
       if (mag && !sample?.mag) mag.visible = ammo >= 4;
       if (model.parts.load1) model.parts.load1.visible = (sample?.parts.load1 ?? (ammo >= 3 ? 1 : 0)) >= .5;
       if (model.parts.load2) model.parts.load2.visible = (sample?.parts.load2 ?? (ammo >= 2 ? 1 : 0)) >= .5;
+    }
+    if (model.id === 'revolver' && rounds && mag && (sample?.parts.fresh ?? 0) > .5 && (sample?.parts.loaded ?? 0) < .5) {
+      // Cartridges share the loader's frame until released into the chambers.
+      rounds.position.copy(mag.position); rounds.quaternion.copy(mag.quaternion); rounds.visible = mag.visible;
     }
     void reload;
   }
@@ -563,6 +622,13 @@ export class WeaponView {
         this.targetL.palm.lerp(new THREE.Vector3(.6, 0, .2).normalize(), choreo.support).normalize();
         this.targetL.curl = blendCurl(L.curl, OPEN_CURL, choreo.support * .6);
       }
+      if (model.id === 'machete') {
+        // The free paw guards low on the left; it does not follow the blade.
+        const cut = this.meleeTime < MELEE_SECONDS ? Math.sin(Math.PI * this.meleeTime / MELEE_SECONDS) : 0;
+        this.targetL.wrist.set(-.17 - cut * .035, -.19 - cut * .045, -.39 + cut * .035);
+        this.targetL.forward.set(.18, .12, -1).normalize();
+        this.targetL.palm.set(.2, -.95, -.05).normalize();
+      }
       if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
       arms.left.solve(this.shoulderL, this.targetL);
     }
@@ -571,20 +637,35 @@ export class WeaponView {
   private readonly handA: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };
   private readonly handB: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };
   private readonly sample: ChoreoSample = newSample();
+  private readonly inspectSample: ChoreoSample = newSample();
+  private readonly partOrigin = new THREE.Vector3();
 
   private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget) {
-    if (key.space === 'grip') { this.gripTarget(model, grip, out); return; }
-    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: key.curl ?? grip.curl, pole: key.pole ?? grip.pole };
+    if (key.space === 'grip') {
+      const offset = key.offset;
+      const clearGrip = offset ? { ...grip, wrist: [grip.wrist[0] + offset[0], grip.wrist[1] + offset[1], grip.wrist[2] + offset[2]] as V3 } : grip;
+      this.gripTarget(model, clearGrip, out);
+      if (key.curl) out.curl = { ...grip.curl, ...key.curl };
+      if (key.pole) out.pole.fromArray(key.pole).normalize();
+      return;
+    }
+    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: { ...grip.curl, ...key.curl }, pole: key.pole ?? grip.pole };
     if (key.space === 'gun') { this.gripTarget(model, spec, out); return; }
     out.wrist.set(spec.wrist[0], spec.wrist[1], spec.wrist[2]);
     out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
     out.palm.set(spec.palm[0], spec.palm[1], spec.palm[2]).normalize();
-    out.curl = spec.curl; out.pole.set(spec.pole[0], spec.pole[1], spec.pole[2]).normalize();
+    out.curl = spec.curl; out.pole.fromArray(spec.pole).normalize();
     if (key.space === 'part') {
       const part = model.parts[key.part as keyof Parts];
       if (!part) throw new Error(`Reload contact part missing: ${model.id}/${key.part}`);
-      out.wrist.applyMatrix4(part.matrixWorld);
-      part.getWorldQuaternion(this.quat);
+      if (key.followRotation === false) {
+        this.holder.worldToLocal(part.getWorldPosition(this.partOrigin));
+        out.wrist.add(this.partOrigin).applyMatrix4(this.holder.matrixWorld);
+        this.holder.getWorldQuaternion(this.quat);
+      } else {
+        out.wrist.applyMatrix4(part.matrixWorld);
+        part.getWorldQuaternion(this.quat);
+      }
       out.forward.applyQuaternion(this.quat); out.palm.applyQuaternion(this.quat);
     }
   }
@@ -599,9 +680,18 @@ export class WeaponView {
     out.pole.copy(this.handA.pole).lerp(this.handB.pole, u).normalize();
   }
 
-  private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean) {
+  private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean): ChoreoSample | null {
     this.inspectTime += dt;
     const progress = Math.min(1, this.inspectTime / 1.8);
+    const authored = SHORT_INSPECTS[weapon];
+    if (authored) {
+      const pose = sampleChoreo(authored, progress, this.inspectSample), amount = reducedMotion ? .35 : 1;
+      this.holder.position.addScaledVector(pose.p, amount);
+      this.offset.setFromEuler(this.euler.set(pose.r.x * amount, pose.r.y * amount, pose.r.z * amount, 'YXZ'));
+      this.holder.quaternion.multiply(this.offset);
+      if (progress === 1) this.inspectTime = -1;
+      return progress < 1 ? pose : null;
+    }
     const look = Math.sin(Math.PI * progress) ** 2 * (reducedMotion ? .35 : 1);
     const showLongGun = weapon === 'm4' || weapon === 'shotgun' || weapon === 'sniper' || weapon === 'dmr' || weapon === 'coco';
     this.holder.position.x -= look * .08; this.holder.position.y += look * .05;
@@ -611,6 +701,7 @@ export class WeaponView {
     this.offset.setFromEuler(this.euler.set(look * rotation[0], look * rotation[1], look * rotation[2], 'YXZ'));
     this.holder.quaternion.multiply(this.offset);
     if (progress === 1) this.inspectTime = -1;
+    return null;
   }
 
   private updateMelee(weapon: WeaponId, dt: number, reducedMotion: boolean) {
@@ -626,10 +717,15 @@ export class WeaponView {
     }
     this.meleeTime = Math.min(MELEE_SECONDS, this.meleeTime + step);
     const pose = sampleMelee(this.meleeTime, this.meleeSide, this.meleePose), amount = reducedMotion ? .55 : 1;
+    if (this.meleeCount > 0 && this.meleeCount % 3 === 0) {
+      // The third cut is an overhead chop. Its contact and recovery still fit
+      // the authoritative melee cadence and the normal hit-stop window.
+      sampleHeavyMelee(this.meleeTime, pose);
+    }
     this.holder.position.x += pose.x * amount; this.holder.position.y += pose.y * amount; this.holder.position.z += pose.z * amount;
-    // The blade is held raised, so the cut chops down through the target (pitch reversed).
+    // Camera-space swings keep the cutting arc independent of the grip roll.
     this.offset.setFromEuler(this.euler.set(-pose.pitch * 1.2 * amount, pose.yaw * amount, pose.roll * amount, 'YXZ'));
-    this.holder.quaternion.multiply(this.offset);
+    this.holder.quaternion.premultiply(this.offset);
     this.holder.updateWorldMatrix(true, true);
     this.models.machete.muzzle.getWorldPosition(this.trailTip);
     this.trailBase.set(0, .07, .01).applyMatrix4(this.models.machete.group.matrixWorld);

@@ -18,6 +18,7 @@ import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type Vec
 import type { GameRenderer } from '../../src/render/renderer';
 import type { GameUI } from '../../src/ui/ui';
 import type { InputController } from '../../src/input';
+import { DISTRICT_VIEWS, VIEWS, viewStance, type WorldView } from './qa-views';
 
 type Quality = Settings['graphics'];
 type QaApi = {
@@ -29,9 +30,9 @@ type QaApi = {
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   names(): string[];
-  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
+  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
-  tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit', seconds: number): Promise<void>;
+  tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'reload-partial' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit' | 'slash' | 'slash-left' | 'chop', seconds: number): Promise<void>;
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
 };
 
@@ -48,30 +49,6 @@ const ROOM_POSES = ['home', 'bakery', 'cafe', 'tailor', 'clinic', 'fisher', 'fis
   'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
   'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks',
   'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2', 'home-back', 'cafe-back', 'upper-home-back'].map(role => `room-${role}`);
-const VIEWS: Record<string, [number, number, number, number]> = {
-  plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
-  river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
-  fortApproach: [4, -62, 0, .2], morroApproach: [-54, -38, Math.PI / 2, .2],
-  quayNorth: [-13, .3, Math.PI, -.55], quaySouth: [27, 23.5, 0, -.55],
-  bathVila: [19, 31, 0, -.13], bathFazenda: [55, 51, Math.PI / 2, -.28], bathMangue: [108, 63, Math.PI / 2, -.2],
-  trampolineVila: [18, -7, -Math.PI / 2, -.13], trampolineForte: [51, -101, Math.atan2(-4, 6), -.13],
-  trampolinePraia: [-38, 101, Math.PI, -.13],
-  vilaStreet: [-40, -38, Math.PI - .3, .03],
-  capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
-  redentoraVila: [-6, -26, 1.62, .1], redentoraNear: [-70, -40, 1.95, .22], redentoraPlinth: [-97, -29, 1.95, .5],
-  morroStreet: [-97, -45, 0, .12], morroRoofs: [-75, -40, 2.2, .05], lajeRoof: [-58, -54, 0, -.1], varandaFazenda: [47, 52, 0, .02],
-  sobradoPlaza: [-20, -21, 2.3, .15], clinicSobrado: [6, -4, 0, .18],
-  swimWaterline: [-60, 2, 0, .04], swimRemote: [-60, 2, 0, .04], swimExit: [-60, 2, Math.PI, .12],
-};
-const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {
-  vila: [-1, -10, .48, .02], centro: [36, -6, .42, .02],
-  forte: [4, -80, 0, .12], cachoeira: [-83, -13, 1.72, .08],
-  morro: [-97, -66, Math.atan2(-2, -31), .08], porto: [78, -23, -1.84, 0],
-  posto: [-22, 38, Math.PI, 0], farol: [3, 98, Math.PI, .25],
-  praia: [-31, 95, Math.PI, 0], fazenda: [47, 80, -.63, 0],
-  mangue: [86, 54, -1.2, 0], lagoa: [-65, 9, 1.22, .04],
-};
-
 export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputController; settings: Settings; begin(): Promise<GameRenderer> }) {
   const fixture = new Simulation(deps.world, { ...DEFAULT_CONFIG, bots: false },
     [{ id: 'practice', name: 'Capivara', color: '#bd8956', ready: true, connected: true }], 'qa-seed-2026', 0x5eed2026);
@@ -108,9 +85,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (MUD_POSES.includes(name) && !bath) throw new Error('A revisão precisa de um banho de lama no mapa.');
     if (TRAMPOLINE_POSES.includes(name) && !trampoline) throw new Error('A revisão precisa de um trampolim no mapa.');
     if (SUPPLY_POSES.includes(name) && !supply) throw new Error('A revisão precisa de uma entrega em solo seco e acessível.');
-    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name] || VIEWS.plaza;
+    // Named world views stand on the real walking surface (a deck, a roof terrace), not the terrain under it.
+    const named: WorldView | undefined = trampoline || bath || spawn ? undefined : district ? DISTRICT_VIEWS[district.id] ?? [district.x - 8, district.z + 8, -.7, 0] :
+      VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name] || VIEWS.plaza;
+    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : named!;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
+    const stance = named ? viewStance(deps.world, named) : undefined;
     if (name.startsWith('world-')) pitch = -.5;
     const s = structuredClone(base), me = s.actors[0];
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
@@ -125,8 +106,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       s.supplyDrops = [drop];
       const close = name === 'supplyLanded' || name === 'supplyOpened';
       const prospective = close ? { ...s, time: landsAt + 1 } : s;
-      const observer = (close ? [2.4] : [18, 16, 20]).flatMap(distance =>
-        [[0, 1], [1, 0], [0, -1], [-1, 0]].map(([dx, dz]) => {
+      const observer = (close ? [2.4] : [18, 16, 20, 14, 22]).flatMap(distance =>
+        [[0, 1], [1, 0], [0, -1], [-1, 0], [.71, .71], [.71, -.71], [-.71, -.71], [-.71, .71]].map(([dx, dz]) => {
           const x = supply.x + dx * distance, z = supply.z + dz * distance;
           return { x, y: terrainHeight(x, z), z };
         })).find(to => {
@@ -148,7 +129,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       if (name === 'supplyOpened') s.loot.push({ id: 'supply-qa-weapon', kind: 'weapon', weapon: 'm4', rarity: 3, active: true, respawnAt: 0,
         x: supply.x - .9, y: terrainHeight(supply.x - .9, supply.z), z: supply.z, from: { ...supply, y: supply.y + .6 }, spawnedAt: s.time - .7 });
     }
-    me.pos = { x, y: bath?.y ?? spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
+    me.pos = { x, y: bath?.y ?? spawn?.y ?? (stance && !supply ? stance.y : terrainHeight(x, z)), z }; me.velocity = { x: 0, y: 0, z: 0 };
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
     if (BUILDING_POSES.includes(name)) {
       const piece = deps.world.pieces!.find(piece => piece.piece === 'house_tall')!;
@@ -389,7 +370,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         renderer!.event({ type: 'shot', id: 300, actor: me.id, weapon, origin,
           end: { x: origin.x - Math.sin(me.yaw) * 30, y: origin.y, z: origin.z - Math.cos(me.yaw) * 30 }, hit: false });
       }
-      else if (action.includes('right') || action.includes('left')) {
+      else if (action === 'chop') {
+        if (weapon !== 'machete') throw new Error('Chop review requires machete');
+        swing(); advance(.6); swing(); advance(.6); swing();
+      } else if (action.includes('right') || action.includes('left')) {
         if (weapon !== 'machete') throw new Error('Swing review requires machete');
         if (action.endsWith('left')) { swing(); advance(.6); }
         swing();
@@ -402,6 +386,12 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         me.grounded = true; me.velocity.y = 0;
       }
       advance(seconds);
+      if ((action === 'reload' || action === 'reload-partial') && seconds >= WEAPON_DEFS[weapon].reload) {
+        // Complete the displayed fixture too. These strips review the pose;
+        // authoritative inventory completion has separate simulation intents.
+        me.reloadUntil = 0; me.weapons[0].ammo = weapon === 'shotgun' ? 1 : WEAPON_DEFS[weapon].magazine;
+        me.weapons[0].reserve -= me.weapons[0].ammo;
+      }
       frame(0, true);
       // The game HUD deliberately updates at a lower cadence. Let the pose's
       // earlier HUD write expire before capturing this action's ammo/progress.
@@ -419,7 +409,20 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const heading = bot.yaw + (action === 'strafe' ? Math.PI / 2 : action === 'backpedal' ? Math.PI : 0);
       const dir = { x: -Math.sin(heading), z: -Math.cos(heading) };
       const start = { ...bot.pos };
-      if (action === 'reload') bot.reloadUntil = s.time + WEAPON_DEFS[weapon].reload;
+      if (action === 'reload' || action === 'reload-partial') {
+        bot.weapons[0].ammo = action === 'reload' ? 0 : Math.max(1, Math.floor(WEAPON_DEFS[weapon].magazine / 2));
+        bot.reloadUntil = s.time + WEAPON_DEFS[weapon].reload;
+      }
+      if (action === 'slash' || action === 'slash-left' || action === 'chop') {
+        if (weapon !== 'machete') throw new Error('Cut review requires machete');
+        const update = () => renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, false);
+        bot.weapons[0].id = 'pistol'; update(); bot.weapons[0].id = 'machete'; update();
+        const origin = { x: bot.pos.x, y: bot.pos.y + 1.55, z: bot.pos.z };
+        for (let i = 0; i < (action === 'chop' ? 3 : action === 'slash-left' ? 2 : 1); i++) {
+          renderer!.event({ type: 'shot', id: 910 + i, actor: bot.id, weapon: 'machete', origin,
+            end: { x: origin.x - 1.7, y: origin.y, z: origin.z }, hit: false });
+        }
+      }
       if (action === 'jump') { bot.grounded = false; bot.velocity.y = 6; }
       const step = 1 / 60;
       let hurt = false;

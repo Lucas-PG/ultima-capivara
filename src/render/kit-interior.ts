@@ -11,7 +11,11 @@ const ROOM_PALETTES = [
 ].map(palette => palette.map(color => new THREE.Color(color)));
 
 // Painted wall tile of each house piece: a placement's facadeTile swaps it.
-const WALL_TILE: Record<string, number> = { house_small: 1, house_medium: 3, house_tall: 2, house_laje: 2, house_laje_b: 3, house_varanda: 0, sobrado: 3 };
+const WALL_TILE: Record<string, number> = { house_small: 1, house_medium: 3, house_tall: 2, house_laje: 2, house_laje_b: 3, house_varanda: 0, sobrado: 3,
+  // Terraced street houses author their plaster on the cream tile.
+  row_terrea: 0, row_sobrado: 0, row_loja: 0, row_alto: 0,
+  // The stilt houses' painted planks.
+  palafita: 0, palafita_b: 0, bar_mare: 0 };
 
 // Called on an owned placement clone before its transform/cell merge. Only
 // existing colour/UV attributes change; positions, normals and indices do not.

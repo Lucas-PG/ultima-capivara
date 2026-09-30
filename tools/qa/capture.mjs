@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test';
 const [out, ...poses] = process.argv.slice(2);
 const base = process.env.BASE || 'http://127.0.0.1:5173';
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const page = await browser.newPage({ viewport: { width: Number(process.env.W || 1280), height: Number(process.env.H || 720) } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 await page.goto(`${base}/?qa=1${process.env.QUERY || ""}`);
 await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 60000 });

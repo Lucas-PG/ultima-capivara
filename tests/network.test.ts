@@ -12,7 +12,7 @@ const actor: ActorState = {
   crouch: false, sprint: true, ads: false, stage: 'ground', kills: 0, deaths: 0, damage: 0,
   weapons: [{ id: 'pistol', ammo: 12, reserve: 36, rarity: 0, box: 2 }], slot: 0,
   consumables: { bandage: 1, medkit: 0, guarana: 0, acai: 0, rapadura: 0 }, reloadUntil: 0,
-  useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 4, shotHeat: .32, swimming: false, wetUntil: 0,
+  useUntil: 0, using: null, respawnAt: 0, protectionUntil: 0, lastInput: 4, shotHeat: .32, shotSeq: 7, swimming: false, wetUntil: 0,
   emote: null, emoteUntil: 0, weaponLevel: 0, soaking: false, bounceSeq: 0, bounceProtected: false,
 };
 const snapshot: WorldSnapshot = {
@@ -31,6 +31,8 @@ describe('network protocol', () => {
     expect(restored?.actors[0].weapons).toEqual(actor.weapons);
     expect(restored?.actors[0].consumables).toEqual(actor.consumables);
     expect(restored?.actors[0].shotHeat).toBe(.32);
+    // The shooter predicts its next seeded spread from this count, so it must survive the fast frame.
+    expect(restored?.actors[0].shotSeq).toBe(7);
     expect(restored?.loot).toEqual(snapshot.loot);
     expect(restored?.phase).toBe('playing');
   });
@@ -152,10 +154,13 @@ describe('network protocol', () => {
     tampered(f => { f.actors[0][29] = CORRENTE_LADDER.length; });
     tampered(f => { f.actors[0][30] = -1; });
     tampered(f => { f.actors[0][30] = 1.5; });
+    // shotSeq must be a whole, non-negative count.
     tampered(f => { f.actors[0][31] = -1; });
     tampered(f => { f.actors[0][31] = 1.5; });
-    tampered(f => { f.actors[0][31] = 100; });
-    tampered(f => { f.actors[0][32] = 10_001; });
+    tampered(f => { f.actors[0][32] = -1; });
+    tampered(f => { f.actors[0][32] = 1.5; });
+    tampered(f => { f.actors[0][32] = 100; });
+    tampered(f => { f.actors[0][33] = 10_001; });
     tampered((_, g) => { g[0].weapons[0].id = 'unknown' as any; });
   });
 

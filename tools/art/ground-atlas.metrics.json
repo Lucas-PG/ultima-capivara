@@ -1,0 +1,198 @@
+{
+  "generator": "tools/art/build-foliage-atlas.mjs",
+  "sources": [
+    {
+      "file": "tools/art/foliage-codex-source.png",
+      "sha256": "b59588bbf42591f4758609e219092f99bef8ca59772798a4c7613ccd4aa7a0a9"
+    },
+    {
+      "file": "tools/art/foliage-garden-codex.png",
+      "sha256": "9e2de6f8299ea82ad1b639939050b1f6cd067c3a0844c017cb23f7395cf9f64f"
+    },
+    {
+      "file": "tools/art/foliage-fronds-codex.png",
+      "sha256": "09909625437dc934a85166b7fb3de88a4fb9b2b76cd188347b67aee4c92252de"
+    },
+    {
+      "file": "tools/art/foliage-vines-codex.png",
+      "sha256": "40f430962c430019298ebb885be4a46b45fb8f96fd6a949f49750b21c4c7b1d7"
+    },
+    {
+      "file": "tools/art/foliage-blooms-codex.png",
+      "sha256": "67234f36aec98e98cc1cee970bddb0c86e0994d6c9c3e80bd633aa3d129615f6"
+    }
+  ],
+  "size": 1024,
+  "usedRows": 992,
+  "guard": 6,
+  "output": "public/textures/ground-atlas.webp",
+  "bytes": 249858,
+  "sha256": "bb09a79395ff51226b59eef154db68bd446b159f87583093ef61579dc42aea95",
+  "alpha": {
+    "transparent": 751127,
+    "opaque": 211168,
+    "antialiased": 86281
+  },
+  "tiles": {
+    "clover": {
+      "x": 16,
+      "y": 772,
+      "w": 220,
+      "h": 203,
+      "root": [
+        0.512,
+        0.994
+      ],
+      "source": "codex",
+      "mean": [
+        0.252,
+        0.538,
+        0.125
+      ]
+    },
+    "wildflowers": {
+      "x": 286,
+      "y": 286,
+      "w": 207,
+      "h": 220,
+      "root": [
+        0.452,
+        0.977
+      ],
+      "source": "codex",
+      "mean": [
+        0.568,
+        0.609,
+        0.261
+      ]
+    },
+    "grass": {
+      "x": 16,
+      "y": 539,
+      "w": 220,
+      "h": 207,
+      "root": [
+        0.5,
+        0.994
+      ],
+      "source": "codex",
+      "mean": [
+        0.409,
+        0.583,
+        0.19
+      ]
+    },
+    "fallen-leaves": {
+      "x": 262,
+      "y": 785,
+      "w": 220,
+      "h": 191,
+      "root": [
+        0.5,
+        0.826
+      ],
+      "source": "codex",
+      "mean": [
+        0.813,
+        0.399,
+        0.151
+      ]
+    },
+    "fern": {
+      "x": 262,
+      "y": 539,
+      "w": 201,
+      "h": 220,
+      "root": [
+        0.324,
+        0.995
+      ],
+      "source": "codex",
+      "mean": [
+        0.335,
+        0.521,
+        0.126
+      ]
+    },
+    "monstera": {
+      "x": 607,
+      "y": 203,
+      "w": 219,
+      "h": 220,
+      "root": [
+        0.426,
+        0.995
+      ],
+      "source": "codex",
+      "mean": [
+        0.216,
+        0.461,
+        0.183
+      ]
+    },
+    "lawn": {
+      "x": 16,
+      "y": 16,
+      "w": 275,
+      "h": 209,
+      "root": [
+        0.54,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.49,
+        0.622,
+        0.379
+      ]
+    },
+    "wild-grass": {
+      "x": 16,
+      "y": 251,
+      "w": 244,
+      "h": 262,
+      "root": [
+        0.48,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.509,
+        0.543,
+        0.253
+      ]
+    },
+    "dune-grass": {
+      "x": 317,
+      "y": 16,
+      "w": 264,
+      "h": 244,
+      "root": [
+        0.491,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.496,
+        0.543,
+        0.264
+      ]
+    },
+    "impatiens": {
+      "x": 607,
+      "y": 16,
+      "w": 227,
+      "h": 161,
+      "root": [
+        0.516,
+        1
+      ],
+      "source": "sheet:garden",
+      "mean": [
+        0.471,
+        0.405,
+        0.275
+      ]
+    }
+  }
+}

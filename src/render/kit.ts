@@ -4,6 +4,7 @@ import type { AssetLoader } from './assets';
 import pieces from '../shared/kit-pieces.json';
 import { createToonMaterial } from './materials';
 import { kitInteriorLight, kitInteriorWindows, paintKitPlacement } from './kit-interior';
+import { releaseAfterUpload } from './memory';
 
 export interface KitPlacement {
   piece: string; x: number; y: number; z: number; yaw: number; scale?: number;
@@ -19,7 +20,6 @@ const CELL_SIZE = 40;
 const PLANT_CELL_SIZE = 8;
 const FURNITURE_CELL_SIZE = 8;
 const FAR_LOD = 32;
-const SOFT_LANDSCAPE = new Set(['bush_cluster', 'hedge']);
 const ROOM_FURNITURE = new Set(['bed', 'interior_counter', 'table', 'chair', 'shelf_pottery', 'rug',
   'wardrobe', 'sofa', 'potted_plant', 'hammock', 'stove', 'wall_picture']);
 type Definition = { footprint: number[]; height: number; colliders: { type: string; x: number; y: number; z: number; width?: number; height: number; depth?: number; radius?: number; yaw?: number }[] };
@@ -44,7 +44,11 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   placements: readonly KitPlacement[], quality = 'medium'): KitScene {
   const root = new THREE.Group(); root.name = 'Ilha_modular'; scene.add(root);
   const cells = new Map<string, { origin: THREE.Vector3; placements: KitPlacement[]; lod: THREE.LOD;
-    landscape: boolean; furniture: boolean; fades: boolean; material?: THREE.MeshStandardMaterial }>();
+    landscape: boolean; furniture: boolean; far?: number }>();
+  // Room furniture and flower beds keep their own near levels, but past their
+  // far distance every cell's simplified mesh draws from one island-wide batch:
+  // a hundred interiors cost one draw call instead of one each.
+  let farBatch: THREE.BatchedMesh | undefined;
   const geometries = new Set<THREE.BufferGeometry>();
   const temporaryMaterials = new Set<THREE.Material>();
   let disposed = false;
@@ -53,21 +57,22 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
   for (const placement of placements) {
     if (![placement.x, placement.y, placement.z, placement.yaw, placement.scale ?? 1].every(Number.isFinite) || (placement.scale ?? 1) <= 0)
       throw new Error(`Posição de peça inválida: ${placement.piece}.`);
-    // Keep traversable planting independent from the 40 m structural batches.
-    // Flower beds retain visible borders at distance because they have collision.
-    const fades = SOFT_LANDSCAPE.has(placement.piece) && definitions[placement.piece]?.colliders.length === 0;
-    const landscape = fades || placement.piece === 'flower_bed';
+    // Flower beds keep their own small cells, independent from the 40 m
+    // structural batches; they have collision, so they stay drawn at every range.
+    // Foliage-only pieces (bush clusters, hedges) never reach the kit: the
+    // vegetation batch draws them (src/render/world-scene.ts).
+    const landscape = placement.piece === 'flower_bed';
     // Room props use their authored simplification before tiny bevels reach a
     // pixel. They remain opaque and visible wherever solid collision exists.
     const furniture = ROOM_FURNITURE.has(placement.piece);
     const size = landscape ? PLANT_CELL_SIZE : furniture ? FURNITURE_CELL_SIZE : CELL_SIZE;
     const cx = Math.floor(placement.x / size), cz = Math.floor(placement.z / size);
-    const key = `${fades ? 'plants' : landscape ? 'flowers' : furniture ? 'furniture' : 'solid'}:${cx}:${cz}`;
+    const key = `${landscape ? 'flowers' : furniture ? 'furniture' : 'solid'}:${cx}:${cz}`;
     let cell = cells.get(key);
     if (!cell) {
       const origin = new THREE.Vector3((cx + .5) * size, 0, (cz + .5) * size);
       const lod = new THREE.LOD(); lod.name = `kit:${key}`; lod.position.copy(origin); lod.autoUpdate = false;
-      root.add(lod); cell = { origin, placements: [], lod, landscape, furniture, fades }; cells.set(key, cell);
+      root.add(lod); cell = { origin, placements: [], lod, landscape, furniture }; cells.set(key, cell);
     }
     cell.placements.push(placement);
   }
@@ -140,12 +145,8 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         if (mesh?.isMesh) sourceGeometry.set(`${id}:${level}`, editableGeometry(mesh.geometry).applyMatrix4(mesh.matrixWorld));
       }
     }
+    const farParts: { cell: typeof cells extends Map<string, infer C> ? C : never; geometry: THREE.BufferGeometry; level: THREE.Object3D }[] = [];
     for (const cell of cells.values()) {
-      if (cell.fades) {
-        // Opaque alpha hashing fades soft cover without sorted transparent layers.
-        // Only zero-collider plants can disappear, never a walkable bed or wall.
-        cell.material = sourceMaterial.clone(); cell.material.alphaHash = true;
-      }
       for (const entry of cell.lod.levels) {
         const geometry = (entry.object as THREE.Mesh).geometry;
         geometry.dispose(); geometries.delete(geometry);
@@ -170,45 +171,57 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
         const geometry = mergeGeometries(parts);
         parts.forEach(part => part.dispose());
         if (!geometry) throw new Error('Não foi possível montar as peças da ilha.');
-        geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(geometry);
-        const mesh = new THREE.Mesh(geometry, cell.material ?? sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
-        mesh.castShadow = !cell.landscape && !cell.furniture; mesh.receiveShadow = true;
         const near = cell.furniture ? (quality === 'low' ? 8 : quality === 'high' ? 12 : 10) : cell.landscape ? (quality === 'low' ? 9 : 14) : quality === 'low' ? 24 : FAR_LOD;
         const far = cell.furniture ? (quality === 'low' ? 20 : quality === 'high' ? 27 : 23) : cell.landscape ? (quality === 'low' ? 20 : 27) : quality === 'low' ? 65 : 90;
+        if (level === 2 && (cell.furniture || cell.landscape)) {
+          // World-space geometry under an identity instance: the interior light
+          // reads model-space points, so batching adds no transform of its own.
+          const empty = new THREE.Object3D(); empty.name = `${cell.lod.name}:far`;
+          farParts.push({ cell, geometry: geometry.translate(cell.origin.x, cell.origin.y, cell.origin.z), level: empty });
+          cell.lod.addLevel(empty, far, .12);
+          continue;
+        }
+        // Merged cell geometry is static and never raycast: its arrays can go once uploaded.
+        geometry.computeBoundingBox(); geometry.computeBoundingSphere(); geometries.add(releaseAfterUpload(geometry));
+        const mesh = new THREE.Mesh(geometry, sourceMaterial); mesh.name = `${cell.lod.name}:LOD${level}`;
+        mesh.castShadow = !cell.landscape && !cell.furniture; mesh.receiveShadow = true;
         cell.lod.addLevel(mesh, level === 2 ? far : level ? near : 0, .12);
       }
+    }
+    if (farParts.length) {
+      const vertices = farParts.reduce((sum, part) => sum + part.geometry.getAttribute('position').count, 0);
+      const indices = farParts.reduce((sum, part) => sum + (part.geometry.getIndex()?.count ?? 0), 0);
+      farBatch = new THREE.BatchedMesh(farParts.length, vertices, indices, sourceMaterial);
+      farBatch.name = 'kit:far-rooms'; farBatch.castShadow = false; farBatch.receiveShadow = true;
+      for (const part of farParts) {
+        part.cell.far = part.level.userData.farInstance = farBatch.addInstance(farBatch.addGeometry(part.geometry));
+        farBatch.setVisibleAt(part.cell.far, false); part.geometry.dispose();
+      }
+      root.add(farBatch);
     }
     sourceGeometry.forEach(geometry => geometry.dispose());
     temporaryMaterials.forEach(material => material.dispose()); temporaryMaterials.clear();
   }) : Promise.resolve();
   // Let the caller's readiness barrier report failure without an unhandled rejection.
   void ready.catch(() => {});
-  const eye = new THREE.Vector3(), center = new THREE.Vector3();
   return {
     ready,
     update(camera) {
       if (disposed) return;
-      camera.getWorldPosition(eye);
+      // The LODs and the interior light read the camera's current world matrix.
+      camera.updateWorldMatrix(true, false);
       updateInterior?.(camera);
       for (const cell of cells.values()) {
-        if (cell.fades) {
-          cell.lod.getWorldPosition(center);
-          const distance = Math.hypot(center.x - eye.x, center.z - eye.z);
-          const reach = quality === 'low' ? 35 : 45;
-          cell.lod.visible = distance < reach;
-          if (cell.material) cell.material.opacity = THREE.MathUtils.clamp((reach - distance) / 10, 0, 1);
-          if (!cell.lod.visible) continue;
-        }
         // LOD handles distance and hysteresis; Three frustum-culls cell geometry.
         cell.lod.update(camera);
+        if (cell.far !== undefined) farBatch!.setVisibleAt(cell.far, cell.lod.getCurrentLevel() === 2);
       }
     },
     dispose() {
       if (disposed) return;
-      disposed = true; root.removeFromParent();
+      disposed = true; root.removeFromParent(); farBatch?.dispose();
       geometries.forEach(geometry => geometry.dispose()); geometries.clear();
       temporaryMaterials.forEach(material => material.dispose()); temporaryMaterials.clear();
-      cells.forEach(cell => cell.material?.dispose());
       releaseSource?.();
       cells.clear();
     },

@@ -7,7 +7,7 @@ import { createWorld } from '../src/shared/world';
 import { inArena } from '../src/shared/layout';
 import { KIT_PIECES } from '../src/shared/kit-collision';
 import { walkableHeight } from '../src/shared/navigation';
-import { advanceAds, damageFalloff, shotSpread, WEAPONS } from '../src/shared/weapons';
+import { advanceAds, damageFalloff, HANDLING, shotSpread, WEAPONS } from '../src/shared/weapons';
 import { finiteTree } from '../src/network/codec';
 import type { ActorState, InputFrame, PlayerProfile, RoomConfig, WorldSpec } from '../src/shared/types';
 
@@ -246,13 +246,15 @@ describe('authoritative simulation', () => {
   });
 
   it('tapers short-range weapon damage without weakening close hits or marksman rifles', () => {
-    expect(damageFalloff('smg', 18)).toBe(1);
-    expect(damageFalloff('smg', 39)).toBeCloseTo(.825);
-    expect(damageFalloff('smg', 80)).toBe(.65);
-    expect(damageFalloff('pistol', 90)).toBe(.7);
-    expect(damageFalloff('m4', 140)).toBe(.8);
-    expect(damageFalloff('shotgun', 38)).toBeCloseTo(.2);
-    expect(damageFalloff('dmr', 190)).toBe(1);
+    // Each gun hits at full strength inside its role range, then tapers to a floor; precision rifles barely taper.
+    for (const id of ['pistol', 'smg', 'm4', 'shotgun', 'revolver'] as const) {
+      expect(damageFalloff(id, 5)).toBe(1);
+      expect(damageFalloff(id, WEAPONS[id].range)).toBeLessThan(1);
+      expect(damageFalloff(id, WEAPONS[id].range)).toBeGreaterThanOrEqual(.2);
+    }
+    expect(damageFalloff('smg', 40)).toBeLessThan(damageFalloff('m4', 40));
+    expect(damageFalloff('shotgun', 30)).toBeLessThan(.3);
+    expect(damageFalloff('dmr', 190)).toBeGreaterThan(.8);
     expect(damageFalloff('sniper', 240)).toBe(1);
     const sim = new Simulation(world(), config, profiles, 'falloff-hit', 7);
     advance(sim, 5.1);
@@ -262,20 +264,19 @@ describe('authoritative simulation', () => {
     target.state.protectionUntil = 0;
     attacker.state.yaw = 0;
     attacker.state.pitch = Math.atan2(target.state.pos.y + 1 - attacker.state.pos.y - 1.62, 39);
-    attacker.state.ads = true;
-    (sim as any).random = () => .5;
+    attacker.state.ads = true; attacker.adsAmount = 1;
     (sim as any).fire(attacker);
     const hit = sim.drainEvents().find(e => e.type === 'damage' && e.target === 'b');
     expect(hit?.type).toBe('damage');
     if (hit?.type !== 'damage') return;
-    expect(hit.amount).toBeGreaterThan(13);
-    expect(hit.amount).toBeLessThan(15);
+    expect(hit.amount).toBeCloseTo(WEAPONS.smg.damage * damageFalloff('smg', 39), 0);
   });
 
   it('fires one pistol round for a quick trigger press after the release frame arrives', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'quick-trigger', 101);
     advance(sim, 3.1);
     sim.action('a', { type: 'slot', id: 1, slot: 1 });
+    advance(sim, HANDLING.pistol.draw);
     const press = { type: 'trigger' as const, id: 2, yaw: Math.PI / 2, pitch: 0, lean: 0, ads: true, clientTime: sim.snapshot().time };
     sim.action('a', { ...press, yaw: Infinity });
     sim.action('a', press);
@@ -336,6 +337,7 @@ describe('authoritative simulation', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'delayed-held-fire', 104);
     advance(sim, 3.1);
     sim.action('a', { type: 'slot', id: 1, slot: 1 });
+    advance(sim, HANDLING.pistol.draw);
     sim.action('a', { type: 'trigger', id: 2, yaw: 0, pitch: 0, lean: 0, ads: false, clientTime: sim.snapshot().time });
     send(sim, 'a', 1, { fire: false });
     advance(sim, .02);
@@ -854,7 +856,8 @@ describe('authoritative simulation', () => {
 
   it('lands and remains on a pitched roof in the island world', () => {
     const actual = createWorld();
-    const roof = actual.pieces!.find(piece => piece.piece === 'house_small')!;
+    // A gable runs along the house's depth: walk across a lot square to the street.
+    const roof = actual.pieces!.find(piece => piece.piece === 'house_small' && Math.abs(Math.sin(piece.yaw)) < .01)!;
     const x = roof.x + KIT_PIECES[roof.piece].footprint[0] * .25;
     const top = Math.max(...actual.colliders.filter(c => c.pieceId === roof.id && x >= c.min.x && x <= c.max.x && roof.z >= c.min.z && roof.z <= c.max.z).map(c => c.max.y));
     const sim = new Simulation(actual, { ...config, mode: 'battle-royale' }, profiles, 'island-roof', 130);

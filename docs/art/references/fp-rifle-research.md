@@ -1,0 +1,13 @@
+# Rifle framing research
+
+Current M4 animation timing and source decisions are in [m4-research.md](m4-research.md); final image defects are in [README.md](README.md). The linked video below is a research lead, not watched or frame-measured footage.
+
+- In right-handed FPS viewmodels, hip-fire generally places the receiver low on the right, with the barrel receding diagonally toward screen centre. This is a framing synthesis, not a fixed screen-coordinate rule.
+- Modern Warfare (2019) distinguishes immediate hip-fire from the raised, aligned ADS pose. Keep the hip-fire sight line below the viewing centre. Source: https://blog.activision.com/de/call-of-duty/2019-10/The-Basics-of-Call-of-Duty-Modern-Warfare-Ready-Aim-Fire
+- Modern Warfare II (2022) and Battlefield 2042 provide grounded rifle references, but attachments and animation states change the silhouette and grip. Sources: https://www.callofduty.com/blog/2022/09/call-of-duty-modern-warfare-II-next-multiplayer-maps-modes-gunsmith and https://www.youtube.com/watch?v=WomAGoEh-Ss
+- Support-hand placement is weapon-dependent, not universally next to the receiver. For this board, grip the rear handguard immediately ahead of the magazine well; keep the front half and muzzle completely clear.
+- Let the support forearm rise diagonally from the lower-left edge toward that rear-handguard grip. Show the cuff and back of the paw, with the thumb on the near/top side and fingers curled underneath.
+- The firing hand wraps the pistol grip below the receiver. First-person framing typically exposes part of its back and knuckles while the receiver hides some thumb and index detail; this board deliberately keeps the index on the trigger readable.
+- Valorant prioritizes recognizable weapon shapes and distinct first-person presentation, useful for clean stylized silhouettes and readable paw contact. Its ADS treatment is not a universal iron-sight template. Source: https://playvalorant.com/en-gb/news/dev/how-the-valorant-arsenal-was-built/
+- ADS brings the rifle onto the central viewing axis and strongly foreshortens it. Align the rear notch and front post at centre, retain both paws along the bottom, and keep claws out of the sight picture. Apex explicitly discusses how weapon geometry affects ADS visibility. Source: https://www.ea.com/games/apex-legends/apex-legends/news/iron-sight-update
+- Production application: use a 16:9 hip-fire panel, keep the rifle mainly in the lower-right quarter, preserve open street visibility, and repeat identical contact points in ADS and side view. Exactly three fingers plus one thumb per paw; no intersections, UI, crosshair, or depth-of-field blur.

@@ -1,10 +1,12 @@
 import type { InputFrame, PlayerAction, Settings } from './shared/types';
 import { clamp, emptyInput } from './shared/math';
 import { verticalFov } from './settings';
-import { RECOIL } from './shared/weapons';
+import { RECOIL, recoilKick } from './shared/weapons';
 import type { WeaponId } from './shared/types';
 
 const SLOTS = ['slot1', 'slot2', 'slot3', 'slot4'] as const;
+// Longest sprint-out (the sniper's 0.24 s) plus a margin for the input tick and transit.
+export const SPRINT_HOLD_MS = 320;
 const CONSUMABLE_ACTIONS = [['useBandage', 'bandage'], ['useMedkit', 'medkit'], ['useGuarana', 'guarana'], ['useAcai', 'acai'], ['useRapadura', 'rapadura']] as const;
 
 export class InputController {
@@ -34,10 +36,19 @@ export class InputController {
   private wheelAt = 0;
   private jumpPressedAt = -Infinity;
   private aimSensitivity = 1;
+  private aimMultiplier = 1;
+  // Recoil still owed back to the view: mouse movement against it pays it off first.
   private recoilPitch = 0;
   private recoilYaw = 0;
   private recoilShots = 0;
+  private recoilAt = -Infinity;
   private recoilRecovery = .45;
+  private crouchToggled = false;
+  private sprintToggled = false;
+  private firePressedAt = -Infinity;
+  // Quick melee and the previous-weapon swap are resolved by the owner (it knows the loadout).
+  onMelee: () => void = () => {};
+  onLastWeapon: () => void = () => {};
   onLock: () => void = () => {};
   onError: (message: string) => void = () => {};
   constructor(private canvas: HTMLCanvasElement, private settings: Settings) {
@@ -50,9 +61,13 @@ export class InputController {
     document.addEventListener('mousemove', event => {
       if (!this.locked) return;
       if (this.emoteWheel) { this.onEmoteMove(event.movementX, event.movementY); return; }
-      const scale = .002 * this.settings.sensitivity * this.aimSensitivity;
-      this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw - event.movementX * scale), Math.cos(this.frame.yaw - event.movementX * scale));
-      this.frame.pitch = clamp(this.frame.pitch - event.movementY * scale, -1.48, 1.48);
+      const scale = .002 * this.settings.sensitivity * this.aimSensitivity * this.aimMultiplier;
+      const yaw = -event.movementX * scale, pitch = -event.movementY * scale * (this.settings.invertY ? -1 : 1);
+      this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw + yaw), Math.cos(this.frame.yaw + yaw));
+      this.frame.pitch = clamp(this.frame.pitch + pitch, -1.48, 1.48);
+      // Pulling against the kick is compensation: that part is no longer returned on release.
+      if (pitch < 0 && this.recoilPitch > 0) this.recoilPitch = Math.max(0, this.recoilPitch + pitch);
+      if (yaw * this.recoilYaw < 0) this.recoilYaw = Math.abs(yaw) >= Math.abs(this.recoilYaw) ? 0 : this.recoilYaw + yaw;
     }, { signal });
     document.addEventListener('keydown', event => this.key(event, true), { signal });
     document.addEventListener('keyup', event => this.key(event, false), { signal });
@@ -71,10 +86,15 @@ export class InputController {
     window.addEventListener('blur', () => { this.onCancelEmote(); this.clear(); }, { signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.onCancelEmote(); this.clear(); } }, { signal });
   }
-  /** Match movement near the reticle to the rendered lens, including ADS transitions. */
-  setAimFov(fov: number) {
+  /**
+   * Match movement near the reticle to the rendered lens, including ADS transitions,
+   * then apply the player's aimed or scoped multiplier in proportion to how far aimed.
+   */
+  setAimFov(fov: number, ads = 0, scoped = false) {
     this.aimSensitivity = Number.isFinite(fov) && fov > 0 && fov < 180
       ? clamp(Math.tan(fov * Math.PI / 360) / Math.tan(verticalFov(this.settings.fov) * Math.PI / 360), .05, 1) : 1;
+    const multiplier = scoped ? this.settings.scopeSensitivity : this.settings.adsSensitivity;
+    this.aimMultiplier = 1 + ((Number.isFinite(multiplier) ? multiplier : 1) - 1) * clamp(ads, 0, 1);
   }
   private key(event: KeyboardEvent, down: boolean) {
     if (!this.locked) return;
@@ -106,6 +126,7 @@ export class InputController {
     if (code === binding.scoreboard) this.scoreboard = down;
     if (code === binding.fire) {
       if (down && !this.frame.fire) {
+        this.firePressedAt = performance.now(); this.sprintToggled = false;
         this.frame.firePressId = ++this.actionId;
         this.onAction({
           type: 'trigger', id: this.actionId, yaw: this.frame.yaw, pitch: this.frame.pitch,
@@ -116,10 +137,14 @@ export class InputController {
       this.frame.fire = down;
       if (!down) delete this.frame.firePressId;
     }
-    if (code === binding.ads) { if (down && !repeat) this.adsToggled = !this.adsToggled; this.adsHeld = down; }
+    if (code === binding.ads) { if (down && !repeat) { this.adsToggled = !this.adsToggled; this.sprintToggled = false; } this.adsHeld = down; }
+    if (code === binding.crouch && down && !repeat) { this.crouchToggled = !this.crouchToggled; this.sprintToggled = false; }
+    if (code === binding.sprint && down && !repeat) { this.sprintToggled = !this.sprintToggled; if (this.sprintToggled) this.crouchToggled = false; }
     if (!down || repeat) return;
     if ([binding.scoreboard, binding.map, binding.inspect, binding.interact].includes(code)) this.onCancelEmote();
     if (code === binding.reload) this.onAction({ type: 'reload', id: ++this.actionId });
+    if (code === binding.melee) this.onMelee();
+    if (code === binding.lastWeapon) this.onLastWeapon();
     if (code === binding.drop) this.onAction({ type: 'drop', id: ++this.actionId });
     if (code === binding.interact) this.onInteract();
     if (code === binding.inspect) this.onInspect();
@@ -132,7 +157,14 @@ export class InputController {
     const held = (key: string) => this.locked && !this.emoteWheel && this.keys.has(this.settings.bindings[key]);
     this.frame.moveX = Number(held('right')) - Number(held('left'));
     this.frame.moveZ = Number(held('forward')) - Number(held('back'));
-    this.frame.sprint = held('sprint'); this.frame.crouch = held('crouch'); this.frame.jump = held('jump') || this.locked && performance.now() - this.jumpPressedAt < 100;
+    const now = performance.now();
+    // A toggled sprint ends when forward movement does.
+    if (this.frame.moveZ <= 0) this.sprintToggled = false;
+    // A trigger pull holds the sprint off long enough for the gun to come up and fire (HANDLING.sprintOut).
+    const firing = this.frame.fire || now - this.firePressedAt < SPRINT_HOLD_MS;
+    this.frame.crouch = this.settings.crouchToggle ? this.locked && !this.emoteWheel && this.crouchToggled : held('crouch');
+    this.frame.sprint = !firing && (this.settings.sprintToggle ? this.locked && !this.emoteWheel && this.sprintToggled : held('sprint'));
+    this.frame.jump = held('jump') || this.locked && now - this.jumpPressedAt < 100;
     this.frame.lean = Number(held('leanRight')) - Number(held('leanLeft'));
     this.frame.ads = this.locked && !this.emoteWheel && (this.settings.adsToggle ? this.adsToggled : this.adsHeld);
     if (!this.locked) { this.frame.fire = false; delete this.frame.firePressId; }
@@ -144,12 +176,16 @@ export class InputController {
     return { ...this.frame };
   }
   actionIdNext() { return ++this.actionId; }
-  applyRecoil(weapon: WeaponId) {
-    const recoil = RECOIL[weapon], scale = this.frame.ads ? .7 : 1;
-    const pitch = recoil.pitch * scale, yaw = recoil.yaw * (this.recoilShots++ % 2 ? 1 : -1) * scale;
-    this.frame.pitch = clamp(this.frame.pitch + pitch, -1.48, 1.48);
-    this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw + yaw), Math.cos(this.frame.yaw + yaw));
-    this.recoilPitch += pitch; this.recoilYaw += yaw; this.recoilRecovery = recoil.recovery;
+  /** One round's kick along the weapon's pattern; `ads` is how far aimed (0 to 1). */
+  applyRecoil(weapon: WeaponId, ads = this.frame.ads ? 1 : 0, random = Math.random()) {
+    const now = performance.now();
+    // A pause longer than a quarter second starts the pattern over.
+    if (now - this.recoilAt > 250) this.recoilShots = 0;
+    this.recoilAt = now;
+    const kick = recoilKick(weapon, this.recoilShots++, ads, random);
+    this.frame.pitch = clamp(this.frame.pitch + kick.pitch, -1.48, 1.48);
+    this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw + kick.yaw), Math.cos(this.frame.yaw + kick.yaw));
+    this.recoilPitch += kick.pitch; this.recoilYaw += kick.yaw; this.recoilRecovery = RECOIL[weapon].recovery;
   }
   recoverRecoil(dt: number) {
     if (this.frame.fire || dt <= 0) return;
@@ -158,11 +194,10 @@ export class InputController {
     this.frame.pitch = clamp(this.frame.pitch - pitch, -1.48, 1.48);
     this.frame.yaw = Math.atan2(Math.sin(this.frame.yaw - yaw), Math.cos(this.frame.yaw - yaw));
     this.recoilPitch -= pitch; this.recoilYaw -= yaw;
-    if (this.recoilPitch < .00001) this.recoilShots = 0;
   }
   reset(yaw = 0) { this.sequence = 0; this.actionId = 0; this.clear(); Object.assign(this.frame, emptyInput(), { yaw }); }
   closeEmoteWheel(commit = false) { if (!this.emoteWheel) return; this.emoteWheel = false; this.onEmoteClose(commit); }
-  clear() { this.aimSensitivity = 1; this.closeEmoteWheel(); this.keys.clear(); this.frame.fire = false; delete this.frame.firePressId; this.frame.moveX = this.frame.moveZ = this.frame.lean = 0; this.adsHeld = this.adsToggled = false; this.scoreboard = false; this.jumpPressedAt = -Infinity; this.recoilPitch = this.recoilYaw = this.recoilShots = 0; }
+  clear() { this.aimSensitivity = 1; this.closeEmoteWheel(); this.keys.clear(); this.frame.fire = false; delete this.frame.firePressId; this.frame.moveX = this.frame.moveZ = this.frame.lean = 0; this.adsHeld = this.adsToggled = false; this.crouchToggled = this.sprintToggled = false; this.scoreboard = false; this.jumpPressedAt = this.firePressedAt = -Infinity; this.recoilPitch = this.recoilYaw = this.recoilShots = 0; }
   setSettings(settings: Settings) { this.settings = settings; }
   async lock() {
     try { await this.canvas.requestPointerLock(); }

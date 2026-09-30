@@ -14,7 +14,7 @@ const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angl
 const page = await browser.newPage({ viewport: { width: Number(width), height: Number(height) }, deviceScaleFactor: 1 });
 page.on('console', message => { if (message.type() === 'error' || message.type() === 'warning') console.log(`[${message.type()}]`, message.text()); });
 page.on('pageerror', error => console.log('[pageerror]', error.message));
-await page.goto('http://127.0.0.1:5185/tools/vfx/index.html');
+await page.goto(`${process.env.BASE || 'http://127.0.0.1:5185'}/tools/vfx/index.html`);
 await page.waitForFunction(() => '__vfx' in window);
 await page.evaluate(() => window.__vfx.init('medium'));
 

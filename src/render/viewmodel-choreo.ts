@@ -8,7 +8,7 @@ import type { V3 } from './viewmodel-specs';
 
 export type Ease = 'smooth' | 'in' | 'out' | 'linear' | 'snap' | 'back';
 /** 'grip': the weapon's rest grip; 'gun': weapon space; 'view': camera space. */
-export interface HandKey { space: 'grip' | 'gun' | 'view' | 'part'; part?: string; wrist?: V3; forward?: V3; palm?: V3; curl?: HandCurl; pole?: V3 }
+export interface HandKey { space: 'grip' | 'gun' | 'view' | 'part'; part?: string; /** Keep offsets and orientation in gun axes while following the part's origin. */ followRotation?: boolean; /** Weapon-space clearance from a fitted grip. */ offset?: V3; wrist?: V3; forward?: V3; palm?: V3; /** Camera-space elbow direction for a reach. */ pole?: V3; curl?: Partial<HandCurl> }
 export interface PartKey { visible?: boolean; out?: number; p?: V3; r?: V3 }
 export interface Key {
   t: number; ease?: Ease;

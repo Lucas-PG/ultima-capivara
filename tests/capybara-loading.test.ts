@@ -171,7 +171,7 @@ describe('capybara cosmetic colour contract', () => {
       const material = meshes[0].material as THREE.MeshStandardMaterial;
       expect(meshes.every(mesh => mesh.material === material)).toBe(true);
       expect(material.userData.toonCharacter).toBe(true);
-      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v4');
+      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v5');
       expect(material.vertexColors).toBe(true);
       expect(material.emissiveMap).toBe(sourceMaterial.emissiveMap);
       expect(material.normalMap).toBe(sourceMaterial.normalMap); expect(material.roughnessMap).toBe(sourceMaterial.roughnessMap);

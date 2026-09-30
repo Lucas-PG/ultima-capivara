@@ -1,10 +1,10 @@
-// Loading-screen tips (style bible §13.1). {jump}, {interact}, {leanLeft}, {leanRight}, {reload} and {crouch}
+// Loading-screen tips (style bible §13.1). {jump}, {interact}, {leanLeft}, {leanRight}, {reload}, {crouch}, {map}, {scoreboard} and {ads}
 // are replaced with the player's current key bindings. Gameplay numbers are checked in tests/ui.test.ts.
 export const TIPS: readonly string[] = [
   'Capivara é o maior roedor do mundo. E o mais perigoso com uma Doze na mão.',
-  'Aperte M pra ver a ilha inteira e planejar a rota antes da tempestade.',
+  'Aperte {map} pra ver a ilha inteira e planejar a rota antes da tempestade.',
   '{leanLeft} e {leanRight} espiam pelas quinas sem expor o corpo inteiro.',
-  'Tiro na cabeça dói bem mais: na M4 é o dobro, na Sniper é 2,5 vezes.',
+  'Tiro na cabeça dói bem mais: na Carabina é o dobro, na Sniper é 2,5 vezes.',
   'No avião, {jump} salta. Se você enrolar, o piloto te empurra em 12 segundos.',
   'O paraquedas abre sozinho perto do chão. Mas abrir antes é coisa de capivara precavida.',
   'Guaraná cura aos pouquinhos e deixa você mais rápido por 10 segundos.',
@@ -14,12 +14,12 @@ export const TIPS: readonly string[] = [
   'A Doze é rainha até uns 35 metros. Depois disso, é só barulho.',
   'Armas lendárias batem mais forte. Brilho dourado no chão? Corre.',
   'Caixas de suprimentos guardam armas, colete e lanchinho. {interact} abre.',
-  'Tab mostra o placar. Olhe quem está na frente e fique de olho.',
+  '{scoreboard} mostra o placar. Olhe quem está na frente e fique de olho.',
   'Fora da área segura, a tempestade morde a cada segundo. Não vire churrasco.',
   'A tempestade fecha em 6 fases. A última é apertada de verdade.',
   'Capivaras nadam muito bem. Os bots, não: eles nunca entram na água.',
   'Recarregue ({reload}) atrás de uma parede, não no meio da praça.',
-  'Mirar com o botão direito deixa o tiro muito mais preciso. Do quadril, só de pertinho.',
+  'Mirar ({ads}) deixa o tiro muito mais preciso. Do quadril, só de pertinho.',
   'O Mercadão tem muito saque. E muita gente pensando a mesma coisa.',
   'O Farol é bonito, mas lá de cima todo mundo te vê.',
   'A roda do mouse troca de arma. As teclas de 1 a 4 também.',
@@ -38,6 +38,8 @@ export const TIPS: readonly string[] = [
   'Perdeu? Toda lenda capivara começou tomando uma rasteira.',
   '{crouch} agacha: menos alvo, mais esconderijo.',
   'No ar, segure a direção pra planar até o ponto que você escolheu.',
+  'Eliminada? Assista a turma: {jump} passa para a próxima capivara e {ads} volta para a anterior.',
+  'Assistindo, o mouse gira a câmera em volta da capivara. Solte e ela volta pro ombro.',
 ];
 
 export function fillTip(tip: string, keys: Record<string, string>) {

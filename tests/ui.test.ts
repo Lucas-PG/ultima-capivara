@@ -40,12 +40,14 @@ describe('loading tips copy', () => {
   });
   it('replaces key placeholders with the player bindings', () => {
     expect(fillTip('{leanLeft} e {leanRight}', { leanLeft: 'Q', leanRight: 'E' })).toBe('Q e E');
-    const keys = { jump: 'Espaço', interact: 'F', leanLeft: 'Q', leanRight: 'E', reload: 'R', crouch: 'C' };
+    const keys = { jump: 'Espaço', interact: 'F', leanLeft: 'Q', leanRight: 'E', reload: 'R', crouch: 'C', map: 'M', scoreboard: 'Tab', ads: 'Mouse dir.' };
     for (const tip of TIPS) expect(fillTip(tip, keys)).not.toMatch(/\{\w+\}/);
+    // A remapped key must never be contradicted by the copy: no tip names a bindable key literally.
+    for (const tip of TIPS) expect(tip).not.toMatch(/Aperte [A-Z]\b|\bTab mostra|botão direito/);
   });
   // Tips quote gameplay numbers; if a retune changes them, the copy must change too.
   it('only states gameplay facts that are true', () => {
-    expect(WEAPONS.m4.headMultiplier).toBe(2);
+    expect(WEAPONS.dmr.headMultiplier).toBe(2);
     expect(WEAPONS.sniper.headMultiplier).toBe(2.5);
     expect(WEAPONS.shotgun.range).toBe(35);
     expect(WEAPONS.m4.ammo).toBe(WEAPONS.dmr.ammo);
@@ -67,17 +69,18 @@ describe('hud', () => {
     expect(hudScale(1280, 720, .8)).toBe(HUD_MIN_SCALE);
   });
   it('keeps every desktop HUD, loading and results font at or above the 13 px design minimum', () => {
-    const css = readFileSync('src/ui/style.css', 'utf8').replace(/@media\(max-width:[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, '');
+    const css = (readFileSync('src/ui/style.css', 'utf8') + readFileSync('src/ui/hud.css', 'utf8')).replace(/@media\(max-width:[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, '');
     const rules = css.match(/(?:#hud|#loadingOverlay|#victory)[^{}]*\{[^}]*\}/g) || [];
     const small = rules.filter(rule => [...rule.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].some(m => Number(m[1]) < HUD_MIN_TEXT));
     expect(small).toEqual([]);
   });
   // The user saw the health card run into the weapon slots in a narrower window: the scale floor stops the HUD from
   // shrinking there, so the layout must change instead.
-  it('moves the vitals aside whenever centred vitals would meet the weapon slots', () => {
+  it('stacks the weapon boxes whenever centred boxes would meet the vitals', () => {
     for (const [w, h] of [[1024, 640], [1100, 900], [960, 1000], [1280, 1024]]) for (const size of [.8, 1, 1.2])
       expect(hudNarrow(w, hudScale(w, h, size))).toBe(w / hudScale(w, h, size) < HUD_CENTRED_WIDTH);
-    expect(hudNarrow(1024, hudScale(1024, 640))).toBe(true);
+    expect(hudNarrow(960, hudScale(960, 600))).toBe(true);
+    expect(hudNarrow(1024, hudScale(1024, 640))).toBe(false);
     for (const [w, h] of [[1280, 720], [1366, 768], [1600, 900], [1920, 1080], [2560, 1440]]) expect(hudNarrow(w, hudScale(w, h))).toBe(false);
     // Phones keep their own stacked layout.
     expect(hudNarrow(600, hudScale(600, 900))).toBe(false);
@@ -97,7 +100,7 @@ describe('hud', () => {
 describe('leaving a match', () => {
   // Formiga's smoke test: an eliminated player could only exit through a hidden spectator control.
   it('gives an eliminated battle royale player a visible exit next to spectate', () => {
-    expect(ELIMINATED_ACTIONS.map(a => a.do)).toEqual(['spectate', 'leave']);
+    expect(ELIMINATED_ACTIONS.map(a => a.do)).toEqual(['resume', 'leave']);
     expect(ELIMINATED_ACTIONS.find(a => a.do === 'leave')?.label).toBe('Voltar ao menu');
   });
   it('exits in one click when nothing is lost, and confirms when something is', () => {
@@ -165,9 +168,15 @@ describe('menu download budget', () => {
     for (const f of ['cover-1672', 'cover-960', 'cover-blur-480']) for (const ext of ['avif', 'webp'])
       expect(statSync(`public/assets/${f}.${ext}`).size).toBeLessThan(f === 'cover-1672' ? 260_000 : 120_000);
   });
-  it('never references the PNG master or the unused Barlow families from the stylesheet', () => {
-    const css = readFileSync('src/ui/style.css', 'utf8');
-    expect(css).not.toMatch(/cover-v2\.png|@fontsource\/barlow|'Barlow/);
+  it('never references the PNG master and loads only font families the stylesheets use', () => {
+    const css = readFileSync('src/ui/style.css', 'utf8') + readFileSync('src/ui/hud.css', 'utf8');
+    expect(css).not.toMatch(/cover-v2\.png/);
+    // The HUD uses Barlow Condensed for its numbers; plain Barlow stays out of the download.
+    expect(css).not.toMatch(/@fontsource\/barlow\//);
+    for (const [, family] of css.matchAll(/@import '@fontsource\/([a-z-]+)\//g)) {
+      const name = family.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+      expect(css, family).toContain(`"${name}"`);
+    }
   });
 });
 

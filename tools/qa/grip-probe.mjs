@@ -4,6 +4,7 @@
 // and x-ray renders centred on the paw.
 // node tools/qa/grip-probe.mjs <outDir|-> <weapon> [side L|R] ['<json: {name: override}>'] [views csv] [fp|ads]
 // Views: eye, near, far, below, front, top, back (plus x-ray variants with an "x" prefix, e.g. xnear).
+import { measureGrip } from './grip-measure.mjs';
 import { chromium } from '@playwright/test';
 import { measure } from './weapon-contact.mjs';
 const [out, weapon, side = 'L', variantsJson = '{"current":{}}', viewList = '', mode = 'fp'] = process.argv.slice(2);
@@ -22,9 +23,9 @@ const views = { near: [-Math.PI / 2 + .25, .15, .26], far: [Math.PI / 2 + .25, .
 for (const [name, override] of Object.entries(variants)) {
   await page.evaluate(([w, o]) => { window.__vmTune = { [w]: o }; window.__vmOrbit = undefined; }, [weapon, override]);
   await page.evaluate(p => window.__capyQA.pose(p), `${mode}-${weapon}`);
-  const result = await page.evaluate(measure, [weapon, side]);
+  const result = await page.evaluate(measureGrip, [weapon, side]);
   console.log(JSON.stringify({ variant: name, worst: result.worst, bore: result.bore, digits: result.digits }));
-  console.log(Object.entries(result.summary).map(([k, v]) => `${k}:${v.min}${v.inside ? `(${v.inside}/${v.n} in @${v.at})` : ''}`).join('  '));
+  console.log(Object.entries(result.summary).map(([k, v]) => `${k}:${v.min}${v.inside ? `(${v.inside}/${v.n} in ${v.part} @${v.at})` : ''}`).join('  '));
   if (out === '-' || !viewList) continue;
   for (const view of viewList.split(',')) {
     const xray = view.startsWith('x') && view !== 'eye', key = xray ? view.slice(1) : view;

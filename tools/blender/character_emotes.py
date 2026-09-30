@@ -1,202 +1,221 @@
-"""Original in-place social clips on the existing 35-joint capybara rig."""
+"""Social clips for the v6 capybara, in place (host-owned durations), with IK arms.
+
+Called from capybara_clips.py with its leg/author/secondary/blink helpers. The capybara's
+emotes are unhurried and a little smug: a lazy wave, a hip-rolling samba, a two-paw cheer,
+sitting back on its haunches, and the iconic belly-down loaf ("chill").
+"""
 import math
 import bpy
 from mathutils import Matrix, Vector
 
 
-def add_emotes(rig, scene, report, contact_leg):
-    def ease(t):
-        t = max(0, min(1, t))
-        return t * t * (3 - 2 * t)
+def add_emotes(rig, scene, report, leg, author, secondary, blink):
+    pb = rig.pose.bones
+    REST = {b.name: b.bone.matrix_local.copy() for b in pb}
+    LEN = {b.name: b.bone.length for b in pb}
 
-    def V(p):
+    def ease(t):
+        t = max(0.0, min(1.0, t)); return t * t * (3 - 2 * t)
+
+    def Vg(p):
         return Vector((p[0], -p[2], p[1]))
 
-    def point(a, b, t):
+    def mix(a, b, t):
         return tuple(x + (y - x) * t for x, y in zip(a, b))
 
-    rest = {bone.name: bone.bone.matrix_local.copy() for bone in rig.pose.bones}
-    relative = {bone.name: rest[bone.parent.name].inverted() @ rest[bone.name] if bone.parent else rest[bone.name]
-                for bone in rig.pose.bones}
+    def update():
+        bpy.context.view_layer.update()
 
-    def posed(bone):
-        # This rig has no constraints or nonstandard inheritance. Compose its
-        # local transform directly so solving four arm aims does not repeatedly
-        # evaluate all three skinned meshes for each authored frame.
-        basis = Matrix.Translation(bone.location) @ bone.rotation_euler.to_matrix().to_4x4() @ Matrix.Diagonal((*bone.scale, 1))
-        parent = posed(bone.parent) if bone.parent else Matrix.Identity(4)
-        return parent @ relative[bone.name] @ basis
+    def aim(name, head, tail):
+        rest = REST[name]
+        rest_dir = (rest.to_3x3() @ Vector((0, 1, 0))).normalized()
+        swing = rest_dir.rotation_difference((tail - head).normalized())
+        m = (swing.to_matrix() @ rest.to_3x3()).to_4x4(); m.translation = head
+        pb[name].matrix = m; update()
 
-    def aim(name, target):
-        # Rotate in the evaluated parent frame; preserve the authored bone head
-        # and its length, rather than translating a hand away from the forearm.
-        bone = rig.pose.bones[name]
-        current = posed(bone)
-        head, tail = current.translation, current @ Vector((0, bone.bone.length, 0))
-        swing = (tail - head).rotation_difference(V(target) - head)
-        desired = swing @ current.to_quaternion()
-        frame = (posed(bone.parent) if bone.parent else Matrix.Identity(4)) @ relative[name]
-        bone.rotation_euler = (frame.to_quaternion().inverted() @ desired).to_euler('XYZ')
+    def arm(n, hand, elbow):
+        """Two-bone IK in armature space from the current shoulder to `hand`, bending toward `elbow`
+        (both game space). The twist bone follows the forearm."""
+        shoulder = pb['arm_' + n].matrix.to_translation()
+        target, hint = Vg(hand), Vg(elbow)
+        l1, l2 = LEN['arm_' + n], LEN['forearm_' + n]
+        d = target - shoulder
+        dist = min(max(d.length, abs(l1 - l2) + 1e-3), l1 + l2 - 1e-3)
+        axis = d.normalized(); target = shoulder + axis * dist
+        pole = hint - shoulder; pole = (pole - axis * pole.dot(axis)).normalized()
+        a = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist)
+        knee = shoulder + axis * a + pole * math.sqrt(max(0.0, l1 * l1 - a * a))
+        aim('arm_' + n, shoulder, knee)
+        aim('forearm_' + n, knee, target)
 
-    def arms(side, elbow, hand):
-        # Solve both lengths before aiming. In particular, the two forearms have
-        # different bind lengths, so independent aims would miss a shared clap.
-        arm, forearm = rig.pose.bones['arm_' + side], rig.pose.bones['forearm_' + side]
-        shoulder = posed(arm).translation
-        delta = V(hand) - shoulder
-        reach = max(.001, delta.length)
-        axis = delta / reach
-        upper, lower = arm.bone.length, forearm.bone.length
-        reach = max(abs(upper - lower) + .001, min(upper + lower - .001, reach))
-        pole = V(elbow) - shoulder
-        pole -= axis * pole.dot(axis)
-        pole.normalize()
-        along = (upper * upper - lower * lower + reach * reach) / (2 * reach)
-        height = math.sqrt(max(0, upper * upper - along * along))
-        solved = shoulder + axis * along + pole * height
-        aim('arm_' + side, (solved.x, solved.z, -solved.y))
-        aim('forearm_' + side, hand)
+    def paw(n, fwd, palm, weight=1.0):
+        """Orient the paw: knuckles along `fwd`, palm facing `palm` (game space), blended by weight."""
+        bone = pb['paw_' + n]
+        y = Vg(fwd).normalized(); z = -Vg(palm).normalized()
+        x = y.cross(z).normalized(); z = x.cross(y).normalized()
+        want = Matrix((x, y, z)).transposed().to_4x4()
+        cur = bone.matrix.copy()
+        q = cur.to_quaternion().slerp(want.to_quaternion(), weight)
+        m = q.to_matrix().to_4x4(); m.translation = cur.translation
+        bone.matrix = m; update()
 
-    def paw_direction(side, direction, palm_normal, weight=1):
-        bone = rig.pose.bones['paw_' + side]
-        y_axis, z_axis = V(direction).normalized(), -V(palm_normal).normalized()
-        x_axis = y_axis.cross(z_axis).normalized()
-        z_axis = x_axis.cross(y_axis).normalized()
-        desired = Matrix((x_axis, y_axis, z_axis)).transposed().to_quaternion()
-        frame = posed(bone.parent) @ relative[bone.name]
-        local = frame.to_quaternion().inverted() @ desired
-        bone.rotation_euler = bone.rotation_euler.to_quaternion().slerp(local, weight).to_euler('XYZ')
+    def curl(n, amount):
+        for f in ('index', 'middle', 'ring'):
+            for k in (1, 2, 3):
+                pb[f'paw_{f}{k}_{n}'].rotation_euler.x = amount * (.8 if k == 1 else 1.0)
+        for k in (1, 2, 3):
+            pb[f'paw_thumb{k}_{n}'].rotation_euler.x = amount * .5
+
+    SIDES = [(-1, 'L'), (1, 'R')]
+    # Resting arm targets (game space): hanging at the sides, paws by the belt pouches.
+    REST_HAND = {s: (s * .33, .80, -.16) for s, _ in SIDES}
+    REST_ELBOW = {s: (s * .34, 1.02, .02) for s, _ in SIDES}
 
     specs = [('wave', 3, False), ('dance', 8, True), ('victory', 4, False),
              ('sit', 12, True), ('chill', 12, True), ('boing', 1.05, False)]
+
+    def emote(name, seconds, loop):
+        def fn(t, sec):
+            ph = math.tau * t
+            env = 1 if loop else ease(t / .14) * (1 - ease((t - .84) / .16))
+            spine = pb['spine']
+            breath = math.sin(ph * (seconds / 2))
+            pb['belly'].scale.z = 1 + .025 * breath
+            hands = {}
+            if name == 'wave':
+                # A lazy, friendly wave: weight on one hip, the paw swinging from the wrist.
+                for s, n in SIDES:
+                    leg(n, 0, 0, .01, .006, 0, 0)
+                spine.rotation_euler.z = -.04 * env
+                pb['chest'].rotation_euler.z = .03 * env
+                pb['head'].rotation_euler.z = .06 * env + .02 * math.sin(ph * 3)
+                pb['head'].rotation_euler.y = -.10 * env
+                swing = math.sin(sec * 7.5)
+                hands[-1] = (REST_HAND[-1], REST_ELBOW[-1])
+                hands[1] = (mix(REST_HAND[1], (.46 + .05 * swing, 1.74, -.12), env), mix(REST_ELBOW[1], (.52, 1.38, .02), env))
+            elif name == 'dance':
+                # Samba: hips roll on the beat, knees pump, paws roll forward and clap every bar.
+                beat = ph * 8
+                hop = .025 * max(0, math.sin(beat)) ** 2
+                for i, (s, n) in enumerate(SIDES):
+                    pump = max(0, math.sin(beat + i * math.pi))
+                    leg(n, .03 * math.sin(beat / 2 + i * math.pi), .05 * pump, .03, .05 - hop, .1 * pump, .2 * pump, spread=.3)
+                spine.rotation_euler.z = .12 * math.sin(beat / 2)
+                spine.rotation_euler.y = .10 * math.sin(beat / 2 + .7)
+                pb['chest'].rotation_euler.z = -.08 * math.sin(beat / 2)
+                spine.location.y = -.05 + hop
+                pb['head'].rotation_euler.z = -.06 * math.sin(beat / 2) + .03 * math.sin(beat)
+                pb['head'].rotation_euler.x = .04 * math.sin(beat + .5)
+                clap = max(0, math.cos(beat / 2)) ** 10
+                for s, n in SIDES:
+                    roll = math.sin(beat / 2 + (0 if s < 0 else math.pi))
+                    hand = (s * (.26 + .07 * roll), 1.02 + .10 * roll, -.34)
+                    hands[s] = (mix(hand, (s * .05, 1.16, -.36), clap), (s * (.36 + .04 * roll), 1.06 + .05 * roll, -.08))
+                secondary(sec, math.sin(beat), math.sin(beat / 2))
+            elif name == 'victory':
+                # Both paws punch up, a proud little bounce on the toes.
+                bounce = .02 * max(0, math.sin(ph * 6)) * env
+                for s, n in SIDES:
+                    leg(n, 0, bounce * .6, .02, .01 - bounce, -.3 * bounce / .02, .3 * bounce / .02)
+                spine.rotation_euler.x = .04 * env
+                pb['neck'].rotation_euler.x = -.06 * env
+                pb['head'].rotation_euler.x = -.10 * env
+                for s, n in SIDES:
+                    hands[s] = (mix(REST_HAND[s], (s * .42, 1.86 + .02 * math.sin(ph * 6), -.06), env), mix(REST_ELBOW[s], (s * .52, 1.50, .02), env))
+            elif name == 'sit':
+                # Back on the haunches, belly out, paws resting on the knees.
+                for s, n in SIDES:
+                    leg(n, -.14, 0, .06, .42, .0, 0, spread=.9)
+                spine.location.y = -.42
+                spine.rotation_euler.x = .12
+                pb['chest'].rotation_euler.x = -.04
+                pb['neck'].rotation_euler.x = -.08
+                pb['head'].rotation_euler.z = .05 * math.sin(ph * 3)
+                pb['belly'].scale.x = 1 + .04 + .01 * breath
+                for s, n in SIDES:
+                    hands[s] = ((s * .24, .44, -.33), (s * .36, .62, -.12))
+            elif name == 'chill':
+                # The loaf: belly down, legs folded under, chin up, eyes half shut.
+                for s, n in SIDES:
+                    leg(n, .10, 0, .04, .50, -.4, .5, spread=.8)
+                spine.location.y = -.42
+                spine.rotation_euler.x = -1.30
+                pb['chest'].rotation_euler.x = -.12
+                pb['neck'].rotation_euler.x = 1.05
+                pb['head'].rotation_euler.x = .32 + .02 * math.sin(ph * 2)
+                pb['belly'].scale.z = 1 + .03 * breath
+                for s, n in SIDES:
+                    hands[s] = ((s * .22, .07, -.78), (s * .34, .22, -.52))
+            elif name == 'skydive':
+                # Freefall (the runtime pitches the body face down): a spread belly-flop, paws
+                # wide, legs trailing apart, head up to look ahead, ears and rag streaming.
+                flap = math.sin(ph * 6)
+                for i, (s, n) in enumerate(SIDES):
+                    leg(n, -.30, .12 + .02 * math.sin(ph * 4 + i * 2), .10, 0, -.60, .3, spread=.6)
+                pb['neck'].rotation_euler.x = .55
+                pb['head'].rotation_euler.x = .35
+                spine.rotation_euler.x = .12
+                for s, n in SIDES:
+                    hands[s] = ((s * .62, 1.28 + .02 * flap, -.10), (s * .48, 1.36, .06))
+                    pb['ear_' + n].rotation_euler.x = .35 + .12 * math.sin(ph * 14 + s)
+                pb['hipcloth'].rotation_euler.x = .9 + .15 * math.sin(ph * 16)
+                pb['jaw'].rotation_euler.x = .05 + .03 * math.sin(ph * 10)
+            elif name == 'parachute':
+                # Hanging in the harness: paws up on the risers, legs dangling and swinging.
+                swing = math.sin(ph)
+                for i, (s, n) in enumerate(SIDES):
+                    leg(n, .08 + .05 * math.sin(ph + i * 1.3), .10, .03, 0, .25, 0)
+                spine.rotation_euler.x = .03 * swing
+                for s, n in SIDES:
+                    hands[s] = ((s * .24, 1.80, -.06), (s * .40, 1.52, .02))
+                pb['head'].rotation_euler.z = .05 * math.sin(ph * 2)
+                pb['head'].rotation_euler.x = -.08
+            elif name == 'boing':
+                # Airborne tuck opening into a happy star (the host owns the flight).
+                elapsed = t * seconds
+                tuck = ease(elapsed / .10) * (1 - ease((elapsed - .18) / .20))
+                star = ease((elapsed - .12) / .23) * (1 - ease((elapsed - .74) / .25))
+                for s, n in SIDES:
+                    leg(n, .06 * tuck, .16 * tuck, .10 * star, 0, .2 * tuck, 0, spread=.5 * star)
+                spine.rotation_euler.x = -.035 * tuck + .025 * star
+                pb['head'].rotation_euler.x = -.065 * star
+                pb['jaw'].rotation_euler.x = .045 * star
+                for s, n in SIDES:
+                    hand = mix(mix(REST_HAND[s], (s * .17, 1.28, -.33), tuck), (s * .50, 1.52, -.14), star)
+                    elbow = mix(mix(REST_ELBOW[s], (s * .30, 1.10, -.20), tuck), (s * .46, 1.28, -.04), star)
+                    hands[s] = (hand, elbow)
+                secondary(elapsed, -star, 0, gust=star)
+            update()
+            for s, n in SIDES:
+                hand, elbow = hands.get(s, (REST_HAND[s], REST_ELBOW[s]))
+                arm(n, hand, elbow)
+                if name == 'wave' and n == 'R':
+                    paw(n, (0, 1, -.2), (0, .1, -1), env)
+                    pb['paw_' + n].rotation_euler.z += .35 * math.sin(sec * 7.5) * env
+                elif name == 'victory':
+                    paw(n, (0, 1, 0), (0, 0, -1), env); curl(n, 1.1 * env)
+                elif name == 'dance':
+                    paw(n, (s * .2, .4, -1), (-s, 0, 0), .8)
+                elif name == 'chill':
+                    paw(n, (0, 0, -1), (0, -1, 0))
+                elif name == 'boing':
+                    paw(n, (s * .3, 1, 0), (0, 0, -1), 1.0)
+                elif name == 'parachute':
+                    paw(n, (0, 0, -1), (-s, 0, 0), 1.0); curl(n, 1.2)
+                elif name == 'skydive':
+                    paw(n, (s, .1, -.3), (0, -1, 0), 1.0)
+                else:
+                    curl(n, .25)
+                pb['blink_' + n].scale.y = (.30 + .02 * math.sin(ph)) if name == 'chill' else blink(t, .68, .03)
+                pb['ear_' + n].rotation_euler.x += .03 * math.sin(ph * 2 + s)
+        return fn
+
     for name, seconds, loop in specs:
-        frames = round(seconds * scene.render.fps)
-        action = bpy.data.actions.new(name)
-        action.use_fake_user = True
+        action = author(name, seconds, emote(name, seconds, loop), loop=loop)
         action['loop'] = loop
         action['inPlace'] = True
-        rig.animation_data.action = action
-        # 15 Hz authored poses interpolate smoothly; export resamples to 30 Hz.
-        for frame in range(0, frames + 1, 2):
-            scene.frame_set(frame)
-            # Identical endpoint inputs avoid one-step quaternion quantization
-            # differences from sin(2*pi) floating-point residue after export.
-            t = 0 if loop and frame == frames else frame / frames
-            phase = math.tau * t
-            beat = phase * 4
-            for bone in rig.pose.bones:
-                bone.rotation_mode = 'XYZ'
-                bone.rotation_euler = (0, 0, 0)
-                bone.location = (0, 0, 0)
-                bone.scale = (1, 1, 1)
-            rig.pose.bones['mouth_cavity'].scale.y = .6
-            envelope = 1 if loop else ease(t / .16) * (1 - ease((t - .82) / .18))
-            elapsed = t * seconds
-            tuck = ease(elapsed / .10) * (1 - ease((elapsed - .18) / .20))
-            star = ease((elapsed - .12) / .23) * (1 - ease((elapsed - .74) / .25))
-            spine = rig.pose.bones['spine']
-            spine.scale.x = 1 + .003 * math.sin(phase)
-            if name == 'dance':
-                hop = .03 * max(0, math.sin(beat * 2)) ** 2
-                spine.rotation_euler.z = .14 * math.sin(beat)
-                spine.rotation_euler.x = .035 * math.sin(beat * 2)
-                spine.location.x = .038 * math.sin(beat)
-                spine.location.y = hop
-                for index, side in enumerate(['L', 'R']):
-                    contact_leg(side, (t * 4 + index * .5) % 1, .065, .06, lateral=.16)
-                    rig.pose.bones['thigh_' + side].location.y -= hop
-            elif name == 'sit':
-                # Root stays exactly at the contact surface. The existing
-                # crouch solver folds the short legs while the torso settles.
-                spine.location.y = -.49
-                spine.rotation_euler.x = -.035
-                rig.pose.bones['neck'].rotation_euler.x = .035
-                for side in ['L', 'R']:
-                    contact_leg(side, .26, .035, 0, crouch=.18)
-            elif name == 'chill':
-                # Iconic belly-down capybara loaf. The torso lies forward from
-                # the unchanged root while the head counter-rotates to look out.
-                spine.location.y = -.36
-                spine.rotation_euler.x = -1.46
-                rig.pose.bones['head'].rotation_euler.x = 1.46
-                for side in ['L', 'R']:
-                    contact_leg(side, .26, 0, 0, crouch=.13)
-            elif name == 'victory':
-                spine.rotation_euler.x = -.025 * envelope
-                spine.scale.y = 1 + .018 * math.sin(phase * 2) * envelope
-            elif name == 'boing':
-                # The host owns all flight and the renderer already supplies
-                # contact squash. Only an airborne tuck opens into a happy star.
-                spine.rotation_euler.x = -.035 * tuck + .025 * star
-                rig.pose.bones['head'].rotation_euler.x = -.065 * star
-                rig.pose.bones['jaw'].rotation_euler.x = .045 * star
-                rig.pose.bones['mouth_cavity'].scale.y = .6 + .12 * star
-                for sign, side in [(-1, 'L'), (1, 'R')]:
-                    rig.pose.bones['thigh_' + side].rotation_euler.x = .65 * tuck - .12 * star
-                    rig.pose.bones['thigh_' + side].rotation_euler.z = sign * .38 * star
-                    rig.pose.bones['shin_' + side].rotation_euler.x = -1.10 * tuck - .23 * star
-                    rig.pose.bones['foot_' + side].rotation_euler.x = .30 * tuck + .15 * star
-
-            for sign, side in [(-1, 'L'), (1, 'R')]:
-                rest_elbow = (sign * .31, .96, -.055)
-                rest_hand = (sign * .33, .77, -.24)
-                elbow, hand = rest_elbow, rest_hand
-                if name == 'wave' and side == 'R':
-                    elbow = point(rest_elbow, (sign * .40, 1.30, -.09), envelope)
-                    hand = point(rest_hand, (sign * (.31 + .055 * math.sin(phase * 3)), 1.62, -.17), envelope)
-                elif name == 'victory':
-                    elbow = point(rest_elbow, (sign * .40, 1.37, -.10), envelope)
-                    hand = point(rest_hand, (sign * .30, 1.69 + .014 * math.sin(phase * 2), -.15), envelope)
-                elif name == 'dance':
-                    roll = math.sin(beat + (0 if sign < 0 else math.pi))
-                    clap = max(0, math.cos(beat)) ** 8
-                    elbow = (sign * (.32 + .03 * roll), 1.02 + .045 * roll, -.11)
-                    hand = point((sign * (.28 + .08 * roll), .91 + .10 * roll, -.39), (sign * .072, 1.14, -.35), clap)
-                elif name == 'sit':
-                    elbow = (sign * .29, .56, -.08)
-                    hand = (sign * .22, .37, -.31)
-                elif name == 'chill':
-                    elbow = (sign * .32, .19, -.74)
-                    hand = (sign * .25, .056 + .002 * math.sin(phase), -.96)
-                elif name == 'boing':
-                    elbow = point(rest_elbow, (sign * .30, 1.10, -.20), tuck)
-                    hand = point(rest_hand, (sign * .17, 1.28, -.33), tuck)
-                    elbow = point(elbow, (sign * .42, 1.24, -.045), star)
-                    hand = point(hand, (sign * .46, 1.50, -.17), star)
-                arms(side, elbow, hand)
-                if name in ['wave', 'victory']:
-                    rig.pose.bones['paw_' + side].rotation_euler.y = sign * .20 * envelope
-                    if name == 'wave' and side == 'R':
-                        rig.pose.bones['paw_' + side].rotation_euler.z = .22 * math.sin(phase * 3) * envelope
-                elif name == 'dance':
-                    paw_direction(side, (0, 1, 0), (-sign, 0, 0), clap)
-                elif name == 'chill':
-                    paw_direction(side, (0, 0, -1), (0, -1, 0))
-                elif name == 'boing':
-                    paw_direction(side, (sign * .30, 1, 0), (0, 0, -1), star)
-                rig.pose.bones['ear_' + side].rotation_euler.x = .022 * math.sin(phase + (0 if sign < 0 else .4))
-                if name == 'chill':
-                    rig.pose.bones['blink_' + side].scale.y = .12 + .012 * math.sin(phase)
-                    rig.pose.bones['glint_' + side].scale = (.01, .01, .01)
-                else:
-                    blink = max(.06, 1 - max(0, 1 - abs(t - .68) / .02))
-                    rig.pose.bones['blink_' + side].scale.y = blink
-            rig.pose.bones['head'].rotation_euler.z = .035 * math.sin(beat if name == 'dance' else phase) * envelope
-            if name == 'dance':
-                rig.pose.bones['head'].rotation_euler.x = .045 * math.sin(beat + .7)
-            if frame in [0, frames // 8 * 2, frames]:
-                bpy.context.view_layer.update()
-                for side in ['L', 'R']:
-                    for prefix in ['arm_', 'forearm_']:
-                        bone = rig.pose.bones[prefix + side]
-                        expected = posed(bone)
-                        error = max(abs(expected[row][col] - bone.matrix[row][col]) for row in range(4) for col in range(4))
-                        assert error < .0001, (name, frame, bone.name, 'pose composition', error)
-            for bone in rig.pose.bones:
-                bone.keyframe_insert('rotation_euler', frame=frame, group=bone.name)
-                bone.keyframe_insert('location', frame=frame, group=bone.name)
-                bone.keyframe_insert('scale', frame=frame, group=bone.name)
-        report['clips'].append(name)
-    report['emotes'] = {name: dict(seconds=seconds, loop=loop, inPlace=True)
-                        for name, seconds, loop in specs if name != 'boing'}
+    # In-air poses chosen by the runtime from the actor's stage (not emotes).
+    for name, seconds in (('skydive', 2.0), ('parachute', 4.0)):
+        author(name, seconds, emote(name, seconds, True), loop=True)
+    report['emotes'] = {name: dict(seconds=seconds, loop=loop, inPlace=True) for name, seconds, loop in specs if name != 'boing'}
     report['bounce'] = dict(clip='boing', seconds=1.05, starAt=.35, inPlace=True)

@@ -1,5 +1,6 @@
 import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
-import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, STANDING_HIT_SHAPE, SWIM_DEPTH, SWIM_DRAFT, tryTrampoline } from '../shared/collision';
+import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, SWIM_DEPTH, SWIM_DRAFT, tryTrampoline } from '../shared/collision';
+import { pelletDirection, rayCapybara, shotOrigin } from '../shared/ballistics';
 import { terrainHeight } from '../shared/terrain';
 import { waterAt } from '../shared/water';
 import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emotes';
@@ -9,9 +10,10 @@ import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
 import { BotBuildingRoutes } from './building-routes';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
-import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
+import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, HANDLING, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
 import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
+import { MELEE_SECONDS } from '../shared/weapon-presentation';
 import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
@@ -32,16 +34,19 @@ const USE_TIME: Record<ConsumableId, number> = { bandage: 2.5, medkit: 5, guaran
 const CHEST_WEAPONS: WeaponId[] = ['smg', 'shotgun', 'm4', 'dmr', 'sniper', 'revolver', 'coco', 'smg', 'm4', 'revolver'];
 const CHEST_EXTRA: [LootState['kind'], number][] = [['bandage', 20], ['medkit', 12], ['armor', 18], ['helmet', 12], ['guarana', 14], ['acai', 12], ['rapadura', 12]];
 const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, revolver: 24, coco: 8 };
-// Hit shapes on the standing capybara (eye 1.62, facing -z): a head
-// sphere and a vertical body cylinder from the feet. When a bot shoots a human the
-// legacy player-favouring sizes apply. Crouching scales them by 1.3/1.8 from the feet.
-// Keep the movement capsule narrow enough for doors; shots use these volumes instead.
-const HIT_SHAPES = { normal: STANDING_HIT_SHAPE, favoured: { headY: 1.6, headZ: -.04, headR: .19, bodyR: .27, bodyTop: 1.36 } } as const;
+// Shots test the capybara's head sphere and body cylinder (shared/ballistics),
+// not the narrow movement capsule that keeps doors passable.
+// A semi-automatic click that lands during a sprint-out waits this long at most.
+const TRIGGER_HOLD = .35;
 interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; jumpQueuedUntil: number; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
   brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number; stormExposure: number; landedAt: number;
   shots: number; hits: number; headshots: number; chests: number; longestShot: number; eliminatedAt: number | null;
+  // Cadence per weapon (a bolt or pump cycle survives a swap) and the end of the last sprint.
+  readyAt: Partial<Record<WeaponId, number>>; sprintEndedAt: number; wasSprinting: boolean; triggerAt: number;
+  // Quick melee: a swing due this tick, and the gun to return to when it ends.
+  meleeSwing: boolean; meleeReturn: { box: number; at: number } | null;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
 interface Projectile { owner: string; weapon: WeaponId; origin: Vec3; pos: Vec3; velocity: Vec3; life: number }
@@ -182,13 +187,13 @@ export class Simulation {
       weapons: this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[0])] : br ? bot ? this.botLoadout() :
         [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
       slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
-      reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0, shotHeat: 0,
+      reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0, shotHeat: 0, shotSeq: 0,
     };
     if (brain) {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [], readyAt: {}, sprintEndedAt: -Infinity, wasSprinting: false, triggerAt: 0, meleeSwing: false, meleeReturn: null });
   }
 
   input(id: string, input: InputFrame) {
@@ -227,7 +232,7 @@ export class Simulation {
     if (action.type === 'jump') { if (s.stage === 'plane') this.drop(actor); else if (s.stage === 'ground') { actor.jumpQueued = true; actor.jumpQueuedUntil = this.time + .1; } }
     // Old client clocks may still submit a new click. fire() bounds rewind at
     // execution and uses current targets outside that window; cadence stays authoritative.
-    else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) actor.triggerQueued = action; }
+    else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) { actor.triggerQueued = action; actor.triggerAt = this.time; } }
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
       if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot && (!s.swimming || swimReady(s.weapons[action.slot].id))) {
@@ -235,6 +240,7 @@ export class Simulation {
       }
     } else if (action.type === 'drop') this.dropHeld(actor);
     else if (action.type === 'reload') this.startReload(actor);
+    else if (action.type === 'melee') this.quickMelee(actor);
     else if (action.type === 'consume') this.startConsume(actor, action.item);
     else if (action.type === 'interact') this.interact(actor, action.target);
   }
@@ -321,7 +327,9 @@ export class Simulation {
       const queuedJump = actor.jumpQueued && this.time <= actor.jumpQueuedUntil;
       const consumeQueuedJump = queuedJump && s.grounded;
       moveActor(s, consumeQueuedJump ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1, this.config.mode);
-      if (s.slot !== previousSlot) { actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0; }
+      if (s.slot !== previousSlot) { actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0; this.drawWeapon(actor); }
+      if (actor.wasSprinting && !s.sprint) actor.sprintEndedAt = this.time;
+      actor.wasSprinting = s.sprint;
       if (s.swimming !== wasSwimming) this.waterTransition(actor);
       this.updateMudBath(actor);
       if (s.bounceSeq !== previousBounce) this.emit({ type: 'bounce', actor: s.id, pos: { ...s.pos } });
@@ -341,7 +349,18 @@ export class Simulation {
       }
       const weaponId = s.weapons[s.slot].id;
       actor.adsAmount = s.swimming ? 0 : advanceAds(weaponId, actor.adsAmount, s.ads && !s.sprint && !s.reloadUntil && weaponId !== 'machete', TICK);
-      if (s.alive && (inp.fire || trigger)) this.fire(actor, trigger?.clientTime, trigger?.id);
+      if (actor.meleeSwing) { actor.meleeSwing = false; this.fire(actor, inp.clientTime); }
+      else if (actor.meleeReturn && this.time >= actor.meleeReturn.at) {
+        const back = s.weapons.findIndex(w => w.box === actor.meleeReturn!.box);
+        actor.meleeReturn = null;
+        if (back >= 0 && WEAPONS[s.weapons[s.slot].id].melee && (!s.swimming || swimReady(s.weapons[back].id))) this.setSlot(s, back);
+      }
+      if (s.alive && (inp.fire || trigger)) {
+        const result = this.fire(actor, trigger?.clientTime, trigger?.id);
+        // A click during the sprint-out fires as soon as the gun is up, aimed where the view is then.
+        if (trigger && result === 'wait' && this.time - actor.triggerAt < TRIGGER_HOLD)
+          actor.triggerQueued = { ...trigger, yaw: inp.yaw, pitch: inp.pitch, lean: inp.lean, ads: inp.ads, clientTime: inp.clientTime };
+      }
       if (!inp.fire) actor.wasFiring = false;
       if (inp.jump) actor.input.jump = false;
       actor.history.push({ time: this.time, pos: { ...s.pos }, crouch: s.crouch, yaw: s.yaw });
@@ -610,7 +629,24 @@ export class Simulation {
     if (index === s.slot && s.weapons[index]) return;
     const actor = this.actors.get(s.id);
     s.slot = index; s.reloadUntil = 0; s.useUntil = 0; s.using = null; s.shotHeat = 0;
-    if (actor) { actor.shotHeat = 0; actor.adsAmount = 0; }
+    if (actor) { actor.shotHeat = 0; actor.adsAmount = 0; this.drawWeapon(actor); }
+  }
+  // Quick melee swings the facão at once (even out of a sprint) and returns to
+  // the held gun when the swing ends; that gun then takes its normal draw time.
+  private quickMelee(a: ActorRuntime) {
+    const s = a.state, facao = s.weapons.findIndex(w => WEAPONS[w.id].melee);
+    if (facao < 0 || s.stage !== 'ground' || s.swimming || s.using || s.emote || this.time + 1e-6 < (a.readyAt[s.weapons[facao].id] ?? 0)) return;
+    if (s.slot !== facao) {
+      a.meleeReturn = { box: s.weapons[s.slot].box, at: this.time + MELEE_SECONDS };
+      s.slot = facao; s.reloadUntil = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0;
+    }
+    a.nextShot = this.time; a.wasFiring = false; a.meleeSwing = true;
+  }
+  // A newly held weapon fires once it is drawn, and never before its own cycle
+  // (bolt, pump) has finished: swapping away and back cannot skip a cycle.
+  private drawWeapon(a: ActorRuntime) {
+    const id = a.state.weapons[a.state.slot]?.id;
+    if (id) a.nextShot = Math.max(this.time + HANDLING[id].draw, a.readyAt[id] ?? 0);
   }
   private dropHeld(a: ActorRuntime) {
     const s = a.state, held = s.weapons[s.slot];
@@ -639,12 +675,15 @@ export class Simulation {
     }
   }
   // `aim` is the bot path: a direction plus the legacy aim-error cone (radians).
-  private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }) {
+  // Returns 'wait' when only the sprint-out kept the gun from firing.
+  private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }): 'fired' | 'wait' | 'blocked' {
     const s = a.state, w = s.weapons[s.slot], def = w && WEAPONS[w.id];
-    if (!w || !def || s.stage !== 'ground' || s.using || s.emote || this.time < a.nextShot || (s.swimming && !swimReady(w.id))) return;
-    if (!def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return;
+    if (!w || !def || s.stage !== 'ground' || s.using || s.emote || this.time + 1e-6 < a.nextShot || (s.swimming && !swimReady(w.id))) return 'blocked';
+    if (!def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return 'blocked';
+    // Firing ends a sprint (moveActor); the gun comes up before the first round. The facão swings straight out of a run.
+    if (!def.melee && (s.sprint || this.time + 1e-6 < a.sprintEndedAt + HANDLING[w.id].sprintOut)) return 'wait';
     if (s.reloadUntil) {
-      if (w.id !== 'shotgun' || w.ammo === 0) return;
+      if (w.id !== 'shotgun' || w.ammo === 0) return 'blocked';
       s.reloadUntil = 0;
     }
     a.wasFiring = true;
@@ -654,28 +693,31 @@ export class Simulation {
         const ready = s.weapons.findIndex(other => other !== w && (WEAPONS[other.id].melee || other.ammo + other.reserve > 0) && (!s.swimming || swimReady(other.id)));
         if (ready >= 0) this.setSlot(s, ready);
       } else this.startReload(a);
-      return;
+      return 'blocked';
     }
-    const spread = shotSpread(w.id, a.adsAmount, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded && !s.swimming, a.shotHeat, s.swimming);
+    const spread = shotSpread(w.id, a.adsAmount, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded && !s.swimming, a.shotHeat, s.swimming, s.crouch);
     if (!s.bot && !def.melee && !def.projectile) a.shotHeat = s.shotHeat = Math.min(1.2, a.shotHeat + shotHeatGain(w.id));
     if (pressId !== undefined) a.lastShotPressId = Math.max(a.lastShotPressId, pressId);
     if (s.protectionUntil > this.time) s.protectionUntil = this.time;
-    a.nextShot = this.time + 60 / def.rpm;
+    // Holding the trigger keeps the exact cadence: the next round is due one
+    // interval after the previous one was due, not after the tick that fired it.
+    const interval = 60 / def.rpm, held = this.time - a.nextShot < TICK * 1.5;
+    a.nextShot = a.readyAt[w.id] = (held ? a.nextShot : this.time) + interval;
     if (!def.melee) w.ammo--;
     a.shots++;
-    const origin = center(s), forward = aim ? aim.dir : aimDirection(s.yaw, s.pitch);
+    const seq = ++s.shotSeq;
+    const origin = shotOrigin(s), forward = aim ? aim.dir : aimDirection(s.yaw, s.pitch);
     const range = w.id === 'pistol' || w.id === 'smg' ? 60 : def.melee ? 0 : 90;
     if (range) this.alertBots(s.pos, range);
-    origin.x += Math.cos(s.yaw) * s.lean * .32; origin.z -= Math.sin(s.yaw) * s.lean * .32;
     if (def.projectile) {
       this.projectiles.push({ owner: s.id, weapon: w.id, origin: { ...origin }, pos: { ...origin }, velocity: { x: forward.x * (def.speed || 50), y: forward.y * (def.speed || 50), z: forward.z * (def.speed || 50) }, life: 3 });
-      this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: { x: origin.x + forward.x * 2, y: origin.y + forward.y * 2, z: origin.z + forward.z * 2 }, hit: false });
-      return;
+      this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: { x: origin.x + forward.x * 2, y: origin.y + forward.y * 2, z: origin.z + forward.z * 2 }, hit: false, seq });
+      return 'fired';
     }
     const pellets = def.pellets || 1; let hit = false, headHit = false, impact: Impact | null = null, endpoint = { x: origin.x + forward.x * def.range, y: origin.y + forward.y * def.range, z: origin.z + forward.z * def.range };
     for (let n = 0; n < pellets; n++) {
       const direction = aim ? this.cone(forward, aim.cone + (s.swimming ? 1.5 * DEG : 0) + (pellets > 1 ? def.spread * DEG * .5 : 0))
-        : def.melee ? forward : norm({ x: forward.x + (this.random() * 2 - 1) * spread * DEG, y: forward.y + (this.random() * 2 - 1) * spread * DEG, z: forward.z + (this.random() * 2 - 1) * spread * DEG });
+        : pelletDirection(w.id, this.matchId, s.id, seq, n, s.yaw, s.pitch, spread);
       const wall = raycastWorld(origin, direction, def.range, this.world);
       let best = wall?.distance ?? def.range, victim: ActorRuntime | null = null, head = false;
       for (const other of this.actors.values()) {
@@ -697,38 +739,11 @@ export class Simulation {
     }
     if (hit) { a.hits++; if (headHit) a.headshots++; }
     const struck = !hit && impact ? { surface: impact.surface, normal: { x: Math.round(impact.normal.x * 1000) / 1000, y: Math.round(impact.normal.y * 1000) / 1000, z: Math.round(impact.normal.z * 1000) / 1000 } } : {};
-    this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: endpoint, hit, ...struck });
+    this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: endpoint, hit, ...struck, seq });
+    return 'fired';
   }
   private rayActor(origin: Vec3, d: Vec3, actor: ActorState, max: number, position = actor.pos, crouch = actor.crouch, yaw = actor.yaw, favoured = false): { distance: number; head: boolean } | null {
-    const shape = favoured ? HIT_SHAPES.favoured : HIT_SHAPES.normal;
-    const scale = crouch ? 1.8 / 1.3 : 1;
-    const cos = Math.cos(yaw), sin = Math.sin(yaw);
-    const wx = origin.x - position.x, wz = origin.z - position.z;
-    const x = (cos * wx - sin * wz) * scale, y = (origin.y - position.y) * scale, z = (sin * wx + cos * wz) * scale;
-    const vx = (cos * d.x - sin * d.z) * scale, vy = d.y * scale, vz = (sin * d.x + cos * d.z) * scale;
-    let best = max, head = false;
-    // Head sphere.
-    {
-      const px = x, py = y - shape.headY, pz = z - shape.headZ;
-      const a = vx * vx + vy * vy + vz * vz, b = px * vx + py * vy + pz * vz, c = px * px + py * py + pz * pz - shape.headR ** 2;
-      const disc = b * b - a * c;
-      if (disc >= 0 && (-b + Math.sqrt(disc)) / a >= 0) { const near = Math.max(0, (-b - Math.sqrt(disc)) / a); if (near < best) { best = near; head = true; } }
-    }
-    // Body cylinder around the vertical axis, capped at the feet and the shoulders.
-    {
-      let low = 0, high = Infinity;
-      const a = vx * vx + vz * vz, b = x * vx + z * vz, c = x * x + z * z - shape.bodyR ** 2;
-      if (a < 1e-12) { if (c > 0) low = Infinity; }
-      else {
-        const disc = b * b - a * c;
-        if (disc < 0) low = Infinity;
-        else { low = Math.max(low, (-b - Math.sqrt(disc)) / a); high = Math.min(high, (-b + Math.sqrt(disc)) / a); }
-      }
-      if (Math.abs(vy) < 1e-12) { if (y < 0 || y > shape.bodyTop) low = Infinity; }
-      else { const t0 = -y / vy, t1 = (shape.bodyTop - y) / vy; low = Math.max(low, Math.min(t0, t1)); high = Math.min(high, Math.max(t0, t1)); }
-      if (low <= high && high >= 0 && low < best) { best = Math.max(0, low); head = false; }
-    }
-    return best < max ? { distance: best, head } : null;
+    return rayCapybara(origin, d, position, crouch, yaw, max, favoured);
   }
   private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean, shotDistance = 0) {
     const s = target.state;
@@ -811,7 +826,7 @@ export class Simulation {
     s.weapons = this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[s.weaponLevel])] :
       [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
-    s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
+    s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false; a.readyAt = {}; a.sprintEndedAt = -Infinity; a.wasSprinting = false; a.meleeSwing = false; a.meleeReturn = null;
     // Press IDs survive respawn just like lastAction/lastSeq; a delayed reliable
     // copy of a held shot must not fire again in the new life. Reconnect resets IDs.
     a.input = emptyInput(); a.lastInputAt = -Infinity; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; a.boostUntil = 0; a.history = [];
@@ -1238,7 +1253,7 @@ export class Simulation {
     b.recentDmg *= Math.exp(-dt * .8);
     // Pick the best gun; bots never run dry (legacy bots had endless reserves).
     const slot = this.bestWeapon(s);
-    if (slot !== s.slot && !s.reloadUntil) s.slot = slot;
+    if (slot !== s.slot && !s.reloadUntil) { s.slot = slot; this.drawWeapon(a); }
     const w = s.weapons[s.slot], def = WEAPONS[w.id], bw = BOT_WEAPON[w.id];
     if (def.ammo && w.reserve < def.magazine) w.reserve = AMMO[w.id];
     const rethink = now >= b.thinkAt;
