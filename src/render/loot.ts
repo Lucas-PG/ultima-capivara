@@ -36,14 +36,16 @@ const glowHalo = () => new THREE.ShaderMaterial({
 });
 const glowBeam = () => new THREE.ShaderMaterial({
   transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide,
-  vertexShader: `varying vec2 vUv;varying vec3 vColor;
+  // Up close the beam thins out: walking up to a rare gun no longer puts a bright stripe down the middle of the view.
+  vertexShader: `varying vec2 vUv;varying vec3 vColor;varying float vNear;
     void main(){vUv=uv;vColor=vec3(1.0);
       #ifdef USE_INSTANCING_COLOR
       vColor=instanceColor;
       #endif
+      vNear=.22+.78*smoothstep(2.0,8.0,length((modelViewMatrix*instanceMatrix*vec4(0.0,0.0,0.0,1.0)).xyz));
       gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.0);}`,
-  fragmentShader: `varying vec2 vUv;varying vec3 vColor;
-    void main(){float a=pow(1.0-vUv.y,1.6)*smoothstep(0.0,.06,vUv.y)*.55;gl_FragColor=vec4(vColor*a,a);}`,
+  fragmentShader: `varying vec2 vUv;varying vec3 vColor;varying float vNear;
+    void main(){float a=pow(1.0-vUv.y,1.6)*smoothstep(0.0,.06,vUv.y)*.55*vNear;gl_FragColor=vec4(vColor*a,a);}`,
 });
 
 export class LootView {
