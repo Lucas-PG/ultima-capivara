@@ -302,6 +302,54 @@ test('a Correria guest selects, drops and picks back a gun through the host', as
   } finally { await Promise.all(contexts.map(context => context.close())); }
 });
 
+test('a guest sees its own rounds on the input frame and the host confirms each one exactly once', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'chromium', 'Rendered multiplayer smoke is the Chromium gate.');
+  test.setTimeout(180_000);
+  const contexts = await Promise.all([0, 1].map(() => browser.newContext({ viewport: { width: 1280, height: 720 } })));
+  const errors: string[] = [];
+  try {
+    for (const context of contexts) await context.addInitScript(() => {
+      if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+      localStorage.setItem('uc-v2-settings', JSON.stringify({ graphics: 'low', master: 0, frameLimit: 60 }));
+    });
+    const [host, guest] = await Promise.all(contexts.map(context => context.newPage()));
+    for (const page of [host, guest]) page.on('pageerror', error => errors.push(error.message));
+    await host.goto(gameAddress());
+    await host.locator('[data-do="host"]').click();
+    await host.locator('[name="nickname"]').fill('Ponte Host');
+    await host.getByRole('button', { name: 'Correria', exact: true }).click();
+    await host.locator('[name="bots"]').uncheck();
+    await host.locator('#room-form [type="submit"]').click();
+    await expect(host.locator('.invite-card strong')).toHaveText(/^[A-Z2-9]{6}$/);
+    const code = await host.locator('.invite-card strong').innerText();
+    await guest.goto(gameAddress(code));
+    await guest.locator('[name="nickname"]').fill('Ponte Guest');
+    await guest.locator('#room-form [type="submit"]').click();
+    await expect(guest.locator('#connection-status')).toHaveText(/Conectado/);
+    const guestId = (await inspect(guest)).room.myId;
+    await Promise.all([host.locator('[data-do="ready"]').click(), guest.locator('[data-do="ready"]').click()]);
+    await expect(host.locator('[data-do="start"]')).toBeEnabled({ timeout: 90_000 });
+    await host.locator('[data-do="start"]').click();
+    for (const page of [host, guest]) await expect.poll(async () => (await inspect(page)).snapshot?.phase, { timeout: 60_000 }).toBe('playing');
+    await controls(guest, 'activate');
+    // Pistol (semi-automatic): one round per click, drawn first.
+    await controls(guest, 'key', 'Digit3', true); await controls(guest, 'key', 'Digit3', false);
+    await expect.poll(async () => { const a = await player(host, guestId); return a.weapons[a.slot]?.id; }).toBe('pistol');
+    await guest.waitForTimeout(600);
+    const before = (await player(host, guestId)).shotSeq;
+    for (let i = 0; i < 5; i++) { await controls(guest, 'fire'); await guest.waitForTimeout(350); }
+    await expect.poll(async () => (await player(host, guestId)).shotSeq).toBe(before + 5);
+    await expect.poll(async () => (await player(guest, guestId)).shotSeq).toBe(before + 5);
+    const times = await guest.evaluate(() => (window as any).__capivara.shotTimes()) as { seq: number; predicted?: number; confirmed?: number }[];
+    const rounds = times.filter(t => t.seq > before);
+    expect(rounds).toHaveLength(5);
+    // Every round was shown locally first; the host's event for it arrived afterwards and was not shown again.
+    for (const t of rounds) { expect(t.predicted).toBeDefined(); expect(t.confirmed).toBeDefined(); expect(t.confirmed!).toBeGreaterThanOrEqual(t.predicted!); }
+    expect((await player(host, guestId)).weapons.find((w: any) => w.id === 'pistol').ammo).toBe(17 - 5);
+    expect(errors).toEqual([]);
+  } finally { await Promise.all(contexts.map(context => context.close())); }
+});
+
 // Slow (a full 5-minute Correria): results reach both clients, the host's
 // rematch returns the room to the lobby and a second match starts clean.
 test('a full Correria ends on both clients and the host starts a clean rematch', async ({ browser }, info) => {
