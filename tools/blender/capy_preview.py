@@ -16,7 +16,7 @@ import capybara_form as C
 COLORS = {'fur': 'B0663A', 'muzzle': '9A7A60', 'nose': '4A3C38', 'pad': '4C3E38', 'claw': '2A211D', 'shirt': 'E6DAC4',
           'denim': '3F4E66', 'scarf': 'D9644E', 'leather': '6B4A30', 'pack': '7A5135', 'canvas': '8A6A48', 'trouser': '6E6B4A',
           'brass': 'C79A48', 'eye': '1A1210', 'ear_in': '6A4535', 'hipcloth': 'D9644E', 'lip': '3A2A26', 'button': 'D8CFBE',
-          'strap': '5A3A24', 'sole': '3A302C'}
+          'strap': '5A3A24', 'sole': '3A302C', 'denim_pocket': '4A5A76', 'trouser_pocket': '7A7752', 'pouch': '7A5335', 'pack_flap': '704A30'}
 
 out = sys.argv[1]; voxel = float(sys.argv[2]) if len(sys.argv) > 2 else .004
 t0 = time.time()

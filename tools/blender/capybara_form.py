@@ -18,7 +18,9 @@ import paw_sculpt as P
 
 F = np.float32
 MATERIALS = ['fur', 'muzzle', 'nose', 'pad', 'claw', 'shirt', 'denim', 'scarf', 'leather', 'pack', 'canvas',
-             'trouser', 'brass', 'eye', 'ear_in', 'hipcloth', 'lip', 'button', 'strap', 'sole']
+             'trouser', 'brass', 'eye', 'ear_in', 'hipcloth', 'lip', 'button', 'strap', 'sole',
+             # Sewn-on pieces paint like their cloth; their own ids give the painter their seams.
+             'denim_pocket', 'trouser_pocket', 'pouch', 'pack_flap']
 M = {name: i for i, name in enumerate(MATERIALS)}
 # The team colour: the scarf (high, by the face), the hip rag (low, on the moving silhouette)
 # and the bedroll on the pack (a large block seen from behind and the sides at distance).
@@ -51,6 +53,8 @@ EAR = v(.112, 1.776, .082)
 PAW_SCALE = 1.1
 FOOT_SCALE = 1.3
 NECK_BASE = v(0, 1.370, .000)
+# Where the mouth line turns up at its corner (the smile and frown bones pivot there).
+MOUTH_CORNER = v(.070, 1.540, -.268)
 HEAD_PIVOT = v(0, 1.520, -.010)
 
 
@@ -107,7 +111,7 @@ def bones():
             b[f'blink_{part}_{n}'] = (eye, eye + v(0, .044, 0), 'blink_' + n)
         b['glint_' + n] = (eye + side(v(.006, .008, -.012), s), eye + side(v(.006, .05, -.012), s), 'blink_' + n)
         b['brow_' + n] = (eye + side(v(-.004, .030, -.004), s), eye + side(v(-.004, .060, -.004), s), 'head')
-        b['mouth_' + n] = (side(v(.052, 1.540, -.262), s), side(v(.052, 1.570, -.262), s), 'mouth_cavity')
+        b['mouth_' + n] = (side(MOUTH_CORNER, s), side(MOUTH_CORNER + v(0, .030, 0), s), 'mouth_cavity')
         b['thigh_' + n] = (side(HIP, s), side(KNEE, s), 'root')
         b['shin_' + n] = (side(KNEE, s), side(ANKLE, s), 'thigh_' + n)
         b['foot_' + n] = (side(ANKLE, s), side(v(.134, .045, -.075), s), 'shin_' + n)
@@ -156,43 +160,51 @@ def torso():
 
 
 def neck():
-    return Union([Ellipsoid((0, 1.440, -.010), (.132, .105, .135)), Ellipsoid((0, 1.500, -.030), (.112, .060, .125))], k=.05, mat=M['fur'])
+    return Union([Ellipsoid((0, 1.440, -.010), (.134, .105, .136)), Ellipsoid((0, 1.505, -.020), (.140, .070, .140))], k=.05, mat=M['fur'])
 
 
 # Head profile stations: (z, top, bottom, half-width at the crown, half-width at the jaw, exponent).
+# A long flat-topped skull on broad cheeks, a tall muzzle that narrows a little, and a blunt snout
+# whose nose leans forward over a receding upper lip (the loft ends in a small rounded tip).
 HEAD_STATIONS = [
-    (0.182, 1.690, 1.600, 0.040, 0.052, 2.0),
-    (0.165, 1.742, 1.560, 0.098, 0.122, 2.0),
-    (0.125, 1.778, 1.495, 0.152, 0.172, 2.1),
-    (0.070, 1.795, 1.462, 0.176, 0.196, 2.2),
-    (0.000, 1.793, 1.455, 0.182, 0.198, 2.3),
-    (-0.070, 1.781, 1.465, 0.170, 0.186, 2.3),
-    (-0.140, 1.763, 1.484, 0.146, 0.164, 2.4),
-    (-0.209, 1.742, 1.500, 0.122, 0.130, 2.5),
-    (-0.260, 1.722, 1.512, 0.112, 0.116, 2.5),
-    (-0.299, 1.708, 1.530, 0.104, 0.104, 2.4),
-    (-0.320, 1.700, 1.548, 0.093, 0.090, 2.3),
-    (-0.324, 1.690, 1.575, 0.080, 0.080, 2.2),
-    (-0.330, 1.676, 1.610, 0.043, 0.040, 2.0),
+    (0.195, 1.690, 1.585, 0.040, 0.060, 2.0),
+    (0.172, 1.745, 1.505, 0.108, 0.140, 2.0),
+    (0.130, 1.781, 1.468, 0.154, 0.186, 2.1),
+    (0.070, 1.797, 1.452, 0.176, 0.200, 2.2),
+    (0.000, 1.798, 1.450, 0.181, 0.202, 2.3),
+    (-0.070, 1.789, 1.460, 0.168, 0.186, 2.3),
+    (-0.140, 1.773, 1.478, 0.145, 0.160, 2.4),
+    (-0.200, 1.755, 1.496, 0.124, 0.130, 2.5),
+    (-0.250, 1.738, 1.516, 0.113, 0.116, 2.5),
+    (-0.290, 1.724, 1.538, 0.105, 0.104, 2.4),
+    (-0.316, 1.708, 1.566, 0.097, 0.092, 2.3),
+    (-0.328, 1.696, 1.596, 0.084, 0.078, 2.2),
+    (-0.337, 1.684, 1.622, 0.066, 0.058, 2.1),
+    (-0.342, 1.672, 1.644, 0.036, 0.030, 2.0),
+    (-0.344, 1.662, 1.654, 0.012, 0.010, 2.0),
 ]
+NOSE_TIP = v(0, 1.664, -.360)
 
 
 def head_mass():
-    """Big forms of the capybara head: lofted skull-to-muzzle, jowl pads and a small set-back chin."""
+    """Big forms of the capybara head: lofted skull-to-muzzle, soft cheek masses and a small set-back chin."""
     loft = ZLoft(HEAD_STATIONS)
-    chin = Ellipsoid((0, 1.508, -.222), (.050, .028, .056))
-    return Union([loft, chin], k=.045, mat=M['fur'])
+    chin = Ellipsoid((0, 1.516, -.262), (.052, .030, .056))
+    # The bulbous nose the pad sits on: rounder and a little prouder than the loft's tip.
+    nose = Ellipsoid((0, 1.662, -.304), (.090, .060, .050), R=rot(pitch=-.12))
+    return Union([loft, chin, nose], k=.035, mat=M['fur'])
 
 
 _EYES = {}
 
 
 def eye_point(s):
-    """Eye centre, seated half into the head surface high on the side, looking out and a little forward."""
+    """Eye centre, seated half into the head surface high on the side, looking out and forward
+    enough that both eyes read from the front."""
     if s not in _EYES:
-        out = norm(side((.86, .14, -.49), s))
+        out = norm(side((.80, .16, -.58), s))
         surface = on_surface(head_mass(), side(EYE, s))[0]
-        _EYES[s] = (surface - out * EYE_R * .70, out)
+        _EYES[s] = (surface - out * EYE_R * .45, out)
     return _EYES[s]
 
 
@@ -206,35 +218,55 @@ def eye_frame(s):
     return np.stack([fwd, out, norm(up)], 1).astype(F)
 
 
+def mouth_path(s):
+    """The mouth line on one side: from the lip split under the philtrum back to the corner."""
+    return [side(p, s) for p in ((0.0, 1.538, -.326), (.028, 1.536, -.318), (.054, 1.535, -.296), (.074, 1.538, -.270), (.084, 1.545, -.238))]
+
+
+def nose_pad(snout):
+    """The dark leathery rhinarium: a raised pad over the snout tip, wider at the top, split
+    below by the philtrum, with the nostrils in its lower outer corners."""
+    region = Union([Ellipsoid((0, 1.662, -.378), (.094, .064, .088)), Ellipsoid((0, 1.702, -.334), (.066, .022, .040))], k=.02)
+    pad = Intersect(Offset(snout, .0016), region)
+    nostrils = Union([Ellipsoid(side((.038, 1.646, -.350), s), (.014, .0065, .016), R=rot(pitch=-.35) @ rot(roll=s * .55)) for s in (-1, 1)])
+    pad = Cut(pad, nostrils, k=.003)
+    return Material(pad, M['nose']), nostrils
+
+
 def head():
-    """The long blunt capybara head: flat top line to a tall rounded muzzle, broad jowls."""
+    """The long blunt capybara head: flat top line to a tall rounded muzzle, broad cheeks."""
     mass = head_mass()
-    rhinarium = Union([Ellipsoid((0, 1.655, -.306), (.074, .046, .025), R=rot(pitch=-.18)), Ellipsoid((0, 1.690, -.290), (.052, .026, .030))], k=.02)
-    lips = Union([Ellipsoid((s * .031, 1.572, -.288), (.044, .038, .034)) for s in (-1, 1)], k=.02)
-    face = Union([mass, rhinarium, lips], k=.028, mat=M['fur'])
-    nostrils = Union([Ellipsoid((s * .036, 1.668, -.333), (.014, .0062, .014), R=rot(pitch=-.3) @ rot(roll=s * .6)) for s in (-1, 1)])
+    # Whisker pads: the broad soft upper lip either side of the philtrum, under the nose.
+    lips = Union([Ellipsoid(side((.036, 1.584, -.296), s), (.058, .050, .044)) for s in (-1, 1)], k=.02)
+    face = Union([mass, lips], k=.022, mat=M['fur'])
+    pad, nostrils = nose_pad(face)
     face = Cut(face, nostrils, k=.004)
-    mouth = Union([RoundCone(side((.0, 1.556, -.315), s), side((.036, 1.532, -.298), s), .003, .0028) for s in (-1, 1)] +
-                  [RoundCone((0, 1.606, -.333), (0, 1.584, -.329), .0022, .0026)])
-    face = Cut(face, mouth, k=.003)
+    # Philtrum and mouth: a groove down from the pad to the lip split, then back along each side.
+    grooves = [RoundCone((0, 1.616, -.351), (0, 1.548, -.334), .0026, .0032)]
+    for s in (-1, 1):
+        path = mouth_path(s)
+        grooves += [RoundCone(a, b, .0026, .0022) for a, b in zip(path[:-1], path[1:])]
+    face = Cut(face, Union(grooves, k=.003), k=.003)
     for s in (-1, 1):
         e, out = eye_point(s)
         E = eye_frame(s)
-        # An almond opening in a raised lid rim, the upper lid heavier; the eyeball shows through.
-        rim = Ellipsoid(e + out * .006, (.031, .013, .019), R=E)
-        upper = Ellipsoid(e + out * .006 + E[:, 2] * .010, (.030, .010, .010), R=E)
-        brow = Ellipsoid(e + E[:, 2] * .030 - out * .004, (.036, .012, .030), R=E)
+        # The brow ridge runs forward over the eye into the top edge of the muzzle.
+        brow = Union([Ellipsoid(e + E[:, 2] * .030 - out * .006 + E[:, 0] * .006, (.046, .016, .024), R=E),
+                      Ellipsoid(e + E[:, 2] * .018 + E[:, 0] * .052 - out * .014, (.040, .012, .020), R=E)], k=.02)
         face = Union([face, brow], k=.022, mat=M['fur'])
+        # An almond opening in a raised lid rim, the upper lid heavier; the eyeball shows through.
+        rim = Ellipsoid(e + out * .004, (.035, .011, .022), R=E)
+        upper = Ellipsoid(e + out * .006 + E[:, 2] * .014, (.036, .012, .011), R=E)
         face = Union([face, rim, upper], k=.007, mat=M['fur'])
-        face = Cut(face, Ellipsoid(e + out * .010 - E[:, 2] * .001, (.024, .016, .0115), R=E), k=.003)
+        face = Cut(face, Ellipsoid(e + out * .013 - E[:, 2] * .002, (.029, .022, .016), R=E), k=.003)
     ears = []
     for s in (-1, 1):
         c = side(EAR, s)
         R = rot(yaw=s * .85) @ rot(roll=-s * .30) @ rot(pitch=-.15)
-        shell = Ellipsoid(c, (.036, .034, .019), R=R, mat=M['fur'])
-        cup = Ellipsoid(c + (R @ v(0, .005, -.013)), (.025, .023, .012), R=R)
+        shell = Ellipsoid(c + v(0, .004, 0), (.040, .042, .020), R=R, mat=M['fur'])
+        cup = Ellipsoid(c + v(0, .004, 0) + (R @ v(0, .007, -.014)), (.029, .030, .013), R=R)
         ears.append(Cut(shell, cup, k=.004, edge_mat=M['ear_in']))
-    return Union([face] + ears, k=.014, mat=M['fur'])
+    return Union([Union([face] + ears, k=.014, mat=M['fur']), pad], k=.0015)
 
 
 def forearm_profile():
@@ -348,10 +380,49 @@ def shirt(parts):
         # The rolled cuff: two soft rolls below the elbow.
         roll = Union([Torus(end - ax * .012, .080, .020, R=frame(ax), squash=.9), Torus(end - ax * .040, .082, .018, R=frame(ax), squash=.9)], k=.012)
         sleeves.append(Union([sleeve, roll], k=.012))
-    folds = lambda p: (.0035 * np.sin(p[:, 0] * 55 + p[:, 1] * 23) * np.sin(p[:, 2] * 41 + p[:, 1] * 9) +
-                       .002 * np.sin(p[:, 1] * 90 + p[:, 0] * 30))
     placket = RoundBox((0, 1.12, -.222), (.017, .20, .004), r=.003, R=rot(pitch=.06))
-    return Material(Union([Displace(Union([body] + sleeves, k=.02), folds, .006), placket], k=.004), M['shirt'])
+    buttons = []
+    for y in (1.285, 1.195, 1.105, 1.015):
+        c = on_surface(placket, v(0, y, -.24), .0015)[0]
+        buttons.append(Ellipsoid(c, (.0075, .0075, .0026)))
+    # The collar: a standing band around the neck under the scarf, its two points laid on the chest.
+    band = Intersect(Offset(parts['neck'], .012), slab(1.355, 1.425))
+    points = []
+    for s in (-1, 1):
+        a = on_surface(Offset(t, .012), side((.062, 1.372, -.150), s), .004)[0]
+        tip = on_surface(Offset(t, .012), side((.056, 1.308, -.205), s), .004)[0]
+        points.append(RoundCone(a, tip, .030, .006))
+    collar = Union([band] + [Intersect(pt, Offset(t, .030)) for pt in points], k=.006)
+    return (Material(Union([Displace(Union([body] + sleeves, k=.02), shirt_folds, .008), placket, collar], k=.004), M['shirt']),
+            Material(Union(buttons), M['button']))
+
+
+def _ss(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0, 1)
+    return t * t * (3 - 2 * t)
+
+
+def shirt_folds(p):
+    """Cloth folds: drape under the chest, blousing over the belt, rings and twisted
+    compression folds along the sleeves (deepest at the elbow crook and the armpit)."""
+    x, y, z = p[:, 0], p[:, 1], p[:, 2]
+    ang = np.arctan2(x, -z)
+    d = .0032 * np.sin(ang * 9 + np.sin(y * 13) * .9) * _ss(1.26, 1.06, y)
+    d += .0045 * np.sin(y * 105 + np.sin(ang * 4) * 1.6) * _ss(1.03, .95, y)
+    d += .0012 * np.sin(x * 60 + y * 30) * np.sin(z * 50 - y * 20)
+    for s in (-1, 1):
+        sh, el = side(SHOULDER, s), elbow(s)
+        ax = norm(el - sh); q = p - sh
+        t = q @ ax
+        r = np.linalg.norm(q - t[:, None] * ax, axis=1)
+        around = np.arctan2(q @ norm(np.cross(ax, v(0, 1, 0))), q[:, 1])
+        near = _ss(.15, .10, r) * _ss(-.05, .03, t) * _ss(UPPER_ARM + .06, UPPER_ARM + .02, t)
+        # Irregular folds: two wavelengths, twisted around the arm, their depth varying in patches.
+        wob = S.value_noise(np.stack([t * 30, around * 1.5, np.full(len(t), s * 3.0, F)], 1).astype(F), 61)
+        ring = .65 * np.sin(t * 118 + around * (.9 + .5 * s) + wob * 4) + .35 * np.sin(t * 205 - around * 1.4 + wob * 6)
+        crook = (.35 + .65 * wob) * (.6 + .6 * _ss(.12, .24, t) + .5 * _ss(.06, 0, t))
+        d += near * .0052 * ring * crook
+    return d
 
 
 def vest(parts):
@@ -360,16 +431,17 @@ def vest(parts):
     region = slab(.915, 1.415)
     body = Intersect(shell, region)
     for s in (-1, 1):
-        body = Cut(body, Ellipsoid(side(SHOULDER, s) + side((.02, -.03, 0), s), (.098, .150, .126)), k=.022)
+        body = Cut(body, Ellipsoid(side(SHOULDER, s) + side((.02, -.03, 0), s), (.086, .136, .112)), k=.018)
     opening = Field(lambda p: (np.abs(p[:, 0]) - (.030 + .075 * np.clip((p[:, 1] - .95) / .45, 0, 1) ** 1.4)) * np.where(p[:, 2] < -.05, 1, -1) + np.where(p[:, 2] < -.05, 0, 1),
                     (-.3, .8, -.4), (.3, 1.5, 0))
     body = Cut(body, opening, k=.004)
-    pockets = []
+    pockets, studs = [], []
     for s in (-1, 1):
         c = side((.112, 1.105, -.215), s)
         pockets.append(RoundBox(c, (.042, .046, .006), r=.006, R=rot(yaw=s * .42) @ rot(pitch=.12)))
         pockets.append(RoundBox(c + v(0, .046, -.006), (.046, .014, .006), r=.005, R=rot(yaw=s * .42) @ rot(pitch=.2)))
-    return Material(Union([body] + pockets, k=.004), M['denim'])
+        studs.append(Sphere(on_surface(pockets[-1], c + v(0, .040, -.030), .0012)[0], .0055))
+    return Union([Material(body, M['denim']), Material(Union(pockets, k=.004), M['denim_pocket'])], k=.004), Material(Union(studs), M['brass'])
 
 
 def trousers(parts):
@@ -382,7 +454,7 @@ def trousers(parts):
     legs = Union(bags, k=.03)
     base = Union([Offset(Intersect(parts['torso'], Plane((0, 1.0, 0), (0, 1, 0))), .030), legs], k=.06)
     body = Intersect(base, slab(.300, .975))
-    rolls = []
+    rolls, studs, pockets = [], [], []
     for s in (-1, 1):
         kn, an = side(KNEE, s), side(ANKLE, s)
         ax = norm(kn - an)
@@ -396,26 +468,35 @@ def trousers(parts):
         g = np.array([S.evaluate(base, (pc + v(*o))[None], cull=False)[0][0] - S.evaluate(base, (pc - v(*o))[None], cull=False)[0][0] for o in ((e, 0, 0), (0, e, 0), (0, 0, e))], F)
         nrm = norm(g); up = norm(v(0, 1, 0) - nrm * float(nrm[1])); w = np.cross(up, nrm)
         R = np.stack([nrm, up, w], 1).astype(F)
-        rolls.append(RoundBox(pc, (.002, .058, .050), r=.007, R=R))
-        rolls.append(RoundBox(pc + nrm * .003 + up * .058, (.003, .015, .054), r=.006, R=R))
-    folds = lambda p: (.004 * np.sin(p[:, 1] * 70 + np.sin(p[:, 0] * 30) * 2) * np.clip(1 - np.abs(p[:, 1] - .43) / .12, 0, 1) +
-                       .0025 * np.sin(p[:, 0] * 40 + p[:, 1] * 35 + p[:, 2] * 20))
-    return Material(Union([Displace(body, folds, .006)] + rolls, k=.01), M['trouser'])
+        pockets.append(RoundBox(pc, (.002, .058, .050), r=.007, R=R))
+        pockets.append(RoundBox(pc + nrm * .003 + up * .058, (.003, .015, .054), r=.006, R=R))
+        studs.append(Sphere(pc + nrm * .0075 + up * .052, .0058))
+    def folds(p):
+        x, y, z = p[:, 0], p[:, 1], p[:, 2]
+        knee = .0058 * np.sin(y * 72 + np.sin(x * 30) * 2 + z * 25) * np.clip(1 - np.abs(y - .44) / .13, 0, 1)
+        drape = .0035 * np.sin(np.arctan2(np.abs(x) - .13, z) * 7 + y * 6) * _ss(.80, .62, y) * _ss(.30, .40, y)
+        crotch = .004 * np.sin((np.abs(x) * 2 - y) * 80) * _ss(.10, 0, np.abs(x) - .02) * _ss(.60, .72, y) * _ss(.86, .76, y)
+        return knee + drape + crotch + .0018 * np.sin(x * 40 + y * 35 + z * 20)
+    cloth = Material(Union([Displace(body, folds, .008)] + rolls, k=.01), M['trouser'])
+    return Union([cloth, Material(Union(pockets, k=.004), M['trouser_pocket'])], k=.006), Material(Union(studs), M['brass'])
 
 
 def belt(parts):
     band = Intersect(Offset(parts['torso'], .036), slab(.905, .958))
-    buckle = RoundBox((0, .931, -.262), (.030, .022, .006), r=.004)
+    frame_ = RoundBox((0, .931, -.262), (.034, .027, .0055), r=.004)
+    buckle = Cut(frame_, RoundBox((.004, .931, -.268), (.022, .016, .012), r=.003), k=.002)
+    tongue = RoundBox((.006, .931, -.258), (.026, .020, .004), r=.003)
     loops = []
-    pouches = []
+    pouches, flaps = [], []
     for s in (-1, 1):
         for yaw, x, z in ((.62, .160, -.212), (1.35, .238, -.035)):
             c = side((x, .872, z), s)
             R = rot(yaw=s * yaw)
             pouches.append(RoundBox(c, (.040, .050, .026), r=.012, R=R))
-            pouches.append(RoundBox(c + (R @ v(0, .044, -.004)), (.044, .014, .028), r=.008, R=R))
+            flaps.append(RoundBox(c + (R @ v(0, .044, -.004)), (.044, .014, .028), r=.008, R=R))
             loops.append(Sphere(c + (R @ v(0, .040, -.034)), .006))
-    return (Material(Union([band] + pouches, k=.004), M['leather']), Material(Union([buckle] + loops), M['brass']))
+    leather = Union([Material(Union([band, tongue], k=.004), M['leather']), Material(Union(pouches), M['pouch']), Material(Union(flaps), M['pack_flap'])], k=.004)
+    return leather, Material(Union([buckle] + loops), M['brass'])
 
 
 def scarf():
@@ -450,7 +531,7 @@ def backpack(parts):
     roll_bands = Union([Torus(side((.100, 1.362, .222), s), .054, .006, R=rot(roll=math.pi / 2)) for s in (-1, 1)])
     # The pack stays inside the body hit cylinder (r .335 m), like everything but the arms.
     inside = Field(lambda p: np.hypot(p[:, 0], p[:, 2]) - .338, (-.4, .8, -.4), (.4, 1.5, .4))
-    pack = Material(Intersect(Union([bag, flap, pocket, sides], k=.012), inside), M['pack'])
+    pack = Intersect(Union([Material(Union([bag, sides], k=.012), M['pack']), Material(flap, M['pack_flap']), Material(pocket, M['pouch'])], k=.012), inside)
     canvas = Material(Intersect(roll, inside), M['canvas'])
     # Shoulder straps over the vest, from the pack over the shoulders down the front.
     vest_surface = Offset(parts['torso'], .030)
@@ -475,7 +556,13 @@ def build():
     body = Union([skin] + limbs, k=.03)
     leather, brass = belt(parts)
     pack, canvas, straps, strap_brass = backpack(parts)
-    gear = [shirt(parts), vest(parts), trousers(parts), leather, brass, scarf(), hip_cloth(), pack, canvas, straps, strap_brass]
+    shirt_cloth, buttons = shirt(parts)
+    denim, vest_studs = vest(parts)
+    cargo, cargo_studs = trousers(parts)
+    # A small fillet where the vest meets the shirt: no slit between the armhole and the sleeve
+    # for the decimated game mesh to bridge with sliver triangles.
+    garments = Union([shirt_cloth, denim], k=.008)
+    gear = [garments, buttons, vest_studs, cargo, cargo_studs, leather, brass, scarf(), hip_cloth(), pack, canvas, straps, strap_brass]
     # Nothing below the contact plane: the soles sit on the ground.
     return Intersect(Union([body] + gear, k=0.0), Plane((0, .0015, 0), (0, -1, 0))), parts
 
@@ -484,7 +571,7 @@ def eyes():
     return Union([Material(Sphere(eye_point(s)[0], EYE_R), M['eye']) for s in (-1, 1)])
 
 
-EYE_R = .0195
+EYE_R = .024
 
 
 BOUNDS = (v(-.60, -.01, -.62), v(.60, 1.90, .40))
