@@ -39,12 +39,12 @@ for glb in glbs:
         if (stem in ('revolver', 'shotgun') and obj.name == f'{stem}_mag') or (stem == 'revolver' and obj.name.startswith(('revolver_case', 'revolver_live'))):
             obj.hide_render = True
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH' and not o.hide_render]
-    lo = Vector((1e9, 1e9, 1e9)); hi = -lo
+    lo = Vector((1e9, 1e9, 1e9)); hi = -lo; corners = []
     for o in meshes:
         for corner in o.bound_box:
-            w = o.matrix_world @ Vector(corner); lo = Vector(map(min, lo, w)); hi = Vector(map(max, hi, w))
+            w = o.matrix_world @ Vector(corner); corners.append(w); lo = Vector(map(min, lo, w)); hi = Vector(map(max, hi, w))
     centre, radius = (lo + hi) / 2, (hi - lo).length / 2
-    cam_data = bpy.data.cameras.new('cam'); cam_data.lens = 50
+    cam_data = bpy.data.cameras.new('cam'); cam_data.lens = 50; cam_data.sensor_fit = 'HORIZONTAL'
     cam = bpy.data.objects.new('cam', cam_data); bpy.context.scene.collection.objects.link(cam)
     bpy.context.scene.camera = cam
     for view, (yaw, pitch) in {'right': (90, 8), 'left': (-90, 8), 'three': (35, 22), 'front': (170, 12)}.items():

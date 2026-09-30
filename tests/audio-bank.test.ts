@@ -230,3 +230,21 @@ describe('master output', () => {
     expect(peak(out)).toBeLessThan(.99);
   });
 });
+
+
+it('makes the incoming report bright and brief, distinct from the low gun body and the moving whiz', () => {
+  const incoming = sound('shot:incoming'), body = sound('far:m4'), whiz = sound('whiz');
+  expect(centroid(incoming.x, incoming.rate)).toBeGreaterThan(centroid(body.x, body.rate) * 2);
+  expect(incoming.x.length / incoming.rate).toBeLessThan(.15);
+  expect(incoming.x.length / incoming.rate).toBeLessThan(whiz.x.length / whiz.rate);
+  expect(low('shot:incoming')).toBeLessThan(.05);
+});
+
+it('makes the balloon burner a breathy roar that lasts, unlike a gun report or an engine drone', () => {
+  const burner = sound('balloon:burner'), seconds = burner.x.length / burner.rate;
+  expect(seconds).toBeGreaterThan(1.2); expect(seconds).toBeLessThan(2.2);
+  // Most energy is the low roar, with a real flame hiss above it.
+  const body = low('balloon:burner');
+  expect(body).toBeGreaterThan(.2); expect(body).toBeLessThan(.7);
+  expect(centroid(burner.x, burner.rate)).toBeGreaterThan(300);
+});

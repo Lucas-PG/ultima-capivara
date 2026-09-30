@@ -13,7 +13,8 @@ const toward = (x: number, z: number, tx: number, tz: number) => Math.atan2(-(tx
 // at what its name says. tests/qa-views.test.ts keeps each camera out of the
 // solids and its view clear of walls and foliage for the first 2 m.
 export const VIEWS: Record<string, WorldView> = {
-  plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
+  // Across the praça toward the fountain and the church, clear of the benches.
+  plaza: [-4.5, -11.5, toward(-4.5, -11.5, -8, -19), .02], bakery: [-43, -36, Math.PI, .02],
   river: [4.5, 20.5, .28, -.03], forteBeach: [62, -85.5, 1.13, .2],
   fortApproach: [4, -62, 0, .2],
   // Up Rua Direita toward the Morro and the Redentora above it.
@@ -25,7 +26,8 @@ export const VIEWS: Record<string, WorldView> = {
   trampolinePraia: [-38, 101, Math.PI, -.13],
   // Down Rua Direita through the Vila, fronts continuous on both sides.
   vilaStreet: [-30, -35.5, -Math.PI / 2, .03],
-  capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
+  // A capybara 2 m ahead with the fountain behind it.
+  capyFront: [-5, -12, 0, 0], capySide: [-5, -12, 0, 0],
   redentoraVila: [-6, -26, 1.62, .1], redentoraNear: [-72, -36.5, toward(-72, -36.5, -110, -24), .16], redentoraPlinth: [-101, -27, toward(-101, -27, -110, -24), .5],
   morroStreet: [-97, -45, 0, .12],
   // From a laje roof terrace over the roofs falling to the Vila, and along the high terraces of the Morro.

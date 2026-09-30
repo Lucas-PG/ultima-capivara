@@ -72,6 +72,8 @@ PALETTE = {
     'rubber_red': ('A5382C', .82, 0, .15, 'D98A7E'),
     'sisal': ('C9A86A', .92, 0, .15, 'EAD7A8'),
     'leaf_green': ('4E7A2E', .8, 0, .2, '9BC56E'),
+    'walnut': ('87502C', .5, 0, .32, 'C6945C'),
+    'coconut_green': ('91A743', .76, 0, .2, 'CBD17A'),
 }
 MAT_IDS = {name: i + 1 for i, name in enumerate(PALETTE)}
 _materials = {}
@@ -220,6 +222,21 @@ def prism(name, profile_yz, width, material, x=0.0, bevel=.003, radius=0.0, segm
 
 
 _pending = {}
+
+
+def cross_sections(obj, axis, positions):
+    """Add contour stations before deforming a long prism into a grip waist."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    normal = Vector((1 if axis == 0 else 0, 1 if axis == 1 else 0, 1 if axis == 2 else 0))
+    for position in positions:
+        point = normal * position
+        bmesh.ops.bisect_plane(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces),
+                              dist=1e-8, plane_co=point, plane_no=normal)
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return obj
 
 
 def complete(obj):
@@ -521,7 +538,10 @@ def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radi
     bpy.ops.uv.pack_islands(margin=.006, rotate=True)
     bpy.ops.object.mode_set(mode='OBJECT')
 
-    def bake(kind, image, **kw):
+    def bake(kind, image, sample_count=None, **kw):
+        # Flat emission passes need only coverage sampling. Reserve the full
+        # ray budget for AO, and enough bevel samples for the edge mask.
+        scene.cycles.samples = sample_count or samples
         _set_bake_target(objects, image)
         bpy.ops.object.bake(type=kind, **kw)
         return _pixels(image)
@@ -529,7 +549,7 @@ def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radi
     # 1. Material id (flat emission) to recover per-pixel palette entries.
     id_img = _bake_image(f'{name}_id', size, True)
     saved = _emission_override(objects, lambda nt, m: _id_color(nt, m))
-    ids = bake('EMIT', id_img)
+    ids = bake('EMIT', id_img, sample_count=4)
     _restore(saved)
     # 2. Ambient occlusion.
     scene.world = scene.world or bpy.data.worlds.new('world')
@@ -539,17 +559,17 @@ def bake_weapon(objects, name, size=1024, samples=48, ao_distance=.04, edge_radi
     # 3. Rounded-edge mask: how far the bevel-smoothed normal leans from the true normal.
     edge_img = _bake_image(f'{name}_edge', size, True)
     saved = _emission_override(objects, lambda nt, m: _edge_mask(nt, edge_radius))
-    edge = bake('EMIT', edge_img)
+    edge = bake('EMIT', edge_img, sample_count=16)
     _restore(saved)
     # 4. Object-space normal for the painted key/fill gradient.
     normal_img = _bake_image(f'{name}_n', size, True)
     saved = _emission_override(objects, lambda nt, m: _object_normal(nt))
-    normals = bake('EMIT', normal_img)
+    normals = bake('EMIT', normal_img, sample_count=4)
     _restore(saved)
     # 5. Weapon-space position (encoded p * .5 + .5) for stencils and wood grain.
     pos_img = _bake_image(f'{name}_p', size, True)
     saved = _emission_override(objects, lambda nt, m: _position(nt))
-    pos = (bake('EMIT', pos_img)[..., :3] - .5) * 2
+    pos = (bake('EMIT', pos_img, sample_count=4)[..., :3] - .5) * 2
     _restore(saved)
     albedo, orm = composite(ids, ao, edge, normals, size)
     albedo = wood_grain(albedo, ids, pos, size)
@@ -690,7 +710,7 @@ def apply_livery(albedo, orm, ids, pos, normals, livery):
         else:
             a, b, depth, facing = pos[..., 0], pos[..., 1], pos[..., 2], n[..., 2]
         side = d.get('side', 0)
-        face = np.clip((np.abs(facing) - .3) / .25, 0, 1)
+        face = np.ones_like(facing) if d.get('wrap') else np.clip((np.abs(facing) - .3) / .25, 0, 1)
         if side:
             face *= (np.sign(facing) == side)
         if 'depth' in d:
@@ -704,7 +724,13 @@ def apply_livery(albedo, orm, ids, pos, normals, livery):
         if axis == 'x' and d.get('mirror', True):
             # Seen from the left the weapon's forward axis points the other way.
             u = np.where(facing < 0, 1 - u, u)
-        m = _sample(stencil(d['stencil']), u, v) * face * d.get('opacity', .95)
+        if 'bands' in d:
+            period, width = d['bands']
+            phase = (da * math.cos(ang) + db * math.sin(ang)) % period
+            mask = np.clip((width - phase) * 1800, 0, 1) * np.clip(phase * 1800, 0, 1)
+        else:
+            mask = _sample(stencil(d['stencil']), u, v)
+        m = mask * face * d.get('opacity', .95)
         colour = np.array(srgb_to_linear(d['colour']), np.float32)
         albedo = albedo * (1 - m[..., None]) + colour * light * m[..., None]
         if d.get('metal'):
@@ -718,7 +744,7 @@ def apply_livery(albedo, orm, ids, pos, normals, livery):
 def wood_grain(albedo, ids, pos, size):
     """Streaky grain along the weapon's length, fine dark lines and pores on wood and bamboo."""
     pid = np.rint(ids[..., 0] * 64).astype(np.int32)
-    wood = np.isin(pid, [MAT_IDS[k] for k in ('wood', 'wood_dark', 'wood_red', 'bamboo') if k in MAT_IDS])
+    wood = np.isin(pid, [MAT_IDS[k] for k in ('wood', 'wood_dark', 'wood_red', 'bamboo', 'walnut') if k in MAT_IDS])
     if not wood.any():
         return albedo
     p = pos[wood]
@@ -730,6 +756,14 @@ def wood_grain(albedo, ids, pos, size):
     tone = (.82 + .26 * streak) * (1 - .22 * lines) * (.96 + .08 * pores)
     out = albedo.copy()
     out[wood] = albedo[wood] * tone[:, None]
+    walnut = pid == MAT_IDS['walnut']
+    if walnut.any():
+        q = pos[walnut]
+        flow = _vnoise(q * np.array([40, 6, 40], np.float32), 17)
+        grain = np.sin((q[:, 2] * 112 + q[:, 0] * 38 + flow * 3.5) * math.tau) * .5 + .5
+        ribbons = np.sin((q[:, 2] * 27 + flow * 1.5) * math.tau) * .5 + .5
+        tone = (.84 + .3 * ribbons) * (1 - .46 * grain ** 12)
+        out[walnut] = albedo[walnut] * tone[:, None]
     return out
 
 
@@ -813,7 +847,7 @@ def weather(albedo, orm, ids, ao, edge, normals, size, seed=1, paint=None):
     rng = np.random.default_rng(seed)
     pid = np.rint(ids[..., 0] * 64).astype(np.int32)
     mask = lambda names: np.isin(pid, [MAT_IDS[k] for k in names])
-    painted, metal, wood = mask(PAINTED), mask(METALS + ('case',)), mask(('wood', 'wood_dark', 'wood_red', 'bamboo'))
+    painted, metal, wood = mask(PAINTED), mask(METALS + ('case',)), mask(('wood', 'wood_dark', 'wood_red', 'bamboo', 'walnut'))
     if paint is not None:
         # Livery motifs chip like the paint they are (on wood they wear, not flake to steel).
         painted = painted | ((paint > .3) & ~wood)

@@ -7,7 +7,7 @@ export default defineConfig({
   workers: 1,
   timeout: 90_000,
   expect: { timeout: 10_000 },
-  use: { baseURL: 'http://127.0.0.1:5174', trace: 'retain-on-failure' },
+  use: { baseURL: process.env.BASE || 'http://127.0.0.1:5174', trace: 'retain-on-failure' },
   projects: [
     // Two full game clients need a real GPU; software GL stalls for seconds per frame.
     { name: 'chromium', use: { ...devices['Desktop Chrome'], ...(process.platform === 'darwin' ? {
@@ -15,7 +15,7 @@ export default defineConfig({
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
-  webServer: [
+  webServer: process.env.BASE ? undefined : [
     {
       command: 'npm run signaling',
       env: { PEER_HOST: '127.0.0.1', PEER_PORT: '9001', PEER_PATH: '/peerjs' },

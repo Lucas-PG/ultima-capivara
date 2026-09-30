@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { InputController, SPRINT_HOLD_MS } from '../src/input';
-import { DEFAULT_SETTINGS, loadSettings, verticalFov } from '../src/settings';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings, verticalFov } from '../src/settings';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -278,5 +278,23 @@ describe('local input feel', () => {
     (input as any).key({ code: 'KeyI', repeat: false, preventDefault: () => {} }, true);
     expect(actions.map(a => a.type)).toEqual(['reload']);
     expect(inspect).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('procedural music settings migration', () => {
+  it('upgrades only an unversioned old default and preserves intentional volumes after saving', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => store.set(key, value) });
+    for (const key of ['uc-settings', 'uc-v2-settings']) {
+      store.clear(); store.set(key, JSON.stringify({ music: .25 }));
+      expect(loadSettings().music).toBe(.5);
+    }
+    for (const music of [0, .1, .5, 1]) {
+      store.set('uc-v2-settings', JSON.stringify({ music })); expect(loadSettings().music).toBe(music);
+    }
+    saveSettings({ ...DEFAULT_SETTINGS, music: .25 });
+    expect(loadSettings().music).toBe(.25);
+    expect(JSON.parse(store.get('uc-v2-settings')!).musicMix).toBe(2);
   });
 });

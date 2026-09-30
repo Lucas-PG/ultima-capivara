@@ -20,24 +20,29 @@
       "animatedNear": 2370
     },
     "m4": {
+      "source": 22154,
       "near": 2400,
-      "far": 412
+      "far": 416
     },
     "shotgun": {
+      "source": 20616,
       "near": 2400,
-      "far": 420
+      "far": 418
     },
     "coco": {
-      "near": 2400,
-      "far": 420
+      "source": 25790,
+      "near": 2364,
+      "far": 418
     },
     "dmr": {
-      "near": 2400,
-      "far": 420
+      "source": 23504,
+      "near": 2390,
+      "far": 410
     },
     "sniper": {
+      "source": 22314,
       "near": 2400,
-      "far": 420
+      "far": 416
     },
     "machete": {
       "source": 10490,
@@ -45,5 +50,5 @@
       "far": 420
     }
   },
-  "bundledBytes": 2621087
+  "bundledBytes": 2782903
 }

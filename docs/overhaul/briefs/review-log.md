@@ -45,3 +45,26 @@
 
 ## Codex quota - 02:33
 - Codex hit its weekly limit at 02:30 while the long-guns agent was in its fix round (five fixes committed, 11 files in progress). Per the user's rule, ONE reset was used, the soonest-expiring (01:21 on 5 Oct), through the Codex CLI /usage menu; 2 remain (22 Oct, 29 Oct) and are not to be used. The long-guns agent resumed on its saved thread at 02:34.
+
+## Character rebuild (Claude Opus, character-rebuild, 13 commits) - 03:15
+- New sculpt with face (nose, lids, brows, mouth, ears), barrel torso, rolled cargo trousers, three-toed feet, the v3 paw imported unchanged; team colour on scarf, hip rag and bedroll; LODs 26.5k/7.8k/2.2k; guns held close for every class with both paws (a stance-offset accumulation bug moving guns 7-14 cm found and fixed); 60 Hz clips with planted feet; 16 capybaras hold 60 fps on every preset.
+- My check against the holding reference: PASS as a clear step up (outfit, silhouette, blunt muzzle, close holding all match); below the reference in face expressiveness at distance and fur cleanliness up close. Merged; integrated tests 918/918.
+
+## Switch to Codex astra (Claude weekly 93% used) - 03:20
+- Remaining builds moved to Codex gpt-6-astra at max effort per the user's fallback rule, keeping Claude for reviews and the release: integration (settings for the new controls, crosshair FOV, audio follow-ups, scope flash, QA poses and visual baselines, integration bugs from full matches), bots-graphics (bots on the new island, sky, grading, fog, AO), char-polish (face, fur, foot sliding, armhole texels, statue from the new character, far LOD).
+
+## Bots and graphics (Claude Opus takeover of a Codex start, bots-graphics, 14 commits) - 08:05
+- Bots measured over 8 full matches per mode against the original: stuck time 2.2 -> 0.7 s per bot-minute (royale) and 2.7 -> 0.5 (deathmatch), longest stuck 46 -> 6 s, storm deaths 23 -> 0, water deaths 83 -> 3; strafing now spoils bot aim (Normal SMG at 10 m 86% -> 63%); rusher, anchor and flanker styles; yards and gates joined to the route network.
+- Graphics (the Codex lighting draft was replaced because it washed colour out): blue sky, one shared haze warming toward the sun, warm sun and cool shadows, colour grade, daylight clouds, turquoise water, short-range shadows on Low; 16.7 ms on every preset.
+- My before/after from four cameras: PASS (subtle, cleaner daylight closer to the wide-aim reference; the coast lost its orange horizon for a clear blue sky). Merged.
+- Found: a walled garden near (6, 68) traps players (sent to the integration agent with a connectivity test requirement).
+
+## Integration (Claude Opus takeover of a Codex start, integration, 41 commits) - 09:20
+- Settings built from the controls model (every option and binding), crosshair FOV fixed, incoming-fire cue, music default migration, scope flash redone, QA retargets; the Tucano supply drop is a hot-air balloon, so burner sounds replace a propeller; every walled yard has a gate (two had none: (5.5, 68) and (14.6, -49.1)) with an island test that no pocket, roof, spawn or pickup traps a player; pause menu key cards; Correria and Corrente results count falls; QA effects no longer leak between poses. 165 visual baselines checked by eye and installed; 11 full rounds, 0 page errors, 58-61 fps fresh.
+- My check: settings screen PASS (cohesive, all new controls present). Merged.
+- Open: character-mask.spec.ts also fails on the base branch (for the character agent); frame drops in long runs under shared load (recheck on a quiet machine in the release gate); bougainvillea through a Morro wall; spectator camera squeezed against the target about 6% of the time; new sounds need a human listen.
+
+## Long guns round 2 (Claude Opus takeover of the Codex agent, guns-long) - 10:05
+- Fixes: support paws wrap from the lower left, palm on the side, fingers forward and curled under (tips 254-308 deg), pumps wrapped on the Doze and Lanca-coco; M4 handguard made full length and chunkier, Carabina and sniper fore-ends widened so a paw can wrap them; hip framing and viewmodel FOV (56-60) re-solved so the back of the firing paw and the trigger digit read at the lower right; coco hopper moved right under tall ladder sights; reload paths reworked, two-flank inspect on all five, swap timed to the combat pass's draw times (tested). Worst clearance -0.4 mm across hip, ADS, fire, inspect and full reloads.
+- My round-2 renders (hip, ADS, support close-ups, all five): PASS. Accepted minor gaps: support thumbs along the upper-left edge (125-146 deg) instead of the top; Lanca-coco 25.8k triangles (3% over the guideline).
+- Merged (one conflict in tests/visual/qa-hook.ts resolved: kept the integration event hook and the reload-chain motion); integrated tests 1021/1021.

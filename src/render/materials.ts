@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import './toon';
+import { installHaze } from './haze';
 
 export const PAINT = {
-  sun: '#FFC47E', hemisphereSky: '#8FAECF', hemisphereGround: '#BD9069',
-  fog: '#DBC2AE', interior: '#FFD7A8', rim: '#FFD28A',
+  sun: '#FFDDA6', hemisphereSky: '#A9C4E2', hemisphereGround: '#C0A07C',
+  fog: '#C3D7E3', interior: '#FFD7A8', rim: '#FFD28A',
   ink: '#3A2418', characterInk: '#2B1B12',
 } as const;
 // One sun for lighting, shadows, sky, water glints and the first-person key.
@@ -12,6 +13,7 @@ const sunQuery = typeof location === 'undefined' ? null : new URLSearchParams(lo
 export const SUN_VECTOR: readonly [number, number, number] = (sunQuery?.split(',').map(Number).filter(Number.isFinite).length === 3
   ? sunQuery.split(',').map(Number) : [-60, 55, -35]) as [number, number, number];
 export const SUN_DIRECTION = new THREE.Vector3(...SUN_VECTOR).normalize();
+installHaze(SUN_DIRECTION);
 export type ToonMaterialKind = 'terrain' | 'plaster' | 'stone' | 'wood' | 'foliage' | 'fabric' | 'painted-metal' | 'character' | 'weapon';
 
 // The shared physical-light chunk supplies continuous wrapped sunlight.

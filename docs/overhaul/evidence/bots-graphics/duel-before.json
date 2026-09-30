@@ -1,0 +1,488 @@
+[
+  {
+    "difficulty": "easy",
+    "weapon": "pistol",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.79,
+    "hitRate": 0.88,
+    "timeTo100S": 5.07
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "pistol",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.79,
+    "hitRate": 0.7,
+    "timeTo100S": 9.34
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "pistol",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.84,
+    "hitRate": 0.8,
+    "timeTo100S": 5.53
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "pistol",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.84,
+    "hitRate": 0.58,
+    "timeTo100S": 9.92
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "pistol",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.9,
+    "hitRate": 0.5,
+    "timeTo100S": 10.31
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "pistol",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.9,
+    "hitRate": 0.35,
+    "timeTo100S": 11.79
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "smg",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.79,
+    "hitRate": 0.9,
+    "timeTo100S": 3.65
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "smg",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.79,
+    "hitRate": 0.79,
+    "timeTo100S": 6.81
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "smg",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.84,
+    "hitRate": 0.84,
+    "timeTo100S": 4.25
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "smg",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.84,
+    "hitRate": 0.58,
+    "timeTo100S": 8.81
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "smg",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.9,
+    "hitRate": 0.46,
+    "timeTo100S": 11.31
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "smg",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.9,
+    "hitRate": 0.31,
+    "timeTo100S": 12
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "m4",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.79,
+    "hitRate": 0.84,
+    "timeTo100S": 3.74
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "m4",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.79,
+    "hitRate": 0.54,
+    "timeTo100S": 8.37
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "m4",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.84,
+    "hitRate": 0.7,
+    "timeTo100S": 4.38
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "m4",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.84,
+    "hitRate": 0.5,
+    "timeTo100S": 7.74
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "m4",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.9,
+    "hitRate": 0.38,
+    "timeTo100S": 8.97
+  },
+  {
+    "difficulty": "easy",
+    "weapon": "m4",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.9,
+    "hitRate": 0.25,
+    "timeTo100S": 11.98
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "pistol",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.54,
+    "hitRate": 0.92,
+    "timeTo100S": 3.14
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "pistol",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.54,
+    "hitRate": 0.83,
+    "timeTo100S": 4.21
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "pistol",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.59,
+    "hitRate": 0.78,
+    "timeTo100S": 4
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "pistol",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.59,
+    "hitRate": 0.73,
+    "timeTo100S": 4.64
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "pistol",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.65,
+    "hitRate": 0.5,
+    "timeTo100S": 7.66
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "pistol",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.65,
+    "hitRate": 0.38,
+    "timeTo100S": 10.03
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "smg",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.54,
+    "hitRate": 0.95,
+    "timeTo100S": 2.52
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "smg",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.54,
+    "hitRate": 0.86,
+    "timeTo100S": 3.18
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "smg",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.59,
+    "hitRate": 0.81,
+    "timeTo100S": 3.01
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "smg",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.59,
+    "hitRate": 0.7,
+    "timeTo100S": 3.59
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "smg",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.65,
+    "hitRate": 0.51,
+    "timeTo100S": 7.74
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "smg",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.65,
+    "hitRate": 0.33,
+    "timeTo100S": 10.88
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "m4",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.54,
+    "hitRate": 0.83,
+    "timeTo100S": 2.58
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "m4",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.54,
+    "hitRate": 0.66,
+    "timeTo100S": 4.14
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "m4",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.59,
+    "hitRate": 0.66,
+    "timeTo100S": 3.43
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "m4",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.59,
+    "hitRate": 0.55,
+    "timeTo100S": 3.99
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "m4",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.65,
+    "hitRate": 0.51,
+    "timeTo100S": 4.55
+  },
+  {
+    "difficulty": "normal",
+    "weapon": "m4",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.65,
+    "hitRate": 0.37,
+    "timeTo100S": 6.16
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "pistol",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.47,
+    "hitRate": 0.97,
+    "timeTo100S": 2.56
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "pistol",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.47,
+    "hitRate": 0.85,
+    "timeTo100S": 3.66
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "pistol",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.48,
+    "hitRate": 0.79,
+    "timeTo100S": 2.81
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "pistol",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.48,
+    "hitRate": 0.72,
+    "timeTo100S": 3.18
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "pistol",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.51,
+    "hitRate": 0.67,
+    "timeTo100S": 3.86
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "pistol",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.51,
+    "hitRate": 0.5,
+    "timeTo100S": 5.36
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "smg",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.47,
+    "hitRate": 0.99,
+    "timeTo100S": 1.95
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "smg",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.47,
+    "hitRate": 0.88,
+    "timeTo100S": 2.24
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "smg",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.48,
+    "hitRate": 0.79,
+    "timeTo100S": 2.54
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "smg",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.48,
+    "hitRate": 0.7,
+    "timeTo100S": 2.79
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "smg",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.51,
+    "hitRate": 0.6,
+    "timeTo100S": 4.62
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "smg",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.51,
+    "hitRate": 0.46,
+    "timeTo100S": 6.75
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "m4",
+    "distance": 10,
+    "strafe": false,
+    "firstShotS": 0.47,
+    "hitRate": 0.93,
+    "timeTo100S": 1.8
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "m4",
+    "distance": 10,
+    "strafe": true,
+    "firstShotS": 0.47,
+    "hitRate": 0.71,
+    "timeTo100S": 2.45
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "m4",
+    "distance": 20,
+    "strafe": false,
+    "firstShotS": 0.48,
+    "hitRate": 0.71,
+    "timeTo100S": 2.36
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "m4",
+    "distance": 20,
+    "strafe": true,
+    "firstShotS": 0.48,
+    "hitRate": 0.57,
+    "timeTo100S": 2.99
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "m4",
+    "distance": 35,
+    "strafe": false,
+    "firstShotS": 0.51,
+    "hitRate": 0.54,
+    "timeTo100S": 3
+  },
+  {
+    "difficulty": "hard",
+    "weapon": "m4",
+    "distance": 35,
+    "strafe": true,
+    "firstShotS": 0.51,
+    "hitRate": 0.4,
+    "timeTo100S": 3.94
+  }
+]

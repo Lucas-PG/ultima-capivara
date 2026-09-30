@@ -54,7 +54,9 @@ describe('seeded bot personality without combat concessions', () => {
     const sample = () => Array.from({ length: 12 }, (_, i) => {
       const { sim, bot } = afterKill(i + 1);
       let first = 0, last = 0, emote: ActorState['emote'] = null;
-      advance(sim, 9, () => {
+      // The celebration window closes 9 s after the kill; sample past it by
+      // one full gesture so a late start is also seen to end.
+      advance(sim, 11, () => {
         if (bot.state.emote) { first ||= sim.snapshot().time; last = sim.snapshot().time; emote = bot.state.emote; }
       });
       if (emote) {

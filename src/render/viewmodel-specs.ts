@@ -97,44 +97,41 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   },
   m4: {
     url: 'models/arsenal/m4.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: { pos: [.17, -.195, -.37], rot: [.06, .24, -.12] },
-    sprint: LONG_SPRINT, adsDistance: .15, viewmodelFov: 64, shoulders: RIFLE_SHOULDERS,
-    // Fitted with tools/qa/grip-fit.mjs. R: index through the enlarged guard onto the trigger face,
-    // thumb resting along the right of the receiver, claws of the other digits showing on the grip's
-    // left side (the middle digit brushes the guard bar, under 3 mm, hidden). L (underhand): palm under the
-    // handguard, thumb along its left side, the three digits wrapping up the right side, no clipping.
-    grips: { R: { wrist: [.043, -.027, .088], forward: [.181, -.069, -.981], palm: [-.937, .29, -.193], curl: curl([.475, .614, .429], [1.253, .127, .478], [1.181, .756, .413], [-.039, .369, .647], -.315), pole: [.8, -1, .3] },
-      L: { wrist: [-.037, .014, -.235], forward: [.926, .007, -.377], palm: [-.012, 1, -.011], curl: curl([.144, .696, .86], [.336, .939, .962], [.494, 1.076, .749], [.252, .096, .258], .662), pole: [-.8, -1, .1] } },
+    hip: {"pos": [0.168, -0.112, -0.325], "rot": [0.07, 0.32, 0.4]},
+    sprint: { pos: [-.03, -.045, .015], rot: [-.12, .6, .1] }, adsDistance: .15, viewmodelFov: 70, shoulders: { R: [0.32, -0.42, 0.08], L: [-0.3, -0.45, -0.12] },
+    // Right index occupies the roomy guard; support wraps the rear handguard.
+    // Contact coordinates are measured against the packed asset in metres.
+    grips: {L: {"wrist": [-0.06620298567965667, 0.06656503179489037, -0.20597247582832484], "forward": [0.5583379191201537, -0.6800632919516031, -0.4751554345817011], "palm": [0.8170387136035429, 0.5500946910995026, 0.17275291979359086], "pole": [-1, -0.5, 0.2], "curl": {"index": [0.10011548702136971, 0.3330095761689079, 0.6998626424247699], "middle": [0.07883517869937078, 1.2811094058799266, 0.27462084564169087], "ring": [1.2478570231852706, -0.1, -0.1], "thumb": [0.7007584915621096, 0.16991276057680457, 0.09054685215160853], "spread": 1.1028028017977018}}, R: {wrist: [0.022995, -0.066361, 0.106426], forward: [0.404426, 0.41919, -0.812847], palm: [-0.612636, -0.535732, -0.581093], pole: [0.8, -1, 0.3], curl: {index: [0.470115, 0.394616, 0.343606], middle: [0.927018, 0.599134, 1.024462], ring: [1.7, 0.299979, -0.1], thumb: [0.082804, -0.095181, 0.078912], spread: 0.342322}}},
     recoil: RECOIL.rifle, inertia: 1,
   },
   shotgun: {
     url: 'models/arsenal/shotgun.glb', scale: 1, handling: 'heavy', reload: 'shotgun',
-    hip: { pos: [.17, -.19, -.37], rot: [.06, .22, -.12] },
+    hip: {"pos": [0.22, -0.1, -0.5], "rot": [0, 0.3, 0.4]}, viewmodelFov: 56,
     // The receiver stands taller than the rib: sight from above it, down the rib to the bead.
-    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .3, adsEye: [0, .13, .02], adsPitch: .07,
-    grips: { R: { wrist: [.036, -.014, .052], forward: [-.05, -.25, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] }, L: UNDERHAND_L([-.052, -.03, -.33], 'pump') },
+    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] }, shoulders: { R: [0.28, -0.42, 0], L: [-0.25, -0.45, -0.3] }, adsDistance: .3, adsEye: [0, .113, .03], adsPitch: .003,
+    grips: {"R": {"wrist": [0.022332, -0.103282, 0.095983], "forward": [0.301106, 0.523768, -0.796871], "palm": [-0.675689, -0.47248, -0.565868], "pole": [0.8, -1, 0.3], "curl": {"index": [0.044154, 0.036773, 0.420567], "middle": [0.343851, 1.466353, -0.010738], "ring": [1.7, 0.153145, -0.1], "thumb": [0.77398, -0.093148, 0.193754], "spread": 0.562315}}, L: {"wrist": [-0.06238024622680528, 0.016371095162871493, -0.2628518977625357], "forward": [0.6149947411736055, -0.4991172543646053, -0.6104616570468189], "palm": [0.669271251508108, 0.7397699363897628, 0.06940052678947788], "pole": [-1, -0.5, 0.2], "curl": {"index": [0.07499592424238334, -0.07776405735557075, 1.067209755991383], "middle": [0.022501391704299985, 1.133490951873488, 0.5003604666134983], "ring": [1.2246095713949743, -0.02318960081917944, -0.06600450584226118], "thumb": [0.6405154606108309, 0.25692243057106406, -0.1], "spread": 0.8019113433623504}, "part": "pump"}},
     recoil: { kick: 2.4, climb: 6.5, roll: 2.5, frequency: 17 }, inertia: 1.25,
   },
   coco: {
     url: 'models/arsenal/coco.glb', scale: 1, handling: 'heavy', reload: 'coco',
-    hip: { pos: [.2, -.22, -.46], rot: [.06, .2, -.1] },
-    // The hopper stands over the tube: aim from above it, the notch and hopper lined up on the target.
-    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .2, adsEye: [-.03, .26, .03], adsPitch: .18,
-    grips: { R: RIFLE_GRIP_R([.037, -.025, .045]), L: UNDERHAND_L([-.055, -.035, -.25], 'pump') },
+    hip: {"pos": [0.22, -0.13, -0.5], "rot": [0.04, 0.3, 0.25]}, viewmodelFov: 58,
+    // The hopper rides on the right of the tube, below the sight line: aim straight down the tube top.
+    sprint: { pos: [-.035, -.025, .02], rot: [-.14, .40, .1] }, shoulders: { R: [0.28, -0.42, 0], L: [-0.25, -0.46, -0.3] }, adsDistance: 0.34, adsEye: [0, 0.245, 0.084], adsPitch: 0,
+    grips: {"R": {"wrist": [0.028038, -0.067413, 0.103065], "forward": [0.37547, 0.427413, -0.822399], "palm": [-0.655368, -0.504998, -0.561667], "pole": [0.8, -1, 0.3], "curl": {"index": [0.671841, 0.222549, 0.097283], "middle": [1.02774, 0.777112, 0.780707], "ring": [1.7, 0.200238, -0.1], "thumb": [-0.098074, 0.055278, -0.041348], "spread": 0.405842}}, L: {"wrist": [-0.058606766322475044, -0.0012593236322061578, -0.28702490340273834], "forward": [0.5895855214283745, -0.49902844782251554, -0.6351059133608209], "palm": [0.6650951440301666, 0.7461074680465266, 0.03117844628414042], "pole": [-1, -0.5, 0.2], "curl": {"index": [0.08289597572739338, 0.3855915098658907, 0.36530424279573814], "middle": [-0.0900961774830357, 1.3251998818739412, 0.8040724190277783], "ring": [1.2791864209163106, -0.08499336605815727, -0.09160633923149585], "thumb": [0.9234451679764263, -0.098829025, -0.1], "spread": 0.8558467450850042}, "part": "pump"}},
     recoil: { kick: 2.6, climb: 7.5, roll: 1.6, frequency: 16 }, inertia: 1.3,
   },
   dmr: {
     url: 'models/arsenal/dmr.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: { pos: [.17, -.195, -.38], rot: [.06, .22, -.12] },
-    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .12,
-    grips: { R: { wrist: [.036, -.011, .052], forward: [-.05, -.25, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] }, L: UNDERHAND_L([-.052, -.01, -.27]) },
+    hip: {"pos": [0.217, -0.096, -0.46], "rot": [0, 0.3, 0.45]}, viewmodelFov: 58,
+    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] }, shoulders: { R: [0.4, -0.4, 0.05], L: [-0.26, -0.46, -0.26] }, adsDistance: .12,
+    grips: {R: {"wrist": [0.02121051739820651, -0.055055823126398236, 0.10002538844367494], "forward": [0.56629489543642, 0.3858304884221467, -0.72831650098469], "palm": [-0.6489852757013658, -0.3359754610242973, -0.6825969539284023], "pole": [0.8, -1, 0.3], "curl": {"index": [0.9497750914895832, -0.1, 0.18180799683758248], "middle": [1.0601256789596947, 1.0064209479720492, 0.6682766243392715], "ring": [1.6988, 0.44342632538537313, -0.08215766458303748], "thumb": [0.10823953552535795, 0.20366448205201115, 0.9363187581640128], "spread": 1.0405628191719964}}, L: {"wrist": [-0.07336938010908028, 0.07526814235589394, -0.24618090060395753], "forward": [0.5259962441683883, -0.7027679694949985, -0.4790043133131746], "palm": [0.8453116665402886, 0.49403023897994836, 0.203426422532312], "pole": [-1, -0.5, 0.2], "curl": {"index": [-0.1, 0.352772935935869, 0.8399527761704844], "middle": [0.15358063672724798, 1.1033228535829978, 0.20298344399366092], "ring": [1.1828731849841314, -0.1, 0.008117820025590104], "thumb": [0.4893176938136738, 0.15757813435117263, 0.40195382600954355], "spread": 1.1794902689697404}}},
     recoil: { kick: 1.7, climb: 4.2, roll: 1.6, frequency: 20 }, inertia: 1.05,
   },
   sniper: {
     url: 'models/arsenal/sniper.glb', scale: 1, handling: 'heavy', reload: 'bolt',
-    hip: { pos: [.17, -.2, -.39], rot: [.06, .22, -.12] },
-    sprint: LONG_SPRINT, shoulders: RIFLE_SHOULDERS, adsDistance: .12,
-    grips: { R: { wrist: [.036, -.014, .052], forward: [-.05, -.25, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] }, L: UNDERHAND_L([-.052, -.008, -.3]) },
+    hip: {"pos": [0.217, -0.096, -0.46], "rot": [0, 0.3, 0.45]}, viewmodelFov: 58,
+    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] }, shoulders: { R: [0.4, -0.4, 0.05], L: [-0.26, -0.46, -0.26] }, adsDistance: .12,
+    grips: {"R": {"wrist": [0.027958, -0.076478, 0.107616], "forward": [0.405386, 0.396548, -0.823657], "palm": [-0.677483, -0.474598, -0.561937], "pole": [0.8, -1, 0.3], "curl": {"index": [0.68375, -0.070677, -0.1], "middle": [1.006302, 1.228122, 1.279127], "ring": [1.7, 0.232095, -0.1], "thumb": [-0.1, -0.050618, 0.549216], "spread": 0.346758}}, L: {"wrist": [-0.0696007367091729, 0.03630665891799994, -0.25440436517070475], "forward": [0.525337973058387, -0.6260117712880016, -0.5763065818397047], "palm": [0.8294802290734913, 0.527760690703566, 0.18284201629899957], "pole": [-1, -0.5, 0.2], "curl": {"index": [0.15823577934076644, 0.33748562149651873, 1.006282135583036], "middle": [0.5273747578333394, 0.773567154030721, 0.3216896254233457], "ring": [1.3100732945488585, -0.08142211897214635, 0.3500171591305977], "thumb": [0.8956507866560082, -0.0640912159956556, 0.16116338805788627], "spread": 1.2}}},
     recoil: { kick: 2.8, climb: 7, roll: 2, frequency: 15 }, inertia: 1.35,
   },
   machete: {

@@ -8,7 +8,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1`);
 await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 60000 });
-await page.evaluate(() => window.__capyQA.start());
+await page.evaluate(async () => { await window.__capyQA.start(); window.__capyQA.quality('medium'); });
 await page.addStyleTag({ content: '#app,#confetti,#flash{display:none!important}' });
 const target = JSON.parse(process.env.TARGET || '[0.1,-0.15,-0.4]'), D = +(process.env.DIST || 1);
 const views = { eye: null, side: [Math.PI / 2, .1, .75], left: [-Math.PI / 2, .1, .75], below: [.5, -.9, .7], front: [Math.PI - .35, .15, .9], top: [.2, 1.2, .8], rear: [.35, .35, .5] };

@@ -7,6 +7,7 @@ import { WEAPONS } from '../src/shared/weapons';
 import { createWorld } from '../src/shared/world';
 import type { ActorState, Difficulty, GameEvent, InputFrame, WorldSpec } from '../src/shared/types';
 import { swimReady } from '../src/shared/inventory';
+import { emptyInput } from '../src/shared/math';
 
 type Runtime = { state: ActorState; brain: any; input: InputFrame; lastInputAt: number };
 
@@ -153,7 +154,7 @@ describe('legacy bot behaviour', () => {
     expect(took).toBe(true);
   });
 
-  it('runs for the safe circle when the storm would catch it', () => {
+  it('breaks a visible engagement to reach the safe circle before the storm catches it', () => {
     const world: WorldSpec = {
       version: 'bot-test', size: 256, objects: [], districts: [], loot: [], chests: [], colliders: [],
       spawns: [{ x: 0, y: terrainHeight(0, 0), z: 0, yaw: 0, mode: 'both' }],
@@ -163,18 +164,70 @@ describe('legacy bot behaviour', () => {
     advance(sim, 3.1);
     const actors = actorsOf(sim), bot = actors.get('bot-1')!;
     for (const [id, a] of actors) if (id !== 'bot-1') { a.state.alive = false; a.state.hp = 0; }
-    // Keep the human alive (a lone survivor would end the match), parked and protected far away.
+    // A visible enemy used to override zoneNeed, pinning bots in the storm.
     const human = actors.get('player')!.state;
-    Object.assign(human, { alive: true, hp: 100, stage: 'ground', grounded: true, pos: { x: -110, y: terrainHeight(-110, -110), z: -110 }, protectionUntil: 1e9 });
-    Object.assign(bot.state, { stage: 'ground', grounded: true, pos: { x: 70, y: terrainHeight(70, 0), z: 0 } });
+    Object.assign(human, { alive: true, hp: 10000, stage: 'ground', grounded: true, pos: { x: 60, y: terrainHeight(60, 0), z: 0 }, protectionUntil: 0 });
+    Object.assign(bot.state, { stage: 'ground', grounded: true, pos: { x: 70, y: terrainHeight(70, 0), z: 0 }, yaw: Math.PI / 2 });
     bot.brain.jumpAt = Infinity; bot.brain.thinkAt = 0; bot.brain.lastPos = { ...bot.state.pos };
     Object.assign((sim as any).zone, { x: 0, z: 0, radius: 95, nextX: 0, nextZ: 0, nextRadius: 20 });
     // The storm is already closing: legacy zoneNeed() sends the bot running inside.
     Object.assign((sim as any).zone, { shrinking: true }); (sim as any).zoneStart = { x: 0, y: 0, z: 0 }; (sim as any).zoneStartRadius = 95;
     (sim as any).zoneTimer = 6; (sim as any).zone.timeLeft = 6;
+    advance(sim, 1 / 60);
+    expect(bot.brain.target).toBe('player');
     advance(sim, 4);
     expect(bot.brain.zoneGoal).not.toBeNull();
     expect(bot.state.pos.x).toBeLessThan(50);
+  });
+
+  it('backs away at critical health even without a healing item', () => {
+    const { sim, player, bot } = duel(16);
+    bot.state.hp = 25; player.hp = 10000;
+    for (const key of Object.keys(bot.state.consumables) as (keyof ActorState['consumables'])[]) bot.state.consumables[key] = 0;
+    const start = Math.hypot(player.pos.x - bot.state.pos.x, player.pos.z - bot.state.pos.z);
+    collect(sim, .7, 1 / 60);
+    expect(Math.hypot(player.pos.x - bot.state.pos.x, player.pos.z - bot.state.pos.z)).toBeGreaterThan(start + 1);
+  });
+
+  it('peeks out of reachable cover, fires with line of sight, then tucks back in', () => {
+    const ground = terrainHeight(0, -9);
+    const { sim, player, bot } = duel(9, 'normal', Math.PI, 7, { colliders: [
+      { id: 'cover', min: { x: -1.5, y: ground, z: -7 }, max: { x: 1.5, y: ground + 2, z: -6 }, material: 'stone' },
+    ] });
+    player.hp = 10000;
+    Object.assign(bot.brain, { mode: 'cover', coverPt: { ...bot.state.pos }, coverUntil: sim.snapshot().time,
+      lastSeen: { ...player.pos }, lastSeenAt: sim.snapshot().time, target: null, sees: false });
+    let peeked = false, tucked = false, shot = false;
+    const trace: unknown[] = [];
+    for (let i = 0; i < 6 * 60; i++) {
+      sim.step(1 / 60);
+      if (i % 30 === 0) trace.push({ pos: { ...bot.state.pos }, peek: bot.brain.peekPt, sees: bot.brain.sees, react: bot.brain.reactT, yaw: bot.state.yaw, mode: bot.brain.mode });
+      peeked ||= !!bot.brain.peekPt;
+      tucked ||= peeked && !bot.brain.peekPt && bot.brain.mode === 'cover';
+      for (const event of sim.drainEvents()) if (event.type === 'shot' && event.actor === bot.state.id) {
+        shot = true;
+        expect((sim as any).botCanSee(bot.state, player)).toBe(true);
+      }
+    }
+    expect(peeked).toBe(true); expect(shot, JSON.stringify(trace)).toBe(true); expect(tucked).toBe(true);
+  });
+
+  it('stops peeking the same corner after a while and pushes while healthy', () => {
+    const ground = terrainHeight(0, -9);
+    const { sim, player, bot } = duel(9, 'normal', Math.PI, 7, { colliders: [
+      { id: 'cover', min: { x: -1.5, y: ground, z: -7 }, max: { x: 1.5, y: ground + 2, z: -6 }, material: 'stone' },
+    ] });
+    player.hp = 1e6;
+    const coverPt = { ...bot.state.pos };
+    Object.assign(bot.brain, { mode: 'cover', coverPt, coverUntil: sim.snapshot().time,
+      lastSeen: { ...player.pos }, lastSeenAt: sim.snapshot().time, target: null, sees: false });
+    let left = -1;
+    // Anchors hold longest: 9 s x 1.5.
+    for (let i = 0; i < 20 * 60 && left < 0; i++) {
+      sim.step(1 / 60); sim.drainEvents();
+      if (bot.brain.mode !== 'cover') left = sim.snapshot().time;
+    }
+    expect(left).toBeGreaterThan(0);
   });
 
   it('gets faster and more dangerous with difficulty', () => {
@@ -193,6 +246,38 @@ describe('legacy bot behaviour', () => {
     const easy = measure('easy'), hard = measure('hard');
     expect(hard.first).toBeLessThan(easy.first);
     expect(hard.damage).toBeGreaterThan(easy.damage * 1.3);
+  });
+
+  it('tracks a steady circle-strafe but is thrown by each change of direction, more so on easier settings', () => {
+    // Legacy bots aimed at the exact current position, so strafing barely
+    // mattered. A lagging read of motion makes side-stepping a real counter.
+    const hitRate = (difficulty: Difficulty, pattern: 'steady' | 'strafe') => {
+      let shots = 0, hits = 0;
+      for (const seed of [1, 2, 3, 4]) {
+        const { sim, player, bot } = duel(12, difficulty, Math.PI, seed);
+        player.hp = 10_000;
+        bot.state.weapons = [{ id: 'smg', ammo: 25, reserve: 300, rarity: 0, box: 0 }]; bot.state.slot = 0;
+        let seq = 1_000_000;
+        for (let tick = 0; tick < 5 * 60; tick++) {
+          // Facing the bot, a constant side-step circles it at an even range;
+          // alternating side-steps stay at the same range but reverse.
+          const now = sim.snapshot().time, direction = pattern === 'steady' ? 1 : Math.floor(now / .55) % 2 ? 1 : -1;
+          const yaw = Math.atan2(-(bot.state.pos.x - player.pos.x), -(bot.state.pos.z - player.pos.z));
+          sim.input('player', { ...emptyInput(), seq: seq++, clientTime: now, yaw, moveX: direction });
+          sim.step(1 / 60);
+          for (const event of sim.drainEvents()) {
+            if (event.type === 'shot' && event.actor === 'bot-1') shots++;
+            if (event.type === 'damage' && event.actor === 'bot-1') hits++;
+          }
+        }
+      }
+      return hits / shots;
+    };
+    const steady = hitRate('normal', 'steady'), strafe = hitRate('normal', 'strafe');
+    expect(steady).toBeGreaterThan(.25);
+    expect(strafe).toBeLessThan(steady * .8);
+    expect(hitRate('easy', 'strafe')).toBeLessThan(strafe);
+    expect(hitRate('hard', 'strafe')).toBeGreaterThan(strafe);
   });
 
   // This exercises 21 bots over 44 simulated seconds on the full island.

@@ -2,10 +2,10 @@
 // loudness-normalized, so the mix table (mix.ts) alone sets how loud each
 // category is. Rendering is deterministic per id and variant.
 import { integratedLufs, momentaryLufs, Rng, scale, seedOf } from './dsp';
-import { cocoBlast, cocoLaunch, GUNS, gunFar, gunNear, macheteSwing } from './weapons';
+import { cocoBlast, cocoLaunch, GUNS, gunFar, gunNear, incomingReport, macheteSwing } from './weapons';
 import { cloth, FOLEY_CUES, fleshHit, foley, impact, IMPACT_SURFACES, jump, mud, splash, step, STEP_MATERIALS, swimStroke, whiz } from './foley';
 import { FEEDBACK_IDS, feedback, VOICE_IDS, voice } from './feedback';
-import { bed, BED_IDS, critter, CRITTER_IDS, STEREO_BEDS, type BedId } from './ambience';
+import { balloonBurner, bed, BED_IDS, critter, CRITTER_IDS, STEREO_BEDS, type BedId } from './ambience';
 import { defeat, menuLoop, sambaLoop, tensionLoop, victory } from './music';
 
 export type Quality = 'high' | 'low';
@@ -42,6 +42,8 @@ export const SOUNDS: readonly SoundDef[] = [
   def('boom:coco', 2, 1, 'full', 0, (r, rng) => cocoBlast(r, rng, false)),
   def('boom:coco-far', 1, 1, 'half', 1, (r, rng) => cocoBlast(r, rng, true)),
   def('whiz', 3, 2, 'full', 0, (r, rng) => whiz(r, rng)),
+  def('shot:incoming', 2, 1, 'full', 0, (r, rng) => incomingReport(r, rng)),
+  def('balloon:burner', 3, 1, 'half', 2, (r, rng) => balloonBurner(r, rng)),
   def('flesh', 2, 1, 'full', 1, (r, rng) => fleshHit(r, rng)),
   ...STEP_MATERIALS.map(m => def(`step:${m}`, 6, 3, 'full', 1, (r, rng, v) => step(m, false, r, rng, v))),
   ...STEP_MATERIALS.map(m => def(`land:${m}`, 2, 1, 'full', 1, (r, rng, v) => step(m, true, r, rng, v))),
