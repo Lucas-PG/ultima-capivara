@@ -106,7 +106,7 @@ export const M4_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.061
 const M4_SEAT_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.039363, -0.271518, -0.037076],
   forward: [0.922329, 0.267645, -0.278703], palm: [-0.257714, 0.963504, 0.072407],
   curl: { index: [0.09, 0.135, 0.09], middle: [0.09, 0.135, 0.09], ring: [0.108, 0.135, 0.09], thumb: [0.09, 0.09, 0.09], spread: 0.2000 } };
-const M4_CATCH_HAND: HandKey = {space: 'gun', wrist: [-0.042108, -0.06803, 0.102531], forward: [-0.094787, 0.759023, -0.644128], palm: [0.893112, 0.350652, 0.281771], curl: {index: [0.2, 0.25, 0.1], middle: [0.2, 0.25, 0.1], ring: [0.204994, 0.248438, 0.1], thumb: [0.1, 0.1, 0.1], spread: 0.2 }, pole: [-1, -.25, .3] };
+const M4_CATCH_HAND: HandKey = { space: 'gun', wrist: [-0.060181, -0.017140, 0.059754], forward: [-0.101290, 0.870514, -0.481607], palm: [0.795853, 0.361380, 0.485820], curl: { index: [0.180000, 0.220000, 0.090000], middle: [0.180000, 0.220000, 0.090000], ring: [-0.095196, 0.219917, 0.090180], thumb: [0.090000, 0.090000, 0.090000], spread: 0.2000 }, pole: [-1, -.25, .3] };
 const M4_TRIGGER_CLEAR: HandKey = { space: 'gun', curl: {index: [0.12, 0.15, 0.1], middle: [0.927018, 0.599134, 1.024462], ring: [1.7, 0.299979, -0.1], thumb: [0.082804, -0.095181, 0.078912], spread: 0.342322} };
 // Present the magazine well: lift and roll the rifle's belly toward the eye.
 const M4_TILT: { p: Vec; r: Vec } = { p: [-.06, .035, -.05], r: [.22, .3, -.5] };
@@ -324,13 +324,13 @@ export const sniperReload = (empty: boolean): Choreography => empty ? SNIPER_REL
 const REVOLVER_CYLINDER_HAND: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.080089, -0.043126, 0.031289],
   forward: [-0.019041, 0.284059, -0.958618], palm: [0.999803, -0, -0.019859],
   curl: { index: [0.605, -0.010066, 0.400446], middle: [0.2925, 0.387285, 0.705675], ring: [0.2952, 0.4329, 0.2916], thumb: [0.045, 0.108, 0.1305], spread: -0.6000 } };
-const REVOLVER_CYLINDER_OPEN: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-.064594, -.033152, .039456],
-  forward: [.120078, .379252, -.917469], palm: [.973055, .138274, .184511],
-  curl: { ...curl([.65875, .20525, .65185], [.805, -.1, .5843], [.53675, .65335, .706], [-.1, .42625, .06935]), spread: -.6 } };
+const REVOLVER_CYLINDER_OPEN: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.104249, -0.004164, 0.04352],
+  forward: [0.033932, 0.35113, -0.935712], palm: [0.983995, -0.175617, -0.030218],
+  curl: { index: [1.692454, 0.243331, -0.072647], middle: [1.043784, 0.34172, 0.852213], ring: [0.482847, 0.588015, 0.6354], thumb: [-0.09, 0.383625, 0.062415], spread: -0.6000 } };
 // Follow the rod position, keeping the paw clear regardless of cylinder spin.
-const REVOLVER_EJECT_HAND: HandKey = { space: 'part', part: 'action', followRotation: false, wrist: [-0.088316, -0.039317, -0.100332],
-  forward: [0.987534, 0.100769, -0.120923], palm: [0.121529, 0.000122, 0.992588], pole: [-1, -.2, -.1],
-  curl: { ...curl([0.6532, -0.1, 0.441494], [0.164948, 0.205314, 0.141002], [0.046324, 0.10041, 0.10022], [0.4, 0.15, 0.15]), spread: -.2 } };
+const REVOLVER_EJECT_HAND: HandKey = { space: 'part', part: 'action', followRotation: false, wrist: [-0.104899, -0.027724, -0.208188],
+  forward: [0.932744, 0.168518, -0.318732], palm: [0.281621, 0.211447, 0.935938], pole: [-1, -.2, -.1],
+  curl: { index: [1, 1, 0.6], middle: [1.7, 1.300141, 0.9], ring: [1.7, 1.299862, 0.9], thumb: [0.36, 0.135, 0.135], spread: -0.2000 } };
 const REVOLVER_EJECT_PRESS: HandKey = { ...REVOLVER_EJECT_HAND };
 const REVOLVER_EJECT_APPROACH: HandKey = { ...REVOLVER_EJECT_HAND, space: 'gun', wrist: [-.18, .001, -.185] };
 const REVOLVER_EJECT_CLEAR: HandKey = { ...REVOLVER_EJECT_APPROACH, wrist: [-.18, .001, -.090] };
@@ -401,7 +401,9 @@ const SHOTGUN_SHELL: Choreography = [
   { t: 1, L: { space: 'grip' }, mag: { visible: false } },
 ];
 
-export const COCO_FRUIT_HAND: HandKey = {space: "part", part: "mag", wrist: [-0.092022, -0.020249, 0.067966], forward: [0.889325, 0.0343, -0.455987], palm: [0.280517, 0.746583, 0.60326], curl: {index: [1.441798, -0.1, 0.4], middle: [1.286589, -0.1, 0.5], ring: [-0.1, -0.1, -0.1], thumb: [-0.1, -0.098199, 0.016256], spread: -0.6}};
+export const COCO_FRUIT_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.1427, -0.043081, 0.06706],
+  forward: [0.892113, -0.106238, -0.439145], palm: [0.412027, 0.59011, 0.694264],
+  curl: { index: [1.217551, -0.06997, 0.36], middle: [0.962356, 0.076228, 0.45], ring: [-0.09, -0.09, -0.09], thumb: [-0.09, -0.088379, 0.01463], spread: -0.6000 } };
 function makeCocoReload(ammo: number): Choreography {
   const keys: import('./viewmodel-choreo').Key[] = [
     { t: 0, mag: { visible: false, p: [-.23, -.42, .08] }, parts: { load1: ammo >= 3 ? 1 : 0, load2: ammo >= 2 ? 1 : 0 } },
