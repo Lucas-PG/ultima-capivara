@@ -48,12 +48,12 @@ HIP = v(.165, .760, .010)
 KNEE = v(.225, .450, -.050)
 ANKLE = v(.285, .115, .020)
 TOE_OUT = .21
-EYE = v(.122, 1.712, -.150)
-EAR = v(.136, 1.776, .030)
+EYE = v(.110, 1.722, -.175)
+EAR = v(.124, 1.782, .036)
 FOOT_SCALE = 1.3
 NECK_BASE = v(0, 1.370, .000)
 # Where the mouth line turns up at its corner (the smile and frown bones pivot there).
-MOUTH_CORNER = v(.054, 1.545, -.282)
+MOUTH_CORNER = v(.090, 1.570, -.268)
 HEAD_PIVOT = v(0, 1.520, -.010)
 
 
@@ -194,54 +194,69 @@ def torso():
 
 
 def neck():
-    """A thick furry neck: the cheeks and throat run down into it without a step."""
-    jowls = [Ellipsoid(side((.105, 1.492, -.110), s), (.090, .075, .105)) for s in (-1, 1)]
-    return Union([Ellipsoid((0, 1.425, .000), (.164, .112, .156)), Ellipsoid((0, 1.498, -.030), (.188, .090, .176))] + jowls, k=.06, mat=M['fur'])
+    """The thick furred neck of the sheet: one column from the collar up into the underside and
+    back of the head, as wide as the jaw, so head, cheeks and neck read as one mass without lobes.
+    Its back continues the slope of the back of the head down to the shoulders."""
+    return Loft([(0, 1.300, .036), (0, 1.400, .034), (0, 1.500, .026), (0, 1.600, .006)],
+                [.196, .190, .180, .150], [.176, .170, .160, .138], side=(1, 0, 0), mat=M['fur'])
 
 
-# Head profile stations: (z, top, bottom, half-width at the crown, half-width at the jaw, exponent).
-# A long flat-topped skull on full cheeks, a deep muzzle that narrows a little and a blunt front
-# whose nose leans forward over a receding upper lip (the loft ends in a small rounded tip).
+# Head profile stations: (z, top, bottom, half-width near the crown, at the middle (the cheeks),
+# at the jaw, exponent). A long box with soft edges: the crown line runs in one gentle arc from
+# the back of the head down to the nose, the sides are near flat planes that widen from the
+# muzzle back to the cheeks, the cheeks taper into the jaw and the neck column below, and the
+# muzzle ends in a broad blunt front (no snout tip) whose lower part recedes to the small mouth.
 HEAD_STATIONS = [
-    (0.195, 1.684, 1.585, 0.040, 0.060, 2.0),
-    (0.172, 1.738, 1.505, 0.100, 0.140, 2.0),
-    (0.130, 1.772, 1.468, 0.140, 0.190, 2.0),
-    (0.070, 1.786, 1.450, 0.158, 0.208, 2.05),
-    (0.000, 1.787, 1.448, 0.163, 0.212, 2.1),
-    (-0.070, 1.781, 1.456, 0.160, 0.202, 2.15),
-    (-0.130, 1.770, 1.470, 0.150, 0.176, 2.25),
-    (-0.185, 1.756, 1.486, 0.118, 0.142, 2.4),
-    (-0.250, 1.736, 1.508, 0.108, 0.120, 2.5),
-    (-0.290, 1.722, 1.530, 0.102, 0.108, 2.4),
-    (-0.316, 1.708, 1.560, 0.095, 0.096, 2.3),
-    (-0.328, 1.696, 1.592, 0.083, 0.081, 2.2),
-    (-0.337, 1.684, 1.620, 0.066, 0.060, 2.1),
-    (-0.342, 1.672, 1.644, 0.036, 0.030, 2.0),
-    (-0.344, 1.662, 1.654, 0.012, 0.010, 2.0),
+    (0.211, 1.662, 1.612, 0.010, 0.022, 0.025, 2.0),
+    (0.203, 1.690, 1.585, 0.032, 0.062, 0.066, 2.0),
+    (0.190, 1.712, 1.560, 0.056, 0.090, 0.098, 2.0),
+    (0.170, 1.756, 1.500, 0.096, 0.130, 0.136, 2.2),
+    (0.130, 1.786, 1.470, 0.120, 0.158, 0.164, 2.4),
+    (0.070, 1.802, 1.450, 0.130, 0.174, 0.178, 2.6),
+    (0.000, 1.807, 1.440, 0.134, 0.182, 0.180, 2.7),
+    (-0.060, 1.803, 1.440, 0.132, 0.183, 0.176, 2.8),
+    (-0.120, 1.793, 1.464, 0.124, 0.172, 0.156, 2.8),
+    (-0.170, 1.784, 1.474, 0.108, 0.146, 0.132, 2.8),
+    (-0.210, 1.772, 1.482, 0.093, 0.116, 0.106, 3.0),
+    (-0.250, 1.758, 1.492, 0.086, 0.099, 0.093, 3.2),
+    (-0.290, 1.742, 1.505, 0.080, 0.090, 0.083, 3.3),
+    (-0.320, 1.725, 1.522, 0.076, 0.084, 0.076, 3.3),
+    (-0.350, 1.711, 1.534, 0.072, 0.079, 0.071, 3.3),
+    (-0.400, 1.701, 1.540, 0.070, 0.077, 0.069, 3.3),
 ]
-NOSE_TIP = v(0, 1.664, -.360)
+# The blunt front of the muzzle: the loft runs on and this convex front caps it, bulging most at
+# the nose and receding to the bridge above and the small mouth below (rounded edges, no tip).
+MUZZLE_FRONT = ((0, 1.638, -.086), (.360, .250, .256))
+NOSE_TIP = v(0, 1.645, -.348)
+# The right nostril slit, high in the corner of the nose pad (the painter darkens its walls).
+NOSTRIL = v(.029, 1.664, -.352)
 
 
 def head_mass():
-    """Big forms of the capybara head: lofted skull-to-muzzle, full cheeks and a small set-back chin."""
-    loft = ZLoft(HEAD_STATIONS)
-    chin = Ellipsoid((0, 1.527, -.258), (.050, .030, .052))
-    # The blunt end of the muzzle, a little prouder and rounder than the loft's tip.
-    nose = Ellipsoid((0, 1.660, -.302), (.084, .060, .050), R=rot(pitch=-.12))
-    return Union([loft, chin, nose], k=.04, mat=M['fur'])
+    """Big forms of the capybara head: the lofted box capped by the convex muzzle front (clean planes)."""
+    return Material(Intersect(ZLoft(HEAD_STATIONS), Ellipsoid(*MUZZLE_FRONT), k=.020), M['fur'])
 
 
 _EYES = {}
+_SURF = {}
 
 
 def eye_point(s):
-    """Eye centre, seated in the head surface high on the side and turned forward, so both eyes
-    read in a level front view."""
+    """Eye centre, high on the side of the head where the side plane turns into the crown, looking
+    out and a little forward, sunk into the skull so only a cap shows between the lids."""
     if s not in _EYES:
-        out = norm(side((.62, .14, -.77), s))
+        out = norm(side((.58, .16, -.80), s))
         surface = on_surface(head_mass(), side(EYE, s))[0]
-        _EYES[s] = (surface - out * EYE_R * .34, out)
+        _EYES[s] = (surface - out * EYE_R * .62, out)
     return _EYES[s]
+
+
+def eye_opening(s):
+    """The almond opening of the lids (a cut through the lid skin that shows the eyeball); the
+    painter draws the lid line along its edge."""
+    e, out = eye_point(s)
+    E = eye_frame(s)
+    return Ellipsoid(e + out * (EYE_R + .002) - E[:, 2] * .004, (.041, .017, .022), R=E)
 
 
 def eye_frame(s):
@@ -254,66 +269,88 @@ def eye_frame(s):
     return np.stack([fwd, out, norm(up)], 1).astype(F)
 
 
+def _projected(key, pts):
+    """Points projected onto the head mass, once."""
+    if key not in _SURF:
+        _SURF[key] = on_surface(head_mass(), np.array(pts, F))
+    return _SURF[key]
+
+
 def mouth_path(s):
-    """The mouth line on one side: from the lip split under the philtrum back to the corner."""
-    return [side(p, s) for p in ((0.0, 1.542, -.328), (.018, 1.538, -.323), (.036, 1.538, -.308), (.050, 1.542, -.290), (.058, 1.549, -.272))]
+    """The small set-back mouth: from the lip split under the philtrum along the bottom of the
+    muzzle front, curving back and a little up to the corner, on the head surface."""
+    return list(_projected(('mouth', s), [side(p, s) for p in ((0.0, 1.547, -.332), (.019, 1.540, -.328), (.038, 1.538, -.320),
+                                                                  (.058, 1.543, -.305), (.074, 1.555, -.288), (.086, 1.570, -.268))]))
 
 
 def whisker_roots(s):
     """Where the whiskers leave the whisker pad (three rows), on the head surface."""
     pts = []
-    for row, (y, zs) in enumerate(((1.612, (-.300, -.280, -.258)), (1.594, (-.306, -.286, -.264, -.242)), (1.576, (-.300, -.280, -.258)))):
+    for row, (y, zs) in enumerate(((1.604, (-.330, -.318, -.304)), (1.588, (-.332, -.320, -.306, -.292)), (1.572, (-.328, -.316, -.302)))):
         for z in zs:
-            pts.append((s * (.052 + (-.306 - z) * -.62 + row * .003), y, z))
+            pts.append((s * .07, y, z))
     return on_surface(head(), np.array(pts, F))
 
 
 def nose_pad(snout):
-    """The dark leather of the nose: a modest pad at the upper front of the muzzle with the
-    nostrils in it, and a narrow strip running down the philtrum to the mouth (a T)."""
-    bar = Union([Ellipsoid(side((.020, 1.668, -.372), s), (.046, .040, .066)) for s in (-1, 1)] + [Ellipsoid((0, 1.700, -.336), (.046, .016, .030))], k=.014)
-    # A short point under the pad where it meets the philtrum groove (the foot of the T).
-    point = Ellipsoid((0, 1.636, -.372), (.014, .018, .066))
-    region = Union([bar, point], k=.014)
-    pad = Intersect(Offset(snout, .0014), region)
-    nostrils = Union([Ellipsoid(side((.030, 1.660, -.350), s), (.0125, .0066, .014), R=rot(pitch=-.35) @ rot(roll=s * .50)) for s in (-1, 1)])
+    """The grey-brown leather of the nose: a big soft pad capping the upper front of the muzzle,
+    wider at the top where it wraps over the bridge, raised in the middle like a cushion; slanted
+    slit nostrils low in its sides, the philtrum a groove below."""
+    region = Union([RoundBox((0, 1.684, -.366), (.046, .020, .044), r=.020), Ellipsoid((0, 1.648, -.372), (.046, .034, .052))], k=.014)
+    centre, reach = v(0, 1.668, -.372), v(.060, .046, .070)
+    cushion = lambda p: -.0055 * np.clip(1 - np.sum(((p - centre) / reach) ** 2, 1), 0, 1)
+    pad = Intersect(Displace(Offset(snout, .0015), cushion, .006), region)
+    nostrils = Union([Ellipsoid(side(NOSTRIL, s), (.0135, .0042, .012), R=rot(pitch=-.25) @ rot(roll=s * .75)) for s in (-1, 1)])
     pad = Cut(pad, nostrils, k=.003)
     return Material(pad, M['nose']), nostrils
 
 
+def tuft(base, direction, length, r0, bend=(0, 0, 0)):
+    """A pointed lock of fur: two tapering segments from `base` along `direction`, curving by `bend`."""
+    d = norm(direction); mid = np.asarray(base, F) + d * length * .55 + np.asarray(bend, F) * length * .15
+    tip = np.asarray(base, F) + d * length + np.asarray(bend, F) * length * .45
+    return Union([RoundCone(base, mid, r0, r0 * .62), RoundCone(mid, tip, r0 * .62, r0 * .12)], k=r0 * .5)
+
+
+# A small cowlick on the crown. Base, direction, length, base radius, bend.
+CROWN_TUFTS = [((0.0, 1.802, -.004), (.04, .78, .62), .048, .013, (0, 0, .45)),
+               ((-.018, 1.800, .014), (-.30, .72, .62), .040, .011, (-.2, 0, .4)),
+               ((.019, 1.799, .018), (.33, .70, .63), .038, .011, (.2, 0, .4)),
+               ((-.034, 1.794, .034), (-.52, .62, .58), .028, .009, (-.2, 0, .3)),
+               ((.035, 1.793, .036), (.54, .60, .58), .027, .009, (.2, 0, .3))]
+
+
 def head():
-    """The long blunt capybara head: flat top line to a deep rounded muzzle, full cheeks."""
-    mass = head_mass()
-    # Whisker pads: the broad soft upper lip either side of the philtrum, under the nose.
-    lips = Union([Ellipsoid(side((.042, 1.588, -.288), s), (.066, .056, .052)) for s in (-1, 1)], k=.025)
-    face = Union([mass, lips], k=.030, mat=M['fur'])
+    """The long blunt capybara head: flat crown line to a deep blunt muzzle, cheeks into the neck."""
+    face = head_mass()
+    locks = [tuft(b, d, l, r, bd) for b, d, l, r, bd in CROWN_TUFTS]
+    face = Union([face] + locks, k=.007, mat=M['fur'])
     pad, nostrils = nose_pad(face)
     face = Cut(face, nostrils, k=.004)
     # Philtrum and mouth: a groove down from the pad to the lip split, then back along each side.
-    grooves = [RoundCone((0, 1.616, -.351), (0, 1.548, -.334), .0022, .0030)]
+    grooves = [RoundCone((0, 1.598, -.344), (0, 1.548, -.333), .0022, .0030)]
     for s in (-1, 1):
         path = mouth_path(s)
-        grooves += [RoundCone(a, b, .0020, .0015) for a, b in zip(path[:-1], path[1:])]
+        grooves += [RoundCone(a, b, .0022, .0016) for a, b in zip(path[:-1], path[1:])]
     face = Cut(face, Union(grooves, k=.003), k=.004)
     for s in (-1, 1):
         e, out = eye_point(s)
         E = eye_frame(s)
-        # The brow ridge runs forward over the eye into the top edge of the muzzle.
-        brow = Union([Ellipsoid(e + E[:, 2] * .034 - out * .008 + E[:, 0] * .006, (.052, .018, .026), R=E),
-                      Ellipsoid(e + E[:, 2] * .020 + E[:, 0] * .058 - out * .016, (.044, .013, .022), R=E)], k=.02)
-        face = Union([face, brow], k=.022, mat=M['fur'])
-        # An almond opening in a raised lid rim, the upper lid heavier; the eyeball shows through.
-        rim = Ellipsoid(e + out * .004, (.044, .012, .029), R=E)
-        upper = Ellipsoid(e + out * .006 + E[:, 2] * .019, (.045, .013, .012), R=E)
-        face = Union([face, rim, upper], k=.007, mat=M['fur'])
-        face = Cut(face, Ellipsoid(e + out * .014 - E[:, 2] * .002, (.037, .027, .0225), R=E), k=.003)
+        # Lids: skin over the sunk eyeball (a low mound), the upper lid heavier and a soft brow
+        # shelf above it; the almond opening shows the eye.
+        # A heavy upper lid over the top of the iris (the calm, half-lidded capybara look) and an
+        # almond opening, longer than tall.
+        lid = Union([Sphere(e, EYE_R + .0035), Ellipsoid(e + E[:, 2] * .013 + out * (EYE_R * .62), (.046, .013, .016), R=E)], k=.008)
+        brow = Ellipsoid(e + E[:, 2] * .041 + out * (EYE_R * .30) + E[:, 0] * .006, (.056, .013, .017), R=E)
+        face = Union([face, lid, brow], k=.012, mat=M['fur'])
+        face = Cut(face, eye_opening(s), k=.0025)
     ears = []
     for s in (-1, 1):
-        # Upright cupped ears, dark leather inside and out, standing clear of the crown.
+        # Small rounded cupped ears at the back corners of the crown.
         c = side(EAR, s)
-        R = rot(yaw=s * .38) @ rot(roll=-s * .38) @ rot(pitch=-.10)
-        shell = Ellipsoid(c, (.040, .052, .021), R=R, mat=M['ear_in'])
-        cup = Ellipsoid(c + (R @ v(0, .008, -.019)), (.030, .040, .017), R=R)
+        R = rot(yaw=-s * .30) @ rot(roll=-s * .42) @ rot(pitch=-.15)
+        shell = Ellipsoid(c, (.030, .036, .014), R=R, mat=M["ear_in"])
+        cup = Ellipsoid(c + (R @ v(0, .008, -.012)), (.022, .028, .011), R=R)
         ears.append(Material(Cut(shell, cup, k=.004), M['ear_in']))
     return Union([Union([face] + ears, k=.010, mat=M['fur']), pad], k=.0015)
 
@@ -538,15 +575,15 @@ def scarf():
     """The team bandana: a folded triangle wrapped round the neck inside the shirt collar and tied
     in front with a real knot and two short tails."""
     # A band that hugs the outside of the thick neck, tilted down toward the knot.
-    wear = Offset(Union([neck(), torso()], k=.05), .020)
+    wear = Offset(Union([neck(), torso()], k=.05), .015)
     up, c = rot(pitch=-.30) @ v(0, 1, 0), v(0, 1.422, -.012)
-    band = Intersect(wear, Intersect(Plane(c + up * .036, up), Plane(c - up * .036, -up)), k=.012)
+    band = Intersect(wear, Intersect(Plane(c + up * .033, up), Plane(c - up * .033, -up)), k=.012)
 
     def wrap(p):
         a = np.arctan2(p[:, 0], -(p[:, 2] + .012))
         # Diagonal folds of the rolled cloth, tightening toward the knot.
-        return .0055 * np.sin(a * 5 + (p[:, 1] - 1.43) * 95) + .0030 * np.sin(a * 11 - (p[:, 1] - 1.43) * 60)
-    band = Displace(band, wrap, .009)
+        return .0042 * np.sin(a * 5 + (p[:, 1] - 1.43) * 95) + .0024 * np.sin(a * 11 - (p[:, 1] - 1.43) * 60)
+    band = Displace(band, wrap, .007)
     kc = on_surface(wear, v(0, 1.372, -.30), .014)[0]
     knot = Union([Ellipsoid(kc, (.034, .030, .028)), Ellipsoid(kc + v(-.030, .012, .010), (.024, .020, .020)), Ellipsoid(kc + v(.030, .012, .010), (.024, .020, .020))], k=.008)
     knot = Cut(knot, Torus(kc + v(0, -.002, -.004), .030, .0045, R=rot(pitch=1.25) @ rot(roll=.35)), k=.003)
@@ -667,7 +704,7 @@ def eyes():
     return Union([Material(Sphere(eye_point(s)[0], EYE_R), M['eye']) for s in (-1, 1)])
 
 
-EYE_R = .030
+EYE_R = .043
 
 # A free strip along the left and bottom atlas edges holds flat swatches for unbaked geometry.
 SWATCH_STRIP = .015

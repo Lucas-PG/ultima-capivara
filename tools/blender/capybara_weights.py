@@ -168,9 +168,11 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             mc = C.side(C.MOUTH_CORNER, s)
             corner = float(ss(.028, .010, np.linalg.norm(p - mc))) * .8
             jaw = float(ss(1.535, 1.51, p[1]) * ss(-.15, -.22, p[2])) * .7
+            # The nose leather and the top of the muzzle front ride the nose bone (the idle's twitch).
+            nose = float(ss(.060, .030, np.linalg.norm(p - C.v(0, 1.668, -.345)))) * float(p[2] < -.29) * .85
             head = w.pop('head')
             rest = 1.0
-            for bone, v in ((('blink_' + n), lid), ('ear_' + n, ear), ('brow_' + n, brow), ('mouth_' + n, corner), ('jaw', jaw)):
+            for bone, v in ((('blink_' + n), lid), ('ear_' + n, ear), ('brow_' + n, brow), ('mouth_' + n, corner), ('jaw', jaw), ('nose', nose)):
                 v = min(v, rest); rest -= v
                 if v > 0:
                     w[bone] = w.get(bone, 0) + head * v

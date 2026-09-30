@@ -25,6 +25,8 @@ CHUNK = 1 << 20
 FUR_BASE, FUR_TIP, FUR_DARK, FUR_LIGHT, FUR_BUFF = 'B47C49', 'CC9763', '8E5A33', 'C79B6A', 'CDB795'
 SKIN, SKIN_LIGHT, CLAW, NOSE = '4E433E', '6C5E57', '2A2320', '6A5E58'
 LINEN, DENIM, OLIVE, LEATHER, LEATHER_DARK, RUCKSACK, BRASS = 'E4D8C0', '51627E', '74755A', '6E4A31', '55382A', '7E6444', 'C39A52'
+# Mean of the lock shading over the pelt (measured on the build), so a lock's average stays the palette value.
+LOCK_SHADE_MEAN = .91
 
 
 def srgb(h):
@@ -86,47 +88,77 @@ def fur_flow(p, n):
     return _norm(t).astype(F)
 
 
-def locks(p, f, across, along, seed):
-    """Anisotropic Worley cells laid along f: one cell per lock of fur. Returns the distance to
-    the lock border (0 there), the position along the lock (-1 root to 1 tip) and a random
-    value per lock."""
-    a = np.einsum('ij,ij->i', p, f)
-    q = (p / across + a[:, None] * f * (1 / along - 1 / across)).astype(F)
-    i = np.floor(q).astype(np.int64)
-    d1 = np.full(len(q), 9.0, F); d2 = np.full(len(q), 9.0, F)
-    c1 = np.zeros_like(q); h1 = np.zeros(len(q), F)
+def flow_frames(p):
+    """Flow-aligned lock coordinates, blended like the comb in fur_flow: (weight, across1, across2,
+    along) per region, in metres. Each region has coordinates in which its comb is one axis (the
+    head radial from the nose, the body and legs down, the forearms elbow to wrist, the paws along
+    the digits, the feet forward), so the locks never shear where the comb turns: a global
+    coordinate system seen through a turning comb scrambles them into cells and ripples."""
+    y = p[:, 1]; one = np.ones(len(p), F)
+    frames = []
+
+    def blend(t, coords):
+        for fr in frames:
+            fr[0] = fr[0] * (1 - t)
+        frames.append([np.asarray(t, F) * one, *coords])
+    frames.append([one.copy(), p[:, 0], p[:, 2], -y])
+    d = p - NOSE_ORIGIN; r = np.linalg.norm(d, axis=1)
+    # The back of the head combs down into the nape: there it keeps partly to the body's frame.
+    blend(ss(1.45, 1.53, y) * (1 - .6 * ss(.04, .18, p[:, 2])), (d[:, 0] / r * .35, d[:, 1] / r * .35, r))
+    for s in (-1, 1):
+        el, wr = C.elbow(s), C.wrist(s)
+        ax = (wr - el) / np.linalg.norm(wr - el)
+        e1 = _norm(np.cross(ax, C.v(0, 1, 0))[None])[0]; e2 = np.cross(ax, e1)
+        q = p - el
+        arm = ss(.20, .12, np.linalg.norm(np.cross(q, ax), axis=1)) * (s * p[:, 0] > .2) * (y < 1.32)
+        blend(arm, (q @ e1, q @ e2, q @ ax))
+        loc = (p - wr) @ C.paw_frame(s)
+        paw = ss(.02, -.02, -loc[:, 1]) * (np.linalg.norm(p - wr, axis=1) < .30)
+        blend(paw, (loc[:, 0], loc[:, 2], loc[:, 1]))
+    fd = C.norm(C.v(0, -.35, -1)); f1 = C.v(1, 0, 0); f2 = np.cross(fd, f1)
+    blend(ss(.15, .10, y), (p @ f1, p @ f2, p @ fd))
+    return frames
+
+
+def _worley2(u, seed):
+    """2D Worley in the across plane: distance to the nearest feature (the lock's axis), to the
+    cell border, and a random value per lock."""
+    i = np.floor(u).astype(np.int64)
+    d1 = np.full(len(u), 9.0, F); d2 = np.full(len(u), 9.0, F); h1 = np.zeros(len(u), F)
+    z = np.zeros(len(u), np.int64)
     for dx in (-1, 0, 1):
         for dy in (-1, 0, 1):
-            for dz in (-1, 0, 1):
-                c = i + np.array([dx, dy, dz])
-                j = np.stack([S._hash(c[:, 0], c[:, 1], c[:, 2], seed + k) for k in range(3)], 1)
-                fp = (c + .12 + .76 * j).astype(F)
-                d = np.linalg.norm(fp - q, axis=1).astype(F)
-                closer = d < d1
-                d2 = np.where(closer, d1, np.minimum(d2, d))
-                c1[closer] = fp[closer]
-                h1 = np.where(closer, S._hash(c[:, 0], c[:, 1], c[:, 2], seed + 7), h1)
-                d1 = np.where(closer, d, d1)
-    t = np.einsum('ij,ij->i', q - c1, f)
-    return (d2 - d1).astype(F), np.clip(t / .75, -1, 1).astype(F), h1.astype(F)
-
-
-def aniso(p, f, across, along, seed):
-    """Value noise stretched along the flow f (fibres)."""
-    a = np.einsum('ij,ij->i', p, f)[:, None]
-    q = p / across + a * f * (1 / along - 1 / across)
-    return S.value_noise(q.astype(F), seed)
+            cx, cy = i[:, 0] + dx, i[:, 1] + dy
+            fx = cx + .1 + .8 * S._hash(cx, cy, z, seed); fy = cy + .1 + .8 * S._hash(cx, cy, z, seed + 1)
+            dd = np.hypot(fx - u[:, 0], fy - u[:, 1]).astype(F)
+            closer = dd < d1
+            d2 = np.where(closer, d1, np.minimum(d2, dd)); h1 = np.where(closer, S._hash(cx, cy, z, seed + 7), h1); d1 = np.where(closer, dd, d1)
+    return d1.astype(F), (d2 - d1).astype(F), h1.astype(F)
 
 
 def groom(q, f, across, along, amp, seed):
-    """Height and shading terms of groomed fur for points q along flow f."""
-    edge, t, hid = locks(q, f, across, along, seed)
-    tip = ss(-.8, .9, t)
-    # Locks narrow to a point at the tip; strands run the length of each lock.
-    ridge = ss(0, .55 - .30 * tip, edge)
-    strand = .6 * aniso(q, f, across * .07, along * .35, seed + 11) + .4 * aniso(q, f, across * .16, along * .6, seed + 12)
-    h = amp * (ridge * (.35 + .65 * tip) * (.7 + .3 * strand) + .35 * (strand - .5))
-    return h, ridge, tip, strand, hid
+    """Height and shading terms of combed fur: soft long clumps (one lock around each across-plane
+    feature) whose value ramps to a lighter tip before the next lock begins, strands along their
+    length. Returns height, clump (lit body of a lock), tip, strand and a random value per lock."""
+    out = [np.zeros(len(q), F) for _ in range(5)]
+    for w, c1, c2, al in flow_frames(q):
+        sel = w > 1e-3
+        if not sel.any():
+            continue
+        c1, c2, al, ww = c1[sel], c2[sel], al[sel], w[sel]
+        d1, edge, hid = _worley2(np.stack([c1 / across, c2 / across], 1), seed)
+        # The along phase of each lock; its tip is pointed (the sides of a lock end earlier).
+        ph = np.mod(al / (along * 1.6) + hid * 7.31 + .5 * d1, 1.0)
+        clump = ss(.70, .15, d1)
+        fine = S.value_noise(np.stack([c1 / (across * .09), c2 / (across * .09), al / (along * .7)], 1).astype(F), seed + 11)
+        med = S.value_noise(np.stack([c1 / (across * .28), c2 / (across * .28), al / (along * 1.1)], 1).astype(F), seed + 12)
+        strand = .55 * fine + .45 * med
+        tip = ss(.55, .97, ph) * clump * ss(.35, .65, med)
+        ridge = clump * (.55 + .45 * ss(0.0, .30, ph))
+        h = amp * (clump * (.35 + .65 * ph) * .7 + .45 * (strand - .5))
+        for o, v in zip(out, (h, ridge, tip, strand, hid)):
+            o[sel] += ww * v
+    return tuple(out)
 
 
 # ------------------------------------------------------------------ edges (seams and hems)
@@ -165,12 +197,14 @@ class _Face:
     """Face landmarks, computed once: eyes, mouth, whisker roots and the muzzle SDF."""
     def __init__(self):
         self.eyes = [(s, *C.eye_point(s), C.eye_frame(s)) for s in (-1, 1)]
+        self.openings = {s: C.eye_opening(s) for s in (-1, 1)}
         self.mouth = [np.array(C.mouth_path(s), F) for s in (-1, 1)]
         self.whiskers = np.concatenate([C.whisker_roots(s) for s in (-1, 1)])
-        # Whisker pads, chin and the front of the muzzle: the pale buff zone.
-        self.muzzle = S.Union([S.Ellipsoid(C.side((.044, 1.586, -.286), -1), (.082, .064, .062)), S.Ellipsoid(C.side((.044, 1.586, -.286), 1), (.082, .064, .062)),
-                               S.Ellipsoid((0, 1.522, -.250), (.062, .040, .066)), S.Ellipsoid((0, 1.640, -.312), (.070, .046, .052))], k=.02)
-        self.nostrils = [C.side((.030, 1.660, -.350), s) for s in (-1, 1)]
+        # The lower front of the muzzle (whisker pads, lips), the chin and a rim round the nose
+        # leather: the pale buff zone.
+        self.muzzle = S.Union([S.Ellipsoid((0, 1.575, -.320), (.098, .056, .078)), S.Ellipsoid((0, 1.515, -.282), (.070, .036, .070)),
+                               S.Ellipsoid((0, 1.648, -.334), (.088, .062, .040))], k=.02)
+        self.nostrils = [C.side(C.NOSTRIL, s) for s in (-1, 1)]
 
 
 def paint(root, P_map, N_obj, N_tan, AO, eye_texels, covered, log=print, P_low=None):
@@ -263,8 +297,11 @@ def paint(root, P_map, N_obj, N_tan, AO, eye_texels, covered, log=print, P_low=N
     # Flat swatches in the free atlas corner for geometry that is not baked (the whiskers).
     k = int(W * C.SWATCH_STRIP * .8)
     albedo[:k, :k] = srgb('EFE6D4'); orm[:k, :k] = np.array([0, .5, 0], F)
-    log('painted')
+    log('painted', 'lock shade mean', round(float(np.mean(_SHADE_MEANS)), 4) if _SHADE_MEANS else '-')
     return albedo, orm, normal
+
+
+_SHADE_MEANS = []
 
 
 def _paint_texels(p, n, mat, edge, ao, face):
@@ -280,35 +317,46 @@ def _paint_texels(p, n, mat, edge, ao, face):
         local = [(q - C.wrist(s)) @ C.paw_frame(s) for s in (-1, 1)]
         near_paw = (np.linalg.norm(local[0], axis=1) < .30) | (np.linalg.norm(local[1], axis=1) < .30)
         h = np.zeros(len(q), F); ridge = np.zeros(len(q), F); tip = np.zeros(len(q), F); strand = np.zeros(len(q), F); hid = np.zeros(len(q), F)
-        for sel, across, along, amp, seed in ((head, .010, .030, .00045, 1), (near_paw & ~head, .008, .022, .00040, 2), (~head & ~near_paw, .016, .050, .00080, 3)):
+        # Locks (across x along, metres) and their relief: bold enough to read as fur at 1 to 3 m,
+        # small enough that the mips average them out cleanly beyond about 5 m.
+        for sel, across, along, amp, seed in ((head, .012, .034, .0013, 1), (near_paw & ~head, .009, .026, .0008, 2), (~head & ~near_paw, .020, .062, .0020, 3)):
             if sel.any():
                 h[sel], ridge[sel], tip[sel], strand[sel], hid[sel] = groom(q[sel], f[sel], across, along, amp, seed)
         c = np.broadcast_to(srgb(FUR_BASE), q.shape).copy()
-        # Large value shapes: lighter belly, throat and undersides, a darker crown, nape and back.
-        c = lerp(c, srgb(FUR_LIGHT), np.clip(-nq[:, 1], 0, 1) * .60)
-        c = lerp(c, srgb(FUR_DARK), np.clip(nq[:, 1], 0, 1) * ss(1.60, 1.76, q[:, 1]) * .55)
-        c = lerp(c, srgb(FUR_DARK), ss(.06, .20, q[:, 2]) * ss(1.30, 1.55, q[:, 1]) * .40)
+        # The value design in large shapes: lighter throat, belly and undersides; a darker crown,
+        # nape and back of the head; the backs of the limbs a little darker.
+        c = lerp(c, srgb(FUR_LIGHT), np.clip(-nq[:, 1], 0, 1) * .65)
+        c = lerp(c, srgb(FUR_DARK), ss(.25, .75, nq[:, 1]) * ss(1.66, 1.78, q[:, 1]) * .60)
+        c = lerp(c, srgb(FUR_DARK), ss(.02, .16, q[:, 2]) * ss(1.28, 1.50, q[:, 1]) * ss(1.88, 1.70, q[:, 1]) * .55)
+        c = lerp(c, srgb(FUR_DARK), ss(.05, .35, nq[:, 2]) * (q[:, 1] < 1.30) * .30)
         for loc in local:
             inner = ss(.04, -.05, loc[:, 2]) * ss(.22, .12, np.abs(loc[:, 0])) * ss(.08, .01, loc[:, 1]) * ss(-.34, -.22, loc[:, 1])
             c = lerp(c, srgb(FUR_LIGHT), inner * .6)
-        # Groom shading, kept quiet: the locks are felt more than seen (their relief is in the normal map).
-        c = c * (.955 + .07 * ridge * (.4 + .6 * tip))[:, None] * (.985 + .03 * strand)[:, None]
-        c = lerp(c, srgb(FUR_TIP), ss(.5, 1.0, tip) * ridge * .22)
-        c = c * (.98 + .04 * hid)[:, None] * (.985 + .03 * broad[fur])[:, None]
-        rgh = .80 + .06 * strand - .05 * ridge * tip
+        # Lock shading: dark roots and gaps, light tips, a value per lock, fine strands. It is
+        # renormalised so a lock's mean stays the palette value (the far read keeps the colours).
+        shade = (.76 + .28 * ridge) * (.86 + .28 * strand) * (.94 + .12 * hid)
+        c = c * (shade / LOCK_SHADE_MEAN)[:, None]
+        _SHADE_MEANS.append(float(shade.mean()))
+        c = lerp(c, srgb(FUR_TIP), tip * .55)
+        c = c * (.985 + .03 * broad[fur])[:, None]
+        rgh = .82 + .06 * strand - .08 * ridge * tip
         # ------------------------------------------------------------------ face
         hs = np.flatnonzero(head)
         if len(hs):
             qh = q[hs]; ch = c[hs]; hh = h[hs]
+            # The crown tuft lightens toward its tips (it stands above the crown surface).
+            ch = lerp(ch, srgb(FUR_TIP), ss(1.812, 1.845, qh[:, 1]) * .75)
             # Lighter cheeks, jaw and throat below the eye line.
-            ch = lerp(ch, srgb(FUR_LIGHT), ss(1.66, 1.54, qh[:, 1]) * ss(.10, -.10, qh[:, 2]) * .55)
-            # The pale buff muzzle: whisker pads, lips and chin, fading softly into the cheeks.
+            ch = lerp(ch, srgb(FUR_LIGHT), ss(1.66, 1.54, qh[:, 1]) * ss(.10, -.10, qh[:, 2]) * .70)
+            # The pale buff muzzle: the lower half of the muzzle front (whisker pads and lips), the
+            # chin and a thin rim round the nose leather, fading softly back into the cheeks.
             dm = S.evaluate(face.muzzle, qh, cull=False)[0]
-            mz = ss(.018, -.014, dm)
-            ch = lerp(ch, srgb(FUR_BUFF) * (.97 + .05 * ridge[hs])[:, None], mz * .92)
+            lower = ss(1.628, 1.598, qh[:, 1] - .10 * np.clip(qh[:, 2] + .34, 0, .20)) * ss(-.10, -.20, qh[:, 2])
+            mz = np.maximum(ss(.018, -.014, dm) * .55, lower)
+            ch = lerp(ch, srgb(FUR_BUFF) * (.97 + .05 * ridge[hs])[:, None], mz * .88)
             hh = hh * (1 - .5 * mz)
             # The dark bridge running up from the nose leather between the eyes.
-            bridge = ss(.050, .015, np.abs(qh[:, 0])) * ss(-.20, -.30, qh[:, 2]) * ss(1.66, 1.70, qh[:, 1])
+            bridge = ss(.050, .015, np.abs(qh[:, 0])) * ss(-.22, -.32, qh[:, 2]) * ss(1.69, 1.72, qh[:, 1])
             ch = lerp(ch, srgb('8A6A55'), bridge * .55)
             # Mouth line and a soft shadow under the upper lip.
             dl = np.full(len(qh), 9.0, F)
@@ -325,9 +373,17 @@ def _paint_texels(p, n, mat, edge, ao, face):
             ch = lerp(ch, srgb('5A4538'), ss(.0030, .0014, dw) * .85)
             for s, e, out, E in face.eyes:
                 de = np.linalg.norm(qh - e, axis=1)
-                # A dark lid line, a soft darker socket, a pale brow over it and a pale lower lid.
-                ch = lerp(ch, srgb('1E1512'), ss(C.EYE_R + .0060, C.EYE_R + .0020, de) * .96)
-                ch = lerp(ch, srgb(FUR_DARK), ss(C.EYE_R + .020, C.EYE_R + .006, de) * .45)
+                # The lid line: thin below, a bold upper lid that ends in a small flick at the back
+                # corner (it gives the eye its shape at a distance); then a soft light ring, a pale
+                # brow over it and a pale lower lid.
+                up = ((qh - e) @ E[:, 2]) / C.EYE_R; fw = ((qh - e) @ E[:, 0]) / C.EYE_R
+                # Distance to the edge of the lid opening: the line hugs the margin.
+                dcut = np.abs(S.evaluate(face.openings[s], qh, cull=False)[0])
+                width = .0016 + .0026 * ss(-.10, .60, up) + .0030 * ss(-.55, -1.0, fw) * ss(-.20, .40, up)
+                near = de < C.EYE_R + .030
+                ch = lerp(ch, srgb('1E1512'), ss(width, width * .45, dcut) * near * .97)
+                ring = ss(width, width + .004, dcut) * ss(C.EYE_R + .026, C.EYE_R + .014, de)
+                ch = lerp(ch, srgb(FUR_TIP), ring * .30)
                 bq = (qh - (e + E[:, 2] * .040 + E[:, 0] * .012)) @ E
                 brow = ss(1.25, .55, np.linalg.norm(bq / np.array([.050, .034, .012], F), axis=1))
                 ch = lerp(ch, srgb(FUR_TIP), brow * .55)
@@ -336,7 +392,7 @@ def _paint_texels(p, n, mat, edge, ao, face):
                 ch = lerp(ch, srgb(FUR_LIGHT), under * .45)
             # The nostril walls cut through the leather into the fur below: keep them dark too.
             dn = np.min([np.linalg.norm((qh - c0) / np.array([1, 1.6, 1], F), axis=1) for c0 in face.nostrils], 0)
-            ch = lerp(ch, srgb('120E0C'), ss(.020, .011, dn)); hh = hh * ss(.011, .020, dn)
+            ch = lerp(ch, srgb('120E0C'), ss(.016, .009, dn)); hh = hh * ss(.009, .016, dn)
             c[hs] = ch; h[hs] = hh
         # Paws and feet: bare dark grey-brown leathery skin on the palm, the digits and the toes;
         # fur on the back of the paw up to the knuckles and on the instep.
@@ -362,7 +418,7 @@ def _paint_texels(p, n, mat, edge, ao, face):
     if sel.any():
         q = p[sel]
         inner = np.clip(-(n[sel] @ np.array([0, 0, 1], F)), 0, 1)       # the cup faces forward
-        col[sel] = lerp(srgb('4E403B'), srgb('6B5148'), inner * .8); rough[sel] = .75
+        col[sel] = lerp(srgb('4E403B'), srgb('8A6258'), inner * .85); rough[sel] = .75
         hgt[sel] = (S.fbm(q * 300, 2, 9) - .5) * .00008
     sel = mat == M['nose']
     if sel.any():
@@ -371,7 +427,7 @@ def _paint_texels(p, n, mat, edge, ao, face):
         c = lerp(srgb(NOSE), srgb('75665F'), np.clip(n[sel][:, 1], 0, 1) * .6)
         c = lerp(c, srgb('463A36'), ss(1.62, 1.55, q[:, 1]) * .5)
         dn = np.min([np.linalg.norm((q - c0) / np.array([1, 1.6, 1], F), axis=1) for c0 in face.nostrils], 0)
-        c = lerp(c, srgb('120E0C'), ss(.018, .010, dn))
+        c = lerp(c, srgb('120E0C'), ss(.015, .008, dn))
         col[sel] = c; rough[sel] = .46; hgt[sel] = (.5 - np.clip(peb, 0, .8)) * .00016
     # ------------------------------------------------------------------ cloth and gear
     def put(keys, fn):
@@ -474,12 +530,16 @@ def _paint_texels(p, n, mat, edge, ao, face):
             k = (q[:, 0] > 0) == (s > 0)
             d = _norm(q[k] - e)
             ang = np.arccos(np.clip(d @ out, -1, 1))
-            ce = lerp(srgb('9A6228'), srgb('4A2A14'), ss(.16, .58, ang) * .85)
-            ce = lerp(ce, srgb('080605'), ss(.30, .24, ang))
-            ce = lerp(ce, srgb('1A0F09'), ss(.56, .68, ang))
-            ce = lerp(ce, srgb('D9C8AC'), ss(.76, .86, ang))
-            gleam = _norm((out + E[:, 2] * .34 - E[:, 0] * .20)[None])[0]
-            ce = lerp(ce, srgb('FFF6E8'), ss(.21, .12, np.linalg.norm(d - gleam, axis=1)))
+            # A big warm brown iris, a dark pupil, a darker rim, a sliver of warm white at the corners
+            # and a large catchlight high on the front (below the heavy upper lid).
+            ce = lerp(srgb('A8692C'), srgb('5A3418'), ss(.14, .56, ang) * .90)
+            ce = lerp(ce, srgb('0A0706'), ss(.25, .19, ang))
+            ce = lerp(ce, srgb('1A0F09'), ss(.54, .64, ang))
+            ce = lerp(ce, srgb('E8DCC6'), ss(.70, .80, ang))
+            gleam = _norm((out + E[:, 2] * .22 + E[:, 0] * .14)[None])[0]
+            ce = lerp(ce, srgb('FFF8EC'), ss(.20, .12, np.linalg.norm(d - gleam, axis=1)))
+            small = _norm((out - E[:, 2] * .20 - E[:, 0] * .22)[None])[0]
+            ce = lerp(ce, srgb('F3E6D2'), ss(.09, .05, np.linalg.norm(d - small, axis=1)) * .8)
             c[k] = ce
         col[esel] = c; rough[esel] = .04; hgt[esel] = 0
     # Occlusion from the bake: soft shadow in the folds and under the gear. The team cloth keeps a

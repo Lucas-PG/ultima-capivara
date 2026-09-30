@@ -2,15 +2,15 @@
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 40866
+      "triangles": 40890
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 9380
+      "triangles": 9406
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 2168
+      "triangles": 2189
     }
   ],
   "hitbox": {
@@ -72,14 +72,14 @@
   "voxel": 0.0025,
   "eye": {
     "L": [
-      -0.11425939947366714,
-      1.709524393081665,
-      -0.14127598702907562
+      -0.0971892848610878,
+      1.7195161581039429,
+      -0.15520766377449036
     ],
     "R": [
-      0.11425939947366714,
-      1.709524393081665,
-      -0.14127598702907562
+      0.0971892848610878,
+      1.7195161581039429,
+      -0.15520766377449036
     ]
   },
   "footContact": {
@@ -238,29 +238,29 @@
   "materials": 1,
   "skins": 1,
   "joints": 71,
-  "bytes": 3830976,
+  "bytes": 3759576,
   "tiers": {
     "high": {
       "path": "models/capybara/capybara-high.glb",
-      "bytes": 7054464,
+      "bytes": 6553028,
       "size": 4096,
       "gpuMB": 192
     },
     "medium": {
       "path": "models/capybara/capybara.glb",
-      "bytes": 3830976,
+      "bytes": 3759576,
       "size": 2048,
       "gpuMB": 48
     },
     "low": {
       "path": "models/capybara/capybara-low.glb",
-      "bytes": 2806360,
+      "bytes": 2795480,
       "size": 1024,
       "gpuMB": 12
     }
   },
   "statueBytes": 56184,
-  "rawBytes": 7312396,
+  "rawBytes": 7233868,
   "texture": {
     "format": "baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)",
     "count": 3,

@@ -343,7 +343,7 @@ def whisker_mesh():
                 # The head hit sphere bounds every head vertex.
                 d = c - centre; r = float(np.linalg.norm(d))
                 if r > .292: c = centre + d * (.292 / r)
-                w = .0017 * (1 - t) + .0003
+                w = .0011 * (1 - t) + .0002
                 a = C.norm(np.cross(out, C.v(0, 1, 0))); b = np.cross(out, a)
                 for j in range(3):
                     ang = j * math.tau / 3
@@ -388,6 +388,17 @@ for level, budget in enumerate(LOD_BUDGET):
     pts, nrm = coords(obj), normals(obj)
     partv = np.empty(len(obj.data.vertices), np.int32); obj.data.attributes['part'].data.foreach_get('value', partv)
     weights, team, fur = W.weights(parts, root, REST, pts, nrm, partv)
+    # The gameplay head sphere bounds every head vertex. Decimation can leave a coarse LOD's vertex
+    # a centimetre off the dense surface at the muzzle corners: bring any such vertex back inside
+    # (the head then still has room to turn in its clips).
+    hit = report['hitbox']['head']; centre = np.array(hit['center'], np.float32)
+    head_w = np.array([sum(v for k, v in w.items() if k.startswith(('head', 'jaw', 'nose', 'ear_', 'blink_', 'socket_', 'glint_', 'brow_', 'mouth_'))) for w in weights], np.float32)
+    d = pts - centre; r = np.linalg.norm(d, axis=1); limit = hit['radius'] - .0035
+    out = (head_w > .5) & (r > limit)
+    if out.any():
+        pts[out] = centre + d[out] * (limit / r[out])[:, None]
+        obj.data.vertices.foreach_set('co', V(pts).ravel()); obj.data.update()
+    log('LOD', level, 'head vertices brought inside the head sphere:', int(out.sum()))
     t_attr = obj.data.attributes.new('_TEAM', 'FLOAT', 'POINT'); t_attr.data.foreach_set('value', team)
     f_attr = obj.data.attributes.new('_FUR', 'FLOAT', 'POINT'); f_attr.data.foreach_set('value', fur)
     col = obj.data.color_attributes.new('Color', 'FLOAT_COLOR', 'POINT')
@@ -405,6 +416,12 @@ for level, budget in enumerate(LOD_BUDGET):
     lods.append(obj)
     log('LOD', level, len(obj.data.loop_triangles))
 bpy.data.objects.remove(game)
+# The glTF exporter validates every mesh and warns when that fixes anything: report what was
+# wrong here (the verbose log names it) and export the cleaned meshes.
+for obj in lods:
+    counts = (len(obj.data.vertices), len(obj.data.polygons))
+    fixed = obj.data.validate(verbose=True, clean_customdata=False)
+    log('validate', obj.name, 'fixed' if fixed else 'clean', counts, '->', (len(obj.data.vertices), len(obj.data.polygons)))
 report['eye'] = {s: [float(x) for x in C.eye_point(k)[0]] for s, k in (('L', -1), ('R', 1))}
 # Where each planted foot touches the ground (the sole under the toe hinge): the gait test and
 # the runtime ground clamp read it.

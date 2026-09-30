@@ -4,9 +4,9 @@ import * as THREE from 'three';
 // one skinned draw, each keeping only the strands of a noise field anchored to the bind pose, so
 // the silhouette reads as fur instead of a smooth plastic edge. Only capybaras within a few
 // metres of the camera draw it (spectating, the lobby, results, a fight at arm's length).
-export const FUR_SHELLS = 6;
+export const FUR_SHELLS = 8;
 export const FUR_RANGE = 6.5;
-const FUR_LENGTH = .011;
+const FUR_LENGTH = .015;
 
 // The comb of the painted pelt (capybara_paint.fur_flow) in bind space: back from the nose over
 // the head, down the neck, body and legs, from the elbow to the fingers, forward over the feet.
@@ -22,6 +22,23 @@ const FUR_COMB = `
     comb = mix(comb, axis, arm);
     comb = mix(comb, vec3(0.0, -.35, -1.0), smoothstep(.15, .10, p.y));
     return normalize(comb);
+  }`;
+
+// Value noise in coordinates that follow the comb (the head radial from the nose, the body down,
+// the forearms elbow to wrist), so strands and locks stay combed where the comb turns; the regions
+// blend like the comb (the painted pelt uses the same frames). Fragment shader only.
+const FUR_COMBED = `
+  float furCombed(vec3 p, float across, float along, float seed) {
+    float nb = furNoise3(vec3(p.x / across, p.z / across, -p.y / along) + seed);
+    vec3 d = p - vec3(0.0, 1.64, -.43); float r = length(d);
+    float nh = furNoise3(vec3(d.x / r * .35 / across, d.y / r * .35 / across, r / along) + seed + 7.0);
+    float side = sign(p.x);
+    vec3 elbow = vec3(side * .4080, 1.0324, -.1211), axis = vec3(side * -.1197, -.3790, -.9176);
+    vec3 q = p - elbow, e1 = normalize(cross(axis, vec3(0.0, 1.0, 0.0))), e2 = cross(axis, e1);
+    float na = furNoise3(vec3(dot(q, e1) / across, dot(q, e2) / across, dot(q, axis) / along) + seed + 13.0);
+    float wh = smoothstep(1.45, 1.53, p.y) * (1.0 - .6 * smoothstep(.04, .18, p.z));
+    float wa = smoothstep(.20, .12, length(cross(q, axis))) * step(.2, side * p.x) * step(p.y, 1.32);
+    return mix(mix(nb, nh, wh), na, wa);
   }`;
 
 const shellGeometries = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry | null>();
@@ -103,24 +120,26 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
         vec3 furUp = normalize(objectNormal);
         float furReach = uFurLength * furLength;
         transformed += furUp * furShell * furReach + (furComb - furUp * dot(furComb, furUp)) * furShell * furShell * furReach * .8;`);
-    shader.fragmentShader = `varying float vFurShell;\nvarying vec3 vFurRest;\n${FUR_COMB}
+    shader.fragmentShader = `varying float vFurShell;\nvarying vec3 vFurRest;
       float furHash3(vec3 p) { p = fract(p * .3183099 + .1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
       float furNoise3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
         return mix(mix(mix(furHash3(i), furHash3(i + vec3(1, 0, 0)), f.x), mix(furHash3(i + vec3(0, 1, 0)), furHash3(i + vec3(1, 1, 0)), f.x), f.y),
                    mix(mix(furHash3(i + vec3(0, 0, 1)), furHash3(i + vec3(1, 0, 1)), f.x), mix(furHash3(i + vec3(0, 1, 1)), furHash3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+      ${FUR_COMB}
+      ${FUR_COMBED}
       ${shader.fragmentShader}`
       .replace('#include <common>', '#include <common>\nuniform float uFurFade;')
       .replace('#include <color_fragment>', `#include <color_fragment>
-        // Strands: fine across the comb, long along it (the same comb as the vertex shader).
-        vec3 furDir = furCombAt(vFurRest);
-        vec3 furP = vFurRest * 900.0 - furDir * dot(vFurRest, furDir) * 780.0;
-        // Strands gather into locks (about a centimetre across, longer along the comb) like the paint.
-        vec3 furL = vFurRest * 95.0 - furDir * dot(vFurRest, furDir) * 65.0;
-        float furStrand = furNoise3(furP) * .72 + furNoise3(vFurRest * 140.0) * .20 + (furNoise3(furL) - .5) * .42;
-        if (furStrand < mix(.50, .96, vFurShell) + uFurFade) discard;
-        diffuseColor.rgb *= mix(.90, 1.12, vFurShell);`);
+        // Fine strands (about a millimetre across, a centimetre along the comb) gathered into locks
+        // (about 1.3 x 4 cm): the low shells keep most strands, the high ones only the cores of the
+        // locks, so the pelt ends in soft pointed clumps. The roots sit in shadow, the tips catch light.
+        float furLock = furCombed(vFurRest, .013, .040, 0.0);
+        float furStrand = furCombed(vFurRest, .0011, .009, 31.0);
+        float furKeep = furStrand * .55 + furLock * .70 - .10;
+        if (furKeep < mix(.32, .95, vFurShell) + uFurFade) discard;
+        diffuseColor.rgb *= mix(.78, 1.12, vFurShell);`);
   };
-  material.customProgramCacheKey = () => `${key}:capivara-fur-v3`;
+  material.customProgramCacheKey = () => `${key}:capivara-fur-v4`;
   shellMaterials.set(base, material);
   material.addEventListener('dispose', () => shellMaterials.delete(base));
   return material;
