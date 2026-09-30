@@ -2,7 +2,7 @@
   "atlas": "textures/world-arsenal.webp",
   "weapons": {
     "pistol": {
-      "source": 13880,
+      "source": 13892,
       "near": 2400,
       "far": 420
     },
@@ -42,5 +42,5 @@
       "far": 420
     }
   },
-  "bundledBytes": 2054900
+  "bundledBytes": 2053174
 }

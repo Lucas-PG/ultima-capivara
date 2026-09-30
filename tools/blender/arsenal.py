@@ -89,10 +89,11 @@ def pistol():
     for i in range(9):
         z = -.02 - i * .009
         parts['body'] += [box('backstrap_rib', (0, -.049 - i * .0012, z), (.018, .0026, .003), 'polymer', .0007)]
-    # Trigger guard with a squared, grooved front.
-    guard = prism('guard', [(-.010, .014, 1), (.077, .014, 1), (.088, .002), (.082, -.037), (.067, -.046), (-.004, -.043), (-.010, -.027)],
-                  .022, 'case', bevel=.002, radius=.003, raw=True)
-    cut(guard, cutter_prism([(.003, .006), (.072, .006), (.077, -.002), (.071, -.032), (.060, -.037), (.003, -.034)], .04))
+    # Keep the lower bridge thin enough to sit between the two thick digits.
+    # The deeper front bow preserves the squared silhouette and the large opening.
+    guard = prism('guard', [(-.010, .014, 1), (.077, .014, 1), (.088, .002), (.082, -.034), (.067, -.0405), (-.004, -.0405), (-.010, -.027)],
+                  .022, 'case', bevel=.0015, radius=.003, raw=True)
+    cut(guard, cutter_prism([(.003, .006), (.072, .006), (.077, -.002), (.071, -.032), (.060, -.037), (.003, -.037)], .04))
     # Shorten only the guard's forward bow; its opening still clears a paw digit.
     for vertex in guard.data.vertices:
         if vertex.co.y > .033: vertex.co.y = .033 + (vertex.co.y - .033) * .75
@@ -105,8 +106,8 @@ def pistol():
     parts['body'] += [prism('safety', [(-.052, .034), (-.028, .034), (-.028, .043), (-.048, .041)], .005, 'brass', x=-.017, bevel=.001)]
     parts['body'] += [cyl('guide_rod', (0, .16, .024), (0, .168, .024), .004, 'brass', sides=16, bevel=.0007)]
     # Trigger (animated), hammer (animated, pivot at its pin).
-    trig = prism('trigger', [(.034, .012, 1), (.041, .012, 1), (.043, .0), (.037, -.017), (.032, -.019), (.034, -.004)], .0075, 'brass', bevel=.0012, smooth=2)
-    move(trig, (0, -.020, 0))
+    trig = prism('trigger', [(.034, .012, 1), (.041, .012, 1), (.043, .0), (.037, -.017), (.032, -.019), (.034, -.004)], .012, 'brass', bevel=.0012, smooth=2)
+    move(trig, (0, -.028, 0))
     parts['trigger'] += [trig]
     hammer = prism('hammer', [(-.004, -.006, 1), (.004, -.006, 1), (.003, .006), (-.004, .011), (-.011, .011), (-.012, .005), (-.006, .0)], .01, 'brass', bevel=.0015, smooth=2)
     move(hammer, (0, -.036, .058))
@@ -129,7 +130,7 @@ def pistol():
                 if vertex.co.z < 0: vertex.co.z *= .88
             obj.data.update()
     sockets = {'muzzle': (0, .178, .049), 'eject': (.016, .052, .064), 'sight': (0, -.03, .0795)}
-    pivots = {'hammer': (0, -.036, .058), 'mag': (0, -.006, 0), 'trigger': (0, .016, .009), 'release': (-.017, .029, .027)}
+    pivots = {'hammer': (0, -.036, .058), 'mag': (0, -.006, 0), 'trigger': (0, .008, .009), 'release': (-.017, .029, .027)}
     return parts, sockets, pivots, {'magAxis': [0, -.50 * math.sin(math.radians(10)), -.88 * math.cos(math.radians(10))]}
 
 
