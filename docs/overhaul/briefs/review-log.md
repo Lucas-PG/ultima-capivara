@@ -30,3 +30,9 @@
 - Merged with the audio pass (one main.ts conflict: kept the audio uiSound hook and the two-way spectate step). Integrated tests 881/881.
 - My captures: HUD matches the mockup (compass, minimap and match strip, portrait vitals, weapon strip, ammo) and reads well; main menu at a commercial level (key art, illustrated mode cards). Evidence frames: over-the-shoulder follow and death card PASS; one two-client frame has the watched player off-shot (motion metrics cover it).
 - Open: visual snapshot baselines need re-approval; no first-person spectate option; bushes can fill the spectator view briefly (trees and bushes have no collision).
+
+## Short guns (Codex, guns-short) - 01:25
+- Budgets PASS: pistol 13.9k tris / 415 KB, SMG 17.3k / 500 KB, revolver 23.7k / 699 KB, machete 10.5k / 391 KB.
+- Paw contact PASS: worst -0.3 mm (revolver L), within the -0.5 mm tolerance; others -0.2 to +1.3 mm.
+- Visual PASS: models and liveries match the sheets (teal pistol, yellow-green Canarinho with the blue star, engraved blued revolver, machete with Bonfim ribbons); two-handed pistol and revolver grips cup the firing paw from below-left; SMG support paw wraps the vertical foregrip; reloads readable (pistol mag drop and seat, SMG swap, revolver muzzle-up eject, speedloader, close); machete diagonal slash. Minor: the pistol sits a little far and small at hip.
+- Merged cleanly; integrated tsc clean and vitest 896/896.
