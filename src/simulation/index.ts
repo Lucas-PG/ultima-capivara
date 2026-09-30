@@ -1397,7 +1397,11 @@ export class Simulation {
       } else if (b.lastSeen && now - b.lastSeenAt < style.chase + style.watch) {
         // Hold the angle: crouch and watch where the enemy was last seen.
         g = { ...s.pos }; kind = 'watch'; crouch = true;
-      } else if (now < b.alertUntil && b.hearPos) { g = b.hearPos; kind = 'hear'; }
+      } else if (now < b.alertUntil && b.hearPos) {
+        g = b.hearPos; kind = 'hear';
+        // The last stretch toward a gunshot is crept, quieter and lower; rushers just run in.
+        if (b.style !== 'rusher' && Math.hypot(g.x - s.pos.x, g.z - s.pos.z) < 16) crouch = true;
+      }
       else if (b.leisure) { g = b.leisure.pos; kind = 'leisure'; }
       else if (b.loot) {
         g = b.loot.pos; kind = 'loot';

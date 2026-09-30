@@ -87,6 +87,21 @@ describe('bot play styles', () => {
     expect(Math.hypot(bot.state.pos.x - 5, bot.state.pos.z + 20), JSON.stringify(bot.state.pos)).toBeLessThan(4);
   });
 
+  it('creeps up on a nearby gunshot, while a rusher runs straight at it', () => {
+    const approach = (style: BotStyle) => {
+      const { sim, runtime, bot, player } = arena(style, ground(-30, -20));
+      player.protectionUntil = 1e9;
+      bot.state.yaw = Math.PI / 2;
+      runtime.alertBots(ground(-18, -20), 40);
+      let crouched = 0;
+      run(sim, 1.5, () => { if (bot.state.crouch) crouched++; });
+      return { crouched: crouched / 90, closed: 30 - Math.hypot(bot.state.pos.x + 18, bot.state.pos.z + 20) };
+    };
+    const anchor = approach('anchor'), rusher = approach('rusher');
+    expect(anchor.crouched).toBeGreaterThan(.8); expect(rusher.crouched).toBe(0);
+    expect(rusher.closed).toBeGreaterThan(anchor.closed);
+  });
+
   it('sniped from beyond its sight, it breaks the line of fire and then peeks toward the shot', () => {
     const at = ground(0, -16);
     // A low wall off to the bot's side, between it and the distant marksman.
