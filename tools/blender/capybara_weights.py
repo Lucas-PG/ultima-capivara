@@ -132,13 +132,14 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
         m = int(mat[i])
         p = pts[i]
         # Gear with its own motion and rigid leather pieces.
-        if m in (M['pack'], M['canvas']) or (m in (M['strap'], M['brass']) and p[2] > .14):
+        leather_ids = (M['leather'], M['brass'], M.get('pouch', -1), M.get('pack_flap', -1))
+        if m in (M['pack'], M['canvas']) or (m in (M['strap'], M['brass'], M.get('pouch', -1), M.get('pack_flap', -1)) and p[2] > .14):
             w = {'pack': 1.0}
         elif m == M['hipcloth']:
             h = float(ss(.86, .70, p[1])); w = {'spine': 1 - h, 'hipcloth': h}
-        elif m in (M['leather'], M['brass']) and p[1] < 1.0:
+        elif m in leather_ids and .78 < p[1] < 1.0:
             w = {'spine': 1.0}
-        elif m in (M['denim'], M['strap'], M['brass']):
+        elif m in (M['denim'], M.get('denim_pocket', -1), M['strap'], M['brass']):
             # The vest and its straps ride the torso: arm weights would tear them at the armhole
             # when the arms come up to a gun.
             w = {k: val for k, val in w.items() if not k.startswith(('arm_', 'forearm_'))} or {'chest': 1.0}
@@ -152,7 +153,7 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             ear_c = C.side(C.EAR, s)
             ear = float(ss(.050, .030, np.linalg.norm(p - ear_c))) * float(p[1] > 1.745)
             brow = float(ss(.030, .012, np.linalg.norm(p - (e + np.array([0, .030, 0], F))))) * .6
-            mc = C.side((.052, 1.540, -.262), s)
+            mc = C.side(getattr(C, 'MOUTH_CORNER', (.052, 1.540, -.262)), s)
             corner = float(ss(.028, .010, np.linalg.norm(p - mc))) * .8
             jaw = float(ss(1.535, 1.51, p[1]) * ss(-.15, -.22, p[2])) * .7
             head = w.pop('head')

@@ -13,7 +13,7 @@ Rules: Claude Opus subagents for all delegated work now (user, 2026-09-30); the 
 
 Remaining plan, in order:
 1. Final polish and full-game review (Opus agent): bougainvillea through a Morro wall; spectator camera squeezed against its target about 6% of the time; loot that reads as flat navy boards at eye level; frame drops in long runs to recheck on a quiet machine; then a meticulous defect hunt in every mode.
-2. Review and merge the character pass (independent renders next to the holding reference at 1 to 3 m, 15 m and 60 m, holding, gaits).
+2. Review and merge the character pass (independent renders next to the holding reference at 1 to 3 m, 15 m and 60 m, holding, gaits). The character agent designs freely, hands included, unconstrained by the first-person arms (user, 2026-09-30); afterwards decide how to match the first-person arms to it (look, and possibly paw shape plus a grip refit on all nine weapons).
 3. Release gate: perf on Low, Medium and High on a quiet machine; multiplayer with several real clients (e2e harness on 5174 and 9001); full playtests with the defect list closed; before/after evidence against `docs/overhaul/evidence/baseline/`; `npm run check`, `npm test`, `npm run build`, Playwright visual, perf and multiplayer checks.
 4. Write `docs/overhaul/final-overhaul-report.md` (changes, decisions, art direction, POV, weapons, character, world, rendering, combat, audio and VFX, gameplay, technical, tests, multiplayer, perf, assets and licences, before/after, limitations; human audition needed for the new audio).
 5. Integrate into `overhaul/m1-inventory`, re-verify there, commit, push `lucas overhaul/m1-inventory` (pre-approved by the user for this final push only), then brief the user.

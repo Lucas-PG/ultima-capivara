@@ -2,15 +2,15 @@
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 26499
+      "triangles": 40501
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 7795
+      "triangles": 9497
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 2177
+      "triangles": 2273
     }
   ],
   "hitbox": {
@@ -29,9 +29,18 @@
   },
   "clips": [
     "backpedal",
+    "backpedal_l",
+    "backpedal_r",
     "boing",
     "chill",
+    "crouch_back",
+    "crouch_bl",
+    "crouch_br",
+    "crouch_fl",
+    "crouch_fr",
     "crouch_idle",
+    "crouch_strafe_l",
+    "crouch_strafe_r",
     "crouch_walk",
     "dance",
     "death",
@@ -54,26 +63,131 @@
     "strafe_r",
     "victory",
     "walk",
+    "walk_fl",
+    "walk_fr",
     "wave"
   ],
   "material": "baked sculpt: albedo + normal + ORM (R team mask), _fur vertex mask",
   "voxel": 0.0025,
   "eye": {
     "L": [
-      -0.13675720989704132,
-      1.7206298112869263,
-      -0.04775076359510422
+      -0.14018411934375763,
+      1.7169278860092163,
+      -0.07427980750799179
     ],
     "R": [
-      0.13675720989704132,
-      1.7206298112869263,
-      -0.04775076359510422
+      0.14018411934375763,
+      1.7169278860092163,
+      -0.07427980750799179
     ]
   },
   "locomotionSpeed": {
-    "walk": 3.9,
-    "run": 6.4,
-    "crouch_walk": 2.1
+    "walk": 3.75,
+    "walk_fr": 3.75,
+    "strafe_r": 3.75,
+    "backpedal_r": 3.75,
+    "backpedal": 3.75,
+    "backpedal_l": 3.75,
+    "strafe_l": 3.75,
+    "walk_fl": 3.75,
+    "run": 6.000000000000001,
+    "crouch_walk": 1.5000000000000002,
+    "crouch_fr": 1.5000000000000002,
+    "crouch_strafe_r": 1.5000000000000002,
+    "crouch_br": 1.5000000000000002,
+    "crouch_back": 1.5000000000000002,
+    "crouch_bl": 1.5000000000000002,
+    "crouch_strafe_l": 1.5000000000000002,
+    "crouch_fl": 1.5000000000000002
+  },
+  "locomotionContact": {
+    "walk": 0.4,
+    "walk_fr": 0.4,
+    "strafe_r": 0.4,
+    "backpedal_r": 0.4,
+    "backpedal": 0.4,
+    "backpedal_l": 0.4,
+    "strafe_l": 0.4,
+    "walk_fl": 0.4,
+    "run": 0.3,
+    "crouch_walk": 0.5,
+    "crouch_fr": 0.5,
+    "crouch_strafe_r": 0.5,
+    "crouch_br": 0.5,
+    "crouch_back": 0.5,
+    "crouch_bl": 0.5,
+    "crouch_strafe_l": 0.5,
+    "crouch_fl": 0.5
+  },
+  "locomotionDirection": {
+    "walk": [
+      0,
+      1
+    ],
+    "walk_fr": [
+      0.70710678,
+      0.70710678
+    ],
+    "strafe_r": [
+      1,
+      0
+    ],
+    "backpedal_r": [
+      0.70710678,
+      -0.70710678
+    ],
+    "backpedal": [
+      0,
+      -1
+    ],
+    "backpedal_l": [
+      -0.70710678,
+      -0.70710678
+    ],
+    "strafe_l": [
+      -1,
+      0
+    ],
+    "walk_fl": [
+      -0.70710678,
+      0.70710678
+    ],
+    "run": [
+      0,
+      1
+    ],
+    "crouch_walk": [
+      0,
+      1
+    ],
+    "crouch_fr": [
+      0.70710678,
+      0.70710678
+    ],
+    "crouch_strafe_r": [
+      1,
+      0
+    ],
+    "crouch_br": [
+      0.70710678,
+      -0.70710678
+    ],
+    "crouch_back": [
+      0,
+      -1
+    ],
+    "crouch_bl": [
+      -0.70710678,
+      -0.70710678
+    ],
+    "crouch_strafe_l": [
+      -1,
+      0
+    ],
+    "crouch_fl": [
+      -0.70710678,
+      0.70710678
+    ]
   },
   "emotes": {
     "wave": {
@@ -111,12 +225,16 @@
   "materials": 1,
   "skins": 1,
   "joints": 67,
-  "bytes": 3151352,
-  "statueBytes": 151532,
-  "rawBytes": 7953904,
+  "bytes": 8915904,
+  "statueBytes": 54976,
+  "rawBytes": 6297112,
   "texture": {
     "format": "baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)",
     "count": 3,
-    "size": 2048
+    "sizes": {
+      "capybara_normal": 4096,
+      "capybara_albedo": 4096,
+      "capybara_orm": 2048
+    }
   }
 }

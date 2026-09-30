@@ -12,6 +12,30 @@ beforeAll(async () => {
   asset = await new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder }).read('public/models/capybara/capybara.glb');
 });
 
+it('keeps Redentora a budgeted stone version of the current long-headed capybara', async () => {
+  const statue = await new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder }).read('public/models/capybara/statue.glb');
+  const root = statue.getRoot();
+  expect(root.listMeshes()).toHaveLength(1); expect(root.listMaterials()).toHaveLength(1);
+  expect(root.listTextures()).toHaveLength(0); expect(root.listSkins()).toHaveLength(0);
+  const node = root.listNodes().find(node => node.getMesh())!;
+  expect(node.getExtras().characterSource).toBe('capybara_form.head + eyes + paw (v6)');
+  const primitive = node.getMesh()!.listPrimitives()[0], position = primitive.getAttribute('POSITION')!;
+  expect(primitive.getIndices()!.getCount() / 3).toBeLessThanOrEqual(10000);
+  const transform = new Matrix4().fromArray(node.getWorldMatrix());
+  const low = new Vector3(Infinity, Infinity, Infinity), high = low.clone().multiplyScalar(-1);
+  const headLow = low.clone(), headHigh = high.clone();
+  for (let i = 0; i < position.getCount(); i++) {
+    const p = new Vector3().fromArray(position.getElement(i, [])).applyMatrix4(transform);
+    low.min(p); high.max(p);
+    if (p.y > 1.5) { headLow.min(p); headHigh.max(p); }
+  }
+  // Same feet-origin placement and arms-wide landmark silhouette, with the player's
+  // long blunt muzzle and small high ears rather than the old square metaball head.
+  expect(low.y).toBeCloseTo(.0015, 2); expect(high.y).toBeGreaterThan(1.79); expect(high.y).toBeLessThan(1.9);
+  expect(high.x - low.x).toBeGreaterThan(1.9); expect(headLow.z).toBeLessThan(-.32);
+  expect(headHigh.x - headLow.x).toBeGreaterThan(.32); expect(headHigh.z - headLow.z).toBeGreaterThan(.48);
+});
+
 describe('shipped capybara asset contract', () => {
   it('marks only the scarf and the hip cloth for the team colour, on an otherwise untinted skin', () => {
     for (const mesh of asset.getRoot().listMeshes()) {
@@ -110,7 +134,7 @@ describe('shipped capybara asset contract', () => {
   });
 
   it('includes the complete directional and action clip contract without root travel', () => {
-    const names = ['walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'fall', 'land', 'reload_tp', 'death'];
+    const names = ['walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'crouch_back', 'crouch_strafe_l', 'crouch_strafe_r', 'fall', 'land', 'reload_tp', 'death'];
     for (const name of names) {
       const clip = asset.getRoot().listAnimations().find(animation => animation.getName() === name);
       expect(clip, name).toBeDefined();
@@ -216,7 +240,7 @@ describe('shipped capybara asset contract', () => {
     gltf.scene.traverse(object => { if (object instanceof SkinnedMesh) meshes.push(object); });
     const mixer = new AnimationMixer(gltf.scene), vertex = new Vector3();
     const expressions = ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'];
-    for (const name of [...expressions.map(name => `face_${name}`), 'idle', 'run', 'jump']) {
+    for (const name of [...expressions.map(name => `face_${name}`), 'idle', 'walk', 'strafe_l', 'backpedal', 'run', 'jump']) {
       const clip = gltf.animations.find(clip => clip.name === name)!;
       expect(clip, name).toBeDefined();
       mixer.stopAllAction(); mixer.clipAction(clip).play();
@@ -261,7 +285,7 @@ it('crouches its head into the crouched head volume', async () => {
   // The standing head centre, carried by the head bone.
   const local = head.worldToLocal(new Vector3(0, shape.headY, shape.headZ));
   const mixer = new AnimationMixer(gltf.scene);
-  for (const name of ['crouch_idle', 'crouch_walk']) {
+  for (const name of ['crouch_idle', 'crouch_walk', 'crouch_back', 'crouch_strafe_l', 'crouch_strafe_r']) {
     const clip = gltf.animations.find(clip => clip.name === name)!;
     mixer.stopAllAction(); mixer.clipAction(clip).play();
     for (let sample = 0; sample < 6; sample++) {
