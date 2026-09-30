@@ -3,13 +3,13 @@
 Body weights are a soft minimum over the sculpt's body parts: a vertex (skin, cloth or gear)
 belongs to the parts it is nearest to, blended where parts meet, so a sleeve follows its arm
 and a trouser leg its thigh. Gear with its own motion (pack, hip cloth) and the face (lids,
-ears, brows, mouth) are then assigned explicitly. Paw digits use ownership along each digit's
-joint chain, like the first-person arms, so a finger never drags its neighbour.
+ears, brows, mouth, bandana tails, blanket) are then assigned explicitly. Paw digits use ownership
+along each digit's joint chain, like the first-person arms, so a finger never drags its neighbour.
 """
 import numpy as np
 import capy_sdf as S
 import capybara_form as C
-import paw_sculpt as P
+import capy_hand as P
 
 F = np.float32
 
@@ -21,7 +21,7 @@ def ss(e0, e1, x):
 
 def _paw_local(pts, s):
     Mr = C.paw_frame(s)
-    return ((pts - C.wrist(s)) @ Mr) / C.PAW_SCALE
+    return (pts - C.wrist(s)) @ Mr
 
 
 CHAINS = {f: np.array([tuple(p) for p in P.POINTS[f]], F) for f in P.FINGERS}
@@ -46,13 +46,13 @@ def _paw_weights(q, n):
     owner = np.full(len(q), -1, np.int8); tpar = np.zeros(len(q), F); best = np.full(len(q), 9.0, F)
     for k, finger in enumerate(P.FINGERS):
         d, t, r = _chain(q, finger)
-        mine = (t > .12) & (d < r * 1.7 + .002) & (d - r < best)
+        mine = (t > .12) & (d < r * 1.7 + .004) & (d - r < best)
         owner[mine] = k; tpar[mine] = t[mine]; best[mine] = (d - r)[mine]
     out = []
     for i in range(len(q)):
         o, t, y = owner[i], float(tpar[i]), float(q[i, 1])
         if o < 0:
-            wr = float(ss(-.022, .008, y))
+            wr = float(ss(-.045, .018, y))
             out.append({'forearm_twist': 1 - wr, 'paw': wr})
             continue
         f = P.FINGERS[o]; seg = int(min(2, max(0, np.floor(t)))); u = t - seg
@@ -98,7 +98,7 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
                 continue
             if name == 'torso':
                 c = float(ss(.97, 1.16, y[i]))
-                b = float(ss(.20, .08, np.linalg.norm((pts[i] - np.array([0, .98, -.20], F)) * np.array([.8, 1, 1.4], F)))) * .8
+                b = float(ss(.24, .10, np.linalg.norm((pts[i] - np.array([0, .98, -.23], F)) * np.array([.8, 1, 1.4], F)))) * .8
                 add('spine', a * (1 - c) * (1 - b)); add('chest', a * c * (1 - b)); add('belly', a * b)
             elif name == 'neck':
                 h = float(ss(1.46, 1.54, y[i])); c = float(ss(1.40, 1.33, y[i]))
@@ -132,28 +132,40 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
         m = int(mat[i])
         p = pts[i]
         # Gear with its own motion and rigid leather pieces.
-        leather_ids = (M['leather'], M['brass'], M.get('pouch', -1), M.get('pack_flap', -1))
-        if m in (M['pack'], M['canvas']) or (m in (M['strap'], M['brass'], M.get('pouch', -1), M.get('pack_flap', -1)) and p[2] > .14):
-            w = {'pack': 1.0}
+        leather_ids = (M['leather'], M['brass'], M['pouch'], M['pack_flap'])
+        if m == M['canvas']:
+            w = {'bedroll': 1.0}
+        elif m == M['pack'] or (m in (M['strap'], M['brass'], M['pouch'], M['pack_flap']) and p[2] > .14):
+            # Straps and buckles on the blanket go with it, the rest with the rucksack.
+            w = {'bedroll': 1.0} if p[1] > 1.30 and p[2] > .18 else {'pack': 1.0}
         elif m == M['hipcloth']:
-            h = float(ss(.86, .70, p[1])); w = {'spine': 1 - h, 'hipcloth': h}
+            h = float(ss(C.RAG_TOP[1] - .03, C.RAG_TOP[1] - .17, p[1])); w = {'spine': 1 - h, 'hipcloth': h}
+        elif m == M['scarf']:
+            # The band rides the neck and chest (never the head); each tail swings from the knot.
+            c = float(ss(1.45, 1.38, p[1])); tail = float(ss(1.352, 1.300, p[1])) * float(p[2] < -.15)
+            w = {'chest': c * (1 - tail), 'neck': (1 - c) * (1 - tail), 'scarf_' + ('R' if p[0] > 0 else 'L'): tail}
+            w = {k: val for k, val in w.items() if val > 1e-4}
+        elif m == M['collar']:
+            w = {'chest': 1.0}
         elif m in leather_ids and .78 < p[1] < 1.0:
             w = {'spine': 1.0}
-        elif m in (M['denim'], M.get('denim_pocket', -1), M['strap'], M['brass']):
+        elif m in (M['denim'], M['denim_pocket'], M['denim_collar'], M['strap'], M['brass']):
             # The vest and its straps ride the torso: arm weights would tear them at the armhole
             # when the arms come up to a gun.
             w = {k: val for k, val in w.items() if not k.startswith(('arm_', 'forearm_'))} or {'chest': 1.0}
         if partv[i] == 1:
             w = {'blink_' + ('R' if p[0] > 0 else 'L'): 1.0}
+        elif partv[i] == 2:
+            w = {'head': 1.0}            # whiskers
         elif 'head' in w and w['head'] > .5:
             s = 1 if p[0] > 0 else -1; n = 'R' if s > 0 else 'L'
             e, out_dir = C.eye_point(s)
             de = float(np.linalg.norm(p - e))
             lid = float(ss(C.EYE_R + .016, C.EYE_R + .004, de)) * float((p - e) @ out_dir > -.004)
             ear_c = C.side(C.EAR, s)
-            ear = float(ss(.050, .030, np.linalg.norm(p - ear_c))) * float(p[1] > 1.745)
-            brow = float(ss(.030, .012, np.linalg.norm(p - (e + np.array([0, .030, 0], F))))) * .6
-            mc = C.side(getattr(C, 'MOUTH_CORNER', (.052, 1.540, -.262)), s)
+            ear = float(ss(.066, .042, np.linalg.norm(p - ear_c))) * float(p[1] > 1.735)
+            brow = float(ss(.036, .014, np.linalg.norm(p - (e + np.array([0, .034, 0], F))))) * .6
+            mc = C.side(C.MOUTH_CORNER, s)
             corner = float(ss(.028, .010, np.linalg.norm(p - mc))) * .8
             jaw = float(ss(1.535, 1.51, p[1]) * ss(-.15, -.22, p[2])) * .7
             head = w.pop('head')
@@ -171,16 +183,19 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
         out.append({k: v / total for k, v in top if v / total > .002})
     team = np.isin(mat, [M[k] for k in C.TEAM]).astype(F)
     # Fur length for the close-range shells: full on the pelt, short on the muzzle, none on the
-    # nose pad, lids, paws (their skin and the digits) and the toes.
-    fur = (mat == M['fur']).astype(F)
+    # nose leather, lids, ears, the bare skin of the paws (palm and digits) and the toes.
+    fur = ((mat == M['fur']) & (np.asarray(partv) == 0)).astype(F)
     head = pts[:, 1] > 1.45
-    # Shorter toward the muzzle and gone on the nose, fading so the pelt has no hard edge.
+    # Shorter toward the muzzle and gone at its front, fading so the pelt has no hard edge.
     fur *= np.where(head, .35 + .65 * np.clip((pts[:, 2] + .30) / .14, 0, 1), 1.0) * np.where(head & (pts[:, 2] < -.30), 0, 1)
     for s in (-1, 1):
         e, _ = C.eye_point(s)
         fur *= np.linalg.norm(pts - e, axis=1) > C.EYE_R + .010
-        fur *= np.linalg.norm(pts - C.wrist(s), axis=1) > .045
-        fur *= ~((np.abs(pts[:, 0] - s * .132) < .12) & (pts[:, 1] < .09) & (pts[:, 2] < -.06))
-    paw = soft[:, names.index('paw_L')] + soft[:, names.index('paw_R')]
-    fur *= paw < .5
+        # Paw: fur on the back of the hand up to the knuckles only.
+        loc = _paw_local(pts, s); on_paw = (loc[:, 1] > -.01) & (np.linalg.norm(loc, axis=1) < .30)
+        fur *= ~(on_paw & ((loc[:, 1] > .095) | (loc[:, 2] < .012)))
+        fur *= np.where(on_paw, .6, 1.0)
+        # Foot: fur on the instep, none on the toes and sole.
+        fl = (pts - C.foot_point(s, 0, 0, 0)) @ C.foot_frame(s)
+        fur *= ~((np.linalg.norm(fl[:, [0, 2]], axis=1) < .26) & (pts[:, 1] < .10) & (fl[:, 2] < -.085))
     return out, team, fur.astype(F)
