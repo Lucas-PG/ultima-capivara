@@ -66,7 +66,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let pendingFrame: number | null = null;
   let actorPositions: Pick<Vec3, 'x' | 'z'>[] = [];
-  let preparedIdentities = '';
+  let preparedIdentities = '', watchedPose = false;
   let placedRoutes: Map<string, Vec3[]> | undefined;
   const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `ads-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES, ...ACCESS_POSES, ...ROOM_POSES,
@@ -381,9 +381,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       for (const event of kills) deps.ui.event(event);
       if (name === 'hud-full') deps.ui.event({ type: 'supply', id: 9005, drop: 'supply-1', pos: at, district: deps.world.districts[0]?.id ?? '', stage: 'incoming' });
       deps.ui.setSpectate(name === 'hud-watch' ? { target: 'bot-hud-2', hold: null, index: 1, count: 13 } : null);
+      watchedPose = name === 'hud-watch';
       // The HUD refreshes at most every 75 ms: let the next update through.
       await new Promise(resolve => setTimeout(resolve, 90));
-    } else deps.ui.setSpectate(null);
+    } else if (watchedPose) { deps.ui.setSpectate(null); watchedPose = false; }
     deps.ui.update(s, 'practice', 0, false, 60, hudPrompt ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : bath || supply ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : null);
     deps.ui.frameCompass(renderer.heading);
     deps.ui.setPaused(name === 'pause');

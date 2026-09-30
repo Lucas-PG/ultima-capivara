@@ -88,11 +88,13 @@ describe('follow camera', () => {
     const shapes = [...island.objects.map(plantCrown), ...vegetationDressing(island)
       .filter(p => !['meadow', 'crop', 'fern', 'bromeliad', 'vine'].includes(p.species)).map(p => foliageAt(p.species, p.variant, p.x, p.y, p.z, p.height))]
       .filter((shape): shape is NonNullable<typeof shape> => !!shape);
-    const leafy = (x: number, y: number, z: number) => shapes.some(shape => { const span = foliageSpan(shape, x, z); return !!span && y > span[0] && y < span[1]; });
     let spots = 0, inLeaves = 0;
     while (spots < 250) {
       const shape = shapes[Math.floor(r() * shapes.length)], a = r() * Math.PI * 2, d = 1 + r() * 4;
       const x = shape.x + Math.cos(a) * d, z = shape.z + Math.sin(a) * d, pos = { x, y: walkableHeight(x, z, island), z };
+      // Only the plants within reach of this spot and its lens matter.
+      const near = shapes.filter(other => Math.hypot(other.x - x, other.z - z) < 16);
+      const leafy = (px: number, py: number, pz: number) => near.some(other => { const span = foliageSpan(other, px, pz); return !!span && py > span[0] && py < span[1]; });
       if (!clearSpawn(pos, island) || leafy(x, pos.y + FOLLOW.height, z)) continue;
       spots++;
       const cam = new FollowCamera(), yaw = r() * Math.PI * 2;
