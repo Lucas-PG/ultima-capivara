@@ -13,7 +13,8 @@ test('deterministic game views match recorded baselines', async ({ page }, testI
   const review = process.env.QA_REVIEW_DIR;
   if (review) mkdirSync(review, { recursive: true });
   const capture = async (name: string) => {
-    if (review) await page.screenshot({ path: join(review, name), animations: 'disabled' });
+    // Same file names as toHaveScreenshot, which turns underscores into hyphens.
+    if (review) await page.screenshot({ path: join(review, name.replace(/_/g, '-')), animations: 'disabled' });
     else await expect(page).toHaveScreenshot(name, { animations: 'disabled', threshold: .2, maxDiffPixelRatio: .03 });
   };
   if (!process.env.QA_SMOKE) {
