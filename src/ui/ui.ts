@@ -92,6 +92,9 @@ export class GameUI {
   private supplyNotice: string | null = null;
   private deathInfo: { place: number; line: string; card: string | null; until: number; late: boolean; left: string | null } | null = null;
   private watchSince = 0;
+  private killConfirmTimer = 0;
+  // Own eliminations this match, counted from the kill events (the snapshot may or may not include the newest yet).
+  private killCount = 0;
   private sawAlive = false;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
@@ -341,7 +344,7 @@ export class GameUI {
   game(playerId: string) {
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
     clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0; this.supplyNotice = null;
-    this.lastBanner = ''; this.deathInfo = null; this.watchSince = 0; this.sawAlive = false; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null;
+    this.lastBanner = ''; this.deathInfo = null; this.watchSince = 0; this.sawAlive = false; this.killCount = 0; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null;
     if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
     this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
@@ -363,7 +366,7 @@ export class GameUI {
       + `<div class="sp-bars"><div class="bar hp"><i id="spHp"></i></div><b id="spHpTxt">100</b><div class="bar arm"><i id="spArm"></i></div><b id="spArmTxt">0</b></div></div>`
       + `<button type="button" class="sp-nav next" data-do="spec-next" aria-label="Próxima capivara"><kbd id="spNextKey">${key(this.settings.bindings.jump)}</kbd>${icon('arrow')}</button><span class="sp-hint" id="spHint">Mouse gira a câmera · <kbd>Esc</kbd> menu</span></div>`
       + `<div id="dmgInd"></div><div id="nums"></div>`
-      + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
+      + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div><div id="killConfirm" hidden aria-live="polite"></div>`
       + `<div id="prompt" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="use" class="cbar" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
       // Bottom row: portrait and vitals on the left, the four boxes in the middle, the magazine on the right.
       + `<div id="vitals" class="plate tiled"><span class="portrait" id="vPortrait">${face}</span><div class="rows"><div class="row arm">${HUD_ART.shield}<div class="bar"><i class="chip" id="armChip" style="width:0"></i><div id="armBar" style="width:0"></div><span class="seg" aria-hidden="true"></span></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><i class="chip" id="hpChip"></i><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><span id="prot" hidden>Protegida</span></div>`
@@ -713,7 +716,7 @@ export class GameUI {
     const eyebrow = watching ? `Você ficou em #${this.deathInfo?.place ?? alive + 1} · ${alive} ${alive === 1 ? 'viva' : 'vivas'}` : `Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'viva' : 'vivas'}` : ''}`;
     panel.classList.toggle('watching', watching);
     panel.innerHTML = `<div class="mc"><div class="eyebrow">${esc(eyebrow)}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${title}</h1>${!online && !watching && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
-      + `<div class="pboard"><img class="board-mascot" src="${uiArt(watching ? 'capy-lose' : 'capy-wave')}" alt="" draggable="false"><button type="button" class="play" data-do="resume">${watching ? watch.label : 'Voltar pra ilha'}</button><div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt quit" data-do="leave">${watching ? leave.label : 'Sair da partida'}</button></div></div><div id="lockErr" role="status"></div>`
+      + `<div class="pboard"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><button type="button" class="play" data-do="resume">${watching ? watch.label : 'Voltar pra ilha'}</button><div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt quit" data-do="leave">${watching ? leave.label : 'Sair da partida'}</button></div></div><div id="lockErr" role="status"></div>`
       + (watching ? `<div class="quick stk"><span>${keys(keyName(b.jump), keyName(bindingOf(b, 'fire')))}próxima capivara</span><span>${keys(keyName(bindingOf(b, 'ads')))}anterior</span><span>${keys('Mouse')}gira a câmera</span><span>${keys(keyName(bindingOf(b, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(b, 'map')))}mapa</span></div>` : '')
       + (watching ? '' : `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'drop')))}soltar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'emote')))}gestos (segurar)</span></div>`)
       + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2)}</b></span><input type="range" data-quick="sensitivity" min="0.2" max="3" step="0.05" value="${this.settings.sensitivity}"></label>`
@@ -878,7 +881,14 @@ export class GameUI {
         entry.innerHTML = `${face(killer)}${name(killer)}<span class="wi">${weaponIcon(event.weapon)}</span><em>${distance} m${hit?.head && hit.actor === event.actor ? ' · na cachola' : ''}</em>${name(victim)}${face(victim)}`;
       }
       this.addFeed(entry);
-      if (mine) { this.hitMarker('kill'); this.floater('POF!', 'pop kill'); if (victim) this.lastPrey = { name: victim.name, color: victim.color }; }
+      if (mine) {
+        this.hitMarker('kill'); this.floater('POF!', 'pop kill'); if (victim) this.lastPrey = { name: victim.name, color: victim.color };
+        // Elimination confirmed under the reticle, like the big shooters: who, and your running count.
+        const confirm = this.el('killConfirm'); this.killCount++;
+        confirm.innerHTML = `<span class="kx-face">${capybara(victim?.color)}</span><span><small>Você pegou</small><b>${esc(victim?.name ?? 'Capivara')}</b></span><em>${this.killCount}</em>`;
+        confirm.hidden = false; this.restartAnimation(confirm, 'on');
+        clearTimeout(this.killConfirmTimer); this.killConfirmTimer = window.setTimeout(() => { confirm.hidden = true; }, 1800);
+      }
       if (died && this.snapshot) {
         const others = this.snapshot.actors.filter(a => a.alive && a.id !== this.localId).length;
         const byPlayer = !!killer && event.weapon !== 'storm' && event.weapon !== 'fall';
