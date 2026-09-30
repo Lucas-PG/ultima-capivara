@@ -1,12 +1,15 @@
 import { expect, test } from '@playwright/test';
 import { CONTROL_ACTIONS, CONTROL_OPTIONS } from '../src/controls';
 
-test('Settings keeps keyboard access, saved values, remapping and calm controls', async ({ page }) => {
+test('Settings keeps keyboard access, saved values, remapping and calm controls', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await page.locator('[data-do="settings"]').click();
   const dialog = page.getByRole('dialog');
+  await page.screenshot({ path: testInfo.outputPath('settings-top.png') });
+  await dialog.locator('.control-options').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('settings-controls.png') });
   await expect(dialog.locator('input[type=range]')).toHaveCount(7 + CONTROL_OPTIONS.filter(o => o.min !== undefined).length);
   await expect(dialog.locator('input[type=checkbox]')).toHaveCount(4 + CONTROL_OPTIONS.filter(o => o.min === undefined).length);
   await expect(dialog.locator('select')).toHaveCount(4);
