@@ -267,7 +267,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v14:${ROADS.length}`;
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v15:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -338,7 +338,15 @@ export class WorldScene {
           return length(max(outside, 0.0)) + min(max(outside.x, outside.y), 0.0);
         }
       `).replace('#include <map_fragment>', `
-        #include <map_fragment>
+        // The colour map holds one texel per 0.5 m: near the eye its soft blends between grass,
+        // earth and sand read as smudges. A small world-space warp of the lookup breaks every
+        // blend into an irregular painted edge, and a fine wash adds grain; both fade with range.
+        float terrainNear = 1.0 - smoothstep(12.0, 40.0, length(vViewPosition));
+        vec2 terrainWarp = (vec2(terrainFbm(vTerrainXZ / 1.1 + vec2(3.1, 8.7)), terrainFbm(vTerrainXZ / 1.1 + vec2(11.4, 2.9))) * .7 +
+          vec2(terrainNoise(vTerrainXZ / .32 + vec2(5.0, 1.0)), terrainNoise(vTerrainXZ / .32 + vec2(2.0, 9.0))) * .45) * terrainNear;
+        vec4 sampledDiffuseColor = texture2D(map, vMapUv + terrainWarp / ${world.size.toFixed(1)});
+        diffuseColor *= sampledDiffuseColor;
+        diffuseColor.rgb *= 1.0 + (terrainNoise(vTerrainXZ / .23) * .035 + terrainNoise(vTerrainXZ / .07) * .02) * terrainNear;
         float distanceToRoad = 1e6;
         for (int road = 0; road < ${ROADS.length}; road++)
           distanceToRoad = min(distanceToRoad, terrainRectDistance(vTerrainXZ, terrainRoads[road]));
