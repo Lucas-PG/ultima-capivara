@@ -24,3 +24,9 @@
 - Agent measured the real Chrome output: the always-on hiss was three fixed 2 s white-noise loops (-54.7 dBFS over six octaves); replaced by modulated, place-based ambience (floor -67.4 dBFS, 29-45 dB movement). Own shots 18+ dB above own steps; remote shot 10+ dB above a sprinting step; steps under 13% energy below 200 Hz vs 30-62% for guns; steps stop within 120 ms vs 0.3-2.4 s gun tails. All sounds procedural (old MP3s removed). Tests fail on a replica of the old hiss.
 - My checks: tsc clean, 51 audio tests pass, no leftover MP3 references, scope contained (src/sound/*, small ui/main/settings hooks). Merged (subjective sound quality still needs a human audition: tools/audio/lab.html).
 - Open: no supply-plane flyby; remote gun fired toward you has no distinct cue; saved settings keep the old 0.25 music level; no per-enemy threat scoring.
+
+## UI, spectator, HUD, menus (Claude Opus, ui-spectator, 15 commits) - 00:40
+- Spectator root causes found and fixed: pointer unlock dropped rendering to 10 fps; camera stepped at 20 Hz on raw snapshots; camera inside the watched head; no target info; forward-only cycling. Now smoothed over-the-shoulder follow with wall pull-in, killer follow, two-way switching over an arc, watch bar; two real clients: camera moves in 174 of 180 frames (was frozen in 120).
+- Merged with the audio pass (one main.ts conflict: kept the audio uiSound hook and the two-way spectate step). Integrated tests 881/881.
+- My captures: HUD matches the mockup (compass, minimap and match strip, portrait vitals, weapon strip, ammo) and reads well; main menu at a commercial level (key art, illustrated mode cards). Evidence frames: over-the-shoulder follow and death card PASS; one two-client frame has the watched player off-shot (motion metrics cover it).
+- Open: visual snapshot baselines need re-approval; no first-person spectate option; bushes can fill the spectator view briefly (trees and bushes have no collision).

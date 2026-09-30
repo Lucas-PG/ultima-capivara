@@ -117,8 +117,8 @@ User review of the port (2026-09-28): the isolated **character is not accepted**
 ### G. Gameplay, bots, UI
 - [ ] G1 Bots watched in matches, fixes
 - [ ] G2 Creative additions (only those that pass the fun/identity/quality/complexity test)
-- [ ] G3 HUD and menus coherence (reference `docs/art/references/hud-mockup.jpg`). Plan: Opus agent beside the gun agents.
-- [ ] G4 Death and spectator camera (user issue 2026-09-29: "very bugged, very hard to spectate after you die"): reproduce every case (after death, switching targets, target dies or leaves, water and fall deaths), fix each with a test, verify with real multiplayer clients.
+- [x] G3 HUD and menus merged 2026-09-30 (18e1dba): HUD rebuilt to the mockup, death card and kill confirmation, loading screens, menu and settings fixes. Open: visual snapshot baselines need re-approval.
+- [x] G4 Death and spectator camera merged 2026-09-30 (18e1dba), verified with two real clients (user issue 2026-09-29: "very bugged, very hard to spectate after you die"): reproduce every case (after death, switching targets, target dies or leaves, water and fall deaths), fix each with a test, verify with real multiplayer clients.
 
 ### H. Release gate
 - [ ] H1 Perf profiling (low/medium/high)
