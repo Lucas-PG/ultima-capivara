@@ -1,9 +1,10 @@
 #!/bin/bash
 # Keeps a Codex agent working until its last message contains ALL WEAPONS DONE.
-# Usage (from the repo root): docs/overhaul/briefs/keep-codex.sh <name> <worktree> <thread id> <brief file>
+# Usage (from the repo root): docs/overhaul/briefs/keep-codex.sh <name> <worktree> <thread id> <brief file> [first prompt file]
+# The optional first prompt (for example review feedback) is sent on the first resume instead of the plain continue.
 # Resumes the saved thread from inside the worktree, waits out "at capacity" errors with
 # backoff, and starts a fresh session on the brief if the thread cannot be resumed.
-name=$1; wt=$2; id=$3; brief=$4
+name=$1; wt=$2; id=$3; brief=$4; first=$5
 root=$(pwd); logs=$root/output/agents; mkdir -p "$logs"
 CONT="Continue your brief from where you stopped (the orchestrator paused you). Check git log since 9934dda and git status in your worktree, commit what is good, then finish every weapon to the quality bar. End with ALL WEAPONS DONE only when all are genuinely finished."
 wait_s=60
@@ -11,7 +12,9 @@ for round in $(seq 1 40); do
   grep -q "ALL WEAPONS DONE" "$logs/$name.last.txt" 2>/dev/null && break
   touch "$logs/$name.jsonl"; before=$(wc -l < "$logs/$name.jsonl")
   echo "ROUND $round $(date +%H:%M) resume $id" >> "$logs/$name.rounds"
-  (cd "$wt" && codex exec resume --skip-git-repo-check --json -c model_reasoning_effort=max -o "$logs/$name.last.txt" "$id" "$CONT") >> "$logs/$name.jsonl" 2>> "$logs/$name.err"
+  prompt=$CONT; if [ -n "$first" ]; then prompt=$(cat "$first"); fi
+  (cd "$wt" && codex exec resume --skip-git-repo-check --json -c model_reasoning_effort=max -o "$logs/$name.last.txt" "$id" "$prompt") >> "$logs/$name.jsonl" 2>> "$logs/$name.err"
+  if [ "$(( $(wc -l < "$logs/$name.jsonl") - before ))" -ge 3 ] && ! tail -n 3 "$logs/$name.jsonl" | grep -q "at capacity"; then first=""; fi
   added=$(( $(wc -l < "$logs/$name.jsonl") - before ))
   if tail -n 3 "$logs/$name.jsonl" | grep -q "at capacity"; then
     echo "  capacity, waiting ${wait_s}s" >> "$logs/$name.rounds"; sleep $wait_s; wait_s=$(( wait_s < 600 ? wait_s * 2 : 600 )); continue
