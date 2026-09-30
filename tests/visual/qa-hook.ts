@@ -1,6 +1,6 @@
 import { Simulation } from '../../src/simulation';
 import { terrainHeight } from '../../src/shared/terrain';
-import { clearSpawn, hasLineOfSight, moveActor } from '../../src/shared/collision';
+import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../../src/shared/collision';
 import { emptyInput, rng } from '../../src/shared/math';
 import { EMOTES, EMOTE_IDS } from '../../src/shared/emotes';
 import { closestInteraction } from '../../src/shared/interaction';
@@ -125,6 +125,12 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         if (waterAt(to.x, to.z) || !walkableSegment(deps.world, supply, to) || (close ? interaction?.id !== drop.id : !!interaction)) return false;
         const eye = { ...to, y: to.y + 1.62 };
         if (!hasLineOfSight(eye, target, deps.world)) return false;
+        // Nothing solid may fill the frame close to the camera (an eave, a lamp, a wall corner).
+        const lookYaw = Math.atan2(to.x - target.x, to.z - target.z), lookPitch = Math.atan2(target.y - eye.y, Math.hypot(target.x - to.x, target.z - to.z));
+        if (!close) for (const dy of [-.45, 0, .45]) for (const dp of [-.3, 0, .3]) {
+          const y = lookYaw + dy, p = lookPitch + dp;
+          if (raycastWorld(eye, { x: -Math.sin(y) * Math.cos(p), y: Math.sin(p), z: -Math.cos(y) * Math.cos(p) }, 2.5, deps.world)) return false;
+        }
         // A clear ground route alone can still put the plane behind a flowering crown.
         const length = Math.hypot(target.x - eye.x, target.y - eye.y, target.z - eye.z);
         for (let distance = 1; distance < length; distance++) {
