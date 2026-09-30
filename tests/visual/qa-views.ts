@@ -21,7 +21,7 @@ export const VIEWS: Record<string, WorldView> = {
   morroApproach: [-48, -35.5, Math.PI / 2, .14],
   // Along each quay promenade, the river on one side and the fronts on the other.
   quayNorth: [-18, -3, toward(-18, -3, 0, 1.5), -.06], quaySouth: [30, 27.5, toward(30, 27.5, 12, 22.5), -.06],
-  bathVila: [-24, 30.5, 0, -.2], bathFazenda: [55, 51, Math.PI / 2, -.28], bathMangue: [111, 56, Math.PI / 2, -.22],
+  bathVila: [-24, 30.5, 0, -.2], bathFazenda: [55, 51, Math.PI / 2, -.28], bathMangue: [104, 52.5, toward(104, 52.5, 106, 56), -.3],
   trampolineVila: [-16, 34, 0, -.12], trampolineForte: [51, -101, Math.atan2(-4, 6), -.13],
   trampolinePraia: [-38, 101, Math.PI, -.13],
   // Down Rua Direita through the Vila, fronts continuous on both sides.
