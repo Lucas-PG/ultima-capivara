@@ -42,3 +42,6 @@
 - Merge: the UI and combat passes both added invert Y and aimed sensitivity; unified on the controls model (one declaration, one loader with the controls' ranges, input scaling from setAimFov), both main.ts hunks kept, UI tests adapted. Integrated tests 917/917.
 - My checks: coconut blast capture (painted fireball, smoke, ground ring) and the agent's flash, impact and blast strips PASS.
 - Follow-ups: settings screen must show every controls option (toggles, scope sensitivity, camera shake) and rebinding for the new keys, with the controls' slider ranges; crosshair.ts treats horizontal FOV as vertical; viewmodel draw animation should match the new draw times (after the long guns merge); no flash inside the scope; some QA lab poses no longer match the island.
+
+## Codex quota - 02:33
+- Codex hit its weekly limit at 02:30 while the long-guns agent was in its fix round (five fixes committed, 11 files in progress). Per the user's rule, ONE reset was used, the soonest-expiring (01:21 on 5 Oct), through the Codex CLI /usage menu; 2 remain (22 Oct, 29 Oct) and are not to be used. The long-guns agent resumed on its saved thread at 02:34.
