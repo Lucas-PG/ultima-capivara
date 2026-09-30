@@ -273,12 +273,10 @@ def m4():
     parts['body'] += [cyl('forward_assist', (.018, -.012, .07), (.03, -.03, .077), .0072, 'gunmetal', sides=20, bevel=.0012)]
     parts['body'] += [cyl('assist_button', (.03, -.03, .077), (.034, -.036, .079), .0068, 'gunmetal', sides=20, bevel=.001)]
     parts['body'] += [box('dust_cover', (.0178, .062, .052), (.002, .052, .013), 'gunmetal', .0008)]
-    # Receiver and front rails leave a lower thumb rest at the support grip.
+    # One continuous top rail from the receiver to the front sight.
     rail = box('rail', (0, .15, .0985), (.023, .44, .0095), 'dark', .0014, raw=True)
     cut(rail, join([cutter_box((0, -.064 + i * .0105, .1048), (.03, .0048, .0064)) for i in range(40)], 'rail_slots'))
-    cut(rail, cutter_box((0, .189, .0985), (.04, .102, .04)))
     parts['body'] += [complete(rail)]
-    parts['body'] += [box('thumb_rest', (0, .187, .080), (.013, .096, .002), 'dark', .0008)]
     parts['release'] += [prism('bolt_release', [(-.006, .022), (.026, .024), (.024, .04), (-.003, .037)], .0045, 'gunmetal', x=-.0205, bevel=.0012, smooth=1)]
     parts['body'] += [cyl('mag_release', (.018, .045, .012), (.023, .045, .012), .0055, 'gunmetal', sides=16, bevel=.001)]
     parts['body'] += [cyl('buffer', (0, -.074, .066), (0, -.24, .066), .0168, 'dark', sides=28, bevel=.0015)]
@@ -307,11 +305,12 @@ def m4():
     guard = prism('guard', [(-.046, .006, 1), (.042, .006, 1), (.042, -.028), (.032, -.044), (.004, -.047), (-.03, -.036), (-.046, -.02)], .016, 'polymer', bevel=.0024, raw=True, smooth=1)
     cut(guard, cutter_prism([(-.034, -.001), (.035, -.001), (.031, -.033), (.006, -.038), (-.024, -.028), (-.034, -.014)], .03))
     parts['body'] += [complete(guard)]
-    # The rear waist fits the short paw digits; the painted front keeps its broad octagon.
-    hand = lathe('handguard', [(.016, 0), (.0165, .005), (.0165, .102), (.0288, .154), (.0288, .232), (.027, .238)], 'navy', p0=(0, .134, bore), sides=8)
+    # A full-length chunky octagon, like the sheet: the support paw wraps its rear
+    # half right ahead of the magazine well, and the whole flank carries the frond.
+    hand = lathe('handguard', [(.024, 0), (.0288, .006), (.0288, .232), (.027, .238)], 'navy', p0=(0, .134, bore), sides=8)
     # Flats (not ridges) face the sides, top and bottom, like a real octagonal rail.
     hand.data.transform(Matrix.Translation((0, 0, bore)) @ Matrix.Rotation(math.radians(22.5), 4, 'Y') @ Matrix.Translation((0, 0, -bore)))
-    slot_radii = [.0165, .0165, .021, .029]
+    slot_radii = [.029, .029, .029, .029]
     slots = join([cutter_box((s * r, .168 + i * .044, bore), (.012, .028, .0085)) for s in (-1, 1) for i, r in enumerate(slot_radii)] +
                  [cutter_box((0, .168 + i * .044, bore - r), (.0085, .028, .012)) for i, r in enumerate(slot_radii)], 'slots')
     cut(hand, slots)
@@ -346,8 +345,6 @@ def m4():
         parts['body'] += [prism('receiver_seam', [(-.064, .0455), (.123, .0455), (.123, .0475), (-.064, .0475)], .0008, 'steel', x=s * .0181, bevel=.0003)]
         parts['body'] += [prism('selector', [(-.034, .018), (-.036, .029), (-.024, .033), (-.01, .022), (-.015, .017)], .003, 'gunmetal', x=s * .0205, bevel=.0007)]
         parts['body'] += [prism('stock_inlay', [(-.28, .062), (-.2, .066), (-.198, .061), (-.278, .057)], .001, 'teal', x=s * .0235, bevel=.0004)]
-        for y1, z1, y2, z2 in [(.15, .05, .15, .08), (.15, .061, .143, .07), (.15, .067, .158, .076)]:
-            parts['body'] += [cyl('coral_mark', (s * .0148, y1, bore + (z1 - bore) * .78), (s * .0148, y2, bore + (z2 - bore) * .78), .00115, 'coral', sides=8, bevel=0)]
     parts['charge'] += [prism('charging_handle', [(-.084, .083), (-.066, .083), (-.066, .091), (-.084, .091)], .034, 'gunmetal', bevel=.0015)]
     parts['charge'] += [prism('charging_latch', [(-.088, .082), (-.074, .082), (-.074, .092), (-.088, .092)], .012, 'gunmetal', x=-.021, bevel=.0012, smooth=1)]
     parts['bolt'] += [box('bolt_carrier', (.012, .062, .063), (.008, .046, .012), 'steel', .0015)]
@@ -604,24 +601,38 @@ def coco():
                             .056, 'walnut', bevel=.007, smooth=3)]
     parts['body'] += [prism('stock_brass_cap', [(-.392, .077), (-.407, .07), (-.407, -.1), (-.397, -.116), (-.389, -.11)], .061, 'brass', bevel=.003, smooth=1)]
     # Hopper: four tapered walls and an open top, with wood corner battens and a rolled rim.
+    # It rides on the right shoulder of the tube, below the sight line, so the aim
+    # picture down the tube stays open on every side of the target.
+    hx, hz = .116, -.064
+    hopper_parts = []
     hopper = prism('hopper_bin', [(-.048, .167), (.225, .167), (.253, .262), (-.071, .262)], .126, 'yellow', bevel=.003, raw=True)
     cut(hopper, cutter_prism([(-.037, .177), (.215, .177), (.242, .28), (-.059, .28)], .108))
-    parts['body'] += [complete(hopper)]
+    hopper_parts += [complete(hopper)]
     for side in (-1, 1):
-        parts['body'] += [box('hopper_rim', (side * .064, .091, .261), (.008, .332, .01), 'walnut', .002)]
+        hopper_parts += [box('hopper_rim', (side * .064, .091, .261), (.008, .332, .01), 'walnut', .002)]
         for y0, y1 in ((-.047, -.07), (.224, .252)):
-            parts['body'] += [sweep('corner_batten', [(side * .062, y0, .172), (side * .063, y1, .256)], [.006] * 2, 'walnut', sides=6)]
+            hopper_parts += [sweep('corner_batten', [(side * .062, y0, .172), (side * .063, y1, .256)], [.006] * 2, 'walnut', sides=6)]
             for z, y in ((.186, y0), (.246, y1)):
-                parts['body'] += [cyl('hopper_rivet', (side * .065, y, z), (side * .068, y, z), .0042, 'brass', sides=12, bevel=.0006)]
+                hopper_parts += [cyl('hopper_rivet', (side * .065, y, z), (side * .068, y, z), .0042, 'brass', sides=12, bevel=.0006)]
     for y in (-.07, .252):
-        parts['body'] += [box('hopper_end_rim', (0, y, .261), (.133, .008, .01), 'walnut', .002)]
+        hopper_parts += [box('hopper_end_rim', (0, y, .261), (.133, .008, .01), 'walnut', .002)]
+    for obj in hopper_parts:
+        move(obj, (hx, 0, hz))
+    parts['body'] += hopper_parts
+    # Brass saddle straps carry the offset hopper on the tube.
+    for y in (.01, .17):
+        pts = [(math.cos(a) * .049, y, bore + math.sin(a) * .049) for a in [math.radians(d) for d in range(150, 14, -12)]]
+        pts += [(.062, y, .112), (.085, y, .1)]
+        parts['body'] += [sweep('hopper_saddle', pts, [.0045] * len(pts), 'brass', sides=6, aspect=2.2)]
+        parts['body'] += [box('hopper_saddle_foot', (hx, y, .1), (.075, .016, .006), 'brass', .0015)]
     for i, y in enumerate((.002, .092, .182)):
         dest = parts['mag' if i == 0 else f'load{i}']
-        dest += [sphere('green_coconut', (0, y, .246), (.043, .041, .048), 'coconut_green', 16, 12)]
-        dest += [cyl('coconut_stem', (0, y, .288), (0, y, .295), .009, 'coconut_fibre', r1=.004, sides=12, bevel=.0008)]
+        fruit = [sphere('green_coconut', (hx, y, .246 + hz), (.043, .041, .048), 'coconut_green', 16, 12)]
+        fruit += [cyl('coconut_stem', (hx, y, .288 + hz), (hx, y, .295 + hz), .009, 'coconut_fibre', r1=.004, sides=12, bevel=.0008)]
         for a in [j * math.tau / 6 for j in range(6)]:
-            pts = [(math.cos(a) * .042 * math.sin(t), y + math.sin(a) * .04 * math.sin(t), .246 + .047 * math.cos(t)) for t in (.24, .6, 1, 1.5, 2.1, 2.6)]
-            dest += [sweep('coconut_fibre', pts, [.001] * len(pts), 'coconut_fibre', sides=5)]
+            pts = [(hx + math.cos(a) * .042 * math.sin(t), y + math.sin(a) * .04 * math.sin(t), .246 + hz + .047 * math.cos(t)) for t in (.24, .6, 1, 1.5, 2.1, 2.6)]
+            fruit += [sweep('coconut_fibre', pts, [.001] * len(pts), 'coconut_fibre', sides=5)]
+        dest += fruit
     # The pump slides on its own lower rod, clear of the large barrel and hopper.
     parts['body'] += [cyl('pump_rod', (0, .111, .012), (0, .445, .012), .009, 'brass', sides=18)]
     parts['body'] += [box('pump_rod_mount', (0, .433, .039), (.025, .025, .055), 'blued', .003)]
@@ -631,24 +642,27 @@ def coco():
         profile += [(.027, d), (.023, d + .0025), (.023, d + .005), (.027, d + .008)]
     profile += [(.024, .153), (.01, .16)]
     parts['pump'] += [lathe('walnut_pump', profile, 'walnut', p0=(0, .226, .012), sides=18, bevel=0)]
-    # A broad offset leaves an open target area beside the hopper, not just a
-    # clear mathematical centre line. Matching brass outriggers carry both sights.
-    sight_x = -.17
-    parts['body'] += [box('rear_sight_outrigger', (-.099, -.087, .159), (.169, .016, .01), 'brass', .002)]
-    rear = box('rear_notch', (sight_x, -.087, .176), (.033, .012, .029), 'blued', .002, raw=True)
-    cut(rear, cutter_box((sight_x, -.087, .189), (.012, .025, .02)))
+    # Flip-up ladder sights on the tube's top line: the notch and the leaf stand
+    # tall enough that the whole sight picture passes above the offset hopper.
+    rear = box('rear_ladder', (0, -.084, .208), (.034, .012, .076), 'blued', .002, raw=True)
+    cut(rear, cutter_box((0, -.084, .257), (.011, .03, .024)))
+    cut(rear, cutter_box((0, -.084, .205), (.02, .03, .05)))
     parts['body'] += [complete(rear)]
-    parts['body'] += [box('front_sight_outrigger', (-.099, .452, .158), (.176, .018, .013), 'brass', .002)]
+    parts['body'] += [box('rear_notch_base', (0, -.084, .166), (.042, .02, .012), 'brass', .002)]
+    for side in (-1, 1):
+        parts['body'] += [cyl('ladder_pin', (side * .017, -.084, .176), (side * .021, -.084, .176), .004, 'brass', sides=12, bevel=.0005)]
     # The leaf faces the eye across the bore, with daylight around the gold post.
-    leaf = prism('leaf_sight', [(-.016, .164), (.016, .164), (.021, .193), (0, .226), (-.021, .198)], .006, 'blued', bevel=.0015, raw=True)
-    cut(leaf, cutter_prism([(-.009, .184), (.009, .184), (.011, .199), (0, .215), (-.011, .199)], .014))
+    leaf = prism('leaf_sight', [(-.016, .221), (.016, .221), (.021, .241), (0, .271), (-.021, .245)], .006, 'blued', bevel=.0015, raw=True)
+    cut(leaf, cutter_prism([(-.009, .232), (.009, .232), (.011, .244), (0, .261), (-.011, .244)], .014))
     complete(leaf)
     leaf.rotation_euler.z = math.pi / 2
-    leaf.location.x, leaf.location.y = sight_x, .455
+    leaf.location.y = .5
     parts['body'] += [leaf]
-    parts['body'] += [box('front_post', (sight_x, .455, .18), (.0028, .006, .031), 'brass', .0005)]
-    sockets = {'muzzle': (0, .554, bore), 'eject': (0, .09, .254), 'sight': (sight_x, -.087, .194)}
-    pivots = {'pump': (0, .226, .012), 'mag': (0, .002, .246), 'load1': (0, .092, .246), 'load2': (0, .182, .246), 'trigger': (0, .004, .009)}
+    parts['body'] += [box('leaf_base', (0, .5, .185), (.03, .012, .012), 'brass', .002)]
+    parts['body'] += [box('leaf_stem', (0, .5, .205), (.007, .007, .034), 'blued', .001)]
+    parts['body'] += [box('front_post', (0, .5, .237), (.0028, .006, .016), 'brass', .0005)]
+    sockets = {'muzzle': (0, .554, bore), 'eject': (hx, .09, .254 + hz), 'sight': (0, -.084, .245)}
+    pivots = {'pump': (0, .226, .012), 'mag': (hx, .002, .246 + hz), 'load1': (hx, .092, .246 + hz), 'load2': (hx, .182, .246 + hz), 'trigger': (0, .004, .009)}
     return parts, sockets, pivots, {'magAxis': [0, 0, 1]}
 
 
@@ -703,20 +717,11 @@ def dmr():
     cut(handguard, cutter_cyl((0, .14, bore), (0, .44, bore), .017, sides=20))
     cut(handguard, join([cutter_box((0, .192 + i * .051, .091), (.07, .032, .008)) for i in range(4)], 'cooling_slots'))
     L.cross_sections(handguard, 1, [.18, .23, .265, .30, .34])
-    # Keep the painted front broad while giving short digits a rear grip waist.
-    for vertex in handguard.data.vertices:
-        waist = min(1., max(0., (.34 - vertex.co.y) / .075))
-        vertex.co.x *= 1. - .42 * waist
-        far_side = min(1., max(0., vertex.co.x / .016))
-        vertex.co.z = bore + (vertex.co.z - bore) * (1. - (.52 - .16 * far_side) * waist)
+    # The full-width fore-end is what the support paw clamps, thumb over the top.
     cut(handguard, cutter_cyl((0, .14, bore), (0, .35, bore), .0135, sides=24))
     parts['body'] += [complete(handguard)]
     for y in (.156, .414):
         band = tube('handguard_band', (0, y, bore), (0, y + .009, bore), .031, .018, 'blued', sides=8)
-        if y < .2:
-            for vertex in band.data.vertices:
-                vertex.co.x *= .58
-                vertex.co.z = bore + (vertex.co.z - bore) * .48
         parts['body'] += [band]
     parts['body'] += [cyl('barrel', (0, .147, bore), (0, .635, bore), .0125, 'blued', sides=24)]
     parts['body'] += [cyl('gas_tube', (0, .408, .094), (0, .546, .094), .0065, 'blued', sides=16)]
@@ -827,11 +832,6 @@ def sniper():
         grip_taper = min(1., max(0., (z + .10) / .045))
         vertex.co.x *= 1. - (.40 + .22 * grip_taper) * waist
         vertex.co.y -= (y + .022) * .52 * waist
-        # A narrow rear fore-end lets the support fingers reach underneath.
-        support = min(1., max(0., (y - .15) / .03), max(0., (.35 - y) / .065))
-        vertex.co.x *= 1. - .40 * support
-        far_side = min(1., max(0., vertex.co.x / .017))
-        vertex.co.z = bore + (vertex.co.z - bore) * (1. - (.60 - .30 * far_side) * support)
     cut(stock, cutter_cyl((0, .19, bore), (0, .35, bore), .0148, sides=24))
     parts['body'] += [complete(stock)]
     parts['body'] += [prism('cheek_rest', [(-.372, .034), (-.258, .035), (-.25, .049), (-.255, .065), (-.379, .061), (-.384, .052)], .043, 'dark', bevel=.004, smooth=1)]
@@ -841,11 +841,8 @@ def sniper():
         panel = prism('grip_checkering', [(-.054, -.035), (-.024, -.029), (-.067, -.108), (-.1, -.112), (-.092, -.087)], .0015, 'wood_dark', x=side * .0182, bevel=.0005)
         parts['body'] += [panel]
         for y, z in ((-.365, .046), (-.268, .047), (.176, .031), (.36, .04), (-.303, -.006)):
-            support = min(1., max(0., (y - .15) / .03), max(0., (.35 - y) / .065))
-            width = 1. - .40 * support
-            height = bore + (z - bore) * (1. - .60 * support)
-            parts['body'] += [cyl('stock_screw', (side * .024 * width, y, height), (side * .026 * width, y, height), .005, 'brass', sides=16, bevel=.0006)]
-            parts['body'] += [box('screw_slot', (side * .0262 * width, y, height), (.0006, .006, .0009), 'dark', .0002)]
+            parts['body'] += [cyl('stock_screw', (side * .024, y, z), (side * .026, y, z), .005, 'brass', sides=16, bevel=.0006)]
+            parts['body'] += [box('screw_slot', (side * .0262, y, z), (.0006, .006, .0009), 'dark', .0002)]
         for i in range(6):
             parts['body'] += [sweep('checkering', [(side * .0186, -.048 - i * .006, -.045), (side * .0186, -.08 - i * .003, -.094)], [.0007] * 2, 'walnut', sides=5)]
     for obj in parts['body']:
@@ -995,10 +992,10 @@ LIVERY = {
     ],
     'coco': [
         {'bands': (.23, .05), 'at': (.05, .112), 'size': 1, 'rotate': 28, 'colour': '367443', 'on': ('yellow',), 'wrap': True, 'depth': (-.049, .049)},
-        {'stencil': 'frond', 'at': (.165, .213), 'size': .16, 'rotate': -12, 'colour': '407B3D', 'on': ('yellow',), 'depth': (-.08, -.052)},
-        {'stencil': 'frond', 'at': (.165, .213), 'size': .16, 'rotate': -12, 'colour': '407B3D', 'on': ('yellow',), 'depth': (.052, .08)},
-        {'stencil': 'parrot', 'at': (.08, .15), 'size': .23, 'colour': '197C9B', 'on': ('yellow',), 'depth': (-.08, -.052)},
-        {'stencil': 'parrot', 'at': (.08, .15), 'size': .23, 'colour': '197C9B', 'on': ('yellow',), 'depth': (.052, .08)},
+        {'stencil': 'frond', 'at': (.165, .149), 'size': .16, 'rotate': -12, 'colour': '407B3D', 'on': ('yellow',), 'depth': (.036, .064)},
+        {'stencil': 'frond', 'at': (.165, .149), 'size': .16, 'rotate': -12, 'colour': '407B3D', 'on': ('yellow',), 'depth': (.168, .196)},
+        {'stencil': 'parrot', 'at': (.08, .086), 'size': .23, 'colour': '197C9B', 'on': ('yellow',), 'depth': (.036, .064)},
+        {'stencil': 'parrot', 'at': (.08, .086), 'size': .23, 'colour': '197C9B', 'on': ('yellow',), 'depth': (.168, .196)},
         {'bands': (.22, .052), 'at': (-.30, -.02), 'size': 1, 'rotate': 28, 'colour': '3D7040', 'on': ('walnut',)},
         {'stencil': 'frond', 'at': (-.339, -.025), 'size': .143, 'rotate': 14, 'colour': '729143', 'on': ('walnut',)},
     ],
