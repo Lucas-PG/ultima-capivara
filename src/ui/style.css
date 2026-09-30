@@ -17,7 +17,46 @@
 @media(max-width:700px){body:not([data-screen=game]){overflow:auto}#cover-art{background-position:65% center;background-image:linear-gradient(90deg,#102b25ed,#102b2580),linear-gradient(0deg,#102b25,transparent),var(--cover)}.topbar{height:76px;margin:0 6%;gap:12px}.topbar nav{gap:18px}.nav-link{font-size:9px;letter-spacing:.8px}.brand img{width:32px;height:32px}.brand{font-size:14px;gap:7px}.brand b{font-size:16px}.topbar .icon-button{width:29px;height:29px}.home-content{padding:0 7%;gap:30px;min-height:auto}.hero-copy{padding-top:47px}.hero-copy h1{font-size:76px}.title-stamp{left:190px;font-size:8px;margin-top:10px}.hero-description{font-size:14px}.hero-actions{gap:8px}.hero-actions .primary{min-width:0;flex:1}.hero-actions .secondary{min-width:0}.button{padding:0 15px;font-size:10px;height:49px;gap:8px}.hero-facts{font-size:7px;gap:9px;letter-spacing:.7px}.hero-facts .icon{width:11px;height:11px}.mode-section{padding-bottom:20px}.mode-grid{grid-template-columns:1fr}.mode-art{width:100px}.mode-copy p{min-height:0}.mode-meta{margin-top:9px}.home-footer{margin:0 7%;font-size:7px;height:55px;letter-spacing:.7px}.mode-copy h2{font-size:26px}.mode-copy{padding:15px 17px}.section-heading{font-size:8px}.section-heading small{font-size:7px}.modal{padding:23px}.modal-heading h2{font-size:28px}.settings-grid,.form-grid{gap:17px}.profile-editor .capy-avatar{width:62px;height:62px}.color-picker{gap:7px}.color-choice{width:15px;height:15px}.lobby-content,.results-content{grid-template-columns:1fr;gap:30px;padding:35px 7%}.lobby-intro h1,.results-hero h1{font-size:65px}.invite-card{flex-direction:row}.lobby-rules{padding-bottom:0}.roster-panel{padding:18px}.roster{max-height:none}.results-board{max-height:none}.how-grid{grid-template-columns:1fr;gap:8px}.how-grid>div{padding-bottom:8px}.how-grid h3{display:inline-block;margin:0 0 0 10px}.controls-grid{font-size:8px;gap:10px}.controls-grid kbd{min-width:55px;font-size:7px}}
 
 
-.scope-overlay{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at center,transparent 0 31.4vmin,#0b1210 31.8vmin,#050807 36vmin)}.scope-overlay:before{content:"";position:absolute;left:50%;top:50%;width:63.6vmin;height:63.6vmin;transform:translate(-50%,-50%);border-radius:50%;border:1.1vmin solid #1b2823;border-top-color:#2d4038;box-shadow:0 0 0 .35vmin #0a100e,inset 0 0 0 .3vmin #0e1714,inset 0 0 6vmin rgba(4,24,20,.55)}.scope-overlay:after{content:"";position:absolute;left:50%;top:50%;width:61vmin;height:61vmin;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 38% 34%,rgba(255,244,214,.07),transparent 26vmin),radial-gradient(circle,transparent 0 22vmin,rgba(18,62,54,.2) 30.5vmin)}.scope-overlay i,.scope-overlay b,.scope-overlay em,.scope-overlay u{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1}.scope-overlay i{width:61vmin;height:.8vmin;background:linear-gradient(90deg,#0c1310 0 34%,transparent 34% 66%,#0c1310 66%),linear-gradient(#0c1310,#0c1310) center/100% 1px no-repeat}.scope-overlay b{width:.8vmin;height:61vmin;background:linear-gradient(#0c1310 0 34%,transparent 34% 66%,#0c1310 66%),linear-gradient(90deg,#0c1310,#0c1310) center/1px 100% no-repeat}.scope-overlay em{width:.55vmin;height:.55vmin;border-radius:50%;background:#ff5a3c;box-shadow:0 0 .6vmin #ff5a3c}.scope-overlay u{width:20vmin;height:1.2vmin;margin-top:1.6vmin;background:repeating-linear-gradient(90deg,#0c1310 0 1px,transparent 1px 2vmin) center/100% 100% no-repeat;opacity:.8}/* The Carabina's 3x: open hairlines with a lit chevron under the aim point. */.scope-overlay[data-kind=dmr] i{background:linear-gradient(90deg,#0c1310 0 18%,transparent 18% 82%,#0c1310 82%),linear-gradient(#0c1310,#0c1310) center/100% 1px no-repeat}.scope-overlay[data-kind=dmr] b{background:linear-gradient(transparent 0 50%,#0c1310 50% 58%,transparent 58% 82%,#0c1310 82%),linear-gradient(90deg,#0c1310,#0c1310) center/1px 100% no-repeat}.scope-overlay[data-kind=dmr] em{width:2.2vmin;height:2.2vmin;border-radius:0;background:none;box-shadow:none;border:solid #ff7a2e;border-width:.45vmin 0 0 .45vmin;transform:translate(-50%,-15%) rotate(45deg);filter:drop-shadow(0 0 .4vmin #ff7a2e)}.scope-overlay[data-kind=dmr] u{display:none}
+/* Scoped view (Carabina and sniper). The lens fills the screen height like a modern shooter's optic (--lens is its
+   diameter, --r its radius). Outside it the world stays, blurred and dark, behind a scope body with a lit bezel: the
+   scope reads as an object at the eye, not a hole in a black screen. Reticle marks keep their angular sizes (vmin);
+   only the posts grow with the lens. */
+.scope-overlay{--lens:90vmin;--r:calc(var(--lens)/2);--ink:#0c1310;position:absolute;inset:0;pointer-events:none;isolation:isolate}
+/* The plates on the lens axis (compass, safe-zone chip, weapon boxes) step aside while the eye is on the glass; the corner plates stay. */
+#hud :is(#compass,#safe,#hotbar){transition:opacity .12s}
+#hud:has(#scope-overlay:not([hidden])) :is(#compass,#safe,#hotbar){opacity:0}
+.scope-overlay:not([hidden]){animation:scope-in .13s ease-out}
+@keyframes scope-in{from{opacity:0;transform:scale(1.1)}to{opacity:1;transform:none}}
+body.reduce-motion .scope-overlay:not([hidden]){animation:none}
+@media(prefers-reduced-motion:reduce){.scope-overlay:not([hidden]){animation:none}}
+/* The periphery: what the other eye half sees past the tube, out of focus and in the scope's shadow. */
+.scope-overlay .scope-shade{position:absolute;inset:0;
+  background:radial-gradient(circle at center,rgba(2,5,4,.95) 0 calc(var(--r) + 5vmin),rgba(4,8,7,.84) calc(var(--r) + 12vmin),rgba(5,9,8,.88) 100vmax);
+  -webkit-backdrop-filter:blur(2.4vmin) saturate(.7);backdrop-filter:blur(2.4vmin) saturate(.7);
+  -webkit-mask:radial-gradient(circle at center,transparent 0 calc(var(--r) - .15vmin),#000 var(--r));mask:radial-gradient(circle at center,transparent 0 calc(var(--r) - .15vmin),#000 var(--r))}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.scope-overlay .scope-shade{background:radial-gradient(circle at center,#070b0a 0 calc(var(--r) + 5vmin),#0b1210 100vmax)}}
+/* The scope body: an anodised bezel round the lens, lit from the upper left like the rest of the first person. */
+.scope-overlay:before{content:"";position:absolute;z-index:1;left:50%;top:50%;width:calc(var(--lens) + 12vmin);height:calc(var(--lens) + 12vmin);transform:translate(-50%,-50%);border-radius:50%;
+  background:conic-gradient(from 200deg,rgba(255,255,255,0) 0deg,rgba(205,235,222,.26) 55deg,rgba(255,255,255,0) 115deg,rgba(0,0,0,.34) 215deg,rgba(255,255,255,0) 335deg),
+    radial-gradient(circle closest-side at center,#030605 0 calc(var(--r) + .1vmin),#22322b calc(var(--r) + .35vmin),#3b5146 calc(var(--r) + 1.3vmin),#1d2a25 calc(var(--r) + 2.6vmin),#121b18 calc(var(--r) + 4.2vmin),#070b0a calc(var(--r) + 5.3vmin));
+  -webkit-mask:radial-gradient(circle closest-side at center,transparent 0 calc(var(--r) - .2vmin),#000 var(--r),#000 calc(var(--r) + 5.2vmin),transparent calc(var(--r) + 5.5vmin));
+  mask:radial-gradient(circle closest-side at center,transparent 0 calc(var(--r) - .2vmin),#000 var(--r),#000 calc(var(--r) + 5.2vmin),transparent calc(var(--r) + 5.5vmin))}
+/* The glass: a faint glare, the coating's cool rim and the eye-relief shadow closing in at the edge. */
+.scope-overlay:after{content:"";position:absolute;left:50%;top:50%;width:var(--lens);height:var(--lens);transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle closest-side at 37% 32%,rgba(255,244,214,.09),transparent 46%),
+    radial-gradient(circle closest-side at center,transparent 0 66%,rgba(14,52,45,.16) 84%,rgba(5,18,15,.5) 95%,rgba(2,7,6,.9) 100%);
+  box-shadow:inset 0 0 0 .22vmin rgba(126,196,176,.2),inset 0 0 4.5vmin rgba(2,10,8,.55)}
+.scope-overlay i,.scope-overlay b,.scope-overlay em,.scope-overlay u{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1}
+/* Sniper: duplex posts from the rim to 9.75vmin off the aim point, a hairline between them, a lit dot and ranging ticks. */
+.scope-overlay i{width:var(--lens);height:.8vmin;background:linear-gradient(90deg,var(--ink) 0 calc(50% - 9.75vmin),transparent calc(50% - 9.75vmin) calc(50% + 9.75vmin),var(--ink) calc(50% + 9.75vmin)),linear-gradient(var(--ink),var(--ink)) center/100% max(1px,.14vmin) no-repeat}
+.scope-overlay b{width:.8vmin;height:var(--lens);background:linear-gradient(var(--ink) 0 calc(50% - 9.75vmin),transparent calc(50% - 9.75vmin) calc(50% + 9.75vmin),var(--ink) calc(50% + 9.75vmin)),linear-gradient(90deg,var(--ink),var(--ink)) center/max(1px,.14vmin) 100% no-repeat}
+.scope-overlay em{width:.55vmin;height:.55vmin;border-radius:50%;background:#ff5a3c;box-shadow:0 0 .6vmin #ff5a3c}
+.scope-overlay u{width:20vmin;height:1.2vmin;margin-top:1.6vmin;background:repeating-linear-gradient(90deg,var(--ink) 0 max(1px,.14vmin),transparent max(1px,.14vmin) 2vmin) center/100% 100% no-repeat;opacity:.8}
+/* The Carabina's 3x: open hairlines with a lit chevron under the aim point. */
+.scope-overlay[data-kind=dmr] i{background:linear-gradient(90deg,var(--ink) 0 calc(50% - 19.5vmin),transparent calc(50% - 19.5vmin) calc(50% + 19.5vmin),var(--ink) calc(50% + 19.5vmin)),linear-gradient(var(--ink),var(--ink)) center/100% max(1px,.14vmin) no-repeat}
+.scope-overlay[data-kind=dmr] b{background:linear-gradient(transparent 0 50%,var(--ink) 50% calc(50% + 4.9vmin),transparent calc(50% + 4.9vmin) calc(50% + 19.5vmin),var(--ink) calc(50% + 19.5vmin)),linear-gradient(90deg,var(--ink),var(--ink)) center/max(1px,.14vmin) 100% no-repeat}
+.scope-overlay[data-kind=dmr] em{width:2.2vmin;height:2.2vmin;border-radius:0;background:none;box-shadow:none;border:solid #ff7a2e;border-width:.45vmin 0 0 .45vmin;transform:translate(-50%,-15%) rotate(45deg);filter:drop-shadow(0 0 .4vmin #ff7a2e)}
+.scope-overlay[data-kind=dmr] u{display:none}
 
 
 /* In-match layer: the first version's comic look (reference/legacy.html) - cream sticker cards, ink outlines, hard shadows, red and yellow accents, Dela Gothic One + Mochiy Pop One. Tokens are scoped to the match so the menus keep V2's style. */
@@ -782,9 +821,9 @@ body.reduce-motion .settings-modal .seg button{animation:none!important;transiti
 
 /* Muzzle flash seen through the lens: the muzzle sits far inside the scope's focus distance, so it reads as a soft,
    warm bloom rising from the bottom edge plus a brief lift of the whole image, never a sharp sprite. The viewmodel is hidden here. */
-.scope-overlay .scope-flash{position:absolute;left:50%;top:50%;width:61vmin;height:61vmin;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;opacity:0;pointer-events:none;mix-blend-mode:screen;
+.scope-overlay .scope-flash{position:absolute;left:50%;top:50%;width:var(--lens);height:var(--lens);transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;opacity:0;pointer-events:none;mix-blend-mode:screen;
   background:radial-gradient(ellipse 78% 52% at 50% 106%,#fffbea 0%,#ffe2a0 18%,#ffb45ccc 40%,#f0803a55 60%,transparent 78%),radial-gradient(circle,#ffe0a840 0%,#ffc07a30 60%,#ff9a4a1c 100%)}
 /* The painted front flash (PAINT.front, cell 5,2 of the 8x4 VFX sheet), defocused and turned per shot. */
-.scope-overlay .scope-flash:after{content:"";position:absolute;left:50%;bottom:-13vmin;width:34vmin;height:34vmin;transform:translateX(-50%) rotate(var(--flash-turn,0deg));filter:blur(1.6vmin) brightness(1.35);opacity:.85;
+.scope-overlay .scope-flash:after{content:"";position:absolute;left:50%;bottom:-19vmin;width:50vmin;height:50vmin;transform:translateX(-50%) rotate(var(--flash-turn,0deg));filter:blur(2.3vmin) brightness(1.35);opacity:.85;
   background:var(--flash-sheet) 71.428571% 66.666667%/800% 400% no-repeat}
-.scope-overlay[data-kind=dmr] .scope-flash:after{width:28vmin;height:28vmin;bottom:-11vmin}
+.scope-overlay[data-kind=dmr] .scope-flash:after{width:41vmin;height:41vmin;bottom:-16vmin}
