@@ -15,6 +15,10 @@ export const FOLLOW = {
   minPitch: -1.0, maxPitch: .75,
   // Mouse orbit returns behind the target after this long without input.
   orbitIdle: 2.2, orbitReturn: 2.4,
+  // A target backed into a wall squeezes the lens into its head. Under `roomy` metres of room behind it,
+  // the lens rises over the target (lifts, radians of extra downward pitch) and swings along the wall
+  // (swings, radians of yaw), easing there at `reframeRate` and home again once the view behind is clear.
+  roomy: 1.7, lifts: [.4, .75, 1.05], swings: [0, .75, -.75, 1.35, -1.35], reframeRate: 4, liftPitch: -1.35,
 };
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const AXES = ['x', 'y', 'z'] as const;
@@ -66,6 +70,10 @@ export class FollowCamera {
   private orbitPitch = 0;
   private idle = Infinity;
   private distance = FOLLOW.distance;
+  private lift = 0;
+  private swing = 0;
+  private liftGoal = 0;
+  private swingGoal = 0;
   private initialized = false;
   private readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
   private readonly pivot = new THREE.Vector3();
@@ -73,7 +81,7 @@ export class FollowCamera {
   private readonly dir = new THREE.Vector3();
 
   /** The next update starts from the target's own aim with no easing (a new target or a cut). */
-  reset() { this.initialized = false; this.orbitYaw = this.orbitPitch = 0; this.idle = Infinity; }
+  reset() { this.initialized = false; this.orbitYaw = this.orbitPitch = 0; this.idle = Infinity; this.lift = this.swing = this.liftGoal = this.swingGoal = 0; }
 
   /** Mouse look while spectating orbits around the target; the view drifts back behind it after a short idle. */
   orbit(dYaw: number, dPitch: number) {
@@ -99,10 +107,24 @@ export class FollowCamera {
       const k = 1 - Math.exp(-FOLLOW.orbitReturn * step);
       this.orbitYaw -= this.orbitYaw * k; this.orbitPitch -= this.orbitPitch * k;
     }
-    const yaw = this.yaw + this.orbitYaw, pitch = THREE.MathUtils.clamp(this.pitch + this.orbitPitch, FOLLOW.minPitch, FOLLOW.maxPitch);
+    const baseYaw = this.yaw + this.orbitYaw, basePitch = THREE.MathUtils.clamp(this.pitch + this.orbitPitch, FOLLOW.minPitch, FOLLOW.maxPitch);
     const height = down ? FOLLOW.downHeight : target.swimming ? FOLLOW.swimHeight : target.crouch ? FOLLOW.crouchHeight : FOLLOW.height;
     const wanted = down ? FOLLOW.downDistance : target.crouch ? FOLLOW.crouchDistance : FOLLOW.distance;
     this.head.set(target.pos.x, target.pos.y + height, target.pos.z);
+    this.reframe(world, baseYaw, basePitch, wanted, step, reducedMotion || !this.initialized);
+    const yaw = baseYaw + this.swing, pitch = Math.max(FOLLOW.liftPitch, basePitch - this.lift);
+    const free = this.clearBehind(world, yaw, pitch, wanted, down);
+    const back = this.dir;
+    // In at once when blocked, back out at a walking pace so a doorway does not pump the view.
+    if (!this.initialized || free < this.distance || reducedMotion) this.distance = free;
+    else this.distance = Math.min(free, this.distance + FOLLOW.pullOutSpeed * step);
+    this.reach = this.distance;
+    this.position.copy(this.pivot).addScaledVector(back, this.distance);
+    this.initialized = true;
+  }
+
+  /** Room for the lens behind the target along (yaw, pitch); leaves the pivot, orientation and back direction set. */
+  private clearBehind(world: WorldSpec, yaw: number, pitch: number, wanted: number, down: boolean) {
     // Shoulder offset first: a target hugging a wall on its right keeps the pivot inside the room.
     const right = this.dir.set(Math.cos(yaw), 0, -Math.sin(yaw));
     const side = down ? 0 : clearDistance(world, this.head, right, FOLLOW.shoulder, FOLLOW.probe * .7, 0);
@@ -110,12 +132,27 @@ export class FollowCamera {
     // Back along the view direction, with a probe sphere so the near plane stays out of the wall.
     this.euler.set(pitch, yaw, 0); this.quaternion.setFromEuler(this.euler);
     const back = this.dir.set(0, 0, 1).applyQuaternion(this.quaternion);
-    const free = clearDistance(world, this.pivot, back, wanted, FOLLOW.probe);
-    // In at once when blocked, back out at a walking pace so a doorway does not pump the view.
-    if (!this.initialized || free < this.distance || reducedMotion) this.distance = free;
-    else this.distance = Math.min(free, this.distance + FOLLOW.pullOutSpeed * step);
-    this.reach = this.distance;
-    this.position.copy(this.pivot).addScaledVector(back, this.distance);
-    this.initialized = true;
+    return clearDistance(world, this.pivot, back, wanted, FOLLOW.probe);
+  }
+
+  /** With the target backed into a wall, picks the smallest lift and swing that give the lens room, and eases toward it. */
+  private reframe(world: WorldSpec, yaw: number, pitch: number, wanted: number, step: number, cut: boolean) {
+    const roomy = Math.min(FOLLOW.roomy, wanted * .6), room = (lift: number, swing: number) =>
+      this.clearBehind(world, yaw + swing, Math.max(FOLLOW.liftPitch, pitch - lift), wanted, false);
+    if (room(0, 0) >= roomy) { this.liftGoal = this.swingGoal = 0; }
+    else if (room(this.liftGoal, this.swingGoal) < roomy) {
+      // Cheapest first: a small lift, then swings along the wall, then both.
+      let best = { lift: 0, swing: 0, free: -1, cost: Infinity };
+      for (const lift of [0, ...FOLLOW.lifts]) for (const swing of FOLLOW.swings) {
+        if (!lift && !swing) continue;
+        const free = room(lift, swing), cost = lift + Math.abs(swing) * .8;
+        const good = free >= roomy, better = good ? !(best.free >= roomy) || cost < best.cost : !(best.free >= roomy) && free > best.free;
+        if (better) best = { lift, swing, free, cost };
+      }
+      if (best.free > room(0, 0) + .3) { this.liftGoal = best.lift; this.swingGoal = best.swing; }
+    }
+    const k = cut ? 1 : 1 - Math.exp(-FOLLOW.reframeRate * step);
+    this.lift += (this.liftGoal - this.lift) * k;
+    this.swing += (this.swingGoal - this.swing) * k;
   }
 }

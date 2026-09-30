@@ -34,7 +34,49 @@ describe('follow camera', () => {
     cam.update(world([wall]), t, 1 / 60);
     expect(cam.position.z).toBeLessThan(wall.min.z);
     expect(inside(cam.position, wall, .15)).toBe(false);
-    expect(cam.reach).toBeLessThan(1.3);
+    // Straight behind, the lens would have had under 1.3 m; it starts reframed instead.
+    expect(clearDistance(world([wall]), { x: t.pos.x + FOLLOW.shoulder, y: t.pos.y + FOLLOW.height, z: 0 }, { x: 0, y: 0, z: 1 }, FOLLOW.distance, FOLLOW.probe)).toBeLessThan(1.3);
+  });
+
+  // The integration pass measured the watched capybara off screen 6% of the time: the lens squeezed
+  // inside a metre of a target backed against a wall, so the body was hidden and the view was a wall.
+  const inView = (cam: FollowCamera, t: ReturnType<typeof target>) => {
+    const head = new THREE.Vector3(t.pos.x, t.pos.y + 1.2, t.pos.z).sub(cam.position), forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    return head.angleTo(forward) < .55;
+  };
+  it('rises over a low wall the target backs into, keeping the body in view', () => {
+    const y = ground(0, 0), muro = box('muro', [-8, y - 1, .45], [8, y + 1.35, .75]);
+    const cam = new FollowCamera(), t = target(0, 0);
+    cam.update(world([muro]), t, 1 / 60);
+    for (let i = 0; i < 60; i++) cam.update(world([muro]), t, 1 / 60);
+    expect(cam.reach).toBeGreaterThan(1.6);
+    expect(inside(cam.position, muro, .1)).toBe(false);
+    expect(cam.position.y).toBeGreaterThan(muro.max.y);
+    expect(inView(cam, t)).toBe(true);
+  });
+
+  it('swings along a tall wall the target backs into, and glides home once it steps away', () => {
+    const y = ground(0, 0), wall = box('wall', [-8, y - 1, .45], [8, y + 6, .75]), walled = world([wall]);
+    const cam = new FollowCamera(), t = target(0, 0);
+    cam.update(walled, t, 1 / 60);
+    const path: THREE.Vector3[] = [];
+    for (let i = 0; i < 180; i++) { cam.update(walled, t, 1 / 60); path.push(cam.position.clone()); }
+    expect(cam.reach).toBeGreaterThan(1.6);
+    expect(cam.position.z).toBeLessThan(wall.min.z);
+    expect(inView(cam, t)).toBe(true);
+    // Settled, not hunting between framings.
+    const last = path.slice(-60), moved = Math.max(...last.slice(1).map((p, i) => p.distanceTo(last[i])));
+    expect(moved).toBeLessThan(.01);
+    // The target walks out into the open: the camera eases back behind it without a cut.
+    let jump = 0, previous = cam.position.clone(), open = t;
+    for (let i = 1; i <= 240; i++) {
+      // Walking at 3 m/s: 5 cm a frame, 6 m in two seconds, then standing.
+      open = target(0, -Math.min(6, i * .05));
+      cam.update(walled, open, 1 / 60); jump = Math.max(jump, cam.position.distanceTo(previous) - .05); previous = cam.position.clone();
+    }
+    expect(jump).toBeLessThan(.25);
+    expect(cam.position.z).toBeGreaterThan(open.pos.z + FOLLOW.distance * .8);
+    expect(Math.abs(cam.position.x - open.pos.x - FOLLOW.shoulder)).toBeLessThan(.15);
   });
 
   it('eases back out after the wall is gone instead of jumping', () => {
