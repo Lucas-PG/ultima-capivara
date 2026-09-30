@@ -22,7 +22,7 @@ Preserved the navy, coral and brass model, livery and open rear notch. The packe
 
 Before: [M4 contact sheet](evidence/guns/m4-before.jpg). After: [gameplay views](evidence/guns/m4-after.jpg), [reload and mechanism views](evidence/guns/m4-reload.jpg).
 
-Known issues: no outstanding issue in the reviewed poses. The tightest sampled contact is -0.4 mm during trigger movement, within the requested -0.5 mm tolerance.
+Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The tightest sampled contact is -0.4 mm during trigger movement, within the requested -0.5 mm tolerance.
 
 ## Doze
 
@@ -32,7 +32,7 @@ Reloads retain the authoritative 0.55-second shell segments, carry a visible red
 
 Before: [Doze contact sheet](evidence/guns/shotgun-before.jpg). After: [gameplay views](evidence/guns/shotgun-after.jpg), [reload and mechanism views](evidence/guns/shotgun-reload.jpg).
 
-Known issues: no outstanding issue in the reviewed poses. The final empty pump is presentation state and remains interruptible by firing or switching weapons; authoritative shell timing is unchanged.
+Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The final empty pump is presentation state and remains interruptible by firing or switching weapons; authoritative shell timing is unchanged.
 
 ## Sniper
 
@@ -40,7 +40,7 @@ Rebuilt the carved walnut thumbhole stock, cheek rest, fluted barrel, three-port
 
 Before: [Sniper contact sheet](evidence/guns/sniper-before.jpg). After: [gameplay views](evidence/guns/sniper-after.jpg), [reload and mechanism views](evidence/guns/sniper-reload.jpg).
 
-Known issues: no outstanding issue in the reviewed poses. The tightest sampled contact is -0.1 mm during bolt extraction, within the requested tolerance.
+Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The tightest sampled contact is -0.1 mm during bolt extraction, within the requested tolerance.
 
 ## Carabina
 
@@ -48,7 +48,7 @@ Rebuilt the olive receiver, walnut furniture, cooling slots, curved magazine, si
 
 Before: [Carabina contact sheet](evidence/guns/dmr-before.jpg). After: [gameplay views](evidence/guns/dmr-after.jpg), [reload and mechanism views](evidence/guns/dmr-reload.jpg).
 
-Known issues: no outstanding issue in the reviewed poses. The sling is rigid authored geometry; its shape stays clear of the firing forearm throughout the reviewed motions.
+Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The sling is rigid authored geometry; its shape stays clear of the firing forearm throughout the reviewed motions.
 
 ## Lança-coco
 
@@ -58,20 +58,20 @@ Review correction: moved both sights and the aim point to a matching 170 mm left
 
 Before: [Lança-coco contact sheet](evidence/guns/coco-before.jpg). After: [gameplay views](evidence/guns/coco-after.jpg), [reload and mechanism views](evidence/guns/coco-reload.jpg).
 
-Known issues: no outstanding issue in the reviewed poses. The hopper holds three visible fruits plus one chambered round, so an empty refill deliberately includes a fourth insertion after the pump.
+Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The hopper holds three visible fruits plus one chambered round, so an empty refill deliberately includes a fourth insertion after the pump.
 
-## Verification
+## Previous verification, before grip corrections
 
 - `npx tsc --noEmit`: passed.
 - `npx vitest run --maxWorkers=1`, using Node 24.20.0: all 736 tests passed in 96 files. This includes 40 viewmodel tests, the ADS alignment checks, packed moving-part pivots and world-LOD bounds.
 - Reload tests cover chamber preservation on tactical reloads, magazine anchoring, continuous rifle support, the sniper's complete bolt stroke and foley, six sequential shotgun shells with a single final empty pump, and all four coconut refill counts.
-- Reviewed hip, ADS, sprint, inspect, empty/tactical reloads and shot mechanisms from the eye and additional side/underside angles in real Chrome. The saved final capture set contains 267 images; the report retains 15 comparison and mechanism sheets, each below 300,000 bytes.
+- Reviewed hip, ADS, sprint, inspect, empty/tactical reloads and shot mechanisms from the eye and additional side/underside angles in real Chrome. The previous capture set contains 267 images; the report retains 15 comparison and mechanism sheets, each below 300,000 bytes.
 - Rebuilt and reviewed third-person and ground versions for all five weapons. Measured packed byte counts match the actual GLBs.
 - No sculpted paw asset or arm solver changes. No defect in those assets was established.
 
 The contact probe measures the full-resolution skinned paw and wrist against the actual posed weapon triangles, including visible moving parts. Dense reload scans, key poses, transition samples and follow-up scans of corrected paths all clear the requested worst-contact threshold of greater than -0.5 mm. These are sampled measurements, supported by multi-angle visual review, rather than a mathematical guarantee over every possible input combination.
 
-| Weapon | Lowest accepted sampled contact | Mechanical coverage |
+| Weapon | Previous sampled contact | Mechanical coverage |
 | --- | ---: | --- |
 | M4 | -0.4 mm | Curved-magazine carry, palm seat, empty catch slap, tactical return |
 | Doze | 0.4 mm | Shell approach, loading-gate lift, thumb push, complete six-shell chain and final pump |
@@ -79,7 +79,7 @@ The contact probe measures the full-resolution skinned paw and wrist against the
 | Carabina | 0.2 mm | Both magazine reloads, support restored before side charging, sling/forearm clearance |
 | Lança-coco | 0.4 mm | All starting ammunition counts 0 through 3, hopper release paths, pump and top-up |
 
-The final review corrected the Doze loading thumb/guard crossing, sniper forearm/stock and magazine-digit contact, the open-bolt approach, and Lança-coco sprint and refill framing. Carabina's sparse sling anchors preserve its far-LOD silhouette without consuming the barrel's triangle budget. The final full suite passed after these corrections.
+The previous review corrected the Doze loading thumb/guard crossing, sniper forearm/stock and magazine-digit contact, the open-bolt approach, and Lança-coco sprint and refill framing. Carabina's sparse sling anchors preserve its far-LOD silhouette without consuming the barrel's triangle budget. The full suite passed after those corrections. All changed grips and their animation transitions require a new review.
 
 To reproduce standard contact and image reviews with the QA dev server running on port 5177:
 
