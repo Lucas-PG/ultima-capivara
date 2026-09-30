@@ -239,3 +239,12 @@ it('makes the incoming report bright and brief, distinct from the low gun body a
   expect(incoming.x.length / incoming.rate).toBeLessThan(whiz.x.length / whiz.rate);
   expect(low('shot:incoming')).toBeLessThan(.05);
 });
+
+it('makes the balloon burner a breathy roar that lasts, unlike a gun report or an engine drone', () => {
+  const burner = sound('balloon:burner'), seconds = burner.x.length / burner.rate;
+  expect(seconds).toBeGreaterThan(1.2); expect(seconds).toBeLessThan(2.2);
+  // Most energy is the low roar, with a real flame hiss above it.
+  const body = low('balloon:burner');
+  expect(body).toBeGreaterThan(.2); expect(body).toBeLessThan(.7);
+  expect(centroid(burner.x, burner.rate)).toBeGreaterThan(300);
+});

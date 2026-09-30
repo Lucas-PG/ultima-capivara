@@ -912,26 +912,27 @@ export class SoundEngine {
     }
   }
 
+  // The Tucano delivery is a hot-air cargo balloon: heard as its propane burner
+  // firing every few seconds from where it drifts, never as a propeller.
+  private readonly burners = new Map<string, number>();
   private updateSupplyPlanes(actor: ActorState | null, snapshot: WorldSnapshot | null, menu: boolean, now: number) {
     const heard = new Set<string>();
     if (!menu && actor && snapshot?.phase === 'playing') for (const drop of snapshot.supplyDrops ?? []) {
       const t = snapshot.time - drop.releaseAt;
-      if (snapshot.time < drop.announcedAt || t >= SUPPLY_FLYBY_SECONDS) continue;
+      if (snapshot.time < drop.announcedAt || t >= SUPPLY_FLYBY_SECONDS - 4) continue;
+      heard.add(drop.id);
       const pos = supplyPlanePosition(drop, snapshot.time), d = distanceOf(pos, actor.pos);
-      if (d >= 240) continue;
-      const key = `supply-plane:${drop.id}`;
-      heard.add(key);
-      const envelope = Math.min(1, Math.max(.001, (snapshot.time - drop.announcedAt) / .8), (SUPPLY_FLYBY_SECONDS - t) / 4);
-      const loop = this.fadeLoop(key, 'bed:engine', this.buses!.effects,
-        LEVEL.engine + worldDistance(d, 240).db + 20 * Math.log10(envelope), .15, { pos });
-      if (!loop) continue;
-      if (loop.panner) this.setPosition(loop.panner, pos, now);
-      // The propeller drops in pitch as it passes and climbs away.
-      const radial = (Math.sin(drop.heading) * 12 * (pos.x - actor.pos.x) +
-        (t > 0 ? 1.5 : 0) * (pos.y - actor.pos.y) + Math.cos(drop.heading) * 12 * (pos.z - actor.pos.z)) / Math.max(1, d);
-      loop.source.playbackRate.setTargetAtTime(1.12 * 343 / (343 + radial), now, .1);
+      const next = this.burners.get(drop.id);
+      if (next === undefined) { this.burners.set(drop.id, snapshot.time + .4); continue; }
+      if (snapshot.time < next) continue;
+      // Pilots burn harder while climbing away after the release.
+      this.burners.set(drop.id, snapshot.time + (t > 0 ? 2.2 : 3.4) + Math.random() * 1.6);
+      if (d < 240) {
+        const far = worldDistance(d, 240);
+        this.play('balloon:burner', { level: LEVEL.burner + far.db, pos, cutoff: far.cutoff, kind: 'world', out: this.buses!.effects, rate: .94 + Math.random() * .12 });
+      }
     }
-    for (const key of this.loops.keys()) if (key.startsWith('supply-plane:') && !heard.has(key)) this.stopLoop(key);
+    for (const id of this.burners.keys()) if (!heard.has(id)) this.burners.delete(id);
   }
 
   // ---- Mix helpers --------------------------------------------------------------

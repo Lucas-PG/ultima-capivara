@@ -3,7 +3,7 @@ import { LOW_HP, SoundEngine, STORM_LEVEL } from '../src/audio';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import { SOUND_BY_ID, SOUNDS } from '../src/sound/bank';
 import { LEVEL, levelGain, safetyCurve } from '../src/sound/mix';
-import { supplyPlanePosition } from '../src/shared/supply-drops';
+import { SUPPLY_RELEASE_HEIGHT } from '../src/shared/supply-drops';
 import { terrainSurface } from '../src/simulation/surface';
 import type { WorldSpec } from '../src/shared/types';
 import { FakeBuffer, FakeContext, FakeNode, type FakeSource } from './audio/fake-context';
@@ -517,26 +517,29 @@ describe('combat and supply audio integration', () => {
     expect(voices(ctx, 'shot:incoming')).toHaveLength(1);
   });
 
-  it('moves the supply engine with its carrier, lowers pitch on departure and releases it on exit', async () => {
+  it('voices the cargo balloon with burner blasts from where it drifts, never a propeller, and only while it is in play', async () => {
     const { audio, ctx } = await engine(), me = actor(); me.velocity = { x: 0, y: 0, z: 0 };
     const drop = { id: 'one', district: 'vila', pos: { x: 0, y: 0, z: 0 }, heading: Math.PI / 2, announcedAt: 45, releaseAt: 50, landsAt: 62, opened: false };
     const update = (time: number, extra = {}, menu = false) => audio.update(me,
       snapshot([me], { time, config: { mode: 'battle-royale' }, supplyDrops: [drop], ...extra }), 1 / 60, menu);
-    update(44); expect(audio.loops.has('supply-plane:one')).toBe(false);
-    update(46);
-    const loop = audio.loops.get('supply-plane:one'), before = loop.gain.gain.value, rate = loop.source.playbackRate.value;
-    expect(loop).toBeDefined(); expect(spatial(loop.source)).toBe(true);
-    update(50);
-    expect(loop.gain.gain.value).toBeGreaterThan(before);
-    const pos = supplyPlanePosition(drop, 50);
-    expect([loop.panner.positionX.value, loop.panner.positionY.value, loop.panner.positionZ.value]).toEqual([pos.x, pos.y, pos.z]);
-    update(53); expect(loop.source.playbackRate.value).toBeLessThan(rate);
-    expect(voices(ctx, 'bed:engine')).toHaveLength(1);
-    update(72); expect(audio.loops.has('supply-plane:one')).toBe(false); expect(loop.source.stopped).not.toBeNull();
-    for (const exit of ['menu', 'results', 'snapshot']) {
-      update(46); const active = audio.loops.get('supply-plane:one');
-      update(47, exit === 'results' ? { phase: 'results' } : exit === 'snapshot' ? { supplyDrops: [] } : {}, exit === 'menu');
-      expect(audio.loops.has('supply-plane:one')).toBe(false); expect(active.source.stopped).not.toBeNull();
+    const panner = (s: FakeSource) => { let n: any = s; for (let i = 0; i < 4 && n && n.kind !== 'panner'; i++) n = [...n.outputs][0]; return n; };
+    update(44); expect(voices(ctx, 'balloon:burner')).toHaveLength(0);
+    for (let t = 45; t <= 51; t += .1) update(t);
+    const blasts = voices(ctx, 'balloon:burner');
+    // Several blasts over six seconds, not a continuous drone.
+    expect(blasts.length).toBeGreaterThanOrEqual(2); expect(blasts.length).toBeLessThanOrEqual(4);
+    expect(spatial(blasts[0])).toBe(true);
+    const at = panner(blasts.at(-1)!);
+    expect(Math.hypot(at.positionX.value, at.positionY.value, at.positionZ.value)).toBeGreaterThan(SUPPLY_RELEASE_HEIGHT - 5);
+    expect(voices(ctx, 'bed:engine')).toHaveLength(0);
+    // Gone once the balloon has left, and silent in menus and on the results screen.
+    const count = () => voices(ctx, 'balloon:burner').length, before = count();
+    for (let t = 69; t <= 76; t += .1) update(t);
+    expect(count()).toBe(before);
+    for (const exit of ['menu', 'results']) {
+      const was = count();
+      for (let t = 46; t <= 50; t += .1) update(t, exit === 'results' ? { phase: 'results' } : {}, exit === 'menu');
+      expect(count(), exit).toBe(was);
     }
   });
 });

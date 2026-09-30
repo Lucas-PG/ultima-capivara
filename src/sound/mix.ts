@@ -20,7 +20,7 @@ export const LEVEL = {
   supply: -24, supplyLand: -16, bounce: -25, poof: -26, chute: -24, upgrade: -26, respawn: -25,
   // Beds (mean loudness at full presence) and island life.
   surf: -28, wind: -32, leaves: -31, harbour: -28, waterfall: -22, storm: -23, stormWall: -32,
-  cabin: -25, engine: -18, freefall: -24, canopy: -29, critter: -26, thunder: -24, crackle: -34,
+  cabin: -25, engine: -18, burner: -15, freefall: -24, canopy: -29, critter: -26, thunder: -24, crackle: -34,
   // Music.
   menu: -18, drop: -26, tension: -27, dance: -24, victory: -18, defeat: -20,
 } as const;
