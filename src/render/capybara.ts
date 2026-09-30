@@ -15,7 +15,7 @@ import type { WeaponId } from '../shared/types';
 import { m4Reload } from './viewmodel-anims';
 import { isShortGun, shortReload, animateShortWorld, shortWorldGrip, type WorldParts } from './short-world-parts';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
-import { attachFurShells, disposeFurShells, FUR_RANGE } from './capybara-fur';
+import { attachFurShells, disposeFurShells, updateFurShells } from './capybara-fur';
 
 // Bone layout shared with GameRenderer.updateAvatars():
 // 0 root · 1 torso (pivots at the hips) · 2 head · 3 arms + held weapon (shoulders)
@@ -255,7 +255,7 @@ export function celebrateCapybara(body: THREE.SkinnedMesh): void {
 /** Close-range pelt: only capybaras near the camera draw their fur shells. */
 export function setCapybaraViewDistance(body: THREE.SkinnedMesh, distance: number): void {
   const fur = characterInstances.get(body)?.fur;
-  if (fur) fur.visible = distance < FUR_RANGE;
+  if (fur) updateFurShells(fur, distance);
 }
 
 export function capybaraIsDead(body: THREE.SkinnedMesh): boolean {
@@ -358,6 +358,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   body.skeleton.dispose = () => {
     mixer.stopAllAction(); mixer.uncacheRoot(scene); skeleton.dispose();
     body.geometry.dispose(); characterInstances.delete(body); originalDispose();
+    (fur?.material as THREE.Material | undefined)?.dispose();
     overlay?.traverse(object => {
       if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose(); }
     });

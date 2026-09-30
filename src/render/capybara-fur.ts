@@ -70,6 +70,8 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
   material.onBeforeCompile = (shader, renderer) => {
     previous.call(material, shader, renderer);
     shader.uniforms.uFurLength = { value: FUR_LENGTH };
+    // Thins the pelt toward FUR_RANGE so the shells fade out instead of popping (per avatar).
+    shader.uniforms.uFurFade = { get value() { return material.userData.furFade ?? 0; } };
     shader.vertexShader = `attribute float furShell;\nattribute float furLength;\nattribute vec3 furRest;\nuniform float uFurLength;\nvarying float vFurShell;\nvarying vec3 vFurRest;\n${shader.vertexShader}`
       .replace('#include <skinning_vertex>', `#include <skinning_vertex>
         vFurShell = furShell; vFurRest = furRest;
@@ -87,13 +89,14 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
         return mix(mix(mix(furHash3(i), furHash3(i + vec3(1, 0, 0)), f.x), mix(furHash3(i + vec3(0, 1, 0)), furHash3(i + vec3(1, 1, 0)), f.x), f.y),
                    mix(mix(furHash3(i + vec3(0, 0, 1)), furHash3(i + vec3(1, 0, 1)), f.x), mix(furHash3(i + vec3(0, 1, 1)), furHash3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
       ${shader.fragmentShader}`
+      .replace('#include <common>', '#include <common>\nuniform float uFurFade;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         // Strands: fine across the comb, long along it (the same comb as the vertex shader).
         vec3 furDir = normalize(mix(vec3(0.0, -1.0, 0.25), vec3(0.0, 0.3, 1.0), smoothstep(1.44, 1.52, vFurRest.y)));
         vec3 furP = vFurRest * 900.0 - furDir * dot(vFurRest, furDir) * 780.0;
         float furStrand = furNoise3(furP) * .72 + furNoise3(vFurRest * 140.0) * .36;
-        if (furStrand < mix(.50, .96, vFurShell)) discard;
-        diffuseColor.rgb *= mix(.86, 1.08, vFurShell);`);
+        if (furStrand < mix(.50, .96, vFurShell) + uFurFade) discard;
+        diffuseColor.rgb *= mix(.93, 1.05, vFurShell);`);
   };
   material.customProgramCacheKey = () => `${key}:capivara-fur-v1`;
   shellMaterials.set(base, material);
@@ -105,10 +108,20 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
 export function attachFurShells(lod0: THREE.SkinnedMesh): THREE.SkinnedMesh | null {
   const geometry = furShellGeometry(lod0);
   if (!geometry) return null;
-  const shells = new THREE.SkinnedMesh(geometry, furShellMaterial(lod0.material as THREE.MeshStandardMaterial));
+  // Each avatar owns a copy (same shader program) so its distance fade is its own.
+  const shared = furShellMaterial(lod0.material as THREE.MeshStandardMaterial);
+  const material = shared.clone();
+  material.onBeforeCompile = shared.onBeforeCompile; material.customProgramCacheKey = shared.customProgramCacheKey;
+  const shells = new THREE.SkinnedMesh(geometry, material);
   shells.name = `${lod0.name}_fur`; shells.castShadow = false; shells.receiveShadow = true;
   shells.frustumCulled = true; shells.visible = false;
   shells.bind(lod0.skeleton, lod0.bindMatrix);
   lod0.add(shells);
   return shells;
+}
+
+/** Shows the shells within FUR_RANGE, thinning them over the last metres. */
+export function updateFurShells(shells: THREE.SkinnedMesh, distance: number): void {
+  shells.visible = distance < FUR_RANGE;
+  (shells.material as THREE.Material).userData.furFade = THREE.MathUtils.smoothstep(distance, FUR_RANGE - 2.5, FUR_RANGE) * .6;
 }
