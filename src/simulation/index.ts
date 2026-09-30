@@ -1346,6 +1346,12 @@ export class Simulation {
         b.lastSeen = { ...b.hearPos }; b.lastSeenAt = now; b.loot = null; b.via = null;
       }
     }
+    // Two bots peeking the same pair of corners could trade misses for half a
+    // minute. After a while in one spot, a healthy bot pushes instead.
+    if (b.mode !== 'cover') b.coverSince = now;
+    else if (now - b.coverSince > 9 * style.hold && s.hp >= 50 && !s.reloadUntil && !s.using && !b.peekPt) {
+      b.mode = 'fight'; b.coverPt = null; b.flank = -b.flank; b.coverCdUntil = now + 6; b.coverSince = now;
+    }
     if (s.using) {
       crouch = true;
       if (fighting && t) face = Math.atan2(-(t.pos.x - s.pos.x), -(t.pos.z - s.pos.z));

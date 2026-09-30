@@ -212,6 +212,24 @@ describe('legacy bot behaviour', () => {
     expect(peeked).toBe(true); expect(shot, JSON.stringify(trace)).toBe(true); expect(tucked).toBe(true);
   });
 
+  it('stops peeking the same corner after a while and pushes while healthy', () => {
+    const ground = terrainHeight(0, -9);
+    const { sim, player, bot } = duel(9, 'normal', Math.PI, 7, { colliders: [
+      { id: 'cover', min: { x: -1.5, y: ground, z: -7 }, max: { x: 1.5, y: ground + 2, z: -6 }, material: 'stone' },
+    ] });
+    player.hp = 1e6;
+    const coverPt = { ...bot.state.pos };
+    Object.assign(bot.brain, { mode: 'cover', coverPt, coverUntil: sim.snapshot().time,
+      lastSeen: { ...player.pos }, lastSeenAt: sim.snapshot().time, target: null, sees: false });
+    let left = -1;
+    // Anchors hold longest: 9 s x 1.5.
+    for (let i = 0; i < 20 * 60 && left < 0; i++) {
+      sim.step(1 / 60); sim.drainEvents();
+      if (bot.brain.mode !== 'cover') left = sim.snapshot().time;
+    }
+    expect(left).toBeGreaterThan(0);
+  });
+
   it('gets faster and more dangerous with difficulty', () => {
     const measure = (difficulty: Difficulty) => {
       let first = 0, samples = 0, damage = 0;
