@@ -263,7 +263,8 @@ export const SHOTGUN_SHELL_HAND: HandKey = {space: "part", part: "mag", wrist: [
 const SHOTGUN_PUSH_HAND: HandKey = {wrist: [-0.049022, -0.064088, 0.033021], forward: [0.799141, -0.112196, -0.590581], palm: [0.532349, 0.588445, 0.608554], pole: [-1, -0.2, 0.3], curl: {index: [0.345101, 0.252126, 0.192652], middle: [1.354021, 1.376316, 0.599732], ring: [1.028833, 1.266842, 0.600874], thumb: [0.750224, -0.1, -0.09105], spread: -0.05879}, space: "part", part: "mag"};
 const SHOTGUN_SHELL: Choreography = [
   { t: 0, mag: { visible: false, p: [0, -.016, 0] } },
-  { t: .12, L: { space: 'gun', wrist: [-.15, .021887, -.279933] }, mag: { visible: false, p: [-.10, -.25, .07] } },
+  { t: .065, L: { space: 'gun', wrist: [-.04829, -.090082, -.255699] } },
+  { t: .12, L: { space: 'gun', wrist: [-.15, -.090082, -.255699] }, mag: { visible: false, p: [-.10, -.25, .07] } },
   { t: .26, L: SHOTGUN_SHELL_HAND, mag: { visible: false, p: [-.10, -.25, .07] } },
   { t: .29, L: SHOTGUN_SHELL_HAND, mag: { p: [-.10, -.25, .07] } },
   { t: .48, L: SHOTGUN_SHELL_HAND, mag: { p: [0, -.045, .018] } },
@@ -274,8 +275,8 @@ const SHOTGUN_SHELL: Choreography = [
   { t: .70, L: SHOTGUN_PUSH_HAND, mag: { out: .065, p: [0, .019, 0] }, ease: 'snap', sfx: 'shell-in' },
   { t: .74, L: SHOTGUN_PUSH_HAND, mag: { out: .085, p: [0, .019, 0] } },
   { t: .78, L: { ...SHOTGUN_PUSH_HAND, wrist: [-.13, -.15, .033021] }, mag: { visible: false, out: .095, p: [0, .019, 0] } },
-  { t: .85, L: { space: 'gun', wrist: [-.15, -.08, -.279933] } },
-  { t: .92, L: { space: 'gun', wrist: [-.15, .021887, -.279933] } },
+  { t: .85, L: { space: 'gun', wrist: [-.15, -.090082, -.255699] } },
+  { t: .92, L: { space: 'gun', wrist: [-.04829, -.090082, -.255699] } },
   { t: 1, L: { space: 'grip' }, mag: { visible: false } },
 ];
 

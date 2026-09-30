@@ -30,6 +30,8 @@ Rebuilt the receiver, vented rib, walnut stock and continuous ribbed pump, with 
 
 Reloads retain the authoritative 0.55-second shell segments, carry a visible red shell, lift it into the tube axis and push its case head with the thumb. A reload sequence that began empty adds one final pump after loading finishes; tactical loading leaves the chamber undisturbed.
 
+Review correction in progress: replaced the flat side grip with an underhand pump wrap. The palm cups the pump, the fingers curl up its far side and the thumb points forward on the near side. Departure and return now pass below the pump. A full-vertex scan of 79 hip, ADS, sprint, inspect, firing and reload samples clears both paws by at least 0.1 mm; the pump stroke itself clears the support paw by 1.1 mm. [Measured support grip and scan summary](evidence/guns/shotgun-support-contact.json). Hip framing is still pending.
+
 Before: [Doze contact sheet](evidence/guns/shotgun-before.jpg). After: [gameplay views](evidence/guns/shotgun-after.jpg), [reload and mechanism views](evidence/guns/shotgun-reload.jpg).
 
 Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The final empty pump is presentation state and remains interruptible by firing or switching weapons; authoritative shell timing is unchanged.
