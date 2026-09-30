@@ -28,6 +28,7 @@ import { LootView } from './loot';
 import { SupplyDropView, SUPPLY_ASSET_PATH } from './supply-drops';
 import { EffectsView, type EffectsFrame } from './effects';
 import { StormView } from './storm';
+import { CombatCamera } from './combat-camera';
 import { DEATH_CAM_SECONDS } from '../shared/death-cam';
 import { actorEye } from '../shared/collision';
 import { RenderPipeline, PRESETS } from './pipeline';
@@ -56,8 +57,10 @@ export class GameRenderer {
   private readonly pipeline: RenderPipeline;
   private readonly plane = makePlane();
   private readonly storm: StormView;
+  private readonly combatCamera = new CombatCamera();
   private stormAmount = 0;
   private stormPulse = 0;
+  private lowHealth = 0;
   private effectsMatch = '';
   private readonly propellers = this.plane.children.filter(child => child.name === 'propeller');
   private readonly sun: THREE.DirectionalLight;
@@ -237,6 +240,10 @@ export class GameRenderer {
     const viewed = this.cameraRig.lastActor;
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0, this.camera.quaternion);
     this.weaponView.cameraFeedback(this.camera, this.settings.reducedMotion);
+    // Combat feedback rides the local first-person view only (never the death cam or a spectated view).
+    const ownView = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !this.cameraRig.deathCamActive);
+    if (ownView) this.combatCamera.apply(this.camera, dt, (this.settings.cameraShake ?? 1) * (this.settings.reducedMotion ? .25 : 1));
+    else this.combatCamera.clear();
     const held = viewed?.weapons[viewed.slot]?.id;
     // The scope takes over only once the gun has been raised to the eye.
     const scoped = this.scoped = !!(viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr')
@@ -263,7 +270,10 @@ export class GameRenderer {
       for (const propeller of this.propellers) propeller.rotation.z += dt * 34;
     } else { this.storm.update(ZONE_NONE, this.camera, this.elapsed, false); this.stormAmount = 0; this.plane.visible = false; this.worldView.arenaBoundary.visible = false; }
     this.stormPulse = Math.max(0, this.stormPulse - dt / .45);
-    this.pipeline.setScreenFeedback(this.stormAmount, this.settings.reducedMotion ? this.stormPulse * .5 : this.stormPulse);
+    // Under 30 HP the world greys toward the edges, strongest near zero; the heartbeat and HUD warn alongside.
+    const low = viewed?.alive && viewed.stage === 'ground' ? THREE.MathUtils.clamp((30 - viewed.hp) / 30, 0, 1) : 0;
+    this.lowHealth = damp(this.lowHealth, low > 0 ? .45 + .55 * low : 0, 4, dt);
+    this.pipeline.setScreenFeedback(this.stormAmount, this.settings.reducedMotion ? this.stormPulse * .5 : this.stormPulse, this.lowHealth);
     // Thin the haze with altitude so the island stays readable from the plane.
     if (this.scene.fog instanceof THREE.Fog) {
       const altitude = THREE.MathUtils.smoothstep(this.camera.position.y, 15, 110), far = 460;
@@ -316,10 +326,25 @@ export class GameRenderer {
       if (me) this.cameraRig.startDeathCam({ victimEye: { x: me.pos.x, y: me.pos.y + actorEye(me), z: me.pos.z }, killerId: event.actor,
         killerPos: event.from || null, duration: DEATH_CAM_SECONDS });
     }
+    if (frame && !frame.spectateId) this.combatFeedback(event, frame);
     if (event.type === 'respawn') this.avatars.respawn(event.actor);
     if (event.type === 'bounce') { this.worldView.bounce(event.pos); this.avatars.bounce(event.actor); }
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
+
+  private combatFeedback(event: GameEvent, frame: PresentationFrame) {
+    const me = frame.playerId;
+    if (event.type === 'shot' && event.actor === me && event.weapon !== 'machete') this.combatCamera.shot(event.weapon, this.weaponView.adsAmount);
+    else if (event.type === 'damage' && event.target === me) {
+      const from = event.actor ? frame.snapshot?.actors.find(actor => actor.id === event.actor)?.pos : undefined;
+      // Yaw turns the view left as it grows, so the attacker's bearing to the right is view yaw minus its yaw.
+      const toward = from && Math.atan2(-(from.x - this.camera.position.x), -(from.z - this.camera.position.z));
+      const bearing = toward === undefined ? null : Math.atan2(Math.sin(frame.input.yaw - toward), Math.cos(frame.input.yaw - toward));
+      this.combatCamera.hurt(event.amount, bearing);
+    } else if (event.type === 'kill' && event.actor === me && event.target !== me) this.combatCamera.kill();
+    else if (event.type === 'impact' && event.weapon === 'coco') this.combatCamera.blast(this.camera.position.distanceTo(this.scratch.set(event.pos.x, event.pos.y, event.pos.z)));
+  }
+  private readonly scratch = new THREE.Vector3();
 
   // Asset failures keep the loading screen from promising a ready match.
   // There is no timeout that silently defers work until landing or a weapon swap.

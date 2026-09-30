@@ -285,6 +285,7 @@ function acceptEvents(events: GameEvent[]) {
     if (event.id <= lastEvent) continue;
     lastEvent = event.id;
     // Own rounds already shown by prediction only pair their confirmed hit with the host's endpoint.
+    if (event.type === 'shot' && event.actor === playerId) noteShot(event.seq, 'confirmed');
     if (event.type === 'shot' && event.actor === playerId && firePredictor.consume(event)) { renderer?.confirmShot(event); continue; }
     if (!document.hidden && ui.screen === 'game') {
       renderer?.event(event);
@@ -321,8 +322,16 @@ function sendAction(action: PlayerAction) {
 const simulationNow = () => snapshot ? snapshot.time + Math.min(.2, (performance.now() - receivedAt) / 1000) : 0;
 // What the player saw and aimed at: the last rendered remote poses.
 const predictionTargets = (): Iterable<ActorState> => renderFrame.remoteActors?.values() ?? snapshot?.actors ?? [];
+// Dev diagnostics: when each own round was shown locally and when the host's event for it arrived.
+const shotTimes = new Map<number, { predicted?: number; confirmed?: number }>();
+function noteShot(seq: number | undefined, key: 'predicted' | 'confirmed') {
+  if (!import.meta.env.DEV || seq === undefined) return;
+  const entry = shotTimes.get(seq) ?? {}; entry[key] ??= performance.now(); shotTimes.set(seq, entry);
+  if (shotTimes.size > 128) shotTimes.delete(shotTimes.keys().next().value!);
+}
 function showPredicted(shot: ShotEvent | null) {
   if (!shot) return;
+  noteShot(shot.seq, 'predicted');
   if (!document.hidden && ui.screen === 'game') {
     renderer?.event(shot);
     sound.event(shot, renderer?.cameraPosition || { x: 0, y: 0, z: 0 }, input.frame.yaw, playerId);
@@ -508,6 +517,7 @@ if (import.meta.env.DEV) {
     },
     timings: () => ({ ...timing.snapshot(), preset: settings.graphics, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } }),
     audio: () => sound.stats(),
+    shotTimes: () => [...shotTimes].map(([seq, times]) => ({ seq, ...times })),
     resetPerf: () => { intervals.length = 0; longTasks.length = 0; timing.reset(); lastTick = performance.now(); },
   } });
 }
