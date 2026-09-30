@@ -1,95 +1,68 @@
 # Long-gun overhaul
 
-Status: reopened after independent review. Models, livery, budgets and contact passed; support-paw anatomy, firing-paw visibility at hip and the Lança-coco sight picture require correction. The earlier completion claim was premature. The evidence below records that earlier pass until replaced by the corrected review.
+Scope: `m4`, `shotgun` (Doze), `sniper`, `dmr` (Carabina), `coco` (Lança-coco) in the `guns-long` worktree, merged with `overhaul/aaa-autonomous` (short guns, character, combat pass and world kept as reviewed). The sculpted paws and the arm solver were not changed. All captures: real Chrome, ANGLE Metal, 1280 x 720, medium preset.
 
-Scope: `m4`, `shotgun`, `sniper`, `dmr`, `coco`, in the `guns-long` worktree. The sculpted arm assets and arm solver were not changed. Final gameplay captures use real Chrome with ANGLE Metal at 1280 x 720 and the medium preset. Baseline contact sheets retain the earlier 960 x 540 captures. No Playwright e2e suite was run.
+This pass fixes the three defects from the orchestrator review (fingers-up support grip, firing paw hidden at hip, Lança-coco aim view blocked by the hopper) and reworks the models, framing, reloads and inspects around them.
 
-## Asset budgets
+## Review defects
 
-| Weapon | FP triangles | Packed GLB bytes | World near triangles | World far triangles |
-| --- | ---: | ---: | ---: | ---: |
-| m4 | 21,306 | 720,808 | 2,400 | 418 |
-| shotgun | 20,842 | 596,224 | 2,400 | 418 |
-| sniper | 21,740 | 627,540 | 2,400 | 410 |
-| dmr | 23,006 | 723,064 | 2,392 | 416 |
-| coco | 24,466 | 821,120 | 2,374 | 406 |
+1. **Support grip.** Every support paw now clamps the handguard or pump from the lower left: palm on the left flank, thumb over the top pointing forward, three digits pointing forward and curling under to the right side. Grips were fitted with `tools/qa/grip-fit.mjs` using digit intents (tips 250 to 330 degrees, bases 200 to 260 degrees, thumb on top, contact on every digit, zero penetration) at the base of the barrel, or on the pump for the Doze and the Lança-coco. To make a real wrap possible, the M4 handguard is now a full-length chunky octagon like the design sheet, and the narrow rear waists on the Carabina and sniper fore-ends were removed. With the waists, digits could only lie flat against the side.
+2. **Firing paw at hip.** Each rifle's hip pose was solved so the grip sits near 70 % across and 72 % down the frame, the muzzle near centre, and the barrel receding diagonally. The back of the firing paw, knuckles and trigger digit read at the lower right. The support forearm rises diagonally from the lower-left corner. Viewmodel FOV is 56 to 60 degrees for all five guns, which keeps the paws in proportion.
+3. **Lança-coco ADS.** The hopper moved from the top of the tube to its right shoulder, on brass saddle straps, below the sight line. New flip-up ladder sights sit on the tube's own top line: a notched rear ladder on the breech band and a leaf with a gold post on the bell. The aim picture is now open all round the target. The hopper livery (parrot, frond) moved with it.
 
-All packed weapons remain below 25,000 triangles and 1.3 MB. M4 uses 2048 albedo and 1024 normal/ORM; the other weapons use 1024 maps. Third-person and ground models use near/far LODs and one 1024 atlas. The pistol, revolver, SMG and machete geometry and decoded atlas cells are unchanged from `9934dda`.
+Digit angles around the bore at hip (degrees; 0 right, 90 top, 180 left, 270 bottom) and worst skin clearance (mm):
 
-## M4
+| Weapon | Index / middle / ring tip | Thumb tip | Digit angle from forward (index / middle / ring / thumb) | Support worst | Firing worst |
+| --- | --- | ---: | --- | ---: | ---: |
+| m4 | 271 / 279 / 288 | 125 | 63 / 92 / 99 / 63 | 0.3 | 0.0 |
+| shotgun | 263 / 286 / 303 | 146 | 45 / 80 / 92 / 57 | 0.7 | 1.0 |
+| dmr | 254 / 271 / 275 | 130 | 59 / 90 / 100 / 63 | 1.0 | 1.1 |
+| sniper | 259 / 280 / 278 | 135 | 65 / 92 / 103 / 65 | -0.3 | 1.0 |
+| coco | 267 / 280 / 308 | 144 | 48 / 83 / 89 / 55 | 0.2 | 0.7 |
 
-Preserved the navy, coral and brass model, livery and open rear notch. The packed asset now keeps authored, unscaled frames for its moving parts. Rebuilt the firing-paw wrap and fitted the support paw over the rear handguard. Raised the hip composition, authored a lower sprint carry and added a broadside inspect that exposes the receiver and furniture. Tactical reloads remove the curved magazine, seat the replacement with a palm push and return to support. Empty reloads add a part-driven bolt-catch slap. Magazine rotation and the carrying paw share the same frame.
+No digit points up or back. The digits' angles from forward (45 to 103 degrees) are what curling under looks like: base segments point forward, and the tips turn down and under. Thumb tips sit at 125 to 146 degrees, over the top-left shoulder of the grip, pointing forward (55 to 65 degrees from forward). They do not reach dead top (60 to 110 degrees) because the sculpted thumb is short against these handguard widths. Pushing it higher made the palm leave the flank.
 
-Before: [M4 contact sheet](evidence/guns/m4-before.jpg). After: [gameplay views](evidence/guns/m4-after.jpg), [reload and mechanism views](evidence/guns/m4-reload.jpg).
+## Per weapon
 
-Correction pass: the support fingers now curl below and around the far side of the rear handguard, with the thumb on top and a forward component on every digit. A small receiver-lug relief preserves palm clearance. The new elbow pole reduces the hip wrist bend to 24 degrees and keeps the forearm entering from the lower-left. The firing paw is visible at the lower-right. Reload departure opens the support fingers before withdrawal; return closes them only after the palm reaches the handguard.
+Evidence per gun: `<id>-final.jpg` (hip eye, ADS, near, below and top close-ups of the support paw), `<id>-final-grip.json` (digit angles plus per-segment clearance for both paws), `<id>-final-reload.jpg` (reload strip, eye view). Earlier sheets `<id>-before.jpg`, `<id>-after.jpg` and `<id>-reload.jpg` show the previous passes. The superseded `*-corrected-*` captures of the rejected grip were removed.
 
-Fresh evidence: [hip eye](evidence/guns/m4-corrected-hip.jpg), [near support](evidence/guns/m4-corrected-near.jpg), [below support](evidence/guns/m4-corrected-below.jpg), [top support](evidence/guns/m4-corrected-top.jpg), [open ADS](evidence/guns/m4-corrected-ads.jpg), [contact sheet](evidence/guns/m4-corrected-sheet.jpg), [full grip probe and digit directions](evidence/guns/m4-corrected-grip.json). Tip angles around the bore are 249, 319, 302 and 112 degrees for index, middle, ring and thumb. All four directions have a forward component. The packed model clears the support paw by 0.7 mm at hip. [Sixty gameplay and motion samples](evidence/guns/m4-corrected-motion.json) have a minimum of 0.0 mm across both paws; 38 additional release and return samples clear by at least 0.1 mm before packing. The TypeScript check and 40 targeted viewmodel tests pass. World asset synchronization and the final full-suite pass remain part of the combined review.
+- **M4** ([sheet](evidence/guns/m4-final.jpg), [reload](evidence/guns/m4-final-reload.jpg)). Full-length octagonal navy handguard with slots all along, a continuous top rail, and the coral frond across the whole flank. Reload: the rifle rolls its magazine well toward the eye. A new fitted magazine grip holds the curved magazine body, drops it, brings the fresh one, and palm-seats it. Empty reloads add the bolt-catch slap. Release and return keys now follow the fitted grip, so a refit cannot break them.
+- **Doze** ([sheet](evidence/guns/shotgun-final.jpg), [reload](evidence/guns/shotgun-final-reload.jpg)). The paw wraps the ribbed pump. The grip was fitted at full rack, so the fingertips stay clear of the receiver through the pump stroke (it was -7.7 mm before the refit). Shell-by-shell loading now cants the loading port toward the eye (a 60-degree roll), so shell, gate and thumb push read clearly.
+- **Sniper** ([sheet](evidence/guns/sniper-final.jpg), [reload](evidence/guns/sniper-final-reload.jpg), [bolt cycle](evidence/guns/sniper-final-fire.jpg)). Full-width fore-end. The firing shoulder moved outward so the forearm clears the thumbhole stock during the bolt stroke (it was -15.7 mm). The reload presents the magazine well.
+- **Carabina** ([sheet](evidence/guns/dmr-final.jpg), [reload](evidence/guns/dmr-final-reload.jpg)). Full-width walnut fore-end. The firing grip was refitted. The side charging-handle stroke uses an outward elbow pole and shoulder, so the forearm clears the receiver (it was -8.1 mm).
+- **Lança-coco** ([sheet](evidence/guns/coco-final.jpg), [reload](evidence/guns/coco-final-reload.jpg)). Offset hopper, ladder sights and new ADS eye (`adsEye [0, .245, .084]`, pitch 0). The paw wraps the wooden pump. Each coconut is lifted from the lower left, carried over the hopper rim and dropped in, then the paw withdraws low. It no longer flies up and over the head, and the fingers clear the hopper walls (they were -6 mm).
 
-## Doze
+All five long guns now have an authored two-beat inspect: lift, show the left flank (livery), then roll over to show the top and right side, then settle. Both grips hold throughout, with the trigger digit off the trigger. This replaces the generic sine tilt. Sprint poses were reviewed at the new framing and kept.
 
-Rebuilt the receiver, vented rib, walnut stock and continuous ribbed pump, with brass hardware, teal foliage, red recoil pad and four-shell saddle. Slimmed the stock wrist for the paw and lengthened the action bars. The pump now stops ahead of the receiver throughout its travel. Opened the underside loading gate and moved the lifter above the shell path. Lowered the rear ramp after the gameplay view revealed that it blocked the front bead.
+## First-person draw
 
-Reloads retain the authoritative 0.55-second shell segments, carry a visible red shell, lift it into the tube axis and push its case head with the thumb. A reload sequence that began empty adds one final pump after loading finishes; tactical loading leaves the chamber undisturbed.
+`src/render/weapons.ts` timed the swap with fixed constants (0.13 s lowering, 0.3 s raising). It now takes both from `HANDLING[id].draw` in `src/shared/weapons.ts`: 40 % to lower the outgoing gun, 60 % to raise the incoming one. The gun settles exactly when the simulation allows the first shot. A new test in `tests/viewmodel.test.ts` checks that the M4 (0.32 s) and the sniper (0.40 s) are still rising two frames before their draw time and fully up just after it.
 
-Review correction in progress: replaced the flat side grip with an underhand pump wrap. The palm cups the pump, the fingers curl up its far side and the thumb points forward on the near side. Departure and return now pass below the pump. A full-vertex scan of 79 hip, ADS, sprint, inspect, firing and reload samples clears both paws by at least 0.1 mm; the pump stroke itself clears the support paw by 1.1 mm. [Measured support grip and scan summary](evidence/guns/shotgun-support-contact.json). Hip framing is still pending.
+## Budgets
 
-Before: [Doze contact sheet](evidence/guns/shotgun-before.jpg). After: [gameplay views](evidence/guns/shotgun-after.jpg), [reload and mechanism views](evidence/guns/shotgun-reload.jpg).
+| Weapon | FP triangles | Packed GLB bytes | World near / far triangles |
+| --- | ---: | ---: | --- |
+| m4 | 22,154 | 704,484 | 2,400 / 416 |
+| shotgun | 21,040 | 599,208 | 2,400 / 418 |
+| sniper | 22,314 | 641,776 | 2,400 / 416 |
+| dmr | 23,504 | 723,176 | 2,390 / 410 |
+| coco | 25,790 | 873,732 | 2,364 / 418 |
 
-Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The final empty pump is presentation state and remains interruptible by firing or switching weapons; authoritative shell timing is unchanged.
+Every packed GLB is under 1.3 MB. The Lança-coco is 3 % over the 25k guideline because of the new ladder sights and saddle straps. The world versions and atlas cells were rebuilt for the long guns only. The short-gun cells are byte-identical to the base.
 
-## Sniper
+## Verification
 
-Rebuilt the carved walnut thumbhole stock, cheek rest, fluted barrel, three-port brake, folded bipod and brass-banded scope with turrets and flip caps. Shaped the grip waist and thumb window for the paw, with a right-side wrist relief that preserves the left stock silhouette. The firing paw follows the bolt knob through lift, pull, push and lock between shots. Tactical reloads replace only the magazine. Empty reloads open the bolt before the magazine work and close it after the support paw has returned. The choreography always retains one gripping paw.
+- `npx tsc --noEmit`: clean. `npx vitest run`: 108 files, 937 tests pass, including ADS alignment, the M4 world magazine contact (updated to the new magazine grip) and the new draw-timing test.
+- Full-vertex skin clearance of both paws, sampled at hip, ADS, fire (shotgun pump rack, sniper bolt cycle), inspect and densely through every reload (M4 empty, Doze single and six-shell chain, sniper empty with bolt, Carabina empty with charge, Lança-coco empty refill). Worst sampled value is -0.4 mm (sniper firing paw late in inspect). Everything else is at -0.3 mm or better, above the -0.5 mm bar.
+- Views checked from the eye and from the near, front-low, below and top orbits, plus third-person holds.
 
-Before: [Sniper contact sheet](evidence/guns/sniper-before.jpg). After: [gameplay views](evidence/guns/sniper-after.jpg), [reload and mechanism views](evidence/guns/sniper-reload.jpg).
+## Merge notes
 
-Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The tightest sampled contact is -0.1 mm during bolt extraction, within the requested tolerance.
+- Conflicts were resolved in favour of both sides. Reload selection covers the short guns' pistol and SMG empty/tactical choreographies and this branch's M4, Carabina, sniper and Lança-coco ones. The sniper keeps its part-anchored bolt cycle (the base's procedural `boltHand` path was dropped for the sniper only).
+- The two `grip-fit` tools conflicted: this branch's batch fitter stays at `tools/qa/grip-fit.mjs` and the base's single-fit CLI is kept as `tools/qa/grip-fit-short.mjs`. Having two fitters is duplication; merging them is a cleanup for later.
 
-## Carabina
+## Known issues
 
-Rebuilt the olive receiver, walnut furniture, cooling slots, curved magazine, side charging handle, brass/tan optic and hanging sling. Painted coral fronds and teal accents into the wood. The sling has a smooth leather curve, edge seams and a brass buckle. Its distant LOD preserves the lower outline while retaining the barrel and stock. Magazine swaps keep the support paw attached to the magazine. Empty reloads restore support before the firing paw operates the right-side charging handle.
-
-Before: [Carabina contact sheet](evidence/guns/dmr-before.jpg). After: [gameplay views](evidence/guns/dmr-after.jpg), [reload and mechanism views](evidence/guns/dmr-reload.jpg).
-
-Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The sling is rigid authored geometry; its shape stays clear of the firing forearm throughout the reviewed motions.
-
-## Lança-coco
-
-Rebuilt the bamboo-yellow tube, flared wood/brass bell, sprung action, separate wooden pump and open painted hopper. A domed service cap closes the breech, and a larger parrot portrait reads on the hopper. Three independent fruits fill its visible pockets. The offset sight lane avoids the hopper; the front leaf now faces the eye. Reloads add exactly the missing fruits. An empty refill fills the hopper, racks one fruit into the chamber and tops up the freed pocket. Partial reloads preserve the chamber and skip the rack. The refill stays lower and farther from the eye so the complete carrying path stays in frame. This respects the game's four-round capacity; the generated three-fruit reference does not account for the chambered round.
-
-Review correction: moved both sights and the aim point to a matching 170 mm left offset. The target now has open space beside the hopper, with no box or coconut over the aiming point. Rebuilt the first-person and world assets. [New ADS eye view](evidence/guns/coco-sight-review.jpg), 1280 x 720 medium, 174,260 bytes. Support grip, hip framing and motion review remain in progress.
-
-The support paw now cups the separate wooden pump from below, with its thumb forward on the near side and fingers curling up the far side. Reload departures pass below the pump; fruit releases withdraw left before descending past the new rear notch. All four starting ammunition counts pass 224 animation-key and midpoint samples at 0.6 mm minimum clearance. An additional 79-pose gameplay and motion scan reaches 0.4 mm during trigger motion. [Measured support grip and scan summary](evidence/guns/coco-support-contact.json). Hip framing remains pending.
-
-Before: [Lança-coco contact sheet](evidence/guns/coco-before.jpg). After: [gameplay views](evidence/guns/coco-after.jpg), [reload and mechanism views](evidence/guns/coco-reload.jpg).
-
-Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The hopper holds three visible fruits plus one chambered round, so an empty refill deliberately includes a fourth insertion after the pump.
-
-## Previous verification, before grip corrections
-
-- `npx tsc --noEmit`: passed.
-- `npx vitest run --maxWorkers=1`, using Node 24.20.0: all 736 tests passed in 96 files. This includes 40 viewmodel tests, the ADS alignment checks, packed moving-part pivots and world-LOD bounds.
-- Reload tests cover chamber preservation on tactical reloads, magazine anchoring, continuous rifle support, the sniper's complete bolt stroke and foley, six sequential shotgun shells with a single final empty pump, and all four coconut refill counts.
-- Reviewed hip, ADS, sprint, inspect, empty/tactical reloads and shot mechanisms from the eye and additional side/underside angles in real Chrome. The previous capture set contains 267 images; the report retains 15 comparison and mechanism sheets, each below 300,000 bytes.
-- Rebuilt and reviewed third-person and ground versions for all five weapons. Measured packed byte counts match the actual GLBs.
-- No sculpted paw asset or arm solver changes. No defect in those assets was established.
-
-The contact probe measures the full-resolution skinned paw and wrist against the actual posed weapon triangles, including visible moving parts. Dense reload scans, key poses, transition samples and follow-up scans of corrected paths all clear the requested worst-contact threshold of greater than -0.5 mm. These are sampled measurements, supported by multi-angle visual review, rather than a mathematical guarantee over every possible input combination.
-
-| Weapon | Previous sampled contact | Mechanical coverage |
-| --- | ---: | --- |
-| M4 | -0.4 mm | Curved-magazine carry, palm seat, empty catch slap, tactical return |
-| Doze | 0.4 mm | Shell approach, loading-gate lift, thumb push, complete six-shell chain and final pump |
-| Sniper | -0.1 mm | Both complete reloads, open-bolt return, lift/pull/push/lock after firing |
-| Carabina | 0.2 mm | Both magazine reloads, support restored before side charging, sling/forearm clearance |
-| Lança-coco | 0.4 mm | All starting ammunition counts 0 through 3, hopper release paths, pump and top-up |
-
-The previous review corrected the Doze loading thumb/guard crossing, sniper forearm/stock and magazine-digit contact, the open-bolt approach, and Lança-coco sprint and refill framing. Carabina's sparse sling anchors preserve its far-LOD silhouette without consuming the barrel's triangle budget. The full suite passed after those corrections. All changed grips and their animation transitions require a new review.
-
-To reproduce standard contact and image reviews with the QA dev server running on port 5177:
-
-```sh
-BASE=http://127.0.0.1:5177 node tools/qa/weapon-review.mjs output/review m4,shotgun,sniper,dmr,coco hip,ads,sprint,inspect,reload,reload-partial,fire eye,left,right,below
-BASE=http://127.0.0.1:5177 CAPTURE=0 node tools/qa/weapon-review.mjs output/review-aim m4,shotgun,sniper,dmr,coco aim,land eye .02,.06,.1,.14,.2,.3,.45,.65,.9
-```
+- Support thumb tips sit over the top-left shoulder (125 to 146 degrees) rather than dead top (see above).
+- Inspects are shared choreographies with per-gun amplitudes, not per-weapon keyframed performances.
+- `output/playwright/guns-long/` still holds the previous agent's temporary captures (gitignored). My own temporary captures live outside the repo.
