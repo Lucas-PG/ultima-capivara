@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { colliderGrid } from '../shared/collider-grid';
-import { fbm, terrainColor, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
+import { fbm, grassAlbedo, pathWear, terrainColor, terrainHeight, wildflowers, WORLD_PALETTE } from '../shared/terrain';
 import { ROADS } from '../shared/layout';
 import type { Collider, Settings, WorldSpec } from '../shared/types';
 import { createToonMaterial } from './materials';
@@ -108,13 +108,11 @@ const ACCENTS = {
 } as const satisfies Record<string, CardSet>;
 type Accent = keyof typeof ACCENTS;
 
-/** The terrain colour map's grass albedo at a point: the same continuous blend of the three grass
- * paints that scripts/generate-terrain-colors.ts bakes, so tufts can take the ground's own colour. */
-const soften = (value: number) => { const t = Math.max(0, Math.min(1, value)); return t * t * (3 - 2 * t); };
-const GRASS = new THREE.Color(WORLD_PALETTE.grass), GRASS_LIGHT = new THREE.Color(WORLD_PALETTE.grassLight), DRY = new THREE.Color(WORLD_PALETTE.dryGrass);
+/** The terrain colour map's grass albedo at a point: the same paint (tone patches and trodden
+ * paths included) that scripts/generate-terrain-colors.ts bakes, so tufts take the ground's own colour. */
 export function groundPaint(x: number, z: number, target = new THREE.Color()) {
-  const greenMix = soften((fbm(x / 36 + 7, z / 36 + 3) + .2) / .4), dryMix = soften((fbm(x / 48 - 4, z / 48 + 9) - .18) / .24);
-  return target.copy(GRASS).lerp(GRASS_LIGHT, greenMix).lerp(DRY, dryMix);
+  const [r, g, b] = grassAlbedo(x, z);
+  return target.setRGB(r, g, b, THREE.SRGBColorSpace);
 }
 
 /** Instance tint that brings a painted tile's mean colour to a target albedo (linear), so a tuft
@@ -239,7 +237,9 @@ export class GroundCover {
         }
         // Lawn density follows broad painted clumps: lush patches, thinner worn ones, never uniform speckle.
         const clump = .5 + .5 * fbm(x / 7 + 13, z / 7 - 5), edge = onRoad(x, z, 1.6) || onPaving(x, z, 1.2) || blocked(x, z, y, 1.0);
-        const density = .42 + .58 * THREE.MathUtils.smoothstep(clump, .15, .6);
+        // A trodden path keeps only a few flattened tufts along its edges.
+        const wear = pathWear(x, z);
+        const density = (.42 + .58 * THREE.MathUtils.smoothstep(clump, .15, .6)) * (1 - wear * .9);
         groundPaint(x, z, albedo);
         if (r < density) {
           const size = .85 + r2 * .5 + (edge ? .15 : 0);
@@ -257,11 +257,13 @@ export class GroundCover {
         const r3 = hash(gx, gz, 5);
         if (r3 >= .065) continue;
         const underTree = shade.some(t => Math.hypot(x - t.pos.x, z - t.pos.z) < t.scale.y * .34);
-        const flowerPatch = fbm(x / 5 - 31, z / 5 + 17) > .38, cloverPatch = fbm(x / 4 + 71, z / 4 - 3) > .45;
+        // Wildflowers grow in the clusters the colour map speckles, densest at their hearts.
+        const bloom = wear > .3 ? 0 : wildflowers(x, z), cloverPatch = fbm(x / 4 + 71, z / 4 - 3) > .45;
+        const flowerPatch = bloom > 0 && r3 < .012 + bloom * .038;
         if (edge && r3 < .045) accent('wild', x, y, z, r2, groundTint('wild-grass', albedo));
         else if (underTree && r3 < .05) accent('leaves', x, y, z, r2, LEAVES);
         else if (underTree && r3 < .065) accent('wild', x, y, z, r2, groundTint('wild-grass', albedo), .85);
-        else if (flowerPatch && r3 < .03) accent(r2 < .55 ? 'impatiens' : 'flowers', x, y, z, hash(gx, gz, 6), FLOWERS);
+        else if (flowerPatch) accent(r2 < .45 ? 'impatiens' : 'flowers', x, y, z, hash(gx, gz, 6), FLOWERS);
         else if (cloverPatch && r3 < .02) accent('clover', x, y, z, r2, CLOVER);
       }
       if (!lawnMatrices.length && !accents.length) continue;

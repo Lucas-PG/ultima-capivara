@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { afterAll, expect, it } from 'vitest';
 import { GROUND_COVER, GROUND_COVER_MAX_HEIGHT, GroundCover } from '../src/render/ground-cover';
 import { createWorld } from '../src/shared/world';
-import { ROADS } from '../src/shared/layout';
-import { terrainHeight } from '../src/shared/terrain';
+import { NAV_ROUTES, ROADS } from '../src/shared/layout';
+import { grassAlbedo, pathWear, terrainColor, terrainHeight } from '../src/shared/terrain';
 import { buildTemplates } from '../src/render/vegetation/templates';
 import { vegetationDressing } from '../src/shared/vegetation-dressing';
 import { SPECIES } from '../src/shared/vegetation-species';
@@ -44,6 +44,41 @@ it('grows the lawn from plain blades tinted by the ground, away from roads and s
     expect(violations).toEqual([]);
     expect(tinted / lawns.reduce((n, m) => n + m.count, 0)).toBeGreaterThan(.98);
   }
+});
+
+it('varies an open field in tone patches and wears bare paths along the routes, where the lawn thins', () => {
+  const luminance = ([r, g, b]: number[]) => .2126 * r + .7152 * g + .0722 * b;
+  // Open fields read as one flat colour from a few strides away: neighbouring
+  // 5 m samples must differ in tone, not only across the 40 m broad washes.
+  for (const [x0, z0] of [[60, -60], [20, 50], [-60, -10], [40, -60]]) {
+    let difference = 0, samples = 0;
+    for (let x = x0; x < x0 + 40; x += 5) for (let z = z0; z < z0 + 40; z += 5, samples++)
+      difference += Math.abs(luminance(grassAlbedo(x, z)) - luminance(grassAlbedo(x + 5, z)));
+    expect(difference / samples, `field at ${x0},${z0}`).toBeGreaterThan(.02);
+  }
+  // Wear follows the routes through grass and stops at the paving.
+  let grass = 0, worn = 0;
+  for (const route of NAV_ROUTES) for (let i = 1; i < route.length; i++) for (let t = 0; t <= 1; t += .05) {
+    const x = route[i - 1][0] + (route[i][0] - route[i - 1][0]) * t, z = route[i - 1][1] + (route[i][1] - route[i - 1][1]) * t;
+    if (ROADS.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) { expect(pathWear(x, z)).toBe(0); continue; }
+    if (ROADS.some(([x0, z0, x1, z1]) => x > x0 - 2 && x < x1 + 2 && z > z0 - 2 && z < z1 + 2)) continue;
+    const y = terrainHeight(x, z);
+    if (!['#88A65C', '#AEC47C', '#BBBC79'].includes(terrainColor(x, z, y, 0))) continue;
+    grass++; if (pathWear(x, z) > .4) worn++;
+  }
+  expect(grass).toBeGreaterThan(100);
+  expect(worn / grass).toBeGreaterThan(.6);
+  // On a trodden strip the lawn keeps only a few tufts.
+  const matrix = new THREE.Matrix4(); let onPath = 0, offPath = 0;
+  for (const node of shared.group.children) {
+    if (!(node instanceof THREE.InstancedMesh)) continue;
+    for (let i = 0; i < node.count; i++) {
+      node.getMatrixAt(i, matrix);
+      const wear = pathWear(matrix.elements[12] + node.position.x, matrix.elements[14] + node.position.z);
+      if (wear > .9) onPath++; else if (wear === 0) offPath++;
+    }
+  }
+  expect(onPath / Math.max(1, offPath)).toBeLessThan(.01);
 });
 
 it('keeps every accent shorter than a crouched capybara and flat patches on the ground', () => {
