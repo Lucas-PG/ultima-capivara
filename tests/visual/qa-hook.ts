@@ -25,10 +25,12 @@ type QaApi = {
   start(): Promise<void>;
   pose(name: string): Promise<{ camera: { x: number; y: number; z: number }; drawCalls: number; triangles: number }>;
   quality(quality: Quality): void;
-  actors(count: number): void;
+  actors(count: number, positions?: Pick<Vec3, 'x' | 'z'>[]): void;
   loading(on: boolean): void;
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
+  /** Uncapped cost of one frame: CPU submission plus GPU completion, median of `frames`. */
+  bench(frames: number): Promise<{ medianMs: number; p90Ms: number; gpuMedianMs: number | null; gpuP90Ms: number | null }>;
   names(): string[];
   motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
@@ -55,6 +57,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   const base = fixture.snapshot();
   let renderer: GameRenderer | null = null, current: WorldSnapshot | null = null, looping = false, actorCount = 1, renderedFrames = 0;
   let pendingFrame: number | null = null;
+  let actorPositions: Pick<Vec3, 'x' | 'z'>[] = [];
   let preparedIdentities = '';
   let placedRoutes: Map<string, Vec3[]> | undefined;
   const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `ads-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
@@ -219,8 +222,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     for (let i = 1; i < actorCount; i++) {
       const bot = structuredClone(me), angle = i * Math.PI * 2 / (actorCount - 1), radius = 12 + i % 4 * 4;
       bot.id = `bot-qa-${i}`; bot.name = `Bot ${i}`; bot.bot = true; bot.color = PLAYER_COLORS[i % PLAYER_COLORS.length];
-      const bx = x + Math.cos(angle) * radius, bz = z + Math.sin(angle) * radius;
-      bot.pos = { x: bx, y: terrainHeight(bx, bz), z: bz }; bot.yaw = angle + Math.PI;
+      const bx = actorPositions[i - 1]?.x ?? x + Math.cos(angle) * radius, bz = actorPositions[i - 1]?.z ?? z + Math.sin(angle) * radius;
+      bot.pos = { x: bx, y: actorPositions[i - 1] ? walkableHeight(bx, bz, deps.world) : terrainHeight(bx, bz), z: bz }; bot.yaw = angle + Math.PI;
       s.actors.push(bot);
     }
     if (name === 'capyFront' || name === 'capySide' || name.startsWith('tp-')) {
@@ -437,7 +440,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, true);
     },
     quality(quality) { if (!renderer) throw new Error('Call start first'); deps.settings.graphics = quality; renderer.setSettings(deps.settings); draw(); },
-    actors(count) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; },
+    actors(count, positions) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; actorPositions = positions ?? []; },
     loading(on) { deps.ui.setLoading(on); },
     loop(on) {
       if (on === looping) return;
@@ -446,6 +449,32 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       else if (pendingFrame !== null) { cancelAnimationFrame(pendingFrame); pendingFrame = null; }
     },
     stats() { return { ...(renderer?.stats || { drawCalls: 0, triangles: 0 }), renderedFrames }; },
+    async bench(frames) {
+      // A 1-pixel read waits for the GPU, so each sample is a whole frame, free of vsync.
+      // A timer query, where the browser exposes one, isolates the GPU share from CPU load.
+      const gl = document.querySelector('canvas')!.getContext('webgl2')!, pixel = new Uint8Array(4), samples: number[] = [], gpu: number[] = [];
+      const timer = gl.getExtension('EXT_disjoint_timer_query_webgl2') as { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null;
+      const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+      draw(); sync();
+      const queries: WebGLQuery[] = [];
+      for (let i = 0; i < frames; i++) {
+        const query = timer ? gl.createQuery() : null, started = performance.now();
+        if (query) { gl.beginQuery(timer!.TIME_ELAPSED_EXT, query); queries.push(query); }
+        draw();
+        if (query) gl.endQuery(timer!.TIME_ELAPSED_EXT);
+        sync(); samples.push(performance.now() - started);
+      }
+      // Results arrive a little after completion; a disjoint event voids the batch.
+      for (let wait = 0; wait < 40 && queries.some(query => !gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)); wait++)
+        await new Promise(resolve => setTimeout(resolve, 25));
+      const disjoint = timer ? gl.getParameter(timer.GPU_DISJOINT_EXT) : true;
+      for (const query of queries) {
+        if (!disjoint && gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) gpu.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
+        gl.deleteQuery(query);
+      }
+      const at = (values: number[], q: number) => values.length ? values.sort((a, b) => a - b)[Math.floor(values.length * q)] : null;
+      return { medianMs: at(samples, .5)!, p90Ms: at(samples, .9)!, gpuMedianMs: at(gpu, .5), gpuP90Ms: at(gpu, .9) };
+    },
     names: () => names,
     buildings: () => deps.world.pieces!.filter(piece => KIT_PIECES[piece.piece].traversal)
       .map(piece => ({ id: piece.id, piece: piece.piece, role: buildingRole(piece) })),
