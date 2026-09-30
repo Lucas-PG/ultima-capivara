@@ -4,12 +4,14 @@ import * as THREE from 'three';
 import { measure } from '../tools/qa/weapon-contact.mjs';
 
 afterEach(() => { Reflect.deleteProperty(globalThis, 'window'); });
-it('keeps true penetration negative and an exterior wrist positive beside an inward-facing detail', () => {
+it('keeps true penetration negative and certifies an exterior wrist within concave weapon bounds', () => {
   const group = new THREE.Group();
   group.add(new THREE.Mesh(new THREE.BoxGeometry(.1, .1, .1)));
   const sheet = new THREE.BufferGeometry();
   sheet.setAttribute('position', new THREE.Float32BufferAttribute([.08, -.03, -.03, .08, 0, .03, .08, .03, -.03], 3));
   group.add(new THREE.Mesh(sheet));
+  const remote = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, .1));
+  remote.position.set(.2, .3, 0); group.add(remote);
   const positions = new THREE.Float32BufferAttribute([0, 0, 0, .12, 0, 0], 3);
   const mesh = {
     name: 'arm_R', matrixWorld: new THREE.Matrix4(), skeleton: { bones: [{ name: 'hand_R' }, { name: 'fore_twist_R' }] },
@@ -26,6 +28,9 @@ it('keeps true penetration negative and an exterior wrist positive beside an inw
     arms: { meshes: [mesh] }, camera: new THREE.PerspectiveCamera(), targetR: { palm: new THREE.Vector3(-1, 0, 0) },
   } } });
   const result = measure(['test', 'R']);
+  // The wrist is within the combined bounds but outside every actual solid.
+  const bounds = new THREE.Box3().setFromObject(group);
+  expect(bounds.containsPoint(new THREE.Vector3(.12, 0, 0))).toBe(true);
   expect(result.summary.hand.min).toBeCloseTo(-50, 1);
   expect(result.summary.fore_twist.min).toBeCloseTo(40, 1);
 });

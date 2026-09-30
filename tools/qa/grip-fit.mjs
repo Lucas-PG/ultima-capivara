@@ -107,6 +107,33 @@ try {
         const x = Math.max(0, node.lo.x - p.x, p.x - node.hi.x), y = Math.max(0, node.lo.y - p.y, p.y - node.hi.y), z = Math.max(0, node.lo.z - p.z, p.z - node.hi.z);
         return x * x + y * y + z * z;
       };
+      const rayAB = new V3(), rayAC = new V3(), rayN = new V3(), rayAP = new V3(), rayQ = new V3();
+      // A clear ray proves the point is outside all closed weapon solids.
+      const exterior = (pt, root) => {
+        for (const axis of ['x', 'y', 'z']) for (const direction of [1, -1]) {
+          const stack = [root]; let hit = false;
+          while (stack.length && !hit) {
+            const node = stack.pop();
+            if (['x', 'y', 'z'].some(k => k !== axis && (pt[k] < node.lo[k] - 1e-8 || pt[k] > node.hi[k] + 1e-8))) continue;
+            if (direction > 0 ? node.hi[axis] < pt[axis] : node.lo[axis] > pt[axis]) continue;
+            if (!node.items) { stack.push(node.left, node.right); continue; }
+            for (const { a, b, c } of node.items) {
+              rayAB.subVectors(b, a); rayAC.subVectors(c, a); rayN.crossVectors(rayAB, rayAC);
+              const denominator = rayN[axis] * direction;
+              if (Math.abs(denominator) < 1e-14) continue;
+              const t = rayN.dot(rayAP.subVectors(a, pt)) / denominator;
+              if (t <= 1e-8) continue;
+              rayQ.copy(pt); rayQ[axis] += direction * t; rayAP.subVectors(rayQ, a);
+              const aa = rayAB.dot(rayAB), ab = rayAB.dot(rayAC), bb = rayAC.dot(rayAC);
+              const ap = rayAB.dot(rayAP), bp = rayAC.dot(rayAP), det = aa * bb - ab * ab;
+              const u = (bb * ap - ab * bp) / det, v = (aa * bp - ab * ap) / det;
+              if (u >= -1e-8 && v >= -1e-8 && u + v <= 1 + 1e-8) { hit = true; break; }
+            }
+          }
+          if (!hit) return true;
+        }
+        return false;
+      };
       const ab = new V3(), ac = new V3(), ap = new V3(), bp = new V3(), cp = new V3(), q = new V3(), c0 = new V3();
       function closest(p, a, b, c, out) {
         ab.subVectors(b, a); ac.subVectors(c, a); ap.subVectors(p, a);
@@ -134,7 +161,7 @@ try {
           } else if (bound(p, node.left) < bound(p, node.right)) stack.push(node.right, node.left);
           else stack.push(node.left, node.right);
         }
-        if (sign < 0 && bound(p, root) > 1e-12) sign = 1;
+        if (sign < 0 && (bound(p, root) > 1e-12 || exterior(p, root))) sign = 1;
         return Math.sqrt(best) * sign;
       }
       // ---- paw vertices grouped by their dominant bone; palm side from the bind pose (palm faces -y at rest)

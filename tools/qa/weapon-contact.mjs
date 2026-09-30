@@ -67,6 +67,35 @@ export function measure([weapon, side]) {
     const x = Math.max(0, node.lo.x - p.x, p.x - node.hi.x), y = Math.max(0, node.lo.y - p.y, p.y - node.hi.y), z = Math.max(0, node.lo.z - p.z, p.z - node.hi.z);
     return x * x + y * y + z * z;
   };
+  // A clear ray certifies exterior space even within the complete gun bounds.
+  // This avoids treating the outside of a thumbhole bridge as its solid inside.
+  // A point inside a closed solid must hit its boundary in every direction.
+  const rayAB = new V3(), rayAC = new V3(), rayN = new V3(), rayAP = new V3(), rayQ = new V3();
+  const exterior = pt => {
+    for (const axis of ['x', 'y', 'z']) for (const direction of [1, -1]) {
+      const stack = [tree]; let hit = false;
+      while (stack.length && !hit) {
+        const node = stack.pop();
+        if (['x', 'y', 'z'].some(k => k !== axis && (pt[k] < node.lo[k] - 1e-8 || pt[k] > node.hi[k] + 1e-8))) continue;
+        if (direction > 0 ? node.hi[axis] < pt[axis] : node.lo[axis] > pt[axis]) continue;
+        if (!node.items) { stack.push(node.left, node.right); continue; }
+        for (const [a, b, c] of node.items) {
+          rayAB.subVectors(b, a); rayAC.subVectors(c, a); rayN.crossVectors(rayAB, rayAC);
+          const denominator = rayN[axis] * direction;
+          if (Math.abs(denominator) < 1e-14) continue;
+          const t = rayN.dot(rayAP.subVectors(a, pt)) / denominator;
+          if (t <= 1e-8) continue;
+          rayQ.copy(pt); rayQ[axis] += direction * t; rayAP.subVectors(rayQ, a);
+          const aa = rayAB.dot(rayAB), ab = rayAB.dot(rayAC), bb = rayAC.dot(rayAC);
+          const ap = rayAB.dot(rayAP), bp = rayAC.dot(rayAP), det = aa * bb - ab * ab;
+          const u = (bb * ap - ab * bp) / det, v = (aa * bp - ab * ap) / det;
+          if (u >= -1e-8 && v >= -1e-8 && u + v <= 1 + 1e-8) { hit = true; break; }
+        }
+      }
+      if (!hit) return true;
+    }
+    return false;
+  };
   const c0 = new V3();
   for (const v of measured) {
     let best = Infinity, sign = 1;
@@ -88,7 +117,7 @@ export function measure([weapon, side]) {
     }
     // Outside the complete gun bounds is necessarily outside its surfaces.
     // A concave detail can otherwise lend its inward normal to a distant wrist.
-    if (sign < 0 && bound(v.p, tree) > 1e-12) sign = 1;
+    if (sign < 0 && (bound(v.p, tree) > 1e-12 || exterior(v.p))) sign = 1;
     v.d = Math.sqrt(best) * sign;
     const g = groups[v.bone] ??= { n: 0, inside: 0, min: Infinity, tip: null, tipAlong: -Infinity };
     g.n++; if (v.d < -.0005) g.inside++; if (v.d < g.min) { g.min = v.d; g.at = [v.p.x, v.p.y, v.p.z].map(n => Math.round(n * 1000)); }
