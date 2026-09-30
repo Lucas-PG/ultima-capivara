@@ -591,10 +591,11 @@ def dmr():
         if obj.name.split('.')[0] in ('pistol_grip', 'grip_stipple', 'stipple'):
             for vertex in obj.data.vertices:
                 vertex.co.y = .45 * vertex.co.y - .01815
-    guard = prism('guard', [(-.039, .012), (.047, .012), (.048, -.026), (.034, -.045), (-.026, -.044), (-.043, -.027)], .018, 'olive', bevel=.002, raw=True, smooth=1)
-    cut(guard, cutter_prism([(-.031, .004), (.038, .004), (.037, -.025), (.027, -.035), (-.022, -.034), (-.033, -.02)], .034))
+    guard = prism('guard', [(-.049, .012), (.047, .012), (.048, -.026), (.034, -.055), (-.036, -.054), (-.053, -.027)], .032, 'olive', bevel=.002, raw=True, smooth=1)
+    cut(guard, cutter_prism([(-.041, .004), (.038, .004), (.037, -.025), (.027, -.047), (-.031, -.046), (-.043, -.02)], .048))
     parts['body'] += [complete(guard)]
     parts['trigger'] += [prism('trigger', [(-.001, .006), (.007, .006), (.01, -.007), (.002, -.026), (-.006, -.029), (-.002, -.01)], .007, 'steel', bevel=.001, smooth=2)]
+    parts['trigger'] += [box('trigger_shoe', (.006, .003, -.021), (.025, .01, .014), 'steel', .002)]
     stock = prism('walnut_stock', [(-.089, .08, 1), (-.133, .068), (-.171, .045), (-.217, .055), (-.365, .039), (-.385, .026),
                    (-.385, -.114), (-.364, -.124), (-.232, -.071), (-.17, -.034), (-.114, .005), (-.089, .035, 1)], .049, 'walnut', bevel=.004, smooth=3)
     parts['body'] += [stock]
@@ -693,6 +694,10 @@ def dmr():
     parts['body'] += [cyl('buckle_pin', centre - wide * .016, centre + wide * .016, .0015, 'brass', sides=8, bevel=.0003)]
     sockets = {'muzzle': (0, .68, bore), 'eject': (.026, .055, .074), 'sight': (0, -.106, sz)}
     pivots = {'mag': (0, .081, .022), 'charge': (.023, .061, .074), 'trigger': (0, .004, .006)}
+    # Keep the trigger within a short digit's reach from the backstrap.
+    for obj in parts['trigger']:
+        obj.data.transform(Matrix.Translation((0, -.022, 0)))
+    pivots['trigger'] = (0, -.018, .006)
     return parts, sockets, pivots, {'magAxis': [0, .052, -.999]}
 
 
