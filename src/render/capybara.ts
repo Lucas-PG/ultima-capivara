@@ -112,11 +112,17 @@ function teamMaterial(source: THREE.MeshStandardMaterial, tint: THREE.Color): TH
       .replace('#include <common>', '#include <common>\nuniform vec3 teamColor; varying float vTeam;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         float teamAmount = ${texelMask ? 'texture2D(metalnessMap, vMetalnessMapUv).r' : 'vTeam'};
+        // Far away the mipmapped texel mask blurs into the fur around the cloth, and a golden team
+        // colour then reads as more fur: the vertex mask takes over (crisp by geometry), and the
+        // cloth carries a little of its own colour as light, so it keeps its hue in shade at 60 m.
+        float teamFar = smoothstep(18.0, 45.0, length(vViewPosition));
+        teamAmount = mix(teamAmount, vTeam, teamFar);
         // Keep the painted light (folds, weave, AO) of the authored cloth, swap only its hue.
         float teamShade = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722)) / .36;
-        diffuseColor.rgb = mix(diffuseColor.rgb, teamColor * clamp(teamShade, .35, 1.3), teamAmount);`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, teamColor * clamp(mix(teamShade, 1.0, teamFar), .35, 1.3), teamAmount);
+        totalEmissiveRadiance += teamColor * teamAmount * teamFar * .45;`);
   };
-  material.customProgramCacheKey = () => `capivara-team-v6:${texelMask}`;
+  material.customProgramCacheKey = () => `capivara-team-v7:${texelMask}`;
   return applyCharacterStyle(material, 4);
 }
 
