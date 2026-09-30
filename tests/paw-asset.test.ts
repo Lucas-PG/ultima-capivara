@@ -125,3 +125,23 @@ it('grows fur shells only over the baked pelt', async () => {
   expect(shells).toHaveLength(2);
   for (const shell of shells) expect(shell.geometry.index!.count).toBe(18 * FUR_SHELLS);
 });
+
+// The first-person paw is the world character's paw at the first-person gun scale: world guns
+// are drawn at TP_WEAPON_SCALE so the big paw holds them, first-person guns at 1, so every grip
+// reads with the same paw-to-gun proportion in both views. Joint nodes carry true metres (mesh
+// quantization lives in the inverse bind matrices).
+it('builds the first-person paw as the world paw at 1 / TP_WEAPON_SCALE', async () => {
+  const { TP_WEAPON_SCALE } = await import('../src/render/capybara');
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
+  const joints = async (path: string, hand: string, prefix: string) => {
+    const doc = await io.read(path);
+    const at = (name: string) => new Vector3().setFromMatrixPosition(new Matrix4().fromArray(doc.getRoot().listNodes().find(n => n.getName() === name)!.getWorldMatrix()));
+    const wrist = at(`${hand}_R`), p = (n: string) => at(`${prefix}${n}_R`);
+    return { knuckle: wrist.distanceTo(p('middle1')), middle: p('middle1').distanceTo(p('middle2')), tip: p('middle2').distanceTo(p('middle3')),
+      span: p('index1').distanceTo(p('ring1')), thumb: p('thumb1').distanceTo(p('thumb2')) };
+  };
+  const fp = await joints('public/models/fp/fp-arms.glb', 'hand', ''), tp = await joints('public/models/capybara/capybara.glb', 'paw', 'paw_');
+  for (const key of Object.keys(fp) as (keyof typeof fp)[]) expect(fp[key] * TP_WEAPON_SCALE / tp[key], key).toBeCloseTo(1, 2);
+  // And it is the big paw, not the old small one (about 9 cm from wrist to the middle knuckle).
+  expect(fp.knuckle).toBeGreaterThan(.08);
+});
