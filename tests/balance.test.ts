@@ -35,6 +35,7 @@ describe('weapon roles at ideal direct-hit accuracy', () => {
     // A point-blank headshot with the Doze is the one hitscan instant kill besides the sniper.
     expect(shots('shotgun', 4, true)).toBe(1);
     expect(shots('sniper', 150, true)).toBe(1);
+    for (const id of ['pistol', 'smg', 'm4', 'dmr', 'revolver'] as const) expect(shots(id, 10, true), id).toBeGreaterThan(1);
   });
 
   it('keeps fights readable: no body shot one-shots a fresh capybara with a common gun, and nothing kills in under a quarter second', () => {

@@ -25,7 +25,7 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
   sniper: { name: 'Sniper', shortName: 'Sniper', description: 'Rifle .308 de ferrolho', ammo: '308', magazine: 5, damage: 90, rpm: 50, reload: 3, range: 240, headMultiplier: 2.5, spread: 5, adsSpread: 0 },
   machete: { name: 'Facão', shortName: 'Facão', description: 'Arma corpo a corpo', ammo: null, magazine: 0, damage: 45, rpm: 120, reload: 0, range: 2.4, headMultiplier: 1.4, spread: 0, adsSpread: 0, melee: true },
   // Heavy sidearm: two shots if one of them is to the head, three to the body.
-  revolver: { name: 'Trinta-e-oito', shortName: '38', description: 'Revólver de seis tiros', ammo: '38', magazine: 6, damage: 42, rpm: 170, reload: 2.3, range: 110, headMultiplier: 2.4, spread: 1.3, adsSpread: .08 },
+  revolver: { name: 'Trinta-e-oito', shortName: '38', description: 'Revólver de seis tiros', ammo: '38', magazine: 6, damage: 42, rpm: 170, reload: 2.3, range: 110, headMultiplier: 2.3, spread: 1.3, adsSpread: .08 },
   // Arcing coconut that bursts on contact: splash clears cover and punishes camping.
   coco: { name: 'Lança-coco', shortName: 'Coco', description: 'Coco explosivo em arco', ammo: 'coco', magazine: 4, damage: 90, rpm: 60, reload: 2.8, range: 70, headMultiplier: 1, spread: .7, adsSpread: .3, projectile: true, speed: 30, splash: 4.2 },
 };
