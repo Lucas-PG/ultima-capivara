@@ -6,7 +6,9 @@ type Command =
   | { type: 'input'; id: string; input: InputFrame }
   | { type: 'action'; id: string; action: PlayerAction }
   | { type: 'player'; profile: PlayerProfile; status: 'join' | 'disconnect' | 'reconnect' | 'expired' }
-  | { type: 'stop' };
+  | { type: 'stop' }
+  // QA builds only (VITE_QA=1): deal damage so death and spectator flows can be reproduced on demand.
+  | { type: 'qa-damage'; target: string; attacker: string | null; amount: number; weapon: string };
 
 let simulation: Simulation | null = null;
 let previous = performance.now();
@@ -24,6 +26,11 @@ self.onmessage = ({ data }: MessageEvent<Command>) => {
     else if (data.type === 'input') simulation?.input(data.id, data.input);
     else if (data.type === 'action') simulation?.action(data.id, data.action);
     else if (data.type === 'player') simulation?.player(data.profile, data.status);
+    else if (data.type === 'qa-damage' && import.meta.env.VITE_QA === '1' && simulation) {
+      const sim = simulation as unknown as { actors: Map<string, unknown>; damage(target: unknown, raw: number, attacker: string | null, weapon: string, head: boolean): void };
+      const target = sim.actors.get(data.target);
+      if (target) sim.damage(target, data.amount, data.attacker, data.weapon, false);
+    }
   } catch (error) {
     self.postMessage({ type: 'error', message: error instanceof Error ? error.message : 'A simulação foi interrompida.' });
   }
