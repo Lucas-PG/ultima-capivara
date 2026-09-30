@@ -488,6 +488,10 @@ export function createWorld(): WorldSpec {
       ['lenha', -69.8, 12.8, Math.PI / 2], ['lenha', -65.4, 18.2, .08], ['feixe_cana', -64.6, 14.2, .3],
       ['barrel', -72.4, 17.3, 0], ['barrel', -71.3, 17.8, 0], ['barrel', -71.9, 16.4, 0], ['sacos', -69.4, 17.2, .2],
       ['bench', -67.6, 13.6, Math.PI], ['crate', -77, 9.5, .3],
+      // The lane between the hall and the terrace backs: cane stacked against the
+      // hall's south wall between its arches, sacks and barrels by the east end.
+      ['feixe_cana', -89.6, 22.6, 0], ['feixe_cana', -78.8, 22.6, Math.PI], ['sacos', -76.9, 24.4, .1],
+      ['barrel', -79.4, 24.4, 0], ['cocho', -73, 22, 0],
     ] as const) if (!occupied(x, z, .3)) detail(piece, x, z, yaw, piece === 'crate' ? .85 : 1);
     // Cane in the field: more patches up the slope south of Rua do Engenho.
     for (const [x, z, yaw] of [[-104, 51, .06], [-97, 52, -.05], [-90, 51.5, .08], [-83, 52.5, -.03]] as const)
