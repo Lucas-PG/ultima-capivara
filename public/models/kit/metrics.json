@@ -510,8 +510,8 @@
       "id": "campinho",
       "triangles": [
         7792,
-        2880,
-        702
+        2874,
+        684
       ],
       "colliders": 49
     },
@@ -876,6 +876,6 @@
       "colliders": 6
     }
   ],
-  "bytes": 11342720,
-  "gzipBytes": 3113682
+  "bytes": 11342388,
+  "gzipBytes": 3113859
 }

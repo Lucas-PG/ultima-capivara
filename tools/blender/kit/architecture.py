@@ -266,7 +266,7 @@ def campinho(Piece, name='campinho'):
             face = x + side * .135
             p.box(face, .5, stand_z + 1.9, .02, 1.0, 3.9, 2, bevel=0)
             p.box(face, 1.08, stand_z + 1.9, .02, .16, 3.9, 15, bevel=0)
-            p.box(face, 1.62, stand_z + 1.9, .02, .7, 2.6, 1 if x < 0 else 3, bevel=0, detail=True)
+            p.box(face, 1.72, stand_z + 1.9, .02, .9, 3.5, 1 if x < 0 else 3, bevel=0)
         p.box(x, 2.44, stand_z + 1.9, .36, .1, 4.1, 15, bevel=.015)
     for i in range(7):
         p.box(-9 + i * 3, 2.9, stand_z + 3.75, 1.6, .5, .08, 1 if i % 2 else 3, detail=True)
