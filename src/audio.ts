@@ -136,7 +136,7 @@ export class SoundEngine {
     ambienceTone.type = 'lowpass'; ambienceTone.frequency.value = 20000; ambienceTone.Q.value = .5;
     // Master chain: a fast limiter, then a soft clipper that can never reach full scale.
     const limiter = context.createDynamicsCompressor();
-    limiter.threshold.value = -6; limiter.knee.value = 3; limiter.ratio.value = 20; limiter.attack.value = .002; limiter.release.value = .15;
+    limiter.threshold.value = -8; limiter.knee.value = 3; limiter.ratio.value = 20; limiter.attack.value = .001; limiter.release.value = .15;
     const clipper = context.createWaveShaper();
     clipper.curve = safetyCurve() as Float32Array<ArrayBuffer>; clipper.oversample = 'none';
     remoteFire.connect(effects);

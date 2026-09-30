@@ -18,20 +18,21 @@ export const LEVEL = {
   pickup: -23, chime: -26, use: -24, ui: -26, uiHover: -32, notice: -28, tick: -26, whistle: -22, zoneWarn: -22,
   supply: -24, supplyLand: -16, bounce: -25, poof: -26, chute: -24, upgrade: -26, respawn: -25,
   // Beds (mean loudness at full presence) and island life.
-  surf: -30, wind: -34, leaves: -33, harbour: -30, waterfall: -24, storm: -25, stormWall: -34,
-  cabin: -27, engine: -20, freefall: -26, canopy: -31, critter: -28, thunder: -24, crackle: -34,
+  surf: -28, wind: -32, leaves: -31, harbour: -28, waterfall: -22, storm: -23, stormWall: -32,
+  cabin: -25, engine: -18, freefall: -24, canopy: -29, critter: -26, thunder: -24, crackle: -34,
   // Music.
-  menu: -29, drop: -33, tension: -34, dance: -27, victory: -23, defeat: -25,
+  menu: -18, drop: -26, tension: -27, dance: -24, victory: -18, defeat: -20,
 } as const;
 export type LevelId = keyof typeof LEVEL;
 
 export const dbToGain = (db: number) => 10 ** (db / 20);
 /**
  * Output trim: the table is written with your own shot at -14 LUFS, and the whole mix
- * sits 4 dB lower so sustained fire stays under the limiter instead of into the clipper
- * (measured in Chrome: an automatic firefight peaked at -0.7 dBFS untrimmed).
+ * sits 6 dB lower so sustained fire stays under the limiter instead of into the clipper
+ * (measured in Chrome: an automatic firefight peaked at -0.7 dBFS untrimmed, and spent
+ * 0.08% of samples in the clipper's knee at -4 dB). Beds are written 2 dB hotter to match.
  */
-export const OUTPUT_TRIM = -4;
+export const OUTPUT_TRIM = -6;
 /** Linear gain for a baked buffer to play at `level` LUFS (before the sliders). */
 export const levelGain = (level: number) => dbToGain(level - REF_LUFS + OUTPUT_TRIM);
 

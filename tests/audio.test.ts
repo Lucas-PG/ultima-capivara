@@ -215,7 +215,8 @@ describe('mix graph', () => {
   });
 
   it('keeps the recommended slider defaults and applies live volume changes', async () => {
-    expect([DEFAULT_SETTINGS.master, DEFAULT_SETTINGS.effects, DEFAULT_SETTINGS.ambience, DEFAULT_SETTINGS.music]).toEqual([.8, .85, .45, .25]);
+    // Music is a real score now (bossa menu, drop samba, endgame pulse), so it defaults to half.
+    expect([DEFAULT_SETTINGS.master, DEFAULT_SETTINGS.effects, DEFAULT_SETTINGS.ambience, DEFAULT_SETTINGS.music]).toEqual([.8, .85, .45, .5]);
     const { audio } = await engine();
     audio.setSettings({ ...DEFAULT_SETTINGS, music: .1 });
     expect(audio.buses.master.gain.last).toEqual(['target', .8, 1, .025]);

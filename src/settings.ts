@@ -12,7 +12,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
 export const BINDABLE_CODE = /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Backquote|Arrow(Up|Down|Left|Right)|Mouse[0-4])$/;
 export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 1, fov: 100, graphics: 'medium', frameLimit: 60, reducedMotion: false,
-  master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
+  master: .8, effects: .85, ambience: .45, music: .5, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
   showFps: false, uiScale: 1, crosshairColor: 'white', hitPalette: 'default',
 };
 const STORAGE_KEY = 'uc-v2-settings';

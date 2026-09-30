@@ -65,7 +65,7 @@ await page.addInitScript(() => {
   };
 });
 
-await page.goto(`${process.env.BASE || 'http://127.0.0.1:5175'}/?networkQa=1&calm`);
+await page.goto(`${process.env.BASE || 'http://127.0.0.1:5175'}/?networkQa=1&calm&timing=1${process.env.QUERY || ''}`);
 await page.locator(`[data-mode="${mode}"]`).click();
 await page.locator('[data-do="practice"]').click();
 await page.waitForFunction(() => { const s = window.__capivara?.inspect(); return s?.snapshot && !s.renderState.loading; }, null, { timeout: 120000 });
