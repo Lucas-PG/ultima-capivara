@@ -74,7 +74,7 @@ export interface BotBrain {
   leisureAt: number; leisureScanAt: number; celebrateAt: number; celebrateUntil: number;
   hearPos: Vec3 | null; lastAttacker: string | null;
   avoidOff: number; avoidAt: number; stuckAt: number; lastPos: Vec3;
-  recoveryYaw: number | null; recoveryJump: boolean; recoveryUntil: number;
+  recoveryYaw: number | null; recoveryJump: boolean; recoveryUntil: number; preciseStuck: number;
   via: Vec3 | null; routeFor: Vec3 | null; routeAt: number; ignore: Map<string, number>;
   land: Vec3 | null; jumpAt: number;
   reloading: boolean; drop: Vec3 | null; lastVia: Vec3 | null; lootFor: string | null; lootSince: number; pressT: number; avoidHold: number; face: number; hearLock: number;
@@ -86,7 +86,7 @@ export function createBrain(elite: boolean, skill: number, pos: Vec3, flank: num
     target: null, sees: false, lastSeen: null, lastSeenAt: -99, trackT: 0, reactT: 0,
     fireAt: 0, burst: 0, strafeDir: 1, strafeUntil: 0, aimVelocity: null, aimFor: null, mode: 'roam', coverPt: null, flank,
     peekPt: null, peekUntil: 0,
-    recoveryYaw: null, recoveryJump: false, recoveryUntil: 0,
+    recoveryYaw: null, recoveryJump: false, recoveryUntil: 0, preciseStuck: 0,
     goal: null, loot: null, lootScanAt: -99, zoneGoal: null, hearPos: null, lastAttacker: null,
     leisure: null, leisureAt: 0, leisureScanAt: 0, celebrateAt: 0, celebrateUntil: 0,
     avoidOff: 0, avoidAt: 0, stuckAt: -1, lastPos: { ...pos }, via: null, routeFor: null, routeAt: 0, ignore: new Map(), land: null, jumpAt: Infinity, reloading: false, drop: null, lastVia: null, lootFor: null, lootSince: 0, pressT: 0, avoidHold: 0, face: Number.NaN, hearLock: 0,

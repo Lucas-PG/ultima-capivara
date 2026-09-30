@@ -52,6 +52,8 @@ export class BotBuildingRoutes {
     });
   }
   contains(point: Vec3) { return !!this.floorAt(point); }
+  /** Abandon the current journey; the next step plans afresh. */
+  release(bot: object) { this.journeys.delete(bot); }
 
   private select(floor: Floor, from: Vec3, goal: Vec3, reverse: boolean): BuildingRoute | undefined {
     let best: BuildingRoute | undefined, cost = Infinity;

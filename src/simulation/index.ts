@@ -1508,6 +1508,9 @@ export class Simulation {
     if (ml === 0 || !(s.grounded || s.swimming) || b.stuckAt < 0) { b.stuckAt = now; b.lastPos = { ...s.pos }; }
     else if (now - b.stuckAt > 1) {
       if (Math.hypot(s.pos.x - b.lastPos.x, s.pos.z - b.lastPos.z) < .4) {
+        // Precise stair steering has no side-steps or recovery of its own. Three
+        // seconds without progress on it and the journey is planned afresh.
+        if (preciseBuilding && !b.drop && ++b.preciseStuck >= 3) { this.buildingRoutes.release(b); b.preciseStuck = 0; }
         if ((!preciseBuilding || b.drop) && now >= b.recoveryUntil) {
           const recovery = recoveryDirection(this.world, s, b.zoneGoal ?? b.routeFor ?? b.goal, this.config.mode);
           b.recoveryYaw = recovery?.yaw ?? null; b.recoveryJump = recovery?.jump ?? false;
@@ -1522,6 +1525,7 @@ export class Simulation {
         if ((b.recoveryYaw === null || now >= b.recoveryUntil) && (!preciseBuilding || b.drop) && s.grounded && this.grid.ray({ x: s.pos.x, y: s.pos.y + .3, z: s.pos.z }, ahead, 1) !== null &&
           this.grid.ray({ x: s.pos.x, y: s.pos.y + 1.1, z: s.pos.z }, ahead, 1.2) === null) jump = true;
       }
+      else b.preciseStuck = 0;
       b.lastPos = { ...s.pos }; b.stuckAt = now;
     }
     // Out of combat the heading eases toward where the bot wants to face; in a fight it tracks the target directly.
