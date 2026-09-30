@@ -336,6 +336,9 @@ def _paint_texels(p, n, mat, edge, ao, face):
                 uq = (qh - (e - E[:, 2] * .026 + E[:, 0] * .004)) @ E
                 under = ss(1.2, .5, np.linalg.norm(uq / np.array([.036, .020, .012], F), axis=1))
                 ch = lerp(ch, srgb('B98050'), under * .45)
+            # The nostril walls cut through the pad into the fur below: keep them dark too.
+            dn = np.min([np.linalg.norm((qh - c0) / np.array([1, 1.6, 1], F), axis=1) for c0 in face.nostrils], 0)
+            ch = lerp(ch, srgb('100C0A'), ss(.022, .012, dn)); hh = hh * ss(.012, .022, dn)
             ear = mat[fur][hs] == M['ear_in']
             ch[ear] = lerp(srgb('5E4034'), srgb('3E2A22'), S.fbm(qh[ear] * 300, 2, 9)) * (.9 + .2 * strand[hs][ear])[:, None]
             hh[ear] *= .3

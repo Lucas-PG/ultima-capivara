@@ -10,7 +10,7 @@
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 2275
+      "triangles": 2273
     }
   ],
   "hitbox": {
@@ -71,14 +71,14 @@
   "voxel": 0.0025,
   "eye": {
     "L": [
-      -0.1417693793773651,
-      1.7215126752853394,
-      -0.048583727329969406
+      -0.14018411934375763,
+      1.7169278860092163,
+      -0.07427980750799179
     ],
     "R": [
-      0.1417693793773651,
-      1.7215126752853394,
-      -0.048583727329969406
+      0.14018411934375763,
+      1.7169278860092163,
+      -0.07427980750799179
     ]
   },
   "locomotionSpeed": {
@@ -225,9 +225,9 @@
   "materials": 1,
   "skins": 1,
   "joints": 67,
-  "bytes": 8834056,
-  "statueBytes": 54996,
-  "rawBytes": 6303436,
+  "bytes": 8915904,
+  "statueBytes": 54976,
+  "rawBytes": 6297112,
   "texture": {
     "format": "baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)",
     "count": 3,

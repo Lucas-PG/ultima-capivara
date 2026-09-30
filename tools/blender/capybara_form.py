@@ -46,7 +46,7 @@ HIP = v(.118, .770, .018)
 KNEE = v(.128, .440, -.012)
 ANKLE = v(.132, .112, .030)
 TOE = v(.134, .040, -.150)
-EYE = v(.140, 1.716, -.052)
+EYE = v(.140, 1.714, -.078)
 EAR = v(.112, 1.776, .082)
 # The world paw is the first-person paw scaled up (it reads the weapon at distance); held
 # weapons scale with it, so first-person grip specs stay valid in weapon space.
@@ -202,9 +202,9 @@ def eye_point(s):
     """Eye centre, seated half into the head surface high on the side, looking out and forward
     enough that both eyes read from the front."""
     if s not in _EYES:
-        out = norm(side((.80, .16, -.58), s))
+        out = norm(side((.74, .16, -.66), s))
         surface = on_surface(head_mass(), side(EYE, s))[0]
-        _EYES[s] = (surface - out * EYE_R * .45, out)
+        _EYES[s] = (surface - out * EYE_R * .36, out)
     return _EYES[s]
 
 
