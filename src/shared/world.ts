@@ -476,8 +476,22 @@ export function createWorld(): WorldSpec {
     landmark('waterwheel', WATER_WHEEL[0], WATER_WHEEL[1], 0, WATER_LEVEL);
     for (const [x, z, yaw] of [[-100, 44, .05], [-93, 45.5, -.04], [-86, 44, .1], [-79, 46, 0], [-114, 26, 1.6], [-114, 34, 1.5], [-114, 42, 1.62]] as const)
       detail('canavial', x, z, yaw, 1, ground(x, z) - .05);
-    for (const [piece, x, z, yaw] of [['sacos', -95, 12.2, .2], ['sacos', -94, 23.5, 0], ['barrel', -76.5, 23.8, 0], ['barrel', -75.6, 24.4, 0],
-      ['carrinho_coco', -92, 27.5, 1.2], ['crate', -77, 9.5, .3]] as const) if (!occupied(x, z, .3)) detail(piece, x, z, yaw, piece === 'crate' ? .85 : 1);
+    // The cane yard west of the hall, under the casa-grande's veranda: an ox
+    // cart unloading at the mill door, cut cane stacked for the rollers, the
+    // oxen's trough, a juice press and a bench by the lane. East of the hall,
+    // the furnace side: firewood under lean-tos by the chimney and barrels of
+    // cachaça waiting for the boat. Everything keeps off the lanes and routes.
+    for (const [piece, x, z, yaw] of [
+      ['carro_boi', -96.2, 20.6, Math.PI], ['feixe_cana', -97.3, 14.4, .08], ['feixe_cana', -96.9, 11.6, -.12], ['feixe_cana', -94.1, 12.6, 1.52],
+      ['cocho', -99, 17, Math.PI / 2], ['garapeira', -98.2, 24.7, -Math.PI / 2], ['bench', -98.4, 22.4, Math.PI], ['sacos', -94.4, 24.3, 0],
+      ['barrel', -93.4, 25.1, 0], ['carrinho_coco', -92, 27.5, 1.2],
+      ['lenha', -69.8, 12.8, Math.PI / 2], ['lenha', -65.4, 18.2, .08], ['feixe_cana', -64.6, 14.2, .3],
+      ['barrel', -72.4, 17.3, 0], ['barrel', -71.3, 17.8, 0], ['barrel', -71.9, 16.4, 0], ['sacos', -69.4, 17.2, .2],
+      ['bench', -67.6, 13.6, Math.PI], ['crate', -77, 9.5, .3],
+    ] as const) if (!occupied(x, z, .3)) detail(piece, x, z, yaw, piece === 'crate' ? .85 : 1);
+    // Cane in the field: more patches up the slope south of Rua do Engenho.
+    for (const [x, z, yaw] of [[-104, 51, .06], [-97, 52, -.05], [-90, 51.5, .08], [-83, 52.5, -.03]] as const)
+      if (!occupied(x, z, 2)) detail('canavial', x, z, yaw, 1, ground(x, z) - .05);
   }
 
   // Palafitas: the fishing village on stilts in the Lagoa da Maré. A boardwalk
@@ -500,6 +514,15 @@ export function createWorld(): WorldSpec {
     for (const [x, z, yaw] of [[91.5, 80.8, .9], [93.4, 82.6, 1.2]] as const) detail('boat', x, z, yaw, .75, ground(x, z) - .08);
     const deck = bed + (KIT_PIECES.passarela?.traversal?.floors[0].y ?? 2);
     detail('rede_pesca', 96.6, 96.4, .4, .8, deck); detail('rede_pesca', 88.6, 83.4, 1.2, 1, ground(88.6, 83.4));
+    // The fishermen's shore: fish drying on racks, traps heaped by the boats,
+    // crates for the catch; traps on the verandas beside the doors.
+    for (const [piece, x, z, yaw] of [['varal_peixe', 80.6, 79.6, .35], ['varal_peixe', 91.2, 81.5, -.2], ['covo', 89.9, 78.6, .5],
+      ['covo', 83.2, 84.8, -.3], ['crate', 95.2, 81.2, .2], ['barrel', 78.8, 83.6, 0]] as const)
+      if (!occupied(x, z, .3)) detail(piece, x, z, yaw, 1, ground(x, z));
+    for (const house of pieces.filter(piece => /^palafita/.test(piece.piece))) {
+      const at = lotPoint({ x: house.x, z: house.z, yaw: house.yaw } as HouseLot, -2.9, 3.1);
+      detail('covo', at.x, at.z, house.yaw, .8, deck);
+    }
     sign(76.5, 83, 'PALAFITAS');
   }
 
@@ -768,6 +791,8 @@ export function createWorld(): WorldSpec {
   };
   tree(-17, -17, 8.4, 'tree', 'ipe-yellow'); tree(1, -21, 8, 'tree', 'ipe-pink');
   tree(-63, -55, 9.2, 'tree', 'flamboyant'); tree(77, 78, 4.8, 'tree', 'banana'); tree(-60, 84, 5.2, 'tree', 'banana');
+  // Shade over the Engenho's furnace yard, where the cart teams rest.
+  tree(-61.5, 21, 7.4, 'tree', 'mango');
   // Low, broad crowns at the rock toes give the escarpment a living foreground.
   // They share the existing instanced foliage and replace part of the scatter.
   let shrubs = 0;
