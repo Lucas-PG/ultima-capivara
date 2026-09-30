@@ -202,3 +202,51 @@ export function terrainColor(x: number, z: number, y: number, slope: number,
   if (fbm(x / 48 - 4, z / 48 + 9) > .28) return WORLD_PALETTE.dryGrass;
   return fbm(x / 36 + 7, z / 36 + 3) > 0 ? WORLD_PALETTE.grassLight : WORLD_PALETTE.grass;
 }
+
+const hexRgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
+const soften = (value: number) => ease(value);
+const GRASS_SHADE = hexRgb(WORLD_PALETTE.grass), GRASS_LIGHT = hexRgb(WORLD_PALETTE.grassLight), GRASS_DRY = hexRgb(WORLD_PALETTE.dryGrass);
+/** Lush hollows (clover and long grass) and sun-bleached, trodden ground: the field's own tones. */
+const GRASS_LUSH = hexRgb('#6E9A4C'), GRASS_STRAW = hexRgb('#C6BF80'), TRODDEN = hexRgb('#B59568');
+const roadsAt = buckets(ROADS, rect => grow(rect, 1.01));
+/**
+ * Worn ground along the walking routes where they leave the paving: a
+ * trodden strip about 1.5 m wide with ragged edges and grassy breaks,
+ * 0 (grass) to 1 (bare earth). Streets and squares are paved, so wear stops
+ * at their kerbs.
+ */
+export function pathWear(x: number, z: number): number {
+  let best = Infinity;
+  for (const r of routesAt(x, z)) {
+    const dx = r.bx - r.ax, dz = r.bz - r.az;
+    const t = Math.max(0, Math.min(1, ((x - r.ax) * dx + (z - r.az) * dz) / (dx * dx + dz * dz)));
+    best = Math.min(best, Math.hypot(x - r.ax - dx * t, z - r.az - dz * t));
+  }
+  if (best > 2.4) return 0;
+  const kerb = roadsAt(x, z).reduce((d, [x0, z0, x1, z1]) => Math.min(d, Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1))), Infinity);
+  const edge = .55 + fbm(x / 2.3 + 11, z / 2.3 - 5) * .35;
+  const strip = 1 - soften((best - edge) / .7);
+  const breaks = soften((fbm(x / 4.5 - 23, z / 4.5 + 7) + .45) / .5);
+  return strip * breaks * soften((kerb - .4) / 1.2);
+}
+/** Clusters of wildflowers in the open grass, 0 to 1: the bake speckles them and ground cover grows them. */
+export function wildflowers(x: number, z: number): number {
+  return soften((fbm(x / 6.5 - 31, z / 6.5 + 17) - .3) / .25);
+}
+/**
+ * The grass albedo at a point, sRGB 0 to 1: the broad mix of the three grass
+ * paints, then tone patches a few strides across (lush hollows, bleached
+ * crowns) so an open field is never one flat colour, then trodden earth along
+ * the routes. The colour-map bake and the lawn tint both read this.
+ */
+export function grassAlbedo(x: number, z: number): [number, number, number] {
+  const greenMix = soften((fbm(x / 36 + 7, z / 36 + 3) + .2) / .4), dryMix = soften((fbm(x / 48 - 4, z / 48 + 9) - .18) / .24);
+  const patch = fbm(x / 11 + 31, z / 11 - 17), fine = fbm(x / 4.2 - 13, z / 4.2 + 29);
+  const lush = soften((patch - .12) / .3) * .5 + soften((fine - .3) / .2) * .15, straw = soften((-patch - .22) / .3) * .42;
+  const wear = pathWear(x, z) * .82;
+  return GRASS_SHADE.map((shade, i) => {
+    let c = (shade + (GRASS_LIGHT[i] - shade) * greenMix) * (1 - dryMix) + GRASS_DRY[i] * dryMix;
+    c += (GRASS_LUSH[i] - c) * lush; c += (GRASS_STRAW[i] - c) * straw;
+    return c + (TRODDEN[i] - c) * wear;
+  }) as [number, number, number];
+}

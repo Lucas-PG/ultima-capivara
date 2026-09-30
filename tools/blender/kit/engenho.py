@@ -42,14 +42,36 @@ def engenho(Piece, name='engenho'):
                 voussoirs(p, x, spring, r, z + face * .37, BLOCK, width=.3, depth=.08, count=9, key=STONE)
         p.box(0, H - .15, z + side * .38, W + .2, .3, .12, TRIM, bevel=.02)
     for side in [-1, 1]:
-        # Solid whitewashed end walls with a blind stone door and a high vent.
+        # Solid whitewashed end walls: a planked double door in a stone frame,
+        # a shuttered window either side, a stone plinth and a round vent high
+        # in the gable, so neither end reads as a blank wall from the yards.
         x = side * W / 2
+        face = x + side * .3
         p.box(x, H / 2, 0, .6, H, D - .9, WALL, True, bevel=0)
         for dz in [-.95, .95]:
-            p.box(x + side * .32, 1.3, dz, .1, 2.6, .25, STONE, bevel=.02)
-        p.box(x + side * .32, 2.72, 0, .1, .25, 2.2, STONE, bevel=.02)
-        p.box(x + side * .31, 1.25, 0, .04, 2.4, 1.65, DARK, bevel=.01)
-        p.box(x + side * .31, 4.1, 0, .04, .5, 1.0, DARK, bevel=0)
+            p.box(face + side * .02, 1.3, dz, .1, 2.6, .25, STONE, bevel=.02)
+        p.box(face + side * .02, 2.72, 0, .1, .25, 2.2, STONE, bevel=.02)
+        for dz in [-.42, .42]:
+            p.box(face + side * .01, 1.25, dz, .05, 2.4, .8, WOOD, bevel=.01)
+            for i in range(4):
+                p.box(face + side * .04, 1.25, dz - .3 + i * .2, .02, 2.3, .03, DARK, bevel=0, detail=True)
+            for y in [.55, 1.95]:
+                p.box(face + side * .045, y, dz, .025, .09, .72, DARK, bevel=0, detail=True)
+        p.orb(face + side * .06, 1.3, -.1, .06, .06, .06, IRON, True)
+        for dz in [-2.9, 2.9]:
+            p.box(face + side * .01, 2.3, dz, .06, 1.2, .9, DARK, bevel=.01)
+            for dy in [-.66, .66]:
+                p.box(face + side * .05, 2.3 + dy, dz, .1, .12, 1.12, STONE, bevel=.02)
+            for dd in [-.62, .62]:
+                p.box(face + side * .05, 2.3, dz + dd, .1, 1.44, .12, STONE, bevel=.02)
+            for open_side in [-1, 1]:
+                # Shutters stand open against the wall, green like the Vila's.
+                p.box(face + side * .06, 2.3, dz + open_side * .95, .05, 1.15, .42, GREEN, bevel=.01)
+                for i in range(5):
+                    p.box(face + side * .09, 1.86 + i * .22, dz + open_side * .95, .02, .05, .36, DARK, bevel=0, detail=True)
+        p.box(face + side * .03, .28, 0, .12, .56, D - .9, STONE, bevel=.02)
+        p.cylinder(face + side * .02, H + 1.15, 0, .5, .08, STONE, sides=14, axis='x')
+        p.cylinder(face + side * .04, H + 1.15, 0, .36, .06, DARK, sides=14, axis='x')
     # Gable walls above the eaves, closing the roof ends.
     rise = 2.6
     for side in [-1, 1]:
@@ -162,7 +184,140 @@ def cana(Piece, name='canavial', width=6.0, depth=4.0, seed=3):
     return p
 
 
+CUT_CANE = [.78, .76, .44]
+CANE_TOP = [.55, .78, .4]
+
+
+def stalks(p, x0, x1, y, z, count, spread, rows=1, seed=0):
+    """Cut cane lying along x: jointed stalks in a loose heap, their leafy tops at +x."""
+    for r in range(rows):
+        n = count - r
+        for i in range(n):
+            zz = z + (i - (n - 1) / 2) * spread * 2 / max(1, count - 1) + ((i * 7 + seed) % 3 - 1) * .015
+            yy = y + r * .085 + ((i + seed) % 2) * .01
+            jitter = ((i * 5 + r * 3 + seed) % 7 - 3) * .02
+            p.beam((x0 + jitter, yy, zz), (x1 + jitter, yy + ((i + r) % 3 - 1) * .02, zz + jitter * .5), .045, GREEN, detail=i % 3 == 2)
+            flag(p, tint=CUT_CANE)
+            if i % 2 == 0:
+                p.orb(x1 + .18 + jitter, yy + .05, zz, .42, .16, .22, GREEN, i % 4 == 2)
+                flag(p, segments=(5, 3), tint=CANE_TOP)
+
+
+def carro_boi(Piece, name='carro_boi'):
+    """The ox cart that hauls cane to the mill: two solid timber wheels on one
+    axle, a plank bed ringed with stakes, heaped with cut cane, the long shaft
+    resting on its forked prop. The bed is waist-high cover."""
+    p = Piece(name, 5.6, 2.2)
+    bx, length = -.9, 3.0
+    p.box(bx, .95, 0, length, .16, 1.45, WOOD, True, 'wood', bevel=.02)
+    for z in [-.7, .7]:
+        p.box(bx, .82, z, length + .1, .14, .12, DARK, bevel=.015)
+        for i in range(7):
+            x = bx - length / 2 + .15 + i * (length - .3) / 6
+            p.beam((x, .9, z), (x + (i % 2 - .5) * .04, 1.75, z * 1.04), .07, WOOD)
+        p.beam((bx - length / 2 + .15, 1.55, z * 1.03), (bx + length / 2 - .15, 1.55, z * 1.03), .05, DARK, detail=True)
+    for z in [-.92, .92]:
+        p.cylinder(bx, .78, z, .78, .14, WOOD, sides=18, axis='z')
+        p.cylinder(bx, .78, z * 1.03, .8, .06, DARK, sides=18, axis='z', detail=True)
+        p.cylinder(bx, .78, z * 1.1, .14, .16, IRON, sides=10, axis='z')
+        for dy in [-.4, 0, .4]:
+            p.box(bx, .78 + dy, z * 1.08, .95 - abs(dy) * .9, .06, .02, DARK, bevel=0, detail=True)
+    p.cylinder(bx, .78, 0, .09, 2.0, DARK, sides=8, axis='z')
+    stalks(p, bx - length / 2 + .1, bx + length / 2 - .25, 1.1, 0, 13, .6, rows=4, seed=3)
+    # The shaft (cabecalho) and its yoke, propped on a forked stick.
+    p.beam((bx + length / 2 - .2, .92, 0), (2.5, .62, 0), .14, WOOD)
+    p.box(2.55, .66, 0, .14, .12, 1.7, DARK, bevel=.02)
+    for dz in [-.35, .35]:
+        p.beam((2.55, .7, dz), (2.55, .95, dz * 1.2), .05, DARK, detail=True)
+    p.beam((2.25, 0, -.12), (2.25, .6, 0), .07, DARK)
+    p.beam((2.25, 0, .12), (2.25, .6, 0), .07, DARK)
+    return p
+
+
+def feixe_cana(Piece, name='feixe_cana'):
+    """Cut cane waiting for the mill: bundles tied with straw bands, stacked in
+    a low pyramid on the yard. Crouch cover."""
+    p = Piece(name, 2.8, 1.6)
+    p.box(-.1, .42, 0, 2.2, .84, 1.1, GREEN, True, 'wood', bevel=.2)
+    flag(p, tint=CUT_CANE, lods=[2])
+    for (z, y) in [(-.38, .19), (0, .19), (.38, .19), (-.19, .5), (.19, .5), (0, .8)]:
+        stalks(p, -1.2, .95, y - .12, z, 7, .16, rows=3, seed=int(z * 10 + y * 7))
+        for x in [-.65, .45]:
+            p.cylinder(x, y, z, .2, .07, CANVAS, sides=10, axis='x', detail=True)
+            flag(p, tint=[.72, .6, .38])
+    return p
+
+
+def garapeira(Piece, name='garapeira'):
+    """A cane-juice press on a timber stand: three iron rollers under a cap,
+    the big crank wheel, a spout over a bucket. Sold by the glass at the gate."""
+    p = Piece(name, 1.6, 1.1)
+    p.box(0, .45, 0, 1.0, .9, .7, WOOD, True, 'wood', bevel=.03)
+    for dx in [-.45, .45]:
+        for dz in [-.3, .3]:
+            p.box(dx, .45, dz, .1, .9, .1, DARK, bevel=.01)
+    p.box(0, .93, 0, .7, .06, .5, IRON, bevel=.01)
+    for dx in [-.16, 0, .16]:
+        p.cylinder(dx, 1.18, 0, .075, .44, IRON, sides=10)
+        p.cylinder(dx, 1.18, 0, .085, .05, DARK, sides=10, detail=True)
+    p.box(0, 1.44, 0, .6, .08, .34, DARK, bevel=.01)
+    p.cylinder(.62, 1.15, 0, .42, .05, IRON, sides=16, axis='x')
+    p.cylinder(.64, 1.15, 0, .07, .12, DARK, sides=8, axis='x')
+    for a in range(4):
+        ang = a * math.pi / 4
+        p.box(.63, 1.15, 0, .03, .8 * abs(math.cos(ang)) + .04, .8 * abs(math.sin(ang)) + .04, IRON, bevel=0, detail=True)
+    p.beam((.66, 1.5, 0), (.9, 1.5, 0), .05, WOOD)
+    p.beam((0, .95, .25), (0, .82, .5), .06, IRON)
+    p.cylinder(0, .2, .55, .17, .4, WOOD, sides=12)
+    p.cylinder(0, .39, .55, .15, .02, GREEN, sides=12, detail=True)
+    flag(p, tint=[.72, .8, .45])
+    stalks(p, -.7, .2, .95, -.1, 3, .08, seed=5)
+    return p
+
+
+def lenha(Piece, name='lenha'):
+    """Firewood for the furnace, split logs stacked between posts under a
+    board lean-to. Standing cover."""
+    p = Piece(name, 3.4, 1.4)
+    p.box(0, .65, 0, 3.0, 1.3, .9, WOOD, True, 'wood', bevel=.05)
+    flag(p, lods=[2])
+    for r in range(6):
+        for i in range(12):
+            x = -1.38 + i * .25 + (r % 2) * .12
+            if x > 1.42:
+                continue
+            p.cylinder(x, .12 + r * .21, 0, .1 + ((i + r) % 3) * .012, .9, WOOD if (i + r) % 3 else DARK, sides=7, axis='z', detail=r % 2 == 1)
+            flag(p, tint=[.86, .68, .5] if (i * 3 + r) % 4 else [.7, .54, .4])
+    for x in [-1.55, 1.55]:
+        for z in [-.5, .5]:
+            p.box(x, (1.9 if z < 0 else 1.55) / 2, z, .1, 1.9 if z < 0 else 1.55, .1, DARK, bevel=.01)
+    for i in range(8):
+        x = -1.6 + (i + .5) * 3.2 / 8
+        p.beam((x, 1.95, -.65), (x, 1.6, .7), .4, WOOD, .04)
+        flag(p, tint=[.8, .66, .5] if i % 2 else [.7, .58, .44])
+    return p
+
+
+def cocho(Piece, name='cocho'):
+    """A hollowed-log water trough on two blocks, for the oxen."""
+    p = Piece(name, 2.2, .8)
+    p.box(0, .28, 0, 2.0, .56, .6, WOOD, True, 'wood', bevel=.06)
+    flag(p, lods=[2])
+    p.cylinder(0, .4, 0, .3, 2.0, WOOD, sides=10, axis='x', top=.3)
+    flag(p, lods=[0, 1])
+    p.box(0, .6, 0, 1.85, .03, .4, GLASS, bevel=0)
+    flag(p, tint=[.5, .75, .8], lods=[0, 1])
+    for x in [-.75, .75]:
+        p.box(x, .1, 0, .3, .2, .7, BLOCK, bevel=.03)
+    return p
+
+
 def add_engenho(Piece):
     engenho(Piece)
     chamine(Piece)
     cana(Piece)
+    carro_boi(Piece)
+    feixe_cana(Piece)
+    garapeira(Piece)
+    lenha(Piece)
+    cocho(Piece)

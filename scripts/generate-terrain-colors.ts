@@ -2,7 +2,7 @@
 // terrain.ts: npx tsx scripts/generate-terrain-colors.ts
 import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
-import { beachDistance, fbm, terrainColor, terrainHeight, WORLD_PALETTE } from '../src/shared/terrain';
+import { beachDistance, fbm, grassAlbedo, terrainColor, terrainHeight, wildflowers, WORLD_PALETTE } from '../src/shared/terrain';
 import { createWorld } from '../src/shared/world';
 
 const resolution = 1024;
@@ -21,14 +21,26 @@ function channelsFor(hex: string): [number, number, number] {
   }
   return channels;
 }
-const soften = (value: number) => { const t = Math.max(0, Math.min(1, value)); return t * t * (3 - 2 * t); };
+const MEADOW_LIGHT = [214, 214, 150];
+const FLOWER_DOTS = [[244, 238, 222], [246, 214, 92], [236, 150, 170], [186, 150, 214], [250, 246, 236]];
+const flowerHash = (x: number, z: number) => {
+  let h = Math.imul(x + 1013, 374761393) ^ Math.imul(z - 719, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+};
 function paintedChannels(hex: string, x: number, z: number): number[] {
   let channels: readonly number[] = channelsFor(hex);
   if ([WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass].some(color => color === hex)) {
-    const shade = channelsFor(WORLD_PALETTE.grass), light = channelsFor(WORLD_PALETTE.grassLight), dry = channelsFor(WORLD_PALETTE.dryGrass);
-    const greenMix = soften((fbm(x / 36 + 7, z / 36 + 3) + .2) / .4);
-    const dryMix = soften((fbm(x / 48 - 4, z / 48 + 9) - .18) / .24);
-    channels = shade.map((value, i) => (value + (light[i] - value) * greenMix) * (1 - dryMix) + dry[i] * dryMix);
+    channels = grassAlbedo(x, z).map(value => value * 255);
+    // Wildflower clusters: sparse dots of white, yellow, pink and violet, which
+    // read as a speckled, lighter meadow from the air and match the flowers
+    // ground cover grows there at walking distance.
+    const bloom = wildflowers(x, z), dot = flowerHash(Math.floor(x * 4), Math.floor(z * 4));
+    if (bloom > 0) channels = channels.map((value, i) => value + (MEADOW_LIGHT[i] - value) * bloom * .22);
+    if (bloom > 0 && dot < bloom * .07) {
+      const petal = FLOWER_DOTS[Math.floor(dot * 97) % FLOWER_DOTS.length];
+      channels = channels.map((value, i) => value + (petal[i] - value) * .55);
+    }
   }
   // Quiet overlapping washes read as paint at walking distance, with no grain
   // or baked lighting that would fight the scene's moving sun and shadows.
@@ -101,7 +113,8 @@ for (let row = 1; row < resolution - 1; row++) for (let col = 1; col < resolutio
 
 mkdirSync('public/textures', { recursive: true });
 const output = 'public/textures/terrain-color.png';
-const result = spawnSync('magick', ['-size', `${resolution}x${resolution}`, '-depth', '8', 'RGBA:-', output],
+// Every pixel is opaque: the PNG drops its alpha channel and packs tightly.
+const result = spawnSync('magick', ['-size', `${resolution}x${resolution}`, '-depth', '8', 'RGBA:-', '-alpha', 'off', '-define', 'png:compression-level=9', output],
   { input: Buffer.from(pixels), encoding: 'utf8' });
 if (result.status !== 0) throw new Error(`ImageMagick failed: ${result.stderr}`);
 console.log(`Baked ${output} (${resolution}x${resolution}, ${size} m island)`);

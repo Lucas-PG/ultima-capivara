@@ -1,6 +1,6 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, CAPELA_STAIR, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
+import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, CAPELA_STAIR, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, ROADS, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
 import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
@@ -11,6 +11,7 @@ import { WATER_LEVEL } from './water';
 import { WORLD_VERSION, type ChestSpec, type Collider, type District, type KitPlacement, type LootSpawn, type MapObject, type MudBathSpec, type SpawnPoint, type TrampolineSpec, type Vec3, type WeaponId, type WorldSpec } from './types';
 import { landmarkColliders, type LandmarkSpec } from './landmarks';
 import { dressStreets, wallYards } from './street-life';
+import { plantCrown, walkingSurfaces } from './vegetation-crowns';
 
 const ground = terrainHeight;
 // The quay stones' height (bottom-centred piece) and their promenade top.
@@ -475,8 +476,26 @@ export function createWorld(): WorldSpec {
     landmark('waterwheel', WATER_WHEEL[0], WATER_WHEEL[1], 0, WATER_LEVEL);
     for (const [x, z, yaw] of [[-100, 44, .05], [-93, 45.5, -.04], [-86, 44, .1], [-79, 46, 0], [-114, 26, 1.6], [-114, 34, 1.5], [-114, 42, 1.62]] as const)
       detail('canavial', x, z, yaw, 1, ground(x, z) - .05);
-    for (const [piece, x, z, yaw] of [['sacos', -95, 12.2, .2], ['sacos', -94, 23.5, 0], ['barrel', -76.5, 23.8, 0], ['barrel', -75.6, 24.4, 0],
-      ['carrinho_coco', -92, 27.5, 1.2], ['crate', -77, 9.5, .3]] as const) if (!occupied(x, z, .3)) detail(piece, x, z, yaw, piece === 'crate' ? .85 : 1);
+    // The cane yard west of the hall, under the casa-grande's veranda: an ox
+    // cart unloading at the mill door, cut cane stacked for the rollers, the
+    // oxen's trough, a juice press and a bench by the lane. East of the hall,
+    // the furnace side: firewood under lean-tos by the chimney and barrels of
+    // cachaça waiting for the boat. Everything keeps off the lanes and routes.
+    for (const [piece, x, z, yaw] of [
+      ['carro_boi', -96.2, 20.6, Math.PI], ['feixe_cana', -97.3, 14.4, .08], ['feixe_cana', -96.9, 11.6, -.12], ['feixe_cana', -94.1, 12.6, 1.52],
+      ['cocho', -99, 17, Math.PI / 2], ['garapeira', -98.2, 24.7, -Math.PI / 2], ['bench', -98.4, 22.4, Math.PI], ['sacos', -94.4, 24.3, 0],
+      ['barrel', -93.4, 25.1, 0], ['carrinho_coco', -92, 27.5, 1.2],
+      ['lenha', -69.8, 12.8, Math.PI / 2], ['lenha', -65.4, 18.2, .08], ['feixe_cana', -64.6, 14.2, .3],
+      ['barrel', -72.4, 17.3, 0], ['barrel', -71.3, 17.8, 0], ['barrel', -71.9, 16.4, 0], ['sacos', -69.4, 17.2, .2],
+      ['bench', -67.6, 13.6, Math.PI], ['crate', -77, 9.5, .3],
+      // The lane between the hall and the terrace backs: cane stacked against the
+      // hall's south wall between its arches, sacks and barrels by the east end.
+      ['feixe_cana', -89.6, 22.6, 0], ['feixe_cana', -78.8, 22.6, Math.PI], ['sacos', -76.9, 24.4, .1],
+      ['barrel', -79.4, 24.4, 0], ['cocho', -73, 22, 0],
+    ] as const) if (!occupied(x, z, .3)) detail(piece, x, z, yaw, piece === 'crate' ? .85 : 1);
+    // Cane in the field: more patches up the slope south of Rua do Engenho.
+    for (const [x, z, yaw] of [[-104, 51, .06], [-97, 52, -.05], [-90, 51.5, .08], [-83, 52.5, -.03]] as const)
+      if (!occupied(x, z, 2)) detail('canavial', x, z, yaw, 1, ground(x, z) - .05);
   }
 
   // Palafitas: the fishing village on stilts in the Lagoa da Maré. A boardwalk
@@ -499,6 +518,15 @@ export function createWorld(): WorldSpec {
     for (const [x, z, yaw] of [[91.5, 80.8, .9], [93.4, 82.6, 1.2]] as const) detail('boat', x, z, yaw, .75, ground(x, z) - .08);
     const deck = bed + (KIT_PIECES.passarela?.traversal?.floors[0].y ?? 2);
     detail('rede_pesca', 96.6, 96.4, .4, .8, deck); detail('rede_pesca', 88.6, 83.4, 1.2, 1, ground(88.6, 83.4));
+    // The fishermen's shore: fish drying on racks, traps heaped by the boats,
+    // crates for the catch; traps on the verandas beside the doors.
+    for (const [piece, x, z, yaw] of [['varal_peixe', 80.6, 79.6, .35], ['varal_peixe', 91.2, 81.5, -.2], ['covo', 89.9, 78.6, .5],
+      ['covo', 83.2, 84.8, -.3], ['crate', 95.2, 81.2, .2], ['barrel', 78.8, 83.6, 0]] as const)
+      if (!occupied(x, z, .3)) detail(piece, x, z, yaw, 1, ground(x, z));
+    for (const house of pieces.filter(piece => /^palafita/.test(piece.piece))) {
+      const at = lotPoint({ x: house.x, z: house.z, yaw: house.yaw } as HouseLot, -2.9, 3.1);
+      detail('covo', at.x, at.z, house.yaw, .8, deck);
+    }
     sign(76.5, 83, 'PALAFITAS');
   }
 
@@ -535,10 +563,24 @@ export function createWorld(): WorldSpec {
   // Capivara Redentora on the island's summit, arms open toward the village:
   // the landmark every district can see. The plinth sits on the lowest corner.
   landmark('redentora', -110, -24, -Math.PI / 2, Math.min(...[[-4, -4], [4, -4], [-4, 4], [4, 4]].map(([dx, dz]) => ground(-110 + dx, -24 + dz))) - .15);
-  for (let x = 46; x <= 69; x += 3) {
-    obj('box', x, ground(x, 70) + .025, 70, .8, .04, 8, '#b48d57', 'field-row');
+  // The farm's soil strips run north-south either side of the farm road. A
+  // strip never crosses a road or paving, a lot or a solid: those lanes stay
+  // grass, so each plot reads as a field beside the road, not under it.
+  const FIELD_Z = 70, FIELD_HALF = 4, ROW_HALF = .4, FIELD_MARGIN = .8;
+  for (let x = 43; x <= 72; x += 3) {
+    const z0 = FIELD_Z - FIELD_HALF, z1 = FIELD_Z + FIELD_HALF;
+    if (ROADS.some(([rx0, rz0, rx1, rz1]) => x + ROW_HALF + FIELD_MARGIN > rx0 && x - ROW_HALF - FIELD_MARGIN < rx1 &&
+      z1 + FIELD_MARGIN > rz0 && z0 - FIELD_MARGIN < rz1)) continue;
+    let clear = true;
+    for (let z = z0; z <= z1 && clear; z += 1) clear = !occupied(x, z, ROW_HALF + .3);
+    if (!clear) continue;
+    obj('box', x, ground(x, FIELD_Z) + .025, FIELD_Z, ROW_HALF * 2, .04, FIELD_HALF * 2, '#b48d57', 'field-row');
     for (let z = 67; z <= 73; z += 2) obj('grass', x, ground(x, z), z, .7, .4, .7, '#b0cc5e', 'crop');
   }
+  const fieldRows = objects.filter(o => o.detail === 'field-row');
+  /** A farm strip (with a margin): nothing but its crops grows on one. */
+  const fieldAt = (x: number, z: number, margin: number) => fieldRows.some(row =>
+    Math.abs(x - row.pos.x) < row.scale.x / 2 + margin && Math.abs(z - row.pos.z) < row.scale.z / 2 + margin);
   sign(49, 79, 'FAZENDA'); sign(-91, -33, 'MORRO');
 
   // Long southern beach and a lighthouse at the final cape.
@@ -656,7 +698,7 @@ export function createWorld(): WorldSpec {
     }
     if (h.role === 'home' || h.role === 'fisher') {
       const { x, z } = lotPoint(h, -width / 2 - 2, -1);
-      if (!roadAt(x, z, 1) && !occupied(x, z, .8)) detail('bush_cluster', x, z, 0, .85);
+      if (!roadAt(x, z, 1) && !occupied(x, z, .8) && !fieldAt(x, z, 1.6)) detail('bush_cluster', x, z, 0, .85);
     }
   }
   for (const [x, z, yaw] of [[-14.5, -29.5, 0], [-1.5, -29.5, 0], [-14.5, -7.5, 0], [-1.5, -7.5, 0]] as const)
@@ -725,8 +767,11 @@ export function createWorld(): WorldSpec {
   }
   // Plants are decorative, with no independently authored trunk boxes.
   const planted: PointLike[] = [];
+  // Hero sightlines stay unplanted: the praça to the Matriz, the market, the
+  // fort from its beach, Rua da Praia to the Farol, and the summit path up to
+  // the Redentora's plinth.
   const blocksHeroView = (x: number, z: number) => [[-8, -8, -8, -40, 4.8], [42, -7, 31, -22, 2.7],
-    [60, -86, 4, -99, 4.2], [-8, 40, -6, 110, 3]].some(([ax, az, bx, bz, width]) => {
+    [60, -86, 4, -99, 4.2], [-8, 40, -6, 110, 3], [-96, -29.5, -108, -24.5, 4.5]].some(([ax, az, bx, bz, width]) => {
     const dx = bx - ax, dz = bz - az, t = ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz);
     return t >= 0 && t <= 1 && Math.hypot(x - ax - dx * t, z - az - dz * t) < width;
   });
@@ -742,7 +787,7 @@ export function createWorld(): WorldSpec {
     return Math.abs(dx * c - dz * s) < width / 2 + margin && Math.abs(dx * s + dz * c) < depth / 2 + margin;
   });
   const plantBlocked = (x: number, z: number, margin: number) => {
-    if (playAreaAt(x, z, margin + .6) || lotAt(x, z, margin) || hollowAt(x, z, margin)) return true;
+    if (playAreaAt(x, z, margin + .6) || lotAt(x, z, margin) || hollowAt(x, z, margin) || fieldAt(x, z, margin)) return true;
     const y = ground(x, z);
     return anySolid(x - margin, z - margin, x + margin, z + margin, c => c.max.y > y + .3 && c.min.y < y + 2 &&
       x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
@@ -753,6 +798,8 @@ export function createWorld(): WorldSpec {
   };
   tree(-17, -17, 8.4, 'tree', 'ipe-yellow'); tree(1, -21, 8, 'tree', 'ipe-pink');
   tree(-63, -55, 9.2, 'tree', 'flamboyant'); tree(77, 78, 4.8, 'tree', 'banana'); tree(-60, 84, 5.2, 'tree', 'banana');
+  // Shade over the Engenho's furnace yard, where the cart teams rest.
+  tree(-61.5, 21, 7.4, 'tree', 'mango');
   // Low, broad crowns at the rock toes give the escarpment a living foreground.
   // They share the existing instanced foliage and replace part of the scatter.
   let shrubs = 0;
@@ -788,7 +835,7 @@ export function createWorld(): WorldSpec {
     for (let i = 0; i < 9; i++) {
       const angle = i * 2.399, radius = 1.8 + Math.sqrt(i) * 1.8;
       const x = gx + Math.cos(angle) * radius, z = gz + Math.sin(angle) * radius, y = ground(x, z);
-      if (y < .8 || plantBlocked(x, z, 1) || roadAt(x, z, 1.8) || routeDistance(x, z) < 3 || paved(x, z) ||
+      if (y < .8 || plantBlocked(x, z, 1) || roadAt(x, z, 1.8) || routeDistance(x, z) < 3 || paved(x, z) || blocksHeroView(x, z) ||
         planted.some(t => Math.hypot(t.x - x, t.z - z) < 3)) continue;
       tree(x, z, 4.6 + random() * 2.5);
     }
@@ -873,7 +920,7 @@ export function createWorld(): WorldSpec {
     for (let radius = 2; radius <= 16 && !target; radius += 2) for (let i = 0; i < 16; i++) {
       const angle = i * Math.PI / 8, x = plant.pos.x + Math.cos(angle) * radius, z = plant.pos.z + Math.sin(angle) * radius;
       const y = ground(x, z);
-      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 1) || routeDistance(x, z) < 2) continue;
+      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 1) || routeDistance(x, z) < 2 || blocksHeroView(x, z)) continue;
       target = { x, y: y - .08, z }; break;
     }
     if (!target) throw new Error(`Sem margem livre para a árvore ${plant.id}.`);
@@ -885,8 +932,28 @@ export function createWorld(): WorldSpec {
     pieces.push(furniture); addSolids(kitColliders(furniture));
   }
   const world: WorldSpec = { version: WORLD_VERSION, size: 260, pieces, colliders, walkways, objects, spawns, loot, chests, districts, arenaBoundary, mudBaths, trampolines, landmarks };
+  // No crown hangs into a walker's face: over every street, route, deck and
+  // roof terrace the foliage keeps clear of the band from the waist to above
+  // the head (src/shared/vegetation-crowns.ts). A tree that would is moved to
+  // the nearest clear spot away from the walk, or dropped when there is none.
+  const surfaces = walkingSurfaces(world);
+  for (let index = objects.length - 1; index >= 0; index--) {
+    const plant = objects[index], crown = plantCrown(plant);
+    if (!crown || !surfaces.underCrown(crown)) continue;
+    let target: Vec3 | undefined;
+    for (let radius = 1.5; radius <= 12 && !target; radius += 1.5) for (let i = 0; i < 16; i++) {
+      const angle = i * Math.PI / 8, x = plant.pos.x + Math.cos(angle) * radius, z = plant.pos.z + Math.sin(angle) * radius;
+      const y = ground(x, z);
+      if (y < .3 || inRoom(x, z) || plantBlocked(x, z, 1.5) || roadAt(x, z, 2) || routeDistance(x, z) < 2.6 || riverDistance(x, z) < 1 || blocksHeroView(x, z) ||
+        objects.some(other => other !== plant && (other.kind === 'tree' || other.kind === 'palm') && Math.hypot(other.pos.x - x, other.pos.z - z) < 3)) continue;
+      const moved = plantCrown({ ...plant, pos: { x, y: y - .08, z } });
+      if (moved && surfaces.underCrown(moved)) continue;
+      target = { x, y: y - .08, z }; break;
+    }
+    if (target) plant.pos = target; else objects.splice(index, 1);
+  }
   world.buildingRoutes = buildBuildingRoutes(world);
-  const graph = world.navigation = buildNavigation(world), seen = new Set<number>();
+  const graph = world.navigation = buildNavigation(world, NAV_ROUTES), seen = new Set<number>();
   let mainRoutes: number[] = [];
   for (let start = 0; start < graph.points.length; start++) {
     if (seen.has(start)) continue;

@@ -2,14 +2,16 @@ import * as THREE from 'three';
 import { afterAll, expect, it } from 'vitest';
 import { GROUND_COVER, GROUND_COVER_MAX_HEIGHT, GroundCover } from '../src/render/ground-cover';
 import { createWorld } from '../src/shared/world';
-import { ROADS } from '../src/shared/layout';
-import { terrainHeight } from '../src/shared/terrain';
+import { NAV_ROUTES, ROADS } from '../src/shared/layout';
+import { grassAlbedo, pathWear, terrainColor, terrainHeight } from '../src/shared/terrain';
 import { buildTemplates } from '../src/render/vegetation/templates';
 import { vegetationDressing } from '../src/shared/vegetation-dressing';
 import { SPECIES } from '../src/shared/vegetation-species';
 
 const world = createWorld();
-// One island's ground cover serves every read-only check below: building it is the slow part.
+// One island's ground cover serves every check below: building it is the slow part, and a second
+// build inside a test ran past the timeout on a loaded machine. Tests that change its quality put
+// it back; the last test disposes it (afterAll only covers a failure before that).
 const shared = new GroundCover(world);
 afterAll(() => shared.dispose());
 
@@ -28,10 +30,11 @@ it('grows the lawn from plain blades tinted by the ground, away from roads and s
     let tinted = 0;
     for (const node of lawns) {
       const nearby = world.colliders.filter(c => c.max.x >= node.position.x - 1 && c.min.x <= node.position.x + 25 && c.max.z >= node.position.z - 1 && c.min.z <= node.position.z + 25);
+      const roads = ROADS.filter(([x0, z0, x1, z1]) => x1 >= node.position.x - 1 && x0 <= node.position.x + 25 && z1 >= node.position.z - 1 && z0 <= node.position.z + 25);
       for (let i = 0; i < node.count; i++) {
         node.getMatrixAt(i, matrix);
         const x = matrix.elements[12] + node.position.x, y = matrix.elements[13] + .02, z = matrix.elements[14] + node.position.z;
-        if (ROADS.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) violations.push(`road ${x.toFixed(1)},${z.toFixed(1)}`);
+        if (roads.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) violations.push(`road ${x.toFixed(1)},${z.toFixed(1)}`);
         if (nearby.some(c => c.min.y < y + .4 && c.max.y > y && x > c.min.x && x < c.max.x && z > c.min.z && z < c.max.z)) violations.push(`solid ${x.toFixed(1)},${z.toFixed(1)}`);
         node.getColorAt(i, color);
         // Instance tint is the ground's own green: more green than red or blue, never a flat white.
@@ -41,6 +44,41 @@ it('grows the lawn from plain blades tinted by the ground, away from roads and s
     expect(violations).toEqual([]);
     expect(tinted / lawns.reduce((n, m) => n + m.count, 0)).toBeGreaterThan(.98);
   }
+});
+
+it('varies an open field in tone patches and wears bare paths along the routes, where the lawn thins', () => {
+  const luminance = ([r, g, b]: number[]) => .2126 * r + .7152 * g + .0722 * b;
+  // Open fields read as one flat colour from a few strides away: neighbouring
+  // 5 m samples must differ in tone, not only across the 40 m broad washes.
+  for (const [x0, z0] of [[60, -60], [20, 50], [-60, -10], [40, -60]]) {
+    let difference = 0, samples = 0;
+    for (let x = x0; x < x0 + 40; x += 5) for (let z = z0; z < z0 + 40; z += 5, samples++)
+      difference += Math.abs(luminance(grassAlbedo(x, z)) - luminance(grassAlbedo(x + 5, z)));
+    expect(difference / samples, `field at ${x0},${z0}`).toBeGreaterThan(.02);
+  }
+  // Wear follows the routes through grass and stops at the paving.
+  let grass = 0, worn = 0;
+  for (const route of NAV_ROUTES) for (let i = 1; i < route.length; i++) for (let t = 0; t <= 1; t += .05) {
+    const x = route[i - 1][0] + (route[i][0] - route[i - 1][0]) * t, z = route[i - 1][1] + (route[i][1] - route[i - 1][1]) * t;
+    if (ROADS.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) { expect(pathWear(x, z)).toBe(0); continue; }
+    if (ROADS.some(([x0, z0, x1, z1]) => x > x0 - 2 && x < x1 + 2 && z > z0 - 2 && z < z1 + 2)) continue;
+    const y = terrainHeight(x, z);
+    if (!['#88A65C', '#AEC47C', '#BBBC79'].includes(terrainColor(x, z, y, 0))) continue;
+    grass++; if (pathWear(x, z) > .4) worn++;
+  }
+  expect(grass).toBeGreaterThan(100);
+  expect(worn / grass).toBeGreaterThan(.6);
+  // On a trodden strip the lawn keeps only a few tufts.
+  const matrix = new THREE.Matrix4(); let onPath = 0, offPath = 0;
+  for (const node of shared.group.children) {
+    if (!(node instanceof THREE.InstancedMesh)) continue;
+    for (let i = 0; i < node.count; i++) {
+      node.getMatrixAt(i, matrix);
+      const wear = pathWear(matrix.elements[12] + node.position.x, matrix.elements[14] + node.position.z);
+      if (wear > .9) onPath++; else if (wear === 0) offPath++;
+    }
+  }
+  expect(onPath / Math.max(1, offPath)).toBeLessThan(.01);
 });
 
 it('keeps every accent shorter than a crouched capybara and flat patches on the ground', () => {
@@ -86,9 +124,8 @@ it('stays out of the depth buffer so the ink pass never outlines grass, but draw
   }
 });
 
-it('culls distant cells, grows denser on High, switches off on Low and disposes everything', () => {
-  // This one changes quality and disposes, so it builds its own cover.
-  const cover = new GroundCover(world), camera = new THREE.PerspectiveCamera();
+it('culls distant cells, grows denser on High and switches off on Low', () => {
+  const cover = shared, camera = new THREE.PerspectiveCamera();
   try {
     camera.position.set(-35, 4, 61); cover.setQuality('medium'); cover.update(camera, 1, false);
     const visible = cover.group.children.filter(node => node.visible);
@@ -102,6 +139,10 @@ it('culls distant cells, grows denser on High, switches off on Low and disposes 
     cover.setQuality('low'); cover.update(camera, 2, false);
     expect(cover.group.visible).toBe(false);
     expect(cover.group.children.every(node => !node.visible)).toBe(true);
-  } finally { cover.dispose(); }
-  expect(cover.group.children).toHaveLength(0);
+  } finally { cover.setQuality('medium'); }
+});
+
+it('disposes everything it built', () => {
+  shared.dispose();
+  expect(shared.group.children).toHaveLength(0);
 });

@@ -273,7 +273,56 @@ def mirante(Piece, name='mirante'):
     return p
 
 
+def varal_peixe(Piece, name='varal_peixe'):
+    """A fish-drying rack on the shore: two crossed-pole trestles carrying a
+    line of split fish and a hanging net, a gutting bench below."""
+    p = Piece(name, 3.4, 1.4)
+    for x in [-1.45, 1.45]:
+        for dz in [-.35, .35]:
+            p.beam((x, 0, dz), (x, 1.85, -dz * .2), .08, DARK)
+        p.box(x, .9, 0, .12, 1.8, .12, DARK, True, 'wood', bevel=.01)
+    p.cylinder(0, 1.78, 0, .04, 3.1, WOOD, sides=6, axis='x')
+    for i in range(11):
+        x = -1.25 + i * .25
+        drop = .38 + (i % 3) * .06
+        p.beam((x, 1.76, 0), (x, 1.76 - drop * .4, 0), .012, CANVAS, detail=True)
+        # Split fish hung by the tail: a silvery body and a darker tail fork.
+        p.orb(x, 1.76 - drop, 0, .13, .34, .05, CANVAS, i % 3 == 2)
+        flag(p, segments=(8, 5), tint=[1.0, .97, .9] if i % 2 else [.92, .9, .86])
+        p.orb(x, 1.76 - drop * .35, 0, .12, .08, .04, CANVAS, True)
+        flag(p, segments=(5, 3), tint=[.6, .62, .64])
+    for i in range(5):
+        p.orb(-.9 + i * .45, 1.2, .1, .5, .7, .04, CANVAS, i > 2)
+        flag(p, segments=(5, 3), tint=[.32, .45, .42])
+    p.box(0, .42, .45, 1.6, .06, .45, WOOD, True, 'wood', bevel=.015)
+    for x in [-.7, .7]:
+        p.box(x, .2, .45, .08, .4, .38, DARK, bevel=.01)
+    p.cylinder(.5, .12, -.35, .22, .24, CANVAS, sides=12)
+    flag(p, tint=[.35, .55, .7])
+    return p
+
+
+def covo(Piece, name='covo'):
+    """Woven cane fish traps, two lying on their sides and one upright: a
+    low heap on a deck or the beach."""
+    p = Piece(name, 1.6, 1.2)
+    p.box(0, .28, 0, 1.2, .56, .8, CANVAS, True, 'wood', bevel=.15)
+    flag(p, lods=[2], tint=[.74, .62, .42])
+    for (x, z, axis) in [(-.25, -.2, 'x'), (.3, .22, 'x'), (.45, -.32, 'y')]:
+        y = .5 if axis == 'y' else .27
+        p.cylinder(x, y, z, .26, 1.0 if axis == 'x' else .5, CANVAS, sides=10, axis=axis, top=.2)
+        flag(p, tint=[.76, .64, .44], lods=[0, 1])
+        for k in range(4):
+            if axis == 'x':
+                p.cylinder(x - .45 + k * .3, y, z, .27 - k * .015, .03, DARK, sides=10, axis='x', detail=True)
+            else:
+                p.cylinder(x, y - .2 + k * .14, z, .27 - k * .015, .03, DARK, sides=10, detail=True)
+    return p
+
+
 def add_palafitas(Piece):
+    varal_peixe(Piece)
+    covo(Piece)
     passarela(Piece)
     passarela_no(Piece)
     palafita(Piece)

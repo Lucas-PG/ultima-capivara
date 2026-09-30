@@ -128,6 +128,27 @@ describe('island physical integrity', () => {
     expect(faults).toEqual([]);
   });
 
+  it('lays the farm strips beside the roads, never across a road, paving or a solid, with only crops on them', () => {
+    const rows = world.objects.filter(o => o.detail === 'field-row');
+    // The farm is a real field either side of its road, not a token strip.
+    expect(rows.length).toBeGreaterThanOrEqual(6);
+    const overlaps = (row: typeof rows[number], [x0, z0, x1, z1]: readonly number[], margin: number) =>
+      row.pos.x + row.scale.x / 2 + margin > x0 && row.pos.x - row.scale.x / 2 - margin < x1 &&
+      row.pos.z + row.scale.z / 2 + margin > z0 && row.pos.z - row.scale.z / 2 - margin < z1;
+    const paving = world.objects.filter(o => o.detail === 'courtyard').map(o => [o.pos.x - o.scale.x / 2, o.pos.z - o.scale.z / 2, o.pos.x + o.scale.x / 2, o.pos.z + o.scale.z / 2]);
+    const faults: string[] = [];
+    for (const row of rows) {
+      for (const road of ROADS) if (overlaps(row, road, .5)) faults.push(`${row.id} crosses the road ${road.join(',')}`);
+      for (const pave of paving) if (overlaps(row, pave, .5)) faults.push(`${row.id} crosses paving`);
+      for (const lot of LOT_RECTS) if (overlaps(row, lot, 0)) faults.push(`${row.id} runs into a building`);
+      for (const c of world.colliders) if (c.max.y > row.pos.y + .1 && overlaps(row, [c.min.x, c.min.z, c.max.x, c.max.z], 0)) faults.push(`${row.id} runs into ${c.id}`);
+      // Bushes, hedges and other planting keep off the soil: the crops are drawn along it.
+      for (const p of world.pieces!) if (/^(bush_cluster|hedge|flower_bed|planter)$/.test(p.piece) && overlaps(row, [p.x, p.z, p.x, p.z], 1)) faults.push(`${p.id} grows on ${row.id}`);
+      for (const o of world.objects) if ((o.kind === 'tree' || o.kind === 'palm') && overlaps(row, [o.pos.x, o.pos.z, o.pos.x, o.pos.z], .5)) faults.push(`${o.id} grows on ${row.id}`);
+    }
+    expect(faults).toEqual([]);
+  });
+
   it('keeps every pier over water on piles that reach the bed', () => {
     const docks = world.pieces!.filter(piece => piece.piece === 'dock_wood');
     expect(docks.length).toBeGreaterThanOrEqual(3);
