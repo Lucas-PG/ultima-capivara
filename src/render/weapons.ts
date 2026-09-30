@@ -4,7 +4,7 @@ import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, SHOULDERS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
-import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS } from './viewmodel-anims';
+import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS, LONG_INSPECTS } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
@@ -407,7 +407,7 @@ export class WeaponView {
     if (sample) { px += sample.p.x; py += sample.p.y; pz += sample.p.z; rx += sample.r.x; ry += sample.r.y; rz += sample.r.z; }
     // Shell-by-shell reloads keep the loading port canted toward the paw between shells.
     this.reloadHold = damp(this.reloadHold, reloading && spec.reload === 'shotgun' ? 1 : 0, 9, dt);
-    if (this.reloadHold > .001) { const h = this.reloadHold; px -= .03 * h; py += .035 * h; pz += .02 * h; rx += .22 * h; ry += .1 * h; rz -= .6 * h; }
+    if (this.reloadHold > .001) { const h = this.reloadHold; px -= .05 * h; py += .05 * h; pz -= .02 * h; rx += .2 * h; ry += .18 * h; rz -= 1.05 * h; }
     this.holder.position.set(position.x + px, position.y + py, position.z + pz);
     this.offset.setFromEuler(this.euler.set(rx, ry, rz, 'YXZ'));
     this.holder.quaternion.copy(rotation).multiply(this.offset);
@@ -686,7 +686,7 @@ export class WeaponView {
   private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean): ChoreoSample | null {
     this.inspectTime += dt;
     const progress = Math.min(1, this.inspectTime / 1.8);
-    const authored = SHORT_INSPECTS[weapon];
+    const authored = SHORT_INSPECTS[weapon] ?? LONG_INSPECTS[weapon];
     if (authored) {
       const pose = sampleChoreo(authored, progress, this.inspectSample), amount = reducedMotion ? .35 : 1;
       this.holder.position.addScaledVector(pose.p, amount);

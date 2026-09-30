@@ -87,21 +87,30 @@ function magSwap(axis: Vec, grab: Vec, finish: Choreography, tilt: { p: Vec; r: 
   ];
 }
 
+// The support paw opens on its fitted long-gun grip, then clears down and left of
+// the handguard; both keys follow the grip, so refitting it keeps reloads clean.
+const SUPPORT_RELEASE: HandKey = { space: 'grip', offset: [-.012, -.01, .004],
+  curl: { index: [.1, .1, .05], middle: [.15, .12, .08], ring: [.15, .12, .08], thumb: [.2, .1, .05] } };
+const SUPPORT_CLEAR: HandKey = { ...SUPPORT_RELEASE, offset: [-.075, -.035, .02] };
+// Pump grips drop straight off the pump first, then clear to the left.
+const PUMP_DROP: HandKey = { ...SUPPORT_RELEASE, offset: [-.006, -.04, 0] };
+const PUMP_CLEAR: HandKey = { ...SUPPORT_RELEASE, offset: [-.11, -.05, 0] };
 // Contact keys live in the magazine's own frame, so its rotation and the paw
 // cannot drift apart. These normalized phases also drive the nearby world rig.
-export const M4_MAG_HAND: HandKey = {space: 'part', part: 'mag', wrist: [-0.048025, -0.209705, 0.014781], forward: [0.096382, 0.866301, -0.490135], palm: [0.990179, -0.03335, 0.135767], curl: {index: [1.586385, 0.71908, 0.372844], middle: [1.7, 1.7, 0.446858], ring: [1.631273, 1.641896, 0.441123], thumb: [0.745295, 0.977314, 0.245617], spread: 0.193682}};
+export const M4_MAG_HAND: HandKey = {space: 'part', part: 'mag', wrist: [-0.046742, -0.128451, 0.018455], forward: [0.018062, 0.932039, -0.361907], palm: [0.952127, 0.094445, 0.290747], curl: {index: [1.247124, 0.91843, 0.207542], middle: [1.7, 1.339695, 0.186456], ring: [1.7, 1.7, 0.496828], thumb: [1.236102, 1.2, 0.847715], spread: -0.148256}};
 const M4_SEAT_HAND: HandKey = {space: 'part', part: 'mag', wrist: [-0.034137, -0.253842, -0.043832], forward: [0.943698, 0.267645, -0.194425], palm: [-0.230288, 0.953439, 0.194736], curl: {index: [0.1, 0.15, 0.1], middle: [0.1, 0.15, 0.1], ring: [0.12, 0.15, 0.1], thumb: [0.1, 0.1, 0.1], spread: 0.2}};
 const M4_CATCH_HAND: HandKey = {space: 'gun', wrist: [-0.042108, -0.06803, 0.102531], forward: [-0.094787, 0.759023, -0.644128], palm: [0.893112, 0.350652, 0.281771], curl: {index: [0.2, 0.25, 0.1], middle: [0.2, 0.25, 0.1], ring: [0.204994, 0.248438, 0.1], thumb: [0.1, 0.1, 0.1], spread: 0.2 }, pole: [-1, -.25, .3] };
 const M4_TRIGGER_CLEAR: HandKey = { space: 'gun', curl: {index: [0.12, 0.15, 0.1], middle: [0.927018, 0.599134, 1.024462], ring: [1.7, 0.299979, -0.1], thumb: [0.082804, -0.095181, 0.078912], spread: 0.342322} };
-const M4_SUPPORT_RELEASE: HandKey = {"space": "gun", "wrist": [-0.055957, 0.057106, -0.118615], "curl": {"index": [-0.1, -0.1, -0.1], "middle": [0.2, 0.15, 0.1], "ring": [0.2, 0.15, 0.1], "thumb": [0.604244, -0.272554, 0.06363], "spread": 0.053322}};
+// Present the magazine well: lift and roll the rifle's belly toward the eye.
+const M4_TILT: { p: Vec; r: Vec } = { p: [-.06, .035, -.05], r: [.22, .3, -.5] };
 const M4_SWAP: Choreography = [
   { t: 0, L: { space: 'grip' }, mag: { out: 0 } },
-  { t: .015, L: M4_SUPPORT_RELEASE },
-  { t: .035, L: { ...M4_SUPPORT_RELEASE, wrist: [-.13, 0.057106, -0.118615] } },
+  { t: .015, L: SUPPORT_RELEASE },
+  { t: .035, L: SUPPORT_CLEAR },
   { t: .06, R: M4_TRIGGER_CLEAR },
-  { t: .10, p: [-.068, .065, .025], r: [.20, .22, -.36], ease: 'out',
+  { t: .10, p: M4_TILT.p, r: M4_TILT.r, ease: 'out',
     L: { space: 'gun', wrist: [-.115, -.06, -.12], forward: [.08, .6, -.8], palm: [1, 0, .08], curl: OPEN } },
-  { t: .15, L: { ...M4_MAG_HAND, wrist: [-.085, -.209705, .014781] } },
+  { t: .15, L: { ...M4_MAG_HAND, wrist: [-.085, -.128451, .018455] } },
   { t: .17, L: M4_MAG_HAND },
   { t: .20, L: M4_MAG_HAND, mag: { out: 0 }, sfx: 'mag-out' },
   { t: .30, L: M4_MAG_HAND, mag: { out: .13, p: [-.008, 0, .01], r: [.06, 0, .04] }, ease: 'in' },
@@ -113,14 +122,14 @@ const M4_SWAP: Choreography = [
   { t: .67, L: M4_MAG_HAND, mag: { out: .025 } },
   { t: .70, L: M4_MAG_HAND, mag: { out: .025 } },
   // Release the shaft, clear its left edge and put the palm beneath the floorplate.
-  { t: .709, L: { ...M4_MAG_HAND, wrist: [-.13, -.209705, .014781], curl: OPEN } },
+  { t: .709, L: { ...M4_MAG_HAND, wrist: [-.13, -.128451, .018455], curl: OPEN } },
   { t: .72, L: { ...M4_MAG_HAND, wrist: [-.17, -.31, -.045], curl: OPEN } },
   { t: .733, L: { ...M4_SEAT_HAND, wrist: [-.15, -.29, -.044] } },
   { t: .75, L: { ...M4_SEAT_HAND, wrist: [-.034137, -.276, -.043832] } },
   { t: .77, L: M4_SEAT_HAND, mag: { out: 0 }, ease: 'snap', sfx: 'mag-in' },
-  { t: .775, p: [-.069, .076, .024], r: [.225, .22, -.35], ease: 'snap' },
+  { t: .775, p: add(M4_TILT.p, [-.001, .011, -.001]), r: add(M4_TILT.r, [.025, 0, .01]), ease: 'snap' },
   { t: .785, L: { ...M4_SEAT_HAND, wrist: [-.055, -.28, -.043832] } },
-  { t: .795, p: [-.068, .065, .025], r: [.20, .22, -.36] },
+  { t: .795, p: M4_TILT.p, r: M4_TILT.r },
 ];
 export const M4_RELOAD_EMPTY: Choreography = [
   { t: 0, parts: { bolt: 1 } },
@@ -128,18 +137,18 @@ export const M4_RELOAD_EMPTY: Choreography = [
   { t: .807, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.135, -.25, -.115] } },
   { t: .83, L: { ...M4_CATCH_HAND, wrist: [-.13, -.07, .07] }, parts: { bolt: 1, release: 0 } },
   { t: .86, L: M4_CATCH_HAND, parts: { bolt: 1, release: 1 }, ease: 'snap' },
-  { t: .87, parts: { bolt: 0, release: 1 }, sfx: 'slide-home', ease: 'snap', p: [-.06, .063, .032], r: [.215, .20, -.31] },
+  { t: .87, parts: { bolt: 0, release: 1 }, sfx: 'slide-home', ease: 'snap', p: add(M4_TILT.p, [.008, -.002, .007]), r: add(M4_TILT.r, [.015, -.02, .05]) },
   { t: .884, parts: { release: 0 } },
   { t: .902, L: { ...M4_CATCH_HAND, wrist: [-.13, -.07, .07] } },
-  { t: .938, L: { ...M4_SUPPORT_RELEASE, wrist: [-.13, 0.057106, -0.118615] } },
-  { t: .958, L: M4_SUPPORT_RELEASE },
+  { t: .938, L: SUPPORT_CLEAR },
+  { t: .958, L: SUPPORT_RELEASE },
   { t: .97, L: { space: 'grip' }, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 export const M4_RELOAD_PARTIAL: Choreography = [
   ...M4_SWAP,
   { t: .813, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.135, -.25, -.115] } },
-  { t: .87, L: { ...M4_SUPPORT_RELEASE, wrist: [-.13, 0.057106, -0.118615] } },
-  { t: .901, L: M4_SUPPORT_RELEASE },
+  { t: .87, L: SUPPORT_CLEAR },
+  { t: .901, L: SUPPORT_RELEASE },
   { t: .94, L: { space: 'grip' }, R: { space: 'grip' } },
   { t: .96, p: [0, 0, 0], r: [0, 0, 0] },
 ];
@@ -192,11 +201,10 @@ const smgReloads = [SMG_RELOAD_PARTIAL, SMG_RELOAD_EMPTY].map(keys => [...keys].
 export const smgReload = (empty: boolean): Choreography => smgReloads[empty ? 1 : 0];
 export const DMR_MAG_HAND: HandKey = {space: "part", part: "mag", wrist: [-0.050175, -0.160768, 0.023229], forward: [0.109983, 0.926697, -0.359354], palm: [0.9769, -0.034138, 0.210951], curl: {index: [1.349937, 0.482453, 0.351455], middle: [1.7, 1.7, 0.447], ring: [1.7, 1.7, 0.44], thumb: [0.781299, 0.91152, 0.246083], spread: 0.174935}};
 export const DMR_CHARGE_HAND: HandKey = {space: "part", part: "charge", wrist: [0.064112, -0.062461, 0.040238], forward: [-0.100371, 0.883821, -0.456931], palm: [-0.896322, -0.279676, -0.344076], curl: {index: [1.010944, 0.560632, 0.644719], middle: [1.593198, 0.231539, 0.8], ring: [1.3, 1.1, 0.8], thumb: [0.27295, 0.164685, 0.174024], spread: -0.6}};
-const DMR_SUPPORT_RELEASE: HandKey = {"space": "gun", "wrist": [-0.059203, 0.074558, -0.161451], "curl": {"index": [-0.078418, -0.097227, 0.578059], "middle": [0.2, 0.15, 0.1], "ring": [0.2, 0.15, 0.1], "thumb": [0.939737, -0.251783, 0.264329], "spread": 0.242199}};
 const DMR_SWAP: Choreography = [
-  { t: .015, L: DMR_SUPPORT_RELEASE },
-  { t: .035, L: { ...DMR_SUPPORT_RELEASE, wrist: [-0.15, 0.074558, -0.161451] } },
-  { t: .08, p: [-.065, .085, .02], r: [.12, .28, -.30], ease: 'out', L: { space: 'gun', wrist: [-0.15, 0.074558, -0.161451] } },
+  { t: .015, L: SUPPORT_RELEASE },
+  { t: .035, L: SUPPORT_CLEAR },
+  { t: .08, p: [-.065, .085, .02], r: [.12, .28, -.30], ease: 'out', L: SUPPORT_CLEAR },
   { t: .13, L: { ...DMR_MAG_HAND, wrist: [-0.11, -0.160768, 0.023229] } },
   { t: .17, L: DMR_MAG_HAND, mag: { out: 0 } },
   { t: .20, L: DMR_MAG_HAND, mag: { out: 0 }, sfx: 'mag-out' },
@@ -211,8 +219,8 @@ const DMR_SWAP: Choreography = [
   { t: .708, p: [-.067, .098, .022], r: [.15, .28, -.28] },
   { t: .735, L: { ...DMR_MAG_HAND, wrist: [-0.15, -0.160768, 0.023229], curl: OPEN } },
   { t: .77, L: { space: 'gun', wrist: [-.15, -.12, -.17] } },
-  { t: .81, L: { ...DMR_SUPPORT_RELEASE, wrist: [-0.15, 0.074558, -0.161451] } },
-  { t: .825, L: DMR_SUPPORT_RELEASE },
+  { t: .81, L: SUPPORT_CLEAR },
+  { t: .825, L: SUPPORT_RELEASE },
   { t: .84, L: { space: 'grip' } },
 ];
 const DMR_RELOAD_PARTIAL: Choreography = [...DMR_SWAP,
@@ -247,12 +255,11 @@ export const SNIPER_CYCLE: Choreography = [
   { t: .95, R: { space: 'gun', wrist: [0.16, -0.076478, 0.107616] } },
   { t: 1, R: { space: 'grip' } },
 ];
-const SNIPER_SUPPORT_RELEASE: HandKey = {"space": "gun", "wrist": [-0.056517, 0.062581, -0.187296], "curl": {"index": [-0.1, -0.1, 0.417678], "middle": [0.2, 0.15, 0.1], "ring": [0.2, 0.15, 0.1], "thumb": [0.779821, -0.02272, 0.283248], "spread": 0.67787}};
 function sniperMagazine(start: number, end: number): Choreography {
   const at = (u: number) => start + (end - start) * u;
   return [
-    { t: at(0), L: SNIPER_SUPPORT_RELEASE },
-    { t: at(.035), L: { ...SNIPER_SUPPORT_RELEASE, wrist: [-0.15, 0.062581, -0.187296] } },
+    { t: at(0), L: SUPPORT_RELEASE },
+    { t: at(.035), L: SUPPORT_CLEAR },
     { t: at(.09), L: { ...SNIPER_MAG_HAND, wrist: [-0.13, -0.137539, 0.023697] } },
     { t: at(.15), L: SNIPER_MAG_HAND, mag: { out: 0 } },
     { t: at(.2), L: SNIPER_MAG_HAND, mag: { out: 0 }, sfx: 'mag-out' },
@@ -265,8 +272,8 @@ function sniperMagazine(start: number, end: number): Choreography {
     { t: at(.78), L: SNIPER_MAG_HAND, mag: { out: 0 }, ease: 'snap', sfx: 'mag-in' },
     { t: at(.85), L: { ...SNIPER_MAG_HAND, wrist: [-0.15, -0.137539, 0.023697], curl: OPEN } },
     { t: at(.9), L: { space: 'gun', wrist: [-.15, -.10, -.20] } },
-    { t: at(.95), L: { ...SNIPER_SUPPORT_RELEASE, wrist: [-0.15, 0.062581, -0.187296] } },
-    { t: at(.975), L: SNIPER_SUPPORT_RELEASE },
+    { t: at(.95), L: SUPPORT_CLEAR },
+    { t: at(.975), L: SUPPORT_RELEASE },
     { t: at(1), L: { space: 'grip' } },
   ];
 }
@@ -356,8 +363,8 @@ export const SHOTGUN_SHELL_HAND: HandKey = {space: "part", part: "mag", wrist: [
 const SHOTGUN_PUSH_HAND: HandKey = {wrist: [-0.049022, -0.064088, 0.033021], forward: [0.799141, -0.112196, -0.590581], palm: [0.532349, 0.588445, 0.608554], pole: [-1, -0.2, 0.3], curl: {index: [0.345101, 0.252126, 0.192652], middle: [1.354021, 1.376316, 0.599732], ring: [1.028833, 1.266842, 0.600874], thumb: [0.750224, -0.1, -0.09105], spread: -0.05879}, space: "part", part: "mag"};
 const SHOTGUN_SHELL: Choreography = [
   { t: 0, mag: { visible: false, p: [0, -.016, 0] } },
-  { t: .065, L: { space: 'gun', wrist: [-.04829, -.090082, -.255699] } },
-  { t: .12, L: { space: 'gun', wrist: [-.15, -.090082, -.255699] }, mag: { visible: false, p: [-.10, -.25, .07] } },
+  { t: .065, L: PUMP_DROP },
+  { t: .12, L: PUMP_CLEAR, mag: { visible: false, p: [-.10, -.25, .07] } },
   { t: .26, L: SHOTGUN_SHELL_HAND, mag: { visible: false, p: [-.10, -.25, .07] } },
   { t: .29, L: SHOTGUN_SHELL_HAND, mag: { p: [-.10, -.25, .07] } },
   { t: .48, L: SHOTGUN_SHELL_HAND, mag: { p: [0, -.045, .018] } },
@@ -368,8 +375,8 @@ const SHOTGUN_SHELL: Choreography = [
   { t: .70, L: SHOTGUN_PUSH_HAND, mag: { out: .065, p: [0, .019, 0] }, ease: 'snap', sfx: 'shell-in' },
   { t: .74, L: SHOTGUN_PUSH_HAND, mag: { out: .085, p: [0, .019, 0] } },
   { t: .78, L: { ...SHOTGUN_PUSH_HAND, wrist: [-.13, -.15, .033021] }, mag: { visible: false, out: .095, p: [0, .019, 0] } },
-  { t: .85, L: { space: 'gun', wrist: [-.15, -.090082, -.255699] } },
-  { t: .92, L: { space: 'gun', wrist: [-.04829, -.090082, -.255699] } },
+  { t: .85, L: PUMP_CLEAR },
+  { t: .92, L: PUMP_DROP },
   { t: 1, L: { space: 'grip' }, mag: { visible: false } },
 ];
 
@@ -377,8 +384,8 @@ export const COCO_FRUIT_HAND: HandKey = {space: "part", part: "mag", wrist: [-0.
 function makeCocoReload(ammo: number): Choreography {
   const keys: import('./viewmodel-choreo').Key[] = [
     { t: 0, mag: { visible: false, p: [-.23, -.42, .08] }, parts: { load1: ammo >= 3 ? 1 : 0, load2: ammo >= 2 ? 1 : 0 } },
-    { t: .025, L: { space: 'gun', wrist: [-.049897, -.107384, -.246142] } },
-    { t: .06, p: [-.055, -.03, -.10], r: [-.04, .15, -.025], ease: 'out', L: { space: 'gun', wrist: [-.18, -.107384, -.246142] } },
+    { t: .025, L: PUMP_DROP },
+    { t: .06, p: [-.055, -.03, -.10], r: [-.04, .15, -.025], ease: 'out', L: PUMP_CLEAR },
   ];
   const drop = (t: number, slot: number) => {
     const z = -slot * .09;
@@ -396,13 +403,13 @@ function makeCocoReload(ammo: number): Choreography {
   if (ammo === 0) {
     drop(.08, 2); drop(.245, 1); drop(.41, 0);
     keys.push(
-      { t: .57, L: { space: 'gun', wrist: [-.049897, -.107384, -.246142] } },
+      { t: .57, L: PUMP_DROP },
       { t: .595, L: { space: 'grip' }, parts: { pump: 0 } },
       { t: .63, L: { space: 'grip' }, mag: { p: [0, 0, 0] }, parts: { pump: 1 }, sfx: 'pump-back' },
       { t: .65, mag: { p: [0, -.045, 0] } },
       { t: .66, mag: { visible: false }, parts: { pump: 0 }, ease: 'snap', sfx: 'pump-home' },
-      { t: .685, L: { space: 'gun', wrist: [-.049897, -.107384, -.246142] } },
-      { t: .70, L: { space: 'gun', wrist: [-.18, -.107384, -.246142] } },
+      { t: .685, L: PUMP_DROP },
+      { t: .70, L: PUMP_CLEAR },
     );
     // Feeding frees the rear hopper pocket; top it up for the fourth round.
     drop(.71, 0);
@@ -413,8 +420,8 @@ function makeCocoReload(ammo: number): Choreography {
   }
   keys.push(
     { t: .88, p: [-.055, -.03, -.10], r: [-.04, .15, -.025] },
-    { t: .91, L: { space: 'gun', wrist: [-.18, -.107384, -.246142] }, mag: { p: [0, 0, 0] } },
-    { t: .94, L: { space: 'gun', wrist: [-.049897, -.107384, -.246142] } },
+    { t: .91, L: PUMP_CLEAR, mag: { p: [0, 0, 0] } },
+    { t: .94, L: PUMP_DROP },
     { t: .97, L: { space: 'grip' } },
     { t: 1, p: [0, 0, 0], r: [0, 0, 0], mag: { p: [0, 0, 0] }, parts: { load1: 1, load2: 1, pump: 0 } },
   );
@@ -476,3 +483,24 @@ export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
     { t: .82, p: [-.015, .015, .015], r: [.12, .10, -.25] },
   ],
 };
+
+// Long guns: lift and roll the left flank (livery) up to the eye, hold, roll
+// over to the right flank and ejection side, hold, settle. Both paws keep their
+// grips; the firing index rests off the trigger while the gun is on show.
+const longInspect = (lift: Vec, left: Vec, right: Vec): Choreography => [
+  { t: .06, R: { space: 'grip', curl: { index: [.12, .15, .1] } } },
+  { t: .2, p: lift, r: left, ease: 'out' },
+  { t: .46, p: [lift[0] - .005, lift[1] + .006, lift[2]], r: [left[0] + .02, left[1] + .03, left[2] - .05] },
+  { t: .68, p: [lift[0] + .02, lift[1] + .01, lift[2]], r: right },
+  { t: .86, p: [lift[0] + .018, lift[1] + .014, lift[2]], r: [right[0] + .02, right[1] - .03, right[2] + .05] },
+  { t: .9, R: { space: 'grip', curl: { index: [.12, .15, .1] } } },
+  { t: .97, R: { space: 'grip' } },
+];
+export const LONG_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
+  m4: longInspect([-.06, .05, -.02], [.12, .35, -.45], [.05, -.35, .7]),
+  shotgun: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.04, -.32, .65]),
+  dmr: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.04, -.3, .6]),
+  sniper: longInspect([-.05, .045, -.01], [.08, .25, -.35], [.03, -.25, .5]),
+  coco: longInspect([-.06, .04, -.02], [.1, .3, -.35], [.05, -.3, .55]),
+};
+
