@@ -500,10 +500,10 @@ const longInspect = (lift: Vec, left: Vec, right: Vec): Choreography => [
   { t: .97, R: { space: 'grip' } },
 ];
 export const LONG_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
-  m4: longInspect([-.06, .05, -.02], [.12, .35, -.45], [.05, -.35, .7]),
-  shotgun: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.04, -.32, .65]),
-  dmr: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.04, -.3, .6]),
-  sniper: longInspect([-.05, .045, -.01], [.08, .25, -.35], [.03, -.25, .5]),
-  coco: longInspect([-.06, .04, -.02], [.1, .3, -.35], [.05, -.3, .55]),
+  m4: longInspect([-.06, .05, -.02], [.12, .35, -.45], [.1, -.1, .85]),
+  shotgun: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.08, -.1, .8]),
+  dmr: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.08, -.1, .78]),
+  sniper: longInspect([-.05, .045, -.01], [.08, .25, -.35], [.06, -.08, .7]),
+  coco: longInspect([-.06, .04, -.02], [.1, .3, -.35], [.08, -.1, .75]),
 };
 
