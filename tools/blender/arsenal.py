@@ -499,7 +499,7 @@ def coco():
     for obj in parts['body']:
         if obj.name.split('.')[0] in ('walnut_grip', 'grip_brass_cap', 'grip_screw'):
             for vertex in obj.data.vertices:
-                vertex.co.y = .65 * vertex.co.y - .01155
+                vertex.co.y = .45 * vertex.co.y - .01815
     guard = prism('brass_guard', [(-.031, .018), (.058, .018), (.061, -.02), (.044, -.047), (-.019, -.047), (-.039, -.025)], .019, 'brass', bevel=.0025, smooth=1, raw=True)
     cut(guard, cutter_prism([(-.025, .009), (.047, .009), (.049, -.018), (.036, -.036), (-.014, -.036), (-.029, -.023)], .034))
     parts['body'] += [complete(guard)]
