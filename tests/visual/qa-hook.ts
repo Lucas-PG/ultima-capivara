@@ -46,6 +46,9 @@ const WEAPONS: WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco
 const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
 // Every pickup kind in a row on the ground: at 3 m from eye height, 3 m looking down, and at 18 m (far models).
 const LOOT_POSES = ['loot-eye', 'loot-down', 'loot-far'];
+// The busiest HUD states, for layout review at every window size and interface scale: a full battle royale
+// loadout with a prompt, the feed, a banner and the storm; watching after elimination; the Corrente ladder.
+const HUD_POSES = ['hud-full', 'hud-watch', 'hud-corrente'];
 const TRAMPOLINE_POSES = ['trampolineBounce', 'trampolineAir'];
 const SUPPLY_POSES = ['supplyIncoming', 'supplyDescending', 'supplyLanded', 'supplyOpened'];
 const BUILDING_POSES = ['houseGround', 'houseStairBottom', 'houseStairTop', 'houseUpper'];
@@ -67,7 +70,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let placedRoutes: Map<string, Vec3[]> | undefined;
   const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `ads-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES, ...ACCESS_POSES, ...ROOM_POSES,
-    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results', 'results-correria', ...LOOT_POSES];
+    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results', 'results-correria', ...LOOT_POSES, ...HUD_POSES];
 
   function draw() {
     if (!renderer || !current) return;
@@ -258,6 +261,38 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       if (!clearSpawn(bot.pos, deps.world)) throw new Error(`The ${name} capybara stands inside a solid.`);
       s.actors.push(bot);
     }
+    let hudPrompt: WorldSnapshot['loot'][number] | null = null;
+    if (HUD_POSES.includes(name)) {
+      const bots = ['Tico', 'Bento', 'Caju', 'Pipoca', 'Dendê', 'Tapioca', 'Zeca', 'Juju', 'Nino', 'Balu', 'Lola', 'Pingo', 'Tuca'];
+      bots.forEach((botName, i) => {
+        const bot = structuredClone(me), angle = yaw + Math.PI + (i - 6) * .22, bx = x + Math.sin(angle) * (22 + i % 3 * 5), bz = z + Math.cos(angle) * (22 + i % 3 * 5);
+        bot.id = `bot-hud-${i}`; bot.name = botName; bot.bot = true; bot.color = '#ae825e'; bot.kills = i % 4;
+        bot.pos = { x: bx, y: walkableHeight(bx, bz, deps.world), z: bz };
+        bot.weapons = [{ id: WEAPONS[(i + 2) % 8], ammo: 8, reserve: 40, rarity: i % 4, box: 0 }]; bot.slot = 0; bot.hp = 40 + i * 4; bot.armor = i % 2 ? 50 : 0;
+        s.actors.push(bot);
+      });
+      s.loot.forEach(item => { item.active = false; });
+      me.kills = 3; me.damage = 412;
+      if (name === 'hud-corrente') {
+        s.config.mode = 'corrente'; me.weaponLevel = 5; s.remaining = 4;
+        me.weapons = [{ id: CORRENTE_LADDER[5], ammo: 3, reserve: 30, rarity: 0, box: 0 }]; me.slot = 0; me.hp = 48; me.protectionUntil = s.time + 2;
+      } else {
+        s.config.mode = 'battle-royale';
+        // The storm is closing and the player stands outside the next circle.
+        s.zone = { ...s.zone, x, z, radius: 70, nextX: x + 60, nextZ: z - 40, nextRadius: 30, phase: 2, shrinking: true, timeLeft: 22, damage: 3 };
+        me.hp = 62; me.armor = 75; me.helmet = 40;
+        me.consumables = { bandage: 3, medkit: 1, guarana: 2, acai: 1, rapadura: 2 };
+        me.weapons = [{ id: 'm4', ammo: 7, reserve: 120, rarity: 3, box: 0 }, { id: 'sniper', ammo: 5, reserve: 20, rarity: 2, box: 1 },
+          { id: 'pistol', ammo: 17, reserve: 51, rarity: 0, box: 2 }, { id: 'machete', ammo: 0, reserve: 0, rarity: 0, box: 3 }];
+        me.slot = 0;
+        if (name === 'hud-watch') { me.alive = false; me.hp = 0; me.deaths = 1; }
+        else {
+          const lx = x - Math.sin(yaw) * 1.4, lz = z - Math.cos(yaw) * 1.4;
+          hudPrompt = { id: 'hud-review-loot', kind: 'weapon', weapon: 'shotgun', rarity: 3, x: lx, y: walkableHeight(lx, lz, deps.world), z: lz, active: true, respawnAt: 0 };
+          s.loot.push(hudPrompt);
+        }
+      }
+    }
     if (LOOT_POSES.includes(name)) {
       s.loot.forEach(item => { item.active = false; });
       const kinds: [LootSpawn['kind'], WeaponId?][] = [['armor'], ['helmet'], ['ammo'], ['medkit'], ['bandage'], ['guarana'], ['acai'], ['rapadura'], ['weapon', 'm4'], ['weapon', 'shotgun']];
@@ -334,7 +369,22 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     // A rapid pose switch can otherwise keep the preceding HUD and scope state.
     await new Promise(resolve => setTimeout(resolve, 80));
     deps.ui.scopeReady = renderer.scoped;
-    deps.ui.update(s, 'practice', 0, false, 60, bath || supply ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : null);
+    if (HUD_POSES.includes(name)) {
+      // Feed lines, a banner and (watching) the death card and watch bar, through the same calls a match makes.
+      const at = { x: me.pos.x, y: me.pos.y, z: me.pos.z };
+      deps.ui.update(s, 'practice', 0, false, 60, null);
+      const kills: GameEvent[] = [
+        { type: 'kill', id: 9001, actor: 'bot-hud-0', target: 'bot-hud-5', weapon: 'shotgun', from: at, distance: 9 },
+        { type: 'kill', id: 9002, actor: 'practice', target: 'bot-hud-7', weapon: 'm4', from: at, distance: 47 },
+        { type: 'kill', id: 9003, actor: null, target: 'bot-hud-9', weapon: 'storm' },
+        { type: 'kill', id: 9004, actor: 'bot-hud-2', target: name === 'hud-watch' ? 'practice' : 'bot-hud-11', weapon: 'sniper', from: at, distance: 112 }];
+      for (const event of kills) deps.ui.event(event);
+      if (name === 'hud-full') deps.ui.event({ type: 'supply', id: 9005, drop: 'supply-1', pos: at, district: deps.world.districts[0]?.id ?? '', stage: 'incoming' });
+      deps.ui.setSpectate(name === 'hud-watch' ? { target: 'bot-hud-2', hold: null, index: 1, count: 13 } : null);
+      // The HUD refreshes at most every 75 ms: let the next update through.
+      await new Promise(resolve => setTimeout(resolve, 90));
+    } else deps.ui.setSpectate(null);
+    deps.ui.update(s, 'practice', 0, false, 60, hudPrompt ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : bath || supply ? closestInteraction(deps.world, s, me, { id: '', name: '' }) : null);
     deps.ui.frameCompass(renderer.heading);
     deps.ui.setPaused(name === 'pause');
     if (name === 'emote-wheel') deps.ui.openEmoteWheel();
