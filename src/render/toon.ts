@@ -20,7 +20,8 @@ if (!chunk.includes('paintedWrap')) {
 
 // Preserve a lavender light contribution under the sun's occlusion. This lifts
 // cast shadows without adding another light.
-const shadowTint = new THREE.Color('#7397B1'), sunTint = new THREE.Color('#FFC47E');
+// sunTint must equal PAINT.sun (materials.ts imports this module first).
+const shadowTint = new THREE.Color('#7397B1'), sunTint = new THREE.Color('#FFDDA6');
 shadowTint.setRGB(shadowTint.r / sunTint.r * .23, shadowTint.g / sunTint.g * .23, shadowTint.b / sunTint.b * .23);
 const sunShadow = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
 if (!THREE.ShaderChunk.lights_fragment_begin.includes('paintedSunShadow')) {
@@ -87,9 +88,16 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         gl_FragColor=vec4(c,1.0);
         gl_FragColor.rgb=NeutralToneMapping(gl_FragColor.rgb);
         gl_FragColor=sRGBTransferOETF(gl_FragColor);
-        float g=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
+        // Golden-hour grade: a gentle S-curve, cool lifted shadows and warm
+        // highlights, and vibrance that favours the muted colours.
+        vec3 graded=gl_FragColor.rgb;
+        graded=mix(graded,graded*graded*(3.0-2.0*graded),.16);
+        float tone=dot(graded,vec3(.2126,.7152,.0722));
+        graded+=mix(vec3(-.010,.004,.028),vec3(.026,.010,-.020),smoothstep(.15,.85,tone))*(1.0-abs(tone*2.0-1.0)*.5);
+        float chroma=max(graded.r,max(graded.g,graded.b))-min(graded.r,min(graded.g,graded.b));
+        float g=dot(graded,vec3(.2126,.7152,.0722));
         // Low health drains colour and closes the edges in, under the HUD's own warning.
-        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.03*mix(1.0,.8,uStorm)*mix(1.0,.6,uLow)),0.0,1.0);
+        gl_FragColor.rgb=clamp(mix(vec3(g),graded,(1.0+.14*(1.0-chroma))*mix(1.0,.8,uStorm)*mix(1.0,.6,uLow)),0.0,1.0);
         gl_FragColor.rgb*=1.0-uLow*.28*smoothstep(.5,1.4,length((vUv-.5)*2.0));
         float sv=smoothstep(.55,1.35,length((vUv-.5)*2.0))*(uStorm*.3+uPulse*.6);
         gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.541,.302,1.0),sv);
