@@ -18,6 +18,7 @@ import { DEFAULT_CONFIG, PLAYER_COLORS, type InputFrame, type Settings, type Vec
 import type { GameRenderer } from '../../src/render/renderer';
 import type { GameUI } from '../../src/ui/ui';
 import type { InputController } from '../../src/input';
+import { DISTRICT_VIEWS, VIEWS, viewStance, type WorldView } from './qa-views';
 
 type Quality = Settings['graphics'];
 type QaApi = {
@@ -48,30 +49,6 @@ const ROOM_POSES = ['home', 'bakery', 'cafe', 'tailor', 'clinic', 'fisher', 'fis
   'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
   'upper-home', 'upper-tailor', 'upper-clinic', 'upper-workshop', 'upper-barracks',
   'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2', 'home-back', 'cafe-back', 'upper-home-back'].map(role => `room-${role}`);
-const VIEWS: Record<string, [number, number, number, number]> = {
-  plaza: [-1, -10, .48, .02], bakery: [-43, -36, Math.PI, .02],
-  river: [4, 22, .28, -.03], forteBeach: [60, -86, 1.13, .24],
-  fortApproach: [4, -62, 0, .2], morroApproach: [-54, -38, Math.PI / 2, .2],
-  quayNorth: [-13, .3, Math.PI, -.55], quaySouth: [27, 23.5, 0, -.55],
-  bathVila: [19, 31, 0, -.13], bathFazenda: [55, 51, Math.PI / 2, -.28], bathMangue: [108, 63, Math.PI / 2, -.2],
-  trampolineVila: [18, -7, -Math.PI / 2, -.13], trampolineForte: [51, -101, Math.atan2(-4, 6), -.13],
-  trampolinePraia: [-38, 101, Math.PI, -.13],
-  vilaStreet: [-40, -38, Math.PI - .3, .03],
-  capyFront: [-1, -10, 0, 0], capySide: [-1, -10, 0, 0],
-  redentoraVila: [-6, -26, 1.62, .1], redentoraNear: [-70, -40, 1.95, .22], redentoraPlinth: [-97, -29, 1.95, .5],
-  morroStreet: [-97, -45, 0, .12], morroRoofs: [-75, -40, 2.2, .05], lajeRoof: [-58, -54, 0, -.1], varandaFazenda: [47, 52, 0, .02],
-  sobradoPlaza: [-20, -21, 2.3, .15], clinicSobrado: [6, -4, 0, .18],
-  swimWaterline: [-60, 2, 0, .04], swimRemote: [-60, 2, 0, .04], swimExit: [-60, 2, Math.PI, .12],
-};
-const DISTRICT_VIEWS: Record<string, [number, number, number, number]> = {
-  vila: [-1, -10, .48, .02], centro: [36, -6, .42, .02],
-  forte: [4, -80, 0, .12], cachoeira: [-83, -13, 1.72, .08],
-  morro: [-97, -66, Math.atan2(-2, -31), .08], porto: [78, -23, -1.84, 0],
-  posto: [-22, 38, Math.PI, 0], farol: [3, 98, Math.PI, .25],
-  praia: [-31, 95, Math.PI, 0], fazenda: [47, 80, -.63, 0],
-  mangue: [86, 54, -1.2, 0], lagoa: [-65, 9, 1.22, .04],
-};
-
 export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputController; settings: Settings; begin(): Promise<GameRenderer> }) {
   const fixture = new Simulation(deps.world, { ...DEFAULT_CONFIG, bots: false },
     [{ id: 'practice', name: 'Capivara', color: '#bd8956', ready: true, connected: true }], 'qa-seed-2026', 0x5eed2026);
@@ -108,9 +85,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (MUD_POSES.includes(name) && !bath) throw new Error('A revisão precisa de um banho de lama no mapa.');
     if (TRAMPOLINE_POSES.includes(name) && !trampoline) throw new Error('A revisão precisa de um trampolim no mapa.');
     if (SUPPLY_POSES.includes(name) && !supply) throw new Error('A revisão precisa de uma entrega em solo seco e acessível.');
-    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : district ? DISTRICT_VIEWS[district.id] || [district.x - 8, district.z + 8, -.7, 0] : VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name] || VIEWS.plaza;
+    // Named world views stand on the real walking surface (a deck, a roof terrace), not the terrain under it.
+    const named: WorldView | undefined = trampoline || bath || spawn ? undefined : district ? DISTRICT_VIEWS[district.id] ?? [district.x - 8, district.z + 8, -.7, 0] :
+      VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name] || VIEWS.plaza;
+    const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, 0, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : named!;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
+    const stance = named ? viewStance(deps.world, named) : undefined;
     if (name.startsWith('world-')) pitch = -.5;
     const s = structuredClone(base), me = s.actors[0];
     s.phase = 'playing'; s.time = 30; s.countdown = 0; s.config.bots = false;
@@ -148,7 +129,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       if (name === 'supplyOpened') s.loot.push({ id: 'supply-qa-weapon', kind: 'weapon', weapon: 'm4', rarity: 3, active: true, respawnAt: 0,
         x: supply.x - .9, y: terrainHeight(supply.x - .9, supply.z), z: supply.z, from: { ...supply, y: supply.y + .6 }, spawnedAt: s.time - .7 });
     }
-    me.pos = { x, y: bath?.y ?? spawn?.y ?? terrainHeight(x, z), z }; me.velocity = { x: 0, y: 0, z: 0 };
+    me.pos = { x, y: bath?.y ?? spawn?.y ?? (stance && !supply ? stance.y : terrainHeight(x, z)), z }; me.velocity = { x: 0, y: 0, z: 0 };
     me.stage = 'ground'; me.grounded = true; me.yaw = yaw; me.pitch = pitch;
     if (BUILDING_POSES.includes(name)) {
       const piece = deps.world.pieces!.find(piece => piece.piece === 'house_tall')!;

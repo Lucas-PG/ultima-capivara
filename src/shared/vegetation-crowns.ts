@@ -43,7 +43,7 @@ export const crownReach = (crown: CrownShape) => crown.rings.length * crowns.ban
 /** World heights [low, high] of the foliage over (x, z), or null outside the crown. */
 export function foliageSpan(crown: CrownShape, x: number, z: number): [number, number] | null {
   const distance = Math.hypot(x - crown.x, z - crown.z), ring = Math.floor(distance / (crowns.band * crown.scale));
-  if (ring >= crown.rings.length) return null;
+  if (!(ring >= 0 && ring < crown.rings.length)) return null;
   // A ring's extreme leaf may sit anywhere in its band: its neighbours count as well.
   const near = [crown.rings[Math.max(0, ring - 1)], crown.rings[ring], crown.rings[Math.min(crown.rings.length - 1, ring + 1)]];
   const tilt = crown.tilt * distance;
