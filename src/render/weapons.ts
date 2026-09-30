@@ -488,7 +488,7 @@ export class WeaponView {
         if (!part.visible) return;
         const free = Math.max(0, spent - .18), a = i * Math.PI / 3;
         part.position.z += spent * .20;
-        part.position.x += Math.cos(a) * free * .045;
+        part.position.x += (Math.cos(a) * .045 - .095) * free;
         part.position.y += Math.sin(a) * free * .03 - free * free * .08;
         part.rotation.x += free * (i % 2 ? 2.2 : -1.8);
         part.rotation.y += free * (i - 2.5) * .55;
@@ -614,6 +614,7 @@ export class WeaponView {
   private readonly handB: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };
   private readonly sample: ChoreoSample = newSample();
   private readonly inspectSample: ChoreoSample = newSample();
+  private readonly partOrigin = new THREE.Vector3();
 
   private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget) {
     if (key.space === 'grip') {
@@ -632,8 +633,14 @@ export class WeaponView {
     if (key.space === 'part') {
       const part = model.parts[key.part as keyof Parts];
       if (!part) throw new Error(`Reload contact part missing: ${model.id}/${key.part}`);
-      out.wrist.applyMatrix4(part.matrixWorld);
-      part.getWorldQuaternion(this.quat);
+      if (key.followRotation === false) {
+        this.holder.worldToLocal(part.getWorldPosition(this.partOrigin));
+        out.wrist.add(this.partOrigin).applyMatrix4(this.holder.matrixWorld);
+        this.holder.getWorldQuaternion(this.quat);
+      } else {
+        out.wrist.applyMatrix4(part.matrixWorld);
+        part.getWorldQuaternion(this.quat);
+      }
       out.forward.applyQuaternion(this.quat); out.palm.applyQuaternion(this.quat);
     }
   }

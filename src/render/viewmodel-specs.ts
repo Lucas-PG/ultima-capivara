@@ -73,10 +73,15 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   },
   revolver: {
     url: 'models/arsenal/revolver.glb', scale: 1, handling: 'pistol', reload: 'revolver',
-    hip: { pos: [.14, -.11, -.37], rot: [.05, .24, -.09] },
+    hip: { pos: [.12, -.10, -.43], rot: [.04, .22, -.08] },
     sprint: { pos: [-.02, -.05, .07], rot: [.95, .25, .3] },
-    adsDistance: .3,
-    grips: { R: { ...PISTOL_GRIPS.R, wrist: [.034, -.025, .054] }, L: { ...PISTOL_GRIPS.L, wrist: [-.040, -.058, .054] } },
+    adsDistance: .3, viewmodelFov: 64,
+    grips: {
+      R: { wrist: [.040127, -.057893, .048006], forward: [.271779, .243014, -.931171], palm: [-.962262, .054823, -.266546],
+        curl: curl([.7625, .755, .267], [.69225, 1.4135, .012438], [.81, 1.171063, .205813], [-.1, -.1, .1175], -.3), pole: [.7, -1, .2] },
+      L: { wrist: [-.053, -.11, .01], forward: [.1, .35, -.931], palm: [.98, -.15, .049],
+        curl: curl([.95, .2, .15], [1, .3, .2], [1.1, .3, .2], [-.1, .1, .1], -.6), pole: [-.6, -1, .1] },
+    },
     recoil: { kick: 1.7, climb: 8, roll: 2.2, frequency: 21 }, inertia: .75,
   },
   smg: {

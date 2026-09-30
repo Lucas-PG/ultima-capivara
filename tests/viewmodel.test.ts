@@ -228,6 +228,25 @@ describe('first-person viewmodel', () => {
     expect(loader.visible).toBe(false);
   });
 
+  it('supports the swinging cylinder without rolling the paw into the frame', async () => {
+    const h = await harness(); h.actor.weapons = [{ id: 'revolver', rarity: 0, ammo: 0, reserve: 24, box: 0 }];
+    for (let i = 0; i < 30; i++) h.step();
+    const view = h.view as unknown as { targetL: { wrist: THREE.Vector3; palm: THREE.Vector3 } };
+    const drum = h.holder.getObjectByName('revolver_cylinder')!;
+    const start = h.now(); h.actor.reloadUntil = start + WEAPONS.revolver.reload;
+    const contacts: { palm: THREE.Vector3; offset: THREE.Vector3 }[] = [];
+    for (const phase of [.12, .15, .19, .82, .85, .88]) {
+      while (h.now() < start + WEAPONS.revolver.reload * phase) h.step(1 / 240);
+      contacts.push({ palm: view.targetL.palm.clone().applyQuaternion(h.holder.quaternion.clone().invert()),
+        offset: h.holder.worldToLocal(view.targetL.wrist.clone()).sub(drum.position) });
+    }
+    for (const contact of contacts) {
+      expect(contact.palm.angleTo(contacts[0].palm)).toBeLessThan(.01);
+      expect(contact.offset.x).toBeLessThan(-.055);
+      expect(Math.abs(contact.offset.y - contacts[0].offset.y)).toBeLessThan(.006);
+    }
+  });
+
   it('pauses only on confirmed blade contact and alternates swing sides', async () => {
     const h = await harness(); h.actor.slot = 2; for (let i = 0; i < 40; i++) h.step();
     const view = h.view as unknown as { meleeTime: number; meleeSide: number };
