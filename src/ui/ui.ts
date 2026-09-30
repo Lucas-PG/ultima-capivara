@@ -8,7 +8,7 @@ import { terrainHeight } from '../shared/terrain';
 import { boundaryFeedback } from '../shared/bounds';
 import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
 import { BOX_LABELS, indexOfBox, planPickup, sidearmIndex } from '../shared/inventory';
-import { DEFAULT_BINDINGS, FOV_RANGE, adaptNote } from '../settings';
+import { DEFAULT_BINDINGS, FOV_RANGE, SENSITIVITY_RANGE, adaptNote } from '../settings';
 import { CONTROL_OPTIONS, type ControlOptionKey } from '../controls';
 import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon, emoteIcon } from './icons';
 import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
@@ -708,11 +708,11 @@ export class GameUI {
     panel.innerHTML = `<div class="mc"><div class="eyebrow">${esc(eyebrow)}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${title}</h1>${!online && !watching && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
       + `<div class="pboard"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><button type="button" class="play" data-do="resume">${watching ? watch.label : 'Voltar pra ilha'}</button><div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt quit" data-do="leave">${watching ? leave.label : 'Sair da partida'}</button></div></div><div id="lockErr" role="status"></div>`
       + (watching ? `<div class="quick stk"><span>${keys(keyName(b.jump), keyName(bindingOf(b, 'fire')))}próxima capivara</span><span>${keys(keyName(bindingOf(b, 'ads')))}anterior</span><span>${keys('Mouse')}gira a câmera</span><span>${keys(keyName(bindingOf(b, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(b, 'map')))}mapa</span></div>` : '')
-      + (watching ? '' : `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'drop')))}soltar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'emote')))}gestos (segurar)</span></div>`)
-      + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2)}</b></span><input type="range" data-quick="sensitivity" min="0.2" max="3" step="0.05" value="${this.settings.sensitivity}"></label>`
+      + (watching ? '' : `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(bindingOf(b, 'jump')))}pular</span><span>${keys(keyName(bindingOf(b, 'sprint')))}correr</span><span>${keys(keyName(bindingOf(b, 'crouch')))}agachar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'drop')))}soltar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(keyName(bindingOf(b, 'melee')))}golpe de facão</span><span>${keys(keyName(bindingOf(b, 'lastWeapon')))}arma anterior</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'emote')))}gestos (segurar)</span></div>`)
+      + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2).replace('.', ',')}×</b></span><input type="range" data-quick="sensitivity" min="${SENSITIVITY_RANGE[0]}" max="${SENSITIVITY_RANGE[1]}" step="${SENSITIVITY_RANGE[2]}" value="${this.settings.sensitivity}"></label>`
       + `<label><span>Campo de visão <b data-out="fov">${this.settings.fov}°</b></span><input type="range" data-quick="fov" min="${FOV_RANGE[0]}" max="${FOV_RANGE[1]}" step="1" value="${this.settings.fov}"></label></div>`
       + `</div>`;
-    const show = (key: string, value: number) => { const out = panel.querySelector(`[data-out="${key}"]`); if (out) out.textContent = key === 'fov' ? `${value}°` : value.toFixed(2); };
+    const show = (key: string, value: number) => { const out = panel.querySelector(`[data-out="${key}"]`); if (out) out.textContent = key === 'fov' ? `${value}°` : `${value.toFixed(2).replace('.', ',')}×`; };
     panel.querySelectorAll<HTMLInputElement>('[data-quick]').forEach(input => input.addEventListener('input', () => {
       const key = input.dataset.quick as 'sensitivity' | 'fov'; this.settings[key] = Number(input.value); show(key, this.settings[key]); this.callbacks.settings(this.settings);
     }));
@@ -734,7 +734,7 @@ export class GameUI {
       return `<label class="slider-label"><span>${esc(label)}</span><output>${text}</output><input type="range" data-setting="${key}" aria-label="${esc(label)}" aria-valuetext="${text}" ${help ? `aria-describedby="help-${key}"` : ''} min="${min}" max="${max}" step="${step}" value="${this.settings[key]}"/>${help ? `<small class="setting-help" id="help-${key}">${esc(help)}</small>` : ''}</label>`;
     };
     const ranges = (keys: (keyof typeof labels)[]) => keys.map(key => {
-      const [min, max, step] = key === 'fov' ? [FOV_RANGE[0], FOV_RANGE[1], 1] : key === 'sensitivity' ? [.2, 3, .05] : [0, 1, .05];
+      const [min, max, step] = key === 'fov' ? [FOV_RANGE[0], FOV_RANGE[1], 1] : key === 'sensitivity' ? SENSITIVITY_RANGE : [0, 1, .05];
       return range(key, labels[key], min, max, step);
     }).join('');
     // Toggles on one row, multipliers on the next, both straight from the controls model.
@@ -832,7 +832,7 @@ export class GameUI {
   private controlsList(): [string, string][] {
     const b = (a: string) => keyName(bindingOf(this.settings.bindings, a)), list = (...a: string[]) => a.map(b).join(' ');
     return [[list('forward', 'left', 'back', 'right'), 'MOVER'], ['MOUSE', 'OLHAR'], [`${b('fire')} / ${b('ads')}`, 'ATIRAR / MIRAR'], [b('jump'), 'PULAR / PARAQUEDAS'],
-      [b('sprint'), 'CORRER'], [b('crouch'), 'AGACHAR'], [`${b('leanLeft')} / ${b('leanRight')}`, 'ESPIAR'], [b('interact'), 'PEGAR / ABRIR / TROCAR'], [b('drop'), 'SOLTAR ARMA'], [b('reload'), 'RECARREGAR'],
+      [b('sprint'), 'CORRER'], [b('crouch'), 'AGACHAR'], [`${b('leanLeft')} / ${b('leanRight')}`, 'ESPIAR'], [b('interact'), 'PEGAR / ABRIR / TROCAR'], [b('drop'), 'SOLTAR ARMA'], [b('reload'), 'RECARREGAR'], [b('melee'), 'GOLPE DE FACÃO'], [b('lastWeapon'), 'ARMA ANTERIOR'], [b('inspect'), 'INSPECIONAR ARMA'],
       [list('slot1', 'slot2', 'slot3', 'slot4'), 'TROCAR ARMA'], [list(...CONSUMABLE_ACTIONS), 'USAR CURA'], [b('scoreboard'), 'PLACAR'], [b('map'), 'MAPA DA ILHA'], [b('emote'), 'GESTOS (SEGURAR)']];
   }
   private howModal() {

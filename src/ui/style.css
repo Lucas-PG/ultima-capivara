@@ -502,6 +502,11 @@ body[data-screen=game] #pause-panel::after{display:none}
 #pause-panel .mrow button:hover{transform:translateY(-3px) rotate(-1deg)}
 #pause-panel .mrow button:active{translate:0 0;transform:translateY(4px) scale(1.02,.95);box-shadow:0 1px 0 var(--brown)}
 #pause-panel .quick,#pause-panel .set{border-radius:16px;transform:none}
+/* Paper cards, so the key list and quick sliders stay readable over the HUD beneath the menu. */
+#pause-panel .quick,#pause-panel .set{background:var(--paper);color:var(--brown);border:3px solid var(--brown);box-shadow:0 5px 0 var(--brown),0 16px 28px -12px rgba(0,0,0,.55);font-weight:700}
+#pause-panel .set label{color:var(--brown-2);font-weight:800;letter-spacing:.4px}
+#pause-panel .set label span{display:flex;justify-content:space-between;gap:8px}
+#pause-panel .set label span b{color:var(--terra)}
 #pause-panel kbd.kc{border-radius:8px;background:var(--candy-gold);box-shadow:0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.5)}
 #pause-panel .set input[type=range]{accent-color:var(--terra)}
 #pause-panel #lockErr{color:var(--gold);text-shadow:0 2px 0 var(--brown)}

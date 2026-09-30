@@ -99,3 +99,23 @@ test('Mouse rebinding swaps actions, cancels safely and persists the new actions
   await expect(page.locator('[data-binding="melee"]')).toHaveText('V');
   await expect(page.locator('[data-binding="lastWeapon"]')).toHaveText('X');
 });
+
+test('The pause key list names every everyday action, follows a rebinding and stays readable', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.addInitScript(() => localStorage.setItem('uc-onboarded', '1'));
+  await page.goto('/?qa=1');
+  await page.waitForFunction(() => !!window.__capyQA);
+  await page.evaluate(async () => { await window.__capyQA!.start(); await window.__capyQA!.pose('pause'); });
+  const quick = page.locator('#pause-panel .quick');
+  const keyFor = (text: string) => quick.locator('span', { hasText: text }).last().locator('kbd');
+  for (const [text, key] of [['pular', 'Espaço'], ['correr', 'Shift'], ['agachar', 'C'], ['golpe de facão', 'V'], ['arma anterior', 'X']])
+    await expect(keyFor(text), text).toHaveText(key);
+  // The list sits on an opaque card, never directly over the HUD under the menu.
+  expect(await quick.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 244, 214)');
+  await page.locator('#pause-panel [data-do="settings"]').click();
+  const dialog = page.getByRole('dialog'); await dialog.locator('.bindings summary').click();
+  await dialog.locator('[data-binding="melee"]').click(); await page.keyboard.press('KeyZ');
+  await dialog.locator('#save-settings').click();
+  await page.evaluate(() => window.__capyQA!.pose('pause'));
+  await expect(keyFor('golpe de facão')).toHaveText('Z');
+});

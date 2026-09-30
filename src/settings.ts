@@ -24,7 +24,7 @@ export function loadSettings(): Settings {
       if (key === 'music' && value.musicMix !== 2 && number === .25) number = DEFAULT_SETTINGS.music;
       // Saves before v3 stored a vertical field of view; convert it to the horizontal (16:9) scale.
       if (key === 'fov' && typeof number === 'number' && value.fovScale !== 'horizontal') number = horizontalFov(number);
-      if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? FOV_RANGE[0] : key === 'sensitivity' ? .2 : 0, key === 'fov' ? FOV_RANGE[1] : key === 'sensitivity' ? 3 : 1);
+      if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? FOV_RANGE[0] : key === 'sensitivity' ? SENSITIVITY_RANGE[0] : 0, key === 'fov' ? FOV_RANGE[1] : key === 'sensitivity' ? SENSITIVITY_RANGE[1] : 1);
     }
     if (['low', 'medium', 'high'].includes(value.graphics)) result.graphics = value.graphics;
     if (value.frameLimit === 30 || value.frameLimit === 60) result.frameLimit = value.frameLimit;
@@ -43,6 +43,8 @@ export function loadSettings(): Settings {
 export function saveSettings(settings: Settings) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, fovScale: 'horizontal', musicMix: 2 })); } catch { /* Ephemeral browser mode. */ } }
 // Field of view is shown and stored as horizontal degrees at 16:9 (Hor+: wider screens see more).
 export const FOV_RANGE = [80, 120] as const;
+/** Mouse sensitivity multiplier: [min, max, slider step]. */
+export const SENSITIVITY_RANGE = [.2, 3, .05] as const;
 export const verticalFov = (horizontal: number) => 2 * Math.atan(Math.tan(horizontal * Math.PI / 360) / (16 / 9)) * 180 / Math.PI;
 export const horizontalFov = (vertical: number) => 2 * Math.atan(Math.tan(vertical * Math.PI / 360) * (16 / 9)) * 180 / Math.PI;
 /** The camera and reticle share the rendered lens, including the existing scope zoom contract. */
