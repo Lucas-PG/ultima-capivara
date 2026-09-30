@@ -51,7 +51,7 @@ try {
           const rotation = vm.holder.quaternion.clone().invert();
           return { ...grip, wrist: target.wrist.clone().applyMatrix4(inverse).toArray(),
             forward: target.forward.clone().applyQuaternion(rotation).toArray(),
-            palm: target.palm.clone().applyQuaternion(rotation).toArray(), curl: target.curl };
+            palm: target.palm.clone().applyQuaternion(rotation).toArray(), curl: target.curl, pole: target.pole.toArray() };
         }, [c.weapon, c.intent.side, c.startLive]);
         result = await page.evaluate(fitGrip, [c.weapon, c.intent, start, c.evals ?? 1000]);
         console.log('FIT', JSON.stringify({ evals: result.evals, ...result.final, handKey: result.handKey }));

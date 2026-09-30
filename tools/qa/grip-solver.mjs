@@ -1,6 +1,7 @@
 // Browser-side solver shared by one-shot and persistent weapon QA.
 // Optional bones:['index'] scores only named digits for a locked-wrist fit.
 // Always follow a restricted fit with the full-vertex grip probe.
+// avoidPaw:true adds the opposing paw as a collision surface during a part fit.
 export function fitGrip([weapon, intent, start, maxEvals]) {
   const vm = window.__vmProbe, model = vm.models[weapon], holder = vm.holder, side = intent.side;
   const M4 = holder.matrixWorld.constructor, V3 = holder.position.constructor, Q = holder.quaternion.constructor;
@@ -9,7 +10,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
   // ---- gun triangles in weapon space, indexed for exact nearest queries
   const tris = [];
-  const opposingPaw = Object.values(intent.contactParts ?? {}).includes('paw')
+  const opposingPaw = intent.avoidPaw || Object.values(intent.contactParts ?? {}).includes('paw')
     ? vm.arms.meshes.find(m => m.name.endsWith(side === 'R' ? 'L' : 'R')) : null;
   const collect = o => {
     if (!o.isMesh || (o.isSkinnedMesh && o !== opposingPaw) || !o.geometry.attributes.position) return;
