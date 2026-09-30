@@ -13,21 +13,22 @@ beforeAll(async () => {
 });
 
 describe('shipped capybara asset contract', () => {
-  it('paints fur and gear in vertex colour and marks only the bandana for the team colour', () => {
+  it('marks only the scarf and the hip cloth for the team colour, on an otherwise untinted skin', () => {
     for (const mesh of asset.getRoot().listMeshes()) {
       const primitive = mesh.listPrimitives()[0];
-      const colors = primitive.getAttribute('COLOR_0')!, team = primitive.getAttribute('_TEAM')!;
+      const colors = primitive.getAttribute('COLOR_0')!, team = primitive.getAttribute('_TEAM')!, position = primitive.getAttribute('POSITION')!;
       expect(colors, mesh.getName()).toBeTruthy(); expect(team, mesh.getName()).toBeTruthy();
-      let masked = 0, warm = 0;
+      let masked = 0;
       for (let i = 0; i < colors.getCount(); i++) {
+        // Colour lives in the baked albedo; a non-white vertex colour would tint it.
         const [r, g, b] = colors.getElement(i, [0, 0, 0, 0]) as number[];
-        if (team.getScalar(i) > .5) { masked++; expect(g > r && b > r, `${mesh.getName()} team vertex ${i}`).toBe(true); }
-        else if (r > b) warm++;
+        expect(Math.min(r, g, b), `${mesh.getName()} vertex colour ${i}`).toBeGreaterThan(.99);
+        if (team.getScalar(i) > .5) masked++;
       }
-      // A bandana, not a recoloured body: a small share of the character takes the team hue.
-      expect(masked / colors.getCount()).toBeGreaterThan(.005);
-      expect(masked / colors.getCount()).toBeLessThan(.15);
-      expect(warm / colors.getCount()).toBeGreaterThan(.6);
+      // A scarf and a rag, not a recoloured body: a small share of the character takes the team hue.
+      expect(masked / colors.getCount(), mesh.getName()).toBeGreaterThan(.005);
+      expect(masked / colors.getCount(), mesh.getName()).toBeLessThan(.15);
+      expect(position.getCount()).toBeGreaterThan(0);
     }
   });
 
@@ -46,17 +47,18 @@ describe('shipped capybara asset contract', () => {
     expect(surface.getBaseColorTexture()).toBeTruthy();
     expect(surface.getNormalTexture()).toBeTruthy();
     expect(surface.getMetallicRoughnessTexture()).toBeTruthy();
-    expect(surface.getExtras().capySurfaceAtlas).toBe(true);
+    expect(surface.getExtras().capyCharacterV6).toBe(true);
     expect(root.listSkins()).toHaveLength(1);
     const joints = root.listSkins()[0].listJoints().map(joint => joint.getName());
     for (const side of ['L', 'R']) {
       const digits = joints.filter(name => /^paw_(index|middle|ring|thumb)[1-3]_/.test(name) && name.endsWith(side));
       expect(digits).toHaveLength(12);
     }
-    // Painted fur must survive export; losing COLOR_0 would render a white capybara.
+    // The skin colour lives in the baked albedo; COLOR_0 must exist and stay white, since the
+    // material multiplies it (a missing stream would render the character black).
     const colors = root.listMeshes()[0].listPrimitives()[0].getAttribute('COLOR_0');
     expect(colors).toBeDefined();
-    expect(Array.from({ length: colors!.getCount() }, (_, i) => colors!.getElement(i, [])).some(rgb => rgb.some(value => value > 0 && value < 1))).toBe(true);
+    expect(Array.from({ length: colors!.getCount() }, (_, i) => colors!.getElement(i, [])).every(rgb => rgb.slice(0, 3).every(value => value > .99))).toBe(true);
     const bytes = await readFile('public/models/capybara/capybara.glb');
     const json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
     expect(json.extensionsRequired).toContain('EXT_meshopt_compression');
@@ -115,7 +117,7 @@ describe('shipped capybara asset contract', () => {
       if (name === 'crouch_idle') {
         // Meshopt removes redundant samples from the quiet breath. Check its
         // actual expansion instead of tying the contract to a sample count.
-        const breath = clip!.listChannels().find(c => c.getTargetNode()?.getName() === 'spine' && c.getTargetPath() === 'scale');
+        const breath = clip!.listChannels().find(c => c.getTargetNode()?.getName() === 'belly' && c.getTargetPath() === 'scale');
         expect(breath).toBeDefined();
         const values = breath!.getSampler()!.getOutput()!;
         const widths = Array.from({ length: values.getCount() }, (_, i) => values.getElement(i, [])[0]);

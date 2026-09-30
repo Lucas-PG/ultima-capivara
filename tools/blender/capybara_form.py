@@ -90,6 +90,8 @@ def bones():
     b['mouth_cavity'] = (v(0, 1.548, -.300), v(0, 1.578, -.300), 'head')
     b['tail'] = (v(0, .72, .20), v(0, .70, .26), 'spine')
     b['pack'] = (v(0, 1.02, .22), v(0, 1.36, .23), 'chest')
+    # Leaf bone for breathing and jiggle: scaling it moves no other bone.
+    b['belly'] = (v(0, .960, -.060), v(0, 1.060, -.080), 'spine')
     b['hipcloth'] = (v(.214, .905, -.070), v(.226, .640, -.070), 'spine')
     for s, n in ((-1, 'L'), (1, 'R')):
         eye = eye_point(s)[0]
@@ -154,26 +156,26 @@ def neck():
 
 # Head profile stations: (z, top, bottom, half-width at the crown, half-width at the jaw, exponent).
 HEAD_STATIONS = [
-    (.182, 1.690, 1.600, 0.037, 0.048, 2.0),
-    (.165, 1.742, 1.560, 0.088, 0.110, 2.0),
-    (.125, 1.778, 1.495, 0.136, 0.150, 2.1),
-    (.070, 1.795, 1.462, 0.156, 0.170, 2.2),
-    (.000, 1.793, 1.455, 0.160, 0.172, 2.3),
-    (-.070, 1.781, 1.465, 0.150, 0.162, 2.3),
-    (-.140, 1.763, 1.484, 0.130, 0.146, 2.4),
-    (-.210, 1.742, 1.500, 0.114, 0.134, 2.5),
-    (-.270, 1.722, 1.512, 0.110, 0.125, 2.5),
-    (-.315, 1.708, 1.530, 0.105, 0.114, 2.4),
-    (-.340, 1.700, 1.548, 0.095, 0.099, 2.3),
-    (-.344, 1.690, 1.575, 0.075, 0.075, 2.2),
-    (-.351, 1.676, 1.610, 0.040, 0.037, 2.0),
+    (0.182, 1.690, 1.600, 0.037, 0.048, 2.0),
+    (0.165, 1.742, 1.560, 0.088, 0.110, 2.0),
+    (0.125, 1.778, 1.495, 0.136, 0.150, 2.1),
+    (0.070, 1.795, 1.462, 0.156, 0.170, 2.2),
+    (0.000, 1.793, 1.455, 0.160, 0.172, 2.3),
+    (-0.070, 1.781, 1.465, 0.150, 0.162, 2.3),
+    (-0.140, 1.763, 1.484, 0.130, 0.146, 2.4),
+    (-0.209, 1.742, 1.500, 0.114, 0.134, 2.5),
+    (-0.260, 1.722, 1.512, 0.110, 0.125, 2.5),
+    (-0.299, 1.708, 1.530, 0.105, 0.114, 2.4),
+    (-0.320, 1.700, 1.548, 0.095, 0.099, 2.3),
+    (-0.324, 1.690, 1.575, 0.075, 0.075, 2.2),
+    (-0.330, 1.676, 1.610, 0.040, 0.037, 2.0),
 ]
 
 
 def head_mass():
     """Big forms of the capybara head: lofted skull-to-muzzle, jowl pads and a small set-back chin."""
     loft = ZLoft(HEAD_STATIONS)
-    chin = Ellipsoid((0, 1.508, -.236), (.050, .028, .058))
+    chin = Ellipsoid((0, 1.508, -.222), (.050, .028, .056))
     return Union([loft, chin], k=.045, mat=M['fur'])
 
 
@@ -202,13 +204,13 @@ def eye_frame(s):
 def head():
     """The long blunt capybara head: flat top line to a tall rounded muzzle, broad jowls."""
     mass = head_mass()
-    rhinarium = Union([Ellipsoid((0, 1.655, -.326), (.074, .046, .025), R=rot(pitch=-.18)), Ellipsoid((0, 1.690, -.310), (.052, .026, .030))], k=.02)
-    lips = Union([Ellipsoid((s * .031, 1.572, -.306), (.044, .038, .034)) for s in (-1, 1)], k=.02)
+    rhinarium = Union([Ellipsoid((0, 1.655, -.306), (.074, .046, .025), R=rot(pitch=-.18)), Ellipsoid((0, 1.690, -.290), (.052, .026, .030))], k=.02)
+    lips = Union([Ellipsoid((s * .031, 1.572, -.288), (.044, .038, .034)) for s in (-1, 1)], k=.02)
     face = Union([mass, rhinarium, lips], k=.028, mat=M['fur'])
-    nostrils = Union([Ellipsoid((s * .036, 1.668, -.353), (.014, .0062, .014), R=rot(pitch=-.3) @ rot(roll=s * .6)) for s in (-1, 1)])
+    nostrils = Union([Ellipsoid((s * .036, 1.668, -.333), (.014, .0062, .014), R=rot(pitch=-.3) @ rot(roll=s * .6)) for s in (-1, 1)])
     face = Cut(face, nostrils, k=.004)
-    mouth = Union([RoundCone(side((.0, 1.556, -.334), s), side((.036, 1.532, -.316), s), .003, .0028) for s in (-1, 1)] +
-                  [RoundCone((0, 1.606, -.353), (0, 1.584, -.349), .0022, .0026)])
+    mouth = Union([RoundCone(side((.0, 1.556, -.315), s), side((.036, 1.532, -.298), s), .003, .0028) for s in (-1, 1)] +
+                  [RoundCone((0, 1.606, -.333), (0, 1.584, -.329), .0022, .0026)])
     face = Cut(face, mouth, k=.003)
     for s in (-1, 1):
         e, out = eye_point(s)
@@ -430,8 +432,8 @@ def backpack(parts):
     flap = RoundBox((0, 1.225, .258), (.134, .066, .040), r=.030, R=rot(pitch=-.05))
     pocket = RoundBox((0, 1.040, .290), (.090, .070, .014), r=.012)
     sides = Union([RoundBox(side((.166, 1.080, .222), s), (.014, .078, .032), r=.012) for s in (-1, 1)])
-    roll = RoundCone((-.175, 1.372, .222), (.175, 1.372, .222), .056, .056)
-    roll_bands = Union([Torus(side((.100, 1.372, .222), s), .056, .006, R=rot(roll=math.pi / 2)) for s in (-1, 1)])
+    roll = RoundCone((-.175, 1.362, .222), (.175, 1.362, .222), .054, .054)
+    roll_bands = Union([Torus(side((.100, 1.362, .222), s), .054, .006, R=rot(roll=math.pi / 2)) for s in (-1, 1)])
     # The pack stays inside the body hit cylinder (r .335 m), like everything but the arms.
     inside = Field(lambda p: np.hypot(p[:, 0], p[:, 2]) - .338, (-.4, .8, -.4), (.4, 1.5, .4))
     pack = Material(Intersect(Union([bag, flap, pocket, sides], k=.012), inside), M['pack'])
