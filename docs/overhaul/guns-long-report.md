@@ -8,7 +8,7 @@ Scope: `m4`, `shotgun`, `sniper`, `dmr`, `coco`, in the `guns-long` worktree. Th
 
 | Weapon | FP triangles | Packed GLB bytes | World near triangles | World far triangles |
 | --- | ---: | ---: | ---: | ---: |
-| m4 | 22,130 | 726,996 | 2,400 | 418 |
+| m4 | 21,306 | 720,808 | 2,400 | 418 |
 | shotgun | 20,842 | 596,224 | 2,400 | 418 |
 | sniper | 21,740 | 627,540 | 2,400 | 410 |
 | dmr | 23,006 | 723,064 | 2,392 | 416 |
@@ -22,7 +22,9 @@ Preserved the navy, coral and brass model, livery and open rear notch. The packe
 
 Before: [M4 contact sheet](evidence/guns/m4-before.jpg). After: [gameplay views](evidence/guns/m4-after.jpg), [reload and mechanism views](evidence/guns/m4-reload.jpg).
 
-Current review: support-grip anatomy and firing-paw visibility are not accepted yet. The prior contact results below do not establish visual acceptance. The tightest sampled contact is -0.4 mm during trigger movement, within the requested -0.5 mm tolerance.
+Correction pass: the support fingers now curl below and around the far side of the rear handguard, with the thumb on top and a forward component on every digit. A small receiver-lug relief preserves palm clearance. The new elbow pole reduces the hip wrist bend to 24 degrees and keeps the forearm entering from the lower-left. The firing paw is visible at the lower-right. Reload departure opens the support fingers before withdrawal; return closes them only after the palm reaches the handguard.
+
+Fresh evidence: [hip eye](evidence/guns/m4-corrected-hip.jpg), [near support](evidence/guns/m4-corrected-near.jpg), [below support](evidence/guns/m4-corrected-below.jpg), [top support](evidence/guns/m4-corrected-top.jpg), [open ADS](evidence/guns/m4-corrected-ads.jpg), [contact sheet](evidence/guns/m4-corrected-sheet.jpg), [full grip probe and digit directions](evidence/guns/m4-corrected-grip.json). Tip angles around the bore are 249, 319, 302 and 112 degrees for index, middle, ring and thumb. All four directions have a forward component. The packed model clears the support paw by 0.7 mm at hip. [Sixty gameplay and motion samples](evidence/guns/m4-corrected-motion.json) have a minimum of 0.0 mm across both paws; 38 additional release and return samples clear by at least 0.1 mm before packing. The TypeScript check and 40 targeted viewmodel tests pass. World asset synchronization and the final full-suite pass remain part of the combined review.
 
 ## Doze
 

@@ -83,10 +83,10 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   m4: {
     url: 'models/arsenal/m4.glb', scale: 1, handling: 'rifle', reload: 'rifle',
     hip: { pos: [.23, -.086, -.372], rot: [.044, .159, .568] },
-    sprint: { pos: [-.03, -.045, .015], rot: [-.12, .6, .1] }, adsDistance: .15, viewmodelFov: 71, shoulders: {R: [0.32, -0.42, 0.08], L: [-.38, -.5, .05]},
+    sprint: { pos: [-.03, -.045, .015], rot: [-.12, .6, .1] }, adsDistance: .15, viewmodelFov: 71, shoulders: {R: [0.32, -0.42, 0.08], L: [-0.347974, -0.408304, 0.061382]},
     // Right index occupies the roomy guard; support wraps the rear handguard.
     // Contact coordinates are measured against the packed asset in metres.
-    grips: {L: {wrist: [-0.053473, 0.068559, -0.110495], forward: [0.322369, -0.586991, -0.742644], palm: [0.929033, 0.346685, 0.129255], pole: [-1, -.8, .1], curl: {index: [0.175476, 0.163035, 0.411246], middle: [0.981184, 0.281287, -0.1], ring: [1.159754, -0.1, -0.1], thumb: [0.687558, -0.1, -0.090754], spread: 0.367052}}, R: {wrist: [0.022995, -0.066361, 0.106426], forward: [0.404426, 0.41919, -0.812847], palm: [-0.612636, -0.535732, -0.581093], pole: [0.8, -1, 0.3], curl: {index: [0.470115, 0.394616, 0.343606], middle: [0.927018, 0.599134, 1.024462], ring: [1.7, 0.299979, -0.1], thumb: [0.082804, -0.095181, 0.078912], spread: 0.342322}}},
+    grips: {L: {"wrist": [-0.055957, 0.057106, -0.118615], "forward": [0.558887, -0.394012, -0.729657], "palm": [0.784387, 0.536665, 0.311011], "pole": [-1, 0.750774, 0.336303], "curl": {"index": [-0.1, -0.1, -0.1], "middle": [0.830031, -0.001348, -0.1], "ring": [0.955268, -0.1, -0.1], "thumb": [0.604244, -0.272554, 0.06363], "spread": 0.053322}}, R: {wrist: [0.022995, -0.066361, 0.106426], forward: [0.404426, 0.41919, -0.812847], palm: [-0.612636, -0.535732, -0.581093], pole: [0.8, -1, 0.3], curl: {index: [0.470115, 0.394616, 0.343606], middle: [0.927018, 0.599134, 1.024462], ring: [1.7, 0.299979, -0.1], thumb: [0.082804, -0.095181, 0.078912], spread: 0.342322}}},
     recoil: RECOIL.rifle, inertia: 1,
   },
   shotgun: {

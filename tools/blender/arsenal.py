@@ -201,6 +201,10 @@ def m4():
     lower = prism('lower', [(-.074, .046, 1), (.126, .046, 1), (.131, .036), (.126, .018), (.112, -.006), (.032, -.008), (.024, .004),
                            (-.018, .006), (-.058, .012), (-.074, .026)], .036, 'gunmetal', bevel=.0028, smooth=1, raw=True)
     cut(lower, cutter_box((0, .071, -.004), (.029, .07, .03)))
+    # The front lug has a palm relief on the near side and a finger seat on the far side.
+    for vertex in lower.data.vertices:
+        front = min(1., max(0., (vertex.co.y - .1) / .025))
+        vertex.co.y += front * (.0025 + vertex.co.x * (.015 / .036))
     parts['body'] += [complete(lower)]
     # Magwell with a flared mouth; the curved magazine rides inside it.
     well = prism('magwell', [(.030, .0, 1), (.114, .0, 1), (.116, -.024), (.121, -.034), (.026, -.034), (.032, -.024)], .038, 'gunmetal', bevel=.0026, raw=True)
