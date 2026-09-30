@@ -91,6 +91,15 @@ describe('bots use authored building routes through ordinary movement', () => {
     expect(Math.min(...h.trace.map(point => point.vy))).toBeGreaterThanOrEqual(h.walkingVy - .4);
   });
 
+  it('lets go of a flight it was knocked off, instead of pressing into the stair from below', () => {
+    const h = scenario(houses[0], 23), entry = h.route.points[0];
+    expect(h.advance(() => h.bot.state.pos.y > entry.y + 1.6)).toBe(true);
+    // Shoved off the side of the stair, landing just below the tread it stood on.
+    const router = (h.sim as any).buildingRoutes as BotBuildingRoutes;
+    const beside = { ...h.bot.state.pos, x: h.bot.state.pos.x + .5, y: h.bot.state.pos.y - 1.6 };
+    expect(router.step(h.bot.brain, beside, h.item)?.precise ?? false).toBe(false);
+  });
+
   it('does not connect coincident XZ positions on different floors or invent routes for old worlds', () => {
     const h = scenario(houses[0]);
     const router = new BotBuildingRoutes(h.world, false), bot = {};

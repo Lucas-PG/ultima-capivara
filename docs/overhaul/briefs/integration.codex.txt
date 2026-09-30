@@ -1,0 +1,25 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Read docs/overhaul/autonomous-progress.md for context. You have full creative freedom inside your scope: research, experiment, be creative, and reject your own mediocre results.
+
+RULES
+- Work only in your git worktree (given below). Never push, open PRs, deploy or touch other worktrees or the main checkout.
+- Another agent is baking weapons with Blender, so the machine runs hot: keep your load light. At most one Chrome instance at a time, capture at 1280x720 or smaller, prefer offline analysis and unit tests to live renders where they prove the same thing, never run Blender, and stop servers and browsers when idle and when done.
+- Do not touch weapon models, the viewmodel, arms, character or world code (tools/blender/*, src/render/weapons.ts, viewmodel-*, fp-arms.ts, capybara*, layout.ts, world.ts, terrain.ts, the kit, vegetation) unless a one-line hook is unavoidable; say so in your report.
+- Never spend money, create accounts or access personal apps or data. External assets only with licences compatible with a commercial game (CC0 preferred) and downloadable without an account; record source and licence in docs/assets.md.
+- Never use the em dash character anywhere (code, docs, commit messages, UI text). Commit in small logical commits with no co-author or agent lines.
+- Keep green: npx tsc --noEmit and npx vitest run.
+- Start your dev server as a background command: cd <worktree> && VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port>. QA tools in tools/qa (capture.mjs named poses, cam.mjs free camera, play.mjs live match driver) take BASE=http://127.0.0.1:<your port>. Use absolute paths or cd <worktree> && ... in every command.
+- You may use your image generation tool for references, sprites or texture sources.
+- When done, write docs/overhaul/<your report name> in your worktree (what changed and why, evidence, measurements, tests, known issues) and commit it. Final reply to the orchestrator: under 200 words, ending with the line TASK DONE only when every item is genuinely finished (otherwise end with CONTINUING and the next step, and keep working when resumed).
+
+ROLE AND WORKTREE
+You are the integration and polish engineer. Everything is merged into this branch: world, vegetation, audio, UI and spectator, combat feel and VFX, short guns and the rebuilt character (the long guns land later). Your job is to make the pieces fit perfectly. Worktree: /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/integration (branch integration). Dev server port 5175. Report: docs/overhaul/integration-report.md. Read docs/overhaul/briefs/review-log.md (the orchestrator's review findings) and the reports in docs/overhaul/*-report.md.
+
+ITEMS
+1. Settings screen (src/ui/ui.ts) must present every option of the controls model in src/controls.ts (CONTROL_OPTIONS: aim, crouch and sprint toggles, invert Y, aimed and scope sensitivity, camera shake) with the model's ranges, and a rebinding list for every action in the controls model including the new ones (V quick melee, X previous weapon); one source of truth, no hard-coded duplicates; keyboard and mouse flows tested.
+2. src/ui/crosshair.ts treats the horizontal field of view as vertical: fix it and test it.
+3. Audio follow-ups (src/sound/*): a supply-plane flyby, a distinct cue when a remote shot is fired toward you, and migrate saved settings that still hold the old 0.25 music default.
+4. A muzzle flash is missing inside the scope view of the scoped weapons.
+5. QA lab poses that no longer match the island (tools/qa, tests/visual): retarget or remove them; then re-approve the Playwright visual snapshot baselines ONLY after checking each new image by eye for defects.
+6. Play several full matches with bots in every mode (tools/qa/play.mjs) and fix every integration bug you find (HUD, spectator, audio, VFX, controls, pickups, storm, results); list them in the report.
+Do not touch the weapon models or the first-person viewmodel (another agent is finishing the long guns there).

@@ -52,6 +52,8 @@ export class BotBuildingRoutes {
     });
   }
   contains(point: Vec3) { return !!this.floorAt(point); }
+  /** Abandon the current journey; the next step plans afresh. */
+  release(bot: object) { this.journeys.delete(bot); }
 
   private select(floor: Floor, from: Vec3, goal: Vec3, reverse: boolean): BuildingRoute | undefined {
     let best: BuildingRoute | undefined, cost = Infinity;
@@ -92,6 +94,11 @@ export class BotBuildingRoutes {
       this.journeys.set(bot, journey);
     }
     Object.assign(journey.last, from);
+    // Knocked or pushed off a flight: the next tread is now a wall at chest
+    // height. Pressing into it from the side held a bot there for minutes;
+    // outdoor routing takes over from the ground instead.
+    const next = journey.route.points[journey.index];
+    if (journey.entered && next && next.y - from.y > 1 && !this.floorAt(from)) { this.journeys.delete(bot); return null; }
     while (journey.index >= 0 && journey.index < journey.route.points.length) {
       const point = journey.route.points[journey.index];
       const end = journey.reverse ? journey.index === 0 : journey.index === journey.route.points.length - 1;

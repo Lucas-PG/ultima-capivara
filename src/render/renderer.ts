@@ -37,6 +37,7 @@ import { itemGeometry } from './item-geometry';
 import type { PresentationFrame } from './local-presentation';
 export { itemGeometry } from './item-geometry';
 
+const FOG_NEAR = 40, FOG_FAR = 520;
 const ZONE_NONE: ZoneState = { x: 0, z: 0, radius: 0, nextRadius: 0, nextX: 0, nextZ: 0, phase: 0, shrinking: false, timeLeft: 0, damage: 0 };
 
 export class GameRenderer {
@@ -145,14 +146,14 @@ export class GameRenderer {
     worldWeaponMaterial().envMap = this.environment.texture;
     worldWeaponMaterial().envMapIntensity = .35;
     this.scene.background = new THREE.Color(PAINT.fog);
-    this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
+    this.scene.fog = new THREE.Fog(PAINT.fog, FOG_NEAR, FOG_FAR);
     this.camera = new THREE.PerspectiveCamera(verticalFov(settings.fov), 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
     this.avatars = new AvatarView(this.scene, this.camera, world);
     this.cameraRig = new CameraRig(this.camera, world, settings, this.avatars);
-    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .88));
+    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.15));
     this.scene.add(this.interiorLight);
-    this.sun = new THREE.DirectionalLight(PAINT.sun, 3.5); this.sun.position.copy(this.sunOffset);
+    this.sun = new THREE.DirectionalLight(PAINT.sun, 3.2); this.sun.position.copy(this.sunOffset);
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 170;
     this.sun.shadow.bias = -.00035; this.sun.shadow.normalBias = .12;
@@ -281,11 +282,12 @@ export class GameRenderer {
     this.lowHealth = damp(this.lowHealth, low > 0 ? .45 + .55 * low : 0, 4, dt);
     this.pipeline.setScreenFeedback(this.stormAmount, this.settings.reducedMotion ? this.stormPulse * .5 : this.stormPulse, this.lowHealth);
     // Thin the haze with altitude so the island stays readable from the plane.
+    // At street level the first 40 m are clear: duels and name reads happen there.
     if (this.scene.fog instanceof THREE.Fog) {
-      const altitude = THREE.MathUtils.smoothstep(this.camera.position.y, 15, 110), far = 460;
-      this.scene.fog.near = 110 * (1 + altitude); this.scene.fog.far = far * (1 + .35 * altitude);
+      const altitude = THREE.MathUtils.smoothstep(this.camera.position.y, 15, 110);
+      this.scene.fog.near = FOG_NEAR * (1 + 2 * altitude); this.scene.fog.far = FOG_FAR * (1 + .35 * altitude);
     }
-    if (this.settings.graphics !== 'low') {
+    if (PRESETS[this.settings.graphics].shadows) {
       // Snap in light space so camera movement does not slide the shadow texels.
       const texel = 2 * PRESETS[this.settings.graphics].shadowReach / this.sun.shadow.mapSize.x;
       this.shadowAnchor.set(this.camera.position.x, 0, this.camera.position.z);
@@ -503,7 +505,7 @@ export class GameRenderer {
     this.settings = settings;
     this.resolutionScale = 1; this.applyPreset(settings);
     this.worldView.setSettings(settings);
-    this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
+    this.scene.fog = new THREE.Fog(PAINT.fog, FOG_NEAR, FOG_FAR);
     this.camera.fov = verticalFov(settings.fov); this.camera.updateProjectionMatrix(); this.resize();
   }
 

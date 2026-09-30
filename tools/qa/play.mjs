@@ -10,7 +10,7 @@ const steps = JSON.parse(stepsJson);
 if (!out) throw new Error('Give a worktree-local output directory.');
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch(process.env.BUNDLED ? {} : { channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
-const size = { width: 1280, height: 720 };
+const size = { width: Math.min(1280, Number(process.env.W || 1280)), height: Math.min(720, Number(process.env.H || 720)) };
 const page = await browser.newPage({ viewport: size, ...(process.env.VIDEO ? { recordVideo: { dir: process.env.VIDEO, size } } : {}) });
 const errors = [];
 page.on('pageerror', e => { errors.push(e.message); console.error('pageerror', e.message); });
@@ -207,6 +207,32 @@ for (const step of steps) {
   else if (kind === 'shot') await page.screenshot({ path: `${out}/${a}.png` });
   else if (kind === 'me') console.log(a || 'me', JSON.stringify(await me()));
   else if (kind === 'eval') console.log(JSON.stringify(await page.evaluate(a)));
+  // ["spectate", maximumSeconds=900, captureEvery=30]: watch a complete match.
+  // The QA damage removes only the observer; bots use the ordinary worker clock.
+  else if (kind === 'spectate') {
+    const samples = [], end = Date.now() + (a ?? 900) * 1000; let next = 0, frame = 0;
+    while (Date.now() < end) {
+      const sample = await page.evaluate(() => {
+        const i = window.__capivara.inspect(), s = i.snapshot, me = s.actors.find(x => !x.bot);
+        if (me?.alive && s.time > 4) window.__capivara.qaDamage(me.id, 10000);
+        return { time: s.time, phase: s.phase, spectateId: i.spectateId, remaining: s.remaining,
+          actors: s.actors.filter(x => x.bot).map(x => ({ id: x.id, pos: x.pos, hp: x.hp, kills: x.kills, deaths: x.deaths,
+            swimming: x.swimming, alive: x.alive, weapon: x.weapons[x.slot]?.id })), perf: window.__capivara.perf() };
+      });
+      samples.push(sample);
+      if (Date.now() >= next || sample.phase === 'results') {
+        writeFileSync(`${out}/spectate.json`, JSON.stringify(samples) + '\n');
+        await page.screenshot({ path: `${out}/spectate-${frame++}.jpg`, quality: 80 });
+        console.log('spectate', sample.time.toFixed(1), sample.phase, sample.spectateId, sample.remaining);
+        next = Date.now() + (b ?? 30) * 1000;
+        if (sample.spectateId && sample.phase !== 'results') await page.evaluate(() => { window.__networkQA.key('Space', true); window.__networkQA.key('Space', false); });
+      }
+      if (sample.phase === 'results') break;
+      await page.waitForTimeout(1000);
+    }
+    writeFileSync(`${out}/spectate.json`, JSON.stringify(samples) + '\n');
+    if (samples.at(-1)?.phase !== 'results') throw new Error('Spectated match did not finish before its time limit');
+  }
   // ["defend", seconds, shotEvery, ads?]: stand still, track the nearest living bot (head height), fire bursts when within 35 m.
   else if (kind === 'defend') {
     const end = Date.now() + a * 1000; let next = Date.now() + (b ?? 1e9) * 1000, frame = 0;
@@ -266,6 +292,7 @@ for (const step of steps) {
     console.log('hunt', JSON.stringify(await me()));
   }
 }
-} finally { await page.close(); await browser.close(); }
+await page.close();
 if (errors.length) process.exitCode = 1;
 if (process.env.VIDEO) console.log('video', await page.video()?.path());
+} finally { await browser.close(); }

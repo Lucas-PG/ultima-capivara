@@ -45,3 +45,16 @@
 
 ## Codex quota - 02:33
 - Codex hit its weekly limit at 02:30 while the long-guns agent was in its fix round (five fixes committed, 11 files in progress). Per the user's rule, ONE reset was used, the soonest-expiring (01:21 on 5 Oct), through the Codex CLI /usage menu; 2 remain (22 Oct, 29 Oct) and are not to be used. The long-guns agent resumed on its saved thread at 02:34.
+
+## Character rebuild (Claude Opus, character-rebuild, 13 commits) - 03:15
+- New sculpt with face (nose, lids, brows, mouth, ears), barrel torso, rolled cargo trousers, three-toed feet, the v3 paw imported unchanged; team colour on scarf, hip rag and bedroll; LODs 26.5k/7.8k/2.2k; guns held close for every class with both paws (a stance-offset accumulation bug moving guns 7-14 cm found and fixed); 60 Hz clips with planted feet; 16 capybaras hold 60 fps on every preset.
+- My check against the holding reference: PASS as a clear step up (outfit, silhouette, blunt muzzle, close holding all match); below the reference in face expressiveness at distance and fur cleanliness up close. Merged; integrated tests 918/918.
+
+## Switch to Codex astra (Claude weekly 93% used) - 03:20
+- Remaining builds moved to Codex gpt-6-astra at max effort per the user's fallback rule, keeping Claude for reviews and the release: integration (settings for the new controls, crosshair FOV, audio follow-ups, scope flash, QA poses and visual baselines, integration bugs from full matches), bots-graphics (bots on the new island, sky, grading, fog, AO), char-polish (face, fur, foot sliding, armhole texels, statue from the new character, far LOD).
+
+## Bots and graphics (Claude Opus takeover of a Codex start, bots-graphics, 14 commits) - 08:05
+- Bots measured over 8 full matches per mode against the original: stuck time 2.2 -> 0.7 s per bot-minute (royale) and 2.7 -> 0.5 (deathmatch), longest stuck 46 -> 6 s, storm deaths 23 -> 0, water deaths 83 -> 3; strafing now spoils bot aim (Normal SMG at 10 m 86% -> 63%); rusher, anchor and flanker styles; yards and gates joined to the route network.
+- Graphics (the Codex lighting draft was replaced because it washed colour out): blue sky, one shared haze warming toward the sun, warm sun and cool shadows, colour grade, daylight clouds, turquoise water, short-range shadows on Low; 16.7 ms on every preset.
+- My before/after from four cameras: PASS (subtle, cleaner daylight closer to the wide-aim reference; the coast lost its orange horizon for a clear blue sky). Merged.
+- Found: a walled garden near (6, 68) traps players (sent to the integration agent with a connectivity test requirement).
