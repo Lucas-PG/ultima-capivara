@@ -388,12 +388,13 @@ export class GameUI {
     const zoneChip = this.el('hZoneChip'), finalStorm = zone.phase >= STORM_PHASES;
     this.toggle(zoneChip, 'time', !br);
     this.toggle(zoneChip, 'closing', br ? zone.shrinking || finalStorm : snapshot.config.mode === 'deathmatch' && snapshot.remaining <= 30);
-    this.text('hZoneK', br ? finalStorm ? 'Última tempestade' : zone.shrinking ? 'Tempestade avançando' : 'Tempestade em' : snapshot.config.mode === 'corrente' ? 'Líder precisa de' : 'Tempo restante');
-    this.text('hZoneT', br ? finalStorm ? '0:00' : clock(zone.timeLeft) : snapshot.config.mode === 'corrente' ? `${Math.max(1, Math.ceil(snapshot.remaining))} ${snapshot.remaining === 1 ? 'elim.' : 'elims.'}` : clock(snapshot.remaining));
+    this.text('hZoneK', br ? finalStorm ? 'Última tempestade' : zone.shrinking ? 'Tempestade avançando' : 'Tempestade em' : snapshot.config.mode === 'corrente' ? 'Faltam ao líder' : 'Tempo restante');
+    this.text('hZoneT', br ? finalStorm ? '0:00' : clock(zone.timeLeft) : snapshot.config.mode === 'corrente' ? String(Math.max(1, Math.ceil(snapshot.remaining))) : clock(snapshot.remaining));
     this.show('hDots', br);
     if (br) this.el('hDots').querySelectorAll('i').forEach((dot, i) => this.toggle(dot, 'on', i < Math.min(zone.phase + (zone.shrinking ? 1 : 0), STORM_PHASES)));
     this.show('hRankChip', !br); if (!br) this.text('hRank', `#${snapshot.actors.filter(a => snapshot.config.mode === 'corrente' ? a.weaponLevel > me.weaponLevel : a.kills > me.kills).length + 1}`);
-    const corrente = snapshot.config.mode === 'corrente', ladder = this.el('ladder'); this.show('ladder', corrente && me.alive);
+    const corrente = snapshot.config.mode === 'corrente', ladder = this.el('ladder');
+    this.toggle(this.el('hud'), 'corrente', corrente); this.show('ladder', corrente && me.alive);
     if (corrente) {
       const level = Math.max(0, Math.min(CORRENTE_LADDER.length - 1, me.weaponLevel)), final = level === CORRENTE_LADDER.length - 1;
       this.text('ladderStep', `${level + 1} / ${CORRENTE_LADDER.length}`);

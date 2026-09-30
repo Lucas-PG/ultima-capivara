@@ -74,10 +74,11 @@ describe('hud', () => {
   });
   // The user saw the health card run into the weapon slots in a narrower window: the scale floor stops the HUD from
   // shrinking there, so the layout must change instead.
-  it('moves the vitals aside whenever centred vitals would meet the weapon slots', () => {
+  it('stacks the weapon boxes whenever centred boxes would meet the vitals', () => {
     for (const [w, h] of [[1024, 640], [1100, 900], [960, 1000], [1280, 1024]]) for (const size of [.8, 1, 1.2])
       expect(hudNarrow(w, hudScale(w, h, size))).toBe(w / hudScale(w, h, size) < HUD_CENTRED_WIDTH);
-    expect(hudNarrow(1024, hudScale(1024, 640))).toBe(true);
+    expect(hudNarrow(960, hudScale(960, 600))).toBe(true);
+    expect(hudNarrow(1024, hudScale(1024, 640))).toBe(false);
     for (const [w, h] of [[1280, 720], [1366, 768], [1600, 900], [1920, 1080], [2560, 1440]]) expect(hudNarrow(w, hudScale(w, h))).toBe(false);
     // Phones keep their own stacked layout.
     expect(hudNarrow(600, hudScale(600, 900))).toBe(false);
