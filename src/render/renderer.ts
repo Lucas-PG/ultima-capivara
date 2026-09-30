@@ -254,6 +254,7 @@ export class GameRenderer {
     this.effectsFrame.viewportHeight = this.lastSize.height;
     this.effectsFrame.reducedMotion = this.settings.reducedMotion;
     this.effectsFrame.lowQuality = this.settings.graphics === 'low';
+    this.effectsFrame.quality = this.settings.graphics;
     this.effects.update(dt, this.effectsFrame, snapshot?.actors, frame.simulationTime ?? snapshot?.time ?? 0, frame.localActor);
     if (snapshot) {
       const zone = snapshot.zone;

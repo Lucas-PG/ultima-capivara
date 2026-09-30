@@ -30,17 +30,19 @@ export interface EffectsFrame {
   /** Accessibility: cards fade in and out without scale pops. */
   reducedMotion: boolean;
   lowQuality?: boolean;
+  /** Graphics preset: particle counts and how long marks stay scale with it. */
+  quality?: 'low' | 'medium' | 'high';
 }
 
 // One palette table (bible §3, §11). Values are the authored sRGB hexes.
 const HEX = {
   // Muzzle flash, pow, fur, stars and chips come painted from the F2 flipbook sheet.
   flash: '#ffb84d',
-  tracer: '#ffe3a1', tracerCore: '#fff4e2', tracerHostile: '#ff6b4a',
+  tracer: '#ffe3a1', tracerCore: '#fff4e2', tracerHostile: '#ff5a3c', tracerHostileCore: '#ffb49c',
   gold: '#ffc23d', goldLight: '#ffe7a3', cloudLight: '#fff4e2',
   heal: '#3aa35a', healLight: '#8cc453', armor: '#2f9df4', armorLight: '#bfd8e6', boost: '#e9b44c', boostLight: '#ffe7a3',
   alert: '#e5412d', alertLight: '#ffc23d', white: '#f4fbf6',
-  pebble: '#bbae98', pebbleLight: '#d8c8aa',
+  pebble: '#bbae98', pebbleLight: '#d8c8aa', earthPlume: '#a48c78',
   coconut: '#6b4428', coconutLight: '#a8784a', blast: '#ffab2e', blastLight: '#fff2b0', smoke: '#5d4a3e', smokeLight: '#9a8676',
 } as const;
 
@@ -55,14 +57,27 @@ const SURFACES: Record<Surface, { puff: string; puffLight: string; bit: string; 
   water: { puff: '#9fd8d2', puffLight: '#f4fbf6', bit: '#9fd8d2', bitLight: '#f4fbf6', bitCell: CELL.drop, bits: 4, mark: '#9fd8d2', markLight: '#f4fbf6', markCell: CELL.ring },
 };
 
-// Flash size in metres (third person) and in first-person scene units.
-const FLASH: Partial<Record<WeaponId, { world: number; fp: number }>> = {
-  pistol: { world: .42, fp: .2 }, smg: { world: .38, fp: .17 }, m4: { world: .5, fp: .24 },
-  shotgun: { world: .7, fp: .36 }, dmr: { world: .55, fp: .27 }, sniper: { world: .7, fp: .34 },
-  revolver: { world: .55, fp: .27 }, coco: { world: .6, fp: .3 },
+// Muzzle flash per gun (hud-vfx-research: shape follows the gun's use and power).
+// `world` and `fp` size the front burst in metres (third person) and first-person
+// scene units; `side` is the painted side-view flame, `length` its length as a
+// multiple of the burst; `life` the seconds the bright core lasts (2 to 4 frames);
+// `smoke` how many rounds of a burst leave a first-person barrel wisp.
+// `sights` is how much the aimed burst grows to clear that gun's rear sight.
+interface FlashSpec { world: number; fp: number; side: number; length: number; life: number; smoke: number; sights: number }
+const FLASH: Partial<Record<WeaponId, FlashSpec>> = {
+  pistol: { world: .36, fp: .12, side: PAINT.sidePistol, length: 1.3, life: .045, smoke: 1, sights: 1.1 },
+  revolver: { world: .5, fp: .17, side: PAINT.sideRevolver, length: 1.5, life: .06, smoke: 1, sights: 1.1 },
+  smg: { world: .3, fp: .1, side: PAINT.sideSmg, length: 1.2, life: .035, smoke: 5, sights: 2 },
+  m4: { world: .42, fp: .135, side: PAINT.sideRifle, length: 1.6, life: .04, smoke: 5, sights: 2.4 },
+  shotgun: { world: .62, fp: .22, side: PAINT.sideShotgun, length: 1.5, life: .065, smoke: 1, sights: 1.4 },
+  dmr: { world: .44, fp: .145, side: PAINT.sideDmr, length: 2.1, life: .05, smoke: 1, sights: 1.1 },
+  sniper: { world: .6, fp: .2, side: PAINT.sideSniper, length: 1.9, life: .07, smoke: 1, sights: 1.1 },
 };
-const TRACER_WIDTH: Partial<Record<WeaponId, number>> = { pistol: .018, smg: .016, m4: .02, shotgun: .016, dmr: .024, sniper: .028, revolver: .024 };
-export const MARK_LIFE = 4;
+const TRACER_WIDTH: Partial<Record<WeaponId, number>> = { pistol: .018, smg: .016, m4: .02, shotgun: .016, dmr: .024, sniper: .03, revolver: .024 };
+// Seconds a bullet mark stays, and particle count scale, by graphics preset.
+export const MARK_LIFE = 10;
+const MARK_LIFE_BY: Record<'low' | 'medium' | 'high', number> = { low: 5, medium: MARK_LIFE, high: 16 };
+const COUNT_BY: Record<'low' | 'medium' | 'high', number> = { low: .5, medium: 1, high: 1.35 };
 
 type Palette = Record<keyof typeof HEX, THREE.Color>;
 type SurfacePalette = Record<Surface, { puff: THREE.Color; puffLight: THREE.Color; bit: THREE.Color; bitLight: THREE.Color; mark: THREE.Color; markLight: THREE.Color }>;
@@ -86,6 +101,7 @@ export class EffectsView {
   private readonly surface = {} as SurfacePalette;
   private readonly rarity = [0, 1, 2, 3].map(r => new THREE.Color(rarityOf(r).color));
   private readonly tips = new Map<WeaponId, THREE.Vector3>();
+  private burst = 0;
   private readonly grid = new Map<number, Collider[]>();
   private readonly pending: Pending[] = [];
   private readonly pebbles: Pebble[] = [];
@@ -100,6 +116,7 @@ export class EffectsView {
   private readonly n2 = new THREE.Vector3();
   private readonly t1 = new THREE.Vector3();
   private readonly t2 = new THREE.Vector3();
+  private readonly t3 = new THREE.Vector3();
   private readonly u1 = new THREE.Vector3();
   private readonly u2 = new THREE.Vector3();
   private readonly tint = new THREE.Color();
@@ -113,7 +130,7 @@ export class EffectsView {
       bitLight: new THREE.Color(s.bitLight), mark: new THREE.Color(s.mark), markLight: new THREE.Color(s.markLight),
     };
     this.cards = new CardSystem(this.atlas, this.painted, 900, 4, 1.5);
-    this.decals = new DecalSystem(this.atlas, 64);
+    this.decals = new DecalSystem(this.atlas, 160);
     this.casings = new CasingSystem(64, true, (x, z, top) => this.groundAt(x, z, top));
     this.fpCards = new CardSystem(this.atlas, this.painted, 80, 10);
     this.systems = [this.cards, this.fpCards, this.tracers, this.decals, this.casings, this.fpCasings];
@@ -310,7 +327,8 @@ export class EffectsView {
     if (own && f) {
       weaponView.shot(weapon, event.hit || !!event.surface);
       const fp = weaponView.muzzleWorld(this.t1), ads = weaponView.adsAmount;
-      this.flash(fp, weapon, true, ads);
+      // The first-person camera sits at the scene origin looking down -z: the barrel points at the far aim point.
+      this.flash(fp, weapon, true, ads, this.u1.set(0, 0, -60).sub(fp).normalize());
       if (weapon !== 'machete' && weapon !== 'coco' && weapon !== 'revolver') {
         const eject = weaponView.ejectWorld(this.t2);
         this.fpCasings.spawn(eject, this.n.set(rand(.9, 1.3), rand(.8, 1.2), rand(.1, .35)), weapon === 'shotgun', .7);
@@ -324,7 +342,8 @@ export class EffectsView {
       if (visual?.group.visible && visual.weapon.visible) {
         visual.weapon.updateWorldMatrix(true, false);
         muzzle.copy(this.tips.get(weapon)!).applyMatrix4(visual.weapon.matrixWorld);
-        this.flash(muzzle, weapon, false, 0);
+        // Held models point their barrel down local -z.
+        this.flash(muzzle, weapon, false, 0, this.u1.set(0, 0, -1).transformDirection(visual.weapon.matrixWorld));
         if (weapon !== 'machete' && weapon !== 'coco' && weapon !== 'revolver' && f && muzzle.distanceToSquared(f.camera.position) < 30 * 30) {
           // Ejected to the shooter's right from above the grip, a little behind the tip.
           const yaw = visual.group.rotation.y, g = visual.group.position;
@@ -339,9 +358,10 @@ export class EffectsView {
     }
     if (weapon === 'coco') { this.pebble(muzzle, event); return; }
     if (streak && FLASH[weapon]) {
-      const hostile = !!playerId && event.actor !== playerId && this.passesNear(muzzle, end, snapshot, playerId);
-      this.tracers.spawn(muzzle, end, .11, TRACER_WIDTH[weapon] || .018, own ? .7 : .95,
-        hostile ? this.color.tracerHostile : this.color.tracer, hostile ? this.color.tracer : this.color.tracerCore, hostile ? 2.2 : 1.4);
+      // Someone else's round reads a touch heavier; one that passes by your head turns red.
+      const enemy = !!playerId && event.actor !== playerId, hostile = enemy && this.passesNear(muzzle, end, snapshot, playerId);
+      this.tracers.spawn(muzzle, end, weapon === 'sniper' ? .16 : .11, (TRACER_WIDTH[weapon] || .018) * (enemy ? 1.25 : 1), own ? .7 : .95,
+        hostile ? this.color.tracerHostile : this.color.tracer, hostile ? this.color.tracerHostileCore : this.color.tracerCore, hostile ? 2.4 : enemy ? 1.8 : 1.4);
     }
     if (!event.hit && event.surface && event.normal) {
       this.n.copy(event.normal);
@@ -391,26 +411,47 @@ export class EffectsView {
     return this.a.copy(from).addScaledVector(line, k).distanceToSquared(head) < 2.5 * 2.5;
   }
 
-  private flash(pos: THREE.Vector3, weapon: WeaponId, fp: boolean, ads: number) {
-    const size = FLASH[weapon];
-    if (!size) return;
-    // In third person the flash sits just in front of the barrel so the gun and paws never clip it.
-    if (!fp && this.frame) pos = this.t2.subVectors(this.frame.camera.position, pos).normalize().multiplyScalar(size.world * .6).add(pos);
-    // Third person only, spawned first so it draws under the flash: a small warm puff at the barrel.
-    // In first person it would sit in the sight line.
+  // A front burst (camera facing), the gun's side flame along the barrel and,
+  // in third person, a warm puff; in first person a light barrel wisp now and then.
+  // Aimed fire keeps the burst small so the sight picture stays readable.
+  private flash(pos: THREE.Vector3, weapon: WeaponId, fp: boolean, ads: number, barrel?: THREE.Vector3) {
+    const spec = FLASH[weapon];
+    if (!spec) return;
+    const system = fp ? this.fpCards : this.cards, steady = 1 - ads * .3;
+    const size = (fp ? spec.fp : spec.world) * steady * rand(.92, 1.08);
+    // Aimed, the muzzle hides behind the sights: the burst grows so its petals frame the
+    // sights for two frames while the gun itself keeps covering the hot centre and the aim point.
+    // Sized for the screen: a muzzle farther out (a long rifle aimed) keeps the same on-screen burst.
+    const framing = fp ? (1 + ads * spec.sights) * THREE.MathUtils.clamp(pos.length() / .75, .8, 2) : 1;
+    if (barrel) {
+      // In first person the flame runs toward the aim point, so it stays short there and never
+      // covers the target; from outside it is the gun's full signature.
+      const side = system.spawn(), height = fp ? size * .62 : size, length = height * spec.length;
+      side.pos.copy(pos).addScaledVector(barrel, length * .5); side.cell = spec.side; side.stretch = true; side.aspect = spec.length;
+      // A tiny velocity only carries the barrel axis for the stretch; the card stays put.
+      side.vel.copy(barrel).multiplyScalar(1e-3); side.life = spec.life * 1.1; side.fadeOut = .35;
+      side.size0 = height; side.size1 = height * .8; side.alpha = fp ? .85 - ads * .35 : 1;
+      side.minPx = fp ? 0 : 26; side.maxPx = fp ? 1e5 : 130; side.color.copy(this.white);
+    }
+    const front = system.spawn();
+    front.pos.copy(pos);
+    // In third person the burst sits just in front of the barrel so the gun and paws never clip it.
+    if (!fp && this.frame) front.pos.add(this.t2.subVectors(this.frame.camera.position, pos).normalize().multiplyScalar(size * .5));
+    front.cell = PAINT.front + (Math.random() < .5 ? 0 : 1); front.life = spec.life; front.fadeOut = .45; front.rot = rand(0, Math.PI * 2);
+    front.size0 = size * (fp ? .95 * framing : .95); front.size1 = front.size0 * .55; front.alpha = fp ? 1 - ads * .25 : 1;
+    front.minPx = fp ? 0 : 28; front.maxPx = fp ? 1e5 : 100; front.color.copy(this.white);
     if (!fp) {
       const smoke = this.cards.spawn();
-      smoke.pos.copy(pos); smoke.cell = PAINT.dust + (Math.random() < .5 ? 0 : 1); smoke.life = weapon === 'shotgun' || weapon === 'sniper' ? .42 : .3;
-      smoke.size0 = size.world * .4; smoke.size1 = size.world * .95; smoke.alpha = .6; smoke.rot = rand(-.5, .5); smoke.minPx = 5;
-      smoke.vel.set(rand(-.1, .1), .5, rand(-.1, .1)); smoke.drag = 2; smoke.fadeOut = .6;
-      smoke.color.copy(this.color.cloudLight);
+      smoke.pos.copy(front.pos); smoke.cell = PAINT.smoke; smoke.life = weapon === 'shotgun' || weapon === 'sniper' ? .6 : .4;
+      smoke.size0 = spec.world * .35; smoke.size1 = spec.world * 1.05; smoke.alpha = .55; smoke.rot = rand(-.5, .5); smoke.minPx = 6;
+      smoke.vel.set(rand(-.1, .1), .45, rand(-.1, .1)); if (barrel) smoke.vel.addScaledVector(barrel, .6); smoke.drag = 2.2; smoke.fadeOut = .6;
+      smoke.color.copy(this.white);
+    } else if (barrel && this.burst++ % spec.smoke === 0 && !this.frame?.reducedMotion) {
+      const wisp = this.fpCards.spawn();
+      wisp.pos.copy(pos).addScaledVector(barrel, .03); wisp.cell = PAINT.smoke; wisp.life = rand(.55, .75); wisp.fadeIn = .08; wisp.fadeOut = .6;
+      wisp.size0 = spec.fp * .3; wisp.size1 = spec.fp * .75; wisp.alpha = .17 * (1 - ads * .7); wisp.rot = rand(-.4, .4); wisp.spin = rand(-.8, .8);
+      wisp.vel.set(rand(-.02, .02), .09, 0).addScaledVector(barrel, .06); wisp.drag = 1.4; wisp.color.copy(this.white);
     }
-    const card = (fp ? this.fpCards : this.cards).spawn();
-    card.pos.copy(pos); card.motion = Motion.Flash; card.cell = PAINT.flash;
-    card.life = fp ? .06 : .05; card.fadeOut = .01; card.rot = rand(0, Math.PI * 2);
-    card.size0 = card.size1 = (fp ? size.fp * (1 - ads * .4) : size.world) * rand(.9, 1.1);
-    // The smallest painted frame is about 45% visible width after rotation and post-processing.
-    card.minPx = fp ? 0 : 28; card.maxPx = fp ? 1e5 : 90; card.color.copy(this.white);
   }
 
   private pebble(from: THREE.Vector3, event: Extract<GameEvent, { type: 'shot' }>) {
@@ -420,88 +461,127 @@ export class EffectsView {
     card.pos.copy(from); card.cell = CELL.chip; card.life = 3; card.fadeOut = .02;
     const coco = event.weapon === 'coco';
     card.vel.set(event.end.x - event.origin.x, event.end.y - event.origin.y, event.end.z - event.origin.z).normalize().multiplyScalar(WEAPONS[event.weapon].speed || 50);
-    card.gravity = 9.8; card.size0 = card.size1 = coco ? .2 : .07; card.minPx = coco ? 7 : 4; card.spin = coco ? 6 : 14;
-    card.color.copy(coco ? this.color.coconut : this.color.pebble); card.light.copy(coco ? this.color.coconutLight : this.color.pebbleLight);
+    card.gravity = 9.8; card.size0 = card.size1 = coco ? .34 : .07; card.minPx = coco ? 9 : 4; card.spin = coco ? 7 : 14;
+    if (coco) { card.cell = PAINT.husk; card.color.copy(this.white); }
+    else { card.color.copy(this.color.pebble); card.light.copy(this.color.pebbleLight); }
+    if (coco && this.frame) {
+      // The launch: a cream pressure puff at the tube.
+      const puff = this.cards.spawn();
+      puff.pos.copy(from); puff.cell = PAINT.airPuff; puff.life = .35; puff.fadeOut = .6; puff.rot = rand(-.5, .5);
+      puff.size0 = .18; puff.size1 = .6; puff.alpha = .75; puff.minPx = 8; puff.drag = 3;
+      puff.vel.copy(card.vel).multiplyScalar(.05); puff.color.copy(this.white);
+    }
     slot.card = card; slot.actor = event.actor;
   }
 
-  // Coconut burst: a hot core, rolling smoke, shell shards and a scorch; readable, not realistic.
+  // Coconut burst (vfx-sheet: green husk, white flesh, amber puff, short pale ring):
+  // a white-hot core for two frames, painted blast clouds, husk chunks that bounce,
+  // a shockwave ring on the ground, a dust ring and smoke that lingers, a scorch.
   private blast(pos: THREE.Vector3, normal: THREE.Vector3) {
-    const reduced = !!this.frame?.reducedMotion;
+    const reduced = !!this.frame?.reducedMotion, q = this.countScale();
     const core = this.cards.spawn();
-    core.pos.copy(pos).addScaledVector(normal, .4); core.cell = PAINT.dust; core.life = .12; core.size0 = 2.2; core.size1 = 3; core.minPx = 20;
-    core.color.copy(this.color.blastLight); core.light.copy(this.color.white);
-    for (let i = 0; i < 8; i++) {
+    core.pos.copy(pos).addScaledVector(normal, .45); core.cell = PAINT.front; core.life = .07; core.fadeOut = .5; core.rot = rand(0, 6.3);
+    core.size0 = 2.6; core.size1 = 3.2; core.minPx = 30; core.maxPx = 400; core.color.copy(this.white);
+    for (let i = 0; i < Math.max(2, Math.round(4 * q)); i++) {
       const fire = this.cards.spawn();
-      fire.pos.copy(pos).addScaledVector(normal, .3).add(this.n2.set(rand(-.5, .5), rand(0, .6), rand(-.5, .5)));
-      fire.cell = PAINT.dust + (i & 1); fire.life = rand(.3, .45); fire.size0 = rand(1, 1.4); fire.size1 = rand(2.6, 3.4);
-      fire.rot = rand(-1, 1); fire.minPx = 16; fire.vel.set(rand(-1.5, 1.5), rand(1.5, 3), rand(-1.5, 1.5)); fire.drag = 4; fire.fadeOut = .5;
-      fire.color.copy(this.color.blast); fire.light.copy(this.color.blastLight);
+      fire.pos.copy(pos).addScaledVector(normal, .5).add(this.n2.set(rand(-.5, .5), rand(0, .5), rand(-.5, .5)));
+      fire.cell = PAINT.fireball; fire.life = rand(.3, .42); fire.fadeIn = .02; fire.fadeOut = .5; fire.pop = !reduced;
+      fire.size0 = rand(1.4, 1.9); fire.size1 = rand(3.3, 4.2); fire.rot = rand(-1, 1); fire.spin = rand(-1.5, 1.5); fire.minPx = 30; fire.maxPx = 360;
+      fire.vel.set(rand(-1.2, 1.2), rand(1.2, 2.6), rand(-1.2, 1.2)); fire.drag = 4; fire.color.copy(this.white);
     }
-    for (let i = 0; i < (reduced ? 3 : 7); i++) {
+    for (let i = 0; i < (reduced ? 3 : Math.round(7 * q)); i++) {
       const smoke = this.cards.spawn();
-      smoke.pos.copy(pos).add(this.n2.set(rand(-.8, .8), rand(.2, 1), rand(-.8, .8)));
-      smoke.cell = PAINT.dust + (i & 1); smoke.life = rand(1.1, 1.7); smoke.size0 = rand(.3, .5); smoke.size1 = rand(2.8, 3.8);
-      smoke.rot = rand(-1, 1); smoke.minPx = 16; smoke.vel.set(rand(-.8, .8), rand(1.2, 2.2), rand(-.8, .8)); smoke.drag = 2; smoke.fadeOut = .7; smoke.alpha = .6;
-      smoke.color.copy(this.color.smoke); smoke.light.copy(this.color.smokeLight);
-    }
-    for (let i = 0; i < 10; i++) {
-      const shard = this.cards.spawn();
-      shard.pos.copy(pos).addScaledVector(normal, .2); shard.cell = CELL.chip; shard.life = rand(.6, 1);
-      shard.vel.set(rand(-5, 5), rand(3, 7), rand(-5, 5)); shard.gravity = 14; shard.spin = rand(-12, 12);
-      shard.size0 = shard.size1 = rand(.08, .14); shard.minPx = 4; shard.color.copy(this.color.coconut); shard.light.copy(this.color.coconutLight);
+      smoke.pos.copy(pos).add(this.n2.set(rand(-.9, .9), rand(.3, 1.1), rand(-.9, .9)));
+      smoke.cell = i % 3 ? PAINT.dust + (i & 1) : PAINT.smoke; smoke.life = rand(1.2, 1.9); smoke.fadeIn = .12; smoke.size0 = rand(.5, .8); smoke.size1 = rand(2.8, 3.8);
+      smoke.rot = rand(-1, 1); smoke.spin = rand(-.4, .4); smoke.minPx = 16; smoke.vel.set(rand(-.8, .8), rand(1, 1.9), rand(-.8, .8)); smoke.drag = 1.8; smoke.fadeOut = .65; smoke.alpha = .55;
+      smoke.color.copy(this.color.smokeLight); smoke.light.copy(this.color.cloudLight);
     }
     const floor = this.groundAt(pos.x, pos.z, pos.y + .3);
-    if (Math.abs(floor - pos.y) < 1.2) this.decals.spawn(this.n2.set(pos.x, floor + .02, pos.z), this.t2.set(0, 1, 0), CELL.scuff, 1.6, 2.4, 6, 2, .8, this.color.smoke, this.color.coconut, rand(0, 6.3));
+    for (let i = 0; i < Math.round(9 * q); i++) {
+      const husk = this.cards.spawn();
+      husk.pos.copy(pos).addScaledVector(normal, .3); husk.cell = PAINT.husk + (i & 1); husk.life = rand(.9, 1.4); husk.fadeOut = .25;
+      husk.vel.set(rand(-5.5, 5.5), rand(3.5, 7.5), rand(-5.5, 5.5)); husk.gravity = 14; husk.spin = rand(-10, 10); husk.rot = rand(0, 6.3);
+      husk.floor = floor + .06; husk.bounce = .35; husk.size0 = husk.size1 = rand(.2, .34); husk.minPx = 6; husk.color.copy(this.white);
+    }
+    const grounded = Math.abs(floor - pos.y) < 1.2;
+    if (grounded) {
+      this.t2.set(0, 1, 0);
+      // Shockwave: a pale ring racing out to the splash radius, then a scorch that fades.
+      this.decals.spawn(this.n2.set(pos.x, floor + .03, pos.z), this.t2, CELL.ring, .6, WEAPONS.coco.splash! * 1.5, .38, .7, .85, this.color.cloudLight, this.color.white, rand(0, 6.3));
+      this.decals.spawn(this.n2.set(pos.x, floor + .02, pos.z), this.t2, CELL.scuff, 1.6, 2.4, this.markLife() * .8, .4, .85, this.color.smoke, this.color.coconut, rand(0, 6.3));
+      if (!reduced) for (let i = 0; i < Math.round(10 * q); i++) {
+        const angle = i / Math.round(10 * q) * Math.PI * 2, dust = this.cards.spawn();
+        dust.pos.set(pos.x + Math.cos(angle) * .6, floor + .25, pos.z + Math.sin(angle) * .6); dust.cell = PAINT.dust + (i & 1);
+        dust.life = rand(.55, .8); dust.fadeOut = .7; dust.size0 = .35; dust.size1 = 1.3; dust.alpha = .5; dust.minPx = 8; dust.rot = angle;
+        dust.vel.set(Math.cos(angle) * 7, .6, Math.sin(angle) * 7); dust.drag = 4.5;
+        dust.color.copy(this.surface.sand.puff); dust.light.copy(this.surface.sand.puffLight);
+      }
+    }
   }
 
+  // Surface impacts (hud-vfx-research): a sharp flash for one to three frames,
+  // a dust burst in the surface's colours with a slower haze that outlives it,
+  // flying bits, and a mark. Stone: grey dust and chips; wood: splinters; metal:
+  // sparks and a dark dent; sand: an ochre plume; foliage: leaves; water: a crown.
   private impact(pos: THREE.Vector3, surface: Surface, normal: THREE.Vector3, weapon: WeaponId, scale: number) {
-    const s = this.surface[surface], spec = SURFACES[surface];
-    const big = weapon === 'sniper' || weapon === 'dmr' ? 1.3 : weapon === 'shotgun' ? .75 : 1;
+    const s = this.surface[surface], spec = SURFACES[surface], q = this.countScale();
+    const big = weapon === 'sniper' || weapon === 'dmr' ? 1.35 : weapon === 'shotgun' ? .7 : weapon === 'revolver' ? 1.15 : 1;
     const k = big * scale;
     if (surface === 'water') {
-      this.decals.spawn(pos, normal, CELL.ring, .15 * k, 1.1 * k, .45, .6, .9, s.mark, s.markLight, rand(0, 6.3));
-      for (let i = 0; i < 4 + Math.round(k * 2); i++) {
+      this.decals.spawn(pos, normal, CELL.ring, .15 * k, 1.2 * k, .5, .6, .9, s.mark, s.markLight, rand(0, 6.3));
+      const crown = this.cards.spawn();
+      crown.pos.copy(pos); crown.pos.y += .3 * k; crown.cell = PAINT.crown; crown.life = .34; crown.fadeOut = .45; crown.pop = !this.frame?.reducedMotion;
+      crown.size0 = .45 * k; crown.size1 = .8 * k; crown.minPx = 20; crown.maxPx = 110; crown.color.copy(this.white);
+      for (let i = 0; i < Math.round((3 + k * 2) * q); i++) {
         const drop = this.cards.spawn();
         drop.pos.copy(pos); drop.cell = CELL.drop; drop.stretch = true; drop.aspect = 1.6; drop.life = rand(.32, .44);
         drop.vel.set(rand(-1.1, 1.1), rand(2.8, 4.2) * k, rand(-1.1, 1.1)); drop.gravity = 11;
-        drop.size0 = .12 * k; drop.size1 = .08 * k; drop.minPx = 5; drop.color.copy(s.bit); drop.light.copy(s.bitLight);
+        drop.size0 = .1 * k; drop.size1 = .07 * k; drop.minPx = 4; drop.color.copy(s.bit); drop.light.copy(s.bitLight);
       }
-      const mist = this.cards.spawn();
-      mist.pos.copy(pos); mist.cell = PAINT.dust; mist.life = .38; mist.size0 = .18 * k; mist.size1 = .55 * k; mist.alpha = .7; mist.minPx = 8;
-      mist.vel.set(0, .6, 0); mist.color.copy(s.puffLight);
       return;
     }
-    const floor = this.groundAt(pos.x, pos.z, pos.y + .05) + .01;
+    const floor = this.groundAt(pos.x, pos.z, pos.y + .05) + .01, metal = surface === 'metal';
+    // Sharp phase: a bright star (sparks on metal) that is gone after three frames.
+    const flash = this.cards.spawn();
+    flash.pos.copy(pos).addScaledVector(normal, .05); flash.cell = metal ? PAINT.sparks : CELL.twinkle; flash.life = .05; flash.fadeOut = .5;
+    flash.rot = rand(0, 6.3); flash.size0 = (metal ? .45 : .32) * k; flash.size1 = flash.size0 * .6; flash.minPx = 12; flash.maxPx = 60;
+    if (metal) flash.color.copy(this.white); else { flash.color.copy(s.puffLight); flash.light.copy(this.color.white); }
+    const dusty = surface === 'sand' || surface === 'dirt';
     const puff = this.cards.spawn();
-    puff.pos.copy(pos).addScaledVector(normal, .06); puff.cell = PAINT.dust + (Math.random() < .5 ? 0 : 1); puff.life = rand(.34, .44);
-    puff.size0 = .26 * k; puff.size1 = (surface === 'metal' ? .36 : .68) * k; puff.rot = rand(-.4, .4); puff.minPx = 10;
-    puff.vel.copy(normal).multiplyScalar(.7); puff.vel.y += .35; puff.drag = 3; puff.fadeOut = .5;
-    puff.color.copy(s.puffLight);
-    const sparks = surface === 'metal', system = this.cards;
-    for (let i = 0; i < Math.round(spec.bits * scale); i++) {
-      const bit = system.spawn();
-      bit.pos.copy(pos).addScaledVector(normal, .03); bit.cell = spec.bitCell; bit.life = rand(.26, .42);
+    puff.pos.copy(pos).addScaledVector(normal, .08); puff.cell = dusty ? PAINT.plume : PAINT.dust + (Math.random() < .5 ? 0 : 1);
+    puff.life = rand(.38, .48); puff.rot = dusty ? rand(-.15, .15) : rand(-.4, .4); puff.minPx = 14; puff.maxPx = 110;
+    puff.size0 = .5 * k; puff.size1 = (metal ? .65 : dusty ? 1.3 : 1.05) * k; puff.fadeOut = .55; puff.alpha = .92; puff.pop = !this.frame?.reducedMotion;
+    puff.vel.copy(normal).multiplyScalar(dusty ? .5 : .8); puff.vel.y += dusty ? .7 : .35; puff.drag = 3;
+    // The painted plume is ochre: sand keeps it, earth darkens it toward brown-grey.
+    if (dusty) puff.color.copy(surface === 'sand' ? this.white : this.color.earthPlume); else puff.color.copy(s.puffLight);
+    // The haze that outlives the burst.
+    if (!metal) {
+      const haze = this.cards.spawn();
+      haze.pos.copy(pos).addScaledVector(normal, .15); haze.cell = PAINT.dust + (Math.random() < .5 ? 0 : 1); haze.life = rand(.9, 1.2);
+      haze.fadeIn = .1; haze.fadeOut = .7; haze.size0 = .45 * k; haze.size1 = 1.45 * k; haze.alpha = .34; haze.minPx = 10; haze.rot = rand(0, 6.3);
+      haze.vel.copy(normal).multiplyScalar(.3); haze.vel.y += .22; haze.drag = 1.5; haze.color.copy(s.puffLight);
+    }
+    for (let i = 0; i < Math.round(spec.bits * scale * q); i++) {
+      const bit = this.cards.spawn();
+      bit.pos.copy(pos).addScaledVector(normal, .03); bit.cell = spec.bitCell; bit.life = rand(.3, .5);
       this.t1.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)).addScaledVector(normal, 1.3).normalize();
-      bit.vel.copy(this.t1).multiplyScalar(sparks ? rand(4, 7) : rand(2, 3.6)); bit.vel.y += sparks ? .5 : 1.4;
-      bit.gravity = sparks ? 6 : surface === 'foliage' ? 4 : 10; bit.drag = surface === 'foliage' ? 2.5 : .6;
+      bit.vel.copy(this.t1).multiplyScalar(metal ? rand(4, 7.5) : rand(2.2, 4)); bit.vel.y += metal ? .5 : 1.4;
+      bit.gravity = metal ? 6 : surface === 'foliage' ? 4 : 10; bit.drag = surface === 'foliage' ? 2.5 : .6;
       bit.floor = floor; bit.bounce = .3;
-      bit.size0 = (sparks ? .07 : .09) * k; bit.size1 = bit.size0 * (sparks ? .6 : .8); bit.minPx = sparks ? 5 : 4;
-      bit.stretch = sparks || spec.bitCell === CELL.splinter; bit.aspect = sparks ? 4 : spec.bitCell === CELL.splinter ? 2 : 1;
-      bit.rot = rand(0, 6.3); bit.spin = sparks ? 0 : rand(-12, 12); bit.fadeOut = .3;
+      bit.size0 = (metal ? .07 : .1) * k; bit.size1 = bit.size0 * (metal ? .6 : .8); bit.minPx = metal ? 5 : 4;
+      bit.stretch = metal || spec.bitCell === CELL.splinter; bit.aspect = metal ? 4 : spec.bitCell === CELL.splinter ? 2 : 1;
+      bit.rot = rand(0, 6.3); bit.spin = metal ? 0 : rand(-12, 12); bit.fadeOut = .3;
       bit.color.copy(s.bit); bit.light.copy(s.bitLight);
       // Painted chips: wood in its own colours, generic chips tinted with the surface.
       if (spec.bitCell === CELL.splinter) { bit.cell = i % 3 === 2 ? PAINT.splinter : PAINT.wood + (i % 2); bit.stretch = false; bit.aspect = 1; bit.size0 *= 1.3; bit.size1 *= 1.3; bit.color.copy(this.white); }
       else if (spec.bitCell === CELL.chip) { bit.cell = PAINT.chip; bit.color.copy(s.bitLight); }
     }
-    if (sparks) {
-      const star = this.cards.spawn();
-      star.pos.copy(pos).addScaledVector(normal, .04); star.cell = CELL.twinkle; star.life = .08; star.fadeOut = .5;
-      star.size0 = .3 * k; star.size1 = .14 * k; star.minPx = 10; star.rot = rand(0, 1.5); star.color.copy(this.color.flash); star.light.copy(this.color.white);
-    }
-    const mark = (spec.markCell === CELL.hole ? .09 : .13) * big * (scale < 1 ? .8 : 1);
-    this.decals.spawn(pos, normal, spec.markCell, mark, mark, MARK_LIFE, .3, .9, s.mark, s.markLight, rand(0, 6.3));
+    const mark = (spec.markCell === CELL.hole ? .11 : .15) * big * (scale < 1 ? .8 : 1);
+    this.decals.spawn(pos, normal, spec.markCell, mark, mark, this.markLife(), .3, .9, s.mark, s.markLight, rand(0, 6.3));
   }
+
+  private countScale() { return COUNT_BY[this.frame?.quality ?? (this.frame?.lowQuality ? 'low' : 'medium')]; }
+  private markLife() { return MARK_LIFE_BY[this.frame?.quality ?? (this.frame?.lowQuality ? 'low' : 'medium')]; }
 
   // White-orange "pow" and fur tufts; a headshot adds a gold star held in front of the head.
   // Pixel floors are on the card; the painted subjects fill about two thirds of it.
@@ -509,6 +589,10 @@ export class EffectsView {
     // Out of the body toward the viewer, past the head sphere and body cylinder surfaces.
     const pos = this.t2.copy(at);
     if (this.frame) pos.add(this.t1.subVectors(this.frame.camera.position, at).normalize().multiplyScalar(.32));
+    // Sharp phase: an ivory and coral spark exactly where the round landed, two frames long.
+    const spark = this.cards.spawn();
+    spark.pos.copy(pos); spark.cell = PAINT.hitSpark; spark.life = .05; spark.fadeOut = .4; spark.rot = rand(-.3, .3);
+    spark.size0 = .5; spark.size1 = .34; spark.minPx = 34; spark.maxPx = 90; spark.color.copy(this.white);
     const pow = this.cards.spawn();
     pow.pos.copy(pos); pow.cell = PAINT.pow + (Math.random() < .5 ? 0 : 1); pow.life = .2; pow.fadeOut = .35; pow.rot = rand(-.4, .4);
     pow.size0 = .46; pow.size1 = .52; pow.minPx = 30; pow.maxPx = 84; pow.pop = true;

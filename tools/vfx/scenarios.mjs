@@ -93,4 +93,24 @@ export const SCENARIOS = {
   'storm-150m': storm({ x: -41, z: 18 - 40, radius: 190 }),
   'storm-10m': storm({ x: -41, z: 18 - 85 }),
   'storm-outside': { ...storm({ x: -41, z: 18 + 105 }), events: [], frames: [{ at: 2 }, { at: 40, events: [ev('damage', { actor: '', target: 'practice', amount: 4, head: false, pos: { x: -41, y: 3, z: 18 } })] }, ...strip(44, 50, 60, 70)], still: 0 },
+  // Combat pass (2026-09-30): poses found on the current island by a ray search, each looking straight at its surface 6 to 11 m away.
+  'c-impact-stone': surface({ x: -6, z: 76.85, yaw: 4.597, pitch: -.238 }, { x: .67, y: 0, z: 77.63 }),
+  'c-impact-wood': surface({ x: -70.56, z: -17.05, yaw: 5.801, pitch: -.083 }, { x: -66.39, y: .73, z: -25.01 }),
+  'c-impact-metal': surface({ x: -94.05, z: 16.57, yaw: 2.442, pitch: -.172 }, { x: -99.19, y: .24, z: 22.67 }),
+  'c-impact-sand': surface({ x: 97.68, z: 35.29, yaw: .886, pitch: -.321 }, { x: 92.26, y: 0, z: 30.86 }),
+  'c-impact-dirt': surface({ x: 31.04, z: -54.91, yaw: 5.703, pitch: -.027 }, { x: 36.22, y: 0, z: -62.82 }),
+  'c-impact-foliage': surface({ x: -47.47, z: 94.6, yaw: .654, pitch: -.042 }, { x: -54.04, y: 0, z: 86.02 }),
+  'c-impact-water': surface({ x: -61.44, z: -6.01, yaw: 1.853, pitch: -.295 }, { x: -70.57, y: .35, z: -3.37 }),
+  // First-person muzzle flashes per gun, hip and aimed, against the same Rosário street.
+  ...Object.fromEntries(['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'dmr', 'sniper'].flatMap(weapon => [false, true].map(ads => [
+    `c-fp-${weapon}${ads ? '-ads' : ''}`,
+    { scene: { x: 23.3, z: 32.6, yaw: 0, pitch: -.02, weapon, ads }, events: [shoot('practice', { x: 23.3, y: 1.5, z: 12 })], frames: strip(1, 2, 3, 4, 6, 9, 14, 24), still: 0 },
+  ]))),
+  // Coconut blasts at 6 and 14 m, seen from the player.
+  'c-coco-6m': { scene: { ...PLAZA, pitch: -.12, weapon: 'm4' }, events: [call('blastAt', -41, 24)], frames: strip(1, 2, 4, 8, 14, 22, 36, 60), still: 2 },
+  'c-coco-14m': { scene: { ...PLAZA, pitch: -.05, weapon: 'm4' }, events: [call('blastAt', -41, 32)], frames: strip(1, 2, 4, 8, 14, 22, 36, 60), still: 2 },
+  // An enemy 10 m away across the Vila plaza fires past the player's head (hostile tracer).
+  'c-enemy-fire': { scene: { ...PLAZA, weapon: 'm4', actors: [bot('bento', -41, 28, { weapon: 'm4' })] }, events: [shoot('bento', { x: -40.6, y: 1.6, z: 8 })], frames: strip(1, 2, 3, 5, 8, 12, 18, 26), still: 1 },
+  'c-hit-8m': { scene: { ...PLAZA, pitch: -.03, weapon: 'm4', actors: [bot('bento', -41, 26, { yaw: Math.PI })] }, events: [shoot('practice', { x: -41, y: 1.1, z: 26 }, { target: 'bento', amount: 18 })], frames: strip(1, 2, 3, 5, 8, 12, 18, 26), still: 1 },
+  'c-head-8m': { scene: { ...PLAZA, pitch: -.03, weapon: 'm4', actors: [bot('bento', -41, 26, { yaw: Math.PI })] }, events: [shoot('practice', { x: -41, y: 1.6, z: 26 }, { target: 'bento', head: true, amount: 29 })], frames: strip(1, 2, 3, 5, 8, 12, 18, 26), still: 1 },
 };
