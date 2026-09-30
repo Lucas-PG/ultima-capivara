@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildTemplates } from '../src/render/vegetation/templates';
 import { colliderGrid } from '../src/shared/collider-grid';
@@ -6,10 +7,13 @@ import { ROADS } from '../src/shared/layout';
 import { terrainHeight } from '../src/shared/terrain';
 import { VEGETATION_PIECES, vegetationDressing } from '../src/shared/vegetation-dressing';
 import { SPECIES } from '../src/shared/vegetation-species';
-import { foliageAt, walkingSurfaces } from '../src/shared/vegetation-crowns';
+import { foliageAt, foliageSpan, walkingSurfaces, type CrownShape } from '../src/shared/vegetation-crowns';
 import { createWorld } from '../src/shared/world';
 
 const world = createWorld(), dressing = vegetationDressing(world), grid = colliderGrid(world);
+// The two reasons a kit bush may be trimmed or left out: its leaves would show in a room, or fill a spawn point.
+const crowded = (foliage: CrownShape) => !!walkingSurfaces(world).inRoom(foliage) || world.spawns.some(spawn => [[0, 0], [.6, 0], [-.6, 0], [0, .6], [0, -.6]]
+  .some(([dx, dz]) => { const span = foliageSpan(foliage, spawn.x + dx, spawn.z + dz); return !!span && span[0] < spawn.y + 2.2 && span[1] > spawn.y + .35; }));
 const inside = (x: number, y: number, z: number) => grid.query(x - .01, z - .01, x + .01, z + .01)
   .some(c => x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z && y >= c.min.y && y <= c.max.y);
 
@@ -31,7 +35,7 @@ describe('vegetation dressing', () => {
         // A patch the layout pressed into a house wall is left out when even trimmed its leaves show indoors.
         trimmed++;
         const species = piece.piece === 'hedge' ? 'hedge' : 'thicket', small = SPECIES[species].height * (piece.scale ?? 1) * .55;
-        expect([0, 1, 2, 3].slice(0, SPECIES[species].variants).every(v => walkingSurfaces(world).inRoom(foliageAt(species, v, piece.x, piece.y, piece.z, small)!)), `${piece.id} left out without cause`).toBe(true);
+        expect([0, 1, 2, 3].slice(0, SPECIES[species].variants).every(v => crowded(foliageAt(species, v, piece.x, piece.y, piece.z, small)!)), `${piece.id} left out without cause`).toBe(true);
         continue;
       }
       expect(plants, piece.id).toHaveLength(1);
@@ -45,9 +49,9 @@ describe('vegetation dressing', () => {
       expect(scale, piece.id).toBeLessThan(full);
       expect(scale, piece.id).toBeGreaterThanOrEqual(full * .55);
       const foliage = foliageAt(plant.species, plant.variant, plant.x, plant.y, plant.z, SPECIES[plant.species].height * full)!;
-      expect(walkingSurfaces(world).inRoom(foliage), `${piece.id} trimmed without cause`).not.toBeNull();
+      expect(crowded(foliage), `${piece.id} trimmed without cause`).toBe(true);
     }
-    expect(trimmed).toBeLessThan(pieces.length * .1);
+    expect(trimmed).toBeLessThan(pieces.length * .15);
   });
 
   it('keeps planted beds and forest floor off roads, out of doorways and out of solids', () => {
@@ -118,5 +122,26 @@ describe('vegetation dressing', () => {
       expect(wall(vine.x + nx * .3, vine.y - vine.height * .5, vine.z + nz * .3), `${vine.id} is buried in its wall`).toBe(false);
       expect(inside(vine.x + nx * .3, vine.y - vine.height * .5, vine.z + nz * .3), `${vine.id} is buried in a solid`).toBe(false);
     }
+  });
+
+  it('never starts a round inside a bush: no drawn leaf fills an arena spawn point', () => {
+    // A Corrente round opened with the camera inside a croton patch on the Morro: kit bushes and
+    // beds stood on spawn points. Every leaf of every dressing plant is tested against a 0.5 m
+    // column over each Correria and Corrente spawn, from the knee to above the head.
+    const spawns = world.spawns.filter(spawn => spawn.mode !== 'battle-royale');
+    expect(spawns.length).toBeGreaterThan(20);
+    const templates = buildTemplates(new Set(dressing.map(p => p.species))), vertex = new THREE.Vector3(), matrix = new THREE.Matrix4(), faults: string[] = [];
+    for (const plant of dressing) {
+      const near = spawns.filter(spawn => Math.hypot(spawn.x - plant.x, spawn.z - plant.z) < plant.height * 2.5 + 1);
+      if (!near.length || plant.species === 'vine') continue;
+      const s = plant.height / SPECIES[plant.species].height, position = templates[plant.species][plant.variant][0].getAttribute('position');
+      matrix.compose(new THREE.Vector3(plant.x, plant.y, plant.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), plant.yaw), new THREE.Vector3(s * (plant.widthScale ?? 1), s, s));
+      for (let i = 0; i < position.count; i++) {
+        vertex.fromBufferAttribute(position, i).applyMatrix4(matrix);
+        const hit = near.find(spawn => Math.hypot(vertex.x - spawn.x, vertex.z - spawn.z) < .5 && vertex.y > spawn.y + .35 && vertex.y < spawn.y + 2.2);
+        if (hit) { faults.push(`${plant.id} over the spawn at ${hit.x.toFixed(1)},${hit.z.toFixed(1)}`); break; }
+      }
+    }
+    expect(faults).toEqual([]);
   });
 });

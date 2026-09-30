@@ -4,14 +4,14 @@ import { isHousePiece, ROADS } from './layout';
 import { fbm, terrainColor, terrainHeight, WORLD_PALETTE } from './terrain';
 import type { KitPlacement, MapObject, WorldSpec } from './types';
 import { plantHash, plantSpecies, SPECIES, type SpeciesId } from './vegetation-species';
-import { crownAt, foliageAt, walkingSurfaces } from './vegetation-crowns';
+import { crownAt, crownReach, foliageAt, foliageSpan, walkingSurfaces, type CrownShape } from './vegetation-crowns';
 
 /**
  * Decorative planting derived from the world spec: the kit's soft bush pieces, bougainvillea on
  * house walls, garden plants along house walls and ferns under forest trees. None of it has
  * collision (like every plant on the island), so it is placed only where it cannot sit on a
- * road, a doorway, a solid or another piece, and gameplay never sees it. Nothing grows indoors:
- * no leaf may reach into a room, however near the wall the plant stands.
+ * road, a doorway, a solid or another piece, and gameplay never sees it. Nothing grows indoors
+ * (no leaf may reach into a room, however near the wall the plant stands) or over a spawn point.
  */
 export interface DressingPlant {
   id: string; species: SpeciesId; variant: number;
@@ -158,17 +158,25 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
   };
   const add = (id: string, species: SpeciesId, variant: number, x: number, z: number, yaw: number, height: number, y = terrainHeight(x, z) - .04, widthScale?: number) =>
     out.push({ id, species, variant: Math.min(SPECIES[species].variants - 1, variant), x, y, z, yaw, height, ...(widthScale ? { widthScale } : {}) });
-  /** Would this plant's foliage reach into a room? A bush's leaves spread well past its stems. */
-  const intoRoom = (species: SpeciesId, variant: number, x: number, y: number, z: number, height: number) => {
+  /** Foliage over a spawn point between the knee and above the head: a capybara would start the round inside a bush. */
+  const overSpawn = (foliage: CrownShape) => world.spawns.some(spawn => {
+    if (Math.hypot(spawn.x - foliage.x, spawn.z - foliage.z) > crownReach(foliage) + 1) return false;
+    return [[0, 0], [.6, 0], [-.6, 0], [0, .6], [0, -.6]].some(([dx, dz]) => {
+      const span = foliageSpan(foliage, spawn.x + dx, spawn.z + dz);
+      return !!span && span[0] < spawn.y + 2.2 && span[1] > spawn.y + .35;
+    });
+  });
+  /** Would this plant's foliage reach into a room, or fill a spawn point? A bush's leaves spread well past its stems. */
+  const intrudes = (species: SpeciesId, variant: number, x: number, y: number, z: number, height: number) => {
     const foliage = foliageAt(species, Math.min(SPECIES[species].variants - 1, variant), x, y, z, height);
-    return !!foliage && !!surfaces.inRoom(foliage);
+    return !!foliage && (!!surfaces.inRoom(foliage) || overSpawn(foliage));
   };
   /** A bush in front of a wall: the nearest spot out along the wall normal and the largest size
    * (down to 60%) that stand free and keep every leaf out of the rooms behind the wall. */
   const besideWall = (x: number, z: number, nx: number, nz: number, species: SpeciesId, variant: number, height: number, radius: number, own?: KitPlacement) => {
     for (const away of [0, .3, .6]) for (const size of [1, .8, .6]) {
       const px = x + nx * away, pz = z + nz * away;
-      if (free(px, pz, radius, Math.min(height * size, 2), own) && !intoRoom(species, variant, px, terrainHeight(px, pz) - .04, pz, height * size)) return { x: px, z: pz, height: height * size };
+      if (free(px, pz, radius, Math.min(height * size, 2), own) && !intrudes(species, variant, px, terrainHeight(px, pz) - .04, pz, height * size)) return { x: px, z: pz, height: height * size };
     }
     return null;
   };
@@ -182,11 +190,11 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     const species: SpeciesId = p.piece === 'hedge' ? 'hedge' : 'thicket';
     // Wild undergrowth stays green; beside houses, the patches flower.
     const variant = species === 'hedge' ? (roll < .5 ? 0 : 1) : near ? (roll < .3 ? 1 : roll < .62 ? 2 : roll < .85 ? 3 : 0) : (roll < .82 ? 0 : 1);
-    // A patch the layout set against a house is trimmed back until no leaf shows indoors.
+    // A patch the layout set against a house or over a spawn point is trimmed back until it keeps clear.
     const full = SPECIES[species].height * (p.scale ?? 1);
     let height = full;
-    while (height > full * .6 && intoRoom(species, variant, p.x, p.y, p.z, height)) height *= .9;
-    if (intoRoom(species, variant, p.x, p.y, p.z, height)) continue;
+    while (height > full * .6 && intrudes(species, variant, p.x, p.y, p.z, height)) height *= .9;
+    if (intrudes(species, variant, p.x, p.y, p.z, height)) continue;
     add(p.id, species, variant, p.x, p.z, p.yaw, height, p.y);
   }
 
@@ -307,7 +315,7 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
       let roll = hash(id, 30 + i), pick: SpeciesId = 'fern';
       for (const [s, wgt] of FLOOR) { if (roll < wgt) { pick = s; break; } roll -= wgt; }
       const variant = Math.floor(hash(id, 40 + i) * 3), height = SPECIES[pick].height * (.75 + hash(id, 60 + i) * .5);
-      if (!free(x, z, .5, 1) || intoRoom(pick, variant, x, terrainHeight(x, z) - .04, z, height)) continue;
+      if (!free(x, z, .5, 1) || intrudes(pick, variant, x, terrainHeight(x, z) - .04, z, height)) continue;
       add(`${id}:floor:${i}`, pick, variant, x, z, hash(id, 50 + i) * Math.PI * 2, height);
     }
   }
@@ -334,7 +342,7 @@ export function vegetationDressing(world: WorldSpec): DressingPlant[] {
     const paint = terrainColor(x, z, y, slope);
     if (paint !== WORLD_PALETTE.grass && paint !== WORLD_PALETTE.grassLight && paint !== WORLD_PALETTE.dryGrass) continue;
     const variant = hash(id, 4) < .5 ? 0 : 1, height = SPECIES.meadow.height * (.8 + hash(id, 6) * .2);
-    if (!free(x, z, 1.6, .7) || intoRoom('meadow', variant, x, y - .02, z, height)) continue;
+    if (!free(x, z, 1.6, .7) || intrudes('meadow', variant, x, y - .02, z, height)) continue;
     add(id, 'meadow', variant, x, z, hash(id, 5) * Math.PI * 2, height, y - .02);
   }
   return out;
