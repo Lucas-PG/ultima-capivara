@@ -11,7 +11,7 @@ All four first-person weapons use 1024 albedo, ORM and relief-normal maps.
 | Weapon | FP triangles | Packed GLB bytes | World near / far triangles |
 | --- | ---: | ---: | ---: |
 | Pistol | 13,892 | 410,380 | 2,400 / 420 |
-| SMG | 17,332 | 503,332 | 2,398 / 660 |
+| SMG | 17,332 | 499,604 | 2,400 / 736 |
 | Revolver | 23,426 | 661,676 | 2,400 / 420 |
 | Machete | 10,490 | 390,560 | 2,400 / 420 |
 
@@ -35,7 +35,7 @@ The magazine path includes a palm seat and an outward clearance step before the 
 
 Evidence: [before](evidence/guns/smg-before.jpg), [model after](evidence/guns/smg-model-after.jpg), [first-person motion](evidence/guns/smg-motion-after.jpg).
 
-Verified: all 55 sampled hip, ADS, sprint, inspect, empty and tactical reload poses clear both paws. Magazine contact is 0.8 mm; charging contact is 1.3 mm. The final far-side inspect releases the support paw before the turn, preventing a forearm collision with the magazine. Twelve additional samples of that departure, hold and return pass, with 0.8 mm minimum right-paw clearance and at least 1.3 mm on the left. Eye and both side views are captured. The motion sheet includes the seated magazine, charging-handle release and final inspect. Close third-person presentation review remains.
+Verified: the final firing paw presents its back toward the eye, with a broader trigger face 0.2 mm from the index. The lower carry reduces stock dominance. A new 55-pose pass covers hip, ADS, sprint, firing, inspect and both reloads, with eye and both side captures. Minimum clearance is -0.1 mm on the right and 0.8 mm on the left, within the -0.5 mm limit. Magazine and charging contacts stay attached to their parts. The far-side inspect releases the support paw before the turn. The updated motion sheet includes both grip sides, the palm seat and charging-handle release. Close third-person presentation review remains.
 
 ## Revolver
 
