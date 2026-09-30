@@ -179,6 +179,18 @@ describe('river island gameplay integrity', () => {
     expect(world.pieces!.some(p => p.piece === 'church' && p.x === CHURCH[0] && p.z === CHURCH[1])).toBe(true);
   });
 
+  it('builds the Capela do Morro as a hill chapel, not a copy of the town church', () => {
+    // All three churches once shared one kit piece, campanile included. The hill chapel keeps the
+    // church's plan, doors and interior (so routes and bots are unchanged) but not its tower.
+    const chapel = world.pieces!.find(p => p.id.includes('capela-morro'))!;
+    expect(chapel.piece).toBe('church_hill');
+    const [hill, town] = [KIT_PIECES.church_hill, KIT_PIECES.church];
+    expect(hill.footprint).toEqual(town.footprint);
+    expect(hill.traversal!.entrances).toEqual(town.traversal!.entrances);
+    expect(hill.height).toBeLessThan(town.height - 3);
+    expect(world.pieces!.filter(p => p.piece === 'church')).toHaveLength(2);
+  });
+
   it('faces each house frontage toward the street, square or path serving its lot', () => {
     const access = (x: number, z: number) => Math.min(routeDistance(x, z) - 1.5, ...STREETS.map(([x0, z0, x1, z1]) =>
       Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1))));
