@@ -164,7 +164,7 @@ async function fullMatch(timeout, captureEvery) {
       milestones.add(milestone); nextCapture = elapsed + captureEvery;
       if (state.phase === 'results') {
         await page.locator('#vpanel.show').waitFor();
-        await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count')));
+        await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count') && (el.classList.contains('done') || document.body.classList.contains('reduce-motion'))));
       }
       // A starved page can take longer than a screenshot allows; the round itself goes on.
       await page.screenshot({ path: `${out}/match-${number}-${String(index++).padStart(2, '0')}-${milestone}.jpg`, type: 'jpeg', quality: 85, timeout: 60000 })

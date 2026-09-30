@@ -25,7 +25,7 @@ try {
       const r = await page.evaluate(p => window.__capyQA.pose(p), name);
       if (name.startsWith('results')) {
         await page.locator('#vpanel.show').waitFor();
-        await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count')));
+        await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count') && (el.classList.contains('done') || document.body.classList.contains('reduce-motion'))));
       }
       await page.waitForTimeout(150);
       await page.screenshot({ path: `${out}/${name}.png` });

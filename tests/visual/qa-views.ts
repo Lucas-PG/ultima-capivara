@@ -14,7 +14,7 @@ const toward = (x: number, z: number, tx: number, tz: number) => Math.atan2(-(tx
 // solids and its view clear of walls and foliage for the first 2 m.
 export const VIEWS: Record<string, WorldView> = {
   // Across the praça toward the fountain and the church, clear of the benches.
-  plaza: [-2.5, -11, toward(-2.5, -11, -8, -19), .02], bakery: [-43, -36, Math.PI, .02],
+  plaza: [-4.5, -11.5, toward(-4.5, -11.5, -8, -19), .02], bakery: [-43, -36, Math.PI, .02],
   river: [4.5, 20.5, .28, -.03], forteBeach: [62, -85.5, 1.13, .2],
   fortApproach: [4, -62, 0, .2],
   // Up Rua Direita toward the Morro and the Redentora above it.

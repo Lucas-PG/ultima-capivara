@@ -30,7 +30,7 @@ test('deterministic game views match recorded baselines', async ({ page }, testI
     await page.evaluate((pose: string) => window.__capyQA!.pose(pose), name);
     if (name.startsWith('results')) {
       await expect(page.locator('#vpanel')).toHaveClass(/show/);
-      await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count')));
+      await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count') && (el.classList.contains('done') || document.body.classList.contains('reduce-motion'))));
     }
     if (name === 'pause') await expect(page.locator('#pause-panel')).toBeVisible();
     if (process.env.QA_SMOKE) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), animations: 'disabled' });
