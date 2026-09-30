@@ -13,7 +13,8 @@
 //     "contactParts": { "thumb": "mag" }, "palmFacing": [x, y, z, maxDegrees, weight],
 //     "forwardFacing": [x, y, z, maxDegrees, weight],
 //     "palm": [a, b], "thumbAlong": deg, "wristBend": deg, "contact": ["palm", "index", ...],
-//     "curlBounds": { "index": [[min, max], [min, max], [min, max]], "spread": [min, max] } }
+//     "curlBounds": { "index": [[min, max], [min, max], [min, max]], "spread": [min, max] },
+//     "rotateAtPalm": true } // Keeps the palm centre steady during orientation steps.
 import { chromium } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { measure } from './weapon-contact.mjs';
@@ -171,7 +172,12 @@ try {
         const up = new V3(0, 1, 0).addScaledVector(f, -f.y).normalize();
         const palm = up.applyQuaternion(new Q().setFromAxisAngle(f, roll));
         const c = i => [P[i], P[i + 1], P[i + 2]];
-        return { wrist: [x, y, z], forward: [f.x, f.y, f.z], palm: [palm.x, palm.y, palm.z], pole: start.pole,
+        const wrist = new V3(x, y, z);
+        if (intent.rotateAtPalm) {
+          wrist.addScaledVector(f0, .035).addScaledVector(f, -.035);
+          wrist.addScaledVector(palm0, .004).addScaledVector(palm, -.004);
+        }
+        return { wrist: wrist.toArray(), forward: [f.x, f.y, f.z], palm: [palm.x, palm.y, palm.z], pole: start.pole,
           curl: { index: c(6), middle: c(9), ring: c(12), thumb: c(15), spread: P[18] }, part: start.part };
       };
       const wristW = new V3(), elbowW = new V3(), knuckleW = new V3();
