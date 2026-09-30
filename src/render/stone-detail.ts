@@ -37,7 +37,8 @@ export const STONE_GLSL = /* glsl */ `
     // Sheet joints: plates longer than high on the faces, as weathered granite splits.
     vec2 big = stoneCells(w / mix(vec2(1.7), vec2(2.8, 1.05), wall));
     // Only some joints are open; the rest have healed into the rock.
-    float open = smoothstep(.38, .62, stoneNoise(w * .33 + 4.1));
+    // Tops weather smooth: fewer open joints there, so a boulder's crown never reads as paving.
+    float open = smoothstep(mix(.6, .38, wall), mix(.8, .62, wall), stoneNoise(w * .33 + 4.1));
     float crackAA = footprint * 1.2;
     float crack = (1.0 - smoothstep(.02, .045 + crackAA, big.x)) * open;
     float lip = smoothstep(.04, .08 + crackAA, big.x) * (1.0 - smoothstep(.08 + crackAA, .17 + crackAA, big.x)) * open;
@@ -46,14 +47,15 @@ export const STONE_GLSL = /* glsl */ `
     float grainFade = 1.0 - smoothstep(.004, .014, footprint);
     float grain = (stoneNoise(q / .11) - .5) * .65 + (stoneNoise(q / .037 + 2.0) - .5) * .35;
     float fleck = smoothstep(.8, .87, stoneNoise(q / .06 + 11.0));
-    float pit = smoothstep(.72, .8, stoneNoise(q / .19 + 23.0));
+    // Weathering pits: small soft speckles, never outlined blobs.
+    float pit = smoothstep(.8, .95, stoneNoise(q / .07 + 23.0));
     float plate = big.y - .5;
     // Rain streaks: long vertical runs of darker stone down the faces.
     float streak = smoothstep(.5, .85, stoneFbm(vec2(q.x / .45, q.y / 6.0) + 3.0)) * wall;
     float tone = 1.0 + plate * .12 - streak * .12 + grain * .09 * grainFade;
     tone *= 1.0 - crack * .36 * jointFade - pit * .07 * fineFade;
-    tone += lip * .06 * jointFade + fleck * .05 * fineFade;
-    float relief = -crack * .02 * jointFade - pit * .004 * fineFade + grain * .003 * grainFade + plate * .01;
+    tone += lip * .045 * jointFade + fleck * .05 * fineFade;
+    float relief = -crack * .02 * jointFade + grain * .003 * grainFade + plate * .01;
     return vec4(tone, crack * jointFade, 0.0, relief);
   }
   vec4 stonePaint(vec3 p, vec3 n, float footprint) {
@@ -94,9 +96,9 @@ export function installKitStone(material: THREE.MeshStandardMaterial) {
             float footprint = ${FOOTPRINT};
             // The tile's painted blotches are its only detail and smear up close: fall back to their
             // mean there and let the stone carry the detail.
-            float near = 1.0 - smoothstep(6.0, 22.0, length(vViewPosition));
+            float near = 1.0 - smoothstep(10.0, 34.0, length(vViewPosition));
             vec3 mean = texture2D(map, vMapUv, 7.0).rgb * diffuse * vColor.rgb;
-            diffuseColor.rgb = mix(diffuseColor.rgb, mean, near * .6 * stoneAmount);
+            diffuseColor.rgb = mix(diffuseColor.rgb, mean, near * .85 * stoneAmount);
             vec4 stone = stonePaint(stoneWorld, normalize(stoneNormal), footprint);
             diffuseColor.rgb *= mix(vec3(1.0), stone.rgb, stoneAmount);
             stoneRelief = stone.w * stoneAmount;
@@ -111,6 +113,6 @@ export function installKitStone(material: THREE.MeshStandardMaterial) {
           if (abs(sdet) > 1e-10) normal = normalize(abs(sdet) * normal - sign(sdet) * (dFdx(stoneRelief) * sr1 + dFdy(stoneRelief) * sr2));
         }`);
   };
-  material.customProgramCacheKey = () => `${key}:kit-stone-v1`;
+  material.customProgramCacheKey = () => `${key}:kit-stone-v2`;
   material.needsUpdate = true;
 }
