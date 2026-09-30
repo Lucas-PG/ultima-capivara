@@ -525,21 +525,23 @@ def coco():
         profile += [(.027, d), (.023, d + .0025), (.023, d + .005), (.027, d + .008)]
     profile += [(.024, .153), (.01, .16)]
     parts['pump'] += [lathe('walnut_pump', profile, 'walnut', p0=(0, .226, .012), sides=18, bevel=0)]
-    # Sight lane sits left of the hopper, so no coconut blocks the aim point.
-    parts['body'] += [box('rear_sight_outrigger', (-.056, -.087, .159), (.083, .016, .01), 'brass', .002)]
-    rear = box('rear_notch', (-.085, -.087, .176), (.033, .012, .029), 'blued', .002, raw=True)
-    cut(rear, cutter_box((-.085, -.087, .189), (.012, .025, .02)))
+    # A broad offset leaves an open target area beside the hopper, not just a
+    # clear mathematical centre line. Matching brass outriggers carry both sights.
+    sight_x = -.17
+    parts['body'] += [box('rear_sight_outrigger', (-.099, -.087, .159), (.169, .016, .01), 'brass', .002)]
+    rear = box('rear_notch', (sight_x, -.087, .176), (.033, .012, .029), 'blued', .002, raw=True)
+    cut(rear, cutter_box((sight_x, -.087, .189), (.012, .025, .02)))
     parts['body'] += [complete(rear)]
-    parts['body'] += [box('front_sight_outrigger', (-.057, .452, .158), (.09, .018, .013), 'brass', .002)]
+    parts['body'] += [box('front_sight_outrigger', (-.099, .452, .158), (.176, .018, .013), 'brass', .002)]
     # The leaf faces the eye across the bore, with daylight around the gold post.
     leaf = prism('leaf_sight', [(-.016, .164), (.016, .164), (.021, .193), (0, .226), (-.021, .198)], .006, 'blued', bevel=.0015, raw=True)
     cut(leaf, cutter_prism([(-.009, .184), (.009, .184), (.011, .199), (0, .215), (-.011, .199)], .014))
     complete(leaf)
     leaf.rotation_euler.z = math.pi / 2
-    leaf.location.x, leaf.location.y = -.085, .455
+    leaf.location.x, leaf.location.y = sight_x, .455
     parts['body'] += [leaf]
-    parts['body'] += [box('front_post', (-.085, .455, .18), (.0028, .006, .031), 'brass', .0005)]
-    sockets = {'muzzle': (0, .554, bore), 'eject': (0, .09, .254), 'sight': (-.085, -.087, .194)}
+    parts['body'] += [box('front_post', (sight_x, .455, .18), (.0028, .006, .031), 'brass', .0005)]
+    sockets = {'muzzle': (0, .554, bore), 'eject': (0, .09, .254), 'sight': (sight_x, -.087, .194)}
     pivots = {'pump': (0, .226, .012), 'mag': (0, .002, .246), 'load1': (0, .092, .246), 'load2': (0, .182, .246), 'trigger': (0, .004, .009)}
     return parts, sockets, pivots, {'magAxis': [0, 0, 1]}
 

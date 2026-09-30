@@ -12,7 +12,7 @@ Scope: `m4`, `shotgun`, `sniper`, `dmr`, `coco`, in the `guns-long` worktree. Th
 | shotgun | 20,842 | 596,224 | 2,400 | 418 |
 | sniper | 21,740 | 627,540 | 2,400 | 410 |
 | dmr | 23,006 | 723,064 | 2,392 | 416 |
-| coco | 24,466 | 829,812 | 2,372 | 404 |
+| coco | 24,466 | 821,120 | 2,374 | 406 |
 
 All packed weapons remain below 25,000 triangles and 1.3 MB. M4 uses 2048 albedo and 1024 normal/ORM; the other weapons use 1024 maps. Third-person and ground models use near/far LODs and one 1024 atlas. The pistol, revolver, SMG and machete geometry and decoded atlas cells are unchanged from `9934dda`.
 
@@ -53,6 +53,8 @@ Known issues: no outstanding issue in the reviewed poses. The sling is rigid aut
 ## Lança-coco
 
 Rebuilt the bamboo-yellow tube, flared wood/brass bell, sprung action, separate wooden pump and open painted hopper. A domed service cap closes the breech, and a larger parrot portrait reads on the hopper. Three independent fruits fill its visible pockets. The offset sight lane avoids the hopper; the front leaf now faces the eye. Reloads add exactly the missing fruits. An empty refill fills the hopper, racks one fruit into the chamber and tops up the freed pocket. Partial reloads preserve the chamber and skip the rack. The refill stays lower and farther from the eye so the complete carrying path stays in frame. This respects the game's four-round capacity; the generated three-fruit reference does not account for the chambered round.
+
+Review correction: moved both sights and the aim point to a matching 170 mm left offset. The target now has open space beside the hopper, with no box or coconut over the aiming point. Rebuilt the first-person and world assets. [New ADS eye view](evidence/guns/coco-sight-review.jpg), 1280 x 720 medium, 174,260 bytes. Support grip, hip framing and motion review remain in progress.
 
 Before: [Lança-coco contact sheet](evidence/guns/coco-before.jpg). After: [gameplay views](evidence/guns/coco-after.jpg), [reload and mechanism views](evidence/guns/coco-reload.jpg).
 

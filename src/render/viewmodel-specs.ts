@@ -102,7 +102,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     url: 'models/arsenal/coco.glb', scale: 1, handling: 'heavy', reload: 'coco',
     hip: { pos: [.17, -0.155, -.6], rot: [.04, .38, -.10] }, viewmodelFov: 62,
     // The hopper stands over the tube: use the matching offset notch and front post along its left side.
-    sprint: { pos: [-.035, -.025, .02], rot: [-.14, .40, .1] }, shoulders: { R: [.32, -.42, .08], L: [-.18, -.26, -.14] }, adsDistance: .32, adsEye: [-.085, .194, .087], adsPitch: -.003,
+    sprint: { pos: [-.035, -.025, .02], rot: [-.14, .40, .1] }, shoulders: { R: [.32, -.42, .08], L: [-.18, -.26, -.14] }, adsDistance: .32, adsEye: [-.17, .194, .087], adsPitch: -.003,
     grips: {R: {wrist: [0.04176, -0.081663, 0.101139], forward: [0.03953, 0.321209, -0.946183], palm: [-0.981749, -0.163807, -0.096625], pole: [0.8, -1, 0.3], curl: {index: [0.330593, 0.193231, 0.054067], middle: [0.718137, 0.714601, 0.878175], ring: [0.825117, 0.912549, 0.006472], thumb: [-0.0994, -0.1, 0.153029], spread: 0.242279}}, L: {wrist: [-0.05783, 0.00522, -0.224605], forward: [0.027421, 0.438813, -0.89816], palm: [0.870697, -0.451863, -0.194184], pole: [-0.8, -1, 0.1], curl: {index: [0.191884, 1.692804, 0.179111], middle: [0.414467, 1.446004, 1.289294], ring: [1.311731, -0.1, 0.431467], thumb: [-0.055075, -0.044778, 0.508262], spread: -0.439967}, part: "pump"}},
     recoil: { kick: 2.6, climb: 7.5, roll: 1.6, frequency: 16 }, inertia: 1.3,
   },

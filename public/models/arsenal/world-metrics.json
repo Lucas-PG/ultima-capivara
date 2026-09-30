@@ -25,8 +25,8 @@
     },
     "coco": {
       "source": 24466,
-      "near": 2372,
-      "far": 404
+      "near": 2374,
+      "far": 406
     },
     "dmr": {
       "source": 23006,
@@ -43,5 +43,5 @@
       "far": 420
     }
   },
-  "bundledBytes": 5913681
+  "bundledBytes": 5910208
 }
