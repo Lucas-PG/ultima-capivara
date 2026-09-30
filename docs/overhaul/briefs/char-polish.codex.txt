@@ -1,0 +1,25 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Read docs/overhaul/autonomous-progress.md for context. You have full creative freedom inside your scope: research, experiment, be creative, and reject your own mediocre results.
+
+RULES
+- Work only in your git worktree (given below). Never push, open PRs, deploy or touch other worktrees or the main checkout.
+- Another agent is baking weapons with Blender, so the machine runs hot: keep your load light. At most one Chrome instance at a time, capture at 1280x720 or smaller, prefer offline analysis and unit tests to live renders where they prove the same thing, run Blender only through tools/blender/wait-for-blender.sh (it waits until no other headless Blender job runs), and stop servers and browsers when idle and when done.
+- Do not touch weapon models, the viewmodel, arms, character or world code (tools/blender/*, src/render/weapons.ts, viewmodel-*, fp-arms.ts, capybara*, layout.ts, world.ts, terrain.ts, the kit, vegetation) unless a one-line hook is unavoidable; say so in your report.
+- Never spend money, create accounts or access personal apps or data. External assets only with licences compatible with a commercial game (CC0 preferred) and downloadable without an account; record source and licence in docs/assets.md.
+- Never use the em dash character anywhere (code, docs, commit messages, UI text). Commit in small logical commits with no co-author or agent lines.
+- Keep green: npx tsc --noEmit and npx vitest run.
+- Start your dev server as a background command: cd <worktree> && VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port>. QA tools in tools/qa (capture.mjs named poses, cam.mjs free camera, play.mjs live match driver) take BASE=http://127.0.0.1:<your port>. Use absolute paths or cd <worktree> && ... in every command.
+- You may use your image generation tool for references, sprites or texture sources.
+- When done, write docs/overhaul/<your report name> in your worktree (what changed and why, evidence, measurements, tests, known issues) and commit it. Final reply to the orchestrator: under 200 words, ending with the line TASK DONE only when every item is genuinely finished (otherwise end with CONTINUING and the next step, and keep working when resumed).
+
+ROLE AND WORKTREE
+You are the character polish artist. The capybara was just rebuilt (tools/blender/capybara_v4.py and friends; report docs/overhaul/character-report.md; references docs/art/character-benchmark/holding-reference.jpg and docs/art/references/character-turnaround.jpg, character-head.jpg). Worktree: /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/char-polish (branch char-polish). Dev server port 5178. Report: docs/overhaul/char-polish-report.md. Always run Blender as tools/blender/wait-for-blender.sh && /Applications/Blender.app/Contents/MacOS/Blender -b ... (another agent is baking weapons).
+
+ITEMS
+1. The face is plain at gameplay distance: make it expressive and readable at 3 to 15 m (eye whites or highlights, lids, brows, a darker nose pad and nostrils, mouth line, cheek and muzzle planes, whisker pads) while staying a capybara.
+2. The fur texture reads noisy up close: make it a groomed, directional stylized fur with clean colour zones (caramel muzzle and inner arms), consistent with the first-person arms.
+3. Fix the slight foot sliding at sprint, and check every gait for planted feet.
+4. Fix the jagged bake texels in the vest armhole.
+5. Rebuild the Capivara Redentora statue on the Morro from the new character (it still uses the old v4 script) so the landmark matches the player character.
+6. Verify the far LOD look at a true 60 m in daylight and shade, and the team colour on the scarf at range.
+Keep the runtime contract of src/render/capybara.ts and the LOD and perf budgets. Do not touch weapons, the viewmodel or world code.
