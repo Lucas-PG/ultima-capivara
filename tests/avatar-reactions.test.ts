@@ -32,8 +32,11 @@ function harness() {
   advance(.3);
   const visual = view.get(actor.id)!;
   const rig = visual.body.getObjectByName('Capivara_LOD')!.parent!;
-  const mouth = visual.body.getObjectByName('mouth_cavity')!;
-  return { actor, snapshot, frame, visual, rig, mouth, advance };
+  // The hit face squeezes the lids shut (blink_L scales toward the eye's centre line).
+  const lid = visual.body.getObjectByName('blink_L')!;
+  // The victory face lifts the mouth corners (unaffected by blinks).
+  const mouth = visual.body.getObjectByName('mouth_R')!;
+  return { actor, snapshot, frame, visual, rig, lid, mouth, advance };
 }
 
 describe('authoritative character reactions', () => {
@@ -163,7 +166,8 @@ describe('authoritative character reactions', () => {
 
   it('simplifies a distant held pistol without changing its socket and avoids LOD flicker', () => {
     const h = harness(); h.actor.weapons = [{ id: 'pistol', ammo: 12, reserve: 24, rarity: 0, box: 2 }];
-    h.advance(1 / 60);
+    // Let the draw settle (arms and the upper-body stance ease in) before comparing sockets.
+    h.advance(.5);
     const near = h.visual.weapon.geometry, socket = h.visual.weapon.position.clone();
     camera.position.set(0, 1.6, 18); h.advance(1 / 60);
     const far = h.visual.weapon.geometry;
@@ -204,15 +208,16 @@ describe('authoritative character reactions', () => {
     expect(arm.scale.x).toBeCloseTo(1, 4);
   });
   it('reacts to armor-only damage without an HP delta and does not replay it from a later snapshot', () => {
-    const h = harness(), neutral = h.mouth.scale.y;
+    const h = harness(), neutral = h.lid.scale.y;
     view.react(h.actor.id, { kind: 'hit', head: false, amount: 25, from: { x: 3, y: 1.6, z: -2 } });
     h.advance(.1);
     expect(h.actor.hp).toBe(100);
-    expect(h.mouth.scale.y).toBeGreaterThan(neutral + .2);
-    h.advance(.8); const recovered = h.mouth.scale.y;
+    expect(h.lid.scale.y).toBeLessThan(neutral - .3);
+    h.advance(.8); const recovered = h.lid.scale.y;
+    expect(recovered).toBeGreaterThan(neutral - .1);
     h.actor.hp = 75; h.actor.kills++;
     h.advance(.1);
-    expect(h.mouth.scale.y).toBeLessThan(recovered + .02);
+    expect(h.lid.scale.y).toBeGreaterThan(recovered - .02);
   });
   it('holds death through a still-alive snapshot, shows a flop, and resets on the respawn event', () => {
     const h = harness();
@@ -254,8 +259,8 @@ describe('authoritative character reactions', () => {
     h.snapshot.phase = 'results'; h.snapshot.results = [{ id: h.actor.id, winner: true }] as WorldSnapshot['results'];
     h.frame.playing = false; h.advance(.5);
     expect(h.visual.celebrated).toBe(true); expect(capybaraIsDead(h.visual.body)).toBe(false); expect(h.visual.group.visible).toBe(true);
-    h.advance(2); const resting = h.mouth.scale.y;
-    h.advance(1); expect(h.mouth.scale.y).toBeCloseTo(resting, 2);
+    h.advance(2); const resting = h.mouth.position.y;
+    h.advance(1); expect(h.mouth.position.y).toBeCloseTo(resting, 4);
     h.snapshot.matchId = 'second'; h.snapshot.phase = 'playing'; h.snapshot.results = []; h.actor.alive = true;
     h.advance(.2); expect(h.visual.celebrated).toBe(false); expect(h.rig.rotation.z).toBe(0);
   });

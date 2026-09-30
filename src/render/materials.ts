@@ -35,7 +35,8 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
   const cacheKey = previousKey();
   const surfaceAtlas = material.userData.capySurfaceAtlas === true;
   // First-person arms v3: own baked maps; a `_fur` vertex attribute marks the pelt.
-  const bakedFur = material.userData.capyArmsV3 === true;
+  // The v6 world character shares that path: baked maps and a `_fur` vertex mask.
+  const bakedFur = material.userData.capyArmsV3 === true || material.userData.capyCharacterV6 === true;
   material.userData.toonCharacter = true;
   if (bakedFur) {
     material.roughness = 1; material.metalness = 1;

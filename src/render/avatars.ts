@@ -285,6 +285,6 @@ export class AvatarView {
     if (!actor.alive || actor.weapons[actor.slot]?.id !== 'machete' || actor.stage !== 'ground' || (actor.emote && actor.emoteUntil > simulationTime)) {
       visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
     } else visual.strike.time = Math.min(MELEE_SECONDS, visual.strike.time + Math.max(0, dt));
-    holdWeapon(visual.body, visual.weapon, actor, simulationTime, visual.strike);
+    holdWeapon(visual.body, visual.weapon, actor, simulationTime, visual.strike, dt);
   }
 }
