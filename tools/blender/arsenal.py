@@ -395,15 +395,17 @@ def shotgun():
         parts['body'] += [tube('cap_knurl', (0, y, .031), (0, y + .0017, .031), .017, .014, 'dark', sides=20, bevel=.0003)]
     parts['body'] += [prism('barrel_band', [(.548, .017), (.561, .017), (.561, .089), (.548, .089)], .023, 'brass', bevel=.002)]
     stock = prism('walnut_stock', [(-.064, .079, 1), (-.11, .052), (-.174, .046), (-.212, .065), (-.364, .036),
-                    (-.38, .027), (-.38, -.114), (-.365, -.124), (-.257, -.08), (-.15, -.041), (-.093, -.027),
-                    (-.068, -.067), (-.041, -.048), (-.013, .0), (-.032, .026), (-.064, .037, 1)],
+                    (-.38, .027), (-.38, -.114), (-.365, -.124), (-.257, -.08), (-.15, -.041), (-.093, -.04),
+                    (-.075, -.125), (-.036, -.12), (-.013, .0), (-.032, .026), (-.064, .037, 1)],
                   .054, 'walnut', bevel=.008, smooth=3, raw=True)
+    L.cross_sections(stock, 1, [-.16, -.11, -.06, -.02, .02])
     # Oval wrist section fits the thick paw without thinning the shoulder stock.
     for vertex in stock.data.vertices:
         y, z = vertex.co.y, vertex.co.z
         neck = min(1., max(0., (y + .16) / .05), max(0., (.045 - y) / .055))
         neck *= min(1., max(0., (.06 - z) / .025))
-        vertex.co.x *= 1. - .38 * neck
+        vertex.co.x *= 1. - .60 * neck
+        vertex.co.y -= (y + .013) * .55 * neck
     parts['body'] += [complete(stock)]
     parts['body'] += [prism('butt_spacer', [(-.377, .031), (-.387, .028), (-.387, -.117), (-.377, -.12)], .048, 'dark', bevel=.002)]
     pad = prism('red_recoil_pad', [(-.385, .028), (-.403, .022), (-.403, -.11), (-.396, -.122), (-.385, -.119)], .05, 'rubber_red', bevel=.004, raw=True)
@@ -416,11 +418,12 @@ def shotgun():
         for y, z in ((-.045, .072), (-.039, .033), (.146, .034)):
             parts['body'] += [cyl('pin', (side * .022, y, z), (side * .0242, y, z), .0043, 'brass', sides=14, bevel=.0005)]
             parts['body'] += [box('pin_slot', (side * .0243, y, z), (.0005, .005, .0008), 'dark', .0002)]
-    guard = prism('guard', [(-.038, .014, 1), (.053, .014, 1), (.056, -.022), (.041, -.045), (-.017, -.045), (-.038, -.024)],
+    guard = prism('guard', [(-.038, .014, 1), (.053, .014, 1), (.056, -.022), (.041, -.055), (-.017, -.055), (-.038, -.024)],
                   .018, 'blued', bevel=.002, smooth=1, raw=True)
-    cut(guard, cutter_prism([(-.027, .006), (.043, .006), (.042, -.02), (.033, -.034), (-.016, -.035), (-.027, -.02)], .035))
+    cut(guard, cutter_prism([(-.027, .006), (.043, .006), (.042, -.02), (.033, -.047), (-.016, -.047), (-.027, -.02)], .035))
     parts['body'] += [complete(guard)]
     parts['trigger'] += [prism('trigger', [(.001, .009), (.009, .009), (.011, -.007), (.002, -.025), (-.005, -.027), (.0, -.009)], .007, 'brass', bevel=.001, smooth=2)]
+    parts['trigger'] += [box('trigger_pad', (.006, .003, -.021), (.025, .01, .014), 'brass', .002)]
     # Four visible red shells, brass case heads and a retaining strap.
     parts['body'] += [box('saddle_back', (-.025, .022, .063), (.008, .113, .05), 'dark', .002)]
     for i in range(4):
