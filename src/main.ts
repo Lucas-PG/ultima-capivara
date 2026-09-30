@@ -286,7 +286,6 @@ function acceptEvents(events: GameEvent[]) {
     if (event.type === 'shot' && event.actor === playerId && input.locked && event.weapon !== 'machete') {
       input.applyRecoil(event.weapon);
     }
-    if (event.type === 'notice') ui.toast(event.text);
     if (event.type === 'kill' && event.target === playerId) {
       lastKiller = event.actor; killSeen = true;
       // The kill can land after the one-second fallback already started watching whoever was nearest: move to the

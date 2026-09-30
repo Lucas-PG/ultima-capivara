@@ -273,8 +273,8 @@ body{
 #hud #coach .skip{font-size:13px;color:var(--hud-muted)}
 #hud #coach .skip kbd{height:18px;min-width:18px;font-size:13px}
 
-/* Toasts in a match: small teal chips under the compass instead of paper stickers. */
-body[data-screen=game] #toast{top:146px}
+/* Toasts in a match: small teal chips above the weapon boxes, clear of the stamps and the compass. */
+body[data-screen=game] #toast{top:auto;bottom:104px}
 body[data-screen=game] #toast .toast-item{font-family:var(--hud-font);font-size:17px;font-weight:700;color:var(--hud-ivory);background:rgba(9,41,45,.92);border:1.5px solid var(--hud-edge);border-radius:999px;box-shadow:0 0 0 2px rgba(4,25,26,.45);padding:6px 16px;text-shadow:none}
 body[data-screen=game] #toast .toast-item.error{border-color:var(--hud-coral)}
 
