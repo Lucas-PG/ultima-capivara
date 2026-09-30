@@ -36,7 +36,7 @@ describe('loading tips copy', () => {
   it('has at least 36 unique tips that fit two lines, with no em dash', () => {
     expect(TIPS.length).toBeGreaterThanOrEqual(36);
     expect(new Set(TIPS).size).toBe(TIPS.length);
-    for (const tip of TIPS) { expect(tip.length).toBeLessThanOrEqual(110); expect(tip).not.toMatch(/[—–]/); }
+    for (const tip of TIPS) { expect(tip.length).toBeLessThanOrEqual(110); expect(tip).not.toMatch(/[\u2014\u2013]/); }
   });
   it('replaces key placeholders with the player bindings', () => {
     expect(fillTip('{leanLeft} e {leanRight}', { leanLeft: 'Q', leanRight: 'E' })).toBe('Q e E');
