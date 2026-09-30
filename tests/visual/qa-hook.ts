@@ -87,6 +87,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   async function pose(name: string) {
     // Each review starts without the previous results layer.
     document.querySelector('#victory')?.remove();
+    // The results screen marks the HUD as ended, which hides every plate: a match pose after it starts clean.
+    document.querySelector('#hud')?.classList.remove('ended');
     if (!renderer) throw new Error('Call start first');
     deps.ui.closeEmoteWheel();
     const district = name.startsWith('district-') ? deps.world.districts.find(d => `district-${d.id}` === name) : null;
