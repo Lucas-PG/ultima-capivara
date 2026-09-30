@@ -13,6 +13,7 @@ mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal', '--mute-audio', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
+page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.error('console', m.type(), m.text()); });
 
 // Every connection to a destination is routed through a pass-through recorder,
 // and every connection is remembered so a source can be muted and restored.
@@ -70,6 +71,8 @@ await page.locator('[data-do="practice"]').click();
 await page.waitForFunction(() => { const s = window.__capivara?.inspect(); return s?.snapshot && !s.renderState.loading; }, null, { timeout: 120000 });
 await page.evaluate(() => { window.__networkQA.activate(); window.__networkQA.key('KeyH', true); window.__networkQA.key('KeyH', false); });
 await page.waitForTimeout(2500);
+await page.waitForFunction(() => (window.__capivara.audio?.().baked ?? 1) > 250, null, { timeout: 60000 }).catch(() => console.error('bank not baked'));
+console.log('audio', JSON.stringify(await page.evaluate(() => window.__capivara.audio?.())));
 
 const segments = [];
 async function record(name, seconds) {
@@ -78,7 +81,8 @@ async function record(name, seconds) {
   const { rate, data } = await page.evaluate(() => { window.__rec.recording = false; return window.__rec.take(); });
   writeFileSync(`${out}/${scenario}-${name}.f32`, Buffer.from(data, 'base64'));
   const pos = await page.evaluate(() => { const i = window.__capivara.inspect(); const a = i.snapshot.actors.find(x => !x.bot); return a && { x: +a.pos.x.toFixed(1), y: +a.pos.y.toFixed(1), z: +a.pos.z.toFixed(1) }; });
-  segments.push({ name, seconds, rate, pos });
+  const audio = await page.evaluate(() => window.__capivara.audio?.());
+  segments.push({ name, seconds, rate, pos, audio });
   console.log('recorded', name, seconds, 's at', rate, 'Hz', JSON.stringify(pos));
 }
 
@@ -107,7 +111,14 @@ if (scenario === 'idle') {
       if (bd < 45) window.__networkQA.fire();
     }, 90);
   });
+  await page.evaluate(() => window.__capivara.resetPerf());
   await record('hunt', 20);
+  const cost = await page.evaluate(() => {
+    const d = window.__capivara.timings().spans.filter(s => s.name === 'audio').map(s => s.duration).sort((a, b) => a - b);
+    const q = p => +(d[Math.floor(p * (d.length - 1))] ?? 0).toFixed(3);
+    return { frames: d.length, p50: q(.5), p95: q(.95), max: q(1) };
+  });
+  console.log('audio update ms', JSON.stringify(cost));
 }
 writeFileSync(`${out}/${scenario}.json`, JSON.stringify({ mode, scenario, loops, segments }, null, 1));
 await browser.close();

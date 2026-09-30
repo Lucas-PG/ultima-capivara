@@ -2,7 +2,8 @@
 // breathe (wave cycles, wind gusts, leaf flurries that fall to near silence),
 // and the life of the island arrives as positioned one-shots from trees,
 // water and buildings.
-import { band, buffer, fadeOut, grains, makeLoop, mix, modes, Rng, smoothCurve, svf, tone } from './dsp';
+import { band, buffer, fadeIn, fadeOut, grains, makeLoop, mix, modes, Rng, smoothCurve, svf, tone } from './dsp';
+import { sambaLoop } from './music';
 import { bell } from './feedback';
 
 const CROSSFADE = 1.5;
@@ -122,13 +123,13 @@ export function bed(id: BedId, rate: number, rng: Rng, channel: number, seconds:
 
 // ---- Island life one-shots.
 export type CritterId = 'bemtevi' | 'sabia' | 'maritaca' | 'gull' | 'dove' | 'cicada' | 'cricket' | 'frog' | 'dog' | 'rooster' | 'hen'
-  | 'church-bell' | 'buoy-bell' | 'creak' | 'bike-bell' | 'chimes' | 'mill' | 'sizzle' | 'cups' | 'splash-fish';
+  | 'church-bell' | 'buoy-bell' | 'creak' | 'bike-bell' | 'chimes' | 'mill' | 'sizzle' | 'cups' | 'splash-fish' | 'pardal' | 'radio';
 export const CRITTER_IDS: readonly CritterId[] = ['bemtevi', 'sabia', 'maritaca', 'gull', 'dove', 'cicada', 'cricket', 'frog', 'dog', 'rooster', 'hen',
-  'church-bell', 'buoy-bell', 'creak', 'bike-bell', 'chimes', 'mill', 'sizzle', 'cups', 'splash-fish'];
+  'church-bell', 'buoy-bell', 'creak', 'bike-bell', 'chimes', 'mill', 'sizzle', 'cups', 'splash-fish', 'pardal', 'radio'];
 
 const LENGTH: Record<CritterId, number> = {
   bemtevi: 1, sabia: 2.2, maritaca: 2.2, gull: 1.6, dove: 1.8, cicada: 8, cricket: 3.2, frog: 1.4, dog: 1.4, rooster: 2.2, hen: 1.2,
-  'church-bell': 5, 'buoy-bell': 3, creak: 1.2, 'bike-bell': 1, chimes: 3, mill: 2.2, sizzle: 2, cups: .8, 'splash-fish': .8,
+  'church-bell': 5, 'buoy-bell': 3, creak: 1.2, 'bike-bell': 1, chimes: 3, mill: 2.2, sizzle: 2, cups: .8, 'splash-fish': .8, pardal: 1.6, radio: 5,
 };
 
 /** A syllable of birdsong: a pitch glide with a little roughness and a quiet octave. */
@@ -245,6 +246,19 @@ export function critter(id: CritterId, rate: number, rng: Rng): Float32Array {
     case 'mill': creakBurst(x, rate, rng, 0, 1.8, j(55), .8); modes(x, rate, 1.2, [[140, .12, .3]]); break;
     case 'sizzle': grains(x, rate, rng, 0, 1.9, 700, .4, .0003, u => Math.sin(Math.PI * u)); svf(x, rate, 'hp', 3000); break;
     case 'cups': bell(x, rate, 0, j(3300), .4, .12); bell(x, rate, rng.range(.12, .3), j(2900), .3, .12); break;
+    case 'pardal':
+      // House sparrows chattering on a wire: quick bright cheeps.
+      for (let t = rng.range(0, .1); t < 1.4; t += rng.range(.08, .22)) { const f = rng.range(3200, 4600); chirp(x, rate, t, f, f * rng.range(.75, .95), rng.range(.03, .06), .45); }
+      break;
+    case 'radio': {
+      // A neighbour's radio through a window: a samba phrase, band-limited and a little crunchy.
+      const s = sambaLoop(rate, rng, 0);
+      for (let i = 0; i < s.length; i++) s[i] = Math.tanh(s[i] * 2.5) * .5;
+      svf(svf(s, rate, 'hp', 400, .8), rate, 'lp', 2800, .8);
+      mix(x, s.subarray(0, Math.min(s.length, x.length)), 0, 1);
+      fadeIn(x, rate, .8);
+      break;
+    }
     case 'splash-fish': band(x, rate, rng, { start: 0, dur: .4, mode: 'bp', freq: 1200, q: .7, attack: .004, tau: .06, gain: .7 }); for (let i = 0; i < 5; i++) { const f = rng.range(600, 1600); tone(x, rate, { start: rng.range(.03, .3), dur: .04, from: f, to: f * 1.5, attack: .002, tau: .01, gain: .08 }); } break;
   }
   return fadeOut(x, rate, .05);

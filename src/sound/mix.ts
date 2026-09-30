@@ -18,16 +18,22 @@ export const LEVEL = {
   pickup: -23, chime: -26, use: -24, ui: -26, uiHover: -32, notice: -28, tick: -26, whistle: -22, zoneWarn: -22,
   supply: -24, supplyLand: -16, bounce: -25, poof: -26, chute: -24, upgrade: -26, respawn: -25,
   // Beds (mean loudness at full presence) and island life.
-  surf: -33, wind: -37, leaves: -36, harbour: -33, waterfall: -26, storm: -25, stormWall: -34,
-  cabin: -27, engine: -20, freefall: -26, canopy: -31, critter: -31, thunder: -24, crackle: -34,
+  surf: -30, wind: -34, leaves: -33, harbour: -30, waterfall: -24, storm: -25, stormWall: -34,
+  cabin: -27, engine: -20, freefall: -26, canopy: -31, critter: -28, thunder: -24, crackle: -34,
   // Music.
   menu: -29, drop: -33, tension: -34, dance: -27, victory: -23, defeat: -25,
 } as const;
 export type LevelId = keyof typeof LEVEL;
 
 export const dbToGain = (db: number) => 10 ** (db / 20);
+/**
+ * Output trim: the table is written with your own shot at -14 LUFS, and the whole mix
+ * sits 4 dB lower so sustained fire stays under the limiter instead of into the clipper
+ * (measured in Chrome: an automatic firefight peaked at -0.7 dBFS untrimmed).
+ */
+export const OUTPUT_TRIM = -4;
 /** Linear gain for a baked buffer to play at `level` LUFS (before the sliders). */
-export const levelGain = (level: number) => dbToGain(level - REF_LUFS);
+export const levelGain = (level: number) => dbToGain(level - REF_LUFS + OUTPUT_TRIM);
 
 const smoothstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -83,7 +89,7 @@ export function ambienceMix(place: Place): BedMix {
   const db = (base: number, presence: number) => presence <= .02 ? -Infinity : base + 20 * Math.log10(presence);
   return {
     surf: db(LEVEL.surf + inside, place.coast * (1 - .5 * lift)),
-    wind: db(LEVEL.wind + inside - 3, .35 + .65 * lift + .15 * place.coast),
+    wind: db(LEVEL.wind + inside - 3, .42 + .58 * lift),
     leaves: db(LEVEL.leaves + inside, place.canopy * (place.inside ? .5 : 1)),
     harbour: db(LEVEL.harbour + inside, 1 - smoothstep(10, 45, place.harbour)),
     waterfall: db(LEVEL.waterfall + inside, 1 - smoothstep(6, 70, place.waterfall)),
@@ -99,7 +105,7 @@ export function critterWeights(place: Place): CritterChoice[] {
   if (trees > .1) out.push(['bemtevi', 3 * trees], ['sabia', 2 * trees], ['maritaca', 1.2 * trees], ['dove', 1.5 * trees], ['cicada', 1 * trees], ['cricket', .8 * trees]);
   if (coast > .15) out.push(['gull', 2.5 * coast], ['splash-fish', .6 * coast]);
   if (place.harbour < 60) out.push(['gull', 2], ['buoy-bell', 1], ['creak', 1.5]);
-  if (town) out.push(['dog', .8], ['bike-bell', .6], ['chimes', .7], ['dove', .8]);
+  if (town) out.push(['pardal', 2], ['bemtevi', 1.2], ['dove', 1.2], ['dog', .8], ['bike-bell', .6], ['chimes', .7], ['radio', .5]);
   if (place.district === 'capela') out.push(['church-bell', .5]);
   if (place.district === 'fazenda') out.push(['rooster', 1], ['hen', 1.5], ['mill', 1]);
   if (place.district === 'engenho') out.push(['mill', .8], ['hen', .6]);

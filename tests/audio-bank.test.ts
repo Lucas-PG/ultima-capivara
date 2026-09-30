@@ -136,11 +136,11 @@ function idleMix(place: Place): Float32Array {
     const x = bedAt(`bed:${bed}`, SECONDS), g = levelGain(db) * bus;
     for (let i = 0; i < mix.length; i++) mix[i] += x[i] * g;
   }
-  // Island life: one call every eight seconds from about 20 m, as the scheduler does.
+  // Island life: one call about every five seconds from about 20 m, as the scheduler does.
   const choices = critterWeights(place);
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < 6; k++) {
     const id = `critter:${choices[k % choices.length][0]}`, x = sound(id);
-    const g = levelGain(LEVEL.critter + worldDistance(20, 70).db) * bus, start = Math.round((4 + k * 8) * MIX_RATE), ratio = x.rate / MIX_RATE;
+    const g = levelGain(LEVEL.critter + worldDistance(20, 70).db) * bus, start = Math.round((2 + k * 5) * MIX_RATE), ratio = x.rate / MIX_RATE;
     for (let i = 0; start + i < mix.length && i * ratio < x.x.length - 1; i++) mix[start + i] += x.x[Math.floor(i * ratio)] * g;
   }
   return mix;
@@ -186,10 +186,11 @@ describe('idle island ambience', () => {
     }
   });
 
+  // Quiet on purpose, about 30 dB under your own gunfire at default sliders, but never dead air.
   it('is still alive: audible, and breathing over time', () => {
     for (const [name, place] of Object.entries(PLACES)) {
       const x = idleMix(place), level = loudness(x, MIX_RATE), floor = noiseFloor(x, MIX_RATE);
-      expect(level, name).toBeGreaterThan(-54);
+      expect(level, name).toBeGreaterThan(-52);
       expect(level, name).toBeLessThan(-36);
       expect(Math.max(...floor.bands.map(b => b.swingDb)), name).toBeGreaterThan(10);
     }

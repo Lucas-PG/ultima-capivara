@@ -18,10 +18,11 @@ import {
 export const LOW_HP = 30;
 export const STORM_LEVEL = levelGain(LEVEL.storm);
 
-type VoiceKind = 'shot' | 'step' | 'fx' | 'world';
+// Your own gunfire has its own pool so a firefight around you can never steal it.
+type VoiceKind = 'own' | 'shot' | 'step' | 'fx' | 'world';
 const VOICE_CAPS: Record<Quality, Record<VoiceKind, number>> = {
-  high: { shot: 20, step: 10, fx: 24, world: 8 },
-  low: { shot: 12, step: 6, fx: 16, world: 5 },
+  high: { own: 12, shot: 20, step: 10, fx: 24, world: 8 },
+  low: { own: 10, shot: 12, step: 6, fx: 16, world: 5 },
 };
 
 interface PlayOptions {
@@ -67,7 +68,7 @@ export class SoundEngine {
   private lastVariant = new Map<string, number>();
   private baker: Worker | null = null;
   private bakeTimer = 0;
-  private voices: Record<VoiceKind, number[]> = { shot: [], step: [], fx: [], world: [] };
+  private voices: Record<VoiceKind, number[]> = { own: [], shot: [], step: [], fx: [], world: [] };
   private loops = new Map<string, Loop>();
   private remoteFire: GainNode | null = null;
   private disposed = false;
@@ -409,7 +410,7 @@ export class SoundEngine {
     if (own) {
       const auto = WEAPONS[id].automatic;
       const level = id === 'machete' ? LEVEL.ownMelee : id === 'coco' ? LEVEL.ownShot - 3 : auto ? LEVEL.ownShotAuto : LEVEL.ownShot;
-      this.play(GUN_SOUND(id), { level, rate, kind: 'shot' });
+      this.play(GUN_SOUND(id), { level, rate, kind: 'own' });
       this.mechanism(id, now, null, listener);
     } else {
       const g = gunDistance(distance), occluded = distance > 3 && this.occluded(listener, { ...event.origin, y: event.origin.y + .3 });
@@ -800,7 +801,7 @@ export class SoundEngine {
     for (const [c, w] of choices) { r -= w; if (r <= 0) { id = c; break; } }
     const p = actor!.pos;
     const near = this.trees.filter(t => { const d = Math.hypot(t.x - p.x, t.z - p.z); return d > 6 && d < 40; });
-    const tree = ['bemtevi', 'sabia', 'maritaca', 'dove', 'cicada', 'cricket'].includes(id) && near.length ? near[Math.floor(Math.random() * near.length)] : null;
+    const tree = ['bemtevi', 'sabia', 'maritaca', 'dove', 'cicada', 'cricket', 'pardal'].includes(id) && near.length ? near[Math.floor(Math.random() * near.length)] : null;
     const a = Math.random() * Math.PI * 2, r2 = 14 + Math.random() * 24;
     const pos = tree ? { x: tree.x, y: tree.y + 5, z: tree.z } : { x: p.x + Math.sin(a) * r2, y: p.y + 3, z: p.z + Math.cos(a) * r2 };
     this.at(`critter:${id}`, pos, p, LEVEL.critter + (id === 'cicada' ? -4 : 0) + (this.place.inside ? -8 : 0), 'world', 70, { out: buses.ambience, kind: 'world', rate: .96 + Math.random() * .08 });
@@ -906,6 +907,16 @@ export class SoundEngine {
     if (id !== myId) this.voiceEnds.push(now + .5);
     if (id === myId) this.play(`voice:${kind}`, { level: LEVEL.voice });
     else this.at(`voice:${kind}`, pos, listener, LEVEL.remoteVoice, 'step', 40);
+  }
+
+  /** QA diagnostics: context state, baked buffers, live loops and active one-shot voices. */
+  stats() {
+    const now = this.context?.currentTime ?? 0;
+    return {
+      state: this.context?.state ?? 'none', rate: this.context?.sampleRate ?? 0, quality: this.quality, baked: [...this.bank.values()].reduce((n, l) => n + l.filter(Boolean).length, 0),
+      loops: Object.fromEntries([...this.loops].map(([k, l]) => [k, +l.gain.gain.value.toFixed(4)])),
+      voices: Object.fromEntries(Object.entries(this.voices).map(([k, v]) => [k, v.filter(e => e > now).length])), music: this.music, place: this.place,
+    };
   }
 
   setHidden(hidden: boolean): void {
