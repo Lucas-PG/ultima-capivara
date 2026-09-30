@@ -6,7 +6,10 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 const out = process.argv[2];
 const views = {
   plaza: null,
-  capela: [-72, 18, 66, -20, 3, 30, 65],
+  // The Capela stair seen from its foot (the old capela camera sat inside a roof).
+  stair: [-36, 4.5, 72, -72, 15, 66, 65],
+  vista: [-64, 17.5, 62, 20, 2, 10, 65],
+  street: [-30, 3.82, -35.5, 30, 3.82, -35.5, 65],
   river: [70, 14, 30, 10, 3, 10, 65],
   engenho: [-91, 4.22, 24.5, -100, 3.5, 14, 65],
   palafitas: [80, 2.77, 80, 96, 2.5, 97, 65],
@@ -39,9 +42,9 @@ try {
         });
         window.__capyQA.loop(false);
         intervals.sort((a, b) => a - b);
-        return { ...window.__capyQA.stats(), p50: intervals[45], p95: intervals[85], p99: intervals[89] };
+        return { ...window.__capyQA.stats(), p50: intervals[45], p95: intervals[85], p99: intervals[89], bench: await window.__capyQA.bench(40) };
       });
-      rows.push({ quality, name, view, ...result }); console.log(quality, name, result.drawCalls, result.triangles, result.p50.toFixed(1), result.p95.toFixed(1));
+      rows.push({ quality, name, view, ...result }); console.log(quality, name, result.drawCalls, result.triangles, result.p50.toFixed(1), result.p95.toFixed(1), 'frame', result.bench.medianMs.toFixed(2), 'gpu', result.bench.gpuMedianMs?.toFixed(2), result.bench.gpuP90Ms?.toFixed(2));
     }
     // Eye-level silhouettes at known distances along Rua Direita.
     for (const distance of [20, 40, 60]) {
