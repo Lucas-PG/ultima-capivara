@@ -783,7 +783,7 @@ function aimBone(bone: THREE.Bone, from: THREE.Vector3, to: THREE.Vector3, want:
   bone.updateMatrixWorld(true);
 }
 interface ArmChain { upper: THREE.Bone; fore: THREE.Bone; twist?: THREE.Bone; twistBind?: THREE.Quaternion; restAxis: THREE.Vector3; paw: THREE.Bone; pawBind: THREE.Quaternion; fingers: PawPose }
-function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun: THREE.Quaternion, grip: GripSpec) {
+function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun: THREE.Quaternion, grip: GripSpec, curl = TP_CURL) {
   arm.upper.getWorldPosition(ikA); arm.fore.getWorldPosition(ikB); arm.paw.getWorldPosition(ikC);
   const l1 = ikA.distanceTo(ikB), l2 = ikB.distanceTo(ikC);
   const dir = ikE.subVectors(target, ikA), distance = dir.length(), reach = Math.min(distance, (l1 + l2) * .999);
@@ -815,7 +815,7 @@ function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun
   arm.paw.parent!.getWorldQuaternion(ikQ).invert();
   arm.paw.quaternion.copy(ikQ).multiply(ikQ2);
   // The world paw's longer, thicker digits close less far around the same grip.
-  const c = grip.curl, k = TP_CURL, scaled = (v: readonly [number, number, number]) => [v[0] * k, v[1] * k, v[2] * k] as const;
+  const c = grip.curl, k = curl, scaled = (v: readonly [number, number, number]) => [v[0] * k, v[1] * k, v[2] * k] as const;
   arm.fingers.apply({ index: scaled(c.index), middle: scaled(c.middle), ring: scaled(c.ring), thumb: scaled(c.thumb), spread: c.spread });
   arm.paw.updateMatrixWorld(true);
 }
@@ -826,6 +826,10 @@ const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'p
  * larger palm on the same surfaces, with a small wrist offset (tpGripOffset) for the rest. */
 export const TP_WEAPON_SCALE = 1.3;
 const TP_GRIP_BACK = .008, TP_GRIP_OUT = .010, TP_CURL = .9;
+/** The thick fore-ends of the Lanca-coco and the sniper: the larger world paw sat below the wood
+ * with its digits short of wrapping it. Lift the support wrist (weapon space, metres) and close
+ * the digits further on those guns. */
+export const TP_SUPPORT: Partial<Record<WeaponId, { lift: number; curl: number }>> = { coco: { lift: .010, curl: 1.1 }, sniper: { lift: .012, curl: 1.15 } };
 /** Where the world paw's wrist goes for a first-person grip, relative to that grip's wrist (in the
  * grip's own space): backed off along the digits and out of the palm, for the larger hand. */
 export function tpGripOffset(forward: readonly number[], palm: readonly number[]): THREE.Vector3 {
@@ -995,11 +999,13 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
     leftGrip = { wrist: mix(a.wrist, b.wrist), forward: mix(a.forward, b.forward), palm: mix(a.palm, b.palm), curl, pole: grips.L.pole };
   }
   const support = target(leftGrip);
+  const fit = TP_SUPPORT[id];
+  if (fit) support.add(ikA.set(0, fit.lift, 0).applyMatrix4(weapon.matrixWorld).sub(ikB.setFromMatrixPosition(weapon.matrixWorld)));
   if (tilt > 0) {
     // The support paw drops to the belt for a fresh magazine and comes back.
     const fetch = Math.sin(Math.PI * THREE.MathUtils.clamp((reload - .15) / .6, 0, 1));
     const belt = ikE.set(-.18, .85, -.12).applyQuaternion(rig.charQuat).add(body.getWorldPosition(new THREE.Vector3()));
     support.lerp(belt, fetch);
   }
-  reachArm(rig.L, support, poleL, gunQuat, leftGrip);
+  reachArm(rig.L, support, poleL, gunQuat, leftGrip, fit?.curl ?? TP_CURL);
 }
