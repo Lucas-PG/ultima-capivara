@@ -2,6 +2,7 @@
 // node tools/qa/play.mjs <outDir> <mode> '<steps json>'
 // Full rounds: ["match",timeoutSeconds,captureEverySeconds] ["rematch"]. Reports record natural results.
 // Steps: ["wait",s] ["key","KeyW",s?] ["tap","Digit3"] ["look",yaw,pitch] ["fire",n] ["shot","name"] ["eval","js"] ["hunt",s,every] ["defend",s,every,ads?]
+import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 const [out, mode = 'deathmatch', stepsJson = '[]'] = process.argv.slice(2);
@@ -28,7 +29,7 @@ let matchNumber = 0;
 // Plays through the real input layer and worker, with no health, damage or time overrides.
 // Navigation only chooses where to walk; the host still resolves every action.
 async function fullMatch(timeout, captureEvery) {
-  const number = ++matchNumber, started = Date.now(), samples = [], milestones = new Set();
+  const number = ++matchNumber, started = Date.now(), samples = [], milestones = new Set(), stalls = [], profiled = new Set();
   let nextLog = 0, nextCapture = 0, lastSample = 0, index = 0;
   await page.evaluate(async () => {
     const [{ createWorld }, nav, collision, weapons] = await Promise.all([
@@ -38,8 +39,7 @@ async function fullMatch(timeout, captureEvery) {
   });
   try {
   while ((Date.now() - started) / 1000 < timeout) {
-    let watchdog;
-    const state = await Promise.race([page.evaluate(() => {
+    const step = page.evaluate(() => {
       const d = window.__playDriver, i = window.__capivara.inspect(), s = i.snapshot;
       if (!s) throw new Error('The match disappeared before results');
       const me = s.actors.find(a => !a.bot), now = s.time, input = window.__networkQA;
@@ -117,10 +117,47 @@ async function fullMatch(timeout, captureEvery) {
       // Free a walker from a small prop using an ordinary jump, never teleportation.
       if (goal && Math.hypot(me.velocity.x, me.velocity.z) < .2 && now - d.lastJump > 2) { tap('Space'); d.lastJump = now; }
       return state;
-    }), new Promise((_, reject) => { watchdog = setTimeout(() => reject(new Error('The live page stopped responding for 15 seconds')), 15000); })]).finally(() => clearTimeout(watchdog));
-    if (Date.now() - lastSample > 2000 || state.phase === 'results') { samples.push(state); lastSample = Date.now(); }
+    });
+    // A stall is measured, and its processes sampled, before the round is given up.
+    let watchdog, stalledAt = 0;
+    const state = await Promise.race([step, new Promise(resolve => { watchdog = setTimeout(resolve, 15000); })]).finally(() => clearTimeout(watchdog)) ?? await (async () => {
+      stalledAt = Date.now(); console.error(`stall: no answer from the page for 15 s at ${Math.round((stalledAt - started) / 1000)} s`);
+      if (process.env.SAMPLE) for (const kind of ['renderer', 'gpu-process']) try {
+        // The busiest helper of that type under this driver's own browser.
+        const chrome = execSync(`ps -axo pid,ppid,command | awk '$2 == ${process.pid} && /Chrome/ {print $1}' | head -1`).toString().trim();
+        const pid = execSync(`ps -axo pid,ppid,%cpu,command | awk '$2 == ${chrome || 0}' | grep -- '--type=${kind}' | sort -k3 -nr | head -1 | awk '{print $1}'`).toString().trim();
+        if (pid) execSync(`sample ${pid} 3 -file ${out}/stall-${stalls.length}-${kind}.txt`, { stdio: 'ignore' });
+      } catch (error) { console.error('sampling failed', error.message.split('\n')[0]); }
+      const late = await Promise.race([step, new Promise(resolve => setTimeout(resolve, 90000))]);
+      if (!late) throw new Error('The live page stopped responding for 105 seconds');
+      return late;
+    })();
+    if (stalledAt) { stalls.push({ at: Math.round((stalledAt - started) / 1000) - 15, seconds: Math.round((Date.now() - stalledAt) / 1000) + 15, time: state.time }); console.error('recovered', JSON.stringify(stalls.at(-1))); }
+    if (Date.now() - lastSample > 2000 || state.phase === 'results') {
+      if (samples.length % 5 === 0) state.resources = await page.evaluate(() => ({ ...window.__capivara.resources(), heapMB: window.__capivara.perf().heapMB }));
+      samples.push(state); lastSample = Date.now();
+    }
+    // PROFILE_AT=60,240: a 4 s main-thread CPU profile at those match seconds, summarised by self time.
+    const profileAt = (process.env.PROFILE_AT || '').split(',').filter(Boolean).map(Number);
+    if (profileAt.length && state.phase === 'playing' && profileAt.some(at => state.time >= at && !profiled.has(at))) {
+      const at = profileAt.find(at => state.time >= at && !profiled.has(at)); profiled.add(at);
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Profiler.enable'); await cdp.send('Profiler.start');
+      const before = await page.evaluate(() => window.__capivara.inspect().renderedFrames);
+      await page.waitForTimeout(4000);
+      const { profile } = await cdp.send('Profiler.stop');
+      const after = await page.evaluate(() => window.__capivara.inspect().renderedFrames);
+      const self = new Map(), dt = profile.timeDeltas, total = dt.reduce((a, b) => a + b, 0) / 1000;
+      const byId = new Map(profile.nodes.map(n => [n.id, n]));
+      profile.samples.forEach((id, i) => { const f = byId.get(id).callFrame, key = `${f.functionName || '(anon)'} ${f.url.split('/').slice(-2).join('/')}:${f.lineNumber + 1}`; self.set(key, (self.get(key) || 0) + dt[i] / 1000); });
+      const top = [...self].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, v]) => `${v.toFixed(0).padStart(6)} ms  ${k}`);
+      const extra = await page.evaluate(() => ({ perf: window.__capivara.perf(), audio: window.__capivara.audio(), inspect: (() => { const i = window.__capivara.inspect(); return { renderer: i.renderer, pending: i.pending, actors: i.snapshot?.actors.length, loot: i.snapshot?.loot.length }; })() }));
+      writeFileSync(`${out}/profile-${number}-${at}.txt`, `match ${number} at ${state.time}s: ${((after - before) / 4).toFixed(1)} fps over ${total.toFixed(0)} ms profiled\n${top.join('\n')}\n${JSON.stringify({ ...extra, perf: { ...extra.perf, longTasks: undefined } })}\n`);
+      console.log('profiled', number, at, ((after - before) / 4).toFixed(1), 'fps');
+      await cdp.detach();
+    }
     const elapsed = (Date.now() - started) / 1000;
-    if (elapsed >= nextLog) { console.log(`match-${number}`, JSON.stringify({ elapsed: Math.round(elapsed), ...state, audio: undefined, camera: undefined, results: undefined })); nextLog += 30; }
+    if (elapsed >= nextLog) { console.log(`match-${number}`, JSON.stringify({ elapsed: Math.round(elapsed), ...state, audio: undefined, camera: undefined, results: undefined, resources: samples.findLast(x => x.resources)?.resources })); nextLog += 30; }
     const milestone = state.phase === 'results' ? 'results' : !state.alive ? state.spectator ? 'spectating' : 'death' : state.deaths ? 'respawn' : state.supplies ? 'supply' : state.stage;
     const capture = process.env.CAPTURES !== 'none' && (process.env.CAPTURES !== 'results' || state.phase === 'results');
     if (capture && (!milestones.has(milestone) || elapsed >= nextCapture)) {
@@ -132,7 +169,7 @@ async function fullMatch(timeout, captureEvery) {
       await page.screenshot({ path: `${out}/match-${number}-${String(index++).padStart(2, '0')}-${milestone}.jpg`, type: 'jpeg', quality: 85 });
     }
     if (state.phase === 'results') {
-      const report = { mode, number, duration: elapsed, errors, perf: await page.evaluate(() => window.__capivara.perf()), samples, results: state.results };
+      const report = { mode, number, duration: elapsed, errors, stalls, perf: await page.evaluate(() => window.__capivara.perf()), samples, results: state.results };
       writeFileSync(`${out}/match-${number}.json`, JSON.stringify(report, null, 2));
       console.log('completed', JSON.stringify({ mode, number, duration: Math.round(elapsed), results: state.results, perf: report.perf, errors }));
       return;
@@ -140,7 +177,7 @@ async function fullMatch(timeout, captureEvery) {
     await page.waitForTimeout(100);
   }
   } catch (error) {
-    writeFileSync(`${out}/match-${number}-incomplete.json`, JSON.stringify({ mode, samples, errors, failure: error.message }, null, 2));
+    writeFileSync(`${out}/match-${number}-incomplete.json`, JSON.stringify({ mode, samples, errors, stalls, failure: error.message }, null, 2));
     throw error;
   }
   writeFileSync(`${out}/match-${number}-incomplete.json`, JSON.stringify({ mode, samples, errors }, null, 2));

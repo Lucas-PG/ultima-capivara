@@ -511,6 +511,8 @@ export class GameRenderer {
   get deathCamActive() { return this.cameraRig.deathCamActive; }
 
   get stats() { return { ...this.frameStats }; }
+  /** Diagnostics for long sessions: live GPU resources and the scene's object count. */
+  get resources() { let objects = 0; this.scene.traverse(() => { objects++; }); return { ...this.gl.info.memory, programs: this.gl.info.programs?.length ?? 0, objects }; }
   /** The scope overlay replaces the first-person gun this frame. */
   scoped = false;
   private readonly headingDir = new THREE.Vector3();

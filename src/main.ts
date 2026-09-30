@@ -542,6 +542,7 @@ if (import.meta.env.DEV) {
     },
     timings: () => ({ ...timing.snapshot(), preset: settings.graphics, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } }),
     audio: () => sound.stats(),
+    resources: () => renderer?.resources ?? null,
     shotTimes: () => [...shotTimes].map(([seq, times]) => ({ seq, ...times })),
     resetPerf: () => { intervals.length = 0; longTasks.length = 0; timing.reset(); lastTick = performance.now(); },
     // QA builds: damage an actor in a practice match (attacker null means storm or fall style damage).
