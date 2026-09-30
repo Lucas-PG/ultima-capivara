@@ -162,10 +162,11 @@ export class AvatarView {
         visual.awaitingAlive = false;
       }
       const dead = capybaraIsDead(visual.body);
-      // Everyone still in the plane rides inside it; the viewed capivara stays
-      // visible in third person and while the camera eases into its eyes.
+      // Everyone still in the plane rides inside it. Only your own body is hidden, and only while the camera sits in
+      // its eyes: a watched capybara is followed from over its shoulder, and the results orbit the champion.
+      const ownEyes = frame.playing && actor.id === viewed && viewed === frame.playerId && frame.snapshot!.phase !== 'results';
       visual.group.visible = dead ? capybaraCorpseVisible(visual.body) : (actor.alive || winner) && actor.stage !== 'plane' &&
-        (!frame.playing || actor.id !== viewed || actor.stage !== 'ground' || emoting || visual.emoting || this.cameraBlend > .35);
+        (!ownEyes || actor.stage !== 'ground' || emoting || visual.emoting || this.cameraBlend > .35);
       visual.emoting = !!emoting;
       const pos = actor.id === frame.playerId && frame.predicted ? frame.predicted : actor.pos;
       const target = this.target.copy(pos);
@@ -206,6 +207,8 @@ export class AvatarView {
       // The local kill event can beat the dead snapshot and the camera pullback.
       // Keep the corpse out of the camera until it has left the standing head.
       if (dead && frame.playing && actor.id === viewed && plate.distance < .5) visual.group.visible = false;
+      // A follow camera squeezed against a wall never renders the inside of the watched head.
+      if (!dead && frame.playing && actor.id === viewed && viewed !== frame.playerId && plate.distance < .7) visual.group.visible = false;
       visual.targetable = !dead && actor.alive && actor.id !== viewed && actor.stage === 'ground' && plate.distance <= 60;
       if (visual.targetable) {
         const hit = nameplateHit(this.camera.position, this.forward, actor, visual.group.position);

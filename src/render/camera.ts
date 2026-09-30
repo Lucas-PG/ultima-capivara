@@ -10,10 +10,12 @@ import { terrainHeight } from '../shared/terrain';
 import type { ActorState, RenderFrame, Settings, Vec3, WorldSpec } from '../shared/types';
 import type { AvatarView } from './avatars';
 import type { PresentationFrame } from './local-presentation';
+import { FollowCamera, clearDistance } from './follow-camera';
 
 const AXES = ['x', 'y', 'z'] as const;
 const ease = (t: number) => t * t * (3 - 2 * t);
-type CameraMode = 'orbit' | 'chase' | 'emote' | 'fps';
+type CameraMode = 'orbit' | 'chase' | 'emote' | 'fps' | 'follow';
+const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 function segmentAabb(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number, min: Vec3, max: Vec3): number {
   let near = 0, far = maxDistance;
   for (const axis of AXES) {
@@ -66,6 +68,15 @@ export class CameraRig {
   // `start` stays null while armed: the kill event can arrive before or after the snapshot that shows you dead.
   private deathCam: { armedAt: number; start: number | null; duration: number; killerId: string | null; killerPos: THREE.Vector3 | null; victimEye: THREE.Vector3 } | null = null;
   private wasDeathCam = false;
+  // Spectating: an over-the-shoulder follow camera on the watched capybara; mouse look orbits around it.
+  private readonly follow = new FollowCamera();
+  private lastInputYaw: number | null = null;
+  private lastInputPitch = 0;
+  // Switching views travels along an arc (lifted over roofs for long hops) instead of cutting.
+  private blendLift = 0;
+  private ownDead = false;
+  // Results: a slow orbit around the champion's celebration.
+  private resultsAngle: number | null = null;
   constructor(readonly camera: THREE.PerspectiveCamera, private readonly world: WorldSpec, private settings: Settings, private readonly avatars: AvatarView) {}
 
   // Timed on the renderer's clamped frame clock; cleared on respawn, spectating and a new match.
@@ -155,60 +166,51 @@ export class CameraRig {
       }
     }
     const snapshot = frame.snapshot;
-    const viewedId = frame.spectateId || frame.playerId;
+    const viewedId = frame.spectateId || frame.playerId, own = viewedId === frame.playerId;
     let actor: ActorState | undefined;
     if (snapshot) for (const candidate of snapshot.actors) if (candidate.id === viewedId) { actor = candidate; break; }
-    if (viewedId === frame.playerId && frame.localActor) actor = frame.localActor;
+    // The local capybara uses prediction; a watched one uses the same interpolated pose its body is drawn with.
+    if (own && frame.localActor) actor = frame.localActor;
+    else if (!own && actor) actor = frame.remoteActors?.get(viewedId) ?? actor;
     this.lastActor = actor;
+    // Mouse look while spectating orbits the follow camera; the local aim is not used for anything else then.
+    const inputYaw = frame.input.yaw, inputPitch = frame.input.pitch;
+    if (!own && this.lastInputYaw !== null) this.follow.orbit(wrapAngle(inputYaw - this.lastInputYaw), inputPitch - this.lastInputPitch);
+    this.lastInputYaw = inputYaw; this.lastInputPitch = inputPitch;
+    if (frame.playing && snapshot?.phase === 'results') {
+      this.deathCam = null;
+      if (this.poseResults(frame)) { this.lastActor = undefined; return; }
+    } else this.resultsAngle = null;
     const cam = this.deathCam;
     if (cam) {
-      const dead = frame.playing && !!actor && !actor.alive && viewedId === frame.playerId;
+      const dead = frame.playing && !!actor && !actor.alive && own;
       if (cam.start === null && dead) cam.start = this.elapsed;
       // Drop it on spectating, the menu, a respawn after it ran, or a dead view that never arrived.
-      if (!frame.playing || viewedId !== frame.playerId || (cam.start !== null && actor?.alive) || (cam.start === null && this.elapsed - cam.armedAt > 3)) this.deathCam = null;
-      else if (dead && this.deathCamActive) { this.poseDeathCam(); return; }
+      if (!frame.playing || !own || (cam.start !== null && actor?.alive) || (cam.start === null && this.elapsed - cam.armedAt > 3)) this.deathCam = null;
+      // After its beat the shot keeps tracking the eliminator until spectating, a respawn or the results take over.
+      else if (dead && cam.start !== null) { this.ownDead = true; this.poseDeathCam(); return; }
     }
+    if (frame.playing && !own && actor) { this.poseSpectate(frame, actor, viewedId); return; }
     if (frame.playing && actor?.alive) {
-      const own = viewedId === frame.playerId;
-      const yaw = own ? frame.input.yaw : actor.yaw;
-      const pitch = own ? frame.input.pitch : actor.pitch;
+      const yaw = frame.input.yaw, pitch = frame.input.pitch;
       const emoting = actor.emote && actor.emoteUntil > (frame.simulationTime ?? snapshot?.time ?? 0) && actor.grounded && !actor.swimming;
       const mode: CameraMode = actor.stage === 'plane' ? 'orbit' : emoting ? 'emote' : actor.stage === 'ground' ? 'fps' : 'chase';
-      const snap = !this.cameraInitialized || this.lastViewedId !== viewedId;
-      if (!snap && this.cameraMode && mode !== this.cameraMode) {
-        this.blendFromPosition.copy(this.camera.position); this.blendFromQuaternion.copy(this.camera.quaternion);
-        this.cameraBlend = settings.reducedMotion ? 0 : 1; this.cameraBlendDuration = mode === 'emote' ? .45 : mode === 'fps' ? .4 : .8;
-      }
+      // A respawn is a cut: the new life starts in the eyes, never after a swoop across the island.
+      const snap = !this.cameraInitialized || this.lastViewedId !== viewedId || this.ownDead;
+      if (!snap && this.cameraMode && mode !== this.cameraMode) this.startBlend(mode === 'emote' ? .45 : mode === 'fps' ? .4 : .8);
       if (this.cameraMode !== mode && timing.enabled) timing.record('camera-transition', timing.begin(), 0, mode, true);
       if (snap) { this.cameraBlend = 0; this.eyeHeight.reset(actorEye(actor)); this.landing.reset(); this.grounded = actor.grounded; this.swimming = actor.swimming; }
-      // Handing off from the death cam to the spectated capybara eases instead of cutting.
-      if (this.wasDeathCam && !this.settings.reducedMotion) {
-        this.blendFromPosition.copy(this.camera.position); this.blendFromQuaternion.copy(this.camera.quaternion);
-        this.cameraBlend = 1; this.cameraBlendDuration = .6;
-      }
-      this.wasDeathCam = false;
+      this.wasDeathCam = false; this.ownDead = false;
       this.cameraMode = mode;
       const position = this.position, quaternion = this.quaternion;
       let fov = verticalFov(this.settings.fov);
-      if (mode === 'orbit') {
-        // Orbit the plane with the mouse, like the legacy build. Level mouse
-        // looks down at the island instead of at the horizon.
-        const orbitPitch = THREE.MathUtils.clamp(pitch - .38, -1.2, .3), reach = 26 * Math.cos(orbitPitch);
-        position.set(this.planePosition.x + Math.sin(yaw) * reach, this.planePosition.y + 4 - Math.sin(orbitPitch) * 26, this.planePosition.z + Math.cos(yaw) * reach);
-        quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(this.planePosition).setY(this.planePosition.y + 1), this.camera.up));
-      } else if (mode === 'emote') {
+      if (mode === 'orbit') this.poseOrbit(yaw, pitch, position, quaternion);
+      else if (mode === 'emote') {
         this.poseEmote(actor, position, quaternion);
         fov = Math.min(verticalFov(settings.fov), actor.emote === 'chill' && capybaraHasClip('chill') ? 52 : 58);
-      } else if (mode === 'chase') {
-        const body = this.avatars.get(actor.id)?.group.position || this.target.copy(actor.pos);
-        const chute = actor.stage === 'parachute', distance = chute ? 7.5 : 6;
-        const chasePitch = THREE.MathUtils.clamp(pitch, -1.3, .6), reach = distance * Math.cos(chasePitch);
-        position.set(body.x + Math.sin(yaw) * reach, body.y + 2.4 - Math.sin(chasePitch) * distance, body.z + Math.cos(yaw) * reach);
-        position.y = Math.max(position.y, terrainHeight(position.x, position.z) + .6);
-        quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(body).setY(body.y + (chute ? 2.2 : 1.2)), this.camera.up));
-        fov = verticalFov(this.settings.fov) + 6;
-      } else {
-        const predicted = own && frame.predicted ? frame.predicted : actor.pos;
+      } else if (mode === 'chase') fov = this.poseChase(actor, yaw, pitch, position, quaternion);
+      else {
+        const predicted = frame.predicted ? frame.predicted : actor.pos;
         const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
         const dt = Math.max(0, Math.min(frame.dt, .05));
         this.gait += speed * dt * 2.5;
@@ -242,7 +244,7 @@ export class CameraRig {
         // Yaw must be applied before pitch. Resetting a lookAt() XYZ Euler's roll
         // can flip the horizon when the view crosses east or west.
         quaternion.setFromEuler(this.rotation.set(pitch, yaw, actor.lean * -.045));
-        const ads = own ? this.adsAmount : actor.ads && !actor.sprint ? 1 : 0;
+        const ads = this.adsAmount;
         const zoom = actor.weapons[actor.slot]?.id === 'sniper' ? 5.5 : actor.weapons[actor.slot]?.id === 'dmr' ? 2.9 : 1.25;
         // The M4 keeps the player's peripheral FOV with a mild, optical 1.15x
         // zoom. Scope magnification on existing weapons retains its contract.
@@ -251,11 +253,7 @@ export class CameraRig {
           ? 2 * Math.atan(Math.tan(baseFov * Math.PI / 360) / (1 + ads * .15)) * 180 / Math.PI
           : baseFov / (1 + ads * (zoom - 1));
       }
-      if (this.cameraBlend > 0) {
-        this.cameraBlend = Math.max(0, this.cameraBlend - frame.dt / this.cameraBlendDuration);
-        const t = ease(this.cameraBlend);
-        position.lerp(this.blendFromPosition, t); quaternion.slerp(this.blendFromQuaternion, t);
-      }
+      this.applyBlend(position, quaternion, frame.dt);
       this.camera.position.copy(position); this.camera.quaternion.copy(quaternion);
       this.cameraInitialized = true; this.lastViewedId = viewedId;
       this.camera.fov = snap || mode === 'fps' ? fov : damp(this.camera.fov, fov, 13, frame.dt);
@@ -263,6 +261,7 @@ export class CameraRig {
       return;
     }
     if (frame.playing) {
+      if (actor && !actor.alive && own) this.ownDead = true;
       if (!this.cameraInitialized && actor) {
         this.camera.position.copy(actor.pos); this.camera.position.y += actorEye(actor);
         this.direction.set(-Math.sin(actor.yaw) * Math.cos(actor.pitch), Math.sin(actor.pitch), -Math.cos(actor.yaw) * Math.cos(actor.pitch));
@@ -271,13 +270,105 @@ export class CameraRig {
       }
       return;
     }
-    this.cameraInitialized = false; this.lastViewedId = null; this.cameraMode = null; this.cameraBlend = 0; this.wasDeathCam = false;
+    this.cameraInitialized = false; this.lastViewedId = null; this.cameraMode = null; this.cameraBlend = 0; this.wasDeathCam = false; this.ownDead = false;
+    this.follow.reset(); this.resultsAngle = null;
     // The menu is a slow scenic orbit over the village and the harbour.
     this.menuAngle += frame.dt * (this.settings.reducedMotion ? .035 : .09);
     const x = -48 + Math.sin(this.menuAngle) * 53, z = -29 + Math.cos(this.menuAngle) * 48;
     this.camera.position.set(x, 27 + Math.sin(this.menuAngle * .6) * 3, z);
     this.camera.lookAt(-43, 1.5, -35);
     this.camera.fov = damp(this.camera.fov, 56, 4, frame.dt); this.camera.updateProjectionMatrix();
+  }
+
+  // Blends ease from the camera's current pose. `lift` raises the path in the middle (an arc over roofs).
+  private startBlend(duration: number, lift = 0) {
+    if (this.settings.reducedMotion) { this.cameraBlend = 0; return; }
+    this.blendFromPosition.copy(this.camera.position); this.blendFromQuaternion.copy(this.camera.quaternion);
+    this.cameraBlend = 1; this.cameraBlendDuration = duration; this.blendLift = lift;
+  }
+  private applyBlend(position: THREE.Vector3, quaternion: THREE.Quaternion, dt: number) {
+    if (this.cameraBlend <= 0) return;
+    this.cameraBlend = Math.max(0, this.cameraBlend - dt / this.cameraBlendDuration);
+    const t = ease(this.cameraBlend);
+    position.lerp(this.blendFromPosition, t); quaternion.slerp(this.blendFromQuaternion, t);
+    position.y += this.blendLift * Math.sin(Math.PI * t);
+  }
+
+  private poseOrbit(yaw: number, pitch: number, position: THREE.Vector3, quaternion: THREE.Quaternion) {
+    // Orbit the plane with the mouse, like the legacy build. Level mouse
+    // looks down at the island instead of at the horizon.
+    const orbitPitch = THREE.MathUtils.clamp(pitch - .38, -1.2, .3), reach = 26 * Math.cos(orbitPitch);
+    position.set(this.planePosition.x + Math.sin(yaw) * reach, this.planePosition.y + 4 - Math.sin(orbitPitch) * 26, this.planePosition.z + Math.cos(yaw) * reach);
+    quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(this.planePosition).setY(this.planePosition.y + 1), this.camera.up));
+  }
+
+  private poseChase(actor: ActorState, yaw: number, pitch: number, position: THREE.Vector3, quaternion: THREE.Quaternion) {
+    const body = this.avatars.get(actor.id)?.group.position || this.target.copy(actor.pos);
+    const chute = actor.stage === 'parachute', distance = chute ? 7.5 : 6;
+    const chasePitch = THREE.MathUtils.clamp(pitch, -1.3, .6), reach = distance * Math.cos(chasePitch);
+    position.set(body.x + Math.sin(yaw) * reach, body.y + 2.4 - Math.sin(chasePitch) * distance, body.z + Math.cos(yaw) * reach);
+    position.y = Math.max(position.y, terrainHeight(position.x, position.z) + .6);
+    quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, this.lookTarget.copy(body).setY(body.y + (chute ? 2.2 : 1.2)), this.camera.up));
+    return verticalFov(this.settings.fov) + 6;
+  }
+
+  // Watching another capybara: over its shoulder on the ground (or over its fallen body), the plane orbit and the
+  // drop chase in the air, the face view for gestures. A new target is reached along an arc, never by a cut.
+  private poseSpectate(frame: PresentationFrame, actor: ActorState, viewedId: string) {
+    const simulationTime = frame.simulationTime ?? frame.snapshot?.time ?? 0;
+    const emoting = actor.alive && actor.emote && actor.emoteUntil > simulationTime && actor.grounded && !actor.swimming;
+    const mode: CameraMode = actor.stage === 'plane' && actor.alive ? 'orbit' : emoting ? 'emote' : actor.stage === 'ground' || !actor.alive ? 'follow' : 'chase';
+    const body = this.avatars.get(actor.id)?.group.position ?? this.target.copy(actor.pos);
+    if (this.lastViewedId !== viewedId) {
+      this.follow.reset();
+      if (this.cameraInitialized) {
+        const hop = this.camera.position.distanceTo(body);
+        this.startBlend(THREE.MathUtils.clamp(.35 + hop / 70, .35, 1.1), hop > 8 ? Math.min(14, hop * .22) : 0);
+      }
+    } else if (this.cameraMode && mode !== this.cameraMode) this.startBlend(mode === 'emote' ? .45 : .6);
+    this.wasDeathCam = false;
+    this.cameraMode = mode;
+    const position = this.position, quaternion = this.quaternion;
+    let fov = Math.min(verticalFov(this.settings.fov), 62);
+    if (mode === 'orbit') this.poseOrbit(actor.yaw, actor.pitch, position, quaternion);
+    else if (mode === 'emote') { this.poseEmote(actor, position, quaternion); fov = Math.min(fov, 58); }
+    else if (mode === 'chase') fov = this.poseChase(actor, actor.yaw, actor.pitch, position, quaternion);
+    else {
+      this.follow.update(this.world, { pos: body, yaw: actor.yaw, pitch: actor.pitch, crouch: actor.crouch, swimming: actor.swimming, alive: actor.alive },
+        frame.dt, this.settings.reducedMotion);
+      position.copy(this.follow.position); quaternion.copy(this.follow.quaternion);
+    }
+    this.applyBlend(position, quaternion, frame.dt);
+    this.camera.position.copy(position); this.camera.quaternion.copy(quaternion);
+    const snap = !this.cameraInitialized;
+    this.cameraInitialized = true; this.lastViewedId = viewedId;
+    this.camera.fov = snap ? fov : damp(this.camera.fov, fov, 8, frame.dt);
+    this.camera.updateProjectionMatrix();
+  }
+
+  // Results: the champion celebrates in a slow orbit, framed from the front, behind the results panel.
+  private poseResults(frame: PresentationFrame): boolean {
+    const snapshot = frame.snapshot!, champion = snapshot.results.find(result => result.winner) ?? snapshot.results[0];
+    const state = champion && snapshot.actors.find(actor => actor.id === champion.id);
+    if (!state) return false;
+    const body = this.avatars.get(state.id)?.group.position ?? this.target.copy(state.pos);
+    const dt = Math.max(0, Math.min(frame.dt, .1));
+    if (this.resultsAngle === null) {
+      // Start in front of the champion, a little to its left, easing out of whatever the view was.
+      this.resultsAngle = state.yaw + .55;
+      if (this.cameraInitialized) this.startBlend(1.4, 0);
+    } else if (!this.settings.reducedMotion) this.resultsAngle += dt * .16;
+    const look = this.lookTarget.copy(body).setY(body.y + .95), angle = this.resultsAngle;
+    const out = this.direction.set(-Math.sin(angle), .3, -Math.cos(angle)).normalize();
+    const pivot = this.fpsPosition.copy(body).setY(body.y + 1.2);
+    const reach = clearDistance(this.world, pivot, out, 4.8, .25);
+    const position = this.position.copy(pivot).addScaledVector(out, reach);
+    const quaternion = this.quaternion.setFromRotationMatrix(this.lookMatrix.lookAt(position, look, this.camera.up));
+    this.applyBlend(position, quaternion, dt);
+    this.camera.position.copy(position); this.camera.quaternion.copy(quaternion);
+    this.camera.fov = damp(this.camera.fov, 46, 4, dt); this.camera.updateProjectionMatrix();
+    this.cameraInitialized = true; this.cameraMode = null;
+    return true;
   }
 
   updatePlanePath(snapshot: RenderFrame['snapshot'], dt: number, elapsed: number) {

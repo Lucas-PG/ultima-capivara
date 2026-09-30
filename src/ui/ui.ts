@@ -17,12 +17,13 @@ import { EMOTES, EMOTE_IDS } from '../shared/emotes';
 import type { EmoteId } from '../shared/types';
 import { emoteChoice, EMOTE_RADIUS } from './emote-wheel';
 import { paintIslandMap, paintMapCompass } from './map-paint';
+import type { SpectateView } from '../spectate';
 
 export interface UICallbacks {
   host(profile: Profile, config: RoomConfig): Promise<void>; join(profile: Profile, code: string): Promise<void>;
   practice(config: RoomConfig, profile: Profile): void; ready(ready: boolean): void; start(): void;
   emote?(emote: EmoteId): void; cancelEmote?(): void;
-  leave(): void; rematch(): void; resume(): void; spectate(): void;
+  leave(): void; rematch(): void; resume(): void; spectate(direction?: number): void;
   settings(settings: Settings): void; profile(profile: Profile): void;
 }
 type Profile = { name: string; color: string };
@@ -95,6 +96,9 @@ export class GameUI {
   private scoreKey = '';
   private networkStatus = '';
   private latencies: Readonly<Record<string, number>> = {};
+  // Who the eliminated player is watching (null while alive, during the death cam, or with nobody left).
+  private spectate: SpectateView | null = null;
+  setSpectate(view: SpectateView | null) { this.spectate = view; }
   setConnectionStatus(status: ConnectionStatus) {
     this.networkStatus = { idle: '', connecting: 'Conectando à sala', connected: 'Conectado', relay: 'Conectado por retransmissão', reconnecting: 'Reconectando à sala', closed: 'A sala fechou' }[status];
     const line = this.root.querySelector('#connection-status');
