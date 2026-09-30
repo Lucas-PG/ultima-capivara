@@ -564,7 +564,7 @@ describe('authoritative simulation', () => {
 
   it('gives every kit building a solid roof above its room', () => {
     const actual = createWorld();
-    const roofs = actual.pieces!.filter(piece => piece.piece.startsWith('house_') || piece.piece === 'church' || piece.piece === 'market_hall');
+    const roofs = actual.pieces!.filter(piece => piece.piece.startsWith('house_') || piece.piece.startsWith('church') || piece.piece === 'market_hall');
     expect(roofs.length).toBeGreaterThan(35);
     for (const roof of roofs) {
       const definition = KIT_PIECES[roof.piece], scale = roof.scale ?? 1;

@@ -190,7 +190,7 @@ export function createWorld(): WorldSpec {
   place('church', CHURCH[0], CHURCH[1], 0);
   // Capela do Rosário faces its largo across Rua do Sul; a smaller chapel crowns the south-west hill.
   place('church', ROSARIO[0], 45.5, Math.PI, 1, ground(ROSARIO[0], 45.5), 'capela-rosario');
-  place('church', CAPELA[0], CAPELA[1], Math.PI / 2, 1, ground(CAPELA[0], CAPELA[1]), 'capela-morro');
+  place('church_hill', CAPELA[0], CAPELA[1], Math.PI / 2, 1, ground(CAPELA[0], CAPELA[1]), 'capela-morro');
   // Its stone stair climbs the hill's east face on the chapel's axis; the
   // cruzeiro stands on the adro between the stair head and the door.
   detail('escadaria', CAPELA_STAIR.x, CAPELA_STAIR.z, CAPELA_STAIR.yaw, 1, CAPELA_STAIR.foot);

@@ -14,7 +14,13 @@ class Piece:
     def __init__(self, name, width, depth):
         self.name, self.width, self.depth = name, width, depth
         self.parts, self.colliders = [], []
+        self.plantings = []
         PIECES[name] = self
+
+    def plant(self, type, x, y, z, **values):
+        """An anchor for the painted vegetation layer (src/shared/vegetation-dressing.ts), which draws
+        the plant: the kit keeps only its pot, box or wall. Piece space, facing +z."""
+        self.plantings.append(dict(type=type, x=round(x, 4), y=round(y, 4), z=round(z, 4), **{k: round(v, 4) if isinstance(v, float) else v for k, v in values.items()}))
 
     def box(self, x, y, z, w, h, d, tile=0, solid=False, material='stone', bevel=.035, detail=False, yaw=0, roll=0):
         self.parts.append(dict(shape='box', center=[x, y, z], size=[w, h, d], tile=tile, bevel=bevel, detail=detail, yaw=yaw, roll=roll, solid=solid))
@@ -52,6 +58,8 @@ class Piece:
             data['traversal'] = self.traversal
         if hasattr(self, 'front_clearance'):
             data['frontClearance'] = self.front_clearance
+        if self.plantings:
+            data['plantings'] = self.plantings
         return data
 
 
@@ -71,12 +79,10 @@ def window(p, x, y, z, width=1.4, height=1.55, side=1, shutter=2):
         for i in range(6):
             p.box(xx, y - height * .36 + i * height * .145, z + side * .15, .36, .06, .06, shutter, bevel=.012, detail=True)
     if side > 0:
+        # A timber flower box: the vegetation layer plants it (anchor on the soil).
         p.box(x, y - height / 2 - .35, z + .35, width * .86, .3, .38, 5, bevel=.03)
         p.box(x, y - height / 2 - .19, z + .35, width * .81, .02, .30, 7, bevel=0)
-        for i in range(5):
-            xx = x + (i - 2) * width * .15
-            p.orb(xx, y - height / 2 - .08, z + .34, .27, .25, .3)
-            p.orb(xx + .05, y - height / 2 + .03, z + .40, .10, .09, .10, 1 if i % 2 else 3)
+        p.plant('box', x, y - height / 2 - .19, z + .35, width=width * .86)
 
 
 def portal(p, x, z, wall_h, width=2, side=1, color=5):
@@ -225,6 +231,9 @@ p.box(-3, 11.2, 5.8, 2.65, .3, 3, 4, True)
 p.cylinder(-3, 11.8, 5.8, 1.8, 1.0, 4, top=0, sides=4)
 p.box(-3, 12.85, 5.8, .12, 1.2, .14, 15)
 p.box(-3, 13.08, 5.8, .7, .12, .14, 15)
+# The Capela do Morro: the same one-room plan and doors, dressed as a hill chapel.
+from capela import hill_chapel
+hill_chapel(building('church_hill', 10, 16, color=0), 10, 16, 3.2)
 p = building('market_hall', 16, 12, color=3)
 # Covered arcade front, with broad timber trusses and fabric valance.
 for x in [-7.7, -4.0, 4.0, 7.7]:

@@ -15,7 +15,16 @@ export interface KitPiece {
   interaction?: { surfaceY: number; radius: number };
   traversal?: KitTraversal;
   frontClearance?: number;
+  /** Anchors for the painted vegetation layer (the kit draws only the pot, box or wall), piece space facing +z:
+   * wall drapes (top edge, width, drop; `slab` for a balcony drape hanging in front of its railing),
+   * window flower boxes (soil centre, width), pots (rim centre, radius, style) and bushes. */
+  plantings?: KitPlanting[];
 }
+export type KitPlanting =
+  | { type: 'drape'; x: number; y: number; z: number; width: number; drop: number; slab?: number }
+  | { type: 'box'; x: number; y: number; z: number; width: number }
+  | { type: 'pot'; x: number; y: number; z: number; radius: number; style: 'flower' | 'tall' }
+  | { type: 'bush'; x: number; y: number; z: number; species: 'bougainvillea'; height: number };
 export const KIT_PIECES = definitions as unknown as Record<string, KitPiece>;
 
 // Existing movement uses axis-aligned boxes. Cardinal solids remain exact;

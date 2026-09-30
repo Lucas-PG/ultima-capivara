@@ -124,6 +124,63 @@ def cruzeiro(Piece, name='cruzeiro'):
     return p
 
 
+def hill_chapel(p, width, depth, height):
+    """Dress a plain one-room building as the Capela do Morro, so it never reads as the town's
+    church: no campanile, a whitewashed frontispiece with scrolled shoulders rising over the roof,
+    a sineira (bell arch) with its bell and cross at the apex, an oculus over the door, blue
+    trim and a blue barra round the base, as the hill chapels of the Brazilian coast."""
+    z0, z1 = depth / 2 + .16, depth / 2 - .14
+    half = width / 2 + .15
+    # The frontispiece outline (half-widths by height): straight shoulders, then scrolls
+    # curving in to the belfry's base.
+    outline = [(height - .15, half), (height + .7, half), (height + 1.05, half - .55), (height + 1.3, half - 1.3),
+               (height + 1.55, 2.6), (height + 1.8, 2.05), (height + 2.05, 1.7), (height + 2.35, 1.5), (height + 2.6, 1.42)]
+    vertices, faces = [], []
+    for y, w in outline:
+        vertices += [(-w, y, z0), (w, y, z0), (-w, y, z1), (w, y, z1)]
+    for i in range(len(outline) - 1):
+        a, b = i * 4, (i + 1) * 4
+        faces += [(a, a + 1, b + 1, b), (a + 2, b + 2, b + 3, a + 3), (a, b, b + 2, a + 2), (a + 1, a + 3, b + 3, b + 1)]
+    top = (len(outline) - 1) * 4
+    faces.append((top, top + 1, top + 3, top + 2))
+    surface(p, vertices, faces, WALL, detail=False)
+    flag(p, planar=True)
+    # Blue trim along both edges of the outline, standing proud of the face.
+    for side in [-1, 1]:
+        for (ya, wa), (yb, wb) in zip(outline[1:], outline[2:]):
+            p.beam((side * wa, ya, z0 + .05), (side * wb, yb, z0 + .05), .16, NAVY, .1)
+    p.box(0, height + .72, z0 + .05, width + .5, .16, .12, NAVY, bevel=.01)
+    p.box(0, outline[-1][0] + .06, z0 + .03, 3.1, .14, .44, TRIM, bevel=.012)
+    # The sineira: two piers and an arched head, the bell hanging in the opening, a cross on top.
+    base = outline[-1][0] + .13
+    for x in [-1.1, 1.1]:
+        p.box(x, base + .8, (z0 + z1) / 2, .5, 1.6, .3, WALL, bevel=.02)
+        p.box(x, base + .05, (z0 + z1) / 2 + .02, .62, .1, .38, TRIM, bevel=.01)
+    p.box(0, base + 1.78, (z0 + z1) / 2, 2.7, .36, .3, WALL, bevel=.02)
+    p.beam((-.85, base + 1.52, (z0 + z1) / 2), (0, base + 1.62, (z0 + z1) / 2), .16, WALL, .3)
+    p.beam((.85, base + 1.52, (z0 + z1) / 2), (0, base + 1.62, (z0 + z1) / 2), .16, WALL, .3)
+    p.beam((-1.45, base + 1.96, (z0 + z1) / 2), (0, base + 2.3, (z0 + z1) / 2), .14, NAVY, .38)
+    p.beam((1.45, base + 1.96, (z0 + z1) / 2), (0, base + 2.3, (z0 + z1) / 2), .14, NAVY, .38)
+    p.box(0, base + 1.5, (z0 + z1) / 2, 1.7, .06, .06, IRON, bevel=0)
+    p.cylinder(0, base + 1.1, (z0 + z1) / 2, .3, .5, YELLOW, top=.14, sides=10)
+    flag(p, tint=[.62, .46, .22])
+    p.orb(0, base + .86, (z0 + z1) / 2, .07, .1, .07, IRON)
+    p.box(0, base + 2.75, (z0 + z1) / 2, .12, .95, .12, IRON, bevel=0)
+    p.box(0, base + 2.95, (z0 + z1) / 2, .55, .1, .1, IRON, bevel=0)
+    # The oculus over the door, ringed in blue.
+    p.cylinder(0, height + 1.35, z0 + .02, .5, .06, NAVY, sides=16, axis='z')
+    p.cylinder(0, height + 1.35, z0 + .05, .38, .04, GLASS, sides=16, axis='z')
+    # The blue barra round the base, broken at both doors.
+    for z, sign in [(depth / 2, 1), (-depth / 2, -1)]:
+        for side in [-1, 1]:
+            p.box(side * (width / 4 + .6), .5, z + sign * .15, width / 2 - 1.2, .62, .03, NAVY, bevel=0)
+            flag(p, mid=True)
+    for side in [-1, 1]:
+        p.box(side * (width / 2 + .15), .5, 0, .03, .62, depth - .5, NAVY, bevel=0)
+        flag(p, mid=True)
+    return p
+
+
 def add_capela(Piece):
     escadaria(Piece)
     cruzeiro(Piece)

@@ -257,5 +257,6 @@ def extend(Piece, building, roof, window):
         p.box(x, 1.19, 0, .90, .18, 1.18, 5)
         for a in range(3):
             for b in range(4):
+                # Round, smooth-shaded fruit: faceted heads read as cut gems at the counter.
                 p.orb(x + (a - 1) * .23, 1.38, (b - 1.5) * .24, .22, .24, .22, 3 if x < 0 else 1 if x == 0 else 12)
-                p.parts[-1].update(segments=(6, 4), mid=True)
+                p.parts[-1].update(segments=(9, 6), smooth=True, mid=True)
