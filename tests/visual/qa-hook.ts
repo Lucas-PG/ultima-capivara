@@ -15,7 +15,7 @@ import { buildingRole, buildingRooms, roomVariant } from '../../src/shared/build
 import { foliageSpan, plantCrown } from '../../src/shared/vegetation-crowns';
 import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
-import { DEFAULT_CONFIG, PLAYER_COLORS, type GameEvent, type InputFrame, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
+import { DEFAULT_CONFIG, PLAYER_COLORS, type GameEvent, type InputFrame, type LootSpawn, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
 import type { GameUI } from '../../src/ui/ui';
 import type { InputController } from '../../src/input';
@@ -44,6 +44,8 @@ declare global { interface Window { __capyQA?: QaApi } }
 
 const WEAPONS: WeaponId[] = ['pistol', 'revolver', 'smg', 'm4', 'shotgun', 'coco', 'dmr', 'sniper', 'machete'];
 const MUD_POSES = ['mudPrompt', 'mudSoak', 'mudFull'];
+// Every pickup kind in a row on the ground: at 3 m from eye height, 3 m looking down, and at 18 m (far models).
+const LOOT_POSES = ['loot-eye', 'loot-down', 'loot-far'];
 const TRAMPOLINE_POSES = ['trampolineBounce', 'trampolineAir'];
 const SUPPLY_POSES = ['supplyIncoming', 'supplyDescending', 'supplyLanded', 'supplyOpened'];
 const BUILDING_POSES = ['houseGround', 'houseStairBottom', 'houseStairTop', 'houseUpper'];
@@ -65,7 +67,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let placedRoutes: Map<string, Vec3[]> | undefined;
   const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `ads-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES, ...ACCESS_POSES, ...ROOM_POSES,
-    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results', 'results-correria'];
+    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results', 'results-correria', ...LOOT_POSES];
 
   function draw() {
     if (!renderer || !current) return;
@@ -95,7 +97,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (SUPPLY_POSES.includes(name) && !supply) throw new Error('A revisão precisa de uma entrega em solo seco e acessível.');
     // Named world views stand on the real walking surface (a deck, a roof terrace), not the terrain under it.
     const named: WorldView | undefined = trampoline || bath || spawn ? undefined : district ? DISTRICT_VIEWS[district.id] ?? [district.x - 8, district.z + 8, -.7, 0] :
-      VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name === 'scope' ? 'vilaStreet' : name] || VIEWS.plaza;
+      VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) || name === 'loot-far' ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name === 'scope' ? 'vilaStreet' : name] || VIEWS.plaza;
     const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, Math.PI / 2, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : named!;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
     let [x, z, yaw, pitch] = view;
@@ -255,6 +257,16 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       // The reviewed capybara must stand in the open, never through a bench or a wall.
       if (!clearSpawn(bot.pos, deps.world)) throw new Error(`The ${name} capybara stands inside a solid.`);
       s.actors.push(bot);
+    }
+    if (LOOT_POSES.includes(name)) {
+      s.loot.forEach(item => { item.active = false; });
+      const kinds: [LootSpawn['kind'], WeaponId?][] = [['armor'], ['helmet'], ['ammo'], ['medkit'], ['bandage'], ['guarana'], ['acai'], ['rapadura'], ['weapon', 'm4'], ['weapon', 'shotgun']];
+      const reach = name === 'loot-far' ? 18 : 3, spread = name === 'loot-far' ? .8 : .75;
+      if (name === 'loot-down') pitch = -.45; else pitch = name === 'loot-far' ? -.1 : -.18;
+      kinds.forEach(([kind, weapon], i) => {
+        const across = (i - (kinds.length - 1) / 2) * spread, lx = x - Math.sin(yaw) * reach + Math.cos(yaw) * across, lz = z - Math.cos(yaw) * reach - Math.sin(yaw) * across;
+        s.loot.push({ id: `loot-review-${i}`, kind, ...(weapon ? { weapon } : {}), rarity: weapon ? i % 4 : 0, x: lx, y: walkableHeight(lx, lz, deps.world), z: lz, active: true, respawnAt: 0 });
+      });
     }
     if (name.startsWith('world-') && weaponReview) {
       s.loot.forEach(item => { item.active = false; });
