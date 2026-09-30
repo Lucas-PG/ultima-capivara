@@ -590,7 +590,7 @@ def dmr():
     for obj in parts['body']:
         if obj.name.split('.')[0] in ('pistol_grip', 'grip_stipple', 'stipple'):
             for vertex in obj.data.vertices:
-                vertex.co.y = .65 * vertex.co.y - .01155
+                vertex.co.y = .45 * vertex.co.y - .01815
     guard = prism('guard', [(-.039, .012), (.047, .012), (.048, -.026), (.034, -.045), (-.026, -.044), (-.043, -.027)], .018, 'olive', bevel=.002, raw=True, smooth=1)
     cut(guard, cutter_prism([(-.031, .004), (.038, .004), (.037, -.025), (.027, -.035), (-.022, -.034), (-.033, -.02)], .034))
     parts['body'] += [complete(guard)]
@@ -605,9 +605,22 @@ def dmr():
                       .055, 'walnut', bevel=.003, smooth=1, raw=True)
     cut(handguard, cutter_cyl((0, .14, bore), (0, .44, bore), .017, sides=20))
     cut(handguard, join([cutter_box((0, .192 + i * .051, .091), (.07, .032, .008)) for i in range(4)], 'cooling_slots'))
+    L.cross_sections(handguard, 1, [.18, .23, .265, .30, .34])
+    # Keep the painted front broad while giving short digits a rear grip waist.
+    for vertex in handguard.data.vertices:
+        waist = min(1., max(0., (.34 - vertex.co.y) / .075))
+        vertex.co.x *= 1. - .42 * waist
+        far_side = min(1., max(0., vertex.co.x / .016))
+        vertex.co.z = bore + (vertex.co.z - bore) * (1. - (.52 - .16 * far_side) * waist)
+    cut(handguard, cutter_cyl((0, .14, bore), (0, .35, bore), .0135, sides=24))
     parts['body'] += [complete(handguard)]
     for y in (.156, .414):
-        parts['body'] += [tube('handguard_band', (0, y, bore), (0, y + .009, bore), .031, .018, 'blued', sides=8)]
+        band = tube('handguard_band', (0, y, bore), (0, y + .009, bore), .031, .018, 'blued', sides=8)
+        if y < .2:
+            for vertex in band.data.vertices:
+                vertex.co.x *= .58
+                vertex.co.z = bore + (vertex.co.z - bore) * .48
+        parts['body'] += [band]
     parts['body'] += [cyl('barrel', (0, .147, bore), (0, .635, bore), .0125, 'blued', sides=24)]
     parts['body'] += [cyl('gas_tube', (0, .408, .094), (0, .546, .094), .0065, 'blued', sides=16)]
     hider = tube('slotted_flash_hider', (0, .615, bore), (0, .675, bore), .0175, .0075, 'blued', sides=24)

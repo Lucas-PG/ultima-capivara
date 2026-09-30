@@ -394,7 +394,7 @@
   },
   "dmr": {
     "id": "dmr",
-    "triangles": 23006,
+    "triangles": 23714,
     "parts": [
       "dmr_body",
       "dmr_mag",
@@ -452,7 +452,7 @@
       0.052,
       -0.999
     ],
-    "bytes": 723064
+    "bytes": 722188
   },
   "sniper": {
     "id": "sniper",
