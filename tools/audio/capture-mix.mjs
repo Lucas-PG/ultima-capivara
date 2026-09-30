@@ -96,6 +96,12 @@ if (scenario === 'idle') {
     await record(`loop-${i}`, 5);
     await page.evaluate(i => window.__rec.mute(i, true), i);
   }
+} else if (scenario === 'drop') {
+  // Battle royale: ride the plane, jump, fall, open the chute and land, logging the audio state.
+  const log = setInterval(async () => { try { const a = await page.evaluate(() => { const i = window.__capivara.inspect(), me = i.snapshot.actors.find(x => !x.bot); return { stage: me?.stage, audio: window.__capivara.audio() }; }); console.log('state', a.stage, a.audio.music, JSON.stringify(a.audio.loops)); } catch { /* page busy */ } }, 3000);
+  setTimeout(() => page.evaluate(() => { window.__networkQA.key('Space', true); window.__networkQA.key('Space', false); }), 5000);
+  await record('drop', 40);
+  clearInterval(log);
 } else {
   // Hunt: aim at the nearest bot, close in and fire.
   await page.evaluate(() => {
@@ -116,7 +122,7 @@ if (scenario === 'idle') {
   const cost = await page.evaluate(() => {
     const d = window.__capivara.timings().spans.filter(s => s.name === 'audio').map(s => s.duration).sort((a, b) => a - b);
     const q = p => +(d[Math.floor(p * (d.length - 1))] ?? 0).toFixed(3);
-    return { frames: d.length, p50: q(.5), p95: q(.95), max: q(1) };
+    return { frames: d.length, p50: q(.5), p95: q(.95), p99: q(.99), top: d.slice(-5).map(v => +v.toFixed(2)) };
   });
   console.log('audio update ms', JSON.stringify(cost));
 }

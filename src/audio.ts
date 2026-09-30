@@ -147,6 +147,8 @@ export class SoundEngine {
     this.buses = { master, effects, ambience, music, ambienceDuck, ambienceTone, musicDuck, limiter, clipper };
     this.remoteFire = remoteFire;
     this.setSettings(this.settings);
+    // Build the spatial voices up front, while the island loads, not in the middle of a firefight.
+    if (this.quality === 'high') for (let i = 0; i < 24; i++) this.releasePanner(this.newPanner('HRTF'));
     this.bake(context);
     await context.resume();
   }
@@ -201,12 +203,11 @@ export class SoundEngine {
   private buffer(id: string): AudioBuffer | null {
     const list = this.bank.get(id);
     if (!list?.length) return null;
-    const ready = list.map((b, i) => b ? i : -1).filter(i => i >= 0);
-    if (!ready.length) return null;
-    // Random variant, never the same one twice in a row.
+    // Random variant, never the same one twice in a row (no allocation: this runs for every voice).
     const last = this.lastVariant.get(id) ?? -1;
-    let pick = ready[Math.floor(Math.random() * ready.length)];
-    if (pick === last && ready.length > 1) pick = ready[(ready.indexOf(pick) + 1) % ready.length];
+    let pick = Math.floor(Math.random() * list.length);
+    for (let k = 0; k < list.length && (!list[pick] || (pick === last && list.length > 1)); k++) pick = (pick + 1) % list.length;
+    if (!list[pick]) return null;
     this.lastVariant.set(id, pick);
     return list[pick];
   }
@@ -234,22 +235,40 @@ export class SoundEngine {
     }
     let panner: PannerNode | null = null, stereo: StereoPannerNode | null = null;
     if (options.pos) {
-      panner = ctx.createPanner();
-      panner.panningModel = this.quality === 'high' && kind !== 'world' ? 'HRTF' : 'equalpower';
-      // Distance is already in the level and the cutoff: the panner only gives direction.
-      panner.distanceModel = 'linear'; panner.rolloffFactor = 0; panner.refDistance = 1; panner.maxDistance = 10000;
+      const model: PanningModelType = this.quality === 'high' && kind !== 'world' ? 'HRTF' : 'equalpower';
+      panner = this.pannerPool.get(model)?.pop() ?? this.newPanner(model);
       this.setPosition(panner, options.pos, at);
-      tail.connect(panner); tail = panner; nodes.push(panner);
+      tail.connect(panner); tail = panner;
     } else if (options.pan !== undefined) {
       stereo = ctx.createStereoPanner();
       stereo.pan.value = clamp(options.pan, -1, 1);
       tail.connect(stereo); tail = stereo; nodes.push(stereo);
     }
     tail.connect(options.out ?? buses.effects);
-    source.onended = () => { for (const node of nodes) node.disconnect(); };
+    const pooled = panner;
+    source.onended = () => {
+      for (const node of nodes) node.disconnect();
+      // HRTF panners are costly to create (a few ms in Chrome), so finished voices hand theirs back.
+      if (pooled) { pooled.disconnect(); if (!options.loop) this.releasePanner(pooled); }
+    };
+    if (pooled && options.loop) nodes.push(pooled);
     source.start(at, options.offset ?? 0);
     if (!options.loop) active.push(at + buffer.duration / (options.rate ?? 1));
     return { source, gain, panner, stereo, nodes };
+  }
+
+  private pannerPool = new Map<PanningModelType, PannerNode[]>();
+  private newPanner(model: PanningModelType): PannerNode {
+    const panner = this.context!.createPanner();
+    panner.panningModel = model;
+    // Distance is already in the level and the cutoff: the panner only gives direction.
+    panner.distanceModel = 'linear'; panner.rolloffFactor = 0; panner.refDistance = 1; panner.maxDistance = 10000;
+    return panner;
+  }
+  private releasePanner(panner: PannerNode) {
+    const list = this.pannerPool.get(panner.panningModel) ?? [];
+    if (list.length < 40) list.push(panner);
+    this.pannerPool.set(panner.panningModel, list);
   }
 
   private setPosition(panner: PannerNode, pos: Vec3, at: number) {
@@ -792,7 +811,9 @@ export class SoundEngine {
     this.fadeLoop('bed:leaves', 'bed:leaves', buses.ambience, mix.leaves, 1.2);
     if (this.harbour) this.fadeLoop('bed:harbour', 'bed:harbour', buses.ambience, mix.harbour, 1, { pos: { ...this.harbour, y: .5 } });
     if (this.waterfall) this.fadeLoop('bed:waterfall', 'bed:waterfall', buses.ambience, mix.waterfall, 1, { pos: this.waterfall });
-    buses.ambienceTone.frequency.setTargetAtTime(this.place.inside && playing ? 1100 : 20000, now, .25);
+    // Under a roof the island goes dull; at low health it recedes too, leaving combat and steps untouched.
+    const hurt = playing && actor!.alive && actor!.hp > 0 && actor!.hp < LOW_HP;
+    buses.ambienceTone.frequency.setTargetAtTime(this.place.inside && playing ? 1100 : hurt ? 1800 : 20000, now, .25);
     if (!playing || this.settings.ambience <= 0 || combat) { this.nextCritter = Math.max(this.nextCritter, now + (combat ? 2 : .5)); return; }
     if (now < this.nextCritter) return;
     this.nextCritter = now + 2.5 + Math.random() * 5;
