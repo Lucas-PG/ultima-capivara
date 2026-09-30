@@ -224,6 +224,21 @@ def prism(name, profile_yz, width, material, x=0.0, bevel=.003, radius=0.0, segm
 _pending = {}
 
 
+def cross_sections(obj, axis, positions):
+    """Add contour stations before deforming a long prism into a grip waist."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    normal = Vector((1 if axis == 0 else 0, 1 if axis == 1 else 0, 1 if axis == 2 else 0))
+    for position in positions:
+        point = normal * position
+        bmesh.ops.bisect_plane(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces),
+                              dist=1e-8, plane_co=point, plane_no=normal)
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return obj
+
+
 def complete(obj):
     """Finish a part created with raw=True after its boolean cuts."""
     material, bevel, segments = _pending.pop(obj.name)
