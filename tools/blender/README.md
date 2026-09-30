@@ -79,3 +79,18 @@ Phase A painted weapons use the cover-art direction and a 25k triangle combined
 weapon/arms ceiling. The first-person colour atlas is now 1024x256 with painted
 material variation, a roughness atlas and baked vertex contact shading. Keep
 `src/render/weapon-atlas.ts` in sync with the paint equations in `weapons.py`.
+
+## Remote builds on the Linux machine
+
+`tools/blender/remote-blender.sh` stands in for the Blender binary and runs the job on the Linux build
+machine (Tailscale host `lpg-arch`, Ryzen 7 5700X, 16 threads, 16 GB, Blender 5.0.1 in
+`~/blender/blender-5.0.1-linux-x64`): `BLENDER_BIN=$PWD/tools/blender/remote-blender.sh node tools/blender/build-fp.mjs m4`.
+It sends the inputs that changed (tools/, src/shared/, public/textures/, the output/ caches and any file
+named on the command line), runs one job at a time there with every thread (`-t 0`, `BLENDER_THREADS=0`),
+and brings back every file the job wrote. When the machine cannot be reached it runs the local Blender.
+
+Measured on 30 September 2026: the committed character's Blender step took 171 s there (bakes 92 s,
+peak 4.3 GB) against about 18 minutes on this Mac with 3 threads; the M4 took 39 s. Builds on each machine
+are reproducible (two Linux M4 builds are byte-identical). Between machines the geometry, parts, sockets
+and grip data are identical; the UV packing lands differently, so wear marks and scratches fall in other
+places, with the same materials, finish and amount of wear.
