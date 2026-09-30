@@ -141,6 +141,22 @@ describe('camera rig while spectating', () => {
     expect(r.camera.position.x).toBeGreaterThan(40);
   });
 
+  it('flies over a hill between two targets instead of through it', () => {
+    // A 30 m tall block between the two watched capybaras stands in for a hill or a roof.
+    const blockY = ground(0, 0);
+    const blocked = world([box('hill', [-6, blockY - 2, -40], [6, blockY + 30, 40])]);
+    const camera = new THREE.PerspectiveCamera(70, 16 / 9, .07, 850); camera.rotation.order = 'YXZ';
+    const r = new CameraRig(camera, blocked, DEFAULT_SETTINGS, { get: () => undefined } as never);
+    const me = actor('me', 0, 0, { alive: false }), a = actor('a', -30, 0, { yaw: -Math.PI / 2 }), b = actor('b', 30, 0, { yaw: Math.PI / 2 });
+    let t = 0;
+    for (let i = 0; i < 60; i++) r.update(frame([me, a, b], 'a'), DEFAULT_SETTINGS, t += 1 / 60, 0);
+    for (let i = 0; i < 90; i++) {
+      r.update(frame([me, a, b], 'b'), DEFAULT_SETTINGS, t += 1 / 60, 0);
+      const p = r.camera.position;
+      expect(p.x > -6.3 && p.x < 6.3 && p.y < blockY + 30.3).toBe(false);
+    }
+  });
+
   it('cuts to a new target with reduced motion', () => {
     const settings = { ...DEFAULT_SETTINGS, reducedMotion: true }, r = rig(settings);
     const me = actor('me', 0, 0, { alive: false }), a = actor('a', -40, 0), b = actor('b', 40, 0);

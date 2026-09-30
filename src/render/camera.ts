@@ -292,6 +292,13 @@ export class CameraRig {
     const t = ease(this.cameraBlend);
     position.lerp(this.blendFromPosition, t); quaternion.slerp(this.blendFromQuaternion, t);
     position.y += this.blendLift * Math.sin(Math.PI * t);
+    // A hop between capybaras flies over what is in the way instead of through a hill, a rock or a roof.
+    if (this.blendLift > 0 && t > .02) {
+      position.y = Math.max(position.y, terrainHeight(position.x, position.z) + .8);
+      for (const solid of colliderGrid(this.world).query(position.x - .3, position.z - .3, position.x + .3, position.z + .3))
+        if (position.x > solid.min.x - .3 && position.x < solid.max.x + .3 && position.z > solid.min.z - .3 && position.z < solid.max.z + .3 &&
+          position.y > solid.min.y - .3 && position.y < solid.max.y + .3) position.y = solid.max.y + .6;
+    }
   }
 
   private poseOrbit(yaw: number, pitch: number, position: THREE.Vector3, quaternion: THREE.Quaternion) {
