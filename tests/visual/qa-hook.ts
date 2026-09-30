@@ -105,8 +105,10 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       VIEWS[name.startsWith('tp-') ? 'capySide' : /^(fp|ads)-/.test(name) || name === 'loot-far' ? 'vilaStreet' : name === 'cocoBlast' ? 'plaza' : name === 'scope' ? 'vilaStreet' : name] || VIEWS.plaza;
     const view = trampoline ? [trampoline.x - 7, trampoline.z, -Math.PI / 2, .12] : bath ? [bath.x, bath.z, Math.PI / 2, name === 'mudPrompt' ? -.5 : 0] : spawn ? [spawn.x, spawn.z, spawn.yaw, .04] : named!;
     if (!names.includes(name)) throw new Error(`Unknown pose: ${name}`);
-    let [x, z, yaw, pitch] = view;
-    const stance = named ? viewStance(deps.world, named) : undefined;
+    // QA: window.__qaStance = [x, z, yaw, pitch] stands the reviewing capybara anywhere, in any pose.
+    const qaStance = (globalThis as { __qaStance?: [number, number, number, number] }).__qaStance;
+    let [x, z, yaw, pitch] = qaStance ?? view;
+    const stance = qaStance ? { x, y: walkableHeight(x, z, deps.world), z } : named ? viewStance(deps.world, named) : undefined;
     if (name.startsWith('world-')) pitch = -.5;
     const s = structuredClone(base), me = s.actors[0];
     // Each review is its own match to the renderer, so smoke, decals and poses from the previous one never linger.

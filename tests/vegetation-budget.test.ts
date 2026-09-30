@@ -155,6 +155,24 @@ describe('vegetation batch', () => {
     } finally { vegetation.dispose(); }
   });
 
+  it('dissolves leaves at the lens for the local camera only, never in the shadow other players see cast', () => {
+    // Plants have no collision: a player walking through a bush, or dying in one, had the screen
+    // filled with leaves. The colour pass dithers foliage out by distance to the lens; the shadow
+    // pass, which draws the plant the same for every view, must not.
+    const vegetation = buildVegetation({ objects: [], colliders: [] } as unknown as WorldSpec);
+    try {
+      const colour = vegetation.batch.mesh.material as THREE.MeshStandardMaterial;
+      const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader } as unknown as THREE.WebGLProgramParametersWithUniforms;
+      colour.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+      expect(shader.fragmentShader).toMatch(/float lens = length\( vViewPosition \);[\s\S]*nearFade[\s\S]*gl_FragCoord[\s\S]*discard/);
+      const depth = vegetation.batch.mesh.customDepthMaterial as THREE.MeshDepthMaterial;
+      const shadow = { uniforms: {}, vertexShader: THREE.ShaderLib.depth.vertexShader, fragmentShader: THREE.ShaderLib.depth.fragmentShader } as unknown as THREE.WebGLProgramParametersWithUniforms;
+      depth.onBeforeCompile(shadow, {} as THREE.WebGLRenderer);
+      expect(shadow.fragmentShader).not.toContain('nearFade');
+      expect(shadow.fragmentShader).not.toContain('gl_FragCoord');
+    } finally { vegetation.dispose(); }
+  });
+
   it('picks cheaper templates by camera distance, sooner on Low, and holds a LOD across small moves', () => {
     const tree = (x: number): MapObject => ({ id: `t${x}`, kind: 'tree', detail: 'mango', pos: { x, y: 0, z: 0 }, scale: { x: 1, y: 8, z: 1 }, color: '#5FA544' });
     const world = { objects: [tree(0)], colliders: [] } as unknown as WorldSpec;

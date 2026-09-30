@@ -176,9 +176,13 @@ export class GroundCover {
             // Mip averaging thins painted blades with distance: lower the cut so tufts keep their body.
             float threshold = mix(alphaTest, .2, smoothstep(10.0, 30.0, length(vViewPosition)));
             if (diffuseColor.a < threshold) discard;
-          #endif`);
+          #endif
+          // A camera down in the grass (a death cam) sees through the blades touching the lens,
+          // like the plants' own near fade (vegetation/foliage-material.ts).
+          float coverNear = 1.0 - smoothstep(.25, .55, length(vViewPosition));
+          if (coverNear > 0.0 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(.06711056, .00583715)))) < coverNear) discard;`);
     };
-    this.material.customProgramCacheKey = () => 'painted-ground-cover-v8';
+    this.material.customProgramCacheKey = () => 'painted-ground-cover-v9';
     this.group.name = 'ground-cover';
     // The lawn tuft carries only its root-to-tip light; each instance carries the ground's albedo.
     this.lawnGeometry = bladeTuft(9); this.farLawnGeometry = bladeTuft(5, 1.2);
