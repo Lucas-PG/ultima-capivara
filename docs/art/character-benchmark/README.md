@@ -99,7 +99,7 @@ The other nine weapon GLBs, their world geometry and metadata are byte-for-byte 
 | Character LOD0 / LOD1 / LOD2 | 38,250 / 7,997 / 2,198 | 39,814 / 9,799 / 2,443 | 715,112 | 4,483,244 |
 | Both first-person arms | 8,432 | 7,264 | 64,096 | 3,053,840 |
 | First-person M4 | 10,980 | 20,960 | 331,260 | 1,060,948 |
-| World weapon atlas | — | — | 122,778 | 569,754 |
+| World weapon atlas | n/a | n/a | 122,778 | 569,754 |
 
 World M4 remains 2,400 triangles near / 412 far. Articulated nearby M4s use a 2,000-triangle body and 400-triangle magazine. Character uses one material and three 2048² maps; the FP arms have their own embedded copy of the surface maps. The four changed GLB/atlas assets total **9,167,786 bytes (8.74 MiB)**, an increase of **7,934,540 bytes (7.57 MiB)** over the original. The guardrails are 50k/10k/2.5k character LODs, 12k both FP arms, 28k M4 and 10 MiB combined files. These protect frame time, memory and loading; they are not quality targets. Removing hidden body surfaces brought the final character below 40k while preserving its visible detail. The targeted world-atlas rebuild uses lossless WebP to preserve all untouched cells.
 
