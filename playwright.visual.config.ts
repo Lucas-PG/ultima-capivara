@@ -15,10 +15,10 @@ export default defineConfig({
   workers: 1,
   expect: { timeout: 20_000 },
   snapshotPathTemplate: `{testDir}/baselines/${viewport.width}x${viewport.height}/{arg}{ext}`,
-  use: { baseURL: 'http://127.0.0.1:4186', browserName: 'chromium',
+  use: { baseURL: process.env.BASE || 'http://127.0.0.1:4186', browserName: 'chromium',
     channel: process.platform === 'darwin' ? 'chrome' : undefined,
     launchOptions: { args: process.platform === 'darwin' ? ['--use-gl=angle', '--use-angle=metal'] : [] },
     viewport, deviceScaleFactor: 1 },
-  webServer: { command: 'VITE_QA=1 npm run build && npx vite preview --host 127.0.0.1 --port 4186 --strictPort',
+  webServer: process.env.BASE ? undefined : { command: 'VITE_QA=1 npm run build && npx vite preview --host 127.0.0.1 --port 4186 --strictPort',
     url: 'http://127.0.0.1:4186/?qa=1', reuseExistingServer: false, timeout: 120_000 },
 });
