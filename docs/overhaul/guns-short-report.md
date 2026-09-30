@@ -1,69 +1,76 @@
 # Short weapon overhaul
 
-Worktree: `guns-short`. QA uses port 5178, real Chrome with ANGLE Metal, the medium preset, and 1280 x 720 captures. The v3 paw assets and `arsenal_lib.py` are unchanged.
-
-This is a checkpoint, not final acceptance. Models and mechanism tests are committed. The remaining grip and motion checks below must be completed before declaring the weapons finished.
+Final acceptance: pistol, SMG, revolver and machete. Branch `guns-short`. Review used real Chrome with ANGLE Metal, the medium preset and 1280 x 720 captures. The v3 paw assets, arm implementation and `arsenal_lib.py` are unchanged.
 
 ## Asset budgets
 
-All four first-person weapons use 1024 albedo, ORM and relief-normal maps.
+All four weapons use 1024 albedo, ORM and relief-normal maps. Every first-person model is below 25,000 triangles and 1.3 MB.
 
-| Weapon | FP triangles | Packed GLB bytes | World near / far triangles |
-| --- | ---: | ---: | ---: |
-| Pistol | 13,892 | 414,972 | 2,400 / 420 |
-| SMG | 17,332 | 499,604 | 2,400 / 736 |
-| Revolver | 23,426 | 661,676 | 2,400 / 420 |
-| Machete | 10,490 | 390,560 | 2,400 / 420 |
+| Weapon | FP triangles | Packed GLB bytes | World static near / far | Animated near |
+| --- | ---: | ---: | ---: | ---: |
+| Pistol | 13,892 | 414,972 | 2,400 / 420 | 2,470 |
+| SMG | 17,332 | 499,604 | 2,400 / 736 | 2,370 |
+| Revolver | 23,702 | 699,256 | 2,400 / 416 | 2,540 |
+| Machete | 10,490 | 390,560 | 2,400 / 420 | 2,400 |
 
-The four world models share the existing atlas. Targeted rebuilding preserves all other weapons' geometry and decoded atlas pixels, both checked against the baseline. The SMG far LOD stops at 660 triangles under the simplifier's error limit. Animation-only revolver loaders and spent cases are omitted from static world geometry.
+Nearby held guns retain separate mechanical parts and their first-person pivots. Ground items and distant weapons use combined geometry. All share the existing atlas. The six unowned world geometries and every unowned decoded atlas pixel were compared with the preceding commit and remain identical.
 
 ## Pistol
 
-Teal enamel slide, case-coloured frame, jacaranda scales, brass palm inlay, brass controls and magazine shoe. The trigger guard has a thinner lower bridge to separate adjacent thick digits, and a broader trigger closer to the firing digit. The stationary barrel is separate from the moving slide, and the slide stop has its own pivot.
+The Pistola has a teal enamel slide, case-coloured frame, jacaranda scales, brass palm inlay and controls. The broader trigger and thinner guard bridge give the firing digit room. Barrel, slide, magazine and slide stop have separate mechanical roles.
 
-Tactical reload retains the chambered round. Empty reload locks the slide until the support-paw release. Magazine acquisition, removal and the palm seat use a target in magazine space. The paw clears below and to the left of the magazine before turning. Inspect releases the support paw for the first turn, presents both sides with a straight trigger index, then restores the cup.
+The firing paw wraps the front strap and presents its back to the eye; the support paw cups it. Empty reload locks the slide, swaps the magazine, seats it with the palm and operates the release. Tactical reload retains the chambered round. The magazine contact follows its part, with outward clearance before the paw turns. Inspect releases the support paw, shows both sides, then restores the cup.
 
-Evidence: [before](evidence/guns/pistol-before.jpg), [model after](evidence/guns/pistol-model-after.jpg), [first-person motion](evidence/guns/pistol-motion-after.jpg).
+Final first-person minimum clearance: right 0.0 mm, left 0.2 mm. Seated magazine contact is 0.6 mm; ready paw-to-paw clearance is 0.1 mm. Carry, aim, sprint, firing, inspect and both reloads were reviewed from the eye and both sides. Thirty-six extra samples verify corrected reload transitions. World review includes carry, running, ground presentation, the palm seat and the late empty/tactical release beats from three cameras.
 
-Verified: the firing paw wraps the front strap, presents its back to the eye and reaches the broader trigger. The support paw cups the firing fingers. Hip, ADS, sprint, firing and both inspect turns have been reviewed from the eye and both sides. Dense reload sampling exposed clipping during tactical acquisition and the turn after seating; 36 additional samples verify the corrected paths. The final minimum gun clearance is 0.0 mm on the right and 0.2 mm on the left; seated magazine contact is 0.6 mm. Ready paw-to-paw clearance is 0.1 mm. No arm defect has been established. Close third-person presentation review remains.
+Known issues: none outstanding in the reviewed motion set.
+
+Evidence: [before](evidence/guns/pistol-before.jpg), [model](evidence/guns/pistol-model-after.jpg), [first person](evidence/guns/pistol-motion-after.jpg), [world](evidence/guns/pistol-world-after.jpg).
 
 ## SMG
 
-Canarinho now follows the yellow receiver, green stripe and grips, blue star and triangular wire-stock design. It has a slotted shroud, a separate charging handle, a bolt face, receiver hardware and an open front-sight hood around the post. The support paw holds the vertical foregrip.
+Canarinho follows the yellow receiver, green stripe and grips, blue star and triangular wire stock. The shroud slots, open front-sight hood, bolt face, controls and separate charging handle read at gameplay distance. Lower carry framing reduces stock dominance.
 
-The magazine path includes a palm seat and an outward clearance step before the hand rotates toward the charging handle. Empty reload pulls and releases the handle; tactical reload leaves the action closed. Inspect and hip framing have been adjusted to reduce stock dominance.
+The support paw holds the vertical foregrip. Both reloads include magazine acquisition and a palm seat; empty reload adds the charging-handle pull and release. The support paw clears the magazine before turning. Far-side inspect releases it before the weapon rolls.
 
-Evidence: [before](evidence/guns/smg-before.jpg), [model after](evidence/guns/smg-model-after.jpg), [first-person motion](evidence/guns/smg-motion-after.jpg).
+The final 55-pose pass covers carry, aim, sprint, firing, inspect and both reloads, with eye and side views. Minimum clearance is right -0.1 mm and left 0.8 mm. Trigger contact is 0.2 mm. Near-world magazines and charging parts retain their contacts; the complete late reload actions, running carry and ground model were reviewed from three cameras.
 
-Verified: the final firing paw presents its back toward the eye, with a broader trigger face 0.2 mm from the index. The lower carry reduces stock dominance. A new 55-pose pass covers hip, ADS, sprint, firing, inspect and both reloads, with eye and both side captures. Minimum clearance is -0.1 mm on the right and 0.8 mm on the left, within the -0.5 mm limit. Magazine and charging contacts stay attached to their parts. The far-side inspect releases the support paw before the turn. The updated motion sheet includes both grip sides, the palm seat and charging-handle release. Close third-person presentation review remains.
+Known issues: none outstanding in the reviewed motion set.
+
+Evidence: [before](evidence/guns/smg-before.jpg), [model](evidence/guns/smg-model-after.jpg), [first person](evidence/guns/smg-motion-after.jpg), [world](evidence/guns/smg-world-after.jpg).
 
 ## Revolver
 
-Trinta-e-oito has a blued bull barrel and vent rib, case-coloured engraved frame, brass details, red front insert and porcelain capy medallions in the wood grip. Six chambers align with the barrel bore. Cylinder, crane, ejector, live rounds, six spent cases, speedloader, hammer, trigger and latch are separate animation parts.
+Trinta-e-oito has a blued bull barrel and vent rib, engraved case-coloured frame, brass hardware, red front insert and porcelain capy medallions in the wood grip. Six chambers align with the bore. Cylinder, crane, ejector, rounds, cases, live cartridge tips, speedloader, hammer, trigger and latch are separate parts.
 
-The reload sequence swings the cylinder out, raises the muzzle, punches the ejector, releases six separate cases, aligns the loader, leaves the rounds seated when the loader withdraws, and closes the cylinder with the support paw. Part relationships and loaded-round retention have automated coverage.
+The fitted ready cup and hidden shoulder placement keep both paws readable and clear during aim. Inspect releases the support paw for the first turn. Reload opens the crane, raises the muzzle, punches the ejector, presents and seats the loader, withdraws it empty and presses the cylinder closed. Partial reload ejects the remaining live cartridges among the spent cases. The ejector contact follows the rod origin without inheriting cylinder spin, so it stays correct after firing. A dedicated elbow direction keeps the cylinder and falling cases visible. Loader and return-grip transitions clear the firing paw.
 
-Evidence: [before](evidence/guns/revolver-before.jpg), [model after](evidence/guns/revolver-model-after.jpg), [reload contacts](evidence/guns/revolver-reload-after.jpg).
+All 71 final carry and motion samples pass: right minimum -0.2 mm, left -0.3 mm, and paw-to-paw minimum 0.7 mm. Dense approach and loader checks cover the corrected transitions. Twenty-four additional ejection checks cover all six cylinder orientations. Real Chrome captures confirm the contacts and presentation. Thirty-one world captures cover carry, running, ground, opening, ejection, loading and closure from three cameras.
 
-Verified: the fitted cylinder, ejector and speedloader contacts are installed. The cylinder contact follows the moving part origin while retaining its orientation in gun space. Digits curl after the crane opens and straighten before closing. Cases travel clear of the firing forearm, and the loader stays held until hidden. The 59-pose carry and reload pass exposed one loader-release collision; nine further samples verify its correction. Eighteen additional samples cover opening and closing. Minimum measured clearance is 0.9 mm on the right and -0.2 mm on the left, within the -0.5 mm acceptance limit. Eye, both sides and top views were reviewed. Remaining: improve the two-paw ready silhouette, then repeat the affected departure and return contacts and finish world presentation.
+Known issues: none outstanding in the reviewed motion set.
+
+Evidence: [before](evidence/guns/revolver-before.jpg), [model](evidence/guns/revolver-model-after.jpg), [first person](evidence/guns/revolver-motion-after.jpg), [reload](evidence/guns/revolver-reload-after.jpg), [world](evidence/guns/revolver-world-after.jpg).
 
 ## Machete
 
-Facao has a swept blade, separate honed edge, capy stamp, brass bolster and pommel, three rivets, teal frond livery and three coloured ribbons. The ribbons hang with gravity while the blade rolls and trail the swing. The free left paw stays low and clear of the blade.
+Facao has a swept blade, separate honed edge, capy stamp, brass bolster and pommel, three rivets, teal frond livery and three coloured ribbons. The ribbons hang with gravity and trail the swing. Carry exposes the back of the gripping paw; the free paw stays low and outside the blade path.
 
-The carry roll exposes the back of the gripping paw and clears the handle from the forearm. Slashes rotate in camera space so the carry roll does not distort their cutting arc. Every third attack presents a heavier chop within the existing hit and recovery timing; damage and cadence are unchanged.
+Camera-space slashes retain their intended arcs despite the carry roll. Cuts alternate sides, and every third attack uses a heavier chop within the existing damage and recovery timing. First- and third-person attacks share that presentation timing.
 
-Evidence: [before](evidence/guns/machete-before.jpg), [model after](evidence/guns/machete-model-after.jpg), [first-person motion](evidence/guns/machete-motion-after.jpg), [world presentation](evidence/guns/machete-world-after.jpg).
+All 28 sampled carry, aim, sprint, inspect, slash and chop poses pass the full probe, with right-paw minimum clearance 0.5 mm. Eye and both side views were reviewed. World review covers both cuts, the chop, recovery and the ground item from front, side and three-quarter cameras. Avatar coverage checks gripping contact, free-paw clearance, alternating cuts and respawn reset.
 
-Verified: the revised elbow pole is installed. All 28 sampled hip, ADS, sprint, inspect, slash and heavy-chop poses pass the full probe, with a minimum right-paw clearance of 0.5 mm. Both paws were measured and each pose was captured from the eye, left and right. Third-person attacks now alternate cuts and use the same third-hit chop timing as first person. The free paw holds a separate ready pose outside the blade path. Thirty-four third-person samples from front, side and three-quarter cameras, plus the ground item, were reviewed. An avatar test checks alternating cuts, the higher chop windup, gripping-paw contact, free-paw clearance, recovery and respawn reset. The focused viewmodel and avatar suites pass all 50 tests.
+Known issues: none outstanding in the reviewed motion set.
 
-## Verification and limitations
+Evidence: [before](evidence/guns/machete-before.jpg), [model](evidence/guns/machete-model-after.jpg), [first person](evidence/guns/machete-motion-after.jpg), [world](evidence/guns/machete-world-after.jpg).
 
-- TypeScript passes. The latest full Vitest run passed 95 files and 729 tests with two workers. The focused viewmodel suite passes 39 tests, including cylinder-contact orientation through the swing. No Playwright e2e suite was run.
-- Held and ground weapons now use the renderer's existing sky-reflection texture at the same intensity as the first-person scene. This restores readable steel edges in world lighting without adding a texture or render pass.
-- The grip solver now treats points outside its spatial-search radius as out of range, avoiding false deep penetrations against a distant triangle. Final acceptance uses the separate full-vertex probe, which also reports the struck weapon part.
-- The full probe uses a triangle bounding hierarchy. A comparison with its original exhaustive calculation matched every reported minimum and penetration count for the pistol, SMG and machete right paws; the measured calculation took about one fifth of the time.
-- `weapon-session.mjs` keeps browser startup costs low. `short-weapon-review.mjs` checks both paws and saves motion strips. `weapon_preview.py` frames small guns and hides reload-only props. `build-fp.mjs --pack <ids>` repacks completed exports without rebaking.
-- Local Vite and Vitest configurations under ignored `output/playwright/guns-short/` redirect caches into this worktree. The provided dependency directory is a symlink; initial default cache paths were discovered and then redirected. Shared caches were not cleaned or modified deliberately.
-- Third-person weapons currently use the rebuilt static LODs and shared hold rig. Complete close third-person presentation review remains outstanding.
-- All committed JPEG evidence files are below 300 KB each. No remote Git operation or external publication was performed.
+## Verification and integration
+
+- `npx tsc --noEmit` passes. Full Vitest: 95 files, 735 tests pass. The inherited Vitest configuration uses a worktree-local cache and one worker. No Playwright e2e suite was run.
+- First-person skin measurements use the full packed meshes, including both paws and visible moving parts. All accepted samples exceed the -0.5 mm threshold. The standalone fitting harness was checked against Chrome measurements; final acceptance also includes gameplay and side-view captures.
+- The full probe uses a triangle hierarchy and closed-surface checks to distinguish penetration from distant inward-facing normals. Deliberate overlap remains detected. Restricted digit fitting is always followed by a full probe.
+- Regression tests cover ADS alignment, empty versus tactical actions, magazine contacts, cylinder and loader relationships, live-round ejection and ejector contact after different shot counts.
+- Held and ground weapons use the existing sky-reflection texture to retain readable steel edges. Near-world reload contacts follow the same parts with shorter travel toward the belt.
+- All 17 committed JPEG evidence sheets are below 300,000 bytes. Full-resolution captures and numerical reports remain under ignored `output/playwright/guns-short/`.
+- No arm defect was established. No arm asset or sculpt change was made.
+- The supplied dependency directory is a symlink. Initial default cache paths were discovered and redirected through worktree-local configurations; no shared-cache cleanup was performed.
+- No remote Git operation, publication, purchase or deployment was performed. The task's Chrome sessions and port 5178 dev server were stopped.
