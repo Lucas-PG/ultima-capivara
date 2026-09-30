@@ -82,12 +82,11 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   },
   m4: {
     url: 'models/arsenal/m4.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: { pos: [.16, -.085, -.50], rot: [.04, .38, -.10] },
-    sprint: { pos: [-.03, -.045, .015], rot: [-.12, .6, .1] }, adsDistance: .15, viewmodelFov: 62, shoulders: RIFLE_SHOULDERS,
+    hip: { pos: [.23, -.086, -.372], rot: [.044, .159, .568] },
+    sprint: { pos: [-.03, -.045, .015], rot: [-.12, .6, .1] }, adsDistance: .15, viewmodelFov: 71, shoulders: {R: [0.32, -0.42, 0.08], L: [-.38, -.5, .05]},
     // Right index occupies the roomy guard; support wraps the rear handguard.
     // Contact coordinates are measured against the packed asset in metres.
-    grips: { R: {wrist: [0.03673, -0.085649, 0.101657], forward: [0.14615, 0.41919, -0.896058], palm: [-0.929482, -0.251912, -0.26945], pole: [0.8, -1, 0.3], curl: {index: [0.410279, 0.181295, 0.101941], middle: [0.839068, 0.627801, 0.810085], ring: [1.245737, 0.765474, -0.011606], thumb: [-0.1, 0.213327, 0.303182], spread: 0.203024}},
-      L: {wrist: [-0.066016, 0.060359, -0.141015], forward: [0.074714, 0.399403, -0.913726], palm: [0.898035, -0.425303, -0.112475], pole: [-0.8, -1, 0.1], curl: {index: [0.571759, 1.513912, 0.276212], middle: [0.400614, 1.310437, 1.17425], ring: [1.361137, -0.1, 0.430514], thumb: [-0.1, -0.1, 0.583421], spread: -0.479682}} },
+    grips: {L: {wrist: [-0.053473, 0.068559, -0.110495], forward: [0.322369, -0.586991, -0.742644], palm: [0.929033, 0.346685, 0.129255], pole: [-1, -.8, .1], curl: {index: [0.175476, 0.163035, 0.411246], middle: [0.981184, 0.281287, -0.1], ring: [1.159754, -0.1, -0.1], thumb: [0.687558, -0.1, -0.090754], spread: 0.367052}}, R: {wrist: [0.022995, -0.066361, 0.106426], forward: [0.404426, 0.41919, -0.812847], palm: [-0.612636, -0.535732, -0.581093], pole: [0.8, -1, 0.3], curl: {index: [0.470115, 0.394616, 0.343606], middle: [0.927018, 0.599134, 1.024462], ring: [1.7, 0.299979, -0.1], thumb: [0.082804, -0.095181, 0.078912], spread: 0.342322}}},
     recoil: RECOIL.rifle, inertia: 1,
   },
   shotgun: {

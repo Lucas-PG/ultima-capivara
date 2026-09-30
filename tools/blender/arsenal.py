@@ -214,10 +214,12 @@ def m4():
     parts['body'] += [cyl('forward_assist', (.018, -.012, .07), (.03, -.03, .077), .0072, 'gunmetal', sides=20, bevel=.0012)]
     parts['body'] += [cyl('assist_button', (.03, -.03, .077), (.034, -.036, .079), .0068, 'gunmetal', sides=20, bevel=.001)]
     parts['body'] += [box('dust_cover', (.0178, .062, .052), (.002, .052, .013), 'gunmetal', .0008)]
-    # Continuous top rail, receiver to handguard, with recoil slots.
+    # Receiver and front rails leave a lower thumb rest at the support grip.
     rail = box('rail', (0, .15, .0985), (.023, .44, .0095), 'dark', .0014, raw=True)
     cut(rail, join([cutter_box((0, -.064 + i * .0105, .1048), (.03, .0048, .0064)) for i in range(40)], 'rail_slots'))
+    cut(rail, cutter_box((0, .189, .0985), (.04, .102, .04)))
     parts['body'] += [complete(rail)]
+    parts['body'] += [box('thumb_rest', (0, .187, .080), (.013, .096, .002), 'dark', .0008)]
     parts['release'] += [prism('bolt_release', [(-.006, .022), (.026, .024), (.024, .04), (-.003, .037)], .0045, 'gunmetal', x=-.0205, bevel=.0012, smooth=1)]
     parts['body'] += [cyl('mag_release', (.018, .045, .012), (.023, .045, .012), .0055, 'gunmetal', sides=16, bevel=.001)]
     parts['body'] += [cyl('buffer', (0, -.074, .066), (0, -.24, .066), .0168, 'dark', sides=28, bevel=.0015)]
@@ -237,8 +239,8 @@ def m4():
                   .032, 'polymer', bevel=.0032, smooth=3)
     # Paw-sized grip depth: the heel can contact the backstrap while the index
     # reaches the trigger, without hiding the whole hand on the far side.
-    grip.data.transform(Matrix.Diagonal((1, .65, 1, 1)))
-    move(grip, (0, -.05, 0))
+    grip.data.transform(Matrix.Diagonal((1, .45, 1, 1)))
+    move(grip, (0, -.0435, 0))
     parts['body'] += [grip]
     # Enlarged trigger guard, open front for gloved (or clawed) fingers.
     # Oversized guard: a paw's trigger digit fits between trigger and guard.
@@ -246,12 +248,13 @@ def m4():
     guard = prism('guard', [(-.046, .006, 1), (.042, .006, 1), (.042, -.028), (.032, -.044), (.004, -.047), (-.03, -.036), (-.046, -.02)], .016, 'polymer', bevel=.0024, raw=True, smooth=1)
     cut(guard, cutter_prism([(-.034, -.001), (.035, -.001), (.031, -.033), (.006, -.038), (-.024, -.028), (-.034, -.014)], .03))
     parts['body'] += [complete(guard)]
-    # Free-float handguard: slimmer octagon for a wrapping grip, M-LOK slots, end cap.
-    hand = lathe('handguard', [(.026, 0), (.0288, .005), (.0288, .232), (.027, .238)], 'navy', p0=(0, .134, bore), sides=8)
+    # The rear waist fits the short paw digits; the painted front keeps its broad octagon.
+    hand = lathe('handguard', [(.016, 0), (.0165, .005), (.0165, .102), (.0288, .154), (.0288, .232), (.027, .238)], 'navy', p0=(0, .134, bore), sides=8)
     # Flats (not ridges) face the sides, top and bottom, like a real octagonal rail.
     hand.data.transform(Matrix.Translation((0, 0, bore)) @ Matrix.Rotation(math.radians(22.5), 4, 'Y') @ Matrix.Translation((0, 0, -bore)))
-    slots = join([cutter_box((s * .029, .168 + i * .044, bore), (.012, .028, .0085)) for s in (-1, 1) for i in range(4)] +
-                 [cutter_box((0, .168 + i * .044, bore - .029), (.0085, .028, .012)) for i in range(4)], 'slots')
+    slot_radii = [.0165, .0165, .021, .029]
+    slots = join([cutter_box((s * r, .168 + i * .044, bore), (.012, .028, .0085)) for s in (-1, 1) for i, r in enumerate(slot_radii)] +
+                 [cutter_box((0, .168 + i * .044, bore - r), (.0085, .028, .012)) for i, r in enumerate(slot_radii)], 'slots')
     cut(hand, slots)
     L.finish(hand, 'navy', bevel=.0014, segments=3)
     parts['body'] += [hand]
@@ -277,15 +280,15 @@ def m4():
     for s in (-1, 1):
         # Receiver seams, brass pin heads and a selector; they give the receiver its scale.
         inset = prism('grip_inset', [(-.019, -.020), (.014, -.027), (-.001, -.086), (-.027, -.083)], .0018, 'rubber', x=s * .0165, bevel=.0006, radius=.004)
-        inset.data.transform(Matrix.Diagonal((1, .65, 1, 1)))
-        move(inset, (0, -.05, 0)); parts['body'] += [inset]
+        inset.data.transform(Matrix.Diagonal((1, .45, 1, 1)))
+        move(inset, (0, -.0435, 0)); parts['body'] += [inset]
         for y, z in [(-.058, .031), (.112, .026)]:
             parts['body'] += [cyl('pin', (s * .0182, y, z), (s * .0205, y, z), .0042, 'brass', sides=16, bevel=.0005)]
         parts['body'] += [prism('receiver_seam', [(-.064, .0455), (.123, .0455), (.123, .0475), (-.064, .0475)], .0008, 'steel', x=s * .0181, bevel=.0003)]
         parts['body'] += [prism('selector', [(-.034, .018), (-.036, .029), (-.024, .033), (-.01, .022), (-.015, .017)], .003, 'gunmetal', x=s * .0205, bevel=.0007)]
         parts['body'] += [prism('stock_inlay', [(-.28, .062), (-.2, .066), (-.198, .061), (-.278, .057)], .001, 'teal', x=s * .0235, bevel=.0004)]
         for y1, z1, y2, z2 in [(.15, .05, .15, .08), (.15, .061, .143, .07), (.15, .067, .158, .076)]:
-            parts['body'] += [cyl('coral_mark', (s * .0268, y1, z1), (s * .0268, y2, z2), .00115, 'coral', sides=8, bevel=0)]
+            parts['body'] += [cyl('coral_mark', (s * .0148, y1, bore + (z1 - bore) * .78), (s * .0148, y2, bore + (z2 - bore) * .78), .00115, 'coral', sides=8, bevel=0)]
     parts['charge'] += [prism('charging_handle', [(-.084, .083), (-.066, .083), (-.066, .091), (-.084, .091)], .034, 'gunmetal', bevel=.0015)]
     parts['charge'] += [prism('charging_latch', [(-.088, .082), (-.074, .082), (-.074, .092), (-.088, .092)], .012, 'gunmetal', x=-.021, bevel=.0012, smooth=1)]
     parts['bolt'] += [box('bolt_carrier', (.012, .062, .063), (.008, .046, .012), 'steel', .0015)]
