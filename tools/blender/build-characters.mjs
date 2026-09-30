@@ -9,10 +9,16 @@ import sharp from 'sharp';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const blender = process.env.BLENDER_BIN || '/Applications/Blender.app/Contents/MacOS/Blender';
-const characterOnly = process.argv.includes('--character-only');
-const result = process.env.SKIP_BLENDER ? { status: 0 } : spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', process.env.CHAR_SCRIPT || 'tools/blender/capybara_v4.py', ...(characterOnly ? ['--', '--character-only'] : [])], { cwd: root, stdio: 'inherit' });
-if (result.error) throw result.error;
-if (result.status !== 0) process.exit(result.status || 1);
+// The statue keeps its own v4 build (capybara_statue.py); pass --statue to rebuild it too.
+const characterOnly = !process.argv.includes('--statue');
+const run = script => spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', script], { cwd: root, stdio: 'inherit' });
+// The Morro statue still comes from the v4 script's helpers; build it first, since that script
+// also writes an (older) capybara.raw.glb that the v6 build then replaces.
+for (const script of process.env.SKIP_BLENDER ? [] : [...(characterOnly ? [] : ['tools/blender/capybara_v4.py']), process.env.CHAR_SCRIPT || 'tools/blender/capybara_v6.py']) {
+  const result = run(script);
+  if (result.error) throw result.error;
+  if (result.status !== 0) process.exit(result.status || 1);
+}
 await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
 const document = await io.read(`${root}/output/characters/capybara.raw.glb`);
@@ -52,13 +58,13 @@ report.clips = decoded.getRoot().listAnimations().map(a => a.getName());
 report.bytes = (await stat(path)).size;
 report.statueBytes = (await stat(`${root}/public/models/capybara/statue.glb`)).size;
 report.rawBytes = (await stat(`${root}/output/characters/capybara.raw.glb`)).size;
-report.texture = { format: 'UV detail + normal + ORM', count: decoded.getRoot().listTextures().length, size: 2048 };
+report.texture = { format: 'baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)', count: decoded.getRoot().listTextures().length, size: 2048 };
 for (let i = 0; i < 3; i++) {
   const lod = report.lods.find(lod => lod.name.includes(`LOD${i}`));
   if (!lod || lod.triangles > [50000, 10000, 2500][i]) throw new Error(`LOD${i} exceeds budget`);
 }
 const requiredClips = ['idle', 'run', 'jump', 'walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'fall', 'land', 'reload_tp', 'death',
   'face_neutral', 'face_determined', 'face_hit', 'face_stunned', 'face_victory', 'face_blink', 'wave', 'dance', 'victory', 'sit', 'chill', 'boing'];
-if (report.materials !== 1 || report.skins !== 1 || report.joints !== 61 || !requiredClips.every(clip => report.clips.includes(clip))) throw new Error('Character rig/material/animation contract failed');
+if (report.materials !== 1 || report.skins !== 1 || report.joints !== 67 || !requiredClips.every(clip => report.clips.includes(clip))) throw new Error('Character rig/material/animation contract failed');
 await writeFile(`${root}/public/models/capybara/metrics.json`, JSON.stringify(report, null, 2) + '\n');
 console.log(`Capivara: ${report.lods.map(lod => `${lod.name} ${lod.triangles} tris`).join(', ')}; ${report.bytes} bytes (${(report.bytes / report.rawBytes * 100).toFixed(1)}% of raw); ${report.joints} joints; ${report.materials} material; clips ${report.clips.join(', ')}`);

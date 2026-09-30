@@ -15,6 +15,7 @@ import type { WeaponId } from '../shared/types';
 import { m4Reload } from './viewmodel-anims';
 import { isShortGun, shortReload, animateShortWorld, shortWorldGrip, type WorldParts } from './short-world-parts';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
+import { attachFurShells, disposeFurShells, updateFurShells } from './capybara-fur';
 
 // Bone layout shared with GameRenderer.updateAvatars():
 // 0 root · 1 torso (pivots at the hips) · 2 head · 3 arms + held weapon (shoulders)
@@ -69,6 +70,7 @@ export const CAPYBARA_ASSET_URL = `${import.meta.env.BASE_URL}models/capybara/ca
 let characterAsset: GLTF | null = null;
 let characterAtlasColumns: 4 | 16 = 16;
 let characterHeadTop = 1.85;
+const characterChestRest = new THREE.Vector3(0, 1.06, 0);
 /** Rest-pose crown, measured once from the loaded mesh rather than the hit sphere. */
 export function capybaraHeadTop(): number { return characterHeadTop; }
 export function capybaraHasClip(name: string): boolean { return !!characterAsset?.animations.some(clip => clip.name === name); }
@@ -85,6 +87,9 @@ function teamMaterial(source: THREE.MeshStandardMaterial, tint: THREE.Color): TH
   if (!material.userData.capySurfaceAtlas) { material.roughness = .86; material.metalness = 0; }
   const team = new THREE.Color(tint).convertSRGBToLinear();
   material.userData.teamColor = team;
+  // v6 paints the team cloth neutral grey and marks it per texel in the ORM map's red channel
+  // (occlusion is already in the albedo), so the scarf edge stays crisp at any distance.
+  const texelMask = material.userData.capyCharacterV6 === true && !!material.metalnessMap;
   material.onBeforeCompile = shader => {
     shader.uniforms.teamColor = { value: team };
     shader.vertexShader = shader.vertexShader
@@ -93,11 +98,12 @@ function teamMaterial(source: THREE.MeshStandardMaterial, tint: THREE.Color): TH
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 teamColor; varying float vTeam;')
       .replace('#include <color_fragment>', `#include <color_fragment>
-        // Keep the painted light (AO) of the authored teal, swap only its hue.
+        float teamAmount = ${texelMask ? 'texture2D(metalnessMap, vMetalnessMapUv).r' : 'vTeam'};
+        // Keep the painted light (folds, weave, AO) of the authored cloth, swap only its hue.
         float teamShade = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722)) / .36;
-        diffuseColor.rgb = mix(diffuseColor.rgb, teamColor * clamp(teamShade, .35, 1.3), vTeam);`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, teamColor * clamp(teamShade, .35, 1.3), teamAmount);`);
   };
-  material.customProgramCacheKey = () => 'capivara-team-v4';
+  material.customProgramCacheKey = () => `capivara-team-v6:${texelMask}`;
   return applyCharacterStyle(material, 4);
 }
 
@@ -113,12 +119,13 @@ function characterMaterial(source: THREE.MeshStandardMaterial, color: string): T
 interface CharacterInstance {
   scene: THREE.Group; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>;
   faceActions: (THREE.AnimationAction | undefined)[];
-  active: string; weights: Record<string, number>; targets: Record<string, number>; grounded: boolean; swimming: boolean; swimBlend: number; landing: number; crouchOffset: number; spine?: THREE.Bone; crown: THREE.Vector3; crownScratch: THREE.Vector3; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
+  active: string; weights: Record<string, number>; targets: Record<string, number>; grounded: boolean; swimming: boolean; swimBlend: number; landing: number; spine?: THREE.Bone; crown: THREE.Vector3; crownScratch: THREE.Vector3; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
   hitTime: number; hitX: number; hitZ: number; deathTime: number; deathSide: number; emoteTime: number; unarmed: number; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
   relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
   gesture: EmoteId | null; gestureDeadline: number; gestureElapsed: number; gestureBlend: number;
   bounceSeq: number | null;
+  fur: THREE.SkinnedMesh | null; chest?: THREE.Bone;
   hold?: { pawR: THREE.Bone; restInv: THREE.Quaternion; armL: THREE.Bone; forearmL: THREE.Bone; pawL: THREE.Bone };
   gestureJoints: Partial<Record<'forearm_L' | 'forearm_R' | 'paw_L' | 'paw_R' | 'thigh_L' | 'thigh_R' | 'shin_L' | 'shin_R' | 'foot_L' | 'foot_R', THREE.Bone>>;
 }
@@ -157,6 +164,8 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
         source.skeleton.update();
         const bounds = new THREE.Box3().setFromObject(source, true);
         if (Number.isFinite(bounds.max.y)) characterHeadTop = bounds.max.y;
+        // Rest chest in character space: held guns follow its offset from here.
+        (asset.scene.getObjectByName('chest') ?? asset.scene.getObjectByName('spine'))?.getWorldPosition(characterChestRest);
         characterAtlasColumns = paintedAtlas ? 4 : 16;
         characterAsset = asset;
       } catch (error) {
@@ -170,6 +179,7 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>): Pro
 
 function disposeCharacterSource(asset: GLTF): void {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
+  asset.scene.traverse(object => { if (object instanceof THREE.SkinnedMesh) disposeFurShells(object.geometry); });
   const textures = new Set<THREE.Texture>(), skeletons = new Set<THREE.Skeleton>();
   asset.scene.traverse(object => {
     if (!(object instanceof THREE.SkinnedMesh)) return;
@@ -242,6 +252,12 @@ export function celebrateCapybara(body: THREE.SkinnedMesh): void {
   runtime.emoteTime = 1.8; runtime.expression = 'victory'; runtime.faceTime = 1.8;
 }
 
+/** Close-range pelt: only capybaras near the camera draw their fur shells. */
+export function setCapybaraViewDistance(body: THREE.SkinnedMesh, distance: number): void {
+  const fur = characterInstances.get(body)?.fur;
+  if (fur) updateFurShells(fur, distance);
+}
+
 export function capybaraIsDead(body: THREE.SkinnedMesh): boolean {
   return (characterInstances.get(body)?.deathTime ?? -1) >= 0;
 }
@@ -266,6 +282,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     mesh.skeleton = skeleton;
     lod.addLevel(mesh, [0, 12, 28][i], .1);
   }
+  const fur = attachFurShells(meshes[0]);
   const mixer = new THREE.AnimationMixer(scene);
   const actions: Record<string, THREE.AnimationAction> = {};
   const neutral = characterAsset.animations.find(clip => clip.name === 'face_neutral');
@@ -291,9 +308,9 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     weights[name] = name === 'idle' ? 1 : 0; targets[name] = 0; action.setEffectiveWeight(weights[name]).play();
   }
   const runtime: CharacterInstance = {
-    scene, mixer, actions, weights, targets, grounded: true, swimming: false, swimBlend: 0, landing: 0, crouchOffset: 0,
+    scene, mixer, actions, weights, targets, grounded: true, swimming: false, swimBlend: 0, landing: 0,
     gesture: null, gestureDeadline: 0, gestureElapsed: 0, gestureBlend: 0, gestureJoints: {},
-    bounceSeq: null,
+    bounceSeq: null, fur, chest: scene.getObjectByName('chest') as THREE.Bone | undefined,
     spine: scene.getObjectByName('spine') as THREE.Bone | undefined, crown: new THREE.Vector3(0, characterHeadTop, 0), crownScratch: new THREE.Vector3(), faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
     hitTime: 0, hitX: 0, hitZ: 0, deathTime: -1, deathSide: 1, emoteTime: 0, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,
@@ -310,7 +327,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     if (!(forearm instanceof THREE.Bone) || !paw) continue;
     const shoulder = arm.getWorldPosition(new THREE.Vector3()), elbow = forearm.getWorldPosition(new THREE.Vector3());
     const hand = paw.getWorldPosition(new THREE.Vector3());
-    const elbowTarget = new THREE.Vector3(sign * .297, .944, -.065), handTarget = new THREE.Vector3(sign * .313, .769, -.265);
+    const elbowTarget = new THREE.Vector3(sign * .345, .975, -.045), handTarget = new THREE.Vector3(sign * .355, .785, -.215);
     const parent = arm.parent!.getWorldQuaternion(new THREE.Quaternion());
     const swing = new THREE.Quaternion().setFromUnitVectors(elbow.clone().sub(shoulder).normalize(), elbowTarget.clone().sub(shoulder).normalize());
     const relaxedArmWorld = swing.clone().multiply(arm.getWorldQuaternion(new THREE.Quaternion()));
@@ -325,7 +342,11 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     const bone = scene.getObjectByName(name);
     if (bone instanceof THREE.Bone) runtime.gestureJoints[name] = bone;
   }
-  runtime.poseBones = [...new Set([runtime.head, runtime.root, ...runtime.arms, ...forearms, ...Object.values(runtime.gestureJoints)])];
+  // The mixer only writes a property when its value changes, so every bone posed procedurally
+  // afterwards (the head, arms and the held-weapon stance on spine, chest and neck) is restored
+  // to the last mixer output first; otherwise constant tracks would accumulate those offsets.
+  const stance = ['spine', 'chest', 'neck'].map(name => scene.getObjectByName(name)).filter((bone): bone is THREE.Bone => bone instanceof THREE.Bone);
+  runtime.poseBones = [...new Set([runtime.head, runtime.root, ...stance, ...runtime.arms, ...forearms, ...Object.values(runtime.gestureJoints)])];
   runtime.baseRotations = runtime.poseBones.map(bone => bone.quaternion.clone());
   characterInstances.set(body, runtime);
   // Keep the old skeleton as the compatibility weapon socket; only its mesh goes.
@@ -337,6 +358,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   body.skeleton.dispose = () => {
     mixer.stopAllAction(); mixer.uncacheRoot(scene); skeleton.dispose();
     body.geometry.dispose(); characterInstances.delete(body); originalDispose();
+    (fur?.material as THREE.Material | undefined)?.dispose();
     overlay?.traverse(object => {
       if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose(); }
     });
@@ -398,7 +420,8 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   } else if (actor.swimming) { weight('idle', 1); runtime.landing = 0; }
   else if (runtime.emoteTime > 0) weight('idle', 1);
   else if (actor.stage !== 'ground' || !actor.grounded) {
-    const airborne = bouncing ? 'boing' : actor.velocity.y < (actor.bounceProtected && actions.boing ? 0 : -.15) ? 'fall' : 'jump';
+    const airborne = actor.stage === 'falling' && actions.skydive ? 'skydive' : actor.stage === 'parachute' && actions.parachute ? 'parachute'
+      : bouncing ? 'boing' : actor.velocity.y < (actor.bounceProtected && actions.boing ? 0 : -.15) ? 'fall' : 'jump';
     weight(airborne, 1, 'jump');
     if (runtime.grounded && airborne !== 'boing') actions[actions[airborne] ? airborne : 'jump'].reset().play();
   } else {
@@ -440,7 +463,6 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
     if (active) reload.time = reload.getClip().duration * THREE.MathUtils.clamp(1 - (actor.reloadUntil - simulationTime) / (WEAPONS[held.id].reload || 1), 0, 1);
   }
   for (let i = 0; i < runtime.poseBones.length; i++) runtime.poseBones[i].quaternion.copy(runtime.baseRotations[i]);
-  if (runtime.spine) runtime.spine.position.y += runtime.crouchOffset;
   runtime.faceTime = Math.max(0, runtime.faceTime - step);
   runtime.hitTime = Math.max(0, runtime.hitTime - step);
   runtime.emoteTime = Math.max(0, runtime.emoteTime - step);
@@ -454,10 +476,6 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   runtime.elapsed += step; mixer.update(step);
   const heldRig = holdRigs.get(body);
   if (heldRig) { heldRig.R.fingers.apply(RELAXED_PAW); heldRig.L.fingers.apply(RELAXED_PAW); }
-  // Deepen the upper-body crouch to the existing head volume while leaving
-  // authored feet, limb lengths and the whole-avatar scale intact.
-  runtime.crouchOffset = THREE.MathUtils.damp(runtime.crouchOffset, !dead && !bouncing && actor.crouch && actions.crouch_idle && !(gesture && actions[gesture]) ? .29 : 0, 18, step);
-  if (runtime.spine) runtime.spine.position.y -= runtime.crouchOffset;
   for (let i = 0; i < runtime.poseBones.length; i++) runtime.baseRotations[i].copy(runtime.poseBones[i].quaternion);
   const bounceWeight = runtime.weights.boing || 0;
   const pitch = dead || gesture ? 0 : THREE.MathUtils.clamp(actor.pitch, -1, 1) * (1 - bounceWeight);
@@ -491,12 +509,14 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
     runtime.scene.rotation.x = -1.25;
     runtime.scene.position.set(0, .9 * (1 - Math.cos(-1.25)), -.9 * Math.sin(-1.25));
   } else if (actor.stage === 'parachute') {
-    for (const arm of arms) arm.rotateX(2.4);
+    if (!actions.parachute) for (const arm of arms) arm.rotateX(2.4);
     root.rotation.z += Math.sin(runtime.elapsed * 2.2) * .025;
   }
   if (runtime.hitTime > 0) {
+    // A flinch away from the shot: the chest snaps back and the head follows, the gun with them.
     const recoil = Math.sin(Math.PI * runtime.hitTime / .22);
     head.rotateX(runtime.hitX * recoil); head.rotateZ(runtime.hitZ * recoil);
+    runtime.chest?.rotateX(runtime.hitX * recoil * 2.4); runtime.chest?.rotateZ(runtime.hitZ * recoil * 2);
   }
   if (runtime.emoteTime > 0) {
     const time = 1.8 - runtime.emoteTime;
@@ -604,28 +624,45 @@ function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun
   arm.fingers.apply(grip.curl);
   arm.paw.updateMatrixWorld(true);
 }
-type HoldClass = 'rifle' | 'pistol' | 'melee';
-const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'pistol', smg: 'rifle', m4: 'rifle', shotgun: 'rifle', dmr: 'rifle', sniper: 'rifle', coco: 'rifle', machete: 'melee' };
-// Gun origin (the firing paw's web) in character space at rest, and its extra yaw/roll.
-const HOLD_POSE: Record<HoldClass, { pos: readonly [number, number, number]; yaw: number; roll: number }> = {
-  rifle: { pos: [.12, 1.17, -.345], yaw: .06, roll: 0 },
-  pistol: { pos: [.03, 1.22, -.40], yaw: 0, roll: 0 },
-  melee: { pos: [.3, .98, -.2], yaw: 0, roll: 0 },
+type HoldClass = 'rifle' | 'heavy' | 'pistol' | 'melee';
+const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'pistol', smg: 'rifle', m4: 'rifle', shotgun: 'heavy', dmr: 'rifle', sniper: 'heavy', coco: 'heavy', machete: 'melee' };
+/** Held world weapons share the world paw's scale (the first-person paw, enlarged so both
+ * read at distance), so first-person grip specs stay valid in weapon space. */
+export const TP_WEAPON_SCALE = 1.1;
+// The gun origin (the firing paw's web) in character space at rest, its extra yaw/roll, and the
+// upper-body twist: long guns are held in a bladed stance (left shoulder forward, the head
+// turned back to the aim) so the stock sits in the right shoulder and the support paw reaches
+// the handguard close to the body, as in the holding reference.
+interface HoldPose { pos: readonly [number, number, number]; yaw: number; roll: number; twist: number; poleR: readonly [number, number, number]; poleL: readonly [number, number, number] }
+const HOLD_POSE: Record<HoldClass, HoldPose> = {
+  rifle: { pos: [.105, 1.285, -.30], yaw: 0, roll: 0, twist: -.44, poleR: [.9, -1, .45], poleL: [-.5, -1, -.1] },
+  heavy: { pos: [.11, 1.27, -.285], yaw: 0, roll: 0, twist: -.5, poleR: [.9, -1, .45], poleL: [-.5, -1, -.1] },
+  pistol: { pos: [.025, 1.32, -.50], yaw: 0, roll: 0, twist: -.14, poleR: [.8, -1, .2], poleL: [-.8, -1, .1] },
+  melee: { pos: [.30, 1.02, -.24], yaw: 0, roll: 0, twist: 0, poleR: [.8, -1, .3], poleL: [-.8, -1, .2] },
 };
-interface HoldRig { spine: THREE.Bone; charQuat: THREE.Quaternion; R: ArmChain; L: ArmChain; reloadEnd: number; reloadEmpty: boolean; sample: ChoreoSample }
+interface HoldRig { chest: THREE.Bone; spine: THREE.Bone; neck: THREE.Bone; head: THREE.Bone; chestRest: THREE.Vector3; charQuat: THREE.Quaternion; R: ArmChain; L: ArmChain; reloadEnd: number; reloadEmpty: boolean; sample: ChoreoSample; twist: number }
 const RELAXED_PAW: HandCurl = { index: [.12, .18, .1], middle: [.18, .22, .1], ring: [.2, .25, .1], thumb: [.18, .12, .06] };
 const holdRigs = new WeakMap<THREE.SkinnedMesh, HoldRig>();
 const worldCut = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, smear: 0, kick: 0 };
-const FREE_MELEE_PAW: GripSpec = { wrist: [-.24, 1.10, -.24], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: RELAXED_PAW, pole: [-.8, -1, .1] };
+const FREE_MELEE_PAW: GripSpec = { wrist: [-.27, 1.02, -.20], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: RELAXED_PAW, pole: [-.8, -1, .1] };
+const UP = new THREE.Vector3(0, 1, 0), twistQ = new THREE.Quaternion(), twistAxis = new THREE.Vector3();
+const WEAPON_SCALE = new THREE.Vector3(TP_WEAPON_SCALE, TP_WEAPON_SCALE, TP_WEAPON_SCALE);
+/** Yaw a bone about the character's up axis (given in world space), in its parent's frame. */
+function yawBone(bone: THREE.Bone, up: THREE.Vector3, angle: number) {
+  if (Math.abs(angle) < 1e-5) return;
+  bone.parent!.getWorldQuaternion(ikQ).invert();
+  twistAxis.copy(up).applyQuaternion(ikQ);
+  bone.quaternion.premultiply(twistQ.setFromAxisAngle(twistAxis, angle));
+}
 export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, actor: ActorState, simulationTime: number,
-  strike?: { time: number; side: number; heavy: boolean }): void {
+  strike?: { time: number; side: number; heavy: boolean }, dt = 1 / 60): void {
   const runtime = characterInstances.get(body);
   if (!runtime) return;
   let rig = holdRigs.get(body);
   if (!rig) {
     const bone = (name: string) => runtime.scene.getObjectByName(name) as THREE.Bone;
     const bind = (b: THREE.Bone) => runtime.skeleton.boneInverses[runtime.skeleton.bones.indexOf(b)].clone().invert();
-    const spine = bone('spine'); if (!spine) return;
+    const chest = bone('chest') ?? bone('spine'); if (!chest) return;
     const chain = (side: 'L' | 'R'): ArmChain => {
       const paw = bone(`paw_${side}`);
       const fore = bone(`forearm_${side}`), twist = bone(`forearm_twist_${side}`);
@@ -636,16 +673,36 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
         restAxis: new THREE.Vector3().setFromMatrixPosition(bind(paw)).sub(new THREE.Vector3().setFromMatrixPosition(bind(fore))).normalize(),
         paw, pawBind: rotation(paw), fingers: new PawPose(runtime.scene, side, 'paw_', runtime.skeleton) };
     };
-    rig = { spine, charQuat: new THREE.Quaternion(), R: chain('R'), L: chain('L'), reloadEnd: 0, reloadEmpty: false, sample: newSample() };
+    const chestRest = characterChestRest.clone();
+    rig = { chest, spine: bone('spine'), neck: bone('neck'), head: bone('head'), chestRest, charQuat: new THREE.Quaternion(), R: chain('R'), L: chain('L'),
+      reloadEnd: 0, reloadEmpty: false, sample: newSample(), twist: NaN };
     holdRigs.set(body, rig);
   }
-  if (weapon.parent !== rig.spine) rig.spine.add(weapon);
+  if (weapon.parent !== rig.chest) rig.chest.add(weapon);
   const id = actor.weapons[actor.slot]?.id;
-  if (!id || !actor.alive || actor.stage !== 'ground' || (actor.emote && actor.emoteUntil > simulationTime)) return;
-  const hold = HOLD_CLASS[id], pose = HOLD_POSE[hold], grips = VIEW_SPECS[id].grips;
+  const armed = !!id && actor.alive && actor.stage === 'ground' && !(actor.emote && actor.emoteUntil > simulationTime);
+  const hold = id ? HOLD_CLASS[id] : 'rifle', pose = HOLD_POSE[hold];
+  const sprint = armed && actor.sprint && !actor.swimming ? 1 : 0;
+  // The bladed stance eases in and out; sprinting squares the shoulders to carry across the body.
+  const step = Math.max(0, Math.min(dt, .1));
+  const twistTarget = armed && !actor.swimming ? pose.twist * (1 - .75 * sprint) : 0;
+  // A new avatar starts in its stance; later changes (draw, sprint) ease in.
+  rig.twist = Number.isNaN(rig.twist) ? twistTarget : THREE.MathUtils.damp(rig.twist, twistTarget, 10, step);
+  const character = body.parent ?? body;
+  character.updateWorldMatrix(true, false);
+  if (Math.abs(rig.twist) > 1e-4 && rig.spine && rig.neck && rig.head) {
+    character.getWorldQuaternion(rig.charQuat);
+    const up = ikE.copy(UP).applyQuaternion(rig.charQuat);
+    rig.spine.updateWorldMatrix(true, false);
+    yawBone(rig.spine, up, rig.twist * .4); rig.spine.updateMatrixWorld(true);
+    yawBone(rig.chest, up, rig.twist * .6); rig.chest.updateMatrixWorld(true);
+    yawBone(rig.neck, up, -rig.twist * .45); rig.neck.updateMatrixWorld(true);
+    yawBone(rig.head, up, -rig.twist * .55); rig.head.updateMatrixWorld(true);
+  }
+  if (!id || !armed) return;
+  const grips = VIEW_SPECS[id].grips;
   // Aim, sprint carry and reload tilt, all about the shoulders.
   const pitch = THREE.MathUtils.clamp(actor.pitch, -1, 1) * .85;
-  const sprint = actor.sprint && !actor.swimming ? 1 : 0;
   const reload = actor.reloadUntil > simulationTime ? 1 - (actor.reloadUntil - simulationTime) / Math.max(.3, WEAPONS[id].reload || 1) : -1;
   if (reload < 0) rig.reloadEnd = 0;
   if (reload >= 0 && actor.reloadUntil !== rig.reloadEnd) { rig.reloadEnd = actor.reloadUntil; rig.reloadEmpty = actor.weapons[actor.slot]!.ammo === 0; }
@@ -653,28 +710,28 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   const keys = short ? shortReload(id, rig.reloadEmpty) : id === 'm4' ? m4Reload(rig.reloadEmpty) : null;
   const sample = keys && reload >= 0 ? sampleChoreo(keys, reload, rig.sample) : null;
   const tilt = reload >= 0 && !keys ? Math.sin(Math.PI * THREE.MathUtils.clamp(reload, 0, 1)) : 0;
+  const long = hold === 'rifle' || hold === 'heavy';
   const lowReady = sprint * (hold === 'pistol' ? .9 : .55);
-  holdEuler.set(pitch - lowReady + tilt * .25, pose.yaw + sprint * (hold === 'rifle' ? .55 : .2) + tilt * .25, pose.roll - tilt * (hold === 'pistol' ? .5 : .7), 'YXZ');
+  holdEuler.set(pitch - lowReady + tilt * .25, pose.yaw + sprint * (long ? .55 : .2) + tilt * .25, pose.roll - tilt * (hold === 'pistol' ? .5 : .7), 'YXZ');
   const cutting = id === 'machete' && strike && strike.time < MELEE_SECONDS;
   if (cutting) {
     if (strike.heavy) sampleHeavyMelee(strike.time, worldCut); else sampleMelee(strike.time, strike.side, worldCut);
     holdEuler.x -= worldCut.pitch * 1.5; holdEuler.y += worldCut.yaw * 1.4; holdEuler.z += worldCut.roll * .65;
   }
-  if (sample) { holdEuler.x += sample.r.x * .8; holdEuler.y += sample.r.y * .8; holdEuler.z += sample.r.z * .8; }
+  // Reloads keep the gun low at the chest: the first-person lift toward the eye would cover the face.
+  if (sample) { holdEuler.x += sample.r.x * .45; holdEuler.y += sample.r.y * .8; holdEuler.z += sample.r.z * .8; }
   holdQuat.setFromEuler(holdEuler);
   // Pivot at shoulder height so aiming swings the muzzle, not the stock.
-  const pivot = ikT.set(.08, 1.22, 0);
+  const pivot = ikT.set(.08, 1.30, 0);
   holdPos.set(pose.pos[0], pose.pos[1], pose.pos[2]).sub(pivot).applyQuaternion(holdQuat).add(pivot);
-  holdPos.y -= sprint * .06 + tilt * .05; holdPos.x -= sprint * (hold === 'rifle' ? .06 : 0);
-  if (sample) holdPos.addScaledVector(sample.p, .55);
+  holdPos.y -= sprint * .06 + tilt * .05; holdPos.x -= sprint * (long ? .06 : 0);
+  if (sample) { holdPos.addScaledVector(sample.p, .55); holdPos.y -= .03 * Math.sin(Math.PI * THREE.MathUtils.clamp(reload, 0, 1)); }
   if (cutting) { holdPos.x += worldCut.x * .6; holdPos.y += worldCut.y * .6; holdPos.z += worldCut.z * .6; }
-  // Character frame -> world, then into the spine's current frame. The chest's
-  // own bob and crouch (the spine's height above its rest) carry the gun.
-  const character = body.parent ?? body;
-  character.updateWorldMatrix(true, false); rig.spine.updateWorldMatrix(true, false);
-  const spineY = character.worldToLocal(rig.spine.getWorldPosition(ikB)).y;
-  holdPos.y += spineY - .6;
-  holdMatrix.compose(holdPos, holdQuat, ONE).premultiply(character.matrixWorld).premultiply(ikMatrix.copy(rig.spine.matrixWorld).invert());
+  // Character frame -> world, then into the chest's current frame. The chest's own bob,
+  // breath and crouch (its offset from rest) carry the gun.
+  rig.chest.updateWorldMatrix(true, false);
+  holdPos.add(character.worldToLocal(rig.chest.getWorldPosition(ikB)).sub(rig.chestRest));
+  holdMatrix.compose(holdPos, holdQuat, WEAPON_SCALE).premultiply(character.matrixWorld).premultiply(ikMatrix.copy(rig.chest.matrixWorld).invert());
   holdMatrix.decompose(weapon.position, weapon.quaternion, weapon.scale);
   weapon.updateWorldMatrix(true, false);
   if (short && parts) animateShortWorld(id, parts, sample, actor.weapons[actor.slot]!.ammo, weapon.userData.shortPartsVisible);
@@ -689,8 +746,8 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   const gunQuat = weapon.getWorldQuaternion(ikQ2.clone());
   // Poles: elbows drop down and out to each side (in the character's frame).
   body.parent?.getWorldQuaternion(rig.charQuat);
-  const poleR = ikD.set(.8, -1, .3).normalize().applyQuaternion(rig.charQuat).clone();
-  const poleL = ikD.set(-.8, -1, .2).normalize().applyQuaternion(rig.charQuat).clone();
+  const poleR = ikD.set(pose.poleR[0], pose.poleR[1], pose.poleR[2]).normalize().applyQuaternion(rig.charQuat).clone();
+  const poleL = ikD.set(pose.poleL[0], pose.poleL[1], pose.poleL[2]).normalize().applyQuaternion(rig.charQuat).clone();
   const target = (grip: { wrist: readonly number[] }) => new THREE.Vector3(grip.wrist[0], grip.wrist[1], grip.wrist[2]).applyMatrix4(weapon.matrixWorld);
   if (short && parts) {
     const right = shortWorldGrip(grips.R, sample?.R ?? null, parts, weapon, character);

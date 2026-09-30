@@ -1,5 +1,31 @@
 # Capivara asset pipeline
 
+## Character v6 (current)
+
+`npm run assets:characters` (or `tools/blender/wait-for-blender.sh && node tools/blender/build-characters.mjs`;
+add `--statue` to rebuild the Morro statue with the v4 script) runs `capybara_v6.py` in Blender 5.0.1:
+
+1. `capybara_form.py` is the sculpt: signed distance fields (`capy_sdf.py`) in game space, a
+   lofted head, the v3 paw from `paw_sculpt.py` (scaled 1.1x), three-toed feet, and the clothes and
+   gear as one union, so the surface is watertight and nothing pokes through a garment. It also
+   defines the skeleton (the v4/v5 bone names plus chest, belly, toes, pack and hipcloth: 67 joints).
+2. OpenVDB polygonizes it at 2.5 mm (about 0.9M vertices), the dense bake source.
+3. The game mesh is that surface decimated to 26.5k / 7.8k / 2.2k triangles; the LODs share
+   one smart-projected UV layout (head at 1.7x, eyes 2.2x texel density).
+4. Cycles bakes position, object and tangent normals and occlusion; `capybara_paint.py` paints
+   albedo, roughness, metal, the team mask (ORM red) and fine relief per texel, using the SDF's
+   own material at each texel so borders are exact.
+5. `capybara_weights.py` skins by the nearest body parts (soft minimum), digits by chain
+   ownership like the first-person arms, gear and face explicitly; `_TEAM` and `_FUR` go on the
+   vertices. `capybara_clips.py` and `character_emotes.py` author the clips at 60 Hz.
+
+Iterate on the form without Blender: `python3.11 tools/blender/capy_preview.py out.ply .004`
+(Blender's bundled python) and `tools/blender/sculpt-preview.html?ply=...`
+(`tools/qa/sculptshots.mjs`). Review the built character in the game renderer with
+`tools/blender/review.html` (`tools/qa/charshots.mjs`, `charmotion.mjs`, `charperf.mjs`).
+
+## History
+
 Run `npm ci && npm run assets:characters` with Blender 5.0.1 installed. Set
 `BLENDER_BIN` to override `/Applications/Blender.app/Contents/MacOS/Blender`.
 The deterministic script builds quad ring surfaces, subdivides once, decimates
