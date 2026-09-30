@@ -79,6 +79,8 @@ export function capybaraAssetEntry(tier: CapybaraTier = 'medium'): { path: strin
 let characterAsset: GLTF | null = null;
 let characterAtlasColumns: 4 | 16 = 16;
 let characterHeadTop = 1.85;
+// The highest point of the rest mesh (an ear tip): the posed crown follows it on the head bone.
+const characterCrownPoint = new THREE.Vector3(0, 1.85, 0);
 const characterChestRest = new THREE.Vector3(0, 1.06, 0);
 /** Rest-pose crown, measured once from the loaded mesh rather than the hit sphere. */
 export function capybaraHeadTop(): number { return characterHeadTop; }
@@ -128,7 +130,7 @@ function characterMaterial(source: THREE.MeshStandardMaterial, color: string): T
 interface CharacterInstance {
   scene: THREE.Group; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>;
   faceActions: (THREE.AnimationAction | undefined)[];
-  active: string; weights: Record<string, number>; targets: Record<string, number>; grounded: boolean; swimming: boolean; swimBlend: number; landing: number; spine?: THREE.Bone; crown: THREE.Vector3; crownScratch: THREE.Vector3; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
+  active: string; weights: Record<string, number>; targets: Record<string, number>; grounded: boolean; swimming: boolean; swimBlend: number; landing: number; spine?: THREE.Bone; crown: THREE.Vector3; crownTips: { bone: THREE.Bone; local: THREE.Vector3 }[]; crownScratch: THREE.Vector3; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
   hitTime: number; hitX: number; hitZ: number; deathTime: number; deathSide: number; emoteTime: number; unarmed: number; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
   relaxBones: THREE.Bone[]; relaxedArms: THREE.Quaternion[]; armBlends: THREE.Quaternion[];
@@ -176,6 +178,18 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>, tier
         source.skeleton.update();
         const bounds = new THREE.Box3().setFromObject(source, true);
         if (Number.isFinite(bounds.max.y)) characterHeadTop = bounds.max.y;
+        // Over every LOD: the coarse far mesh stands a little taller at the ears.
+        let highest = -Infinity;
+        const vertex = new THREE.Vector3();
+        for (let level = 0; level < 3; level++) {
+          const mesh = asset.scene.getObjectByName(`Capybara_LOD${level}`) as THREE.SkinnedMesh, position = mesh.geometry.getAttribute('position');
+          mesh.skeleton.update();
+          for (let i = 0; i < position.count; i++) {
+            mesh.getVertexPosition(i, vertex); vertex.applyMatrix4(mesh.matrixWorld);
+            if (vertex.y > highest) { highest = vertex.y; characterCrownPoint.set(Math.abs(vertex.x), vertex.y, vertex.z); }
+          }
+        }
+        characterHeadTop = highest;
         // Rest chest in character space: held guns follow its offset from here.
         (asset.scene.getObjectByName('chest') ?? asset.scene.getObjectByName('spine'))?.getWorldPosition(characterChestRest);
         characterAtlasColumns = paintedAtlas ? 4 : 16;
@@ -323,13 +337,18 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     scene, mixer, actions, weights, targets, grounded: true, swimming: false, swimBlend: 0, landing: 0,
     gesture: null, gestureDeadline: 0, gestureElapsed: 0, gestureBlend: 0, gestureJoints: {},
     bounceSeq: null, gaitPhase: 0, dangles: [], lastForward: 0, lastSide: 0, lastLift: 0, aim: 1, aimHold: 0, lastShot: -1, fur, chest: scene.getObjectByName('chest') as THREE.Bone | undefined,
-    spine: scene.getObjectByName('spine') as THREE.Bone | undefined, crown: new THREE.Vector3(0, characterHeadTop, 0), crownScratch: new THREE.Vector3(), faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
+    spine: scene.getObjectByName('spine') as THREE.Bone | undefined, crown: characterCrownPoint.clone().setX(0), crownTips: [], crownScratch: new THREE.Vector3(), faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
     hitTime: 0, hitX: 0, hitZ: 0, deathTime: -1, deathSide: 1, emoteTime: 0, unarmed: 0, elapsed: 0, skeleton, legacyBones, poseBones: [], baseRotations: [], relaxBones: [], relaxedArms: [], armBlends: [],
     head: scene.getObjectByName('head') as THREE.Bone,
     root: scene.getObjectByName('root') as THREE.Bone,
     arms: [scene.getObjectByName('arm_L') as THREE.Bone, scene.getObjectByName('arm_R') as THREE.Bone],
   };
   scene.updateMatrixWorld(true); runtime.head.worldToLocal(runtime.crown);
+  // The crown is an ear tip: follow both ears (they flick and swing on their own bones).
+  for (const [side, sign] of [['L', -1], ['R', 1]] as const) {
+    const ear = scene.getObjectByName(`ear_${side}`);
+    if (ear instanceof THREE.Bone) runtime.crownTips.push({ bone: ear, local: ear.worldToLocal(characterCrownPoint.clone().setX(sign * characterCrownPoint.x)) });
+  }
   // Unarmed rest: the upper arm swings down along the barrel, then the elbow
   // eases open so the paw rests on the belly side instead of a raised bent arm.
   const forearms: THREE.Bone[] = [], relaxedForearms: THREE.Quaternion[] = [];
@@ -724,7 +743,13 @@ export function capybaraCrownHeight(body: THREE.SkinnedMesh): number {
   if (!runtime) return characterHeadTop;
   runtime.head.updateWorldMatrix(true, false);
   runtime.crownScratch.copy(runtime.crown); runtime.head.localToWorld(runtime.crownScratch);
-  return body.worldToLocal(runtime.crownScratch).y;
+  let top = body.worldToLocal(runtime.crownScratch).y;
+  for (const tip of runtime.crownTips) {
+    tip.bone.updateWorldMatrix(false, false);
+    runtime.crownScratch.copy(tip.local); tip.bone.localToWorld(runtime.crownScratch);
+    top = Math.max(top, body.worldToLocal(runtime.crownScratch).y);
+  }
+  return top;
 }
 
 // Third-person weapon handling. The gun is placed against the chest (rifles at
@@ -787,7 +812,12 @@ const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'p
  * read at distance), so first-person grip specs stay valid in weapon space. */
 export const TP_WEAPON_SCALE = 1.1;
 const TP_GRIP_BACK = .023, TP_GRIP_OUT = .016, TP_CURL = .82;
-const ikF = new THREE.Vector3(), ikP = new THREE.Vector3();
+/** Where the world paw's wrist goes for a first-person grip, relative to that grip's wrist (in the
+ * grip's own space): backed off along the digits and out of the palm, for the larger hand. */
+export function tpGripOffset(forward: readonly number[], palm: readonly number[]): THREE.Vector3 {
+  const f = new THREE.Vector3().fromArray(forward).normalize(), p = new THREE.Vector3().fromArray(palm).normalize();
+  return f.multiplyScalar(-TP_GRIP_BACK).addScaledVector(p, -TP_GRIP_OUT);
+}
 // The gun origin (the firing paw's web) in character space at rest, its extra yaw/roll, and the
 // upper-body twist: long guns are held in a bladed stance (left shoulder forward, the head
 // turned back to the aim) so the stock sits in the right shoulder and the support paw reaches
@@ -917,10 +947,8 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   const poleL = ikD.set(pose.poleL[0], pose.poleL[1], pose.poleL[2]).normalize().applyQuaternion(rig.charQuat).clone();
   // The grip specs place the first-person paw. The world paw is its own, larger hand: its palm
   // sits further from the wrist and deeper below it, so the wrist backs off the gun by that much.
-  const target = (grip: { wrist: readonly number[]; forward: readonly number[]; palm: readonly number[] }) => {
-    const forward = ikF.fromArray(grip.forward).normalize(), palm = ikP.fromArray(grip.palm).normalize();
-    return new THREE.Vector3(grip.wrist[0], grip.wrist[1], grip.wrist[2]).addScaledVector(forward, -TP_GRIP_BACK).addScaledVector(palm, -TP_GRIP_OUT).applyMatrix4(weapon.matrixWorld);
-  };
+  const target = (grip: { wrist: readonly number[]; forward: readonly number[]; palm: readonly number[] }) =>
+    new THREE.Vector3(grip.wrist[0], grip.wrist[1], grip.wrist[2]).add(tpGripOffset(grip.forward, grip.palm)).applyMatrix4(weapon.matrixWorld);
   if (short && parts) {
     const right = shortWorldGrip(grips.R, sample?.R ?? null, parts, weapon, character);
     reachArm(rig.R, target(right), poleR, gunQuat, right);

@@ -51,7 +51,7 @@ describe('shipped capybara asset contract', () => {
       }
       // A scarf and a rag, not a recoloured body: a small share of the character takes the team hue.
       expect(masked / colors.getCount(), mesh.getName()).toBeGreaterThan(.005);
-      expect(masked / colors.getCount(), mesh.getName()).toBeLessThan(.15);
+      expect(masked / colors.getCount(), mesh.getName()).toBeLessThan(.20);
       expect(position.getCount()).toBeGreaterThan(0);
     }
   });

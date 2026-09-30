@@ -299,7 +299,7 @@ report['locomotionDirection'] = {**{k: list(v) for k, v in WALK_DIRS.items()}, '
 def walk_like(name, lift, cadence_drop):
     front, back, contact, seconds, sink = GAITS[name]
     right, forward = WALK_DIRS[name]
-    lean = -.05 * max(0, forward) + .04 * max(0, -forward) - .02 * abs(right)
+    lean = -.05 * max(0, forward) + .015 * max(0, -forward) - .02 * abs(right)
     def fn(t, sec):
         ph = math.tau * t
         bob = math.cos(2 * ph)                              # low at each contact
