@@ -48,12 +48,14 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
   material.onBeforeCompile = function (shader, renderer) {
     previous.call(this, shader, renderer);
     shader.uniforms.characterRim = { value: rim };
+    // Team-coloured rim on far world characters (their team cloth is only a few pixels at 60 m).
+    shader.uniforms.characterTeam = { value: (material.userData.teamColor as THREE.Color | undefined) ?? rim };
     if (bakedFur) {
       shader.vertexShader = `attribute float _fur;\nvarying float vFurMask;\n${shader.vertexShader}`
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFurMask = _fur;');
       shader.fragmentShader = `varying float vFurMask;\n${shader.fragmentShader}`;
     }
-    shader.fragmentShader = `uniform vec3 characterRim;\n${shader.fragmentShader}`.replace('#include <opaque_fragment>', `
+    shader.fragmentShader = `uniform vec3 characterRim;\nuniform vec3 characterTeam;\n${shader.fragmentShader}`.replace('#include <opaque_fragment>', `
       float grazing = 1.0 - saturate(dot(normalize(normal), normalize(vViewPosition)));
       float rimAmount = pow(grazing, 3.0);
       float furSurface = 0.0;
@@ -76,13 +78,16 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
       float farRead = ${bakedFur ? 'smoothstep(18.0, 60.0, length(vViewPosition))' : '0.0'};
       outgoingLight *= 1.0 + .2 * farRead;
       outgoingLight += characterRim * rimAmount * rimSurface * (.15 + .2 * furSurface) * (.12 + .88 * sunEdge) * (1.0 + 1.5 * farRead);
+      // Beyond 18 m the rim also carries the team colour, lit or in shade, so a distant
+      // capybara's side reads before its scarf does.
+      outgoingLight += characterTeam * pow(grazing, 1.6) * .55 * farRead;
       // Broad fibre scattering complements the fine relief in the normal map.
       // It follows the fur tile and sun, without adding gloss to the mouth.
       vec3 furSheen = mix(vec3(.045, .065, .085), characterRim * .16, sunEdge);
       outgoingLight += furSheen * sqrt(max(diffuseColor.rgb, vec3(0.0))) * pow(grazing, 2.5) * furSurface * rimSurface;
       #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v5:${atlasColumns}:${surfaceAtlas}:${bakedFur}`;
+  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v6:${atlasColumns}:${surfaceAtlas}:${bakedFur}`;
   material.needsUpdate = true;
   return material;
 }
