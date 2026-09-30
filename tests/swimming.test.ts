@@ -5,7 +5,7 @@ import { emptyInput } from '../src/shared/math';
 import { walkableSegment } from '../src/shared/navigation';
 import { terrainHeight } from '../src/shared/terrain';
 import { WATER_LEVEL } from '../src/shared/water';
-import { shotSpread } from '../src/shared/weapons';
+import { HANDLING, shotSpread } from '../src/shared/weapons';
 import { createWorld } from '../src/shared/world';
 import { fastPart, gearPart, rebuildFrame, worldPart } from '../src/network/codec';
 import type { ActorState, InputFrame, RoomConfig, WorldSpec } from '../src/shared/types';
@@ -123,6 +123,8 @@ describe('capybaras swim with shared authoritative movement', () => {
     expect(actor.reloadUntil).toBe(0); expect(runtime.adsAmount).toBe(0); expect(actor.shotHeat).toBe(0);
     sim.action(profile.id, { type: 'slot', id: 1, slot: 0 });
     expect(actor.weapons[actor.slot].id).toBe('pistol');
+    // Treading water draws the sidearm like any swap: it fires once it is up.
+    sim.step(HANDLING.pistol.draw);
     sim.action(profile.id, { type: 'trigger', id: 2, yaw: 0, pitch: 0, lean: 1, ads: true, clientTime: sim.snapshot().time });
     sim.step(1 / 60);
     expect(actor.ads).toBe(false); expect(actor.lean).toBe(0); expect(runtime.adsAmount).toBe(0);

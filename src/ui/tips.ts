@@ -4,7 +4,7 @@ export const TIPS: readonly string[] = [
   'Capivara é o maior roedor do mundo. E o mais perigoso com uma Doze na mão.',
   'Aperte M pra ver a ilha inteira e planejar a rota antes da tempestade.',
   '{leanLeft} e {leanRight} espiam pelas quinas sem expor o corpo inteiro.',
-  'Tiro na cabeça dói bem mais: na M4 é o dobro, na Sniper é 2,5 vezes.',
+  'Tiro na cabeça dói bem mais: na Carabina é o dobro, na Sniper é 2,5 vezes.',
   'No avião, {jump} salta. Se você enrolar, o piloto te empurra em 12 segundos.',
   'O paraquedas abre sozinho perto do chão. Mas abrir antes é coisa de capivara precavida.',
   'Guaraná cura aos pouquinhos e deixa você mais rápido por 10 segundos.',

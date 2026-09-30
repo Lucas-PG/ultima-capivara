@@ -64,7 +64,7 @@ export class LocalPresentation {
     this.actor.yaw = input.yaw; this.actor.pitch = input.pitch;
     const posing = !!actor.emote && actor.emoteUntil > time;
     this.actor.ads = !actor.swimming && !posing && input.ads;
-    this.actor.sprint = !actor.swimming && !posing && input.sprint && !actor.crouch && !input.ads && input.moveZ > 0;
+    this.actor.sprint = !actor.swimming && !posing && input.sprint && !actor.crouch && !input.ads && !input.fire && input.moveZ > 0;
     this.actor.lean = actor.swimming || posing || this.actor.sprint ? 0 : input.lean;
     const intent = this.reloadIntent;
     if (intent && (intent.slot !== actor.slot || time >= intent.expires || actor.reloadUntil > time)) this.reloadIntent = undefined;
