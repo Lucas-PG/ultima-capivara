@@ -52,3 +52,9 @@
 
 ## Switch to Codex astra (Claude weekly 93% used) - 03:20
 - Remaining builds moved to Codex gpt-6-astra at max effort per the user's fallback rule, keeping Claude for reviews and the release: integration (settings for the new controls, crosshair FOV, audio follow-ups, scope flash, QA poses and visual baselines, integration bugs from full matches), bots-graphics (bots on the new island, sky, grading, fog, AO), char-polish (face, fur, foot sliding, armhole texels, statue from the new character, far LOD).
+
+## Bots and graphics (Claude Opus takeover of a Codex start, bots-graphics, 14 commits) - 08:05
+- Bots measured over 8 full matches per mode against the original: stuck time 2.2 -> 0.7 s per bot-minute (royale) and 2.7 -> 0.5 (deathmatch), longest stuck 46 -> 6 s, storm deaths 23 -> 0, water deaths 83 -> 3; strafing now spoils bot aim (Normal SMG at 10 m 86% -> 63%); rusher, anchor and flanker styles; yards and gates joined to the route network.
+- Graphics (the Codex lighting draft was replaced because it washed colour out): blue sky, one shared haze warming toward the sun, warm sun and cool shadows, colour grade, daylight clouds, turquoise water, short-range shadows on Low; 16.7 ms on every preset.
+- My before/after from four cameras: PASS (subtle, cleaner daylight closer to the wide-aim reference; the coast lost its orange horizon for a clear blue sky). Merged.
+- Found: a walled garden near (6, 68) traps players (sent to the integration agent with a connectivity test requirement).
