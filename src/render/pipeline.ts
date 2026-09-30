@@ -136,9 +136,9 @@ export class RenderPipeline {
 
   beginFirstPersonWarmup() { this.gl.setRenderTarget(this.fpTarget); }
 
-  // Storm exposure (0..1) and the decaying pulse of the latest storm bite.
-  setScreenFeedback(storm: number, pulse: number) {
-    this.postMaterial.uniforms.uStorm.value = storm; this.postMaterial.uniforms.uPulse.value = pulse;
+  // Storm exposure (0..1), the decaying pulse of the latest storm bite, and how low the viewed health is (0..1).
+  setScreenFeedback(storm: number, pulse: number, low = 0) {
+    this.postMaterial.uniforms.uStorm.value = storm; this.postMaterial.uniforms.uPulse.value = pulse; this.postMaterial.uniforms.uLow.value = low;
   }
 
   async warmup(scene?: THREE.Scene, camera?: THREE.PerspectiveCamera) {

@@ -1,5 +1,5 @@
 import type { LandmarkSpec } from './landmarks';
-export const PROTOCOL_VERSION = 11;
+export const PROTOCOL_VERSION = 12;
 export const WORLD_VERSION = 'ilha-v4-redentora-1';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -34,6 +34,8 @@ export interface InputFrame {
 }
 export type PlayerAction =
   | { type: 'reload'; id: number }
+  // Quick melee: one facão swing without selecting it, then back to the held gun.
+  | { type: 'melee'; id: number }
   | { type: 'slot'; id: number; slot: number }
   | { type: 'interact'; id: number; target: string }
   | { type: 'drop'; id: number }
@@ -49,6 +51,8 @@ export interface ActorState {
   pos: Vec3; velocity: Vec3; yaw: number; pitch: number; lean: number;
   hp: number; armor: number; helmet: number; alive: boolean; grounded: boolean;
   crouch: boolean; sprint: boolean; ads: boolean;
+  /** Airborne from a jump or a bounce (not from walking off an edge): no coyote jump. */
+  jumping?: boolean;
   swimming: boolean; wetUntil: number;
   emote: EmoteId | null; emoteUntil: number; soaking: boolean;
   bounceSeq: number; bounceProtected: boolean;
@@ -58,6 +62,8 @@ export interface ActorState {
   consumables: Record<ConsumableId, number>;
   reloadUntil: number; useUntil: number; using: ConsumableId | null;
   respawnAt: number; protectionUntil: number; lastInput: number; shotHeat: number;
+  /** Rounds fired so far: the shooter's client predicts the next one's seeded spread from it. */
+  shotSeq: number;
 }
 export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth'; pieceId?: string }
 export interface KitPlacement extends Vec3 {
@@ -106,7 +112,8 @@ export interface WorldSnapshot {
 // What a shot's endpoint struck when it was not a capybara; `normal` faces the shooter's side.
 export type Surface = 'dirt' | 'sand' | 'foliage' | 'stone' | 'wood' | 'metal' | 'water';
 export type GameEvent =
-  | { type: 'shot'; id: number; actor: string; weapon: WeaponId; origin: Vec3; end: Vec3; hit: boolean; surface?: Surface; normal?: Vec3 }
+  // `seq` is the shooter's shotSeq for this round; their client skips effects it already predicted.
+  | { type: 'shot'; id: number; actor: string; weapon: WeaponId; origin: Vec3; end: Vec3; hit: boolean; surface?: Surface; normal?: Vec3; seq?: number }
   | { type: 'damage'; id: number; actor: string; target: string; amount: number; head: boolean; pos: Vec3; armorBreak?: boolean }
   // `from` is the eliminator's position and `distance` the gap in metres at the moment of the kill.
   | { type: 'kill'; id: number; actor: string | null; target: string; weapon: WeaponId | 'storm' | 'fall'; from?: Vec3; distance?: number }
@@ -127,12 +134,14 @@ export interface Settings {
   sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; frameLimit: 30 | 60; reducedMotion: boolean;
   master: number; effects: number; ambience: number; music: number;
   adsToggle: boolean; bindings: Record<string, string>;
+  // Controls feel (src/controls.ts CONTROL_OPTIONS): hold or toggle, aimed and scoped sensitivity multipliers, camera shake 0 to 1.
+  crouchToggle: boolean; sprintToggle: boolean; invertY: boolean; adsSensitivity: number; scopeSensitivity: number; cameraShake: number;
   // Legacy "Ajuste automático": practice bots adapt to recent placements.
   adaptive: boolean;
   // HUD preferences: FPS readout, interface size (0.8 to 1.2) and colour-blind friendly aim feedback.
   showFps: boolean; uiScale: number; crosshairColor: 'white' | 'yellow' | 'cyan' | 'magenta'; hitPalette: 'default' | 'colorblind';
-  // Aim comfort: vertical look inversion, mouse speed while aiming (0.5 to 1.5 of the hip speed), floating damage numbers.
-  invertY: boolean; adsSensitivity: number; damageNumbers: boolean;
+  // Floating damage numbers (aim comfort; look inversion and aimed sensitivity live in the controls model above).
+  damageNumbers: boolean;
 }
 export interface RenderFrame { snapshot: WorldSnapshot | null; playerId: string; input: InputFrame; dt: number; playing: boolean; spectateId: string | null; predicted?: Vec3; remoteActors?: ReadonlyMap<string, ActorState> }
 // Kit colours (bandana and vest trim), never fur: every player still reads as a capybara (style bible §3.7).

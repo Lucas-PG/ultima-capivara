@@ -34,7 +34,7 @@ if (!THREE.ShaderChunk.lights_fragment_begin.includes('paintedSunShadow')) {
 export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTexture) {
   return new THREE.RawShaderMaterial({
     uniforms: {
-      uStorm: { value: 0 }, uPulse: { value: 0 },
+      uStorm: { value: 0 }, uPulse: { value: 0 }, uLow: { value: 0 },
       tColor: { value: color }, tDepth: { value: depth }, toneMappingExposure: { value: 1.1 },
       tAtmosphere: { value: color }, atmosphereEnabled: { value: 0 }, bloomStrength: { value: .12 },
       tCharacter: { value: color }, characterEnabled: { value: 0 }, transparentBackground: { value: 0 },
@@ -48,7 +48,7 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
     fragmentShader: `precision highp float;
       #include <tonemapping_pars_fragment>
       #include <colorspace_pars_fragment>
-      uniform sampler2D tColor,tCharacter,tAtmosphere;uniform highp sampler2D tDepth;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY,atmosphereEnabled,bloomStrength;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse;varying vec2 vUv;
+      uniform sampler2D tColor,tCharacter,tAtmosphere;uniform highp sampler2D tDepth;uniform vec3 ink,cameraUpRow;uniform vec2 inverseProjectionScale;uniform float characterEnabled,transparentBackground,suppressWater,cameraWorldY,atmosphereEnabled,bloomStrength;uniform vec2 texel;uniform float cn,cf,width,uStorm,uPulse,uLow;varying vec2 vUv;
       float L(float d){float z=d*2.0-1.0;return 2.0*cn*cf/(cf+cn-z*(cf-cn));}
       void main(){
         vec4 src=texture2D(tColor,vUv);vec3 c=src.rgb;float d=texture2D(tDepth,vUv).x;
@@ -88,7 +88,9 @@ export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTe
         gl_FragColor.rgb=NeutralToneMapping(gl_FragColor.rgb);
         gl_FragColor=sRGBTransferOETF(gl_FragColor);
         float g=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
-        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.03*mix(1.0,.8,uStorm)),0.0,1.0);
+        // Low health drains colour and closes the edges in, under the HUD's own warning.
+        gl_FragColor.rgb=clamp(mix(vec3(g),gl_FragColor.rgb,1.03*mix(1.0,.8,uStorm)*mix(1.0,.6,uLow)),0.0,1.0);
+        gl_FragColor.rgb*=1.0-uLow*.28*smoothstep(.5,1.4,length((vUv-.5)*2.0));
         float sv=smoothstep(.55,1.35,length((vUv-.5)*2.0))*(uStorm*.3+uPulse*.6);
         gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.541,.302,1.0),sv);
 

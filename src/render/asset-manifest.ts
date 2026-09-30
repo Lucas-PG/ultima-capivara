@@ -12,5 +12,5 @@ export const ASSET_MANIFEST: readonly AssetEntry[] = [
   { path: 'textures/terrain-color.png', kind: 'texture', bytes: 605132, label: 'Cores da ilha' },
   { path: 'textures/clouds-painted-v4.png', kind: 'texture', bytes: 894096, label: 'Nuvens pintadas' },
   { path: 'textures/island-signs.png', kind: 'texture', bytes: 88682, label: 'Placas da ilha' },
-  { path: 'textures/vfx-flipbooks.png', kind: 'texture', bytes: 148876, label: 'Efeitos pintados' },
+  { path: 'textures/vfx-flipbooks.png', kind: 'texture', bytes: 470419, label: 'Efeitos pintados' },
 ];

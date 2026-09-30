@@ -47,7 +47,7 @@ describe('loading tips copy', () => {
   });
   // Tips quote gameplay numbers; if a retune changes them, the copy must change too.
   it('only states gameplay facts that are true', () => {
-    expect(WEAPONS.m4.headMultiplier).toBe(2);
+    expect(WEAPONS.dmr.headMultiplier).toBe(2);
     expect(WEAPONS.sniper.headMultiplier).toBe(2.5);
     expect(WEAPONS.shotgun.range).toBe(35);
     expect(WEAPONS.m4.ammo).toBe(WEAPONS.dmr.ammo);

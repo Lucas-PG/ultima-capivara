@@ -12,11 +12,17 @@ export const CELL = {
 } as const;
 export const ATLAS_COLUMNS = 8, ATLAS_ROWS = 4;
 // Hand-painted flipbook cells (public/textures/vfx-flipbooks.png, Forja's approved F2
-// sheet, built by tools/vfx/build-flipbooks.mjs). Card cells from 32 up sample it in
+// sheet, built by tools/vfx/build-flipbooks.mjs, plus the combat pass cells below). Card cells from 32 up sample it in
 // its own colours; `dust` and `chip` are painted in neutral grey and tinted per surface.
 export const PAINTED_URL = 'textures/vfx-flipbooks.png';
 export const PAINT = {
   flash: 32, pow: 35, star: 37, fur: 38, wood: 40, splinter: 42, dust: 43, chip: 45,
+  // Combat pass cells (docs/art/vfx/combat-sheet-a.png via tools/vfx/add-flipbook-cells.mjs):
+  // side-view muzzle flames that start at the cell's left edge and point to +x,
+  // two front-view bursts, a smoke wisp, an air puff, a character hit spark, a
+  // water crown, a sand plume, two coconut husk chunks, a blast cloud and a metal spark fan.
+  sidePistol: 46, sideRevolver: 47, sideSmg: 48, sideRifle: 49, sideDmr: 50, sideSniper: 51, sideShotgun: 52,
+  front: 53, smoke: 55, airPuff: 56, hitSpark: 57, crown: 58, plume: 59, husk: 60, fireball: 62, sparks: 63,
 } as const;
 
 const SIZE = 128;

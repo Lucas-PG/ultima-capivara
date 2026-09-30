@@ -1,20 +1,14 @@
 import { PLAYER_COLORS, type Settings } from './shared/types';
 import { clamp } from './shared/math';
+import { DEFAULT_BINDINGS, DEFAULT_CONTROL_OPTIONS, sanitizeBindings, sanitizeControlOptions } from './controls';
 
-export const DEFAULT_BINDINGS: Record<string, string> = {
-  forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft',
-  jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', drop: 'KeyG', leanLeft: 'KeyQ', leanRight: 'KeyE', inspect: 'KeyI',
-  fire: 'Mouse0', ads: 'Mouse2', slot1: 'Digit1', slot2: 'Digit2', slot3: 'Digit3', slot4: 'Digit4',
-  useBandage: 'Digit5', useMedkit: 'Digit6', useGuarana: 'Digit7', useAcai: 'Digit8', useRapadura: 'Digit9',
-  scoreboard: 'Tab', map: 'KeyM', emote: 'KeyB',
-};
-// Keys by KeyboardEvent.code, mouse buttons as 'Mouse' + event.button. Escape stays reserved for the menu.
-export const BINDABLE_CODE = /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Backquote|Arrow(Up|Down|Left|Right)|Mouse[0-4])$/;
+// The action list, defaults and rebinding rules live in the controls model.
+export { BINDABLE_CODE, DEFAULT_BINDINGS } from './controls';
 export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 1, fov: 100, graphics: 'medium', frameLimit: 60, reducedMotion: false,
-  master: .8, effects: .85, ambience: .45, music: .5, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
+  master: .8, effects: .85, ambience: .45, music: .5, bindings: { ...DEFAULT_BINDINGS }, adaptive: true, ...DEFAULT_CONTROL_OPTIONS,
   showFps: false, uiScale: 1, crosshairColor: 'white', hitPalette: 'default',
-  invertY: false, adsSensitivity: 1, damageNumbers: true,
+  damageNumbers: true,
 };
 const STORAGE_KEY = 'uc-v2-settings';
 export function loadSettings(): Settings {
@@ -31,23 +25,14 @@ export function loadSettings(): Settings {
     if (['low', 'medium', 'high'].includes(value.graphics)) result.graphics = value.graphics;
     if (value.frameLimit === 30 || value.frameLimit === 60) result.frameLimit = value.frameLimit;
     if (typeof value.reducedMotion === 'boolean') result.reducedMotion = value.reducedMotion;
-    if (typeof value.adsToggle === 'boolean') result.adsToggle = value.adsToggle;
+    Object.assign(result, sanitizeControlOptions(value));
     if (typeof value.adaptive === 'boolean') result.adaptive = value.adaptive;
     if (typeof value.showFps === 'boolean') result.showFps = value.showFps;
-    if (typeof value.invertY === 'boolean') result.invertY = value.invertY;
     if (typeof value.damageNumbers === 'boolean') result.damageNumbers = value.damageNumbers;
-    if (typeof value.adsSensitivity === 'number' && Number.isFinite(value.adsSensitivity)) result.adsSensitivity = clamp(value.adsSensitivity, .5, 1.5);
     if (typeof value.uiScale === 'number' && Number.isFinite(value.uiScale)) result.uiScale = clamp(value.uiScale, .8, 1.2);
     if (['white', 'yellow', 'cyan', 'magenta'].includes(value.crosshairColor)) result.crosshairColor = value.crosshairColor;
     if (value.hitPalette === 'default' || value.hitPalette === 'colorblind') result.hitPalette = value.hitPalette;
-    if (value.bindings && typeof value.bindings === 'object') {
-      const valid = (code: unknown): code is string => typeof code === 'string' && BINDABLE_CODE.test(code);
-      const taken = new Set<string>();
-      for (const key of Object.keys(DEFAULT_BINDINGS)) if (valid(value.bindings[key])) { result.bindings[key] = value.bindings[key]; taken.add(value.bindings[key]); }
-      // An action the save does not know yet keeps its default only if no saved binding already uses
-      // that code; otherwise it stays unbound, so one press never triggers two actions.
-      for (const key of Object.keys(DEFAULT_BINDINGS)) if (!valid(value.bindings[key]) && taken.has(result.bindings[key])) result.bindings[key] = '';
-    }
+    result.bindings = sanitizeBindings(value.bindings);
   } catch { /* Blocked storage and old preferences must never prevent playing. */ }
   return result;
 }
