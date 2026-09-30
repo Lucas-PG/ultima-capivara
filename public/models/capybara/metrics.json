@@ -238,29 +238,29 @@
   "materials": 1,
   "skins": 1,
   "joints": 71,
-  "bytes": 3823844,
+  "bytes": 3829396,
   "tiers": {
     "high": {
       "path": "models/capybara/capybara-high.glb",
-      "bytes": 7005236,
+      "bytes": 7052592,
       "size": 4096,
       "gpuMB": 192
     },
     "medium": {
       "path": "models/capybara/capybara.glb",
-      "bytes": 3823844,
+      "bytes": 3829396,
       "size": 2048,
       "gpuMB": 48
     },
     "low": {
       "path": "models/capybara/capybara-low.glb",
-      "bytes": 2803476,
+      "bytes": 2804812,
       "size": 1024,
       "gpuMB": 12
     }
   },
-  "statueBytes": 55992,
-  "rawBytes": 7280880,
+  "statueBytes": 56184,
+  "rawBytes": 7312816,
   "texture": {
     "format": "baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)",
     "count": 3,
