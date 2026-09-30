@@ -116,6 +116,7 @@ const ui = new GameUI(world, settings, profile, {
   emote(emote) { sendAction({ type: 'emote', id: input.actionIdNext(), emote }); },
   cancelEmote() { input.closeEmoteWheel(); },
   resume() { void sound.unlock(); void input.lock(); },
+  uiSound(kind) { if (kind !== 'hover') void sound.unlock(); sound.ui(kind); },
   spectate() { cycleSpectator(); void input.lock(); },
   settings(next) {
     if (next.frameLimit !== activeFrameLimit) {
@@ -471,6 +472,7 @@ if (import.meta.env.DEV) {
         longTasks: [...longTasks], renderer: renderer?.stats, heapMB: heap ? Math.round(heap / 1048576) : null };
     },
     timings: () => ({ ...timing.snapshot(), preset: settings.graphics, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } }),
+    audio: () => sound.stats(),
     resetPerf: () => { intervals.length = 0; longTasks.length = 0; timing.reset(); lastTick = performance.now(); },
   } });
 }

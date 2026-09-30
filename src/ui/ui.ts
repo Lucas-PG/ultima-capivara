@@ -24,6 +24,8 @@ export interface UICallbacks {
   emote?(emote: EmoteId): void; cancelEmote?(): void;
   leave(): void; rematch(): void; resume(): void; spectate(): void;
   settings(settings: Settings): void; profile(profile: Profile): void;
+  /** Menu sounds go through the game's sound engine (first press also unlocks it). */
+  uiSound?(kind: 'hover' | 'click' | 'back'): void;
 }
 type Profile = { name: string; color: string };
 export const modeName = (mode: Mode) => mode === 'battle-royale' ? 'ÚLTIMA DE PÉ' : mode === 'corrente' ? 'CORRENTE' : 'CORRERIA';
@@ -108,20 +110,19 @@ export class GameUI {
   private roomLoading: number | null = null;
   private pendingToasts: { message: string; error: boolean }[] = [];
   private readonly crosshairSpread = new CrosshairSpread();
-  private uiAudio: AudioContext | null = null;
   private uiSoundAt = 0;
-  private uiAudioIdle = 0;
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
-    window.addEventListener('pagehide', () => { this.lifecycle.abort(); void this.uiAudio?.close(); }, { once: true });
-    // Quiet, original UI notes. Audio starts only on an intentional press and follows the sound settings.
+    window.addEventListener('pagehide', () => this.lifecycle.abort(), { once: true });
+    // Quiet mallet notes from the sound engine. Audio starts only on an intentional press and follows the sound settings.
     document.addEventListener('pointerover', event => {
       const button = (event.target as Element).closest('button');
-      if (button && !button.contains(event.relatedTarget as Node | null) && !button.disabled) this.playUiSound(false);
+      if (button && !button.contains(event.relatedTarget as Node | null) && !button.disabled) this.playUiSound(null);
     }, { signal: this.lifecycle.signal });
     document.addEventListener('click', event => {
-      if ((event.target as Element).closest('button:not(:disabled)')) this.playUiSound(true);
+      const button = (event.target as Element).closest<HTMLElement>('button:not(:disabled)');
+      if (button) this.playUiSound(button);
     }, { signal: this.lifecycle.signal });
     this.drawMapBackground(); this.home();
     // The map binding (M by default) toggles the island map; it never touches pointer lock or movement input.
@@ -157,24 +158,12 @@ export class GameUI {
       }
     });
   }
-  private playUiSound(click: boolean) {
-    const volume = this.settings.master * this.settings.effects, now = performance.now();
-    if (!volume || document.hidden || (!click && (!this.uiAudio || now - this.uiSoundAt < 65))) return;
-    try {
-      if (!this.uiAudio) this.uiAudio = new AudioContext();
-      const context = this.uiAudio;
-      if (context.state === 'suspended') { if (!click) return; void context.resume(); }
-      this.uiSoundAt = now;
-      const tone = context.createOscillator(), gain = context.createGain(), at = context.currentTime;
-      tone.type = 'sine'; tone.frequency.setValueAtTime(click ? 740 : 520, at);
-      tone.frequency.exponentialRampToValueAtTime(click ? 1100 : 660, at + .045);
-      gain.gain.setValueAtTime(0, at); gain.gain.linearRampToValueAtTime(volume * (click ? .065 : .024), at + .006);
-      gain.gain.exponentialRampToValueAtTime(.0001, at + .09);
-      tone.connect(gain); gain.connect(context.destination); tone.start(at); tone.stop(at + .1);
-      tone.onended = () => { tone.disconnect(); gain.disconnect(); };
-      // Suspend the context once the menu goes quiet so no audio thread keeps running under the match.
-      clearTimeout(this.uiAudioIdle); this.uiAudioIdle = window.setTimeout(() => { if (context.state === 'running') void context.suspend(); }, 1500);
-    } catch { /* Unsupported or blocked audio never prevents a menu action. */ }
+  private playUiSound(pressed: HTMLElement | null) {
+    const now = performance.now();
+    if (document.hidden || (!pressed && now - this.uiSoundAt < 65)) return;
+    this.uiSoundAt = now;
+    const back = !!pressed && (pressed.dataset.do === 'leave' || pressed.dataset.do === 'home' || pressed.classList.contains('secondary'));
+    this.callbacks.uiSound?.(!pressed ? 'hover' : back ? 'back' : 'click');
   }
   private header(back = false) {
     return `<header class="topbar"><button class="brand" data-do="home" aria-label="Tela inicial"><img src="./assets/favicon.svg" alt=""/><span>ÚLTIMA<br><b>CAPIVARA</b></span></button><nav>${back ? `<button class="nav-link" data-do="leave">${icon('back')} VOLTAR</button>` : '<span class="nav-link active">JOGAR</span><button class="nav-link" data-do="how">COMO JOGAR</button>'}<button class="icon-button" data-do="settings" aria-label="Configurações">${icon('settings')}</button></nav><div class="edition"><span class="live-dot"></span> EDIÇÃO ILHA <b>GRÁTIS</b></div></header>`;
