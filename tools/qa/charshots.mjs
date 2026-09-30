@@ -15,7 +15,7 @@ const parsed = specs.map(spec => {
 });
 const groups = new Map();
 for (const shot of parsed) {
-  const key = `${shot.options.weapon || ''}|${shot.options.color || ''}|${shot.options.x || ''}|${shot.options.z || ''}`;
+  const key = `${shot.options.weapon || ''}|${shot.options.color || ''}|${shot.options.x || ''}|${shot.options.z || ''}|${shot.options.range || ''}|${shot.options.lighting || ''}`;
   if (!groups.has(key)) groups.set(key, []);
   groups.get(key).push(shot);
 }
@@ -23,11 +23,13 @@ const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angl
 const page = await browser.newPage({ viewport: { width: Number(process.env.W || 960), height: Number(process.env.H || 720) } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 for (const [key, shots] of groups) {
-  const [weapon, color, x, z] = key.split('|');
+  const [weapon, color, x, z, range, lighting] = key.split('|');
   const query = new URLSearchParams({ clean: '' });
   if (weapon) query.set('weapon', weapon);
   query.set('color', color ? `#${color}` : '#E76F51');
   query.set('x', x || '84'); query.set('z', z || '-58');
+  if (range) query.set('range', range);
+  if (lighting) query.set('lighting', lighting);
   await page.goto(`${base}/tools/blender/review.html?${query}`);
   await page.waitForFunction(() => window.capyReview?.ready, null, { timeout: 120000 });
   for (const { name, options } of shots) {
@@ -37,6 +39,7 @@ for (const [key, shots] of groups) {
       expression: options.expression || null, lod: options.lod === undefined ? undefined : Number(options.lod),
       fov: options.fov === undefined ? undefined : Number(options.fov),
       focus: options.focus === undefined ? undefined : Number(options.focus),
+      tx: options.tx === undefined ? undefined : Number(options.tx), tz: options.tz === undefined ? undefined : Number(options.tz),
     };
     const result = await page.evaluate(o => window.capyReview.shot(o), o);
     await page.screenshot({ path: `${out}/${name}.png` });

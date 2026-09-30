@@ -36,7 +36,23 @@ if (heldWeapon && Object.hasOwn(WEAPONS, heldWeapon)) {
 // Access is confined to this dev fixture, so production renderer needs no debug API.
 const view = renderer as unknown as {
   scene: THREE.Scene; gl: THREE.WebGLRenderer; pipeline: RenderPipeline; avatars: AvatarView; weaponView: WeaponView; interiorLight: THREE.PointLight;
+  sun: THREE.DirectionalLight; worldView: { group: THREE.Group }; ambientLife: { points: THREE.Points };
 };
+// A measured unobstructed lane for actual-distance LOD review, retaining game lighting,
+// fog, shadows and post-processing. This is confined to the development fixture.
+if (params.has('range')) {
+  view.worldView.group.visible = false; view.ambientLife.points.visible = false;
+  const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), new THREE.MeshStandardMaterial({ color: '#777768', roughness: 1 }));
+  floorMesh.rotation.x = -Math.PI / 2; floorMesh.position.set(center.x, floor, center.z); floorMesh.receiveShadow = true;
+  view.scene.add(floorMesh);
+  const sunDirection = view.sun.position.clone().sub(view.sun.target.position).normalize();
+  view.sun.target.position.set(center.x, floor, center.z); view.sun.position.copy(view.sun.target.position).addScaledVector(sunDirection, 80);
+  if (params.get('lighting') === 'shade') {
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(8, .15, 8), new THREE.MeshStandardMaterial({ color: '#6d746e', roughness: 1 }));
+    roof.position.set(center.x + sunDirection.x * 5, floor + 1.6 + sunDirection.y * 5, center.z + sunDirection.z * 5);
+    roof.castShadow = true; view.scene.add(roof);
+  }
+}
 if (room) {
   // Same bakery lamp placement and settled intensity as GameRenderer.update().
   view.interiorLight.position.set(room.pos.x + room.scale.x / 2 - 1.95, room.pos.y + .93, room.pos.z - room.scale.z * .24);
@@ -50,11 +66,14 @@ avatar.label.visible = false;
 const hitboxes = createCapybaraHitboxOverlay(); avatar.group.add(hitboxes);
 
 const clay = new THREE.MeshStandardMaterial({ color: '#b9b3a8', roughness: .85 });
-function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean; labels?: boolean; clay?: boolean; fov?: number; focus?: number } = {}) {
+function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean; labels?: boolean; clay?: boolean; fov?: number; focus?: number; tx?: number; tz?: number } = {}) {
   const { angle = 'three-quarter', distance = 3, clip = 'idle', time = .3, overlay = false } = options;
   setCapybaraExpression(avatar.body, options.expression || null);
   avatar.group.visible = true;
   actor.velocity.z = clip === 'run' ? -6 : clip === 'walk' ? -3.9 : clip === 'crouch_walk' ? -2.1 : 0;
+  actor.velocity.x = clip === 'strafe_l' ? -3.9 : clip === 'strafe_r' ? 3.9 : 0;
+  if (clip === 'backpedal') actor.velocity.z = 3.9;
+  if (clip === 'run') actor.velocity.z = -6.4;
   actor.velocity.y = clip === 'jump' ? 2 : clip === 'fall' ? -5 : 0;
   actor.crouch = clip.startsWith('crouch'); actor.sprint = clip === 'run';
   actor.stage = clip === 'freefall' ? 'falling' : clip === 'parachute' ? 'parachute' : 'ground';
@@ -75,13 +94,15 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
   // The near paw advances toward the lens during run, requiring extra room at 1 m.
   renderer.camera.fov = options.fov ?? (options.head ? 42 : distance === 1 ? 120 : 60);
   const focusY = options.focus ?? (options.head ? 1.6 : .94);
-  renderer.camera.position.set(center.x + Math.sin(azimuth) * distance, floor + focusY, center.z - Math.cos(azimuth) * distance);
-  renderer.camera.lookAt(center.x, floor + focusY, center.z);
+  // Optional look-at point in character space (x right, z forward is -z), e.g. a paw on the gun.
+  const [tx, tz] = [options.tx ?? 0, options.tz ?? 0];
+  renderer.camera.position.set(center.x + tx + Math.sin(azimuth) * distance, floor + focusY, center.z + tz - Math.cos(azimuth) * distance);
+  renderer.camera.lookAt(center.x + tx, floor + focusY, center.z + tz);
   renderer.camera.updateProjectionMatrix();
   if (options.lod !== undefined) {
     const lod = avatar.body.getObjectByName('Capivara_LOD') as THREE.LOD;
     lod.autoUpdate = false; lod.levels.forEach((level, i) => { level.object.visible = i === options.lod; });
-  }
+  } else (avatar.body.getObjectByName('Capivara_LOD') as THREE.LOD).autoUpdate = true;
   renderer.resize();
   frame.dt = 1 / 30;
   for (let i = 0; i < Math.ceil(time * 30); i++) {
@@ -95,7 +116,11 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
   view.scene.overrideMaterial = null;
   document.querySelector<HTMLElement>('#caption')!.hidden = params.has('clean');
   document.querySelector('#caption')!.innerHTML = `<strong>CAPIVARA • ${clip.toUpperCase()}</strong><br>${angle} · ${distance} m · ${overlay ? 'hitbox cabeça r 0,25 / corpo r 0,30' : 'paleta Pincel · rig do jogo'}<br><small>Renderer do jogo · câmera fixa de revisão · FOV ${renderer.camera.fov}° · ${room ? 'interior' : 'exterior'}</small>`;
-  return { name: avatar.body.name, children: avatar.body.children.length, triangles: stats.triangles };
+  const lod = avatar.body.getObjectByName('Capivara_LOD') as THREE.LOD;
+  return { name: avatar.body.name, children: avatar.body.children.length, triangles: stats.triangles, drawCalls: stats.drawCalls,
+    distance: renderer.camera.position.distanceTo(new THREE.Vector3(center.x, floor + focusY, center.z)),
+    lod: lod.levels.findIndex(level => level.object.visible), fov: renderer.camera.fov,
+    lighting: params.get('lighting') || 'daylight', range: params.has('range') };
 }
 function advance(seconds: number, firstPerson = false) {
   for (let remaining = seconds; remaining > 1e-8; remaining -= frame.dt) {

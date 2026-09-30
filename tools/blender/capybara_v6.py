@@ -4,9 +4,10 @@
    OpenVDB: the dense source for baking, one watertight surface of fur, cloth and gear.
 2. The game mesh is that surface decimated to three LODs that share one UV layout.
 3. Cycles bakes position, normals (object and tangent space) and occlusion from the dense
-   source into the game UVs; capybara_paint.py paints albedo, roughness, metal, the team
-   mask and fine relief (fur strands, weave, grain, stitches) per texel from those maps and
-   the SDF's own material ids, so material borders are crisp at texel resolution.
+   source into the game UVs (4096) and caches them. After Blender exits, capybara_maps.py
+   paints albedo, roughness, metal, the team mask and fine relief (groomed fur, weave, grain,
+   seams and stitches) per texel from that cache and the SDF's own material ids, so material
+   borders are crisp at texel resolution; build-characters.mjs packs the maps into the GLB.
 4. The rig keeps every v4/v5 bone name and adds chest, toes, pack and hipcloth. Weights
    come from the nearest body part of the sculpt (soft minimum of part distances), the paws
    from digit ownership like the first-person arms, the face from its own bones.
@@ -25,15 +26,15 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import capy_sdf as S
 import capybara_form as C
-import capybara_paint as PAINT
 import paw_sculpt as P
 
 ROOT = HERE.parents[1]
 OUT = ROOT / 'output/characters'; OUT.mkdir(parents=True, exist_ok=True)
 CACHE = OUT / 'v6'; CACHE.mkdir(exist_ok=True)
-TEX = 2048
+TEX = 4096       # bake, albedo and normal; the ORM map (roughness, metal, team mask) ships at half size
+ORM_TEX = 2048
 VOXEL = float(__import__('os').environ.get('CAPY_VOXEL', '.0025'))
-LOD_BUDGET = [26000, 7800, 2200]
+LOD_BUDGET = [40000, 9500, 2300]
 started = time.time()
 
 
@@ -142,7 +143,7 @@ game = bpy.context.view_layer.objects.active; game.name = 'game'
 game.data.calc_loop_triangles()
 log('game mesh', len(game.data.loop_triangles), 'triangles')
 
-# UVs: one atlas; the head gets 1.7x texel density (faces are read close up), the soles less.
+# UVs: one atlas; the head gets 2.1x texel density (faces are read close up), the paws 1.5x, the soles less.
 select_only(game)
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=.003, area_weight=.3, scale_to_bounds=False)
@@ -178,7 +179,7 @@ for f in bm.faces:
     eye = any(part[l.vert.index] == 1 for g in island for l in g.loops)
     head = cen.y > 1.47 and cen.z < .20
     paw = min(np.linalg.norm(np.array(tuple(cen)) - C.wrist(s)) for s in (-1, 1)) < .16
-    k = 2.2 if eye else 1.7 if head else 1.25 if paw else .7 if cen.y < .03 else 1.0
+    k = 2.6 if eye else 2.1 if head else 1.5 if paw else .5 if cen.y < .03 else 1.0
     if k != 1.0:
         uv_c = sum((l[uvl].uv for g in island for l in g.loops), Vector((0, 0))) / sum(len(g.loops) for g in island)
         for g in island:
@@ -193,7 +194,8 @@ log('uv')
 
 # ------------------------------------------------------------------ 3. bake
 scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 1
-scene.render.bake.margin = 6; scene.render.bake.use_selected_to_active = True
+scene.render.threads_mode = 'FIXED'; scene.render.threads = 3
+scene.render.bake.margin = 10; scene.render.bake.use_selected_to_active = True
 scene.render.bake.cage_extrusion = .008; scene.render.bake.max_ray_distance = .02
 hi_pts = coords(hi)
 pos = hi.data.color_attributes.new('pos', 'FLOAT_COLOR', 'POINT')
@@ -224,8 +226,8 @@ node = bake_mat.node_tree.nodes.new('ShaderNodeTexImage'); bake_mat.node_tree.no
 game.data.materials.clear(); game.data.materials.append(bake_mat)
 
 
-def bake(kind, name, material=None, **kw):
-    img = bpy.data.images.new(name, TEX, TEX, alpha=False, float_buffer=True)
+def bake(kind, name, material=None, size=TEX, **kw):
+    img = bpy.data.images.new(name, size, size, alpha=False, float_buffer=True)
     img.colorspace_settings.name = 'Non-Color'
     node.image = img
     for o in highs:
@@ -233,41 +235,58 @@ def bake(kind, name, material=None, **kw):
         if material: o.data.materials.append(material)
     select_only(game, *highs); bpy.context.view_layer.objects.active = game
     bpy.ops.object.bake(type=kind, **kw)
-    px = np.empty(TEX * TEX * 4, np.float32); img.pixels.foreach_get(px)
-    return px.reshape(TEX, TEX, 4)[..., :3].copy()
+    px = np.empty(size * size * 4, np.float32); img.pixels.foreach_get(px)
+    node.image = None; bpy.data.images.remove(img)
+    return px.reshape(size, size, 4)[..., :3].copy()
 
 
 log('bake position'); P_map = bake('EMIT', 'pos', emit_material('emit_pos', 'pos'))
 log('bake eye mask'); E_map = bake('EMIT', 'eyemask', emit_material('emit_eye', 'pos', alpha=True))[..., 0]
-log('bake object normal'); N_obj = bake('NORMAL', 'nobj', bpy.data.materials.new('plain_a'), normal_space='OBJECT')
-log('bake tangent normal'); N_tan = bake('NORMAL', 'ntan', bpy.data.materials.new('plain_b'), normal_space='TANGENT')
+# Direct low-surface positions resolve material ownership where a decimated armhole bridges
+# a crevice. Projection rays there can alternately hit the vest and the sleeve behind it.
+low_pos = game.data.color_attributes.new('pos', 'FLOAT_COLOR', 'POINT')
+low_pos.data.foreach_set('color', np.concatenate([coords(game), np.ones((len(game.data.vertices), 1), np.float32)], 1).ravel())
+low_material = emit_material('emit_low_pos', 'pos')
+low_node = low_material.node_tree.nodes.new('ShaderNodeTexImage'); low_material.node_tree.nodes.active = low_node
+low_img = bpy.data.images.new('low_pos', TEX, TEX, alpha=False, float_buffer=True); low_img.colorspace_settings.name = 'Non-Color'; low_node.image = low_img
+game.data.materials.clear(); game.data.materials.append(low_material)
+select_only(game); scene.render.bake.use_selected_to_active = False; bpy.ops.object.bake(type='EMIT')
+low_px = np.empty(TEX * TEX * 4, np.float32); low_img.pixels.foreach_get(low_px); P_low = low_px.reshape(TEX, TEX, 4)[..., :3].copy()
+low_node.image = None; bpy.data.images.remove(low_img); del low_px
+scene.render.bake.use_selected_to_active = True; game.data.materials.clear(); game.data.materials.append(bake_mat)
+game.data.color_attributes.remove(low_pos)
+log('bake object normal'); N_obj = bake('NORMAL', 'nobj', bpy.data.materials.new('plain_a'), normal_space='OBJECT').astype(np.float16)
+log('bake tangent normal'); N_tan = bake('NORMAL', 'ntan', bpy.data.materials.new('plain_b'), normal_space='TANGENT').astype(np.float16)
 scene.cycles.samples = 48; scene.world = scene.world or bpy.data.worlds.new('w'); scene.world.light_settings.distance = .06
-log('bake occlusion'); AO = bake('AO', 'ao', bpy.data.materials.new('plain_c'))[..., 0]
+# Occlusion is soft: baked at half size (a quarter of the samples) and filtered up.
+log('bake occlusion'); AO = bake('AO', 'ao', bpy.data.materials.new('plain_c'), size=TEX // 2)[..., 0]
+AO = np.repeat(np.repeat(AO, 2, 0), 2, 1)
+AO = ((AO + np.roll(AO, 1, 0) + np.roll(AO, -1, 0) + np.roll(AO, 1, 1) + np.roll(AO, -1, 1)) / 5).astype(np.float16)
 # Coverage: texels the bake wrote (margin included) have a nonzero object normal.
-covered = np.abs(np.linalg.norm(N_obj * 2 - 1, axis=2) - 1) < .08
-np.savez_compressed(CACHE / 'bakes.npz', P=P_map, E=E_map, N_obj=N_obj, N_tan=N_tan, AO=AO, covered=covered)
+covered = np.abs(np.linalg.norm(N_obj.astype(np.float32) * 2 - 1, axis=2) - 1) < .08
+# The painter (capybara_maps.py) runs from this cache after Blender exits.
+np.savez(CACHE / 'bakes.npz', P=P_map, P_low=P_low, E=E_map.astype(np.float16), N_obj=N_obj, N_tan=N_tan, AO=AO, covered=covered)
+del P_map, P_low, N_obj, N_tan, AO, E_map, covered
 log('bakes cached')
 for o in highs:
     bpy.data.objects.remove(o)
 
-# ------------------------------------------------------------------ 4. paint
-albedo, orm, normal = PAINT.paint(root, P_map, G(N_obj * 2 - 1), N_tan, AO, E_map > 1.5, covered, log=log)
 
-
-def save(name, rgb, srgb_out):
-    img = bpy.data.images.new(name, TEX, TEX, alpha=False)
-    if srgb_out:
-        rgb = np.where(rgb <= .0031308, rgb * 12.92, 1.055 * np.power(np.clip(rgb, 0, 1), 1 / 2.4) - .055)
-    else:
+# ------------------------------------------------------------------ 4. material
+# Small placeholders keep the exported material's texture slots; build-characters.mjs puts the
+# painted maps (capybara_maps.py, from the bake cache) into them when it packs the GLB.
+def placeholder(name, rgb, colour):
+    img = bpy.data.images.new(name, 8, 8, alpha=False)
+    if not colour:
         img.colorspace_settings.name = 'Non-Color'
-    img.pixels.foreach_set(np.concatenate([np.clip(rgb, 0, 1), np.ones((TEX, TEX, 1), np.float32)], 2).astype(np.float32).ravel())
-    img.filepath_raw = str(OUT / f'{name}.png'); img.file_format = 'PNG'; img.save()
+    img.pixels.foreach_set(np.tile(np.array([*rgb, 1], np.float32), 64))
+    img.filepath_raw = str(CACHE / f'{name}.png'); img.file_format = 'PNG'; img.save()
     return img
 
 
-albedo_img = save('capybara_albedo', albedo, True)
-normal_img = save('capybara_normal', normal, False)
-orm_img = save('capybara_orm', orm, False)
+albedo_img = placeholder('capybara_albedo', (.5, .5, .5), True)
+normal_img = placeholder('capybara_normal', (.5, .5, 1), False)
+orm_img = placeholder('capybara_orm', (0, .8, 0), False)
 mat = bpy.data.materials.new('capybara_v6'); mat.use_nodes = True; nt = mat.node_tree
 bsdf = nt.nodes.get('Principled BSDF')
 t = nt.nodes.new('ShaderNodeTexImage'); t.image = albedo_img; nt.links.new(t.outputs['Color'], bsdf.inputs['Base Color'])
