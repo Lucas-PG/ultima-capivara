@@ -51,7 +51,9 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
     previous.call(this, shader, renderer);
     shader.uniforms.characterRim = { value: rim };
     // Team-coloured rim on far world characters (their team cloth is only a few pixels at 60 m).
-    shader.uniforms.characterTeam = { value: (material.userData.teamColor as THREE.Color | undefined) ?? rim };
+    // userData survives clone() only as plain {r, g, b}, so rebuild the colour.
+    const team = material.userData.teamColor as { r: number; g: number; b: number } | undefined;
+    shader.uniforms.characterTeam = { value: team ? new THREE.Color(team.r, team.g, team.b) : rim };
     if (bakedFur) {
       shader.vertexShader = `attribute float _fur;\nvarying float vFurMask;\n${shader.vertexShader}`
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFurMask = _fur;');
