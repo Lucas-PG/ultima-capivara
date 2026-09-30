@@ -7,17 +7,21 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
   // ---- gun triangles in weapon space, indexed for exact nearest queries
   const tris = [];
-  model.group.traverse(o => {
-    if (!o.isMesh || o.isSkinnedMesh || !o.geometry.attributes.position) return;
+  const opposingPaw = Object.values(intent.contactParts ?? {}).includes('paw')
+    ? vm.arms.meshes.find(m => m.name.endsWith(side === 'R' ? 'L' : 'R')) : null;
+  const collect = o => {
+    if (!o.isMesh || (o.isSkinnedMesh && o !== opposingPaw) || !o.geometry.attributes.position) return;
     for (let parent = o; parent; parent = parent.parent) if (!parent.visible) return;
     const m = new M4().multiplyMatrices(toGun, o.matrixWorld), pos = o.geometry.attributes.position, idx = o.geometry.index;
     const count = idx ? idx.count : pos.count;
-    const at = i => new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m).multiplyScalar(scale);
+    const at = i => (o.isSkinnedMesh ? o.getVertexPosition(idx ? idx.getX(i) : i, new V3()) : new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i)).applyMatrix4(m).multiplyScalar(scale);
     for (let i = 0; i < count; i += 3) {
       const a = at(i), b = at(i + 1), c = at(i + 2), n = new V3().subVectors(b, a).cross(new V3().subVectors(c, a));
       if (n.lengthSq() > 1e-16) tris.push({ a, b, c, n, owner: o });
     }
-  });
+  };
+  model.group.traverse(collect);
+  if (opposingPaw) collect(opposingPaw);
   function tree(list) {
     const lo = new V3(Infinity, Infinity, Infinity), hi = new V3(-Infinity, -Infinity, -Infinity);
     for (const t of list) { lo.min(t.a).min(t.b).min(t.c); hi.max(t.a).max(t.b).max(t.c); }
@@ -33,7 +37,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   // Optional contactParts maps a digit segment or palm to its actual part.
   const partTrees = {};
   for (const id of new Set(Object.values(intent.contactParts ?? {}))) {
-    const object = model.parts[id];
+    const object = id === 'paw' ? opposingPaw : model.parts[id];
     if (!object) throw new Error(`Unknown contact part: ${id}`);
     const selected = tris.filter(t => {
       for (let o = t.owner; o; o = o.parent) if (o === object) return true;

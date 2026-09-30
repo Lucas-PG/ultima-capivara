@@ -4,12 +4,12 @@
 // action:'hip'|'ads'|'reload'|'reload-partial'|'inspect'|'sprint'|'fire', seconds?, tune?, out?, views?}; {op:'close'}
 // For world review, use tp:true with a tpMotion action, or pose:'world-<id>'.
 // camera:[x,y,z,targetX,targetY,targetZ,fov] frames either from a free camera.
+// pair:true also measures skin clearance between the paws. contactParts:{palm:'paw'}
+// fits a support cup against the currently posed firing paw as well as the gun.
 import { chromium } from '@playwright/test';
 import { createInterface } from 'node:readline';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { fitGrip } from './grip-solver.mjs';
-import { measureGrip } from './grip-measure.mjs';
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('console', m => { if (m.text().startsWith('fit-progress')) console.log(m.text()); });
@@ -31,6 +31,8 @@ try {
     try {
       const c = JSON.parse(line);
       if (c.op === 'close') break;
+      const { fitGrip } = await import(`./grip-solver.mjs?${Date.now()}`);
+      const { measureGrip } = await import(`./grip-measure.mjs?${Date.now()}`);
       await ready();
       await page.evaluate(([w, tune]) => { window.__vmOrbit = undefined; window.__camOverride = undefined; window.__vmTune = { [w]: tune ?? {} }; }, [c.weapon, c.tune]);
       const action = c.action ?? 'hip', motion = c.intent?.motion;
@@ -58,6 +60,13 @@ try {
         if (c.op === 'probe') for (const side of ['R', 'L']) {
           result[side] = await page.evaluate(measureGrip, [c.weapon, side]);
           console.log('CLEARANCE', c.weapon, action, c.seconds ?? 0, side, result[side].worst);
+        }
+        if (c.pair) {
+          result.pair = {};
+          for (const side of ['R', 'L']) {
+            result.pair[side] = await page.evaluate(measureGrip, [c.weapon, side, true]);
+            console.log('PAW CONTACT', side, result.pair[side].worst);
+          }
         }
         if (c.out) for (const view of c.views ?? ['eye']) {
           await page.evaluate(v => {

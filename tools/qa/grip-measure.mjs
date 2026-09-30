@@ -1,5 +1,5 @@
 // Signed skin-to-weapon clearance used by still and motion reviews. Distances are millimetres.
-export function measureGrip([weapon, side]) {
+export function measureGrip([weapon, side, opposingPaw = false]) {
   const vm = window.__vmProbe, model = vm.models[weapon], holder = vm.holder;
   vm.scene.updateMatrixWorld(true);
   const M4 = holder.matrixWorld.constructor, V3 = holder.position.constructor;
@@ -7,13 +7,14 @@ export function measureGrip([weapon, side]) {
   const scale = holder.scale.x;
   // Gun triangles in weapon space (metres at scale 1).
   const tris = [];
-  model.group.traverse(o => {
-    if (!o.isMesh || o.isSkinnedMesh || !o.visible || !o.geometry.attributes.position) return;
+  const surface = opposingPaw ? vm.arms.meshes.find(m => m.name.endsWith(side === 'R' ? 'L' : 'R')) : model.group;
+  surface.traverse(o => {
+    if (!o.isMesh || (!opposingPaw && o.isSkinnedMesh) || !o.visible || !o.geometry.attributes.position) return;
     let hidden = false; for (let p = o; p; p = p.parent) if (!p.visible) hidden = true;
     if (hidden) return;
     const m = new M4().multiplyMatrices(toGun, o.matrixWorld), pos = o.geometry.attributes.position, idx = o.geometry.index;
     const count = idx ? idx.count : pos.count;
-    const at = i => new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m).multiplyScalar(scale);
+    const at = i => (o.isSkinnedMesh ? o.getVertexPosition(idx ? idx.getX(i) : i, new V3()) : new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i)).applyMatrix4(m).multiplyScalar(scale);
     for (let i = 0; i < count; i += 3) tris.push([at(i), at(i + 1), at(i + 2), o.name]);
   });
   const mesh = vm.arms.meshes.find(m => m.name.endsWith(side));
