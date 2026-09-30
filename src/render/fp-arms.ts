@@ -192,9 +192,12 @@ class Arm {
 // Shell fur: the fur faces repeated as offset shells in one skinned draw. Each
 // shell keeps only the strands of a 3D noise field anchored to the bind pose,
 // thinning toward the tips and combed toward the paw, so the silhouette reads
-// as a pelt instead of a tube. The count follows the graphics preset.
+// as a pelt instead of a tube. The strand and lock fields are the world
+// character's (capybara-fur.ts) at the first-person paw scale (1 / 1.3), so the
+// forearm reads as the same pelt. The count follows the graphics preset.
 export const FUR_SHELLS = 12;
-const FUR_LENGTH = .0055;
+const PAW_SCALE = 1 / 1.3;
+const FUR_LENGTH = .011 * PAW_SCALE;
 function furShellMesh(mesh: THREE.SkinnedMesh, base: THREE.MeshStandardMaterial): THREE.SkinnedMesh | null {
   const source = mesh.geometry, index = source.index;
   if (!index) return null;
@@ -259,11 +262,16 @@ function furShellMesh(mesh: THREE.SkinnedMesh, base: THREE.MeshStandardMaterial)
                    mix(mix(furHash3(i + vec3(0, 0, 1)), furHash3(i + vec3(1, 0, 1)), f.x), mix(furHash3(i + vec3(0, 1, 1)), furHash3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
       ${shader.fragmentShader}`
       .replace('#include <color_fragment>', `#include <color_fragment>
-        float furStrand = furNoise3(vFurRest * 760.0) * .72 + furNoise3(vFurRest * 170.0) * .38;
-        if (furStrand < mix(.42, .9, vFurShell)) discard;
-        diffuseColor.rgb *= mix(.62, 1.14, vFurShell);`);
+        // World-character units: strands fine across the comb (-z, toward the paw) and long
+        // along it, gathered into locks about a centimetre across.
+        vec3 furW = vFurRest / ${PAW_SCALE.toFixed(6)};
+        vec3 furP = vec3(furW.xy * 900.0, furW.z * 120.0);
+        vec3 furL = vec3(furW.xy * 95.0, furW.z * 30.0);
+        float furStrand = furNoise3(furP) * .72 + furNoise3(furW * 140.0) * .20 + (furNoise3(furL) - .5) * .42;
+        if (furStrand < mix(.50, .96, vFurShell)) discard;
+        diffuseColor.rgb *= mix(.90, 1.12, vFurShell);`);
   };
-  material.customProgramCacheKey = () => 'fp-fur-shells-v1';
+  material.customProgramCacheKey = () => 'fp-fur-shells-v2';
   const shells = new THREE.SkinnedMesh(geometry, material);
   shells.name = `${mesh.name}_fur`; shells.frustumCulled = false; shells.castShadow = false;
   shells.bind(mesh.skeleton, mesh.bindMatrix);

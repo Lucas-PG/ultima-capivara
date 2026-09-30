@@ -1,6 +1,6 @@
 """Close studio stills of the first-person paw for art review. Blender 5.0.1.
 
-Usage: blender -b --python tools/blender/paw_preview.py -- <outDir> [curl json] [glb]
+Usage: blender -b --python tools/blender/paw_preview.py -- <outDir> [curl json] [glb] [distance m]
 Renders the right arm of output/fp/fp-arms.raw.glb from the back, the palm, the
 thumb side and three quarters, EEVEE, 1024x1024, under a warm key and a cool fill.
 The optional curl json ({"index": [a, b, c], ...}, radians per joint) flexes the
@@ -16,8 +16,9 @@ from mathutils import Vector
 argv = sys.argv[sys.argv.index('--') + 1:]
 out = Path(argv[0]); out.mkdir(parents=True, exist_ok=True)
 curl = json.loads(argv[1]) if len(argv) > 1 and argv[1] else {}
-glb = argv[2] if len(argv) > 2 else str(Path(__file__).resolve().parents[2] / 'output/fp/fp-arms.raw.glb')
+glb = argv[2] if len(argv) > 2 and argv[2] else str(Path(__file__).resolve().parents[2] / 'output/fp/fp-arms.raw.glb')
 
+distance = float(argv[3]) if len(argv) > 3 else .42
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete()
 scene = bpy.context.scene
 scene.render.engine = 'BLENDER_EEVEE'
@@ -54,7 +55,7 @@ cam = bpy.data.objects.new('cam', cam_data); scene.collection.objects.link(cam);
 # The glTF importer brings the arm back to Blender axes: along the arm is +Y, the back of the paw +Z.
 views = {'back': Vector((0, -.05, 1)), 'palm': Vector((0, -.05, -1)), 'side': Vector((-1, 0, .15)), 'three': Vector((-.7, -.35, .6))}
 for view, direction in views.items():
-    cam.location = focus + direction.normalized() * .42
+    cam.location = focus + direction.normalized() * distance
     look = focus - cam.location
     cam.rotation_euler = look.to_track_quat('-Z', 'Y').to_euler()
     scene.render.filepath = str(out / f'paw-{view}.png')

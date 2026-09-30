@@ -1,15 +1,27 @@
-"""First-person capybara arms (v3), Blender 5.0.1, metres, arm along +Y.
+"""First-person capybara arms (v4): the world character's own paw, forearm and rolled cuff.
 
-The skin is the sculpt from paw_sculpt.py (metaball paw fused with the
-forearm). A dense copy gets the fine detail (fur clumps, pebbled pads, joint
-creases, nail ridges) and painted colour per vertex; a decimated copy is the
-game mesh. Normal, colour, roughness and occlusion are baked from the dense
-sculpt onto the game mesh's own 2K maps. Rolled linen sleeves and glossy claws
-join the same texture set. Skin weights follow bone ownership: every vertex
-belongs to the hand or to one digit chain, blended across joints only. A
-`_FUR` vertex attribute tells the runtime where fur shells grow and how long.
+Blender 5.0.1, metres. Arm frame: shoulder at the origin, the arm along +Y (elbow at ELBOW,
+wrist at WRIST), the back of the paw +Z, the index toward -X (right arm). This is also the
+paw space of capy_hand.py, so the paw is the character's paw (capy_hand.build) placed at the
+wrist at PAW_SCALE: third-person guns are drawn at TP_WEAPON_SCALE (1.3) so the big world paw
+holds them, first-person guns at 1.0, so the first-person paw is the world paw at 1 / 1.3 and
+every grip reads with the same paw-to-gun proportion in both views.
 
-Usage: blender -b --python tools/blender/fp_arms.py [-- --preview <dir>]
+1. The sculpt is signed distance fields (capy_sdf.py): the character's forearm sections
+   (capybara_form.arm) and the character's paw, fused with a small fillet, inside the
+   character's rolled linen sleeve and cuff (capybara_form.shirt), all scaled by PAW_SCALE
+   across the arm. The arm keeps the rig's lengths (the IK framing depends on them).
+2. OpenVDB polygonizes it densely; the dense copy gets fine relief and per-vertex paint in
+   the character's palette and rules (capybara_paint.py: groomed locks, a lighter inner
+   forearm, bare leathery skin on the palm and digits, glossy dark claws, linen), evaluated
+   in world-paw coordinates so locks, borders and grain land exactly where they do on the
+   character. A decimated copy is the game mesh; colour, roughness, normal and occlusion are
+   baked from the dense copy onto its own 2K maps.
+3. Skin weights follow bone ownership (every vertex belongs to the hand or to one digit
+   chain, blended across joints only); a `_FUR` vertex attribute tells the runtime where fur
+   shells grow and how long.
+
+Usage: blender -b --python tools/blender/fp_arms.py [-- --voxel .0006 --tris 15000]
 """
 import bpy
 import bmesh
@@ -20,16 +32,27 @@ import time
 from pathlib import Path
 import numpy as np
 from mathutils import Vector, Matrix
-from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import paw_sculpt as P
+import capy_sdf as S
+import capy_hand as H
+import capybara_paint as CP
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'output/fp'; OUT.mkdir(parents=True, exist_ok=True)
 TEX = 2048
-SKIN_TRIS = 11000
-argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+# Options after `--` (environment variables do not reach the remote build machine).
+ARGV = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+OPT = dict(zip(ARGV[::2], ARGV[1::2]))
+GAME_TRIS = int(OPT.get('--tris', 15000))
+VOXEL = float(OPT.get('--voxel', .0006))
+# The world paw at the first-person gun scale (1 / TP_WEAPON_SCALE).
+PAW_SCALE = 1 / 1.3
+K = PAW_SCALE
+ELBOW, WRIST = .30, .60
+F = np.float32
+MAT = {'fur': 0, 'claw': 1, 'shirt': 2, 'cuff': 3}
+PART = {'fur': 0, 'shirt': 1, 'cuff': 1, 'claw': 2}
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 started = time.time()
 
@@ -38,80 +61,97 @@ def log(*a):
     print(f'[fp_arms {time.time() - started:6.1f}s]', *a, flush=True)
 
 
-def srgb(value):
-    c = np.array([int(value[i:i + 2], 16) / 255 for i in (0, 2, 4)], np.float32)
-    return np.where(c <= .04045, c / 12.92, ((c + .055) / 1.055) ** 2.4)
+srgb, ss, lerp = CP.srgb, CP.ss, CP.lerp
 
 
 def link(obj):
     bpy.context.scene.collection.objects.link(obj); return obj
 
 
-def from_bm(name, bm):
-    mesh = bpy.data.meshes.new(name); bm.to_mesh(mesh); bm.free()
-    return link(bpy.data.objects.new(name, mesh))
-
-
 def coords(obj):
-    co = np.empty(len(obj.data.vertices) * 3, np.float32); obj.data.vertices.foreach_get('co', co)
+    co = np.empty(len(obj.data.vertices) * 3, F); obj.data.vertices.foreach_get('co', co)
     return co.reshape(-1, 3)
 
 
 def normals(obj):
-    n = np.empty(len(obj.data.vertices) * 3, np.float32); obj.data.vertices.foreach_get('normal', n)
+    n = np.empty(len(obj.data.vertices) * 3, F); obj.data.vertices.foreach_get('normal', n)
     return n.reshape(-1, 3)
 
 
-# ------------------------------------------------------------------ noise
-def _hash(ix, iy, iz, seed):
-    h = (ix * 73856093) ^ (iy * 19349663) ^ (iz * 83492791) ^ (seed * 2654435761)
-    h = (h ^ (h >> 13)) * 1274126177
-    return ((h ^ (h >> 16)) & 0xffffff).astype(np.float32) / 0xffffff
+def mesh_object(name, verts, faces):
+    faces = np.asarray(faces, np.int64); k = faces.shape[1]
+    me = bpy.data.meshes.new(name)
+    me.vertices.add(len(verts)); me.vertices.foreach_set('co', np.asarray(verts, F).ravel())
+    me.loops.add(faces.size); me.loops.foreach_set('vertex_index', faces.ravel().astype(np.int32))
+    me.polygons.add(len(faces))
+    me.polygons.foreach_set('loop_start', (np.arange(len(faces)) * k).astype(np.int32))
+    me.polygons.foreach_set('loop_total', np.full(len(faces), k, np.int32))
+    me.update(calc_edges=True); me.validate(clean_customdata=False)
+    me.polygons.foreach_set('use_smooth', np.ones(len(faces), bool))
+    return link(bpy.data.objects.new(name, me))
 
 
-def value_noise(p, seed=0):
-    """Smooth 3D value noise in [0, 1] for an (n, 3) array of points."""
-    i = np.floor(p).astype(np.int64); f = p - i; f = f * f * (3 - 2 * f)
-    out = np.zeros(len(p), np.float32)
-    for dx in (0, 1):
-        for dy in (0, 1):
-            for dz in (0, 1):
-                w = (f[:, 0] if dx else 1 - f[:, 0]) * (f[:, 1] if dy else 1 - f[:, 1]) * (f[:, 2] if dz else 1 - f[:, 2])
-                out += w * _hash(i[:, 0] + dx, i[:, 1] + dy, i[:, 2] + dz, seed)
-    return out
+# ------------------------------------------------------------------ the sculpt (arm space)
+W = np.array([0, WRIST, 0], F)
+Y = np.array([0, 1, 0], F)
 
 
-def fbm(p, octaves=4, seed=0):
-    total, amp, norm = np.zeros(len(p), np.float32), 1.0, 0.0
-    for o in range(octaves):
-        total += amp * value_noise(p * (2 ** o), seed + o); norm += amp; amp *= .5
-    return total / norm
+def v(*a):
+    return np.array(a, F)
 
 
-def cells(p, seed=0):
-    """Distance to the nearest jittered feature point (Worley F1), cell units."""
-    i = np.floor(p).astype(np.int64); best = np.full(len(p), 9.0, np.float32)
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
-            for dz in (-1, 0, 1):
-                c = i + np.array([dx, dy, dz])
-                j = np.stack([_hash(c[:, 0], c[:, 1], c[:, 2], seed + k) for k in range(3)], 1)
-                best = np.minimum(best, np.linalg.norm(c + j - p, axis=1))
-    return best
+# The character's forearm (capybara_form.arm): widest below the elbow, tapering to a broad
+# wrist; the larger half-axis runs back to palm (the character's `out` side is the back of the
+# paw), the smaller across the knuckles. Stations keep the character's 30 / 70 percent spacing.
+FORE_Y = [ELBOW, ELBOW + (WRIST - ELBOW) * .30, ELBOW + (WRIST - ELBOW) * .70, WRIST]
+FORE_BACK = [.086 * K, .088 * K, .076 * K, .064 * K]
+FORE_SIDE = [.080 * K, .080 * K, .066 * K, .052 * K]
+# Inside the sleeve the arm runs on as the character's upper arm; the sleeve hides it.
+UPPER_Y = [.12, .20, ELBOW]
+UPPER_R = [.096 * K, .096 * K, .086 * K]
+SLEEVE_Y = [-.12, .16, ELBOW]
+SLEEVE_R = [.116 * K, .116 * K, .106 * K]
+# The character's shirt sleeve ends just past the elbow in a flat cuff band folded back over
+# a soft roll (capybara_form.shirt), offset .020 off the upper arm.
+SLEEVE_END = ELBOW + .030 * K
+
+
+def sleeve_folds(p):
+    """The character's sleeve drape and the crumple above the cuff (capybara_form.shirt_folds)."""
+    t = p[:, 1]
+    around = np.arctan2(p[:, 0], p[:, 2])
+    wob = S.value_noise(np.stack([t * 26, around * 1.5, np.full(len(t), 3.0, F)], 1).astype(F), 61)
+    drape = np.sin(around * 3 + t * 22 + wob * 3) * .6 + np.sin(around * 5 - t * 14 + wob * 5) * .4
+    crumple = np.sin(t * 70 + around * 2 + wob * 6) * ss(.16, .25, t)
+    return ((.0040 * drape + .0028 * crumple) * (.5 + .5 * wob) * K).astype(F)
+
+
+def sculpt():
+    fore = S.Loft([(0, y, 0) for y in FORE_Y], FORE_BACK, FORE_SIDE, side=(0, 0, 1), mat=MAT['fur'])
+    upper = S.Loft([(0, y, 0) for y in UPPER_Y], UPPER_R, UPPER_R, side=(0, 0, 1), mat=MAT['fur'])
+    paw = S.Transform(H.build(MAT['fur'], MAT['claw']), W, np.eye(3, dtype=F), K)
+    skin = S.Union([S.Union([upper, fore], k=.030 * K, mat=MAT['fur']), paw], k=.012 * K)
+    tube = S.Loft([(0, y, 0) for y in SLEEVE_Y], SLEEVE_R, SLEEVE_R, side=(0, 0, 1))
+    sleeve = S.Intersect(S.Displace(tube, sleeve_folds, .007 * K), S.Plane(v(0, SLEEVE_END, 0), Y))
+    # Keep the shoulder end inside the frame edge: a flat, closed cap at y = 0.
+    sleeve = S.Intersect(sleeve, S.Plane(v(0, -.005, 0), -Y))
+    R = S.frame(Y, up=(0, 0, 1))
+    cuff = S.Union([S.Torus(v(0, SLEEVE_END - .010 * K, 0), .100 * K, .024 * K, R=R, squash=1.35),
+                    S.Torus(v(0, SLEEVE_END - .046 * K, 0), .103 * K, .017 * K, R=R, squash=1.2)], k=.010 * K)
+    cloth = S.Union([S.Material(sleeve, MAT['shirt']), S.Material(cuff, MAT['cuff'])], k=.004 * K)
+    return S.Union([skin, cloth], k=.004 * K)
 
 
 # ------------------------------------------------------------------ anatomy queries
-W = np.array([0, P.WRIST, 0], np.float32)
-CHAINS = {f: np.array([tuple(p) for p in P.POINTS[f]], np.float32) + W for f in P.FINGERS}
-RADII = {f: np.array(P.DIGITS[f]['radii'], np.float32) for f in P.FINGERS}
-TOPS = {f: np.array([tuple(P.digit_frame(f, i)[2]) for i in range(3)], np.float32) for f in P.FINGERS}
+CHAINS = {f: np.array(H.POINTS[f], F) * K + W for f in H.FINGERS}
+RADII = {f: np.array(H.DIGITS[f]['radii'], F) * K for f in H.FINGERS}
+TOPS = {f: np.array([H.digit_frame(f, i)[2] for i in range(3)], F) for f in H.FINGERS}
 
 
 def chain_query(pts, finger):
-    """Per point: distance to the digit's joint polyline, chain parameter t (0 at the
-    base joint, 3 at the tip, extrapolated below 0 behind it), surface radius and
-    the digit's top direction there."""
-    chain = CHAINS[finger]; best = np.full(len(pts), 9.0, np.float32); t = np.zeros(len(pts), np.float32)
+    """Per point: distance to the digit's joint polyline, chain parameter t (0 at the base
+    joint, 3 at the tip, extrapolated below 0 behind it), surface radius and the digit's top."""
+    chain = CHAINS[finger]; best = np.full(len(pts), 9.0, F); t = np.zeros(len(pts), F)
     for s in range(3):
         a, b = chain[s], chain[s + 1]; ab = b - a
         u = ((pts - a) @ ab) / (ab @ ab)
@@ -125,203 +165,158 @@ def chain_query(pts, finger):
 
 
 def paw_regions(pts, nrm):
-    """Owner digit (or None for the hand), chain parameter, and back-of-paw factor."""
-    owner = np.full(len(pts), -1, np.int8); tpar = np.zeros(len(pts), np.float32)
+    """Owner digit (or -1 for the hand), chain parameter, and back-of-digit factor."""
+    owner = np.full(len(pts), -1, np.int8); tpar = np.zeros(len(pts), F)
     back = np.clip(nrm[:, 2] * 1.4 + .25, 0, 1)
-    best = np.full(len(pts), 9.0, np.float32)
-    for k, finger in enumerate(P.FINGERS):
+    best = np.full(len(pts), 9.0, F)
+    for k, finger in enumerate(H.FINGERS):
         d, t, r, top = chain_query(pts, finger)
         # A digit owns what lies around it past its base joint (the knuckle web stays with the hand).
-        mine = (t > .12) & (d < r * 1.55) & (d - r < best)
+        mine = (t > .12) & (d < r * 1.55) & (d - r < best) & (pts[:, 1] > WRIST)
         owner[mine] = k; tpar[mine] = t[mine]; best[mine] = (d - r)[mine]
         facing = np.clip(np.einsum('ij,ij->i', nrm, top) * 1.3 + .2, 0, 1)
         back[mine] = facing[mine]
     return owner, tpar, back
 
 
-# ------------------------------------------------------------------ parts
-def claws():
-    """Thick blunt capybara claws capping each digit tip (dense and game versions)."""
-    out = {}
-    for level, rings, around in (('hi', 18, 36), ('lo', 6, 12)):
-        bm = bmesh.new()
-        for finger in P.FINGERS:
-            chain = P.POINTS[finger]; axis, side, top = P.digit_frame(finger, 2)
-            r = P.DIGITS[finger]['radii'][3]
-            tip = chain[3] + Vector((0, P.WRIST, 0))
-            prev = None
-            for k in range(rings + 1):
-                s = k / rings
-                # From the nail bed on the back of the distal segment, over the
-                # fingertip and past it, curling down to a blunt point.
-                along = -r * 1.3 + s * r * 2.35
-                curl = max(0, s - .5) / .5
-                width = r * (.80 + .10 * math.sin(math.pi * min(1, s * 1.5))) * (1 - .80 * curl ** 1.5)
-                thick = r * (.40 + .08 * math.sin(math.pi * min(1, s * 1.3))) * (1 - .70 * curl ** 1.4)
-                lift = r * (.74 - .10 * s) - r * 1.0 * curl ** 1.7
-                center = tip + axis * along + top * lift
-                ring = []
-                for j in range(around):
-                    a = j * math.tau / around
-                    # Flat underside, domed top.
-                    y = math.sin(a); z = y * (1 if y > 0 else .35)
-                    ring.append(bm.verts.new(center + side * (math.cos(a) * width) + top * (z * thick)))
-                if prev:
-                    for j in range(around):
-                        bm.faces.new((prev[j], prev[(j + 1) % around], ring[(j + 1) % around], ring[j]))
-                else:
-                    bm.faces.new(list(reversed(ring)))
-                prev = ring
-            bm.faces.new(prev)
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        out[level] = from_bm(f'claws_{level}', bm)
-    return out
+def world(pts):
+    """Arm-space points in the world character's metres (the paint and grooming units)."""
+    return (pts / K).astype(F)
 
 
-SLEEVE = [(-.02, .082, .082), (.08, .083, .082), (.17, .080, .078), (.24, .076, .072),
-          (.262, .078, .073), (.278, .085, .080), (.294, .088, .083), (.307, .083, .078), (.319, .087, .081),
-          (.333, .086, .080), (.345, .078, .072), (.352, .068, .062)]
+def hand_local(pts):
+    """Points in the world paw's own space (capy_hand metres)."""
+    return ((pts - W) / K).astype(F)
 
 
-def sleeve(sides, subdivide):
-    """Rolled linen sleeve: loose folds above, a cuff rolled twice below the elbow."""
-    prof = []
-    for (y0, a0, b0), (y1, a1, b1) in zip(SLEEVE, SLEEVE[1:]):
-        for k in range(subdivide):
-            t = k / subdivide
-            prof.append((y0 + (y1 - y0) * t, a0 + (a1 - a0) * t, b0 + (b1 - b0) * t))
-    prof.append(SLEEVE[-1])
-    fold = lambda a, y: .0025 * math.sin(a * 7 + y * 21) + .0014 * math.sin(a * 12 - y * 35) + .0006 * math.sin(a * 23 + y * 90)
-    return P._loft('sleeve', prof, sides=sides, fold=fold)
+def bare_skin(pts, nrm):
+    """The character's paw rule (capybara_paint): bare leathery skin on the palm and on the
+    digits past the knuckles, fur on the back of the paw up to the knuckles."""
+    h = hand_local(pts)
+    # A soft, tufted border (the character's 4 mm speckle reads as grit this close to the eye).
+    jag = (S.fbm(world(pts) * 140, 2, seed=13) - .5) * .016
+    on_paw = (h[:, 1] > -.02) & (np.linalg.norm(h, axis=1) < .30)
+    palm = ss(.016, .004, h[:, 2] + jag) * ss(-.012, .012, h[:, 1])
+    digits = ss(.088, .104, h[:, 1] + jag)
+    return np.maximum(palm, digits) * on_paw
+
+
+def weave(q, pitch, amp):
+    u = S.value_noise(q * np.array([1 / pitch, 1 / (pitch * 6), 1 / pitch], F), 21)
+    w = S.value_noise(q * np.array([1 / (pitch * 6), 1 / pitch, 1 / (pitch * 6)], F), 22)
+    return ((np.sin(q[:, 0] / pitch * math.pi) * np.sin(q[:, 1] / pitch * math.pi) * .5 + (u + w - 1) * .5) * amp).astype(F)
 
 
 # ------------------------------------------------------------------ detail and paint
-def fur_mask(pts, nrm, owner, tpar, back, edge):
-    """1 where fur grows: the forearm, the wrist, the back and sides of the paw and
-    the backs of the digits. Leathery skin only on the palm pads, the undersides
-    of the digits and the fingertips, with a ragged edge."""
-    q = pts - W
-    jag = (edge - .5) * .35
-    # The sole: a rounded patch over the palm pads, furred at the heel and edges.
-    oval = (q[:, 0] / .032) ** 2 + ((q[:, 1] - .040) / .031) ** 2
-    palm = (owner < 0) & (oval < 1 + jag * 1.5) & (nrm[:, 2] < -.2 + jag)
-    under = (owner >= 0) & (back < .42 + jag)
-    tips = (owner >= 0) & (tpar > 2.55)
-    skin = (palm | under | tips) & (pts[:, 1] > P.WRIST - .005)
-    return (~skin).astype(np.float32)
-
-
-def paint_skin(obj):
-    """Displace the dense skin with fine detail and store colour and roughness per vertex."""
+def paint(obj, mat):
+    """Displace the dense sculpt with fine relief; colour and roughness per vertex."""
     pts, nrm = coords(obj), normals(obj)
-    owner, tpar, back = paw_regions(pts, nrm)
-    on_paw = pts[:, 1] > P.WRIST - .012
-    furry = fur_mask(pts, nrm, owner, tpar, back, fbm(pts * 900, 3, seed=5))
-    # Fur: clumps combed along the arm, finer strands inside them.
-    flow = pts * np.array([1, .25, 1], np.float32)
-    clump = fbm(flow * 520, 3, seed=1); strand = value_noise(flow * np.array([2600, 2600, 2600], np.float32), seed=2)
-    fur_h = (clump - .5) * .0011 + (strand - .5) * .00035
-    # Skin: pebbled leather, softer on the pad tops, creased across the joints.
-    peb = cells(pts * 1100, seed=3)
-    skin_h = (.5 - np.clip(peb, 0, .8)) * .00032
-    crease = np.zeros(len(pts), np.float32)
-    for k, finger in enumerate(P.FINGERS):
+    q = world(pts)
+    colour = np.zeros((len(pts), 3), F); rough = np.full(len(pts), .8, F); height = np.zeros(len(pts), F)
+    broad = S.fbm(q * 5, 2, seed=31)
+    # ---- fur and bare skin
+    fur = mat == MAT['fur']
+    p, n, qq = pts[fur], nrm[fur], q[fur]
+    # Combed from the elbow down the forearm and over the back of the paw to the digits.
+    f = np.broadcast_to(Y, p.shape) - n * n[:, 1:2]
+    f = f / np.maximum(np.linalg.norm(f, axis=1, keepdims=True), 1e-6)
+    fb = np.cross(n, np.broadcast_to(v(1, 0, 0), n.shape)); fb /= np.maximum(np.linalg.norm(fb, axis=1, keepdims=True), 1e-6)
+    f = lerp(f, fb, ss(.35, .05, np.linalg.norm(np.broadcast_to(Y, p.shape) - n * n[:, 1:2], axis=1)))
+    f = f / np.maximum(np.linalg.norm(f, axis=1, keepdims=True), 1e-6)
+    # The character's paw locks (8 x 22 mm on the world paw).
+    h, ridge, tip, strand, hid = CP.groom(qq, f.astype(F), .008, .022, .00040, 2)
+    c = np.broadcast_to(srgb(CP.FUR_BASE), p.shape).copy()
+    hl = hand_local(p)
+    # A lighter inner forearm (the palm side behind the wrist) and lighter undersides.
+    inner = ss(.04, -.05, hl[:, 2]) * ss(.22, .12, np.abs(hl[:, 0])) * ss(.08, .01, hl[:, 1]) * ss(-.34, -.22, hl[:, 1])
+    c = lerp(c, srgb(CP.FUR_LIGHT), np.maximum(inner * .6, np.clip(-n[:, 2], 0, 1) * .35 * (hl[:, 1] < .02)))
+    c = c * (.955 + .07 * ridge * (.4 + .6 * tip))[:, None] * (.985 + .03 * strand)[:, None]
+    c = lerp(c, srgb(CP.FUR_TIP), ss(.5, 1.0, tip) * ridge * .22)
+    c = c * (.98 + .04 * hid)[:, None] * (.985 + .03 * broad[fur])[:, None]
+    rgh = .80 + .06 * strand - .05 * ridge * tip
+    skin = bare_skin(p, n)
+    grain = S.cells(qq * 420, 11)
+    sk = lerp(srgb(CP.SKIN), srgb(CP.SKIN_LIGHT), np.clip(n[:, 2], 0, 1) * .35 + np.clip(.55 - grain, 0, 1) * .16)
+    # Close to the eye the paw also shows its joints: creases under each digit joint, soft
+    # wrinkles over the knuckles and two folds across the palm pad, darker in the skin tone.
+    owner, tpar, back = paw_regions(p, n)
+    crease = np.zeros(len(p), F)
+    for k in range(len(H.FINGERS)):
         mine = owner == k
         for joint in (1, 2):
             x = tpar[mine] - joint
-            crease[mine] += np.exp(-(x / .06) ** 2) * (1 - back[mine]) * 1.0 + (np.exp(-((x - .08) / .035) ** 2) + np.exp(-((x + .08) / .035) ** 2)) * back[mine] * .45
-    # Palm creases: two soft folds across the palm pads.
-    palm = on_paw & (owner < 0) & (back < .5)
-    for y0 in (.034, .044):
-        crease[palm] += np.exp(-((pts[palm, 1] - P.WRIST - y0 - pts[palm, 0] * .25) / .0011) ** 2) * .7
-    height = furry * fur_h + (1 - furry) * skin_h - crease * .00055
-    obj.data.vertices.foreach_set('co', (pts + nrm * height[:, None]).ravel())
-    obj.data.update()
-    # Colour: warm chestnut fur, darker in the clump gaps, a caramel inner
-    # forearm; dark leathery pads with lighter worn tops; darker creases.
-    fur_base = srgb('8C4E2B'); fur_light = srgb('B7784A'); inner = srgb('A8703F')
-    streak = fbm(pts * np.array([760, 110, 760], np.float32), 3, seed=7)
-    broad = fbm(pts * 55, 3, seed=8)
-    gap = np.clip(fur_h / .0007 + .5, 0, 1)
-    fur = fur_base[None] * ((.86 + .26 * streak) * (.93 + .14 * broad) * (.78 + .30 * gap))[:, None]
-    fur = fur + (fur_light - fur) * (np.clip(streak - .62, 0, 1) * 1.6)[:, None]
-    fur = fur + (inner - fur) * (np.clip(-nrm[:, 2], 0, 1) * (~on_paw) * .32)[:, None]
-    skin_base = srgb('4A3A33'); skin_top = srgb('6A554A'); skin_dark = srgb('2C211C')
-    worn = np.clip((.55 - peb) * 1.8, 0, 1)[:, None]
-    skin = skin_base + (skin_top - skin_base) * worn * .6
-    skin = skin + (skin_dark - skin) * np.clip(crease, 0, 1)[:, None] * .75
-    colour = fur * furry[:, None] + skin * (1 - furry[:, None])
-    rough = furry * (.80 + .1 * strand) + (1 - furry) * (.62 - .14 * worn[:, 0])
+            under = (1 - back[mine]) ** 2
+            crease[mine] += np.exp(-(x / .05) ** 2) * under + (np.exp(-((x - .08) / .03) ** 2) + np.exp(-((x + .08) / .03) ** 2)) * back[mine] ** 2 * .18
+    palm_pad = (owner < 0) & (hl[:, 2] < -.01) & (hl[:, 1] > .03)
+    for y0 in (.070, .088):
+        crease[palm_pad] += np.exp(-((hl[palm_pad, 1] - y0 - hl[palm_pad, 0] * .25) / .0022) ** 2) * .7
+    crease *= skin
+    sk = lerp(sk, srgb('2C2420'), np.clip(crease, 0, 1) * .55)
+    c = lerp(c, sk, skin)
+    colour[fur] = c
+    rough[fur] = rgh * (1 - skin) + skin * (.62 - .10 * np.clip(.55 - grain, 0, 1))
+    height[fur] = (h * (1 - skin) + skin * (.5 - np.clip(grain, 0, .8)) * .00040) * K - crease * .0003
+    # ---- claws: short, blunt, glossy and dark, lighter along the top
+    sel = mat == MAT['claw']
+    streak = S.value_noise(q[sel] * np.array([3000, 400, 3000], F), 11)
+    colour[sel] = lerp(srgb(CP.CLAW), srgb('5A4A40'), np.clip(nrm[sel, 2], 0, 1) * .5) * (.9 + .2 * streak)[:, None]
+    rough[sel] = .30 + .06 * streak
+    # ---- linen sleeve and cuff: the character's shirt, a quiet weave, soft slub
+    sel = (mat == MAT['shirt']) | (mat == MAT['cuff'])
+    wv = weave(q[sel], .0016, .02)
+    slub = S.fbm(q[sel] * np.array([300, 60, 300], F), 3, seed=9)
+    colour[sel] = np.broadcast_to(srgb(CP.LINEN), (int(sel.sum()), 3)) * (1 + wv)[:, None] * (.97 + .06 * slub)[:, None]
+    # The cuff's fold edges: a slightly darker tone-on-tone band where the roll turns under.
+    cuff = mat == MAT['cuff']
+    colour[cuff] = lerp(colour[cuff], srgb('CDBFA4'), np.clip(-nrm[cuff, 1], 0, 1) * .5)
+    rough[sel] = .90
+    height[sel] = weave(q[sel], .0012, .00008) * K + (slub - .5) * .00025
+    obj.data.vertices.foreach_set('co', (pts + nrm * height[:, None]).ravel()); obj.data.update()
     return colour, rough
 
 
-def paint_sleeve(obj):
-    pts, nrm = coords(obj), normals(obj)
-    ang = np.arctan2(pts[:, 2], pts[:, 0])
-    u, v = ang * .08 / .0011, pts[:, 1] / .0011
-    weave = np.sin(u * math.pi) * np.sin(v * math.pi)
-    slub = fbm(pts * np.array([300, 60, 300], np.float32), 3, seed=9)
-    obj.data.vertices.foreach_set('co', (pts + nrm * ((weave * .00012 + (slub - .5) * .0003)[:, None])).ravel()); obj.data.update()
-    base = srgb('D6CAB0'); shade = srgb('A8997C')
-    colour = base * (.94 + .06 * weave[:, None]) * (.9 + .2 * slub[:, None])
-    colour = colour + (shade - colour) * np.clip((pts[:, 1] - .27) * 0, 0, 1)[:, None]
-    return colour, .9 + .06 * slub
-
-
-def paint_claws(obj):
-    pts = coords(obj)
-    streak = value_noise(pts * np.array([4000, 600, 4000], np.float32), seed=11)
-    base = srgb('2A1D18'); tip = srgb('4E392C')
-    colour = base * (.85 + .3 * streak[:, None])
-    return colour + (tip - colour) * .15, .22 + .08 * streak
-
-
 def set_colour_attrs(obj, colour, rough):
-    rgba = np.concatenate([np.clip(colour, 0, 1), np.clip(rough, 0, 1)[:, None]], 1).astype(np.float32)
+    rgba = np.concatenate([np.clip(colour, 0, 1), np.clip(rough, 0, 1)[:, None]], 1).astype(F)
     attr = obj.data.color_attributes.new('paint', 'FLOAT_COLOR', 'POINT')
     attr.data.foreach_set('color', rgba.ravel())
 
 
+def materials(pts, node):
+    return S.evaluate(node, pts.astype(F), cull=False)[1]
+
+
 # ------------------------------------------------------------------ build
-log('sculpt')
-skin_hi = P.sculpt(smooth=0)
-skin_lo = skin_hi.copy(); skin_lo.data = skin_hi.data.copy(); link(skin_lo); skin_lo.name = 'skin_lo'
-bpy.context.view_layer.objects.active = skin_lo
-m = skin_lo.modifiers.new('dec', 'DECIMATE'); m.ratio = SKIN_TRIS / max(1, len(skin_lo.data.polygons) * 2)
-bpy.ops.object.modifier_apply(modifier=m.name)
-log('skin', len(skin_hi.data.polygons), '->', len(skin_lo.data.polygons))
-claw = claws()
-sleeve_hi, sleeve_lo = sleeve(160, 6), sleeve(40, 1)
-sleeve_hi.name, sleeve_lo.name = 'sleeve_hi', 'sleeve_lo'
-
+node = sculpt()
+lo_b, hi_b = v(-.12, -.02, -.12), v(.12, WRIST + .25, .12)
+verts, quads = S.mesh(node, lo_b, hi_b, VOXEL, log=log)
+quads = quads[:, ::-1]
+log('dense surface', len(verts), 'vertices')
+hi = mesh_object('arm_hi', verts, quads)
+mat_hi = materials(coords(hi), node)
 log('paint')
-colour, rough = paint_skin(skin_hi); set_colour_attrs(skin_hi, colour, rough)
-colour, rough = paint_sleeve(sleeve_hi); set_colour_attrs(sleeve_hi, colour, rough)
-colour, rough = paint_claws(claw['hi']); set_colour_attrs(claw['hi'], colour, rough)
-for o in (skin_hi, skin_lo, sleeve_hi, sleeve_lo, claw['hi'], claw['lo']):
-    for poly in o.data.polygons: poly.use_smooth = True
+colour, rough = paint(hi, mat_hi); set_colour_attrs(hi, colour, rough)
 
-# Fur length on the game mesh, from the same regions as the paint.
-pts, nrm = coords(skin_lo), normals(skin_lo)
-owner, tpar, back = paw_regions(pts, nrm)
-on_paw = pts[:, 1] > P.WRIST - .012
-furry = fur_mask(pts, nrm, owner, tpar, back, np.full(len(pts), .5, np.float32))
-fur_len = np.where(on_paw, furry * (1 - np.clip((tpar - 1.0) / 1.2, 0, 1) * (owner >= 0)) * .55, 1.0).astype(np.float32)
-
-# One game mesh: skin, sleeve, claws; each part keeps a per-vertex tag.
-tags = {}
-for name, o in (('skin', skin_lo), ('sleeve', sleeve_lo), ('claw', claw['lo'])):
-    tag = o.data.attributes.new('part', 'INT', 'POINT'); tag.data.foreach_set('value', [{'skin': 0, 'sleeve': 1, 'claw': 2}[name]] * len(o.data.vertices))
-fur = skin_lo.data.attributes.new('_FUR', 'FLOAT', 'POINT'); fur.data.foreach_set('value', fur_len)
-for o in (sleeve_lo, claw['lo']):
-    a = o.data.attributes.new('_FUR', 'FLOAT', 'POINT'); a.data.foreach_set('value', [0.0] * len(o.data.vertices))
-bpy.ops.object.select_all(action='DESELECT')
-for o in (skin_lo, sleeve_lo, claw['lo']): o.select_set(True)
-bpy.context.view_layer.objects.active = skin_lo
-bpy.ops.object.join()
-arm = bpy.context.active_object; arm.name = 'arm_lo'
-bm = bmesh.new(); bm.from_mesh(arm.data); bmesh.ops.triangulate(bm, faces=bm.faces); bm.to_mesh(arm.data); bm.free()
+lo = hi.copy(); lo.data = hi.data.copy(); link(lo); lo.name = 'arm_lo'
+lo.data.color_attributes.remove(lo.data.color_attributes['paint'])
+bpy.ops.object.select_all(action='DESELECT'); lo.select_set(True); bpy.context.view_layer.objects.active = lo
+m = lo.modifiers.new('dec', 'DECIMATE'); m.ratio = GAME_TRIS / max(1, len(lo.data.polygons) * 2); m.use_collapse_triangulate = True
+bpy.ops.object.modifier_apply(modifier=m.name)
+bm = bmesh.new(); bm.from_mesh(lo.data); bmesh.ops.triangulate(bm, faces=bm.faces); bm.to_mesh(lo.data); bm.free()
+arm = lo
 log('game mesh', len(arm.data.polygons), 'tris')
+
+pts, nrm = coords(arm), normals(arm)
+mat_lo = materials(pts, node)
+part = np.array([PART[{v_: k for k, v_ in MAT.items()}[m_]] for m_ in mat_lo], np.int32)
+tag = arm.data.attributes.new('part', 'INT', 'POINT'); tag.data.foreach_set('value', part)
+# Fur length: the forearm full, the back of the paw shorter toward the knuckles; none on the
+# bare skin, the claws and the linen.
+bare = bare_skin(pts, nrm)
+hl = hand_local(pts)
+on_paw = hl[:, 1] > -.02
+fur_len = np.where(part == 0, (1 - bare) * np.where(on_paw, .6 - .35 * ss(.02, .10, hl[:, 1]), 1.0), 0.0).astype(F)
+fur_len = np.where(fur_len > .02, fur_len, 0).astype(F)
+attr = arm.data.attributes.new('_FUR', 'FLOAT', 'POINT'); attr.data.foreach_set('value', fur_len)
 
 # UVs: one atlas for the whole arm, both sides share it (the left arm mirrors the right).
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
@@ -334,7 +329,7 @@ scene = bpy.context.scene
 scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 1
 scene.render.bake.margin = 8; scene.render.bake.use_selected_to_active = True
 scene.render.bake.cage_extrusion = .004; scene.render.bake.max_ray_distance = .008
-highs = [skin_hi, sleeve_hi, claw['hi']]
+highs = [hi]
 
 
 def emit_material(name, channel):
@@ -359,12 +354,12 @@ def target_image(name, data):
 
 
 bake_mat = bpy.data.materials.new('bake_target'); bake_mat.use_nodes = True
-node = bake_mat.node_tree.nodes.new('ShaderNodeTexImage'); bake_mat.node_tree.nodes.active = node
+bake_node = bake_mat.node_tree.nodes.new('ShaderNodeTexImage'); bake_mat.node_tree.nodes.active = bake_node
 arm.data.materials.clear(); arm.data.materials.append(bake_mat)
 
 
 def bake(kind, image, material=None, **kw):
-    node.image = image
+    bake_node.image = image
     for o in highs:
         o.data.materials.clear()
         if material: o.data.materials.append(material)
@@ -372,7 +367,7 @@ def bake(kind, image, material=None, **kw):
     for o in highs: o.select_set(True)
     arm.select_set(True); bpy.context.view_layer.objects.active = arm
     bpy.ops.object.bake(type=kind, **kw)
-    px = np.empty(TEX * TEX * 4, np.float32); image.pixels.foreach_get(px)
+    px = np.empty(TEX * TEX * 4, F); image.pixels.foreach_get(px)
     return px.reshape(TEX, TEX, 4)[..., :3]
 
 
@@ -392,7 +387,7 @@ def save(name, rgb, srgb_out):
         rgb = np.where(rgb <= .0031308, rgb * 12.92, 1.055 * np.power(np.clip(rgb, 0, 1), 1 / 2.4) - .055)
     else:
         img.colorspace_settings.name = 'Non-Color'
-    img.pixels.foreach_set(np.concatenate([np.clip(rgb, 0, 1), np.ones((TEX, TEX, 1), np.float32)], 2).astype(np.float32).ravel())
+    img.pixels.foreach_set(np.concatenate([np.clip(rgb, 0, 1), np.ones((TEX, TEX, 1), F)], 2).astype(F).ravel())
     img.filepath_raw = str(OUT / f'{name}.png'); img.file_format = 'PNG'; img.save()
     return img
 
@@ -411,48 +406,48 @@ to = nt.nodes.new('ShaderNodeTexImage'); to.image = orm_img; sep = nt.nodes.new(
 nt.links.new(to.outputs['Color'], sep.inputs['Color']); nt.links.new(sep.outputs['Green'], bsdf.inputs['Roughness'])
 nt.links.new(sep.outputs['Blue'], bsdf.inputs['Metallic'])
 mat['capyArmsV3'] = True
+mat['capyArmsV4'] = True
 arm.data.materials.clear(); arm.data.materials.append(mat)
 
 # ------------------------------------------------------------------ weights and rig
-ELBOW, WRIST = Vector((0, P.ELBOW, 0)), Vector((0, P.WRIST, 0))
-BONES = {'upper': (Vector((0, 0, 0)), ELBOW, None), 'fore': (ELBOW, WRIST, 'upper'), 'fore_twist': (ELBOW, WRIST, 'fore'),
-         'hand': (WRIST, WRIST + Vector((0, .052, 0)), 'fore_twist')}
-for name, (a, b, parent) in P.digit_bones().items():
-    BONES[name] = (a + WRIST, b + WRIST, parent)
+ELBOW_V, WRIST_V = Vector((0, ELBOW, 0)), Vector((0, WRIST, 0))
+BONES = {'upper': (Vector((0, 0, 0)), ELBOW_V, None), 'fore': (ELBOW_V, WRIST_V, 'upper'), 'fore_twist': (ELBOW_V, WRIST_V, 'fore'),
+         'hand': (WRIST_V, WRIST_V + Vector((0, .110 * K, 0)), 'fore_twist')}
+for name, (a, b, parent) in H.digit_bones().items():
+    BONES[name] = (Vector(tuple(float(x) for x in a * K)) + WRIST_V, Vector(tuple(float(x) for x in b * K)) + WRIST_V, parent)
 
 pts, nrm = coords(arm), normals(arm)
-part = np.empty(len(pts), np.int32); arm.data.attributes['part'].data.foreach_get('value', part)
 owner, tpar, _ = paw_regions(pts, nrm)
 # Claws belong to their digit's tip bone.
-for k, finger in enumerate(P.FINGERS):
-    d, t, r, _ = chain_query(pts, finger)
+for k, finger in enumerate(H.FINGERS):
+    d, _t, _r, _ = chain_query(pts, finger)
     if k == 0: nearest, ndist = np.zeros(len(pts), np.int8), d.copy()
     else:
         closer = d < ndist; nearest[closer] = k; ndist[closer] = d[closer]
 claw_v = part == 2
 owner[claw_v] = nearest[claw_v]; tpar[claw_v] = 2.9
 weights = [dict() for _ in range(len(pts))]
-ss = lambda e0, e1, x: np.clip((x - e0) / (e1 - e0), 0, 1) ** 2 * (3 - 2 * np.clip((x - e0) / (e1 - e0), 0, 1))
+sm = lambda e0, e1, x: np.clip((x - e0) / (e1 - e0), 0, 1) ** 2 * (3 - 2 * np.clip((x - e0) / (e1 - e0), 0, 1))
 for i, (p, o, t) in enumerate(zip(pts, owner, tpar)):
     y = p[1]
-    if part[i] == 1 or y < P.WRIST - .015:
-        blend = float(ss(.275, .33, y)); twist = float(ss(.34, .55, y)); wrist = float(ss(P.WRIST - .035, P.WRIST - .002, y))
+    if part[i] == 1 or y < WRIST - .015:
+        blend = float(sm(.275, .33, y)); twist = float(sm(.34, .55, y)); wrist = float(sm(WRIST - .035, WRIST - .002, y))
         w = {'upper': 1 - blend, 'fore': blend * (1 - twist), 'fore_twist': blend * twist * (1 - wrist), 'hand': blend * twist * wrist}
     elif o < 0:
-        wrist = float(ss(P.WRIST - .02, P.WRIST + .012, y))
+        wrist = float(sm(WRIST - .02, WRIST + .012, y))
         w = {'fore_twist': 1 - wrist, 'hand': wrist}
     else:
-        f = P.FINGERS[o]; seg = int(min(2, max(0, math.floor(t)))); u = t - seg
+        f = H.FINGERS[o]; seg = int(min(2, max(0, math.floor(t)))); u = t - seg
         cur, prev, nxt = f'{f}{seg + 1}', ('hand' if seg == 0 else f'{f}{seg}'), (f'{f}{seg + 2}' if seg < 2 else None)
         if u < .22:
-            k = .5 + .5 * float(ss(0, .22, u)) if seg else float(ss(.12, .45, t))
+            k = .5 + .5 * float(sm(0, .22, u)) if seg else float(sm(.12, .45, t))
             w = {cur: k, prev: 1 - k}
         elif u > .84 and nxt:
-            k = .5 + .5 * (1 - float(ss(.84, 1, u)))
+            k = .5 + .5 * (1 - float(sm(.84, 1, u)))
             w = {cur: k, nxt: 1 - k}
         else:
             w = {cur: 1.0}
-    weights[i] = {k: v for k, v in w.items() if v > .002}
+    weights[i] = {k: v_ for k, v_ in w.items() if v_ > .002}
 
 
 def build_side(side):
@@ -484,7 +479,8 @@ def build_side(side):
 rigs = [build_side(1), build_side(-1)]
 bpy.data.objects.remove(arm)
 report = {'triangles': sum(len(obj.data.polygons) for _, obj in rigs), 'vertices': sum(len(obj.data.vertices) for _, obj in rigs),
-          'bones': list(BONES), 'shoulderOffsetX': .2, 'material': 'baked sculpt: albedo + normal + ORM, fur shells from _FUR',
+          'bones': list(BONES), 'shoulderOffsetX': .2, 'pawScale': round(PAW_SCALE, 5),
+          'material': 'the world paw (capy_hand) at 1/1.3 with the character forearm and cuff: baked albedo + normal + ORM, fur shells from _FUR',
           'digits': 4, 'textureSize': TEX}
 bpy.ops.export_scene.gltf(filepath=str(OUT / 'fp-arms.raw.glb'), export_format='GLB', export_skins=True, export_animations=False,
                           export_yup=True, export_def_bones=False, export_extras=True, export_attributes=True,
