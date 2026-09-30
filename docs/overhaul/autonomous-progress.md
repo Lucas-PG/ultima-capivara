@@ -109,7 +109,7 @@ User review of the port (2026-09-28): the isolated **character is not accepted**
 - [x] E2 Water: navy offshore falloff, green-teal rivers (masked by flow speed), caustic cells only in the shallows, broken crest strokes offshore, sparse sun sparkles near the eye, no foam bands in narrow rivers (they met mid-channel as a dashed line)
 
 ### F. Combat, audio, VFX
-- [~] F1-F3 Combat feel, controls and VFX delegated 2026-09-30 00:10 to an Opus agent (worktree `combat-vfx`, brief `docs/overhaul/briefs/combat.prompt.txt`).
+- [x] F1-F3 Combat feel, controls and VFX merged 2026-09-30 (6e2a992), review passed. Integration follow-ups listed in `docs/overhaul/briefs/review-log.md` (settings screen for the new controls, crosshair FOV, viewmodel draw timing, scope flash, QA lab poses).
 - [x] F2 Audio pass merged 2026-09-30 (66f218a): the always-on hiss was three fixed white-noise loops, now place-based modulated ambience; gunfire 18+ dB over footsteps with separated spectra and envelopes; procedural banks; limiter and occlusion. Needs a human audition (`tools/audio/lab.html`). Open: plane flyby, a distinct cue for shots fired toward you, saved settings keep the old music level.
 - [ ] F1 Shot chain feedback (hit markers, impacts, tracers, kill feedback)
 - [ ] F2 Audio pass. User issues (2026-09-29): an always-on white-noise-like background sound on the island is very annoying (find and prove the source, then fix); gunfire sounds like footsteps, so combat cannot be read by ear (make them clearly different by loudness, spectrum and envelope, with a test; research how shooters design this). Plan: Opus agent, can run beside the Codex gun agents (light load).
