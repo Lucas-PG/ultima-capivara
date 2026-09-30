@@ -86,6 +86,9 @@ export function measure([weapon, side]) {
       } else if (bound(v.p, node.left) < bound(v.p, node.right)) stack.push(node.right, node.left);
       else stack.push(node.left, node.right);
     }
+    // Outside the complete gun bounds is necessarily outside its surfaces.
+    // A concave detail can otherwise lend its inward normal to a distant wrist.
+    if (sign < 0 && bound(v.p, tree) > 1e-12) sign = 1;
     v.d = Math.sqrt(best) * sign;
     const g = groups[v.bone] ??= { n: 0, inside: 0, min: Infinity, tip: null, tipAlong: -Infinity };
     g.n++; if (v.d < -.0005) g.inside++; if (v.d < g.min) { g.min = v.d; g.at = [v.p.x, v.p.y, v.p.z].map(n => Math.round(n * 1000)); }

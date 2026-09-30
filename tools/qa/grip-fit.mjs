@@ -134,6 +134,7 @@ try {
           } else if (bound(p, node.left) < bound(p, node.right)) stack.push(node.right, node.left);
           else stack.push(node.left, node.right);
         }
+        if (sign < 0 && bound(p, root) > 1e-12) sign = 1;
         return Math.sqrt(best) * sign;
       }
       // ---- paw vertices grouped by their dominant bone; palm side from the bind pose (palm faces -y at rest)
