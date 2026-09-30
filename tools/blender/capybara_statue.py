@@ -52,6 +52,10 @@ bpy.context.view_layer.objects.active = obj; obj.select_set(True)
 d = obj.modifiers.new('landmark_budget', 'DECIMATE'); d.ratio = 10000 / (len(me.polygons) * 2); d.use_collapse_triangulate = True
 bpy.ops.object.modifier_apply(modifier=d.name)
 me = obj.data
+# OpenVDB quads can be degenerate where the form is thinner than a voxel: the exporter's own
+# validation reported the statue invalid. Clean it here and log what was fixed.
+counts = (len(me.vertices), len(me.polygons))
+print('STATUE_VALIDATE', 'fixed' if me.validate(verbose=True, clean_customdata=False) else 'clean', counts, '->', (len(me.vertices), len(me.polygons)), flush=True)
 for face in me.polygons: face.use_smooth = True
 bm = bmesh.new(); bm.from_mesh(me); tree = BVHTree.FromBMesh(bm); bm.free()
 stone, warm = srgb('E9E4D6'), srgb('C8BEA7')

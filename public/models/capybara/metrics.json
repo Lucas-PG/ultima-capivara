@@ -259,7 +259,7 @@
       "gpuMB": 12
     }
   },
-  "statueBytes": 56184,
+  "statueBytes": 55408,
   "rawBytes": 7230360,
   "texture": {
     "format": "baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)",
