@@ -4,17 +4,20 @@
     "pistol": {
       "source": 13892,
       "near": 2400,
-      "far": 420
+      "far": 420,
+      "animatedNear": 2470
     },
     "revolver": {
-      "source": 20394,
+      "source": 20406,
       "near": 2400,
-      "far": 420
+      "far": 416,
+      "animatedNear": 2540
     },
     "smg": {
       "source": 17332,
-      "near": 2398,
-      "far": 660
+      "near": 2400,
+      "far": 736,
+      "animatedNear": 2370
     },
     "m4": {
       "near": 2400,
@@ -42,5 +45,5 @@
       "far": 420
     }
   },
-  "bundledBytes": 2052844
+  "bundledBytes": 2621087
 }

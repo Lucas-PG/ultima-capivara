@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { applyCharacterStyle } from './materials';
 import { CAPY_BONES, buildCapybaraBody, holdWeapon, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
 import { itemGeometry } from './item-geometry';
-import { worldWeaponMaterial, worldM4PartGeometry } from './world-weapons';
+import { worldWeaponMaterial, worldM4PartGeometry, worldShortPartGeometries } from './world-weapons';
+import { isShortGun, type ShortGun, type WorldParts } from './short-world-parts';
 import { makeParachute } from './aircraft';
 import { WEAPONS } from '../shared/weapons';
 import { MELEE_SECONDS } from '../shared/weapon-presentation';
@@ -48,6 +49,7 @@ export class AvatarView {
   private readonly distantWeapons = new Map<WeaponId, THREE.BufferGeometry>();
   private readonly m4Body = worldM4PartGeometry('nearBody');
   private readonly m4Magazine = worldM4PartGeometry('nearMag');
+  private readonly shortGuns = new Map<ShortGun, ReturnType<typeof worldShortPartGeometries>>();
   private readonly target = new THREE.Vector3();
   private cameraBlend = 0;
   private matchId: string | null = null;
@@ -60,6 +62,10 @@ export class AvatarView {
   constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.PerspectiveCamera, private readonly world?: WorldSpec) {
     this.weapons.set(null, new THREE.BufferGeometry());
     this.warmupWeapons.add(new THREE.Mesh(this.m4Body, worldWeaponMaterial()), new THREE.Mesh(this.m4Magazine, worldWeaponMaterial()));
+    for (const id of ['pistol', 'smg', 'revolver'] as const) {
+      const model = worldShortPartGeometries(id); this.shortGuns.set(id, model);
+      for (const geometry of [model.body, ...Object.values(model.parts).map(p => p.geometry)]) this.warmupWeapons.add(new THREE.Mesh(geometry, worldWeaponMaterial()));
+    }
     for (const id of Object.keys(WEAPONS) as WeaponId[]) {
       const geometry = itemGeometry('weapon', id); this.weapons.set(id, geometry);
       this.warmupWeapons.add(new THREE.Mesh(geometry, worldWeaponMaterial()));
@@ -103,6 +109,8 @@ export class AvatarView {
     this.weapons.forEach(geometry => geometry.dispose()); this.weapons.clear();
     this.distantWeapons.forEach(geometry => geometry.dispose()); this.distantWeapons.clear();
     this.m4Body.dispose(); this.m4Magazine.dispose();
+    for (const model of this.shortGuns.values()) { model.body.dispose(); for (const part of Object.values(model.parts)) part.geometry.dispose(); }
+    this.shortGuns.clear();
   }
 
   private removeAvatar(id: string, visual: Avatar) {
@@ -189,10 +197,23 @@ export class AvatarView {
       visual.bones[CAPY_BONES.helmet].scale.setScalar(actor.helmet > 0 ? 1 : .0001);
       visual.chute.visible = !dead && actor.stage === 'parachute';
       const held = actor.weapons[actor.slot]?.id || null;
+      const short = isShortGun(held) ? this.shortGuns.get(held)! : null;
+      if (held !== visual.weaponId) {
+        for (const part of Object.values((visual.weapon.userData.shortParts ?? {}) as WorldParts)) part.removeFromParent();
+        const parts: WorldParts = {}; visual.weapon.userData.shortParts = parts;
+        if (short) for (const [name, data] of Object.entries(short.parts)) {
+          const mesh = new THREE.Mesh(data.geometry, worldWeaponMaterial()); mesh.name = `${held}_${name}`; mesh.castShadow = true;
+          mesh.userData.rest = data.pivot; parts[name] = mesh; visual.weapon.add(mesh);
+        }
+      }
       const weaponDistance = visual.group.position.distanceToSquared(this.camera.position);
       const distant = held ? this.distantWeapons.get(held)! : null;
       const distantWeapon = distant && weaponDistance > (visual.weapon.geometry === distant ? 12 * 12 : 14 * 14);
-      visual.weapon.geometry = distantWeapon ? distant : held === 'm4' ? this.m4Body : this.weapons.get(held)!;
+      visual.weapon.geometry = distantWeapon ? distant : short ? short.body : held === 'm4' ? this.m4Body : this.weapons.get(held)!;
+      visual.weapon.userData.shortPartsVisible = !distantWeapon;
+      for (const part of Object.values((visual.weapon.userData.shortParts ?? {}) as WorldParts)) {
+        part.position.copy(part.userData.rest); part.quaternion.identity(); part.visible = !distantWeapon;
+      }
       const mag = visual.weapon.getObjectByName('m4_mag')!;
       mag.visible = held === 'm4' && !distantWeapon; mag.position.set(0, .02, -.071); mag.quaternion.identity();
       visual.weaponId = held;
