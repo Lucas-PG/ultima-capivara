@@ -11,7 +11,7 @@ import { Spring } from './spring';
 import { PAINT, SUN_DIRECTION } from './materials';
 import { RARITY } from '../shared/rarity';
 import { advanceAds, WEAPONS } from '../shared/weapons';
-import { sampleMelee, smoothPose, weaponShotDuration,
+import { sampleMelee, sampleHeavyMelee, smoothPose, weaponShotDuration,
   MELEE_SECONDS, MELEE_CONTACT, MELEE_HIT_STOP, type MeleePose } from '../shared/weapon-presentation';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 import { swimReady } from '../shared/inventory';
@@ -691,14 +691,7 @@ export class WeaponView {
     if (this.meleeCount > 0 && this.meleeCount % 3 === 0) {
       // The third cut is an overhead chop. Its contact and recovery still fit
       // the authoritative melee cadence and the normal hit-stop window.
-      const t = this.meleeTime, wind = window01(t, 0, .075), cut = window01(t, .075, .165);
-      const follow = window01(t, .165, .24), recovery = 1 - window01(t, .24, MELEE_SECONDS);
-      pose.x = (.025 * wind - .055 * cut) * recovery;
-      pose.y = (.075 * wind - .14 * cut - .015 * follow) * recovery;
-      pose.z = (.045 * wind - .12 * cut) * recovery;
-      pose.pitch = (-.55 * wind + 1.05 * cut + .06 * follow) * recovery;
-      pose.yaw = (.10 * wind - .22 * cut) * recovery;
-      pose.roll = (-.16 * wind + .28 * cut) * recovery;
+      sampleHeavyMelee(this.meleeTime, pose);
     }
     this.holder.position.x += pose.x * amount; this.holder.position.y += pose.y * amount; this.holder.position.z += pose.z * amount;
     // Camera-space swings keep the cutting arc independent of the grip roll.

@@ -28,3 +28,16 @@ export function sampleMelee(seconds: number, side: number, out: MeleePose): Mele
   out.kick = pulse(t, .11, .17, .29);
   return out;
 }
+
+export function sampleHeavyMelee(seconds: number, out: MeleePose): MeleePose {
+  sampleMelee(seconds, 1, out);
+  const t = Math.max(0, seconds), wind = phase(t, 0, .075), cut = phase(t, .075, .165);
+  const follow = phase(t, .165, .24), recovery = 1 - phase(t, .24, MELEE_SECONDS);
+  out.x = (.025 * wind - .055 * cut) * recovery;
+  out.y = (.075 * wind - .14 * cut - .015 * follow) * recovery;
+  out.z = (.045 * wind - .12 * cut) * recovery;
+  out.pitch = (-.55 * wind + 1.05 * cut + .06 * follow) * recovery;
+  out.yaw = (.10 * wind - .22 * cut) * recovery;
+  out.roll = (-.16 * wind + .28 * cut) * recovery;
+  return out;
+}

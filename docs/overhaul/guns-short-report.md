@@ -53,9 +53,9 @@ Facao has a swept blade, separate honed edge, capy stamp, brass bolster and pomm
 
 The carry roll exposes the back of the gripping paw and clears the handle from the forearm. Slashes rotate in camera space so the carry roll does not distort their cutting arc. Every third attack presents a heavier chop within the existing hit and recovery timing; damage and cadence are unchanged.
 
-Evidence: [before](evidence/guns/machete-before.jpg), [model after](evidence/guns/machete-model-after.jpg), [first-person motion](evidence/guns/machete-motion-after.jpg).
+Evidence: [before](evidence/guns/machete-before.jpg), [model after](evidence/guns/machete-model-after.jpg), [first-person motion](evidence/guns/machete-motion-after.jpg), [world presentation](evidence/guns/machete-world-after.jpg).
 
-Verified: the revised elbow pole is installed. All 28 sampled hip, ADS, sprint, inspect, slash and heavy-chop poses pass the full probe, with a minimum right-paw clearance of 0.5 mm. Both paws were measured and each pose was captured from the eye, left and right. Close third-person hold views also show the rebuilt blade and grip. Ground-item framing and the final world presentation review remain outstanding.
+Verified: the revised elbow pole is installed. All 28 sampled hip, ADS, sprint, inspect, slash and heavy-chop poses pass the full probe, with a minimum right-paw clearance of 0.5 mm. Both paws were measured and each pose was captured from the eye, left and right. Third-person attacks now alternate cuts and use the same third-hit chop timing as first person. The free paw holds a separate ready pose outside the blade path. Thirty-four third-person samples from front, side and three-quarter cameras, plus the ground item, were reviewed. An avatar test checks alternating cuts, the higher chop windup, gripping-paw contact, free-paw clearance, recovery and respawn reset. The focused viewmodel and avatar suites pass all 50 tests.
 
 ## Verification and limitations
 

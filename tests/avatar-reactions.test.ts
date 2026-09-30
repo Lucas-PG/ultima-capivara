@@ -37,6 +37,29 @@ function harness() {
 }
 
 describe('authoritative character reactions', () => {
+  it('shows both machete cuts and the third overhead chop while keeping the free paw clear and returning to carry', async () => {
+    const { VIEW_SPECS } = await import('../src/render/viewmodel-specs');
+    const h = harness(); h.actor.weapons = [{ id: 'machete', ammo: 0, reserve: 0, rarity: 0, box: 0 }]; h.advance(.1);
+    const weapon = h.visual.weapon, start = weapon.getWorldPosition(new THREE.Vector3());
+    const left = h.visual.body.getObjectByName('paw_L')!, right = h.visual.body.getObjectByName('paw_R')!;
+    const free = left.getWorldPosition(new THREE.Vector3()), windHeights: number[] = [], sides: number[] = [];
+    for (let cut = 0; cut < 3; cut++) {
+      view.attack(h.actor.id); sides.push(h.visual.strike.side); h.advance(5 / 60);
+      weapon.updateWorldMatrix(true, true);
+      windHeights.push(new THREE.Vector3(0, 0, -.45).applyMatrix4(weapon.matrixWorld).y);
+      h.advance(.10); weapon.updateWorldMatrix(true, true);
+      const contact = new THREE.Vector3().fromArray(VIEW_SPECS.machete.grips.R.wrist).applyMatrix4(weapon.matrixWorld);
+      expect(right.getWorldPosition(new THREE.Vector3()).distanceTo(contact)).toBeLessThan(.015);
+      expect(left.getWorldPosition(new THREE.Vector3()).distanceTo(free)).toBeLessThan(.015);
+      expect(weapon.getWorldPosition(new THREE.Vector3()).distanceTo(start)).toBeGreaterThan(.07);
+      h.advance(.5);
+      expect(weapon.getWorldPosition(new THREE.Vector3()).distanceTo(start)).toBeLessThan(.02);
+    }
+    expect(sides).toEqual([1, -1, 1]);
+    expect(windHeights[2]).toBeGreaterThan(Math.max(windHeights[0], windHeights[1]) + .08);
+    view.attack(h.actor.id); view.respawn(h.actor.id); expect(h.visual.strike.count).toBe(0);
+  });
+
   it('keeps the nearby M4 magazine in the support paw throughout removal and insertion, with a combined far LOD', async () => {
     const { M4_MAG_HAND } = await import('../src/render/viewmodel-anims');
     const h = harness(); h.actor.weapons = [{ id: 'm4', ammo: 0, reserve: 60, rarity: 0, box: 0 }];

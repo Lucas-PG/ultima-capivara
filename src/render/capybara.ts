@@ -3,6 +3,7 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { WEAPONS } from '../shared/weapons';
+import { MELEE_SECONDS, sampleMelee, sampleHeavyMelee } from '../shared/weapon-presentation';
 import { EMOTES, EMOTE_IDS } from '../shared/emotes';
 import { TRAMPOLINE_IMPULSE } from '../shared/collision';
 import type { ActorState, EmoteId } from '../shared/types';
@@ -613,7 +614,10 @@ const HOLD_POSE: Record<HoldClass, { pos: readonly [number, number, number]; yaw
 interface HoldRig { spine: THREE.Bone; charQuat: THREE.Quaternion; R: ArmChain; L: ArmChain; reloadEnd: number; reloadEmpty: boolean; sample: ChoreoSample }
 const RELAXED_PAW: HandCurl = { index: [.12, .18, .1], middle: [.18, .22, .1], ring: [.2, .25, .1], thumb: [.18, .12, .06] };
 const holdRigs = new WeakMap<THREE.SkinnedMesh, HoldRig>();
-export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, actor: ActorState, simulationTime: number): void {
+const worldCut = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, smear: 0, kick: 0 };
+const FREE_MELEE_PAW: GripSpec = { wrist: [-.24, 1.10, -.24], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: RELAXED_PAW, pole: [-.8, -1, .1] };
+export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, actor: ActorState, simulationTime: number,
+  strike?: { time: number; side: number; heavy: boolean }): void {
   const runtime = characterInstances.get(body);
   if (!runtime) return;
   let rig = holdRigs.get(body);
@@ -647,6 +651,11 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   const tilt = reload >= 0 && id !== 'm4' ? Math.sin(Math.PI * THREE.MathUtils.clamp(reload, 0, 1)) : 0;
   const lowReady = sprint * (hold === 'pistol' ? .9 : .55);
   holdEuler.set(pitch - lowReady + tilt * .25, pose.yaw + sprint * (hold === 'rifle' ? .55 : .2) + tilt * .25, pose.roll - tilt * (hold === 'pistol' ? .5 : .7), 'YXZ');
+  const cutting = id === 'machete' && strike && strike.time < MELEE_SECONDS;
+  if (cutting) {
+    if (strike.heavy) sampleHeavyMelee(strike.time, worldCut); else sampleMelee(strike.time, strike.side, worldCut);
+    holdEuler.x -= worldCut.pitch * 1.5; holdEuler.y += worldCut.yaw * 1.4; holdEuler.z += worldCut.roll * .65;
+  }
   if (sample) { holdEuler.x += sample.r.x * .8; holdEuler.y += sample.r.y * .8; holdEuler.z += sample.r.z * .8; }
   holdQuat.setFromEuler(holdEuler);
   // Pivot at shoulder height so aiming swings the muzzle, not the stock.
@@ -654,6 +663,7 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   holdPos.set(pose.pos[0], pose.pos[1], pose.pos[2]).sub(pivot).applyQuaternion(holdQuat).add(pivot);
   holdPos.y -= sprint * .06 + tilt * .05; holdPos.x -= sprint * (hold === 'rifle' ? .06 : 0);
   if (sample) holdPos.addScaledVector(sample.p, .55);
+  if (cutting) { holdPos.x += worldCut.x * .6; holdPos.y += worldCut.y * .6; holdPos.z += worldCut.z * .6; }
   // Character frame -> world, then into the spine's current frame. The chest's
   // own bob and crouch (the spine's height above its rest) carry the gun.
   const character = body.parent ?? body;
@@ -679,6 +689,11 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   const target = (grip: { wrist: readonly number[] }) => new THREE.Vector3(grip.wrist[0], grip.wrist[1], grip.wrist[2]).applyMatrix4(weapon.matrixWorld);
   reachArm(rig.R, target(grips.R), poleR, gunQuat, grips.R);
   if (!grips.L) return;
+  if (id === 'machete') {
+    const free = new THREE.Vector3().fromArray(FREE_MELEE_PAW.wrist).applyMatrix4(character.matrixWorld);
+    reachArm(rig.L, free, poleL, rig.charQuat, FREE_MELEE_PAW);
+    return;
+  }
   let leftGrip = grips.L;
   if (sample?.L && magazine) {
     const resolve = (key: HandKey): GripSpec => {

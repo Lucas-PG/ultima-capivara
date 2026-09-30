@@ -5,6 +5,7 @@ import { itemGeometry } from './item-geometry';
 import { worldWeaponMaterial, worldM4PartGeometry } from './world-weapons';
 import { makeParachute } from './aircraft';
 import { WEAPONS } from '../shared/weapons';
+import { MELEE_SECONDS } from '../shared/weapon-presentation';
 import type { AvatarReaction } from './effects';
 import { Nameplate, nameplateFontSize, nameplateHit, stackNameplate } from './nameplates';
 import type { ActorState, WeaponId, WorldSpec } from '../shared/types';
@@ -16,6 +17,7 @@ interface Avatar {
   group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
   weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean; awaitingAlive: boolean; sawDead: boolean; celebrated: boolean; emoting: boolean;
   bounceAge: number;
+  strike: { time: number; side: number; heavy: boolean; count: number };
 }
 export function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
@@ -34,7 +36,8 @@ export function avatar(color: string, name: string): Avatar {
   weapon.castShadow = true; bones[CAPY_BONES.arms].add(weapon);
   const chute = makeParachute(color); group.add(chute);
   const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
-  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false, bounceAge: Infinity };
+  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false, bounceAge: Infinity,
+    strike: { time: MELEE_SECONDS, side: -1, heavy: false, count: 0 } };
 }
 
 export class AvatarView {
@@ -70,6 +73,12 @@ export class AvatarView {
     for (const actor of actors) this.ensureAvatar(actor);
   }
   get(id: string) { return this.visuals.get(id); }
+  attack(id: string) {
+    const visual = this.visuals.get(id);
+    if (!visual || capybaraIsDead(visual.body)) return;
+    const strike = visual.strike;
+    strike.time = 0; strike.side *= -1; strike.count++; strike.heavy = strike.count % 3 === 0;
+  }
   react(id: string, reaction: AvatarReaction) {
     const visual = this.visuals.get(id);
     if (visual) {
@@ -82,6 +91,7 @@ export class AvatarView {
     if (!visual) return;
     resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = true;
     visual.bounceAge = Infinity; visual.body.scale.setScalar(1);
+    visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
   }
   bounce(id: string) {
     const visual = this.visuals.get(id);
@@ -133,6 +143,7 @@ export class AvatarView {
       for (const visual of this.ordered) {
         resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = false; visual.celebrated = false;
         visual.bounceAge = Infinity; visual.body.scale.setScalar(1);
+        visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
       }
     }
     this.matchId = matchId;
@@ -247,6 +258,9 @@ export class AvatarView {
   private poseAvatar(visual: Avatar, actor: ActorState, dt: number, simulationTime: number) {
     for (const bone of visual.bones) { bone.rotation.set(0, 0, 0); bone.position.copy(bone.userData.rest as THREE.Vector3); }
     updateCapybaraBody(visual.body, actor, dt, simulationTime);
-    holdWeapon(visual.body, visual.weapon, actor, simulationTime);
+    if (!actor.alive || actor.weapons[actor.slot]?.id !== 'machete' || actor.stage !== 'ground' || (actor.emote && actor.emoteUntil > simulationTime)) {
+      visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
+    } else visual.strike.time = Math.min(MELEE_SECONDS, visual.strike.time + Math.max(0, dt));
+    holdWeapon(visual.body, visual.weapon, actor, simulationTime, visual.strike);
   }
 }

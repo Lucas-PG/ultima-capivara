@@ -31,7 +31,7 @@ type QaApi = {
   names(): string[];
   motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
-  tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit', seconds: number): Promise<void>;
+  tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit' | 'slash' | 'slash-left' | 'chop', seconds: number): Promise<void>;
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
 };
 
@@ -416,6 +416,16 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const dir = { x: -Math.sin(heading), z: -Math.cos(heading) };
       const start = { ...bot.pos };
       if (action === 'reload') bot.reloadUntil = s.time + WEAPON_DEFS[weapon].reload;
+      if (action === 'slash' || action === 'slash-left' || action === 'chop') {
+        if (weapon !== 'machete') throw new Error('Cut review requires machete');
+        const update = () => renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, false);
+        bot.weapons[0].id = 'pistol'; update(); bot.weapons[0].id = 'machete'; update();
+        const origin = { x: bot.pos.x, y: bot.pos.y + 1.55, z: bot.pos.z };
+        for (let i = 0; i < (action === 'chop' ? 3 : action === 'slash-left' ? 2 : 1); i++) {
+          renderer!.event({ type: 'shot', id: 910 + i, actor: bot.id, weapon: 'machete', origin,
+            end: { x: origin.x - 1.7, y: origin.y, z: origin.z }, hit: false });
+        }
+      }
       if (action === 'jump') { bot.grounded = false; bot.velocity.y = 6; }
       const step = 1 / 60;
       let hurt = false;
