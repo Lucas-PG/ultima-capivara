@@ -1,0 +1,25 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Read docs/overhaul/autonomous-progress.md for context. You have full creative freedom inside your scope: research, experiment, be creative, and reject your own mediocre results.
+
+RULES
+- Work only in your git worktree (given below). Never push, open PRs, deploy or touch other worktrees or the main checkout.
+- Another agent is rebuilding the character with Blender, so the machine runs hot: keep your load light. At most one Chrome instance at a time, capture at 1280x720 or smaller, prefer offline analysis and unit tests to live renders where they prove the same thing, never run Blender, and stop servers and browsers when idle and when done.
+- Do not touch weapon models, the viewmodel, arms, character or world code (tools/blender/*, src/render/weapons.ts, viewmodel-*, fp-arms.ts, capybara*, layout.ts, world.ts, terrain.ts, the kit, vegetation) unless a one-line hook is unavoidable; say so in your report.
+- Never spend money, create accounts or access personal apps or data. External assets only with licences compatible with a commercial game (CC0 preferred) and downloadable without an account; record source and licence in docs/assets.md.
+- Never use the em dash character anywhere (code, docs, commit messages, UI text). Commit in small logical commits with no co-author or agent lines.
+- Keep green: npx tsc --noEmit and npx vitest run.
+- Start your dev server as a background command: cd <worktree> && VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port>. QA tools in tools/qa (capture.mjs named poses, cam.mjs free camera, play.mjs live match driver) take BASE=http://127.0.0.1:<your port>. Use absolute paths or cd <worktree> && ... in every command.
+- Codex CLI may be used only for images: codex exec --skip-git-repo-check -m gpt-6.1-sol with a prompt asking its image generation tool to create and save an image at an exact path.
+- When done, write docs/overhaul/<your report name> in your worktree (what changed and why, evidence, measurements, tests, known issues) and commit it. Final reply to the orchestrator: under 200 words.
+
+ROLE AND WORKTREE
+You are the final polish and QA lead: the last line before release. Everything is merged into this branch (world, vegetation, audio, UI and spectator, combat feel and VFX, all nine weapons, bots and graphics, integration); only the character is still being rebuilt in another worktree, so do not touch the character model or its builders. Worktree: /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/final-polish (branch final-polish). Dev server port 5175. Report: docs/overhaul/final-polish-report.md. Read docs/overhaul/briefs/review-log.md and docs/overhaul/*-report.md first. Environment: start every shell command with export PATH=/Users/lucas_gaspe/.local/share/fnm/node-versions/v24.20.0/installation/bin:/opt/homebrew/bin:$PATH (Apple git and python are blocked by an Xcode licence; Node 24 is needed). The disk is tight: keep captures few and delete your temporary ones when done.
+
+KNOWN ITEMS
+1. Bougainvillea grows through a wall on the Morro.
+2. The spectator camera is squeezed against the watched player about 6% of the time.
+3. Loot reads as flat navy boards at eye level (check the ground weapon models and pickups with the new world arsenal).
+4. Frame drops seen in long runs while the machine was shared: profile long matches and fix any real leak or spike.
+
+THEN: A METICULOUS FULL-GAME REVIEW
+Play the game as a player would, end to end, in every mode (royale, Correria, Corrente, deathmatch, practice), from the menu to the results and rematch, with bots, using tools/qa/play.mjs, captures and frame sequences. Look at everything with fresh eyes and the user's quality bar (commercial stylized FPS, "to the minute details"): first-person weapons and paws in every state, the world at street level and from the plane, pickups, chests, the storm, water, the parachute, spectating, the HUD, menus and settings, sound events, and performance on Low, Medium and High. Keep a defect list, fix every defect you can to a high bar, and record what you could not fix with the reason. You have full creative freedom to improve anything that makes the game better and more fun; everything should be as high quality as you can make it.
