@@ -1,4 +1,4 @@
-// Regenerates the menu cover variants from the approved master (public/assets/cover-v2.png).
+// Regenerates the menu cover variants from the approved master (reference/art/cover-v2.png).
 // The menu requests one AVIF (or WebP) sized to the screen instead of the 2.5 MB PNG; the loading screen,
 // which blurs the art, gets a small soft variant. Requires cwebp (libwebp 1.6) and avifenc (libavif 1.4) on PATH.
 // Usage: node scripts/build-cover.mjs
@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const source = 'public/assets/cover-v2.png', out = 'public/assets';
+const source = 'reference/art/cover-v2.png', out = 'public/assets';
 const tmp = mkdtempSync(join(tmpdir(), 'cover-'));
 // [name, width, extra resize filter]: full desktop art, small screens, and the loading backdrop (pre-blurred).
 const variants = [['cover-1672', 1672, ''], ['cover-960', 960, ''], ['cover-blur-480', 480, ',gblur=sigma=3']];

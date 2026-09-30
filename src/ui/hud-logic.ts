@@ -39,10 +39,10 @@ export const hudScale = (width: number, height: number, user = 1) => {
   const viewport = Math.min(1.35, Math.min(width / 1600, height / 900)), size = Math.min(1.2, Math.max(.8, user));
   return +Math.max(HUD_MIN_SCALE, viewport * size).toFixed(3);
 };
-// Bottom row in layout px at 1600x900: vitals 420 wide centred, weapon card and slots 363 wide at 20 px from the right.
-// The centred vitals need 2 x (210 + 16 + 363 + 20) = 1218 layout px; narrower windows (the scale floor keeps text
-// readable, so the layout cannot just shrink) move the vitals to the left edge. Phones keep their own layout.
-export const HUD_CENTRED_WIDTH = 1218, HUD_PHONE_WIDTH = 640;
+// Bottom row in layout px: vitals 340 wide at 18 px from the left, the four boxes (345) centred, the magazine card
+// (about 240) at the right. The centred boxes need 2 x (358 + 16) + 345 = 1093 layout px; narrower windows (the scale
+// floor keeps text readable, so the layout cannot just shrink) stack the boxes above the magazine. Phones keep their own layout.
+export const HUD_CENTRED_WIDTH = 1100, HUD_PHONE_WIDTH = 640;
 export const hudNarrow = (width: number, scale: number) => width > HUD_PHONE_WIDTH && width / scale < HUD_CENTRED_WIDTH;
 
 // Public files resolve against the deploy base (Vite base './'), never the origin root, so subpath deploys keep them.
@@ -64,9 +64,10 @@ export function leaveNeedsConfirm(c: LeaveContext): boolean {
   if (c.phase === 'results') return false;
   return !(c.royale && c.alive === false);
 }
-// Eliminated in battle royale: two buttons, always visible together. Watching is the primary action; the exit never hides.
+// Eliminated in battle royale, the menu (Esc) offers two actions side by side. Watching is the primary one (it
+// recaptures the mouse); the exit never hides.
 export const ELIMINATED_ACTIONS = [
-  { do: 'spectate', label: 'Assistir a próxima capivara', primary: true },
+  { do: 'resume', label: 'Continuar assistindo', primary: true },
   { do: 'leave', label: 'Voltar ao menu', primary: false },
 ] as const;
 
