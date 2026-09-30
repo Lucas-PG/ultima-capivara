@@ -456,7 +456,7 @@
   },
   "sniper": {
     "id": "sniper",
-    "triangles": 21740,
+    "triangles": 22574,
     "parts": [
       "sniper_body",
       "sniper_bolt",
@@ -514,7 +514,7 @@
       0,
       -1
     ],
-    "bytes": 627540
+    "bytes": 662252
   },
   "machete": {
     "id": "machete",

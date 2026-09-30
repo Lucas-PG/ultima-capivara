@@ -697,20 +697,28 @@ def sniper():
                    (-.022, -.027), (.058, .004), (.176, .009), (.414, .027), (.437, .037), (.425, .058), (.19, .056), (.153, .06)],
                   .058, 'walnut', bevel=.007, smooth=2, raw=True)
     # The thumb window reaches the backstrap so a paw can wrap the grip.
-    cut(stock, cutter_prism([(-.137 + .041 * math.cos(a), -.035 + .042 * math.sin(a)) for a in [i * math.tau / 28 for i in range(28)]], .072))
+    cut(stock, cutter_prism([(-.137 + .041 * math.cos(a), -.048 + .057 * math.sin(a)) for a in [i * math.tau / 28 for i in range(28)]], .072))
     # The short paw sits higher than a human wrist. A right-side relief keeps
     # the lower thumbhole bridge clear without losing the left stock silhouette.
     cut(stock, cutter_prism([(-.137 + .043 * math.cos(a), -.063 + .067 * math.sin(a))
                             for a in [i * math.tau / 28 for i in range(28)]], .04, x=.028))
     cut(stock, cutter_box((0, .02, .066), (.04, .23, .045)))
     cut(stock, cutter_box((0, .107, .016), (.034, .074, .049)))
+    L.cross_sections(stock, 1, [-.16, -.11, -.06, -.02, .18, .23, .265, .285, .32, .35])
     # Carve the grip waist independently of the broad cheek and shoulder stock.
     for vertex in stock.data.vertices:
         y, z = vertex.co.y, vertex.co.z
         waist = min(1., max(0., (y + .16) / .05), max(0., (.045 - y) / .055))
         waist *= min(1., max(0., (.06 - z) / .025))
-        vertex.co.x *= 1. - .40 * waist
-        vertex.co.y -= (y + .022) * .30 * waist
+        grip_taper = min(1., max(0., (z + .10) / .045))
+        vertex.co.x *= 1. - (.40 + .22 * grip_taper) * waist
+        vertex.co.y -= (y + .022) * .52 * waist
+        # A narrow rear fore-end lets the support fingers reach underneath.
+        support = min(1., max(0., (y - .15) / .03), max(0., (.35 - y) / .065))
+        vertex.co.x *= 1. - .40 * support
+        far_side = min(1., max(0., vertex.co.x / .017))
+        vertex.co.z = bore + (vertex.co.z - bore) * (1. - (.60 - .30 * far_side) * support)
+    cut(stock, cutter_cyl((0, .19, bore), (0, .35, bore), .0148, sides=24))
     parts['body'] += [complete(stock)]
     parts['body'] += [prism('cheek_rest', [(-.372, .034), (-.258, .035), (-.25, .049), (-.255, .065), (-.379, .061), (-.384, .052)], .043, 'dark', bevel=.004, smooth=1)]
     parts['body'] += [prism('brass_butt_spacer', [(-.409, .022), (-.42, .018), (-.42, -.133), (-.409, -.138)], .051, 'brass', bevel=.002)]
@@ -719,15 +727,20 @@ def sniper():
         panel = prism('grip_checkering', [(-.054, -.035), (-.024, -.029), (-.067, -.108), (-.1, -.112), (-.092, -.087)], .0015, 'wood_dark', x=side * .0182, bevel=.0005)
         parts['body'] += [panel]
         for y, z in ((-.365, .046), (-.268, .047), (.176, .031), (.36, .04), (-.303, -.006)):
-            parts['body'] += [cyl('stock_screw', (side * .024, y, z), (side * .026, y, z), .005, 'brass', sides=16, bevel=.0006)]
-            parts['body'] += [box('screw_slot', (side * .0262, y, z), (.0006, .006, .0009), 'dark', .0002)]
+            support = min(1., max(0., (y - .15) / .03), max(0., (.35 - y) / .065))
+            width = 1. - .40 * support
+            height = bore + (z - bore) * (1. - .60 * support)
+            parts['body'] += [cyl('stock_screw', (side * .024 * width, y, height), (side * .026 * width, y, height), .005, 'brass', sides=16, bevel=.0006)]
+            parts['body'] += [box('screw_slot', (side * .0262 * width, y, height), (.0006, .006, .0009), 'dark', .0002)]
         for i in range(6):
             parts['body'] += [sweep('checkering', [(side * .0186, -.048 - i * .006, -.045), (side * .0186, -.08 - i * .003, -.094)], [.0007] * 2, 'walnut', sides=5)]
     for obj in parts['body']:
         if obj.name.split('.')[0] in ('grip_checkering', 'checkering'):
             for vertex in obj.data.vertices:
-                vertex.co.y = .70 * vertex.co.y - .0066
-    barrel = lathe('fluted_barrel', [(.019, 0), (.018, .045), (.016, .52), (.015, .585)], 'blued', p0=(0, .181, bore), sides=28)
+                grip_taper = min(1., max(0., (vertex.co.z + .10) / .045))
+                vertex.co.x *= (.60 - .22 * grip_taper) / .60
+                vertex.co.y = .48 * vertex.co.y - .01144
+    barrel = lathe('fluted_barrel', [(.019, 0), (.014, .025), (.014, .14), (.017, .2), (.016, .52), (.015, .585)], 'blued', p0=(0, .181, bore), sides=28)
     # Long rounded flutes end before the brass muzzle collar.
     for a in [i * math.tau / 6 for i in range(6)]:
         x, z = math.cos(a) * .0192, bore + math.sin(a) * .0192
@@ -778,6 +791,7 @@ def sniper():
     cut(guard, cutter_prism([(-.019, .004), (.05, .004), (.049, -.021), (.038, -.038), (-.009, -.038), (-.02, -.026)], .034))
     parts['body'] += [complete(guard)]
     parts['trigger'] += [prism('trigger', [(.001, .006), (.009, .006), (.008, -.01), (-.001, -.029), (-.008, -.03), (-.002, -.01)], .007, 'steel', bevel=.001, smooth=1)]
+    parts['trigger'] += [box('trigger_pad', (.006, .003, -.021), (.025, .01, .014), 'brass', .002)]
     parts['mag'] += [prism('box_magazine', [(.071, .023), (.145, .023), (.145, -.072), (.135, -.079), (.074, -.079)], .033, 'blued', bevel=.002)]
     parts['mag'] += [box('mag_floor', (0, .108, -.078), (.039, .083, .009), 'gunmetal', .0015)]
     for side in (-1, 1):
