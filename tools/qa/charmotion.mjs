@@ -14,7 +14,8 @@ if (weapon !== 'none') query.set('weapon', weapon);
 await page.goto(`${base}/tools/blender/review.html?${query}`);
 await page.waitForFunction(() => window.capyReview?.ready, null, { timeout: 120000 });
 for (const clip of clips.split(',')) {
-  await page.evaluate(o => window.capyReview.shot(o), { clip, time: 1, angle, distance: Number(distance) });
+  await page.evaluate(o => window.capyReview.shot(o), { clip: 'idle', time: .5, angle, distance: Number(distance) });
+  await page.evaluate(o => window.capyReview.shot(o), { clip, time: Number(process.env.SETTLE ?? 1), angle, distance: Number(distance) });
   for (let i = 0; i < Number(frames); i++) {
     await page.evaluate(o => window.capyReview.shot(o), { clip, time: Number(step), angle, distance: Number(distance) });
     await page.screenshot({ path: `${out}/${clip}-${angle}-${String(i).padStart(2, '0')}.png` });

@@ -50,7 +50,7 @@ avatar.label.visible = false;
 const hitboxes = createCapybaraHitboxOverlay(); avatar.group.add(hitboxes);
 
 const clay = new THREE.MeshStandardMaterial({ color: '#b9b3a8', roughness: .85 });
-function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean; labels?: boolean; clay?: boolean } = {}) {
+function shot(options: { angle?: string; distance?: number; clip?: string; time?: number; overlay?: boolean; lod?: number; expression?: CapybaraExpression | null; head?: boolean; labels?: boolean; clay?: boolean; fov?: number } = {}) {
   const { angle = 'three-quarter', distance = 3, clip = 'idle', time = .3, overlay = false } = options;
   setCapybaraExpression(avatar.body, options.expression || null);
   avatar.group.visible = true;
@@ -60,6 +60,7 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
   actor.stage = clip === 'freefall' ? 'falling' : clip === 'parachute' ? 'parachute' : 'ground';
   // Emotes, reactions and reloads start once when the clip changes, then play on.
   if (clip !== lastClip) {
+    if (lastClip === 'death') view.avatars.respawn(actor.id);
     lastClip = clip;
     actor.emote = null; actor.emoteUntil = 0; actor.reloadUntil = 0; actor.alive = true;
     if (clip in EMOTES) { actor.emote = clip as ActorState['emote']; actor.emoteUntil = elapsed + EMOTES[clip as keyof typeof EMOTES].duration; }
@@ -72,7 +73,7 @@ function shot(options: { angle?: string; distance?: number; clip?: string; time?
   hitboxes.visible = overlay;
   const azimuth = angle === 'side' ? Math.PI / 2 : angle === 'front' ? 0 : angle === 'back' ? Math.PI : angle === 'left' ? -Math.PI / 4 : Math.PI / 4;
   // The near paw advances toward the lens during run, requiring extra room at 1 m.
-  renderer.camera.fov = options.head ? 42 : distance === 1 ? 120 : 60;
+  renderer.camera.fov = options.fov ?? (options.head ? 42 : distance === 1 ? 120 : 60);
   const focusY = options.head ? 1.6 : .94;
   renderer.camera.position.set(center.x + Math.sin(azimuth) * distance, floor + focusY, center.z - Math.cos(azimuth) * distance);
   renderer.camera.lookAt(center.x, floor + focusY, center.z);

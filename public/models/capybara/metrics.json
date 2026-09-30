@@ -109,9 +109,9 @@
   "materials": 1,
   "skins": 1,
   "joints": 67,
-  "bytes": 3035884,
+  "bytes": 3037260,
   "statueBytes": 151532,
-  "rawBytes": 7852660,
+  "rawBytes": 7864588,
   "texture": {
     "format": "UV detail + normal + ORM",
     "count": 3,

@@ -205,10 +205,10 @@ def walk_like(stride, lift, cadence_drop, lean, reverse=False, lateral=0.0, crou
         bob = math.cos(2 * ph)                              # low at each contact
         pb['spine'].location.y = -crouch - cadence_drop * (.5 + .5 * bob)
         roll = math.sin(ph)
-        pb['spine'].rotation_euler.z = .045 * roll          # weight over the stance foot
-        pb['spine'].rotation_euler.y = .05 * roll * (-1 if reverse else 1)
-        pb['chest'].rotation_euler.z = -.025 * roll
-        pb['chest'].rotation_euler.y = -.04 * roll
+        pb['spine'].rotation_euler.z = .07 * roll           # the waddle: weight over the stance foot
+        pb['spine'].rotation_euler.y = .06 * roll * (-1 if reverse else 1)
+        pb['chest'].rotation_euler.z = -.035 * roll
+        pb['chest'].rotation_euler.y = -.05 * roll
         pb['spine'].rotation_euler.x = lean
         pb['chest'].rotation_euler.x = lean * .5 + .012 * bob
         pb['neck'].rotation_euler.x = -lean * 1.2
@@ -225,7 +225,7 @@ def walk_like(stride, lift, cadence_drop, lean, reverse=False, lateral=0.0, crou
 
 
 report['locomotionSpeed'] = {'walk': 3.9, 'run': 6.4, 'crouch_walk': 2.1}
-author('walk', .56, walk_like(.20, .085, .022, -.03), stabilize=.9)
+author('walk', .56, walk_like(.24, .10, .030, -.04), stabilize=.9)
 author('backpedal', .60, walk_like(.17, .075, .018, .04, reverse=True), stabilize=.9)
 author('strafe_l', .58, walk_like(.08, .075, .018, -.02, lateral=-.10), stabilize=.9)
 author('strafe_r', .58, walk_like(.08, .075, .018, -.02, lateral=.10), stabilize=.9)
@@ -239,12 +239,12 @@ def run(t, sec):
     bob = math.cos(2 * ph - .5)
     pb['spine'].location.y = -.030 * (.5 + .5 * bob) + .012
     roll = math.sin(ph)
-    # A small lean only: the head must stay in its hit volume, so the drive reads through the
-    # bounce, the counter-twist and the lagging ears, pack and rag instead.
-    pb['spine'].rotation_euler.x = -.03 + .012 * bob
-    pb['chest'].rotation_euler.x = -.015 + .01 * bob
-    pb['neck'].rotation_euler.x = .04 - .012 * bob
-    pb['head'].rotation_euler.x = .01 - .012 * bob
+    # A forward drive from the hips; the head is stabilised (it stays in its hit volume and
+    # level), so the body leans in under it while the ears, pack and rag lag behind.
+    pb['spine'].rotation_euler.x = -.10 + .015 * bob
+    pb['chest'].rotation_euler.x = -.05 + .01 * bob
+    pb['neck'].rotation_euler.x = .11 - .012 * bob
+    pb['head'].rotation_euler.x = .04 - .012 * bob
     pb['spine'].rotation_euler.y = .08 * roll
     pb['chest'].rotation_euler.y = -.10 * roll               # shoulders counter the hips
     pb['spine'].rotation_euler.z = .03 * roll
