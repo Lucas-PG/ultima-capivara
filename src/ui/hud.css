@@ -306,3 +306,9 @@ body.reduce-motion #hud #aMag.tick,body.reduce-motion #hud #ladder.upgrade{anima
 #victory .vactions .wait{flex:1;justify-content:center;color:var(--brown,#3a2418);font-family:var(--sans,sans-serif);font-size:14px;font-weight:800;border-color:rgba(58,36,24,.45);background:rgba(255,244,214,.6)}
 #victory .vactions .wait b{color:var(--terra,#e2623a)}
 #victory .vactions .wait .icon{width:20px;height:20px;flex:none}
+
+/* Menus: short windows scroll instead of hiding the mode cards below the fold. */
+body[data-screen=home],body[data-screen=lobby]{overflow-y:auto}
+/* Segmented choices wrap instead of letting long labels (Equilibrada, Caprichada, Magenta) run into each other. */
+.modal .seg{flex-wrap:wrap}
+.modal .seg button{flex:1 1 auto;min-width:max-content;padding-inline:6px;font-size:13px}
