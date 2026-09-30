@@ -124,8 +124,8 @@ def bones():
     b['belly'] = (v(0, .960, -.060), v(0, 1.060, -.080), 'spine')
     b['hipcloth'] = (RAG_TOP, RAG_TOP + v(.02, -.27, 0), 'spine')
     # Bandana tails and the rolled blanket lag behind the body (runtime springs).
-    b['scarf_L'] = (v(-.018, 1.345, -.214), v(-.060, 1.215, -.232), 'chest')
-    b['scarf_R'] = (v(.018, 1.345, -.214), v(.048, 1.240, -.232), 'chest')
+    b['scarf_L'] = (v(-.018, 1.333, -.214), v(-.060, 1.203, -.232), 'chest')
+    b['scarf_R'] = (v(.018, 1.333, -.214), v(.048, 1.228, -.232), 'chest')
     b['bedroll'] = (v(0, 1.372, .262), v(0, 1.44, .262), 'pack')
     for s, n in ((-1, 'L'), (1, 'R')):
         eye = eye_point(s)[0]
@@ -135,7 +135,7 @@ def bones():
         for part in ('tip', 'peak'):
             b[f'blink_{part}_{n}'] = (eye, eye + v(0, .044, 0), 'blink_' + n)
         b['glint_' + n] = (eye + side(v(.006, .008, -.012), s), eye + side(v(.006, .05, -.012), s), 'blink_' + n)
-        b['brow_' + n] = (eye + side(v(-.004, .034, -.004), s), eye + side(v(-.004, .064, -.004), s), 'head')
+        b['brow_' + n] = (eye + side(v(-.004, EYE_R + .012, -.004), s), eye + side(v(-.004, EYE_R + .042, -.004), s), 'head')
         b['mouth_' + n] = (side(MOUTH_CORNER, s), side(MOUTH_CORNER + v(0, .030, 0), s), 'mouth_cavity')
         b['thigh_' + n] = (side(HIP, s), side(KNEE, s), 'root')
         b['shin_' + n] = (side(KNEE, s), side(ANKLE, s), 'thigh_' + n)
@@ -256,7 +256,7 @@ def eye_opening(s):
     painter draws the lid line along its edge."""
     e, out = eye_point(s)
     E = eye_frame(s)
-    return Ellipsoid(e + out * (EYE_R + .002) - E[:, 2] * .004, (.041, .017, .022), R=E)
+    return Ellipsoid(e + out * (EYE_R + .002) - E[:, 2] * .004, (.044, .018, .0235), R=E)
 
 
 def eye_frame(s):
@@ -313,11 +313,9 @@ def tuft(base, direction, length, r0, bend=(0, 0, 0)):
 
 
 # A small cowlick on the crown. Base, direction, length, base radius, bend.
-CROWN_TUFTS = [((0.0, 1.802, -.004), (.04, .78, .62), .048, .013, (0, 0, .45)),
-               ((-.018, 1.800, .014), (-.30, .72, .62), .040, .011, (-.2, 0, .4)),
-               ((.019, 1.799, .018), (.33, .70, .63), .038, .011, (.2, 0, .4)),
-               ((-.034, 1.794, .034), (-.52, .62, .58), .028, .009, (-.2, 0, .3)),
-               ((.035, 1.793, .036), (.54, .60, .58), .027, .009, (.2, 0, .3))]
+CROWN_TUFTS = [((0.0, 1.802, -.004), (.04, .74, .66), .040, .016, (0, 0, .5)),
+               ((-.020, 1.799, .016), (-.34, .68, .64), .032, .014, (-.2, 0, .45)),
+               ((.021, 1.798, .020), (.36, .66, .65), .030, .014, (.2, 0, .45))]
 
 
 def head():
@@ -576,7 +574,7 @@ def scarf():
     in front with a real knot and two short tails."""
     # A band that hugs the outside of the thick neck, tilted down toward the knot.
     wear = Offset(Union([neck(), torso()], k=.05), .015)
-    up, c = rot(pitch=-.30) @ v(0, 1, 0), v(0, 1.422, -.012)
+    up, c = rot(pitch=-.30) @ v(0, 1, 0), v(0, 1.408, -.012)
     band = Intersect(wear, Intersect(Plane(c + up * .033, up), Plane(c - up * .033, -up)), k=.012)
 
     def wrap(p):
@@ -584,13 +582,13 @@ def scarf():
         # Diagonal folds of the rolled cloth, tightening toward the knot.
         return .0042 * np.sin(a * 5 + (p[:, 1] - 1.43) * 95) + .0024 * np.sin(a * 11 - (p[:, 1] - 1.43) * 60)
     band = Displace(band, wrap, .007)
-    kc = on_surface(wear, v(0, 1.372, -.30), .014)[0]
+    kc = on_surface(wear, v(0, 1.360, -.30), .014)[0]
     knot = Union([Ellipsoid(kc, (.034, .030, .028)), Ellipsoid(kc + v(-.030, .012, .010), (.024, .020, .020)), Ellipsoid(kc + v(.030, .012, .010), (.024, .020, .020))], k=.008)
     knot = Cut(knot, Torus(kc + v(0, -.002, -.004), .030, .0045, R=rot(pitch=1.25) @ rot(roll=.35)), k=.003)
     tails = []
     chest = Offset(torso(), .012)
-    for pts, w in (([kc + v(-.010, -.020, .004), (-.036, 1.288, -.30), (-.062, 1.212, -.30)], [.026, .046, .008]),
-                   ([kc + v(.012, -.020, .004), (.030, 1.300, -.30), (.050, 1.236, -.30)], [.024, .040, .008])):
+    for pts, w in (([kc + v(-.010, -.020, .004), (-.036, 1.276, -.30), (-.062, 1.200, -.30)], [.026, .046, .008]),
+                   ([kc + v(.012, -.020, .004), (.030, 1.288, -.30), (.050, 1.224, -.30)], [.024, .040, .008])):
         pts = [tuple(pts[0])] + [tuple(q) for q in on_surface(chest, np.array(pts[1:], F), .010)]
         tails.append(Loft(pts, w, [.010, .008, .005], side=(1, 0, 0)))
 
@@ -704,7 +702,7 @@ def eyes():
     return Union([Material(Sphere(eye_point(s)[0], EYE_R), M['eye']) for s in (-1, 1)])
 
 
-EYE_R = .043
+EYE_R = .046
 
 # A free strip along the left and bottom atlas edges holds flat swatches for unbaked geometry.
 SWATCH_STRIP = .015

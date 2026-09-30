@@ -131,6 +131,12 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
                     add('foot_' + n, a * (1 - tz)); add('toes_' + n, a * tz)
         m = int(mat[i])
         p = pts[i]
+        # The nape below the back of the skull rides the neck: it is the top of the neck, and the
+        # head sphere bounds only what turns with the head.
+        if 'head' in w:
+            nape = float(ss(1.56, 1.47, p[1])) * float(ss(.02, .08, p[2]))
+            if nape > 0:
+                moved = w['head'] * nape; w['head'] -= moved; w['neck'] = w.get('neck', 0) + moved
         # Gear with its own motion and rigid leather pieces.
         leather_ids = (M['leather'], M['brass'], M['pouch'], M['pack_flap'])
         if m == M['canvas']:
@@ -142,7 +148,7 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             h = float(ss(C.RAG_TOP[1] - .03, C.RAG_TOP[1] - .17, p[1])); w = {'spine': 1 - h, 'hipcloth': h}
         elif m == M['scarf']:
             # The band rides the neck and chest (never the head); each tail swings from the knot.
-            c = float(ss(1.45, 1.38, p[1])); tail = float(ss(1.352, 1.300, p[1])) * float(p[2] < -.15)
+            c = float(ss(1.435, 1.365, p[1])); tail = float(ss(1.340, 1.288, p[1])) * float(p[2] < -.15)
             w = {'chest': c * (1 - tail), 'neck': (1 - c) * (1 - tail), 'scarf_' + ('R' if p[0] > 0 else 'L'): tail}
             w = {k: val for k, val in w.items() if val > 1e-4}
         elif m == M['collar']:
@@ -161,10 +167,14 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             s = 1 if p[0] > 0 else -1; n = 'R' if s > 0 else 'L'
             e, out_dir = C.eye_point(s)
             de = float(np.linalg.norm(p - e))
-            lid = float(ss(C.EYE_R + .016, C.EYE_R + .004, de)) * float((p - e) @ out_dir > -.004)
+            # The lid skin close round the opening follows the eyeball as it closes (a wider region
+            # would drag the brow down into a ridge over the big eye).
+            lid = float(ss(C.EYE_R + .010, C.EYE_R + .003, de)) * float((p - e) @ out_dir > -.004)
             ear_c = C.side(C.EAR, s)
             ear = float(ss(.066, .042, np.linalg.norm(p - ear_c))) * float(p[1] > 1.735)
-            brow = float(ss(.036, .014, np.linalg.norm(p - (e + np.array([0, .034, 0], F))))) * .6
+            # A soft brow patch just above the lid (the eye sits near the top of the head, so a tight
+            # patch would lift a lump).
+            brow = float(ss(.040, .010, np.linalg.norm(p - (e + np.array([0, C.EYE_R + .012, 0], F))))) * .5
             mc = C.side(C.MOUTH_CORNER, s)
             corner = float(ss(.028, .010, np.linalg.norm(p - mc))) * .8
             jaw = float(ss(1.535, 1.51, p[1]) * ss(-.15, -.22, p[2])) * .7
@@ -192,7 +202,8 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
     fur *= np.where(head, .35 + .65 * np.clip((pts[:, 2] + .30) / .14, 0, 1), 1.0) * np.where(head & (pts[:, 2] < -.30), 0, 1)
     for s in (-1, 1):
         e, _ = C.eye_point(s)
-        fur *= np.linalg.norm(pts - e, axis=1) > C.EYE_R + .010
+        # The lids keep their fur up to the opening, so a closing eye stays furred (no bare patch).
+        fur *= np.linalg.norm(pts - e, axis=1) > C.EYE_R + .004
         # Paw: fur on the back of the hand up to the knuckles only.
         loc = _paw_local(pts, s); on_paw = (loc[:, 1] > -.01) & (np.linalg.norm(loc, axis=1) < .30)
         fur *= ~(on_paw & ((loc[:, 1] > .095) | (loc[:, 2] < .012)))

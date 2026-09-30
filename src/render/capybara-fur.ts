@@ -137,7 +137,7 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
         float furStrand = furCombed(vFurRest, .0011, .009, 31.0);
         float furKeep = furStrand * .55 + furLock * .70 - .10;
         if (furKeep < mix(.32, .95, vFurShell) + uFurFade) discard;
-        diffuseColor.rgb *= mix(.78, 1.12, vFurShell);`);
+        diffuseColor.rgb *= mix(.84, 1.12, vFurShell);`);
   };
   material.customProgramCacheKey = () => `${key}:capivara-fur-v4`;
   shellMaterials.set(base, material);

@@ -537,27 +537,27 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
             # head silhouette), the mouth corners and jaw the rest.
             if expression == 'determined':
                 lid.scale.y = .50
-                brow.location.y = -.013
-                brow.rotation_euler.z = sign * .45            # inner ends down: a frown
+                brow.location.y = -.008
+                brow.rotation_euler.z = sign * .30            # inner ends down: a frown
                 ear.rotation_euler.x = -.45
                 mouth.location.y = -.006
             elif expression == 'hit':
                 lid.scale.y = .12
-                brow.location.y = .014
-                brow.rotation_euler.z = -sign * .35           # inner ends up: pain
+                brow.location.y = .007
+                brow.rotation_euler.z = -sign * .25           # inner ends up: pain
                 ear.rotation_euler.x = -1.0
                 mouth.location.y = -.010
                 pb['jaw'].rotation_euler.x = .16
             elif expression == 'stunned':
                 lid.scale.y = 1.30 if side == 'R' else .40
-                brow.location.y = .015 if side == 'R' else -.008
+                brow.location.y = .008 if side == 'R' else -.005
                 ear.rotation_euler.z = sign * .70
                 ear.location.y = -.014
                 mouth.location.y = -.006 if side == 'R' else .004
                 pb['jaw'].rotation_euler.x = .22
             elif expression == 'victory':
                 lid.scale.y = .30
-                brow.location.y = .014
+                brow.location.y = .007
                 brow.rotation_euler.z = -sign * .15
                 mouth.location.y = .016
                 ear.rotation_euler.x = .35

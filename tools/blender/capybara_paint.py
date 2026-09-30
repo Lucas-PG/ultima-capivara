@@ -22,11 +22,11 @@ F = np.float32
 M = C.M
 CHUNK = 1 << 20
 # The palette (sRGB hex). The first-person arms are matched to these.
-FUR_BASE, FUR_TIP, FUR_DARK, FUR_LIGHT, FUR_BUFF = 'B47C49', 'CC9763', '8E5A33', 'C79B6A', 'CDB795'
+FUR_BASE, FUR_TIP, FUR_DARK, FUR_LIGHT, FUR_BUFF = 'B47C49', 'CC9763', '8E5A33', 'C79B6A', 'D5B68C'
 SKIN, SKIN_LIGHT, CLAW, NOSE = '4E433E', '6C5E57', '2A2320', '6A5E58'
 LINEN, DENIM, OLIVE, LEATHER, LEATHER_DARK, RUCKSACK, BRASS = 'E4D8C0', '51627E', '74755A', '6E4A31', '55382A', '7E6444', 'C39A52'
 # Mean of the lock shading over the pelt (measured on the build), so a lock's average stays the palette value.
-LOCK_SHADE_MEAN = .91
+LOCK_SHADE_MEAN = .895
 
 
 def srgb(h):
@@ -326,8 +326,8 @@ def _paint_texels(p, n, mat, edge, ao, face):
         # The value design in large shapes: lighter throat, belly and undersides; a darker crown,
         # nape and back of the head; the backs of the limbs a little darker.
         c = lerp(c, srgb(FUR_LIGHT), np.clip(-nq[:, 1], 0, 1) * .65)
-        c = lerp(c, srgb(FUR_DARK), ss(.25, .75, nq[:, 1]) * ss(1.66, 1.78, q[:, 1]) * .60)
-        c = lerp(c, srgb(FUR_DARK), ss(.02, .16, q[:, 2]) * ss(1.28, 1.50, q[:, 1]) * ss(1.88, 1.70, q[:, 1]) * .55)
+        c = lerp(c, srgb(FUR_DARK), ss(.35, .85, nq[:, 1]) * ss(1.72, 1.80, q[:, 1]) * .45)
+        c = lerp(c, srgb(FUR_DARK), ss(.07, .20, q[:, 2]) * ss(1.28, 1.50, q[:, 1]) * ss(1.88, 1.70, q[:, 1]) * .50)
         c = lerp(c, srgb(FUR_DARK), ss(.05, .35, nq[:, 2]) * (q[:, 1] < 1.30) * .30)
         for loc in local:
             inner = ss(.04, -.05, loc[:, 2]) * ss(.22, .12, np.abs(loc[:, 0])) * ss(.08, .01, loc[:, 1]) * ss(-.34, -.22, loc[:, 1])
@@ -347,7 +347,7 @@ def _paint_texels(p, n, mat, edge, ao, face):
             # The crown tuft lightens toward its tips (it stands above the crown surface).
             ch = lerp(ch, srgb(FUR_TIP), ss(1.812, 1.845, qh[:, 1]) * .75)
             # Lighter cheeks, jaw and throat below the eye line.
-            ch = lerp(ch, srgb(FUR_LIGHT), ss(1.66, 1.54, qh[:, 1]) * ss(.10, -.10, qh[:, 2]) * .70)
+            ch = lerp(ch, srgb(FUR_LIGHT), ss(1.71, 1.56, qh[:, 1]) * ss(.14, -.06, qh[:, 2]) * .78)
             # The pale buff muzzle: the lower half of the muzzle front (whisker pads and lips), the
             # chin and a thin rim round the nose leather, fading softly back into the cheeks.
             dm = S.evaluate(face.muzzle, qh, cull=False)[0]
