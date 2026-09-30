@@ -26,3 +26,6 @@ GOALS
 4. Research how Call of Duty, Valorant, Apex Legends, Overwatch 2 and Battlefield design weapon, footstep and ambience audio for readability (frequency separation, loudness hierarchy, distance cues, occlusion) and write docs/overhaul/audio-research.md with sources.
 5. Tests that protect the intent: measure rendered sounds (loudness, spectral centroid, envelope) and fail if gunfire and footsteps overlap too much, if the idle ambience contains a constant broadband noise floor above a threshold you justify, or if the master can clip.
 Stay inside a sensible audio budget (voices, pooling, decoding cost on Low).
+
+SCOPE (user clarification)
+The two complaints are only examples, not the full list. You own everything related to audio: review, rebuild and upgrade all of it and find the other problems yourself (weapons and every mechanism, movement and footsteps per material, jumps, landings, swimming, ambience per zone, water, the storm, the plane and parachute drop, chests, loot and pickups, doors and props, hits, kills, damage and low health, UI and menus, music if it makes the game better, emotes, spatialisation and occlusion, the mix and the audio settings).
