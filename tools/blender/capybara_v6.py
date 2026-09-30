@@ -26,7 +26,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import capy_sdf as S
 import capybara_form as C
-import paw_sculpt as P
+import capy_hand as P
 
 ROOT = HERE.parents[1]
 OUT = ROOT / 'output/characters'; OUT.mkdir(parents=True, exist_ok=True)
@@ -178,8 +178,8 @@ for f in bm.faces:
     cen = sum((Vector(G(np.array(tuple(g.calc_center_median())))) for g in island), Vector()) / len(island)
     eye = any(part[l.vert.index] == 1 for g in island for l in g.loops)
     head = cen.y > 1.47 and cen.z < .20
-    paw = min(np.linalg.norm(np.array(tuple(cen)) - C.wrist(s)) for s in (-1, 1)) < .16
-    k = 2.6 if eye else 2.1 if head else 1.5 if paw else .5 if cen.y < .03 else 1.0
+    paw = min(np.linalg.norm(np.array(tuple(cen)) - C.wrist(s)) for s in (-1, 1)) < .24
+    k = 2.6 if eye else 2.1 if head else 1.3 if paw else .5 if cen.y < .03 else 1.0
     if k != 1.0:
         uv_c = sum((l[uvl].uv for g in island for l in g.loops), Vector((0, 0))) / sum(len(g.loops) for g in island)
         for g in island:
@@ -190,6 +190,10 @@ select_only(game)
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.uv.pack_islands(margin=.0025, rotate=True, scale=True)
 bpy.ops.object.mode_set(mode='OBJECT')
+# Keep a free strip along the left and bottom edges of the atlas: the painter puts flat swatches
+# there (C.SWATCH) for geometry that is not baked, such as the whiskers.
+uvs = np.empty(len(game.data.loops) * 2, np.float32); game.data.uv_layers.active.data.foreach_get('uv', uvs)
+game.data.uv_layers.active.data.foreach_set('uv', (uvs * (1 - C.SWATCH_STRIP) + C.SWATCH_STRIP).astype(np.float32))
 log('uv')
 
 # ------------------------------------------------------------------ 3. bake
@@ -240,34 +244,39 @@ def bake(kind, name, material=None, size=TEX, **kw):
     return px.reshape(size, size, 4)[..., :3].copy()
 
 
-log('bake position'); P_map = bake('EMIT', 'pos', emit_material('emit_pos', 'pos'))
-log('bake eye mask'); E_map = bake('EMIT', 'eyemask', emit_material('emit_eye', 'pos', alpha=True))[..., 0]
-# Direct low-surface positions resolve material ownership where a decimated armhole bridges
-# a crevice. Projection rays there can alternately hit the vest and the sleeve behind it.
-low_pos = game.data.color_attributes.new('pos', 'FLOAT_COLOR', 'POINT')
-low_pos.data.foreach_set('color', np.concatenate([coords(game), np.ones((len(game.data.vertices), 1), np.float32)], 1).ravel())
-low_material = emit_material('emit_low_pos', 'pos')
-low_node = low_material.node_tree.nodes.new('ShaderNodeTexImage'); low_material.node_tree.nodes.active = low_node
-low_img = bpy.data.images.new('low_pos', TEX, TEX, alpha=False, float_buffer=True); low_img.colorspace_settings.name = 'Non-Color'; low_node.image = low_img
-game.data.materials.clear(); game.data.materials.append(low_material)
-select_only(game); scene.render.bake.use_selected_to_active = False; bpy.ops.object.bake(type='EMIT')
-low_px = np.empty(TEX * TEX * 4, np.float32); low_img.pixels.foreach_get(low_px); P_low = low_px.reshape(TEX, TEX, 4)[..., :3].copy()
-low_node.image = None; bpy.data.images.remove(low_img); del low_px
-scene.render.bake.use_selected_to_active = True; game.data.materials.clear(); game.data.materials.append(bake_mat)
-game.data.color_attributes.remove(low_pos)
-log('bake object normal'); N_obj = bake('NORMAL', 'nobj', bpy.data.materials.new('plain_a'), normal_space='OBJECT').astype(np.float16)
-log('bake tangent normal'); N_tan = bake('NORMAL', 'ntan', bpy.data.materials.new('plain_b'), normal_space='TANGENT').astype(np.float16)
-scene.cycles.samples = 48; scene.world = scene.world or bpy.data.worlds.new('w'); scene.world.light_settings.distance = .06
-# Occlusion is soft: baked at half size (a quarter of the samples) and filtered up.
-log('bake occlusion'); AO = bake('AO', 'ao', bpy.data.materials.new('plain_c'), size=TEX // 2)[..., 0]
-AO = np.repeat(np.repeat(AO, 2, 0), 2, 1)
-AO = ((AO + np.roll(AO, 1, 0) + np.roll(AO, -1, 0) + np.roll(AO, 1, 1) + np.roll(AO, -1, 1)) / 5).astype(np.float16)
-# Coverage: texels the bake wrote (margin included) have a nonzero object normal.
-covered = np.abs(np.linalg.norm(N_obj.astype(np.float32) * 2 - 1, axis=2) - 1) < .08
-# The painter (capybara_maps.py) runs from this cache after Blender exits.
-np.savez(CACHE / 'bakes.npz', P=P_map, P_low=P_low, E=E_map.astype(np.float16), N_obj=N_obj, N_tan=N_tan, AO=AO, covered=covered)
-del P_map, P_low, N_obj, N_tan, AO, E_map, covered
-log('bakes cached')
+# CAPY_REUSE_BAKES=1 reuses the cache when only the rig, clips or paint changed (the sculpt, the
+# meshing and the UVs are deterministic, so the cache still fits the game mesh).
+if __import__('os').environ.get('CAPY_REUSE_BAKES') and (CACHE / 'bakes.npz').exists():
+    log('bakes reused')
+else:
+    log('bake position'); P_map = bake('EMIT', 'pos', emit_material('emit_pos', 'pos'))
+    log('bake eye mask'); E_map = bake('EMIT', 'eyemask', emit_material('emit_eye', 'pos', alpha=True))[..., 0]
+    # Direct low-surface positions resolve material ownership where a decimated armhole bridges
+    # a crevice. Projection rays there can alternately hit the vest and the sleeve behind it.
+    low_pos = game.data.color_attributes.new('pos', 'FLOAT_COLOR', 'POINT')
+    low_pos.data.foreach_set('color', np.concatenate([coords(game), np.ones((len(game.data.vertices), 1), np.float32)], 1).ravel())
+    low_material = emit_material('emit_low_pos', 'pos')
+    low_node = low_material.node_tree.nodes.new('ShaderNodeTexImage'); low_material.node_tree.nodes.active = low_node
+    low_img = bpy.data.images.new('low_pos', TEX, TEX, alpha=False, float_buffer=True); low_img.colorspace_settings.name = 'Non-Color'; low_node.image = low_img
+    game.data.materials.clear(); game.data.materials.append(low_material)
+    select_only(game); scene.render.bake.use_selected_to_active = False; bpy.ops.object.bake(type='EMIT')
+    low_px = np.empty(TEX * TEX * 4, np.float32); low_img.pixels.foreach_get(low_px); P_low = low_px.reshape(TEX, TEX, 4)[..., :3].copy()
+    low_node.image = None; bpy.data.images.remove(low_img); del low_px
+    scene.render.bake.use_selected_to_active = True; game.data.materials.clear(); game.data.materials.append(bake_mat)
+    game.data.color_attributes.remove(low_pos)
+    log('bake object normal'); N_obj = bake('NORMAL', 'nobj', bpy.data.materials.new('plain_a'), normal_space='OBJECT').astype(np.float16)
+    log('bake tangent normal'); N_tan = bake('NORMAL', 'ntan', bpy.data.materials.new('plain_b'), normal_space='TANGENT').astype(np.float16)
+    scene.cycles.samples = 48; scene.world = scene.world or bpy.data.worlds.new('w'); scene.world.light_settings.distance = .06
+    # Occlusion is soft: baked at half size (a quarter of the samples) and filtered up.
+    log('bake occlusion'); AO = bake('AO', 'ao', bpy.data.materials.new('plain_c'), size=TEX // 2)[..., 0]
+    AO = np.repeat(np.repeat(AO, 2, 0), 2, 1)
+    AO = ((AO + np.roll(AO, 1, 0) + np.roll(AO, -1, 0) + np.roll(AO, 1, 1) + np.roll(AO, -1, 1)) / 5).astype(np.float16)
+    # Coverage: texels the bake wrote (margin included) have a nonzero object normal.
+    covered = np.abs(np.linalg.norm(N_obj.astype(np.float32) * 2 - 1, axis=2) - 1) < .08
+    # The painter (capybara_maps.py) runs from this cache after Blender exits.
+    np.savez(CACHE / 'bakes.npz', P=P_map, P_low=P_low, E=E_map.astype(np.float16), N_obj=N_obj, N_tan=N_tan, AO=AO, covered=covered)
+    del P_map, P_low, N_obj, N_tan, AO, E_map, covered
+    log('bakes cached')
 for o in highs:
     bpy.data.objects.remove(o)
 
@@ -316,8 +325,46 @@ bpy.ops.object.mode_set(mode='OBJECT')
 REST = {b.name: (G(np.array(tuple(b.head_local))), G(np.array(tuple(b.tail_local)))) for b in arm_data.bones}
 
 
+def whisker_mesh():
+    """Real whiskers for the close LOD: thin tapered three-sided strands from the whisker pads,
+    sweeping out and back. They sample the whisker swatch of the atlas (not baked)."""
+    verts, faces = [], []
+    centre = C.v(0, 1.6, -.07)
+    for s in (-1, 1):
+        roots = C.whisker_roots(s)
+        for k, root in enumerate(roots):
+            out = C.norm(C.v(s * .80, -.10 - .06 * (k % 3), .42 + .05 * (k % 4)))
+            length = .070 + .030 * ((k * 7) % 5) / 4
+            base = len(verts)
+            for i in range(5):
+                t = i / 4
+                # A gentle droop and sweep along the strand, tapering to a point.
+                c = root + out * (length * t) + C.v(0, -.018 * t * t, .022 * t * t) - out * .002
+                # The head hit sphere bounds every head vertex.
+                d = c - centre; r = float(np.linalg.norm(d))
+                if r > .292: c = centre + d * (.292 / r)
+                w = .0017 * (1 - t) + .0003
+                a = C.norm(np.cross(out, C.v(0, 1, 0))); b = np.cross(out, a)
+                for j in range(3):
+                    ang = j * math.tau / 3
+                    verts.append(c + (a * math.cos(ang) + b * math.sin(ang)) * w)
+            for i in range(4):
+                for j in range(3):
+                    p0, p1 = base + i * 3 + j, base + i * 3 + (j + 1) % 3
+                    faces += [(p0, p1, p1 + 3), (p0, p1 + 3, p0 + 3)]
+    obj = mesh_object('whiskers', np.array(verts, np.float32), faces)
+    layer = obj.data.uv_layers.new(name=game.data.uv_layers.active.name)
+    layer.data.foreach_set('uv', np.tile(np.array(C.SWATCH['whisker'], np.float32), len(obj.data.loops)))
+    tag = obj.data.attributes.new('part', 'INT', 'POINT'); tag.data.foreach_set('value', np.full(len(obj.data.vertices), 2, np.int32))
+    obj.data.materials.append(game.data.materials[0])
+    return obj
+
+
 def lod_copy(level, budget):
     obj = game.copy(); obj.data = game.data.copy(); link(obj); obj.name = f'Capybara_LOD{level}'; obj.data.name = obj.name
+    if level == 0:
+        select_only(obj, whisker_mesh()); bpy.ops.object.join()
+        obj = bpy.context.view_layer.objects.active; obj.name = 'Capybara_LOD0'; obj.data.name = obj.name
     if level:
         select_only(obj)
         for _ in range(3):
@@ -359,4 +406,7 @@ for level, budget in enumerate(LOD_BUDGET):
     log('LOD', level, len(obj.data.loop_triangles))
 bpy.data.objects.remove(game)
 report['eye'] = {s: [float(x) for x in C.eye_point(k)[0]] for s, k in (('L', -1), ('R', 1))}
+# Where each planted foot touches the ground (the sole under the toe hinge): the gait test and
+# the runtime ground clamp read it.
+report['footContact'] = {s: [float(x) for x in C.foot_contact(k)] for s, k in (('L', -1), ('R', 1))}
 exec((HERE / 'capybara_clips.py').read_text())

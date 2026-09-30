@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { buildCapybaraBody, disposeCapybaraAssets, preloadCapybaraAsset, updateCapybaraBody } from '../src/render/capybara';
 import type { ActorState } from '../src/shared/types';
+import metrics from '../public/models/capybara/metrics.json';
 
 beforeAll(async () => {
   const bytes = await readFile('public/models/capybara/capybara.glb');
@@ -34,7 +35,7 @@ describe('shipped feet stay planted while the simulated actor travels', () => {
     body.updateMatrixWorld(true);
     const feet = ['L', 'R'].map((side, i) => {
       const bone = body.getObjectByName(`foot_${side}`) as Bone;
-      const local = bone.worldToLocal(new Vector3(i ? .132 : -.132, .0015, -.075));
+      const local = bone.worldToLocal(new Vector3().fromArray(metrics.footContact[side as 'L' | 'R']));
       return { bone, local, previous: new Vector3(), grounded: 0, slides: 0, drift: [] as number[], minY: Infinity, lifts: 0, wasUp: false };
     });
     const dt = 1 / 240;

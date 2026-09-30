@@ -6,7 +6,7 @@ import * as THREE from 'three';
 // metres of the camera draw it (spectating, the lobby, results, a fight at arm's length).
 export const FUR_SHELLS = 6;
 export const FUR_RANGE = 6.5;
-const FUR_LENGTH = .0075;
+const FUR_LENGTH = .011;
 
 // The comb of the painted pelt (capybara_paint.fur_flow) in bind space: back from the nose over
 // the head, down the neck, body and legs, from the elbow to the fingers, forward over the feet.
@@ -17,8 +17,8 @@ const FUR_COMB = `
     radial = normalize(radial + vec3(0.0, -.9 * smoothstep(.02, .16, p.z), 0.0));
     comb = mix(comb, radial, smoothstep(1.45, 1.53, p.y));
     float side = sign(p.x);
-    vec3 elbow = vec3(side * .3234, 1.1091, -.1750), axis = vec3(side * -.2507, -.1003, -.9628);
-    float arm = smoothstep(.15, .09, length(cross(p - elbow, axis))) * step(.2, side * p.x) * step(p.y, 1.32);
+    vec3 elbow = vec3(side * .4080, 1.0324, -.1211), axis = vec3(side * -.1197, -.3790, -.9176);
+    float arm = smoothstep(.20, .12, length(cross(p - elbow, axis))) * step(.2, side * p.x) * step(p.y, 1.32);
     comb = mix(comb, axis, arm);
     comb = mix(comb, vec3(0.0, -.35, -1.0), smoothstep(.15, .10, p.y));
     return normalize(comb);

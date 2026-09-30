@@ -167,11 +167,12 @@ def stabilize_head(amount=1.0):
     pb['spine'].location.z += d.y * amount
 
 
-def author(name, seconds, fn, loop=True, stabilize=0.0):
+def author(name, seconds, fn, loop=True, stabilize=0.0, step=1):
     action = bpy.data.actions.new(name); action.use_fake_user = True
     rig.animation_data.action = action
     frames = max(2, round(seconds * FPS))
-    for frame in range(frames + 1):
+    # Long, slow clips are keyed every `step` frames (the export resamples at 60 Hz).
+    for frame in sorted(set(range(0, frames + 1, step)) | {frames}):
         scene.frame_set(frame)
         # Loops close exactly: the last frame repeats the first pose.
         t = (0 if loop and frame == frames else frame / frames)
@@ -194,7 +195,7 @@ HEAD_REST = pb['head'].matrix.to_translation().copy()
 # ------------------------------------------------------------------ idle: alive while standing
 # A 10 s loop: four breaths in the chest and belly, the weight going from foot to foot twice, the
 # head looking around in small quick turns with holds, ear flicks, three blinks and a nose twitch.
-LOOK_YAW = [(0, 0), (.06, 0), (.09, .20), (.24, .20), (.27, .12), (.38, .12), (.42, -.10), (.55, -.10), (.59, -.26), (.72, -.26), (.76, -.16), (.86, -.16), (.91, 0), (1, 0)]
+LOOK_YAW = [(0, 0), (.06, 0), (.09, .15), (.24, .15), (.27, .09), (.38, .09), (.42, -.08), (.55, -.08), (.59, -.16), (.72, -.16), (.76, -.11), (.86, -.11), (.91, 0), (1, 0)]
 LOOK_PITCH = [(0, 0), (.06, 0), (.09, .03), (.24, .03), (.27, -.05), (.38, -.05), (.42, .02), (.55, .02), (.59, -.03), (.72, -.03), (.76, .04), (.86, .04), (.91, 0), (1, 0)]
 BLINKS = (.17, .50, .83)
 
@@ -246,7 +247,7 @@ def idle(t, sec):
     pb['bedroll'].rotation_euler.x = .01 * breath
 
 
-author('idle', 10.0, idle, stabilize=.9)
+author('idle', 10.0, idle, stabilize=.9, step=3)
 
 
 # ------------------------------------------------------------------ armed idle: low ready, leaning in
@@ -268,7 +269,7 @@ def idle_armed(t, sec):
     secondary(sec, 0, .3 * sway)
 
 
-author('idle_armed', 10.0, idle_armed, stabilize=.9)
+author('idle_armed', 10.0, idle_armed, stabilize=.9, step=3)
 
 
 # ------------------------------------------------------------------ walk: the waddle

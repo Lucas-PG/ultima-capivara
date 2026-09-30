@@ -5,7 +5,7 @@ import { PaintedSky } from './sky';
 import { AmbientLife } from './ambient-life';
 import { PAINT } from './materials';
 import { preloadNameplateFont } from './nameplates';
-import { disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
+import { capybaraAssetEntry, disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, isArenaMode, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec, type ZoneState } from '../shared/types';
 import { AssetLoader } from './assets';
@@ -119,7 +119,7 @@ export class GameRenderer {
     const manifest: readonly AssetEntry[] = [...weaponManifest, ...(world.pieces?.length ? [{
       path: KIT_ASSET_PATH, kind: 'glb' as const, bytes: kitMetrics.bytes, label: 'Casas e caminhos da ilha',
     }] : []), {
-      path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
+      ...capybaraAssetEntry(settings?.graphics), kind: 'glb', label: 'Capivara',
     }, {
       path: SUPPLY_ASSET_PATH, kind: 'glb', bytes: supplyMetrics.bytes, label: 'Entrega do Tucano',
     }, {
@@ -366,7 +366,7 @@ export class GameRenderer {
       this.requireActive();
       await this.weaponView.assets;
       this.requireActive();
-      await preloadCapybaraAsset(url => this.assets.gltf(url));
+      await preloadCapybaraAsset(url => this.assets.gltf(url), this.settings?.graphics);
       await preloadNameplateFont();
       this.requireActive();
       await this.worldView.ready;

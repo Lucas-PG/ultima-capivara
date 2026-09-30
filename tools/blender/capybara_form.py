@@ -398,6 +398,10 @@ def shirt_folds(p):
 def shirt(parts):
     t = parts['torso']
     body = Intersect(Offset(Union([t, parts['neck']], k=.05), .010), slab(.86, 1.415))
+    # The open neck: a V down the front to the first button, showing the bandana and the fur.
+    vee = Field(lambda p: np.maximum(np.abs(p[:, 0]) - (.012 + np.clip(p[:, 1] - 1.265, 0, 1) * .95), 1.265 - p[:, 1]) * np.where(p[:, 2] < -.04, 1, 0) + np.where(p[:, 2] < -.04, 0, 1),
+                (-.25, 1.25, -.40), (.25, 1.45, .05))
+    body = Cut(body, vee, k=.006)
     sleeves, cuffs = [], []
     for s, n in ((-1, 'L'), (1, 'R')):
         sh, el = side(SHOULDER, s), elbow(s)
@@ -533,21 +537,24 @@ def belt(parts):
 def scarf():
     """The team bandana: a folded triangle wrapped round the neck inside the shirt collar and tied
     in front with a real knot and two short tails."""
-    band = Torus((0, 1.430, -.012), .150, .036, R=rot(pitch=-.30), squash=.72)
+    # A band that hugs the outside of the thick neck, tilted down toward the knot.
+    wear = Offset(Union([neck(), torso()], k=.05), .020)
+    up, c = rot(pitch=-.30) @ v(0, 1, 0), v(0, 1.422, -.012)
+    band = Intersect(wear, Intersect(Plane(c + up * .036, up), Plane(c - up * .036, -up)), k=.012)
 
     def wrap(p):
         a = np.arctan2(p[:, 0], -(p[:, 2] + .012))
         # Diagonal folds of the rolled cloth, tightening toward the knot.
         return .0055 * np.sin(a * 5 + (p[:, 1] - 1.43) * 95) + .0030 * np.sin(a * 11 - (p[:, 1] - 1.43) * 60)
     band = Displace(band, wrap, .009)
-    kc = v(0, 1.372, -.186)
+    kc = on_surface(wear, v(0, 1.372, -.30), .014)[0]
     knot = Union([Ellipsoid(kc, (.034, .030, .028)), Ellipsoid(kc + v(-.030, .012, .010), (.024, .020, .020)), Ellipsoid(kc + v(.030, .012, .010), (.024, .020, .020))], k=.008)
     knot = Cut(knot, Torus(kc + v(0, -.002, -.004), .030, .0045, R=rot(pitch=1.25) @ rot(roll=.35)), k=.003)
     tails = []
     chest = Offset(torso(), .012)
-    for pts, w in (([(-.010, 1.352, -.200), (-.036, 1.288, -.222), (-.062, 1.212, -.238)], [.026, .046, .008]),
-                   ([(.012, 1.352, -.200), (.030, 1.300, -.222), (.050, 1.236, -.238)], [.024, .040, .008])):
-        pts = [pts[0]] + [tuple(q) for q in on_surface(chest, np.array(pts[1:], F), .010)]
+    for pts, w in (([kc + v(-.010, -.020, .004), (-.036, 1.288, -.30), (-.062, 1.212, -.30)], [.026, .046, .008]),
+                   ([kc + v(.012, -.020, .004), (.030, 1.300, -.30), (.050, 1.236, -.30)], [.024, .040, .008])):
+        pts = [tuple(pts[0])] + [tuple(q) for q in on_surface(chest, np.array(pts[1:], F), .010)]
         tails.append(Loft(pts, w, [.010, .008, .005], side=(1, 0, 0)))
 
     def drape(p):
