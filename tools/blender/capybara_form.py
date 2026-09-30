@@ -360,7 +360,7 @@ def vest(parts):
     region = slab(.915, 1.415)
     body = Intersect(shell, region)
     for s in (-1, 1):
-        body = Cut(body, Ellipsoid(side(SHOULDER, s) + side((.02, -.03, 0), s), (.105, .165, .135)), k=.01)
+        body = Cut(body, Ellipsoid(side(SHOULDER, s) + side((.02, -.03, 0), s), (.098, .150, .126)), k=.022)
     opening = Field(lambda p: (np.abs(p[:, 0]) - (.030 + .075 * np.clip((p[:, 1] - .95) / .45, 0, 1) ** 1.4)) * np.where(p[:, 2] < -.05, 1, -1) + np.where(p[:, 2] < -.05, 0, 1),
                     (-.3, .8, -.4), (.3, 1.5, 0))
     body = Cut(body, opening, k=.004)
@@ -459,7 +459,8 @@ def backpack(parts):
         path = [side(p, s) for p in ((.090, 1.300, .185), (.118, 1.405, .080), (.128, 1.405, -.060), (.132, 1.300, -.175), (.140, 1.150, -.218), (.150, 1.000, -.232))]
         path = on_surface(vest_surface, np.array(path, F), .006)
         straps.append(Loft(path, [.020] * len(path), [.0055] * len(path), side=(1, 0, 0)))
-    buckles = [RoundBox(side((.132, 1.26, -.205), s) + v(0, 0, -.012), (.018, .013, .004), r=.002, R=rot(yaw=s * .25)) for s in (-1, 1)]
+    # Strap buckles sit on the strap (a thin plate would decimate into slivers): chunky, rounded.
+    buckles = [RoundBox(on_surface(vest_surface, side((.134, 1.26, -.21), s), .011)[0], (.014, .011, .002), r=.0045, R=rot(yaw=s * .30)) for s in (-1, 1)]
     return pack, canvas, Material(Union(straps + [roll_bands], k=.003), M['strap']), Material(Union(buckles), M['brass'])
 
 

@@ -71,14 +71,18 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
       #endif
       // Atlas/vertex albedo keeps dark eye, nose and mouth cavities dark.
       float rimSurface = smoothstep(0.06, 0.18, dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
-      outgoingLight += characterRim * rimAmount * rimSurface * (.15 + .2 * furSurface) * (.12 + .88 * sunEdge);
+      // Far characters read brighter with a wider rim (as Valorant does), so a capybara in shade
+      // at 40-60 m still separates from the street behind it. Nothing changes up close.
+      float farRead = ${bakedFur ? 'smoothstep(18.0, 60.0, length(vViewPosition))' : '0.0'};
+      outgoingLight *= 1.0 + .2 * farRead;
+      outgoingLight += characterRim * rimAmount * rimSurface * (.15 + .2 * furSurface) * (.12 + .88 * sunEdge) * (1.0 + 1.5 * farRead);
       // Broad fibre scattering complements the fine relief in the normal map.
       // It follows the fur tile and sun, without adding gloss to the mouth.
       vec3 furSheen = mix(vec3(.045, .065, .085), characterRim * .16, sunEdge);
       outgoingLight += furSheen * sqrt(max(diffuseColor.rgb, vec3(0.0))) * pow(grazing, 2.5) * furSurface * rimSurface;
       #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v4:${atlasColumns}:${surfaceAtlas}:${bakedFur}`;
+  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v5:${atlasColumns}:${surfaceAtlas}:${bakedFur}`;
   material.needsUpdate = true;
   return material;
 }

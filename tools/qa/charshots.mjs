@@ -36,6 +36,7 @@ for (const [key, shots] of groups) {
       time: Number(options.time || .3), head: options.head === '1', clay: options.clay === '1', overlay: options.overlay === '1',
       expression: options.expression || null, lod: options.lod === undefined ? undefined : Number(options.lod),
       fov: options.fov === undefined ? undefined : Number(options.fov),
+      focus: options.focus === undefined ? undefined : Number(options.focus),
     };
     const result = await page.evaluate(o => window.capyReview.shot(o), o);
     await page.screenshot({ path: `${out}/${name}.png` });

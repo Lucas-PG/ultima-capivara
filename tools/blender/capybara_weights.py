@@ -108,7 +108,12 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             else:
                 kind, n = name.split('_')
                 if kind == 'upper':
-                    add('arm_' + n, a)
+                    # Near the armhole the shirt stays with the chest like the vest beside it,
+                    # so raising the arm to a gun stretches cloth instead of opening a gap.
+                    sh, el = REST['arm_' + n]
+                    t = float(np.clip((pts[i] - sh) @ (el - sh) / ((el - sh) @ (el - sh)), 0, 1))
+                    keep = float(ss(.18, .44, t)) if int(mat[i]) == M['shirt'] else 1.0
+                    add('arm_' + n, a * keep); add('chest', a * (1 - keep))
                 elif kind == 'fore':
                     el, wr = REST['forearm_' + n]
                     t = float(np.clip((pts[i] - el) @ (wr - el) / ((wr - el) @ (wr - el)), 0, 1))
@@ -169,7 +174,7 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
     fur = (mat == M['fur']).astype(F)
     head = pts[:, 1] > 1.45
     # Shorter toward the muzzle and gone on the nose, fading so the pelt has no hard edge.
-    fur *= np.where(head, np.clip((pts[:, 2] + .30) / .12, 0, 1) * .8 + .2 * (pts[:, 2] > -.26), 1.0)
+    fur *= np.where(head, .35 + .65 * np.clip((pts[:, 2] + .30) / .14, 0, 1), 1.0) * np.where(head & (pts[:, 2] < -.30), 0, 1)
     for s in (-1, 1):
         e, _ = C.eye_point(s)
         fur *= np.linalg.norm(pts - e, axis=1) > C.EYE_R + .010

@@ -158,15 +158,17 @@ def paint(root, P_map, N_obj, N_tan, AO, eye_texels, covered, log=print):
         return sel
 
     def shirt(q):
-        check = (np.abs(((q[:, 0] + q[:, 2] * .3) / .014) % 1 - .5) < .06) | (np.abs((q[:, 1] / .014) % 1 - .5) < .06)
+        # A faint linen check: soft bands, not graph-paper lines.
+        cu = np.exp(-((((q[:, 0] + q[:, 2] * .3) / .016) % 1 - .5) / .09) ** 2)
+        cv = np.exp(-(((q[:, 1] / .016) % 1 - .5) / .09) ** 2)
         base = srgb('E2D4BB') * (.93 + .1 * S.fbm(q * 55, 3, 41))[:, None]
-        return lerp(base, srgb('B79F80'), check * .35)
+        return lerp(base, srgb('C2AC8C'), np.maximum(cu, cv) * .16)
     put('shirt', shirt, .9, lambda q: weave(q, .0012, .00018))
 
     def denim(q):
         tw = np.sin((q[:, 0] + q[:, 1]) / .0016 * math.pi)
-        wear = S.fbm(q * 22, 3, 43)
-        c = lerp(srgb('465A7E'), srgb('7F93B3'), np.clip((wear - .55) * 2.2, 0, 1))
+        wear = S.fbm(q * 18, 3, 43)
+        c = lerp(srgb('465A7E'), srgb('6F82A2'), np.clip((wear - .64) * 2.0, 0, 1) * .7)
         return c * (.9 + .1 * tw)[:, None]
     put('denim', denim, .82, lambda q: np.sin((q[:, 0] + q[:, 1]) / .0016 * math.pi) * .00016)
 
@@ -192,7 +194,10 @@ def paint(root, P_map, N_obj, N_tan, AO, eye_texels, covered, log=print):
     tsel = team > .5
     if tsel.any():
         q = p[tsel]
-        g = .36 * (.86 + .22 * S.fbm(q * 35, 3, 54)) * (1 + weave(q, .0013, .10))
+        # Neutral cloth the runtime tints: folds, a darker hemmed border stripe and weave.
+        folds = np.sin(q[:, 0] * 90 + q[:, 1] * 140 + S.fbm(q * 20, 2, 56) * 4)
+        stripe = np.exp(-(((q[:, 1] * 30 + q[:, 0] * 8) % 1 - .5) / .12) ** 2) * (S.fbm(q * 9, 2, 57) > .5)
+        g = .36 * (.86 + .22 * S.fbm(q * 35, 3, 54)) * (1 + weave(q, .0013, .10)) * (.92 + .10 * folds) * (1 - .16 * stripe)
         col[tsel] = np.repeat(np.clip(g, .1, .6)[:, None], 3, 1); rough[tsel] = .86
         hgt[tsel] = weave(q, .0013, .0002)
     # Eyes: glossy dark brown iris around a black pupil; very little white shows on a capybara.

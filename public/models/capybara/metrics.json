@@ -111,11 +111,11 @@
   "materials": 1,
   "skins": 1,
   "joints": 67,
-  "bytes": 3165380,
+  "bytes": 3151352,
   "statueBytes": 151532,
-  "rawBytes": 7957336,
+  "rawBytes": 7953904,
   "texture": {
-    "format": "UV detail + normal + ORM",
+    "format": "baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)",
     "count": 3,
     "size": 2048
   }

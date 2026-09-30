@@ -327,7 +327,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     if (!(forearm instanceof THREE.Bone) || !paw) continue;
     const shoulder = arm.getWorldPosition(new THREE.Vector3()), elbow = forearm.getWorldPosition(new THREE.Vector3());
     const hand = paw.getWorldPosition(new THREE.Vector3());
-    const elbowTarget = new THREE.Vector3(sign * .297, .944, -.065), handTarget = new THREE.Vector3(sign * .313, .769, -.265);
+    const elbowTarget = new THREE.Vector3(sign * .345, .975, -.045), handTarget = new THREE.Vector3(sign * .355, .785, -.215);
     const parent = arm.parent!.getWorldQuaternion(new THREE.Quaternion());
     const swing = new THREE.Quaternion().setFromUnitVectors(elbow.clone().sub(shoulder).normalize(), elbowTarget.clone().sub(shoulder).normalize());
     const relaxedArmWorld = swing.clone().multiply(arm.getWorldQuaternion(new THREE.Quaternion()));
