@@ -1,6 +1,9 @@
 """Fast look at the SDF sculpt without Blender: mesh it and write a coloured PLY.
 
-Blender's bundled python: python3.11 tools/blender/capy_preview.py <out.ply> [voxel]
+Blender's bundled python: python3.11 tools/blender/capy_preview.py <out.ply> [voxel] [region]
+or inside Blender (the build machine): blender -b --python capy_preview.py -- <out.ply> [voxel] [region]
+Region `head` meshes only the head and neck (fast face iteration at a fine voxel), `legs` the
+trousers, legs and feet; the default is the whole character.
 View it with tools/blender/sculpt-preview.html?ply=<url>.
 """
 import sys
@@ -16,19 +19,24 @@ import capybara_form as C
 COLORS = {'fur': 'B0663A', 'muzzle': '9A7A60', 'nose': '4A3C38', 'pad': '4C3E38', 'claw': '2A211D', 'shirt': 'E6DAC4',
           'denim': '3F4E66', 'scarf': 'D9644E', 'leather': '6B4A30', 'pack': '7A5135', 'canvas': '8A6A48', 'trouser': '6E6B4A',
           'brass': 'C79A48', 'eye': '1A1210', 'ear_in': '6A4535', 'hipcloth': 'D9644E', 'lip': '3A2A26', 'button': 'D8CFBE',
-          'strap': '5A3A24', 'sole': '3A302C', 'denim_pocket': '4A5A76', 'trouser_pocket': '7A7752', 'pouch': '7A5335', 'pack_flap': '704A30'}
+          'strap': '5A3A24', 'sole': '3A302C', 'denim_pocket': '4A5A76', 'trouser_pocket': '7A7752', 'pouch': '7A5335', 'pack_flap': '704A30',
+          'collar': 'E6DAC4', 'denim_collar': '4A5A76', 'cuff': 'E6DAC4', 'trouser_cuff': '7A7752'}
+REGIONS = {'head': (C.v(-.32, 1.26, -.46), C.v(.32, 1.92, .32)), 'legs': (C.v(-.52, -.01, -.42), C.v(.52, .98, .44))}
 
-out = sys.argv[1]; voxel = float(sys.argv[2]) if len(sys.argv) > 2 else .004
+argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
+out = argv[0]; voxel = float(argv[1]) if len(argv) > 1 else .004
+bounds = REGIONS.get(argv[2] if len(argv) > 2 else 'all', C.BOUNDS)
 t0 = time.time()
 root, parts = C.build()
 root = S.Union([root, C.eyes()])
 print('built', time.time() - t0, flush=True)
-verts, quads = S.mesh(root, *C.BOUNDS, voxel)
+verts, quads = S.mesh(root, *bounds, voxel)
 print('meshed', verts.shape, quads.shape, time.time() - t0, flush=True)
 d, mat = S.evaluate(root, verts)
 cols = np.array([[int(COLORS[n][i:i + 2], 16) for i in (0, 2, 4)] for n in C.MATERIALS], np.uint8)
 rgb = cols[mat]
 tris = np.concatenate([quads[:, [0, 1, 2]], quads[:, [0, 2, 3]]])
+Path(out).parent.mkdir(parents=True, exist_ok=True)
 with open(out, 'wb') as f:
     f.write(f'ply\nformat binary_little_endian 1.0\nelement vertex {len(verts)}\nproperty float x\nproperty float y\nproperty float z\n'
             f'property uchar red\nproperty uchar green\nproperty uchar blue\nelement face {len(tris)}\nproperty list uchar int vertex_indices\nend_header\n'.encode())
