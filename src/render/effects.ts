@@ -374,6 +374,14 @@ export class EffectsView {
     }
   }
 
+  // A predicted own round confirmed by the host: its hit star goes where the host's round struck.
+  confirmShot(event: Extract<GameEvent, { type: 'shot' }>) {
+    if (!event.hit) return;
+    let head = false, found = false;
+    for (const p of this.pending) if (p.active && p.attacker === event.actor) { head ||= p.head; p.active = false; found = true; }
+    if (found) this.hitStar(this.c.set(event.end.x, event.end.y, event.end.z), head);
+  }
+
   // Tints enemy tracers red when their line passes within 2.5 m of your head.
   private passesNear(from: THREE.Vector3, to: THREE.Vector3, snapshot: WorldSnapshot | null, playerId: string) {
     const me = this.actorPos(snapshot, playerId);

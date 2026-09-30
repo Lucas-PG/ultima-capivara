@@ -298,6 +298,12 @@ export class GameRenderer {
   }
 
   inspectWeapon(): void { this.weaponView.inspect(); }
+  /** How far the local first-person gun is raised to the sights (0 to 1). */
+  get adsAmount() { return this.weaponView.adsAmount; }
+  /** The viewed player holds a scoped gun (DMR or sniper): scope sensitivity applies. */
+  get scopeHeld() { const held = this.cameraRig.lastActor?.weapons[this.cameraRig.lastActor.slot]?.id; return held === 'dmr' || held === 'sniper'; }
+  /** A host shot this client already predicted: only its confirmed hit is paired. */
+  confirmShot(event: Extract<GameEvent, { type: 'shot' }>): void { this.effects.confirmShot(event); }
   set onFoley(callback: (cue: string) => void) { this.weaponView.onFoley = callback; }
 
   event(event: GameEvent): void {

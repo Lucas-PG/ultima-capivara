@@ -14,6 +14,7 @@ import { RoomSession } from './network/session';
 import { RemoteInterpolation, shotClientTime } from './network/interpolation';
 import { InputController } from './input';
 import { InputClock } from './input-clock';
+import { FirePredictor, type ShotEvent } from './fire-prediction';
 import { SoundEngine } from './audio';
 import { loadProfile, loadSettings, saveProfile, saveSettings, loadAdapt, recordPlacement } from './settings';
 import { GameUI } from './ui/ui';
@@ -34,6 +35,10 @@ const sound = new SoundEngine(settings, world);
 const renderFrame: PresentationFrame = { snapshot: null, playerId: '', input: input.frame, dt: 0, playing: true, spectateId: null };
 const localPresentation = new LocalPresentation();
 const remoteInterpolation = new RemoteInterpolation();
+// The local player's own rounds are shown on the input frame; the host confirms hits.
+const firePredictor = new FirePredictor();
+// Hotbar box held before the current one, for the previous-weapon key.
+let heldBox = -1, previousBox = -1, quickMeleeAt = -Infinity;
 let renderedRemoteTime: number | null = null;
 let renderer: GameRenderer | null = null;
 // Load the 3D island on lobby entry or Practice, then reuse it until the page closes.
@@ -217,6 +222,7 @@ function stopMatch() {
   remoteInterpolation.reset(); renderedRemoteTime = null;
   playing = false; input.unlock(); worker?.terminate(); worker = null;
   snapshot = null; predicted = null; pending = []; spectateId = null; inputClock.reset(); interaction = null; diedAt = 0; lastKiller = null; killSeen = false;
+  firePredictor.reset(); heldBox = previousBox = -1;
 }
 function leave() {
   stopMatch(); session.leave(); room = null; practiceConfig = null;
@@ -252,6 +258,10 @@ function acceptSnapshot(next: WorldSnapshot) {
     // Authoritative state is replayed with only unacknowledged movement inputs.
     pending = pending.filter(frame => frame.seq > actor.lastInput);
     predicted = structuredClone(actor);
+    firePredictor.sync(actor, performance.now() / 1000);
+    // A quick melee's hop to the facão and back is not a weapon choice.
+    const box = actor.weapons[actor.slot]?.box ?? -1;
+    if (box !== heldBox) { if (heldBox >= 0 && performance.now() - quickMeleeAt > 1500) previousBox = heldBox; heldBox = box; }
     if (next.phase === 'playing') for (const frame of pending) predict(frame);
     localPresentation.reconcile(predicted);
     if (!actor.alive && lastAlive && next.config.mode === 'battle-royale') {
@@ -274,13 +284,15 @@ function acceptEvents(events: GameEvent[]) {
   for (const event of events) {
     if (event.id <= lastEvent) continue;
     lastEvent = event.id;
+    // Own rounds already shown by prediction only pair their confirmed hit with the host's endpoint.
+    if (event.type === 'shot' && event.actor === playerId && firePredictor.consume(event)) { renderer?.confirmShot(event); continue; }
     if (!document.hidden && ui.screen === 'game') {
       renderer?.event(event);
       sound.event(event, renderer?.cameraPosition || { x: 0, y: 0, z: 0 }, input.frame.yaw, playerId);
       ui.event(event);
     }
     if (event.type === 'shot' && event.actor === playerId && input.locked && event.weapon !== 'machete') {
-      input.applyRecoil(event.weapon);
+      input.applyRecoil(event.weapon, renderer?.adsAmount ?? 0);
     }
     if (event.type === 'notice') ui.toast(event.text);
     if (event.type === 'kill' && event.target === playerId) { lastKiller = event.actor; killSeen = true; }
@@ -294,11 +306,29 @@ function sendAction(action: PlayerAction) {
     return;
   }
   if (action.type === 'jump' && me?.stage === 'falling') action = { type: 'parachute', id: action.id };
-  if (predicted) localPresentation.action(action, predicted, snapshot.time + Math.min(.2, (performance.now() - receivedAt) / 1000));
+  if (predicted) localPresentation.action(action, predicted, simulationNow());
+  if (predicted && snapshot.phase === 'playing') {
+    const now = performance.now() / 1000;
+    if (action.type === 'slot') firePredictor.swap(action.slot, now);
+    if (action.type === 'trigger') showPredicted(firePredictor.press(predicted, action.id, action.yaw, action.pitch, action.lean, now, simulationNow(), match, world, predictionTargets()));
+    else if (action.type === 'melee') showPredicted(firePredictor.melee(predicted, input.frame.yaw, input.frame.pitch, now, simulationNow(), match, world, predictionTargets()));
+  }
   if (action.type === 'trigger') action = { ...action, clientTime: shotClientTime(
     snapshot.time + Math.min(.2, (performance.now() - receivedAt) / 1000), renderedRemoteTime) };
   if (practiceConfig) worker?.postMessage({ type: 'action', id: playerId, action });
   else session.sendAction(action);
+}
+const simulationNow = () => snapshot ? snapshot.time + Math.min(.2, (performance.now() - receivedAt) / 1000) : 0;
+// What the player saw and aimed at: the last rendered remote poses.
+const predictionTargets = (): Iterable<ActorState> => renderFrame.remoteActors?.values() ?? snapshot?.actors ?? [];
+function showPredicted(shot: ShotEvent | null) {
+  if (!shot) return;
+  if (!document.hidden && ui.screen === 'game') {
+    renderer?.event(shot);
+    sound.event(shot, renderer?.cameraPosition || { x: 0, y: 0, z: 0 }, input.frame.yaw, playerId);
+    ui.event(shot);
+  }
+  if (input.locked && shot.weapon !== 'machete') input.applyRecoil(shot.weapon, renderer?.adsAmount ?? 0);
 }
 function predict(frame: InputFrame) {
   if (!predicted || snapshot?.phase !== 'playing') return;
@@ -336,6 +366,8 @@ input.onBox = box => {
   if (slot >= 0) sendAction({ type: 'slot', id: input.actionIdNext(), slot });
   else ui.flashEmptyBox(box);
 };
+input.onMelee = () => { quickMeleeAt = performance.now(); sendAction({ type: 'melee', id: input.actionIdNext() }); };
+input.onLastWeapon = () => { if (previousBox >= 0) input.onBox(previousBox); };
 input.onInteract = () => { interaction = closestInteraction(); if (interaction) sendAction({ type: 'interact', id: input.actionIdNext(), target: interaction.id }); };
 input.onPause = () => { input.onCancelEmote(); if (playing) ui.setPaused(true); };
 input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
@@ -349,7 +381,10 @@ const inputClock = new InputClock(
     else session.sendInput(next);
     if (snapshot!.phase === 'playing') {
       pending.push(next); if (pending.length > 120) pending.shift(); predict(next);
-      if (predicted) localPresentation.tick(predicted);
+      if (predicted) {
+        localPresentation.tick(predicted);
+        showPredicted(firePredictor.tick(predicted, next, now / 1000, time, match, world, predictionTargets()));
+      }
     }
   });
 const resizeGame = () => {
@@ -416,7 +451,7 @@ function frame(now: number) {
     renderFrame.spectateId = spectateId; renderFrame.predicted = renderFrame.localActor?.pos;
     const renderAt = timing.begin();
     renderer?.update(renderFrame);
-    if (renderer) input.setAimFov(renderer.camera.fov);
+    if (renderer) input.setAimFov(renderer.camera.fov, renderer.adsAmount, renderer.scopeHeld);
     timing.end('render', renderAt);
     renderedRemoteTime = remoteInterpolation.time;
     renderedFrames++; frameCount++; dirtyFrame = false;
