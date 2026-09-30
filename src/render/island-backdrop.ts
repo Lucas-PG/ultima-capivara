@@ -184,7 +184,7 @@ export function createIslandBackdrop(world: Pick<WorldSpec, 'objects'>) {
         vec2 face = abs(n.x) > abs(n.z) ? p.zy : p.xy;
         float streak = smoothstep(.45, .85, isletNoise(vec2(face.x / 2.2, face.y / 16.0))) * (1.0 - abs(n.y));
         float band = isletNoise(vec2(face.x / 9.0, face.y / 3.0));
-        vec3 granite = mix(vec3(.6, .57, .5), vec3(.7, .66, .58), band) * (1.0 - streak * .32);
+        vec3 granite = mix(vec3(.47, .45, .41), vec3(.58, .55, .49), band) * (1.0 - streak * .32);
         granite = mix(granite * .55, granite, smoothstep(.3, 2.5, p.y));
         // Sand with a darker wet band at the sea.
         vec3 sand = mix(vec3(.62, .54, .38), vec3(.9, .82, .6), smoothstep(.05, .7, p.y));
