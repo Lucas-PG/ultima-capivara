@@ -109,13 +109,14 @@ User review of the port (2026-09-28): the isolated **character is not accepted**
 
 ### F. Combat, audio, VFX
 - [ ] F1 Shot chain feedback (hit markers, impacts, tracers, kill feedback)
-- [ ] F2 Audio pass
+- [ ] F2 Audio pass. User issues (2026-09-29): an always-on white-noise-like background sound on the island is very annoying (find and prove the source, then fix); gunfire sounds like footsteps, so combat cannot be read by ear (make them clearly different by loudness, spectrum and envelope, with a test; research how shooters design this). Plan: Opus agent, can run beside the Codex gun agents (light load).
 - [ ] F3 VFX pass
 
 ### G. Gameplay, bots, UI
 - [ ] G1 Bots watched in matches, fixes
 - [ ] G2 Creative additions (only those that pass the fun/identity/quality/complexity test)
-- [ ] G3 HUD and menus coherence
+- [ ] G3 HUD and menus coherence (reference `docs/art/references/hud-mockup.jpg`). Plan: Opus agent beside the gun agents.
+- [ ] G4 Death and spectator camera (user issue 2026-09-29: "very bugged, very hard to spectate after you die"): reproduce every case (after death, switching targets, target dies or leaves, water and fall deaths), fix each with a test, verify with real multiplayer clients.
 
 ### H. Release gate
 - [ ] H1 Perf profiling (low/medium/high)
