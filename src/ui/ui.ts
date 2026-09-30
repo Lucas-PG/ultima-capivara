@@ -845,7 +845,8 @@ export class GameUI {
       if (scope && !scope.hidden && scope.dataset.kind === event.weapon) {
         const flash = scope.querySelector<HTMLElement>('.scope-flash')!;
         flash.getAnimations().forEach(animation => animation.cancel());
-        flash.animate([{ opacity: this.reducedMotion() ? .28 : .7 }, { opacity: 0 }], { duration: 100, easing: 'ease-out' });
+        flash.style.setProperty('--flash-turn', `${Math.round(Math.random() * 360)}deg`);
+        flash.animate([{ opacity: this.reducedMotion() ? .35 : 1 }, { opacity: 0 }], { duration: 110, easing: 'ease-out' });
       }
     }
     if (event.type === 'notice' && event.text !== 'A partida começou!' && !(event.text === 'A tempestade está fechando!' && this.snapshot?.zone.phase === 0)) this.toast(event.text);
