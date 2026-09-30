@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { colliderGrid } from '../shared/collider-grid';
 import { terrainHeight } from '../shared/terrain';
 import type { Vec3, WorldSpec } from '../shared/types';
+import { crownReach, foliageAt, foliageSpan, plantCrown, type CrownShape } from '../shared/vegetation-crowns';
+import { vegetationDressing } from '../shared/vegetation-dressing';
 
 // Third-person spectator camera: over the right shoulder of the watched capybara, looking where it looks.
 // Snapshots carry the aim at 20 Hz, so the view follows a damped aim instead of the raw one; walls between the
@@ -37,6 +39,36 @@ export function sweepBox(origin: Vec3, dir: Vec3, length: number, min: Vec3, max
   return near;
 }
 
+// Plants have no collision, but a lens inside a crown or a bush shows nothing but leaves. Their foliage
+// volumes (the profiles world placement uses) stop the lens like the ground does, past the first
+// FOLIAGE_GRACE metres so a target standing in a bush can still be framed.
+const FOLIAGE_CELL = 8, FOLIAGE_GRACE = .6;
+const foliageIndex = new WeakMap<WorldSpec, Map<number, CrownShape[]>>();
+function foliageCells(world: WorldSpec) {
+  let cells = foliageIndex.get(world);
+  if (cells) return cells;
+  cells = new Map();
+  const shapes = world.objects.map(plantCrown);
+  // Low ground plants never reach a lens: ferns, bromeliads, crops, meadow drifts and the wall drapes.
+  if (world.pieces?.length) for (const p of vegetationDressing(world))
+    if (!['meadow', 'crop', 'fern', 'bromeliad', 'vine'].includes(p.species)) shapes.push(foliageAt(p.species, p.variant, p.x, p.y, p.z, p.height));
+  for (const shape of shapes) {
+    if (!shape) continue;
+    const reach = crownReach(shape);
+    for (let cx = Math.floor((shape.x - reach) / FOLIAGE_CELL); cx <= Math.floor((shape.x + reach) / FOLIAGE_CELL); cx++)
+      for (let cz = Math.floor((shape.z - reach) / FOLIAGE_CELL); cz <= Math.floor((shape.z + reach) / FOLIAGE_CELL); cz++) {
+        const key = cx * 4096 + cz, list = cells.get(key);
+        if (list) list.push(shape); else cells.set(key, [shape]);
+      }
+  }
+  foliageIndex.set(world, cells);
+  return cells;
+}
+function inFoliage(cells: Map<number, CrownShape[]>, x: number, y: number, z: number) {
+  const list = cells.get(Math.floor(x / FOLIAGE_CELL) * 4096 + Math.floor(z / FOLIAGE_CELL));
+  return !!list?.some(shape => { const span = foliageSpan(shape, x, z); return !!span && y > span[0] && y < span[1]; });
+}
+
 /** How far a probe of `radius` can travel from `origin` along unit `dir` before touching a collider or the ground. */
 export function clearDistance(world: WorldSpec, origin: Vec3, dir: Vec3, length: number, radius: number, clearance = FOLLOW.clearance): number {
   let allowed = length;
@@ -50,11 +82,11 @@ export function clearDistance(world: WorldSpec, origin: Vec3, dir: Vec3, length:
     const hit = sweepBox(origin, dir, allowed, collider.min, collider.max, radius);
     if (hit < allowed) allowed = Math.max(0, hit);
   }
-  // Terrain: march the segment and stop before the lens dips under a slope.
-  const steps = Math.max(4, Math.ceil(allowed / .4));
+  // Terrain and foliage: march the segment and stop before the lens dips under a slope or into leaves.
+  const steps = Math.max(4, Math.ceil(allowed / .4)), cells = foliageCells(world);
   for (let i = 1; i <= steps; i++) {
     const t = allowed * i / steps, x = origin.x + dir.x * t, y = origin.y + dir.y * t, z = origin.z + dir.z * t;
-    if (y < terrainHeight(x, z) + clearance) { allowed = Math.max(0, allowed * (i - 1) / steps); break; }
+    if (y < terrainHeight(x, z) + clearance || t > FOLIAGE_GRACE && inFoliage(cells, x, y, z)) { allowed = Math.max(0, allowed * (i - 1) / steps); break; }
   }
   return allowed;
 }

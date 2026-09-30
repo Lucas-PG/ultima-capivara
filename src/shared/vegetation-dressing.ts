@@ -81,7 +81,15 @@ export function onFieldRow(object: MapObject, rows: MapObject[]) {
   return object.detail === 'crop' && rows.some(r => Math.abs(object.pos.x - r.pos.x) < r.scale.x / 2 + .05 && Math.abs(object.pos.z - r.pos.z) < r.scale.z / 2 + .05);
 }
 
-export function vegetationDressing(world: WorldSpec): DressingPlant[] {
+const dressingCache = new WeakMap<WorldSpec, readonly DressingPlant[]>();
+/** The dressing of a world, derived once (the vegetation batch and the spectator camera both read it). */
+export function vegetationDressing(world: WorldSpec): readonly DressingPlant[] {
+  let plants = dressingCache.get(world);
+  if (!plants) dressingCache.set(world, plants = deriveDressing(world));
+  return plants;
+}
+
+function deriveDressing(world: WorldSpec): DressingPlant[] {
   const out: DressingPlant[] = [], grid = colliderGrid(world), pieces = world.pieces ?? [];
   const hash = (id: string, salt: number) => { let h = salt * 2654435761; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return plantHash(h >>> 0, salt); };
   const district = (x: number, z: number) => world.districts.find(d => Math.hypot(x - d.x, z - d.z) < d.radius)?.id;
