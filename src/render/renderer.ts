@@ -476,6 +476,9 @@ export class GameRenderer {
   get stats() { return { ...this.frameStats }; }
   /** The scope overlay replaces the first-person gun this frame. */
   scoped = false;
+  private readonly headingDir = new THREE.Vector3();
+  /** Compass heading of the view in degrees: 0 north (-z), 90 east (+x). */
+  get heading(): number { this.camera.getWorldDirection(this.headingDir); return Math.atan2(this.headingDir.x, -this.headingDir.z) * 180 / Math.PI; }
   get cameraPosition(): Vec3 { return { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }; }
 
   dispose(): void {

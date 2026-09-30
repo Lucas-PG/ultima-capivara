@@ -1,0 +1,296 @@
+@import '@fontsource/barlow-condensed/latin-600.css';
+@import '@fontsource/barlow-condensed/latin-700.css';
+@import '@fontsource/barlow-condensed/latin-800.css';
+
+/* In-match HUD (docs/art/references/hud-mockup.jpg): deep teal plates with ivory type, coral health, cyan armour,
+   gold for the local player and the safe zone, and azulejo tiles at the bottom corners. Persistent information lives
+   at the edges; the centre only carries the reticle, hit feedback and short prompts. Laid out at 1600x900 and scaled
+   by --ui (hudScale); the ribbon text is Barlow Condensed for tabular, glanceable numbers. */
+body{
+  --hud-plate:linear-gradient(180deg,rgba(21,72,76,.88),rgba(9,41,45,.92));
+  --hud-edge:rgba(255,236,196,.26);--hud-ink:#04191a;--hud-ivory:#fff3d9;--hud-muted:#a9c9c2;
+  --hud-coral:#ff6b5b;--hud-coral-2:#d8463b;--hud-cyan:#4fd6e6;--hud-cyan-2:#1f9fb4;--hud-gold:#ffc23d;--hud-storm:#9a63ff;
+  --hud-font:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif;
+  --azulejo:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%23f1e4c3'/%3E%3Cg fill='none' stroke='%231d6c78' stroke-width='2.2'%3E%3Ccircle cx='20' cy='20' r='7'/%3E%3Cpath d='M20 4Q26 13 20 20Q14 13 20 4ZM20 36Q26 27 20 20Q14 27 20 36ZM4 20Q13 14 20 20Q13 26 4 20ZM36 20Q27 14 20 20Q27 26 36 20Z'/%3E%3C/g%3E%3Cpath fill='%231d6c78' d='M0 0h8a8 8 0 0 1-8 8zM40 0v8a8 8 0 0 1-8-8zM0 40v-8a8 8 0 0 1 8 8zM40 40h-8a8 8 0 0 1 8-8z'/%3E%3Ccircle cx='20' cy='20' r='2.8' fill='%23ff6b5b'/%3E%3Crect x='.5' y='.5' width='39' height='39' fill='none' stroke='%230f4a53'/%3E%3C/svg%3E");
+}
+#hud{font-family:var(--hud-font);color:var(--hud-ivory);font-weight:700;letter-spacing:.01em}
+#hud :is(#topL,#ladder,#compass,#safe,#hOut,#mapWrap,#feed,#banner,#deathCard,#specBar,#prompt,#use,#alt,#vitals,#stance,#consbar,#hotbar,#wpnbox,#coach){zoom:var(--ui,1)}
+#hud .plate{background:var(--hud-plate);border:1.5px solid var(--hud-edge);border-radius:12px;box-shadow:0 0 0 2px rgba(4,25,26,.5),0 8px 22px -8px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07)}
+#hud .pill{display:flex;align-items:center;gap:8px;padding:5px 12px;background:rgba(9,41,45,.9);border:1.5px solid var(--hud-edge);border-radius:999px;box-shadow:0 0 0 2px rgba(4,25,26,.45);font-size:16px;white-space:nowrap}
+#hud kbd{white-space:nowrap;display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;font-family:var(--hud-font);font-size:14px;font-weight:800;line-height:1;color:var(--hud-ink);background:var(--hud-ivory);border-radius:6px;box-shadow:0 2px 0 rgba(4,25,26,.75)}
+#hud .picon{display:block}
+
+/* Top left: the match at a glance. */
+#hud #topL{position:absolute;top:18px;left:18px;display:flex;align-items:stretch;padding:0 4px}
+#hud #topL .cell{display:grid;grid-template-columns:auto auto;grid-template-rows:15px 27px;column-gap:8px;align-items:center;padding:6px 12px 7px}
+#hud #topL .cell+.cell{border-left:1.5px solid rgba(255,236,196,.14)}
+#hud #topL .cell .icon{grid-row:1/3;width:24px;height:24px}
+#hud #topL .k{align-self:end;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--hud-muted);line-height:1;white-space:nowrap}
+#hud #topL b{align-self:start;font-size:27px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+#hud #topL .zone b{min-width:3.2ch}
+#hud #topL .dots{grid-column:1/-1;display:flex;gap:3px;margin-top:4px}
+#hud #topL .dots i{flex:1;height:4px;min-width:9px;border-radius:2px;background:rgba(255,236,196,.18)}
+#hud #topL .dots i.on{background:var(--hud-storm)}
+#hud #topL .zone.closing{background:linear-gradient(180deg,#7c47e0,#5a2fb4);border-radius:0 10px 10px 0}
+#hud #topL .zone.time.closing{background:linear-gradient(180deg,var(--hud-coral),var(--hud-coral-2))}
+#hud #topL .zone.closing .k{color:rgba(255,243,217,.85)}
+#hud #topL .zone.closing .dots i.on{background:var(--hud-ivory)}
+#hud #ladder{position:absolute;top:86px;left:18px;width:300px;padding:9px 12px 10px;display:flex;flex-direction:column;gap:6px}
+#hud #ladder .ladder-heading{display:flex;justify-content:space-between;font-size:15px;letter-spacing:.08em}
+#hud #ladder .ladder-heading b{color:var(--hud-gold)}
+#hud #ladder .ladder-track{display:flex;gap:3px}
+#hud #ladder .ladder-track i{flex:1;height:7px;border-radius:3px;background:rgba(255,236,196,.16)}
+#hud #ladder .ladder-track i.done{background:var(--hud-cyan)}
+#hud #ladder .ladder-track i.current{background:var(--hud-gold);box-shadow:0 0 0 2px rgba(255,194,61,.35)}
+#hud #ladder.final .ladder-track i.current{background:var(--hud-coral)}
+#hud #ladderNext{font-size:14px;color:var(--hud-muted)}
+#hud #ladder.upgrade{animation:hud-pulse .5s ease-out}
+
+/* Top centre: compass ribbon, the heading under the needle, the safe zone as a gold mark. */
+#hud #compass{position:absolute;top:14px;left:50%;translate:-50% 0;width:400px;height:50px;border-radius:10px}
+#hud .cmp-window{position:absolute;left:10px;right:10px;top:3px;height:28px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent)}
+#hud .cmp-strip{position:absolute;left:50%;top:0;height:100%;will-change:transform}
+#hud .cmp-strip i{position:absolute;top:0;translate:-50% 0;font-style:normal;line-height:1;text-align:center;white-space:nowrap}
+#hud .cmp-strip i::before{content:"";display:block;margin:0 auto 2px;width:2px;height:6px;border-radius:1px;background:rgba(255,236,196,.45)}
+#hud .cmp-strip i.mid{font-size:14px;color:var(--hud-muted)}
+#hud .cmp-strip i.mid::before{height:8px}
+#hud .cmp-strip i.major{font-size:18px;font-weight:800;color:var(--hud-ivory)}
+#hud .cmp-strip i.major::before{height:9px;background:var(--hud-ivory)}
+#hud .cmp-needle{position:absolute;left:50%;top:0;translate:-50% 0;width:0;height:0;border:6px solid transparent;border-top:7px solid var(--hud-gold)}
+#hud #cmpDeg{position:absolute;left:50%;bottom:3px;translate:-50% 0;font-size:14px;font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums;color:var(--hud-ivory)}
+#hud .cmp-safe{position:absolute;top:1px;width:10px;height:10px;margin-left:-5px;background:var(--hud-gold);rotate:45deg;border:1.5px solid var(--hud-ink);border-radius:2px}
+#hud .cmp-safe.edge{width:0;height:0;margin-left:-6px;background:none;border:6px solid transparent;border-left:9px solid var(--hud-gold);rotate:0deg;top:7px;border-radius:0}
+#hud .cmp-safe.edge.left{border-left-color:transparent;border-right:9px solid var(--hud-gold);margin-left:-9px}
+#hud #compass.outside .cmp-safe:not(.edge){animation:hud-pulse 1.2s ease-in-out infinite}
+#hud #safe{position:absolute;top:74px;left:50%;translate:-50% 0;color:var(--hud-gold);font-size:16px}
+#hud #safe svg{width:18px;height:18px}
+#hud #safe #safeArrow{fill:var(--hud-gold)}
+#hud #hOut{position:absolute;top:108px;left:50%;translate:-50% 0;background:linear-gradient(180deg,#7c47e0,#5a2fb4);font-size:16px;animation:hud-pulse 1s ease-in-out infinite}
+#hud #hOut .icon{width:16px;height:16px;stroke-width:2.4}
+
+/* Top right: the minimap and, under it, the kill feed. */
+#hud #mapWrap{position:absolute;top:18px;right:18px;width:224px;height:224px;padding:5px;border-radius:14px}
+#hud #minimap{display:block;width:100%;height:100%;border-radius:9px}
+#hud #mapWrap .tab{position:absolute;left:50%;bottom:-11px;translate:-50% 0;padding:2px 12px;font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--hud-ink);background:var(--hud-gold);border-radius:999px;box-shadow:0 0 0 2px rgba(4,25,26,.55)}
+#hud #mapWrap .net{position:absolute;top:10px;left:10px;padding:1px 7px;font-size:13px;color:var(--hud-ivory);background:rgba(4,25,26,.72);border-radius:6px}
+#hud #feed{position:absolute;top:258px;right:18px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:420px}
+#hud .fd{display:flex;align-items:center;gap:7px;height:32px;padding:0 10px 0 5px;font-size:16px;white-space:nowrap;background:rgba(9,41,45,.84);border:1.5px solid rgba(255,236,196,.16);border-radius:9px;animation:hud-fdin .18s ease-out,hud-fdout .4s ease-in 3.8s forwards}
+#hud .fd b{max-width:130px;overflow:hidden;text-overflow:ellipsis;font-weight:800}
+#hud .fd em{font-style:normal;font-size:14px;color:var(--hud-muted)}
+#hud .fd .pt{display:block;width:24px;height:24px;flex:none}
+#hud .fd .pt svg{width:100%;height:100%;display:block}
+#hud .fd .wi .weapon-icon{display:block;width:44px;height:14px;color:var(--hud-ivory)}
+#hud .fd.me{border-color:var(--hud-gold);box-shadow:inset 3px 0 0 var(--hud-gold)}
+#hud .fd.bad{border-color:var(--hud-coral);box-shadow:inset 3px 0 0 var(--hud-coral)}
+#hud .fd.info{height:28px;padding:0 10px;font-size:15px;color:var(--hud-muted);font-weight:600}
+#hud .fd.info em{color:var(--hud-gold)}
+
+/* Centre: reticle, hit markers, damage direction, reload ring and short prompts. */
+#hud #cross{--g:10px;position:absolute;left:50%;top:50%;width:0;height:0;transition:opacity .08s}
+#hud #cross i{position:absolute;background:var(--xc,#fff);box-shadow:0 0 0 1px rgba(4,25,26,.85)}
+#hud #cross .t,#hud #cross .b{width:2px;height:9px;left:-1px}
+#hud #cross .l,#hud #cross .r{height:2px;width:9px;top:-1px}
+#hud #cross .t{top:calc(-9px - var(--g))}#hud #cross .b{top:var(--g)}
+#hud #cross .l{left:calc(-9px - var(--g))}#hud #cross .r{left:var(--g)}
+#hud #cross .d{width:2px;height:2px;left:-1px;top:-1px}
+#hud #hitm{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0}
+#hud #hitm i{position:absolute;width:2.5px;height:10px;left:-1.25px;top:-5px;background:var(--hit,#fff);box-shadow:0 0 0 1px rgba(4,25,26,.8)}
+#hud #hitm i:nth-child(1){transform:rotate(45deg) translateY(-13px)}
+#hud #hitm i:nth-child(2){transform:rotate(135deg) translateY(-13px)}
+#hud #hitm i:nth-child(3){transform:rotate(225deg) translateY(-13px)}
+#hud #hitm i:nth-child(4){transform:rotate(315deg) translateY(-13px)}
+#hud #hitm b{display:none;position:absolute}
+#hud #hitm.head i{background:var(--hithead,#ffc23d);height:13px;top:-6.5px}
+#hud #hitm.head b{display:block;width:7px;height:7px;left:-3.5px;top:-3.5px;background:var(--hithead,#ffc23d);rotate:45deg;box-shadow:0 0 0 1px rgba(4,25,26,.8)}
+#hud #hitm.kill i{background:var(--hitkill,#e5412d);height:15px;top:-7.5px}
+#hud #hitm.kill b{display:block;width:44px;height:44px;left:-22px;top:-22px;border:2.5px solid var(--hitkill,#e5412d);border-radius:50%;box-shadow:0 0 0 1px rgba(4,25,26,.7),inset 0 0 0 1px rgba(4,25,26,.7)}
+#hud #hitm.on{animation:hud-hm .24s ease-out}
+#hud #hitm.kill.on{animation-duration:.34s}
+#hud #rring{position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px;rotate:-90deg}
+#hud #rring .bg{fill:none;stroke:rgba(4,25,26,.45);stroke-width:5}
+#hud #rring .fg{fill:none;stroke:var(--hud-gold);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:0 100}
+#hud #dmgInd{position:absolute;left:50%;top:50%;width:0;height:0}
+#hud .di{position:absolute;left:0;top:0;width:0;height:0;animation:hud-di 1s ease-out forwards}
+#hud .di svg{position:absolute;left:-160px;top:-160px;width:320px;height:320px;overflow:visible}
+#hud #nums{position:absolute;inset:0}
+#hud .num,#hud .pop{position:absolute;translate:0 -50%;font-weight:800;white-space:nowrap;pointer-events:none;animation:hud-rise .9s ease-out forwards;text-shadow:0 2px 0 rgba(4,25,26,.9),0 0 6px rgba(4,25,26,.6)}
+#hud .num{font-size:22px;color:var(--hud-ivory)}
+#hud .num.head{font-size:26px;color:var(--hithead,#ffc23d)}
+#hud .pop{font-family:var(--display);font-weight:400;font-size:20px;color:var(--hithead,#ffc23d);animation:hud-pop .9s ease-out forwards}
+#hud .pop.kill{font-size:30px;color:var(--hud-coral)}
+#hud #prompt{position:absolute;left:50%;top:calc(50% + 74px);translate:-50% 0;display:flex;align-items:center;gap:8px;padding:6px 14px 6px 7px;font-size:17px;white-space:nowrap;background:rgba(9,41,45,.9);border:1.5px solid var(--ic,var(--hud-edge));border-radius:999px;box-shadow:0 0 0 2px rgba(4,25,26,.5)}
+#hud #prompt kbd{height:26px;min-width:26px;font-size:15px}
+#hud #prompt .pi:empty{display:none}
+#hud #prompt .pi svg{display:block;height:20px;width:auto}
+#hud #prompt .pi .weapon-icon{height:16px;color:var(--ic,var(--hud-ivory))}
+#hud #promptVerb{color:var(--hud-muted);font-weight:700}
+#hud #promptItem{font-weight:800;color:var(--ic,var(--hud-ivory))}
+#hud .cbar{position:absolute;left:50%;translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:16px}
+#hud #use{top:calc(50% + 118px);padding:7px 14px;background:rgba(9,41,45,.9);border:1.5px solid var(--hud-edge);border-radius:10px}
+#hud #use .bar{width:200px;height:6px;border-radius:3px;background:rgba(255,236,196,.16);overflow:hidden}
+#hud #useBar{height:100%;width:0;background:var(--hud-cyan);border-radius:3px}
+#hud #alt{position:absolute;left:50%;top:60%;translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:6px}
+#hud #altTxt{font-size:44px;font-weight:800;line-height:1;text-shadow:0 3px 0 rgba(4,25,26,.85)}
+#hud #altHint{padding:4px 12px;font-size:16px;background:rgba(9,41,45,.9);border:1.5px solid var(--hud-edge);border-radius:999px}
+
+/* Bottom left: portrait, armour and health. */
+#hud #vitals{position:absolute;left:18px;bottom:18px;display:flex;align-items:center;gap:10px;width:340px;padding:9px 14px 9px 9px}
+#hud #vitals .portrait{flex:none;width:66px;height:66px;border-radius:50%;padding:3px;background:rgba(4,25,26,.55);box-shadow:0 0 0 2px var(--hud-gold)}
+#hud #vitals .portrait svg{display:block;width:100%;height:100%}
+#hud #vitals .rows{flex:1;display:flex;flex-direction:column;gap:7px;min-width:0}
+#hud #vitals .row{display:grid;grid-template-columns:20px 1fr 42px;align-items:center;gap:8px}
+#hud #vitals .row svg{width:20px;height:20px;display:block}
+#hud #vitals .row b{font-size:26px;font-weight:800;line-height:1;text-align:right;font-variant-numeric:tabular-nums}
+#hud #vitals .arm b{font-size:21px;color:#c9f3f8}
+#hud #vitals .bar{position:relative;height:12px;border-radius:6px;background:rgba(4,25,26,.6);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+#hud #vitals .arm .bar{height:9px}
+#hud #vitals .bar>div{position:absolute;inset:0 auto 0 0;border-radius:6px;transition:width .12s}
+#hud #vitals .bar .chip{position:absolute;inset:0 auto 0 0;border-radius:6px;background:rgba(255,243,217,.72);transition:width .6s .35s}
+#hud #hpBar{background:linear-gradient(180deg,#ff8d7f,var(--hud-coral) 45%,var(--hud-coral-2))}
+#hud #armBar{background:linear-gradient(180deg,#9aefff,var(--hud-cyan) 45%,var(--hud-cyan-2))}
+#hud #vitals .seg{position:absolute;inset:0;background:linear-gradient(90deg,transparent calc(25% - 1px),rgba(4,25,26,.7) calc(25% - 1px) 25%,transparent 25%,transparent calc(50% - 1px),rgba(4,25,26,.7) calc(50% - 1px) 50%,transparent 50%,transparent calc(75% - 1px),rgba(4,25,26,.7) calc(75% - 1px) 75%,transparent 75%)}
+#hud #vitals.low #hpBar{animation:hud-lowbar .9s ease-in-out infinite}
+#hud #vitals.low .hp b{color:var(--hud-coral)}
+#hud #vitals.boost{box-shadow:0 0 0 2px rgba(4,25,26,.5),0 0 0 4px var(--hud-cyan),0 8px 22px -8px rgba(0,0,0,.55)}
+#hud #helm{position:absolute;top:-13px;right:12px;display:flex;align-items:center;gap:4px;padding:1px 8px 1px 5px;font-size:14px;background:rgba(9,41,45,.95);border:1.5px solid var(--hud-edge);border-radius:999px}
+#hud #helm svg{width:15px;height:13px}
+#hud #prot{position:absolute;top:-13px;left:80px;padding:1px 10px;font-size:14px;color:var(--hud-ink);background:var(--hud-cyan);border-radius:999px}
+#hud #stance{position:absolute;left:18px;bottom:112px;height:38px;padding:3px 12px 3px 6px;opacity:0;transition:opacity .2s}
+#hud #stance.active{opacity:1}
+#hud #stance>svg:first-child{width:26px;height:28px;color:var(--hud-ivory)}
+#hud #stance>svg:first-child text{display:none}
+#hud #stance .swim-icon{display:none;width:30px;height:28px}
+#hud #stance.swimming>svg:first-child{display:none}
+#hud #stance.swimming .swim-icon{display:block}
+#hud #stance b{font-size:16px;font-weight:700}
+#hud #figure,#hud #torso{transition:transform .15s}
+#hud #consbar{position:absolute;left:18px;bottom:158px;display:flex;gap:6px}
+#hud .cs{position:relative;display:flex;align-items:center;gap:5px;height:34px;padding:0 9px 0 4px;background:rgba(9,41,45,.88);border:1.5px solid var(--hud-edge);border-radius:9px}
+#hud .cs kbd{height:20px;min-width:20px;font-size:13px}
+#hud .cs svg{width:22px;height:22px;display:block}
+#hud .cs b{font-size:17px}
+#hud .cs.use{border-color:var(--hud-cyan);box-shadow:0 0 0 2px rgba(79,214,230,.35)}
+
+/* Bottom centre: the four fixed boxes (two long guns, sidearm, facão). */
+#hud #hotbar{position:absolute;left:50%;bottom:18px;translate:-50% 0;display:flex;gap:6px;padding:6px;background:rgba(9,41,45,.72);border:1.5px solid rgba(255,236,196,.16);border-radius:13px}
+#hud .hs{position:relative;display:grid;place-items:center;width:78px;height:52px;background:linear-gradient(180deg,rgba(28,84,88,.9),rgba(10,46,50,.95));border:1.5px solid rgba(255,236,196,.18);border-radius:9px;transition:transform .12s,border-color .12s}
+#hud .hs::after{content:"";position:absolute;left:8px;right:8px;bottom:3px;height:3px;border-radius:2px;background:var(--rc,#fff4d6);opacity:.85}
+#hud .hs kbd{position:absolute;top:-8px;left:-6px;height:19px;min-width:19px;padding:0 4px;font-size:13px}
+#hud .hs img{max-width:66px;max-height:34px;display:block;filter:drop-shadow(0 1px 0 rgba(4,25,26,.8))}
+#hud .hs .weapon-icon{width:60px;height:20px;color:var(--hud-ivory)}
+#hud .hs>i{position:absolute;right:6px;bottom:6px;font-style:normal;font-size:13px;font-weight:800;color:var(--hud-muted)}
+#hud .hs.on{border-color:var(--hud-gold);background:linear-gradient(180deg,rgba(44,110,112,.95),rgba(14,58,62,.98));transform:translateY(-5px);box-shadow:0 0 0 2px rgba(255,194,61,.3)}
+#hud .hs.on>i{color:var(--hud-ivory)}
+#hud .hs.empty{background:rgba(9,41,45,.55);border-style:dashed}
+#hud .hs.empty::after{display:none}
+#hud .hs.empty .weapon-icon{opacity:.22}
+#hud .hs.nope{animation:hs-nope .25s}
+
+/* Bottom right: magazine and reserve, weapon name, rarity and fire mode. */
+#hud #wpnbox{position:absolute;right:18px;bottom:18px;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+#hud #ammoBox{min-width:220px;padding:6px 16px 9px 18px;box-shadow:0 0 0 2px rgba(4,25,26,.5),inset 4px 0 0 var(--rc,#fff4d6),0 8px 22px -8px rgba(0,0,0,.55)}
+#hud #ammoBox .ammo{display:flex;align-items:baseline;justify-content:flex-end;gap:6px}
+#hud #ammoBox .ammo b{font-size:56px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 2px 0 rgba(4,25,26,.6)}
+#hud #ammoBox .ammo span{font-size:22px;color:var(--hud-muted)}
+#hud #ammoBox .ammo.low b{color:var(--hud-coral);animation:hud-pulse .8s ease-in-out infinite}
+#hud #aMag.tick{animation:hud-tick .16s ease-out}
+#hud #ammoBox .wrow{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:2px}
+#hud #ammoBox .wname{font-size:19px;font-weight:800;letter-spacing:.02em;text-transform:uppercase}
+#hud #ammoBox .rar{padding:0 7px;font-size:13px;font-weight:800;text-transform:uppercase;color:var(--hud-ink);background:var(--rc,#fff4d6);border-radius:5px}
+#hud #ammoBox .mode{padding:0 6px;font-size:13px;font-weight:800;color:var(--hud-muted);border:1.5px solid rgba(255,236,196,.3);border-radius:5px}
+#hud #reload{color:var(--hud-gold)}
+
+/* Azulejo tiles at the two bottom corners, under the plates that sit there (as in the mockup). */
+#hud #vitals.tiled::before,#hud #ammoBox.tiled::before{content:"";position:absolute;z-index:-1;width:78px;height:78px;bottom:-18px;background:var(--azulejo) 0 0/26px 26px;border-radius:4px;box-shadow:0 0 0 2px rgba(4,25,26,.55);opacity:.95}
+#hud #vitals.tiled::before{left:-18px}
+#hud #ammoBox{position:relative}
+#hud #ammoBox.tiled::before{right:-18px}
+
+/* Down: the death card, then the watch bar. */
+#hud #deathCard{position:absolute;left:50%;top:15%;translate:-50% 0;display:flex;align-items:center;gap:16px;min-width:420px;max-width:620px;padding:14px 20px 14px 16px;animation:hud-card .28s var(--spring,ease-out)}
+#hud .dc-place{font-family:var(--display);font-weight:400;font-size:54px;line-height:1;color:var(--hud-gold);text-shadow:0 3px 0 rgba(4,25,26,.9)}
+#hud .dc-place:empty{display:none}
+#hud .dc-body{display:flex;flex-direction:column;gap:6px;min-width:0}
+#hud .dc-title{font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--hud-coral)}
+#hud #deathCard.late .dc-title{color:var(--hud-cyan)}
+#hud .dc-killer{display:flex;align-items:center;gap:10px}
+#hud .kc-face{flex:none;width:48px;height:48px;border-radius:50%;padding:2px;background:rgba(4,25,26,.55);box-shadow:0 0 0 2.5px var(--kc,var(--hud-coral))}
+#hud .kc-face svg{display:block;width:100%;height:100%}
+#hud .kc-face.env{display:grid;place-items:center;background:#5a2fb4;box-shadow:0 0 0 2.5px var(--hud-storm)}
+#hud .kc-face.env .icon{width:24px;height:24px;stroke-width:2.4;color:var(--hud-ivory)}
+#hud .kc-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+#hud .kc-text b{font-size:25px;font-weight:800;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hud .kc-how{display:flex;align-items:center;gap:6px;font-size:16px;color:var(--hud-muted)}
+#hud .kc-how .weapon-icon{display:block;width:48px;height:15px;color:var(--hud-ivory)}
+#hud .kc-left{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--hud-muted)}
+#hud .kc-left em{display:inline-flex;align-items:center;gap:3px;font-style:normal;font-weight:800;color:var(--hud-ivory)}
+#hud .kc-left svg{width:14px;height:14px}
+#hud .dc-line{margin:0;font-family:var(--sans,sans-serif);font-size:14px;font-weight:600;color:var(--hud-muted)}
+#hud .dc-respawn{position:relative;flex:none;width:64px;height:64px;display:grid;place-items:center;margin-left:auto}
+#hud .dc-respawn svg{position:absolute;inset:0;rotate:-90deg}
+#hud .dc-respawn .bg{fill:none;stroke:rgba(255,236,196,.16);stroke-width:4}
+#hud .dc-respawn .fg{fill:none;stroke:var(--hud-cyan);stroke-width:4;stroke-linecap:round;stroke-dasharray:0 100;transition:stroke-dasharray .12s linear}
+#hud .dc-respawn b{font-size:28px;font-weight:800;line-height:1;margin-top:-6px}
+#hud .dc-respawn small{position:absolute;bottom:12px;font-size:13px;color:var(--hud-muted)}
+#hud #specBar{position:absolute;left:50%;bottom:18px;translate:-50% 0;display:grid;grid-template-columns:auto 470px auto;align-items:center;gap:10px}
+#hud .sp-nav{pointer-events:auto;display:flex;align-items:center;gap:6px;height:58px;padding:0 12px;font:inherit;color:var(--hud-ivory);background:rgba(9,41,45,.88);border:1.5px solid var(--hud-edge);border-radius:12px;box-shadow:0 0 0 2px rgba(4,25,26,.45);cursor:pointer}
+#hud .sp-nav:hover{border-color:var(--hud-gold)}
+#hud .sp-nav .icon{width:20px;height:20px;stroke-width:2.6}
+#hud .sp-card{padding:8px 14px 11px;box-shadow:0 0 0 2px rgba(4,25,26,.5),inset 0 3px 0 var(--kit,var(--hud-gold)),0 8px 22px -8px rgba(0,0,0,.55)}
+#hud .sp-eyebrow{display:flex;justify-content:space-between;font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--hud-gold)}
+#hud .sp-eyebrow b{color:var(--hud-muted);letter-spacing:.06em}
+#hud #specBar.down .sp-eyebrow span{color:var(--hud-coral)}
+#hud #specBar.down .sp-main{opacity:.6}
+#hud .sp-main{display:flex;align-items:center;gap:11px;margin:5px 0 7px}
+#hud .sp-face{flex:none;width:48px;height:48px;border-radius:50%;padding:2px;background:rgba(4,25,26,.55);box-shadow:0 0 0 2.5px var(--kit,var(--hud-gold))}
+#hud .sp-face svg{display:block;width:100%;height:100%}
+#hud .sp-who{display:flex;flex-direction:column;min-width:0;flex:1}
+#hud .sp-who b{font-size:25px;font-weight:800;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hud .sp-who small{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--hud-muted)}
+#hud .sp-weapon{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:14px;color:var(--hud-muted);border-bottom:2px solid var(--rc,transparent);padding-bottom:2px}
+#hud .sp-weapon .weapon-icon{display:block;width:62px;height:19px;color:var(--hud-ivory)}
+#hud .sp-kills{display:flex;align-items:center;gap:5px;font-size:22px;font-weight:800}
+#hud .sp-kills .icon{width:20px;height:20px}
+#hud .sp-bars{display:grid;grid-template-columns:1fr 34px 1fr 30px;align-items:center;gap:6px 8px}
+#hud .sp-bars .bar{height:9px;border-radius:5px;background:rgba(4,25,26,.6);overflow:hidden}
+#hud .sp-bars .bar i{display:block;height:100%;border-radius:5px;transition:width .15s}
+#hud .sp-bars .hp i{background:linear-gradient(180deg,#ff8d7f,var(--hud-coral) 45%,var(--hud-coral-2))}
+#hud .sp-bars .arm i{background:linear-gradient(180deg,#9aefff,var(--hud-cyan) 45%,var(--hud-cyan-2))}
+#hud .sp-bars b{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}
+#hud .sp-hint{grid-column:1/-1;justify-self:center;font-size:14px;color:var(--hud-ivory);text-shadow:0 1px 2px rgba(4,25,26,.9)}
+#hud .sp-hint kbd{height:19px;min-width:19px;font-size:13px}
+/* While down, the local loadout leaves the screen; watching keeps only the match strip, map, feed and compass. */
+#hud.out :is(#vitals,#wpnbox,#hotbar,#consbar,#stance,#cross,#prompt,#use,#alt,#rring,#hitm,#coach){display:none}
+#hud.watching #deathCard{top:10%}
+
+/* First-run coach, under the match strip. */
+#hud #coach{position:absolute;left:18px;top:100px;width:min(360px,calc(100vw - 36px));display:flex;flex-direction:column;gap:6px;padding:10px 14px 11px;animation:hud-card .3s ease-out}
+#hud #coach[data-step=storm]{left:auto;right:18px;top:300px}
+#hud #coach .ck{align-self:flex-start;padding:1px 9px;font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--hud-ink);background:var(--hud-gold);border-radius:5px}
+#hud #coach p{margin:0;font-family:var(--sans,sans-serif);font-size:15px;font-weight:600;line-height:1.5;color:var(--hud-ivory)}
+#hud #coach p b{font-family:var(--hud-font);font-weight:800;font-size:17px;color:var(--hud-gold)}
+#hud #coach kbd{margin:0 2px}
+#hud #coach .skip{font-size:13px;color:var(--hud-muted)}
+#hud #coach .skip kbd{height:18px;min-width:18px;font-size:13px}
+
+/* Toasts in a match: small teal chips under the compass instead of paper stickers. */
+body[data-screen=game] #toast{top:146px}
+body[data-screen=game] #toast .toast-item{font-family:var(--hud-font);font-size:17px;font-weight:700;color:var(--hud-ivory);background:rgba(9,41,45,.92);border:1.5px solid var(--hud-edge);border-radius:999px;box-shadow:0 0 0 2px rgba(4,25,26,.45);padding:6px 16px;text-shadow:none}
+body[data-screen=game] #toast .toast-item.error{border-color:var(--hud-coral)}
+
+/* Narrow windows: the boxes stack above the magazine instead of meeting the vitals. */
+.hud-narrow #hud #hotbar{left:auto;right:18px;translate:none;bottom:130px}
+.hud-narrow #hud #specBar{grid-template-columns:auto 400px auto}
+@media(max-width:640px){
+  #hud #compass{width:260px}#hud #mapWrap{width:140px;height:140px}#hud #feed{top:170px;max-width:300px}
+  #hud #vitals{width:270px}#hud #vitals .portrait{width:48px;height:48px}#hud #hotbar{bottom:108px;right:10px;left:auto;translate:none}
+  #hud #specBar{grid-template-columns:auto minmax(0,1fr) auto;width:calc(100vw / var(--ui,1) - 20px)}
+}
+
+@keyframes hud-pulse{50%{opacity:.62}}
+@keyframes hud-lowbar{50%{filter:brightness(1.35)}}
+@keyframes hud-card{from{opacity:0;translate:-50% -10px}}
+#hud #coach{animation-name:hud-coach-in}
+@keyframes hud-coach-in{from{opacity:0;transform:translateY(-6px)}}
+.reduce-motion #hud :is(#hOut,.cmp-safe,#ammoBox .ammo.low b,#vitals.low #hpBar){animation:none}
+#hud .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}

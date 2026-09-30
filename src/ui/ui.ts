@@ -36,6 +36,8 @@ const chipKey = (code: string) => code ? keyLabel(code) : '–';
 const STORM_PHASES = 6, PLANE_AUTO_DROP = 12;
 // Minimap zoom (metres shown across the corner map) and island texture resolution (pixels per metre).
 const MINIMAP_SPAN = 84, MAP_PPM = 4;
+// An empty box shows a faint silhouette of what belongs there instead of a word that does not fit.
+const BOX_HINT: readonly WeaponId[] = ['m4', 'shotgun', 'pistol', 'machete'];
 const CONSUMABLES: ConsumableId[] = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'];
 const USE_LABEL: Record<ConsumableId, string> = { bandage: 'Enfaixando…', medkit: 'Remendando…', guarana: 'Tomando guaraná…', acai: 'Tomando açaí…', rapadura: 'Mastigando rapadura…' };
 const LOOT_LABEL: Record<string, string> = { ammo: 'munição', armor: 'colete', helmet: 'capacete', bandage: 'bandagem', medkit: 'kit médico', guarana: 'guaraná', acai: 'açaí', rapadura: 'rapadura' };
@@ -48,6 +50,12 @@ const CROSSHAIR_COLORS: Record<Settings['crosshairColor'], string> = { white: '#
 const HIT_PALETTES: Record<Settings['hitPalette'], [string, string, string]> = { default: ['#ffffff', '#ffc23d', '#e5412d'], colorblind: ['#ffffff', '#3fd8ff', '#ff4fd8'] };
 const ONBOARD_KEY = 'uc-onboarded';
 const nextTip = tipBag(TIPS);
+// Compass ribbon: 2 px per degree, three turns long so any heading has a full window around it.
+const COMPASS_PX = 2, COMPASS_LABELS: Record<number, string> = { 0: 'N', 45: 'NE', 90: 'L', 135: 'SE', 180: 'S', 225: 'SO', 270: 'O', 315: 'NO' };
+const COMPASS_STRIP = Array.from({ length: 73 }, (_, i) => {
+  const deg = -180 + i * 15, label = COMPASS_LABELS[(deg + 360) % 360];
+  return `<i class="${label ? label.length === 1 ? 'major' : 'mid' : 'minor'}" style="left:${(deg + 180) * COMPASS_PX}px">${label ?? ''}</i>`;
+}).join('');
 // Dev and QA builds only: ?calm turns off decorative motion (same as the reduced-motion setting) for perf probes.
 const CALM = (import.meta.env.DEV || import.meta.env.VITE_QA === '1') && typeof location !== 'undefined' && new URLSearchParams(location.search).has('calm');
 // Damage direction: a 40° arc on a 140 px ring around the crosshair.
@@ -80,14 +88,15 @@ export class GameUI {
   private firstStormBeat = 0;
   private momentTimer = 0;
   private supplyNotice: string | null = null;
-  private deathInfo: { place: number; line: string; card: string | null; until: number } | null = null;
+  private deathInfo: { place: number; line: string; card: string | null; until: number; late: boolean; left: string | null } | null = null;
+  private watchSince = 0;
+  private sawAlive = false;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
   private lastPrey: { name: string; color: string } | null = null;
   private thumbs: Map<WeaponId, string> | null = null;
   private readonly lifecycle = new AbortController();
   private mapOpen = false;
-  private deathReleased = false;
   private tipTimer = 0;
   private planeDir: { x: number; z: number } | null = null;
   private lastPlane: { x: number; z: number } | null = null;
@@ -99,6 +108,29 @@ export class GameUI {
   // Who the eliminated player is watching (null while alive, during the death cam, or with nobody left).
   private spectate: SpectateView | null = null;
   setSpectate(view: SpectateView | null) { this.spectate = view; }
+  private heading = -1;
+  private safeBearing: number | null = null;
+  private safeShown = '';
+  /** Every rendered frame (the HUD itself ticks slower): the compass follows the camera heading in degrees, 0 = north. */
+  frameCompass(heading: number) {
+    if (this.screen !== 'game' || !Number.isFinite(heading)) return;
+    const strip = this.el('cmpStrip'); if (!strip) return;
+    const h = ((heading % 360) + 360) % 360;
+    if (Math.abs(h - this.heading) > .05) {
+      this.heading = h;
+      strip.style.transform = `translateX(${(-(h + 180) * COMPASS_PX).toFixed(1)}px)`;
+      this.text('cmpDeg', String(Math.round(h) % 360).padStart(3, '0'));
+    }
+    // The safe zone rides the ribbon as a gold mark, pinned to the nearer edge when it is behind you.
+    const marker = this.el('cmpSafe');
+    if (this.safeBearing === null) { if (!marker.hidden) marker.hidden = true; return; }
+    const rel = ((this.safeBearing - h + 540) % 360) - 180, edge = Math.abs(rel) > 88;
+    const key = `${edge ? Math.sign(rel) : Math.round(rel)}`;
+    if (key === this.safeShown && !marker.hidden) return;
+    this.safeShown = key; marker.hidden = false;
+    this.toggle(marker, 'edge', edge); this.toggle(marker, 'left', edge && rel < 0);
+    marker.style.left = `calc(50% + ${(Math.max(-88, Math.min(88, rel)) * COMPASS_PX).toFixed(0)}px)`;
+  }
   setConnectionStatus(status: ConnectionStatus) {
     this.networkStatus = { idle: '', connecting: 'Conectando à sala', connected: 'Conectado', relay: 'Conectado por retransmissão', reconnecting: 'Reconectando à sala', closed: 'A sala fechou' }[status];
     const line = this.root.querySelector('#connection-status');
@@ -135,6 +167,8 @@ export class GameUI {
       else if (event.code === 'Escape' && this.mapOpen) this.toggleMap(false);
       else if (event.code === 'KeyH' && this.coach) this.finishOnboarding();
       else if ((event.code === 'ArrowRight' || event.code === 'ArrowLeft') && this.root.querySelector('#loadingOverlay')) this.showTip();
+      // Watching with the mouse released (menu closed by clicking away): the arrow keys still switch capybaras.
+      else if ((event.code === 'ArrowRight' || event.code === 'ArrowLeft') && this.deadInRoyale() && !document.pointerLockElement && !this.modal) this.callbacks.spectate(event.code === 'ArrowRight' ? 1 : -1);
     });
     // The map may also sit on a mouse button (remap covers every action), so presses are matched the same way.
     document.addEventListener('mousedown', event => {
@@ -156,6 +190,8 @@ export class GameUI {
         case 'resume': this.callbacks.resume(); break;
         case 'rematch': this.callbacks.rematch(); break;
         case 'spectate': this.callbacks.spectate(); break;
+        case 'spec-prev': this.callbacks.spectate(-1); break;
+        case 'spec-next': this.callbacks.spectate(1); break;
         case 'next-tip': this.showTip(); break;
         case 'skip-tutorial': this.finishOnboarding(); break;
       }
@@ -303,26 +339,38 @@ export class GameUI {
   game(playerId: string) {
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
     clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0; this.supplyNotice = null;
-    this.lastBanner = ''; this.deathInfo = null; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null; this.deathReleased = false;
+    this.lastBanner = ''; this.deathInfo = null; this.watchSince = 0; this.sawAlive = false; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null;
     if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
     this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
     const key = (code: string) => esc(keyName(code));
+    const face = capybara(this.profile.color);
     this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><i></i><b></b><u></u><em></em></div>`
-      + `<div id="topL" class="stk"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Bichos na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
-      + `<div id="ladder" hidden><div class="ladder-heading"><b>CORRENTE</b><span id="ladderStep">1 / ${CORRENTE_LADDER.length}</span></div><div class="ladder-track" aria-hidden="true">${CORRENTE_LADDER.map((_, i) => `<i id="ladder-${i}"></i>`).join('')}</div><span id="ladderNext"></span></div>`
-      + `<div id="safe" class="stk" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="stk" hidden>Na tempestade! −<span id="hDps">1</span>/s</div>`
-      + `<div id="mapWrap"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="supply-legend" id="supplyLegend" hidden>Entrega do Tucano · caixa marcada</span><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
+      // Top left: the match at a glance. Top centre: compass with the safe zone bearing. Top right: map and feed.
+      + `<div id="topL" class="plate"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
+      + `<div id="ladder" class="plate" hidden><div class="ladder-heading"><b>CORRENTE</b><span id="ladderStep">1 / ${CORRENTE_LADDER.length}</span></div><div class="ladder-track" aria-hidden="true">${CORRENTE_LADDER.map((_, i) => `<i id="ladder-${i}"></i>`).join('')}</div><span id="ladderNext"></span></div>`
+      + `<div id="compass" class="plate" aria-hidden="true"><div class="cmp-window"><div class="cmp-strip" id="cmpStrip">${COMPASS_STRIP}</div><i class="cmp-safe" id="cmpSafe" hidden></i></div><i class="cmp-needle"></i><b id="cmpDeg">000</b></div>`
+      + `<div id="safe" class="pill" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="pill warn" hidden>${icon('bolt')}<span>Na tempestade</span><b>−<span id="hDps">1</span>/s</b></div>`
+      + `<div id="mapWrap" class="plate"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed" aria-live="off"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="supply-legend" id="supplyLegend" hidden>Entrega do Tucano · caixa marcada</span><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
       + `<div id="matchMoment" hidden aria-live="polite"><strong id="momentTitle"></strong><small id="momentDetail"></small></div>`
-      + `<div id="banner" aria-hidden="true"></div><div id="spec" class="stk" hidden role="group" aria-label="Você foi eliminada"><img class="spec-mascot" src="${uiArt('capy-lose')}" alt="" draggable="false"><div class="btns">${ELIMINATED_ACTIONS.map(a => `<button type="button" class="${a.primary ? 'go' : 'alt'}" data-do="${a.do}">${a.primary ? icon('eye') : icon('back')} ${a.label}</button>`).join('')}</div><span class="hint"><kbd>${key(this.settings.bindings.jump)}</kbd> troca de capivara enquanto assiste<span class="esc"> · <kbd>Esc</kbd> solta o mouse pra clicar</span></span></div><div id="dmQuit" class="stk" hidden><button type="button" data-do="leave">${icon('back')} Voltar ao menu</button><span><kbd>Esc</kbd> abre o menu</span></div><div id="dmgInd"></div><div id="nums"></div>`
+      + `<div id="banner" aria-hidden="true"></div>`
+      // Down: who got you, with what, from how far, and what they had left; then the watch bar or the respawn count.
+      + `<div id="deathCard" class="plate" hidden role="status"><span class="dc-place" id="dcPlace">#1</span><div class="dc-body"><small class="dc-title" id="dcTitle">Você foi eliminada</small><div class="dc-killer" id="dcKiller"></div><p class="dc-line" id="dcLine"></p></div><div class="dc-respawn" id="dcRespawn" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" class="bg"/><circle cx="24" cy="24" r="20" class="fg" id="dcRing" pathLength="100"/></svg><b id="dcCount">3</b><small>volta</small></div></div>`
+      + `<div id="specBar" hidden role="group" aria-label="Assistindo"><button type="button" class="sp-nav prev" data-do="spec-prev" aria-label="Capivara anterior">${icon('back')}<kbd id="spPrevKey">${key(bindingOf(this.settings.bindings, 'ads'))}</kbd></button>`
+      + `<div class="sp-card plate"><span class="sp-eyebrow"><span id="spState">Assistindo</span><b id="spOrder">1 de 1</b></span><div class="sp-main"><span class="sp-face" id="spFace"></span><div class="sp-who"><b id="spName">Capivara</b><small id="spTag">Da turma</small></div><span class="sp-weapon" id="spWeapon"></span><span class="sp-kills">${icon('crosshair')}<b id="spKills">0</b></span></div>`
+      + `<div class="sp-bars"><div class="bar hp"><i id="spHp"></i></div><b id="spHpTxt">100</b><div class="bar arm"><i id="spArm"></i></div><b id="spArmTxt">0</b></div></div>`
+      + `<button type="button" class="sp-nav next" data-do="spec-next" aria-label="Próxima capivara"><kbd id="spNextKey">${key(this.settings.bindings.jump)}</kbd>${icon('arrow')}</button><span class="sp-hint" id="spHint">Mouse gira a câmera · <kbd>Esc</kbd> menu</span></div>`
+      + `<div id="dmgInd"></div><div id="nums"></div>`
       + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
-      + `<div id="prompt" class="stk" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="use" class="cbar stk" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
-      + `<div id="vitals" class="stk"><span id="prot" hidden>Protegida</span><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><div class="row arm">${HUD_ART.shield}<div class="bar seg"><i class="chip" id="armChip" style="width:0"></i><div id="armBar" style="width:0"></div></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><i class="chip" id="hpChip"></i><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div>`
-      + `<div id="stance" class="stk">${HUD_ART.stance}${HUD_ART.swimming}<b id="stanceTxt" hidden>Em pé</b></div>`
-      + `<div id="wpnbox"><div id="reload" class="cbar" hidden><span id="reloadTxt">Recarregando</span></div><div id="ammoBox" class="stk"><div class="wrow"><span class="rar" id="wRar">Comum</span><span class="wname" id="wName">Pistola</span><span class="mode" id="wMode">SEMI</span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div><div id="hotbar"></div></div>`
+      + `<div id="prompt" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="use" class="cbar" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
+      // Bottom row: portrait and vitals on the left, the four boxes in the middle, the magazine on the right.
+      + `<div id="vitals" class="plate tiled"><span class="portrait" id="vPortrait">${face}</span><div class="rows"><div class="row arm">${HUD_ART.shield}<div class="bar"><i class="chip" id="armChip" style="width:0"></i><div id="armBar" style="width:0"></div><span class="seg" aria-hidden="true"></span></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><i class="chip" id="hpChip"></i><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><span id="prot" hidden>Protegida</span></div>`
+      + `<div id="stance" class="pill">${HUD_ART.stance}${HUD_ART.swimming}<b id="stanceTxt" hidden>Em pé</b></div>`
       + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
+      + `<div id="hotbar"></div>`
+      + `<div id="wpnbox"><div id="reload" class="pill" hidden><span id="reloadTxt">Recarregando</span></div><div id="ammoBox" class="plate tiled"><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div><div class="wrow"><span class="wname" id="wName">Pistola</span><span class="rar" id="wRar">Comum</span><span class="mode" id="wMode">SEMI</span></div></div></div>`
       + `<div id="emoteWheel" hidden><div class="emote-ring" role="listbox" aria-label="Escolha um gesto"><span class="eyebrow emote-title">MOSTRE SEU JEITO</span>${EMOTE_IDS.map((id, i) => { const angle = i * Math.PI * 2 / EMOTE_IDS.length; return `<div id="emote-${i}" class="emote-option" role="option" aria-selected="false" style="--ex:${(Math.sin(angle) * 154).toFixed(1)}px;--ey:${(-Math.cos(angle) * 154).toFixed(1)}px"><kbd>${i + 1}</kbd>${emoteIcon(id)}<b>${esc(EMOTES[id].label)}</b></div>`; }).join('')}<div class="emote-center"><img src="${uiArt('capy-wave')}" alt=""><b id="emoteName">Escolha um gesto</b><span id="emoteDetail">Centro cancela</span></div><i class="emote-pointer" id="emotePointer" aria-hidden="true"></i><span class="emote-hint">Mova o mouse e solte <kbd id="emoteKey">${key(bindingOf(this.settings.bindings, 'emote'))}</kbd> · ou use 1 a 5</span></div></div>`
-      + `<div id="coach" class="stk" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
+      + `<div id="coach" class="plate" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
       + `</div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
     this.applyHudPrefs();
   }
@@ -360,16 +408,22 @@ export class GameUI {
     const outside = br && me.alive && me.stage === 'ground' && Math.hypot(me.pos.x - zone.x, me.pos.z - zone.z) > zone.radius;
     this.show('hOut', outside); if (outside) this.text('hDps', Math.round(zone.damage));
     this.toggle(this.el('storm'), 'on', outside);
-    const safeDistance = Math.hypot(me.pos.x - zone.nextX, me.pos.z - zone.nextZ) - zone.nextRadius;
-    const showSafe = br && me.alive && me.stage !== 'plane' && !finalStorm && safeDistance > 0 && snapshot.phase === 'playing';
-    this.show('safe', showSafe);
+    // Map, compass and the safe-zone cue follow whoever the camera shows: you, or the capybara you are watching.
+    const viewed = (this.spectate?.target && snapshot.actors.find(a => a.id === this.spectate!.target)) || me;
+    const safeDistance = Math.hypot(viewed.pos.x - zone.nextX, viewed.pos.z - zone.nextZ) - zone.nextRadius;
+    const showSafe = br && viewed.alive && viewed.stage !== 'plane' && !finalStorm && safeDistance > 0 && snapshot.phase === 'playing';
+    this.show('safe', showSafe && me.alive);
+    this.safeBearing = br && viewed.alive && !finalStorm && snapshot.phase === 'playing' ? Math.atan2(zone.nextX - viewed.pos.x, -(zone.nextZ - viewed.pos.z)) * 180 / Math.PI : null;
+    this.toggle(this.el('compass'), 'outside', showSafe);
     if (showSafe) { this.attr(this.el('safeArrow'), 'transform', `rotate(${(this.localAngle(me, zone.nextX, zone.nextZ) * 180 / Math.PI).toFixed(0)})`); this.text('safeTxt', `Refúgio a ${Math.round(safeDistance)} m`); }
-    const nearest = this.world.districts.reduce((a, b) => Math.hypot(a.x - me.pos.x, a.z - me.pos.z) < Math.hypot(b.x - me.pos.x, b.z - me.pos.z) ? a : b);
-    this.text('mapTab', me.stage === 'plane' ? 'Ilha' : nearest.name);
+    const nearest = this.world.districts.reduce((a, b) => Math.hypot(a.x - viewed.pos.x, a.z - viewed.pos.z) < Math.hypot(b.x - viewed.pos.x, b.z - viewed.pos.z) ? a : b);
+    this.text('mapTab', viewed.stage === 'plane' ? 'Ilha' : nearest.name);
     // Only live information on the HUD: ping when online, FPS only when the player asked for it.
     const net = [this.networkStatus === 'Reconectando à sala' || this.networkStatus === 'Conectado por retransmissão' ? this.networkStatus : '', this.room && !this.room.isHost ? `${Math.round(ping)} ms` : '', this.settings.showFps ? `${Math.round(fps)} fps` : ''].filter(Boolean).join(' · ');
     this.show('hud-ping', !!net); if (net) this.text('hud-ping', net);
     const hp = Math.max(0, me.hp), vitals = this.el('vitals'), shielded = t < me.protectionUntil;
+    const portrait = this.el('vPortrait');
+    if (portrait.dataset.k !== me.color) { portrait.dataset.k = me.color; portrait.innerHTML = capybara(me.color); }
     // Each bar has a pale chip behind it that follows after a beat, so damage leaves a short trail.
     const hpWidth = `${hp.toFixed(0)}%`, armWidth = `${clamp(me.armor, 0, 100).toFixed(0)}%`;
     this.style(this.el('hpBar'), 'width', hpWidth); this.style(this.el('hpChip'), 'width', hpWidth);
@@ -389,7 +443,7 @@ export class GameUI {
     if (this.inventoryKey !== inventoryKey) {
       this.inventoryKey = inventoryKey;
       // Boxes are fixed (two long guns, sidearm, facão); an empty box names what belongs there.
-      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(box => { const i = indexOfBox(me.weapons, box), w = me.weapons[i]; return `<div class="hs${w && i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" data-box="${box}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${box + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : `<em>${BOX_LABELS[box]}</em>`}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
+      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(box => { const i = indexOfBox(me.weapons, box), w = me.weapons[i]; return `<div class="hs${w && i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" data-box="${box}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${box + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : `${weaponIcon(BOX_HINT[box])}<span class="sr">${BOX_LABELS[box]} vazia</span>`}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
     }
     // Consumables: only what you carry, each with its count; the slot key stays visible.
     let carried = 0;
@@ -425,15 +479,10 @@ export class GameUI {
     // Posture chip: quiet when standing, labelled and highlighted when it matters.
     const stance = me.stage === 'plane' ? 'No avião' : me.stage === 'falling' ? 'Caindo' : me.stage === 'parachute' ? 'Paraquedas' : me.swimming ? sidearmIndex(me.weapons) >= 0 ? 'Nadando · só pistola' : 'Nadando · sem pistola' : me.soaking ? me.hp < 100 ? 'Banho de lama · recuperando vida' : 'Relaxando' : emoting ? EMOTES[me.emote!].label : me.sprint && speed > .5 ? 'Correndo' : me.crouch ? 'Agachada' : Math.abs(me.lean) > .15 ? me.lean < 0 ? 'Espiando à esq.' : 'Espiando à dir.' : '';
     this.show('stanceTxt', !!stance); if (stance) this.text('stanceTxt', stance); this.toggle(this.el('stance'), 'active', !!stance); this.toggle(this.el('stance'), 'swimming', me.swimming);
-    if (me.alive) this.deathInfo = null;
+    if (me.alive) { this.deathInfo = null; this.watchSince = 0; }
     let banner = '';
     if (snapshot.phase === 'countdown') banner = `${Math.ceil(snapshot.countdown)}<small>Prepare-se · a ilha já vai abrir</small>`;
-    else if (!me.alive) {
-      // During the death cam the card names the killer; afterwards BR shows the placement line, Correria the respawn timer.
-      const info = this.deathInfo ||= { place: alive + 1, line: nextEliminationLine(), card: null, until: 0 }, carding = !!info.card && now < info.until;
-      const detail = carding ? info.card! : br ? esc(info.line) : `Volta em ${Math.max(0, Math.ceil(me.respawnAt - t))} s`;
-      banner = `${br ? `#${info.place}` : 'Caiu!'}<small class="${carding ? 'kc' : ''}">${detail}</small>`;
-    }
+    else if (!me.alive) {}
     else if (me.stage === 'plane') { const left = Math.ceil(PLANE_AUTO_DROP - t); banner = `${esc(jump)} pra saltar<small>${left > 0 ? `salto automático em ${left} s` : 'saltando'}</small>`; }
     else if (me.stage === 'ground') {
       const boundary = boundaryFeedback(me.pos, this.world, snapshot.config.mode);
@@ -447,11 +496,7 @@ export class GameUI {
     // The moment the player is down (out of a battle royale, or waiting to respawn in Correria), every combat cue goes.
     if (out && !hud.classList.contains('out')) { this.el('dmgInd').replaceChildren(); this.el('nums').replaceChildren(); this.el('hitm').classList.remove('on'); }
     this.toggle(hud, 'out', out);
-    const deadInRoyale = this.deadInRoyale(); this.show('spec', deadInRoyale); this.show('dmQuit', !me.alive && !br && snapshot.phase === 'playing');
-    // Eliminated in battle royale: free the mouse once so the on-screen buttons can be clicked.
-    if (deadInRoyale && !this.deathReleased) { this.deathReleased = true; this.el('pause-panel').hidden = true; if (document.pointerLockElement) document.exitPointerLock(); this.el('spec').querySelector<HTMLElement>('[data-do="spectate"]')?.focus({ preventScroll: true }); }
-    this.toggle(this.el('spec'), 'locked', deadInRoyale && !!document.pointerLockElement);
-    if (me.alive) this.deathReleased = false;
+    this.updateDown(snapshot, me, now, alive);
     const score = this.el('scoreboard'); this.show('scoreboard', scoreboard);
     if (scoreboard) {
       // Rebuild the table only when a row changes, never on every HUD tick.
@@ -462,7 +507,67 @@ export class GameUI {
     if (this.lastPlane) { const dx = plane.x - this.lastPlane.x, dz = plane.z - this.lastPlane.z, len = Math.hypot(dx, dz); if (len > .05) this.planeDir = { x: dx / len, z: dz / len }; }
     this.lastPlane = { x: plane.x, z: plane.z };
     this.updateCoach(snapshot, me, interaction);
-    this.drawMap(snapshot, me);
+    this.drawMap(snapshot, viewed);
+  }
+  // Down (eliminated, or waiting to respawn): the death card names who did it, then battle royale hands over to the
+  // watch bar and the arena modes count down to the respawn. The mouse stays captured, so watching needs no clicks.
+  private updateDown(snapshot: WorldSnapshot, me: ActorState, now: number, alive: number) {
+    const br = snapshot.config.mode === 'battle-royale', down = !me.alive && snapshot.phase === 'playing', t = snapshot.time;
+    const view = this.spectate, target = view?.target ? snapshot.actors.find(a => a.id === view.target) : undefined;
+    if (down && !this.deathInfo) {
+      // Joined a battle royale already under way (never alive this match): watching, not eliminated.
+      const late = br && me.kills === 0 && me.damage === 0 && me.deaths === 1 && !this.sawAlive;
+      this.deathInfo = { place: alive + 1, line: late ? 'Você entra na próxima partida. Até lá, assista a turma.' : nextEliminationLine(), card: null, until: 0, late, left: null };
+    }
+    if (me.alive) this.sawAlive = true;
+    const info = this.deathInfo;
+    if (target && !this.watchSince) this.watchSince = now;
+    // The card stays through the death cam and a few seconds of watching, and for the whole respawn wait.
+    const card = down && !!info && (!br || !target || now - this.watchSince < 3500);
+    this.show('deathCard', card);
+    if (card && info) {
+      const cardEl = this.el('deathCard');
+      this.toggle(cardEl, 'late', info.late); this.toggle(cardEl, 'arena', !br);
+      this.text('dcPlace', br ? info.late ? '' : `#${info.place}` : '');
+      this.text('dcTitle', info.late ? 'Partida em andamento' : br ? 'Você foi eliminada' : 'Você caiu');
+      const killer = info.card ?? '';
+      if (this.el('dcKiller').dataset.k !== killer) { this.el('dcKiller').dataset.k = killer; this.el('dcKiller').innerHTML = killer; }
+      this.show('dcKiller', !!killer);
+      this.text('dcLine', info.line);
+      this.show('dcRespawn', !br);
+      if (!br) {
+        const left = Math.max(0, me.respawnAt - t);
+        this.text('dcCount', Math.max(1, Math.ceil(left)));
+        this.attr(this.el('dcRing'), 'stroke-dasharray', `${(clamp(1 - left / 3, 0, 1) * 100).toFixed(1)} 100`);
+      }
+    }
+    // Watching: whoever the camera follows, with their vitals, weapon and eliminations, and both ways to switch.
+    const watching = down && br && !!target;
+    this.show('specBar', watching);
+    this.toggle(this.el('hud'), 'watching', watching);
+    if (!watching || !target || !view) return;
+    const bar = this.el('specBar'), holding = !!view.hold;
+    this.toggle(bar, 'down', holding);
+    if (holding) {
+      const victim = snapshot.actors.find(a => a.id === view.hold!.victim), by = view.hold!.killer ? snapshot.actors.find(a => a.id === view.hold!.killer) : undefined;
+      this.text('spState', view.hold!.reason === 'left' ? `${victim?.name ?? 'Capivara'} saiu da partida` : by ? `Pega por ${by.name}` : 'Fora da ilha');
+    } else this.text('spState', 'Assistindo');
+    this.text('spOrder', view.count ? `${Math.max(1, view.index + 1)} de ${view.count}` : '');
+    const faceKey = `${target.id}:${target.color}`;
+    if (this.el('spFace').dataset.k !== faceKey) { this.el('spFace').dataset.k = faceKey; this.el('spFace').innerHTML = capybara(target.color); this.style(bar, '--kit', /^#[0-9a-f]{6}$/i.test(target.color) ? target.color : PLAYER_COLORS[0]); }
+    this.text('spName', target.name);
+    this.text('spTag', !target.connected ? 'Sem conexão' : target.bot ? 'Bot' : 'Da turma');
+    const weapon = target.weapons[target.slot], wKey = weapon ? `${weapon.id}:${weapon.rarity}` : '';
+    if (this.el('spWeapon').dataset.k !== wKey) {
+      this.el('spWeapon').dataset.k = wKey;
+      this.el('spWeapon').innerHTML = weapon ? `${weaponIcon(weapon.id)}<span>${esc(WEAPONS[weapon.id].name)}</span>` : '<span>Desarmada</span>';
+      this.style(this.el('spWeapon'), '--rc', weapon ? rarityOf(weapon.rarity).color : '#fff4d6');
+    }
+    this.text('spKills', target.kills);
+    const hp = target.alive ? Math.max(0, target.hp) : 0, armor = target.alive ? clamp(target.armor, 0, 100) : 0;
+    this.style(this.el('spHp'), 'width', `${hp.toFixed(0)}%`); this.style(this.el('spArm'), 'width', `${armor.toFixed(0)}%`);
+    this.text('spHpTxt', Math.ceil(hp)); this.text('spArmTxt', Math.ceil(armor));
+    this.text('spPrevKey', keyName(bindingOf(this.settings.bindings, 'ads'))); this.text('spNextKey', keyName(this.settings.bindings.jump));
   }
   // Crosshair gap and tick fade come from Brasa's CrosshairSpread (authoritative cone, local shot heat, ADS fade).
   // The crosshair is not scaled by --ui: its gap is a real screen-space angle.
@@ -592,14 +697,20 @@ export class GameUI {
   }
   setPaused(paused: boolean) {
     if (paused) { this.callbacks.cancelEmote?.(); this.closeEmoteWheel(); }
-    if (this.screen !== 'game') return; const panel = this.el('pause-panel'); panel.hidden = !paused || this.deadInRoyale();
+    if (this.screen !== 'game') return; const panel = this.el('pause-panel'); panel.hidden = !paused;
     if (panel.hidden) return;
     this.toggleMap(false);
     const snapshot = this.snapshot, online = !!this.room, alive = snapshot ? snapshot.actors.filter(a => a.alive).length : 0, b = this.settings.bindings;
     const keys = (...codes: string[]) => `<span class="keys">${codes.map(code => `<kbd class="kc">${esc(code)}</kbd>`).join('')}</span>`;
-    panel.innerHTML = `<div class="mc"><div class="eyebrow">Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'vivo' : 'vivos'}` : ''}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${online ? 'Menu' : 'Pausado'}</h1>${!online && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
-      + `<div class="pboard"><img class="board-mascot" src="${uiArt('capy-wave')}" alt="" draggable="false"><button type="button" class="play" data-do="resume">Voltar pra ilha</button><div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt quit" data-do="leave">Sair da partida</button></div></div><div id="lockErr" role="status"></div>`
-      + `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'drop')))}soltar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'emote')))}gestos (segurar)</span></div>`
+    // Out of a battle royale, the menu is about watching: carry on, or go back to the menu in one click.
+    const watching = this.deadInRoyale(), [watch, leave] = ELIMINATED_ACTIONS;
+    const title = watching ? 'Assistindo' : online ? 'Menu' : 'Pausado';
+    const eyebrow = watching ? `Você ficou em #${this.deathInfo?.place ?? alive + 1} · ${alive} ${alive === 1 ? 'viva' : 'vivas'}` : `Partida em andamento${snapshot ? ` · ${alive} ${alive === 1 ? 'viva' : 'vivas'}` : ''}`;
+    panel.classList.toggle('watching', watching);
+    panel.innerHTML = `<div class="mc"><div class="eyebrow">${esc(eyebrow)}${online && this.room ? ` · Sala ${esc(this.room.code)}` : ''}</div><h1>${title}</h1>${!online && !watching && adaptNote(this.settings) ? `<p class="adapt-note stk">${esc(adaptNote(this.settings))}</p>` : ''}`
+      + `<div class="pboard"><img class="board-mascot" src="${uiArt(watching ? 'capy-lose' : 'capy-wave')}" alt="" draggable="false"><button type="button" class="play" data-do="resume">${watching ? watch.label : 'Voltar pra ilha'}</button><div class="mrow"><button type="button" class="alt" data-do="settings">Configurações</button><button type="button" class="alt quit" data-do="leave">${watching ? leave.label : 'Sair da partida'}</button></div></div><div id="lockErr" role="status"></div>`
+      + (watching ? `<div class="quick stk"><span>${keys(keyName(b.jump), keyName(bindingOf(b, 'fire')))}próxima capivara</span><span>${keys(keyName(bindingOf(b, 'ads')))}anterior</span><span>${keys('Mouse')}gira a câmera</span><span>${keys(keyName(bindingOf(b, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(b, 'map')))}mapa</span></div>` : '')
+      + (watching ? '' : `<div class="quick stk"><span>${keys(keyName(b.forward), keyName(b.left), keyName(b.back), keyName(b.right))}andar</span><span>${keys(keyName(b.leanLeft), keyName(b.leanRight))}espiar</span><span>${keys(keyName(b.interact))}pegar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'drop')))}soltar</span><span>${keys(keyName(b.reload))}recarregar</span><span>${keys(...[1, 2, 3, 4].map(n => keyName(bindingOf(this.settings.bindings, `slot${n}`))), 'Roda')}armas</span><span>${keys(...CONSUMABLE_ACTIONS.map(a => keyName(bindingOf(this.settings.bindings, a))))}curas</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'scoreboard')))}placar</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'map')))}mapa</span><span>${keys(keyName(bindingOf(this.settings.bindings, 'emote')))}gestos (segurar)</span></div>`)
       + `<div class="set stk"><label><span>Sensibilidade <b data-out="sensitivity">${this.settings.sensitivity.toFixed(2)}</b></span><input type="range" data-quick="sensitivity" min="0.2" max="3" step="0.05" value="${this.settings.sensitivity}"></label>`
       + `<label><span>Campo de visão <b data-out="fov">${this.settings.fov}°</b></span><input type="range" data-quick="fov" min="${FOV_RANGE[0]}" max="${FOV_RANGE[1]}" step="1" value="${this.settings.fov}"></label></div>`
       + `</div>`;
@@ -768,8 +879,13 @@ export class GameUI {
         const kill = event as typeof event & { distance?: number };
         const measured = kill.distance ?? (killer && victim ? Math.hypot(killer.pos.x - victim.pos.x, killer.pos.y - victim.pos.y, killer.pos.z - victim.pos.z) : null);
         const parts = byPlayer ? killCardParts(killer!.name, WEAPONS[event.weapon as WeaponId]?.name ?? null, measured) : null;
-        const card = parts ? `<span class="kcard"><span class="pt">${capybara(killer!.color)}</span><b style="--kc:${/^#[0-9a-f]{6}$/i.test(killer!.color) ? killer!.color : PLAYER_COLORS[0]}">${esc(parts.killer)}</b> te pegou <i>·</i> <span class="wi">${weaponIcon(event.weapon as WeaponId)}</span>${esc(parts.weapon)}${parts.distance ? ` <i>·</i> ${parts.distance}` : ''}</span>` : null;
-        this.deathInfo = { place: others + 1, line, card, until: performance.now() + DEATH_CARD_SECONDS * 1000 };
+        // What the eliminator had left, like the recap in the big shooters: it tells you how close the fight was.
+        const left = byPlayer && killer!.alive ? `<span class="kc-left">ficou com <em class="hp">${HUD_ART.heart}${Math.ceil(killer!.hp)}</em>${killer!.armor > 0 ? `<em class="arm">${HUD_ART.shield}${Math.ceil(killer!.armor)}</em>` : ''}</span>` : '';
+        const kit = byPlayer && /^#[0-9a-f]{6}$/i.test(killer!.color) ? killer!.color : PLAYER_COLORS[0];
+        const card = parts ? `<span class="kc-face" style="--kc:${kit}">${capybara(killer!.color)}</span><span class="kc-text"><b>${esc(parts.killer)}</b><span class="kc-how"><span class="wi">${weaponIcon(event.weapon as WeaponId)}</span>${esc(parts.weapon)}${parts.distance ? ` · ${parts.distance}` : ''}</span>${left}</span>`
+          : event.weapon === 'storm' ? `<span class="kc-face env">${icon('bolt')}</span><span class="kc-text"><b>A tempestade</b><span class="kc-how">fora da área segura</span></span>`
+          : event.weapon === 'fall' ? `<span class="kc-face env">${icon('arrow')}</span><span class="kc-text"><b>Queda feia</b><span class="kc-how">o chão chegou rápido</span></span>` : null;
+        this.deathInfo = { place: others + 1, line, card, until: performance.now() + DEATH_CARD_SECONDS * 1000, late: false, left: null };
       }
       this.lastHits.delete(event.target);
     }

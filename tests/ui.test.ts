@@ -67,7 +67,7 @@ describe('hud', () => {
     expect(hudScale(1280, 720, .8)).toBe(HUD_MIN_SCALE);
   });
   it('keeps every desktop HUD, loading and results font at or above the 13 px design minimum', () => {
-    const css = readFileSync('src/ui/style.css', 'utf8').replace(/@media\(max-width:[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, '');
+    const css = (readFileSync('src/ui/style.css', 'utf8') + readFileSync('src/ui/hud.css', 'utf8')).replace(/@media\(max-width:[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, '');
     const rules = css.match(/(?:#hud|#loadingOverlay|#victory)[^{}]*\{[^}]*\}/g) || [];
     const small = rules.filter(rule => [...rule.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].some(m => Number(m[1]) < HUD_MIN_TEXT));
     expect(small).toEqual([]);
@@ -97,7 +97,7 @@ describe('hud', () => {
 describe('leaving a match', () => {
   // Formiga's smoke test: an eliminated player could only exit through a hidden spectator control.
   it('gives an eliminated battle royale player a visible exit next to spectate', () => {
-    expect(ELIMINATED_ACTIONS.map(a => a.do)).toEqual(['spectate', 'leave']);
+    expect(ELIMINATED_ACTIONS.map(a => a.do)).toEqual(['resume', 'leave']);
     expect(ELIMINATED_ACTIONS.find(a => a.do === 'leave')?.label).toBe('Voltar ao menu');
   });
   it('exits in one click when nothing is lost, and confirms when something is', () => {

@@ -64,9 +64,10 @@ export function leaveNeedsConfirm(c: LeaveContext): boolean {
   if (c.phase === 'results') return false;
   return !(c.royale && c.alive === false);
 }
-// Eliminated in battle royale: two buttons, always visible together. Watching is the primary action; the exit never hides.
+// Eliminated in battle royale, the menu (Esc) offers two actions side by side. Watching is the primary one (it
+// recaptures the mouse); the exit never hides.
 export const ELIMINATED_ACTIONS = [
-  { do: 'spectate', label: 'Assistir a próxima capivara', primary: true },
+  { do: 'resume', label: 'Continuar assistindo', primary: true },
   { do: 'leave', label: 'Voltar ao menu', primary: false },
 ] as const;
 

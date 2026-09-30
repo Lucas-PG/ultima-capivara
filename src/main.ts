@@ -1,4 +1,5 @@
 import './ui/style.css';
+import './ui/hud.css';
 import { createWorld } from './shared/world';
 import { moveActor } from './shared/collision';
 import { clamp } from './shared/math';
@@ -433,7 +434,7 @@ function frame(now: number) {
     renderFrame.spectateId = spectateId; renderFrame.predicted = renderFrame.localActor?.pos;
     const renderAt = timing.begin();
     renderer?.update(renderFrame);
-    if (renderer) input.setAimFov(renderer.camera.fov);
+    if (renderer) { input.setAimFov(renderer.camera.fov); ui.frameCompass(renderer.heading); }
     timing.end('render', renderAt);
     renderedRemoteTime = remoteInterpolation.time;
     renderedFrames++; frameCount++; dirtyFrame = false;
