@@ -23,7 +23,7 @@ try {
   for (const name of list) {
     try {
       const r = await page.evaluate(p => window.__capyQA.pose(p), name);
-      if (name === 'results') {
+      if (name.startsWith('results')) {
         await page.locator('#vpanel.show').waitFor();
         await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count')));
       }

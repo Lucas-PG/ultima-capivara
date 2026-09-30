@@ -621,13 +621,14 @@ export class GameUI {
     const prey = this.lastPrey ? `<div class="vlast"><span class="pt">${capybara(this.lastPrey.color)}</span><span>Última presa: <b>${esc(this.lastPrey.name)}</b></span></div>` : '';
     const stat = (value: string | number, label: string) => `<div><b${typeof value === 'number' ? ` data-count="${value}"` : ''}>${value}</b><span>${label}</span></div>`;
     const stats = me ? [stat(me.kills, 'Eliminações'), stat(Math.round(me.damage), 'Dano causado'),
-      stat(me.survived === undefined ? '–' : formatSurvived(me.survived), 'Tempo vivo'),
+      // With respawns everyone lasts the whole clock; falls say more about the round.
+      br ? stat(me.survived === undefined ? '–' : formatSurvived(me.survived), 'Tempo vivo') : stat(me.deaths, 'Quedas'),
       stat(me.longestShot === undefined ? '–' : `${Math.max(0, Math.round(me.longestShot))} m`, 'Acerto mais longe')].join('') : '';
     const accuracy = me?.shots !== undefined && me.hits !== undefined && me.shots > 0 ? `${accuracyText(me.hits, me.shots)} de precisão${me.headshots !== undefined ? ` · ${me.headshots} na cachola` : ''}` : '';
     // Awards only from simulation fields; a player gets at most two.
     const best = (field: keyof ResultStats) => { const top = Math.max(0, ...results.map(r => Number(r[field] ?? 0))); return top > 0 && Number(me?.[field] ?? 0) === top; };
     const awards = me ? ([['kills', 'Caçadora da ilha', 'mais eliminações'], ['damage', 'Mão pesada', 'mais dano'], ['headshots', 'Mira de ouro', 'mais tiros na cabeça'], ['chests', 'Rainha do baú', 'mais baús abertos'], ['survived', 'Sobrevivente', 'mais tempo viva']] as const)
-      .filter(([field]) => me[field] !== undefined && best(field)).slice(0, 2).map(([field, name, why]) => `<span class="award"><img src="${uiArt(`award-${field}`)}" alt="" draggable="false"><b>${name}</b><small>${why}</small></span>`).join('') : '';
+      .filter(([field]) => me[field] !== undefined && (br || field !== 'survived') && best(field)).slice(0, 2).map(([field, name, why]) => `<span class="award"><img src="${uiArt(`award-${field}`)}" alt="" draggable="false"><b>${name}</b><small>${why}</small></span>`).join('') : '';
     const host = !!this.room?.isHost, guest = !!this.room && !host;
     const hostName = this.room?.players.find(player => player.id === this.room?.hostId)?.name;
     const primary = guest ? `<span class="wait" role="status">${icon('clock')}<span>${hostName ? `<b>${esc(hostName)}</b> chama a revanche` : 'Quem criou a sala chama a revanche'}</span></span>` : `<button class="button primary" data-do="rematch">${icon(host ? 'users' : 'play')} Jogar de novo</button>`;

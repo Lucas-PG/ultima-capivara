@@ -62,7 +62,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
   let placedRoutes: Map<string, Vec3[]> | undefined;
   const names = [...Object.keys(VIEWS), 'cocoBlast', ...WEAPONS.flatMap(id => [`fp-${id}`, `ads-${id}`, `tp-${id}`, `world-${id}`]), ...EMOTE_IDS.map(id => `emote-${id}`), 'emote-wheel', 'scope',
     ...CORRENTE_LADDER.map(id => `corrente-${id}`), 'corrente-upgrade', ...MUD_POSES, ...TRAMPOLINE_POSES, ...SUPPLY_POSES, ...BUILDING_POSES, ...ACCESS_POSES, ...ROOM_POSES,
-    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results'];
+    ...deps.world.districts.map(d => `district-${d.id}`), ...deps.world.districts.map(d => `spawn-${d.id}`), 'hud', 'pause', 'results', 'results-correria'];
 
   function draw() {
     if (!renderer || !current) return;
@@ -77,6 +77,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     if (looping && pendingFrame === null) pendingFrame = requestAnimationFrame(tick);
   }
   async function pose(name: string) {
+    // Each review starts without the previous results layer.
+    document.querySelector('#victory')?.remove();
     if (!renderer) throw new Error('Call start first');
     deps.ui.closeEmoteWheel();
     const district = name.startsWith('district-') ? deps.world.districts.find(d => `district-${d.id}` === name) : null;
@@ -296,6 +298,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       s.phase = 'results'; s.results = [{ id: me.id, name: me.name, color: me.color, bot: false, kills: 1, deaths: 0, damage: 100, place: 1, winner: true,
         shots: 3, hits: 1, headshots: 0, survived: 30, chests: 0, longestShot: 12.4 }];
     }
+    if (name === 'results-correria') {
+      // A lost Correria round: respawns mean everyone lasted the whole clock.
+      s.phase = 'results'; s.config.mode = 'deathmatch';
+      const row = (id: string, rowName: string, kills: number, deaths: number, place: number) => ({ id, name: rowName, color: id === me.id ? me.color : '#ae825e', bot: id !== me.id,
+        kills, deaths, damage: kills * 95, place, winner: place === 1, shots: kills * 20, hits: kills * 9, headshots: kills, survived: 480, chests: id === me.id ? 2 : 0, longestShot: 41 });
+      s.results = [row('bot-qa-1', 'Bento', 32, 20, 1), row(me.id, me.name, 26, 6, 2), row('bot-qa-2', 'Tico', 21, 14, 3)];
+    }
     // The asset pipeline added match-specific avatar uploads after the initial
     // renderer warmup. Wait for those uploads before taking a fixed frame.
     const identities = JSON.stringify(s.actors.map(actor => [actor.id, actor.name, actor.color]));
@@ -350,7 +359,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       renderer.event({ type: 'impact', id: 3, actor: 'bot', weapon: 'coco', pos: { x, y: terrainHeight(x, z), z }, surface: 'dirt', normal: { x: 0, y: 1, z: 0 } });
       for (let i = 0; i < 9; i++) { s.time += 1 / 60; renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 8); }
     }
-    if (name !== 'results') document.querySelector('#victory')?.remove();
+    if (!name.startsWith('results')) document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
   }
   window.__capyQA = {

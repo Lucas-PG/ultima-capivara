@@ -28,7 +28,7 @@ test('deterministic game views match recorded baselines', async ({ page }, testI
     process.env.QA_UI_ONLY ? ['hud', 'pause', 'results'] : all;
   for (const name of names) {
     await page.evaluate((pose: string) => window.__capyQA!.pose(pose), name);
-    if (name === 'results') {
+    if (name.startsWith('results')) {
       await expect(page.locator('#vpanel')).toHaveClass(/show/);
       await page.waitForFunction(() => [...document.querySelectorAll('#vpanel [data-count]')].every(el => el.textContent === el.getAttribute('data-count')));
     }
