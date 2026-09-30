@@ -8,6 +8,22 @@ export const FUR_SHELLS = 6;
 export const FUR_RANGE = 6.5;
 const FUR_LENGTH = .0075;
 
+// The comb of the painted pelt (capybara_paint.fur_flow) in bind space: back from the nose over
+// the head, down the neck, body and legs, from the elbow to the fingers, forward over the feet.
+const FUR_COMB = `
+  vec3 furCombAt(vec3 p) {
+    vec3 comb = vec3(0.0, -1.0, 0.0);
+    vec3 radial = normalize(p - vec3(0.0, 1.64, -.43));
+    radial = normalize(radial + vec3(0.0, -.9 * smoothstep(.02, .16, p.z), 0.0));
+    comb = mix(comb, radial, smoothstep(1.45, 1.53, p.y));
+    float side = sign(p.x);
+    vec3 elbow = vec3(side * .3234, 1.1091, -.1750), axis = vec3(side * -.2507, -.1003, -.9628);
+    float arm = smoothstep(.15, .09, length(cross(p - elbow, axis))) * step(.2, side * p.x) * step(p.y, 1.32);
+    comb = mix(comb, axis, arm);
+    comb = mix(comb, vec3(0.0, -.35, -1.0), smoothstep(.15, .10, p.y));
+    return normalize(comb);
+  }`;
+
 const shellGeometries = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry | null>();
 const shellMaterials = new WeakMap<THREE.Material, THREE.MeshStandardMaterial>();
 
@@ -65,6 +81,10 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
   const cached = shellMaterials.get(base);
   if (cached) return cached;
   const material = base.clone();
+  // The solid skin owns depth and the character ID silhouette. Writing the cut-out
+  // shells into depth makes the undisplaced ID pass reject pixels under the hairs,
+  // and its outline then traces every strand as a dark contour inside the face.
+  material.depthWrite = false;
   // The clone keeps the body's team and style hooks; the shell code is added after them.
   const previous = material.onBeforeCompile, key = base.customProgramCacheKey();
   material.onBeforeCompile = (shader, renderer) => {
@@ -72,18 +92,18 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
     shader.uniforms.uFurLength = { value: FUR_LENGTH };
     // Thins the pelt toward FUR_RANGE so the shells fade out instead of popping (per avatar).
     shader.uniforms.uFurFade = { get value() { return material.userData.furFade ?? 0; } };
-    shader.vertexShader = `attribute float furShell;\nattribute float furLength;\nattribute vec3 furRest;\nuniform float uFurLength;\nvarying float vFurShell;\nvarying vec3 vFurRest;\n${shader.vertexShader}`
+    shader.vertexShader = `attribute float furShell;\nattribute float furLength;\nattribute vec3 furRest;\nuniform float uFurLength;\nvarying float vFurShell;\nvarying vec3 vFurRest;\n${FUR_COMB}\n${shader.vertexShader}`
       .replace('#include <skinning_vertex>', `#include <skinning_vertex>
         vFurShell = furShell; vFurRest = furRest;
         // Combed down the body and back over the head (bind space), carried by the skin.
-        vec3 furComb = normalize(mix(vec3(0.0, -1.0, 0.25), vec3(0.0, 0.3, 1.0), smoothstep(1.44, 1.52, furRest.y)));
+        vec3 furComb = furCombAt(furRest);
         #ifdef USE_SKINNING
           furComb = normalize((skinMatrix * vec4(furComb, 0.0)).xyz);
         #endif
         vec3 furUp = normalize(objectNormal);
         float furReach = uFurLength * furLength;
         transformed += furUp * furShell * furReach + (furComb - furUp * dot(furComb, furUp)) * furShell * furShell * furReach * .8;`);
-    shader.fragmentShader = `varying float vFurShell;\nvarying vec3 vFurRest;
+    shader.fragmentShader = `varying float vFurShell;\nvarying vec3 vFurRest;\n${FUR_COMB}
       float furHash3(vec3 p) { p = fract(p * .3183099 + .1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
       float furNoise3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
         return mix(mix(mix(furHash3(i), furHash3(i + vec3(1, 0, 0)), f.x), mix(furHash3(i + vec3(0, 1, 0)), furHash3(i + vec3(1, 1, 0)), f.x), f.y),
@@ -92,13 +112,15 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
       .replace('#include <common>', '#include <common>\nuniform float uFurFade;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         // Strands: fine across the comb, long along it (the same comb as the vertex shader).
-        vec3 furDir = normalize(mix(vec3(0.0, -1.0, 0.25), vec3(0.0, 0.3, 1.0), smoothstep(1.44, 1.52, vFurRest.y)));
+        vec3 furDir = furCombAt(vFurRest);
         vec3 furP = vFurRest * 900.0 - furDir * dot(vFurRest, furDir) * 780.0;
-        float furStrand = furNoise3(furP) * .72 + furNoise3(vFurRest * 140.0) * .36;
+        // Strands gather into locks (about a centimetre across, longer along the comb) like the paint.
+        vec3 furL = vFurRest * 95.0 - furDir * dot(vFurRest, furDir) * 65.0;
+        float furStrand = furNoise3(furP) * .72 + furNoise3(vFurRest * 140.0) * .20 + (furNoise3(furL) - .5) * .42;
         if (furStrand < mix(.50, .96, vFurShell) + uFurFade) discard;
-        diffuseColor.rgb *= mix(.93, 1.05, vFurShell);`);
+        diffuseColor.rgb *= mix(.90, 1.12, vFurShell);`);
   };
-  material.customProgramCacheKey = () => `${key}:capivara-fur-v1`;
+  material.customProgramCacheKey = () => `${key}:capivara-fur-v3`;
   shellMaterials.set(base, material);
   material.addEventListener('dispose', () => shellMaterials.delete(base));
   return material;
@@ -114,6 +136,7 @@ export function attachFurShells(lod0: THREE.SkinnedMesh): THREE.SkinnedMesh | nu
   material.onBeforeCompile = shared.onBeforeCompile; material.customProgramCacheKey = shared.customProgramCacheKey;
   const shells = new THREE.SkinnedMesh(geometry, material);
   shells.name = `${lod0.name}_fur`; shells.castShadow = false; shells.receiveShadow = true;
+  shells.renderOrder = 1;
   shells.frustumCulled = true; shells.visible = false;
   shells.bind(lod0.skeleton, lod0.bindMatrix);
   lod0.add(shells);
