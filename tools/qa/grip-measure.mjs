@@ -69,6 +69,22 @@ export function measureGrip([weapon, side, opposingPaw = false]) {
     return { ...node, left: tree(list.slice(0, mid)), right: tree(list.slice(mid)) };
   }
   const root = tree([...near]);
+  const pawBounds = opposingPaw ? bounds(tris) : null;
+  const insidePaw = point => {
+    // Oriented solid angles distinguish a real overlap from a distant skin
+    // normal facing the other forearm. Summing also handles overlapping pads.
+    let angle = 0;
+    for (const [a, b, c] of tris) {
+      const ax = a.x - point.x, ay = a.y - point.y, az = a.z - point.z;
+      const bx = b.x - point.x, by = b.y - point.y, bz = b.z - point.z;
+      const cx = c.x - point.x, cy = c.y - point.y, cz = c.z - point.z;
+      const al = Math.hypot(ax, ay, az), bl = Math.hypot(bx, by, bz), cl = Math.hypot(cx, cy, cz);
+      const det = ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
+      const den = al * bl * cl + (ax * bx + ay * by + az * bz) * cl + (bx * cx + by * cy + bz * cz) * al + (cx * ax + cy * ay + cz * az) * bl;
+      angle += 2 * Math.atan2(det, den);
+    }
+    return Math.abs(angle) > 2 * Math.PI;
+  };
   const distanceToBox = (p, node) => {
     let d = 0;
     for (const axis of ['x', 'y', 'z']) d += Math.max(0, node.min[axis] - p[axis], p[axis] - node.max[axis]) ** 2;
@@ -94,6 +110,9 @@ export function measureGrip([weapon, side, opposingPaw = false]) {
       }
     };
     visit(root);
+    // A nearest skin normal can face an unrelated, distant forearm. A point
+    // outside the other arm's complete bounds cannot be inside that arm.
+    if (sign < 0 && pawBounds && (distanceToBox(v.p, pawBounds) > 0 || !insidePaw(v.p))) sign = 1;
     v.d = Math.sqrt(best) * sign;
     const g = groups[v.bone] ??= { n: 0, inside: 0, min: Infinity, tip: null, tipAlong: -Infinity };
     g.n++; if (v.d < -.0005) g.inside++; if (v.d < g.min) { g.min = v.d; g.part = v.part; g.at = [v.p.x, v.p.y, v.p.z].map(n => Math.round(n * 1000)); }
