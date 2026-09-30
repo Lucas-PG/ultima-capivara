@@ -3,13 +3,15 @@
 // digit sits around the bore, the paw's place along the gun and the wrist bend
 // against the forearm. Pattern search from a start grip; prints the fitted spec.
 // Batch: node tools/qa/grip-fit.mjs --batch <jobs.json> (one browser, sequential fits).
-// Jobs may include tune (live view spec) and capture (output directory for eye/near/below/top views).
+// Add --watch to append jobs between reviews; replace the queue with null to close Chrome.
+// Jobs may include tune (live view spec), capture (output directory) and views (named orbit triples).
 // node tools/qa/grip-fit.mjs <weapon> '<intent json>' ['<start grip json>'] [--evals N] [--fp|--ads]
 // Intent (degrees around the bore: 0 right, 90 top, 180 left, 270 bottom; ranges may wrap):
 //   { "side": "L", "zone": [zMin, zMax], "digits": { "index": { "tip": [a, b], "base": [a, b], "along": 80, "weight": 1 }, ... },
 //     "part": "mag", "partOffset": [0, .15, 0],
 //     "axisOrigin": [x, y, z], // Optional grip axis, e.g. the pump below the barrel.
-//     "contactParts": { "thumb": "mag" }, "palmFacing": [x, y, z, maxDegrees],
+//     "contactParts": { "thumb": "mag" }, "palmFacing": [x, y, z, maxDegrees, weight],
+//     "forwardFacing": [x, y, z, maxDegrees, weight],
 //     "palm": [a, b], "thumbAlong": deg, "wristBend": deg, "contact": ["palm", "index", ...],
 //     "curlBounds": { "index": [[min, max], [min, max], [min, max]], "spread": [min, max] } }
 import { chromium } from '@playwright/test';
@@ -18,10 +20,22 @@ import { measure } from './weapon-contact.mjs';
 const args = process.argv.slice(2);
 const flag = name => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
 const batchFile = flag('--batch');
+const watch = args.includes('--watch');
 const evals = +(flag('--evals') ?? 1500);
 const mode = args.includes('--ads') ? 'ads' : 'fp';
 const [weapon, intentJson, startJson] = args.filter(a => !a.startsWith('--'));
 const jobs = batchFile ? JSON.parse(await readFile(batchFile, 'utf8')) : [{ weapon, intent: JSON.parse(intentJson), start: startJson ? JSON.parse(startJson) : undefined }];
+async function* queuedJobs() {
+  let index = 0, waiting = false;
+  for (;;) {
+    const queue = watch && batchFile ? JSON.parse(await readFile(batchFile, 'utf8')) : jobs;
+    if (!queue) return;
+    if (index < queue.length) { waiting = false; yield queue[index++]; continue; }
+    if (!watch) return;
+    if (!waiting) { console.log('Waiting for another grip job'); waiting = true; }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+}
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
@@ -30,7 +44,7 @@ await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1`);
 await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 60000 });
 await page.evaluate(async () => { await window.__capyQA.start(); window.__capyQA.quality('medium'); });
 try {
-  for (const job of jobs) {
+  for await (const job of queuedJobs()) {
     const { weapon, intent } = job;
     console.log(`job ${job.name ?? weapon}`);
     await page.evaluate(([w, tune]) => { window.__vmTune = tune ? { [w]: tune } : undefined; }, [weapon, job.tune]);
@@ -200,10 +214,11 @@ try {
         }
         // Placement around the bore and along the gun.
         terms.place = 0;
-        if (intent.palmFacing) {
-          const normal = new V3(...grip.palm).normalize(), desired = new V3(...intent.palmFacing.slice(0, 3)).normalize();
+        for (const axis of ['palm', 'forward']) if (intent[`${axis}Facing`]) {
+          const facing = intent[`${axis}Facing`];
+          const normal = new V3(...grip[axis]).normalize(), desired = new V3(...facing.slice(0, 3)).normalize();
           const angle = Math.acos(Math.max(-1, Math.min(1, normal.dot(desired)))) * 180 / Math.PI;
-          terms.place += (Math.max(0, angle - (intent.palmFacing[3] ?? 12)) / 4) ** 2;
+          terms.place += (Math.max(0, angle - (facing[3] ?? 12)) / 4) ** 2 * (facing[4] ?? 1);
         }
         const centre = name => groups[name] ? new V3().copy(groups[name].sum).multiplyScalar(1 / groups[name].n) : null;
         const where = {};
@@ -300,7 +315,7 @@ try {
       await page.evaluate(p => window.__capyQA.pose(p), `${job.mode ?? mode}-${weapon}`);
       const contact = await page.evaluate(measure, [weapon, intent.side]);
       await writeFile(`${job.capture}/${job.name ?? weapon}-probe.json`, JSON.stringify(contact, null, 2) + '\n');
-      for (const [name, view] of Object.entries({ eye: null, near: [-Math.PI / 2 + .25, .15, .26], below: [.2, -1.1, .26], top: [.3, 1.25, .28] })) {
+      for (const [name, view] of Object.entries(job.views ?? { eye: null, near: [-Math.PI / 2 + .25, .15, .26], below: [.2, -1.1, .26], top: [.3, 1.25, .28] })) {
         await page.evaluate(([v, target]) => { window.__vmOrbit = v ? { yaw: v[0], pitch: v[1], distance: v[2], target } : undefined; }, [view, contact.centroid]);
         await page.evaluate(p => window.__capyQA.pose(p), `${job.mode ?? mode}-${weapon}`);
         await page.screenshot({ path: `${job.capture}/${job.name ?? weapon}-${name}.png` });
