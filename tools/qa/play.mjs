@@ -134,7 +134,8 @@ async function fullMatch(timeout, captureEvery) {
     })();
     if (stalledAt) { stalls.push({ at: Math.round((stalledAt - started) / 1000) - 15, seconds: Math.round((Date.now() - stalledAt) / 1000) + 15, time: state.time }); console.error('recovered', JSON.stringify(stalls.at(-1))); }
     if (Date.now() - lastSample > 2000 || state.phase === 'results') {
-      if (samples.length % 5 === 0) state.resources = await page.evaluate(() => ({ ...window.__capivara.resources(), heapMB: window.__capivara.perf().heapMB }));
+      if (samples.length % 5 === 0) state.resources = await page.evaluate(() => ({ ...window.__capivara.resources(), heapMB: window.__capivara.perf().heapMB,
+        dom: document.getElementsByTagName('*').length, animations: document.getAnimations().length, rafGapP50: window.__capivara.perf().p50 }));
       samples.push(state); lastSample = Date.now();
     }
     // PROFILE_AT=60,240: a 4 s main-thread CPU profile at those match seconds, summarised by self time.
@@ -219,7 +220,8 @@ for (const step of steps) {
         if (me?.alive && s.time > 4) window.__capivara.qaDamage(me.id, 10000);
         return { time: s.time, phase: s.phase, spectateId: i.spectateId, remaining: s.remaining,
           actors: s.actors.filter(x => x.bot).map(x => ({ id: x.id, pos: x.pos, hp: x.hp, kills: x.kills, deaths: x.deaths,
-            swimming: x.swimming, alive: x.alive, weapon: x.weapons[x.slot]?.id })), perf: window.__capivara.perf() };
+            swimming: x.swimming, alive: x.alive, weapon: x.weapons[x.slot]?.id })), perf: window.__capivara.perf(),
+          framing: i.spectateId ? window.__capivara.framing(i.spectateId) : null };
       });
       samples.push(sample);
       if (Date.now() >= next || sample.phase === 'results') {
@@ -230,7 +232,7 @@ for (const step of steps) {
         if (sample.spectateId && sample.phase !== 'results') await page.evaluate(() => { window.__networkQA.key('Space', true); window.__networkQA.key('Space', false); });
       }
       if (sample.phase === 'results') break;
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(Number(process.env.SPECTATE_EVERY_MS || 1000));
     }
     writeFileSync(`${out}/spectate.json`, JSON.stringify(samples) + '\n');
     if (samples.at(-1)?.phase !== 'results') throw new Error('Spectated match did not finish before its time limit');

@@ -1,7 +1,7 @@
 import './ui/style.css';
 import './ui/hud.css';
 import { createWorld } from './shared/world';
-import { moveActor } from './shared/collision';
+import { hasLineOfSight, moveActor } from './shared/collision';
 import { clamp } from './shared/math';
 import { closestInteraction as findInteraction } from './shared/interaction';
 import { indexOfBox, nextBoxSlot } from './shared/inventory';
@@ -543,6 +543,15 @@ if (import.meta.env.DEV) {
     timings: () => ({ ...timing.snapshot(), preset: settings.graphics, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } }),
     audio: () => sound.stats(),
     resources: () => renderer?.resources ?? null,
+    // Spectator framing: where the watched capybara's chest lands on screen, how far it is, and whether a solid hides it.
+    framing: (id: string) => {
+      const actor = snapshot?.actors.find(a => a.id === id), rendered = renderFrame.remoteActors?.get(id);
+      if (!renderer || !actor) return null;
+      const pos = rendered?.pos ?? actor.pos, chest = { x: pos.x, y: pos.y + 1.1, z: pos.z }, eye = renderer.cameraPosition;
+      const ndc = renderer.project(chest);
+      return { ndc: ndc.map(v => +v.toFixed(3)), distance: +Math.hypot(chest.x - eye.x, chest.y - eye.y, chest.z - eye.z).toFixed(2),
+        clear: hasLineOfSight({ x: eye.x, y: eye.y, z: eye.z }, chest, world) };
+    },
     shotTimes: () => [...shotTimes].map(([seq, times]) => ({ seq, ...times })),
     resetPerf: () => { intervals.length = 0; longTasks.length = 0; timing.reset(); lastTick = performance.now(); },
     // QA builds: damage an actor in a practice match (attacker null means storm or fall style damage).
