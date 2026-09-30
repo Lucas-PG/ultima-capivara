@@ -158,6 +158,21 @@ describe('first-person viewmodel', () => {
     expect(h.view.weapon).toBe('smg'); expect(h.view.adsAmount).toBeLessThan(.05);
   });
 
+  // The simulation lets a swapped weapon fire HANDLING.draw seconds after the swap;
+  // the viewmodel must be up by then, and must not look ready before it can fire.
+  for (const id of ['m4', 'sniper'] as const) it(`raises the ${id} exactly within its draw time`, async () => {
+    const { HANDLING } = await import('../src/shared/weapons');
+    const h = await harness(); h.actor.weapons[1] = { id, rarity: 0, ammo: 5, reserve: 10, box: 0 } as ActorState['weapons'][number];
+    for (let i = 0; i < 30; i++) h.step();
+    const lowered = () => { const v = h.view as unknown as { draw: number; holster: number }; return v.draw + v.holster; };
+    h.actor.slot = 1;
+    const frames = Math.round(HANDLING[id].draw * 60);
+    for (let i = 0; i < frames - 2; i++) h.step();
+    expect(h.view.weapon).toBe(id); expect(lowered()).toBeGreaterThan(.02);
+    for (let i = 0; i < 3; i++) h.step();
+    expect(lowered()).toBe(0);
+  });
+
   it('the pistol reload takes the magazine out, seats a fresh one and leaves every part at rest', async () => {
     const h = await harness(); for (let i = 0; i < 20; i++) h.step();
     const mag = h.holder.getObjectByName('pistol_mag')!, rest = mag.position.clone();

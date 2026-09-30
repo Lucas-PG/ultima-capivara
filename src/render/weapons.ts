@@ -10,7 +10,7 @@ import { damp } from '../shared/math';
 import { Spring } from './spring';
 import { PAINT, SUN_DIRECTION } from './materials';
 import { RARITY } from '../shared/rarity';
-import { advanceAds, WEAPONS } from '../shared/weapons';
+import { advanceAds, HANDLING, WEAPONS } from '../shared/weapons';
 import { sampleMelee, sampleHeavyMelee, smoothPose, weaponShotDuration,
   MELEE_SECONDS, MELEE_CONTACT, MELEE_HIT_STOP, type MeleePose } from '../shared/weapon-presentation';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
@@ -19,6 +19,9 @@ import { swimReady } from '../shared/inventory';
 // Viewmodel FOV (vertical). Narrower than the world so the paws and guns keep
 // their proportions instead of stretching toward the screen edges.
 export const VIEWMODEL_FOV = 58;
+// A swap spends this share of the incoming weapon's draw time lowering the old
+// gun and the rest raising the new one, so it settles exactly when it may fire.
+const HOLSTER_SHARE = .4;
 
 const v3 = (value: V3, out = new THREE.Vector3()) => out.set(value[0], value[1], value[2]);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
@@ -271,7 +274,7 @@ export class WeaponView {
     if (!actor || !this.holder.visible) { this.resetMotion(); return; }
     const requested = actor.weapons[actor.slot]?.id || 'pistol';
     if (requested !== this.active && this.models[requested]) {
-      this.cancelInspect(); this.holster = Math.min(1, this.holster + dt / .13);
+      this.cancelInspect(); this.holster = Math.min(1, this.holster + dt / (HANDLING[requested].draw * HOLSTER_SHARE));
       if (this.holster >= 1) {
         this.models[this.active].group.visible = false; this.drawFrom = this.active; this.active = requested; this.models[this.active].group.visible = true;
         this.draw = 1; this.holster = 0; this.reloadEnd = 0; this.ads = 0; this.kickZ.reset(); this.kickPitch.reset();
@@ -357,7 +360,7 @@ export class WeaponView {
     const landing = this.land.update(0, 11, dt), crouchDip = this.crouchDip.update(0, 12, dt);
     const kickZ = this.kickZ.update(0, spec.recoil.frequency, dt), kickPitch = this.kickPitch.update(0, spec.recoil.frequency * .85, dt);
     const kickRoll = this.kickRoll.update(0, spec.recoil.frequency * .7, dt), kickYaw = this.kickYaw.update(0, spec.recoil.frequency * .8, dt);
-    this.draw = Math.max(0, this.draw - dt / .3);
+    this.draw = Math.max(0, this.draw - dt / (HANDLING[weapon].draw * (1 - HOLSTER_SHARE)));
     this.shotLife = Math.max(0, this.shotLife - dt);
 
     // ---- base pose: hip to sights
