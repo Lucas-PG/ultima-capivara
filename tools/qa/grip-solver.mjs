@@ -5,7 +5,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   vm.scene.updateMatrixWorld(true);
   const toGun = new M4().copy(holder.matrixWorld).invert(), scale = holder.scale.x;
   const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
-  // ---- gun triangles in weapon space, bucketed in a grid for nearest queries
+  // ---- gun triangles in weapon space, indexed for exact nearest queries
   const tris = [];
   model.group.traverse(o => {
     if (!o.isMesh || o.isSkinnedMesh || !o.geometry.attributes.position) return;
@@ -15,18 +15,38 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     const at = i => new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m).multiplyScalar(scale);
     for (let i = 0; i < count; i += 3) {
       const a = at(i), b = at(i + 1), c = at(i + 2), n = new V3().subVectors(b, a).cross(new V3().subVectors(c, a));
-      if (n.lengthSq() > 1e-16) tris.push({ a, b, c, n });
+      if (n.lengthSq() > 1e-16) tris.push({ a, b, c, n, owner: o });
     }
   });
-  const CELL = .008, grid = new Map(), key = (i, j, k) => `${i},${j},${k}`;
-  for (const t of tris) {
-    const lo = new V3().copy(t.a).min(t.b).min(t.c), hi = new V3().copy(t.a).max(t.b).max(t.c);
-    for (let i = Math.floor(lo.x / CELL); i <= Math.floor(hi.x / CELL); i++)
-      for (let j = Math.floor(lo.y / CELL); j <= Math.floor(hi.y / CELL); j++)
-        for (let k = Math.floor(lo.z / CELL); k <= Math.floor(hi.z / CELL); k++) {
-          const id = key(i, j, k); if (!grid.has(id)) grid.set(id, []); grid.get(id).push(t);
-        }
+  function tree(list) {
+    const lo = new V3(Infinity, Infinity, Infinity), hi = new V3(-Infinity, -Infinity, -Infinity);
+    for (const t of list) { lo.min(t.a).min(t.b).min(t.c); hi.max(t.a).max(t.b).max(t.c); }
+    const node = { lo, hi };
+    if (list.length <= 16) return { ...node, triangles: list };
+    const size = new V3().subVectors(hi, lo), axis = size.x >= size.y && size.x >= size.z ? 'x' : size.y >= size.z ? 'y' : 'z';
+    list.sort((a, b) => a.a[axis] + a.b[axis] + a.c[axis] - b.a[axis] - b.b[axis] - b.c[axis]);
+    const mid = list.length >> 1;
+    return { ...node, left: tree(list.slice(0, mid)), right: tree(list.slice(mid)) };
   }
+  const root = tree([...tris]);
+  // A trigger finger must contact the trigger, not a nearby frame surface.
+  // Optional contactParts maps a digit segment or palm to its actual part.
+  const partTrees = {};
+  for (const id of new Set(Object.values(intent.contactParts ?? {}))) {
+    const object = model.parts[id];
+    if (!object) throw new Error(`Unknown contact part: ${id}`);
+    const selected = tris.filter(t => {
+      for (let o = t.owner; o; o = o.parent) if (o === object) return true;
+      return false;
+    });
+    if (!selected.length) throw new Error(`Contact part is hidden or empty: ${id}`);
+    partTrees[id] = tree(selected);
+  }
+  const distanceToBox = (p, node) => {
+    let d = 0;
+    for (const axis of ['x', 'y', 'z']) d += Math.max(0, node.lo[axis] - p[axis], p[axis] - node.hi[axis]) ** 2;
+    return d;
+  };
   const ab = new V3(), ac = new V3(), ap = new V3(), bp = new V3(), cp = new V3(), q = new V3(), c0 = new V3();
   function closest(p, a, b, c, out) {
     ab.subVectors(b, a); ac.subVectors(c, a); ap.subVectors(p, a);
@@ -39,26 +59,25 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) return out.copy(b).addScaledVector(q.subVectors(c, b), (d4 - d3) / ((d4 - d3) + (d5 - d6)));
     const den = 1 / (va + vb + vc); return out.copy(a).addScaledVector(ab, vb * den).addScaledVector(ac, vc * den);
   }
-  // Signed distance (negative inside), exact within 5 cells, +Infinity beyond.
-  function signed(p) {
-    const ci = Math.floor(p.x / CELL), cj = Math.floor(p.y / CELL), ck = Math.floor(p.z / CELL);
-    let best = Infinity, sign = 1; const seen = new Set();
-    for (let r = 0; r <= 5; r++) {
-      for (let i = ci - r; i <= ci + r; i++) for (let j = cj - r; j <= cj + r; j++) for (let k = ck - r; k <= ck + r; k++) {
-        if (Math.max(Math.abs(i - ci), Math.abs(j - cj), Math.abs(k - ck)) !== r) continue;
-        const cell = grid.get(key(i, j, k)); if (!cell) continue;
-        for (const t of cell) {
-          if (seen.has(t)) continue; seen.add(t);
-          closest(p, t.a, t.b, t.c, c0);
-          const d = c0.distanceToSquared(p), s = t.n.dot(q.subVectors(p, c0)) < 0 ? -1 : 1;
-          if (d < best - 1e-12) { best = d; sign = s; } else if (d < best + 1e-10 && s > 0) sign = 1;
-        }
+  // Signed distance (negative inside), exact within 40 mm, +Infinity beyond.
+  function signed(p, from = root, radius = .04) {
+    let best = radius ** 2, sign = 1, found = false;
+    const visit = node => {
+      if (distanceToBox(p, node) > best + 1e-10) return;
+      if (!node.triangles) {
+        const leftFirst = distanceToBox(p, node.left) <= distanceToBox(p, node.right);
+        visit(leftFirst ? node.left : node.right); visit(leftFirst ? node.right : node.left);
+        return;
       }
-      if (best < Infinity && Math.sqrt(best) <= r * CELL) break;
-    }
-    // Outside the searched radius a bucket can contain a distant triangle whose
-    // normal is not the nearest surface. Do not turn that into false penetration.
-    return best <= (5 * CELL) ** 2 ? Math.sqrt(best) * sign : Infinity;
+      for (const t of node.triangles) {
+        closest(p, t.a, t.b, t.c, c0);
+        const d = c0.distanceToSquared(p), s = t.n.dot(q.subVectors(p, c0)) < 0 ? -1 : 1;
+        if (d < best - 1e-12) { best = d; sign = s; found = true; }
+        else if (d < best + 1e-10 && s > 0) sign = 1;
+      }
+    };
+    visit(from);
+    return found ? Math.sqrt(best) * sign : Infinity;
   }
   // ---- paw vertices grouped by their dominant bone; palm side from the bind pose (palm faces -y at rest)
   const mesh = vm.arms.meshes.find(m => m.name.endsWith(side));
@@ -98,7 +117,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     const grip = build(P);
     vm.solveArms(model, { ...model.grips, [side]: grip }, null, null, intent.shoulders);
     vm.arms.group.updateMatrixWorld(true);
-    const groups = {};
+    const groups = {}, partMins = {};
     let pen = 0;
     for (const v of verts) {
       mesh.getVertexPosition(v.i, v.p); v.p.applyMatrix4(mesh.matrixWorld).applyMatrix4(toGun).multiplyScalar(scale);
@@ -107,6 +126,9 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
       const G = groups[g] ??= { min: Infinity, n: 0, sum: new V3() };
       G.min = Math.min(G.min, v.d); G.n++; G.sum.add(v.p);
       if (v.bone.endsWith('3') || v.bone.endsWith('1')) { const T = groups[v.bone] ??= { min: Infinity, n: 0, sum: new V3() }; T.min = Math.min(T.min, v.d); T.n++; T.sum.add(v.p); }
+      const contact = v.palm && intent.contactParts?.palm ? 'palm' : v.bone;
+      const part = intent.contactParts?.[contact];
+      if (part) partMins[contact] = Math.min(partMins[contact] ?? Infinity, Math.abs(signed(v.p, partTrees[part], .2)));
       const depth = (intent.clearance ?? -.0002) - v.d; if (depth > 0) pen += (depth * 1000) ** 2;
     }
     const terms = { pen: pen * 2 };
@@ -116,6 +138,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
       const G = groups[g]; if (!G) continue;
       const gap = Math.max(0, G.min - .0008) * 1000; terms.gap += gap * gap * .6;
     }
+    for (const d of Object.values(partMins)) terms.gap += (Math.max(0, d - .0008) * 1000) ** 2 * (intent.partContactWeight ?? 3);
     // Placement around the bore and along the gun.
     terms.place = 0;
     const centre = name => groups[name] ? new V3().copy(groups[name].sum).multiplyScalar(1 / groups[name].n) : null;
@@ -152,7 +175,8 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     const cost = terms.pen + terms.gap + terms.place + terms.wrist + terms.stay;
     if (!detail) return cost;
     const mins = Object.fromEntries(Object.entries(groups).map(([k, g]) => [k, +(g.min * 1000).toFixed(1)]));
-    return { cost, terms: Object.fromEntries(Object.entries(terms).map(([k, v]) => [k, +v.toFixed(2)])), where, mins, grip };
+    return { cost, terms: Object.fromEntries(Object.entries(terms).map(([k, v]) => [k, +v.toFixed(2)])), where, mins,
+      ...(Object.keys(partMins).length ? { partMins: Object.fromEntries(Object.entries(partMins).map(([k, d]) => [k, +(d * 1000).toFixed(1)])) } : {}), grip };
   }
   // ---- start vector
   const f0 = new V3(...start.forward).normalize();
