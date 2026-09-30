@@ -32,12 +32,14 @@ export function walkableSegment(world: WorldSpec, from: Pick<Vec3, 'x' | 'z'>, t
   for (let i = 0; i <= steps; i++) {
     const x = from.x + (to.x - from.x) * i / steps, z = from.z + (to.z - from.z) * i / steps;
     const y = walkableHeight(x, z, world);
-    if (Math.abs(x) > 124 || Math.abs(z) > 124 || (arena && !inArena(x, z, .5))) return false;
+    // Actors swept beyond a soft boundary can always walk back inside it.
+    if (Math.abs(x) > Math.max(124, Math.abs(from.x)) + .001 || Math.abs(z) > Math.max(124, Math.abs(from.z)) + .001 ||
+      (arena && !inArena(x, z, .5))) return false;
     if (i && Math.abs(y - previous) > Math.max(.45, distance / steps * .85)) return false;
     // A solid whose top is one legal step up (moveActor's 0.45 m) is climbed, not
     // a wall: the next tread of a stair in front of the feet does not block it.
     if (nearby(world, x, z, .32).some(c => y < c.max.y - .01 && c.max.y - y > STEP_UP && y + 1.8 > c.min.y &&
-      x + .32 > c.min.x && x - .32 < c.max.x && z + .32 > c.min.z && z - .32 < c.max.z)) return false;
+      Math.hypot(Math.max(c.min.x - x, 0, x - c.max.x), Math.max(c.min.z - z, 0, z - c.max.z)) < .319)) return false;
     previous = y;
   }
   return true;
@@ -68,7 +70,7 @@ export function buildNavigation(world: WorldSpec, routes: readonly (readonly (re
   // and room centre, then connect only genuinely clear walking segments.
   const doors: number[] = [];
   for (const piece of world.pieces ?? []) {
-    if (!/^(house_|church$|market_hall$|warehouse$|barn$)/.test(piece.piece)) continue;
+    if (!/^(house_|palafita|bar_mare$|engenho$|church$|market_hall$|warehouse$|barn$)/.test(piece.piece)) continue;
     const floor = KIT_PIECES[piece.piece]?.colliders.find(c => c.type === 'box' && c.height < .25 && c.y < .3 && c.width > 3 && c.depth > 3);
     if (!floor || floor.type !== 'box') continue;
     const scale = piece.scale ?? 1;
@@ -98,7 +100,10 @@ export function buildNavigation(world: WorldSpec, routes: readonly (readonly (re
       }
     return found.sort((a, b) => Math.hypot(points[a].x - x, points[a].z - z) - Math.hypot(points[b].x - x, points[b].z - z));
   };
-  for (const route of routes) {
+  const deckRoutes = (world.buildingRoutes ?? []).filter(route => route.points.every(point =>
+    Math.abs(point.y - walkableHeight(point.x, point.z, world)) < .5)).map(route => route.points.map(point => [point.x, point.z] as const));
+  const authoredNodes: number[] = [];
+  for (const route of [...routes, ...deckRoutes]) {
     let previous = -1;
     for (let i = 1; i < route.length; i++) {
       const [ax, az] = route[i - 1], [bx, bz] = route[i], samples = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 3));
@@ -109,6 +114,10 @@ export function buildNavigation(world: WorldSpec, routes: readonly (readonly (re
         if (node === undefined) {
           node = points.length; points.push({ x, y: walkableHeight(x, z, world), z }); links.push([]);
           for (const index of gridNear(x, z, 6)) if (walkableSegment(world, points[node], points[index])) link(node, index);
+          // Narrow boardwalk junctions can sit entirely between the grid rows.
+          for (const index of authoredNodes) if (Math.hypot(points[index].x - x, points[index].z - z) < 6 &&
+            walkableSegment(world, points[node], points[index])) link(node, index);
+          authoredNodes.push(node);
         }
         if (previous >= 0 && walkableSegment(world, points[previous], points[node])) link(previous, node);
         previous = node;
@@ -118,16 +127,34 @@ export function buildNavigation(world: WorldSpec, routes: readonly (readonly (re
   return { points, links };
 }
 
+// Shared attachment rule for routing and recovery. The endpoint must reach an
+// actual graph link, rather than merely stand on a collision-free patch.
+export function navigationAnchor(world: WorldSpec, pos: Vec3, arena = false): number | undefined {
+  const graph = world.navigation;
+  return graph?.points.map((point, index) => ({ index, distance: Math.hypot(pos.x - point.x, pos.z - point.z) }))
+    .filter(candidate => graph.links[candidate.index].length && candidate.distance < 36 && (!arena || inArena(graph.points[candidate.index].x, graph.points[candidate.index].z, .5)))
+    .sort((a, b) => a.distance - b.distance).slice(0, 16)
+    .find(candidate => walkableSegment(world, pos, graph.points[candidate.index], arena))?.index;
+}
+
 // A sampled route graph supplies bridges and hill paths to the existing
 // local steering. It does not change bot aggression, aiming or movement speed.
 export function navigationWaypoint(world: WorldSpec, from: Vec3, to: Vec3, arena = false): Vec3 | null {
   const graph = world.navigation;
-  if (!graph || walkableSegment(world, from, to, arena)) return null;
-  const attach = (pos: Vec3) => graph.points.map((point, index) => ({ index, distance: Math.hypot(pos.x - point.x, pos.z - point.z) }))
-    .filter(candidate => graph.links[candidate.index].length && candidate.distance < 36 && (!arena || inArena(graph.points[candidate.index].x, graph.points[candidate.index].z, .5)))
-    .sort((a, b) => a.distance - b.distance).slice(0, 16)
-    .find(candidate => walkableSegment(world, pos, graph.points[candidate.index], arena))?.index;
-  const start = attach(from), end = attach(to);
+  // A swim is slower and gives up the primary gun. Prefer a nearby bridge or
+  // boardwalk, while retaining swimming when it is the only connected route.
+  const swimming = (p: Vec3) => { const water = waterAt(p.x, p.z); return !!water && p.y < water.surfaceY - .8; };
+  const wetSegment = (a: Vec3, b: Vec3) => {
+    const n = Math.max(1, Math.ceil(Math.hypot(a.x - b.x, a.z - b.z) / 2));
+    for (let i = 0; i <= n; i++) {
+      const x = a.x + (b.x - a.x) * i / n, z = a.z + (b.z - a.z) * i / n;
+      if (swimming({ x, y: walkableHeight(x, z, world), z })) return true;
+    }
+    return false;
+  };
+  const preferDry = !swimming(from) && !swimming(to);
+  if (!graph || walkableSegment(world, from, to, arena) && (!preferDry || !wetSegment(from, to))) return null;
+  const start = navigationAnchor(world, from, arena), end = navigationAnchor(world, to, arena);
   if (start === undefined || end === undefined) return null;
   if (start === end) return Math.hypot(graph.points[start].x - from.x, graph.points[start].z - from.z) > .8 ? graph.points[start] : null;
   const distance = new Float64Array(graph.points.length).fill(Infinity), previous = new Int32Array(graph.points.length).fill(-1);
@@ -140,7 +167,7 @@ export function navigationWaypoint(world: WorldSpec, from: Vec3, to: Vec3, arena
     for (const next of graph.links[index]) {
       const a = graph.points[index], b = graph.points[next];
       if (arena && (!inArena(b.x, b.z, .5) || !inArena(a.x, a.z, .5))) continue;
-      const cost = best + Math.hypot(b.x - a.x, b.z - a.z);
+      const cost = best + Math.hypot(b.x - a.x, b.z - a.z) * (swimming(a) || swimming(b) ? 3 : 1);
       if (cost < distance[next]) { distance[next] = cost; previous[next] = index; open.add(next); }
     }
   }
@@ -157,7 +184,7 @@ export function navigationWaypoint(world: WorldSpec, from: Vec3, to: Vec3, arena
   let waypoint = atStart ? graph.points[path[1]] : graph.points[start];
   for (const index of path.slice(atStart ? 2 : 1, 8)) {
     const candidate = graph.points[index];
-    if (!walkableSegment(world, from, candidate, arena)) break;
+    if (!walkableSegment(world, from, candidate, arena) || preferDry && wetSegment(from, candidate)) break;
     waypoint = candidate;
   }
   return Math.hypot(waypoint.x - from.x, waypoint.z - from.z) > .6 ? waypoint : null;

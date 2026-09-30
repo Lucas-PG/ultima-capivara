@@ -14,7 +14,7 @@ import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, HANDLING, sho
 import { resolveImpact, type Impact } from './surface';
 import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
 import { MELEE_SECONDS } from '../shared/weapon-presentation';
-import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
+import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, RECOVERY_SECONDS, recoveryDirection, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
@@ -1003,7 +1003,13 @@ export class Simulation {
       for (let r = 1.5; r <= 10; r += 1.5) {
         const x = s.pos.x + Math.cos(a) * r, z = s.pos.z + Math.sin(a) * r;
         if (!this.walkable(x, z)) break;
-        if (this.standAt(x, z, s.pos.y) < s.pos.y - 1.5) { if (r < bd) { bd = r; best = { x, y: s.pos.y, z }; } break; }
+        const landing = this.standAt(x, z, s.pos.y);
+        if (landing < s.pos.y - 1.5) {
+          if (r < bd && s.pos.y - landing < 6 && !waterAt(x, z) &&
+            this.grid.sees({ ...s.pos, y: s.pos.y + .46 }, { x, y: s.pos.y + .46, z }) &&
+            this.grid.sees({ ...s.pos, y: s.pos.y + 1.78 }, { x, y: s.pos.y + 1.78, z })) { bd = r; best = { x, y: s.pos.y, z }; }
+          break;
+        }
       }
     }
     return best;
@@ -1022,12 +1028,20 @@ export class Simulation {
     const sc = this.safeCircle(), spots = isArenaMode(this.config.mode) ? this.world.loot.filter(l => this.inArena(l)) : [...this.world.loot, ...this.world.chests];
     for (let k = 0; k < 20; k++) {
       let x: number, z: number;
-      if (this.random() < .3 && spots.length) { const p = spots[Math.floor(this.random() * spots.length)]; x = p.x; z = p.z; }
+      // World loot is placed on the connected walking network. Arbitrary
+      // hillside coordinates can be isolated terraces inside the arena fence.
+      if (spots.length) {
+        const p = spots[Math.floor(this.random() * spots.length)];
+        if (Math.abs(p.y - walkableHeight(p.x, p.z, this.world)) > .5) continue;
+        x = p.x; z = p.z;
+      }
       else if (isArenaMode(this.config.mode)) { x = ARENA.minX + 3 + this.random() * (ARENA.maxX - ARENA.minX - 6); z = ARENA.minZ + 3 + this.random() * (ARENA.maxZ - ARENA.minZ - 6); }
       else { const a = this.random() * Math.PI * 2, r = Math.sqrt(this.random()) * sc.r * .85; x = sc.x + Math.cos(a) * r; z = sc.z + Math.sin(a) * r; }
-      if (!this.walkable(x, z) || this.pointBlocked(x, terrainHeight(x, z), z)) continue;
+      if (!this.walkable(x, z) || !walkableSegment(this.world, { x, z }, { x, z }, isArenaMode(this.config.mode))) continue;
       if (!isArenaMode(this.config.mode) && Math.hypot(x - sc.x, z - sc.z) > sc.r * .95 && k < 15) continue;
-      return groundPoint(x, z);
+      const y = walkableHeight(x, z, this.world), water = waterAt(x, z);
+      if (water && y < water.surfaceY) continue;
+      return { x, y, z };
     }
     return this.walkable(sc.x, sc.z) ? groundPoint(sc.x, sc.z) : { ...s.pos };
   }
@@ -1041,7 +1055,19 @@ export class Simulation {
     const need = Math.max(0, d - sc.r * .6) / 5.6;
     if (!outNow && left > need * 1.6 + 10) return null;
     const k = d > 0 ? sc.r * .55 / d : 0;
-    return groundPoint(sc.x + (s.pos.x - sc.x) * k, sc.z + (s.pos.z - sc.z) * k);
+    const x = sc.x + (s.pos.x - sc.x) * k, z = sc.z + (s.pos.z - sc.z) * k;
+    const goal = { x, y: walkableHeight(x, z, this.world), z };
+    // The circle can be centred on the canal or inside a solid building. A
+    // reachable dry graph node keeps rotation on the quays when land remains.
+    let best = goal, score = Infinity;
+    for (const point of this.world.navigation?.points ?? []) {
+      if (Math.hypot(point.x - sc.x, point.z - sc.z) > sc.r * .75) continue;
+      const water = waterAt(point.x, point.z);
+      if (water && point.y < water.surfaceY) continue;
+      const distance = Math.hypot(point.x - x, point.z - z);
+      if (distance < score) { best = point; score = distance; }
+    }
+    return best;
   }
   private heals(s: ActorState) { return s.consumables.bandage + s.consumables.medkit + s.consumables.rapadura; }
   private botHeal(a: ActorRuntime) {
@@ -1162,8 +1188,10 @@ export class Simulation {
     for (let k = 0; k < 20; k++) {
       const a = k / 20 * Math.PI * 2 + this.rnd(-.1, .1), r = k % 2 ? 3 : 6.5, x = s.pos.x + Math.cos(a) * r, z = s.pos.z + Math.sin(a) * r;
       if (!this.walkable(x, z)) continue;
-      const y = Math.max(terrainHeight(x, z), s.pos.y - .5);
-      if (this.pointBlocked(x, y, z)) continue;
+      const y = walkableHeight(x, z, this.world);
+      if (Math.abs(y - s.pos.y) > 1 || !walkableSegment(this.world, s.pos, { x, z }, isArenaMode(this.config.mode))) continue;
+      const water = waterAt(x, z);
+      if (water && y < water.surfaceY) continue;
       const eye = { x, y: y + 1, z }, dx = threat.pos.x - x, dy = threat.pos.y + 1.2 - eye.y, dz = threat.pos.z - z, L = Math.hypot(dx, dy, dz);
       const hit = this.grid.ray(eye, { x: dx / L, y: dy / L, z: dz / L }, Math.min(L, 3.6));
       if (hit === null || hit > L - .5 || hit > 3.5) continue;
@@ -1171,6 +1199,16 @@ export class Simulation {
       if (sc < score) { score = sc; best = { x, y, z }; }
     }
     return best;
+  }
+  private findPeek(cover: Vec3, threat: Vec3, side: number): Vec3 | null {
+    const dx = threat.x - cover.x, dz = threat.z - cover.z, length = Math.hypot(dx, dz) || 1;
+    for (const distance of [1.1, 1.8, 2.5]) for (const direction of [side, -side]) {
+      const x = cover.x - dz / length * distance * direction, z = cover.z + dx / length * distance * direction;
+      const point = { x, y: walkableHeight(x, z, this.world), z };
+      if (Math.abs(point.y - cover.y) > .5 || !walkableSegment(this.world, cover, point, isArenaMode(this.config.mode))) continue;
+      if (this.grid.sees({ ...point, y: point.y + 1.42 }, { ...threat, y: threat.y + 1 })) return point;
+    }
+    return null;
   }
   // When a wall blocks the straight line, head for the nearest visible corner of
   // that wall segment. Walls are split at openings, so this usually is a doorway.
@@ -1196,14 +1234,12 @@ export class Simulation {
   }
   private probe(s: ActorState, angle: number) {
     const dir = { x: -Math.sin(angle), y: 0, z: -Math.cos(angle) };
-    // Three rays as wide as the movement capsule, so corners and door jambs count as blocked.
-    for (const side of [0, -.28, .28]) {
-      const origin = { x: s.pos.x + dir.z * side, y: s.pos.y + .6, z: s.pos.z - dir.x * side };
-      if (this.grid.ray(origin, dir, 1.3) !== null) return false;
-    }
     const x = s.pos.x + dir.x * 1.3, z = s.pos.z + dir.z * 1.3;
-    // Water is a route. Only the same soft playable limits used by humans bound it.
-    return this.walkable(x, z);
+    // Check the whole capsule, including overhanging rocks and the next tread.
+    // A knee-height ray missed chest-high rocks and never released stuck bots.
+    const returning = !this.walkable(s.pos.x, s.pos.z) && Math.hypot(x, z) < Math.hypot(s.pos.x, s.pos.z);
+    if (!this.walkable(x, z) && !returning) return false;
+    return walkableSegment(this.world, s.pos, { x, z }, isArenaMode(this.config.mode));
   }
   private botThink(a: ActorRuntime) {
     const s = a.state, b = a.brain!, diff = this.diff, dm = isArenaMode(this.config.mode);
@@ -1264,21 +1300,36 @@ export class Simulation {
     if (this.botLeisure(a, rethink)) return;
     let mx = 0, mz = 0, speed = 0, face = s.yaw, crouch = false, jump = false, pitch = s.pitch * Math.exp(-4 * dt), preciseBuilding = false;
     const atCover = b.mode === 'cover' && !!b.coverPt && Math.hypot(b.coverPt.x - s.pos.x, b.coverPt.z - s.pos.z) <= .7;
+    // Rotation is urgent by definition of zoneNeed. A visible enemy must not
+    // pin a bot outside the circle, including while hiding or using a heal.
+    if (b.zoneGoal) {
+      if (s.using) { s.using = null; s.useUntil = 0; }
+      if (b.mode === 'cover') { b.mode = 'roam'; b.coverPt = null; b.peekPt = null; }
+    }
     if (s.using) {
       crouch = true;
       if (fighting && t) face = Math.atan2(-(t.pos.x - s.pos.x), -(t.pos.z - s.pos.z));
     } else if (b.mode === 'cover' && b.coverPt) {
-      const dx = b.coverPt.x - s.pos.x, dz = b.coverPt.z - s.pos.z, dist = Math.hypot(dx, dz);
-      if (dist > .7) { mx = dx / dist; mz = dz / dist; speed = 5.8; face = Math.atan2(-mx, -mz); }
-      else { crouch = true; if (this.heals(s) > 0 && s.hp < 70 && now >= b.hurtUntil) this.botHeal(a); }
+      if (b.peekPt && (now >= b.peekUntil || s.reloadUntil || s.using)) {
+        b.peekPt = null; b.coverUntil = now + this.rnd(1, 1.7);
+      }
+      const ready = now >= b.coverUntil && !s.reloadUntil && !s.using && (s.hp >= 60 || this.heals(s) === 0);
+      if (ready && !b.peekPt && atCover && b.lastSeen && now - b.lastSeenAt < 5) {
+        b.peekPt = this.findPeek(b.coverPt, b.lastSeen, b.flank); b.peekUntil = now + 2.6;
+      }
+      const goal = b.peekPt ?? b.coverPt;
+      const dx = goal.x - s.pos.x, dz = goal.z - s.pos.z, dist = Math.hypot(dx, dz);
+      if (dist > (b.peekPt ? .12 : .7)) { mx = dx / dist; mz = dz / dist; speed = b.peekPt ? Math.min(3.6, dist * 10) : 5.8; face = Math.atan2(-mx, -mz); }
+      else if (!b.peekPt) { crouch = true; if (this.heals(s) > 0 && s.hp < 70 && now >= b.hurtUntil) this.botHeal(a); }
       if (t && t.alive && dist <= .7) face = Math.atan2(-(t.pos.x - s.pos.x), -(t.pos.z - s.pos.z));
-      if (now >= b.coverUntil && !s.reloadUntil && !s.using && (s.hp >= 60 || this.heals(s) === 0)) { b.mode = 'fight'; b.coverPt = null; b.flank = -b.flank; }
-    } else if (fighting && t) {
+      else if (b.peekPt && b.lastSeen) face = Math.atan2(-(b.lastSeen.x - s.pos.x), -(b.lastSeen.z - s.pos.z));
+      if (ready && !b.peekPt) { b.mode = 'fight'; b.coverPt = null; b.flank = -b.flank; }
+    } else if (fighting && t && !b.zoneGoal) {
       b.mode = 'fight';
       const dx = t.pos.x - s.pos.x, dz = t.pos.z - s.pos.z, dist = Math.hypot(dx, dz) || 1, ux = dx / dist, uz = dz / dist;
       const reloading = !!s.reloadUntil;
       // Never stand still in the open while reloading: back off and keep side-stepping.
-      const forward = reloading ? -1 : dist > bw.range * 1.25 ? 1 : dist < bw.range * .55 ? -1 : 0;
+      const forward = reloading || s.hp < 35 ? -1 : dist > bw.range * 1.25 ? 1 : dist < bw.range * .55 ? -1 : 0;
       if (reloading && b.strafeDir === 0) b.strafeDir = this.random() < .5 ? -1 : 1;
       if (now >= b.strafeUntil) {
         b.strafeDir = this.random() < .25 && !reloading ? 0 : this.random() < .5 ? -1 : 1; b.strafeUntil = now + this.rnd(.35, 1);
@@ -1287,12 +1338,12 @@ export class Simulation {
       mx = ux * forward - uz * b.strafeDir * .9; mz = uz * forward + ux * b.strafeDir * .9; speed = forward === 1 ? 4.4 : 3.6;
       face = Math.atan2(-dx, -dz);
       pitch = Math.atan2(t.pos.y + 1 - (s.pos.y + 1.42), dist);
-      if (b.strafeDir === 0 && dist > 16 && !reloading) crouch = true;
+      if (b.strafeDir === 0 && dist > 16 && !reloading && s.hp >= 50) crouch = true;
       // A reload that starts mid-fight looks for cover at once, whatever the search cooldown.
       const reloadStarted = reloading && !b.reloading;
-      if ((now >= b.coverCdUntil || reloadStarted) && ((s.hp < (b.elite ? 65 : 50) && this.heals(s) > 0) || (reloading && dist < 35) || b.recentDmg > 45)) {
+      if ((now >= b.coverCdUntil || reloadStarted) && (s.hp < (b.elite ? 65 : 50) || (reloading && dist < 35) || b.recentDmg > 45)) {
         const cover = this.findCover(s, t); b.coverCdUntil = now + 5;
-        if (cover) { b.mode = 'cover'; b.coverPt = cover; b.coverUntil = now + this.rnd(1.2, 2.4); }
+        if (cover) { b.mode = 'cover'; b.coverPt = cover; b.peekPt = null; b.coverUntil = now + this.rnd(1.2, 2.4); }
       }
     } else {
       if (b.mode === 'fight') b.mode = 'roam';
@@ -1319,19 +1370,21 @@ export class Simulation {
         if (preciseBuilding) { b.via = null; b.routeFor = null; b.avoidOff = 0; }
       }
       // Up on a roof with the goal below: head for the nearest edge and drop off instead of circling.
-      if (!building && g.y < s.pos.y - 1.5 && s.grounded && s.pos.y - terrainHeight(s.pos.x, s.pos.z) > 2.2) {
+      if (!building && g.y < s.pos.y - 1.5 && s.grounded && s.pos.y - walkableHeight(s.pos.x, s.pos.z, this.world) > .6) {
         if (!b.drop || Math.hypot(b.drop.x - s.pos.x, b.drop.z - s.pos.z) < .6) b.drop = this.dropPoint(s);
-        if (b.drop) { g = b.drop; run = false; kind = 'goal'; }
+        if (b.drop) { g = b.drop; run = false; kind = 'goal'; preciseBuilding = true; b.via = null; b.avoidOff = 0; }
       } else b.drop = null;
-      // Commit to a detour corner until it is reached or lost from sight; re-planning every
-      // few frames made bots flip between the two ends of a wall.
+      // Keep an accepted static route until arrival or measured lack of progress.
+      // Re-sampling a slope from each moving origin can reject the very next
+      // graph link and repeatedly send the walker back to its previous node.
       const goalMoved = !b.routeFor || Math.hypot(b.routeFor.x - g.x, b.routeFor.z - g.z) > 2;
-      const viaLost = !!b.via && (this.world.navigation ? !walkableSegment(this.world, s.pos, b.via, isArenaMode(this.config.mode)) :
-        !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: b.via.x, y: b.via.y + .7, z: b.via.z }));
-      if (!preciseBuilding && (goalMoved || viaLost || (!b.via && now >= b.routeAt))) {
+      if (!preciseBuilding && (goalMoved || (!b.via && now >= b.routeAt))) {
         b.routeAt = now + .3; b.routeFor = { ...g }; b.via = this.route(s, g, b.lastVia);
       }
-      if (b.via && Math.hypot(b.via.x - s.pos.x, b.via.z - s.pos.z) < 1) { b.lastVia = b.via; b.via = null; b.routeAt = now; }
+      if (b.via && Math.hypot(b.via.x - s.pos.x, b.via.z - s.pos.z) < .45) {
+        b.lastVia = b.via; b.via = this.route(s, g, b.lastVia); b.routeAt = now + .3;
+        if (kind === 'loot') b.lootSince = now;
+      }
       // Loot that stays out of reach (behind walls with no door found) is dropped for a while.
       if (kind === 'loot' && b.loot) {
         if (b.lootFor !== b.loot.id) {
@@ -1344,7 +1397,7 @@ export class Simulation {
       }
       const step = b.via || g, dist = Math.hypot(g.x - s.pos.x, g.z - s.pos.z);
       const dx = step.x - s.pos.x, dz = step.z - s.pos.z, stepDist = Math.hypot(dx, dz) || 1;
-      if (dist < (building?.waypoint ? .12 : kind === 'leisure' ? .45 : 1.3) && (!building || Math.abs(g.y - s.pos.y) < 1.6)) {
+      if (dist < (building?.waypoint || b.drop ? .12 : kind === 'leisure' ? .45 : 1.3) && (!building || Math.abs(g.y - s.pos.y) < 1.6)) {
         if (building?.waypoint) { /* The authored route advances at its height-checked waypoint. */ }
         else if (kind === 'goal') b.goal = null;
         else if (kind === 'hear') { b.hearPos = null; b.alertUntil = -1; }
@@ -1357,6 +1410,12 @@ export class Simulation {
       if (now < b.alertUntil && b.hearPos && !run) face = Math.atan2(-(b.hearPos.x - s.pos.x), -(b.hearPos.z - s.pos.z));
       else if (speed > 0) face = Math.atan2(-mx, -mz);
       if (this.heals(s) > 0 && s.hp < 75 && now >= b.hurtUntil && !run) this.botHeal(a);
+    }
+    if (b.recoveryYaw !== null && now < b.recoveryUntil && !s.using) {
+      mx = -Math.sin(b.recoveryYaw); mz = -Math.cos(b.recoveryYaw); speed = 3.9; crouch = false;
+      jump = b.recoveryJump; b.recoveryJump = false;
+      if (!fighting) face = b.recoveryYaw;
+      preciseBuilding = true; b.avoidOff = 0; b.drop = null; b.via = null; b.routeFor = null;
     }
     if (crouch) speed = Math.min(speed, 2);
     const ml = Math.hypot(mx, mz);
@@ -1383,18 +1442,23 @@ export class Simulation {
       const order = [1, -1, 2, -2, 3, -3], next = order[(order.indexOf(b.avoidOff) + 1) % order.length];
       b.avoidOff = next; b.avoidAt = now + .5; b.pressT = 0; b.via = null;
     }
-    // Only grounded walking counts as stuck. Slow air steering during a bounce
-    // is not a blocked route and must not discard the safe exit goal.
-    if (ml === 0 || !s.grounded || b.stuckAt < 0) { b.stuckAt = now; b.lastPos = { ...s.pos }; }
+    // Observe progress on ground and in water. Slow air steering during a
+    // bounce must not discard the safe exit goal.
+    if (ml === 0 || !(s.grounded || s.swimming) || b.stuckAt < 0) { b.stuckAt = now; b.lastPos = { ...s.pos }; }
     else if (now - b.stuckAt > 1) {
       if (Math.hypot(s.pos.x - b.lastPos.x, s.pos.z - b.lastPos.z) < .4) {
+        if ((!preciseBuilding || b.drop) && now >= b.recoveryUntil) {
+          const recovery = recoveryDirection(this.world, s, b.zoneGoal ?? b.routeFor ?? b.goal, this.config.mode);
+          b.recoveryYaw = recovery?.yaw ?? null; b.recoveryJump = recovery?.jump ?? false;
+          b.recoveryUntil = now + RECOVERY_SECONDS;
+        }
         b.goal = this.randomGoal(s); b.avoidOff = 0;
         if (b.loot) { b.ignore.set(b.loot.id, now + 30); b.loot = null; }
         b.via = null;
         if (b.mode === 'cover') b.coverUntil = now;
         // Hop only over a genuinely low ledge; jumping at walls looks broken.
         const ahead = { x: -Math.sin(s.yaw), y: 0, z: -Math.cos(s.yaw) };
-        if (!preciseBuilding && s.grounded && this.grid.ray({ x: s.pos.x, y: s.pos.y + .3, z: s.pos.z }, ahead, 1) !== null &&
+        if ((b.recoveryYaw === null || now >= b.recoveryUntil) && (!preciseBuilding || b.drop) && s.grounded && this.grid.ray({ x: s.pos.x, y: s.pos.y + .3, z: s.pos.z }, ahead, 1) !== null &&
           this.grid.ray({ x: s.pos.x, y: s.pos.y + 1.1, z: s.pos.z }, ahead, 1.2) === null) jump = true;
       }
       b.lastPos = { ...s.pos }; b.stuckAt = now;
@@ -1409,10 +1473,11 @@ export class Simulation {
     inp.moveZ = (-Math.sin(yaw) * mx - Math.cos(yaw) * mz) * scale;
     inp.moveX = (Math.cos(yaw) * mx - Math.sin(yaw) * mz) * scale;
     b.reloading = !!s.reloadUntil;
-    if (fighting && t && !s.reloadUntil && !s.using) {
+    if (fighting && t && !b.zoneGoal && !s.reloadUntil && !s.using) {
       b.reactT -= dt;
       const dist = Math.hypot(t.pos.x - s.pos.x, t.pos.y - s.pos.y, t.pos.z - s.pos.z);
-      if (b.reactT <= 0 && now >= b.fireAt && now - a.landedAt >= .5 && dist <= def.range && Math.abs(angleDiff(yaw, face)) < .2 && (b.mode !== 'cover' || atCover)) this.botShoot(a, target!);
+      const peeking = b.peekPt && Math.hypot(b.peekPt.x - s.pos.x, b.peekPt.z - s.pos.z) <= .8;
+      if (b.reactT <= 0 && now >= b.fireAt && now - a.landedAt >= .5 && dist <= def.range && Math.abs(angleDiff(yaw, face)) < .2 && (b.mode !== 'cover' || peeking)) this.botShoot(a, target!);
     }
   }
   private botShoot(a: ActorRuntime, target: ActorRuntime) {
