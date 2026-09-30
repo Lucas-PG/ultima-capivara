@@ -70,7 +70,7 @@
   },
   "revolver": {
     "id": "revolver",
-    "triangles": 23426,
+    "triangles": 23702,
     "parts": [
       "revolver_body",
       "revolver_cylinder",
@@ -82,11 +82,17 @@
       "revolver_mag",
       "revolver_release",
       "revolver_case0",
+      "revolver_live0",
       "revolver_case1",
+      "revolver_live1",
       "revolver_case2",
+      "revolver_live2",
       "revolver_case3",
+      "revolver_live3",
       "revolver_case4",
-      "revolver_case5"
+      "revolver_live4",
+      "revolver_case5",
+      "revolver_live5"
     ],
     "sockets": {
       "muzzle": [
@@ -175,6 +181,36 @@
         0,
         0.021,
         0.045
+      ],
+      "live0": [
+        0,
+        0.021,
+        0.045
+      ],
+      "live1": [
+        0,
+        0.021,
+        0.045
+      ],
+      "live2": [
+        0,
+        0.021,
+        0.045
+      ],
+      "live3": [
+        0,
+        0.021,
+        0.045
+      ],
+      "live4": [
+        0,
+        0.021,
+        0.045
+      ],
+      "live5": [
+        0,
+        0.021,
+        0.045
       ]
     },
     "bounds": [
@@ -199,7 +235,7 @@
       0.045,
       0.022
     ],
-    "bytes": 661676
+    "bytes": 699256
   },
   "m4": {
     "id": "m4",

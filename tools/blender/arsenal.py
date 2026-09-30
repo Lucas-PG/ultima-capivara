@@ -177,7 +177,7 @@ def revolver():
         parts['body'] += [screw]
     guard = prism('guard', [(-.010, .012), (.069, .012), (.077, -.005), (.066, -.038), (.048, -.047), (-.001, -.041), (-.010, -.023)],
                   .017, 'blued', bevel=.0018, radius=.006, raw=True)
-    cut(guard, cutter_prism([(.003, .004), (.062, .004), (.065, -.007), (.056, -.033), (.003, -.032)], .04))
+    cut(guard, cutter_prism([(.003, .004), (.062, .004), (.065, -.007), (.056, -.040), (.003, -.038)], .04))
     parts['body'] += [complete(guard)]
     parts['body'] += [prism('sideplate', [(-.034, .012), (-.041, .036), (-.035, .064), (-.016, .078), (-.007, .075), (-.007, .017)],
                             .0015, 'case', x=.015, bevel=.0006, radius=.002)]
@@ -205,6 +205,8 @@ def revolver():
         parts[f'case{i}'] = [tube(f'spent_case_{i}', (x, .024, z), (x, .061, z), .005, .0039, 'brass', sides=12, bevel=0),
                              cyl(f'spent_rim_{i}', (x, .021, z), (x, .024, z), .0058, 'brass', sides=12, bevel=0),
                              cyl(f'spent_primer_{i}', (x, .0207, z), (x, .0212, z), .002, 'copper', sides=10, bevel=0)]
+        # A partial reload ejects its remaining live cartridges among the spent cases.
+        parts[f'live{i}'] = [cyl(f'live_tip_{i}', (x, .061, z), (x, .069, z), .0048, 'copper', r1=.0028, sides=12, bevel=0)]
         parts['action'] += [cyl('extractor_spoke', (0, .0205, centre), (x * .8, .0205, centre + (z - centre) * .8), .002, 'steel', sides=10, bevel=.0004)]
     parts['action'] += [cyl('ejector_rod', (0, .02, centre), (0, .113, centre), .0028, 'steel', sides=16, bevel=.0004),
                         cyl('ejector_knob', (0, .107, centre), (0, .116, centre), .0044, 'brass', sides=18, bevel=.0007)]
@@ -212,7 +214,7 @@ def revolver():
                        cyl('crane_axle', (-.013, .072, centre), (0, .072, centre), .004, 'steel', sides=16, bevel=.0006)]
     hammer = prism('hammer', [(-.004, -.006), (.005, -.006), (.004, .012), (-.004, .024), (-.019, .03), (-.023, .023), (-.012, .012)], .01, 'brass', bevel=.0012, radius=.002)
     move(hammer, (0, -.032, .061)); parts['hammer'] += [hammer]
-    parts['trigger'] += [prism('trigger', [(.031, .011), (.038, .011), (.041, -.006), (.032, -.024), (.026, -.023), (.031, -.004)], .008, 'brass', bevel=.001, radius=.002)]
+    parts['trigger'] += [prism('trigger', [(.031, .011), (.038, .011), (.041, -.006), (.032, -.024), (.026, -.023), (.031, -.004)], .0175, 'brass', bevel=.001, radius=.002)]
     for obj in parts['trigger']: move(obj, (0, -.017, 0))
     parts['mag'] += [lathe('speedloader', [(0, 0), (.025, 0), (.027, .006), (.025, .014), (.009, .022), (.007, .038), (0, .038)], 'dark', p0=(0, .021, centre), axis=(0, -1, 0), sides=32)]
     for a in angles:
@@ -225,6 +227,7 @@ def revolver():
     pivots = {'cylinder': (0, .045, centre), 'crane': (0, .045, centre), 'action': (0, .045, centre), 'rounds': (0, .021, centre),
               'hammer': (0, -.032, .061), 'trigger': (0, .016, .008), 'mag': (0, .021, centre), 'release': (-.016, .002, .06)}
     pivots.update({f'case{i}': (0, .021, centre) for i in range(6)})
+    pivots.update({f'live{i}': (0, .021, centre) for i in range(6)})
     return parts, sockets, pivots, {'magAxis': [0, -1, 0], 'crane': [-.013, .045, .022]}
 
 

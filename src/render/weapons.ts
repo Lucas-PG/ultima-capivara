@@ -34,6 +34,7 @@ interface Model {
   parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
   grips: { R: GripSpec; L?: GripSpec }; magAxis: THREE.Vector3; rarity: number; accent: ReturnType<typeof applyRarityAccent>[];
   crane?: THREE.Vector3;
+  liveTips?: (THREE.Object3D | undefined)[];
 }
 const sortedReloads = Object.fromEntries(Object.entries(RELOADS).map(([id, keys]) => [id, [...keys!].sort((a, b) => a.t - b.t)]));
 
@@ -92,6 +93,7 @@ export class WeaponView {
   private shotCount = 0;
   private reloadEnd = 0;
   private reloadEmpty = false;
+  private reloadAmmo = 0;
   private pistolEmpty = false;
   private reloadDuration = 1;
   private wallPose = 0;
@@ -186,7 +188,8 @@ export class WeaponView {
       parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action'),
         cylinder: get('cylinder'), crane: get('crane'), rounds: get('rounds'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), release: get('release'), ribbons: get('ribbons'),
         case0: get('case0'), case1: get('case1'), case2: get('case2'), case3: get('case3'), case4: get('case4'), case5: get('case5') },
-      rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent };
+      rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent,
+      liveTips: id === 'revolver' ? Array.from({ length: 6 }, (_, i) => get(`live${i}`)) : undefined };
     // Blender axis (x, y, z) is (x, z, -y) here.
     const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
     if (axis) model.magAxis.set(axis[0], axis[2], -axis[1]).normalize();
@@ -298,6 +301,7 @@ export class WeaponView {
     if (reloading && actor.reloadUntil > this.reloadEnd + .01) {
       this.reloadEnd = actor.reloadUntil;
       this.reloadEmpty = (actor.weapons[actor.slot]?.ammo ?? 0) === 0;
+      this.reloadAmmo = actor.weapons[actor.slot]?.ammo ?? 0;
       this.lastReload = -1;
       this.reloadDuration = weapon === 'm4' ? WEAPONS.m4.reload : Math.max(.3, Math.min(WEAPONS[weapon].reload || 1, actor.reloadUntil - simulationTime + .02));
     }
@@ -485,13 +489,16 @@ export class WeaponView {
       cases.forEach((part, i) => {
         if (!part) return;
         part.visible = spent > .001 && spent < .995;
+        const tip = model.liveTips?.[i];
+        if (tip) tip.visible = part.visible && i < this.reloadAmmo;
         if (!part.visible) return;
         const free = Math.max(0, spent - .18), a = i * Math.PI / 3;
         part.position.z += spent * .20;
-        part.position.x += (Math.cos(a) * .045 - .095) * free;
+        part.position.x += (Math.cos(a) * .045 - .14) * free;
         part.position.y += Math.sin(a) * free * .03 - free * free * .08;
         part.rotation.x += free * (i % 2 ? 2.2 : -1.8);
         part.rotation.y += free * (i - 2.5) * .55;
+        if (tip) { tip.position.copy(part.position); tip.quaternion.copy(part.quaternion); }
       });
     }
     if (model.parts.ribbons) {
@@ -622,14 +629,15 @@ export class WeaponView {
       const clearGrip = offset ? { ...grip, wrist: [grip.wrist[0] + offset[0], grip.wrist[1] + offset[1], grip.wrist[2] + offset[2]] as V3 } : grip;
       this.gripTarget(model, clearGrip, out);
       if (key.curl) out.curl = { ...grip.curl, ...key.curl };
+      if (key.pole) out.pole.fromArray(key.pole).normalize();
       return;
     }
-    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: { ...grip.curl, ...key.curl }, pole: grip.pole };
+    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: { ...grip.curl, ...key.curl }, pole: key.pole ?? grip.pole };
     if (key.space === 'gun') { this.gripTarget(model, spec, out); return; }
     out.wrist.set(spec.wrist[0], spec.wrist[1], spec.wrist[2]);
     out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
     out.palm.set(spec.palm[0], spec.palm[1], spec.palm[2]).normalize();
-    out.curl = spec.curl; out.pole.set(grip.pole[0], grip.pole[1], grip.pole[2]).normalize();
+    out.curl = spec.curl; out.pole.fromArray(spec.pole).normalize();
     if (key.space === 'part') {
       const part = model.parts[key.part as keyof Parts];
       if (!part) throw new Error(`Reload contact part missing: ${model.id}/${key.part}`);
@@ -652,7 +660,7 @@ export class WeaponView {
     out.forward.copy(this.handA.forward).lerp(this.handB.forward, u).normalize();
     out.palm.copy(this.handA.palm).lerp(this.handB.palm, u).normalize();
     out.curl = blendCurl(this.handA.curl, this.handB.curl, u);
-    out.pole.copy(this.handA.pole);
+    out.pole.copy(this.handA.pole).lerp(this.handB.pole, u).normalize();
   }
 
   private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean): ChoreoSample | null {

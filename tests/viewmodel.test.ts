@@ -38,7 +38,7 @@ function weaponAsset(id: WeaponId) {
   if (id === 'revolver') {
     for (const part of ['cylinder', 'crane', 'action']) add(part, [0, .045, -.045], true);
     add('rounds', [0, .045, -.021], true);
-    for (let i = 0; i < 6; i++) add(`case${i}`, [0, .045, -.021], true);
+    for (let i = 0; i < 6; i++) { add(`case${i}`, [0, .045, -.021], true); add(`live${i}`, [0, .045, -.021], true); }
     root.getObjectByName('revolver_mag')!.position.set(0, .045, -.021);
   }
   add('muzzle', [0, .05, -.3]); add('eject', [.02, .05, -.05]); add('sight', [0, .08, .03]);
@@ -199,8 +199,8 @@ describe('first-person viewmodel', () => {
     h.actor.reloadUntil = 0; h.step(); expect(handle.position.distanceTo(rest)).toBeLessThan(1e-6);
   });
 
-  it('ejects revolver cartridges without translating the cylinder, and leaves fresh rounds seated when the loader withdraws', async () => {
-    const h = await harness(); h.actor.weapons = [{ id: 'revolver', rarity: 0, ammo: 0, reserve: 24, box: 0 }];
+  it.each([0, 3])('ejects revolver cartridges with %i live rounds, and leaves fresh rounds seated when the loader withdraws', async ammo => {
+    const h = await harness(); h.actor.weapons = [{ id: 'revolver', rarity: 0, ammo, reserve: 24, box: 0 }];
     for (let i = 0; i < 30; i++) h.step();
     const drum = h.holder.getObjectByName('revolver_cylinder')!, rod = h.holder.getObjectByName('revolver_action')!;
     const rounds = h.holder.getObjectByName('revolver_rounds')!, loader = h.holder.getObjectByName('revolver_mag')!;
@@ -213,9 +213,16 @@ describe('first-person viewmodel', () => {
     const cases = Array.from({ length: 6 }, (_, i) => h.holder.getObjectByName(`revolver_case${i}`)!);
     expect(rounds.visible).toBe(false);
     expect(cases.every(part => part.visible && part.position.z > .01)).toBe(true);
+    const tips = Array.from({ length: 6 }, (_, i) => h.holder.getObjectByName(`revolver_live${i}`)!);
+    expect(tips.filter(part => part.visible)).toHaveLength(ammo);
+    for (let i = 0; i < ammo; i++) {
+      expect(tips[i].position.distanceTo(cases[i].position)).toBeLessThan(1e-6);
+      expect(tips[i].quaternion.angleTo(cases[i].quaternion)).toBeLessThan(1e-6);
+    }
     expect(cases[0].quaternion.angleTo(cases[1].quaternion)).toBeGreaterThan(.1);
     to(.42); expect(rounds.visible).toBe(false); expect(loader.visible).toBe(false);
     expect(cases.every(part => !part.visible)).toBe(true);
+    expect(tips.every(part => !part.visible)).toBe(true);
     to(.64); expect(rounds.position.distanceTo(loader.position)).toBeLessThan(1e-6);
     to(.70); const seated = rounds.position.clone();
     to(.75);
@@ -244,6 +251,31 @@ describe('first-person viewmodel', () => {
       expect(contact.palm.angleTo(contacts[0].palm)).toBeLessThan(.01);
       expect(contact.offset.x).toBeLessThan(-.055);
       expect(Math.abs(contact.offset.y - contacts[0].offset.y)).toBeLessThan(.006);
+    }
+  });
+
+  it('keeps ejector contact fixed in gun space after firing into different cylinder positions', async () => {
+    const baseline: { palm: THREE.Vector3; offset: THREE.Vector3; rotation: THREE.Quaternion }[] = [];
+    for (const shots of [0, 1, 4]) {
+      const h = await harness(); h.actor.weapons = [{ id: 'revolver', rarity: 0, ammo: 6, reserve: 24, box: 0 }];
+      for (let i = 0; i < 30; i++) h.step();
+      for (let n = 0; n < shots; n++) { h.view.shot('revolver'); for (let i = 0; i < 60; i++) h.step(); }
+      const view = h.view as unknown as { targetL: { wrist: THREE.Vector3; palm: THREE.Vector3 } };
+      const rod = h.holder.getObjectByName('revolver_action')!;
+      const start = h.now(); h.actor.reloadUntil = start + WEAPONS.revolver.reload;
+      for (const [index, phase] of [.28, .35].entries()) {
+        const end = start + WEAPONS.revolver.reload * phase;
+        while (h.now() < end - 1e-8) h.step(Math.min(1 / 240, end - h.now()));
+        const contact = { palm: view.targetL.palm.clone().applyQuaternion(h.holder.quaternion.clone().invert()),
+          offset: h.holder.worldToLocal(view.targetL.wrist.clone()).sub(rod.position), rotation: rod.quaternion.clone() };
+        if (!shots) baseline.push(contact);
+        else {
+          expect(contact.rotation.angleTo(baseline[index].rotation)).toBeGreaterThan(.9);
+          expect(contact.palm.angleTo(baseline[index].palm)).toBeLessThan(.001);
+          expect(contact.offset.distanceTo(baseline[index].offset)).toBeLessThan(.0001);
+        }
+      }
+      h.view.dispose();
     }
   });
 
