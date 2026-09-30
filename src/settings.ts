@@ -1,4 +1,5 @@
-import { PLAYER_COLORS, type Settings } from './shared/types';
+import { PLAYER_COLORS, type Settings, type WeaponId } from './shared/types';
+import { ADS_ZOOM } from './shared/weapons';
 import { clamp } from './shared/math';
 import { DEFAULT_BINDINGS, DEFAULT_CONTROL_OPTIONS, sanitizeBindings, sanitizeControlOptions } from './controls';
 
@@ -41,6 +42,11 @@ export function saveSettings(settings: Settings) { try { localStorage.setItem(ST
 export const FOV_RANGE = [80, 120] as const;
 export const verticalFov = (horizontal: number) => 2 * Math.atan(Math.tan(horizontal * Math.PI / 360) / (16 / 9)) * 180 / Math.PI;
 export const horizontalFov = (vertical: number) => 2 * Math.atan(Math.tan(vertical * Math.PI / 360) * (16 / 9)) * 180 / Math.PI;
+/** The camera and reticle share the rendered lens, including the existing scope zoom contract. */
+export function aimedFov(horizontal: number, weapon: WeaponId | null, ads: number): number {
+  const base = verticalFov(horizontal), zoom = 1 + ads * ((weapon ? ADS_ZOOM[weapon] : 1) - 1);
+  return weapon === 'm4' ? 2 * Math.atan(Math.tan(base * Math.PI / 360) / zoom) * 180 / Math.PI : base / zoom;
+}
 export function loadProfile(): { name: string; color: string } {
   try { const color = localStorage.getItem('uc-color') || ''; return { name: (localStorage.getItem('uc-nick') || '').replace(/[\x00-\x1f\x7f<>]/g, '').slice(0, 18), color: PLAYER_COLORS.includes(color) ? color : PLAYER_COLORS[0] }; }
   catch { return { name: '', color: PLAYER_COLORS[0] }; }
