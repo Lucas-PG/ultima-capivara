@@ -195,7 +195,8 @@ def torso():
 
 def neck():
     """A thick furry neck: the cheeks and throat run down into it without a step."""
-    return Union([Ellipsoid((0, 1.425, .000), (.158, .110, .150)), Ellipsoid((0, 1.492, -.018), (.170, .078, .158))], k=.05, mat=M['fur'])
+    jowls = [Ellipsoid(side((.105, 1.492, -.110), s), (.090, .075, .105)) for s in (-1, 1)]
+    return Union([Ellipsoid((0, 1.425, .000), (.164, .112, .156)), Ellipsoid((0, 1.498, -.030), (.188, .090, .176))] + jowls, k=.06, mat=M['fur'])
 
 
 # Head profile stations: (z, top, bottom, half-width at the crown, half-width at the jaw, exponent).
@@ -270,9 +271,10 @@ def whisker_roots(s):
 def nose_pad(snout):
     """The dark leather of the nose: a modest pad at the upper front of the muzzle with the
     nostrils in it, and a narrow strip running down the philtrum to the mouth (a T)."""
-    bar = Union([Ellipsoid((0, 1.668, -.372), (.060, .040, .066)), Ellipsoid((0, 1.700, -.336), (.044, .016, .030))], k=.012)
-    strip = Ellipsoid((0, 1.622, -.372), (.016, .042, .066))
-    region = Union([bar, strip], k=.016)
+    bar = Union([Ellipsoid(side((.020, 1.668, -.372), s), (.046, .040, .066)) for s in (-1, 1)] + [Ellipsoid((0, 1.700, -.336), (.046, .016, .030))], k=.014)
+    # A short point under the pad where it meets the philtrum groove (the foot of the T).
+    point = Ellipsoid((0, 1.636, -.372), (.014, .018, .066))
+    region = Union([bar, point], k=.014)
     pad = Intersect(Offset(snout, .0014), region)
     nostrils = Union([Ellipsoid(side((.030, 1.660, -.350), s), (.0125, .0066, .014), R=rot(pitch=-.35) @ rot(roll=s * .50)) for s in (-1, 1)])
     pad = Cut(pad, nostrils, k=.003)
@@ -386,9 +388,10 @@ def shirt_folds(p):
         around = np.arctan2(q @ norm(np.cross(ax, v(0, 1, 0))), q[:, 1])
         near = _ss(.19, .13, r) * _ss(-.05, .03, t) * _ss(UPPER_ARM + .06, UPPER_ARM + .02, t)
         wob = S.value_noise(np.stack([t * 26, around * 1.5, np.full(len(t), s * 3.0, F)], 1).astype(F), 61)
-        ring = .65 * np.sin(t * 96 + around * (.9 + .5 * s) + wob * 4) + .35 * np.sin(t * 170 - around * 1.4 + wob * 6)
-        crook = (.35 + .65 * wob) * (.6 + .6 * _ss(.14, .27, t) + .5 * _ss(.06, 0, t))
-        d += near * .0065 * ring * crook
+        # Soft drape: a few long diagonal folds hanging from the shoulder, a crumple above the cuff.
+        drape = np.sin(around * 3 + t * 22 + wob * 3) * .6 + np.sin(around * 5 - t * 14 + wob * 5) * .4
+        crumple = np.sin(t * 70 + around * 2 + wob * 6) * _ss(.16, .25, t)
+        d += near * (.0040 * drape + .0028 * crumple) * (.5 + .5 * wob)
     return d
 
 
@@ -416,7 +419,7 @@ def shirt(parts):
 def shirt_collar():
     """The open shirt collar: a band standing around the back of the neck outside the bandana,
     its two leaves folded down and out onto the chest."""
-    ring = Torus((0, 1.405, .012), .176, .030, R=rot(pitch=-.22), squash=.95)
+    ring = Torus((0, 1.382, .016), .182, .028, R=rot(pitch=-.26), squash=.95)
     back = Intersect(ring, Plane((0, 0, -.115), (0, 0, -1)))
     leaves = []
     for s in (-1, 1):
