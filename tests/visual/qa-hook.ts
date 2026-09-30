@@ -30,9 +30,9 @@ type QaApi = {
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   names(): string[];
-  motion(weapon: WeaponId, action: 'reload' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
+  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
   buildings(): { id: string; piece: string; role: string }[];
-  tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit', seconds: number): Promise<void>;
+  tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'reload-partial' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit' | 'slash' | 'slash-left' | 'chop', seconds: number): Promise<void>;
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
 };
 
@@ -350,13 +350,17 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
           end: { x: origin.x - Math.sin(me.yaw) * 1.7, y: origin.y, z: origin.z - Math.cos(me.yaw) * 1.7 },
           hit: action.startsWith('hit') });
       };
-      if (action === 'reload') { me.weapons[0].ammo = 0; me.reloadUntil = s.time + WEAPON_DEFS[weapon].reload; }
+      if (action === 'reload' || action === 'reload-partial') { me.weapons[0].ammo = action === 'reload' ? 0 : 3; me.reloadUntil = s.time + WEAPON_DEFS[weapon].reload; }
+      else if (action === 'inspect') renderer!.inspectWeapon();
       else if (action === 'fire') {
         const origin = { x: me.pos.x, y: me.pos.y + 1.62, z: me.pos.z };
         renderer!.event({ type: 'shot', id: 300, actor: me.id, weapon, origin,
           end: { x: origin.x - Math.sin(me.yaw) * 30, y: origin.y, z: origin.z - Math.cos(me.yaw) * 30 }, hit: false });
       }
-      else if (action.includes('right') || action.includes('left')) {
+      else if (action === 'chop') {
+        if (weapon !== 'machete') throw new Error('Chop review requires machete');
+        swing(); advance(.6); swing(); advance(.6); swing();
+      } else if (action.includes('right') || action.includes('left')) {
         if (weapon !== 'machete') throw new Error('Swing review requires machete');
         if (action.endsWith('left')) { swing(); advance(.6); }
         swing();
@@ -369,7 +373,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         me.grounded = true; me.velocity.y = 0;
       }
       advance(seconds);
-      if (action === 'reload' && seconds >= WEAPON_DEFS[weapon].reload) {
+      if ((action === 'reload' || action === 'reload-partial') && seconds >= WEAPON_DEFS[weapon].reload) {
         // Complete the displayed fixture too. These strips review the pose;
         // authoritative inventory completion has separate simulation intents.
         me.reloadUntil = 0; me.weapons[0].ammo = weapon === 'shotgun' ? 1 : WEAPON_DEFS[weapon].magazine;
@@ -392,7 +396,20 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const heading = bot.yaw + (action === 'strafe' ? Math.PI / 2 : action === 'backpedal' ? Math.PI : 0);
       const dir = { x: -Math.sin(heading), z: -Math.cos(heading) };
       const start = { ...bot.pos };
-      if (action === 'reload') bot.reloadUntil = s.time + WEAPON_DEFS[weapon].reload;
+      if (action === 'reload' || action === 'reload-partial') {
+        bot.weapons[0].ammo = action === 'reload' ? 0 : Math.max(1, Math.floor(WEAPON_DEFS[weapon].magazine / 2));
+        bot.reloadUntil = s.time + WEAPON_DEFS[weapon].reload;
+      }
+      if (action === 'slash' || action === 'slash-left' || action === 'chop') {
+        if (weapon !== 'machete') throw new Error('Cut review requires machete');
+        const update = () => renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, false);
+        bot.weapons[0].id = 'pistol'; update(); bot.weapons[0].id = 'machete'; update();
+        const origin = { x: bot.pos.x, y: bot.pos.y + 1.55, z: bot.pos.z };
+        for (let i = 0; i < (action === 'chop' ? 3 : action === 'slash-left' ? 2 : 1); i++) {
+          renderer!.event({ type: 'shot', id: 910 + i, actor: bot.id, weapon: 'machete', origin,
+            end: { x: origin.x - 1.7, y: origin.y, z: origin.z }, hit: false });
+        }
+      }
       if (action === 'jump') { bot.grounded = false; bot.velocity.y = 6; }
       const step = 1 / 60;
       let hurt = false;

@@ -28,6 +28,17 @@ export function worldM4PartGeometry(part: 'nearBody' | 'nearMag'): THREE.BufferG
   return geometry;
 }
 
+export function worldShortPartGeometries(id: 'pistol' | 'smg' | 'revolver') {
+  const source = data[id] as unknown as { nearBody: typeof data.m4.near;
+    parts: Record<string, { pivot: [number, number, number]; geometry: typeof data.m4.near }> };
+  return { body: unpack(source.nearBody, `painted-world:${id}:nearBody`),
+    parts: Object.fromEntries(Object.entries(source.parts).map(([name, part]) => {
+      const geometry = unpack(part.geometry, `painted-world:${id}:${name}`);
+      geometry.translate(-part.pivot[0], -part.pivot[1], -part.pivot[2]);
+      return [name, { geometry, pivot: new THREE.Vector3().fromArray(part.pivot) }];
+    })) };
+}
+
 function unpack(packed: typeof data.m4.near, name: string): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   geometry.name = name;

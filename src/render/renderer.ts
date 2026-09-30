@@ -21,6 +21,7 @@ import { verticalFov } from '../settings';
 import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
+import { worldWeaponMaterial } from './world-weapons';
 import { AvatarView, avatar, BOT_COLOR } from './avatars';
 import { CameraRig } from './camera';
 import { makePlane } from './aircraft';
@@ -137,6 +138,9 @@ export class GameRenderer {
     this.scene.add(this.sky.group); pmrem.dispose();
     this.weaponView.scene.environment = this.environment.texture;
     this.weaponView.scene.environmentIntensity = .35;
+    // Held and ground weapons share the same sky reflection as their FP model.
+    worldWeaponMaterial().envMap = this.environment.texture;
+    worldWeaponMaterial().envMapIntensity = .35;
     this.scene.background = new THREE.Color(PAINT.fog);
     this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
     this.camera = new THREE.PerspectiveCamera(verticalFov(settings.fov), 1, .07, 850);

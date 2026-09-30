@@ -1,15 +1,49 @@
 {
   "atlas": "textures/world-arsenal.webp",
-  "weapons": [
-    "pistol",
-    "revolver",
-    "smg",
-    "m4",
-    "shotgun",
-    "coco",
-    "dmr",
-    "sniper",
-    "machete"
-  ],
-  "bundledBytes": 2105044
+  "weapons": {
+    "pistol": {
+      "source": 13892,
+      "near": 2400,
+      "far": 420,
+      "animatedNear": 2470
+    },
+    "revolver": {
+      "source": 20406,
+      "near": 2400,
+      "far": 416,
+      "animatedNear": 2540
+    },
+    "smg": {
+      "source": 17332,
+      "near": 2400,
+      "far": 736,
+      "animatedNear": 2370
+    },
+    "m4": {
+      "near": 2400,
+      "far": 412
+    },
+    "shotgun": {
+      "near": 2400,
+      "far": 420
+    },
+    "coco": {
+      "near": 2400,
+      "far": 420
+    },
+    "dmr": {
+      "near": 2400,
+      "far": 420
+    },
+    "sniper": {
+      "near": 2400,
+      "far": 420
+    },
+    "machete": {
+      "source": 10490,
+      "near": 2400,
+      "far": 420
+    }
+  },
+  "bundledBytes": 2621087
 }

@@ -34,7 +34,11 @@ def reset():
 for glb in glbs:
     reset()
     bpy.ops.import_scene.gltf(filepath=glb)
-    meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+    stem = Path(glb).stem
+    for obj in bpy.context.scene.objects:
+        if (stem in ('revolver', 'shotgun') and obj.name == f'{stem}_mag') or (stem == 'revolver' and obj.name.startswith(('revolver_case', 'revolver_live'))):
+            obj.hide_render = True
+    meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH' and not o.hide_render]
     lo = Vector((1e9, 1e9, 1e9)); hi = -lo
     for o in meshes:
         for corner in o.bound_box:
@@ -43,11 +47,17 @@ for glb in glbs:
     cam_data = bpy.data.cameras.new('cam'); cam_data.lens = 50
     cam = bpy.data.objects.new('cam', cam_data); bpy.context.scene.collection.objects.link(cam)
     bpy.context.scene.camera = cam
-    stem = Path(glb).stem
     for view, (yaw, pitch) in {'right': (90, 8), 'left': (-90, 8), 'three': (35, 22), 'front': (170, 12)}.items():
-        d = radius * 2.35
         direction = Vector((math.sin(math.radians(yaw)) * math.cos(math.radians(pitch)), -math.cos(math.radians(yaw)) * math.cos(math.radians(pitch)),
                             math.sin(math.radians(pitch))))
+        # Fit the projected bounds in both dimensions, including the depth of
+        # the closest corner. Radius alone crops compact, tall sidearms.
+        right = Vector((math.cos(math.radians(yaw)), math.sin(math.radians(yaw)), 0))
+        up = direction.cross(right).normalized()
+        tan_x = cam_data.sensor_width / (2 * cam_data.lens)
+        tan_y = tan_x * bpy.context.scene.render.resolution_y / bpy.context.scene.render.resolution_x
+        corners = [o.matrix_world @ Vector(c) - centre for o in meshes for c in o.bound_box]
+        d = max(v.dot(direction) + max(abs(v.dot(right)) / tan_x, abs(v.dot(up)) / tan_y) * 1.16 for v in corners)
         cam.location = centre + direction * d
         cam.rotation_euler = (centre - cam.location).to_track_quat('-Z', 'Y').to_euler()
         bpy.context.scene.render.filepath = str(out / f'{stem}-{view}.png')

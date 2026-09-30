@@ -305,6 +305,7 @@ export class EffectsView {
 
   private shot(event: Extract<GameEvent, { type: 'shot' }>, avatars: AvatarView, weaponView: WeaponView, playerId: string | undefined, snapshot: WorldSnapshot | null) {
     const f = this.frame, weapon = event.weapon, own = event.actor === playerId && !!f?.firstPerson;
+    if (weapon === 'machete') avatars.attack(event.actor);
     const muzzle = this.b, end = this.c.set(event.end.x, event.end.y, event.end.z);
     let streak = true;
     if (own && f) {
