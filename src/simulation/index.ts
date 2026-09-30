@@ -14,7 +14,7 @@ import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, HANDLING, sho
 import { resolveImpact, type Impact } from './surface';
 import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
 import { MELEE_SECONDS } from '../shared/weapon-presentation';
-import { adaptDifficulty, aimLag, aimOffset, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, RECOVERY_SECONDS, recoveryDirection, trackAim, type BotBrain, type BotDifficulty } from './bots';
+import { adaptDifficulty, aimLag, aimOffset, angleDiff, BOT_START, BOT_STYLE, BOT_STYLES, BOT_WEAPON, botValue, createBrain, DIFFICULTY, RECOVERY_SECONDS, recoveryDirection, trackAim, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
@@ -73,6 +73,9 @@ export class Simulation {
   private readonly random: () => number;
   private readonly supplyRandom: () => number;
   private readonly personalityRandom: () => number;
+  // Styles and idle glances draw from their own stream, leaving combat and
+  // leisure sequences untouched.
+  private readonly styleRandom: () => number;
   private readonly supplyDrops: SupplyDropState[] = [];
   private readonly supplyRewards = new Map<string, { weapon: WeaponId; rarity: number }>();
   private readonly landedSupply = new Set<string>();
@@ -123,6 +126,7 @@ export class Simulation {
     this.random = rng(seed);
     this.supplyRandom = rng(seed ^ 0x74756361);
     this.personalityRandom = rng(seed ^ 0x63617079);
+    this.styleRandom = rng(seed ^ 0x7374796c);
     // Snapshots must not carry undefined fields: finiteTree() rejects them and the
     // host would stop publishing. Non-weapon spawns may come with `weapon: undefined`.
     this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: Math.floor(this.random() * 4), respawnAt: 0 }));
@@ -884,7 +888,8 @@ export class Simulation {
   private rnd(a: number, b: number) { return a + (b - a) * this.random(); }
   private makeBrain(pos: Vec3): BotBrain {
     const elite = this.botCount++ < this.diff.elites;
-    return createBrain(elite, elite ? this.rnd(.8, 1.2) : this.rnd(1.6, 2.5), pos, this.random() < .5 ? 1 : -1);
+    const skill = elite ? this.rnd(.8, 1.2) : this.rnd(1.6, 2.5), flank = this.random() < .5 ? 1 : -1;
+    return createBrain(elite, skill, pos, flank, BOT_STYLES[Math.floor(this.styleRandom() * BOT_STYLES.length)]);
   }
   private botLoadout(): WeaponState[] {
     let roll = this.random() * BOT_START.reduce((sum, [, w]) => sum + w, 0), id: WeaponId = 'pistol';
@@ -1059,8 +1064,9 @@ export class Simulation {
     const outNow = Math.hypot(s.pos.x - this.zone.x, s.pos.z - this.zone.z) > this.zone.radius * .93;
     if (d < sc.r * .8 && !outNow) return null;
     const phase = STORM[this.zone.phase], left = !this.zone.shrinking ? this.zone.timeLeft + (phase ? phase.shrink : 0) : this.zone.timeLeft;
-    const need = Math.max(0, d - sc.r * .6) / 5.6;
-    if (!outNow && left > need * 1.6 + 10) return null;
+    const need = Math.max(0, d - sc.r * .6) / 5.6, rotate = BOT_STYLE[this.actors.get(s.id)?.brain?.style ?? 'flanker'].rotate;
+    // Anchors walk in early to hold the new circle; rushers ride the edge.
+    if (!outNow && left > (need * 1.6 + 10) * rotate) return null;
     const k = d > 0 ? sc.r * .55 / d : 0;
     const x = sc.x + (s.pos.x - sc.x) * k, z = sc.z + (s.pos.z - sc.z) * k;
     const goal = { x, y: walkableHeight(x, z, this.world), z };
@@ -1190,7 +1196,7 @@ export class Simulation {
     }
     return false;
   }
-  private findCover(s: ActorState, threat: ActorState): Vec3 | null {
+  private findCover(s: ActorState, threat: Vec3): Vec3 | null {
     let best: Vec3 | null = null, score = Infinity;
     for (let k = 0; k < 20; k++) {
       const a = k / 20 * Math.PI * 2 + this.rnd(-.1, .1), r = k % 2 ? 3 : 6.5, x = s.pos.x + Math.cos(a) * r, z = s.pos.z + Math.sin(a) * r;
@@ -1199,7 +1205,7 @@ export class Simulation {
       if (Math.abs(y - s.pos.y) > 1 || !walkableSegment(this.world, s.pos, { x, z }, isArenaMode(this.config.mode))) continue;
       const water = waterAt(x, z);
       if (water && y < water.surfaceY) continue;
-      const eye = { x, y: y + 1, z }, dx = threat.pos.x - x, dy = threat.pos.y + 1.2 - eye.y, dz = threat.pos.z - z, L = Math.hypot(dx, dy, dz);
+      const eye = { x, y: y + 1, z }, dx = threat.x - x, dy = threat.y + 1.2 - eye.y, dz = threat.z - z, L = Math.hypot(dx, dy, dz);
       const hit = this.grid.ray(eye, { x: dx / L, y: dy / L, z: dz / L }, Math.min(L, 3.6));
       if (hit === null || hit > L - .5 || hit > 3.5) continue;
       const sc = r + Math.max(0, 8 - L) * .5;
@@ -1216,6 +1222,19 @@ export class Simulation {
       if (this.grid.sees({ ...point, y: point.y + 1.42 }, { ...threat, y: threat.y + 1 })) return point;
     }
     return null;
+  }
+  // Idle look-around: favour the longest open view (a side street, a doorway,
+  // the square) within a comfortable turn of the walking direction.
+  private lookout(s: ActorState, heading: number) {
+    const eye = { x: s.pos.x, y: s.pos.y + 1.4, z: s.pos.z }, options: { yaw: number; weight: number }[] = [];
+    for (const degrees of [-80, -55, -30, 30, 55, 80]) {
+      const yaw = heading + degrees * DEG, dir = { x: -Math.sin(yaw), y: 0, z: -Math.cos(yaw) };
+      const open = this.grid.ray(eye, dir, 30) ?? 30;
+      options.push({ yaw, weight: open * open });
+    }
+    let pick = this.styleRandom() * options.reduce((sum, option) => sum + option.weight, 0);
+    for (const option of options) if ((pick -= option.weight) <= 0) return option.yaw;
+    return options[options.length - 1].yaw;
   }
   // When a wall blocks the straight line, head for the nearest visible corner of
   // that wall segment. Walls are split at openings, so this usually is a doorway.
@@ -1297,7 +1316,7 @@ export class Simulation {
     // Pick the best gun; bots never run dry (legacy bots had endless reserves).
     const slot = this.bestWeapon(s);
     if (slot !== s.slot && !s.reloadUntil) { s.slot = slot; this.drawWeapon(a); }
-    const w = s.weapons[s.slot], def = WEAPONS[w.id], bw = BOT_WEAPON[w.id];
+    const w = s.weapons[s.slot], def = WEAPONS[w.id], bw = BOT_WEAPON[w.id], style = BOT_STYLE[b.style];
     if (def.ammo && w.reserve < def.magazine) w.reserve = AMMO[w.id];
     const rethink = now >= b.thinkAt;
     if (rethink) { b.thinkAt = now + this.rnd(.15, .25); this.botThink(a); }
@@ -1315,12 +1334,24 @@ export class Simulation {
       if (s.using) { s.using = null; s.useUntil = 0; }
       if (b.mode === 'cover') { b.mode = 'roam'; b.coverPt = null; b.peekPt = null; }
     }
+    // Shot by someone it cannot see: get out of the line of fire first, then
+    // peek toward where the shot came from (as a human reads a damage arrow).
+    // A healthy rusher charges the sound instead.
+    if (!fighting && !b.zoneGoal && b.mode !== 'cover' && !s.using && now < b.hurtUntil && b.hearPos &&
+      now >= b.coverCdUntil && (b.style !== 'rusher' || s.hp < 70)) {
+      b.coverCdUntil = now + 5;
+      const cover = this.findCover(s, b.hearPos);
+      if (cover) {
+        b.mode = 'cover'; b.coverPt = cover; b.peekPt = null; b.coverUntil = now + this.rnd(1.2, 2.4) * style.hold;
+        b.lastSeen = { ...b.hearPos }; b.lastSeenAt = now; b.loot = null; b.via = null;
+      }
+    }
     if (s.using) {
       crouch = true;
       if (fighting && t) face = Math.atan2(-(t.pos.x - s.pos.x), -(t.pos.z - s.pos.z));
     } else if (b.mode === 'cover' && b.coverPt) {
       if (b.peekPt && (now >= b.peekUntil || s.reloadUntil || s.using)) {
-        b.peekPt = null; b.coverUntil = now + this.rnd(1, 1.7);
+        b.peekPt = null; b.coverUntil = now + this.rnd(1, 1.7) * style.hold;
       }
       const ready = now >= b.coverUntil && !s.reloadUntil && !s.using && (s.hp >= 60 || this.heals(s) === 0);
       if (ready && !b.peekPt && atCover && b.lastSeen && now - b.lastSeenAt < 5) {
@@ -1338,11 +1369,12 @@ export class Simulation {
       const dx = t.pos.x - s.pos.x, dz = t.pos.z - s.pos.z, dist = Math.hypot(dx, dz) || 1, ux = dx / dist, uz = dz / dist;
       const reloading = !!s.reloadUntil;
       // Never stand still in the open while reloading: back off and keep side-stepping.
-      const forward = reloading || s.hp < 35 ? -1 : dist > bw.range * 1.25 ? 1 : dist < bw.range * .55 ? -1 : 0;
+      const band = bw.range * style.range;
+      const forward = reloading || s.hp < 35 ? -1 : dist > band * 1.25 ? 1 : dist < band * .55 ? -1 : 0;
       if (reloading && b.strafeDir === 0) b.strafeDir = this.random() < .5 ? -1 : 1;
       if (now >= b.strafeUntil) {
         b.strafeDir = this.random() < .25 && !reloading ? 0 : this.random() < .5 ? -1 : 1; b.strafeUntil = now + this.rnd(.35, 1);
-        if (s.grounded && this.random() < .12 && dist < 25) jump = true;
+        if (s.grounded && this.random() < style.jump && dist < 25) jump = true;
       }
       mx = ux * forward - uz * b.strafeDir * .9; mz = uz * forward + ux * b.strafeDir * .9; speed = forward === 1 ? 4.4 : 3.6;
       face = Math.atan2(-dx, -dz);
@@ -1350,18 +1382,21 @@ export class Simulation {
       if (b.strafeDir === 0 && dist > 16 && !reloading && s.hp >= 50) crouch = true;
       // A reload that starts mid-fight looks for cover at once, whatever the search cooldown.
       const reloadStarted = reloading && !b.reloading;
-      if ((now >= b.coverCdUntil || reloadStarted) && (s.hp < (b.elite ? 65 : 50) || (reloading && dist < 35) || b.recentDmg > 45)) {
-        const cover = this.findCover(s, t); b.coverCdUntil = now + 5;
-        if (cover) { b.mode = 'cover'; b.coverPt = cover; b.peekPt = null; b.coverUntil = now + this.rnd(1.2, 2.4); }
+      if ((now >= b.coverCdUntil || reloadStarted) && (s.hp < (b.elite ? 65 : 50) + style.coverHp || (reloading && dist < 35) || b.recentDmg > 45)) {
+        const cover = this.findCover(s, t.pos); b.coverCdUntil = now + 5;
+        if (cover) { b.mode = 'cover'; b.coverPt = cover; b.peekPt = null; b.coverUntil = now + this.rnd(1.2, 2.4) * style.hold; }
       }
     } else {
       if (b.mode === 'fight') b.mode = 'roam';
-      let g: Vec3 | null = null, run = false, kind: 'zone' | 'chase' | 'hear' | 'loot' | 'leisure' | 'goal' = 'goal';
+      let g: Vec3 | null = null, run = false, kind: 'zone' | 'chase' | 'watch' | 'hear' | 'loot' | 'leisure' | 'goal' = 'goal';
       if (b.zoneGoal) { g = b.zoneGoal; run = true; kind = 'zone'; }
-      else if (b.lastSeen && now - b.lastSeenAt < 5) {
+      else if (b.lastSeen && now - b.lastSeenAt < style.chase) {
         // Push the last sighting, flanking to one side for the first seconds.
-        const px = -(b.lastSeen.z - s.pos.z), pz = b.lastSeen.x - s.pos.x, pl = Math.hypot(px, pz) || 1, k = now - b.lastSeenAt < 2.5 ? 6 * b.flank : 0;
+        const px = -(b.lastSeen.z - s.pos.z), pz = b.lastSeen.x - s.pos.x, pl = Math.hypot(px, pz) || 1, k = now - b.lastSeenAt < style.flankFor ? style.flank * b.flank : 0;
         g = { x: b.lastSeen.x + px / pl * k, y: b.lastSeen.y, z: b.lastSeen.z + pz / pl * k }; run = true; kind = 'chase';
+      } else if (b.lastSeen && now - b.lastSeenAt < style.chase + style.watch) {
+        // Hold the angle: crouch and watch where the enemy was last seen.
+        g = { ...s.pos }; kind = 'watch'; crouch = true;
       } else if (now < b.alertUntil && b.hearPos) { g = b.hearPos; kind = 'hear'; }
       else if (b.leisure) { g = b.leisure.pos; kind = 'leisure'; }
       else if (b.loot) {
@@ -1416,8 +1451,18 @@ export class Simulation {
           b.loot = null; b.lootScanAt = now - .9;
         } else if (kind === 'chase') b.lastSeenAt = -99;
       } else { mx = dx / stepDist; mz = dz / stepDist; speed = preciseBuilding ? Math.min(3.9, stepDist / .35 * 3.9) : run ? 5.8 : 4.2; steer = step; }
-      if (now < b.alertUntil && b.hearPos && !run) face = Math.atan2(-(b.hearPos.x - s.pos.x), -(b.hearPos.z - s.pos.z));
-      else if (speed > 0) face = Math.atan2(-mx, -mz);
+      if (kind === 'watch' && b.lastSeen) face = Math.atan2(-(b.lastSeen.x - s.pos.x), -(b.lastSeen.z - s.pos.z));
+      else if (now < b.alertUntil && b.hearPos && !run) face = Math.atan2(-(b.hearPos.x - s.pos.x), -(b.hearPos.z - s.pos.z));
+      else if (speed > 0) {
+        face = Math.atan2(-mx, -mz);
+        // A walking bot glances down side streets and doorways now and then.
+        // Its sight follows its head, so a glance can also spot a flanker.
+        if (!run && !preciseBuilding && (kind === 'goal' || kind === 'loot')) {
+          if (b.glanceAt < 0) b.glanceAt = now + 1.5 + this.styleRandom() * 3;
+          else if (now >= b.glanceAt) { b.glanceAt = now + 2.5 + this.styleRandom() * 3; b.glanceUntil = now + .5 + this.styleRandom() * .6; b.glanceYaw = this.lookout(s, face); }
+          if (now < b.glanceUntil) face = b.glanceYaw;
+        }
+      }
       if (this.heals(s) > 0 && s.hp < 75 && now >= b.hurtUntil && !run) this.botHeal(a);
     }
     if (b.recoveryYaw !== null && now < b.recoveryUntil && !s.using) {

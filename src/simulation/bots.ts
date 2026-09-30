@@ -42,8 +42,27 @@ export const botValue = (id: WeaponId, rarity = 0) => BOT_WEAPON[id].tier * 10 +
 // Legacy plane loadout weights.
 export const BOT_START: [WeaponId, number][] = [['pistol', 58], ['smg', 16], ['shotgun', 12], ['m4', 8], ['sniper', 3], ['dmr', 3]];
 
+export type BotStyle = 'rusher' | 'anchor' | 'flanker';
+export const BOT_STYLES: readonly BotStyle[] = ['rusher', 'anchor', 'flanker'];
+/** Play styles, so a lobby of bots does not move and fight as one. `range`
+ * scales the preferred duel distance, `chase` and `watch` are the seconds spent
+ * pushing and then holding a lost sighting, `flank` metres of swing for
+ * `flankFor` seconds, `coverHp` shifts the health at which cover is sought,
+ * `jump` is the chance of a hop per strafe change, `hold` scales time in
+ * cover and `rotate` how early the storm is respected. */
+export const BOT_STYLE: Record<BotStyle, { range: number; chase: number; watch: number; flank: number; flankFor: number; coverHp: number; jump: number; hold: number; rotate: number }> = {
+  // Presses into close range, chases longest, rarely hides, hops while strafing.
+  rusher: { range: .7, chase: 7, watch: 0, flank: 3, flankFor: 1.5, coverHp: -15, jump: .2, hold: .7, rotate: .85 },
+  // Fights from range, hides earlier, watches the last sighting instead of chasing it.
+  anchor: { range: 1.25, chase: 1.5, watch: 3.5, flank: 2, flankFor: 1, coverHp: 10, jump: .04, hold: 1.5, rotate: 1.6 },
+  // Swings wide around a sighting before pushing it (the legacy chase, widened).
+  flanker: { range: 1, chase: 5, watch: 0, flank: 9, flankFor: 3.5, coverHp: 0, jump: .12, hold: 1, rotate: 1.1 },
+};
+
 export interface BotBrain {
-  elite: boolean; skill: number;
+  elite: boolean; skill: number; style: BotStyle;
+  /** Idle look-around: when the next glance starts, when it ends, and where. */
+  glanceAt: number; glanceUntil: number; glanceYaw: number;
   thinkAt: number; alertUntil: number; hurtUntil: number; coverUntil: number; coverCdUntil: number; recentDmg: number;
   target: string | null; sees: boolean; lastSeen: Vec3 | null; lastSeenAt: number; trackT: number; reactT: number;
   fireAt: number; burst: number; strafeDir: number; strafeUntil: number;
@@ -61,9 +80,9 @@ export interface BotBrain {
   reloading: boolean; drop: Vec3 | null; lastVia: Vec3 | null; lootFor: string | null; lootSince: number; pressT: number; avoidHold: number; face: number; hearLock: number;
 }
 
-export function createBrain(elite: boolean, skill: number, pos: Vec3, flank: number): BotBrain {
+export function createBrain(elite: boolean, skill: number, pos: Vec3, flank: number, style: BotStyle = 'flanker'): BotBrain {
   return {
-    elite, skill, thinkAt: 0, alertUntil: -1, hurtUntil: -1, coverUntil: -1, coverCdUntil: -1, recentDmg: 0,
+    elite, skill, style, glanceAt: -1, glanceUntil: 0, glanceYaw: 0, thinkAt: 0, alertUntil: -1, hurtUntil: -1, coverUntil: -1, coverCdUntil: -1, recentDmg: 0,
     target: null, sees: false, lastSeen: null, lastSeenAt: -99, trackT: 0, reactT: 0,
     fireAt: 0, burst: 0, strafeDir: 1, strafeUntil: 0, aimVelocity: null, aimFor: null, mode: 'roam', coverPt: null, flank,
     peekPt: null, peekUntil: 0,
