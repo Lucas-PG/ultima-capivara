@@ -4,7 +4,7 @@ import { terrainHeight } from '../shared/terrain';
 import { WATER_LEVEL } from '../shared/water';
 import { MELEE_CONTACT } from '../shared/weapon-presentation';
 import { WEAPONS } from '../shared/weapons';
-import type { ActorState, Collider, ConsumableId, GameEvent, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec } from '../shared/types';
+import type { ActorState, Collider, ConsumableId, GameEvent, Surface, Vec3, WeaponId, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 import type { AvatarView } from './avatars';
 import type { WeaponView } from './weapons';
 import { CELL, PAINT, PAINTED_URL, createEffectsAtlas } from './effects-atlas';
@@ -32,6 +32,8 @@ export interface EffectsFrame {
   lowQuality?: boolean;
   /** Graphics preset: particle counts and how long marks stay scale with it. */
   quality?: 'low' | 'medium' | 'high';
+  /** The storm circle while a royale is on, for the drifting curtain at its edge. */
+  zone?: ZoneState | null;
 }
 
 // One palette table (bible §3, §11). Values are the authored sRGB hexes.
@@ -41,7 +43,7 @@ const HEX = {
   tracer: '#ffe3a1', tracerCore: '#fff4e2', tracerHostile: '#ff5a3c', tracerHostileCore: '#ffb49c',
   gold: '#ffc23d', goldLight: '#ffe7a3', cloudLight: '#fff4e2',
   heal: '#3aa35a', healLight: '#8cc453', armor: '#2f9df4', armorLight: '#bfd8e6', boost: '#e9b44c', boostLight: '#ffe7a3',
-  alert: '#e5412d', alertLight: '#ffc23d', white: '#f4fbf6',
+  alert: '#e5412d', alertLight: '#ffc23d', white: '#f4fbf6', storm: '#8a4dff', stormLight: '#c7a8ff',
   pebble: '#bbae98', pebbleLight: '#d8c8aa', earthPlume: '#a48c78',
   coconut: '#6b4428', coconutLight: '#a8784a', blast: '#ffab2e', blastLight: '#fff2b0', smoke: '#5d4a3e', smokeLight: '#9a8676',
 } as const;
@@ -102,6 +104,9 @@ export class EffectsView {
   private readonly rarity = [0, 1, 2, 3].map(r => new THREE.Color(rarityOf(r).color));
   private readonly tips = new Map<WeaponId, THREE.Vector3>();
   private burst = 0;
+  private stormAt = 0;
+  // Stage per actor last frame: a parachute touching down raises a dust ring.
+  private readonly stages = new Map<string, ActorState['stage']>();
   private readonly grid = new Map<number, Collider[]>();
   private readonly pending: Pending[] = [];
   private readonly pebbles: Pebble[] = [];
@@ -177,6 +182,8 @@ export class EffectsView {
     this.frame = frame;
     this.waterTime += Math.max(0, dt);
     this.updateWater(actors, simulationTime, localActor);
+    this.updateLandings(actors, localActor);
+    this.updateStormEdge(dt);
     for (const p of this.pending) if (p.active) { p.active = false; this.hitStar(p.pos, p.head); }
     for (const pebble of this.pebbles) if (pebble.card && pebble.card.life <= 0) pebble.card = null;
     const px = 2 * Math.tan(THREE.MathUtils.degToRad(frame.camera.fov) / 2) / Math.max(1, frame.viewportHeight);
@@ -277,6 +284,44 @@ export class EffectsView {
       }
     }
     for (const [id, state] of this.waterActors) if (state.seen !== this.waterTime) this.waterActors.delete(id);
+  }
+
+  // Violet wisps rise along the storm wall near the viewer, so the edge reads as a
+  // moving curtain with depth instead of only a tint. About a dozen cards a second.
+  private updateStormEdge(dt: number) {
+    const frame = this.frame!, zone = frame.zone;
+    if (!zone || zone.radius < 2 || frame.reducedMotion) return;
+    const cam = frame.camera.position, dx = cam.x - zone.x, dz = cam.z - zone.z, d = Math.hypot(dx, dz) || 1;
+    if (Math.abs(d - zone.radius) > 45) return;
+    this.stormAt -= dt;
+    if (this.stormAt > 0) return;
+    this.stormAt = frame.lowQuality ? .22 : .09;
+    const base = Math.atan2(dz, dx), spread = Math.min(Math.PI, 30 / zone.radius);
+    const angle = base + rand(-spread, spread), x = zone.x + Math.cos(angle) * zone.radius, z = zone.z + Math.sin(angle) * zone.radius;
+    const wisp = this.cards.spawn();
+    wisp.pos.set(x, this.groundAt(x, z, 200) + rand(.2, 2.2), z); wisp.cell = PAINT.smoke; wisp.life = rand(1.8, 2.6);
+    wisp.fadeIn = .25; wisp.fadeOut = .5; wisp.size0 = rand(1.2, 1.8); wisp.size1 = rand(2.8, 3.8); wisp.alpha = .38; wisp.minPx = 6;
+    wisp.rot = rand(0, 6.3); wisp.spin = rand(-.3, .3); wisp.vel.set(-Math.sin(angle) * rand(-.6, .6), rand(.3, .6), Math.cos(angle) * rand(-.6, .6));
+    wisp.color.copy(this.color.storm); wisp.light.copy(this.color.stormLight);
+  }
+
+  private updateLandings(actors: readonly ActorState[], localActor?: ActorState) {
+    const frame = this.frame!;
+    for (const source of actors) {
+      const actor = source.id === localActor?.id ? localActor : source, before = this.stages.get(actor.id);
+      this.stages.set(actor.id, actor.stage);
+      if (before !== 'parachute' || actor.stage !== 'ground' || actor.swimming || frame.reducedMotion) continue;
+      if (frame.camera.position.distanceToSquared(actor.pos) > 50 * 50) continue;
+      const count = Math.round(8 * this.countScale()), ground = this.groundAt(actor.pos.x, actor.pos.z, actor.pos.y + .3);
+      for (let i = 0; i < count; i++) {
+        const a = i / count * Math.PI * 2, puff = this.cards.spawn();
+        puff.pos.set(actor.pos.x + Math.cos(a) * .4, ground + .15, actor.pos.z + Math.sin(a) * .4); puff.cell = PAINT.dust + (i & 1);
+        puff.life = rand(.5, .7); puff.fadeOut = .7; puff.size0 = .25; puff.size1 = .8; puff.alpha = .45; puff.minPx = 6; puff.rot = a;
+        puff.vel.set(Math.cos(a) * 2.6, .35, Math.sin(a) * 2.6); puff.drag = 3.5;
+        puff.color.copy(this.surface.sand.puff); puff.light.copy(this.surface.sand.puffLight);
+      }
+    }
+    if (this.stages.size > actors.length + 8) for (const id of this.stages.keys()) if (!actors.some(a => a.id === id)) this.stages.delete(id);
   }
 
   private waterRipple(pos: THREE.Vector3, size: number, alpha: number) {
@@ -754,7 +799,7 @@ export class EffectsView {
   }
 
   clear() {
-    this.waterActors.clear(); this.waterTime = 0;
+    this.waterActors.clear(); this.waterTime = 0; this.stages.clear();
     for (const system of this.systems) system.clear();
     for (const p of this.pending) p.active = false;
     for (const pebble of this.pebbles) pebble.card = null;

@@ -255,6 +255,7 @@ export class GameRenderer {
     this.effectsFrame.reducedMotion = this.settings.reducedMotion;
     this.effectsFrame.lowQuality = this.settings.graphics === 'low';
     this.effectsFrame.quality = this.settings.graphics;
+    this.effectsFrame.zone = frame.playing && snapshot?.config.mode === 'battle-royale' ? snapshot.zone : null;
     this.effects.update(dt, this.effectsFrame, snapshot?.actors, frame.simulationTime ?? snapshot?.time ?? 0, frame.localActor);
     if (snapshot) {
       const zone = snapshot.zone;

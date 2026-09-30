@@ -113,4 +113,7 @@ export const SCENARIOS = {
   'c-enemy-fire': { scene: { ...PLAZA, weapon: 'm4', actors: [bot('bento', -41, 28, { weapon: 'm4' })] }, events: [shoot('bento', { x: -40.6, y: 1.6, z: 8 })], frames: strip(1, 2, 3, 5, 8, 12, 18, 26), still: 1 },
   'c-hit-8m': { scene: { ...PLAZA, pitch: -.03, weapon: 'm4', actors: [bot('bento', -41, 26, { yaw: Math.PI })] }, events: [shoot('practice', { x: -41, y: 1.1, z: 26 }, { target: 'bento', amount: 18 })], frames: strip(1, 2, 3, 5, 8, 12, 18, 26), still: 1 },
   'c-head-8m': { scene: { ...PLAZA, pitch: -.03, weapon: 'm4', actors: [bot('bento', -41, 26, { yaw: Math.PI })] }, events: [shoot('practice', { x: -41, y: 1.6, z: 26 }, { target: 'bento', head: true, amount: 29 })], frames: strip(1, 2, 3, 5, 8, 12, 18, 26), still: 1 },
+  'c-chest': { scene: { x: -35.28, z: 80.02, yaw: .785, pitch: -.42, weapon: 'pistol' }, events: [ev('pickup', { actor: 'practice', item: 'chest-1970' }), call('opened', 'chest-1970')], frames: strip(2, 6, 10, 16, 24, 32, 40, 48), still: 2 },
+  // The storm wall 10 m ahead after its edge wisps have built up for two seconds.
+  'c-storm': { ...storm({ x: -41, z: 18 - 85 }), frames: strip(120, 150), still: 1 },
 };
