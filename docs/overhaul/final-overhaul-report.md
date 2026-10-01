@@ -38,7 +38,14 @@ Nine weapons (the slingshot was removed at the user's request; no new weapons, a
 
 ### 2.3 Character
 
-PENDING (round 2 in progress). State after round 1: re-sculpted head and cloth, 4K painted maps, LOD0 40.5k triangles, groomed fur shells, eight walk and crouch directions with planted feet (median sole slip under .03 m/s), rebuilt Capivara Redentora statue, team colour in the rim at range. Reports: `character-report.md`, `char-polish-report.md`.
+Four rounds after the first rebuild, each reviewed against the targets at the same cameras (boards in `output/review/char-r2/` and `docs/overhaul/evidence/char-polish/`):
+- Round 1: re-sculpted head and cloth, 4K painted maps, LOD0 40.5k triangles, groomed fur shells, eight walk and crouch directions with planted feet, the rebuilt Capivara Redentora.
+- Round 2: a broad build with its own big leathery paws, two legs in a wide stance, a knotted bandana, pleated hip rag, canvas rucksack and blanket roll, a breathing idle and a low-ready armed idle with springs on the loose gear, holds re-fitted for all nine weapons (third-person guns drawn 1.3 times bigger to fit the paw), and High, Medium and Low texture tiers (7, 3.8 and 2.8 MB; 192, 48 and 12 MB of GPU memory).
+- Round 3, by a fresh agent at maximum effort after the user rejected round 2: knees that bent backwards in every clip (the leg IK pole pointed backward), a cartoon capybara head without the cheek lobes, fur that reads as fur (combed locks with a darker crown, nape and back), team colour readable at 60 m, the statue rebuilt and validated.
+- Round 4: open, bright eyes with catchlights, furred blinks, golden fur in shade, a paler muzzle; fur shells tiered by distance so a close crowd costs what round 2 did.
+Direction from the user on the final day: a fun, cartoonized capybara humanoid; the references are guides, not specs.
+
+Reports: `character-report.md`, `char-polish-report.md`.
 
 ### 2.4 World
 
@@ -53,7 +60,10 @@ Now:
 - The kit grew from 56 to 89 pieces and stays inside its download budget.
 - Pickups rebuilt as objects (vest, helmet, ammo can, medkit, bandage, guaraná can, açaí bowl, rapadura); the supply drop has a light column and signal smoke.
 
-Reports: `world-structure-report.md`, `vegetation-report.md`, `world-polish-report.md`. PENDING: final polish additions.
+- Final polish: no leaf grows inside a room any more (60 plants had leaves in buildings; a test checks every drawn leaf against every room), foliage stays off arena spawns, and pickups carry a light column when a supply drop is announced.
+- World finish: the faceted bougainvillea baked into the town facades was replaced by painted plantings and drapes (doors and windows kept clear); a world-space stone layer gives rocks and cliffs joints, grain and relief up close; the offshore islets were rebuilt as granite morros over forest with coves, surf and palms; the Capela do Morro became its own hill chapel; terrace end walls and the Campinho stands were dressed; spawns reject spots under tree crowns (tested).
+
+Reports: `world-structure-report.md`, `vegetation-report.md`, `world-polish-report.md`, `final-polish-report.md`, `world-finish-report.md`.
 
 ### 2.5 Rendering
 
@@ -91,7 +101,10 @@ Reports: `audio-report.md`, `audio-research.md`.
 - HUD rebuilt toward a mockup: teal plates, portrait vitals, four weapon boxes with thumbnails from the models, magazine card, compass with the safe-zone bearing, minimap with the match strip, kill feed, death card, elimination confirmation.
 - Loading scenes per mode, results with a podium, a watching menu, settings that fit and scroll on short windows.
 
-Reports: `ui-report.md`, `ui-research.md`, `integration-report.md`.
+- Final polish: the spectator camera rises over or swings along walls and treats foliage as soft (live: the watched capybara on screen in 97.9% of samples, within 1.2 m in 1.3%); scopes fill 90% of the screen height inside a lit scope body over a blurred, darkened world (was a 63% lens on black); the HUD was checked at 1280x720, 1600x900, 1920x1080 and 2560x1440 at interface scales 80, 100 and 120% with zero overlaps; the HUD is complete after a rematch in every mode; the eight non-weapon pickups were rebuilt with their own silhouettes (vest, helmet, ammo can, medkit, bandage, guarana can, acai bowl, rapadura).
+- World finish: a near-camera foliage fade, local camera only, so first person, the death cam and the spectator never sit inside a bush (other players still see the bush as before).
+
+Reports: `ui-report.md`, `ui-research.md`, `integration-report.md`, `final-polish-report.md`.
 
 ### 2.9 Bots and gameplay
 
@@ -100,6 +113,11 @@ Reports: `ui-report.md`, `ui-research.md`, `integration-report.md`.
 - Modes unchanged in rules (battle royale, Correria, Corrente, deathmatch, practice); respawn modes count falls in the results.
 
 Report: `bots-graphics-report.md` (bots half).
+
+### 2.10 Build pipeline
+
+- Blender builds run on a Linux build machine over Tailscale (`tools/blender/remote-blender.sh` as `BLENDER_BIN`): it sends changed inputs, runs Blender 5.0.1 with every thread and brings the results back. A full character build takes about 3.5 minutes there against about 18 minutes on the development Mac (texture bakes 92 s against 17 minutes); weapons take under a minute. Builds are reproducible on each machine; between machines geometry, parts and grip data are identical and only wear-mark placement differs (UV packing).
+- The production build was broken by a dead CSS rule and fixed early in the final day.
 
 ## 3. Decisions
 
@@ -112,6 +130,9 @@ Report: `bots-graphics-report.md` (bots half).
 - Client-side prediction of own shots with a seeded spread: aim was already client authoritative, the host still decides hits.
 - Delegation: independent passes ran as Claude Opus agents in git worktrees, each reviewed against independent captures before merging; two passes were sent back (long guns round 1, character round 1). Codex was used for image generation only, after the user's instruction.
 - Removed by user decision: the slingshot. Deferred by user decision: three proposed new weapons (`docs/art/references/new-weapons.md`).
+
+- Character direction (user, final day): a fun, cartoonized capybara humanoid; references are guides, not specs. Round 2 was rejected (head without fur, knees reading bent backwards, two lobes at the base of the head) and rebuilt by a fresh agent from round 2 in small steps.
+- First-person arms built from the third-person character's own paw at 1/1.3 scale, because third-person guns are drawn 1.3 times bigger to fit that paw: the paw-to-gun proportion matches in both views.
 
 Rejected experiments: spiky fin fur on the arms (read as scales), a 1.18 paw scale (rejected in user review), a Codex lighting draft that washed colour out, a sprite flash inside the scope (read as a sticker), wrapping the dead HUD zoom rule instead of deleting it (it would have zoomed the reload pill twice).
 
@@ -147,3 +168,6 @@ PENDING (consolidated at the release gate). Known now:
 - No first-person spectating.
 - Remote gunfire does not change with the shooter's facing; no per-enemy threat scoring.
 - KTX2 compressed textures are not used (no encoder on this machine), so GPU texture memory is higher than it could be.
+- The Rosario chapel still shares the town church kit piece; a few interior potted plants keep the faceted kit foliage; balcony and parapet drapes are thin at 8 to 10 m.
+- The spectator lens can still come under 1 m for a moment in tight rooms, the narrow street by the market hall and past lamp posts.
+- The near-camera foliage fade is a dither, visible as a stipple in still frames.

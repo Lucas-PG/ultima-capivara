@@ -160,16 +160,16 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             # when the arms come up to a gun.
             w = {k: val for k, val in w.items() if not k.startswith(('arm_', 'forearm_'))} or {'chest': 1.0}
         if partv[i] == 1:
-            w = {'blink_' + ('R' if p[0] > 0 else 'L'): 1.0}
+            # The eyeball carries its own furred upper lid (painted over its top, hidden in the head
+            # when open): the socket bone rolls it forward to blink, so the lid slides down over the
+            # iris inside the opening and no skin stretches.
+            w = {'socket_' + ('R' if p[0] > 0 else 'L'): 1.0}
         elif partv[i] == 2:
             w = {'head': 1.0}            # whiskers
         elif 'head' in w and w['head'] > .5:
             s = 1 if p[0] > 0 else -1; n = 'R' if s > 0 else 'L'
             e, out_dir = C.eye_point(s)
             de = float(np.linalg.norm(p - e))
-            # The lid skin close round the opening follows the eyeball as it closes (a wider region
-            # would drag the brow down into a ridge over the big eye).
-            lid = float(ss(C.EYE_R + .010, C.EYE_R + .003, de)) * float((p - e) @ out_dir > -.004)
             ear_c = C.side(C.EAR, s)
             ear = float(ss(.066, .042, np.linalg.norm(p - ear_c))) * float(p[1] > 1.735)
             # A soft brow patch just above the lid (the eye sits near the top of the head, so a tight
@@ -182,7 +182,7 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
             nose = float(ss(.060, .030, np.linalg.norm(p - C.v(0, 1.668, -.345)))) * float(p[2] < -.29) * .85
             head = w.pop('head')
             rest = 1.0
-            for bone, v in ((('blink_' + n), lid), ('ear_' + n, ear), ('brow_' + n, brow), ('mouth_' + n, corner), ('jaw', jaw), ('nose', nose)):
+            for bone, v in (('ear_' + n, ear), ('brow_' + n, brow), ('mouth_' + n, corner), ('jaw', jaw), ('nose', nose)):
                 v = min(v, rest); rest -= v
                 if v > 0:
                     w[bone] = w.get(bone, 0) + head * v

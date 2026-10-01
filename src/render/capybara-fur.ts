@@ -7,6 +7,15 @@ import * as THREE from 'three';
 export const FUR_SHELLS = 8;
 export const FUR_RANGE = 6.5;
 const FUR_LENGTH = .015;
+/** Shell layers drawn by distance: every layer up close, a spread-out subset further away (where a
+ * capybara is a few hundred pixels tall and only the fuzzy outline still shows), so a crowd within
+ * the fur range costs what one close capybara does. Each set keeps its layers in order, inner to
+ * outer, as the outer strands must draw over the inner ones. */
+export const FUR_LEVELS: readonly { until: number; layers: readonly number[] }[] = [
+  { until: 3, layers: [0, 1, 2, 3, 4, 5, 6, 7] },
+  { until: 4.5, layers: [1, 3, 5, 7] },
+  { until: FUR_RANGE, layers: [3, 7] },
+];
 
 // The comb of the painted pelt (capybara_paint.fur_flow) in bind space: back from the nose over
 // the head, down the neck, body and legs, from the elbow to the fingers, forward over the feet.
@@ -29,23 +38,39 @@ const FUR_COMB = `
 // blend like the comb (the painted pelt uses the same frames). Fragment shader only.
 const FUR_COMBED = `
   float furCombed(vec3 p, float across, float along, float seed) {
-    float nb = furNoise3(vec3(p.x / across, p.z / across, -p.y / along) + seed);
-    vec3 d = p - vec3(0.0, 1.64, -.43); float r = length(d);
-    float nh = furNoise3(vec3(d.x / r * .35 / across, d.y / r * .35 / across, r / along) + seed + 7.0);
+    vec3 d = p - vec3(0.0, 1.64, -.43);
     float side = sign(p.x);
     vec3 elbow = vec3(side * .4080, 1.0324, -.1211), axis = vec3(side * -.1197, -.3790, -.9176);
-    vec3 q = p - elbow, e1 = normalize(cross(axis, vec3(0.0, 1.0, 0.0))), e2 = cross(axis, e1);
-    float na = furNoise3(vec3(dot(q, e1) / across, dot(q, e2) / across, dot(q, axis) / along) + seed + 13.0);
+    vec3 q = p - elbow;
     float wh = smoothstep(1.45, 1.53, p.y) * (1.0 - .6 * smoothstep(.04, .18, p.z));
     float wa = smoothstep(.20, .12, length(cross(q, axis))) * step(.2, side * p.x) * step(p.y, 1.32);
-    return mix(mix(nb, nh, wh), na, wa);
+    // Only the regions that reach this point are evaluated (most fragments lie in one), so the
+    // combed noise costs one lookup per scale instead of three.
+    float n = 0.0;
+    if (wa < .999) {
+      float nb = wh < .999 ? furNoise3(vec3(p.x / across, p.z / across, -p.y / along) + seed) : 0.0;
+      float r = length(d);
+      float nh = wh > .001 ? furNoise3(vec3(d.x / r * .35 / across, d.y / r * .35 / across, r / along) + seed + 7.0) : 0.0;
+      n = mix(nb, nh, wh);
+    }
+    if (wa > .001) {
+      vec3 e1 = normalize(cross(axis, vec3(0.0, 1.0, 0.0))), e2 = cross(axis, e1);
+      n = mix(n, furNoise3(vec3(dot(q, e1) / across, dot(q, e2) / across, dot(q, axis) / along) + seed + 13.0), wa);
+    }
+    return n;
   }`;
 
-const shellGeometries = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry | null>();
+const shellGeometries = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry[] | null>();
 const shellMaterials = new WeakMap<THREE.Material, THREE.MeshStandardMaterial>();
 
-/** Shared shell geometry for a LOD0 source (null when it carries no `_fur` mask). */
+/** Shared shell geometry for a LOD0 source (null when it carries no `_fur` mask): every layer. */
 export function furShellGeometry(mesh: THREE.SkinnedMesh): THREE.BufferGeometry | null {
+  return furShellLevels(mesh)?.[0] ?? null;
+}
+
+/** The shared shell geometries of a LOD0 source, one per FUR_LEVELS entry: the same vertex streams
+ * (uploaded once), each with the index of its own layers. */
+export function furShellLevels(mesh: THREE.SkinnedMesh): THREE.BufferGeometry[] | null {
   const source = mesh.geometry;
   if (shellGeometries.has(source)) return shellGeometries.get(source)!;
   const index = source.index, furLength = source.getAttribute('_fur');
@@ -80,17 +105,22 @@ export function furShellGeometry(mesh: THREE.SkinnedMesh): THREE.BufferGeometry 
   geometry.setAttribute('furRest', new THREE.BufferAttribute(rest, 3));
   geometry.setAttribute('furShell', new THREE.BufferAttribute(shell, 1));
   geometry.setAttribute('furLength', new THREE.BufferAttribute(lengths, 1));
-  const indices = new Uint32Array(fur.length * FUR_SHELLS);
-  for (let s = 0; s < FUR_SHELLS; s++) fur.forEach((v, i) => { indices[s * fur.length + i] = s * used.length + remap.get(v)!; });
-  geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-  geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
-  shellGeometries.set(source, geometry);
-  return geometry;
+  const levels = FUR_LEVELS.map(({ layers }, level) => {
+    const view = level ? new THREE.BufferGeometry() : geometry;
+    if (level) for (const [name, attribute] of Object.entries(geometry.attributes)) view.setAttribute(name, attribute);
+    const indices = new Uint32Array(fur.length * layers.length);
+    layers.forEach((s, k) => fur.forEach((v, i) => { indices[k * fur.length + i] = s * used.length + remap.get(v)!; }));
+    view.setIndex(new THREE.BufferAttribute(indices, 1));
+    view.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .95, 0), 1.9);
+    return view;
+  });
+  shellGeometries.set(source, levels);
+  return levels;
 }
 
-/** Releases a source's shared shell geometry (renderer disposal). */
+/** Releases a source's shared shell geometries (renderer disposal). */
 export function disposeFurShells(source: THREE.BufferGeometry): void {
-  shellGeometries.get(source)?.dispose(); shellGeometries.delete(source);
+  shellGeometries.get(source)?.forEach(geometry => geometry.dispose()); shellGeometries.delete(source);
 }
 
 /** The body material with shell displacement and strand cut-out (one per team material). */
@@ -139,7 +169,7 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
         if (furKeep < mix(.32, .95, vFurShell) + uFurFade) discard;
         diffuseColor.rgb *= mix(.84, 1.12, vFurShell);`);
   };
-  material.customProgramCacheKey = () => `${key}:capivara-fur-v4`;
+  material.customProgramCacheKey = () => `${key}:capivara-fur-v5`;
   shellMaterials.set(base, material);
   material.addEventListener('dispose', () => shellMaterials.delete(base));
   return material;
@@ -147,8 +177,9 @@ export function furShellMaterial(base: THREE.MeshStandardMaterial): THREE.MeshSt
 
 /** A per-avatar shell mesh, skinned by the avatar's own LOD0 skeleton. */
 export function attachFurShells(lod0: THREE.SkinnedMesh): THREE.SkinnedMesh | null {
-  const geometry = furShellGeometry(lod0);
-  if (!geometry) return null;
+  const levels = furShellLevels(lod0);
+  if (!levels) return null;
+  const geometry = levels[0];
   // Each avatar owns a copy (same shader program) so its distance fade is its own.
   const shared = furShellMaterial(lod0.material as THREE.MeshStandardMaterial);
   const material = shared.clone();
@@ -158,12 +189,18 @@ export function attachFurShells(lod0: THREE.SkinnedMesh): THREE.SkinnedMesh | nu
   shells.renderOrder = 1;
   shells.frustumCulled = true; shells.visible = false;
   shells.bind(lod0.skeleton, lod0.bindMatrix);
+  shells.userData.furLevels = levels;
   lod0.add(shells);
   return shells;
 }
 
-/** Shows the shells within FUR_RANGE, thinning them over the last metres. */
+/** Shows the shells within FUR_RANGE with fewer layers further away, thinning them over the last metres. */
 export function updateFurShells(shells: THREE.SkinnedMesh, distance: number): void {
   shells.visible = distance < FUR_RANGE;
+  const levels = shells.userData.furLevels as THREE.BufferGeometry[] | undefined;
+  if (levels) {
+    const level = FUR_LEVELS.findIndex(entry => distance < entry.until);
+    shells.geometry = levels[level < 0 ? levels.length - 1 : level];
+  }
   (shells.material as THREE.Material).userData.furFade = THREE.MathUtils.smoothstep(distance, FUR_RANGE - 2.5, FUR_RANGE) * .6;
 }

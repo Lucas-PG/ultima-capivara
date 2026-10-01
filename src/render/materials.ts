@@ -39,6 +39,8 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
   // First-person arms v3: own baked maps; a `_fur` vertex attribute marks the pelt.
   // The v6 world character shares that path: baked maps and a `_fur` vertex mask.
   const bakedFur = material.userData.capyArmsV3 === true || material.userData.capyCharacterV6 === true;
+  // The world character only (the first-person arms keep their own look).
+  const characterV6 = material.userData.capyCharacterV6 === true;
   material.userData.toonCharacter = true;
   if (bakedFur) {
     material.roughness = 1; material.metalness = 1;
@@ -89,9 +91,15 @@ export function applyCharacterStyle(material: THREE.MeshStandardMaterial, atlasC
       // It follows the fur tile and sun, without adding gloss to the mouth.
       vec3 furSheen = mix(vec3(.045, .065, .085), characterRim * .16, sunEdge);
       outgoingLight += furSheen * sqrt(max(diffuseColor.rgb, vec3(0.0))) * pow(grazing, 2.5) * furSurface * rimSurface;
+      #if ${characterV6 ? 1 : 0}
+        // Light scattered through the pelt keeps the world capybara's shaded side golden instead of
+        // the muddy brown of a cool sky on orange fur: a warm fill in the fur's own colour where the
+        // sun does not reach (the stylized heroes' warm shade). Fur only; cloth and skin keep theirs.
+        outgoingLight += diffuseColor.rgb * diffuseColor.rgb * vec3(1.0, .88, .66) * .46 * (1.0 - sunEdge) * furSurface;
+      #endif
       #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v6:${atlasColumns}:${surfaceAtlas}:${bakedFur}`;
+  material.customProgramCacheKey = () => `${cacheKey}:ilha-dourada-character-v6:${atlasColumns}:${surfaceAtlas}:${bakedFur}:warm-shade-${characterV6}`;
   material.needsUpdate = true;
   return material;
 }

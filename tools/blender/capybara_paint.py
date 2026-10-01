@@ -22,9 +22,13 @@ F = np.float32
 M = C.M
 CHUNK = 1 << 20
 # The palette (sRGB hex). The first-person arms are matched to these.
-FUR_BASE, FUR_TIP, FUR_DARK, FUR_LIGHT, FUR_BUFF = 'B47C49', 'CC9763', '8E5A33', 'C79B6A', 'D5B68C'
+FUR_BASE, FUR_TIP, FUR_DARK, FUR_LIGHT, FUR_BUFF = 'B47C49', 'CC9763', '8E5A33', 'C79B6A', 'E6D2AE'
 SKIN, SKIN_LIGHT, CLAW, NOSE = '4E433E', '6C5E57', '2A2320', '6A5E58'
 LINEN, DENIM, OLIVE, LEATHER, LEATHER_DARK, RUCKSACK, BRASS = 'E4D8C0', '51627E', '74755A', '6E4A31', '55382A', '7E6444', 'C39A52'
+# The lid edge on the eyeball: its angle about the lid hinge, from the gaze toward up (radians). Above
+# the opening's top edge (about .65) while open; the blink's roll (capybara_clips.LID_SWING) carries it
+# below the bottom edge (about -.52).
+LID_EDGE = .87
 # Mean of the lock shading over the pelt (measured on the build), so a lock's average stays the palette value.
 LOCK_SHADE_MEAN = .895
 
@@ -352,8 +356,11 @@ def _paint_texels(p, n, mat, edge, ao, face):
             # chin and a thin rim round the nose leather, fading softly back into the cheeks.
             dm = S.evaluate(face.muzzle, qh, cull=False)[0]
             lower = ss(1.628, 1.598, qh[:, 1] - .10 * np.clip(qh[:, 2] + .34, 0, .20)) * ss(-.10, -.20, qh[:, 2])
-            mz = np.maximum(ss(.018, -.014, dm) * .55, lower)
-            ch = lerp(ch, srgb(FUR_BUFF) * (.97 + .05 * ridge[hs])[:, None], mz * .88)
+            # The muzzle's sides in front of the eyes are pale too (the concept's cream muzzle),
+            # fading up toward the eye line and back into the cheeks.
+            sides = ss(1.700, 1.640, qh[:, 1]) * ss(-.17, -.25, qh[:, 2]) * ss(.030, .060, np.abs(qh[:, 0]))
+            mz = np.maximum(np.maximum(ss(.018, -.014, dm) * .55, lower), sides * .85)
+            ch = lerp(ch, srgb(FUR_BUFF) * (.97 + .05 * ridge[hs])[:, None], mz * .90)
             hh = hh * (1 - .5 * mz)
             # The dark bridge running up from the nose leather between the eyes.
             bridge = ss(.050, .015, np.abs(qh[:, 0])) * ss(-.22, -.32, qh[:, 2]) * ss(1.69, 1.72, qh[:, 1])
@@ -523,6 +530,7 @@ def _paint_texels(p, n, mat, edge, ao, face):
     # Eyes: a large warm amber iris ringed darker around a wide pupil, a sliver of warm white at
     # the corners and a catchlight that survives minification; the specular comes from the gloss.
     esel = mat == M['eye']
+    lid_texels = np.zeros(len(p), F); lid_height = np.zeros(len(p), F)
     if esel.any():
         q = p[esel]
         c = np.zeros((len(q), 3), F)
@@ -532,19 +540,38 @@ def _paint_texels(p, n, mat, edge, ao, face):
             ang = np.arccos(np.clip(d @ out, -1, 1))
             # A big warm brown iris, a dark pupil, a darker rim, a sliver of warm white at the corners
             # and a large catchlight high on the front (below the heavy upper lid).
-            ce = lerp(srgb('A8692C'), srgb('5A3418'), ss(.14, .56, ang) * .90)
+            ce = lerp(srgb('C0812F'), srgb('6A3C18'), ss(.12, .56, ang) * .85)
             ce = lerp(ce, srgb('0A0706'), ss(.25, .19, ang))
             ce = lerp(ce, srgb('1A0F09'), ss(.54, .64, ang))
             ce = lerp(ce, srgb('E8DCC6'), ss(.70, .80, ang))
             gleam = _norm((out + E[:, 2] * .22 + E[:, 0] * .14)[None])[0]
-            ce = lerp(ce, srgb('FFF8EC'), ss(.20, .12, np.linalg.norm(d - gleam, axis=1)))
+            ce = lerp(ce, srgb('FFFAF0'), ss(.23, .14, np.linalg.norm(d - gleam, axis=1)))
             small = _norm((out - E[:, 2] * .20 - E[:, 0] * .22)[None])[0]
             ce = lerp(ce, srgb('F3E6D2'), ss(.09, .05, np.linalg.norm(d - small, axis=1)) * .8)
+            # The furred upper lid over the top of the eyeball, hidden in the head while the eye is
+            # open: the angle about the lid hinge (the line through the corners) from the gaze toward
+            # up. Blinking rolls the eyeball forward, so the dark lash edge and the fur above it slide
+            # down over the iris. Fur in the lid colours with fine strands along the sweep.
+            psi = np.arctan2(d @ E[:, 2], d @ out)
+            lid = ss(LID_EDGE - .02, LID_EDGE + .02, psi) + ss(-2.6, -2.7, psi)
+            along = (q[k] @ E[:, 0])
+            strands = .6 * S.value_noise(np.stack([along / .0011, psi / .06, np.full(int(k.sum()), s * 5.0, F)], 1).astype(F), 91) \
+                + .4 * S.value_noise(np.stack([along / .0035, psi / .15, np.full(int(k.sum()), s * 7.0, F)], 1).astype(F), 92)
+            # The lid's fur in the colours of the skin round the eye (base fur lightened toward the lash
+            # line like the ring on the skin), strands running down the lid, a dark lash line at its edge.
+            fur_lid = lerp(srgb(FUR_BASE), srgb(FUR_TIP), .30 + .25 * ss(LID_EDGE + .45, LID_EDGE + .10, psi)) * (.80 + .30 * strands)[:, None]
+            fur_lid = lerp(fur_lid, srgb('1E1512'), ss(LID_EDGE + .12, LID_EDGE + .05, psi))
+            ce = lerp(ce, fur_lid, np.clip(lid, 0, 1))
             c[k] = ce
-        col[esel] = c; rough[esel] = .04; hgt[esel] = 0
+            idx_k = np.flatnonzero(esel)[k]
+            lid_texels[idx_k] = np.clip(lid, 0, 1)
+            lid_height[idx_k] = np.clip(lid, 0, 1) * (strands - .5) * .0006
+        col[esel] = c; rough[esel] = .04 + .86 * lid_texels[esel]; hgt[esel] = lid_height[esel]
     # Occlusion from the bake: soft shadow in the folds and under the gear. The team cloth keeps a
     # lighter floor so a fold never reads as a dark blotch once it is tinted.
     floor = np.where(fur, .74, np.where(team, .70, .60))
+    # The eyeball's lid is baked deep inside the head (fully occluded) but only shows in the opening.
+    floor = floor + (1 - floor) * lid_texels
     col *= (floor + (1 - floor) * ao ** 1.2)[:, None]
     return col, rough, metal, hgt
 
