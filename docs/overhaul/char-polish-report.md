@@ -211,3 +211,108 @@ The paw: `capy_hand.py` (four digits, lengths 108 to 150 mm from the wrist, radi
   pose; no clipping, but the thumb does not wrap.
 - At 60 m from behind in shade, the yellow team colour reads weaker than red or blue.
 - The first-person arms still use the round 1 palette (see above to match).
+
+## Round 3: knees, head and fur
+
+Brief: `docs/overhaul/briefs/char-round3.prompt.txt`, then the user's direction during the round: a fun,
+cartoonized capybara humanoid, with the references as guides rather than specs (no cheek lobes, no bead
+eyes, no pig snout, fur that reads as fur, only changes that beat round 2). Worked from round 2 in small
+steps; every step was compared with round 2 and the targets at the same cameras (1.1 m face front,
+three-quarter, side and back; 3 m body; clay; 1.7 m legs; walk, run and crouch strips; 8, 15 and a true
+60 m). Boards (target or round 2 above round 3): `docs/overhaul/evidence/char-polish/r3-board-face.jpg`,
+`r3-board-clay.jpg`, `r3-board-body.jpg`, `r3-board-legs.jpg`, `r3-board-far.jpg`, `r3-board-concept.jpg`,
+`r3-expressions.jpg`, `r3-holds.jpg`, `r3-support-paw.jpg`, `r3-tiers-lods.jpg`, `r3-clips.jpg`, `r3-statue.jpg`.
+
+### What changed and why
+- **Knees** (`capybara_clips.py`): the leg IK pole pointed at Blender -Y, which is game backward (the
+  exporter maps game -z to Blender +Y), so every authored clip (idle, armed idle, the eight walk and
+  eight crouch directions, run, jump, land, death, emotes) bent the knees backward: the "bent backwards"
+  read. The pole now points forward: a soft forward knee over the foot in every gait (`r3-board-legs.jpg`).
+  Planted feet, the ground clamp and the gait tests are unchanged (the IK targets are the same).
+- **Head** (`capybara_form.py`, `capy_sdf.py`): rebuilt as one clean lofted box (the loft now takes a
+  width at the cheeks, a quadratic across each section) capped by a convex blunt muzzle front, so there
+  are no added lobes: the round 2 jowl ellipsoids ("two big balls at the base of the head") are gone and
+  the cheeks taper into a thick column neck. A soft cushion nose pad with slanted slit nostrils, a wide
+  gentle smile, calm half-lidded almond eyes set in the skull under a soft brow (a lid cut, not a bead on
+  the surface), both visible from the front, small cupped ears at the crown corners and a crown tuft.
+  Modeled toward a new head concept (`docs/art/references/capybara-head-concept-r3.jpg`, Codex image
+  tool, prompt in `docs/assets.md`), matched at the concept's framing (`r3-board-concept.jpg`).
+- **Fur** (`capybara_paint.py`, `capybara-fur.ts`): the painted locks were anisotropic Worley cells in
+  one global frame, sheared into cells and ripples wherever the comb turns; they are now laid in
+  flow-aligned coordinates per region (head radial from the nose, body and legs down, forearms elbow to
+  wrist, paws along the digits, feet forward), blended like the comb. Each lock has dark roots and a
+  lighter tip, renormalised to the palette so the far read keeps its colours; relief 1.3 mm (head),
+  0.8 mm (paws), 2.0 mm (body) in the normal map. Value design: darker crown top, nape and backs of the
+  limbs, lighter cheeks, jaw and throat, a warm buff lower muzzle, a crisp lid line along the opening
+  and a soft light ring round the eye. Shells: 8 layers of 15 mm (were 6 of 11 mm), clumped into
+  13 x 40 mm locks of 1.1 x 9 mm strands along the same comb frames; the lids keep their fur to the edge.
+- **Face rig** (`capybara_weights.py`, `capybara_form.py`): the brow bone and its weights sit above the
+  larger eye (inside it they lifted a ridge), the lid weights hug the opening, gentler brow poses; the nose
+  leather rides the `nose` bone (the idle twitch now shows); the nape below the skull rides the neck.
+- **Hit volume**: every LOD's head vertices stay inside the head sphere (a decimation outlier or two on
+  LOD1/LOD2 is brought back inside at build time and logged); worst case over faces and locomotion
+  0.293 m against the 0.302 m limit. The label follows the head crown and the two ear tips separately.
+- **Far team read** (`capybara.ts`): beyond 18 m the cloth's team mask is the larger of the texel mask
+  and the vertex mask (the mipmapped texel mask blurred into the fur, so a golden team colour read as
+  more fur) and the cloth carries a little of its team colour as light, lit or in shade. Vivid team
+  pixels at a true 60 m (1920x1080, 70 degree view, daylight and shade, front and back), round 2 to
+  round 3: red 20-29 to 32-38, blue 0-2 to 3-10, yellow from behind 11-19 to 19-24, yellow from the
+  front unchanged (24-40 to 22-41). `r3-board-far.jpg`.
+- **Support paw** (`capybara.ts`, `TP_SUPPORT`): on the Lanca-coco and the sniper the support wrist is
+  lifted onto the fore-end (10 and 12 mm in weapon space) and the digits close further, so the paw wraps
+  the wood instead of sitting under it (`r3-support-paw.jpg`). The other seven holds are unchanged.
+- **Statue**: rebuilt from the new head (55 KB, 10,000 triangles). The export's "Mesh ... is not valid"
+  meant the glTF exporter was silently fixing degenerate faces during export; the statue and the
+  character LODs are now validated before export and the log says what was fixed (the LODs lose about 93
+  duplicate decimation faces; the statue is clean). The shipped geometry was already the cleaned one.
+- **Pipeline**: the 4K paint runs inside Blender on the build machine too (`capybara_maps.py`), so one
+  Linux build makes every shipped map. Review tools: `ads=1` (aimed), `graphics=low|medium|high`, a closer
+  motion framing (`FOCUS`, `FOV`), longer screenshot timeouts; the sculpt preview meshes only the head or
+  the legs in seconds. Shared contracts untouched: `capy_hand.py`, the forearm, paw skin, claw and cuff
+  colours, the hit shapes, eye height, the weapon mount, the three tiers and the runtime API.
+
+### Measurements
+
+| | Round 2 | Round 3 |
+| --- | ---: | ---: |
+| LOD0 / LOD1 / LOD2 triangles | 40,866 / 9,380 / 2,168 | 40,889 / 9,405 / 2,186 |
+| Fur shells (within 6.5 m) | 4,884 faces x 6 = 29.3k | 4,967 faces x 8 = 39.7k |
+| High / Medium / Low GLB | 7.05 / 3.83 / 2.80 MB | 6.52 / 3.75 / 2.79 MB |
+| GPU texture memory | 192 / 48 / 12 MB | unchanged |
+| Statue | 56 KB, 10,000 triangles | 55 KB, 10,000 triangles |
+
+Crowd timing, QA plaza with 16 capybaras, 1280x720, `tools/qa/charperf.mjs`, on a machine shared with
+other sessions (load average 21 to 47 during the runs, so the timings are load bound; the release gate
+redoes performance on a quiet machine): low 16.7 / 33.5 ms p50/p95, 136 draws, 1.55M triangles (load
+21.0); medium 16.7 / 33.4 ms, 155 draws, 1.75M (load 47.4); high 33.3 / 33.4 ms, 180 draws, 2.11M (load
+39.0). Draws and triangles in that pose are the same as round 2's; the extra shell triangles (about 10k
+per capybara) only apply within 6.5 m.
+
+### Tests
+`npx tsc --noEmit` clean; `npx vitest run --maxWorkers=2`: 114 files, 1054 tests pass. At a load average
+near 98 the default 15 s timeout failed about 20 heavy world, sound and bot tests by timeout only (none in
+the character suites); the whole suite was rerun with `--testTimeout=600000` at a load of 43 to 76 and
+passed, and the same suite passed at the default timeout at 18:42 under a load of 16 to 29;
+`npm run build` passes. The character suites (asset contract, head and crouched hit volumes, gait,
+boing, reactions, loading, readiness, team mask) pass at the default timeout. The head hit-volume tests
+now count the `nose` bone as part of the head (the nose leather rides it).
+
+### Final surface values for the first-person arm match (sRGB, unchanged from round 2)
+Fur base `#B47C49`, tips `#CC9763`, dark `#8E5A33`, light and inner forearm `#C79B6A`; bare paw skin
+`#4E433E` to `#6C5E57`; claws `#2A2320`; linen cuff `#E4D8C0` with tone-on-tone seams `#CDBFA4`. The
+muzzle buff moved to `#D5B68C` (face only). What changed is the fur pattern, for matching the arms' look:
+combed flow-aligned locks (paws 9 x 26 mm, body and forearms 20 x 62 mm), dark roots (x0.76) to light
+tips (`#CC9763` at 55 percent), and 8 shells of 15 mm clumped into 13 x 40 mm locks. `capy_hand.py` is
+unchanged.
+
+### Known issues
+- Stylized 3D against a painted concept: the concept's soft strand fur and its white-rimmed eyes are
+  approximated by painted locks, shells and a lid line; up close the shells end in a slightly jagged
+  silhouette.
+- Blinks close the eye by squashing the lids (the rig's contract): at 1 m the closed lid reads as a smooth
+  plate for the 0.1 s of a blink; fine from 3 m.
+- The head's shaded side (away from the sun) reads browner than round 2's rounder head, which caught more
+  sky light on its jowls.
+- Yellow is still the weakest team colour at 60 m (its hue is close to the fur's).
+- The build machine does not receive `CAPY_REUSE_BAKES` (the remote runner passes no environment), so
+  every character build re-bakes (about 3.5 minutes there).

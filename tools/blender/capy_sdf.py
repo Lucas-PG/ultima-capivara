@@ -195,18 +195,24 @@ def _catmull(xs, ys, n=400):
 
 class ZLoft(Node):
     """Solid lofted along z through stations (z, y_top, y_bottom, half_width_top, half_width_bottom,
-    exponent). Sections are superellipses whose half-width blends from bottom to top, so a
-    section can be a pear (broad jowls, narrow crown). Approximate distance, exact zero set."""
+    exponent) or (z, y_top, y_bottom, half_width_top, half_width_mid, half_width_bottom, exponent).
+    Sections are superellipses whose half-width runs from bottom to top, linearly or through the
+    middle width (a quadratic), so a section can be a pear or widest at the cheeks. Approximate
+    distance, exact zero set."""
     def __init__(self, stations, x0=0.0, mat=0):
         st = np.asarray(stations, np.float64)
         order = np.argsort(st[:, 0]); st = st[order]
+        if st.shape[1] == 6:
+            st = np.concatenate([st[:, :4], (st[:, 3:4] + st[:, 4:5]) * .5, st[:, 4:]], 1)
         self.z = None; cols = []
-        for c in range(1, 6):
-            z, val = _catmull(st[:, 0], st[:, c]); cols.append(val)
+        for c in range(1, 7):
+            # Dense samples: a quickly closing cap would otherwise terrace between them.
+            z, val = _catmull(st[:, 0], st[:, c], 2400); cols.append(val)
             self.z = z
-        self.top, self.bot, self.wt, self.wb, self.n = [np.asarray(c, F) for c in cols]
+        self.top, self.bot, self.wt, self.wm, self.wb, self.n = [np.asarray(c, F) for c in cols]
         self.x0 = F(x0); self.mat = mat
-        wmax = float(max(self.wt.max(), self.wb.max()))
+        # The quadratic can bulge past its widest control value: keep the culling box generous.
+        wmax = float(max(self.wt.max(), self.wm.max(), self.wb.max())) * 1.15
         self.lo = _v((x0 - wmax, self.bot.min(), st[0, 0])); self.hi = _v((x0 + wmax, self.top.max(), st[-1, 0]))
 
     def d(self, p):
@@ -214,10 +220,13 @@ class ZLoft(Node):
         inside = (z >= self.z[0]) & (z <= self.z[-1])
         zc = np.clip(z, self.z[0], self.z[-1])
         top = np.interp(zc, self.z, self.top); bot = np.interp(zc, self.z, self.bot)
-        wt = np.interp(zc, self.z, self.wt); wb = np.interp(zc, self.z, self.wb); n = np.interp(zc, self.z, self.n)
+        wt = np.interp(zc, self.z, self.wt); wm = np.interp(zc, self.z, self.wm); wb = np.interp(zc, self.z, self.wb)
+        n = np.interp(zc, self.z, self.n)
         yc = (top + bot) * .5; h = np.maximum((top - bot) * .5, 1e-4)
         yn = (p[:, 1] - yc) / h
-        w = np.maximum(wb + (wt - wb) * np.clip((yn + 1) * .5, 0, 1), 1e-4)
+        t = np.clip((yn + 1) * .5, 0, 1)
+        # Through (0, wb), (.5, wm), (1, wt); with wm the mean of the other two this is the old line.
+        w = np.maximum(wb * (1 - t) * (1 - 2 * t) + 4 * wm * t * (1 - t) + wt * t * (2 * t - 1), 1e-4)
         r = (np.abs((p[:, 0] - self.x0) / w) ** n + np.abs(yn) ** n) ** (1 / n)
         d = (r - 1) * np.maximum(np.minimum(h, w), .02)
         return np.where(inside, d, np.maximum(d, np.abs(z - zc)) + .002).astype(F)

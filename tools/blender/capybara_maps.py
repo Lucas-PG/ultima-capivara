@@ -15,7 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import capy_shim
-capy_shim.install()
+in_blender = not capy_shim.install()   # the shim is only needed outside Blender
 import numpy as np
 import capybara_form as C
 import capybara_paint as PAINT
@@ -44,7 +44,10 @@ def encode(rgb, srgb_out):
     return np.flipud(np.round(rgb * 255).astype(np.uint8))
 
 
-cache = np.load(sys.argv[1] if len(sys.argv) > 1 else OUT / 'v6/bakes.npz')
+# Also runs inside Blender (`blender -b --python capybara_maps.py [-- cache.npz]`, on the build
+# machine): Blender's own options are not ours.
+argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else ([] if in_blender else sys.argv[1:])
+cache = np.load(argv[0] if argv else OUT / 'v6/bakes.npz')
 covered = cache['covered']
 root, _parts = C.build()
 log('form')
