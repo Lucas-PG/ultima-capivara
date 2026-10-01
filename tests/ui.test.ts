@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_CENTRED_WIDTH, HUD_MIN_SCALE, HUD_MIN_TEXT, HUD_SHORT_HEIGHT, hudNarrow, hudScale, hudShort, HEALS, HEAL_INFO, canUseHeal, healTarget, suggestedHeal, healGains, healthTone, pickupCopy, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_CENTRED_WIDTH, HUD_MIN_SCALE, HUD_MIN_TEXT, HUD_SHORT_HEIGHT, hudNarrow, hudScale, hudShort, HEALS, HEAL_INFO, bagSlotCentre, freshBoxes, canUseHeal, healTarget, suggestedHeal, healGains, healthTone, pickupCopy, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -197,6 +197,21 @@ describe('heals and pickups', () => {
     expect(pickupCopy('weapon', 0, 'Doze', 'Lendária')).toEqual({ tone: 'weapon', title: 'Doze', detail: 'Lendária · na mão' });
     // Two short lines (title over detail) that fit the 196 px pop on a portrait phone.
     for (const kind of [...HEALS, 'armor', 'helmet', 'ammo']) { const copy = pickupCopy(kind, 5); expect(copy.title.length).toBeLessThanOrEqual(16); expect(copy.detail.length).toBeLessThanOrEqual(28); }
+  });
+  it('pops a weapon tab only when its box receives a different gun', () => {
+    expect(freshBoxes(null, ['m4:0', '', 'pistol:0', 'machete:0'])).toEqual([false, false, false, false]);
+    expect(freshBoxes(['m4:0', '', 'pistol:0', 'machete:0'], ['m4:0', 'sniper:2', 'pistol:0', 'machete:0'])).toEqual([false, true, false, false]);
+    expect(freshBoxes(['m4:0', '', '', ''], ['m4:3', '', '', ''])).toEqual([true, false, false, false]);
+    expect(freshBoxes(['m4:0', 'sniper:2', '', ''], ['m4:0', '', '', ''])).toEqual([false, false, false, false]);
+  });
+  it('flies a picked-up heal to the centre of its slot in the bag', () => {
+    const desk = { size: 58, gap: 12, perRow: 5, bottom: 112 };
+    expect(bagSlotCentre(0, 1, desk)).toEqual({ x: 49, fromBottom: 141 });
+    expect(bagSlotCentre(2, 5, desk)).toEqual({ x: 189, fromBottom: 141 });
+    // Portrait phones wrap three to a row: the first row sits one pitch above the last.
+    const phone = { size: 52, gap: 12, perRow: 3, bottom: 112 };
+    expect(bagSlotCentre(1, 5, phone)).toEqual({ x: 110, fromBottom: 202 });
+    expect(bagSlotCentre(4, 5, phone)).toEqual({ x: 110, fromBottom: 138 });
   });
   it('warms the health bar as it drops', () => {
     expect([healthTone(100), healthTone(60), healthTone(59), healthTone(30), healthTone(29), healthTone(0)]).toEqual(['ok', 'ok', 'hurt', 'hurt', 'low', 'low']);

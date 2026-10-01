@@ -182,3 +182,15 @@ export function keyLabel(code: string): string {
   if (code === 'Backquote') return '\'';
   return code.replace(/^Key/, '').replace(/^Digit/, '').replace(/(Left|Right)$/, '').replace('Space', 'Espaço').replace('Control', 'Ctrl');
 }
+
+// Weapon boxes that just received a different gun (or rarity), so their tab can pop; nothing on the first tick.
+export const freshBoxes = (before: readonly string[] | null, after: readonly string[]) =>
+  after.map((key, box) => !!before && !!key && key !== before[box]);
+// Where a picked-up heal lands in the bag, in layout px from the bottom-left corner of the window: slot centres on the
+// bag's grid (rows fill from the top, so the last row sits on the bag's baseline).
+export const BAG_LEFT = 20;
+export function bagSlotCentre(index: number, carried: number, layout: { size: number; gap: number; perRow: number; bottom: number }) {
+  const pitch = layout.size + layout.gap, col = index % layout.perRow, row = Math.floor(index / layout.perRow);
+  const rowsAbove = Math.ceil(Math.max(carried, index + 1) / layout.perRow) - 1 - row;
+  return { x: BAG_LEFT + col * pitch + layout.size / 2, fromBottom: layout.bottom + layout.size / 2 + rowsAbove * pitch };
+}

@@ -11,7 +11,7 @@ import { BOX_LABELS, indexOfBox, planPickup, sidearmIndex } from '../shared/inve
 import { DEFAULT_BINDINGS, FOV_RANGE, SENSITIVITY_RANGE, adaptNote } from '../settings';
 import { CONTROL_OPTIONS, type ControlOptionKey } from '../controls';
 import { HUD_ART, capybara, escapeHtml as esc, icon, itemIcon, uiArt, weaponIcon, emoteIcon } from './icons';
-import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, HEAL_INFO, healGains, healTarget, healthTone, hudNarrow, hudScale, hudShort, pickupCopy, suggestedHeal, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
+import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, bagSlotCentre, freshBoxes, HEAL_INFO, healGains, healTarget, healthTone, hudNarrow, hudScale, hudShort, pickupCopy, suggestedHeal, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
 import { fillTip, tipCategory, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 import { EMOTES, EMOTE_IDS } from '../shared/emotes';
@@ -463,7 +463,7 @@ export class GameUI {
       // Boxes are fixed (two long guns, sidearm, facão): tabs with the gun itself; an empty tab shows a faint silhouette.
       // A box that just received a different gun pops like a heal landing in the bag.
       const boxes = [0, 1, 2, 3].map(box => { const w = me.weapons[indexOfBox(me.weapons, box)]; return w ? `${w.id}:${w.rarity}` : ''; });
-      const fresh = this.lastBoxes ? boxes.map((key, box) => !!key && key !== this.lastBoxes![box]) : [false, false, false, false];
+      const fresh = freshBoxes(this.lastBoxes, boxes);
       this.lastBoxes = boxes;
       this.el('hotbar').innerHTML = [0, 1, 2, 3].map(box => { const i = indexOfBox(me.weapons, box), w = me.weapons[i]; return `<div class="hs${w && i === me.slot ? ' on' : ''}${w ? '' : ' empty'}${fresh[box] && !this.reducedMotion() ? ' gain' : ''}" data-box="${box}" style="--rc:${w ? rarityOf(w.rarity).color : 'transparent'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${box + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : `${weaponIcon(BOX_HINT[box])}<span class="sr">${BOX_LABELS[box]} vazia</span>`}</div>`; }).join('');
     }
@@ -1000,8 +1000,8 @@ export class GameUI {
     if (this.reducedMotion()) { this.restartAnimation(slot, 'gain'); return; }
     const k = this.hudScaleNow, startX = innerWidth / 2, startY = innerHeight * .5 + 90 * k;
     const narrow = document.body.classList.contains('hud-narrow'), short = document.body.classList.contains('hud-short');
-    const size = narrow ? 52 : short ? 48 : 58, pitch = size + (short ? 10 : 12), perRow = narrow ? 3 : 5, col = index % perRow, row = Math.floor(index / perRow);
-    const endX = (16 + 4 + col * pitch + size / 2) * k, endY = innerHeight - (BAG_BOTTOM + size / 2 + row * pitch) * k;
+    const target = bagSlotCentre(index, carried, { size: narrow ? 52 : short ? 48 : 58, gap: short ? 10 : 12, perRow: narrow ? 3 : 5, bottom: BAG_BOTTOM });
+    const endX = target.x * k, endY = innerHeight - target.fromBottom * k;
     const dx = endX - startX, dy = endY - startY;
     const fly = document.createElement('div'); fly.className = 'fly'; fly.innerHTML = itemIcon(id);
     fly.style.width = fly.style.height = `${Math.round(64 * k)}px`;
