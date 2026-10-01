@@ -33,7 +33,9 @@ import { StormView } from './storm';
 import { CombatCamera } from './combat-camera';
 import { DEATH_CAM_SECONDS } from '../shared/death-cam';
 import { actorEye } from '../shared/collision';
-import { RenderPipeline, PRESETS } from './pipeline';
+import { RenderPipeline, PRESETS, GUARD } from './pipeline';
+import { DynamicResolution, outputDensity, renderRange, renderSize } from './resolution';
+import { gpuFrameTimer } from './gpu-frame-timer';
 import { itemGeometry } from './item-geometry';
 import type { PresentationFrame } from './local-presentation';
 export { itemGeometry } from './item-geometry';
@@ -80,12 +82,11 @@ export class GameRenderer {
   private lastFrame: RenderFrame | null = null;
   private lastSize = { width: 1, height: 1 };
   private frameStats = { drawCalls: 0, triangles: 0 };
-  private resolutionScale = 1;
   private lastDeviceRatio = 0;
-  private frameInterval = 16.7;
   private lastUpdateAt = 0;
-  private slowFor = 0;
-  private fastFor = 0;
+  private lastCpuMs = 0;
+  private readonly dynamicResolution: DynamicResolution;
+  private outputRatio = 0;
   private warming: Promise<void> | null = null;
   private preparation: Promise<void> = Promise.resolve();
   private disposed = false;
@@ -112,7 +113,7 @@ export class GameRenderer {
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
-    instrumentGpu(this.gl); gpuPasses.attach(this.gl);
+    instrumentGpu(this.gl); gpuPasses.attach(this.gl); gpuFrameTimer.attach(this.gl);
     const weaponManifest: readonly AssetEntry[] = [
       ...ASSET_MANIFEST,
       ...fpManifest(),
@@ -171,15 +172,16 @@ export class GameRenderer {
     this.effectsFrame = { camera: this.camera, fpCamera: this.weaponView.camera, avatars: this.avatars,
       firstPerson: false, viewportHeight: 1, reducedMotion: settings.reducedMotion };
     this.pipeline = new RenderPipeline(this.gl, PRESETS[settings.graphics].samples);
+    this.dynamicResolution = new DynamicResolution(renderRange(settings.graphics, settings.renderScale ?? 'auto', window.devicePixelRatio || 1));
     this.applyPreset(settings);
     this.resize();
   }
 
   private applyPreset(settings: Settings) {
     const preset = PRESETS[settings.graphics];
-    this.applyPixelRatio();
     this.pipeline.setSamples(preset.samples);
     this.pipeline.setQuality(preset);
+    this.applyResolution(true);
     this.gl.shadowMap.enabled = preset.shadows; this.sun.castShadow = preset.shadows;
     this.interiorLight.visible = preset.interior;
     const reach = preset.shadowReach || 30, shadow = this.sun.shadow.camera;
@@ -193,33 +195,40 @@ export class GameRenderer {
     shadow.left = -reach; shadow.right = reach; shadow.top = reach; shadow.bottom = -reach; shadow.updateProjectionMatrix();
   }
 
-  private applyPixelRatio() {
-    const ratio = Math.min(window.devicePixelRatio || 1, PRESETS[this.settings.graphics].dpr) * this.resolutionScale;
-    if (Math.abs(this.gl.getPixelRatio() - ratio) > .01) {
+  // The canvas holds the screen's resolution (or the render ceiling, see outputDensity); the 3D
+  // targets are allocated once at the density ceiling and drawn through a viewport at the current
+  // density, so the dynamic resolution never reallocates anything (each change used to stall 80 to 230 ms).
+  private applyResolution(reset: boolean) {
+    const deviceRatio = window.devicePixelRatio || 1, { width, height } = this.lastSize;
+    const range = renderRange(this.settings.graphics, this.settings.renderScale ?? 'auto', deviceRatio);
+    if (reset) this.dynamicResolution.reset(range);
+    const output = outputDensity(range, deviceRatio);
+    if (output !== this.outputRatio || reset) {
       const resizeAt = timing.begin();
-      this.gl.setPixelRatio(ratio); this.pipeline.resize();
+      this.outputRatio = output; this.gl.setDrawingBufferSize(width, height, output);
       timing.end('resolution-change', resizeAt, '', true);
     }
+    const canvas = this.gl.domElement, ceiling = renderSize(width, height, range.max), now = renderSize(width, height, this.dynamicResolution.density);
+    this.pipeline.setSize({ outputWidth: canvas.width, outputHeight: canvas.height,
+      allocWidth: ceiling.width + GUARD, allocHeight: ceiling.height + GUARD, width: now.width, height: now.height });
   }
 
-  // Only sustained misses reduce resolution. A tight floor preserves small
-  // details and readable silhouettes on Retina displays; isolated stalls do not.
-  private adaptResolution() {
+  /** Render pixels per CSS pixel this frame (the dynamic resolution's current density). */
+  get renderDensity() { return this.dynamicResolution.density; }
+
+  // Only sustained misses change the resolution (see DynamicResolution); isolated stalls do not.
+  private adaptResolution(budgetMs: number) {
     const now = performance.now(), interval = now - this.lastUpdateAt; this.lastUpdateAt = now;
-    const budget = 1000 / (this.settings.frameLimit || 60);
-    if (interval <= 0 || interval > budget * 2.6) return;
-    this.frameInterval += (interval - this.frameInterval) * .08;
-    if (this.frameInterval > budget * 1.18) { this.slowFor += interval; this.fastFor = 0; }
-    else if (this.frameInterval < budget * 1.04) { this.fastFor += interval; this.slowFor = 0; }
-    else { this.slowFor = 0; this.fastFor = 0; }
-    if (this.slowFor > 3500 && this.resolutionScale > .85) { this.resolutionScale = Math.max(.85, this.resolutionScale - .05); this.slowFor = 0; this.applyPixelRatio(); }
-    else if (this.fastFor > 4000 && this.resolutionScale < 1) { this.resolutionScale = Math.min(1, this.resolutionScale + .05); this.fastFor = 0; this.applyPixelRatio(); }
+    if (!this.dynamicResolution.update({ intervalMs: interval, budgetMs, cpuMs: this.lastCpuMs, gpuMs: gpuFrameTimer.take() })) return;
+    const size = renderSize(this.lastSize.width, this.lastSize.height, this.dynamicResolution.density);
+    this.pipeline.setRenderSize(size.width, size.height);
   }
 
   update(frame: PresentationFrame, draw = true): void {
     if (this.disposed) return;
+    const startedAt = performance.now();
     if (this.lastDeviceRatio !== (window.devicePixelRatio || 1) || this.lastSize.width !== window.innerWidth || this.lastSize.height !== window.innerHeight) this.resize();
-    if (draw) this.adaptResolution();
+    if (draw) this.adaptResolution(frame.frameBudgetMs ?? 1000 / (this.settings.frameLimit || 60));
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
     // A new match starts with no marks, shells or effects from the previous one.
@@ -233,7 +242,7 @@ export class GameRenderer {
     timing.end('camera', cameraAt);
     const worldAt = timing.begin();
     this.worldView.update(this.elapsed, this.camera, frame.snapshot?.actors, frame.localActor);
-    this.ambientLife.update(this.camera, this.elapsed, this.settings, this.gl.getPixelRatio());
+    this.ambientLife.update(this.camera, this.elapsed, this.settings, this.dynamicResolution.density);
     timing.end('world-update', worldAt);
     this.loot.update(frame.snapshot, this.elapsed, this.camera);
     this.supplyDrops.update(frame.snapshot, frame.simulationTime ?? frame.snapshot?.time ?? 0, this.camera, this.settings);
@@ -317,6 +326,7 @@ export class GameRenderer {
       firstPerson ? this.weaponView.scene : undefined, firstPerson ? this.weaponView.camera : undefined);
     timing.end('world-draw', drawAt);
     if (timing.enabled && (this.gl.info.programs?.length ?? 0) > programs) timing.record('shader-program-created', drawAt, 0, 'frame', true);
+    this.lastCpuMs = performance.now() - startedAt;
   }
 
   private hasPlanePassengers(snapshot: NonNullable<RenderFrame['snapshot']>) {
@@ -444,7 +454,7 @@ export class GameRenderer {
     reveal(this.scene); this.weaponView.revealAll(true); reveal(this.weaponView.scene);
     this.assets.prepareTextures(this.scene); this.assets.prepareTextures(this.weaponView.scene);
     instrumentMaterials(this.scene); instrumentMaterials(this.weaponView.scene);
-    const shadows = this.gl.shadowMap.enabled;
+    const shadows = this.gl.shadowMap.enabled, size = { ...this.pipeline.size };
     try {
       this.pipeline.beginWarmup();
       this.scene.traverse(object => {
@@ -485,7 +495,7 @@ export class GameRenderer {
       for (const { shadow, size, map } of shadowMaps) {
         shadow.map?.dispose(); shadow.map = map; shadow.mapSize.copy(size);
       }
-      if (!this.disposed) this.pipeline.resize();
+      if (!this.disposed) this.pipeline.setSize(size);
       this.weaponView.revealAll(false);
       this.effects.warm(false);
       target.dispose(); this.scene.remove(this.avatars.warmupWeapons);
@@ -505,14 +515,13 @@ export class GameRenderer {
     this.lastDeviceRatio = dpr;
     // Apply CSS extent and DPR together. Moving between displays must not
     // allocate the old extent at the new DPR, then allocate it all again.
-    this.gl.setDrawingBufferSize(width, height, Math.min(dpr, PRESETS[this.settings.graphics].dpr) * this.resolutionScale);
-    this.lastSize = { width, height }; this.pipeline.resize();
+    this.lastSize = { width, height }; this.applyResolution(true);
     this.camera.aspect = width / height; this.camera.updateProjectionMatrix(); this.weaponView.resize(width, height); this.avatars.resize(width, height);
   }
 
   setSettings(settings: Settings): void {
     this.settings = settings;
-    this.resolutionScale = 1; this.applyPreset(settings);
+    this.applyPreset(settings);
     this.worldView.setSettings(settings);
     this.scene.fog = new THREE.Fog(PAINT.fog, FOG_NEAR, FOG_FAR);
     this.camera.fov = verticalFov(settings.fov); this.camera.updateProjectionMatrix(); this.resize();

@@ -5,7 +5,7 @@
 //
 // node tools/qa/real-perf.mjs <out.json>
 //   BASE=http://127.0.0.1:4187  QUALITY=low|medium|high  MODE=battle-royale|deathmatch  DURATION=300
-//   GPU=1 (timer queries, default on)  TIMING=1 (CPU spans, default on)  HEADLESS=1  W=1470 H=956 DPR=2
+//   GPU=1 (timer queries, default on)  TIMING=1 (CPU spans, default on)  HEADED=1 (a visible window; default headless)  W=1470 H=956 DPR=2
 //   TRACE_AT=60,240 (10 s GC traces at those match seconds)  SETTINGS='{"renderScale":1}' (extra saved settings)
 import { chromium } from '@playwright/test';
 import { execSync } from 'node:child_process';
@@ -26,7 +26,7 @@ const extraSettings = JSON.parse(env.SETTINGS || '{}');
 const thermal = () => { try { return Number(execSync('notifyutil -g com.apple.system.thermalpressurelevel').toString().trim().split(/\s+/).pop()); } catch { return null; } };
 const machine = () => ({ load: loadavg().map(n => +n.toFixed(2)), thermal: thermal() });
 
-const browser = await chromium.launch({ headless: env.HEADLESS === '1', channel: 'chrome',
+const browser = await chromium.launch({ headless: env.HEADED !== '1', channel: 'chrome',
   args: ['--use-gl=angle', '--use-angle=metal', '--enable-precise-memory-info', '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', `--window-size=${width},${height + 90}`] });
 const errors = [];
@@ -148,17 +148,17 @@ try {
       const heap = performance.memory?.usedJSHeapSize;
       return { times, rendered: i.renderedFrames, phase: s?.phase, stage: me?.stage, alive: me?.alive, mode: s?.config.mode, actors: s?.actors.length,
         alivePlayers: s?.actors.filter(a => a.alive).length, pos: me && { x: +me.pos.x.toFixed(1), y: +me.pos.y.toFixed(1), z: +me.pos.z.toFixed(1) },
-        stats: i.renderer, gpu: window.__capivara.gpu(true), spans, longTasks: t.longTasks.map(task => Math.round(task.duration)),
+        stats: i.renderer, density: i.renderDensity, gpu: window.__capivara.gpu(true), spans, longTasks: t.longTasks.map(task => Math.round(task.duration)),
         heapMB: heap ? +(heap / 1048576).toFixed(1) : null, drawingBuffer: (() => { const c = document.querySelector('#game'); return [c.width, c.height]; })() };
     }, rafFrom);
     rafFrom += sample.times.length;
     const intervals = []; for (let k = 1; k < sample.times.length; k++) intervals.push(+(sample.times[k] - sample.times[k - 1]).toFixed(2));
     const cpu = {}; for (const [name, values] of Object.entries(sample.spans)) cpu[name] = { n: values.length, sum: +values.reduce((a, b) => a + b, 0).toFixed(2), max: +Math.max(...values).toFixed(2) };
     samples.push({ t: +elapsed.toFixed(1), ...machine(), intervals, renderedFrames: sample.rendered - lastRendered, phase: sample.phase, stage: sample.stage, alive: sample.alive,
-      alivePlayers: sample.alivePlayers, pos: sample.pos, draws: sample.stats?.drawCalls, triangles: sample.stats?.triangles, gpu: sample.gpu, cpu, longTasks: sample.longTasks, heapMB: sample.heapMB, drawingBuffer: sample.drawingBuffer });
+      alivePlayers: sample.alivePlayers, pos: sample.pos, draws: sample.stats?.drawCalls, triangles: sample.stats?.triangles, density: sample.density, gpu: sample.gpu, cpu, longTasks: sample.longTasks, heapMB: sample.heapMB, drawingBuffer: sample.drawingBuffer });
     lastRendered = sample.rendered;
     if (samples.length % 30 === 0) console.log(JSON.stringify({ t: Math.round(elapsed), phase: sample.phase, stage: sample.stage, thermal: samples.at(-1).thermal, load: samples.at(-1).load[0],
-      fps: +(samples.slice(-30).reduce((a, s) => a + s.renderedFrames, 0) / 30).toFixed(1), gpu: sample.gpu.total?.mean, buffer: sample.drawingBuffer }));
+      fps: +(samples.slice(-30).reduce((a, s) => a + s.renderedFrames, 0) / 30).toFixed(1), density: sample.density, buffer: sample.drawingBuffer }));
     if (sample.phase === 'results') { console.log('match reached results at', Math.round(elapsed), 's'); break; }
     const due = traceAt.find(at => elapsed >= at && !traced.has(at));
     if (due !== undefined) {
@@ -177,6 +177,6 @@ try {
   const resources = await page.evaluate(() => window.__capivara.resources());
   await page.evaluate(() => clearInterval(window.__perfDriver));
   writeFileSync(out, JSON.stringify({ measuredAt: new Date().toISOString(), base, quality, mode, seconds, viewport: { width, height, dpr }, gpu: gpuName,
-    gpuTiming: gpu, cpuTiming: timingOn, headless: env.HEADLESS === '1', settings: extraSettings, menuMs: Math.round(menuMs), firstFrameMs: Math.round(firstFrameMs), errors, resources, gcTraces, samples }));
+    gpuTiming: gpu, cpuTiming: timingOn, headless: env.HEADED !== '1', settings: extraSettings, menuMs: Math.round(menuMs), firstFrameMs: Math.round(firstFrameMs), errors, resources, gcTraces, samples }));
   console.log('wrote', out);
 } finally { await browser.close(); }

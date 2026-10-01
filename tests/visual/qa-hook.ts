@@ -18,7 +18,9 @@ import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapon
 import { DEFAULT_CONFIG, PLAYER_COLORS, type GameEvent, type InputFrame, type LootSpawn, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
 import { gpuPasses } from '../../src/render/gpu-passes';
-import type * as THREE from 'three';
+import { PRESET_DENSITY } from '../../src/render/resolution';
+import { gpuFrameTimer } from '../../src/render/gpu-frame-timer';
+import * as THREE from 'three';
 import type { GameUI } from '../../src/ui/ui';
 import type { InputController } from '../../src/input';
 import { DISTRICT_VIEWS, VIEWS, viewStance, type WorldView } from './qa-views';
@@ -28,6 +30,8 @@ type QaApi = {
   start(): Promise<void>;
   pose(name: string): Promise<{ camera: { x: number; y: number; z: number }; drawCalls: number; triangles: number }>;
   quality(quality: Quality): void;
+  /** Experiments: overrides every preset's render pixel ratio cap (null restores the shipped caps). */
+  density(ratio: number | null): void;
   actors(count: number, positions?: Pick<Vec3, 'x' | 'z'>[]): void;
   loading(on: boolean): void;
   loop(on: boolean): void;
@@ -36,8 +40,8 @@ type QaApi = {
   bench(frames: number): Promise<{ medianMs: number; p90Ms: number; gpuMedianMs: number | null; gpuP90Ms: number | null }>;
   /** GPU milliseconds per render pass, each pass timed alone on an idle GPU (needs ?gpu=1). */
   passes(frames: number): Promise<ReturnType<typeof gpuPasses.summary>>;
-  /** GPU cost of each top-level group of the scene: the frame's GPU time with and without it. */
-  attribution(frames: number): Promise<{ baseGpuMs: number | null; groups: { label: string; triangles: number; gpuMs: number | null }[] }>;
+  /** GPU cost of one part of the frame, as paired back-to-back benches with and without it (median of rounds). */
+  ab(toggle: string, frames: number, rounds: number): Promise<{ toggle: string; baseMs: number; withoutMs: number; costMs: number; rounds: number[] }>;
   names(): string[];
   event(event: GameEvent): void;
   motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
@@ -64,6 +68,10 @@ const ROOM_POSES = ['home', 'bakery', 'cafe', 'fisher', 'fishmonger', 'workshop'
   'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
   'upper-home', 'upper-barracks',
   'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2', 'home-back', 'cafe-back', 'upper-home-back'].map(role => `room-${role}`);
+// Review frames hold the preset's full render density: dynamic resolution never reacts to the
+// slow, synchronised frames of a capture or a bench.
+const QA_BUDGET = Infinity;
+const shippedDensity = structuredClone(PRESET_DENSITY);
 export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputController; settings: Settings; begin(): Promise<GameRenderer> }) {
   const fixture = new Simulation(deps.world, { ...DEFAULT_CONFIG, bots: false },
     [{ id: 'practice', name: 'Capivara', color: '#bd8956', ready: true, connected: true }], 'qa-seed-2026', 0x5eed2026);
@@ -80,7 +88,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
 
   function draw() {
     if (!renderer || !current) return;
-    renderer.update({ snapshot: current, playerId: 'practice', input: deps.input.frame as InputFrame,
+    renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: current, playerId: 'practice', input: deps.input.frame as InputFrame,
       dt: looping ? 1 / 60 : 0, playing: true, spectateId: null });
     renderedFrames++;
   }
@@ -375,7 +383,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     current = s;
     deps.input.frame.yaw = yaw; deps.input.frame.pitch = pitch;
-    for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
+    for (let i = 0; i < 20; i++) renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
     // A rapid pose switch can otherwise keep the preceding HUD and scope state.
     await new Promise(resolve => setTimeout(resolve, 80));
     deps.ui.scopeReady = renderer.scoped;
@@ -419,7 +427,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         moveActor(jumper, emptyInput(), deps.world, 1 / 60);
         if (jumper.bounceSeq !== previous)
           renderer.event({ type: 'bounce', id: 2, actor: jumper.id, pos: { x: trampoline.x, y: trampoline.y, z: trampoline.z } });
-        renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame,
+        renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame,
           dt: 1 / 60, playing: true, spectateId: null }, i === bounceTicks - 1);
       }
       if (jumper.bounceSeq !== initialBounce + 1 || jumper.grounded || !jumper.bounceProtected)
@@ -427,13 +435,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     if (name.startsWith('ads-') || name.startsWith('fp-')) {
       // Settle the weapon: draw, sway and the aim-down-sights blend run on real frame time.
-      for (let i = 0; i < 45; i++) { s.time += 1 / 60; renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 44); }
+      for (let i = 0; i < 45; i++) { s.time += 1 / 60; renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 44); }
     }
     if (name === 'cocoBlast') {
       // A real coconut impact 9 m ahead, rendered 0.15 s into the burst.
       const x = me.pos.x - Math.sin(yaw) * 7, z = me.pos.z - Math.cos(yaw) * 7;
       renderer.event({ type: 'impact', id: 3, actor: 'bot', weapon: 'coco', pos: { x, y: terrainHeight(x, z), z }, surface: 'dirt', normal: { x: 0, y: 1, z: 0 } });
-      for (let i = 0; i < 9; i++) { s.time += 1 / 60; renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 8); }
+      for (let i = 0; i < 9; i++) { s.time += 1 / 60; renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 8); }
     }
     if (!name.startsWith('results')) document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
@@ -446,7 +454,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       if (!WEAPONS.includes(weapon) || !Number.isFinite(seconds) || seconds < 0 || seconds > 4) throw new Error('Invalid motion review');
       await pose(`fp-${weapon}`);
       const s = current!, me = s.actors.find(actor => actor.id === 'practice')!;
-      const frame = (dt: number, draw = false, playing = true) => renderer!.update({ snapshot: s, playerId: me.id,
+      const frame = (dt: number, draw = false, playing = true) => renderer!.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: me.id,
         input: deps.input.frame, dt, playing, spectateId: null, simulationTime: s.time }, draw);
       frame(0, false, false); // Reset transient motion, then establish a dry, still grip.
       for (let i = 0; i < 30; i++) frame(1 / 60);
@@ -528,7 +536,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       }
       if (action === 'slash' || action === 'slash-left' || action === 'chop') {
         if (weapon !== 'machete') throw new Error('Cut review requires machete');
-        const update = () => renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, false);
+        const update = () => renderer!.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, false);
         bot.weapons[0].id = 'pistol'; update(); bot.weapons[0].id = 'machete'; update();
         const origin = { x: bot.pos.x, y: bot.pos.y + 1.55, z: bot.pos.z };
         for (let i = 0; i < (action === 'chop' ? 3 : action === 'slash-left' ? 2 : 1); i++) {
@@ -558,11 +566,15 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
           hurt = true;
           renderer!.event({ type: 'damage', id: 901, actor: 'practice', target: bot.id, amount: 30, head: false, pos: bot.pos } as never);
         }
-        renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: step, playing: true, spectateId: null, simulationTime: s.time }, false);
+        renderer!.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: step, playing: true, spectateId: null, simulationTime: s.time }, false);
       }
-      renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, true);
+      renderer!.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, true);
     },
     quality(quality) { if (!renderer) throw new Error('Call start first'); deps.settings.graphics = quality; renderer.setSettings(deps.settings); draw(); },
+    density(ratio) {
+      for (const name of Object.keys(PRESET_DENSITY) as Quality[]) PRESET_DENSITY[name] = ratio === null ? { ...shippedDensity[name] } : { min: ratio, max: ratio };
+      this.quality(deps.settings.graphics);
+    },
     actors(count, positions) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; actorPositions = positions ?? []; },
     loading(on) { deps.ui.setLoading(on); },
     loop(on) {
@@ -578,8 +590,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const gl = document.querySelector('canvas')!.getContext('webgl2')!, pixel = new Uint8Array(4), samples: number[] = [], gpu: number[] = [];
       const timer = gl.getExtension('EXT_disjoint_timer_query_webgl2') as { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null;
       const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-      // Pass timing (?gpu=1) would open its own queries inside this frame's query.
-      gpuPasses.suspended = true;
+      // Pass and frame timing would open their own queries inside this frame's query.
+      gpuPasses.suspended = true; gpuFrameTimer.suspended = true;
       try {
         draw(); sync();
         const queries: WebGLQuery[] = [];
@@ -602,7 +614,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         }
         const at = (values: number[], q: number) => values.length ? values.sort((a, b) => a - b)[Math.floor(values.length * q)] : null;
         return { medianMs: at(samples, .5)!, p90Ms: at(samples, .9)!, gpuMedianMs: at(gpu, .5), gpuP90Ms: at(gpu, .9) };
-      } finally { gpuPasses.suspended = false; }
+      } finally { gpuPasses.suspended = false; gpuFrameTimer.suspended = false; }
     },
     async passes(frames) {
       if (!gpuPasses.supported) throw new Error('Open the page with ?gpu=1 on a browser with timer queries');
@@ -613,29 +625,43 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       finally { gpuPasses.sync = false; }
       const summary = gpuPasses.summary(); gpuPasses.reset(); return summary;
     },
-    async attribution(frames) {
+    async ab(toggle, frames, rounds) {
       if (!renderer) throw new Error('Call start first');
-      const internals = renderer as unknown as { scene: THREE.Scene; worldView: { group: THREE.Group } };
-      const world = internals.worldView.group, candidates = [...internals.scene.children.filter(child => child !== world), ...world.children];
-      const triangles = (root: THREE.Object3D) => { let n = 0; root.traverse(object => {
-        const geometry = (object as THREE.Mesh).geometry; if (!geometry) return;
-        const count = geometry.index ? geometry.index.count : geometry.attributes.position?.count ?? 0;
-        n += count / 3 * ((object as THREE.InstancedMesh).count ?? 1);
-      }); return Math.round(n); };
-      const label = (object: THREE.Object3D) => {
-        const named = object.name || object.children.find(child => child.name)?.name || '';
-        const material = (object as THREE.Mesh).material as THREE.Material | undefined;
-        return `${object.type}${named ? ':' + named : ''}${material && !Array.isArray(material) && material.name ? '[' + material.name + ']' : ''}#${object.children.length}`;
+      const internals = renderer as unknown as { scene: THREE.Scene; gl: THREE.WebGLRenderer; worldView: { water: THREE.Object3D; group: THREE.Group }; weaponView: { scene: THREE.Scene }; sky: { group: THREE.Group } };
+      const scene = internals.scene, named = (test: (object: THREE.Object3D) => boolean) => {
+        const found: THREE.Object3D[] = []; scene.traverse(object => { if (object.visible && test(object)) found.push(object); }); return found; };
+      const materialName = (object: THREE.Object3D) => ((object as THREE.Mesh).material as THREE.Material | undefined)?.name ?? '';
+      const hide = (objects: THREE.Object3D[]) => ({ apply: () => objects.forEach(o => { o.visible = false; }), revert: () => objects.forEach(o => { o.visible = true; }) });
+      const basic = new THREE.MeshBasicMaterial({ color: '#888888' });
+      const toggles: Record<string, () => { apply(): void; revert(): void }> = {
+        terrain: () => hide(named(o => materialName(o) === 'paint:terrain')),
+        vegetation: () => hide(named(o => o.name === 'vegetation-root' || o.name === 'ground-cover')),
+        groundCover: () => hide(named(o => o.name === 'ground-cover')),
+        trees: () => hide(named(o => o.name === 'vegetation-root')),
+        kit: () => hide(named(o => o.name === 'Ilha_modular')),
+        characters: () => hide(named(o => o.name.startsWith('Capivara_'))),
+        water: () => hide(named(o => o === internals.worldView.water || materialName(o).includes('water'))),
+        backdrop: () => hide(named(o => o.name === 'Ilhas distantes')),
+        sky: () => hide([internals.sky.group]),
+        streets: () => hide(named(o => o.name === 'vida-das-ruas')),
+        firstPerson: () => hide(internals.weaponView.scene.children.filter(child => child.visible)),
+        shading: () => ({ apply: () => { scene.overrideMaterial = basic; }, revert: () => { scene.overrideMaterial = null; } }),
+        shadows: () => ({ apply: () => { internals.gl.shadowMap.enabled = false; }, revert: () => { internals.gl.shadowMap.enabled = true; } }),
       };
-      const base = await this.bench(frames), groups: { label: string; triangles: number; gpuMs: number | null }[] = [];
-      for (const object of candidates) {
-        if (!object.visible) continue;
-        object.visible = false;
-        try { const without = await this.bench(frames); groups.push({ label: label(object), triangles: triangles(object),
-          gpuMs: base.gpuMedianMs === null || without.gpuMedianMs === null ? null : +(base.gpuMedianMs - without.gpuMedianMs).toFixed(2) }); }
-        finally { object.visible = true; }
+      if (!toggles[toggle]) throw new Error(`Unknown toggle ${toggle}: ${Object.keys(toggles).join(', ')}`);
+      const change = toggles[toggle]();
+      const results: { base: number; without: number }[] = [];
+      // One unmeasured round compiles any program the toggle needs.
+      change.apply(); await this.bench(2); change.revert();
+      for (let round = 0; round < rounds; round++) {
+        const base = (await this.bench(frames)).gpuMedianMs ?? NaN;
+        change.apply();
+        try { results.push({ base, without: (await this.bench(frames)).gpuMedianMs ?? NaN }); } finally { change.revert(); }
       }
-      return { baseGpuMs: base.gpuMedianMs, groups };
+      const median = (values: number[]) => values.sort((a, b) => a - b)[values.length >> 1];
+      const costs = results.map(r => r.base - r.without);
+      return { toggle, baseMs: +median(results.map(r => r.base)).toFixed(2), withoutMs: +median(results.map(r => r.without)).toFixed(2),
+        costMs: +median([...costs]).toFixed(2), rounds: costs.map(n => +n.toFixed(2)) };
     },
     names: () => names,
     buildings: () => deps.world.pieces!.filter(piece => KIT_PIECES[piece.piece].traversal)
@@ -665,7 +691,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         Object.assign(me, actor); me.pitch = -.08;
         current!.time += 3 / 60;
         deps.input.frame.yaw = me.yaw; deps.input.frame.pitch = me.pitch;
-        renderer.update({ snapshot: current!, playerId: me.id, input: deps.input.frame,
+        renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: current!, playerId: me.id, input: deps.input.frame,
           dt: 3 / 60, playing: true, spectateId: null });
         renderedFrames++;
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));

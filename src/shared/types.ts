@@ -132,6 +132,8 @@ export type GameEvent =
   | { type: 'notice'; id: number; text: string };
 export interface Settings {
   sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; frameLimit: 30 | 60; reducedMotion: boolean;
+  // 3D render resolution: automatic (the preset's range, adjusted to hold the frame rate) or a fixed share of the screen's native resolution.
+  renderScale: 'auto' | 1 | .75 | .5;
   master: number; effects: number; ambience: number; music: number;
   adsToggle: boolean; bindings: Record<string, string>;
   // Controls feel (src/controls.ts CONTROL_OPTIONS): hold or toggle, aimed and scoped sensitivity multipliers, camera shake 0 to 1.

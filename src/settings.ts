@@ -6,7 +6,7 @@ import { DEFAULT_BINDINGS, DEFAULT_CONTROL_OPTIONS, sanitizeBindings, sanitizeCo
 // The action list, defaults and rebinding rules live in the controls model.
 export { BINDABLE_CODE, DEFAULT_BINDINGS } from './controls';
 export const DEFAULT_SETTINGS: Settings = {
-  sensitivity: 1, fov: 100, graphics: 'medium', frameLimit: 60, reducedMotion: false,
+  sensitivity: 1, fov: 100, graphics: 'medium', renderScale: 'auto', frameLimit: 60, reducedMotion: false,
   master: .8, effects: .85, ambience: .45, music: .5, bindings: { ...DEFAULT_BINDINGS }, adaptive: true, ...DEFAULT_CONTROL_OPTIONS,
   showFps: false, uiScale: 1, crosshairColor: 'white', hitPalette: 'default',
   damageNumbers: true,
@@ -28,6 +28,7 @@ export function loadSettings(): Settings {
     }
     if (['low', 'medium', 'high'].includes(value.graphics)) result.graphics = value.graphics;
     if (value.frameLimit === 30 || value.frameLimit === 60) result.frameLimit = value.frameLimit;
+    if (['auto', 1, .75, .5].includes(value.renderScale)) result.renderScale = value.renderScale;
     if (typeof value.reducedMotion === 'boolean') result.reducedMotion = value.reducedMotion;
     Object.assign(result, sanitizeControlOptions(value));
     if (typeof value.adaptive === 'boolean') result.adaptive = value.adaptive;

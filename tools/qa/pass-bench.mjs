@@ -1,8 +1,8 @@
 // GPU cost per render pass and per scene group at real resolution, on the QA poses (VITE_QA=1 build, served).
 // Every pass is timed alone on an idle GPU (timer queries after a sync), so the numbers add up to a frame.
 // node tools/qa/pass-bench.mjs <out.json> [shotsDir]
-//   BASE=http://127.0.0.1:4187  PRESETS=low,medium,high  POSES=fp-m4,plaza16,...  ATTRIBUTION=1  W=1470 H=956 DPR=2
-//   SETTINGS='{"renderScale":1}' (extra saved settings)  FRAMES=24
+//   BASE=http://127.0.0.1:4187  PRESETS=low,medium,high  POSES=fp-m4,plaza16,...  AB=terrain,vegetation,...  W=1470 H=956 DPR=2
+//   SETTINGS='{"renderScale":1}' (extra saved settings)  FRAMES=24  DENSITY=1 (override the presets' pixel ratio cap)
 import { chromium } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -20,13 +20,13 @@ const presets = (env.PRESETS || 'low,medium,high').split(',');
 const POSES = {
   'fp-m4': ['fp-m4', 1], 'fp-shotgun': ['fp-shotgun', 1], 'fp-sniper-ads': ['ads-dmr', 1], plaza16: ['plaza', 16], vilaStreet: ['vilaStreet', 1],
   morroStreet: ['morroStreet', 1], porto: ['district-porto', 1], crowd: ['capyFront', 12], plane: ['plaza', 1, 'plane'], fight: ['cocoBlast', 8],
-  morroRoofs: ['morroRoofs', 1],
+  morroRoofs: ['morroRoofs', 1], praia: ['district-praia', 1], capela: ['district-capela', 1],
 };
 const poses = (env.POSES || Object.keys(POSES).join(',')).split(',');
 const thermal = () => { try { return Number(execSync('notifyutil -g com.apple.system.thermalpressurelevel').toString().trim().split(/\s+/).pop()); } catch { return null; } };
 const wide = JSON.parse((await import('node:fs')).readFileSync(new URL('./wide-views.json', import.meta.url), 'utf8'));
 
-const browser = await chromium.launch({ headless: env.HEADLESS === '1', channel: 'chrome',
+const browser = await chromium.launch({ headless: env.HEADED !== '1', channel: 'chrome',
   args: ['--use-gl=angle', '--use-angle=metal', '--enable-precise-memory-info', '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', `--window-size=${width},${height + 90}`] });
 const rows = [];
@@ -42,6 +42,7 @@ try {
   await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 120_000 });
   await page.evaluate(() => window.__capyQA.start());
   await page.addStyleTag({ content: '#confetti,#flash{display:none!important}' });
+  if (env.DENSITY) await page.evaluate(d => window.__capyQA.density(d), Number(env.DENSITY));
   for (const preset of presets) {
     await page.evaluate(q => window.__capyQA.quality(q), preset);
     for (const name of poses) {
@@ -55,7 +56,11 @@ try {
       const bench = await page.evaluate(n => window.__capyQA.bench(n), frames);
       const passes = await page.evaluate(n => window.__capyQA.passes(n), frames);
       const stats = await page.evaluate(() => ({ ...window.__capyQA.stats(), buffer: [document.querySelector('#game').width, document.querySelector('#game').height] }));
-      const attribution = env.ATTRIBUTION === '1' ? await page.evaluate(n => window.__capyQA.attribution(n), Math.max(12, frames >> 1)) : null;
+      const attribution = [];
+      for (const toggle of (env.AB || '').split(',').filter(Boolean)) {
+        const result = await page.evaluate(([t, n]) => window.__capyQA.ab(t, n, 5), [toggle, Math.max(6, frames >> 1)]);
+        attribution.push(result); console.log('   ', name, toggle, `${result.costMs} ms of ${result.baseMs}`, JSON.stringify(result.rounds));
+      }
       if (shots) await page.screenshot({ path: `${shots}/${preset}-${name}.png` });
       const row = { preset, name, pose, actors, camera: camera ?? null, load: loadavg()[0], thermal: thermal(), bench, passes, stats, attribution };
       rows.push(row);

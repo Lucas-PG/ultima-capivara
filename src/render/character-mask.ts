@@ -4,7 +4,8 @@ import { WATER_LEVEL } from '../shared/water';
 // A depth-tested ID silhouette keeps far characters inked without outlining
 // hidden bodies through buildings. Layer 1 is assigned only to character skins.
 export class CharacterMask {
-  readonly target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+  // One channel: the composite reads only red (a quarter of the bandwidth of RGBA).
+  readonly target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false, format: THREE.RedFormat });
   private readonly material = new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide, fog: false, depthTest: false, depthWrite: false });
   private readonly clearColor = new THREE.Color();
   private readonly uniforms: Record<string, THREE.IUniform>;
@@ -33,6 +34,8 @@ export class CharacterMask {
   resize(width: number, height: number) {
     this.target.setSize(width, height); this.uniforms.inverseSize.value.set(1 / width, 1 / height);
   }
+  /** Draws only the rendered region of the allocation (dynamic resolution). */
+  setViewport(width: number, height: number) { this.target.viewport.set(0, 0, width, height); }
   render(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     const layers = camera.layers.mask, background = scene.background, override = scene.overrideMaterial;
     const shadows = gl.shadowMap.enabled, alpha = gl.getClearAlpha(); gl.getClearColor(this.clearColor);

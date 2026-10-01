@@ -5,7 +5,8 @@ import { MELEE_SECONDS } from '../shared/weapon-presentation';
 import type { ActorState, InputFrame, PlayerAction, RenderFrame, Vec3 } from '../shared/types';
 
 // These fields never enter snapshots, input messages or collision queries.
-export type PresentationFrame = RenderFrame & { localActor?: ActorState; simulationTime?: number };
+// frameBudgetMs: the cadence the game loop is holding now (60 fps in play, slower behind menus).
+export type PresentationFrame = RenderFrame & { localActor?: ActorState; simulationTime?: number; frameBudgetMs?: number };
 const axes = ['x', 'y', 'z'] as const;
 const point = (): Vec3 => ({ x: 0, y: 0, z: 0 });
 
