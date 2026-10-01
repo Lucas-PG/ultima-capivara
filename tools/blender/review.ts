@@ -16,7 +16,9 @@ import type { ActorState, RenderFrame, WeaponId } from '../../src/shared/types';
 
 const params = new URLSearchParams(location.search);
 const world = createWorld();
-const renderer = new GameRenderer(document.querySelector('canvas')!, world, { ...DEFAULT_SETTINGS, fov: 60 });
+// ?graphics=low|medium|high picks the character's texture tier (and the renderer preset).
+const graphics = (['low', 'medium', 'high'] as const).find(tier => tier === params.get('graphics')) ?? DEFAULT_SETTINGS.graphics;
+const renderer = new GameRenderer(document.querySelector('canvas')!, world, { ...DEFAULT_SETTINGS, graphics, fov: 60 });
 await renderer.warmup();
 const room = params.get('lighting') === 'interior' ? world.objects.find(object => object.detail === 'prop:house:bakery') : undefined;
 const center = room ? { x: room.pos.x, z: room.pos.z + .8 } : { x: Number(params.get('x') || 0), z: Number(params.get('z') || -60) };

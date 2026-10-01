@@ -79,8 +79,10 @@ export function capybaraAssetEntry(tier: CapybaraTier = 'medium'): { path: strin
 let characterAsset: GLTF | null = null;
 let characterAtlasColumns: 4 | 16 = 16;
 let characterHeadTop = 1.85;
-// The highest point of the rest mesh (an ear tip): the posed crown follows it on the head bone.
+// The highest point of the rest mesh: the posed crown follows it on the head bone. The ear tips
+// (the highest ear-skinned points) follow their own bones, since the ears flick and swing.
 const characterCrownPoint = new THREE.Vector3(0, 1.85, 0);
+const characterEarTip = new THREE.Vector3(.13, 1.82, .05);
 const characterChestRest = new THREE.Vector3(0, 1.06, 0);
 /** Rest-pose crown, measured once from the loaded mesh rather than the hit sphere. */
 export function capybaraHeadTop(): number { return characterHeadTop; }
@@ -110,11 +112,18 @@ function teamMaterial(source: THREE.MeshStandardMaterial, tint: THREE.Color): TH
       .replace('#include <common>', '#include <common>\nuniform vec3 teamColor; varying float vTeam;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         float teamAmount = ${texelMask ? 'texture2D(metalnessMap, vMetalnessMapUv).r' : 'vTeam'};
+        // Far away the mipmapped texel mask blurs into the fur around the cloth, and a golden team
+        // colour then reads as more fur: the vertex mask joins it (crisp by geometry, the larger of the
+        // two wins), and the cloth carries a little of its own colour as light, so it keeps its hue in
+        // shade at 60 m.
+        float teamFar = smoothstep(18.0, 45.0, length(vViewPosition));
+        teamAmount = mix(teamAmount, max(teamAmount, vTeam), teamFar);
         // Keep the painted light (folds, weave, AO) of the authored cloth, swap only its hue.
         float teamShade = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722)) / .36;
-        diffuseColor.rgb = mix(diffuseColor.rgb, teamColor * clamp(teamShade, .35, 1.3), teamAmount);`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, teamColor * clamp(mix(teamShade, 1.0, teamFar), .35, 1.3), teamAmount);
+        totalEmissiveRadiance += teamColor * teamAmount * teamFar * .45;`);
   };
-  material.customProgramCacheKey = () => `capivara-team-v6:${texelMask}`;
+  material.customProgramCacheKey = () => `capivara-team-v7:${texelMask}`;
   return applyCharacterStyle(material, 4);
 }
 
@@ -179,14 +188,19 @@ export function preloadCapybaraAsset(load?: (url: string) => Promise<GLTF>, tier
         const bounds = new THREE.Box3().setFromObject(source, true);
         if (Number.isFinite(bounds.max.y)) characterHeadTop = bounds.max.y;
         // Over every LOD: the coarse far mesh stands a little taller at the ears.
-        let highest = -Infinity;
+        let highest = -Infinity, highestEar = -Infinity;
         const vertex = new THREE.Vector3();
         for (let level = 0; level < 3; level++) {
           const mesh = asset.scene.getObjectByName(`Capybara_LOD${level}`) as THREE.SkinnedMesh, position = mesh.geometry.getAttribute('position');
+          const joints = mesh.geometry.getAttribute('skinIndex'), weights = mesh.geometry.getAttribute('skinWeight');
+          const ears = new Set(mesh.skeleton.bones.flatMap((bone, i) => /^ear_[LR]$/.test(bone.name) ? [i] : []));
           mesh.skeleton.update();
           for (let i = 0; i < position.count; i++) {
             mesh.getVertexPosition(i, vertex); vertex.applyMatrix4(mesh.matrixWorld);
             if (vertex.y > highest) { highest = vertex.y; characterCrownPoint.set(Math.abs(vertex.x), vertex.y, vertex.z); }
+            let ear = 0;
+            for (let j = 0; j < 4; j++) if (ears.has(joints.getComponent(i, j))) ear += weights.getComponent(i, j);
+            if (ear > .5 && vertex.y > highestEar) { highestEar = vertex.y; characterEarTip.set(Math.abs(vertex.x), vertex.y, vertex.z); }
           }
         }
         characterHeadTop = highest;
@@ -344,10 +358,10 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     arms: [scene.getObjectByName('arm_L') as THREE.Bone, scene.getObjectByName('arm_R') as THREE.Bone],
   };
   scene.updateMatrixWorld(true); runtime.head.worldToLocal(runtime.crown);
-  // The crown is an ear tip: follow both ears (they flick and swing on their own bones).
+  // The ear tips follow both ears (they flick and swing on their own bones).
   for (const [side, sign] of [['L', -1], ['R', 1]] as const) {
     const ear = scene.getObjectByName(`ear_${side}`);
-    if (ear instanceof THREE.Bone) runtime.crownTips.push({ bone: ear, local: ear.worldToLocal(characterCrownPoint.clone().setX(sign * characterCrownPoint.x)) });
+    if (ear instanceof THREE.Bone) runtime.crownTips.push({ bone: ear, local: ear.worldToLocal(characterEarTip.clone().setX(sign * characterEarTip.x)) });
   }
   // Unarmed rest: the upper arm swings down along the barrel, then the elbow
   // eases open so the paw rests on the belly side instead of a raised bent arm.
@@ -770,7 +784,7 @@ function aimBone(bone: THREE.Bone, from: THREE.Vector3, to: THREE.Vector3, want:
   bone.updateMatrixWorld(true);
 }
 interface ArmChain { upper: THREE.Bone; fore: THREE.Bone; twist?: THREE.Bone; twistBind?: THREE.Quaternion; restAxis: THREE.Vector3; paw: THREE.Bone; pawBind: THREE.Quaternion; fingers: PawPose }
-function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun: THREE.Quaternion, grip: GripSpec) {
+function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun: THREE.Quaternion, grip: GripSpec, curl = TP_CURL) {
   arm.upper.getWorldPosition(ikA); arm.fore.getWorldPosition(ikB); arm.paw.getWorldPosition(ikC);
   const l1 = ikA.distanceTo(ikB), l2 = ikB.distanceTo(ikC);
   const dir = ikE.subVectors(target, ikA), distance = dir.length(), reach = Math.min(distance, (l1 + l2) * .999);
@@ -802,7 +816,7 @@ function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun
   arm.paw.parent!.getWorldQuaternion(ikQ).invert();
   arm.paw.quaternion.copy(ikQ).multiply(ikQ2);
   // The world paw's longer, thicker digits close less far around the same grip.
-  const c = grip.curl, k = TP_CURL, scaled = (v: readonly [number, number, number]) => [v[0] * k, v[1] * k, v[2] * k] as const;
+  const c = grip.curl, k = curl, scaled = (v: readonly [number, number, number]) => [v[0] * k, v[1] * k, v[2] * k] as const;
   arm.fingers.apply({ index: scaled(c.index), middle: scaled(c.middle), ring: scaled(c.ring), thumb: scaled(c.thumb), spread: c.spread });
   arm.paw.updateMatrixWorld(true);
 }
@@ -813,6 +827,10 @@ const HOLD_CLASS: Record<WeaponId, HoldClass> = { pistol: 'pistol', revolver: 'p
  * larger palm on the same surfaces, with a small wrist offset (tpGripOffset) for the rest. */
 export const TP_WEAPON_SCALE = 1.3;
 const TP_GRIP_BACK = .008, TP_GRIP_OUT = .010, TP_CURL = .9;
+/** The thick fore-ends of the Lanca-coco and the sniper: the larger world paw sat below the wood
+ * with its digits short of wrapping it. Lift the support wrist (weapon space, metres) and close
+ * the digits further on those guns. */
+export const TP_SUPPORT: Partial<Record<WeaponId, { lift: number; curl: number }>> = { coco: { lift: .010, curl: 1.1 }, sniper: { lift: .012, curl: 1.15 } };
 /** Where the world paw's wrist goes for a first-person grip, relative to that grip's wrist (in the
  * grip's own space): backed off along the digits and out of the palm, for the larger hand. */
 export function tpGripOffset(forward: readonly number[], palm: readonly number[]): THREE.Vector3 {
@@ -982,11 +1000,13 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
     leftGrip = { wrist: mix(a.wrist, b.wrist), forward: mix(a.forward, b.forward), palm: mix(a.palm, b.palm), curl, pole: grips.L.pole };
   }
   const support = target(leftGrip);
+  const fit = TP_SUPPORT[id];
+  if (fit) support.add(ikA.set(0, fit.lift, 0).applyMatrix4(weapon.matrixWorld).sub(ikB.setFromMatrixPosition(weapon.matrixWorld)));
   if (tilt > 0) {
     // The support paw drops to the belt for a fresh magazine and comes back.
     const fetch = Math.sin(Math.PI * THREE.MathUtils.clamp((reload - .15) / .6, 0, 1));
     const belt = ikE.set(-.18, .85, -.12).applyQuaternion(rig.charQuat).add(body.getWorldPosition(new THREE.Vector3()));
     support.lerp(belt, fetch);
   }
-  reachArm(rig.L, support, poleL, gunQuat, leftGrip);
+  reachArm(rig.L, support, poleL, gunQuat, leftGrip, fit?.curl ?? TP_CURL);
 }

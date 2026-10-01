@@ -55,7 +55,7 @@ def head_of(name):
 
 
 def leg(n, travel=0.0, lift=0.0, lateral=0.0, drop=0.0, foot_pitch=0.0, toe=0.0, spread=0.0):
-    """Place one leg: ankle `travel` forward of rest, `lift` above the ground, `lateral` outward,
+    """Place one leg: ankle `travel` behind its rest spot (toward game +z), `lift` above the ground, `lateral` outward,
     the hip lowered by `drop` (the knee bends to keep the foot there). Pitch rolls the foot,
     toe curls the toes (positive = toes up at push-off)."""
     s = -1 if n == 'L' else 1
@@ -67,7 +67,9 @@ def leg(n, travel=0.0, lift=0.0, lateral=0.0, drop=0.0, foot_pitch=0.0, toe=0.0,
     dist = min(max(d.length, abs(l1 - l2) + 1e-4), l1 + l2 - 1e-4)
     axis = d.normalized()
     ankle = hip + axis * dist
-    pole = Vector((s * spread, -1, 0))  # knees point forward (Blender -Y is game forward)
+    # Knees point forward: game forward (-z) is Blender +Y (Vg maps game z to Blender -y). A -Y
+    # pole bent every authored knee backwards, the hock read of round 2.
+    pole = Vector((s * spread, 1, 0))
     pole = (pole - axis * pole.dot(axis)).normalized()
     a = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist)
     h = math.sqrt(max(0.0, l1 * l1 - a * a))
@@ -535,27 +537,27 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
             # head silhouette), the mouth corners and jaw the rest.
             if expression == 'determined':
                 lid.scale.y = .50
-                brow.location.y = -.013
-                brow.rotation_euler.z = sign * .45            # inner ends down: a frown
+                brow.location.y = -.008
+                brow.rotation_euler.z = sign * .30            # inner ends down: a frown
                 ear.rotation_euler.x = -.45
                 mouth.location.y = -.006
             elif expression == 'hit':
                 lid.scale.y = .12
-                brow.location.y = .014
-                brow.rotation_euler.z = -sign * .35           # inner ends up: pain
+                brow.location.y = .007
+                brow.rotation_euler.z = -sign * .25           # inner ends up: pain
                 ear.rotation_euler.x = -1.0
                 mouth.location.y = -.010
                 pb['jaw'].rotation_euler.x = .16
             elif expression == 'stunned':
                 lid.scale.y = 1.30 if side == 'R' else .40
-                brow.location.y = .015 if side == 'R' else -.008
+                brow.location.y = .008 if side == 'R' else -.005
                 ear.rotation_euler.z = sign * .70
                 ear.location.y = -.014
                 mouth.location.y = -.006 if side == 'R' else .004
                 pb['jaw'].rotation_euler.x = .22
             elif expression == 'victory':
                 lid.scale.y = .30
-                brow.location.y = .014
+                brow.location.y = .007
                 brow.rotation_euler.z = -sign * .15
                 mouth.location.y = .016
                 ear.rotation_euler.x = .35
