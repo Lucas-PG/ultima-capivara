@@ -355,11 +355,8 @@ export class WeaponView {
     const wantAds = actor.ads && !actor.swimming && !reloading && this.shotgunPumpLife <= 0 && !actor.sprint && weapon !== 'machete' && this.draw < .5;
     this.ads = advanceAds(weapon, this.ads, wantAds, dt);
     const ads = this.adsAmount;
-    // Weapon size setting: a narrower or wider lens at the hip, faded out while aiming so the
-    // authored sight picture stays exact (the scale is about the screen centre, where the sight sits).
-    const size = 1 + ((settings.weaponSize ?? 1) - 1) * (1 - ads);
-    const authored = viewmodelFov + ((spec.adsFov ?? viewmodelFov) - viewmodelFov) * ads;
-    const lens = size === 1 ? authored : 2 * THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(authored / 2)) / size));
+    // The hip lens blends to the gun's authored aimed lens, so every sight picture stays exact.
+    const lens = viewmodelFov + ((spec.adsFov ?? viewmodelFov) - viewmodelFov) * ads;
     if (Math.abs(this.camera.fov - lens) > 1e-4) { this.camera.fov = lens; this.camera.updateProjectionMatrix(); }
     // ---- look inertia: the gun trails the view and settles with a slight overshoot.
     const yaw = actor.yaw || 0, pitch = actor.pitch || 0;

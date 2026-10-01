@@ -71,11 +71,9 @@ export function sanitizeBindings(saved: unknown): Record<string, string> {
   return result;
 }
 
-/** First-person weapon size at the hip: [min, max, slider step]; 1 is the researched framing. */
-export const WEAPON_SIZE_RANGE = [.8, 1.2, .05] as const;
 /** Feel options (booleans and multipliers) with their ranges, for the settings screen and save validation. */
-export type ControlOptionKey = 'adsToggle' | 'crouchToggle' | 'sprintToggle' | 'invertY' | 'adsSensitivity' | 'scopeSensitivity' | 'cameraShake' | 'weaponSize';
-export interface ControlOption { key: ControlOptionKey; label: string; help: string; min?: number; max?: number; step?: number; /** Shown with the view options (field of view) instead of the controls. */ view?: boolean }
+export type ControlOptionKey = 'adsToggle' | 'crouchToggle' | 'sprintToggle' | 'invertY' | 'adsSensitivity' | 'scopeSensitivity' | 'cameraShake';
+export interface ControlOption { key: ControlOptionKey; label: string; help: string; min?: number; max?: number; step?: number }
 export const CONTROL_OPTIONS: readonly ControlOption[] = [
   { key: 'adsToggle', label: 'Alternar mira com um clique', help: 'Um clique mira, outro solta.' },
   { key: 'crouchToggle', label: 'Alternar agachar', help: 'Aperte uma vez para agachar e outra para levantar.' },
@@ -84,10 +82,9 @@ export const CONTROL_OPTIONS: readonly ControlOption[] = [
   { key: 'adsSensitivity', label: 'Sensibilidade mirando', help: 'Multiplica a sensibilidade com a mira de ferro.', min: .3, max: 2, step: .05 },
   { key: 'scopeSensitivity', label: 'Sensibilidade na luneta', help: 'Multiplica a sensibilidade na Carabina e na Sniper.', min: .3, max: 2, step: .05 },
   { key: 'cameraShake', label: 'Tremor da câmera', help: 'Tranco dos tiros, explosões e impactos na câmera.', min: 0, max: 1, step: .05 },
-  { key: 'weaponSize', label: 'Tamanho da arma', help: 'Menor libera mais tela; maior aproxima a arma e as patas. Mirando, fica sempre igual.', min: WEAPON_SIZE_RANGE[0], max: WEAPON_SIZE_RANGE[1], step: WEAPON_SIZE_RANGE[2], view: true },
 ];
 export const DEFAULT_CONTROL_OPTIONS: Pick<Settings, ControlOptionKey> = {
-  adsToggle: false, crouchToggle: false, sprintToggle: false, invertY: false, adsSensitivity: 1, scopeSensitivity: 1, cameraShake: 1, weaponSize: 1,
+  adsToggle: false, crouchToggle: false, sprintToggle: false, invertY: false, adsSensitivity: 1, scopeSensitivity: 1, cameraShake: 1,
 };
 export function sanitizeControlOptions(saved: Record<string, unknown>): Pick<Settings, ControlOptionKey> {
   const result = { ...DEFAULT_CONTROL_OPTIONS };

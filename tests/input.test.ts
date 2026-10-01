@@ -299,22 +299,14 @@ describe('procedural music settings migration', () => {
   });
 });
 
-describe('weapon size setting', () => {
-  it('defaults to the researched framing, persists and clamps to its range', async () => {
-    const { CONTROL_OPTIONS, WEAPON_SIZE_RANGE } = await import('../src/controls');
-    const store = new Map<string, string>();
+describe('retired settings', () => {
+  it('loads a save that still carries the removed first-person weapon size, and drops it', () => {
+    const store = new Map<string, string>([['uc-v2-settings', JSON.stringify({ weaponSize: 1.2, sensitivity: 1.5, fov: 104, fovScale: 'horizontal' })]]);
     vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => store.set(key, value) });
-    expect(DEFAULT_SETTINGS.weaponSize).toBe(1);
-    expect(loadSettings().weaponSize).toBe(1);
-    const option = CONTROL_OPTIONS.find(o => o.key === 'weaponSize')!;
-    expect(option.label).toBe('Tamanho da arma');
-    expect([option.min, option.max, option.step]).toEqual([...WEAPON_SIZE_RANGE]);
-    expect(WEAPON_SIZE_RANGE[0]).toBeLessThan(1); expect(WEAPON_SIZE_RANGE[1]).toBeGreaterThan(1);
-    saveSettings({ ...DEFAULT_SETTINGS, weaponSize: .85 });
-    expect(loadSettings().weaponSize).toBe(.85);
-    for (const [saved, expected] of [[3, WEAPON_SIZE_RANGE[1]], [.1, WEAPON_SIZE_RANGE[0]], ['big', 1], [Number.NaN, 1]] as const) {
-      store.set('uc-v2-settings', JSON.stringify({ weaponSize: saved }));
-      expect(loadSettings().weaponSize).toBe(expected);
-    }
+    const settings = loadSettings();
+    expect(settings.sensitivity).toBe(1.5); expect(settings.fov).toBe(104);
+    expect('weaponSize' in settings).toBe(false);
+    saveSettings(settings);
+    expect(JSON.parse(store.get('uc-v2-settings')!)).not.toHaveProperty('weaponSize');
   });
 });

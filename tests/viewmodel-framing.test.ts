@@ -12,7 +12,7 @@ import { ADS_TARGET, CORRIDOR, ELBOW_BEND, FRAME_CLASS, HIP_TARGETS, NEAREST_VIS
 
 // The first-person framing contract, measured on the real weapon and arm assets through the real
 // WeaponView: where each gun sits on screen at the hip, its angles against the view, how much of the
-// screen it and the arms cover, the aimed sight picture, the near plane and the weapon size setting.
+// screen it and the arms cover, the aimed sight picture and the near plane.
 // Targets: src/render/viewmodel-targets.ts (from docs/overhaul/viewmodel-research.md).
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
@@ -121,27 +121,6 @@ describe('aimed', () => {
     expect(f.L?.coverage ?? 0, 'support arm').toBeLessThan(ADS_TARGET.supportMax);
     expect(f.coverage).toBeLessThan(ADS_TARGET.coverageMax);
     expect(f.nearCuts).toBe(0);
-  });
-});
-
-describe('weapon size setting', () => {
-  it('scales the hip view of every gun and leaves the aimed picture exact', () => {
-    for (const id of ['pistol', 'm4', 'sniper'] as const) {
-      const small = hold(id, false, { ...DEFAULT_SETTINGS, weaponSize: .8 });
-      const normal = hold(id);
-      const large = hold(id, false, { ...DEFAULT_SETTINGS, weaponSize: 1.2 });
-      // A lens change about the screen centre: every point moves along its ray from the reticle by the size.
-      const reach = (f: FrameMetrics) => Math.hypot((f.muzzle.x - .5) * 16 / 9, f.muzzle.y - .5);
-      // (Within the idle breathing sway, which keeps moving between the samples.)
-      expect(Math.abs(reach(small) / reach(normal) - .8), id).toBeLessThan(.05);
-      expect(Math.abs(reach(large) / reach(normal) - 1.2), id).toBeLessThan(.05);
-      expect(small.weaponCoverage, id).toBeLessThan(normal.weaponCoverage);
-      expect(large.weaponCoverage, id).toBeGreaterThan(normal.weaponCoverage);
-      for (const size of [.8, 1.2]) {
-        const aimed = hold(id, true, { ...DEFAULT_SETTINGS, weaponSize: size });
-        expect(Math.abs(aimed.sight.x - .5) + Math.abs(aimed.sight.y - .5), `${id} aimed at size ${size}`).toBeLessThan(ADS_TARGET.sightTolerance);
-      }
-    }
   });
 });
 
