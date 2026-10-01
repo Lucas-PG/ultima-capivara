@@ -102,7 +102,7 @@ it('ships its own baked maps and a fur length that spares the pads, claws and cl
     const share = (test: (bone: string) => boolean) => {
       let n = 0, furred = 0;
       for (let i = 0; i < fur.getCount(); i++) {
-        const w = weights.getElement(i, []), j = joints.getElement(i, []);
+        const w = weights.getElement(i, [] as number[]), j = joints.getElement(i, [] as number[]);
         const bone = skin[j[w.indexOf(Math.max(...w))]];
         if (!test(bone)) continue;
         n++; if (fur.getScalar(i) > .02) furred++;

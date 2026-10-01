@@ -115,7 +115,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   dmr: {
     url: 'models/arsenal/dmr.glb', scale: 1, handling: 'rifle', reload: 'rifle',
     hip: {"pos": [0.217, -0.096, -0.46], "rot": [0, 0.3, 0.45]}, viewmodelFov: 58,
-    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] }, shoulders: { R: [0.4, -0.4, 0.05], L: [-0.26, -0.46, -0.26] }, adsDistance: .12,
+    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .15] }, shoulders: { R: [0.4, -0.4, 0.05], L: [-0.26, -0.46, -0.26] }, adsDistance: .12,
     grips: GRIPS.dmr,
     recoil: { kick: 1.7, climb: 4.2, roll: 1.6, frequency: 20 }, inertia: 1.05,
   },

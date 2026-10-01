@@ -250,7 +250,7 @@ const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key
   { t: .83, R: DMR_CHARGE_HAND, parts: { charge: 0 } },
   { t: .89, R: DMR_CHARGE_HAND, parts: { charge: 1 }, sfx: 'slide-back' },
   { t: .915, R: DMR_CHARGE_HAND, parts: { charge: 0 }, ease: 'snap', sfx: 'slide-home' },
-  { t: .945, R: shift(DMR_CHARGE_HAND, [.11, 0, 0], { curl: OPEN }) },
+  { t: .945, R: shift(DMR_CHARGE_HAND, [.11, .035, 0], { curl: OPEN }) },
   { t: .985, R: FIRING_CLEAR },
   { t: .993, R: FIRING_RELEASE },
   { t: 1, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
@@ -260,9 +260,9 @@ export const dmrReload = (empty: boolean): Choreography => empty ? DMR_RELOAD_EM
 export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.088988, -0.160195, 0.011241],
   forward: [0.21378, 0.897557, -0.385604], palm: [0.830176, 0.041127, 0.555982],
   curl: { index: [0.771627, 0.221598, 0.286337], middle: [1.461854, 1.092202, -0.057784], ring: [1.7, 1.7, 0.396], thumb: [0.897567, 0.589462, 0.546293], spread: -0.1879 } };
-export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.119177, -0.080307, 0.065311],
-  forward: [-0.102425, 0.907143, -0.408168], palm: [-0.897514, -0.261206, -0.355304], pole: [1, -.35, .2],
-  curl: { index: [1.374004, 0.566229, -0.09871], middle: [1.520188, 0.361633, 0.33331], ring: [1.17, 0.99, 0.72], thumb: [0.448888, -0.1, 0.60115], spread: -0.5993 } };
+export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.123252, -0.08807, 0.065733],
+  forward: [-0.090106, 0.932039, -0.350976], palm: [-0.903789, -0.224569, -0.364327], pole: [1, -.35, .2],
+  curl: { index: [1.7, -0.1, -0.1], middle: [1.481611, 0.148254, 0.539266], ring: [1.17, 0.99, 0.72], thumb: [0.46395, -0.09157, 0.817014], spread: -0.6000 } };
 // A complete four-beat bolt stroke, anchored to the actual moving knob.
 export const SNIPER_CYCLE: Choreography = [
   { t: .04, R: FIRING_RELEASE },
@@ -323,7 +323,7 @@ const SNIPER_RELOAD_EMPTY: Choreography = [
   { t: .825, R: { space: 'grip' } },
   { t: .835, R: FIRING_RELEASE },
   { t: .845, R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .865, R: shift(SNIPER_BOLT_HAND, [.11, .045, .04]) },
+  { t: .865, R: shift(SNIPER_BOLT_HAND, [.15, .06, .04]) },
   { t: .89, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .935, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 }, sfx: 'bolt-home' },
   { t: .96, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap' },
@@ -337,8 +337,7 @@ const REVOLVER_CYLINDER_HAND: HandKey = { space: 'part', part: 'cylinder', follo
   forward: [-0.019041, 0.284059, -0.958618], palm: [0.999803, -0, -0.019859],
   curl: { index: [0.605, -0.010066, 0.400446], middle: [0.2925, 0.387285, 0.705675], ring: [0.2952, 0.4329, 0.2916], thumb: [0.045, 0.108, 0.1305], spread: -0.6000 } };
 // The crane swings out under the same paw: one orientation, a little further back, digits closing.
-const REVOLVER_CYLINDER_OPEN: HandKey = { ...REVOLVER_CYLINDER_HAND, wrist: add(REVOLVER_CYLINDER_HAND.wrist as Vec, [-.004, .003, .012]),
-  curl: { index: [1.632401, 0.210489, -0.077845], middle: [1.440153, 0.348435, 0.658494], ring: [0.482847, 0.588015, 0.6354], thumb: [-0.09, 0.383625, 0.062415], spread: -0.6000 } };
+const REVOLVER_CYLINDER_OPEN: HandKey = shift(REVOLVER_CYLINDER_HAND, [-.008, .003, .012]);
 // Follow the rod position, keeping the paw clear regardless of cylinder spin.
 const REVOLVER_EJECT_HAND: HandKey = { space: 'part', part: 'action', followRotation: false, wrist: [-0.104899, -0.027724, -0.208188],
   forward: [0.932744, 0.168518, -0.318732], palm: [0.281621, 0.211447, 0.935938], pole: [-1, -.2, -.1],
@@ -535,7 +534,7 @@ const longInspect = (lift: Vec, left: Vec, right: Vec): Choreography => [
 export const LONG_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
   m4: longInspect([-.06, .05, -.02], [.12, .35, -.45], [.1, -.1, .85]),
   shotgun: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.08, -.1, .8]),
-  dmr: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.08, -.1, .6]),
+  dmr: longInspect([-.06, .05, -.02], [.1, .3, -.4], [.08, -.05, .45]),
   sniper: longInspect([-.05, .045, -.01], [.08, .25, -.35], [.06, -.08, .7]),
   coco: longInspect([-.06, .04, -.02], [.1, .3, -.35], [.08, -.1, .75]),
 };
