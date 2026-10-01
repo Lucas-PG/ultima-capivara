@@ -5,6 +5,7 @@
 // node tools/qa/vm-frame.mjs <out.json|-> [weapons csv] [hip|all] [WxH]   (BASE env overrides the URL)
 import { chromium } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
+import { WRIST_LIMITS } from '../../src/render/viewmodel-targets.ts';
 const [out = '-', list = 'pistol,revolver,smg,m4,shotgun,dmr,sniper,coco,machete', mode = 'hip', size = '1280x720'] = process.argv.slice(2);
 const [width, height] = size.split('x').map(Number);
 const RELOAD = { pistol: 1.8, smg: 2, m4: 2.5, shotgun: .55, dmr: 2.6, sniper: 3, revolver: 2.3, coco: 2.8 };
@@ -46,7 +47,18 @@ try {
       + ` | muzzle ${fmt(hip.muzzle)} sight ${fmt(hip.sight)} grip ${fmt(hip.grip)} wristL ${fmt(hip.L?.wrist)} | yaw ${hip.yaw.toFixed(1)} pitch ${hip.pitch.toFixed(1)} roll ${hip.roll.toFixed(1)}`
       + ` | exits R ${exits(hip.R)} L ${exits(hip.L)} | bend R ${hip.R?.bend.toFixed(0)} L ${hip.L?.bend.toFixed(0) ?? '-'} | near ${hip.nearestVisible.toFixed(3)} cuts ${hip.nearCuts}`
       + ` | ads sight ${fmt(ads.sight)} cover ${(ads.coverage * 100).toFixed(1)}% L ${((ads.L?.coverage ?? 0) * 100).toFixed(1)}%`);
+    const w = (r, side) => r[side]?.wristAngles;
+    const fmtW = a => a ? `${a.flexion.toFixed(0)}/${a.deviation.toFixed(0)}/${a.pronation.toFixed(0)}` : '-';
+    console.log(`   wrist (flex/dev/pron) hip R ${fmtW(w(hip, 'R'))} L ${fmtW(w(hip, 'L'))} | aimed R ${fmtW(w(ads, 'R'))} L ${fmtW(w(ads, 'L'))}`);
     if (mode === 'all') {
+      for (const side of ['R', 'L']) {
+        const rows2 = rows.filter(r => w(r, side));
+        if (!rows2.length) continue;
+        const worst = key => rows2.reduce((b, r) => Math.abs(w(r, side)[key]) > Math.abs(w(b, side)[key]) ? r : b, rows2[0]);
+        const out = rows2.filter(r => ['flexion', 'deviation', 'pronation'].some(k => w(r, side)[k] < WRIST_LIMITS[k][0] || w(r, side)[k] > WRIST_LIMITS[k][1]));
+        console.log(`   ${side} worst: ` + ['flexion', 'deviation', 'pronation'].map(k => { const r = worst(k); return `${k} ${w(r, side)[k].toFixed(0)} (${r.action} ${r.t})`; }).join(', ')
+          + ` | ${out.length}/${rows2.length} outside the limits${out.length ? ': ' + out.slice(0, 8).map(r => `${r.action} ${r.t} ${fmtW(w(r, side))}`).join('; ') : ''}`);
+      }
       const worstNear = rows.reduce((w, r) => r.nearestVisible < w.nearestVisible ? r : w, rows[0]);
       const cuts = rows.filter(r => r.nearCuts > 0);
       const maxCover = rows.reduce((w, r) => r.coverage > w.coverage ? r : w, rows[0]);

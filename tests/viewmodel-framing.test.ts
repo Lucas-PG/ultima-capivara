@@ -7,8 +7,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import type { ActorState, Settings, WeaponId } from '../src/shared/types';
 import { WEAPONS } from '../src/shared/weapons';
-import { measureFrame, type FrameMetrics } from '../src/render/viewmodel-frame';
-import { ADS_TARGET, CORRIDOR, ELBOW_BEND, FRAME_CLASS, HIP_TARGETS, NEAREST_VISIBLE, type Box, type Range } from '../src/render/viewmodel-targets';
+import { measureFrame, measureWrists, type FrameMetrics } from '../src/render/viewmodel-frame';
+import { ADS_TARGET, CORRIDOR, ELBOW_BEND, FRAME_CLASS, HIP_TARGETS, NEAREST_VISIBLE, WRIST_LIMITS, type Box, type Range } from '../src/render/viewmodel-targets';
 
 // The first-person framing contract, measured on the real weapon and arm assets through the real
 // WeaponView: where each gun sits on screen at the hip, its angles against the view, how much of the
@@ -125,27 +125,45 @@ describe('aimed', () => {
 });
 
 describe('every sampled state', () => {
-  // Reload, inspect, draw and sprint sampled every 0.1 s: nothing inside the near plane or on top of the eye.
-  for (const id of IDS) it(`${id}: no surface cut by the near plane`, () => {
-    const worst = { near: Infinity, at: '' };
+  // Hip, the aim blend, walk, strafe, crouch, fire, sprint, inspect, draw and both reloads sampled through:
+  // nothing inside the near plane or on top of the eye, and both wrists natural (WRIST_LIMITS: the paw meets
+  // its forearm within 45 degrees of flexion or extension, 25 ulnar and 20 radial deviation, and the forearm
+  // turns it at most 80 degrees either way).
+  for (const id of IDS) it(`${id}: no near-plane cut and natural wrists`, () => {
+    const worst = { near: Infinity, at: '' }, wrists: string[] = [];
     const check = (label: string) => {
-      const f = measureFrame(view, 96);
+      const f = measureFrame(view, 64);
       expect(f.nearCuts, label).toBe(0);
       if (f.nearestVisible < worst.near) { worst.near = f.nearestVisible; worst.at = label; }
+      const w = measureWrists(view);
+      for (const side of ['R', 'L'] as const) {
+        const a = w[side];
+        if (!a) continue;
+        for (const key of ['flexion', 'deviation', 'pronation'] as const)
+          if (a[key] < WRIST_LIMITS[key][0] - .5 || a[key] > WRIST_LIMITS[key][1] + .5) wrists.push(`${label} ${side} ${key} ${a[key].toFixed(0)}`);
+      }
     };
-    hold(id);
-    if (id !== 'machete') {
-      actor.weapons[0].ammo = 0; actor.reloadUntil = time + WEAPONS[id].reload;
-      for (let t = 0; t < WEAPONS[id].reload; t += .1) { step(.1); check(`reload ${t.toFixed(1)}`); }
+    const run = (label: string, seconds: number, every = .1) => { for (let t = 0; t < seconds - 1e-6; t += every) { step(every); check(`${label} ${t.toFixed(2)}`); } };
+    hold(id); check('hip');
+    actor.ads = true; run('aim', .4, .05); actor.ads = false; run('unaim', .3, .1);
+    actor.velocity = { x: 0, y: 0, z: -4.5 }; run('walk', .6);
+    actor.velocity = { x: -4.5, y: 0, z: 0 }; run('strafe', .5);
+    actor.velocity = { x: 0, y: 0, z: 0 }; actor.crouch = true; run('crouch', .3); actor.crouch = false; step(.3);
+    if (id !== 'machete') { view.shot(id); run('fire', id === 'sniper' ? 1 : id === 'shotgun' ? .6 : .3, .05); }
+    actor.sprint = true; actor.velocity = { x: 0, y: 0, z: -7 }; run('sprint', .6);
+    actor.sprint = false; actor.velocity = { x: 0, y: 0, z: 0 }; step(.6);
+    view.inspect(); run('inspect', 1.8);
+    actor.weapons = [{ id: id === 'pistol' ? 'm4' : 'pistol', rarity: 0, ammo: 12, reserve: 30, box: 0 }, actor.weapons[0]]; actor.slot = 1;
+    step(.8); actor.slot = 0; run('holster', .2, .05); actor.slot = 1; run('draw', .6, .05);
+    actor.weapons = [actor.weapons[1]]; actor.slot = 0; step(.5);
+    if (id !== 'machete') for (const [label, ammo] of [['reload', 0], ['reload-partial', Math.max(1, Math.floor(WEAPONS[id].magazine / 2))]] as const) {
+      actor.weapons[0].ammo = ammo; actor.reloadUntil = time + WEAPONS[id].reload;
+      run(label, WEAPONS[id].reload, .05);
       actor.reloadUntil = 0; actor.weapons[0].ammo = WEAPONS[id].magazine; step(.5);
     }
-    view.inspect();
-    for (let t = 0; t < 1.8; t += .1) { step(.1); check(`inspect ${t.toFixed(1)}`); }
-    actor.sprint = true; actor.velocity = { x: 0, y: 0, z: -7 };
-    for (let t = 0; t < .6; t += .1) { step(.1); check(`sprint ${t.toFixed(1)}`); }
-    actor.sprint = false; actor.velocity = { x: 0, y: 0, z: 0 };
     expect(worst.near, worst.at).toBeGreaterThan(NEAREST_VISIBLE);
-  }, 60_000);
+    expect(wrists, wrists.slice(0, 6).join('; ')).toEqual([]);
+  }, 120_000);
 });
 
 it('targets the central band the research measured', () => {

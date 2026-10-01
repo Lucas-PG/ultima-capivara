@@ -19,7 +19,48 @@ export interface HandTarget {
   curl: HandCurl;
   /** Where the elbow should point (camera space direction). */
   pole: THREE.Vector3;
+  /** Keep the wrist natural: the hidden shoulder and the elbow move so the forearm meets the paw inside
+   * these limits (degrees, see WristAngles); the given shoulder becomes an anchor the upper arm heads to. */
+  natural?: WristLimits;
+  /** For the natural arm: true when a point (same space) is out of the eye's view, so an elbow or upper
+   * arm there never shows. Without it any natural arm is accepted. */
+  hidden?: (point: THREE.Vector3) => boolean;
 }
+/** Wrist ranges in degrees: [low, high] for flexion (+ toward the palm), deviation (+ toward the thumb)
+ * and pronation (+ palm turning down from facing the body's midline). */
+export interface WristLimits { flexion: readonly [number, number]; deviation: readonly [number, number]; pronation: readonly [number, number] }
+const deg = THREE.MathUtils.radToDeg;
+
+/** Degrees. Flexion + bends the paw toward its palm, extension (-) toward its back; radial deviation +
+ * tilts it toward the thumb side, ulnar (-) away; pronation + turns the palm from the anatomical
+ * neutral (palm facing the body's midline, thumb up when the forearm points forward) toward facing down,
+ * supination (-) toward facing up. */
+export interface WristAngles { flexion: number; deviation: number; pronation: number }
+
+/** Wrist angles from the arm's joints and the paw's frame (all in one space). The forearm's own frame
+ * comes from the elbow: the forearm axis, and the medial direction (the elbow hinge axis toward the
+ * body's midline) taken from the plane the upper arm and forearm fold in. */
+export function wristAngles(shoulder: THREE.Vector3, elbow: THREE.Vector3, wrist: THREE.Vector3,
+  forward: THREE.Vector3, palm: THREE.Vector3, side: 'R' | 'L', pole?: THREE.Vector3): WristAngles {
+  const sign = side === 'R' ? 1 : -1;
+  const f = wrist.clone().sub(elbow).normalize(), u = elbow.clone().sub(shoulder).normalize();
+  // The forearm folds toward the front of the upper arm; a straight arm falls back on its elbow direction.
+  const anterior = f.clone().addScaledVector(u, -f.dot(u));
+  if (anterior.lengthSq() < 1e-4 && pole) anterior.copy(pole).negate().addScaledVector(u, -pole.dot(u) * -1);
+  anterior.normalize();
+  const medial = new THREE.Vector3().crossVectors(anterior, u).multiplyScalar(sign);
+  medial.addScaledVector(f, -medial.dot(f)).normalize();
+  const h = forward.clone().normalize();
+  const p = palm.clone().addScaledVector(h, -palm.dot(h)).normalize();
+  // The palm normal and thumb side as seen around the forearm axis.
+  const pf = p.clone().addScaledVector(f, -p.dot(f)).normalize();
+  const tf = new THREE.Vector3().crossVectors(f, pf).multiplyScalar(sign).normalize();
+  const along = h.dot(f);
+  const flexion = deg(Math.atan2(h.dot(pf), along)), deviation = deg(Math.atan2(h.dot(tf), along));
+  const twist = Math.atan2(new THREE.Vector3().crossVectors(medial, pf).dot(f), medial.dot(pf));
+  return { flexion, deviation, pronation: -sign * deg(twist) };
+}
+
 
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), tmpC = new THREE.Vector3(), tmpD = new THREE.Vector3();
@@ -139,8 +180,114 @@ class Arm {
     chain.bone.updateMatrixWorld(true);
   }
 
+  /** The shoulder and elbow direction that put the forearm in line with the paw (inside the target's
+   * wrist limits), the upper arm heading toward the given anchor. Shoulders are hidden, so they may move. */
+  private naturalArm(anchor: THREE.Vector3, target: HandTarget, limits: WristLimits) {
+    const a = this.upper.length, b = this.fore.length, sign = this.side === 'R' ? 1 : -1;
+    const W = target.wrist, h = new THREE.Vector3().copy(target.forward).normalize();
+    const p = new THREE.Vector3().copy(target.palm).addScaledVector(h, -target.palm.dot(h)).normalize();
+    const t = new THREE.Vector3().crossVectors(h, p).multiplyScalar(sign);
+    // The forearm the plain IK would give (anchor shoulder, authored elbow direction).
+    const reachPoint = new THREE.Vector3().subVectors(W, anchor);
+    const d = Math.min(Math.max(reachPoint.length(), Math.abs(a - b) + .02), (a + b) * .985);
+    const dir = reachPoint.normalize(), start = new THREE.Vector3().copy(W).addScaledVector(dir, -d);
+    const cosA = THREE.MathUtils.clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1);
+    const side = new THREE.Vector3().copy(target.pole).addScaledVector(dir, -target.pole.dot(dir));
+    if (side.lengthSq() < 1e-8) side.set(0, -1, 0);
+    side.normalize();
+    const elbow0 = new THREE.Vector3().copy(start).addScaledVector(dir, a * cosA).addScaledVector(side, a * Math.sqrt(1 - cosA * cosA));
+    const f0 = new THREE.Vector3().subVectors(W, elbow0).normalize();
+    // Wrist bend as wristAngles measures it, and the forearm that gives a wanted bend (a few corrections).
+    const rad = THREE.MathUtils.degToRad, bendOf = (f: THREE.Vector3) => {
+      const pf = tmpD.copy(p).addScaledVector(f, -p.dot(f)).normalize(), along = h.dot(f);
+      const tf = new THREE.Vector3().crossVectors(f, pf).multiplyScalar(sign).normalize();
+      return [Math.atan2(h.dot(pf), along), Math.atan2(h.dot(tf), along)];
+    };
+    const forearmFor = (goalF: number, goalD: number, out: THREE.Vector3) => {
+      let a1 = goalF, a2 = goalD;
+      for (let i = 0; i < 4; i++) {
+        out.copy(h).addScaledVector(p, -Math.tan(a1)).addScaledVector(t, -Math.tan(a2)).normalize();
+        const [fx, dv] = bendOf(out); a1 += goalF - fx; a2 += goalD - dv;
+      }
+      return out.copy(h).addScaledVector(p, -Math.tan(a1)).addScaledVector(t, -Math.tan(a2)).normalize();
+    };
+    const [fx0, dv0] = bendOf(f0);
+    const fl = [rad(limits.flexion[0]), rad(limits.flexion[1])], dl = [rad(limits.deviation[0]), rad(limits.deviation[1])];
+    // Candidates: the default bend clamped into the limits first, then (if it shows the elbow or the
+    // upper arm) a grid over the allowed bends; the one closest to the default that keeps both hidden wins.
+    const goals: [number, number][] = [[THREE.MathUtils.clamp(fx0, fl[0], fl[1]), THREE.MathUtils.clamp(dv0, dl[0], dl[1])]];
+    if (target.hidden) for (let i = 0; i <= 6; i++) for (let j = 0; j <= 4; j++)
+      goals.push([fl[0] + (fl[1] - fl[0]) * i / 6, dl[0] + (dl[1] - dl[0]) * j / 4]);
+    const wrap = (x: number) => ((x + 540) % 360) - 180;
+    const f = new THREE.Vector3(), elbow = new THREE.Vector3(), u = new THREE.Vector3(), shoulder = new THREE.Vector3(), probe = new THREE.Vector3();
+    // How much of the hidden arm would show: the elbow (with the cuff just past it) counts .5, each
+    // point along the upper arm 2, anything right at the eye 5. An upper arm across the view is worse than
+    // a strained wrist; an elbow at the frame's edge is not.
+    const shows = (e: THREE.Vector3, sh: THREE.Vector3) => {
+      if (!target.hidden) return 0;
+      let n = target.hidden(e) ? 0 : .5;
+      for (const s of [.3, .65, 1]) { probe.copy(e).lerp(sh, s); n += target.hidden(probe) ? 0 : probe.length() < .12 ? 5 : 2; }
+      return n;
+    };
+    // The authored arm competes too: what it shows, plus its wrist strain (10 per 30 degrees outside the limits).
+    const authored = wristAngles(start, elbow0, W, target.forward, target.palm, this.side);
+    const strain = (v: number, [lo, hi]: readonly [number, number]) => Math.max(0, lo - v, v - hi);
+    let best: { shoulder: THREE.Vector3; pole: THREE.Vector3 } | null = null;
+    // Past the hard limits (the solve limits plus their margin, WRIST_LIMITS) the strain costs more than two points of a showing upper arm.
+    const hard = (v: number, [lo, hi]: readonly [number, number], m: number) => v < lo - m || v > hi + m ? 45 : 0;
+    let bestScore = shows(elbow0, start) * 10 + (strain(authored.flexion, limits.flexion) + strain(authored.deviation, limits.deviation) + strain(authored.pronation, limits.pronation)) / 3
+      + hard(authored.flexion, limits.flexion, 5) + hard(authored.deviation, limits.deviation, 4) + hard(authored.pronation, limits.pronation, 6);
+    if (bestScore === 0) return null;
+    for (const [k, [gf, gd]] of goals.entries()) {
+      if (k === 0 && Math.abs(gf - fx0) < 1e-9 && Math.abs(gd - dv0) < 1e-9) f.copy(f0); else forearmFor(gf, gd, f);
+      elbow.copy(W).addScaledVector(f, -b);
+      // The upper arm heads to the anchor, kept bent (45 to 175 degrees at the elbow).
+      u.subVectors(anchor, elbow);
+      if (u.lengthSq() < 1e-8) u.copy(side).negate();
+      u.normalize();
+      const bend = Math.acos(THREE.MathUtils.clamp(u.dot(f), -1, 1));
+      if (bend < rad(45) || bend > rad(175)) {
+        const across = new THREE.Vector3().copy(u).addScaledVector(f, -u.dot(f));
+        if (across.lengthSq() < 1e-8) across.copy(side);
+        across.normalize();
+        const goal = THREE.MathUtils.clamp(bend, rad(45), rad(175));
+        u.copy(f).multiplyScalar(Math.cos(goal)).addScaledVector(across, Math.sin(goal)).normalize();
+      }
+      // Forearm roll: turn the upper arm about the forearm until the paw's pronation is inside its range
+      // (pronation follows the turn one to one, so a slope probe and a step suffice).
+      const pronation = (turn: number) => {
+        shoulder.copy(elbow).addScaledVector(probe.copy(u).applyAxisAngle(f, turn), a);
+        return wristAngles(shoulder, elbow, W, target.forward, target.palm, this.side).pronation;
+      };
+      const p0 = pronation(0), slope = wrap(pronation(.05) - p0) / .05;
+      const turnFor = (want: number) => Math.abs(slope) < 1e-3 ? 0 : wrap(want - p0) / slope;
+      let turn = turnFor(THREE.MathUtils.clamp(p0, limits.pronation[0], limits.pronation[1]));
+      for (let i = 0; i < 2; i++) { const now = pronation(turn); const want = THREE.MathUtils.clamp(now, limits.pronation[0], limits.pronation[1]); if (want === now) break; turn += turnFor(want) - turnFor(now); }
+      // The upper arm closest to the anchor first; if it shows, other turns across the allowed roll.
+      const turns = [turn];
+      if (target.hidden) for (let i = 0; i <= 6; i++) turns.push(turn + turnFor(limits.pronation[0] + (limits.pronation[1] - limits.pronation[0]) * i / 6) - turnFor(THREE.MathUtils.clamp(p0, limits.pronation[0], limits.pronation[1])));
+      for (const [n, option] of turns.entries()) {
+        pronation(option);
+        const score = shows(elbow, shoulder) * 10 + f.angleTo(f0) + .3 * Math.abs(option - turn);
+        if (score < bestScore) {
+          bestScore = score;
+          const pole = new THREE.Vector3().subVectors(elbow, shoulder), line = new THREE.Vector3().subVectors(W, shoulder).normalize();
+          best = { shoulder: shoulder.clone(), pole: pole.addScaledVector(line, -pole.dot(line)).normalize() };
+        }
+        if (bestScore < 5 && n === 0) break;
+      }
+      if (k === 0 && bestScore < 5) break;
+    }
+    return best;
+  }
+
   solve(shoulder: THREE.Vector3, target: HandTarget) {
     const a = this.upper.length, b = this.fore.length;
+    if (target.natural) {
+      // No natural arm that keeps the elbow and upper arm out of view: keep the authored one.
+      const arm = this.naturalArm(shoulder, target, target.natural);
+      if (arm) { shoulder = arm.shoulder; target = { ...target, pole: arm.pole }; }
+    }
     const toTarget = tmpD.subVectors(target.wrist, shoulder);
     let d = toTarget.length();
     const reach = (a + b) * .985;

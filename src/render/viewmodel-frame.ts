@@ -19,7 +19,12 @@ export interface ArmFrame {
   elbow: THREE.Vector3; wristView: THREE.Vector3;
   /** Elbow bend between the upper arm and the forearm (degrees, 180 = straight). */
   bend: number;
+  /** The paw against its forearm (see wristAngles). */
+  wristAngles: WristAngles;
 }
+export { wristAngles, type WristAngles } from './fp-arms';
+import { wristAngles, type WristAngles } from './fp-arms';
+const deg = THREE.MathUtils.radToDeg;
 export interface FrameMetrics {
   muzzle: ScreenPoint; sight: ScreenPoint; grip: ScreenPoint;
   /** Bore direction against the view (degrees): yaw + = muzzle toward the left, pitch + = up, roll + = top leaning left. */
@@ -39,8 +44,29 @@ export interface FrameMetrics {
 interface Probe {
   camera: THREE.PerspectiveCamera; holder: THREE.Object3D; weapon: WeaponId;
   models: Record<WeaponId, { group: THREE.Object3D; muzzle: THREE.Object3D; spec: { adsEye?: readonly number[] } }>;
-  arms: { meshes: THREE.SkinnedMesh[]; right: { upper: { bone: THREE.Bone }; fore: { bone: THREE.Bone }; hand: { bone: THREE.Bone } };
-    left: { upper: { bone: THREE.Bone }; fore: { bone: THREE.Bone }; hand: { bone: THREE.Bone } } } | null;
+  arms: { meshes: THREE.SkinnedMesh[]; right: ProbeArm; left: ProbeArm } | null;
+}
+interface ProbeArm { upper: { bone: THREE.Bone }; fore: { bone: THREE.Bone }; hand: { bone: THREE.Bone; restWorld: THREE.Quaternion } }
+/** The paw's frame from its bone: the rig's hand rest frame has the digits along -z and the palm along -y. */
+function pawFrame(arm: ProbeArm, toView: THREE.Matrix4) {
+  const q = arm.hand.bone.getWorldQuaternion(new THREE.Quaternion()).multiply(arm.hand.restWorld.clone().invert());
+  const rotation = new THREE.Quaternion().setFromRotationMatrix(toView);
+  return { forward: new THREE.Vector3(0, 0, -1).applyQuaternion(q).applyQuaternion(rotation), palm: new THREE.Vector3(0, -1, 0).applyQuaternion(q).applyQuaternion(rotation) };
+}
+/** Wrist angles of both visible paws of the live viewmodel (call after WeaponView.update). */
+export function measureWrists(view: unknown): { R: WristAngles | null; L: WristAngles | null } {
+  const probe = view as Probe, camera = probe.camera;
+  camera.updateMatrixWorld(true); probe.holder.parent?.updateMatrixWorld(true);
+  const toView = camera.matrixWorldInverse;
+  const one = (side: 'R' | 'L') => {
+    const mesh = probe.arms?.meshes.find(mesh => mesh.name.endsWith(side));
+    if (!probe.arms || !mesh || !mesh.visible) return null;
+    const arm = side === 'R' ? probe.arms.right : probe.arms.left;
+    const at = (bone: THREE.Bone) => bone.getWorldPosition(new THREE.Vector3()).applyMatrix4(toView);
+    const { forward, palm } = pawFrame(arm, toView);
+    return wristAngles(at(arm.upper.bone), at(arm.fore.bone), at(arm.hand.bone), forward, palm, side);
+  };
+  return { R: one('R'), L: one('L') };
 }
 
 const CORRIDOR = { x0: BAND.x[0], x1: BAND.x[1], y0: BAND.y[0], y1: BAND.y[1] };
@@ -125,7 +151,6 @@ export function measureFrame(view: unknown, columns = 192): FrameMetrics {
   const q = new THREE.Quaternion(); probe.holder.getWorldQuaternion(q);
   q.premultiply(new THREE.Quaternion().setFromRotationMatrix(toView));
   const bore = new THREE.Vector3(0, 0, -1).applyQuaternion(q), up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
-  const deg = THREE.MathUtils.radToDeg;
   const arm = (side: 'R' | 'L', cells: Uint8Array): ArmFrame | null => {
     const mesh = probe.arms?.meshes.find(mesh => mesh.name.endsWith(side));
     if (!probe.arms || !mesh || !shown(mesh)) return null;
@@ -137,8 +162,9 @@ export function measureFrame(view: unknown, columns = 192): FrameMetrics {
     const bottom: number[] = [], top: number[] = [], left: number[] = [], right: number[] = [];
     for (let x = 0; x < columns; x++) { if (cells[(rows - 1) * columns + x]) bottom.push((x + .5) / columns); if (cells[x]) top.push((x + .5) / columns); }
     for (let y = 0; y < rows; y++) { if (cells[y * columns]) left.push((y + .5) / rows); if (cells[y * columns + columns - 1]) right.push((y + .5) / rows); }
+    const { forward, palm } = pawFrame(chain, toView);
     return { coverage: count(cells), wrist: screen(wrist), exits: { bottom: span(bottom), top: span(top), left: span(left), right: span(right) },
-      elbow, wristView: wrist, bend };
+      elbow, wristView: wrist, bend, wristAngles: wristAngles(shoulder, elbow, wrist, forward, palm, side) };
   };
   return {
     muzzle: point(model.muzzle), sight, grip: point(probe.holder),

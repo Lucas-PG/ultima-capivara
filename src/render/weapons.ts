@@ -4,6 +4,7 @@ import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, SHOULDERS, framedGrips, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
+import { WRIST_SOLVE } from './viewmodel-targets';
 import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS, LONG_INSPECTS } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
@@ -135,7 +136,17 @@ export class WeaponView {
   private readonly rideTo = new THREE.Matrix4();
   private readonly rideTurn = new THREE.Quaternion();
   private readonly ridePole = new THREE.Vector3();
+  /** Out of the eye's view (camera space, the eye at the origin): behind it, or outside a frustum a
+   * little wider than the lens. Hidden elbows and upper arms must stay here. */
+  private readonly outOfView = (p: THREE.Vector3) => {
+    // The arm is thick (the cuff about 7 cm round its bone): a point counts as hidden only that far outside.
+    const tanY = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * 1.04, tanX = tanY * this.camera.aspect, r = .07;
+    if (p.z > .03 + r) return true;
+    const depth = Math.max(-p.z, .03);
+    return Math.abs(p.x) - r * Math.hypot(1, tanX) > depth * tanX || Math.abs(p.y) - r * Math.hypot(1, tanY) > depth * tanY;
+  };
   private rideR = 0;
+  private tunedSpec: ViewSpec | null = null;
   private rideL = 0;
   private readonly targetR: HandTarget;
   private readonly targetL: HandTarget;
@@ -161,8 +172,9 @@ export class WeaponView {
     if (import.meta.env.DEV) {
       (globalThis as { __vmProbe?: WeaponView }).__vmProbe = this;
       // QA framing measure (tools/qa/vm-frame.mjs): screen positions, coverage, angles, near plane.
-      void import('./viewmodel-frame').then(({ measureFrame }) => {
-        (globalThis as { __vmMeasure?: (columns?: number) => unknown }).__vmMeasure = columns => measureFrame(this, columns);
+      void import('./viewmodel-frame').then(({ measureFrame, measureWrists, wristAngles }) => {
+        const qa = globalThis as { __vmMeasure?: (columns?: number) => unknown; __vmWrists?: () => unknown; __vmWristAngles?: typeof wristAngles };
+        qa.__vmMeasure = columns => measureFrame(this, columns); qa.__vmWrists = () => measureWrists(this); qa.__vmWristAngles = wristAngles;
       });
     }
     this.assets = this.load().then(() => {
@@ -467,11 +479,17 @@ export class WeaponView {
       // their hold instead of swinging through the gun (and a blade's arm rides with every cut).
       this.ride.compose(this.basePosition, this.baseRotation, ONE).invert()
         .premultiply(this.rideTo.compose(this.holder.position, this.holder.quaternion, ONE));
+      if (!spec.armRide) {
+        // A lowered gun carries its shoulders down with it (translation only: turning them with the gun's
+        // pitch would swing the hidden shoulders up into view); the arm solve re-aims the forearms.
+        this.ride.makeTranslation(this.holder.position.x - this.basePosition.x, this.holder.position.y - this.basePosition.y, this.holder.position.z - this.basePosition.z);
+      }
       this.shoulderR.lerp(this.shoulderAds.copy(this.shoulderR).applyMatrix4(this.ride), rideR);
       this.shoulderL.lerp(this.shoulderAds.copy(this.shoulderL).applyMatrix4(this.ride), rideL);
       this.rideTurn.setFromRotationMatrix(this.ride);
     }
     this.rideR = rideR; this.rideL = rideL;
+    this.tunedSpec = spec;
     this.solveArms(model, grips, choreo, sample ?? inspect, spec.freePaw);
     if (import.meta.env.DEV) this.debugOrbit();
   }
@@ -588,7 +606,7 @@ export class WeaponView {
       // The cloth hangs in world gravity as the blade rolls in the paw.
       model.parts.ribbons.quaternion.copy(this.holder.quaternion).invert().multiply(this.inverseView);
       // A slight rest tilt keeps the trailing cloth off the forearm, which rides with the blade.
-      model.parts.ribbons.rotation.x += Math.sin(this.time * 4.1) * .055 + moving * .34 + .12;
+      model.parts.ribbons.rotation.x += Math.sin(this.time * 4.1) * .055 + moving * .34 + .18;
       model.parts.ribbons.rotation.z += Math.sin(this.time * 3.7 + .6) * .045 + moving * .20;
     }
     if (bolt && model.id === 'm4') {
@@ -678,6 +696,12 @@ export class WeaponView {
     if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);
     // Riding shoulders carry their elbow direction too, so the whole arm moves as one piece.
     if (this.rideR > 0) this.targetR.pole.lerp(this.ridePole.copy(this.targetR.pole).applyQuaternion(this.rideTurn), this.rideR).normalize();
+    // Natural wrists: the hidden shoulders give way so each forearm meets its paw inside anatomical limits.
+    const natural = this.tunedSpec?.natural ?? model.spec.natural;
+    this.targetR.natural = natural?.R === false ? undefined : WRIST_SOLVE; this.targetL.natural = natural?.L === false ? undefined : WRIST_SOLVE;
+    this.targetR.hidden = this.targetL.hidden = this.outOfView;
+    const aimedPoles = this.tunedSpec?.adsPoles ?? model.spec.adsPoles, aim = this.adsAmount;
+    if (aimedPoles?.R && aim > 0) this.targetR.pole.lerp(v3(aimedPoles.R, this.ridePole), aim).normalize();
     arms.right.solve(this.shoulderR, this.targetR);
     const L = grips.L;
     arms.setVisible(true, !!L || this.swimPose > .5);
@@ -697,8 +721,10 @@ export class WeaponView {
         v3(free.wrist, this.targetL.wrist).add(this.freeDip.set(-cut * .06, -cut * .11, cut * .05));
         v3(free.forward, this.targetL.forward).normalize();
         v3(free.palm, this.targetL.palm).normalize();
+        if (free.curl) this.targetL.curl = free.curl;
       }
       if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
+      if (aimedPoles?.L && aim > 0) this.targetL.pole.lerp(v3(aimedPoles.L, this.ridePole), aim).normalize();
       if (this.rideL > 0) this.targetL.pole.lerp(this.ridePole.copy(this.targetL.pole).applyQuaternion(this.rideTurn), this.rideL).normalize();
       arms.left.solve(this.shoulderL, this.targetL);
     }
