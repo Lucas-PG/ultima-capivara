@@ -590,7 +590,8 @@ export class WeaponView {
       const moving = this.meleeTime < MELEE_SECONDS ? Math.sin(this.meleeTime * 22 - .8) : 0;
       // The cloth hangs in world gravity as the blade rolls in the paw.
       model.parts.ribbons.quaternion.copy(this.holder.quaternion).invert().multiply(this.inverseView);
-      model.parts.ribbons.rotation.x += Math.sin(this.time * 4.1) * .055 + moving * .34;
+      // A slight rest tilt keeps the trailing cloth off the forearm, which rides with the blade.
+      model.parts.ribbons.rotation.x += Math.sin(this.time * 4.1) * .055 + moving * .34 + .12;
       model.parts.ribbons.rotation.z += Math.sin(this.time * 3.7 + .6) * .045 + moving * .20;
     }
     if (bolt && model.id === 'm4') {

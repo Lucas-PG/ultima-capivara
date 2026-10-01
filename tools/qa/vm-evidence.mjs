@@ -3,7 +3,7 @@
 // from both sides, with the game HUD on. Same states and times every run, so a "before" set and an
 // "after" set compare from the same cameras.
 // node tools/qa/vm-evidence.mjs <outDir> [weapons csv] [sizes csv, e.g. 1280x720,1470x956]   (BASE env overrides the URL)
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 const [out, list = 'pistol,revolver,smg,m4,shotgun,dmr,sniper,coco,machete', sizes = '1280x720,1470x956'] = process.argv.slice(2);
 if (!out) throw new Error('Give an output directory.');
@@ -21,7 +21,8 @@ const RELOAD_KEYS = {
 };
 const states = weapon => [
   ['hip', 'hip', 'pose'], ['aimed', 'aimed', 'pose-ads'], ['sprint', 'sprint', 'sprint', .6], ['walk', 'walk', 'walk', .9],
-  ['strafe', 'strafe left', 'strafe', .5], ['crouch', 'crouch dip', 'crouch', .12], ['land', 'land', 'land', .08], ['draw', 'draw', 'equip', .3],
+  ['strafe', 'strafe left', 'strafe', .5], ['crouch', 'crouch dip', 'crouch', .12], ['land', 'land', 'land', .08],
+  ['holster', 'holster', 'equip', .06], ['draw', 'draw', 'draw', .2],
   ...(weapon === 'machete' ? [] : [['fire', 'fire', 'fire', .05]]),
   ...RELOAD_KEYS[weapon], ['inspect-a', 'inspect', 'inspect', .55], ['inspect-b', 'inspect', 'inspect', 1.3],
   ['side-right', 'hip right side', 'orbit', Math.PI / 2], ['side-left', 'hip left side', 'orbit', -Math.PI / 2],
@@ -40,7 +41,7 @@ try {
     await page.evaluate(async () => { await window.__capyQA.start(); window.__capyQA.quality('medium'); });
     await page.addStyleTag({ content: '#confetti,#flash{display:none!important}' });
     for (const weapon of list.split(',')) {
-      for (const [id, label, action, t] of states(weapon)) {
+      for (const [id, label, action, t] of states(weapon).filter(([id]) => !process.env.ONLY || process.env.ONLY.split(',').includes(id))) {
         await page.evaluate(() => { window.__vmOrbit = undefined; window.__vmActor = undefined; });
         if (action === 'pose') await page.evaluate(w => window.__capyQA.pose(`fp-${w}`), weapon);
         else if (action === 'pose-ads') await page.evaluate(w => window.__capyQA.pose(`ads-${w}`), weapon);
@@ -61,12 +62,22 @@ try {
           await page.evaluate(() => { window.__vmActor = a => ({ sprint: false, velocity: { x: -Math.cos(a.yaw) * 4.5, y: 0, z: Math.sin(a.yaw) * 4.5 } }); });
           await page.evaluate(([w, s]) => window.__capyQA.motion(w, 'sprint', s), [weapon, t]);
         } else if (action === 'crouch') {
-          // The fixture settles at a fixed time, then plays the action: standing still, crouched from that moment.
+          // The fixture settles for 30 frames at one time, then plays the action: standing still, crouched from then on.
           await page.evaluate(() => {
-            const st = { prev: -1, start: Infinity };
-            window.__vmActor = (a, time) => { if (time === st.prev) st.start = Math.min(st.start, time); st.prev = time;
+            const st = { prev: -1, start: Infinity, run: 0 };
+            window.__vmActor = (a, time) => { st.run = time === st.prev ? st.run + 1 : 0; if (st.run >= 28) st.start = time; st.prev = time;
               return { crouch: time > st.start, sprint: false, velocity: { x: 0, y: 0, z: 0 } }; };
           });
+          await page.evaluate(([w, s]) => window.__capyQA.motion(w, 'sprint', s), [weapon, t]);
+        } else if (action === 'draw') {
+          // The viewmodel holds another gun until the fixture's action starts, then this one: its own draw.
+          await page.evaluate(w => {
+            const st = { prev: -1, start: Infinity, run: 0 };
+            // The fixture's settle is a run of 30 frames at one time (the pose before it has shorter runs).
+            window.__vmActor = (a, time) => { st.run = time === st.prev ? st.run + 1 : 0; if (st.run >= 28) st.start = time; st.prev = time;
+              const still = { sprint: false, velocity: { x: 0, y: 0, z: 0 } };
+              return time > st.start ? still : { ...still, slot: 0, weapons: [{ id: w === 'pistol' ? 'm4' : 'pistol', rarity: 0, ammo: 12, reserve: 30, box: 0 }] }; };
+          }, weapon);
           await page.evaluate(([w, s]) => window.__capyQA.motion(w, 'sprint', s), [weapon, t]);
         } else await page.evaluate(([w, a, s]) => window.__capyQA.motion(w, a, s), [weapon, action, t]);
         await page.waitForTimeout(60);
@@ -81,5 +92,12 @@ try {
   }
 } finally {
   await browser.close();
-  writeFileSync(`${out}/index.json`, JSON.stringify(index, null, 1) + '\n');
+  // A partial run (ONLY=...) merges its states into an existing index, in the full list's order.
+  let merged = index;
+  try {
+    const previous = JSON.parse(readFileSync(`${out}/index.json`, 'utf8'));
+    merged = Object.fromEntries(Object.keys({ ...previous, ...index }).map(w => [w, states(w).map(([id]) =>
+      index[w]?.find(s => s.id === id) ?? previous[w]?.find(s => s.id === id)).filter(Boolean)]));
+  } catch { /* first run */ }
+  writeFileSync(`${out}/index.json`, JSON.stringify(merged, null, 1) + '\n');
 }

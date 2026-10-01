@@ -1,5 +1,5 @@
 // Worst paw-to-gun clearance of chosen motion states under several framing overrides (window.__vmTune).
-// node tools/qa/vm-clear-try.mjs <weapon> '<json: {name: tune}>' '<states: action@s,action@s...>' [L|R|LR]
+// node tools/qa/vm-clear-try.mjs <weapon> '<json: {name: tune}>' '<states: action@s,action@s...>' [L|R|LR]   (PAIR=1 adds paw-to-paw)
 import { chromium } from '@playwright/test';
 import { measureGrip } from './grip-measure.mjs';
 const [weapon, variantsJson, statesCsv, sides = 'LR'] = process.argv.slice(2);
@@ -23,9 +23,15 @@ try {
         const visible = await page.evaluate(side => window.__vmProbe.arms.meshes.find(m => m.name.endsWith(side)).visible, side);
         if (!visible) continue;
         const m = await page.evaluate(measureGrip, [weapon, side]);
-        const at = Object.entries(m.summary).sort((a, b) => a[1].min - b[1].min)[0]?.[0];
+        const worstAt = Object.entries(m.summary).sort((a, b) => a[1].min - b[1].min)[0];
+        const at = worstAt ? `${worstAt[0]}${worstAt[1].part ? ' in ' + worstAt[1].part : ''}` : '';
         worst = Math.min(worst, m.worst);
         parts.push(`${action}@${t} ${side} ${m.worst}${m.worst < -.5 ? ` (${at})` : ''}`);
+      }
+      if (process.env.PAIR) {
+        // Support paw against the whole firing arm (the two-handed handguns).
+        const m = await page.evaluate(measureGrip, [weapon, 'L', true]);
+        worst = Math.min(worst, m.worst); parts.push(`${action}@${t} pair ${m.worst}`);
       }
     }
     console.log(`${name.padEnd(10)} worst ${worst} | ${parts.join(' | ')}`);

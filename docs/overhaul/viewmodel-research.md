@@ -213,11 +213,12 @@ Screen fractions at 16:9 (the reticle is .5, .5), measured on our captures by
 | Shotgun (Doze) | .50 to .60, .48 to .60 | .64 to .76, .52 to .62 | .62 to .76, .74 to .90 | .46 to .60, .58 to .72 | .36 to .60 | same | 11 to 18% |
 | Marksman (Carabina, sniper) | .50 to .60, .48 to .60 | .64 to .78, .50 to .60 | .62 to .76, .74 to .90 | .46 to .60, .55 to .70 | .36 to .60 | same | 11 to 18% |
 | Launcher (Lanca-coco) | .50 to .62, .52 to .64 | .62 to .76, .46 to .58 | .62 to .78, .80 to 1 | .48 to .62, .70 to .90 | .40 to .62 | same | 11 to 19% |
-| Melee (Facao) | tip .50 to .66, .22 to .42 | | .66 to .82, .76 to .92 | free paw at the lower left | | blade diagonal up-left | 4 to 11% |
+| Melee (Facao) | tip .44 to .62, .25 to .45 | | .66 to .82, .76 to .92 | free paw at the lower left | | blade diagonal up-left | 6 to 14% |
 
-Everywhere: the central band (x .35 to .65, y .25 to .58) is at most 4 (handguns) to 12 (scoped)
-percent covered at the hip; nothing closer than 6 cm to the eye and no surface cut open by the near
-plane in any sampled pose; elbows bent between 60 and 158 degrees. Aimed: the sight on the reticle within
+Everywhere: the central band (x .35 to .65, y .25 to .58) is at most 4 (handguns), 8 (SMG), 12 (rifle,
+shotgun, launcher) or 14 (scoped) percent covered at the hip, 16 for the machete's thin blade, and the
+reticle itself is clear; nothing closer than 6 cm to the eye and no surface cut open by the near plane in
+any sampled pose; elbows bent between 60 and 158 degrees at the hip and aimed. Aimed: the sight on the reticle within
 half a percent of the frame, the support forearm under 6.5 percent of the frame, everything under 22.
 
 ## Sources

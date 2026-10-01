@@ -1,0 +1,1652 @@
+{
+ "pistol": {
+  "before": {
+   "hip": {
+    "coverage": 0.113,
+    "gun": 0.027,
+    "corridor": 0.051,
+    "muzzle": [
+     0.582,
+     0.542
+    ],
+    "sight": [
+     0.648,
+     0.515
+    ],
+    "grip": [
+     0.646,
+     0.669
+    ],
+    "supportWrist": [
+     0.613,
+     0.864
+    ],
+    "yaw": 5.7,
+    "pitch": 1.7,
+    "roll": 9.0,
+    "armR": 0.047,
+    "armL": 0.053,
+    "exitsR": {
+     "bottom": [
+      0.7,
+      0.88
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.49,
+      0.68
+     ]
+    },
+    "bendR": 160,
+    "bendL": 160,
+    "nearest": 0.265,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.11,
+    "gun": 0.022,
+    "corridor": 0.035,
+    "muzzle": [
+     0.5,
+     0.547
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     0.682
+    ],
+    "supportWrist": [
+     0.397,
+     0.879
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0.04,
+    "armL": 0.058,
+    "exitsR": {
+     "bottom": [
+      0.5,
+      0.63
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.29,
+      0.48
+     ]
+    },
+    "bendR": 146,
+    "bendL": 122,
+    "nearest": 0.255,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.099,
+    "gun": 0.036,
+    "corridor": 0.006,
+    "muzzle": [
+     0.553,
+     0.611
+    ],
+    "sight": [
+     0.601,
+     0.597
+    ],
+    "grip": [
+     0.599,
+     0.835
+    ],
+    "supportWrist": [
+     0.499,
+     1.137
+    ],
+    "yaw": 3.0,
+    "pitch": 2.0,
+    "roll": 3.9,
+    "armR": 0.031,
+    "armL": 0.042,
+    "exitsR": {
+     "bottom": [
+      0.57,
+      0.77
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.38,
+      0.57
+     ]
+    },
+    "bendR": 110,
+    "bendL": 111,
+    "nearest": 0.337,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.108,
+    "gun": 0.022,
+    "corridor": 0.035,
+    "muzzle": [
+     0.5,
+     0.547
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     0.682
+    ],
+    "supportWrist": [
+     0.397,
+     0.879
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0.04,
+    "armL": 0.056,
+    "exitsR": {
+     "bottom": [
+      0.5,
+      0.63
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.28,
+      0.45
+     ]
+    },
+    "bendR": 114,
+    "bendL": 129,
+    "nearest": 0.277,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 103,
+    "nearest": 0.277,
+    "nearCuts": 0,
+    "maxCoverage": 0.172,
+    "bend": [
+     42,
+     160
+    ]
+   }
+  }
+ },
+ "revolver": {
+  "before": {
+   "hip": {
+    "coverage": 0.1,
+    "gun": 0.031,
+    "corridor": 0.073,
+    "muzzle": [
+     0.554,
+     0.528
+    ],
+    "sight": [
+     0.652,
+     0.511
+    ],
+    "grip": [
+     0.626,
+     0.683
+    ],
+    "supportWrist": [
+     0.575,
+     0.819
+    ],
+    "yaw": 8.6,
+    "pitch": 2.4,
+    "roll": -3.8,
+    "armR": 0.034,
+    "armL": 0.05,
+    "exitsR": {
+     "bottom": [
+      0.65,
+      0.78
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.46,
+      0.64
+     ]
+    },
+    "bendR": 160,
+    "bendL": 160,
+    "nearest": 0.278,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.1,
+    "gun": 0.025,
+    "corridor": 0.034,
+    "muzzle": [
+     0.5,
+     0.543
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     0.725
+    ],
+    "supportWrist": [
+     0.404,
+     0.909
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0.035,
+    "armL": 0.052,
+    "exitsR": {
+     "bottom": [
+      0.52,
+      0.62
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.32,
+      0.48
+     ]
+    },
+    "bendR": 134,
+    "bendL": 116,
+    "nearest": 0.274,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.086,
+    "gun": 0.034,
+    "corridor": 0.006,
+    "muzzle": [
+     0.541,
+     0.592
+    ],
+    "sight": [
+     0.6,
+     0.599
+    ],
+    "grip": [
+     0.597,
+     0.861
+    ],
+    "supportWrist": [
+     0.506,
+     1.105
+    ],
+    "yaw": 3.0,
+    "pitch": 2.0,
+    "roll": 3.9,
+    "armR": 0.02,
+    "armL": 0.038,
+    "exitsR": {
+     "bottom": [
+      0.58,
+      0.75
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.42,
+      0.58
+     ]
+    },
+    "bendR": 109,
+    "bendL": 111,
+    "nearest": 0.37,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.1,
+    "gun": 0.025,
+    "corridor": 0.034,
+    "muzzle": [
+     0.5,
+     0.542
+    ],
+    "sight": [
+     0.5,
+     0.5
+    ],
+    "grip": [
+     0.5,
+     0.724
+    ],
+    "supportWrist": [
+     0.404,
+     0.908
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0.035,
+    "armL": 0.05,
+    "exitsR": {
+     "bottom": [
+      0.52,
+      0.62
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.31,
+      0.46
+     ]
+    },
+    "bendR": 114,
+    "bendL": 129,
+    "nearest": 0.28,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 116,
+    "nearest": 0.121,
+    "nearCuts": 0,
+    "maxCoverage": 0.34,
+    "bend": [
+     50,
+     160
+    ]
+   }
+  }
+ },
+ "smg": {
+  "before": {
+   "hip": {
+    "coverage": 0.136,
+    "gun": 0.08,
+    "corridor": 0.031,
+    "muzzle": [
+     0.563,
+     0.57
+    ],
+    "sight": [
+     0.696,
+     0.545
+    ],
+    "grip": [
+     0.657,
+     0.748
+    ],
+    "supportWrist": [
+     0.558,
+     0.786
+    ],
+    "yaw": 11.5,
+    "pitch": 2.4,
+    "roll": -5.0,
+    "armR": 0.028,
+    "armL": 0.039,
+    "exitsR": {
+     "bottom": [
+      0.69,
+      0.82
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.4,
+      0.56
+     ]
+    },
+    "bendR": 160,
+    "bendL": 160,
+    "nearest": 0.28,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.091,
+    "gun": 0.043,
+    "corridor": 0.056,
+    "muzzle": [
+     0.5,
+     0.581
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     0.856
+    ],
+    "supportWrist": [
+     0.432,
+     0.89
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0.029,
+    "armL": 0.039,
+    "exitsR": {
+     "bottom": [
+      0.45,
+      0.65
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.32,
+      0.47
+     ]
+    },
+    "bendR": 109,
+    "bendL": 132,
+    "nearest": 0.2,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.134,
+    "gun": 0.091,
+    "corridor": 0.028,
+    "muzzle": [
+     0.577,
+     0.581
+    ],
+    "sight": [
+     0.691,
+     0.571
+    ],
+    "grip": [
+     0.68,
+     0.843
+    ],
+    "supportWrist": [
+     0.575,
+     0.906
+    ],
+    "yaw": 7.0,
+    "pitch": 5.0,
+    "roll": 6.4,
+    "armR": 0.025,
+    "armL": 0.032,
+    "exitsR": {
+     "bottom": [
+      0.71,
+      0.83
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.52,
+      0.62
+     ]
+    },
+    "bendR": 110,
+    "bendL": 136,
+    "nearest": 0.277,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.09,
+    "gun": 0.043,
+    "corridor": 0.056,
+    "muzzle": [
+     0.5,
+     0.581
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     0.856
+    ],
+    "supportWrist": [
+     0.432,
+     0.889
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0.029,
+    "armL": 0.039,
+    "exitsR": {
+     "bottom": [
+      0.45,
+      0.65
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.32,
+      0.47
+     ]
+    },
+    "bendR": 114,
+    "bendL": 110,
+    "nearest": 0.2,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 109,
+    "nearest": 0.2,
+    "nearCuts": 0,
+    "maxCoverage": 0.224,
+    "bend": [
+     73,
+     160
+    ]
+   }
+  }
+ },
+ "m4": {
+  "before": {
+   "hip": {
+    "coverage": 0.233,
+    "gun": 0.125,
+    "corridor": 0.147,
+    "muzzle": [
+     0.49,
+     0.513
+    ],
+    "sight": [
+     0.728,
+     0.499
+    ],
+    "grip": [
+     0.708,
+     0.743
+    ],
+    "supportWrist": [
+     0.497,
+     0.585
+    ],
+    "yaw": 18.4,
+    "pitch": 4.1,
+    "roll": 20.8,
+    "armR": 0.047,
+    "armL": 0.083,
+    "exitsR": {
+     "bottom": [
+      0.77,
+      0.99
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.16,
+      0.38
+     ]
+    },
+    "bendR": 84,
+    "bendL": 160,
+    "nearest": 0.242,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.178,
+    "gun": 0.077,
+    "corridor": 0.106,
+    "muzzle": [
+     0.5,
+     0.56
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     0.936
+    ],
+    "supportWrist": [
+     0.424,
+     0.587
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0.004,
+    "armL": 0.11,
+    "exitsR": {
+     "bottom": [
+      0.52,
+      0.63
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.0,
+      0.27
+     ],
+     "left": [
+      0.96,
+      0.99
+     ]
+    },
+    "bendR": 78,
+    "bendL": 134,
+    "nearest": 0.083,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.168,
+    "gun": 0.117,
+    "corridor": 0.091,
+    "muzzle": [
+     0.548,
+     0.526
+    ],
+    "sight": [
+     0.7,
+     0.558
+    ],
+    "grip": [
+     0.686,
+     0.798
+    ],
+    "supportWrist": [
+     0.53,
+     0.59
+    ],
+    "yaw": 8.0,
+    "pitch": 6.1,
+    "roll": 7.2,
+    "armR": 0.021,
+    "armL": 0.048,
+    "exitsR": {
+     "bottom": [
+      0.73,
+      0.82
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.42,
+      0.53
+     ]
+    },
+    "bendR": 109,
+    "bendL": 135,
+    "nearest": 0.324,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.112,
+    "gun": 0.077,
+    "corridor": 0.085,
+    "muzzle": [
+     0.5,
+     0.56
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     0.936
+    ],
+    "supportWrist": [
+     0.424,
+     0.587
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0.004,
+    "armL": 0.054,
+    "exitsR": {
+     "bottom": [
+      0.52,
+      0.63
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.3,
+      0.41
+     ]
+    },
+    "bendR": 114,
+    "bendL": 129,
+    "nearest": 0.083,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 124,
+    "nearest": 0.082,
+    "nearCuts": 0,
+    "maxCoverage": 0.258,
+    "bend": [
+     52,
+     160
+    ]
+   }
+  }
+ },
+ "shotgun": {
+  "before": {
+   "hip": {
+    "coverage": 0.192,
+    "gun": 0.119,
+    "corridor": 0.117,
+    "muzzle": [
+     0.497,
+     0.523
+    ],
+    "sight": [
+     0.716,
+     0.491
+    ],
+    "grip": [
+     0.733,
+     0.688
+    ],
+    "supportWrist": [
+     0.537,
+     0.643
+    ],
+    "yaw": 17.2,
+    "pitch": 0.0,
+    "roll": 22.0,
+    "armR": 0.055,
+    "armL": 0.063,
+    "exitsR": {
+     "bottom": [
+      0.85,
+      1.0
+     ],
+     "right": [
+      0.94,
+      0.99
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.26,
+      0.45
+     ]
+    },
+    "bendR": 117,
+    "bendL": 160,
+    "nearest": 0.363,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.161,
+    "gun": 0.076,
+    "corridor": 0.063,
+    "muzzle": [
+     0.5,
+     0.531
+    ],
+    "sight": [
+     0.5,
+     0.5
+    ],
+    "grip": [
+     0.5,
+     0.821
+    ],
+    "supportWrist": [
+     0.422,
+     0.636
+    ],
+    "yaw": 0,
+    "pitch": 0.2,
+    "roll": 0,
+    "armR": 0.024,
+    "armL": 0.092,
+    "exitsR": {
+     "bottom": [
+      0.56,
+      0.68
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.05,
+      0.26
+     ]
+    },
+    "bendR": 85,
+    "bendL": 113,
+    "nearest": 0.125,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.145,
+    "gun": 0.108,
+    "corridor": 0.072,
+    "muzzle": [
+     0.537,
+     0.522
+    ],
+    "sight": [
+     0.7,
+     0.559
+    ],
+    "grip": [
+     0.701,
+     0.808
+    ],
+    "supportWrist": [
+     0.527,
+     0.666
+    ],
+    "yaw": 7.0,
+    "pitch": 3.1,
+    "roll": 7.6,
+    "armR": 0.029,
+    "armL": 0.042,
+    "exitsR": {
+     "bottom": [
+      0.72,
+      0.87
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.45,
+      0.53
+     ]
+    },
+    "bendR": 110,
+    "bendL": 136,
+    "nearest": 0.315,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.109,
+    "gun": 0.074,
+    "corridor": 0.057,
+    "muzzle": [
+     0.5,
+     0.531
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     0.823
+    ],
+    "supportWrist": [
+     0.422,
+     0.636
+    ],
+    "yaw": 0,
+    "pitch": 0.2,
+    "roll": 0,
+    "armR": 0.024,
+    "armL": 0.047,
+    "exitsR": {
+     "bottom": [
+      0.56,
+      0.68
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.32,
+      0.41
+     ]
+    },
+    "bendR": 114,
+    "bendL": 129,
+    "nearest": 0.126,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 123,
+    "nearest": 0.125,
+    "nearCuts": 0,
+    "maxCoverage": 0.259,
+    "bend": [
+     77,
+     160
+    ]
+   }
+  }
+ },
+ "dmr": {
+  "before": {
+   "hip": {
+    "coverage": 0.244,
+    "gun": 0.155,
+    "corridor": 0.221,
+    "muzzle": [
+     0.494,
+     0.528
+    ],
+    "sight": [
+     0.774,
+     0.38
+    ],
+    "grip": [
+     0.739,
+     0.691
+    ],
+    "supportWrist": [
+     0.516,
+     0.584
+    ],
+    "yaw": 17.2,
+    "pitch": -0.0,
+    "roll": 24.8,
+    "armR": 0.05,
+    "armL": 0.074,
+    "exitsR": {
+     "bottom": [
+      0.91,
+      1.0
+     ],
+     "right": [
+      0.85,
+      0.99
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.22,
+      0.42
+     ]
+    },
+    "bendR": 107,
+    "bendL": 160,
+    "nearest": 0.346,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.224,
+    "gun": 0.127,
+    "corridor": 0.649,
+    "muzzle": [
+     0.5,
+     0.587
+    ],
+    "sight": [
+     0.5,
+     0.497
+    ],
+    "grip": [
+     0.5,
+     1.129
+    ],
+    "supportWrist": [
+     0.407,
+     0.636
+    ],
+    "yaw": 0,
+    "pitch": 0.0,
+    "roll": 0,
+    "armR": 0,
+    "armL": 0.114,
+    "exitsR": {},
+    "exitsL": {
+     "bottom": [
+      0.0,
+      0.22
+     ],
+     "left": [
+      0.89,
+      0.99
+     ]
+    },
+    "bendR": 85,
+    "bendL": 108,
+    "nearest": 0.122,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.135,
+    "gun": 0.098,
+    "corridor": 0.102,
+    "muzzle": [
+     0.535,
+     0.546
+    ],
+    "sight": [
+     0.709,
+     0.542
+    ],
+    "grip": [
+     0.678,
+     0.809
+    ],
+    "supportWrist": [
+     0.523,
+     0.606
+    ],
+    "yaw": 8.0,
+    "pitch": 4.1,
+    "roll": 7.4,
+    "armR": 0.017,
+    "armL": 0.04,
+    "exitsR": {
+     "bottom": [
+      0.68,
+      0.81
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.43,
+      0.53
+     ]
+    },
+    "bendR": 110,
+    "bendL": 136,
+    "nearest": 0.435,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.165,
+    "gun": 0.127,
+    "corridor": 0.639,
+    "muzzle": [
+     0.5,
+     0.588
+    ],
+    "sight": [
+     0.5,
+     0.502
+    ],
+    "grip": [
+     0.5,
+     1.132
+    ],
+    "supportWrist": [
+     0.407,
+     0.637
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0,
+    "armL": 0.055,
+    "exitsR": {},
+    "exitsL": {
+     "bottom": [
+      0.3,
+      0.4
+     ]
+    },
+    "bendR": 114,
+    "bendL": 129,
+    "nearest": 0.123,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 127,
+    "nearest": 0.122,
+    "nearCuts": 0,
+    "maxCoverage": 0.241,
+    "bend": [
+     43,
+     160
+    ]
+   }
+  }
+ },
+ "sniper": {
+  "before": {
+   "hip": {
+    "coverage": 0.24,
+    "gun": 0.161,
+    "corridor": 0.253,
+    "muzzle": [
+     0.475,
+     0.523
+    ],
+    "sight": [
+     0.798,
+     0.394
+    ],
+    "grip": [
+     0.739,
+     0.692
+    ],
+    "supportWrist": [
+     0.537,
+     0.629
+    ],
+    "yaw": 17.2,
+    "pitch": -0.1,
+    "roll": 24.8,
+    "armR": 0.052,
+    "armL": 0.069,
+    "exitsR": {
+     "bottom": [
+      0.9,
+      1.0
+     ],
+     "right": [
+      0.85,
+      0.99
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.25,
+      0.44
+     ]
+    },
+    "bendR": 113,
+    "bendL": 160,
+    "nearest": 0.358,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.267,
+    "gun": 0.168,
+    "corridor": 0.676,
+    "muzzle": [
+     0.5,
+     0.564
+    ],
+    "sight": [
+     0.5,
+     0.497
+    ],
+    "grip": [
+     0.5,
+     1.061
+    ],
+    "supportWrist": [
+     0.405,
+     0.692
+    ],
+    "yaw": 0,
+    "pitch": 0.0,
+    "roll": 0,
+    "armR": 0,
+    "armL": 0.113,
+    "exitsR": {},
+    "exitsL": {
+     "bottom": [
+      0.0,
+      0.23
+     ],
+     "left": [
+      0.87,
+      0.99
+     ]
+    },
+    "bendR": 88,
+    "bendL": 98,
+    "nearest": 0.123,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.142,
+    "gun": 0.112,
+    "corridor": 0.119,
+    "muzzle": [
+     0.536,
+     0.549
+    ],
+    "sight": [
+     0.73,
+     0.56
+    ],
+    "grip": [
+     0.692,
+     0.806
+    ],
+    "supportWrist": [
+     0.55,
+     0.669
+    ],
+    "yaw": 7.0,
+    "pitch": 2.6,
+    "roll": 7.7,
+    "armR": 0.019,
+    "armL": 0.034,
+    "exitsR": {
+     "bottom": [
+      0.72,
+      0.83
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.48,
+      0.56
+     ]
+    },
+    "bendR": 110,
+    "bendL": 136,
+    "nearest": 0.416,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.204,
+    "gun": 0.167,
+    "corridor": 0.672,
+    "muzzle": [
+     0.5,
+     0.565
+    ],
+    "sight": [
+     0.5,
+     0.503
+    ],
+    "grip": [
+     0.5,
+     1.064
+    ],
+    "supportWrist": [
+     0.405,
+     0.694
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0,
+    "armL": 0.052,
+    "exitsR": {},
+    "exitsL": {
+     "bottom": [
+      0.3,
+      0.41
+     ]
+    },
+    "bendR": 114,
+    "bendL": 129,
+    "nearest": 0.123,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 160,
+    "nearest": 0.123,
+    "nearCuts": 0,
+    "maxCoverage": 0.24,
+    "bend": [
+     42,
+     160
+    ]
+   }
+  }
+ },
+ "coco": {
+  "before": {
+   "hip": {
+    "coverage": 0.263,
+    "gun": 0.193,
+    "corridor": 0.251,
+    "muzzle": [
+     0.516,
+     0.502
+    ],
+    "sight": [
+     0.745,
+     0.266
+    ],
+    "grip": [
+     0.723,
+     0.738
+    ],
+    "supportWrist": [
+     0.536,
+     0.669
+    ],
+    "yaw": 17.2,
+    "pitch": 2.2,
+    "roll": 13.1,
+    "armR": 0.036,
+    "armL": 0.054,
+    "exitsR": {
+     "bottom": [
+      0.82,
+      0.97
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.28,
+      0.45
+     ]
+    },
+    "bendR": 101,
+    "bendL": 160,
+    "nearest": 0.372,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.142,
+    "gun": 0.114,
+    "corridor": 0.088,
+    "muzzle": [
+     0.5,
+     0.622
+    ],
+    "sight": [
+     0.5,
+     0.499
+    ],
+    "grip": [
+     0.5,
+     1.021
+    ],
+    "supportWrist": [
+     0.435,
+     0.807
+    ],
+    "yaw": 0,
+    "pitch": 0.0,
+    "roll": 0,
+    "armR": 0,
+    "armL": 0.041,
+    "exitsR": {},
+    "exitsL": {
+     "bottom": [
+      0.18,
+      0.37
+     ]
+    },
+    "bendR": 83,
+    "bendL": 109,
+    "nearest": 0.323,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.147,
+    "gun": 0.126,
+    "corridor": 0.055,
+    "muzzle": [
+     0.556,
+     0.597
+    ],
+    "sight": [
+     0.71,
+     0.542
+    ],
+    "grip": [
+     0.696,
+     0.969
+    ],
+    "supportWrist": [
+     0.544,
+     0.813
+    ],
+    "yaw": 8.0,
+    "pitch": 5.0,
+    "roll": 7.3,
+    "armR": 0.002,
+    "armL": 0.024,
+    "exitsR": {
+     "bottom": [
+      0.71,
+      0.77
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.5,
+      0.56
+     ]
+    },
+    "bendR": 110,
+    "bendL": 135,
+    "nearest": 0.553,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.124,
+    "gun": 0.116,
+    "corridor": 0.085,
+    "muzzle": [
+     0.5,
+     0.623
+    ],
+    "sight": [
+     0.5,
+     0.501
+    ],
+    "grip": [
+     0.5,
+     1.022
+    ],
+    "supportWrist": [
+     0.435,
+     0.808
+    ],
+    "yaw": 0,
+    "pitch": -0.0,
+    "roll": 0,
+    "armR": 0,
+    "armL": 0.025,
+    "exitsR": {},
+    "exitsL": {
+     "bottom": [
+      0.37,
+      0.44
+     ]
+    },
+    "bendR": 114,
+    "bendL": 129,
+    "nearest": 0.323,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 131,
+    "nearest": 0.322,
+    "nearCuts": 0,
+    "maxCoverage": 0.186,
+    "bend": [
+     71,
+     160
+    ]
+   }
+  }
+ },
+ "machete": {
+  "before": {
+   "hip": {
+    "coverage": 0.109,
+    "gun": 0.04,
+    "corridor": 0.15,
+    "muzzle": [
+     0.396,
+     0.264
+    ],
+    "sight": [
+     0.642,
+     0.749
+    ],
+    "grip": [
+     0.678,
+     0.702
+    ],
+    "supportWrist": [
+     0.235,
+     0.951
+    ],
+    "yaw": 48.7,
+    "pitch": 40.1,
+    "roll": 111.6,
+    "armR": 0.057,
+    "armL": 0.033,
+    "exitsR": {
+     "bottom": [
+      0.69,
+      0.88
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.13,
+      0.28
+     ]
+    },
+    "bendR": 160,
+    "bendL": 160,
+    "nearest": 0.34,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.11,
+    "gun": 0.04,
+    "corridor": 0.151,
+    "muzzle": [
+     0.396,
+     0.263
+    ],
+    "sight": [
+     0.642,
+     0.747
+    ],
+    "grip": [
+     0.678,
+     0.7
+    ],
+    "supportWrist": [
+     0.235,
+     0.951
+    ],
+    "yaw": 48.7,
+    "pitch": 40.1,
+    "roll": 111.7,
+    "armR": 0.058,
+    "armL": 0.033,
+    "exitsR": {
+     "bottom": [
+      0.69,
+      0.88
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.13,
+      0.28
+     ]
+    },
+    "bendR": 160,
+    "bendL": 160,
+    "nearest": 0.34,
+    "nearCuts": 0
+   }
+  },
+  "after": {
+   "hip": {
+    "coverage": 0.125,
+    "gun": 0.045,
+    "corridor": 0.153,
+    "muzzle": [
+     0.484,
+     0.365
+    ],
+    "sight": [
+     0.681,
+     0.912
+    ],
+    "grip": [
+     0.74,
+     0.846
+    ],
+    "supportWrist": [
+     0.168,
+     0.978
+    ],
+    "yaw": 24.1,
+    "pitch": 34.3,
+    "roll": 122.6,
+    "armR": 0.044,
+    "armL": 0.052,
+    "exitsR": {
+     "bottom": [
+      0.66,
+      0.8
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.07,
+      0.25
+     ]
+    },
+    "bendR": 109,
+    "bendL": 136,
+    "nearest": 0.454,
+    "nearCuts": 0
+   },
+   "aimed": {
+    "coverage": 0.124,
+    "gun": 0.044,
+    "corridor": 0.153,
+    "muzzle": [
+     0.484,
+     0.369
+    ],
+    "sight": [
+     0.681,
+     0.921
+    ],
+    "grip": [
+     0.74,
+     0.855
+    ],
+    "supportWrist": [
+     0.168,
+     0.978
+    ],
+    "yaw": 23.9,
+    "pitch": 34.4,
+    "roll": 122.5,
+    "armR": 0.043,
+    "armL": 0.052,
+    "exitsR": {
+     "bottom": [
+      0.67,
+      0.8
+     ]
+    },
+    "exitsL": {
+     "bottom": [
+      0.07,
+      0.25
+     ]
+    },
+    "bendR": 109,
+    "bendL": 136,
+    "nearest": 0.454,
+    "nearCuts": 0
+   },
+   "allStates": {
+    "samples": 74,
+    "nearest": 0.337,
+    "nearCuts": 0,
+    "maxCoverage": 0.146,
+    "bend": [
+     93,
+     136
+    ]
+   }
+  }
+ }
+}

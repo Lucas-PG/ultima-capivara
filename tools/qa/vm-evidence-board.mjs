@@ -45,6 +45,6 @@ for (const weapon of list.split(',')) {
   const file = `${out}/${weapon}-${size}.jpg`;
   await sharp({ create: { width: cols * (tw + gap), height: rows * (th + gap), channels: 3, background: '#1b1b1b' } })
     .composite(tiles.map((b, i) => ({ input: b, left: (i % cols) * (tw + gap) + (pairs && i % 2 ? 0 : 0), top: Math.floor(i / cols) * (th + gap) })))
-    .jpeg({ quality: 78, mozjpeg: true }).toFile(file);
+    .jpeg({ quality: Number(process.env.Q || 78), mozjpeg: true }).toFile(file);
   console.log(file);
 }
