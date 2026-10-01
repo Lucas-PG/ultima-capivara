@@ -55,9 +55,11 @@ export const ELBOW_BEND: Range = [60, 158];
 
 /** Natural wrist (degrees), every paw in every sampled state. Normal range of motion (AAOS): flexion 80,
  * extension 70, radial deviation 20, ulnar 30, pronation and supination 80 each; the functional range of
- * daily tasks is about 40 flexion to 40 extension and 10 radial to 30 ulnar (Ryu et al. 1991, Palmer et al.
- * 1985). A held weapon reads natural well inside the end range: extension and flexion within 45, ulnar
- * deviation within 25 and radial within 20, pronation and supination within the forearm's 80. */
+ * daily tasks is 40 flexion to 40 extension and 10 radial to 30 ulnar (Ryu et al. 1991; Palmer et al. 1985
+ * measured less). A held weapon reads natural inside the functional range: extension and flexion within 45,
+ * ulnar deviation within 25 and radial within 20. Forearm rotation keeps the anatomical 80 (daily tasks use
+ * about 50, Morrey et al. 1981): a fore-end held from below needs strong supination, and rotation shows only
+ * as the paw's facing, never as a kink at the wrist. */
 export const WRIST_LIMITS = { flexion: [-45, 45], deviation: [-25, 20], pronation: [-80, 80] } as const;
 /** What the arm solver aims for: the limits less a margin, so measured poses keep clear of them. */
 export const WRIST_SOLVE = { flexion: [-40, 40], deviation: [-21, 16], pronation: [-74, 74] } as const;

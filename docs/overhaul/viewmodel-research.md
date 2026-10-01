@@ -47,7 +47,8 @@ target composition per class. The rig, grip and reload research of the previous 
 - **Decision**: one hip lens for every gun, 44 degrees vertical (inside Source's 42 to 54), with each gun
   placed at a natural distance (sight 0.36 to 0.55 m from the eye). While aiming the lens blends to each
   gun's previous lens, so the authored sight pictures and the scope contract stay exactly as they were.
-  A "Tamanho da arma" setting scales the hip lens (0.8 to 1.2), like Call of Duty's Weapon Field of View.
+  No weapon size option (the first pass had one, "Tamanho da arma", like Call of Duty's Weapon Field of
+  View; the director removed it in the second pass: the default framing has to look right on its own).
 
 ## 3. Hip framing measured (16:9)
 
@@ -184,6 +185,20 @@ crossing the lower half of the screen; heavy attacks raise the weapon and chop d
   the wrist, the taper and section shape kept), leaving the paw, digits, fur, colours and the rolled
   linen cuff untouched, so it still reads as the character's arm. Done at load time on the skinned mesh
   (no Blender rebuild needed; the fur shells follow it).
+- The support hand's forearm is short on screen: the hand sits low under the rear of the fore-end (Apex
+  y .70 to .90, Call of Duty .72 to .88) and the forearm runs away from the eye, so it is foreshortened to
+  a short shape at the bottom edge. Its back of the hand continues the forearm's line; nothing reads as a
+  bent or twisted wrist (second pass, measured below).
+- **Natural wrists** (second pass). The normal range of motion of the wrist (American Academy of
+  Orthopaedic Surgeons) is about 80 degrees of flexion, 70 of extension, 20 of radial and 30 of ulnar
+  deviation, and 80 each of pronation and supination of the forearm [A1]. The functional range used in
+  daily tasks is much smaller: 40 flexion to 40 extension and 10 radial to 30 ulnar deviation (Ryu et
+  al. 1991 [A2]); Palmer et al. measured 5 flexion to 30 extension and 10 radial to 15 ulnar [A3]; forearm
+  rotation in daily tasks is about 50 each way (Morrey et al. 1981 [A4]). A hold that reads relaxed stays
+  inside the functional range, so every paw in every sampled state keeps flexion and extension within 45,
+  ulnar deviation within 25 and radial within 20; forearm rotation keeps the anatomical 80, since a
+  fore-end held from below needs strong supination and rotation shows only as the paw's facing
+  (`WRIST_LIMITS`; the reasoning in the framing report, section 7).
 
 ## 8. What the old framing got wrong (measured on our build)
 
@@ -207,19 +222,20 @@ Screen fractions at 16:9 (the reticle is .5, .5), measured on our captures by
 
 | Class (our weapons) | Muzzle | Sight | Firing grip | Support wrist | Support exit | Yaw, pitch, roll | Coverage |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Handgun (pistol, revolver) | .50 to .62, .52 to .66 | .54 to .66, .52 to .66 | .52 to .72, .72 to .95 | below the firing paw | .30 to .62 | 0 to 6, 0 to 5, 0 to 8 | 5 to 12% |
+| Handgun (pistol, revolver) | .50 to .62, .50 to .66 | .54 to .66, .48 to .66 | .52 to .72, .72 to .95 | cupping the firing paw from below-left | .30 to .66 | 0 to 6, 0 to 5, 0 to 8 | 5 to 12% |
 | SMG (Canarinho) | .52 to .62, .52 to .62 | .62 to .74, .52 to .62 | .60 to .76, .74 to .92 | .50 to .66, .75 to 1 | .40 to .70 | 3 to 10, 1 to 8, 3 to 10 | 9 to 16% |
-| Rifle (M4) | .52 to .60, .50 to .60 | .64 to .76, .52 to .62 | .62 to .76, .74 to .90 | .46 to .58, .55 to .68 | .36 to .60 | 3 to 10, 1 to 8, 3 to 10 | 11 to 18% |
-| Shotgun (Doze) | .50 to .60, .48 to .60 | .64 to .76, .52 to .62 | .62 to .76, .74 to .90 | .46 to .60, .58 to .72 | .36 to .60 | same | 11 to 18% |
-| Marksman (Carabina, sniper) | .50 to .60, .48 to .60 | .64 to .78, .50 to .60 | .62 to .76, .74 to .90 | .46 to .60, .55 to .70 | .36 to .60 | same | 11 to 18% |
-| Launcher (Lanca-coco) | .50 to .62, .52 to .64 | .62 to .76, .46 to .58 | .62 to .78, .80 to 1 | .48 to .62, .70 to .90 | .40 to .62 | same | 11 to 19% |
-| Melee (Facao) | tip .44 to .62, .25 to .45 | | .66 to .82, .76 to .92 | free paw at the lower left | | blade diagonal up-left | 6 to 14% |
+| Rifle (M4) | .52 to .60, .50 to .60 | .64 to .76, .52 to .64 | .62 to .76, .74 to .90 | .50 to .64, .72 to .90 | .40 to .66 | 3 to 10, 1 to 8, 3 to 10 | 9 to 18% |
+| Shotgun (Doze) | .50 to .60, .48 to .60 | .64 to .76, .52 to .64 | .62 to .76, .74 to .90 | .50 to .64, .70 to .88 | .40 to .66 | same | 9 to 18% |
+| Marksman (Carabina, sniper) | .50 to .60, .48 to .60 | .64 to .78, .52 to .66 | .62 to .76, .74 to .90 | .50 to .64, .70 to .90 | .40 to .66 | same | 9 to 18% |
+| Launcher (Lanca-coco) | .50 to .62, .52 to .64 | .62 to .76, .46 to .58 | .62 to .78, .80 to 1 | .50 to .64, .75 to .95 | .40 to .66 | same | 9 to 19% |
+| Melee (Facao) | tip .44 to .62, .25 to .45 | | .66 to .82, .76 to .92 | free paw relaxed, mostly out of frame | | blade diagonal up-left | 6 to 14% |
 
-Everywhere: the central band (x .35 to .65, y .25 to .58) is at most 4 (handguns), 8 (SMG), 12 (rifle,
+Everywhere: the central band (x .35 to .65, y .25 to .58) is at most 8 (handguns, SMG), 12 (rifle,
 shotgun, launcher) or 14 (scoped) percent covered at the hip, 16 for the machete's thin blade, and the
 reticle itself is clear; nothing closer than 6 cm to the eye and no surface cut open by the near plane in
 any sampled pose; elbows bent between 60 and 158 degrees at the hip and aimed. Aimed: the sight on the reticle within
-half a percent of the frame, the support forearm under 6.5 percent of the frame, everything under 22.
+half a percent of the frame, the support forearm under 6.5 percent of the frame, everything under 22. Both
+wrists inside the natural limits above in every sampled state.
 
 ## Sources
 
@@ -252,4 +268,8 @@ Developer and reference articles:
 - Ryan Duffin, "Animation Bootcamp: Giving Purpose to First-Person Animation", GDC 2013, https://gdcvault.com/play/1017633/Animation-Bootcamp-Giving-Purpose-to (abstract only).
 - Activision, Modern Warfare Initial Intel: animation and authenticity (Mark Grigsby), https://blog.activision.com/call-of-duty/2019-07/Modern-Warfare-Initial-Intel-Detailing-Advancements-in-Animation-and-Authenticity (hand-animated weapon handling, tactical and empty reloads).
 - Respawn job listings for Apex Legends viewmodel animators, https://jobs.ea.com/en_US/careers/JobDetail/Senior-View-Model-Animator/212817 (viewmodel animation is its own discipline; no public framing breakdown found).
+- [A1] American Academy of Orthopaedic Surgeons, "Joint Motion: Method of Measuring and Recording" (1965), normal ranges as tabulated in Norkin and White, "Measurement of Joint Motion: A Guide to Goniometry" (wrist flexion 80, extension 70, radial deviation 20, ulnar 30; forearm pronation and supination 80).
+- [A2] J. Ryu, W. P. Cooney, L. J. Askew, K. N. An, E. Y. Chao, "Functional ranges of motion of the wrist joint", Journal of Hand Surgery (American) 16(3), 1991, 409 to 419.
+- [A3] A. K. Palmer, F. W. Werner, D. Murphy, R. Glisson, "Functional wrist motion: a biomechanical study", Journal of Hand Surgery (American) 10(1), 1985, 39 to 46.
+- [A4] B. F. Morrey, L. J. Askew, E. Y. Chao, "A biomechanical study of normal functional elbow motion", Journal of Bone and Joint Surgery (American) 63(6), 1981, 872 to 877 (100 degrees of forearm rotation, 50 each way, for daily tasks).
 - Gap: no public talk or article gives viewmodel framing numbers for Apex or Call of Duty; the numbers above are our measurements of their footage.

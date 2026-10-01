@@ -2,6 +2,7 @@
 // state as a before | after pair, labelled, with the target composition drawn as guides on the hip and
 // aimed tiles (our own captures only). Without a before directory it lays out the after set alone.
 // node tools/qa/vm-evidence-board.mjs <outDir> <afterDir> [beforeDir|-] [size WxH] [weapons csv] [tile width]
+// MID=<dir> adds a middle column (MID_LABEL, default 'first pass') between before and after.
 import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 import sharp from 'sharp';
 import { GUIDES } from './vm-guides.mjs';
@@ -39,9 +40,10 @@ for (const weapon of list.split(',')) {
   for (const state of states) {
     const guides = state.id === 'hip' || state.id === 'aimed';
     if (pairs) tiles.push(await tile(beforeDir, weapon, state, 'before', guides));
+    if (pairs && process.env.MID) tiles.push(await tile(process.env.MID, weapon, state, process.env.MID_LABEL || 'first pass', guides));
     tiles.push(await tile(afterDir, weapon, state, pairs ? 'after' : '', guides));
   }
-  const cols = 4, rows = Math.ceil(tiles.length / cols), gap = 4;
+  const cols = process.env.MID ? 6 : 4, rows = Math.ceil(tiles.length / cols), gap = 4;
   const file = `${out}/${weapon}-${size}.jpg`;
   await sharp({ create: { width: cols * (tw + gap), height: rows * (th + gap), channels: 3, background: '#1b1b1b' } })
     .composite(tiles.map((b, i) => ({ input: b, left: (i % cols) * (tw + gap) + (pairs && i % 2 ? 0 : 0), top: Math.floor(i / cols) * (th + gap) })))
