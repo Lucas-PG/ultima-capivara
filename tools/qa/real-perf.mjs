@@ -23,6 +23,7 @@ const seconds = Number(env.DURATION || 300), width = Number(env.W || 1470), heig
 const gpu = env.GPU !== '0', timingOn = env.TIMING !== '0';
 const traceAt = (env.TRACE_AT ?? '60').split(',').filter(Boolean).map(Number);
 const profileAt = (env.PROFILE_AT ?? '').split(',').filter(Boolean).map(Number);
+const allocAt = (env.ALLOC_AT ?? '').split(',').filter(Boolean).map(Number);
 const extraSettings = JSON.parse(env.SETTINGS || '{}');
 
 const thermal = () => { try { return Number(execSync('notifyutil -g com.apple.system.thermalpressurelevel').toString().trim().split(/\s+/).pop()); } catch { return null; } };
@@ -68,7 +69,7 @@ try {
   const started = Date.now(), samples = [], gcTraces = [];
   let rafFrom = await page.evaluate(() => window.__rafTimes.count), lastRendered = await page.evaluate(() => window.__capivara.inspect().renderedFrames);
   await page.evaluate(() => { window.__capivara.resetPerf(); window.__capivara.gpu(true); });
-  const traced = new Set(), profiled = new Set(), profiles = [];
+  const traced = new Set(), profiled = new Set(), profiles = [], sampledAlloc = new Set(), allocations = [];
   while ((Date.now() - started) / 1000 < seconds) {
     await page.waitForTimeout(1000);
     const elapsed = (Date.now() - started) / 1000;
@@ -106,6 +107,25 @@ try {
       profiles.push({ at: profileDue, totalMs: Math.round(total), top });
       console.log('profiled', profileDue, JSON.stringify(top.slice(0, 12)));
     }
+    // ALLOC_AT: 10 s of allocation sampling, the collected garbage included, summarised by function.
+    const allocDue = allocAt.find(at => elapsed >= at && !sampledAlloc.has(at));
+    if (allocDue !== undefined) {
+      sampledAlloc.add(allocDue);
+      await cdp.send('HeapProfiler.enable');
+      const before = await page.evaluate(() => window.__capivara.inspect().renderedFrames);
+      await cdp.send('HeapProfiler.startSampling', { samplingInterval: 8192, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
+      await page.waitForTimeout(10_000);
+      const { profile } = await cdp.send('HeapProfiler.stopSampling');
+      const frames = (await page.evaluate(() => window.__capivara.inspect().renderedFrames)) - before;
+      const self = new Map();
+      const walk = node => { const f = node.callFrame, key = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber + 1}:${f.columnNumber + 1}`;
+        self.set(key, (self.get(key) || 0) + node.selfSize); for (const child of node.children) walk(child); };
+      walk(profile.head);
+      const total = [...self.values()].reduce((a, b) => a + b, 0);
+      const top = [...self].sort((a, b) => b[1] - a[1]).slice(0, 40).map(([k, v]) => [k, +(v / Math.max(1, frames) / 1024).toFixed(2)]);
+      allocations.push({ at: allocDue, frames, kbPerFrame: +(total / Math.max(1, frames) / 1024).toFixed(1), top });
+      console.log('allocations', allocDue, (total / Math.max(1, frames) / 1024).toFixed(1), 'KB/frame', JSON.stringify(top.slice(0, 12)));
+    }
     const due = traceAt.find(at => elapsed >= at && !traced.has(at));
     if (due !== undefined) {
       traced.add(due);
@@ -123,6 +143,6 @@ try {
   const resources = await page.evaluate(() => window.__capivara.resources());
   await stopDriver(page);
   writeFileSync(out, JSON.stringify({ measuredAt: new Date().toISOString(), base, quality, mode, seconds, viewport: { width, height, dpr }, gpu: gpuName,
-    gpuTiming: gpu, cpuTiming: timingOn, headless: env.HEADED !== '1', settings: extraSettings, menuMs: Math.round(menuMs), firstFrameMs: Math.round(firstFrameMs), errors, resources, gcTraces, profiles, samples }));
+    gpuTiming: gpu, cpuTiming: timingOn, headless: env.HEADED !== '1', settings: extraSettings, menuMs: Math.round(menuMs), firstFrameMs: Math.round(firstFrameMs), errors, resources, gcTraces, profiles, allocations, samples }));
   console.log('wrote', out);
 } finally { await browser.close(); }

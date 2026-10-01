@@ -45,6 +45,8 @@ type QaApi = {
   names(): string[];
   event(event: GameEvent): void;
   motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number, hz?: number): Promise<void>;
+  /** Program lookups per frame by material: each one is a program parameter rebuild (garbage) in three. */
+  programChurn(frames: number): Record<string, number>;
   /** The view a motion ends on: camera transform and the first-person model's world matrices (frame-rate checks). */
   viewState(): { camera: number[]; viewmodel: number[] };
   buildings(): { id: string; piece: string; role: string }[];
@@ -452,6 +454,36 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     async start() { renderer ||= await deps.begin(); },
     pose,
     event(event) { renderer?.event(event); deps.ui.event(event); },
+    programChurn(frames) {
+      const env = globalThis as { churnDetail?: boolean };
+      const counts: Record<string, number> = {}, proto = THREE.Material.prototype, original = proto.customProgramCacheKey;
+      const label = (material: THREE.Material) => `${material.type}:${material.name || '-'}:${material.uuid.slice(0, 4)}`;
+      proto.customProgramCacheKey = function (this: THREE.Material) { counts[label(this)] = (counts[label(this)] ?? 0) + 1; return original.call(this); };
+      const wrapped: [THREE.Material, () => string][] = [];
+      const internals = renderer as unknown as { scene: THREE.Scene; weaponView: { scene: THREE.Scene } };
+      for (const root of [internals.scene, internals.weaponView.scene]) root.traverse(object => {
+        const materials = (object as THREE.Mesh).material; if (!materials) return;
+        for (const material of Array.isArray(materials) ? materials : [materials]) if (Object.prototype.hasOwnProperty.call(material, 'customProgramCacheKey') && !wrapped.some(([m]) => m === material)) {
+          const own = material.customProgramCacheKey; wrapped.push([material, own]);
+          material.customProgramCacheKey = () => { counts[label(material)] = (counts[label(material)] ?? 0) + 1; return own.call(material); };
+        }
+      });
+      try { for (let i = 0; i < frames; i++) draw(); } finally {
+        proto.customProgramCacheKey = original;
+        for (const [material, own] of wrapped) material.customProgramCacheKey = own;
+      }
+      // The kinds of mesh sharing each churning material (a shared material switching between them rebuilds).
+      const users = new Map<string, Set<string>>();
+      for (const root of [internals.scene, internals.weaponView.scene]) root.traverse(object => {
+        const materials = (object as THREE.Mesh).material; if (!materials) return;
+        const mesh = object as THREE.Mesh, kind = `${(mesh as THREE.SkinnedMesh).isSkinnedMesh ? 'skinned' : (mesh as THREE.InstancedMesh).isInstancedMesh ? 'instanced' : (mesh as THREE.BatchedMesh).isBatchedMesh ? 'batched' : mesh.type}` +
+          `${mesh.geometry?.morphAttributes?.position ? '+morph' + mesh.geometry.morphAttributes.position.length : ''}${mesh.geometry?.attributes?.color ? '+color' + mesh.geometry.attributes.color.itemSize : ''}${root === internals.scene ? '' : '@fp'}` +
+          (env.churnDetail ? `[${mesh.name}|${Object.keys(mesh.geometry?.attributes ?? {}).sort().join('+')}|${mesh.receiveShadow ? 'r' : ''}${mesh.castShadow ? 'c' : ''}|${(() => { const chain: string[] = []; let at = mesh.parent; while (at && chain.length < 4) { chain.push(at.name || at.type); at = at.parent; } return chain.join('<'); })()}]` : '');
+        for (const material of Array.isArray(materials) ? materials : [materials]) { const key = label(material); if (!users.has(key)) users.set(key, new Set()); users.get(key)!.add(kind); }
+      });
+      const perFrame: [string, number][] = Object.entries(counts).map(([k, v]) => [`${k} (${[...(users.get(k) ?? [])].join(' ')})`, +(v / frames).toFixed(1)]);
+      return Object.fromEntries(perFrame.sort((a, b) => b[1] - a[1]));
+    },
     viewState() {
       const internals = renderer as unknown as { camera: THREE.PerspectiveCamera; weaponView: { scene: THREE.Scene } };
       const viewmodel: number[] = [];
