@@ -15,6 +15,10 @@ try {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Performance.enable');
   const metrics = async () => Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map(m => [m.name, m.value]));
+  // Which HUD nodes the update path writes, by element id or class (MUTATIONS=1 prints the busiest).
+  await page.evaluate(() => { const counts = window.__hudWrites = {};
+    new MutationObserver(list => { for (const m of list) { const el = m.target.nodeType === 1 ? m.target : m.target.parentElement; const key = `${m.type}:${el?.id || el?.getAttribute?.('class') || el?.tagName}${m.attributeName ? `@${m.attributeName}` : ''}`; counts[key] = (counts[key] || 0) + 1; } })
+      .observe(document.querySelector('#hud'), { subtree: true, attributes: true, characterData: true, childList: true }); });
   await page.evaluate(() => window.__capivara.resetPerf());
   const before = await metrics();
   // A slow turn keeps the compass and minimap busy, like a player looking around.
@@ -30,4 +34,5 @@ try {
   const per = key => +((after[key] - before[key]) * 1000 / frames).toFixed(3);
   console.log(JSON.stringify({ mode, frames, p50: perf.p50, p95: perf.p95, hud: spans.hud, styleMsPerFrame: per('RecalcStyleDuration'), layoutMsPerFrame: per('LayoutDuration'),
     layouts: after.LayoutCount - before.LayoutCount, styleRecalcs: after.RecalcStyleCount - before.RecalcStyleCount, nodes: after.Nodes }));
+  if (process.env.MUTATIONS) console.log(JSON.stringify(Object.entries(await page.evaluate(() => window.__hudWrites)).sort((a, b) => b[1] - a[1]).slice(0, 25)));
 } finally { await browser.close(); }
