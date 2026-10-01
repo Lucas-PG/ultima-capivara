@@ -5,6 +5,7 @@ import { itemGeometry } from './item-geometry';
 import { worldWeaponMaterial, worldM4PartGeometry, worldShortPartGeometries } from './world-weapons';
 import { isShortGun, type ShortGun, type WorldParts } from './short-world-parts';
 import { makeParachute } from './aircraft';
+import { assignShadowDepth } from './shadow-depth';
 import { WEAPONS } from '../shared/weapons';
 import { MELEE_SECONDS } from '../shared/weapon-presentation';
 import type { AvatarReaction } from './effects';
@@ -153,7 +154,7 @@ export class AvatarView {
       visual = avatar(actor.color, actor.name); visual.weapon.geometry.dispose(); visual.weapon.geometry = this.weapons.get(null)!;
       const mag = new THREE.Mesh(this.m4Magazine, worldWeaponMaterial()); mag.name = 'm4_mag'; mag.castShadow = true; mag.visible = false;
       mag.position.set(0, .02, -.071); visual.weapon.add(mag);
-      this.visuals.set(actor.id, visual); this.ordered.push(visual); this.scene.add(visual.group);
+      this.visuals.set(actor.id, visual); this.ordered.push(visual); this.scene.add(visual.group); assignShadowDepth(visual.group);
     }
     return visual;
   }

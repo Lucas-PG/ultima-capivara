@@ -36,6 +36,7 @@ import { actorEye } from '../shared/collision';
 import { RenderPipeline, PRESETS, GUARD } from './pipeline';
 import { DynamicResolution, outputDensity, renderRange, renderSize } from './resolution';
 import { gpuFrameTimer } from './gpu-frame-timer';
+import { assignShadowDepth } from './shadow-depth';
 import { itemGeometry } from './item-geometry';
 import type { PresentationFrame } from './local-presentation';
 export { itemGeometry } from './item-geometry';
@@ -469,6 +470,7 @@ export class GameRenderer {
     };
     this.scene.add(this.avatars.warmupWeapons);
     this.effects.warm(true);
+    assignShadowDepth(this.scene);
     reveal(this.scene); this.weaponView.revealAll(true); reveal(this.weaponView.scene);
     this.assets.prepareTextures(this.scene); this.assets.prepareTextures(this.weaponView.scene);
     instrumentMaterials(this.scene); instrumentMaterials(this.weaponView.scene);

@@ -36,20 +36,44 @@ export class CharacterMask {
   }
   /** Draws only the rendered region of the allocation (dynamic resolution). */
   setViewport(width: number, height: number) { this.target.viewport.set(0, 0, width, height); }
+  // One mask material per kind of mesh (skinned, morphed, instanced). A single override material
+  // drawn over meshes of different kinds rebuilt its program parameters at every switch between
+  // them, dozens of times a frame in a crowd: the largest source of garbage in a royale landing.
+  private readonly variants = new Map<string, THREE.MeshBasicMaterial>();
+  private readonly swapped: THREE.Mesh[] = [];
+  private readonly originals: (THREE.Material | THREE.Material[])[] = [];
+  private variant(mesh: THREE.Mesh) {
+    const geometry = mesh.geometry, key = `${(mesh as THREE.SkinnedMesh).isSkinnedMesh ? 1 : 0}:${(mesh as THREE.InstancedMesh).isInstancedMesh ? 1 : 0}:` +
+      `${geometry.morphAttributes.position?.length ?? 0}:${geometry.morphAttributes.normal?.length ?? 0}`;
+    let material = this.variants.get(key);
+    if (!material) {
+      material = this.material.clone();
+      material.onBeforeCompile = this.material.onBeforeCompile; material.customProgramCacheKey = this.material.customProgramCacheKey;
+      this.variants.set(key, material);
+    }
+    return material;
+  }
   render(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
-    const layers = camera.layers.mask, background = scene.background, override = scene.overrideMaterial;
+    const layers = camera.layers.mask, background = scene.background;
     const shadows = gl.shadowMap.enabled, alpha = gl.getClearAlpha(), autoUpdate = scene.matrixWorldAutoUpdate; gl.getClearColor(this.clearColor);
     this.uniforms.near.value = camera.near; this.uniforms.far.value = camera.far;
     try {
       // The world pass just updated every matrix of this scene: a second traversal is pure CPU cost.
       scene.matrixWorldAutoUpdate = false;
-      camera.layers.set(1); scene.background = null; scene.overrideMaterial = this.material;
+      camera.layers.set(1); scene.background = null;
+      scene.traverseVisible(object => {
+        if (!(object as THREE.Mesh).isMesh || !object.layers.test(camera.layers)) return;
+        const mesh = object as THREE.Mesh;
+        this.swapped.push(mesh); this.originals.push(mesh.material); mesh.material = this.variant(mesh);
+      });
       gl.shadowMap.enabled = false; gl.setClearColor(0, 0);
       gl.setRenderTarget(this.target); gl.render(scene, camera);
     } finally {
-      camera.layers.mask = layers; scene.background = background; scene.overrideMaterial = override; scene.matrixWorldAutoUpdate = autoUpdate;
+      for (let i = 0; i < this.swapped.length; i++) this.swapped[i].material = this.originals[i];
+      this.swapped.length = 0; this.originals.length = 0;
+      camera.layers.mask = layers; scene.background = background; scene.matrixWorldAutoUpdate = autoUpdate;
       gl.shadowMap.enabled = shadows; gl.setClearColor(this.clearColor, alpha);
     }
   }
-  dispose() { this.target.dispose(); this.material.dispose(); }
+  dispose() { this.target.dispose(); this.material.dispose(); for (const material of this.variants.values()) material.dispose(); }
 }
