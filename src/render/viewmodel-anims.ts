@@ -253,12 +253,12 @@ const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key
 ];
 export const dmrReload = (empty: boolean): Choreography => empty ? DMR_RELOAD_EMPTY : DMR_RELOAD_PARTIAL;
 
-export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.082988, -0.154286, 0.021528],
+export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.082988, -0.154452, 0.020628],
   forward: [0.206857, 0.897557, -0.389361], palm: [0.838839, 0.04212, 0.542747],
-  curl: { index: [0.886782, 0.325875, 0.19777], middle: [1.7, 0.882223, 0.343784], ring: [1.7, 1.7, 0.396], thumb: [0.844699, 0.901288, 0.284282], spread: -0.0762 } };
-export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.112029, -0.088394, 0.068983],
+  curl: { index: [1.08395, 0.319279, 0.205232], middle: [1.658905, 1.081536, 0.344041], ring: [1.7, 1.7, 0.396], thumb: [1.039029, 0.908857, 0.237271], spread: -0.0909 } };
+export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.112029, -0.088394, 0.068923],
   forward: [-0.123027, 0.860108, -0.495055], palm: [-0.889659, -0.316628, -0.329019], pole: [1, -.35, .2],
-  curl: { index: [0.959756, 0.857292, -0.076965], middle: [1.522784, 0.302333, 0.858708], ring: [1.17, 0.99, 0.72], thumb: [0.445386, 0.009091, 0.171975], spread: -0.5987 } };
+  curl: { index: [1.174081, 0.699904, -0.076965], middle: [1.521109, 0.302333, 0.649333], ring: [1.17, 0.99, 0.72], thumb: [0.248888, 0.017901, 0.126454], spread: -0.6000 } };
 // A complete four-beat bolt stroke, anchored to the actual moving knob.
 export const SNIPER_CYCLE: Choreography = [
   { t: .08, R: { ...FIRING_CLEAR, curl: OPEN }, parts: { bolt: 0, boltPull: 0 } },
