@@ -208,6 +208,21 @@ def weave(q, pitch, amp):
 
 
 # ------------------------------------------------------------------ detail and paint
+def groom(q, across, along, amp, seed):
+    """capybara_paint.groom for one flow frame (across x and z, along y, world-paw metres)."""
+    d1, edge, hid = CP._worley2(np.stack([q[:, 0] / across, q[:, 2] / across], 1), seed)
+    al = q[:, 1]
+    ph = np.mod(al / (along * 1.6) + hid * 7.31 + .5 * d1, 1.0)
+    clump = ss(.70, .15, d1)
+    fine = S.value_noise(np.stack([q[:, 0] / (across * .09), q[:, 2] / (across * .09), al / (along * .7)], 1).astype(F), seed + 11)
+    med = S.value_noise(np.stack([q[:, 0] / (across * .28), q[:, 2] / (across * .28), al / (along * 1.1)], 1).astype(F), seed + 12)
+    strand = .55 * fine + .45 * med
+    tip = ss(.55, .97, ph) * clump * ss(.35, .65, med)
+    ridge = clump * (.55 + .45 * ss(0.0, .30, ph))
+    h = amp * (clump * (.35 + .65 * ph) * .7 + .45 * (strand - .5))
+    return h, ridge, tip, strand, hid
+
+
 def paint(obj, mat):
     """Displace the dense sculpt with fine relief; colour and roughness per vertex."""
     pts, nrm = coords(obj), normals(obj)
@@ -217,23 +232,22 @@ def paint(obj, mat):
     # ---- fur and bare skin
     fur = mat == MAT['fur']
     p, n, qq = pts[fur], nrm[fur], q[fur]
-    # Combed from the elbow down the forearm and over the back of the paw to the digits.
-    f = np.broadcast_to(Y, p.shape) - n * n[:, 1:2]
-    f = f / np.maximum(np.linalg.norm(f, axis=1, keepdims=True), 1e-6)
-    fb = np.cross(n, np.broadcast_to(v(1, 0, 0), n.shape)); fb /= np.maximum(np.linalg.norm(fb, axis=1, keepdims=True), 1e-6)
-    f = lerp(f, fb, ss(.35, .05, np.linalg.norm(np.broadcast_to(Y, p.shape) - n * n[:, 1:2], axis=1)))
-    f = f / np.maximum(np.linalg.norm(f, axis=1, keepdims=True), 1e-6)
-    # The character's paw locks (8 x 22 mm on the world paw).
-    h, ridge, tip, strand, hid = CP.groom(qq, f.astype(F), .008, .022, .00040, 2)
+    # The character's combed locks (capybara_paint.groom) in the arm's own flow frame: the comb runs
+    # from the elbow down the forearm and over the back of the paw to the digits, which is arm-space
+    # +y throughout, so the locks never shear. Paw and forearm locks are 9 x 26 mm on the world paw.
+    h, ridge, tip, strand, hid = groom(qq, .009, .026, .0008, 2)
     c = np.broadcast_to(srgb(CP.FUR_BASE), p.shape).copy()
     hl = hand_local(p)
     # A lighter inner forearm (the palm side behind the wrist) and lighter undersides.
     inner = ss(.04, -.05, hl[:, 2]) * ss(.22, .12, np.abs(hl[:, 0])) * ss(.08, .01, hl[:, 1]) * ss(-.34, -.22, hl[:, 1])
     c = lerp(c, srgb(CP.FUR_LIGHT), np.maximum(inner * .6, np.clip(-n[:, 2], 0, 1) * .35 * (hl[:, 1] < .02)))
-    c = c * (.955 + .07 * ridge * (.4 + .6 * tip))[:, None] * (.985 + .03 * strand)[:, None]
-    c = lerp(c, srgb(CP.FUR_TIP), ss(.5, 1.0, tip) * ridge * .22)
-    c = c * (.98 + .04 * hid)[:, None] * (.985 + .03 * broad[fur])[:, None]
-    rgh = .80 + .06 * strand - .05 * ridge * tip
+    # Lock shading as on the character: dark roots and gaps, light tips, a value per lock, fine
+    # strands, renormalised so a lock's mean stays the palette value.
+    shade = (.76 + .28 * ridge) * (.86 + .28 * strand) * (.94 + .12 * hid)
+    c = c * (shade / CP.LOCK_SHADE_MEAN)[:, None]
+    c = lerp(c, srgb(CP.FUR_TIP), tip * .55)
+    c = c * (.985 + .03 * broad[fur])[:, None]
+    rgh = .82 + .06 * strand - .08 * ridge * tip
     skin = bare_skin(p, n)
     grain = S.cells(qq * 420, 11)
     sk = lerp(srgb(CP.SKIN), srgb(CP.SKIN_LIGHT), np.clip(n[:, 2], 0, 1) * .35 + np.clip(.55 - grain, 0, 1) * .16)
