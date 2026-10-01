@@ -10,8 +10,8 @@ import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
 import { BOX_LABELS, indexOfBox, planPickup, sidearmIndex } from '../shared/inventory';
 import { DEFAULT_BINDINGS, FOV_RANGE, SENSITIVITY_RANGE, adaptNote } from '../settings';
 import { CONTROL_OPTIONS, type ControlOptionKey } from '../controls';
-import { CONSUMABLE_ICONS, HUD_ART, capybara, escapeHtml as esc, icon, uiArt, weaponIcon, emoteIcon } from './icons';
-import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, hudNarrow, hudScale, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
+import { HUD_ART, capybara, escapeHtml as esc, icon, itemIcon, uiArt, weaponIcon, emoteIcon } from './icons';
+import { accuracyText, BINDING_GROUPS, BINDING_LABELS, bindingOf, captureMousePress, CONSUMABLE_ACTIONS, isBindableCode, keyLabel, remapBinding, unboundActions, cleanLabel, coverImageSet, startButtonState, DEATH_CARD_SECONDS, ELIMINATION_LINES, ELIMINATED_ACTIONS, killCardParts, RESULTS_ACTIONS_DELAY, formatSurvived, HEAL_INFO, healGains, healTarget, healthTone, hudNarrow, hudScale, hudShort, pickupCopy, suggestedHeal, leaveNeedsConfirm, loadingLabel, nextProgress, ordinal, publicUrl, tipBag } from './hud-logic';
 import { fillTip, tipCategory, TIPS } from './tips';
 import { CrosshairSpread } from './crosshair';
 import { EMOTES, EMOTE_IDS } from '../shared/emotes';
@@ -44,8 +44,7 @@ const MINIMAP_SPAN = 84, MAP_PPM = 4;
 // An empty box shows a faint silhouette of what belongs there instead of a word that does not fit.
 const BOX_HINT: readonly WeaponId[] = ['m4', 'shotgun', 'pistol', 'machete'];
 const CONSUMABLES: ConsumableId[] = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'];
-const USE_LABEL: Record<ConsumableId, string> = { bandage: 'Enfaixando…', medkit: 'Remendando…', guarana: 'Tomando guaraná…', acai: 'Tomando açaí…', rapadura: 'Mastigando rapadura…' };
-const LOOT_LABEL: Record<string, string> = { ammo: 'munição', armor: 'colete', helmet: 'capacete', bandage: 'bandagem', medkit: 'kit médico', guarana: 'guaraná', acai: 'açaí', rapadura: 'rapadura' };
+const USE_LABEL: Record<ConsumableId, string> = { bandage: 'Enfaixando', medkit: 'Remendando', guarana: 'Tomando guaraná', acai: 'Tomando açaí', rapadura: 'Mastigando rapadura' };
 const nextEliminationLine = tipBag(ELIMINATION_LINES);
 const fireMode = (id: WeaponId) => id === 'machete' ? 'CORTE' : id === 'shotgun' ? 'BOMBA' : id === 'sniper' ? 'FERROLHO' : WEAPONS[id].automatic ? 'AUTO' : 'SEMI';
 // Result stats the simulation may add (Brasa, M1); cards stay hidden until the fields exist.
@@ -101,6 +100,8 @@ export class GameUI {
   private sawAlive = false;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
+  private lastCounts: Partial<Record<ConsumableId, number>> | null = null;
+  private armorBrokeUntil = 0;
   private lastPrey: { name: string; color: string } | null = null;
   private thumbs: Map<WeaponId, string> | null = null;
   private readonly lifecycle = new AbortController();
@@ -343,31 +344,40 @@ export class GameUI {
     const key = (code: string) => esc(keyName(code));
     const face = capybara(this.profile.color);
     this.root.innerHTML = `<div class="hud" id="hud"><div id="storm"></div><div id="vign"></div><div id="scope-overlay" class="scope-overlay" hidden><span class="scope-shade" aria-hidden="true"></span><span class="scope-flash" aria-hidden="true" style="--flash-sheet:url('${publicUrl('textures/vfx-flipbooks.png')}')"></span><i></i><b></b><u></u><em></em></div>`
-      // Top left: the match at a glance. Top centre: compass with the safe zone bearing. Top right: map and feed.
-      + `<div id="topL" class="plate"><div class="cell">${icon('users')}<span class="k" id="hAliveK">Na ilha</span><b id="hAlive">21</b></div><div class="cell">${icon('crosshair')}<span class="k">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" hidden>${icon('crown')}<span class="k">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}<span class="k" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
-      + `<div id="ladder" class="plate" hidden><div class="ladder-heading"><b>CORRENTE</b><span id="ladderStep">1 / ${CORRENTE_LADDER.length}</span></div><div class="ladder-track" aria-hidden="true">${CORRENTE_LADDER.map((_, i) => `<i id="ladder-${i}"></i>`).join('')}</div><span id="ladderNext"></span></div>`
-      + `<div id="compass" class="plate" aria-hidden="true"><div class="cmp-window"><div class="cmp-strip" id="cmpStrip">${COMPASS_STRIP}</div><i class="cmp-safe" id="cmpSafe" hidden></i></div><i class="cmp-needle"></i><b id="cmpDeg">000</b></div>`
-      + `<div id="safe" class="pill" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="pill warn" hidden>${icon('bolt')}<span>Na tempestade</span><b>−<span id="hDps">1</span>/s</b></div>`
-      + `<div id="mapWrap" class="plate"><span class="tab" id="mapTab">Ilha</span><canvas id="minimap" width="480" height="480"></canvas><span class="net" id="hud-ping" hidden></span></div><div id="feed" aria-live="off"></div><div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="supply-legend" id="supplyLegend" hidden>Entrega do Tucano · caixa marcada</span><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
+      // Top centre: the compass tape with the safe zone. Top right, one column: map, match strip, feed. Top left: Corrente and the coach.
+      + `<div id="compass" aria-hidden="true"><div class="cmp-window"><div class="cmp-strip" id="cmpStrip">${COMPASS_STRIP}</div><i class="cmp-safe" id="cmpSafe" hidden></i></div><i class="cmp-needle"></i><b id="cmpDeg">000</b></div>`
+      + `<div id="safe" class="pill" hidden>${HUD_ART.safeArrow}<span id="safeTxt"></span></div><div id="hOut" class="pill warn" hidden>${itemIcon('storm')}<span>Na tempestade</span><b>−<span id="hDps">1</span>/s</b></div>`
+      + `<div id="rcol"><div id="mapWrap"><canvas id="minimap" width="480" height="480"></canvas><span class="tab" id="mapTab">Ilha</span><span class="net" id="hud-ping" hidden></span></div>`
+      + `<div id="topL"><div class="cell" title="Na ilha">${icon('users')}<span class="sr" id="hAliveK">Na ilha</span><b id="hAlive">21</b></div><div class="cell" title="Presas">${icon('crosshair')}<span class="sr">Presas</span><b id="hKills">0</b></div><div class="cell" id="hRankChip" title="Posição" hidden>${icon('crown')}<span class="sr">Posição</span><b id="hRank">#1</b></div><div class="cell zone" id="hZoneChip">${icon('clock')}${itemIcon('storm', 'storm-ico')}<span class="sr" id="hZoneK">Tempestade em</span><b id="hZoneT">1:00</b><span class="dots" id="hDots" aria-hidden="true">${'<i></i>'.repeat(STORM_PHASES)}</span></div></div>`
+      + `<div id="feed" aria-live="off"></div></div>`
+      + `<div id="ladder" hidden><div class="ladder-heading"><b>Corrente</b><span id="ladderStep">1 / ${CORRENTE_LADDER.length}</span></div><div class="ladder-track" aria-hidden="true">${CORRENTE_LADDER.map((_, i) => `<i id="ladder-${i}"></i>`).join('')}</div><span id="ladderNext"></span></div>`
+      + `<div id="bigmap" hidden><div class="frame"><span class="tab">Ilha inteira</span><canvas id="bigmapCanvas" width="1000" height="1000"></canvas><span class="supply-legend" id="supplyLegend" hidden>Entrega do Tucano · caixa marcada</span><span class="hint"><kbd id="mapKey">${key(bindingOf(this.settings.bindings, 'map'))}</kbd> fecha o mapa</span></div></div>`
       + `<div id="matchMoment" hidden aria-live="polite"><strong id="momentTitle"></strong><small id="momentDetail"></small></div>`
       + `<div id="banner" aria-hidden="true"></div>`
       // Down: who got you, with what, from how far, and what they had left; then the watch bar or the respawn count.
-      + `<div id="deathCard" class="plate" hidden role="status"><span class="dc-place" id="dcPlace">#1</span><div class="dc-body"><small class="dc-title" id="dcTitle">Você foi eliminada</small><div class="dc-killer" id="dcKiller"></div><p class="dc-line" id="dcLine"></p></div><div class="dc-respawn" id="dcRespawn" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" class="bg"/><circle cx="24" cy="24" r="20" class="fg" id="dcRing" pathLength="100"/></svg><b id="dcCount">3</b><small>volta</small></div></div>`
+      + `<div id="deathCard" hidden role="status"><span class="dc-place" id="dcPlace">#1</span><div class="dc-body"><small class="dc-title" id="dcTitle">Você foi eliminada</small><div class="dc-killer" id="dcKiller"></div><p class="dc-line" id="dcLine"></p></div><div class="dc-respawn" id="dcRespawn" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" class="bg"/><circle cx="24" cy="24" r="20" class="fg" id="dcRing" pathLength="100"/></svg><b id="dcCount">3</b><small>volta</small></div></div>`
       + `<div id="specBar" hidden role="group" aria-label="Assistindo"><button type="button" class="sp-nav prev" data-do="spec-prev" aria-label="Capivara anterior">${icon('back')}<kbd id="spPrevKey">${key(bindingOf(this.settings.bindings, 'ads'))}</kbd></button>`
-      + `<div class="sp-card plate"><span class="sp-eyebrow"><span id="spState">Assistindo</span><b id="spOrder">1 de 1</b></span><div class="sp-main"><span class="sp-face" id="spFace"></span><div class="sp-who"><b id="spName">Capivara</b><small id="spTag">Da turma</small></div><span class="sp-weapon" id="spWeapon"></span><span class="sp-kills">${icon('crosshair')}<b id="spKills">0</b></span></div>`
+      + `<div class="sp-card"><span class="sp-eyebrow"><span id="spState">Assistindo</span><b id="spOrder">1 de 1</b></span><div class="sp-main"><span class="sp-face" id="spFace"></span><div class="sp-who"><b id="spName">Capivara</b><small id="spTag">Da turma</small></div><span class="sp-weapon" id="spWeapon"></span><span class="sp-kills">${icon('crosshair')}<b id="spKills">0</b></span></div>`
       + `<div class="sp-bars"><div class="bar hp"><i id="spHp"></i></div><b id="spHpTxt">100</b><div class="bar arm"><i id="spArm"></i></div><b id="spArmTxt">0</b></div></div>`
       + `<button type="button" class="sp-nav next" data-do="spec-next" aria-label="Próxima capivara"><kbd id="spNextKey">${key(this.settings.bindings.jump)}</kbd>${icon('arrow')}</button><span class="sp-hint" id="spHint">Mouse gira a câmera · <kbd>Esc</kbd> menu</span></div>`
       + `<div id="dmgInd"></div><div id="nums"></div>`
-      + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div><div id="killConfirm" hidden aria-live="polite"></div>`
-      + `<div id="prompt" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="use" class="cbar" hidden><span id="useTxt"></span><div class="bar"><div id="useBar"></div></div></div><div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
-      // Bottom row: portrait and vitals on the left, the four boxes in the middle, the magazine on the right.
-      + `<div id="vitals" class="plate tiled"><span class="portrait" id="vPortrait">${face}</span><div class="rows"><div class="row arm">${HUD_ART.shield}<div class="bar"><i class="chip" id="armChip" style="width:0"></i><div id="armBar" style="width:0"></div><span class="seg" aria-hidden="true"></span></div><b id="armTxt">0</b></div><div class="row hp">${HUD_ART.heart}<div class="bar"><i class="chip" id="hpChip"></i><div id="hpBar"></div></div><b id="hpTxt">100</b></div></div><span id="helm" hidden>${HUD_ART.helmet}<b id="helmTxt">0</b></span><span id="prot" hidden>Protegida</span></div>`
-      + `<div id="stance" class="pill">${HUD_ART.stance}${HUD_ART.swimming}<b id="stanceTxt" hidden>Em pé</b></div>`
-      + `<div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" hidden><kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd>${CONSUMABLE_ICONS[id]}<b>0</b></div>`).join('')}</div>`
-      + `<div id="hotbar"></div>`
-      + `<div id="wpnbox"><div id="reload" class="pill" hidden><span id="reloadTxt">Recarregando</span></div><div id="ammoBox" class="plate tiled"><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div><div class="wrow"><span class="wname" id="wName">Pistola</span><span class="rar" id="wRar">Comum</span><span class="mode" id="wMode">SEMI</span></div></div></div>`
+      + `<div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div><svg id="rring" viewBox="0 0 64 64" hidden aria-hidden="true"><circle cx="32" cy="32" r="26" class="bg"/><circle cx="32" cy="32" r="26" class="fg" id="rringFg" pathLength="100"/></svg><div id="hitm"><i></i><i></i><i></i><i></i><b></b></div>`
+      // Under the reticle, one column so they never overlap: the pickup prompt, the elimination confirmation, the heal.
+      + `<div id="ccol"><div id="prompt" hidden><kbd id="promptKey">${key(this.settings.bindings.interact)}</kbd><span class="pi" id="promptIcon"></span><span id="promptVerb">Pegar</span><b id="promptItem"></b></div><div id="killConfirm" hidden aria-live="polite"></div>`
+      // Heal in progress, under the reticle where the eyes already are: the item in a ring that fills, what it does, the time left.
+      + `<div id="use" hidden><span class="use-ico"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21" class="bg"/><circle cx="24" cy="24" r="21" class="fg" id="useRing" pathLength="100"/></svg><span id="useIcon"></span></span><span class="use-txt"><b id="useName">Cura</b><small id="useTxt"></small></span></div></div>`
+      + `<div id="alt" hidden><b id="altTxt">0 m</b><span id="altHint"></span></div>`
+      // Bottom left: the vitals sticker; above it, one column: the heal bag, the posture chip and the pickup pops.
+      + `<div id="vitals" data-tone="ok"><span class="portrait" id="vPortrait">${face}</span><div class="vcard"><span class="vtag" id="vTag" hidden></span>`
+      + `<div class="row arm">${icon('shield')}<div class="bar"><i class="chip" id="armChip"></i><i class="fill" id="armBar"></i><i class="ghost" id="armGhost" hidden></i><span class="seg" aria-hidden="true"></span></div><b id="armTxt">0</b></div>`
+      + `<div class="row hp">${icon('heart')}<div class="bar"><i class="chip" id="hpChip"></i><i class="fill" id="hpBar"></i><i class="ghost" id="hpGhost" hidden></i></div><b id="hpTxt">100</b></div></div>`
+      + `<span id="helm" hidden>${itemIcon('helmet')}<b id="helmTxt">0</b></span><div id="healPops" aria-hidden="true"></div></div>`
+      + `<div id="lcol"><div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" title="${HEAL_INFO[id].name}" hidden>${itemIcon(id)}<kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd><b>0</b></div>`).join('')}</div>`
+      + `<div id="stance" class="pill">${HUD_ART.stance}${HUD_ART.swimming}<b id="stanceTxt" hidden>Em pé</b></div><div id="pickups" aria-live="polite"></div></div>`
+      // Bottom right, one cluster: the four boxes as tabs over the magazine card.
+      + `<div id="wpnbox"><div id="hotbar"></div><div id="ammoBox"><div class="winfo"><span class="wname" id="wName">Pistola</span><span class="wchips"><span class="rar" id="wRar">Comum</span><span class="mode" id="wMode">SEMI</span></span><span id="reload" hidden><span id="reloadTxt">Recarregando</span></span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div></div>`
       + `<div id="emoteWheel" hidden><div class="emote-ring" role="listbox" aria-label="Escolha um gesto"><span class="eyebrow emote-title">MOSTRE SEU JEITO</span>${EMOTE_IDS.map((id, i) => { const angle = i * Math.PI * 2 / EMOTE_IDS.length; return `<div id="emote-${i}" class="emote-option" role="option" aria-selected="false" style="--ex:${(Math.sin(angle) * 154).toFixed(1)}px;--ey:${(-Math.cos(angle) * 154).toFixed(1)}px"><kbd>${i + 1}</kbd>${emoteIcon(id)}<b>${esc(EMOTES[id].label)}</b></div>`; }).join('')}<div class="emote-center"><img src="${uiArt('capy-wave')}" alt=""><b id="emoteName">Escolha um gesto</b><span id="emoteDetail">Centro cancela</span></div><i class="emote-pointer" id="emotePointer" aria-hidden="true"></i><span class="emote-hint">Mova o mouse e solte <kbd id="emoteKey">${key(bindingOf(this.settings.bindings, 'emote'))}</kbd> · ou use 1 a 5</span></div></div>`
-      + `<div id="coach" class="plate" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
+      + `<div id="coach" hidden><span class="ck">Primeira vez na ilha</span><p id="coachTxt"></p><span class="skip"><kbd>H</kbd> já sei jogar</span></div>`
       + `</div><div id="scoreboard" class="scoreboard" hidden></div><div id="pause-panel" class="pause-panel" hidden></div>`;
     this.applyHudPrefs();
   }
@@ -419,38 +429,50 @@ export class GameUI {
     // Only live information on the HUD: ping when online, FPS only when the player asked for it.
     const net = [this.networkStatus === 'Reconectando à sala' || this.networkStatus === 'Conectado por retransmissão' ? this.networkStatus : '', this.room && !this.room.isHost ? `${Math.round(ping)} ms` : '', this.settings.showFps ? `${Math.round(fps)} fps` : ''].filter(Boolean).join(' · ');
     this.show('hud-ping', !!net); if (net) this.text('hud-ping', net);
-    const hp = Math.max(0, me.hp), vitals = this.el('vitals'), shielded = t < me.protectionUntil;
+    const hp = Math.max(0, me.hp), armor = clamp(me.armor, 0, 100), vitals = this.el('vitals'), shielded = t < me.protectionUntil;
     const portrait = this.el('vPortrait');
     if (portrait.dataset.k !== me.color) { portrait.dataset.k = me.color; portrait.innerHTML = capybara(me.color); }
-    // Each bar has a pale chip behind it that follows after a beat, so damage leaves a short trail.
-    const hpWidth = `${hp.toFixed(0)}%`, armWidth = `${clamp(me.armor, 0, 100).toFixed(0)}%`;
-    this.style(this.el('hpBar'), 'width', hpWidth); this.style(this.el('hpChip'), 'width', hpWidth);
-    this.style(this.el('armBar'), 'width', armWidth); this.style(this.el('armChip'), 'width', armWidth);
-    this.text('hpTxt', Math.ceil(hp)); this.text('armTxt', Math.ceil(me.armor));
-    this.toggle(vitals, 'low', me.alive && hp < 30); this.toggle(vitals, 'boost', shielded); this.show('prot', shielded);
+    // Bars scale on the compositor (no layout); a pale chip behind each follows after a beat, so damage leaves a trail.
+    this.bar('hpBar', hp); this.bar('hpChip', hp); this.bar('armBar', armor); this.bar('armChip', armor);
+    this.text('hpTxt', Math.ceil(hp)); this.text('armTxt', Math.ceil(armor));
+    const tone = me.alive ? healthTone(hp) : 'ok', low = tone === 'low';
+    if (vitals.dataset.tone !== tone) vitals.dataset.tone = tone;
+    this.toggle(vitals, 'boost', shielded); this.toggle(vitals, 'bare', armor <= 0);
+    // One tag on the sticker, the most urgent first: armour just broke, low health, spawn protection.
+    const tag = now < this.armorBrokeUntil ? 'Colete quebrou!' : low ? 'Vida baixa!' : shielded ? 'Protegida' : '';
+    this.show('vTag', !!tag); if (tag) { this.text('vTag', tag); this.attr(this.el('vTag'), 'data-k', tag === 'Protegida' ? 'prot' : tag === 'Vida baixa!' ? 'low' : 'break'); }
     this.show('helm', me.helmet > 0); if (me.helmet > 0) this.text('helmTxt', Math.ceil(me.helmet));
-    this.toggle(this.el('vign'), 'low', me.alive && hp < 30);
+    this.toggle(this.el('vign'), 'low', me.alive && low);
     const weapon = me.weapons[me.slot], def = weapon ? WEAPONS[weapon.id] : null, rarity = rarityOf(weapon?.rarity);
-    this.text('wName', def ? def.name : 'Desarmada'); this.text('wRar', rarity.name); this.style(this.el('ammoBox'), '--rc', rarity.color); this.show('wRar', !!weapon);
+    this.text('wName', def ? def.name : 'Desarmada'); this.text('wRar', rarity.name); this.style(this.el('ammoBox'), '--rc', rarity.color); this.show('wRar', !!weapon && (weapon.rarity ?? 0) > 0);
     this.text('wMode', weapon ? fireMode(weapon.id) : '–');
     const mag = this.el('aMag'), magText = String(!weapon || !def ? 0 : def.melee ? '∞' : weapon.ammo);
     // The magazine count ticks on every shot and reload; a weapon swap just changes the number.
-    if (mag.textContent !== magText) { const tick = mag.dataset.slot === String(me.slot); mag.textContent = magText; mag.dataset.slot = String(me.slot); if (tick) this.restartAnimation(mag, 'tick'); } this.text('aRes', !weapon || !def || def.melee ? '' : `/ ${weapon.reserve}`);
-    this.toggle(this.el('ammo'), 'low', !!weapon && !!def && !def.melee && weapon.ammo <= Math.ceil(def.magazine * .2));
-    const inventoryKey = JSON.stringify([me.weapons.map(w => [w.id, w.rarity, w.ammo, w.box]), me.slot]);
+    if (mag.textContent !== magText) { const tick = mag.dataset.slot === String(me.slot); mag.textContent = magText; mag.dataset.slot = String(me.slot); if (tick) this.restartAnimation(mag, 'tick'); } this.text('aRes', !weapon || !def || def.melee ? '' : String(weapon.reserve));
+    const gun = !!weapon && !!def && !def.melee;
+    this.toggle(this.el('ammo'), 'low', gun && weapon!.ammo <= Math.ceil(def!.magazine * .2));
+    this.toggle(this.el('ammo'), 'melee', !!def?.melee);
+    const inventoryKey = JSON.stringify([me.weapons.map(w => [w.id, w.rarity, w.box]), me.slot, !!this.thumbs]);
     if (this.inventoryKey !== inventoryKey) {
       this.inventoryKey = inventoryKey;
-      // Boxes are fixed (two long guns, sidearm, facão); an empty box names what belongs there.
-      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(box => { const i = indexOfBox(me.weapons, box), w = me.weapons[i]; return `<div class="hs${w && i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" data-box="${box}" style="--rc:${w ? rarityOf(w.rarity).color : '#fff4d6'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${box + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : `${weaponIcon(BOX_HINT[box])}<span class="sr">${BOX_LABELS[box]} vazia</span>`}<i>${w ? WEAPONS[w.id].melee ? '∞' : w.ammo : ''}</i></div>`; }).join('');
+      // Boxes are fixed (two long guns, sidearm, facão): tabs with the gun itself; an empty tab shows a faint silhouette.
+      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(box => { const i = indexOfBox(me.weapons, box), w = me.weapons[i]; return `<div class="hs${w && i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" data-box="${box}" style="--rc:${w ? rarityOf(w.rarity).color : 'transparent'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${box + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : `${weaponIcon(BOX_HINT[box])}<span class="sr">${BOX_LABELS[box]} vazia</span>`}</div>`; }).join('');
     }
-    // Consumables: only what you carry, each with its count; the slot key stays visible.
+    // The heal bag: only what you carry, each with its count and key. The heal that helps most right now wears a gold
+    // ring (it bounces while health is low); the one in use fills its ring; a new one pops as it lands in the bag.
+    const counts = me.consumables, suggested = me.alive && !me.using ? suggestedHeal(counts, hp, armor) : null;
+    const gained = me.alive ? healGains(this.lastCounts, counts) : [];
+    this.lastCounts = { ...counts };
     let carried = 0;
     this.root.querySelectorAll<HTMLElement>('#consbar .cs').forEach(slot => {
-      const id = slot.dataset.k as ConsumableId, count = me.consumables[id] || 0;
-      this.textOf(slot.querySelector('b')!, count); if (slot.hidden !== count <= 0) slot.hidden = count <= 0; this.toggle(slot, 'use', me.using === id);
+      const id = slot.dataset.k as ConsumableId, count = counts[id] || 0;
+      this.textOf(slot.querySelector('b')!, count); if (slot.hidden !== count <= 0) slot.hidden = count <= 0;
+      this.toggle(slot, 'use', me.using === id); this.toggle(slot, 'pick', suggested === id); this.toggle(slot, 'urgent', suggested === id && low);
+      if (gained.includes(id)) this.restartAnimation(slot, 'gain');
       if (count > 0) carried++;
     });
     this.show('consbar', carried > 0 && me.alive);
+    for (const id of gained) this.pickupPop(id, counts[id] || 0);
     const scoped = this.scopeReady && me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
     this.show('scope-overlay', scoped);
     const scope = this.el('scope-overlay');
@@ -460,16 +482,26 @@ export class GameUI {
     this.style(cross, '--g', `${this.crosshairGap(me, now).toFixed(1)}px`);
     this.style(cross, 'opacity', me.alive && me.stage === 'ground' && !emoting && !scoped && !(me.sprint && speed > .5) ? '1' : '0');
     this.updatePrompt(me, interaction);
-    // Reload: a ring fills around the crosshair, with a short label under it.
-    const reloading = !!weapon && !!def && me.reloadUntil > t && me.alive; this.show('reload', reloading); this.show('rring', reloading);
+    // Reload: a ring fills around the crosshair; the magazine card says so, or asks for the reload when it is empty.
+    const reloading = gun && me.reloadUntil > t && me.alive, empty = gun && weapon!.ammo <= 0 && weapon!.reserve > 0 && !reloading;
+    this.show('reload', reloading || empty); this.show('rring', reloading);
+    this.toggle(this.el('reload'), 'ask', empty);
     if (reloading) {
-      this.text('reloadTxt', weapon.id === 'shotgun' ? 'Botando cartucho' : 'Enchendo o pente');
-      this.attr(this.el('rringFg'), 'stroke-dasharray', `${(clamp(1 - (me.reloadUntil - t) / Math.max(.1, def.reload), 0, 1) * 100).toFixed(1)} 100`);
-    }
-    if (me.using && me.useUntil > t) {
-      if (this.useTrack?.item !== me.using || this.useTrack.until !== me.useUntil) this.useTrack = { item: me.using, until: me.useUntil, total: Math.max(.1, me.useUntil - t) };
-      this.text('useTxt', `${USE_LABEL[me.using]} ${(me.useUntil - t).toFixed(1).replace('.', ',')} s`); this.style(this.el('useBar'), 'width', `${(clamp(1 - (me.useUntil - t) / this.useTrack.total, 0, 1) * 100).toFixed(0)}%`);
-    } else this.useTrack = null;
+      this.text('reloadTxt', weapon!.id === 'shotgun' ? 'Botando cartucho' : 'Recarregando');
+      this.attr(this.el('rringFg'), 'stroke-dasharray', `${(clamp(1 - (me.reloadUntil - t) / Math.max(.1, def!.reload), 0, 1) * 100).toFixed(1)} 100`);
+    } else if (empty) this.text('reloadTxt', `${keyName(this.settings.bindings.reload)} recarrega`);
+    // Heal in progress: the item in a filling ring under the reticle, and the bar it heals shows where it will end.
+    const using = me.alive && me.using && me.useUntil > t ? me.using : null;
+    if (using) {
+      const info = HEAL_INFO[using], left = Math.max(0, me.useUntil - t);
+      this.useTrack = { item: using, until: me.useUntil, total: info.time };
+      if (this.el('useIcon').dataset.k !== using) { this.el('useIcon').dataset.k = using; this.el('useIcon').innerHTML = itemIcon(using); this.text('useName', USE_LABEL[using]); }
+      this.text('useTxt', `${left.toFixed(1).replace('.', ',')} s · ${info.effect}`);
+      this.attr(this.el('useRing'), 'stroke-dasharray', `${(clamp(1 - left / info.time, 0, 1) * 100).toFixed(1)} 100`);
+      const target = healTarget(using, hp, armor);
+      this.ghost(target.stat === 'hp' ? 'hpGhost' : 'armGhost', target.from, target.to); this.ghost(target.stat === 'hp' ? 'armGhost' : 'hpGhost', 0, 0);
+    } else { this.useTrack = null; this.ghost('hpGhost', 0, 0); this.ghost('armGhost', 0, 0); }
+    this.toggle(vitals, 'healing', !!using);
     this.show('use', !!this.useTrack);
     const air = me.alive && (me.stage === 'falling' || me.stage === 'parachute'); this.show('alt', air);
     if (air) { this.text('altTxt', `${Math.max(0, Math.round(me.pos.y - terrainHeight(me.pos.x, me.pos.z)))} m`); this.text('altHint', me.stage === 'falling' ? `${jump} abre o paraquedas` : 'WASD plana'); }
@@ -593,7 +625,7 @@ export class GameUI {
     const holder = this.el('promptIcon');
     if (holder.dataset.k !== iconKey) {
       holder.dataset.k = iconKey;
-      holder.innerHTML = loot?.kind === 'weapon' ? weaponIcon(loot.weapon || 'pistol') : loot && loot.kind in CONSUMABLE_ICONS ? CONSUMABLE_ICONS[loot.kind as ConsumableId] : loot?.kind === 'armor' ? HUD_ART.shield : loot?.kind === 'helmet' ? HUD_ART.helmet : bath ? emoteIcon('chill') : chest ? icon('box') : '';
+      holder.innerHTML = loot?.kind === 'weapon' ? weaponIcon(loot.weapon || 'pistol') : loot ? itemIcon(loot.kind) : bath ? emoteIcon('chill') : chest ? icon('box') : '';
     }
     // Name the consequence before the key press: a swap says which carried gun hits the floor.
     const plan = loot?.kind === 'weapon' && loot.weapon && this.snapshot?.config.mode !== 'corrente' ? planPickup(me.weapons, me.slot, loot.weapon) : null;
@@ -868,12 +900,18 @@ export class GameUI {
     if (event.type === 'damage') {
       this.lastHits.set(event.target, { actor: event.actor, head: event.head });
       if (event.actor === this.localId && event.target !== this.localId) {
-        this.hitMarker(event.head ? 'head' : '');
+        // Breaking their armour has its own marker (shield shards) and callout, as much as a headshot does.
+        this.hitMarker(event.head ? 'head' : event.armorBreak ? 'break' : '');
         if (this.settings.damageNumbers) this.floater(String(Math.round(event.amount)), event.head ? 'num head' : 'num');
         if (event.head) this.floater('NA CACHOLA!', 'pop');
+        else if (event.armorBreak) this.floater('QUEBROU!', 'pop break');
       }
       if (event.target === this.localId) {
         this.restartAnimation(this.el('vign'), 'hit');
+        // Taking a hit jolts the vitals sticker; losing the last of the armour shatters its bar and says so.
+        const vitals = this.el('vitals');
+        if (event.armorBreak) { this.armorBrokeUntil = performance.now() + 1600; this.restartAnimation(vitals, 'broke'); this.hudTime = 0; }
+        else this.restartAnimation(vitals, 'jolt');
         const me = find(this.localId), source = find(event.actor);
         if (me && source && source !== me) {
           const burst = document.createElement('div'); burst.className = 'di'; burst.innerHTML = DAMAGE_ARC;
@@ -887,12 +925,10 @@ export class GameUI {
       const hit = this.lastHits.get(event.target), mine = event.actor === this.localId && event.target !== this.localId, died = event.target === this.localId;
       const entry = document.createElement('div');
       entry.className = `fd${mine ? ' me' : died ? ' bad' : ''}`;
-      const face = (actor: typeof victim) => `<span class="pt">${capybara(actor?.color)}</span>`, name = (actor: typeof victim) => `<b title="${esc(actor?.name || 'Capivara')}">${esc(actor?.name || 'Capivara')}</b>`;
-      if (!killer || event.weapon === 'storm' || event.weapon === 'fall') entry.innerHTML = `${face(victim)}${name(victim)}<em>${event.weapon === 'fall' ? 'caiu feio' : 'levado pela tempestade'}</em>`;
-      else {
-        const distance = victim ? Math.round(Math.hypot(killer.pos.x - victim.pos.x, killer.pos.y - victim.pos.y, killer.pos.z - victim.pos.z)) : 0;
-        entry.innerHTML = `${face(killer)}${name(killer)}<span class="wi">${weaponIcon(event.weapon)}</span><em>${distance} m${hit?.head && hit.actor === event.actor ? ' · na cachola' : ''}</em>${name(victim)}${face(victim)}`;
-      }
+      // One short line: who, with what (a headshot gets its mark), who fell. You are "Você" in your own lines.
+      const name = (actor: typeof victim) => actor?.id === this.localId ? '<b class="you">Você</b>' : `<b title="${esc(actor?.name || 'Capivara')}">${esc(actor?.name || 'Capivara')}</b>`;
+      if (!killer || event.weapon === 'storm' || event.weapon === 'fall') entry.innerHTML = `${event.weapon === 'fall' ? '' : itemIcon('storm', 'wi')}${name(victim)}<em>${event.weapon === 'fall' ? 'caiu feio' : 'levado pela tempestade'}</em>`;
+      else entry.innerHTML = `${name(killer)}<span class="wi">${weaponIcon(event.weapon)}</span>${hit?.head && hit.actor === event.actor ? '<i class="hs-mark" title="Na cachola">!</i>' : ''}${name(victim)}`;
       this.addFeed(entry);
       if (mine) {
         this.hitMarker('kill'); this.floater('POF!', 'pop kill'); if (victim) this.lastPrey = { name: victim.name, color: victim.color };
@@ -920,23 +956,42 @@ export class GameUI {
       }
       this.lastHits.delete(event.target);
     }
+    // Pickups pop above the heal bag. Heals pop from the bag count itself (see update), so a heal from any source shows.
     if (event.type === 'pickup' && event.actor === this.localId) {
       if (this.coach?.step === 'loot') this.coachDone();
-      const chest = event.item.startsWith('chest:') ? event.item.slice(6) as WeaponId : null, loot = this.snapshot?.loot.find(l => l.id === event.item);
-      const weaponId = chest || (loot?.kind === 'weapon' ? loot.weapon || 'pistol' : null);
-      const entry = document.createElement('div'); entry.className = 'fd info';
-      if (weaponId && WEAPONS[weaponId]) entry.innerHTML = `Pegou ${esc(WEAPONS[weaponId].name)}${loot ? ` ${rarityOf(loot.rarity).name.toLowerCase()}` : ''}<em>${chest ? 'do baú' : ''}</em>`;
-      else if (loot) entry.textContent = `Pegou ${LOOT_LABEL[loot.kind] || 'equipamento'}`;
-      else return;
-      this.addFeed(entry);
+      const loot = this.snapshot?.loot.find(l => l.id === event.item);
+      if (!loot || (CONSUMABLES as string[]).includes(loot.kind)) return;
+      if (loot.kind === 'weapon') this.pickupPop('weapon', 0, loot.weapon || 'pistol', loot.rarity);
+      else this.pickupPop(loot.kind);
+    }
+    // A heal finishing: the gain floats off the bar it filled.
+    if (event.type === 'use' && event.actor === this.localId) {
+      const info = HEAL_INFO[event.item], pop = document.createElement('b');
+      pop.className = `hp-pop ${info.stat}`; pop.textContent = event.item === 'medkit' ? 'Vida cheia!' : `+${info.amount}${info.stat === 'armor' ? ' colete' : ''}`;
+      const layer = this.el('healPops'); layer.appendChild(pop); window.setTimeout(() => pop.remove(), 1300);
+      while (layer.children.length > 2) layer.firstElementChild!.remove();
+      this.restartAnimation(this.el('vitals'), 'healed');
     }
   }
+  // Pickup pop: the painted item, what it is and what it does (heals also say how many you now carry).
+  private pickupPop(kind: string, count = 0, weapon?: WeaponId, rarity?: number) {
+    const host = this.el('pickups'); if (!host) return;
+    const copy = pickupCopy(kind, count, weapon ? WEAPONS[weapon]?.name : '', weapon && (rarity ?? 0) > 0 ? rarityOf(rarity).name : '');
+    const el = document.createElement('div'); el.className = `pk ${copy.tone}`;
+    const art = weapon ? this.thumbs?.get(weapon) ? `<img src="${this.thumbs.get(weapon)}" alt="">` : weaponIcon(weapon) : itemIcon(kind);
+    if (weapon) el.style.setProperty('--rc', rarityOf(rarity).color);
+    const life = copy.tone === 'heal' ? 3200 : 2400;
+    el.style.setProperty('--life', `${(life - 350) / 1000}s`);
+    el.innerHTML = `<span class="pk-ico">${art}</span><span class="pk-txt"><b>${esc(copy.title)}</b>${copy.detail ? `<small>${esc(copy.detail)}</small>` : ''}</span>`;
+    host.appendChild(el); window.setTimeout(() => el.remove(), life);
+    while (host.children.length > 3) host.firstElementChild!.remove();
+  }
   private addFeed(entry: HTMLElement) {
-    // Six seconds per line (the Source convention), eight for lines about you, at most five on screen.
+    // Six seconds per line (the Source convention), eight for lines about you, at most four on screen (two on short windows, by CSS).
     const mine = entry.classList.contains('me') || entry.classList.contains('bad'), life = mine ? 8000 : entry.classList.contains('info') ? 3500 : 6000;
     entry.style.setProperty('--life', `${(life - 400) / 1000}s`);
     const feed = this.el('feed'); feed.prepend(entry); window.setTimeout(() => entry.remove(), life);
-    while (feed.children.length > 5) feed.lastElementChild!.remove();
+    while (feed.children.length > 4) feed.lastElementChild!.remove();
   }
   private updateMoments(snapshot: WorldSnapshot, me: ActorState) {
     if (!me.alive) { clearTimeout(this.momentTimer); this.show('matchMoment', false); }
@@ -962,8 +1017,8 @@ export class GameUI {
     const banner = this.el('banner'); if (html && banner.classList.contains('countdown') && !this.reducedMotion()) this.restartAnimation(banner, 'count-beat'); if (html) banner.innerHTML = html; banner.classList.toggle('on', !!html); banner.setAttribute('aria-hidden', String(!html));
     if (!html) window.setTimeout(() => { if (!this.lastBanner && banner.isConnected) banner.textContent = ''; }, 300);
   }
-  private hitMarker(kind: '' | 'head' | 'kill') {
-    const marker = this.el('hitm'); marker.classList.toggle('head', kind === 'head'); marker.classList.toggle('kill', kind === 'kill');
+  private hitMarker(kind: '' | 'head' | 'kill' | 'break') {
+    const marker = this.el('hitm'); marker.classList.toggle('head', kind === 'head'); marker.classList.toggle('kill', kind === 'kill'); marker.classList.toggle('break', kind === 'break');
     this.restartAnimation(marker, 'on');
   }
   // Damage numbers and callouts float up next to the crosshair (the HUD has no camera to project world points).
@@ -1008,6 +1063,13 @@ export class GameUI {
   private show(id: string, visible: boolean) { const element = this.el(id); if (element && element.hasAttribute('hidden') === visible) element.toggleAttribute('hidden', !visible); }
   private toggle(element: Element, cls: string, on: boolean) { if (element.classList.contains(cls) !== on) element.classList.toggle(cls, on); }
   private style(element: HTMLElement, prop: string, value: string) { if (element.style.getPropertyValue(prop) !== value) element.style.setProperty(prop, value); }
+  // A bar fill at 0..100 %, as a scale on the compositor rather than a width that re-lays out the row.
+  private bar(id: string, value: number) { this.style(this.el(id), 'transform', `scaleX(${(clamp(value, 0, 100) / 100).toFixed(3)})`); }
+  // The heal preview: a pulsing segment from the current value to where the heal will end.
+  private ghost(id: string, from: number, to: number) {
+    const el = this.el(id), on = to - from >= 1; this.show(id, on);
+    if (on) this.style(el, 'transform', `translateX(${clamp(from, 0, 100).toFixed(1)}%) scaleX(${(clamp(to - from, 0, 100) / 100).toFixed(3)})`);
+  }
   private attr(element: Element | null, name: string, value: string) { if (element && element.getAttribute(name) !== value) element.setAttribute(name, value); }
   // Replays a CSS animation class without reading layout (the old offsetWidth trick forced a full layout mid-frame).
   private restartAnimation(element: HTMLElement, cls: string) {
@@ -1027,7 +1089,7 @@ export class GameUI {
     const body = document.body.style, [hit, head, kill] = HIT_PALETTES[this.settings.hitPalette];
     const scale = hudScale(innerWidth, innerHeight, this.settings.uiScale);
     body.setProperty('--ui', String(scale)); body.setProperty('--hud-w', (innerWidth / scale).toFixed(0));
-    document.body.classList.toggle('hud-narrow', hudNarrow(innerWidth, scale));
+    document.body.classList.toggle('hud-narrow', hudNarrow(innerWidth, scale)); document.body.classList.toggle('hud-short', hudShort(innerHeight, scale));
     body.setProperty('--xc', CROSSHAIR_COLORS[this.settings.crosshairColor]);
     body.setProperty('--hit', hit); body.setProperty('--hithead', head); body.setProperty('--hitkill', kill);
     document.body.classList.toggle('reduce-motion', CALM || this.settings.reducedMotion);

@@ -89,3 +89,17 @@ export const HUD_ART = {
   safeArrow: `<svg width="22" height="22" viewBox="-11 -11 22 22" aria-hidden="true"><path id="safeArrow" d="M0,-9 L7,7 L0,3 L-7,7Z" fill="${INK}"/></svg>`,
   stance: `<svg width="52" height="56" viewBox="0 0 60 62" aria-hidden="true"><line x1="6" y1="58" x2="54" y2="58" stroke="currentColor" stroke-width="3" stroke-linecap="round" /><text x="3" y="12" fill="#6f5c40" font-family="Dela Gothic One,Arial Black,sans-serif" font-size="11">Q</text><text x="49" y="12" fill="#6f5c40" font-family="Dela Gothic One,Arial Black,sans-serif" font-size="11">E</text><g id="figure"><g id="torso"><line x1="30" y1="56" x2="30" y2="23" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><circle cx="30" cy="13" r="7.5" fill="#ffb81c" stroke="${INK}" stroke-width="2.5"/></g></g></svg>`,
 };
+// HUD item art: painted icons (public/assets/ui/icon-<name>.webp, same family as the heart and shield) where they exist,
+// drawn stickers otherwise. Every item, heal and gear piece reads the same in the bag, the pickup pop and the prompt.
+const ITEM_PAINTED: Record<string, string> = {};
+const ITEM_DRAWN: Record<string, string> = {
+  ...CONSUMABLE_ICONS,
+  armor: HUD_ART.shield,
+  helmet: HUD_ART.helmet,
+  ammo: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="10" width="18" height="10" rx="2" fill="#5f6b3a" stroke="${INK}" stroke-width="2"/><path d="M7 10V5.5a1.5 1.5 0 0 1 3 0V10M10.5 10V4.5a1.5 1.5 0 0 1 3 0V10M14 10V5.5a1.5 1.5 0 0 1 3 0V10" fill="#ffc23d" stroke="${INK}" stroke-width="1.6"/></svg>`,
+  storm: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 15.5a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 16.6 6a4.2 4.2 0 0 1 .9 9.5Z" fill="#8a4dff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="m12.5 12-3 5h3l-1.5 5 4.5-6.5h-3l1.5-3.5Z" fill="#ffc23d" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  parachute: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 11a9.5 8 0 0 1 19 0Z" fill="#ffc23d" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 11a3.5 8 0 0 1 7 0" fill="#1fb5a8" stroke="${INK}" stroke-width="1.6"/><path d="m3 11 7.5 8M21 11l-7.5 8M12 11v8" stroke="${INK}" stroke-width="1.3"/><rect x="9.5" y="18" width="5" height="4" rx="1" fill="#a96b38" stroke="${INK}" stroke-width="1.6"/></svg>`,
+};
+export const itemIcon = (kind: string, cls = '') => ITEM_PAINTED[kind]
+  ? `<img class="item-art ${cls}" src="${uiArt(`icon-${ITEM_PAINTED[kind]}`)}" alt="" aria-hidden="true" draggable="false">`
+  : `<span class="item-art ${cls}">${ITEM_DRAWN[kind] ?? ''}</span>`;

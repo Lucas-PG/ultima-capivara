@@ -13,7 +13,9 @@ const scales = (process.env.SCALES || '0.8,1,1.2').split(',').map(Number);
 const poses = (process.env.POSES || 'hud,hud-full,hud-watch,hud-corrente').split(',');
 // Plates that may never touch each other or the window edge.
 const TEXT_FLOOR = 12;
-const PLATES = ['topL', 'ladder', 'compass', 'safe', 'hOut', 'mapWrap', 'feed', 'matchMoment', 'banner', 'deathCard', 'specBar', 'prompt', 'use', 'alt', 'vitals', 'stance', 'consbar', 'hotbar', 'wpnbox', 'coach', 'killConfirm', 'storm'];
+// Columns (rcol: map, strip, feed; lcol: bag, posture, pickups; ccol: prompt, elimination, heal) stack their children,
+// so the columns are checked against everything else.
+const PLATES = ['rcol', 'lcol', 'ccol', 'ladder', 'compass', 'safe', 'hOut', 'matchMoment', 'banner', 'deathCard', 'specBar', 'alt', 'vitals', 'wpnbox', 'coach', 'toast'];
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const faults = [];
 try {
