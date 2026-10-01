@@ -94,7 +94,7 @@ describe('dynamic resolution', () => {
     run(controller, 60, frame(40));
     const changes: number[] = [];
     // The GPU fits only below the floor's next step: every climb fails.
-    for (let i = 0; i < 60 * 40; i++) {
+    for (let i = 0; i < 60 * 90; i++) {
       const over = controller.density > .6 + 1e-6;
       if (controller.update(frame(over ? 40 : BUDGET))) changes.push(i);
     }
@@ -143,13 +143,30 @@ describe('dynamic resolution', () => {
     expect(settled.missed / settled.frames).toBeLessThan(.005);
   });
 
+  it('steps down for a trickle of missed frames, too few for the quick reaction', () => {
+    // High near its limit in the live Correria: 2 to 7 frames a second missed at 1.25 without a drop.
+    const controller = new DynamicResolution(renderRange('high', 'auto', 2));
+    // A light scene first: it holds the ceiling. Then the view gets heavier without any burst of misses.
+    run(controller, 120, frame(BUDGET));
+    expect(controller.density).toBe(2);
+    let missed = 0, frames = 0;
+    for (let i = 0; i < 60 * 120; i++) {
+      // Above 1.1 one frame in ten misses; at 1.1 and below none do.
+      const miss = controller.density > 1.1 + 1e-6 && i % 10 === 0;
+      controller.update(frame(miss ? BUDGET * 2 : BUDGET)); frames++; if (miss && i > 60 * 60) missed++;
+    }
+    expect(controller.density).toBeCloseTo(1.1, 5);
+    // Over the last minute its probes of 1.15 cost under half a percent of frames.
+    expect(missed / (frames / 2)).toBeLessThan(.005);
+  });
+
   it('probes upward without GPU timings and backs off after a failed probe', () => {
     const range = renderRange('medium', 'auto', 2), controller = new DynamicResolution(range);
     run(controller, 60, frame(40));
     const low = controller.density;
-    // Steady frames: the first probe comes after about 1.5 s.
+    // Steady frames: the first probe comes after 1.5 s, or 3 s when it tries the step it just dropped from.
     let steps = 0; while (controller.density === low && steps < 1000) { controller.update(frame(BUDGET)); steps++; }
-    expect(steps * BUDGET).toBeGreaterThan(1400); expect(steps * BUDGET).toBeLessThan(3000);
+    expect(steps * BUDGET).toBeGreaterThan(1400); expect(steps * BUDGET).toBeLessThan(3200);
     // The probe misses: back down, and the next probe waits twice as long.
     const probe = controller.density; let guard = 0;
     while (controller.density === probe && guard++ < 100) controller.update(frame(40));

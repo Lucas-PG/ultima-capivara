@@ -54,11 +54,12 @@ const STEP = .05;
 const quantize = (value: number) => Math.round(value / STEP) * STEP;
 
 /** Holds the frame-time budget by moving the render density between the range's floor and ceiling.
- * Missed frames decide: when a quarter of recent frames miss and the main thread is not the cause,
- * the density steps down toward the pixels that fit (at most a fifth per step, a third when most
- * frames miss); after a second with no miss it climbs one small step, a probe. A probe that misses
- * within 4 s goes straight back and marks that density: the next try there waits twice as long
- * (up to 30 s), while the steps below it stay free, so the resolution settles just under what the
+ * Missed frames decide, unless the main thread is the cause: when a quarter of recent frames miss the
+ * density steps down toward the pixels that fit (at most a fifth per step, a third when most frames
+ * miss), and a trickle of misses (4 in a second) costs one step. After a second with no miss it
+ * climbs one small step, a probe; a probe that misses three frames within 4 s goes straight back.
+ * Each drop marks the density that missed: the next try there waits twice as long as the last
+ * (up to 30 s) while the steps below it stay free, so the resolution settles just under what the
  * GPU can draw instead of breathing. GPU timer queries do not measure headroom on this hardware:
  * Apple GPUs lower their clock to fill the frame, so a Medium frame read 10 to 13 ms at every
  * density from 0.6 to 1.15 while a fixed 1.0 held 60 fps, and an earlier controller guided by those
@@ -119,23 +120,26 @@ export class DynamicResolution {
     const recent = this.misses.slice(-30), missed = recent.filter(Boolean).length, missRate = missed / Math.max(1, recent.length);
     const gpu = this.gpuEstimate, cpuBound = this.cpu > budgetMs * .85;
     const missing = recent.length >= 20 && missRate >= .25, severe = recent.length >= 20 && missRate >= .6;
-    const { min, max } = this.range;
+    // A few misses every second are a stutter too, below the quick reaction's threshold.
+    const trickle = this.misses.length >= 60 && this.misses.filter(Boolean).length >= 4;
     // A fresh probe gets less benefit of the doubt: three misses since the climb undo it.
     const probeMissed = this.sinceRaise < 4000 && missed >= 3;
-    const struggling = !cpuBound && (missing || probeMissed);
+    const { min, max } = this.range;
+    const struggling = !cpuBound && (missing || trickle || probeMissed);
     this.overloadMs = struggling && this.density <= min + 1e-6 ? this.overloadMs + intervalMs : Math.max(0, this.overloadMs - intervalMs * .5);
-    if (struggling && (probeMissed || this.sinceChange >= (severe ? 300 : 500))) {
-      // Toward the pixels that fit 80 percent of the budget, from the frame times (or a GPU time over budget).
-      const cost = Math.max(budgetMs * 1.3, gpu !== null && gpu > budgetMs ? gpu : intervalAverage(this.misses, budgetMs));
-      const factor = Math.min(.95, Math.max(severe ? .7 : .8, Math.sqrt(budgetMs * .8 / cost)));
-      let target = Math.min(this.density - STEP, quantize(this.density * factor));
-      if (this.sinceRaise < 4000) {
-        // The probe was one step too far: back to where it came from, and wait longer before trying it again.
-        this.retryDelay = this.failedAt <= this.density + 1e-6 ? Math.min(30000, this.retryDelay * 2) : CLIMB_DELAY * 2;
-        this.failedAt = this.density; this.sinceFail = 0;
-        if (missing) target = Math.min(target, this.raisedFrom); else target = this.raisedFrom;
+    if (struggling && (!missing || this.sinceChange >= (severe ? 300 : 500))) {
+      let target = this.density - STEP;
+      if (missing) {
+        // Toward the pixels that fit 80 percent of the budget, from the frame times (or a GPU time over budget).
+        const cost = Math.max(budgetMs * 1.3, gpu !== null && gpu > budgetMs ? gpu : intervalAverage(this.misses, budgetMs));
+        target = Math.min(target, quantize(this.density * Math.min(.95, Math.max(severe ? .7 : .8, Math.sqrt(budgetMs * .8 / cost)))));
       }
-      this.sinceRaise = Infinity;
+      // A probe was one step too far: back to where it came from.
+      if (this.sinceRaise < 4000) target = Math.min(target, this.raisedFrom);
+      if (this.density <= min + 1e-6) return false;
+      // Mark the density that missed; missing again at or below the mark doubles the wait before the next try.
+      this.retryDelay = this.failedAt <= this.density + 1e-6 ? Math.min(30000, this.retryDelay * 2) : CLIMB_DELAY * 2;
+      this.failedAt = this.density; this.sinceFail = 0; this.sinceRaise = Infinity;
       return this.set(Math.max(min, target));
     }
     if (this.density >= max || this.misses.length < 60 || this.misses.some(Boolean) || this.sinceChange < CLIMB_DELAY) return false;
