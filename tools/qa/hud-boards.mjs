@@ -20,7 +20,7 @@ const STATES = [
     post.push({ type: 'damage', id: 9102, actor: 'bot-hud-9', target: 'practice', amount: 11, head: false, pos: at });
     post.push({ type: 'damage', id: 9103, actor: 'practice', target: 'bot-hud-4', amount: 31, head: true, pos: at });
     post.push({ type: 'damage', id: 9104, actor: 'practice', target: 'bot-hud-4', amount: 18, head: false, pos: at });` },
-  { name: 'pickup', label: 'Pegou kit médico (e munição)', pose: 'hud-full', js: `
+  { name: 'pickup', label: 'Pegou kit médico: voando para a bolsa', pose: 'hud-full', wait: 360, js: `
     me.hp = 54; me.armor = 0; me.consumables = { bandage: 3, medkit: 1, guarana: 2, acai: 1, rapadura: 2 };
     pre.consumables = { bandage: 3, medkit: 0, guarana: 2, acai: 1, rapadura: 2 };
     s.loot.push({ id: 'qa-medkit', kind: 'medkit', rarity: 0, x: at.x, y: at.y, z: at.z, active: false, respawnAt: 0 });
@@ -99,7 +99,7 @@ try {
         ui.heading = -1; ui.frameCompass(heading);
       }, { js: state.js, prompt: !!state.prompt, coach: !!state.coach, pose: state.pose, scope: state.name === 'scope' });
       // Let entrance motion settle to a representative frame, then freeze every animation there.
-      await page.waitForTimeout(140);
+      await page.waitForTimeout(state.wait ?? 140);
       await page.evaluate(() => document.getAnimations().forEach(a => a.pause()));
       // Footprint: the share of the window covered by what the HUD paints (boxes with a background or border, text,
       // images), as a union on a 4 px grid. Layout containers and full-screen overlays do not count.

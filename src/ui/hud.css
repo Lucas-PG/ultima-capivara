@@ -172,15 +172,15 @@ body{
 
 /* Bottom left: the portrait and the vitals sticker. Health warms from green to gold to red as it drops. */
 #hud #vitals{position:absolute;left:16px;bottom:16px;display:flex;align-items:center}
-#hud #vitals .portrait{position:relative;z-index:1;flex:none;width:54px;height:54px;border-width:3px;border-radius:50%;overflow:hidden;background:var(--h-paper)}
+#hud #vitals .portrait{position:relative;z-index:1;flex:none;width:60px;height:60px;border-width:3px;border-radius:50%;overflow:hidden;background:var(--h-paper)}
 #hud #vitals .portrait svg{display:block;width:100%;height:100%}
-#hud .vcard{position:relative;display:flex;flex-direction:column;gap:4px;width:202px;margin-left:-12px;padding:5px 8px 5px 18px;border-radius:0 14px 14px 0}
-#hud .vcard .row{display:grid;grid-template-columns:18px 1fr 50px;align-items:center;gap:6px}
-#hud .vcard .row .icon{width:18px;height:18px}
-#hud .vcard .row b{font:22px/1 var(--h-num);text-align:right;font-variant-numeric:tabular-nums}
-#hud .vcard .arm b{font-size:16px;color:#1d7f86}
-#hud .vcard .bar{position:relative;height:14px;border:2px solid var(--h-ink);border-radius:7px;background:rgba(58,36,24,.16);overflow:hidden}
-#hud .vcard .arm .bar{height:11px}
+#hud .vcard{position:relative;display:flex;flex-direction:column;gap:5px;width:222px;margin-left:-12px;padding:6px 8px 6px 18px;border-radius:0 14px 14px 0}
+#hud .vcard .row{display:grid;grid-template-columns:20px 1fr 56px;align-items:center;gap:6px}
+#hud .vcard .row .icon{width:20px;height:20px}
+#hud .vcard .row b{font:26px/1 var(--h-num);text-align:right;font-variant-numeric:tabular-nums}
+#hud .vcard .arm b{font-size:18px;color:#1d7f86}
+#hud .vcard .bar{position:relative;height:19px;border:2.5px solid var(--h-ink);border-radius:9px;background:rgba(58,36,24,.16);overflow:hidden}
+#hud .vcard .arm .bar{height:13px}
 #hud .vcard .bar>i{position:absolute;inset:0;transform-origin:0 50%;transform:scaleX(0)}
 #hud .vcard .bar .chip{background:#fffaf0;transition:transform .55s .35s}
 #hud .vcard .bar .fill{transition:transform .12s;background:linear-gradient(180deg,#a8ec74,var(--h-green) 60%,#3a8c27)}
@@ -188,6 +188,8 @@ body{
 #hud .vcard .bar .ghost{background:repeating-linear-gradient(-45deg,rgba(255,255,255,.95) 0 4px,rgba(168,236,116,.95) 4px 8px);animation:hud-ghost .8s ease-in-out infinite alternate}
 #hud .vcard .arm .bar .ghost{background:repeating-linear-gradient(-45deg,rgba(255,255,255,.95) 0 4px,rgba(111,227,214,.95) 4px 8px)}
 #hud .vcard .seg{position:absolute;inset:0;background:linear-gradient(90deg,transparent calc(25% - 1px),var(--h-ink) calc(25% - 1px) calc(25% + 1px),transparent calc(25% + 1px) calc(50% - 1px),var(--h-ink) calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px) calc(75% - 1px),var(--h-ink) calc(75% - 1px) calc(75% + 1px),transparent calc(75% + 1px))}
+/* Health reads in 25-point chunks like the armour (a bandage is about half a chunk, a medkit refills them all). */
+#hud .vcard .hp .bar::before{content:"";position:absolute;inset:0;z-index:2;background:linear-gradient(90deg,transparent calc(25% - 1px),rgba(58,36,24,.55) calc(25% - 1px) calc(25% + 1px),transparent calc(25% + 1px) calc(50% - 1px),rgba(58,36,24,.55) calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px) calc(75% - 1px),rgba(58,36,24,.55) calc(75% - 1px) calc(75% + 1px),transparent calc(75% + 1px))}
 #hud #vitals.bare .arm{opacity:.55}
 #hud #vitals[data-tone=hurt] .hp .fill{background:linear-gradient(180deg,#ffe98f,#f5b52a 60%,#d98a12)}
 #hud #vitals[data-tone=low] .hp .fill{background:linear-gradient(180deg,#ff9a7d,var(--h-red) 60%,#a82414)}
@@ -210,17 +212,27 @@ body{
 #hud #vitals.healed .hp .bar::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.85);animation:hud-fade .5s ease-out forwards}
 
 /* Above the vitals, one column: the heal bag, the posture chip and the pickup pops (newest nearest the bag). */
-#hud #lcol{position:absolute;left:16px;bottom:94px;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:9px}
-#hud #consbar{display:flex;flex-wrap:wrap;gap:8px 11px;max-width:290px;padding:7px 0 0 4px}
-#hud .cs{position:relative;display:grid;place-items:center;width:40px;height:40px;border-radius:12px}
-#hud .cs .item-art{width:32px;height:32px}
-#hud .cs kbd{position:absolute;left:-6px;top:-9px;height:19px;min-width:19px;padding:0 3px;border-radius:6px;font-size:14px}
-#hud .cs b{position:absolute;right:-7px;bottom:-7px;display:grid;place-items:center;min-width:21px;height:21px;padding:0 4px;font:14px/1 var(--h-num);font-weight:400;color:var(--h-paper);background:var(--h-ink);border-radius:999px}
-#hud .cs.pick{border-color:var(--h-gold-2);box-shadow:0 3px 0 var(--h-ink),0 0 0 3px var(--h-gold)}
+#hud #lcol{position:absolute;left:16px;bottom:112px;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:9px}
+#hud #bag{display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+#hud #bagTag{display:flex;align-items:center;gap:6px;padding:2px 11px 2px 3px;font-size:14px;white-space:nowrap;color:var(--h-ink);background:var(--h-sheet);border:2.5px solid var(--h-gold-2);border-radius:999px;box-shadow:var(--h-drop)}
+#hud #bagTag b{font-size:16px;font-weight:400}
+#hud #bagTag small{font-size:14px;color:var(--h-ink-2)}
+#hud #bagTag kbd{height:22px;min-width:22px}
+#hud #consbar{display:flex;flex-wrap:wrap;gap:12px 12px;max-width:360px;padding:6px 0 0 4px}
+#hud .cs{position:relative;display:grid;place-items:center;width:58px;height:58px;border-radius:16px}
+/* The painted heal breaks out of its sticker a little, like a sticker on a sticker. */
+#hud .cs .item-art{width:54px;height:54px;margin-top:-6px}
+#hud .cs kbd{position:absolute;left:-7px;top:-9px;height:21px;min-width:21px;padding:0 4px;border-radius:7px;font-size:14px}
+#hud .cs b{position:absolute;right:-9px;bottom:-9px;display:grid;place-items:center;min-width:28px;height:28px;padding:0 6px;border:2.5px solid var(--h-paper);font:19px/1 var(--h-num);font-weight:400;color:var(--h-paper);background:var(--h-ink);border-radius:999px}
+#hud .cs.pick{border-color:var(--h-ink);background:linear-gradient(180deg,#fff3b8,#ffd25c);box-shadow:0 3px 0 var(--h-ink),0 0 0 4px var(--h-gold);transform:translateY(-3px)}
+#hud .cs.pick b{color:var(--h-ink);background:var(--h-gold);border-color:var(--h-ink)}
 #hud .cs.urgent{animation:hud-bounce .9s var(--spring,ease-out) infinite}
 #hud .cs.use{background:linear-gradient(180deg,#f1ffe6,#c8efa9);border-color:var(--h-green)}
-#hud .cs.gain{animation:hud-gain .5s var(--spring,ease-out)}
-#hud .cs.gain::after{content:"";position:absolute;inset:-9px;border:3px solid var(--h-gold);border-radius:18px;opacity:0;animation:hud-ring .6s ease-out}
+#hud .cs.gain{animation:hud-gain .55s var(--spring,ease-out)}
+#hud .cs.gain::before{content:"+1";position:absolute;left:50%;top:-12px;z-index:3;font:22px/1 var(--h-num);color:#b9f58c;text-shadow:var(--h-ol);animation:hud-plus .9s ease-out forwards}
+#hud .cs.gain::after{content:"";position:absolute;inset:-12px;border:4px solid var(--h-gold);border-radius:22px;opacity:0;animation:hud-ring .65s ease-out}
+#hud .fly{position:fixed;left:0;top:0;z-index:9;pointer-events:none;will-change:transform}
+#hud .fly .item-art{width:100%;height:100%}
 #hud #stance{height:30px;padding:0 10px 0 4px}
 #hud #stance:not(.active){display:none}
 #hud #stance>svg:first-child{width:22px;height:24px;color:var(--h-ink)}
@@ -233,13 +245,13 @@ body{
 #hud #pickups{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 #hud #pickups:empty{display:none}
 #hud .pk{display:flex;align-items:center;gap:8px;max-width:300px;padding:3px 13px 3px 3px;border-radius:999px;transform-origin:0 50%;animation:hud-pk-in .38s var(--spring,ease-out),hud-pk-out .35s ease-in var(--life,2s) forwards}
-#hud .pk-ico{position:relative;flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#fff;border:2px solid var(--h-ink)}
-#hud .pk-ico .item-art,#hud .pk-ico>img.item-art{width:32px;height:32px}
+#hud .pk-ico{position:relative;flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#fff;border:2px solid var(--h-ink)}
+#hud .pk-ico .item-art,#hud .pk-ico>img.item-art{width:44px;height:44px}
 #hud .pk-ico img:not(.item-art){max-width:38px;max-height:24px}
 #hud .pk-ico .weapon-icon{width:36px;height:12px;color:var(--h-ink)}
 #hud .pk-txt{display:flex;flex-direction:column;min-width:0;line-height:1.2;white-space:nowrap}
 #hud .pk-txt :is(b,small){overflow:hidden;text-overflow:ellipsis}
-#hud .pk-txt b{font-size:16px;font-weight:400}
+#hud .pk-txt b{font-size:18px;font-weight:400}
 #hud .pk-txt small{font-size:14px;color:var(--h-ink-2)}
 #hud .pk.heal{border-color:var(--h-green);border-width:3px;background:linear-gradient(180deg,#fbfff4,#e3f6cf)}
 #hud .pk.heal .pk-ico{background:repeating-conic-gradient(#fff6c8 0 15deg,#ffe07a 15deg 30deg)}
@@ -261,7 +273,7 @@ body{
 #hud .hs.empty{background:rgba(255,244,214,.82);border-style:dashed;border-color:rgba(58,36,24,.7);box-shadow:none}
 #hud .hs.empty .weapon-icon{opacity:.32;color:var(--h-ink-2)}
 #hud .hs.nope{animation:hs-nope .25s}
-#hud #ammoBox{position:relative;display:flex;align-items:center;gap:10px;min-width:192px;padding:4px 11px 5px 11px;border-left:8px solid var(--rc,#c9c2b2);border-radius:14px}
+#hud #ammoBox{position:relative;display:flex;align-items:center;gap:10px;min-width:192px;padding:4px 11px 5px 11px;border-left:8px solid var(--rc,#c9c2b2);background:linear-gradient(180deg,color-mix(in srgb,var(--rt,#fffaf0) 24%,#fffaf0),color-mix(in srgb,var(--rt,#fffaf0) 34%,#f7e6c2));border-radius:14px}
 #hud #ammoBox .winfo{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
 #hud #ammoBox .wname{font-size:15px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
 #hud #ammoBox .wchips{display:flex;gap:4px}
@@ -366,16 +378,24 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud .pk:not(:last-child){display:none}
 .hud-narrow #hud #ammoBox .wchips{display:none}
 .hud-narrow #hud #ammoBox .wname{max-width:96px}
-.hud-narrow #hud .vcard{width:150px}
+.hud-narrow #hud .vcard{width:146px}
+.hud-narrow #hud #vitals .portrait{width:52px;height:52px}
+/* Portrait phones: the flight and the slot pop announce a pickup; the card would reach the prompt column. */
+.hud-narrow #hud #pickups{display:none}
 .hud-narrow #hud .hs{width:44px}
 .hud-narrow #hud #ammoBox{min-width:0}
 .hud-narrow #hud #consbar{max-width:220px}
+.hud-narrow #hud .cs{width:52px;height:52px}
+.hud-narrow #hud .cs .item-art{width:48px;height:48px}
 .hud-narrow #hud #specBar{grid-template-columns:auto minmax(0,1fr) auto;width:calc(100vw / var(--ui,1) - 32px)}
 .hud-narrow #hud #deathCard{min-width:0;width:calc(100vw / var(--ui,1) - 32px)}
 /* Short windows: the map shrinks so the feed never reaches the weapon cluster. */
 .hud-short #hud #mapWrap{width:136px;height:136px}
 .hud-short #hud .pk:not(:last-child){display:none}
 .hud-short #hud #coach{width:276px}
+.hud-short #hud #consbar{gap:10px}
+.hud-short #hud .cs{width:48px;height:48px}
+.hud-short #hud .cs .item-art{width:44px;height:44px}
 
 @keyframes hud-pulse{50%{opacity:.62}}
 @keyframes hud-card{from{opacity:0;translate:-50% -10px}}
@@ -386,7 +406,8 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 @keyframes hud-lowcard{50%{border-color:#ff9a7d}}
 @keyframes hud-beat{0%,100%{transform:none}30%{transform:scale(1.28)}55%{transform:scale(.94)}}
 @keyframes hud-bounce{0%,100%{transform:none}30%{transform:translateY(-6px) scale(1.06)}}
-@keyframes hud-gain{0%{transform:scale(.6)}55%{transform:scale(1.32,1.18)}80%{transform:scale(.95)}100%{transform:none}}
+@keyframes hud-gain{0%{transform:scale(.7)}45%{transform:scale(1.45,1.3)}70%{transform:scale(.92,1.04)}100%{transform:none}}
+@keyframes hud-plus{0%{opacity:0;transform:translate(-50%,6px) scale(.6)}25%{opacity:1;transform:translate(-50%,-6px) scale(1.2)}100%{opacity:0;transform:translate(-50%,-30px)}}
 @keyframes hud-ring{0%{opacity:1;transform:scale(.7)}100%{opacity:0;transform:scale(1.25)}}
 @keyframes hud-pk-in{0%{opacity:0;transform:translateX(-14px) scale(.6)}60%{opacity:1;transform:scale(1.07)}100%{transform:none}}
 @keyframes hud-pk-out{to{opacity:0;transform:translateX(-12px)}}
@@ -404,6 +425,8 @@ body.reduce-motion #hud :is(#coach,#deathCard){animation:rm-in .18s ease-out bot
 body.reduce-motion #hud #hitm.on{animation:rm-flash .24s ease-out!important}
 body.reduce-motion #hud :is(.num,.pop,.hp-pop){animation:rm-flash .9s ease-out forwards!important}
 body.reduce-motion #hud :is(#aMag.tick,#ladder.upgrade,#vitals.jolt,#vitals.broke .arm,.cs.gain){animation:none!important}
+body.reduce-motion #hud .cs.gain::before{animation:rm-flash .9s ease-out forwards!important}
+body.reduce-motion #hud .cs.gain::after{animation:rm-flash .6s ease-out!important}
 body.reduce-motion #hud #killConfirm.on{animation:rm-in .18s ease-out!important}
 #hud.out #killConfirm,#hud.ended #killConfirm{display:none}
 #victory .ord{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:.62em;vertical-align:.5em;margin-left:1px}

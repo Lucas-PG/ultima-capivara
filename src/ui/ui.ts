@@ -44,6 +44,8 @@ const MINIMAP_SPAN = 84, MAP_PPM = 4;
 // An empty box shows a faint silhouette of what belongs there instead of a word that does not fit.
 const BOX_HINT: readonly WeaponId[] = ['m4', 'shotgun', 'pistol', 'machete'];
 const CONSUMABLES: ConsumableId[] = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'];
+// The heal bag's distance from the bottom edge in layout px (matches #lcol in hud.css): pickups fly to it.
+const BAG_BOTTOM = 112;
 const USE_LABEL: Record<ConsumableId, string> = { bandage: 'Enfaixando', medkit: 'Remendando', guarana: 'Tomando guaraná', acai: 'Tomando açaí', rapadura: 'Mastigando rapadura' };
 const nextEliminationLine = tipBag(ELIMINATION_LINES);
 const fireMode = (id: WeaponId) => id === 'machete' ? 'CORTE' : id === 'shotgun' ? 'BOMBA' : id === 'sniper' ? 'FERROLHO' : WEAPONS[id].automatic ? 'AUTO' : 'SEMI';
@@ -102,6 +104,7 @@ export class GameUI {
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
   private lastCounts: Partial<Record<ConsumableId, number>> | null = null;
   private bagSlots: HTMLElement[] = [];
+  private hudScaleNow = 1;
   private armorBrokeUntil = 0;
   private lastPrey: { name: string; color: string } | null = null;
   private thumbs: Map<WeaponId, string> | null = null;
@@ -373,7 +376,7 @@ export class GameUI {
       + `<div class="row arm">${icon('shield')}<div class="bar"><i class="chip" id="armChip"></i><i class="fill" id="armBar"></i><i class="ghost" id="armGhost" hidden></i><span class="seg" aria-hidden="true"></span></div><b id="armTxt">0</b></div>`
       + `<div class="row hp">${icon('heart')}<div class="bar"><i class="chip" id="hpChip"></i><i class="fill" id="hpBar"></i><i class="ghost" id="hpGhost" hidden></i></div><b id="hpTxt">100</b></div></div>`
       + `<span id="helm" hidden>${itemIcon('helmet')}<b id="helmTxt">0</b></span><div id="healPops" aria-hidden="true"></div></div>`
-      + `<div id="lcol"><div id="consbar" hidden>${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" title="${HEAL_INFO[id].name}" hidden>${itemIcon(id)}<kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd><b>0</b></div>`).join('')}</div>`
+      + `<div id="lcol"><div id="bag" hidden><div id="bagTag" hidden><kbd id="bagKey">6</kbd><b id="bagName">Kit médico</b><small id="bagWhat">vida cheia</small></div><div id="consbar">${CONSUMABLES.map((id, i) => `<div class="cs" data-k="${id}" title="${HEAL_INFO[id].name}" hidden>${itemIcon(id)}<kbd>${esc(chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[i])))}</kbd><b>0</b></div>`).join('')}</div></div>`
       + `<div id="stance" class="pill">${HUD_ART.stance}${HUD_ART.swimming}<b id="stanceTxt" hidden>Em pé</b></div><div id="pickups" aria-live="polite"></div></div>`
       // Bottom right, one cluster: the four boxes as tabs over the magazine card.
       + `<div id="wpnbox"><div id="hotbar"></div><div id="ammoBox"><div class="winfo"><span class="wname" id="wName">Pistola</span><span class="wchips"><span class="rar" id="wRar">Comum</span><span class="mode" id="wMode">SEMI</span></span><span id="reload" hidden><span id="reloadTxt">Recarregando</span></span></div><div class="ammo" id="ammo"><b id="aMag">0</b><span id="aRes"></span></div></div></div>`
@@ -445,7 +448,7 @@ export class GameUI {
     this.show('helm', me.helmet > 0); if (me.helmet > 0) this.text('helmTxt', Math.ceil(me.helmet));
     this.toggle(this.el('vign'), 'low', me.alive && low);
     const weapon = me.weapons[me.slot], def = weapon ? WEAPONS[weapon.id] : null, rarity = rarityOf(weapon?.rarity);
-    this.text('wName', def ? def.name : 'Desarmada'); this.text('wRar', rarity.name); this.style(this.el('ammoBox'), '--rc', rarity.color); this.show('wRar', !!weapon && (weapon.rarity ?? 0) > 0);
+    this.text('wName', def ? def.name : 'Desarmada'); this.text('wRar', rarity.name); this.style(this.el('ammoBox'), '--rc', rarity.color); this.style(this.el('ammoBox'), '--rt', (weapon?.rarity ?? 0) > 0 ? rarity.color : '#fffaf0'); this.show('wRar', !!weapon && (weapon.rarity ?? 0) > 0);
     this.text('wMode', weapon ? fireMode(weapon.id) : '–');
     const mag = this.el('aMag'), magText = String(!weapon || !def ? 0 : def.melee ? '∞' : weapon.ammo);
     // The magazine count ticks on every shot and reload; a weapon swap just changes the number.
@@ -466,15 +469,24 @@ export class GameUI {
     this.lastCounts = { ...counts };
     let carried = 0;
     if (!this.bagSlots[0]?.isConnected) this.bagSlots = [...this.root.querySelectorAll<HTMLElement>('#consbar .cs')];
+    // A new heal flies from where it was picked up into its slot; the slot pops when it lands.
+    const flights = new Map<ConsumableId, number>();
     this.bagSlots.forEach(slot => {
       const id = slot.dataset.k as ConsumableId, count = counts[id] || 0;
       this.textOf(slot.querySelector('b')!, count); if (slot.hidden !== count <= 0) slot.hidden = count <= 0;
       this.toggle(slot, 'use', me.using === id); this.toggle(slot, 'pick', suggested === id); this.toggle(slot, 'urgent', suggested === id && low);
-      if (gained.includes(id)) this.restartAnimation(slot, 'gain');
+      if (gained.includes(id)) flights.set(id, carried);
       if (count > 0) carried++;
     });
-    this.show('consbar', carried > 0 && me.alive);
-    for (const id of gained) this.pickupPop(id, counts[id] || 0);
+    this.show('bag', carried > 0 && me.alive);
+    // The selected heal is named over the bag: its key, what it is, what it does. Quiet when nothing needs healing.
+    const named = me.alive ? (me.using && me.useUntil > t ? me.using : suggested) : null;
+    this.show('bagTag', !!named && carried > 0);
+    if (named && this.el('bagTag').dataset.k !== named) {
+      this.el('bagTag').dataset.k = named; this.text('bagName', HEAL_INFO[named].name); this.text('bagWhat', HEAL_INFO[named].effect);
+      this.text('bagKey', chipKey(bindingOf(this.settings.bindings, CONSUMABLE_ACTIONS[CONSUMABLES.indexOf(named)])));
+    }
+    for (const [id, index] of flights) { this.pickupPop(id, counts[id] || 0); this.flyToBag(id, index, carried); }
     const scoped = this.scopeReady && me.alive && me.ads && !me.sprint && me.reloadUntil <= t && ['sniper', 'dmr'].includes(weapon?.id || '');
     this.show('scope-overlay', scoped);
     const scope = this.el('scope-overlay');
@@ -975,6 +987,29 @@ export class GameUI {
       this.restartAnimation(this.el('vitals'), 'healed');
     }
   }
+  // A picked-up heal flies from under the reticle into its bag slot (transform and opacity only); the slot pops on landing.
+  // The target comes from the fixed layout (left column, slot pitch, --ui), so nothing reads layout.
+  private flyToBag(id: ConsumableId, index: number, carried: number) {
+    const slot = this.bagSlots.find(s => s.dataset.k === id);
+    if (!slot) return;
+    if (this.reducedMotion()) { this.restartAnimation(slot, 'gain'); return; }
+    const k = this.hudScaleNow, startX = innerWidth / 2, startY = innerHeight * .5 + 90 * k;
+    const narrow = document.body.classList.contains('hud-narrow'), short = document.body.classList.contains('hud-short');
+    const size = narrow ? 52 : short ? 48 : 58, pitch = size + (short ? 10 : 12), perRow = narrow ? 3 : 5, col = index % perRow, row = Math.floor(index / perRow);
+    const endX = (16 + 4 + col * pitch + size / 2) * k, endY = innerHeight - (BAG_BOTTOM + size / 2 + row * pitch) * k;
+    const dx = endX - startX, dy = endY - startY;
+    const fly = document.createElement('div'); fly.className = 'fly'; fly.innerHTML = itemIcon(id);
+    fly.style.width = fly.style.height = `${Math.round(64 * k)}px`;
+    this.el('hud').appendChild(fly);
+    const at = (x: number, y: number, s: number) => `translate(${(startX + x).toFixed(0)}px,${(startY + y).toFixed(0)}px) translate(-50%,-50%) scale(${s})`;
+    const flight = fly.animate([
+      { transform: at(0, 10, .4), opacity: 0 },
+      { transform: at(0, -14, 1.35), opacity: 1, offset: .22 },
+      { transform: at(dx * .45, dy * .3 - 70 * k, 1.1), opacity: 1, offset: .55 },
+      { transform: at(dx, dy, .62), opacity: .9 },
+    ], { duration: 720, easing: 'cubic-bezier(.45,0,.55,1)' });
+    flight.onfinish = flight.oncancel = () => { fly.remove(); if (slot.isConnected) this.restartAnimation(slot, 'gain'); };
+  }
   // Pickup pop: the painted item, what it is and what it does (heals also say how many you now carry).
   private pickupPop(kind: string, count = 0, weapon?: WeaponId, rarity?: number) {
     const host = this.el('pickups'); if (!host) return;
@@ -1089,7 +1124,7 @@ export class GameUI {
     // Painted paper and wood textures, absolute against the document like the cover (non-root deploys).
     if (!root.getPropertyValue('--paper-tex')) { root.setProperty('--paper-tex', `url(${uiArt('paper-cream')})`); root.setProperty('--wood-tex', `url(${uiArt('wood-plank')})`); }
     const body = document.body.style, [hit, head, kill] = HIT_PALETTES[this.settings.hitPalette];
-    const scale = hudScale(innerWidth, innerHeight, this.settings.uiScale);
+    const scale = hudScale(innerWidth, innerHeight, this.settings.uiScale); this.hudScaleNow = scale;
     body.setProperty('--ui', String(scale)); body.setProperty('--hud-w', (innerWidth / scale).toFixed(0));
     document.body.classList.toggle('hud-narrow', hudNarrow(innerWidth, scale)); document.body.classList.toggle('hud-short', hudShort(innerHeight, scale));
     body.setProperty('--xc', CROSSHAIR_COLORS[this.settings.crosshairColor]);
