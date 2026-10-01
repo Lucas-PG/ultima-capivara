@@ -3,8 +3,11 @@ import { terrainHeight } from '../shared/terrain';
 import { RIVER } from '../shared/layout';
 import type { Settings, WorldSpec } from '../shared/types';
 import { WATER_LEVEL as LEVEL, WATER_HALF_SIZE } from '../shared/water';
+import { PAINT, SUN_VECTOR } from './materials';
 
-const WATER = { shallow: '#71AE91', middle: '#2B8F93', deep: '#14566D', foam: '#D9E8CD', sky: '#A3CBD4', horizon: '#E4CAAC' } as const;
+// Clear tropical turquoise over sand, deepening to lagoon teal and ocean blue.
+// The reflected sky and horizon follow the painted sky dome and haze.
+const WATER = { shallow: '#4CC3BA', middle: '#1C98A8', deep: '#11688C', abyss: '#0D4775', river: '#23867F', foam: '#EAF6F0', sky: '#7FB3E0', horizon: PAINT.fog } as const;
 const DEPTH_RANGE = 12, SHORE_RANGE = 16;
 
 export class PaintedWater {
@@ -74,6 +77,7 @@ export class PaintedWater {
         depthField: { value: this.depth }, grid: { value: side }, islandSize: { value: fieldSize }, uTime: this.time, uDetail: this.detail,
         shallow: { value: new THREE.Color(WATER.shallow) }, middle: { value: new THREE.Color(WATER.middle) },
         deep: { value: new THREE.Color(WATER.deep) }, foam: { value: new THREE.Color(WATER.foam) },
+        abyss: { value: new THREE.Color(WATER.abyss) }, river: { value: new THREE.Color(WATER.river) },
         sky: { value: new THREE.Color(WATER.sky) }, horizonColor: { value: new THREE.Color(WATER.horizon) },
       }]),
       transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
@@ -84,17 +88,21 @@ export class PaintedWater {
           #include <fog_vertex>
         }`,
       fragmentShader: `uniform sampler2D depthField;uniform float grid,islandSize,uTime,uDetail;
-        uniform vec3 shallow,middle,deep,foam,sky,horizonColor;varying vec3 vWorld;
+        uniform vec3 shallow,middle,deep,abyss,river,foam,sky,horizonColor;varying vec3 vWorld;
         #include <fog_pars_fragment>
+        vec2 hash2(vec2 p){p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));return fract(sin(p)*43758.5453);}
         float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
         float noise(vec2 p){vec2 cell=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
           return mix(mix(hash(cell),hash(cell+vec2(1,0)),f.x),mix(hash(cell+vec2(0,1)),hash(cell+vec2(1,1)),f.x),f.y);}
-        float paintedRipple(vec2 p){
-          vec2 cell=floor(p),f=fract(p);float seed=hash(cell);
-          float x=(f.x-.5)*2.0,center=.3+hash(cell+vec2(7.1,2.3))*.32;
-          float edge=f.y-center-.14*x*x;
-          float stroke=1.0-smoothstep(.015,.015+max(.025,fwidth(p.y)*1.1),abs(edge));
-          return stroke*(1.0-smoothstep(.35,.85,abs(x)))*smoothstep(.35,.65,seed);
+        // Animated Voronoi edge distance: the cartoon "cell" highlights of shallow tropical water.
+        float cells(vec2 p,float t){
+          vec2 n=floor(p),f=fract(p);float f1=8.0,f2=8.0;
+          for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){
+            vec2 g=vec2(float(i),float(j)),o=hash2(n+g);o=.5+.42*sin(t+6.2831*o);
+            float d=length(g+o-f);
+            if(d<f1){f2=f1;f1=d;}else if(d<f2){f2=d;}
+          }
+          return f2-f1;
         }
         void main(){
           vec2 uv=vWorld.xz/islandSize+.5;
@@ -102,46 +110,75 @@ export class PaintedWater {
           vec4 field=texture2D(depthField,sampleUV);
           float depth=field.r*12.0,shoreDistance=field.a*16.0;
           vec2 flow=field.gb*2.0-1.0;
-          vec2 p=vWorld.xz-flow*uTime*.45;
-          float brush=noise(p*.31),wash=noise(p*.071+vec2(9.0,3.0));
-          float phase=dot(p,vec2(2.1,1.3))+brush*1.7;
-          float crossPhase=dot(p,vec2(-.9,2.6))+wash*.9;
+          vec2 p=vWorld.xz-flow*uTime*.55;
+          float wash=noise(p*.071+vec2(9.0,3.0)),brush=noise(p*.33);
           float distanceToEye=distance(vWorld,cameraPosition);
-          float detailFade=1.0-smoothstep(24.0,95.0,distanceToEye);
-          vec3 color=mix(shallow,middle,smoothstep(.12,1.15,depth));
-          color=mix(color,deep,smoothstep(.8,3.4,depth));
-          color*=.88+wash*.2+brush*.08;
-          float waveFilter=1.0-smoothstep(.5,2.0,max(fwidth(phase),fwidth(crossPhase)));
-          vec2 slope=vec2(cos(phase)*.065,cos(crossPhase)*.045)*waveFilter;
+          float detailFade=1.0-smoothstep(30.0,140.0,distanceToEye);
+          // Depth: mint over sand, turquoise channel, deep teal, then navy offshore.
+          // The sea drifts gently at (.32, -.1); rivers flow faster along their channel.
+          float flowing=smoothstep(.12,.3,length(flow-vec2(.32,-.1)));
+          vec3 color=mix(shallow,middle,smoothstep(.15,1.6,depth));
+          color=mix(color,deep,smoothstep(1.4,6.0,depth));
+          float offshore=smoothstep(4.0,40.0,shoreDistance*4.0+depth*2.0);
+          color=mix(color,abyss,offshore*.75);
+          // Rivers read green-teal, never milky.
+          color=mix(color,river*(.8+.35*smoothstep(.2,1.4,depth)),flowing*.8);
+          float broad=noise(vWorld.xz*.012+vec2(uTime*.004,0.0));
+          color*=.9+wash*.1+broad*.1;
+          // Gentle normal from two moving wave trains.
+          float phase=dot(p,vec2(1.3,.8))+brush*1.6+uTime*.9,crossPhase=dot(p,vec2(-.6,1.7))+wash*1.2+uTime*.7;
+          float waveFilter=1.0-smoothstep(.4,1.6,max(fwidth(phase),fwidth(crossPhase)));
+          vec2 slope=vec2(cos(phase)*.09,cos(crossPhase)*.07)*waveFilter;
           vec3 waterNormal=normalize(vec3(-slope.x,1.0,-slope.y));
           vec3 viewDirection=normalize(cameraPosition-vWorld);
-          float fresnel=.06+.55*pow(1.0-max(0.0,dot(viewDirection,waterNormal)),3.0);
-          vec3 reflection=mix(sky,horizonColor,pow(1.0-max(0.0,viewDirection.y),5.0));
-          reflection*=.82+wash*.15+brush*.1;
+          float facing=max(0.0,dot(viewDirection,waterNormal));
+          float fresnel=(.04+.66*pow(1.0-facing,4.0))*(1.0-flowing*.55);
+          vec3 reflection=mix(sky,horizonColor,pow(1.0-max(0.0,viewDirection.y),3.0));
           color=mix(color,reflection,fresnel);
-          float ribbons=paintedRipple(p*vec2(.72,1.55));
-          color=mix(color,foam,ribbons*.13*detailFade);
+          float shallowness=1.0-smoothstep(.3,3.2,depth);
           if(uDetail>.5){
-            float fine=paintedRipple(p*vec2(1.6,3.2)+vec2(9.3,6.7));
-            color=mix(color,foam,fine*.06*detailFade);
-            float caustic=pow(.5+.5*sin(phase*.8)*cos(crossPhase*.7),8.0);
-            color+=foam*caustic*.075*(1.0-smoothstep(.3,1.5,depth))*detailFade;
+            // Caustic cells belong to the sunlit shallows only.
+            vec2 q=p*.42+slope*3.0;
+            float e=cells(q,uTime*.8),w=max(fwidth(e),.002);
+            float line=1.0-smoothstep(.04,.04+w*1.6,e);
+            float e2=cells(q*2.1+vec2(3.7,1.3),uTime*1.1),w2=max(fwidth(e2),.002);
+            float fine=1.0-smoothstep(.05,.05+w2*1.6,e2);
+            float patches=.35+.65*smoothstep(.3,.75,noise(p*.09+vec2(uTime*.03,0.0)));
+            color=mix(color,foam,(line*.16+fine*.035)*shallowness*patches*detailFade*(1.0-flowing*.7));
+            // Offshore: broken wave-crest strokes rolling toward the coast, like brushwork.
+            vec2 toShore=normalize(vec2(-vWorld.x,-vWorld.z)+1e-4);
+            float swell=dot(vWorld.xz,toShore)*.32+noise(vWorld.xz*.05)*3.0+uTime*1.1;
+            float crest=1.0-smoothstep(.0,.05+fwidth(swell)*1.5,abs(fract(swell)-.5)-.465);
+            float strokes=smoothstep(.72,.86,noise(vWorld.xz*vec2(.06,.06)+vec2(floor(swell)*1.7,uTime*.02)));
+            float crestFade=smoothstep(2.5,7.0,depth)*(1.0-smoothstep(60.0,260.0,distanceToEye));
+            color=mix(color,foam,crest*strokes*crestFade*.4*(1.0-flowing));
           }
-          float bankWave=shoreDistance-(.13+.09*sin(uTime*.65+wash*5.0));
-          float bank=(1.0-smoothstep(.04,.2,abs(bankWave)))*smoothstep(0.0,.07,depth);
-          float lace=(.45+.55*smoothstep(.3,.66,brush))*(.85+.15*sin(uTime*.7+phase*.1));
-          color=mix(color,foam,bank*lace*.68);
-          vec3 sunDirection=normalize(vec3(-70.0,32.0,-30.0));
+          // Sun: small sparkles on crests near the eye, a smooth sheen far away.
+          vec3 sunDirection=normalize(vec3(${SUN_VECTOR.map(v => v.toFixed(3)).join(',')}));
           vec3 halfDirection=normalize(viewDirection+sunDirection);
-          float sunFacing=max(0.0,dot(waterNormal,halfDirection));
-          float sunlight=pow(sunFacing,65.0)*.28+pow(sunFacing,180.0)*.9*(.65+.35*sin(phase));
-          color+=vec3(1.0,.69,.32)*sunlight;
+          float spec=pow(max(0.0,dot(waterNormal,halfDirection)),160.0);
+          float glintNear=1.0-smoothstep(20.0,80.0,distanceToEye);
+          float sparkle=smoothstep(.86,.97,noise(p*2.6+vec2(uTime*.8,-uTime*.6)));
+          float glint=smoothstep(.2,.4,spec)*sparkle*glintNear;
+          color=mix(color,vec3(1.0,.95,.82),glint*.42);
+          color+=vec3(1.0,.8,.55)*pow(max(0.0,dot(normalize(vec3(-viewDirection.x,viewDirection.y,-viewDirection.z)),sunDirection)),40.0)*.3*(1.0-glintNear);
+          color+=vec3(1.0,.72,.4)*pow(max(0.0,dot(waterNormal,halfDirection)),30.0)*.12;
+          // Shore: a solid lip plus foam bands rolling in toward the sand.
+          float lip=1.0-smoothstep(.05,.24+.08*sin(uTime*.8+wash*6.0),shoreDistance);
+          float bands=0.0;
+          for(int k=0;k<2;k++){
+            float travel=fract(uTime*.12+float(k)*.5);
+            float at=mix(2.6,.25,travel),bandWidth=.13+.05*brush;
+            bands+=(1.0-smoothstep(bandWidth*.4,bandWidth,abs(shoreDistance-at)))*(1.0-travel*.6)*smoothstep(.3,.7,noise(p*.9+float(k)*7.0));
+          }
+          // Narrow rivers keep only the lip: rolling bands would meet mid-channel as a dashed line.
+          float shoreFoam=clamp(lip*.75+bands*.4*(1.0-flowing),0.0,1.0)*smoothstep(0.0,.05,depth);
+          color=mix(color,foam,shoreFoam);
           // Dissolve into the sky haze before the far clip or the ocean mesh edge.
-          // At the 120 m plane view this spans about 50 pixels at 1080p.
           float horizon=1.0-smoothstep(500.0,750.0,distanceToEye);
-          float absorption=.18+.8*(1.0-exp(-depth*1.7));
-          float alpha=smoothstep(0.0,.1,depth)*absorption;
-          gl_FragColor=vec4(color,max(alpha,bank*lace*.62)*horizon);
+          float absorption=.3+.7*(1.0-exp(-depth*1.4));
+          float alpha=smoothstep(0.0,.08,depth)*absorption;
+          gl_FragColor=vec4(color,max(max(alpha,fresnel*.9),shoreFoam)*horizon);
           #include <fog_fragment>
         }`,
     });

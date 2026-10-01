@@ -1,0 +1,1893 @@
+{
+ "note": "Paired A/B GPU cost at 1470x956 CSS, deviceScaleFactor 2, serialized frames (each frame waits for the GPU, so absolute times are higher than in pipelined play). costMs = median over 5 rounds of (frame with the part) minus (frame without it); for order toggles (terrainLast, treesAfter, treesSorted) a positive cost means the change saved time.",
+ "results": [
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "shading",
+   "costMs": 12.1,
+   "frameMs": 17.96,
+   "rounds": [
+    5.28,
+    12.26,
+    9.89,
+    12.1,
+    12.36
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "shadows",
+   "costMs": 3.14,
+   "frameMs": 18.04,
+   "rounds": [
+    4.57,
+    4.02,
+    2.88,
+    3.14,
+    1.6
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "terrain",
+   "costMs": 8.76,
+   "frameMs": 21.36,
+   "rounds": [
+    7.57,
+    8.76,
+    12.68,
+    8.96,
+    5.65
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "trees",
+   "costMs": 2.99,
+   "frameMs": 22.02,
+   "rounds": [
+    2.99,
+    2.94,
+    -0.33,
+    4.1,
+    3.46
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "groundCover",
+   "costMs": 1.83,
+   "frameMs": 18.65,
+   "rounds": [
+    2.51,
+    -0.35,
+    1.83,
+    3.38,
+    -1.68
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "kit",
+   "costMs": 2.41,
+   "frameMs": 16.28,
+   "rounds": [
+    2.46,
+    2.41,
+    1.35,
+    5.73,
+    1.12
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "characters",
+   "costMs": 0.51,
+   "frameMs": 16.92,
+   "rounds": [
+    -3.58,
+    -1.45,
+    2.31,
+    0.51,
+    1.04
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "water",
+   "costMs": 0.05,
+   "frameMs": 16.08,
+   "rounds": [
+    -2.39,
+    2.46,
+    -1.06,
+    0.05,
+    0.07
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "backdrop",
+   "costMs": -1.75,
+   "frameMs": 14.67,
+   "rounds": [
+    -2.72,
+    -2.11,
+    -0.42,
+    -1.75,
+    -1.23
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "sky",
+   "costMs": 0.17,
+   "frameMs": 16.29,
+   "rounds": [
+    1.8,
+    -1.33,
+    -2.79,
+    0.17,
+    1.07
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "streets",
+   "costMs": 0.35,
+   "frameMs": 16.1,
+   "rounds": [
+    -0.66,
+    1.11,
+    1.84,
+    0.35,
+    -1.81
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plaza16",
+   "toggle": "firstPerson",
+   "costMs": 0.07,
+   "frameMs": 16.04,
+   "rounds": [
+    -3.2,
+    0.6,
+    -1.86,
+    0.18,
+    0.07
+   ],
+   "thermal": 2,
+   "load": 5
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "shading",
+   "costMs": 8.34,
+   "frameMs": 19.13,
+   "rounds": [
+    8.34,
+    10.29,
+    8.1,
+    9.55,
+    7.11
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "shadows",
+   "costMs": 2.41,
+   "frameMs": 18.38,
+   "rounds": [
+    1.54,
+    2.02,
+    4.71,
+    3.37,
+    2.41
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "terrain",
+   "costMs": 5.41,
+   "frameMs": 18.25,
+   "rounds": [
+    5.41,
+    4.69,
+    5.87,
+    2.85,
+    5.81
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "trees",
+   "costMs": 3.69,
+   "frameMs": 19.09,
+   "rounds": [
+    2.77,
+    4.51,
+    3.69,
+    5.62,
+    1.95
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "groundCover",
+   "costMs": 0.48,
+   "frameMs": 17.03,
+   "rounds": [
+    -1.33,
+    0.48,
+    1.94,
+    -0.35,
+    2.9
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "kit",
+   "costMs": 1.85,
+   "frameMs": 15.49,
+   "rounds": [
+    1.85,
+    -0.89,
+    2.64,
+    2.28,
+    0.79
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "characters",
+   "costMs": 0.82,
+   "frameMs": 17.03,
+   "rounds": [
+    2.27,
+    -1.75,
+    0.6,
+    0.82,
+    3.47
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "water",
+   "costMs": -0.16,
+   "frameMs": 15.45,
+   "rounds": [
+    -1.46,
+    -0.16,
+    -0.4,
+    0.58,
+    0.29
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "backdrop",
+   "costMs": -0.9,
+   "frameMs": 14.69,
+   "rounds": [
+    -1.15,
+    0.56,
+    -0.93,
+    0.16,
+    -0.9
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "sky",
+   "costMs": 1.18,
+   "frameMs": 14.9,
+   "rounds": [
+    1.8,
+    1.22,
+    -0.96,
+    1.18,
+    -0.86
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "streets",
+   "costMs": -0.63,
+   "frameMs": 15.02,
+   "rounds": [
+    -1.58,
+    -0.63,
+    -1.94,
+    0.99,
+    0.86
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "vilaStreet",
+   "toggle": "firstPerson",
+   "costMs": -1.13,
+   "frameMs": 15.68,
+   "rounds": [
+    0.24,
+    -1.13,
+    -2.04,
+    1.94,
+    -2.66
+   ],
+   "thermal": 2,
+   "load": 4.8
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "shading",
+   "costMs": 20.4,
+   "frameMs": 26.82,
+   "rounds": [
+    21.61,
+    20.93,
+    20.18,
+    20.4,
+    18.85
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "shadows",
+   "costMs": 0.44,
+   "frameMs": 25.14,
+   "rounds": [
+    -0.56,
+    0.02,
+    1.92,
+    0.44,
+    2.74
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "terrain",
+   "costMs": 8.44,
+   "frameMs": 24.8,
+   "rounds": [
+    5.27,
+    10.58,
+    9.35,
+    8.44,
+    5.46
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "trees",
+   "costMs": 0.77,
+   "frameMs": 23.17,
+   "rounds": [
+    1.7,
+    -1.23,
+    -0.53,
+    0.77,
+    0.83
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "groundCover",
+   "costMs": -0.03,
+   "frameMs": 21.94,
+   "rounds": [
+    -0.34,
+    -0.03,
+    1.33,
+    -2.32,
+    2.18
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "kit",
+   "costMs": 2.66,
+   "frameMs": 22.38,
+   "rounds": [
+    1.86,
+    1.34,
+    2.66,
+    4.3,
+    6.25
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "characters",
+   "costMs": 0.87,
+   "frameMs": 21.5,
+   "rounds": [
+    -1.18,
+    4.32,
+    0.87,
+    2.65,
+    0
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "water",
+   "costMs": -0.11,
+   "frameMs": 21.04,
+   "rounds": [
+    1.5,
+    -2.06,
+    1.09,
+    -1.08,
+    -0.11
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "backdrop",
+   "costMs": 2.45,
+   "frameMs": 21.79,
+   "rounds": [
+    -0.94,
+    2.45,
+    2.94,
+    1.62,
+    4.29
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "sky",
+   "costMs": -0.97,
+   "frameMs": 18.02,
+   "rounds": [
+    0.2,
+    -3.43,
+    -5.36,
+    -0.97,
+    -0.91
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "streets",
+   "costMs": -0.91,
+   "frameMs": 18.26,
+   "rounds": [
+    2.09,
+    -1.16,
+    -1.51,
+    -0.61,
+    -0.91
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "plane",
+   "toggle": "firstPerson",
+   "costMs": -0.82,
+   "frameMs": 19.35,
+   "rounds": [
+    -0.82,
+    1.87,
+    1.1,
+    -1.78,
+    -1.46
+   ],
+   "thermal": 2,
+   "load": 3.9
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "shading",
+   "costMs": 15.03,
+   "frameMs": 25.74,
+   "rounds": [
+    16.77,
+    17.32,
+    12.67,
+    15.03,
+    10.96
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "shadows",
+   "costMs": 5.62,
+   "frameMs": 22.75,
+   "rounds": [
+    5.97,
+    1.35,
+    6.9,
+    1.73,
+    5.62
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "terrain",
+   "costMs": 5.53,
+   "frameMs": 21,
+   "rounds": [
+    5.04,
+    9.2,
+    4.63,
+    7.19,
+    5.53
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "trees",
+   "costMs": 2.87,
+   "frameMs": 20.7,
+   "rounds": [
+    1.72,
+    2.87,
+    3.03,
+    2.65,
+    4.51
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "groundCover",
+   "costMs": 0.4,
+   "frameMs": 21.74,
+   "rounds": [
+    0.4,
+    0.56,
+    1.21,
+    -0.72,
+    -1.28
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "kit",
+   "costMs": 1.99,
+   "frameMs": 19.2,
+   "rounds": [
+    2.41,
+    3.2,
+    0.46,
+    0.75,
+    1.99
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "characters",
+   "costMs": 0.71,
+   "frameMs": 18.61,
+   "rounds": [
+    3.65,
+    0.71,
+    6.29,
+    -0.2,
+    -0.42
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "water",
+   "costMs": -0.12,
+   "frameMs": 18.71,
+   "rounds": [
+    1.28,
+    -0.57,
+    0.21,
+    -2.25,
+    -0.12
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "backdrop",
+   "costMs": -0.29,
+   "frameMs": 18.92,
+   "rounds": [
+    -0.18,
+    -0.29,
+    2.1,
+    -2.98,
+    -1.58
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "sky",
+   "costMs": 0.5,
+   "frameMs": 16.98,
+   "rounds": [
+    0.5,
+    2.22,
+    -1.22,
+    -0.68,
+    0.65
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "streets",
+   "costMs": 1.07,
+   "frameMs": 17.31,
+   "rounds": [
+    1.07,
+    1.17,
+    -0.06,
+    2.54,
+    0.42
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "fight",
+   "toggle": "firstPerson",
+   "costMs": 0.95,
+   "frameMs": 18.76,
+   "rounds": [
+    0.95,
+    -1.45,
+    1.12,
+    -0.37,
+    1.34
+   ],
+   "thermal": 2,
+   "load": 4.1
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "shading",
+   "costMs": 6.62,
+   "frameMs": 14.3,
+   "rounds": [
+    5.16,
+    7.1,
+    5.93,
+    6.62,
+    8.69
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "shadows",
+   "costMs": -0.12,
+   "frameMs": 13.24,
+   "rounds": [
+    2.18,
+    -1.04,
+    -2.26,
+    -0.12,
+    0.49
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "terrain",
+   "costMs": 1.98,
+   "frameMs": 14.12,
+   "rounds": [
+    0.66,
+    4.25,
+    1.98,
+    2.4,
+    1.44
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "trees",
+   "costMs": 0.62,
+   "frameMs": 13.66,
+   "rounds": [
+    0.7,
+    0.71,
+    0.62,
+    -0.28,
+    -1.96
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "groundCover",
+   "costMs": 0.49,
+   "frameMs": 13.84,
+   "rounds": [
+    0.49,
+    1.24,
+    1,
+    -2.12,
+    0.1
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "kit",
+   "costMs": -0.06,
+   "frameMs": 14.67,
+   "rounds": [
+    2.11,
+    0.29,
+    -1.17,
+    -1.41,
+    -0.06
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "characters",
+   "costMs": 0.67,
+   "frameMs": 13.82,
+   "rounds": [
+    0.67,
+    -0.71,
+    1.82,
+    -0.78,
+    0.89
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "water",
+   "costMs": 0.44,
+   "frameMs": 13.59,
+   "rounds": [
+    0.22,
+    0.22,
+    0.59,
+    0.59,
+    0.44
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "backdrop",
+   "costMs": 0.09,
+   "frameMs": 13.09,
+   "rounds": [
+    0.18,
+    0.09,
+    3.87,
+    -1.14,
+    -1.63
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "sky",
+   "costMs": -0.06,
+   "frameMs": 13.62,
+   "rounds": [
+    -0.06,
+    -0.16,
+    1.81,
+    1.43,
+    -0.22
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "streets",
+   "costMs": -0.02,
+   "frameMs": 12.56,
+   "rounds": [
+    -0.95,
+    0.17,
+    1.15,
+    -0.49,
+    -0.02
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, old pipeline features, density 1.0, before the shader passes",
+   "view": "porto",
+   "toggle": "firstPerson",
+   "costMs": -0.12,
+   "frameMs": 12.43,
+   "rounds": [
+    -1.26,
+    -0.12,
+    -1.84,
+    0.22,
+    0.29
+   ],
+   "thermal": 2,
+   "load": 3.6
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "terrainLast",
+   "costMs": 3.37,
+   "frameMs": 18.77,
+   "rounds": [
+    3.37,
+    1.39,
+    6.23,
+    3.18,
+    4.61
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "pointLight",
+   "costMs": -0.33,
+   "frameMs": 17.96,
+   "rounds": [
+    0.45,
+    -1.71,
+    2.29,
+    -1.74,
+    -0.33
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "atmosphere",
+   "costMs": 3.02,
+   "frameMs": 18.34,
+   "rounds": [
+    4.37,
+    3.02,
+    1.12,
+    4.28,
+    2.52
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "fpFur",
+   "costMs": 0.3,
+   "frameMs": 19.06,
+   "rounds": [
+    1.42,
+    0.3,
+    1.75,
+    -1.58,
+    -1.24
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "characterFur",
+   "costMs": -0.24,
+   "frameMs": 18.36,
+   "rounds": [
+    -0.29,
+    -1.69,
+    -0.24,
+    1.55,
+    1.15
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "shadows",
+   "costMs": 4.19,
+   "frameMs": 18.55,
+   "rounds": [
+    4.76,
+    2.65,
+    4.19,
+    3.75,
+    5.84
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "trees",
+   "costMs": 3.12,
+   "frameMs": 18.04,
+   "rounds": [
+    3.04,
+    1.42,
+    6.32,
+    3.12,
+    3.31
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "groundCover",
+   "costMs": -0.59,
+   "frameMs": 18.82,
+   "rounds": [
+    -0.47,
+    1.35,
+    -1.38,
+    -1.66,
+    -0.59
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "kit",
+   "costMs": 2.97,
+   "frameMs": 20.72,
+   "rounds": [
+    2.23,
+    3.96,
+    3.65,
+    2.07,
+    2.97
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "vilaStreet",
+   "toggle": "terrain",
+   "costMs": 5.14,
+   "frameMs": 18.71,
+   "rounds": [
+    2.36,
+    5.38,
+    4.23,
+    5.14,
+    5.82
+   ],
+   "thermal": 2,
+   "load": 5.5
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "terrainLast",
+   "costMs": 3.09,
+   "frameMs": 20,
+   "rounds": [
+    4.04,
+    2.37,
+    4.52,
+    1.26,
+    3.09
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "pointLight",
+   "costMs": -0.79,
+   "frameMs": 20.3,
+   "rounds": [
+    5.01,
+    -1.22,
+    -0.79,
+    0.08,
+    -1.88
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "atmosphere",
+   "costMs": 1.66,
+   "frameMs": 21.03,
+   "rounds": [
+    2.29,
+    1.66,
+    2.14,
+    0.46,
+    0.26
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "fpFur",
+   "costMs": 0.28,
+   "frameMs": 22.1,
+   "rounds": [
+    -0.6,
+    1.41,
+    0.59,
+    -1.37,
+    0.28
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "characterFur",
+   "costMs": -1.46,
+   "frameMs": 21.87,
+   "rounds": [
+    -0.66,
+    -1.46,
+    -2.05,
+    0.72,
+    -1.7
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "shadows",
+   "costMs": 2.37,
+   "frameMs": 22.77,
+   "rounds": [
+    4.51,
+    1.61,
+    3.14,
+    2.37,
+    0.85
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "trees",
+   "costMs": 3.77,
+   "frameMs": 22.13,
+   "rounds": [
+    2.76,
+    3.77,
+    3.42,
+    4.29,
+    5.09
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "groundCover",
+   "costMs": -0.51,
+   "frameMs": 22.34,
+   "rounds": [
+    -1.05,
+    -0.24,
+    0.35,
+    -1.62,
+    -0.51
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "kit",
+   "costMs": 1.35,
+   "frameMs": 22.58,
+   "rounds": [
+    1.65,
+    1.23,
+    0.83,
+    4.47,
+    1.35
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plaza16",
+   "toggle": "terrain",
+   "costMs": 5.98,
+   "frameMs": 23.79,
+   "rounds": [
+    9.37,
+    7.11,
+    2.97,
+    5.98,
+    5.97
+   ],
+   "thermal": 2,
+   "load": 5.2
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "terrainLast",
+   "costMs": 4.06,
+   "frameMs": 24.89,
+   "rounds": [
+    4.06,
+    3.18,
+    7.58,
+    8.91,
+    2.45
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "pointLight",
+   "costMs": 0.04,
+   "frameMs": 23.52,
+   "rounds": [
+    0.04,
+    -0.41,
+    2.37,
+    1.61,
+    -0.64
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "atmosphere",
+   "costMs": -0.25,
+   "frameMs": 22.79,
+   "rounds": [
+    5.02,
+    -0.65,
+    2.62,
+    -0.25,
+    -0.39
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "fpFur",
+   "costMs": -1.03,
+   "frameMs": 23.34,
+   "rounds": [
+    2.6,
+    2.66,
+    -1.03,
+    -2.57,
+    -1.45
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "characterFur",
+   "costMs": -0.23,
+   "frameMs": 26.49,
+   "rounds": [
+    0.49,
+    -3.48,
+    1.98,
+    -4.14,
+    -0.23
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "shadows",
+   "costMs": 4.87,
+   "frameMs": 32.72,
+   "rounds": [
+    5.55,
+    4.87,
+    3.82,
+    3.84,
+    6.67
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "trees",
+   "costMs": 2.45,
+   "frameMs": 30.18,
+   "rounds": [
+    1.41,
+    2.45,
+    2.49,
+    2.48,
+    -0.43
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "groundCover",
+   "costMs": -0.08,
+   "frameMs": 30.6,
+   "rounds": [
+    2.05,
+    -2.13,
+    -0.08,
+    -0.59,
+    3.42
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "kit",
+   "costMs": 2.18,
+   "frameMs": 33.21,
+   "rounds": [
+    2.26,
+    5.57,
+    0.91,
+    2.18,
+    0.66
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "crowd",
+   "toggle": "terrain",
+   "costMs": 8.19,
+   "frameMs": 34.22,
+   "rounds": [
+    9.49,
+    8.19,
+    7.31,
+    4.67,
+    9.74
+   ],
+   "thermal": 2,
+   "load": 4
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "terrainLast",
+   "costMs": 4.76,
+   "frameMs": 38.84,
+   "rounds": [
+    1.89,
+    4.76,
+    10.81,
+    2.9,
+    15.13
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "pointLight",
+   "costMs": 3.48,
+   "frameMs": 40.69,
+   "rounds": [
+    3.45,
+    2.29,
+    3.65,
+    3.48,
+    4.67
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "atmosphere",
+   "costMs": -0.09,
+   "frameMs": 34.44,
+   "rounds": [
+    -0.09,
+    2.96,
+    -4.15,
+    2.41,
+    -3.98
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "fpFur",
+   "costMs": 0.61,
+   "frameMs": 31.56,
+   "rounds": [
+    -0.53,
+    -0.47,
+    0.61,
+    2.99,
+    1.5
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "characterFur",
+   "costMs": -0.57,
+   "frameMs": 29.3,
+   "rounds": [
+    1.21,
+    -0.57,
+    4.3,
+    -8.6,
+    -3.63
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "shadows",
+   "costMs": 3.47,
+   "frameMs": 34.36,
+   "rounds": [
+    3.46,
+    3.47,
+    7.84,
+    8.86,
+    2.83
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "trees",
+   "costMs": 4.38,
+   "frameMs": 38.32,
+   "rounds": [
+    0.16,
+    8.07,
+    4.38,
+    0.28,
+    9.02
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "groundCover",
+   "costMs": 1.36,
+   "frameMs": 42.2,
+   "rounds": [
+    -1.52,
+    2.02,
+    -1.61,
+    5.08,
+    1.36
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "kit",
+   "costMs": 4.49,
+   "frameMs": 38.9,
+   "rounds": [
+    4.49,
+    7.16,
+    3.71,
+    2.7,
+    5.57
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "plane",
+   "toggle": "terrain",
+   "costMs": 11.59,
+   "frameMs": 38.69,
+   "rounds": [
+    12.88,
+    12.71,
+    7.89,
+    10.03,
+    11.59
+   ],
+   "thermal": 2,
+   "load": 9.7
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "terrainLast",
+   "costMs": 3.31,
+   "frameMs": 30.5,
+   "rounds": [
+    3.61,
+    3.27,
+    1.33,
+    3.31,
+    4.01
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "pointLight",
+   "costMs": 1.97,
+   "frameMs": 30.8,
+   "rounds": [
+    3.23,
+    0.9,
+    1.97,
+    0.59,
+    3.09
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "atmosphere",
+   "costMs": 1.03,
+   "frameMs": 33.39,
+   "rounds": [
+    0.12,
+    1.03,
+    3.56,
+    2.29,
+    0.63
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "fpFur",
+   "costMs": -1.36,
+   "frameMs": 31.26,
+   "rounds": [
+    -1.36,
+    -2.48,
+    3.44,
+    -2.13,
+    -0.26
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "characterFur",
+   "costMs": 0.2,
+   "frameMs": 29.91,
+   "rounds": [
+    0.46,
+    0.99,
+    0.2,
+    -1.04,
+    -1.09
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "shadows",
+   "costMs": 4.42,
+   "frameMs": 33.47,
+   "rounds": [
+    2.46,
+    6.61,
+    7.56,
+    2.22,
+    4.42
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "trees",
+   "costMs": 1.6,
+   "frameMs": 35.44,
+   "rounds": [
+    1.6,
+    7.78,
+    -1.52,
+    3.53,
+    -0.95
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "groundCover",
+   "costMs": -2.02,
+   "frameMs": 34.92,
+   "rounds": [
+    -4.29,
+    -2.02,
+    7.28,
+    -2.38,
+    2.13
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "kit",
+   "costMs": 5.18,
+   "frameMs": 33.79,
+   "rounds": [
+    1.34,
+    6.57,
+    4.76,
+    9.7,
+    5.18
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, after the terrain branches",
+   "view": "fp-m4",
+   "toggle": "terrain",
+   "costMs": 5.08,
+   "frameMs": 26,
+   "rounds": [
+    5.08,
+    2.12,
+    6.62,
+    2.61,
+    6.31
+   ],
+   "thermal": 2,
+   "load": 10.1
+  },
+  {
+   "set": "Medium, density 1.25, tree draw order experiments",
+   "view": "vilaStreet",
+   "toggle": "treesAfter",
+   "costMs": 0.3,
+   "frameMs": 26.1,
+   "rounds": [
+    0.3,
+    4.9,
+    2.71,
+    -0.08,
+    -2.53
+   ],
+   "thermal": 1,
+   "load": 44.9
+  },
+  {
+   "set": "Medium, density 1.25, tree draw order experiments",
+   "view": "vilaStreet",
+   "toggle": "treesSorted",
+   "costMs": -0.41,
+   "frameMs": 24.81,
+   "rounds": [
+    -0.55,
+    -0.41,
+    -0.47,
+    0.42,
+    2.36
+   ],
+   "thermal": 1,
+   "load": 44.9
+  },
+  {
+   "set": "Medium, density 1.25, tree draw order experiments",
+   "view": "plaza16",
+   "toggle": "treesAfter",
+   "costMs": -2.04,
+   "frameMs": 28.41,
+   "rounds": [
+    -6.42,
+    -1.46,
+    -3.64,
+    -1.35,
+    -2.04
+   ],
+   "thermal": 1,
+   "load": 38.5
+  },
+  {
+   "set": "Medium, density 1.25, tree draw order experiments",
+   "view": "plaza16",
+   "toggle": "treesSorted",
+   "costMs": 0.26,
+   "frameMs": 27.44,
+   "rounds": [
+    -1.49,
+    0.26,
+    3.13,
+    1.61,
+    -2.9
+   ],
+   "thermal": 1,
+   "load": 38.5
+  },
+  {
+   "set": "Medium, density 1.25, tree draw order experiments",
+   "view": "porto",
+   "toggle": "treesAfter",
+   "costMs": -2.27,
+   "frameMs": 22.87,
+   "rounds": [
+    -2.27,
+    -6,
+    -1.63,
+    -2.35,
+    -1.77
+   ],
+   "thermal": 1,
+   "load": 33.2
+  },
+  {
+   "set": "Medium, density 1.25, tree draw order experiments",
+   "view": "porto",
+   "toggle": "treesSorted",
+   "costMs": -0.44,
+   "frameMs": 21.76,
+   "rounds": [
+    -0.44,
+    3.46,
+    -0.89,
+    -2.73,
+    4.12
+   ],
+   "thermal": 1,
+   "load": 33.2
+  },
+  {
+   "set": "Medium, density 1.25, tree draw order experiments",
+   "view": "plane",
+   "toggle": "treesAfter",
+   "costMs": -2.72,
+   "frameMs": 27.99,
+   "rounds": [
+    3.03,
+    -2.72,
+    -1.3,
+    -3.3,
+    -3.33
+   ],
+   "thermal": 1,
+   "load": 29.8
+  },
+  {
+   "set": "Medium, density 1.25, tree draw order experiments",
+   "view": "plane",
+   "toggle": "treesSorted",
+   "costMs": 0.08,
+   "frameMs": 27.71,
+   "rounds": [
+    2.88,
+    0.08,
+    -0.79,
+    4.13,
+    -0.89
+   ],
+   "thermal": 1,
+   "load": 29.8
+  }
+ ]
+}

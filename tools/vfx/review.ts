@@ -96,6 +96,8 @@ const api = {
     api.event({ type: 'shot', actor: actorId, weapon, origin, end, hit: false, ...(impact ? { surface: impact.surface, normal: impact.normal } : {}) });
     return impact;
   },
+  // A coconut burst on the ground at (x, z), as the simulation reports it.
+  blastAt(x: number, z: number) { api.event({ type: 'impact', actor: 'bot', weapon: 'coco', pos: { x, y: terrainHeight(x, z), z }, surface: 'dirt', normal: { x: 0, y: 1, z: 0 } }); },
   camera() { return renderer?.cameraPosition; },
   // Frame time with a GPU sync (1-pixel readback), with or without a firefight's worth
   // of effects: every bot fires at a random nearby spot every 5th frame (12 shots/s each).
@@ -191,6 +193,7 @@ const api = {
     return hits.slice(0, 6).map(h => ({ d: +h.distance.toFixed(2), name: h.object.name || h.object.type, parent: h.object.parent?.type, visible: h.object.visible, mat: ((h.object as THREE.Mesh).material as THREE.Material)?.type }));
   },
   cardsDepthTest(on: boolean) { (renderer as unknown as { effects: { cards: { material: THREE.ShaderMaterial } } }).effects.cards.material.depthTest = on; },
+  fpCardsDepthTest(on: boolean) { (renderer as unknown as { effects: { fpCards: { material: THREE.ShaderMaterial } } }).effects.fpCards.material.depthTest = on; },
   weaponState(id: string) {
     const visual = (renderer as unknown as { avatars: { get(id: string): { weapon: THREE.Mesh } | undefined } }).avatars.get(id)!;
     const m = visual.weapon.material as THREE.Material;

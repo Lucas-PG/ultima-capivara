@@ -7,12 +7,16 @@ describe('character silhouette isolation', () => {
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(), background = new THREE.Color('#FFD49A');
     const original = new THREE.MeshBasicMaterial(); scene.background = background; scene.overrideMaterial = original;
     camera.layers.enable(3); const layers = camera.layers.mask;
+    // A character skin (layer 1) and a world mesh: only the skin is drawn, in a mask material.
+    const skinMaterial = new THREE.MeshStandardMaterial(), skin = new THREE.Mesh(new THREE.BoxGeometry(), skinMaterial); skin.layers.enable(1);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial()); scene.add(skin, wall);
     const gl = {
       shadowMap: { enabled: true }, getClearAlpha: () => 1,
       getClearColor: (color: THREE.Color) => color.set('#F2DCB6'), setClearColor: vi.fn(), setRenderTarget: vi.fn(),
       render: vi.fn(() => {
         expect(camera.layers.mask).toBe(2); expect(scene.background).toBeNull();
-        expect(scene.overrideMaterial).not.toBe(original); expect(gl.shadowMap.enabled).toBe(false);
+        expect(scene.overrideMaterial).toBeNull(); expect(skin.material).not.toBe(skinMaterial); expect(skin.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+        expect(gl.shadowMap.enabled).toBe(false);
         if (fail) throw new Error('lost context');
       }),
     };
@@ -20,7 +24,7 @@ describe('character silhouette isolation', () => {
     if (fail) expect(() => mask.render(gl as unknown as THREE.WebGLRenderer, scene, camera)).toThrow('lost context');
     else mask.render(gl as unknown as THREE.WebGLRenderer, scene, camera);
     expect(camera.layers.mask).toBe(layers); expect(scene.background).toBe(background);
-    expect(scene.overrideMaterial).toBe(original); expect(gl.shadowMap.enabled).toBe(true);
+    expect(scene.overrideMaterial).toBe(original); expect(skin.material).toBe(skinMaterial); expect(gl.shadowMap.enabled).toBe(true);
     expect(gl.setClearColor.mock.lastCall?.[1]).toBe(1);
     mask.dispose();
   });

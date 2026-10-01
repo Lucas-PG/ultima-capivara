@@ -24,7 +24,7 @@ function fixture(seed = 7, recreation: 'bath' | 'trampoline' | null = null, auth
   const bot = actors.get('bot-1')!, player = actors.get('player')!;
   player.state.protectionUntil = 1000;
   bot.brain = createBrain(false, 2, bot.state.pos, 1); bot.landedAt = 0; bot.state.yaw = -Math.PI / 2;
-  bot.state.weapons = [{ id: 'pistol', ammo: 17, reserve: 51, rarity: 0 }]; bot.state.slot = 0;
+  bot.state.weapons = [{ id: 'pistol', ammo: 17, reserve: 51, rarity: 0, box: 2 }]; bot.state.slot = 0;
   sim.drainEvents();
   return { sim, runtime, actors, bot, player, world };
 }
@@ -54,7 +54,9 @@ describe('seeded bot personality without combat concessions', () => {
     const sample = () => Array.from({ length: 12 }, (_, i) => {
       const { sim, bot } = afterKill(i + 1);
       let first = 0, last = 0, emote: ActorState['emote'] = null;
-      advance(sim, 9, () => {
+      // The celebration window closes 9 s after the kill; sample past it by
+      // one full gesture so a late start is also seen to end.
+      advance(sim, 11, () => {
         if (bot.state.emote) { first ||= sim.snapshot().time; last = sim.snapshot().time; emote = bot.state.emote; }
       });
       if (emote) {
@@ -99,7 +101,7 @@ describe('seeded bot personality without combat concessions', () => {
   it('does not offer a stationary gesture to a distant visible sniper', () => {
     const { sim, bot, player } = celebrating();
     player.state.pos = { ...bot.state.pos, x: bot.state.pos.x + 100 };
-    player.state.weapons = [{ id: 'sniper', ammo: 5, reserve: 15, rarity: 0 }]; player.state.slot = 0;
+    player.state.weapons = [{ id: 'sniper', ammo: 5, reserve: 15, rarity: 0, box: 0 }]; player.state.slot = 0;
     bot.brain.thinkAt = 0;
     sim.step(1 / 60);
     expect(bot.state.emote).toBeNull(); expect(bot.brain.leisure).toBeNull();

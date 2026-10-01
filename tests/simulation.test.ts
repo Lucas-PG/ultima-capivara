@@ -1,3 +1,4 @@
+import { STANDING_HIT_SHAPE } from '../src/shared/collision';
 import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/simulation';
 import { clearSpawn, hasLineOfSight, moveActor, raycastWorld } from '../src/shared/collision';
@@ -6,7 +7,7 @@ import { createWorld } from '../src/shared/world';
 import { inArena } from '../src/shared/layout';
 import { KIT_PIECES } from '../src/shared/kit-collision';
 import { walkableHeight } from '../src/shared/navigation';
-import { advanceAds, damageFalloff, shotSpread, WEAPONS } from '../src/shared/weapons';
+import { advanceAds, damageFalloff, HANDLING, shotSpread, WEAPONS } from '../src/shared/weapons';
 import { finiteTree } from '../src/network/codec';
 import type { ActorState, InputFrame, PlayerProfile, RoomConfig, WorldSpec } from '../src/shared/types';
 
@@ -87,7 +88,7 @@ describe('authoritative simulation', () => {
     const sim = new Simulation(world(true), config, [profiles[0]], 'ray-spread', 911);
     advance(sim, 3.1);
     const actor = (sim as any).actors.get('a');
-    actor.state.weapons[0] = { id: 'm4', ammo: 2000, reserve: 0, rarity: 0 };
+    actor.state.weapons[0] = { id: 'm4', ammo: 2000, reserve: 0, rarity: 0, box: 0 };
     actor.state.slot = 0;
     actor.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
     actor.state.yaw = actor.state.pitch = 0;
@@ -184,7 +185,7 @@ describe('authoritative simulation', () => {
     shooter.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
     target.state.pos = { x: 0, y: terrainHeight(0, -5), z: -5 };
     target.state.protectionUntil = 0;
-    shooter.state.weapons[0] = { id: 'shotgun', ammo: 6, reserve: 6, rarity: 0 };
+    shooter.state.weapons[0] = { id: 'shotgun', ammo: 6, reserve: 6, rarity: 0, box: 0 };
     shooter.state.slot = 0; shooter.adsAmount = 1;
     shooter.state.yaw = 0;
     shooter.state.pitch = Math.atan2(target.state.pos.y + 1.6 - shooter.state.pos.y - 1.62, 5);
@@ -245,13 +246,15 @@ describe('authoritative simulation', () => {
   });
 
   it('tapers short-range weapon damage without weakening close hits or marksman rifles', () => {
-    expect(damageFalloff('smg', 18)).toBe(1);
-    expect(damageFalloff('smg', 39)).toBeCloseTo(.825);
-    expect(damageFalloff('smg', 80)).toBe(.65);
-    expect(damageFalloff('pistol', 90)).toBe(.7);
-    expect(damageFalloff('m4', 140)).toBe(.8);
-    expect(damageFalloff('shotgun', 38)).toBeCloseTo(.2);
-    expect(damageFalloff('dmr', 190)).toBe(1);
+    // Each gun hits at full strength inside its role range, then tapers to a floor; precision rifles barely taper.
+    for (const id of ['pistol', 'smg', 'm4', 'shotgun', 'revolver'] as const) {
+      expect(damageFalloff(id, 5)).toBe(1);
+      expect(damageFalloff(id, WEAPONS[id].range)).toBeLessThan(1);
+      expect(damageFalloff(id, WEAPONS[id].range)).toBeGreaterThanOrEqual(.2);
+    }
+    expect(damageFalloff('smg', 40)).toBeLessThan(damageFalloff('m4', 40));
+    expect(damageFalloff('shotgun', 30)).toBeLessThan(.3);
+    expect(damageFalloff('dmr', 190)).toBeGreaterThan(.8);
     expect(damageFalloff('sniper', 240)).toBe(1);
     const sim = new Simulation(world(), config, profiles, 'falloff-hit', 7);
     advance(sim, 5.1);
@@ -261,20 +264,19 @@ describe('authoritative simulation', () => {
     target.state.protectionUntil = 0;
     attacker.state.yaw = 0;
     attacker.state.pitch = Math.atan2(target.state.pos.y + 1 - attacker.state.pos.y - 1.62, 39);
-    attacker.state.ads = true;
-    (sim as any).random = () => .5;
+    attacker.state.ads = true; attacker.adsAmount = 1;
     (sim as any).fire(attacker);
     const hit = sim.drainEvents().find(e => e.type === 'damage' && e.target === 'b');
     expect(hit?.type).toBe('damage');
     if (hit?.type !== 'damage') return;
-    expect(hit.amount).toBeGreaterThan(13);
-    expect(hit.amount).toBeLessThan(15);
+    expect(hit.amount).toBeCloseTo(WEAPONS.smg.damage * damageFalloff('smg', 39), 0);
   });
 
   it('fires one pistol round for a quick trigger press after the release frame arrives', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'quick-trigger', 101);
     advance(sim, 3.1);
     sim.action('a', { type: 'slot', id: 1, slot: 1 });
+    advance(sim, HANDLING.pistol.draw);
     const press = { type: 'trigger' as const, id: 2, yaw: Math.PI / 2, pitch: 0, lean: 0, ads: true, clientTime: sim.snapshot().time };
     sim.action('a', { ...press, yaw: Infinity });
     sim.action('a', press);
@@ -335,6 +337,7 @@ describe('authoritative simulation', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'delayed-held-fire', 104);
     advance(sim, 3.1);
     sim.action('a', { type: 'slot', id: 1, slot: 1 });
+    advance(sim, HANDLING.pistol.draw);
     sim.action('a', { type: 'trigger', id: 2, yaw: 0, pitch: 0, lean: 0, ads: false, clientTime: sim.snapshot().time });
     send(sim, 'a', 1, { fire: false });
     advance(sim, .02);
@@ -428,7 +431,9 @@ describe('authoritative simulation', () => {
     expect(sim.snapshot().loot.find(item => item.id === weapon.id)?.active).toBe(false);
     advance(sim, 1.2);
     expect(sim.snapshot().loot.some(item => item.id === weapon.id)).toBe(false);
-    expect(sim.snapshot().loot.filter(item => item.from)).toHaveLength(drops.length - 1);
+    // The other spilled items remain; a full class may add the swapped-out gun beside them.
+    const remaining = sim.snapshot().loot.filter(item => item.from && drops.some(d => d.id === item.id));
+    expect(remaining).toHaveLength(drops.length - 1);
   });
 
   it('keeps real-world snapshots publishable (no undefined fields)', () => {
@@ -559,7 +564,7 @@ describe('authoritative simulation', () => {
 
   it('gives every kit building a solid roof above its room', () => {
     const actual = createWorld();
-    const roofs = actual.pieces!.filter(piece => piece.piece.startsWith('house_') || piece.piece === 'church' || piece.piece === 'market_hall');
+    const roofs = actual.pieces!.filter(piece => piece.piece.startsWith('house_') || piece.piece.startsWith('church') || piece.piece === 'market_hall');
     expect(roofs.length).toBeGreaterThan(35);
     for (const roof of roofs) {
       const definition = KIT_PIECES[roof.piece], scale = roof.scale ?? 1;
@@ -567,7 +572,9 @@ describe('authoritative simulation', () => {
         const x = roof.x + definition.footprint[0] * fraction * scale, z = roof.z;
         const hit = raycastWorld({ x, y: roof.y + definition.height * scale + 2, z }, { x: 0, y: -1, z: 0 }, definition.height * scale + 3, actual);
         expect(hit?.collider.pieceId).toBe(roof.id);
-        expect(hit!.point.y).toBeGreaterThan(roof.y + (roof.piece === 'house_tall' ? 6.4 : 3.2) * scale);
+        // Laje roofs are walkable terraces: their slab top is the roof.
+        const minimum = ['house_tall', 'sobrado'].includes(roof.piece) ? 6.4 : ['house_laje', 'house_laje_b'].includes(roof.piece) ? 3.19 : 3.2;
+        expect(hit!.point.y).toBeGreaterThan(roof.y + minimum * scale);
       }
     }
   });
@@ -604,8 +611,11 @@ describe('authoritative simulation', () => {
       }
       return null;
     };
-    const accessible = [...actual.loot, ...actual.chests].filter(item => approach(item));
-    expect(accessible.length / (actual.loot.length + actual.chests.length)).toBeGreaterThan(.95);
+    // Upstairs and rooftop pickups are walked through their building routes in building-access.test.ts.
+    const grounded = [...actual.loot, ...actual.chests].filter(item => item.y <= walkableHeight(item.x, item.z, actual) + .45);
+    expect(grounded.length).toBeGreaterThan(200);
+    const accessible = grounded.filter(item => approach(item));
+    expect(accessible.length / grounded.length).toBeGreaterThan(.95);
     const example = actual.loot.find(item => item.kind === 'armor' && inArena(item.x, item.z, 2) && approach(item))!;
     const pos = approach(example)!;
     const isolated = { ...actual, spawns: [{ ...pos, mode: 'deathmatch' as const, yaw: 0 }] };
@@ -707,11 +717,26 @@ describe('authoritative simulation', () => {
     expect(snap.actors.find(a => a.id === 'b')!.protectionUntil - snap.time).toBeCloseTo(2, 4);
   });
 
+  for (const ammo of [0, 14]) it(`finishes an M4 reload only after 2.5 seconds (${ammo} rounds initially)`, () => {
+    const sim = new Simulation(world(), config, [profiles[0]], 'm4-reload', 123);
+    advance(sim, 5.1);
+    const actor = (sim as any).actors.get('a').state as ActorState;
+    actor.weapons = [{ id: 'm4', ammo, reserve: 40, rarity: 0, box: 0 }]; actor.slot = 0;
+    const start = sim.snapshot().time;
+    sim.action('a', { type: 'reload', id: 1 });
+    expect(actor.reloadUntil - start).toBeCloseTo(2.5, 6);
+    advance(sim, 2.49);
+    expect(actor.weapons[0].ammo).toBe(ammo); expect(actor.weapons[0].reserve).toBe(40);
+    advance(sim, .05); // Cross the deadline on the next authoritative fixed tick.
+    expect(actor.weapons[0].ammo).toBe(30); expect(actor.weapons[0].reserve).toBe(40 - (30 - ammo));
+    expect(actor.reloadUntil).toBe(0);
+  });
+
   it('loads shotgun shells one at a time and lets a loaded shell interrupt reloading', () => {
     const sim = new Simulation(world(), config, [profiles[0]], 'shells', 123);
     advance(sim, 5.1);
     const actor = (sim as any).actors.get('a').state as ActorState;
-    actor.weapons = [{ id: 'shotgun', ammo: 0, reserve: 6, rarity: 0 }];
+    actor.weapons = [{ id: 'shotgun', ammo: 0, reserve: 6, rarity: 0, box: 0 }];
     actor.slot = 0;
     sim.action('a', { type: 'reload', id: 1 });
     advance(sim, .57);
@@ -724,42 +749,42 @@ describe('authoritative simulation', () => {
     expect(actor.reloadUntil).toBe(0);
   });
 
-  it('uses legacy-sized shapes: a head sphere over a body cylinder, and nothing around them', () => {
+  it('uses a head sphere over a body cylinder sized to the model, and nothing around them', () => {
     const sim = new Simulation(world(), config, profiles, 'rays', 124);
-    const target = sim.snapshot().actors[0];
+    const target = sim.snapshot().actors[0], H = STANDING_HIT_SHAPE;
     target.pos = { x: 0, y: 0, z: 0 };
     const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number) => { distance: number; head: boolean } | null;
     expect(ray({ x: 0, y: .9, z: 0 }, { x: 1, y: 0, z: 0 }, target, 2)).toEqual({ distance: 0, head: false });
-    // Head sphere r .25 at (0, 1.6, -.04).
-    expect(ray({ x: 0, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 - .04 - .25, 5), head: true });
-    expect(ray({ x: .2, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
-    expect(ray({ x: 0, y: 3, z: -.04 }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - 1.85, 5), head: true });
-    // Body cylinder r .3 from the feet to 1.42.
-    expect(ray({ x: 0, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 - .3, 5), head: false });
+    // Head sphere in front of the eyes, reaching the tip of the snout.
+    expect(ray({ x: 0, y: H.headY, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 + H.headZ - H.headR, 5), head: true });
+    expect(ray({ x: H.headR - .05, y: H.headY, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: 3, z: H.headZ }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - H.headY - H.headR, 5), head: true });
+    // Body cylinder from the feet to the shoulders.
+    expect(ray({ x: 0, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toEqual({ distance: expect.closeTo(3 - H.bodyR, 5), head: false });
     expect(ray({ x: 0, y: .05, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
-    expect(ray({ x: .28, y: 3, z: 0 }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - 1.42, 5), head: false });
+    expect(ray({ x: H.bodyR - .02, y: 3, z: 0 }, { x: 0, y: -1, z: 0 }, target, 3)).toEqual({ distance: expect.closeTo(3 - H.bodyTop, 5), head: false });
     // Empty space beside the head and body, above the head, and under the feet.
-    expect(ray({ x: .3, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
-    expect(ray({ x: .35, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
-    expect(ray({ x: 0, y: 1.9, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: H.headR + .01, y: H.headY, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: H.bodyR + .03, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: 0, y: H.headY + H.headR + .02, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
     expect(ray({ x: 0, y: -.1, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
   });
 
   it('rotates and crouches the shapes, and favours humans when a bot is shooting', () => {
     const sim = new Simulation(world(), config, profiles, 'posed-rays', 125);
-    const target = sim.snapshot().actors[0];
+    const target = sim.snapshot().actors[0], H = STANDING_HIT_SHAPE;
     target.pos = { x: 0, y: 0, z: 0 }; target.yaw = Math.PI / 2;
     const ray = (sim as any).rayActor.bind(sim) as (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, actor: ActorState, max: number, p?: unknown, c?: unknown, y?: unknown, favoured?: boolean) => { distance: number; head: boolean } | null;
-    // Facing +x the head sphere sits .04 toward -x.
-    expect(ray({ x: -3, y: 1.6, z: 0 }, { x: 1, y: 0, z: 0 }, target, 5)?.distance).toBeCloseTo(3 - .04 - .25, 5);
+    // Facing +x the head sphere sits toward -x by the same forward offset.
+    expect(ray({ x: -3, y: H.headY, z: 0 }, { x: 1, y: 0, z: 0 }, target, 5)?.distance).toBeCloseTo(3 + H.headZ - H.headR, 5);
     target.yaw = 0; target.crouch = true;
     // Crouched, everything scales by 1.3/1.8 from the feet.
     const k = 1.3 / 1.8;
-    expect(ray({ x: 0, y: 1.6 * k, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
-    expect(ray({ x: 0, y: 1.42 * k - .02, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
-    expect(ray({ x: 0, y: 1.45, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
+    expect(ray({ x: 0, y: H.headY * k, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
+    expect(ray({ x: 0, y: H.bodyTop * k - .06, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
+    expect(ray({ x: 0, y: 1.5, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)).toBeNull();
     target.crouch = false;
-    // Legacy player-favouring sizes: head r .19, body r .27 up to 1.36.
+    // Bots shooting humans use smaller player-favouring sizes: head r .19, body r .27 up to 1.36.
     expect(ray({ x: .22, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(true);
     expect(ray({ x: .22, y: 1.6, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5, undefined, undefined, undefined, true)).toBeNull();
     expect(ray({ x: .285, y: .8, z: -3 }, { x: 0, y: 0, z: 1 }, target, 5)?.head).toBe(false);
@@ -791,7 +816,7 @@ describe('authoritative simulation', () => {
       const shooter = (sim as any).actors.get('a'), target = (sim as any).actors.get('b');
       // The ray grazes the front of the head sphere: a hit facing -z (yaw 0), a miss facing +z.
       shooter.state.pos = { x: -5, y: terrainHeight(0, 0), z: -.27 };
-      shooter.state.weapons[0] = { id: 'sniper', ammo: 5, reserve: 0, rarity: 0 };
+      shooter.state.weapons[0] = { id: 'sniper', ammo: 5, reserve: 0, rarity: 0, box: 0 };
       shooter.adsAmount = 1;
       target.state.pos = { x: 0, y: terrainHeight(0, 0), z: 0 };
       target.state.yaw = Math.PI; target.state.protectionUntil = 0;
@@ -831,7 +856,8 @@ describe('authoritative simulation', () => {
 
   it('lands and remains on a pitched roof in the island world', () => {
     const actual = createWorld();
-    const roof = actual.pieces!.find(piece => piece.piece === 'house_small')!;
+    // A gable runs along the house's depth: walk across a lot square to the street.
+    const roof = actual.pieces!.find(piece => piece.piece === 'house_small' && Math.abs(Math.sin(piece.yaw)) < .01)!;
     const x = roof.x + KIT_PIECES[roof.piece].footprint[0] * .25;
     const top = Math.max(...actual.colliders.filter(c => c.pieceId === roof.id && x >= c.min.x && x <= c.max.x && roof.z >= c.min.z && roof.z <= c.max.z).map(c => c.max.y));
     const sim = new Simulation(actual, { ...config, mode: 'battle-royale' }, profiles, 'island-roof', 130);

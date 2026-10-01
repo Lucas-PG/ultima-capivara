@@ -26,7 +26,7 @@ function scenario(piece: KitPlacement, seed = 7, start?: Vec3) {
   Object.assign(actors.get('player')!.state, { alive: true, hp: 100, stage: 'ground', grounded: true,
     pos: { x: -110, y: terrainHeight(-110, -110), z: -110 }, protectionUntil: 1e9 });
   Object.assign(bot.state, { alive: true, hp: 100, stage: 'ground', grounded: true, pos: { ...(start ?? route.points[0]) },
-    velocity: { x: 0, y: 0, z: 0 }, weapons: [{ id: 'pistol', ammo: 17, reserve: 51, rarity: 0 }], slot: 0 });
+    velocity: { x: 0, y: 0, z: 0 }, weapons: [{ id: 'pistol', ammo: 17, reserve: 51, rarity: 0, box: 2 }], slot: 0 });
   bot.brain = createBrain(false, 2, bot.state.pos, 1); bot.brain.leisureAt = Infinity;
   Object.assign((sim as any).zone, { radius: 999, nextRadius: 900 });
   for (let i = 0; i < 181; i++) sim.step(1 / 60);
@@ -89,6 +89,15 @@ describe('bots use authored building routes through ordinary movement', () => {
     expect(h.bot.state.weapons.some(weapon => weapon.id === 'm4')).toBe(false);
     expect(h.trace.some(point => point.jump)).toBe(false);
     expect(Math.min(...h.trace.map(point => point.vy))).toBeGreaterThanOrEqual(h.walkingVy - .4);
+  });
+
+  it('lets go of a flight it was knocked off, instead of pressing into the stair from below', () => {
+    const h = scenario(houses[0], 23), entry = h.route.points[0];
+    expect(h.advance(() => h.bot.state.pos.y > entry.y + 1.6)).toBe(true);
+    // Shoved off the side of the stair, landing just below the tread it stood on.
+    const router = (h.sim as any).buildingRoutes as BotBuildingRoutes;
+    const beside = { ...h.bot.state.pos, x: h.bot.state.pos.x + .5, y: h.bot.state.pos.y - 1.6 };
+    expect(router.step(h.bot.brain, beside, h.item)?.precise ?? false).toBe(false);
   });
 
   it('does not connect coincident XZ positions on different floors or invent routes for old worlds', () => {

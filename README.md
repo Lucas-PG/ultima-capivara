@@ -46,6 +46,12 @@ As salas usam o serviço público PeerJS para apresentar os navegadores e WebRTC
 
 Salas comportam até **16 pessoas, incluindo quem criou a sala**. Capacidade padrão: 8. Bots têm três dificuldades.
 
+## Inventário
+
+Cada arma tem um lugar fixo: 1 e 2 são armas longas, 3 é a arma de mão (pistola, revólver ou estilingue) e 4 é o facão. Pegar uma arma igual soma munição. Com a classe cheia, a arma do chão troca de lugar com a que está na mão (ou com a primária 1) e a antiga cai no chão com a munição que tinha. O aviso do F mostra a troca antes de apertar. G solta a arma da mão. Uma arma sem munição passa para a próxima que atira.
+
+Armas: pistola, Trinta-e-oito (revólver), SMG, M4, Doze, Lança-coco (coco explosivo em arco), carabina, sniper, estilingão e facão.
+
 ## Vila e combate
 
 A arena concentra 15 casas com duas entradas e funções distintas: padaria com forno e pães, café, oficina, ateliê, clínica, peixaria, casa de pescador e mercearia. Praça com fonte, canteiros, carrinhos, mercado e becos oferecem rotas e cobertura. Os interiores têm móveis com colisão; os objetos pequenos ficam fora do corredor central.
@@ -61,8 +67,9 @@ As capivaras têm corpo quadrúpede, focinho alongado, patas com dedos curtos e 
 | Correr / agachar | Shift / C |
 | Pular, saltar do avião ou abrir paraquedas | Espaço |
 | Espiar pelos lados | Q / E |
-| Recarregar / interagir | R / F |
-| Trocar equipamento | 1 a 4 |
+| Recarregar / pegar ou trocar | R / F |
+| Soltar a arma na mão | G |
+| Armas: primária 1, primária 2, pistola, facão | 1 / 2 / 3 / 4 (ou roda do mouse) |
 | Bandagem / kit médico / guaraná / açaí / rapadura | 5 / 6 / 7 / 8 / 9 |
 | Placar / menu | Tab / Esc |
 

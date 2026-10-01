@@ -1,0 +1,3442 @@
+{
+ "note": "Summaries (tools/qa/real-perf-summary.mjs) of tools/qa/real-perf.mjs runs: production QA build, 1470x956 CSS at deviceScaleFactor 2, headless Chrome with ANGLE Metal on a MacBook Air M2 (8 GB), live practice matches with bots, five minutes per run unless the match reached its results first. fps counts frames drawn; frame times are display intervals; load is the mean 1-minute load average; thermal counts seconds at each pressure level (0 nominal, 1 moderate, 2 heavy).",
+ "sets": {
+  "final": "The final build (dynamic resolution v7) and the before runs that pair with it, 12:37 to 14:26.",
+  "rerun": "The Low after runs repeated on the final build at 14:52 and 14:57 with the load back to 5; the first Low pair in final ran under a load of 8 and then 12 to 30 from another process. The report table uses these.",
+  "sustained-calm": "Calmer machine, 11:55 to 12:25: before runs used in the final table; the after runs here are the v2 controller (superseded).",
+  "sustained": "Interleaved before and after batch, 10:44 to 11:28 (after the Claude app pane stopped contending for the GPU), after build with the v2 controller (superseded)."
+ },
+ "runs": [
+  {
+   "set": "final",
+   "run": "after-high-battle-royale",
+   "measuredAt": "2026-10-01T17:11:14.294Z",
+   "quality": "high",
+   "mode": "battle-royale",
+   "seconds": 286,
+   "headless": true,
+   "menuMs": 968,
+   "firstFrameMs": 5617,
+   "fps": 60,
+   "fpsByMinute": [
+    59.9,
+    59.7,
+    59.9,
+    59.9,
+    60.4
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 33.3,
+   "max": 116.7,
+   "low1": 29.5,
+   "over20": 272,
+   "over50": 1,
+   "frames": 16913,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.07,
+    "interaction": 0,
+    "avatars": 1.1,
+    "camera": 0.04,
+    "world-update": 0.1,
+    "weapon-view": 0.02,
+    "effects": 0.04,
+    "texture-upload": 0.04,
+    "world-draw": 3.45,
+    "render": 4.94,
+    "hud": 0.15,
+    "snapshot": 0.02,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.01
+   },
+   "workerTickMs": 0.84,
+   "longTasks": 1,
+   "heapMB": [
+    238.9,
+    335.7
+   ],
+   "draws": 175,
+   "triangles": 1767579,
+   "density": {
+    "mean": 1.27,
+    "min": 0.85,
+    "max": 1.7
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "1": 106,
+    "2": 157
+   },
+   "load": 3.99,
+   "stages": {
+    "parachute": 4,
+    "ground": 259
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "plane": {
+     "seconds": 3,
+     "fps": 57.3,
+     "p95": 33.3
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 53.5,
+     "p95": 33.4
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 58.7,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 282,
+     "fps": 60,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 31,
+      "totalMs": 29.6,
+      "maxMs": 4.5
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 7.8,
+      "maxMs": 7.8
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 12,
+      "totalMs": 31.3,
+      "maxMs": 5.1
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 5.9,
+      "maxMs": 4.6
+     }
+    }
+   ]
+  },
+  {
+   "set": "final",
+   "run": "after-high-deathmatch",
+   "measuredAt": "2026-10-01T16:57:58.880Z",
+   "quality": "high",
+   "mode": "deathmatch",
+   "seconds": 287,
+   "headless": true,
+   "menuMs": 884,
+   "firstFrameMs": 5335,
+   "fps": 59.8,
+   "fpsByMinute": [
+    59,
+    60,
+    60,
+    60,
+    59.8
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 33.3,
+   "max": 83.3,
+   "low1": 28.6,
+   "over20": 303,
+   "over50": 6,
+   "frames": 16895,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.06,
+    "interaction": 0.02,
+    "avatars": 0.79,
+    "camera": 0.02,
+    "world-update": 0.11,
+    "weapon-view": 0.13,
+    "effects": 0.06,
+    "texture-upload": 0.04,
+    "first-person-draw": 0.18,
+    "world-draw": 3.47,
+    "render": 4.71,
+    "hud": 0.21,
+    "snapshot": 0.02,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0
+   },
+   "workerTickMs": 0.87,
+   "longTasks": 3,
+   "heapMB": [
+    220.2,
+    310.8
+   ],
+   "draws": 167,
+   "triangles": 1679073,
+   "density": {
+    "mean": 1.15,
+    "min": 0.85,
+    "max": 1.55
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "1": 152,
+    "2": 107
+   },
+   "load": 4.81,
+   "stages": {
+    "ground": 259
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 56.1,
+     "p95": 33.3
+    },
+    "ground": {
+     "seconds": 294,
+     "fps": 59.7,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 17,
+      "totalMs": 36.9,
+      "maxMs": 8.6
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 4.9,
+      "maxMs": 4.9
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 16,
+      "totalMs": 42.2,
+      "maxMs": 6
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "final",
+   "run": "after-low-battle-royale",
+   "measuredAt": "2026-10-01T17:25:56.849Z",
+   "quality": "low",
+   "mode": "battle-royale",
+   "seconds": 227,
+   "headless": true,
+   "menuMs": 922,
+   "firstFrameMs": 7345,
+   "fps": 58.7,
+   "fpsByMinute": [
+    53.5,
+    60.1,
+    60.6,
+    59.7
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 33.3,
+   "max": 633.4,
+   "low1": 15,
+   "over20": 229,
+   "over50": 47,
+   "frames": 13139,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.09,
+    "interaction": 0.02,
+    "avatars": 1.31,
+    "camera": 0.03,
+    "world-update": 0.08,
+    "weapon-view": 0.1,
+    "effects": 0.04,
+    "texture-upload": 0.05,
+    "world-draw": 3.93,
+    "render": 5.7,
+    "hud": 0.25,
+    "snapshot": 0.07,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.16
+   },
+   "workerTickMs": 2.1,
+   "longTasks": 25,
+   "heapMB": [
+    231.6,
+    389.9
+   ],
+   "draws": 132,
+   "triangles": 1091636,
+   "density": {
+    "mean": 0.71,
+    "min": 0.5,
+    "max": 0.75
+   },
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 190
+   },
+   "load": 18.71,
+   "stages": {
+    "parachute": 2,
+    "ground": 188
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 54.7,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 225,
+     "fps": 58.7,
+     "p95": 16.8
+    },
+    "results": {
+     "seconds": 11,
+     "fps": 45.1,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 18,
+      "totalMs": 52.2,
+      "maxMs": 8.7
+     },
+     "MajorGC": null
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 9,
+      "totalMs": 23.4,
+      "maxMs": 6.5
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "final",
+   "run": "after-low-deathmatch",
+   "measuredAt": "2026-10-01T17:21:32.648Z",
+   "quality": "low",
+   "mode": "deathmatch",
+   "seconds": 286,
+   "headless": true,
+   "menuMs": 910,
+   "firstFrameMs": 4838,
+   "fps": 60.3,
+   "fpsByMinute": [
+    60.6,
+    59.2,
+    60.6,
+    60.6,
+    60.9
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "max": 433.3,
+   "low1": 31,
+   "over20": 74,
+   "over50": 16,
+   "frames": 17028,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.05,
+    "interaction": 0.02,
+    "avatars": 0.78,
+    "camera": 0.01,
+    "world-update": 0.07,
+    "weapon-view": 0.1,
+    "effects": 0.03,
+    "texture-upload": 0.03,
+    "first-person-draw": 0.16,
+    "world-draw": 2.76,
+    "render": 3.89,
+    "hud": 0.22,
+    "snapshot": 0.02
+   },
+   "workerTickMs": 0.9,
+   "longTasks": 12,
+   "heapMB": [
+    215.3,
+    340.4
+   ],
+   "draws": 117,
+   "triangles": 1059275,
+   "density": {
+    "mean": 0.74,
+    "min": 0.5,
+    "max": 0.75
+   },
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 257
+   },
+   "load": 7.88,
+   "stages": {
+    "ground": 257
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 294,
+     "fps": 60.4,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 12,
+      "totalMs": 54.2,
+      "maxMs": 9.7
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 7.4,
+      "maxMs": 7.4
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 12,
+      "totalMs": 40.3,
+      "maxMs": 7.4
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 49,
+      "maxMs": 49
+     }
+    }
+   ]
+  },
+  {
+   "set": "final",
+   "run": "after-medium-battle-royale",
+   "measuredAt": "2026-10-01T17:02:49.873Z",
+   "quality": "medium",
+   "mode": "battle-royale",
+   "seconds": 267,
+   "headless": true,
+   "menuMs": 1046,
+   "firstFrameMs": 5986,
+   "fps": 60.7,
+   "fpsByMinute": [
+    60.4,
+    60.5,
+    61,
+    60.8,
+    61
+   ],
+   "p50": 16.7,
+   "p95": 16.7,
+   "p99": 16.8,
+   "max": 100,
+   "low1": 44.9,
+   "over20": 49,
+   "over50": 1,
+   "frames": 15948,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.07,
+    "interaction": 0,
+    "avatars": 1.01,
+    "camera": 0.03,
+    "world-update": 0.09,
+    "weapon-view": 0.02,
+    "effects": 0.05,
+    "texture-upload": 0.03,
+    "world-draw": 2.98,
+    "render": 4.34,
+    "hud": 0.16,
+    "snapshot": 0.02,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.01
+   },
+   "workerTickMs": 0.82,
+   "longTasks": 1,
+   "heapMB": [
+    232.3,
+    336.3
+   ],
+   "draws": 143,
+   "triangles": 1458634,
+   "density": {
+    "mean": 1.23,
+    "min": 0.9,
+    "max": 1.25
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "1": 97,
+    "2": 146
+   },
+   "load": 3.78,
+   "stages": {
+    "parachute": 4,
+    "ground": 239
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "falling": {
+     "seconds": 3,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 263,
+     "fps": 60.7,
+     "p95": 16.7
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 38,
+     "p95": 16.7
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 20,
+      "totalMs": 21.4,
+      "maxMs": 5.1
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 11.3,
+      "maxMs": 9.8
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 42,
+      "totalMs": 27.8,
+      "maxMs": 2.7
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "final",
+   "run": "after-medium-deathmatch",
+   "measuredAt": "2026-10-01T16:52:48.455Z",
+   "quality": "medium",
+   "mode": "deathmatch",
+   "seconds": 287,
+   "headless": true,
+   "menuMs": 946,
+   "firstFrameMs": 5495,
+   "fps": 60.7,
+   "fpsByMinute": [
+    60.3,
+    60.4,
+    61,
+    60.8,
+    61
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "max": 216.6,
+   "low1": 44.6,
+   "over20": 24,
+   "over50": 6,
+   "frames": 17139,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.05,
+    "interaction": 0.02,
+    "avatars": 0.72,
+    "camera": 0.01,
+    "world-update": 0.08,
+    "weapon-view": 0.11,
+    "effects": 0.04,
+    "texture-upload": 0.03,
+    "first-person-draw": 0.15,
+    "world-draw": 2.64,
+    "render": 3.73,
+    "hud": 0.16,
+    "snapshot": 0.02,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0
+   },
+   "workerTickMs": 0.87,
+   "longTasks": 4,
+   "heapMB": [
+    214.5,
+    340.5
+   ],
+   "draws": 140,
+   "triangles": 1448937,
+   "density": {
+    "mean": 1.25,
+    "min": 1.15,
+    "max": 1.25
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "1": 14,
+    "2": 248
+   },
+   "load": 4.59,
+   "stages": {
+    "ground": 262
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 294,
+     "fps": 60.7,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 14,
+      "totalMs": 39.3,
+      "maxMs": 5.3
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 1.9,
+      "maxMs": 1.9
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 13,
+      "totalMs": 29.5,
+      "maxMs": 5.2
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 17.7,
+      "maxMs": 13.2
+     }
+    }
+   ]
+  },
+  {
+   "set": "final",
+   "run": "before-high-battle-royale",
+   "measuredAt": "2026-10-01T17:06:04.450Z",
+   "quality": "high",
+   "mode": "battle-royale",
+   "seconds": 169,
+   "headless": true,
+   "menuMs": 1011,
+   "firstFrameMs": 5528,
+   "fps": 33.7,
+   "fpsByMinute": [
+    35.6,
+    31.2,
+    34.5,
+    35.6
+   ],
+   "p50": 33.3,
+   "p95": 50,
+   "p99": 50.1,
+   "max": 166.7,
+   "low1": 15.6,
+   "over20": 4095,
+   "over50": 94,
+   "frames": 5532,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "snapshot": 0.04,
+    "audio": 0.1,
+    "interaction": 0,
+    "camera": 0.13,
+    "texture-upload": 0.04,
+    "world-draw": 3.9,
+    "render": 9.7,
+    "hud": 0.26,
+    "resolution-change": 0.06,
+    "camera-transition": 0,
+    "first-person-draw": 0.03
+   },
+   "workerTickMs": null,
+   "longTasks": 4,
+   "heapMB": [
+    238.5,
+    318.6
+   ],
+   "draws": 172,
+   "triangles": 1705533,
+   "density": null,
+   "buffer": [
+    2499,
+    1625
+   ],
+   "buffers": [
+    "2940x1912",
+    "2793x1816",
+    "2645x1720",
+    "2499x1625"
+   ],
+   "thermal": {
+    "1": 99,
+    "2": 61
+   },
+   "load": 3.72,
+   "stages": {
+    "parachute": 3,
+    "ground": 157
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 58,
+     "p95": 33.2
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 52.4,
+     "p95": 33.3
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 32,
+     "p95": 50.1
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 23.5,
+     "p95": 50.1
+    },
+    "ground": {
+     "seconds": 166,
+     "fps": 33.9,
+     "p95": 50
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 35,
+     "p95": 33.4
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 39,
+      "totalMs": 26.6,
+      "maxMs": 2.4
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 5.5,
+      "maxMs": 5.5
+     }
+    }
+   ]
+  },
+  {
+   "set": "final",
+   "run": "before-high-deathmatch",
+   "measuredAt": "2026-10-01T15:42:19.781Z",
+   "quality": "high",
+   "mode": "deathmatch",
+   "seconds": 277,
+   "headless": true,
+   "menuMs": 1040,
+   "firstFrameMs": 5546,
+   "fps": 30.5,
+   "fpsByMinute": [
+    39,
+    30.6,
+    29.5,
+    27
+   ],
+   "p50": 33.3,
+   "p95": 50,
+   "p99": 83.3,
+   "max": 483.3,
+   "low1": 7.1,
+   "over20": 6663,
+   "over50": 336,
+   "frames": 8243,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "snapshot": 0.07,
+    "audio": 0.13,
+    "interaction": 0.04,
+    "camera": 0.21,
+    "texture-upload": 0.11,
+    "first-person-draw": 0.34,
+    "world-draw": 7.11,
+    "render": 13.31,
+    "hud": 0.79,
+    "resolution-change": 0
+   },
+   "workerTickMs": null,
+   "longTasks": 135,
+   "heapMB": [
+    222.5,
+    328.7
+   ],
+   "draws": 166,
+   "triangles": 1705903,
+   "density": null,
+   "buffer": [
+    2499,
+    1625
+   ],
+   "buffers": [
+    "2645x1720",
+    "2499x1625"
+   ],
+   "thermal": {
+    "0": 4,
+    "1": 11,
+    "2": 172
+   },
+   "load": 10.1,
+   "stages": {
+    "ground": 187
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 32.5,
+     "p95": 33.4
+    },
+    "ground": {
+     "seconds": 284,
+     "fps": 30.7,
+     "p95": 50
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 16,
+      "totalMs": 90.4,
+      "maxMs": 25.6
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 41.7,
+      "maxMs": 35.3
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 20,
+      "totalMs": 100.8,
+      "maxMs": 11.4
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "final",
+   "run": "before-low-deathmatch",
+   "measuredAt": "2026-10-01T17:16:23.283Z",
+   "quality": "low",
+   "mode": "deathmatch",
+   "seconds": 286,
+   "headless": true,
+   "menuMs": 976,
+   "firstFrameMs": 5097,
+   "fps": 60.9,
+   "fpsByMinute": [
+    60.9,
+    60.8,
+    61,
+    61,
+    60.8
+   ],
+   "p50": 16.7,
+   "p95": 16.7,
+   "p99": 16.8,
+   "max": 66.6,
+   "low1": 58.2,
+   "over20": 2,
+   "over50": 1,
+   "frames": 17181,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.04,
+    "interaction": 0.01,
+    "camera": 0.06,
+    "texture-upload": 0.02,
+    "first-person-draw": 0.13,
+    "world-draw": 2.46,
+    "render": 5.09,
+    "hud": 0.14,
+    "snapshot": 0.01
+   },
+   "workerTickMs": null,
+   "longTasks": 1,
+   "heapMB": [
+    211.6,
+    332.1
+   ],
+   "draws": 115,
+   "triangles": 1085786,
+   "density": null,
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 208,
+    "1": 56
+   },
+   "load": 4.21,
+   "stages": {
+    "ground": 264
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 293,
+     "fps": 60.9,
+     "p95": 16.7
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 28,
+      "totalMs": 26.7,
+      "maxMs": 2.5
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 6.8,
+      "maxMs": 4.3
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 28,
+      "totalMs": 22.1,
+      "maxMs": 2
+     },
+     "MajorGC": {
+      "n": 3,
+      "totalMs": 9.3,
+      "maxMs": 4
+     }
+    }
+   ]
+  },
+  {
+   "set": "rerun",
+   "run": "after-low-battle-royale",
+   "measuredAt": "2026-10-01T17:57:43.659Z",
+   "quality": "low",
+   "mode": "battle-royale",
+   "seconds": 271,
+   "headless": true,
+   "menuMs": 1053,
+   "firstFrameMs": 5844,
+   "fps": 60.1,
+   "fpsByMinute": [
+    60.9,
+    60.8,
+    61,
+    58,
+    60.5
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "max": 300,
+   "low1": 25.9,
+   "over20": 111,
+   "over50": 17,
+   "frames": 16028,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.08,
+    "interaction": 0,
+    "avatars": 1.07,
+    "camera": 0.05,
+    "world-update": 0.07,
+    "weapon-view": 0.03,
+    "effects": 0.04,
+    "texture-upload": 0.03,
+    "world-draw": 3.06,
+    "render": 4.52,
+    "hud": 0.18,
+    "snapshot": 0.03,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.03
+   },
+   "workerTickMs": 1.32,
+   "longTasks": 14,
+   "heapMB": [
+    231,
+    397.2
+   ],
+   "draws": 120,
+   "triangles": 1181778,
+   "density": {
+    "mean": 0.72,
+    "min": 0.5,
+    "max": 0.75
+   },
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 241
+   },
+   "load": 5.53,
+   "stages": {
+    "parachute": 4,
+    "ground": 237
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "plane": {
+     "seconds": 4,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "parachute": {
+     "seconds": 5,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 267,
+     "fps": 60.1,
+     "p95": 16.8
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 30,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 25,
+      "totalMs": 34.9,
+      "maxMs": 3.6
+     },
+     "MajorGC": {
+      "n": 3,
+      "totalMs": 10.2,
+      "maxMs": 7.5
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 13,
+      "totalMs": 84.3,
+      "maxMs": 17
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 3.4,
+      "maxMs": 3.4
+     }
+    }
+   ]
+  },
+  {
+   "set": "rerun",
+   "run": "after-low-deathmatch",
+   "measuredAt": "2026-10-01T18:02:53.585Z",
+   "quality": "low",
+   "mode": "deathmatch",
+   "seconds": 287,
+   "headless": true,
+   "menuMs": 1026,
+   "firstFrameMs": 5046,
+   "fps": 60.7,
+   "fpsByMinute": [
+    61,
+    60.2,
+    60.8,
+    60.8,
+    61
+   ],
+   "p50": 16.7,
+   "p95": 16.7,
+   "p99": 16.8,
+   "max": 333.4,
+   "low1": 46.2,
+   "over20": 19,
+   "over50": 4,
+   "frames": 17147,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.05,
+    "interaction": 0.02,
+    "avatars": 0.76,
+    "camera": 0.01,
+    "world-update": 0.07,
+    "weapon-view": 0.1,
+    "effects": 0.04,
+    "texture-upload": 0.03,
+    "first-person-draw": 0.16,
+    "world-draw": 2.77,
+    "render": 3.89,
+    "hud": 0.17,
+    "snapshot": 0.02,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0
+   },
+   "workerTickMs": 0.73,
+   "longTasks": 2,
+   "heapMB": [
+    214.1,
+    401.3
+   ],
+   "draws": 116,
+   "triangles": 1086173,
+   "density": {
+    "mean": 0.75,
+    "min": 0.7,
+    "max": 0.75
+   },
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 261
+   },
+   "load": 4.99,
+   "stages": {
+    "ground": 261
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 294,
+     "fps": 60.7,
+     "p95": 16.7
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 15,
+      "totalMs": 32.2,
+      "maxMs": 5.1
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 4.3,
+      "maxMs": 4.3
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 13,
+      "totalMs": 34.2,
+      "maxMs": 4.1
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "sustained-calm",
+   "run": "after-low-battle-royale",
+   "measuredAt": "2026-10-01T15:25:33.866Z",
+   "quality": "low",
+   "mode": "battle-royale",
+   "seconds": 286,
+   "headless": true,
+   "menuMs": 1279,
+   "firstFrameMs": 6427,
+   "fps": 60.7,
+   "fpsByMinute": [
+    60.7,
+    60.3,
+    61,
+    60.6,
+    60.9
+   ],
+   "p50": 16.7,
+   "p95": 16.7,
+   "p99": 16.8,
+   "max": 200,
+   "low1": 43,
+   "over20": 38,
+   "over50": 7,
+   "frames": 17105,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.08,
+    "interaction": 0,
+    "avatars": 1.05,
+    "camera": 0.03,
+    "world-update": 0.08,
+    "weapon-view": 0.02,
+    "effects": 0.03,
+    "texture-upload": 0.03,
+    "world-draw": 2.94,
+    "render": 4.34,
+    "hud": 0.17,
+    "snapshot": 0.02,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.01
+   },
+   "workerTickMs": 1.19,
+   "longTasks": 7,
+   "heapMB": [
+    232.9,
+    400.3
+   ],
+   "draws": 120,
+   "triangles": 1124482,
+   "density": {
+    "mean": 0.73,
+    "min": 0.5,
+    "max": 0.75
+   },
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 150,
+    "1": 91,
+    "2": 18
+   },
+   "load": 11.74,
+   "stages": {
+    "parachute": 3,
+    "ground": 256
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 283,
+     "fps": 60.7,
+     "p95": 16.7
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 20,
+      "totalMs": 47.2,
+      "maxMs": 6.4
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 31.6,
+      "maxMs": 29.1
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 32,
+      "totalMs": 28.1,
+      "maxMs": 3.8
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "sustained-calm",
+   "run": "after-medium-battle-royale",
+   "measuredAt": "2026-10-01T15:15:18.850Z",
+   "quality": "medium",
+   "mode": "battle-royale",
+   "seconds": 266,
+   "headless": true,
+   "menuMs": 1281,
+   "firstFrameMs": 7135,
+   "fps": 58.9,
+   "fpsByMinute": [
+    61,
+    60.6,
+    53.5,
+    59.6,
+    61
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 33.3,
+   "max": 633.3,
+   "low1": 14.8,
+   "over20": 211,
+   "over50": 45,
+   "frames": 15454,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.11,
+    "interaction": 0,
+    "avatars": 1.41,
+    "camera": 0.05,
+    "world-update": 0.12,
+    "weapon-view": 0.02,
+    "effects": 0.06,
+    "texture-upload": 0.04,
+    "world-draw": 4.14,
+    "render": 6.03,
+    "hud": 0.26,
+    "snapshot": 0.04,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.01
+   },
+   "workerTickMs": 2.08,
+   "longTasks": 32,
+   "heapMB": [
+    233.4,
+    355.3
+   ],
+   "draws": 146,
+   "triangles": 1453649,
+   "density": {
+    "mean": 0.81,
+    "min": 0.6,
+    "max": 1.25
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "1": 114,
+    "2": 112
+   },
+   "load": 9.42,
+   "stages": {
+    "parachute": 3,
+    "ground": 223
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 60.5,
+     "p95": 16.8
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 263,
+     "fps": 58.8,
+     "p95": 16.8
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 40,
+     "p95": 66.6
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 26,
+      "totalMs": 37.5,
+      "maxMs": 4.5
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 14.3,
+      "maxMs": 14.3
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 10,
+      "totalMs": 54.9,
+      "maxMs": 10.2
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "sustained-calm",
+   "run": "after-medium-deathmatch",
+   "measuredAt": "2026-10-01T15:05:25.828Z",
+   "quality": "medium",
+   "mode": "deathmatch",
+   "seconds": 287,
+   "headless": true,
+   "menuMs": 1051,
+   "firstFrameMs": 5599,
+   "fps": 60.8,
+   "fpsByMinute": [
+    60.9,
+    60.3,
+    61,
+    60.8,
+    60.9
+   ],
+   "p50": 16.7,
+   "p95": 16.7,
+   "p99": 16.8,
+   "max": 483.3,
+   "low1": 47.1,
+   "over20": 12,
+   "over50": 2,
+   "frames": 17146,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.05,
+    "interaction": 0.02,
+    "avatars": 0.75,
+    "camera": 0.01,
+    "world-update": 0.09,
+    "weapon-view": 0.11,
+    "effects": 0.04,
+    "texture-upload": 0.03,
+    "first-person-draw": 0.16,
+    "world-draw": 2.86,
+    "render": 4,
+    "hud": 0.22,
+    "snapshot": 0.02,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0
+   },
+   "workerTickMs": 0.84,
+   "longTasks": 4,
+   "heapMB": [
+    216.3,
+    400.7
+   ],
+   "draws": 143,
+   "triangles": 1449253,
+   "density": {
+    "mean": 0.61,
+    "min": 0.6,
+    "max": 0.7
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "0": 214,
+    "1": 47
+   },
+   "load": 5.82,
+   "stages": {
+    "ground": 261
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 294,
+     "fps": 60.8,
+     "p95": 16.7
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 21,
+      "totalMs": 55.6,
+      "maxMs": 11.5
+     },
+     "MajorGC": null
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 13,
+      "totalMs": 32.4,
+      "maxMs": 6.1
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "sustained-calm",
+   "run": "before-low-battle-royale",
+   "measuredAt": "2026-10-01T15:20:21.273Z",
+   "quality": "low",
+   "mode": "battle-royale",
+   "seconds": 242,
+   "headless": true,
+   "menuMs": 938,
+   "firstFrameMs": 5141,
+   "fps": 60.2,
+   "fpsByMinute": [
+    61,
+    59.6,
+    59.6,
+    60.6,
+    58.7
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "max": 133.3,
+   "low1": 27.3,
+   "over20": 132,
+   "over50": 11,
+   "frames": 14319,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "snapshot": 0.02,
+    "audio": 0.08,
+    "interaction": 0,
+    "camera": 0.12,
+    "texture-upload": 0.04,
+    "world-draw": 3.63,
+    "render": 8.83,
+    "hud": 0.15,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "camera-transition": 0,
+    "first-person-draw": 0.03
+   },
+   "workerTickMs": null,
+   "longTasks": 8,
+   "heapMB": [
+    230.3,
+    346.8
+   ],
+   "draws": 126,
+   "triangles": 1173409,
+   "density": null,
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "1": 156,
+    "2": 56
+   },
+   "load": 7.35,
+   "stages": {
+    "parachute": 4,
+    "ground": 208
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "falling": {
+     "seconds": 3,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 237,
+     "fps": 60.2,
+     "p95": 16.8
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 46.9,
+     "p95": 33.3
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 81,
+      "totalMs": 49.1,
+      "maxMs": 2.2
+     },
+     "MajorGC": {
+      "n": 3,
+      "totalMs": 10.7,
+      "maxMs": 4.9
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 50,
+      "totalMs": 112.6,
+      "maxMs": 11.9
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 19.9,
+      "maxMs": 10.4
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained-calm",
+   "run": "before-medium-battle-royale",
+   "measuredAt": "2026-10-01T15:10:23.130Z",
+   "quality": "medium",
+   "mode": "battle-royale",
+   "seconds": 267,
+   "headless": true,
+   "menuMs": 985,
+   "firstFrameMs": 5852,
+   "fps": 34.9,
+   "fpsByMinute": [
+    43.5,
+    35.8,
+    26.7,
+    34.1,
+    36.3
+   ],
+   "p50": 33.3,
+   "p95": 50,
+   "p99": 83.4,
+   "max": 1583.3,
+   "low1": 6.1,
+   "over20": 5420,
+   "over50": 303,
+   "frames": 9109,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.18,
+    "interaction": 0,
+    "camera": 0.24,
+    "texture-upload": 0.13,
+    "world-draw": 6.82,
+    "render": 16.19,
+    "hud": 0.67,
+    "snapshot": 0.11,
+    "resolution-change": 0.03,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "camera-transition": 0,
+    "first-person-draw": 0.02
+   },
+   "workerTickMs": null,
+   "longTasks": 215,
+   "heapMB": [
+    234.4,
+    358.3
+   ],
+   "draws": 147,
+   "triangles": 1526550,
+   "density": null,
+   "buffer": [
+    2499,
+    1625
+   ],
+   "buffers": [
+    "2793x1816",
+    "2645x1720",
+    "2499x1625"
+   ],
+   "thermal": {
+    "0": 23,
+    "1": 35,
+    "2": 146
+   },
+   "load": 12.49,
+   "stages": {
+    "parachute": 4,
+    "ground": 200
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 54.7,
+     "p95": 33.3
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 44.1,
+     "p95": 33.4
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 30.7,
+     "p95": 50
+    },
+    "ground": {
+     "seconds": 263,
+     "fps": 35,
+     "p95": 50
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 28,
+     "p95": 33.4
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 38,
+      "totalMs": 168.3,
+      "maxMs": 9.4
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 80.9,
+      "maxMs": 66.6
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 22,
+      "totalMs": 49.7,
+      "maxMs": 6.5
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 3,
+      "maxMs": 3
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained-calm",
+   "run": "before-medium-deathmatch",
+   "measuredAt": "2026-10-01T15:00:13.407Z",
+   "quality": "medium",
+   "mode": "deathmatch",
+   "seconds": 283,
+   "headless": true,
+   "menuMs": 1284,
+   "firstFrameMs": 6015,
+   "fps": 37.4,
+   "fpsByMinute": [
+    39.5,
+    31.8,
+    39.3,
+    38.8,
+    37.6
+   ],
+   "p50": 16.8,
+   "p95": 33.4,
+   "p99": 83.3,
+   "max": 4083.1,
+   "low1": 4.4,
+   "over20": 5111,
+   "over50": 191,
+   "frames": 10356,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "snapshot": 0.07,
+    "audio": 0.12,
+    "interaction": 0.04,
+    "camera": 0.2,
+    "texture-upload": 0.1,
+    "first-person-draw": 0.25,
+    "world-draw": 4.98,
+    "render": 9.97,
+    "hud": 0.88,
+    "resolution-change": 0.01
+   },
+   "workerTickMs": null,
+   "longTasks": 127,
+   "heapMB": [
+    217.9,
+    404
+   ],
+   "draws": 141,
+   "triangles": 1462422,
+   "density": null,
+   "buffer": [
+    2499,
+    1625
+   ],
+   "buffers": [
+    "2645x1720",
+    "2499x1625"
+   ],
+   "thermal": {
+    "0": 49,
+    "1": 20,
+    "2": 154
+   },
+   "load": 11.18,
+   "stages": {
+    "ground": 223
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 1,
+     "fps": 26.3,
+     "p95": 50
+    },
+    "ground": {
+     "seconds": 291,
+     "fps": 37.2,
+     "p95": 33.4
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 36,
+      "totalMs": 180.1,
+      "maxMs": 16.4
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 23.7,
+      "maxMs": 23.7
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 20,
+      "totalMs": 44.4,
+      "maxMs": 4.9
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "after-high-battle-royale",
+   "measuredAt": "2026-10-01T14:10:31.013Z",
+   "quality": "high",
+   "mode": "battle-royale",
+   "seconds": 163,
+   "headless": true,
+   "menuMs": 1028,
+   "firstFrameMs": 6421,
+   "fps": 60.9,
+   "fpsByMinute": [
+    61,
+    60.7,
+    61
+   ],
+   "p50": 16.7,
+   "p95": 16.7,
+   "p99": 16.8,
+   "max": 100.1,
+   "low1": 56.1,
+   "over20": 2,
+   "over50": 1,
+   "frames": 9770,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.07,
+    "interaction": 0.01,
+    "avatars": 1.11,
+    "camera": 0.03,
+    "world-update": 0.08,
+    "weapon-view": 0.06,
+    "effects": 0.04,
+    "texture-upload": 0.03,
+    "world-draw": 3.06,
+    "render": 4.53,
+    "hud": 0.17,
+    "snapshot": 0.03,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.06
+   },
+   "workerTickMs": 0.87,
+   "longTasks": 1,
+   "heapMB": [
+    240.7,
+    337.1
+   ],
+   "draws": 174,
+   "triangles": 1718799,
+   "density": {
+    "mean": 1,
+    "min": 0.75,
+    "max": 1.5
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "1": 84,
+    "2": 66
+   },
+   "load": 3.35,
+   "stages": {
+    "parachute": 3,
+    "ground": 147
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 160,
+     "fps": 60.9,
+     "p95": 16.7
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 61.1,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 19,
+      "totalMs": 27.7,
+      "maxMs": 6.4
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 14.4,
+      "maxMs": 14.4
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "after-high-deathmatch",
+   "measuredAt": "2026-10-01T14:03:52.842Z",
+   "quality": "high",
+   "mode": "deathmatch",
+   "seconds": 286,
+   "headless": true,
+   "menuMs": 932,
+   "firstFrameMs": 6998,
+   "fps": 58.8,
+   "fpsByMinute": [
+    58.5,
+    58.7,
+    59,
+    58,
+    60.5
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 33.4,
+   "max": 466.6,
+   "low1": 18.4,
+   "over20": 356,
+   "over50": 53,
+   "frames": 16618,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.08,
+    "interaction": 0.03,
+    "avatars": 1.19,
+    "camera": 0.02,
+    "world-update": 0.15,
+    "weapon-view": 0.17,
+    "effects": 0.07,
+    "texture-upload": 0.06,
+    "first-person-draw": 0.27,
+    "world-draw": 5.05,
+    "render": 6.86,
+    "hud": 0.36,
+    "snapshot": 0.03
+   },
+   "workerTickMs": 2.05,
+   "longTasks": 29,
+   "heapMB": [
+    219.1,
+    304.8
+   ],
+   "draws": 167,
+   "triangles": 1715110,
+   "density": {
+    "mean": 0.76,
+    "min": 0.75,
+    "max": 0.85
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "1": 153,
+    "2": 83
+   },
+   "load": 14.78,
+   "stages": {
+    "ground": 236
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 60.5,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 294,
+     "fps": 58.9,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 14,
+      "totalMs": 148.8,
+      "maxMs": 38.4
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 76,
+      "maxMs": 73.6
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 13,
+      "totalMs": 113.5,
+      "maxMs": 26.7
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 19.2,
+      "maxMs": 19.2
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "after-low-battle-royale",
+   "measuredAt": "2026-10-01T14:28:16.167Z",
+   "quality": "low",
+   "mode": "battle-royale",
+   "seconds": 190,
+   "headless": true,
+   "menuMs": 1076,
+   "firstFrameMs": 5956,
+   "fps": 56.7,
+   "fpsByMinute": [
+    52.1,
+    55.8,
+    60.2,
+    61
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 50,
+   "max": 400,
+   "low1": 13.5,
+   "over20": 509,
+   "over50": 60,
+   "frames": 10638,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.12,
+    "interaction": 0.03,
+    "avatars": 1.85,
+    "camera": 0.03,
+    "world-update": 0.11,
+    "weapon-view": 0.12,
+    "effects": 0.07,
+    "texture-upload": 0.06,
+    "world-draw": 5.28,
+    "render": 7.76,
+    "hud": 0.3,
+    "snapshot": 0.05,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.21
+   },
+   "workerTickMs": 4.39,
+   "longTasks": 35,
+   "heapMB": [
+    237.8,
+    338.6
+   ],
+   "draws": 118,
+   "triangles": 1103143,
+   "density": {
+    "mean": 0.62,
+    "min": 0.5,
+    "max": 0.75
+   },
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 11,
+    "1": 60,
+    "2": 91
+   },
+   "load": 15.28,
+   "stages": {
+    "parachute": 4,
+    "ground": 158
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 60.5,
+     "p95": 16.7
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "parachute": {
+     "seconds": 7,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 186,
+     "fps": 56.7,
+     "p95": 16.8
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 39,
+     "p95": 16.7
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 65,
+      "totalMs": 163.2,
+      "maxMs": 21.3
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "after-low-deathmatch",
+   "measuredAt": "2026-10-01T14:20:49.634Z",
+   "quality": "low",
+   "mode": "deathmatch",
+   "seconds": 287,
+   "headless": true,
+   "menuMs": 1037,
+   "firstFrameMs": 4830,
+   "fps": 60.8,
+   "fpsByMinute": [
+    60.7,
+    60.6,
+    60.8,
+    60.8,
+    61
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "max": 133.4,
+   "low1": 49.1,
+   "over20": 19,
+   "over50": 6,
+   "frames": 17167,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.05,
+    "interaction": 0.02,
+    "avatars": 0.77,
+    "camera": 0.01,
+    "world-update": 0.08,
+    "weapon-view": 0.11,
+    "effects": 0.03,
+    "texture-upload": 0.03,
+    "first-person-draw": 0.17,
+    "world-draw": 2.83,
+    "render": 3.96,
+    "hud": 0.17,
+    "snapshot": 0.02,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0
+   },
+   "workerTickMs": 0.85,
+   "longTasks": 5,
+   "heapMB": [
+    214.2,
+    395.4
+   ],
+   "draws": 113,
+   "triangles": 1092324,
+   "density": {
+    "mean": 0.74,
+    "min": 0.65,
+    "max": 0.75
+   },
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 26,
+    "1": 174,
+    "2": 59
+   },
+   "load": 7.58,
+   "stages": {
+    "ground": 259
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 294,
+     "fps": 60.8,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 20,
+      "totalMs": 38,
+      "maxMs": 5.5
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 2.2,
+      "maxMs": 2.2
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 14,
+      "totalMs": 24.1,
+      "maxMs": 8.7
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 16.3,
+      "maxMs": 14.4
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "after-medium-battle-royale",
+   "measuredAt": "2026-10-01T13:58:40.439Z",
+   "quality": "medium",
+   "mode": "battle-royale",
+   "seconds": 227,
+   "headless": true,
+   "menuMs": 1162,
+   "firstFrameMs": 6167,
+   "fps": 55.7,
+   "fpsByMinute": [
+    58.5,
+    52.2,
+    56.6,
+    55.9
+   ],
+   "p50": 16.7,
+   "p95": 33.3,
+   "p99": 33.4,
+   "max": 666.6,
+   "low1": 11.8,
+   "over20": 746,
+   "over50": 64,
+   "frames": 12465,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.13,
+    "interaction": 0,
+    "avatars": 2.01,
+    "camera": 0.07,
+    "world-update": 0.14,
+    "weapon-view": 0.03,
+    "effects": 0.05,
+    "texture-upload": 0.07,
+    "world-draw": 6.07,
+    "render": 8.7,
+    "hud": 0.35,
+    "snapshot": 0.12,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.02
+   },
+   "workerTickMs": 2.88,
+   "longTasks": 44,
+   "heapMB": [
+    235.4,
+    399.8
+   ],
+   "draws": 156,
+   "triangles": 1522449,
+   "density": {
+    "mean": 0.69,
+    "min": 0.6,
+    "max": 0.9
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "1": 17,
+    "2": 146
+   },
+   "load": 12.34,
+   "stages": {
+    "parachute": 4,
+    "ground": 159
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "parachute": {
+     "seconds": 7,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "ground": {
+     "seconds": 223,
+     "fps": 55.6,
+     "p95": 33.3
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 39.3,
+     "p95": 16.7
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 16,
+      "totalMs": 152.3,
+      "maxMs": 29.6
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "after-medium-deathmatch",
+   "measuredAt": "2026-10-01T13:54:27.496Z",
+   "quality": "medium",
+   "mode": "deathmatch",
+   "seconds": 286,
+   "headless": true,
+   "menuMs": 1173,
+   "firstFrameMs": 6480,
+   "fps": 60.5,
+   "fpsByMinute": [
+    60.8,
+    60.6,
+    60.5,
+    60,
+    60.7
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "max": 383.2,
+   "low1": 34.8,
+   "over20": 52,
+   "over50": 11,
+   "frames": 17060,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.05,
+    "interaction": 0.02,
+    "avatars": 0.78,
+    "camera": 0.01,
+    "world-update": 0.09,
+    "weapon-view": 0.11,
+    "effects": 0.05,
+    "texture-upload": 0.03,
+    "first-person-draw": 0.17,
+    "world-draw": 3.04,
+    "render": 4.21,
+    "hud": 0.24,
+    "snapshot": 0.02,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0
+   },
+   "workerTickMs": 1.06,
+   "longTasks": 7,
+   "heapMB": [
+    213.5,
+    343.3
+   ],
+   "draws": 143,
+   "triangles": 1433047,
+   "density": {
+    "mean": 0.67,
+    "min": 0.6,
+    "max": 1.25
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "0": 7,
+    "1": 151,
+    "2": 101
+   },
+   "load": 6.87,
+   "stages": {
+    "ground": 259
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 293,
+     "fps": 60.5,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 16,
+      "totalMs": 24.7,
+      "maxMs": 3.2
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 1.7,
+      "maxMs": 1.7
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 13,
+      "totalMs": 60.1,
+      "maxMs": 12.7
+     },
+     "MajorGC": null
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "before-high-battle-royale",
+   "measuredAt": "2026-10-01T14:07:24.230Z",
+   "quality": "high",
+   "mode": "battle-royale",
+   "seconds": 183,
+   "headless": true,
+   "menuMs": 1265,
+   "firstFrameMs": 6520,
+   "fps": 28.8,
+   "fpsByMinute": [
+    25.4,
+    26.1,
+    31.7,
+    37.7
+   ],
+   "p50": 33.3,
+   "p95": 66.6,
+   "p99": 66.8,
+   "max": 233.3,
+   "low1": 10.3,
+   "over20": 4376,
+   "over50": 413,
+   "frames": 5086,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "snapshot": 0.07,
+    "audio": 0.13,
+    "interaction": 0.01,
+    "camera": 0.17,
+    "texture-upload": 0.05,
+    "world-draw": 5.02,
+    "render": 12.38,
+    "hud": 0.48,
+    "resolution-change": 0.04,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "camera-transition": 0,
+    "first-person-draw": 0.05
+   },
+   "workerTickMs": null,
+   "longTasks": 68,
+   "heapMB": [
+    237.1,
+    300.2
+   ],
+   "draws": 168,
+   "triangles": 1691661,
+   "density": null,
+   "buffer": [
+    2499,
+    1625
+   ],
+   "buffers": [
+    "2793x1816",
+    "2645x1720",
+    "2499x1625"
+   ],
+   "thermal": {
+    "1": 71,
+    "2": 95
+   },
+   "load": 7.13,
+   "stages": {
+    "parachute": 4,
+    "ground": 162
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 34.8,
+     "p95": 33.4
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 31,
+     "p95": 33.4
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 29,
+     "p95": 50.1
+    },
+    "parachute": {
+     "seconds": 7,
+     "fps": 26.5,
+     "p95": 50.1
+    },
+    "ground": {
+     "seconds": 179,
+     "fps": 28.7,
+     "p95": 66.6
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 25,
+     "p95": 50.1
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 41,
+      "totalMs": 72.8,
+      "maxMs": 10.1
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 15.5,
+      "maxMs": 15.5
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "before-high-deathmatch",
+   "measuredAt": "2026-10-01T13:24:52.363Z",
+   "quality": "high",
+   "mode": "deathmatch",
+   "seconds": 281,
+   "headless": true,
+   "menuMs": 1232,
+   "firstFrameMs": 8835,
+   "fps": 28.3,
+   "fpsByMinute": [
+    24.9,
+    27,
+    28.4,
+    30.2,
+    30.7
+   ],
+   "p50": 33.3,
+   "p95": 50.1,
+   "p99": 83.3,
+   "max": 416.7,
+   "low1": 7.8,
+   "over20": 6958,
+   "over50": 472,
+   "frames": 7721,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.16,
+    "interaction": 0.04,
+    "camera": 0.22,
+    "texture-upload": 0.13,
+    "first-person-draw": 0.36,
+    "world-draw": 7.03,
+    "render": 13.53,
+    "hud": 0.99,
+    "snapshot": 0.08,
+    "resolution-change": 0.06
+   },
+   "workerTickMs": null,
+   "longTasks": 137,
+   "heapMB": [
+    218.1,
+    322.5
+   ],
+   "draws": 166,
+   "triangles": 1664156,
+   "density": null,
+   "buffer": [
+    2499,
+    1625
+   ],
+   "buffers": [
+    "2940x1912",
+    "2793x1816",
+    "2645x1720",
+    "2499x1625"
+   ],
+   "thermal": {
+    "1": 98,
+    "2": 134
+   },
+   "load": 18.56,
+   "stages": {
+    "ground": 232
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 26.3,
+     "p95": 50.1
+    },
+    "ground": {
+     "seconds": 288,
+     "fps": 28.1,
+     "p95": 50.1
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 17,
+      "totalMs": 316.3,
+      "maxMs": 43.2
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 39.5,
+      "maxMs": 39.5
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 17,
+      "totalMs": 50.6,
+      "maxMs": 7.5
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 4.2,
+      "maxMs": 4.2
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "before-low-battle-royale",
+   "measuredAt": "2026-10-01T14:24:42.137Z",
+   "quality": "low",
+   "mode": "battle-royale",
+   "seconds": 209,
+   "headless": true,
+   "menuMs": 990,
+   "firstFrameMs": 4842,
+   "fps": 60.8,
+   "fpsByMinute": [
+    60.5,
+    60.8,
+    60.9,
+    60.9
+   ],
+   "p50": 16.7,
+   "p95": 16.7,
+   "p99": 16.8,
+   "max": 83.4,
+   "low1": 46.2,
+   "over20": 26,
+   "over50": 3,
+   "frames": 12526,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.07,
+    "interaction": 0,
+    "camera": 0.1,
+    "texture-upload": 0.03,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "world-draw": 3.19,
+    "shader-program-created": 0,
+    "render": 8.77,
+    "hud": 0.13,
+    "snapshot": 0.02,
+    "camera-transition": 0,
+    "first-person-draw": 0.02
+   },
+   "workerTickMs": null,
+   "longTasks": 2,
+   "heapMB": [
+    230.4,
+    386.1
+   ],
+   "draws": 120,
+   "triangles": 1140571,
+   "density": null,
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "1": 20,
+    "2": 177
+   },
+   "load": 4.54,
+   "stages": {
+    "parachute": 4,
+    "ground": 193
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.7
+    },
+    "plane": {
+     "seconds": 3,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 205,
+     "fps": 60.8,
+     "p95": 16.7
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 53.5,
+     "p95": 16.7
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 82,
+      "totalMs": 66.3,
+      "maxMs": 3.8
+     },
+     "MajorGC": {
+      "n": 3,
+      "totalMs": 11.1,
+      "maxMs": 5
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "before-low-deathmatch",
+   "measuredAt": "2026-10-01T14:15:39.493Z",
+   "quality": "low",
+   "mode": "deathmatch",
+   "seconds": 286,
+   "headless": true,
+   "menuMs": 910,
+   "firstFrameMs": 4707,
+   "fps": 60.6,
+   "fpsByMinute": [
+    60.7,
+    60.8,
+    60.6,
+    60.6,
+    60.5
+   ],
+   "p50": 16.7,
+   "p95": 16.8,
+   "p99": 16.8,
+   "max": 83.4,
+   "low1": 40.7,
+   "over20": 61,
+   "over50": 4,
+   "frames": 17107,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "audio": 0.04,
+    "interaction": 0.01,
+    "camera": 0.07,
+    "texture-upload": 0.03,
+    "first-person-draw": 0.14,
+    "world-draw": 2.66,
+    "render": 5.47,
+    "hud": 0.15,
+    "snapshot": 0.01
+   },
+   "workerTickMs": null,
+   "longTasks": 7,
+   "heapMB": [
+    212.3,
+    332.3
+   ],
+   "draws": 116,
+   "triangles": 1070117,
+   "density": null,
+   "buffer": [
+    1102,
+    717
+   ],
+   "buffers": [
+    "1102x717"
+   ],
+   "thermal": {
+    "0": 134,
+    "1": 82,
+    "2": 44
+   },
+   "load": 6.1,
+   "stages": {
+    "ground": 260
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 61,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 294,
+     "fps": 60.6,
+     "p95": 16.8
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 33,
+      "totalMs": 26.1,
+      "maxMs": 3
+     },
+     "MajorGC": {
+      "n": 3,
+      "totalMs": 14.5,
+      "maxMs": 6.4
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 30,
+      "totalMs": 27.2,
+      "maxMs": 2.4
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 11.6,
+      "maxMs": 7.2
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "before-medium-battle-royale",
+   "measuredAt": "2026-10-01T13:14:32.658Z",
+   "quality": "medium",
+   "mode": "battle-royale",
+   "seconds": 164,
+   "headless": true,
+   "menuMs": 1614,
+   "firstFrameMs": 7483,
+   "fps": 26.3,
+   "fpsByMinute": [
+    23.2,
+    26.9,
+    28.4
+   ],
+   "p50": 33.4,
+   "p95": 66.6,
+   "p99": 116.7,
+   "max": 966.7,
+   "low1": 4.1,
+   "over20": 3586,
+   "over50": 433,
+   "frames": 4198,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "snapshot": 0.25,
+    "audio": 0.25,
+    "interaction": 0.07,
+    "camera": 0.28,
+    "texture-upload": 0.19,
+    "world-draw": 11.23,
+    "render": 27.97,
+    "hud": 1.13,
+    "resolution-change": 0.06,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "camera-transition": 0,
+    "first-person-draw": 0.56
+   },
+   "workerTickMs": null,
+   "longTasks": 272,
+   "heapMB": [
+    234.5,
+    410.8
+   ],
+   "draws": 142,
+   "triangles": 1362810,
+   "density": null,
+   "buffer": [
+    2499,
+    1625
+   ],
+   "buffers": [
+    "2793x1816",
+    "2645x1720",
+    "2499x1625"
+   ],
+   "thermal": {
+    "1": 78,
+    "2": 43
+   },
+   "load": 23.68,
+   "stages": {
+    "parachute": 2,
+    "ground": 119
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 1,
+     "fps": 48.2,
+     "p95": 33.4
+    },
+    "plane": {
+     "seconds": 3,
+     "fps": 37.1,
+     "p95": 33.4
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 26.8,
+     "p95": 66.7
+    },
+    "parachute": {
+     "seconds": 5,
+     "fps": 23.7,
+     "p95": 66.7
+    },
+    "ground": {
+     "seconds": 162,
+     "fps": 26.3,
+     "p95": 66.7
+    },
+    "results": {
+     "seconds": 1,
+     "fps": 20,
+     "p95": 300
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 24,
+      "totalMs": 202,
+      "maxMs": 28.1
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 43,
+      "maxMs": 43
+     }
+    }
+   ]
+  },
+  {
+   "set": "sustained",
+   "run": "before-medium-deathmatch",
+   "measuredAt": "2026-10-01T13:49:16.416Z",
+   "quality": "medium",
+   "mode": "deathmatch",
+   "seconds": 283,
+   "headless": true,
+   "menuMs": 1124,
+   "firstFrameMs": 6120,
+   "fps": 36.1,
+   "fpsByMinute": [
+    46.2,
+    35.3,
+    32.5,
+    36.4,
+    30.5
+   ],
+   "p50": 33.3,
+   "p95": 33.4,
+   "p99": 50.1,
+   "max": 283.3,
+   "low1": 15.3,
+   "over20": 6455,
+   "over50": 117,
+   "frames": 9983,
+   "gpuMs": 0,
+   "gpuPasses": {},
+   "cpuMsPerFrame": {
+    "snapshot": 0.03,
+    "audio": 0.07,
+    "interaction": 0.02,
+    "camera": 0.11,
+    "texture-upload": 0.05,
+    "first-person-draw": 0.18,
+    "world-draw": 3.69,
+    "render": 7.35,
+    "hud": 0.34,
+    "resolution-change": 0.01
+   },
+   "workerTickMs": null,
+   "longTasks": 22,
+   "heapMB": [
+    215.1,
+    397.1
+   ],
+   "draws": 140,
+   "triangles": 1451860,
+   "density": null,
+   "buffer": [
+    2499,
+    1625
+   ],
+   "buffers": [
+    "2645x1720",
+    "2499x1625"
+   ],
+   "thermal": {
+    "0": 4,
+    "1": 57,
+    "2": 193
+   },
+   "load": 8.17,
+   "stages": {
+    "ground": 254
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 36.2,
+     "p95": 33.4
+    },
+    "ground": {
+     "seconds": 290,
+     "fps": 36.1,
+     "p95": 33.4
+    }
+   },
+   "errors": 0,
+   "gc": [
+    {
+     "at": 90,
+     "MinorGC": {
+      "n": 19,
+      "totalMs": 153,
+      "maxMs": 63.8
+     },
+     "MajorGC": {
+      "n": 2,
+      "totalMs": 15.1,
+      "maxMs": 12.9
+     }
+    },
+    {
+     "at": 240,
+     "MinorGC": {
+      "n": 19,
+      "totalMs": 85.8,
+      "maxMs": 18.8
+     },
+     "MajorGC": {
+      "n": 1,
+      "totalMs": 18.8,
+      "maxMs": 18.8
+     }
+    }
+   ]
+  }
+ ]
+}

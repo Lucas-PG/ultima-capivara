@@ -3,15 +3,20 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { MapObject, WorldSpec } from '../shared/types';
 
 const UP = new THREE.Vector3(0, 1, 0);
-const LABELS = ['PADARIA', 'CAFÉ DA VILA', 'ATELIÊ', 'PEIXE FRESCO', 'OFICINA', 'ARMAZÉM', 'BOM DIA', 'CAPIVARAS'];
+// Shop and wall panels (a 4 x 4 painted atlas). The first eight keep their slots.
+export const STREET_LABELS = ['PADARIA', 'CAFÉ DA VILA', 'ATELIÊ', 'PEIXE FRESCO', 'OFICINA', 'ARMAZÉM', 'BOM DIA', 'CAPIVARAS',
+  'FARMÁCIA', 'BAR DO ZÉ', 'SORVETES', 'BARBEARIA', 'AÇAÍ', 'PASTÉIS', 'CACHAÇA', 'SAPATARIA'];
+const LABELS = STREET_LABELS;
+// Bandeirinhas: the festa junina pennants strung across the streets.
+const FLAGS = ['#D8453A', '#F2C14E', '#3F9A5B', '#2F6DB5', '#EE8A3C', '#D95C9A', '#F4EEDC'];
 
 function paintedPanels() {
-  const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 512;
+  const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < LABELS.length; i++) {
     const x = i % 4 * 256, y = Math.floor(i / 4) * 256;
     ctx.save(); ctx.translate(x, y);
-    ctx.fillStyle = ['#F0D79E', '#6EA8A0', '#D78568', '#78AAA7'][i % 4];
+    ctx.fillStyle = ['#F0D79E', '#6EA8A0', '#D78568', '#78AAA7', '#E7C35A', '#8FB07A', '#C98AA0', '#E9A06A'][(i + Math.floor(i / 4)) % 8];
     ctx.beginPath(); ctx.roundRect(8, 55, 240, 150, 19); ctx.fill();
     ctx.strokeStyle = '#F8E9BF'; ctx.lineWidth = 6; ctx.stroke();
     // Translucent brush strokes and uneven borders retain a painted surface.
@@ -38,7 +43,7 @@ function paintedPanels() {
   return texture;
 }
 
-/** Small original street props, merged by material and cell. No gameplay solids. */
+/** Small original street props, merged by material and 96 m cell. No gameplay solids. */
 export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
   const group = new THREE.Group(); group.name = 'vida-das-ruas';
   const atlas = paintedPanels();
@@ -57,7 +62,8 @@ export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(values, 3));
     geometry.applyMatrix4(root);
-    const key = `${material}:${Math.floor(marker.pos.x / 48)}:${Math.floor(marker.pos.z / 48)}`;
+    // 96 m cells: a district's dressing is a handful of draws, still culled by quarter.
+    const key = `${material}:${Math.floor(marker.pos.x / 96)}:${Math.floor(marker.pos.z / 96)}`;
     const bucket = buckets.get(key) ?? { material, parts: [] }; bucket.parts.push(geometry); buckets.set(key, bucket);
   };
   const box = (x: number, y: number, z: number, w: number, h: number, d: number, color: string) =>
@@ -87,9 +93,11 @@ export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
   for (const object of world.objects) {
     if (!object.detail?.startsWith('prop:street-')) continue;
     marker = object;
-    root = new THREE.Matrix4().compose(new THREE.Vector3(object.pos.x, object.pos.y, object.pos.z),
-      new THREE.Quaternion().setFromAxisAngle(UP, object.rotation ?? 0), new THREE.Vector3(object.scale.x, object.scale.y, object.scale.z));
     const kind = object.detail.slice('prop:street-'.length);
+    // Spanning props read their length from scale.x and are built at unit scale.
+    const spans = kind.startsWith('wire:') || kind === 'line';
+    root = new THREE.Matrix4().compose(new THREE.Vector3(object.pos.x, object.pos.y, object.pos.z),
+      new THREE.Quaternion().setFromAxisAngle(UP, object.rotation ?? 0), spans ? new THREE.Vector3(1, 1, 1) : new THREE.Vector3(object.scale.x, object.scale.y, object.scale.z));
     if (kind === 'laundry') {
       for (const x of [-2.8, 2.8]) {
         beam([x, 0, 0], [x, 3.5, 0], .055, '#9A7051'); orb(x, 3.53, 0, .07, '#D8B889');
@@ -100,6 +108,42 @@ export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
         fabric(x, y - .39, 0, .62, .78, color, i);
         if (i % 2 === 0) for (const side of [-1, 1]) fabric(x + side * .35, y - .16, 0, .22, .28, color, i);
         for (const dx of [-.24, .24]) box(x + dx, y + .025, .035, .045, .13, .035, '#BC8956');
+      }
+    } else if (kind.startsWith('wire:')) {
+      // A cable strung wall to wall across a street, sagging under what it
+      // carries: one hanging lantern, a row of bulbs, or festa pennants.
+      const span = marker.scale.x, variant = kind.slice(5), sag = .22 + span * .035;
+      const cableY = (x: number) => -sag * (1 - (2 * x / span) ** 2);
+      cable(Array.from({ length: 9 }, (_, i) => { const x = (i / 8 - .5) * span; return [x, cableY(x), 0]; }), .011, '#3E3A34');
+      for (const end of [-1, 1]) box(end * (span / 2 - .04), 0, 0, .08, .08, .14, '#4A4640');
+      if (variant === 'lantern') {
+        beam([0, cableY(0), 0], [0, cableY(0) - .45, 0], .012, '#3E3A34');
+        box(0, cableY(0) - .6, 0, .22, .26, .22, '#E9D9A8');
+        add(new THREE.ConeGeometry(.2, .16, 4).rotateY(Math.PI / 4).translate(0, cableY(0) - .4, 0), '#3E3A34');
+        orb(0, cableY(0) - .6, 0, .07, '#FFE2A1', true);
+      } else if (variant === 'bulbs') {
+        for (let x = -span / 2 + .5; x < span / 2 - .3; x += .75) {
+          beam([x, cableY(x), 0], [x, cableY(x) - .14, 0], .01, '#3E3A34');
+          orb(x, cableY(x) - .19, 0, .055, '#FFE2A1', true);
+        }
+      } else {
+        let n = 0;
+        for (let x = -span / 2 + .3; x < span / 2 - .2; x += .36, n++) {
+          const y = cableY(x), flag = new THREE.BufferGeometry();
+          flag.setAttribute('position', new THREE.Float32BufferAttribute([-.14, y, 0, .14, y, 0, 0, y - .3, .01], 3));
+          flag.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, 1, .5, 0], 2));
+          flag.setIndex([0, 2, 1]); flag.computeVertexNormals(); add(flag, FLAGS[(n * 3 + Math.round(span)) % FLAGS.length]);
+        }
+      }
+    } else if (kind === 'line') {
+      // Laundry pegged on a line strung across a beco, wall to wall.
+      const span = marker.scale.x, sag = .18 + span * .03;
+      const lineY = (x: number) => -sag * (1 - (2 * x / span) ** 2);
+      cable(Array.from({ length: 7 }, (_, i) => { const x = (i / 6 - .5) * span; return [x, lineY(x), 0]; }), .01, '#C4AB7B');
+      const pieces = Math.max(2, Math.floor(span / .75));
+      for (let i = 0; i < pieces; i++) {
+        const x = (i + .5 - pieces / 2) * span / pieces, color = ['#DF9475', '#EFE2B8', '#6EAAA1', '#D5B75B', '#859DB7', '#F4F1EA'][(i + Math.round(span * 3)) % 6];
+        fabric(x, lineY(x) - .34, 0, .5, .66, color, i);
       }
     } else if (kind === 'lights') {
       const span = 8.2;
@@ -153,7 +197,7 @@ export function createStreetDressing(world: Pick<WorldSpec, 'objects'>) {
       }
       const index = Math.max(0, LABELS.indexOf(kind.slice(kind.indexOf(':') + 1))), geometry = new THREE.PlaneGeometry(1.5, 1.5);
       const uv = geometry.getAttribute('uv');
-      for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + index % 4) / 4, (uv.getY(i) + 1 - Math.floor(index / 4)) / 2);
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + index % 4) / 4, (uv.getY(i) + 3 - Math.floor(index / 4)) / 4);
       add(geometry, '#FFFFFF', 2);
     } else if (kind === 'towel') {
       const cloth = new THREE.PlaneGeometry(.85, 1.7, 6, 9).rotateX(-Math.PI / 2), pos = cloth.getAttribute('position');

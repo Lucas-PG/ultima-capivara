@@ -1,0 +1,230 @@
+import { describe, expect, it, vi } from 'vitest';
+import { loadSettings } from '../src/settings';
+import { DynamicResolution, PRESET_DENSITY, outputDensity, renderRange, renderSize, type FrameSample } from '../src/render/resolution';
+
+const BUDGET = 1000 / 60;
+const frame = (intervalMs: number, extra: Partial<FrameSample> = {}): FrameSample => ({ intervalMs, budgetMs: BUDGET, cpuMs: 6, gpuMs: null, ...extra });
+const run = (controller: DynamicResolution, count: number, sample: FrameSample) => { for (let i = 0; i < count; i++) controller.update(sample); };
+
+describe('render range', () => {
+  it('keeps a 1x screen at native resolution on Medium and High, and never renders above the screen', () => {
+    expect(renderRange('medium', 'auto', 1).max).toBe(1);
+    expect(renderRange('high', 'auto', 1).max).toBe(1);
+    for (const graphics of ['low', 'medium', 'high'] as const) for (const ratio of [1, 1.5, 2, 3])
+      expect(renderRange(graphics, 'auto', ratio).max).toBeLessThanOrEqual(ratio);
+  });
+
+  it('spends fewer pixels on Retina than native (the Medium lag on a MacBook Air) and more on each richer preset', () => {
+    const low = renderRange('low', 'auto', 2), medium = renderRange('medium', 'auto', 2), high = renderRange('high', 'auto', 2);
+    expect(medium.max).toBeLessThan(2);
+    expect(low.max).toBeLessThan(medium.max); expect(medium.max).toBeLessThan(high.max);
+    for (const range of [low, medium, high]) { expect(range.dynamic).toBe(true); expect(range.min).toBeLessThan(range.max); }
+  });
+
+  it('honours a fixed share of native resolution exactly, without dynamic changes', () => {
+    expect(renderRange('medium', 1, 2)).toEqual({ min: 2, max: 2, dynamic: false });
+    expect(renderRange('low', .5, 2)).toEqual({ min: 1, max: 1, dynamic: false });
+    expect(renderRange('high', .75, 1)).toEqual({ min: .75, max: .75, dynamic: false });
+  });
+
+  it('upscales Medium and High into a native canvas, while Low skips that pass and lets the browser stretch its canvas', () => {
+    expect(outputDensity('medium', renderRange('medium', 'auto', 2), 2)).toBe(2);
+    expect(outputDensity('high', renderRange('high', .5, 2), 2)).toBe(2);
+    expect(outputDensity('low', renderRange('low', 'auto', 2), 2)).toBe(.75);
+    expect(outputDensity('low', renderRange('low', 1, 2), 2)).toBe(2);
+  });
+
+  it('keeps each preset range ordered and sizes in whole pixels', () => {
+    for (const range of Object.values(PRESET_DENSITY)) expect(range.min).toBeLessThan(range.max);
+    expect(renderSize(1470, 956, 1.25)).toEqual({ width: 1838, height: 1195 });
+    expect(renderSize(0, 0, 1)).toEqual({ width: 1, height: 1 });
+  });
+});
+
+describe('dynamic resolution', () => {
+  it('ignores an isolated stall, which a lower resolution would not have prevented', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    run(controller, 60, frame(BUDGET)); controller.update(frame(250)); run(controller, 60, frame(BUDGET));
+    expect(controller.density).toBe(1.25);
+  });
+
+  it('reacts within half a second when every frame misses, even far below the budget (the 18 fps case)', () => {
+    // The previous controller ignored frames longer than 2.6 budgets, so a Retina Medium at 50 ms never scaled down.
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    let changedAfter = -1;
+    for (let i = 0; i < 60 && changedAfter < 0; i++) if (controller.update(frame(50))) changedAfter = i;
+    expect(changedAfter).toBeGreaterThanOrEqual(0); expect(changedAfter).toBeLessThan(30);
+    expect(controller.density).toBeLessThan(1.25);
+    run(controller, 600, frame(50));
+    expect(controller.density).toBe(renderRange('medium', 'auto', 2).min);
+  });
+
+  it('reaches the density whose GPU time fits the budget within about two seconds when timer queries exist', () => {
+    const controller = new DynamicResolution(renderRange('high', 'auto', 2));
+    // 30 ms of GPU at 2: the pixels that fit 80 percent of 16.7 ms are (13.3 / 30) of them.
+    run(controller, 60, frame(33.3, { gpuMs: 30 }));
+    expect(controller.density).toBeLessThan(2 * Math.sqrt(13.4 / 30) + .051);
+    expect(controller.density).toBeGreaterThanOrEqual(.75);
+  });
+
+  it('does not blur the image when the main thread, not the GPU, is late', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    run(controller, 300, frame(33.3, { cpuMs: 24 }));
+    expect(controller.density).toBe(1.25);
+  });
+
+  it('does not count frames stalled on the main thread, even in a burst (a swapping laptop)', () => {
+    // Live Medium on an 8 GB laptop deep in swap: bursts of 80 to 250 ms frames whose own draw
+    // submission took 50 to 180 ms each sent the density from 1.25 to 0.75 for twenty seconds.
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    for (let burst = 0; burst < 5; burst++) {
+      run(controller, 120, frame(BUDGET));
+      for (let i = 0; i < 8; i++) { controller.update(frame(150, { cpuMs: 140 })); controller.update(frame(BUDGET)); }
+    }
+    run(controller, 60, frame(BUDGET));
+    expect(controller.density).toBe(1.25);
+  });
+
+  it('climbs back with headroom, guided by GPU time, without crossing the ceiling', () => {
+    const range = renderRange('medium', 'auto', 2), controller = new DynamicResolution(range);
+    run(controller, 120, frame(40, { gpuMs: 30 }));
+    const low = controller.density;
+    expect(low).toBeLessThan(range.max);
+    // Plenty of room: 6 ms of GPU at this density.
+    run(controller, 3000, frame(BUDGET, { gpuMs: 6 }));
+    expect(controller.density).toBe(range.max);
+  });
+
+  it('ignores one stray slow GPU sample (another app on the GPU) and the queries still in flight after a change', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    for (let i = 0; i < 300; i++) controller.update(frame(BUDGET, { gpuMs: i % 15 === 7 ? 40 : 9 }));
+    expect(controller.density).toBe(1.25);
+  });
+
+  it('stops the resolution breathing: a climb undone soon after doubles the wait before the next', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    run(controller, 60, frame(40));
+    const changes: number[] = [];
+    // The GPU fits only below the floor's next step: every climb fails.
+    for (let i = 0; i < 60 * 90; i++) {
+      const over = controller.density > .6 + 1e-6;
+      if (controller.update(frame(over ? 40 : BUDGET))) changes.push(i);
+    }
+    const gaps = changes.slice(1).map((at, i) => at - changes[i]).filter((_, i) => i % 2 === 1);
+    // Climb attempts space out: each wait at least as long as the one before, the last ones much longer.
+    expect(gaps.length).toBeGreaterThan(2);
+    expect(gaps.at(-1)!).toBeGreaterThan(gaps[0] * 3);
+  });
+
+  // A GPU whose frame costs `fixed` ms whatever the resolution plus `perPixel` ms per unit of density
+  // squared; a frame over the budget misses a refresh. Under the budget the timer reads what Apple's
+  // clock scaling shows (about 12 ms at any density), over it the real cost.
+  const simulate = (controller: DynamicResolution, seconds: number, fixed: number, perPixel: number) => {
+    let missed = 0, frames = 0;
+    for (let t = 0; t < seconds * 1000;) {
+      const cost = fixed + perPixel * controller.density ** 2, over = cost > BUDGET, interval = over ? BUDGET * 2 : BUDGET;
+      controller.update(frame(interval, { gpuMs: over ? cost : 12 })); t += interval; frames++; if (over) missed++;
+    }
+    return { missed, frames };
+  };
+  const fits = (fixed: number, perPixel: number) => Math.sqrt((BUDGET - fixed) / perPixel);
+
+  it('settles just under the density the GPU can draw, not at the floor, although the GPU time cannot tell', () => {
+    // Measured on the M2 at Medium: timer queries read 10 to 13 ms at every density from 0.6 to 1.15
+    // while a fixed 1.0 held 60 fps; the controller that trusted them sat at its 0.6 floor.
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    // A heavy moment (a smoke-filled fight) first sends it to the floor...
+    run(controller, 300, frame(40, { gpuMs: 30 }));
+    expect(controller.density).toBe(.6);
+    // ...then 9 ms that do not depend on resolution plus 6 that do: room up to about 1.13.
+    simulate(controller, 30, 9, 6);
+    const settled = simulate(controller, 120, 9, 6);
+    expect(controller.density).toBeGreaterThan(fits(9, 6) - .1); expect(controller.density).toBeLessThan(fits(9, 6));
+    // Trying the step above costs a few frames, less and less often: under half a percent missed.
+    expect(settled.missed / settled.frames).toBeLessThan(.005);
+    // A lighter scene later: the marked step is tried again, holds, and the climb goes on to the ceiling.
+    simulate(controller, 90, 5, 6);
+    expect(controller.density).toBe(1.25);
+  });
+
+  it('finds the highest density that fits on the way down from the ceiling and stays there', () => {
+    const controller = new DynamicResolution(renderRange('high', 'auto', 2));
+    simulate(controller, 30, 2, 9);
+    const settled = simulate(controller, 120, 2, 9);
+    expect(controller.density).toBeGreaterThan(fits(2, 9) - .1); expect(controller.density).toBeLessThan(fits(2, 9));
+    expect(settled.missed / settled.frames).toBeLessThan(.005);
+  });
+
+  it('steps down for a trickle of missed frames, too few for the quick reaction', () => {
+    // High near its limit in the live Correria: 2 to 7 frames a second missed at 1.25 without a drop.
+    const controller = new DynamicResolution(renderRange('high', 'auto', 2));
+    // A light scene first: it holds the ceiling. Then the view gets heavier without any burst of misses.
+    run(controller, 120, frame(BUDGET));
+    expect(controller.density).toBe(2);
+    let missed = 0, frames = 0;
+    for (let i = 0; i < 60 * 120; i++) {
+      // Above 1.1 one frame in ten misses; at 1.1 and below none do.
+      const miss = controller.density > 1.1 + 1e-6 && i % 10 === 0;
+      controller.update(frame(miss ? BUDGET * 2 : BUDGET)); frames++; if (miss && i > 60 * 60) missed++;
+    }
+    expect(controller.density).toBeCloseTo(1.1, 5);
+    // Over the last minute its probes of 1.15 cost under half a percent of frames.
+    expect(missed / (frames / 2)).toBeLessThan(.005);
+  });
+
+  it('probes upward without GPU timings and backs off after a failed probe', () => {
+    const range = renderRange('medium', 'auto', 2), controller = new DynamicResolution(range);
+    run(controller, 60, frame(40));
+    const low = controller.density;
+    // Steady frames: the first probe comes after 1.5 s, or 3 s when it tries the step it just dropped from.
+    let steps = 0; while (controller.density === low && steps < 1000) { controller.update(frame(BUDGET)); steps++; }
+    expect(steps * BUDGET).toBeGreaterThan(1400); expect(steps * BUDGET).toBeLessThan(3200);
+    // The probe misses: back down, and the next probe waits twice as long.
+    const probe = controller.density; let guard = 0;
+    while (controller.density === probe && guard++ < 100) controller.update(frame(40));
+    const back = controller.density; expect(back).toBeLessThan(probe);
+    steps = 0; while (controller.density === back && steps < 2000) { controller.update(frame(BUDGET)); steps++; }
+    expect(steps * BUDGET).toBeGreaterThan(2900);
+  });
+
+  it('never moves a fixed resolution', () => {
+    const controller = new DynamicResolution(renderRange('medium', 1, 2));
+    run(controller, 600, frame(60, { gpuMs: 50 }));
+    expect(controller.density).toBe(2);
+  });
+
+  it('reports a machine the preset is too rich for only after the floor density keeps missing for about 15 s', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    // 40 ms frames: 25 a second. About 7 s at the floor is not yet a verdict.
+    run(controller, 25 * 8, frame(40));
+    expect(controller.density).toBe(.6); expect(controller.overloaded).toBe(false);
+    run(controller, 25 * 12, frame(40));
+    expect(controller.overloaded).toBe(true);
+    // A main thread that is the bottleneck never asks for a lighter preset.
+    const cpu = new DynamicResolution(renderRange('medium', 'auto', 2));
+    run(cpu, 60 * 30, frame(40, { cpuMs: 30 }));
+    expect(cpu.overloaded).toBe(false);
+    // Short bursts with recovery in between do not add up to an overload.
+    const bursts = new DynamicResolution(renderRange('medium', 'auto', 2));
+    for (let i = 0; i < 30; i++) { run(bursts, 25, frame(40)); run(bursts, 180, frame(BUDGET)); }
+    expect(bursts.overloaded).toBe(false);
+  });
+
+  it('restarts at the ceiling when the range changes', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    run(controller, 300, frame(50));
+    controller.reset(renderRange('high', 'auto', 2));
+    expect(controller.density).toBe(2);
+  });
+});
+
+describe('render scale setting', () => {
+  it('loads a saved 3D resolution and the player choice flag, and falls back to automatic', () => {
+    const store = new Map([['uc-v2-settings', JSON.stringify({ renderScale: .75, graphicsChosen: true })]]);
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key) ?? null, setItem: () => {} });
+    expect(loadSettings()).toMatchObject({ renderScale: .75, graphicsChosen: true });
+    store.set('uc-v2-settings', JSON.stringify({ renderScale: 2, graphicsChosen: 'yes' }));
+    expect(loadSettings()).toMatchObject({ renderScale: 'auto', graphicsChosen: false });
+    vi.unstubAllGlobals();
+  });
+});

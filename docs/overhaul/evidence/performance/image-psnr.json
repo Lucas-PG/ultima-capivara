@@ -1,0 +1,161 @@
+{
+ "note": "PSNR in dB against the old build at native density (2940x1912). nativeOldVsNew: the new build forced to native density, the same resolution as before. nativeOldVsDefault: the new build at its shipped default (Medium renders at 1.25 render pixels per CSS pixel and upscales; High climbs to native). The fight view differs by its random particles. finalDefault: the final build at its shipped default (Medium at its 1.25 ceiling, High at native) against the old build at native, the captures behind the boards. finalMediumFloor: the final build at Medium floor density 0.6 (boards/floor-*).",
+ "rows": [
+  {
+   "capture": "high-ads-dmr",
+   "nativeOldVsNew": 55.8086,
+   "nativeOldVsDefault": 55.8086,
+   "finalDefault": 53.81
+  },
+  {
+   "capture": "high-crowd",
+   "nativeOldVsNew": 49.169,
+   "nativeOldVsDefault": 49.169,
+   "finalDefault": 49.17
+  },
+  {
+   "capture": "high-fight",
+   "nativeOldVsNew": 25.3637,
+   "nativeOldVsDefault": 25.8044,
+   "finalDefault": 26.26
+  },
+  {
+   "capture": "high-fp-m4",
+   "nativeOldVsNew": 49.4701,
+   "nativeOldVsDefault": 49.4701,
+   "finalDefault": 49.47
+  },
+  {
+   "capture": "high-fp-machete",
+   "nativeOldVsNew": 49.0693,
+   "nativeOldVsDefault": 49.0693,
+   "finalDefault": 49.07
+  },
+  {
+   "capture": "high-fp-pistol",
+   "nativeOldVsNew": 48.934,
+   "nativeOldVsDefault": 48.934,
+   "finalDefault": 48.93
+  },
+  {
+   "capture": "high-fp-shotgun",
+   "nativeOldVsNew": 49.6503,
+   "nativeOldVsDefault": 49.6503,
+   "finalDefault": 49.65
+  },
+  {
+   "capture": "high-harbour",
+   "nativeOldVsNew": 53.2117,
+   "nativeOldVsDefault": 53.2117,
+   "finalDefault": 53.21
+  },
+  {
+   "capture": "high-morro",
+   "nativeOldVsNew": 51.8376,
+   "nativeOldVsDefault": 51.8376,
+   "finalDefault": 51.84
+  },
+  {
+   "capture": "high-plane",
+   "nativeOldVsNew": 47.7266,
+   "nativeOldVsDefault": 47.7266,
+   "finalDefault": 47.73
+  },
+  {
+   "capture": "high-plaza",
+   "nativeOldVsNew": 51.0954,
+   "nativeOldVsDefault": 51.0954,
+   "finalDefault": 51.1
+  },
+  {
+   "capture": "high-street",
+   "nativeOldVsNew": 48.9485,
+   "nativeOldVsDefault": 48.9485,
+   "finalDefault": 48.95
+  },
+  {
+   "capture": "medium-ads-dmr",
+   "nativeOldVsNew": 56.0745,
+   "nativeOldVsDefault": 34.741,
+   "finalDefault": 34.81,
+   "finalMediumFloor": 31.49
+  },
+  {
+   "capture": "medium-crowd",
+   "nativeOldVsNew": 49.2745,
+   "nativeOldVsDefault": 32.4,
+   "finalDefault": 32.49,
+   "finalMediumFloor": 28.52
+  },
+  {
+   "capture": "medium-fight",
+   "nativeOldVsNew": 25.406,
+   "nativeOldVsDefault": 24.3778,
+   "finalDefault": 23.91,
+   "finalMediumFloor": 24.53
+  },
+  {
+   "capture": "medium-fp-m4",
+   "nativeOldVsNew": 49.4483,
+   "nativeOldVsDefault": 33.1821,
+   "finalDefault": 33.26,
+   "finalMediumFloor": 29.59
+  },
+  {
+   "capture": "medium-fp-machete",
+   "nativeOldVsNew": 49.0665,
+   "nativeOldVsDefault": 33.4341,
+   "finalDefault": 33.51,
+   "finalMediumFloor": 29.62
+  },
+  {
+   "capture": "medium-fp-pistol",
+   "nativeOldVsNew": 48.8833,
+   "nativeOldVsDefault": 33.4931,
+   "finalDefault": 33.56,
+   "finalMediumFloor": 29.62
+  },
+  {
+   "capture": "medium-fp-shotgun",
+   "nativeOldVsNew": 49.4225,
+   "nativeOldVsDefault": 33.428,
+   "finalDefault": 33.51,
+   "finalMediumFloor": 29.7
+  },
+  {
+   "capture": "medium-harbour",
+   "nativeOldVsNew": 53.0074,
+   "nativeOldVsDefault": 33.8496,
+   "finalDefault": 33.93,
+   "finalMediumFloor": 29.54
+  },
+  {
+   "capture": "medium-morro",
+   "nativeOldVsNew": 52.0018,
+   "nativeOldVsDefault": 33.7345,
+   "finalDefault": 33.81,
+   "finalMediumFloor": 29.54
+  },
+  {
+   "capture": "medium-plane",
+   "nativeOldVsNew": 47.5326,
+   "nativeOldVsDefault": 30.8218,
+   "finalDefault": 30.9,
+   "finalMediumFloor": 26.94
+  },
+  {
+   "capture": "medium-plaza",
+   "nativeOldVsNew": 50.9648,
+   "nativeOldVsDefault": 35.0339,
+   "finalDefault": 35.12,
+   "finalMediumFloor": 30.77
+  },
+  {
+   "capture": "medium-street",
+   "nativeOldVsNew": 48.9232,
+   "nativeOldVsDefault": 33.4738,
+   "finalDefault": 33.55,
+   "finalMediumFloor": 29.62
+  }
+ ]
+}

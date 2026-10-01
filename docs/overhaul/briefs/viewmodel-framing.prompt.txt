@@ -1,0 +1,57 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant / Apex, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with Google Chrome. Read docs/overhaul/final-overhaul-report.md, docs/overhaul/fp-arms-report.md, docs/overhaul/fp-arms-research.md, docs/overhaul/guns-long-report.md and docs/overhaul/guns-short-report.md before you start.
+
+ROLE AND SCOPE
+You own how the nine weapons are held in first person: pistol, revolver (Trinta-e-oito), SMG (Canarinho), M4, Doze (pump shotgun), Carabina (scoped DMR), sniper (bolt action), Lanca-coco (coconut launcher) and Facao (machete). The weapon models and liveries are final and the user likes them: do not change how the guns themselves look. Change how they are held and framed.
+
+The user, in their words: "we're holding our guns in very weird positions, which aren't at all how they look" in professional games; "I just want to make sure that all of the gun holding is as professional and as high quality as it can be. Review them based on his research on professional games like Apex and Call of Duty." Research those games (and any others you find useful, for example Valorant, Overwatch 2, Battlefield, Titanfall 2, Destiny 2, Halo Infinite) and mimic how they hold and frame weapons as closely as you can, adapted to capybara paws.
+
+WHAT IS WRONG NOW (the director's review, with captures in ~/capivara-agent/refs/)
+- m4-view.jpg: the M4 at the hip covers about a third of the screen (about a tenth in the old M1 build), its barrel points across the screen toward the centre with a strong tilt, and the support forearm crosses the whole lower view diagonally; aimed, the support forearm covers a large part of the lower left.
+- fp-sheet.jpg and ads-sheet.jpg: all nine weapons at the hip and aimed on the current build. Assume the other weapons share the same problems until you have checked each one.
+- The first-person arms were just rebuilt from the third-person character's own paw at 1/1.3 scale (the paw is about 1.4 times the old first-person paw, with a thick furred forearm), and the hip framing was tuned for the old, smaller paws.
+
+RESEARCH FIRST
+Before changing anything, research and write docs/overhaul/viewmodel-research.md with sources: developer talks (for example GDC talks on first-person weapon animation and viewmodels), animator breakdowns and reels, official gameplay footage and trailers, and articles on viewmodel field of view conventions. For each weapon class (pistol and revolver held two-handed, SMG, assault rifle, pump shotgun, scoped DMR, bolt sniper, launcher, melee) record the conventions as numbers you can match:
+- where the weapon sits on screen at the hip (the muzzle, the sight or optic, the grip, the support hand, where the arms leave the screen edges);
+- its yaw, pitch and roll relative to the view direction (mostly pointing forward, a small inward yaw, a slight cant);
+- how much of the screen the weapon and arms cover at the hip;
+- the aimed picture (sight centred at the eye, what stays visible, how little the arms cover);
+- sprint (and tactical sprint), walk and strafe sway, crouch, jump and land, firing kick and recovery, reload and inspect readability, draw and holster;
+- how much of the hands and forearms show, and how stylized games treat big or non-human hands.
+To view stills you may download frames or screenshots into ~/capivara-agent/refs/research/ for private reference only: never put third-party images in the repository, never ship them, and cite the sources in the research document.
+
+WHAT TO DELIVER
+1. A written target composition per weapon class, from the research (numbers: screen positions, angles, coverage).
+2. Re-framed poses for all nine weapons in every state: hip idle, aimed, walk, strafe, sprint, crouch, jump and land, firing (kick and recovery), draw and holster, inspect and every reload (empty and tactical magazine swaps, the revolver crane, ejector and speedloader, shell-by-shell shotgun loading, the bolt cycle, the coconut hopper, machete swings and the chop). The key data lives in src/render/viewmodel-specs.ts (framing per weapon and state), src/render/viewmodel-choreo.ts and src/render/viewmodel-anims.ts (motion, reloads, inspects), src/render/fp-grips.json (paw grips in weapon space), src/render/fp-arms.ts (the arm rig and IK) and src/render/weapons.ts (the viewmodel lens and rendering).
+3. Keep the anatomy rules that took several review rounds to get right: the support paw wraps the handguard or fore-end from the lower left near the base of the barrel, palm against the side, thumb along the upper edge pointing forward, digits forward and curling under (tips 250 to 340 degrees around the bore); never the flat fingers-up side grip; the firing paw shows its back to the eye at the hip with the index on the trigger and the other digits round the grip; the pistol and revolver are two-handed with the support paw cupping the firing paw from below-left; reload contacts follow the moving part.
+4. The arms may be slimmed for first person if the research supports it (many games use first-person-only arms), but they must still read as the character's arms (fur, colours, rolled linen cuff). If that needs a Blender rebuild of the arms (tools/blender/fp_arms.py, node tools/blender/build-fp.mjs arms), run Blender here on this machine with BLENDER_BIN=$HOME/blender/blender-5.0.1-linux-x64/blender.
+5. A "Tamanho da arma" setting (weapon size or viewmodel field of view) in the settings screen, in pt-BR like the other options (the controls model in src/controls.ts, settings in src/settings.ts, the screen in src/ui/ui.ts), persisted and tested. The default is your researched framing.
+6. Clearances: the grips are measured, not eyeballed. Use tools/qa/grip-probe.mjs, tools/qa/grip-fit.mjs, tools/qa/fp-clearance.mjs, tools/qa/vmall.mjs, tools/qa/vmmotion.mjs and tools/qa/capture.mjs (fp-* and ads-* poses). Accept a pose only at a worst paw-to-gun clearance of -0.5 mm or better over all sampled poses, with no arm through the camera's near plane and plausible elbows, and only after looking at it from the eye and from both sides.
+7. Third person: src/render/fp-grips.json is shared with the third-person holds (drawn at TP_WEAPON_SCALE 1.3 in src/render/capybara.ts). Prefer changing the camera-relative framing and the arm targets over the paw-on-gun contacts. If you change a grip contact, re-check the third-person holds of every affected weapon from two angles (tools/qa/charshots.mjs with the weapon option) and keep them correct.
+8. Evidence in docs/overhaul/evidence/viewmodel/: for every weapon, before and after boards at the hip, aimed, sprinting, in reload key frames and in the inspect, from the same cameras, at 1280x720 and at 1470x956. Show the target composition as overlay guides drawn on our own captures (do not put third-party images in the repository).
+
+TESTS AND QUALITY
+- Keep green: npx tsc --noEmit, npx vitest run (this machine has 16 threads; --maxWorkers=6 is fine), npm run build. Update tests/paw-asset.test.ts, the viewmodel tests and any framing test with intent: add tests for the new framing invariants (for example the hip coverage and the muzzle's screen position per weapon, the aimed sight alignment, nothing inside the near plane, the new setting's range and persistence).
+- Judge from real renders at gameplay framing and reject mediocre results. Tests passing never substitutes for quality.
+
+ENVIRONMENT (this Linux build machine)
+- Repository clone: ~/ultima-capivara, your branch: viewmodel-framing (from overhaul/aaa-autonomous). The packages are installed. The git identity is set: commit in small logical steps.
+- Browser: Google Chrome stable at /usr/bin/google-chrome-stable; Playwright uses it through channel "chrome". The QA tools pass --use-gl=angle --use-angle=metal, which only exists on macOS: see ~/capivara-agent/start-prompt.txt for the flags verified on this machine and adapt the tools minimally (a platform check), without changing what they do on macOS.
+- Rendering here goes through Mesa on an AMD Radeon RX 9060 XT, so colours can differ slightly from the Mac where the game is reviewed: judge positions, angles and poses, not colours. The orchestrator redoes the final visual checks on the Mac after merging.
+- Dev server: cd ~/ultima-capivara && VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port 5175, in the background; QA tools take BASE=http://127.0.0.1:5175. Run at most two browsers at a time and stop servers and browsers when not in use.
+- Work only in ~/ultima-capivara and ~/capivara-agent. No sudo, no system package installs, no changes to this machine's global configuration.
+
+COORDINATION
+A performance agent works in parallel on the Mac, on src/render/pipeline.ts, src/render/renderer.ts (resolution and dynamic resolution), a new src/render/resolution.ts, tests/visual/qa-hook.ts, tools/qa/pass-bench.mjs and the perf tools, and on new graphics settings (render resolution, maybe automatic quality). Avoid editing those files. If a framing change truly needs the renderer (for example the first-person lens), keep it minimal and list it in your report for the merge.
+
+RULES
+- Never use the em dash character anywhere: code, docs, commit messages.
+- Commit messages carry no co-author or agent lines.
+- Never push, never open pull requests, never deploy: this clone has no remote; the orchestrator fetches your branch over SSH when you are done.
+- Never spend money, create accounts or access personal apps or data.
+- This is a headless run: do not end your turn while background work is running. Run long commands in the foreground with a timeout, or poll them within the same turn. Keep each background job's PID (job & pid=$!) and poll kill -0 $pid; never pgrep -f a string that appears in your own loop's command line.
+- If a usage limit cuts you off, a supervisor resumes this same session after the reset: carry on from where you stopped, so commit finished pieces often.
+
+FINISH
+Write docs/overhaul/viewmodel-framing-report.md (the research summary, the target compositions, what changed per weapon and why, before and after boards, clearances per weapon, the new setting, tests, files touched outside the viewmodel, known issues) and commit it. Then write a short summary, under 200 words, to ~/capivara-agent/DONE: the supervisor stops when that file exists.

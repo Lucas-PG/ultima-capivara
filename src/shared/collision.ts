@@ -6,6 +6,8 @@ import { waterAt } from './water';
 import { emoteInput } from './emotes';
 import { mudBathAt } from './recreation';
 import type { ActorState, Collider, InputFrame, Mode, Vec3, WorldSpec } from './types';
+import { sidearmIndex } from './inventory';
+import { HANDLING } from './weapons';
 
 const RADIUS = .32;
 const STEP = .45;
@@ -16,13 +18,16 @@ export const TRAMPOLINE_IMPULSE = 12;
 export const actorHeight = (actor: ActorState) => actor.crouch ? 1.3 : 1.8;
 // Standing eye sits in the head volume; crouched, the head centre drops to ~1.14 m.
 export const actorEye = (actor: ActorState) => actor.crouch ? 1.17 : 1.62;
+// Shot volumes of a standing capybara (facing -z): head sphere and a body cylinder
+// from the feet. Sized to the v4 model so every visible body part registers hits.
+export const STANDING_HIT_SHAPE = { headY: 1.6, headZ: -.07, headR: .29, bodyR: .335, bodyTop: 1.42 } as const;
 
 export function tryTrampoline(actor: ActorState, world: WorldSpec): boolean {
   if (!actor.alive || actor.stage !== 'ground' || !actor.grounded || actor.swimming) return false;
   const pad = world.trampolines?.find(p => Math.abs(actor.pos.y - p.y) <= .08 &&
     Math.hypot(actor.pos.x - p.x, actor.pos.z - p.z) <= p.radius);
   if (!pad) return false;
-  actor.velocity.y = pad.impulse; actor.grounded = false;
+  actor.velocity.y = pad.impulse; actor.grounded = false; actor.jumping = true;
   actor.bounceProtected = true; actor.bounceSeq++;
   actor.emote = null; actor.emoteUntil = 0; actor.soaking = false;
   return true;
@@ -96,6 +101,12 @@ export function clearSpawn(pos: Vec3, world: WorldSpec): boolean {
     pos.x + RADIUS <= c.min.x || pos.x - RADIUS >= c.max.x || pos.z + RADIUS <= c.min.z || pos.z - RADIUS >= c.max.z);
 }
 
+// Coyote time: a jump pressed within about 0.1 s of walking off an edge still
+// counts. Falling that briefly means vertical speed above -2.3 m/s (gravity 22);
+// an airborne phase that began with a jump or a bounce never qualifies.
+export const COYOTE_FALL_SPEED = 2.3;
+const coyote = (actor: ActorState) => !actor.jumping && actor.velocity.y <= 0 && actor.velocity.y > -COYOTE_FALL_SPEED;
+
 /** Shared host/client ground movement. The host remains authoritative. */
 export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec, dt: number, speedMultiplier = 1, mode?: Mode): ActorState {
   if (actor.stage !== 'ground' || !actor.alive || !Number.isFinite(dt) || dt <= 0) return actor;
@@ -105,12 +116,15 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
   actor.swimming = !!water && water.depth >= SWIM_DEPTH && p.y <= water.surfaceY - SWIM_DEPTH + .05;
   tryTrampoline(actor, world);
   actor.crouch = !actor.swimming && (actor.emote === 'sit' || actor.emote === 'chill' || input.crouch || (actor.crouch && !hasHeadroom(p, world, 1.8)));
-  actor.sprint = !actor.swimming && input.sprint && !actor.crouch && !input.ads && input.moveZ > 0;
+  // Pulling the trigger ends a sprint; the gun then comes up (HANDLING.sprintOut) before it fires.
+  actor.sprint = !actor.swimming && input.sprint && !actor.crouch && !input.ads && !input.fire && input.moveZ > 0;
   actor.ads = !actor.swimming && input.ads;
   actor.lean = actor.swimming || actor.sprint ? 0 : clamp(input.lean, -1, 1);
   const f = -Math.sin(actor.yaw), g = -Math.cos(actor.yaw), r = Math.cos(actor.yaw), s = -Math.sin(actor.yaw);
   const mx = clamp(input.moveX, -1, 1), mz = clamp(input.moveZ, -1, 1), length = Math.max(1, Math.hypot(mx, mz));
-  const speed = actor.swimming ? SWIM_SPEED : (actor.crouch ? 2.1 : actor.sprint ? 6.4 : input.ads ? 2.4 : 3.9) * clamp(speedMultiplier, .1, 2);
+  // Heavier guns move a little slower; each gun has its own aimed walking speed.
+  const held = actor.weapons[actor.slot]?.id, handling = held ? HANDLING[held] : undefined, heft = handling?.move ?? 1;
+  const speed = actor.swimming ? SWIM_SPEED : (actor.crouch ? 2.1 * heft : actor.sprint ? 6.4 * heft : input.ads ? 3.9 * (handling?.adsMove ?? .62) : 3.9 * heft) * clamp(speedMultiplier, .1, 2);
   let wantedX = (f * mz + r * mx) / length * speed, wantedZ = (g * mz + s * mx) / length * speed;
   const boundary = boundaryFeedback(p, world, mode);
   if (boundary) {
@@ -121,7 +135,7 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
   const alpha = 1 - Math.exp(-(actor.swimming ? 5 : actor.grounded ? 9 : 1.6) * dt);
   actor.velocity.x += (wantedX - actor.velocity.x) * alpha;
   actor.velocity.z += (wantedZ - actor.velocity.z) * alpha;
-  if (input.jump && actor.grounded && !actor.swimming) { actor.velocity.y = 7; actor.grounded = false; }
+  if (input.jump && !actor.swimming && (actor.grounded || coyote(actor))) { actor.velocity.y = 7; actor.grounded = false; actor.jumping = true; }
   p.x += actor.velocity.x * dt; p.z += actor.velocity.z * dt;
   const height = actorHeight(actor);
   const grid = colliderGrid(world);
@@ -154,11 +168,11 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     p.y = Math.max(ground, nextWater.surfaceY - SWIM_DRAFT); actor.velocity.y = 0; actor.grounded = false;
     actor.crouch = actor.sprint = actor.ads = false; actor.lean = 0;
     actor.emote = null; actor.emoteUntil = 0;
-    const pistol = actor.weapons.findIndex(w => w.id === 'pistol');
+    const pistol = sidearmIndex(actor.weapons);
     if (pistol >= 0 && actor.slot !== pistol) { actor.slot = pistol; actor.reloadUntil = 0; actor.shotHeat = 0; }
   } else if (p.y <= ground) { p.y = ground; actor.velocity.y = 0; actor.grounded = true; }
   else actor.grounded = false;
-  if (actor.grounded || actor.swimming) actor.bounceProtected = false;
+  if (actor.grounded || actor.swimming) { actor.bounceProtected = false; actor.jumping = false; }
   tryTrampoline(actor, world);
   if (actor.soaking && (!actor.grounded || actor.swimming ||
     actor.emote !== 'sit' && actor.emote !== 'chill' || !mudBathAt(p, world))) actor.soaking = false;

@@ -14,7 +14,7 @@ function match() {
   const runtime = sim as any, shooter = runtime.actors.get('a'), target = runtime.actors.get('b');
   const fire = (distance: number, weapon: WeaponId = 'pistol') => {
     shooter.state.pos = { x: 0, y, z: 0 }; target.state.pos = { x: 0, y, z: -distance };
-    shooter.state.weapons = [{ id: weapon, ammo: WEAPONS[weapon].magazine, reserve: 0, rarity: 0 }];
+    shooter.state.weapons = [{ id: weapon, ammo: WEAPONS[weapon].magazine, reserve: 0, rarity: 0, box: 0 }];
     shooter.state.slot = 0; shooter.nextShot = 0; shooter.wasFiring = false; target.history = [];
     runtime.fire(shooter, 0, undefined, { dir: { x: 0, y: 0, z: -1 }, cone: 0 });
   };
@@ -59,7 +59,7 @@ describe('authoritative longest successful ranged shot', () => {
   it('measures a projectile from its firing origin even after the shooter moves', () => {
     const { runtime, shooter, target, fire } = match();
     target.state.protectionUntil = 0;
-    fire(10, 'slingshot');
+    fire(10, 'coco');
     shooter.state.pos.x = 100;
     for (let i = 0; i < 30; i++) runtime.updateProjectiles();
     expect(target.state.hp).toBeLessThan(100);

@@ -1,10 +1,13 @@
 import * as THREE from 'three';
 import { applyCharacterStyle } from './materials';
-import { CAPY_BONES, WEAPON_MOUNT, buildCapybaraBody, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
+import { CAPY_BONES, buildCapybaraBody, setCapybaraViewDistance, holdWeapon, updateCapybaraBody, reactCapybara, resetCapybaraPose, capybaraIsDead, capybaraCorpseVisible, capybaraHeadTop, capybaraCrownHeight, celebrateCapybara } from './capybara';
 import { itemGeometry } from './item-geometry';
-import { worldWeaponMaterial } from './world-weapons';
-import { addEllipsoid } from './primitives';
+import { worldWeaponMaterial, worldM4PartGeometry, worldShortPartGeometries } from './world-weapons';
+import { isShortGun, type ShortGun, type WorldParts } from './short-world-parts';
+import { makeParachute } from './aircraft';
+import { assignShadowDepth } from './shadow-depth';
 import { WEAPONS } from '../shared/weapons';
+import { MELEE_SECONDS } from '../shared/weapon-presentation';
 import type { AvatarReaction } from './effects';
 import { Nameplate, nameplateFontSize, nameplateHit, stackNameplate } from './nameplates';
 import type { ActorState, WeaponId, WorldSpec } from '../shared/types';
@@ -16,6 +19,19 @@ interface Avatar {
   group: THREE.Group; body: THREE.SkinnedMesh; bones: THREE.Bone[]; weapon: THREE.Mesh;
   weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean; awaitingAlive: boolean; sawDead: boolean; celebrated: boolean; emoting: boolean;
   bounceAge: number;
+  strike: { time: number; side: number; heavy: boolean; count: number };
+  // Animation level of detail: frames since the skeleton was last posed and the time they covered.
+  poseAge: number; poseDt: number; posedWeapon?: WeaponId | null;
+}
+
+/** Frames between skeleton poses for a capybara (animation level of detail, as shipped shooters do
+ * for distant characters): every frame within 20 m and for the watched capybara, every second frame
+ * to 50 m, every third beyond, every fourth off screen (its shadow may still show). Its position
+ * and heading still move every frame. */
+export function animationInterval(distance: number, onScreen: boolean, viewed: boolean): number {
+  if (viewed) return 1;
+  if (!onScreen) return 4;
+  return distance < 20 ? 1 : distance < 50 ? 2 : 3;
 }
 export function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
@@ -31,15 +47,11 @@ export function avatar(color: string, name: string): Avatar {
   group.add(body);
   // The held weapon rides on the arms bone, so it aims with the paws.
   const weapon = new THREE.Mesh(new THREE.BufferGeometry(), worldWeaponMaterial());
-  weapon.position.copy(WEAPON_MOUNT); weapon.castShadow = true; bones[CAPY_BONES.arms].add(weapon);
-  const chute = new THREE.Group(); group.add(chute);
-  addEllipsoid(chute, '#e6c280', 0, 3.65, 0, 1.9, .32, 1.18);
-  for (const x of [-1.6, 1.6]) for (const z of [-.9, .9]) {
-    const start = new THREE.Vector3(x, 3.65, z), end = new THREE.Vector3(x * .15, 1.25, z * .15);
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), new THREE.LineBasicMaterial({ color: '#f7ebcd' })); chute.add(line);
-  }
+  weapon.castShadow = true; bones[CAPY_BONES.arms].add(weapon);
+  const chute = makeParachute(color); group.add(chute);
   const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
-  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false, bounceAge: Infinity };
+  return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false, bounceAge: Infinity,
+    strike: { time: MELEE_SECONDS, side: -1, heavy: false, count: 0 }, poseAge: Infinity, poseDt: 0 };
 }
 
 export class AvatarView {
@@ -48,6 +60,9 @@ export class AvatarView {
   private readonly ordered: Avatar[] = [];
   private readonly weapons = new Map<WeaponId | null, THREE.BufferGeometry>();
   private readonly distantWeapons = new Map<WeaponId, THREE.BufferGeometry>();
+  private readonly m4Body = worldM4PartGeometry('nearBody');
+  private readonly m4Magazine = worldM4PartGeometry('nearMag');
+  private readonly shortGuns = new Map<ShortGun, ReturnType<typeof worldShortPartGeometries>>();
   private readonly target = new THREE.Vector3();
   private cameraBlend = 0;
   private matchId: string | null = null;
@@ -56,9 +71,17 @@ export class AvatarView {
   private readonly forward = new THREE.Vector3();
   private readonly up = new THREE.Vector3();
   private readonly packed: Nameplate[] = [];
+  private readonly frustum = new THREE.Frustum();
+  private readonly viewProjection = new THREE.Matrix4();
+  private readonly bounds = new THREE.Sphere(new THREE.Vector3(), 1.6);
   resize(width: number, height: number) { this.width = Math.max(1, width); this.height = Math.max(1, height); }
   constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.PerspectiveCamera, private readonly world?: WorldSpec) {
     this.weapons.set(null, new THREE.BufferGeometry());
+    this.warmupWeapons.add(new THREE.Mesh(this.m4Body, worldWeaponMaterial()), new THREE.Mesh(this.m4Magazine, worldWeaponMaterial()));
+    for (const id of ['pistol', 'smg', 'revolver'] as const) {
+      const model = worldShortPartGeometries(id); this.shortGuns.set(id, model);
+      for (const geometry of [model.body, ...Object.values(model.parts).map(p => p.geometry)]) this.warmupWeapons.add(new THREE.Mesh(geometry, worldWeaponMaterial()));
+    }
     for (const id of Object.keys(WEAPONS) as WeaponId[]) {
       const geometry = itemGeometry('weapon', id); this.weapons.set(id, geometry);
       this.warmupWeapons.add(new THREE.Mesh(geometry, worldWeaponMaterial()));
@@ -72,18 +95,27 @@ export class AvatarView {
     for (const actor of actors) this.ensureAvatar(actor);
   }
   get(id: string) { return this.visuals.get(id); }
+  attack(id: string) {
+    const visual = this.visuals.get(id);
+    if (!visual || capybaraIsDead(visual.body)) return;
+    const strike = visual.strike;
+    strike.time = 0; strike.side *= -1; strike.count++; strike.heavy = strike.count % 3 === 0;
+  }
   react(id: string, reaction: AvatarReaction) {
     const visual = this.visuals.get(id);
     if (visual) {
       if (reaction.kind === 'death') visual.awaitingAlive = false;
       reactCapybara(visual.body, reaction);
+      // A flinch or a fall shows on the next frame, whatever the capybara's animation rate.
+      visual.poseAge = Infinity;
     }
   }
   respawn(id: string) {
     const visual = this.visuals.get(id);
     if (!visual) return;
-    resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = true;
+    resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = true; visual.poseAge = Infinity;
     visual.bounceAge = Infinity; visual.body.scale.setScalar(1);
+    visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
   }
   bounce(id: string) {
     const visual = this.visuals.get(id);
@@ -94,6 +126,9 @@ export class AvatarView {
     this.warmupWeapons.removeFromParent(); this.warmupWeapons.clear();
     this.weapons.forEach(geometry => geometry.dispose()); this.weapons.clear();
     this.distantWeapons.forEach(geometry => geometry.dispose()); this.distantWeapons.clear();
+    this.m4Body.dispose(); this.m4Magazine.dispose();
+    for (const model of this.shortGuns.values()) { model.body.dispose(); for (const part of Object.values(model.parts)) part.geometry.dispose(); }
+    this.shortGuns.clear();
   }
 
   private removeAvatar(id: string, visual: Avatar) {
@@ -115,7 +150,12 @@ export class AvatarView {
     if (visual && (visual.color !== actor.color || visual.name !== actor.name)) {
       this.removeAvatar(actor.id, visual); visual = undefined;
     }
-    if (!visual) { visual = avatar(actor.color, actor.name); visual.weapon.geometry.dispose(); visual.weapon.geometry = this.weapons.get(null)!; this.visuals.set(actor.id, visual); this.ordered.push(visual); this.scene.add(visual.group); }
+    if (!visual) {
+      visual = avatar(actor.color, actor.name); visual.weapon.geometry.dispose(); visual.weapon.geometry = this.weapons.get(null)!;
+      const mag = new THREE.Mesh(this.m4Magazine, worldWeaponMaterial()); mag.name = 'm4_mag'; mag.castShadow = true; mag.visible = false;
+      mag.position.set(0, .02, -.071); visual.weapon.add(mag);
+      this.visuals.set(actor.id, visual); this.ordered.push(visual); this.scene.add(visual.group); assignShadowDepth(visual.group);
+    }
     return visual;
   }
 
@@ -127,13 +167,15 @@ export class AvatarView {
     const matchId = frame.snapshot!.matchId;
     if (this.matchId !== null && this.matchId !== matchId) {
       for (const visual of this.ordered) {
-        resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = false; visual.celebrated = false;
+        resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = false; visual.celebrated = false; visual.poseAge = Infinity;
         visual.bounceAge = Infinity; visual.body.scale.setScalar(1);
+        visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
       }
     }
     this.matchId = matchId;
     const viewed = frame.spectateId || frame.playerId;
     this.camera.updateMatrixWorld(); this.camera.getWorldDirection(this.forward);
+    this.frustum.setFromProjectionMatrix(this.viewProjection.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));
     this.up.setFromMatrixColumn(this.camera.matrixWorld, 1);
     let aimed: Avatar | null = null, nearest = Infinity;
     for (const state of actors) {
@@ -147,7 +189,7 @@ export class AvatarView {
       }
       if (winner && !visual.celebrated) {
         // A deathmatch winner can be down when the clock ends; results are presentation only.
-        resetCapybaraPose(visual.body); celebrateCapybara(visual.body); visual.sawDead = false; visual.celebrated = true;
+        resetCapybaraPose(visual.body); celebrateCapybara(visual.body); visual.sawDead = false; visual.celebrated = true; visual.poseAge = Infinity;
       }
       if (!actor.alive && !winner && !visual.awaitingAlive) {
         visual.sawDead = true;
@@ -158,10 +200,11 @@ export class AvatarView {
         visual.awaitingAlive = false;
       }
       const dead = capybaraIsDead(visual.body);
-      // Everyone still in the plane rides inside it; the viewed capivara stays
-      // visible in third person and while the camera eases into its eyes.
+      // Everyone still in the plane rides inside it. Only your own body is hidden, and only while the camera sits in
+      // its eyes: a watched capybara is followed from over its shoulder, and the results orbit the champion.
+      const ownEyes = frame.playing && actor.id === viewed && viewed === frame.playerId && frame.snapshot!.phase !== 'results';
       visual.group.visible = dead ? capybaraCorpseVisible(visual.body) : (actor.alive || winner) && actor.stage !== 'plane' &&
-        (!frame.playing || actor.id !== viewed || actor.stage !== 'ground' || emoting || visual.emoting || this.cameraBlend > .35);
+        (!ownEyes || actor.stage !== 'ground' || emoting || visual.emoting || this.cameraBlend > .35);
       visual.emoting = !!emoting;
       const pos = actor.id === frame.playerId && frame.predicted ? frame.predicted : actor.pos;
       const target = this.target.copy(pos);
@@ -173,7 +216,37 @@ export class AvatarView {
       visual.bones[CAPY_BONES.armor].scale.setScalar(actor.armor > 0 ? 1 : .0001);
       visual.bones[CAPY_BONES.helmet].scale.setScalar(actor.helmet > 0 ? 1 : .0001);
       visual.chute.visible = !dead && actor.stage === 'parachute';
-      this.poseAvatar(visual, actor, frame.dt, simulationTime);
+      const held = actor.weapons[actor.slot]?.id || null;
+      const short = isShortGun(held) ? this.shortGuns.get(held)! : null;
+      if (held !== visual.weaponId) {
+        for (const part of Object.values((visual.weapon.userData.shortParts ?? {}) as WorldParts)) part.removeFromParent();
+        const parts: WorldParts = {}; visual.weapon.userData.shortParts = parts;
+        if (short) for (const [name, data] of Object.entries(short.parts)) {
+          const mesh = new THREE.Mesh(data.geometry, worldWeaponMaterial()); mesh.name = `${held}_${name}`; mesh.castShadow = true;
+          mesh.userData.rest = data.pivot; parts[name] = mesh; visual.weapon.add(mesh);
+        }
+      }
+      const weaponDistance = visual.group.position.distanceToSquared(this.camera.position);
+      setCapybaraViewDistance(visual.body, Math.sqrt(weaponDistance));
+      const distant = held ? this.distantWeapons.get(held)! : null;
+      const distantWeapon = distant && weaponDistance > (visual.weapon.geometry === distant ? 12 * 12 : 14 * 14);
+      visual.weapon.geometry = distantWeapon ? distant : short ? short.body : held === 'm4' ? this.m4Body : this.weapons.get(held)!;
+      visual.weapon.userData.shortPartsVisible = !distantWeapon;
+      for (const part of Object.values((visual.weapon.userData.shortParts ?? {}) as WorldParts)) {
+        part.position.copy(part.userData.rest); part.quaternion.identity(); part.visible = !distantWeapon;
+      }
+      const mag = visual.weapon.getObjectByName('m4_mag')!;
+      mag.visible = held === 'm4' && !distantWeapon; mag.position.set(0, .02, -.071); mag.quaternion.identity();
+      visual.weaponId = held;
+      visual.weapon.visible = !dead && !emoting && actor.stage === 'ground' && !!held;
+      this.bounds.center.copy(visual.group.position); this.bounds.center.y += 1;
+      const interval = animationInterval(Math.sqrt(weaponDistance), this.frustum.intersectsSphere(this.bounds), actor.id === viewed);
+      visual.poseDt += frame.dt;
+      // A held weapon change re-poses at once, so the paws never hold the previous gun's grip.
+      if (++visual.poseAge >= interval || held !== visual.posedWeapon) {
+        this.poseAvatar(visual, actor, visual.poseDt, simulationTime);
+        visual.poseAge = 0; visual.poseDt = 0; visual.posedWeapon = held;
+      }
       if (reducedMotion || dead || actor.swimming || actor.stage !== 'ground') visual.bounceAge = Infinity;
       visual.bounceAge += Math.max(0, Math.min(frame.dt, .05));
       const age = visual.bounceAge;
@@ -184,13 +257,6 @@ export class AvatarView {
       // presentation below it; position, capsule and the airborne clip stay intact.
       const width = 1 / Math.sqrt(stretch);
       visual.body.scale.set(width, stretch, width);
-      const held = actor.weapons[actor.slot]?.id || null;
-      const weaponDistance = visual.group.position.distanceToSquared(this.camera.position);
-      const distant = held ? this.distantWeapons.get(held)! : null;
-      const distantWeapon = distant && weaponDistance > (visual.weapon.geometry === distant ? 12 * 12 : 14 * 14);
-      visual.weapon.geometry = distantWeapon ? distant : this.weapons.get(held)!;
-      visual.weaponId = held;
-      visual.weapon.visible = !dead && !emoting && actor.stage === 'ground' && !!held;
       const plate = visual.plate, scale = visual.group.scale.y;
       plate.head.copy(visual.group.position);
       plate.head.x -= Math.sin(actor.yaw) * .04 * scale;
@@ -200,6 +266,8 @@ export class AvatarView {
       // The local kill event can beat the dead snapshot and the camera pullback.
       // Keep the corpse out of the camera until it has left the standing head.
       if (dead && frame.playing && actor.id === viewed && plate.distance < .5) visual.group.visible = false;
+      // A follow camera squeezed against a wall never renders the inside of the watched head.
+      if (!dead && frame.playing && actor.id === viewed && viewed !== frame.playerId && plate.distance < .7) visual.group.visible = false;
       visual.targetable = !dead && actor.alive && actor.id !== viewed && actor.stage === 'ground' && plate.distance <= 60;
       if (visual.targetable) {
         const hit = nameplateHit(this.camera.position, this.forward, actor, visual.group.position);
@@ -241,5 +309,9 @@ export class AvatarView {
   private poseAvatar(visual: Avatar, actor: ActorState, dt: number, simulationTime: number) {
     for (const bone of visual.bones) { bone.rotation.set(0, 0, 0); bone.position.copy(bone.userData.rest as THREE.Vector3); }
     updateCapybaraBody(visual.body, actor, dt, simulationTime);
+    if (!actor.alive || actor.weapons[actor.slot]?.id !== 'machete' || actor.stage !== 'ground' || (actor.emote && actor.emoteUntil > simulationTime)) {
+      visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
+    } else visual.strike.time = Math.min(MELEE_SECONDS, visual.strike.time + Math.max(0, dt));
+    holdWeapon(visual.body, visual.weapon, actor, simulationTime, visual.strike, dt);
   }
 }

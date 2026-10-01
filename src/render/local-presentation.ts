@@ -1,9 +1,13 @@
 import { clamp } from '../shared/math';
 import { WEAPONS } from '../shared/weapons';
+import { swimReady } from '../shared/inventory';
+import { MELEE_SECONDS } from '../shared/weapon-presentation';
 import type { ActorState, InputFrame, PlayerAction, RenderFrame, Vec3 } from '../shared/types';
 
 // These fields never enter snapshots, input messages or collision queries.
-export type PresentationFrame = RenderFrame & { localActor?: ActorState; simulationTime?: number };
+// frameBudgetMs: the cadence the game loop is holding now (60 fps in play, slower behind menus).
+// frameIntervalMs: the display time since the previous drawn frame (requestAnimationFrame timestamps).
+export type PresentationFrame = RenderFrame & { localActor?: ActorState; simulationTime?: number; frameBudgetMs?: number; frameIntervalMs?: number };
 const axes = ['x', 'y', 'z'] as const;
 const point = (): Vec3 => ({ x: 0, y: 0, z: 0 });
 
@@ -15,15 +19,17 @@ export class LocalPresentation {
   private identity = '';
   private actor: ActorState | undefined;
   private reloadIntent: { slot: number; until: number; expires: number } | undefined;
+  // A swap or a quick melee shows at once; the snapshot takes over when it agrees or the intent expires.
+  private slotIntent: { slot: number; expires: number } | undefined;
 
-  clear() { this.identity = ''; this.actor = undefined; this.reloadIntent = undefined; }
+  clear() { this.identity = ''; this.actor = undefined; this.reloadIntent = undefined; this.slotIntent = undefined; }
 
   private key(actor: ActorState) { return `${actor.id}:${actor.alive}:${actor.stage}`; }
   private reset(actor: ActorState) {
     this.identity = this.key(actor);
     Object.assign(this.previous, actor.pos); Object.assign(this.current, actor.pos);
     for (const axis of axes) this.error[axis] = 0;
-    this.reloadIntent = undefined;
+    this.reloadIntent = undefined; this.slotIntent = undefined;
   }
 
   // Called once per real prediction tick, never during the snapshot replay.
@@ -44,7 +50,13 @@ export class LocalPresentation {
   }
 
   action(action: PlayerAction, actor: ActorState, time: number) {
-    if (action.type === 'slot') this.reloadIntent = undefined;
+    if (action.type === 'slot' || action.type === 'melee') this.reloadIntent = undefined;
+    if (actor.alive && actor.stage === 'ground') {
+      const facao = actor.weapons.findIndex(w => WEAPONS[w.id].melee);
+      if (action.type === 'slot' && actor.weapons[action.slot] && (!actor.swimming || swimReady(actor.weapons[action.slot].id)))
+        this.slotIntent = { slot: action.slot, expires: time + .3 };
+      else if (action.type === 'melee' && facao >= 0 && !actor.swimming) this.slotIntent = { slot: facao, expires: time + MELEE_SECONDS };
+    }
     if (action.type !== 'reload' || !actor.alive || actor.stage !== 'ground' || actor.reloadUntil > time) return;
     const weapon = actor.weapons[actor.slot];
     if (!weapon || weapon.reserve <= 0 || weapon.ammo >= WEAPONS[weapon.id].magazine || !WEAPONS[weapon.id].reload) return;
@@ -64,8 +76,11 @@ export class LocalPresentation {
     this.actor.yaw = input.yaw; this.actor.pitch = input.pitch;
     const posing = !!actor.emote && actor.emoteUntil > time;
     this.actor.ads = !actor.swimming && !posing && input.ads;
-    this.actor.sprint = !actor.swimming && !posing && input.sprint && !actor.crouch && !input.ads && input.moveZ > 0;
+    this.actor.sprint = !actor.swimming && !posing && input.sprint && !actor.crouch && !input.ads && !input.fire && input.moveZ > 0;
     this.actor.lean = actor.swimming || posing || this.actor.sprint ? 0 : input.lean;
+    const slot = this.slotIntent;
+    if (slot && (time >= slot.expires || !actor.weapons[slot.slot])) this.slotIntent = undefined;
+    else if (slot) this.actor.slot = slot.slot;
     const intent = this.reloadIntent;
     if (intent && (intent.slot !== actor.slot || time >= intent.expires || actor.reloadUntil > time)) this.reloadIntent = undefined;
     else if (intent) this.actor.reloadUntil = intent.until;

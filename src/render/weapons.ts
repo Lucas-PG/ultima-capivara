@@ -1,470 +1,117 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
-import { PaintedWeaponSet, PAINTED_WEAPON_IDS, paintedWeaponsEnabled, type PaintedWeaponModel } from './painted-weapons';
-import { WEAPON_HIP_POSES, WEAPON_VIEW_FOV } from './weapon-framing';
+import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
+import { VIEW_SPECS, SHOULDERS, framedGrips, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
+import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
+import { WRIST_SOLVE } from './viewmodel-targets';
+import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS, LONG_INSPECTS } from './viewmodel-anims';
+import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import { damp } from '../shared/math';
 import { Spring } from './spring';
-import { PAINT } from './materials';
-import { advanceAds, WEAPONS } from '../shared/weapons';
-import { sampleMelee, smoothPose, weaponShotDuration,
+import { PAINT, SUN_DIRECTION } from './materials';
+import { RARITY } from '../shared/rarity';
+import { advanceAds, HANDLING, WEAPONS } from '../shared/weapons';
+import { sampleMelee, sampleHeavyMelee, smoothPose, weaponShotDuration,
   MELEE_SECONDS, MELEE_CONTACT, MELEE_HIT_STOP, type MeleePose } from '../shared/weapon-presentation';
 import type { ActorState, Settings, WeaponId } from '../shared/types';
+import { swimReady } from '../shared/inventory';
 
-const palette = {
-  // Painted local colours stay readable under the continuous warm key.
-  steel: new THREE.MeshStandardMaterial({ color: '#3c4648', metalness: .32, roughness: .5 }),
-  edge: new THREE.MeshStandardMaterial({ color: '#8c9794', metalness: .4, roughness: .42 }),
-  dark: new THREE.MeshStandardMaterial({ color: '#1d2523', metalness: .1, roughness: .72 }),
-  olive: new THREE.MeshStandardMaterial({ color: '#5c6b45', metalness: .05, roughness: .8 }),
-  wood: new THREE.MeshStandardMaterial({ color: '#b07a4b', roughness: .7 }),
-  walnut: new THREE.MeshStandardMaterial({ color: '#7d5637', roughness: .74 }),
-  brass: new THREE.MeshStandardMaterial({ color: '#e0b265', metalness: .35, roughness: .38 }),
-  shellRed: new THREE.MeshStandardMaterial({ color: '#c24635', metalness: .1, roughness: .56 }),
-  blue: new THREE.MeshStandardMaterial({ color: '#2e5d5f', metalness: .12, roughness: .66 }),
-  skin: new THREE.MeshStandardMaterial({ color: '#B8743A', roughness: .95 }),
-  skinLight: new THREE.MeshStandardMaterial({ color: '#D39A47', roughness: .95 }),
-  skinShade: new THREE.MeshStandardMaterial({ color: '#7A4424', roughness: .95 }),
-  sleeve: new THREE.MeshStandardMaterial({ color: '#3a9c98', roughness: .85 }),
-  cuff: new THREE.MeshStandardMaterial({ color: '#2c7773', roughness: .85 }),
-  tape: new THREE.MeshStandardMaterial({ color: '#e7d3a6', roughness: .9 }),
-  glove: new THREE.MeshStandardMaterial({ color: '#3b3f3a', roughness: .9 }),
-  nail: new THREE.MeshStandardMaterial({ color: '#3f3329', roughness: .7 }),
-  lens: new THREE.MeshPhysicalMaterial({ color: '#315766', metalness: .36, roughness: .08, clearcoat: 1 }),
-  scopeGlass: new THREE.MeshPhysicalMaterial({ color: '#adc2c3', metalness: .35, roughness: .055, clearcoat: 1, clearcoatRoughness: .04, side: THREE.DoubleSide }),
-  glass: new THREE.MeshBasicMaterial({ color: '#9fcdd0', transparent: true, opacity: .3, depthWrite: false }),
-  red: new THREE.MeshBasicMaterial({ color: '#e9754f' }),
-};
-function grain(seed: number, wood = false): THREE.DataTexture {
-  const size = 64, data = new Uint8Array(size * size * 4);
-  let state = seed;
-  const rand = () => { state = (Math.imul(state ^ state >>> 15, 1 | state) + 0x6d2b79f5) | 0; return (state >>> 0) / 4294967296; };
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const stripe = wood ? Math.sin(x * .72 + Math.sin(y * .14) * 3) * 9 : 0;
-    const light = Math.round(234 + stripe + (rand() - .5) * (wood ? 18 : 22));
-    const i = (y * size + x) * 4;
-    data[i] = Math.min(255, light); data[i + 1] = Math.min(255, light); data[i + 2] = Math.min(255, light); data[i + 3] = 255;
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.magFilter = THREE.LinearFilter; texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = true; texture.needsUpdate = true;
-  return texture;
-}
-function furTexture(): THREE.DataTexture {
-  const size = 128, data = new Uint8Array(size * size * 4);
-  let seed = 87124;
-  const random = () => { seed = Math.imul(seed, 1664525) + 1013904223 | 0; return (seed >>> 0) / 4294967296; };
-  const patches = Array.from({ length: 16 * 16 }, () => random() * 2 - 1);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const gx = x / 8, gy = y / 8, ix = Math.floor(gx), iy = Math.floor(gy);
-    const tx = gx - ix, ty = gy - iy;
-    const patch = (a: number, b: number) => patches[(b % 16) * 16 + a % 16];
-    const mottling = THREE.MathUtils.lerp(
-      THREE.MathUtils.lerp(patch(ix, iy), patch(ix + 1, iy), tx),
-      THREE.MathUtils.lerp(patch(ix, iy + 1), patch(ix + 1, iy + 1), tx), ty);
-    const shade = THREE.MathUtils.clamp(230 + mottling * 19 + (random() - .5) * 22, 190, 255);
-    const i = (y * size + x) * 4;
-    data[i] = shade; data[i + 1] = shade; data[i + 2] = shade; data[i + 3] = 255;
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  texture.colorSpace = THREE.SRGBColorSpace; texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.magFilter = THREE.LinearFilter; texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = true; texture.needsUpdate = true; return texture;
-}
-const furGrain = furTexture(), woodGrain = grain(33417, true), polymerGrain = grain(97531);
-function machinedFinish(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
-  const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#b6b8b3'; ctx.fillRect(0, 0, 512, 512);
-  let seed = 18671;
-  const rand = () => { seed = Math.imul(seed, 1664525) + 1013904223 | 0; return (seed >>> 0) / 4294967296; };
-  for (let i = 0; i < 2600; i++) {
-    ctx.strokeStyle = `rgba(${rand() > .65 ? '235,240,231' : '55,61,58'},${.03 + rand() * .13})`;
-    const x = rand() * 512, y = rand() * 512;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + rand() * 40, y + (rand() - .5) * 3); ctx.stroke();
-  }
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
-}
-const metalGrain = machinedFinish();
-function coatedLens(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  const gradient = ctx.createRadialGradient(51, 49, 3, 64, 64, 69);
-  gradient.addColorStop(0, '#223d42'); gradient.addColorStop(.27, '#142a2f');
-  gradient.addColorStop(.68, '#0b1d22'); gradient.addColorStop(.9, '#091316'); gradient.addColorStop(1, '#03090b');
-  ctx.fillStyle = gradient; ctx.fillRect(0, 0, 128, 128);
-  ctx.beginPath(); ctx.ellipse(46, 34, 30, 10, -.36, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(105,151,156,.18)'; ctx.fill();
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
-}
-const scopeLensMap = coatedLens(); palette.scopeGlass.map = scopeLensMap;
-palette.skin.map = furGrain; palette.skinLight.map = furGrain;
-palette.skin.bumpMap = furGrain; palette.skin.bumpScale = .001;
-palette.skinLight.bumpMap = furGrain; palette.skinLight.bumpScale = .001;
-palette.wood.map = woodGrain; palette.walnut.map = woodGrain;
-palette.olive.map = polymerGrain; palette.glove.map = polymerGrain;
-palette.dark.map = polymerGrain;
-palette.dark.bumpMap = polymerGrain; palette.dark.bumpScale = .0004;
-palette.steel.roughnessMap = polymerGrain;
-palette.steel.map = metalGrain; palette.edge.map = metalGrain;
-palette.steel.bumpMap = metalGrain; palette.steel.bumpScale = .00012;
-type Mat = THREE.Material;
-const box = (parent: THREE.Object3D, w: number, h: number, d: number, x: number, y: number, z: number, material: Mat, rz = 0) => {
-  const mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * .13), material);
-  mesh.position.set(x, y, z); mesh.rotation.z = rz; mesh.castShadow = true; parent.add(mesh); return mesh;
-};
-const tube = (parent: THREE.Object3D, radius: number, length: number, x: number, y: number, z: number, material: Mat, sides = 12) => {
-  const geometry = new THREE.CylinderGeometry(radius, radius, length, sides); geometry.rotateX(Math.PI / 2);
-  const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
-};
-const stock = (parent: THREE.Group, length: number, material: Mat) => {
-  const shape = new THREE.Shape();
-  const points = [[.19, -.043], [.19 + length, -.051], [.20 + length, -.225], [.14 + length, -.23], [.235, -.132]];
-  points.forEach(([z, y], i) => i ? shape.lineTo(-z, y) : shape.moveTo(-z, y)); shape.closePath();
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: .108, bevelEnabled: true, bevelThickness: .006, bevelSize: .008, bevelSegments: 2, steps: 1 });
-  geometry.translate(0, 0, -.054); geometry.rotateY(Math.PI / 2);
-  const mesh = new THREE.Mesh(geometry, material); parent.add(mesh);
-  box(parent, .122, .173, .025, 0, -.137, .197 + length, palette.glove);
-  for (const side of [-1, 1]) {
-    box(parent, .004, .031, length * .63, side * .061, -.078, .2 + length * .55, palette.dark);
-    screw(parent, side * .064, -.123, .15 + length);
-  }
-};
-const ellipsoid = (parent: THREE.Object3D, x: number, y: number, z: number, sx: number, sy: number, sz: number, material: Mat) => {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), material);
-  mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz); parent.add(mesh); return mesh;
-};
-const between = (parent: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3, bottom: number, top: number, material: Mat) => {
-  const direction = to.clone().sub(from);
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(top, bottom, direction.length(), 12), material);
-  mesh.position.copy(from).add(to).multiplyScalar(.5);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
-  parent.add(mesh); return mesh;
-};
-const screw = (parent: THREE.Object3D, x: number, y: number, z: number) => {
-  const head = new THREE.Mesh(new THREE.CylinderGeometry(.007, .007, .003, 10), palette.edge);
-  head.position.set(x, y, z); head.rotation.z = Math.PI / 2; parent.add(head);
-  box(parent, .002, .011, .002, x + .002, y, z, palette.dark);
-};
-function receiverMarkings(parent: THREE.Group, id: WeaponId) {
-  const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#babbb0'; ctx.font = '600 20px monospace';
-  ctx.fillText(`ILHA   /   ${id.toUpperCase()}   02`, 12, 34);
-  const caliber = id === 'smg' ? '9 × 19' : id === 'm4' ? '5.56 × 45' : '7.62 × 51';
-  ctx.fillStyle = '#81897f'; ctx.font = '15px monospace'; ctx.fillText(`UC • 06249     ${caliber}`, 12, 64);
-  ctx.fillRect(12, 85, 95, 2);
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  const material = new THREE.MeshStandardMaterial({ map: texture, transparent: true, roughness: .7, metalness: .15, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(.17, .041), material);
-  mesh.position.set(-.067, -.039, -.03); mesh.rotation.y = -Math.PI / 2; parent.add(mesh);
-}
+// Hip viewmodel lens (vertical degrees), about two thirds of the world's at the default field of view,
+// like Source's viewmodel_fov 54 to 68 and Call of Duty's fixed weapon lens: the guns sit a
+// natural distance from the eye and the paws and forearms keep their proportions instead of growing
+// toward the screen edges.
+export const VIEWMODEL_FOV = 44;
+// A swap spends this share of the incoming weapon's draw time lowering the old
+// gun and the rest raising the new one, so it settles exactly when it may fire.
+const HOLSTER_SHARE = .4;
 
-// Preserve animated groups while submitting each static material only once.
-function batchRigidParts(group: THREE.Group) {
-  for (const child of [...group.children]) if (child instanceof THREE.Group) batchRigidParts(child);
-  const batches = new Map<THREE.Material, THREE.Mesh[]>();
-  for (const child of group.children) if (child instanceof THREE.Mesh && !Array.isArray(child.material) && !child.material.transparent) {
-    const list = batches.get(child.material) || []; list.push(child); batches.set(child.material, list);
-  }
-  for (const [material, meshes] of batches) {
-    if (meshes.length < 2) continue;
-    const parts = meshes.map(mesh => {
-      mesh.updateMatrix();
-      const part = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
-      part.applyMatrix4(mesh.matrix); return part;
-    });
-    const geometry = mergeGeometries(parts, false); parts.forEach(part => part.dispose());
-    if (!geometry) continue;
-    meshes.forEach(mesh => { group.remove(mesh); mesh.geometry.dispose(); });
-    const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = true; group.add(mesh);
-  }
+const v3 = (value: V3, out = new THREE.Vector3()) => out.set(value[0], value[1], value[2]);
+const X_AXIS = new THREE.Vector3(1, 0, 0);
+const ease = (t: number) => { const x = THREE.MathUtils.clamp(t, 0, 1); return x * x * (3 - 2 * x); };
+const window01 = (t: number, a: number, b: number) => ease((t - a) / (b - a));
+const bump = (t: number, a: number, peak: number, b: number) => window01(t, a, peak) * (1 - window01(t, peak, b));
+
+interface Parts { slide?: THREE.Object3D; mag?: THREE.Object3D; trigger?: THREE.Object3D; hammer?: THREE.Object3D; action?: THREE.Object3D;
+  cylinder?: THREE.Object3D; crane?: THREE.Object3D; rounds?: THREE.Object3D; pump?: THREE.Object3D; bolt?: THREE.Object3D; charge?: THREE.Object3D; release?: THREE.Object3D; ribbons?: THREE.Object3D;
+  load1?: THREE.Object3D; load2?: THREE.Object3D;
+  case0?: THREE.Object3D; case1?: THREE.Object3D; case2?: THREE.Object3D; case3?: THREE.Object3D; case4?: THREE.Object3D; case5?: THREE.Object3D }
+interface Model {
+  id: WeaponId; spec: ViewSpec; group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; sight: THREE.Vector3;
+  parts: Parts; rest: Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>;
+  grips: { R: GripSpec; L?: GripSpec }; magAxis: THREE.Vector3; rarity: number; accent: ReturnType<typeof applyRarityAccent>[];
+  crane?: THREE.Vector3;
+  liveTips?: (THREE.Object3D | undefined)[];
 }
+const sortedReloads = Object.fromEntries(Object.entries(RELOADS).map(([id, keys]) => [id, [...keys!].sort((a, b) => a.t - b.t)]));
 
-const magazine = (parent: THREE.Object3D, x: number, y: number, z: number, height: number, material: Mat) => {
-  const group = new THREE.Group(); group.position.set(x, y, z); parent.add(group);
-  group.userData.restY = y;
-  const body = box(group, .07, height, .086, 0, -height / 2, 0, material); body.rotation.x = -.18;
-  box(group, .078, .015, .095, 0, -height, .014, palette.dark);
-  for (let i = 0; i < 5; i++) box(group, .074, .004, .005, 0, -.025 - i * (height - .04) / 5, .044, palette.edge);
-  return group;
-};
-const scope = (parent: THREE.Object3D, y: number, z: number, length: number, radius: number) => {
-  const group = new THREE.Group(); group.position.set(0, y, z); parent.add(group);
-  tube(group, radius, length, 0, 0, 0, palette.dark, 36);
-  for (const end of [-1, 1]) {
-    tube(group, radius * 1.2, .045, 0, 0, end * length * .44, palette.steel, 36);
-    const lens = new THREE.Mesh(new THREE.CircleGeometry(radius * .94, 40), palette.scopeGlass);
-    lens.position.z = end * length * .535; group.add(lens);
-    for (const [size, width, depth, material] of [
-      [1.15, .006, .54, palette.dark], [1.02, .0025, .55, palette.edge], [.87, .0015, .555, palette.steel],
-    ] as const) {
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(radius * size, width, 6, 40), material);
-      rim.position.z = end * length * depth; group.add(rim);
-    }
-  }
-  for (const mount of [-.075, .075]) box(group, .026, .065, .03, 0, -radius - .024, mount, palette.dark);
-  const dial = new THREE.Mesh(new THREE.CylinderGeometry(.023, .023, .018, 12), palette.edge);
-  dial.position.set(0, radius + .01, 0); group.add(dial);
-  return group;
-};
+const WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'm4', 'shotgun', 'dmr', 'sniper', 'machete', 'revolver', 'coco'];
 
-function gunBase(id: WeaponId): THREE.Group {
-  const group = new THREE.Group();
-  if (id === 'machete') {
-    const shape = new THREE.Shape();
-    // The tang runs into the guard so the blade never floats off the handle.
-    shape.moveTo(-.022, .2); shape.lineTo(.025, .2); shape.lineTo(.035, -.4);
-    shape.quadraticCurveTo(.053, -.58, -.014, -.64); shape.lineTo(-.036, -.60); shape.lineTo(-.022, .2);
-    const blade = new THREE.ExtrudeGeometry(shape, { depth: .013, bevelEnabled: true, bevelThickness: .003, bevelSize: .003, bevelSegments: 2, curveSegments: 8 });
-    blade.rotateX(Math.PI / 2); blade.translate(.025, -.01, -.18);
-    const item = new THREE.Mesh(blade, palette.edge); group.add(item);
-    box(group, .06, .025, .34, .025, -.04, -.37, palette.steel);
-    box(group, .10, .03, .04, .025, -.04, .015, palette.brass);
-    const grip = box(group, .066, .07, .24, .025, -.075, .14, palette.walnut); grip.rotation.x = -.08;
-    for (let i = 0; i < 8; i++) box(group, .068, .006, .01, .025, -.077, .04 + i * .025, palette.glove);
-    screw(group, .057, -.08, .22); screw(group, .057, -.08, .07);
-    group.userData.sightY = 0;
-  } else if (id === 'slingshot') {
-    between(group, new THREE.Vector3(0, -.2, .12), new THREE.Vector3(0, .10, -.07), .054, .04, palette.wood);
-    for (const s of [-1, 1]) {
-      between(group, new THREE.Vector3(0, .10, -.07), new THREE.Vector3(s * .14, .33, -.15), .04, .028, palette.wood);
-      ellipsoid(group, s * .14, .33, -.15, .034, .034, .034, palette.walnut);
-      between(group, new THREE.Vector3(s * .14, .33, -.15), new THREE.Vector3(s * .04, .23, -.34), .01, .008, palette.glove);
-    }
-    box(group, .12, .036, .07, 0, .23, -.34, palette.glove);
-    ellipsoid(group, 0, .25, -.34, .044, .04, .044, palette.steel);
-    for (let i = 0; i < 5; i++) box(group, .09, .006, .012, 0, -.11, i * .036, palette.glove);
-    group.userData.sightY = .25;
-  } else if (id === 'pistol') {
-    box(group, .11, .05, .30, 0, -.025, -.09, palette.dark);
-    const slide = new THREE.Group(); group.add(slide); group.userData.action = slide;
-    box(slide, .116, .058, .30, 0, .027, -.085, palette.steel);
-    box(slide, .073, .004, .085, 0, .057, -.068, palette.edge);
-    for (let i = 0; i < 8; i++) for (const s of [-1, 1]) {
-      const groove = box(slide, .003, .034, .004, s * .058, .026, .005 + i * .009, palette.dark); groove.rotation.x = -.26;
-    }
-    box(slide, .025, .014, .02, 0, .067, -.231, palette.dark);
-    box(slide, .044, .013, .02, 0, .065, .04, palette.dark);
-    tube(group, .017, .24, 0, .005, -.17, palette.edge);
-    tube(group, .027, .006, 0, .005, -.291, palette.dark);
-    const grip = box(group, .09, .18, .075, 0, -.14, .013, palette.olive); grip.rotation.x = -.21;
-    for (const s of [-1, 1]) for (let i = 0; i < 7; i++) box(group, .003, .004, .04, s * .045, -.09 - i * .019, .016 + i * .003, palette.dark);
-    const guard = new THREE.Mesh(new THREE.TorusGeometry(.055, .006, 5, 12, Math.PI), palette.steel);
-    guard.position.set(0, -.078, -.06); guard.rotation.y = Math.PI / 2; guard.rotation.z = Math.PI; group.add(guard);
-    group.userData.magazine = magazine(group, 0, -.15, .025, .08, palette.steel);
-    screw(group, .057, -.018, .025); group.userData.sightY = .071;
-  } else if (id === 'shotgun') {
-    box(group, .13, .10, .36, 0, -.04, -.025, palette.steel);
-    box(group, .15, .012, .28, 0, .018, -.03, palette.edge);
-    box(group, .009, .035, .1, .071, -.036, -.044, palette.dark);
-    tube(group, .024, .75, 0, -.035, -.53, palette.steel);
-    tube(group, .019, .61, 0, -.08, -.47, palette.edge);
-    tube(group, .029, .06, 0, -.035, -.93, palette.dark);
-    const pump = new THREE.Group(); pump.position.set(0, -.08, -.43); group.add(pump); group.userData.action = pump;
-    box(pump, .133, .074, .25, 0, 0, 0, palette.wood);
-    for (let i = 0; i < 9; i++) box(pump, .136, .006, .011, 0, -.023, -.1 + i * .025, palette.walnut);
-    box(group, .12, .105, .4, 0, -.076, .31, palette.wood);
-    box(group, .14, .17, .04, 0, -.104, .51, palette.glove);
-    const grip = box(group, .08, .14, .07, 0, -.175, .10, palette.wood); grip.rotation.x = -.28;
-    for (const s of [-1, 1]) { screw(group, s * .068, -.045, .07); screw(group, s * .068, -.057, -.13); }
-    group.userData.sightY = .025;
-  } else {
-    const smg = id === 'smg', sniper = id === 'sniper', dmr = id === 'dmr';
-    const finish = smg ? palette.blue : dmr ? palette.wood : palette.olive;
-    const front = smg ? -.29 : -.37, handguard = smg ? .22 : sniper ? .43 : .36;
-    const barrel = smg ? .18 : sniper ? .57 : dmr ? .42 : .34;
-    const receiverLength = smg ? .37 : .43;
-    box(group, .128, .044, receiverLength, 0, -.068, -.062, palette.steel);
-    tube(group, .051, receiverLength - .015, 0, -.027, -.062, palette.steel, 24);
-    box(group, .074, .014, receiverLength - .025, 0, .026, -.062, palette.dark);
-    for (let i = 0; i < 11; i++) box(group, .088, .008, .012, 0, .035, .09 - i * .029, palette.steel);
-    box(group, .011, .046, receiverLength - .025, -.059, -.03, -.062, palette.steel);
-    // The receiver is enclosed; only the small ejection port exposes the bolt.
-    tube(group, .052, .029, 0, -.027, -.062 + receiverLength / 2 - .014, palette.dark, 24);
-    box(group, .119, .077, .027, 0, -.035, -.062 - receiverLength / 2 + .014, palette.steel);
-    box(group, .012, .043, .092, .059, -.029, -.229, palette.steel);
-    box(group, .012, .043, .112, .059, -.029, .082, palette.steel);
-    box(group, .008, .009, .115, .054, -.045, -.069, palette.edge);
-    box(group, .008, .019, .088, .050, -.019, -.064, palette.dark);
-    box(group, .011, .020, .17, .059, -.011, -.064, palette.steel);
-    box(group, .006, .020, .085, .052, -.032, -.060, palette.dark);
-    receiverMarkings(group, id);
-    for (const side of [-1, 1]) {
-      box(group, .005, .003, receiverLength - .045, side * .066, -.062, -.062, palette.edge);
-      for (const z of [-.185, .069]) screw(group, side * .07, -.047, z);
-    }
-    box(group, .009, .008, .042, -.075, -.086, .048, palette.edge, -.22);
-    box(group, .09, .075, .2, 0, -.115, -.005, palette.dark);
-    screw(group, .071, -.084, .015); screw(group, .071, -.084, -.16);
-    tube(group, .023, smg ? .17 : .27, 0, -.065, smg ? .24 : .31, palette.edge);
-    if (smg) {
-      for (const s of [-1, 1]) {
-        tube(group, .008, .28, s * .062, -.09, .31, palette.steel, 8);
-        box(group, .016, .17, .04, s * .062, -.11, .46, palette.dark);
-      }
-    } else {
-      stock(group, sniper ? .35 : .27, finish);
-      box(group, .09, .019, .16, 0, -.018, .29, palette.glove);
-    }
-    const grip = box(group, .068, .16, .074, 0, -.192, .09, palette.olive); grip.rotation.x = -.28;
-    for (let i = 0; i < 6; i++) box(group, .072, .003, .007, 0, -.145 - i * .02, .123 + i * .006, palette.dark);
-    // Longitudinal rails and spaced cross ribs leave daylight through the handguard.
-    box(group, .105, .018, handguard, 0, .001, front, finish);
-    box(group, .092, .018, handguard, 0, -.088, front, finish);
-    for (const s of [-1, 1]) {
-      box(group, .014, .018, handguard, s * .057, -.011, front, palette.steel);
-      box(group, .014, .018, handguard, s * .057, -.079, front, palette.steel);
-      for (let i = 0; i < (smg ? 4 : 7); i++) {
-        const z = front - handguard / 2 + .018 + i * (handguard - .036) / (smg ? 3 : 6);
-        box(group, .013, .072, .011, s * .061, -.044, z, finish);
-      }
-    }
-    box(group, .069, .012, handguard, 0, .016, front, palette.steel);
-    for (let i = 0; i < Math.floor(handguard / .025); i++) box(group, .086, .004, .012, 0, .02, front - handguard / 2 + i * .025, palette.edge);
-    const frontEnd = front - handguard / 2;
-    tube(group, sniper ? .015 : .018, barrel, 0, -.044, frontEnd - barrel / 2, palette.steel);
-    tube(group, .027, .09, 0, -.044, frontEnd - barrel + .01, palette.dark);
-    for (const s of [-1, 1]) box(group, .005, .018, .034, s * .022, -.044, frontEnd - barrel - .015, palette.dark);
-    if (sniper || dmr) {
-      scope(group, .15, -.15, sniper ? .4 : .31, sniper ? .049 : .042);
-      group.userData.sightY = .15;
-      if (sniper) {
-        for (const s of [-1, 1]) between(group, new THREE.Vector3(s * .04, -.095, -.65), new THREE.Vector3(s * .22, -.33, -.71), .009, .007, palette.steel);
-      }
-    } else if (id === 'm4') {
-      box(group, .07, .016, .08, 0, .037, -.11, palette.dark);
-      for (const s of [-1, 1]) box(group, .01, .071, .021, s * .037, .073, -.11, palette.steel);
-      box(group, .084, .012, .022, 0, .11, -.11, palette.steel);
-      const glass = new THREE.Mesh(new THREE.PlaneGeometry(.06, .055), palette.glass); glass.position.set(0, .076, -.122); group.add(glass);
-      group.userData.sightY = .075;
-    } else {
-      box(group, .047, .028, .038, 0, .027, frontEnd, palette.steel);
-      box(group, .013, .043, .016, 0, .063, frontEnd, palette.dark);
-      for (const side of [-1, 1]) box(group, .008, .055, .014, side * .024, .055, frontEnd, palette.steel, side * -.16);
-      box(group, .053, .03, .024, 0, .042, .07, palette.dark);
-      for (const side of [-1, 1]) box(group, .009, .027, .019, side * .022, .071, .07, palette.dark);
-      group.userData.sightY = .083;
-    }
-    group.userData.magazine = magazine(group, 0, -.136, -.105, smg ? .18 : sniper ? .095 : dmr ? .12 : .20, smg ? palette.blue : palette.steel);
-    const action = new THREE.Group(); action.position.set(.07, -.035, .014); group.add(action); group.userData.action = action;
-    box(action, .016, .014, .075, 0, 0, 0, palette.edge);
-    if (sniper) {
-      between(action, new THREE.Vector3(.01, 0, .015), new THREE.Vector3(.086, -.055, .015), .011, .009, palette.edge);
-      ellipsoid(action, .094, -.064, .015, .021, .021, .021, palette.dark);
-    }
-    group.userData.muzzleZ = frontEnd - barrel - .05;
-  }
-  return group;
-}
-
-function paw(group: THREE.Group, palm: THREE.Vector3, elbow: THREE.Vector3, left: boolean, gripAngle = 0) {
-  const wrist = palm.clone().add(new THREE.Vector3(0, -.018, .055));
-  // Teal squad sleeve up to mid-forearm, then fur, a tape wrap and the paw.
-  const cuffAt = elbow.clone().lerp(wrist, .5), tapeAt = elbow.clone().lerp(wrist, .82);
-  between(group, elbow, cuffAt, .1, .088, palette.sleeve);
-  between(group, cuffAt.clone().lerp(elbow, .12), cuffAt, .095, .093, palette.cuff);
-  between(group, cuffAt, wrist, .077, .062, palette.skin);
-  between(group, tapeAt.clone().lerp(elbow, .06), tapeAt.clone().lerp(wrist, .5), .071, .068, palette.tape);
-  ellipsoid(group, elbow.x, elbow.y, elbow.z, .1, .1, .104, palette.sleeve);
-  ellipsoid(group, wrist.x, wrist.y, wrist.z, .066, .065, .068, palette.skin);
-
-  const foot = new THREE.Group(); foot.position.copy(palm);
-  foot.rotation.y = left ? -gripAngle : gripAngle;
-  group.add(foot);
-  ellipsoid(foot, 0, 0, 0, .072, .041, .069, palette.skin);
-  ellipsoid(foot, 0, .032, .002, .043, .006, .029, palette.skinLight);
-  for (let i = 0; i < 4; i++) {
-    const x = (i - 1.5) * .039;
-    const outer = i === 0 || i === 3;
-    const z = outer ? -.066 : -.073;
-    ellipsoid(foot, x, -.013, z, .017, .018, outer ? .031 : .037, palette.skin);
-    ellipsoid(foot, x, -.002, z - (outer ? .027 : .032), .011, .006, .013, palette.nail);
-    if (i < 3) ellipsoid(foot, x + .0195, -.018, -.067, .005, .009, .023, palette.skinShade);
-  }
-  for (const side of [-1, 1]) {
-    ellipsoid(foot, side * .066, .004, .024, .011, .017, .031, palette.skin);
-    ellipsoid(foot, side * .068, .017, .045, .007, .013, .022, palette.skinShade);
-  }
-}
-function arms(group: THREE.Group, id: WeaponId): THREE.Group {
-  const support = new THREE.Group(); group.add(support);
-  const main = new THREE.Group(); group.add(main);
-  if (id === 'machete') {
-    paw(main, new THREE.Vector3(.067, -.092, .135), new THREE.Vector3(.25, -.37, .38), false, .24);
-  } else if (id === 'slingshot') {
-    paw(main, new THREE.Vector3(.065, -.13, .10), new THREE.Vector3(.25, -.38, .36), false, .2);
-    paw(support, new THREE.Vector3(-.085, .13, -.28), new THREE.Vector3(-.25, -.25, .12), true, .15);
-  } else if (id === 'pistol') {
-    paw(main, new THREE.Vector3(.058, -.085, .045), new THREE.Vector3(.27, -.38, .39), false, .36);
-    paw(support, new THREE.Vector3(-.058, -.087, .055), new THREE.Vector3(-.25, -.35, .34), true, .36);
-  } else {
-    const supportZ = id === 'shotgun' ? -.43 : id === 'sniper' ? -.36 : id === 'smg' ? -.29 : -.35;
-    paw(main, new THREE.Vector3(.077, -.18, .10), new THREE.Vector3(.27, -.41, .43), false, .22);
-    paw(support, new THREE.Vector3(-.087, -.13, supportZ),
-      new THREE.Vector3(-.27, -.40, id === 'shotgun' || id === 'sniper' ? .06 : .16), true, .18);
-  }
-  return support;
-}
-
-interface Model { group: THREE.Group; muzzle: THREE.Object3D; eject: THREE.Object3D; magazine?: THREE.Object3D; action?: THREE.Object3D; support: THREE.Object3D; triggerFinger?: THREE.Object3D; gripFingers?: THREE.Object3D; sightY: number; hipX: number; adsZ: number; painted?: PaintedWeaponModel; rarity?: number }
-
-function disposeImported(root: THREE.Object3D) {
-  const geometry = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
-  root.traverse(object => {
-    if (!(object instanceof THREE.Mesh)) return;
-    geometry.add(object.geometry);
-    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-      materials.add(material);
-      if (material instanceof THREE.MeshStandardMaterial) {
-        for (const texture of [material.map, material.normalMap, material.roughnessMap, material.metalnessMap, material.aoMap])
-          if (texture) textures.add(texture);
-      }
-    }
-  });
-  geometry.forEach(value => value.dispose());
-  materials.forEach(value => value.dispose());
-  textures.forEach(value => value.dispose());
+// Rarity recolours the weapon's teal accents (Comum keeps them) and lights them for Lendária.
+function applyRarityAccent(material: THREE.MeshStandardMaterial) {
+  const uniforms = { rarityColor: { value: new THREE.Color() }, rarityAmount: { value: 0 }, rarityGlow: { value: 0 } };
+  material.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 rarityColor; uniform float rarityAmount, rarityGlow; float rarityMask;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        rarityMask = smoothstep(.12, .22, diffuseColor.g - diffuseColor.r) * smoothstep(.06, .14, diffuseColor.b - diffuseColor.r);
+        diffuseColor.rgb = mix(diffuseColor.rgb, rarityColor * (.35 + 1.6 * dot(diffuseColor.rgb, vec3(.3, .55, .15))), rarityMask * rarityAmount);`)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += rarityColor * rarityMask * rarityGlow;');
+  };
+  material.customProgramCacheKey = () => 'arsenal-rarity-v1';
+  return uniforms;
 }
 
 export class WeaponView {
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(58, 1, .01, 10);
+  readonly camera = new THREE.PerspectiveCamera(VIEWMODEL_FOV, 1, .01, 10);
   private readonly holder = new THREE.Group();
   private readonly key = new THREE.DirectionalLight(PAINT.sun, 3.1);
   private readonly rim = new THREE.DirectionalLight(PAINT.rim, .8);
+  private readonly fill = new THREE.DirectionalLight('#9fc3e6', .4);
+  // Always present (zero at rest) so a shot never changes the lighting shader.
+  private readonly muzzleLight = new THREE.PointLight('#ffb25a', 0, 2.4, 2);
+  private flashLight = 0;
   private readonly inverseView = new THREE.Quaternion();
   private readonly models = {} as Record<WeaponId, Model>;
-  private readonly painted = paintedWeaponsEnabled() ? new PaintedWeaponSet() : null;
-  private readonly warmupVariants = new THREE.Group();
+  private arms: ArmsRig | null = null;
   private active: WeaponId = 'pistol';
   private ads = 0;
-  private kick = 0;
-  private readonly recoil = new Spring();
-  private readonly recoilYaw = new Spring();
-  private readonly swayX = new Spring();
-  private readonly swayY = new Spring();
-  private readonly land = new Spring();
+  // Visual springs. Values are metres or radians in camera space.
+  private readonly kickZ = new Spring(); private readonly kickPitch = new Spring(); private readonly kickRoll = new Spring(); private readonly kickYaw = new Spring();
+  private readonly swayYaw = new Spring(); private readonly swayPitch = new Spring(); private readonly swayRoll = new Spring();
+  private readonly strafe = new Spring(); private readonly land = new Spring(); private readonly crouchDip = new Spring();
   private lastYaw: number | undefined;
   private lastPitch = 0;
   private grounded = true;
+  private crouched = false;
   private swimming = false;
   private swimPose = 0;
   private verticalSpeed = 0;
   private sprintPose = 0;
+  private movePose = 0;
   private holster = 0;
   private draw = 0;
+  private drawFrom: WeaponId | null = null;
   private gait = 0;
-  private breathingTime = 0;
+  private time = 0;
   private shotLife = 0;
+  private shotCount = 0;
   private reloadEnd = 0;
-  private bobAmount = 0;
+  private reloadEmpty = false;
+  private reloadAmmo = 0;
+  private shotgunReloading = false;
+  private shotgunBeganEmpty = false;
+  private shotgunPumpLife = 0;
+  private lastShotCycle = -1;
+  private pistolEmpty = false;
+  private reloadDuration = 1;
   private wallPose = 0;
+  private leanPose = 0;
   private meleeTime = MELEE_SECONDS;
   private meleeSide = -1;
+  private meleeCount = 0;
   private meleeHit = false;
   private meleeStop = 0;
   private readonly meleePose: MeleePose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, smear: 0, kick: 0 };
@@ -478,153 +125,131 @@ export class WeaponView {
   private inspectTime = -1;
   private inspectAllowed = false;
   private readonly restPosition = new THREE.Vector3();
-  private readonly restRotation = new THREE.Euler();
+  private readonly restRotation = new THREE.Quaternion();
+  private readonly shoulderR = new THREE.Vector3();
+  private readonly shoulderL = new THREE.Vector3();
+  private readonly shoulderAds = new THREE.Vector3();
+  private readonly freeDip = new THREE.Vector3();
+  private readonly basePosition = new THREE.Vector3();
+  private readonly baseRotation = new THREE.Quaternion();
+  private readonly ride = new THREE.Matrix4();
+  private readonly rideTo = new THREE.Matrix4();
+  private readonly rideShift = new THREE.Matrix4();
+  private readonly rideTurn = new THREE.Quaternion();
+  private readonly ridePole = new THREE.Vector3();
+  /** Out of the eye's view (camera space, the eye at the origin): behind it, or outside a frustum a
+   * little wider than the lens. Hidden elbows and upper arms must stay here. */
+  private readonly outOfView = (p: THREE.Vector3) => {
+    // The arm is thick (the cuff about 7 cm round its bone): a point counts as hidden only that far outside.
+    const tanY = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * 1.04, tanX = tanY * this.camera.aspect, r = .07;
+    if (p.z > .03 + r) return true;
+    const depth = Math.max(-p.z, .03);
+    return Math.abs(p.x) - r * Math.hypot(1, tanX) > depth * tanX || Math.abs(p.y) - r * Math.hypot(1, tanY) > depth * tanY;
+  };
+  private rideR = 0;
+  private tunedSpec: ViewSpec | null = null;
+  private rideL = 0;
+  private readonly targetR: HandTarget;
+  private readonly targetL: HandTarget;
+  private readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
+  private readonly quat = new THREE.Quaternion();
+  private readonly adsQuat = new THREE.Quaternion();
+  private readonly offset = new THREE.Quaternion();
   private disposed = false;
+  readonly assets: Promise<void>;
 
   constructor(private readonly loader: AssetLoader, onAssetsReady: () => void = () => {}) {
-    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.05));
-    this.key.position.set(-70, 32, -30); this.rim.position.set(-70, 65, -30);
-    this.scene.add(this.key, this.rim);
-    if (this.painted) { this.camera.fov = WEAPON_VIEW_FOV; this.camera.updateProjectionMatrix(); }
-    this.warmupVariants.visible = false; this.scene.add(this.warmupVariants);
+    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .95));
+    this.key.position.copy(SUN_DIRECTION).multiplyScalar(80); this.rim.position.set(-70, 65, -30); this.fill.position.set(60, 10, 40);
+    this.scene.add(this.key, this.rim, this.fill, this.muzzleLight);
     this.scene.add(this.holder);
     this.smear.name = 'Machete motion smear'; this.smear.visible = false; this.smear.frustumCulled = false;
     this.smear.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(18), 3));
     this.smear.renderOrder = 2; this.scene.add(this.smear);
-    let pistolFallback: THREE.Group | undefined, sniperFallback: THREE.Group | undefined;
-    for (const id of this.painted ? [] : PAINTED_WEAPON_IDS) {
-      const body = gunBase(id);
-      if (id === 'pistol') pistolFallback = body;
-      if (id === 'sniper') sniperFallback = body;
-      const group = id === 'pistol' || id === 'sniper' ? new THREE.Group() : body;
-      if (group !== body) group.add(body);
-      const support = arms(group, id); group.visible = false; this.holder.add(group);
-      batchRigidParts(group);
-      const muzzle = new THREE.Object3D(); muzzle.position.set(0, id === 'pistol' ? .005 : id === 'slingshot' ? .23 : -.044,
-        id === 'pistol' ? -.30 : id === 'shotgun' ? -.95 : id === 'machete' ? -.75 : id === 'slingshot' ? -.36 : body.userData.muzzleZ || -.85);
-      const eject = new THREE.Object3D(); eject.position.set(id === 'pistol' ? .06 : .083, -.03, -.045);
-      group.add(muzzle, eject);
-      this.models[id] = { group, muzzle, eject, magazine: body.userData.magazine, action: body.userData.action, support,
-        sightY: body.userData.sightY || 0, hipX: id === 'pistol' ? .23 : id === 'machete' ? .25 : id === 'slingshot' ? .23 : id === 'smg' ? .20 : .18,
-        adsZ: id === 'pistol' ? -.36 : id === 'machete' ? -.32 : id === 'slingshot' ? -.33 : -.29 };
+    const target = (): HandTarget => ({ wrist: new THREE.Vector3(), forward: new THREE.Vector3(0, 0, -1), palm: new THREE.Vector3(0, -1, 0),
+      curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3(0, -1, 0) });
+    this.targetR = target(); this.targetL = target();
+    // QA probe (tools/qa/grip-probe.mjs): measures paw-to-gun contact on the live rig.
+    if (import.meta.env.DEV) {
+      (globalThis as { __vmProbe?: WeaponView }).__vmProbe = this;
+      // QA framing measure (tools/qa/vm-frame.mjs): screen positions, coverage, angles, near plane.
+      void import('./viewmodel-frame').then(({ measureFrame, measureWrists, wristAngles }) => {
+        const qa = globalThis as { __vmMeasure?: (columns?: number) => unknown; __vmWrists?: () => unknown; __vmWristAngles?: typeof wristAngles };
+        qa.__vmMeasure = columns => measureFrame(this, columns); qa.__vmWrists = () => measureWrists(this); qa.__vmWristAngles = wristAngles;
+      });
     }
-    this.assets = (this.painted ? this.loadPainted() : Promise.all([
-      pistolFallback ? this.loadPistol(pistolFallback) : Promise.resolve(),
-      sniperFallback ? this.loadSniper(sniperFallback) : Promise.resolve(),
-    ])).then(() => {
+    this.assets = this.load().then(() => {
       if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
       onAssetsReady();
     });
     void this.assets.catch(() => {});
-
   }
 
-  readonly assets: Promise<void>;
+  private async load() {
+    const [arms, ...gltfs] = await Promise.all([this.loader.gltf(FP_ARMS_URL), ...WEAPON_IDS.map(id => this.loader.gltf(VIEW_SPECS[id].url))]);
+    if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
+    this.arms = new ArmsRig(arms);
+    this.scene.add(this.arms.group);
+    WEAPON_IDS.forEach((id, i) => { this.models[id] = this.fromArsenal(id, gltfs[i]); });
+  }
+
+  private fromArsenal(id: WeaponId, gltf: GLTF): Model {
+    const group = new THREE.Group(); group.name = id;
+    const root = gltf.scene.getObjectByName(id) ?? gltf.scene;
+    group.add(root);
+    // Quantization recenters mesh nodes. Restore authored mechanical pivots
+    // with a parent frame while preserving the packed mesh's world transform.
+    if (['pistol', 'smg', 'revolver', 'machete'].includes(id)) {
+      const pivots = (arsenalMetrics as Record<string, { pivots?: Record<string, number[]> }>)[id]?.pivots ?? {};
+      for (const [name, pivot] of Object.entries(pivots)) {
+        const mesh = root.getObjectByName(`${id}_${name}`);
+        if (!mesh?.parent) continue;
+        const parent = mesh.parent, frame = new THREE.Group();
+        frame.name = mesh.name; mesh.name += '_geometry';
+        frame.position.set(pivot[0], pivot[2], -pivot[1]);
+        mesh.position.sub(frame.position); parent.add(frame); frame.add(mesh);
+      }
+    }
+    const get = (part: string) => root.getObjectByName(`${id}_${part}`);
+    const muzzle = get('muzzle'), eject = get('eject'), sight = get('sight');
+    if (!muzzle || !eject || !sight) throw new Error(`Arma sem encaixes: ${id}.`);
+    const accent: ReturnType<typeof applyRarityAccent>[] = [];
+    const seen = new Set<THREE.Material>();
+    root.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      object.castShadow = false;
+      const material = object.material as THREE.MeshStandardMaterial;
+      if (seen.has(material)) return;
+      seen.add(material); material.envMapIntensity = .8; accent.push(applyRarityAccent(material));
+    });
+    const spec = VIEW_SPECS[id];
+    const model: Model = { id, spec, group, muzzle, eject, sight: sight.position.clone(),
+      parts: { slide: get('slide'), mag: get('mag'), trigger: get('trigger'), hammer: get('hammer'), action: get('action'),
+        cylinder: get('cylinder'), crane: get('crane'), rounds: get('rounds'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), release: get('release'), ribbons: get('ribbons'),
+        load1: get('load1'), load2: get('load2'),
+        case0: get('case0'), case1: get('case1'), case2: get('case2'), case3: get('case3'), case4: get('case4'), case5: get('case5') },
+      rest: new Map(), grips: framedGrips(spec), magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent,
+      liveTips: id === 'revolver' ? Array.from({ length: 6 }, (_, i) => get(`live${i}`)) : undefined };
+    // Blender axis (x, y, z) is (x, z, -y) here.
+    const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
+    if (axis) model.magAxis.set(axis[0], axis[2], -axis[1]).normalize();
+    const crane = (arsenalMetrics as Record<string, { crane?: number[] }>)[id]?.crane;
+    if (crane) model.crane = new THREE.Vector3(crane[0], crane[2], -crane[1]);
+    this.remember(model);
+    group.visible = false; this.holder.add(group);
+    return model;
+  }
+
+  private remember(model: Model) {
+    for (const part of Object.values(model.parts)) if (part)
+      model.rest.set(part, { position: part.position.clone(), quaternion: part.quaternion.clone() });
+  }
 
   // Warm-up only: show every model at once so one render compiles and uploads all of them.
   revealAll(on: boolean) {
-    this.holder.visible = on; this.warmupVariants.visible = on;
+    this.holder.visible = on;
     for (const [id, model] of Object.entries(this.models) as [WeaponId, Model][]) model.group.visible = on || id === this.active;
-  }
-
-  private async loadPainted() {
-    const set = this.painted!;
-    await set.preload(url => this.loader.gltf(url));
-    if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
-    for (const id of PAINTED_WEAPON_IDS) {
-      const painted = set.create(id);
-      this.models[id] = { ...painted, painted, rarity: 0, hipX: WEAPON_HIP_POSES[id].x, adsZ: -.4 };
-      painted.group.visible = false; this.holder.add(painted.group);
-      for (let rarity = 1; rarity < 4; rarity++) this.warmupVariants.add(set.create(id, rarity).group);
-    }
-  }
-
-  private async loadPistol(fallback: THREE.Group) {
-    const gltf = await this.loader.gltf('models/service-pistol/service_pistol_1k.gltf');
-    if (this.disposed) { disposeImported(gltf.scene); return; }
-    const names = ['service_pistol_pistol_a', 'service_pistol_slide_a', 'service_pistol_hammer_a',
-      'service_pistol_trigger_a', 'service_pistol_magazine_loaded'];
-    const nodes = names.map(name => gltf.scene.getObjectByName(name));
-    const missing = names.filter((_, index) => !nodes[index]);
-    if (missing.length) {
-      disposeImported(gltf.scene);
-      throw new Error(`models/service-pistol/service_pistol_1k.gltf: missing required nodes ${missing.join(', ')}`);
-    }
-    const [frame, slide, hammer, trigger, loadedMagazine] = nodes as THREE.Object3D[];
-    const modelRoot = new THREE.Group();
-    modelRoot.rotation.y = Math.PI / 2;
-    modelRoot.scale.setScalar(1.7);
-    modelRoot.position.y = -.06;
-    for (const part of [frame, hammer, trigger]) modelRoot.add(part);
-    const slideMotion = new THREE.Group(); slideMotion.userData.gltfSlide = true;
-    slideMotion.add(slide); modelRoot.add(slideMotion);
-    loadedMagazine.position.set(0, 0, 0);
-    const magazineMotion = new THREE.Group();
-    magazineMotion.position.set(-.005, -.03, 0);
-    magazineMotion.userData.restY = -.03;
-    magazineMotion.userData.travel = .11;
-    magazineMotion.add(loadedMagazine); modelRoot.add(magazineMotion);
-    modelRoot.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = true; });
-
-    const pistol = this.models.pistol;
-    pistol.group.remove(fallback);
-    fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
-    pistol.group.add(modelRoot);
-    pistol.magazine = magazineMotion;
-    pistol.action = slideMotion;
-    pistol.sightY = .074;
-    pistol.eject.position.set(.038, .046, -.07);
-  }
-
-  private async loadSniper(fallback: THREE.Group) {
-    const base = 'models/m700/';
-    const color = this.loader.texture(`${base}color.webp`);
-    color.colorSpace = THREE.SRGBColorSpace;
-    const normal = this.loader.texture(`${base}normal.webp`);
-    const metalness = this.loader.texture(`${base}metalness.webp`);
-    const ao = this.loader.texture(`${base}ao.webp`);
-    const roughness = this.loader.texture(`${base}roughness.webp`);
-    const fbx = await this.loader.fbx(`${base}m700.fbx`);
-    if (this.disposed) { disposeImported(fbx); return; }
-    const main = fbx.getObjectByName('FRAME_LOD0001');
-    if (!(main instanceof THREE.SkinnedMesh)) {
-      disposeImported(fbx);
-      throw new Error(`${base}m700.fbx: required node FRAME_LOD0001 must be a SkinnedMesh`);
-    }
-    const material = new THREE.MeshStandardMaterial({
-      map: color, normalMap: normal, normalScale: new THREE.Vector2(.7, -.7),
-      metalnessMap: metalness, aoMap: ao, roughnessMap: roughness,
-      metalness: 1, roughness: 1, aoMapIntensity: .65,
-    });
-    const originals = new Set<THREE.Material>();
-    fbx.traverse(object => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const mesh = object as THREE.Mesh;
-      for (const old of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) originals.add(old);
-      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(() => material) : material;
-      if (mesh.geometry.hasAttribute('uv') && !mesh.geometry.hasAttribute('uv2'))
-        mesh.geometry.setAttribute('uv2', mesh.geometry.getAttribute('uv').clone());
-      mesh.castShadow = true;
-    });
-    originals.forEach(old => old.dispose());
-    const modelRoot = new THREE.Group();
-    modelRoot.rotation.y = Math.PI;
-    modelRoot.scale.setScalar(.0115);
-    modelRoot.position.z = .05;
-    modelRoot.add(fbx);
-    const sniper = this.models.sniper;
-    sniper.group.remove(fallback);
-    fallback.traverse(object => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
-    sniper.group.add(modelRoot);
-    const optic = scope(sniper.group, .15, -.18, .42, .049);
-
-    sniper.sightY = .15;
-    sniper.muzzle.position.set(0, -.045, -.81);
-    sniper.eject.position.set(.055, -.025, -.10);
-    const bolt = main.skeleton.bones.find(bone => bone.name === 'BOLT');
-    const magazine = main.skeleton.bones.find(bone => bone.name === 'MAGAZINE');
-    if (bolt) { bolt.userData.fbxBolt = true; bolt.userData.restY = bolt.position.y; sniper.action = bolt; }
-    if (magazine) { magazine.userData.fbxMagazine = true; magazine.userData.restZ = magazine.position.z; sniper.magazine = magazine; }
+    if (this.arms) this.arms.group.visible = on || this.holder.visible;
   }
 
   inspect(): boolean {
@@ -636,157 +261,563 @@ export class WeaponView {
   private cancelInspect() {
     if (this.inspectTime < 0) return;
     this.inspectTime = -1;
-    // Event-driven shots read muzzle anchors before the next render update.
-    this.holder.position.copy(this.restPosition); this.holder.rotation.copy(this.restRotation);
+    this.holder.position.copy(this.restPosition); this.holder.quaternion.copy(this.restRotation);
   }
 
   shot(id: WeaponId, contact = false) {
     this.cancelInspect(); this.inspectAllowed = false;
-    // A cosmetic holster must never make a confirmed shot emerge from the
-    // previous weapon's muzzle. Gameplay can fire before the animation ends.
+    // A cosmetic holster must never make a confirmed shot emerge from the previous weapon's muzzle.
     if (id !== this.active && this.models[id]) {
       this.models[this.active].group.visible = false; this.active = id; this.models[id].group.visible = true;
-      this.draw = Math.max(this.draw, this.holster); this.holster = 0; this.ads = 0;
+      this.draw = Math.min(this.draw, .35); this.holster = 0; this.ads = 0;
     }
     if (id === 'machete') {
-      this.meleeTime = 0; this.meleeSide *= -1; this.meleeHit = contact; this.meleeStop = 0;
+      this.meleeTime = 0; this.meleeSide *= -1; this.meleeCount++; this.meleeHit = contact; this.meleeStop = 0;
     } else {
-      this.recoil.impulse(id === 'sniper' ? 4.4 : id === 'shotgun' ? 3.6 : id === 'pistol' ? 2.5 : 1.65);
-      this.recoilYaw.impulse((Math.random() - .5) * .55);
+      if (id === 'revolver') this.cylinderTarget += Math.PI / 3;
+      this.flashLight = id === 'shotgun' || id === 'sniper' || id === 'coco' ? 1.4 : 1;
+      const recoil = this.models[id]?.spec.recoil ?? VIEW_SPECS[id].recoil;
+      const scale = 1 - this.adsAmount * .45;
+      const alternate = this.shotCount++ % 2 ? 1 : -1;
+      this.kickZ.impulse(recoil.kick * scale);
+      this.kickPitch.impulse(recoil.climb * (1 - this.adsAmount * .6));
+      this.kickRoll.impulse(recoil.roll * alternate * (.6 + Math.random() * .6) * scale);
+      this.kickYaw.impulse((Math.random() - .5) * recoil.roll * .5 * scale);
     }
     this.shotLife = weaponShotDuration(id);
+    this.shotgunPumpLife = 0; this.lastShotCycle = -1;
   }
 
   // Barrel tip and ejection port of the held weapon, in this scene's (camera) space.
-  // The effects module draws the muzzle flash and casings there.
   muzzleWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].muzzle.getWorldPosition(target); }
   ejectWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].eject.getWorldPosition(target); }
 
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number, viewRotation?: THREE.Quaternion) {
+    if (import.meta.env.DEV && actor) {
+      // QA motion review: window.__vmActor(actor, time) returns state overrides (walk, strafe, crouch, jump).
+      const patch = (globalThis as { __vmActor?: (actor: ActorState, time: number) => Partial<ActorState> | undefined }).__vmActor?.(actor, simulationTime);
+      if (patch) actor = { ...actor, ...patch };
+    }
     if (viewRotation) {
       this.inverseView.copy(viewRotation).invert();
-      this.key.position.set(-70, 32, -30).applyQuaternion(this.inverseView);
+      this.key.position.copy(SUN_DIRECTION).multiplyScalar(80).applyQuaternion(this.inverseView);
       this.rim.position.set(-70, 65, -30).applyQuaternion(this.inverseView);
+      this.fill.position.set(60, 10, 40).applyQuaternion(this.inverseView);
     }
-    this.holder.visible = !!actor && actor.alive && actor.stage === 'ground' && !(actor.emote && actor.emoteUntil > simulationTime);
-    if (!actor || !this.holder.visible) {
-      this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined; this.land.reset();
-      this.swimPose = 0; this.swimming = false; this.sprintPose = 0; this.bobAmount = 0; this.wallPose = 0;
-      this.gait = 0; this.breathingTime = 0;
-      this.meleeTime = MELEE_SECONDS; this.meleeSide = -1; this.meleeStop = 0; this.meleeHit = false; this.smear.visible = false;
-      this.shotLife = 0; this.reloadEnd = 0; this.ads = 0; this.draw = 0; this.holster = 0;
-      this.recoil.reset(); this.recoilYaw.reset(); this.swayX.reset(); this.swayY.reset();
-      sampleMelee(MELEE_SECONDS, this.meleeSide, this.meleePose);
-      return;
-    }
+    const ready = !!this.models[this.active] && !((import.meta.env.DEV || import.meta.env.VITE_QA === '1') && (globalThis as { __camOverride?: unknown }).__camOverride);
+    this.holder.visible = ready && !!actor && actor.alive && actor.stage === 'ground' && !(actor.emote && actor.emoteUntil > simulationTime);
+    if (this.arms) this.arms.group.visible = this.holder.visible;
+    if (!actor || !this.holder.visible) { this.resetMotion(); return; }
     const requested = actor.weapons[actor.slot]?.id || 'pistol';
-    if (requested !== this.active) {
-      this.cancelInspect(); this.holster = Math.min(1, this.holster + dt / .11);
+    if (requested !== this.active && this.models[requested]) {
+      this.cancelInspect(); this.holster = Math.min(1, this.holster + dt / (HANDLING[requested].draw * HOLSTER_SHARE));
       if (this.holster >= 1) {
-        this.models[this.active].group.visible = false; this.active = requested; this.models[this.active].group.visible = true;
-        this.draw = 1; this.holster = 0; this.recoil.reset(); this.recoilYaw.reset(); this.reloadEnd = 0; this.ads = 0;
+        this.models[this.active].group.visible = false; this.drawFrom = this.active; this.active = requested; this.models[this.active].group.visible = true;
+        this.draw = 1; this.holster = 0; this.reloadEnd = 0; this.ads = 0; this.kickZ.reset(); this.kickPitch.reset();
+        this.onFoley(this.active === 'machete' ? 'draw' : 'grab');
         this.meleeTime = MELEE_SECONDS; this.meleeStop = 0;
       }
     } else this.holster = damp(this.holster, 0, 20, dt);
-    const weapon = this.active;
-    const model = this.models[this.active]; model.group.visible = true;
-    const rarity = actor.weapons[actor.slot]?.rarity ?? 0;
-    if (model.painted && rarity !== model.rarity) {
-      this.painted!.setRarity(model.painted, rarity); model.rarity = rarity;
-    }
-    const reloading = requested === weapon && actor.reloadUntil > simulationTime;
-    this.inspectAllowed = requested === weapon && !actor.swimming && !actor.ads && !actor.sprint && !reloading &&
-      this.shotLife <= 0 && (weapon !== 'machete' || this.meleeTime >= MELEE_SECONDS);
-    if (!this.inspectAllowed) this.cancelInspect();
-    if (reloading && actor.reloadUntil > this.reloadEnd) this.reloadEnd = actor.reloadUntil;
-    const duration = WEAPONS[weapon].reload || 1;
-    const progress = reloading ? THREE.MathUtils.clamp(1 - (this.reloadEnd - simulationTime) / duration, 0, 1) : 0;
-    const namedReload = model.magazine?.name === 'mag' && model.support.name === 'grip_l';
-    const ease = (x: number) => { const t = THREE.MathUtils.clamp(x, 0, 1); return t * t * (3 - 2 * t); };
-    const withdraw = ease((progress - .12) / .17), insert = ease((progress - .53) / .19);
-    const magazineMotion = reloading ? namedReload ? withdraw * (1 - insert) : Math.sin(Math.PI * progress) : 0;
-    const chamber = reloading && namedReload ? Math.sin(Math.PI * ease((progress - .78) / .16)) : 0;
-    if (model.magazine) {
-      if (model.magazine.userData.fbxMagazine) {
-        model.magazine.position.z = model.magazine.userData.restZ - magazineMotion * .09;
-      } else {
-        model.magazine.position.y = (model.magazine.userData.restY || 0) - magazineMotion * (model.magazine.userData.travel || (namedReload ? .29 : .2));
-        model.magazine.rotation.z = -magazineMotion * .25;
+    const weapon = this.active, model = this.models[weapon];
+    let spec = model.spec, grips = model.grips;
+    let viewmodelFov = spec.viewmodelFov ?? VIEWMODEL_FOV;
+    if (import.meta.env.DEV) {
+      // QA tuning: window.__vmTune = { pistol: { hip: {...}, grips: {...}, poles: {...}, fov } } overrides the spec live.
+      const tune = (globalThis as { __vmTune?: Record<string, Partial<ViewSpec> & { fov?: number }> }).__vmTune?.[weapon];
+      if (tune) {
+        spec = { ...spec, ...tune, grips: { ...spec.grips, ...tune.grips } };
+        grips = framedGrips(spec); viewmodelFov = tune.fov ?? spec.viewmodelFov ?? VIEWMODEL_FOV;
       }
     }
-    model.support.position.set(magazineMotion * .055, -magazineMotion * (namedReload ? .17 : .055), magazineMotion * .11 + chamber * .035);
-    model.support.rotation.x = -magazineMotion * .25;
-    if (model.action) {
-      const baseZ = model.painted ? 0 : weapon === 'shotgun' ? -.43 : weapon === 'pistol' ? 0 : .014;
-      const total = weaponShotDuration(weapon);
-      const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
-      if (model.action.userData.fbxBolt) model.action.position.y = model.action.userData.restY + cycle * .07;
-      else if (model.action.userData.gltfSlide) model.action.position.x = -cycle * .027;
-      else model.action.position.z = baseZ + (cycle + chamber) * (weapon === 'shotgun' ? .11 : .045);
-      if (!model.action.userData.fbxBolt) model.action.rotation.z = weapon === 'sniper' ? -cycle * .6 : 0;
-      if (weapon === 'shotgun') model.support.position.z += cycle * .11;
+    model.group.visible = true;
+    const rarity = actor.weapons[actor.slot]?.rarity ?? 0;
+    if (rarity !== model.rarity) {
+      model.rarity = rarity;
+      for (const uniforms of model.accent) {
+        uniforms.rarityColor.value.set(RARITY[rarity]?.color ?? RARITY[0].color);
+        uniforms.rarityAmount.value = rarity > 0 ? 1 : 0; uniforms.rarityGlow.value = rarity === 3 ? .45 : 0;
+      }
     }
-    const goalAds = actor.ads && !actor.swimming && !reloading && !actor.sprint && weapon !== 'machete' ? 1 : 0;
-    this.ads = advanceAds(weapon, this.ads, !!goalAds, dt);
-    this.kick = this.recoil.update(0, 24, dt);
-    const yawKick = this.recoilYaw.update(0, 27, dt);
+    const motion = settings.reducedMotion ? .35 : 1;
+    if (this.arms && this.furPreset !== settings.graphics) { this.furPreset = settings.graphics; this.arms.setFurShells(FUR_BY_PRESET[settings.graphics]); }
+    this.time += dt; this.lastDt = dt;
+    const reloading = requested === weapon && actor.reloadUntil > simulationTime;
+    const ammo = actor.weapons[actor.slot]?.ammo ?? 0;
+    this.pistolEmpty = weapon === 'pistol' && ammo === 0;
+    if (weapon === 'shotgun' && requested === weapon) {
+      if (reloading && !this.shotgunReloading) this.shotgunBeganEmpty = ammo === 0;
+      if (!reloading && this.shotgunReloading && this.shotgunBeganEmpty && ammo > 0 && this.shotLife <= 0) this.shotgunPumpLife = .42;
+      this.shotgunReloading = reloading;
+      const before = this.shotgunPumpLife;
+      this.shotgunPumpLife = Math.max(0, before - dt);
+      if (before > .31 && this.shotgunPumpLife <= .31) this.onFoley('pump-back');
+      if (before > .12 && this.shotgunPumpLife <= .12) this.onFoley('pump-home');
+    } else { this.shotgunReloading = false; this.shotgunBeganEmpty = false; this.shotgunPumpLife = 0; }
+    this.inspectAllowed = requested === weapon && actor.grounded && !actor.swimming && !actor.ads && !actor.sprint && !reloading &&
+      this.shotLife <= 0 && this.shotgunPumpLife <= 0 && (weapon !== 'machete' || this.meleeTime >= MELEE_SECONDS);
+    if (!this.inspectAllowed) this.cancelInspect();
+    if (reloading && actor.reloadUntil > this.reloadEnd + .01) {
+      this.reloadEnd = actor.reloadUntil;
+      this.reloadEmpty = ammo === 0; this.reloadAmmo = ammo;
+      this.lastReload = -1;
+      this.reloadDuration = weapon === 'm4' ? WEAPONS.m4.reload : Math.max(.3, Math.min(WEAPONS[weapon].reload || 1, actor.reloadUntil - simulationTime + .02));
+    }
+    const reload = reloading ? THREE.MathUtils.clamp(1 - (this.reloadEnd - simulationTime) / this.reloadDuration, 0, 1) : -1;
+
+    // ---- aim state
+    const wantAds = actor.ads && !actor.swimming && !reloading && this.shotgunPumpLife <= 0 && !actor.sprint && weapon !== 'machete' && this.draw < .5;
+    this.ads = advanceAds(weapon, this.ads, wantAds, dt);
+    const ads = this.adsAmount;
+    // The hip lens blends to the gun's authored aimed lens, so every sight picture stays exact.
+    const lens = viewmodelFov + ((spec.adsFov ?? viewmodelFov) - viewmodelFov) * ads;
+    if (Math.abs(this.camera.fov - lens) > 1e-4) { this.camera.fov = lens; this.camera.updateProjectionMatrix(); }
+    // ---- look inertia: the gun trails the view and settles with a slight overshoot.
     const yaw = actor.yaw || 0, pitch = actor.pitch || 0;
-    if (this.lastYaw === undefined) { this.grounded = actor.grounded; this.swimming = actor.swimming; this.verticalSpeed = actor.velocity.y; }
-    const yawDelta = this.lastYaw === undefined ? 0 : Math.atan2(Math.sin(yaw - this.lastYaw), Math.cos(yaw - this.lastYaw));
-    const pitchDelta = this.lastYaw === undefined ? 0 : pitch - this.lastPitch;
+    if (this.lastYaw === undefined) { this.grounded = actor.grounded; this.swimming = actor.swimming; this.verticalSpeed = actor.velocity.y; this.crouched = actor.crouch; }
+    const yawRate = this.lastYaw === undefined ? 0 : Math.atan2(Math.sin(yaw - this.lastYaw), Math.cos(yaw - this.lastYaw)) / Math.max(dt, 1e-3);
+    const pitchRate = this.lastYaw === undefined ? 0 : (pitch - this.lastPitch) / Math.max(dt, 1e-3);
     this.lastYaw = yaw; this.lastPitch = pitch;
-    const swayX = this.swayX.update(THREE.MathUtils.clamp(-yawDelta / Math.max(dt, .001) * .012, -.055, .055), 20, dt);
-    const swayY = this.swayY.update(THREE.MathUtils.clamp(pitchDelta / Math.max(dt, .001) * .01, -.04, .04), 20, dt);
-    if (!actor.swimming && !this.swimming) {
-      if (actor.grounded && !this.grounded) this.land.impulse(-Math.min(3, Math.max(.6, -this.verticalSpeed * .25)));
-      if (!actor.grounded && this.grounded && actor.velocity.y > 0) this.land.impulse(.6);
-    } else if (actor.swimming) this.land.reset();
-    this.grounded = actor.grounded; this.swimming = actor.swimming; this.verticalSpeed = actor.velocity.y;
-    this.swimPose = damp(this.swimPose, actor.swimming ? 1 : 0, 8, dt);
-    const landing = this.land.update(0, 17, dt);
-    const motion = settings.reducedMotion ? 0 : 1;
-    this.breathingTime += dt;
-    this.draw = Math.max(0, this.draw - dt / .24);
-    this.shotLife = Math.max(0, this.shotLife - dt);
+    const weight = spec.inertia, loose = 1 - ads * .75;
+    const swayYaw = this.swayYaw.update(THREE.MathUtils.clamp(yawRate * .018 * weight, -.11, .11) * loose, 13 / Math.sqrt(weight), dt);
+    const swayPitch = this.swayPitch.update(THREE.MathUtils.clamp(-pitchRate * .014 * weight, -.08, .08) * loose, 13 / Math.sqrt(weight), dt);
+    const swayRoll = this.swayRoll.update(THREE.MathUtils.clamp(yawRate * .025 * weight, -.12, .12) * loose, 10, dt);
+    // ---- locomotion
     const speed = Math.hypot(actor.velocity.x, actor.velocity.z);
-    this.gait += speed * dt * 2.5;
-    const sprint = this.sprintPose = damp(this.sprintPose, actor.sprint && !actor.swimming ? 1 : 0, 12, dt);
-    this.bobAmount = damp(this.bobAmount, actor.grounded && !actor.swimming ? Math.min(speed / 7, 1) * (.012 + sprint * .015) : 0, 16, dt);
-    const bob = motion * this.bobAmount;
-    this.wallPose = damp(this.wallPose, closeWall, 18, dt);
-    const wall = this.wallPose, lower = smoothPose(Math.min(1, this.draw + this.holster));
-    const ads = this.ads * this.ads * (3 - 2 * this.ads);
-    const breath = Math.sin(this.breathingTime * 1.8) * .0032 * motion * (1 - ads) * (1 - sprint);
-    const grip = Math.sin(this.breathingTime * 1.17) * Math.sin(this.breathingTime * .43) * motion * (1 - ads) * (1 - magazineMotion);
-    if (model.gripFingers) { model.gripFingers.position.y = grip * .0015; model.gripFingers.rotation.x = grip * .012; }
-    if (model.triggerFinger) {
-      const press = this.shotLife > 0 ? Math.min(1, this.shotLife / .045) : 0;
-      model.triggerFinger.position.set(0, -press * .012, press * .018);
+    const lateral = actor.velocity.x * Math.cos(yaw) - actor.velocity.z * Math.sin(yaw);
+    const strafe = this.strafe.update(THREE.MathUtils.clamp(-lateral / 6, -1, 1) * (1 - ads * .8), 8, dt);
+    const moving = actor.grounded && !actor.swimming ? Math.min(speed / 4.5, 1.4) : 0;
+    this.movePose = damp(this.movePose, moving, 9, dt);
+    this.gait += dt * (speed < .2 ? 0 : 2.1 + speed * .62) * Math.PI;
+    const sprint = this.sprintPose = damp(this.sprintPose, actor.sprint && !actor.swimming && speed > 1 && !reloading ? 1 : 0, actor.sprint ? 9 : 13, dt);
+    if (!actor.swimming && !this.swimming) {
+      if (actor.grounded && !this.grounded) this.land.impulse(-Math.min(2.6, Math.max(.5, -this.verticalSpeed * .22)));
+      if (!actor.grounded && this.grounded && actor.velocity.y > 0) this.land.impulse(.9);
+    } else if (actor.swimming) this.land.reset();
+    if (actor.crouch !== this.crouched) this.crouchDip.impulse(actor.crouch ? -.7 : .5);
+    this.grounded = actor.grounded; this.swimming = actor.swimming; this.verticalSpeed = actor.velocity.y; this.crouched = actor.crouch;
+    this.swimPose = damp(this.swimPose, actor.swimming ? 1 : 0, 6, dt);
+    this.leanPose = damp(this.leanPose, actor.lean, 10, dt);
+    this.wallPose = damp(this.wallPose, closeWall * (1 - ads), 14, dt);
+    const landing = this.land.update(0, 11, dt), crouchDip = this.crouchDip.update(0, 12, dt);
+    const kickZ = this.kickZ.update(0, spec.recoil.frequency, dt), kickPitch = this.kickPitch.update(0, spec.recoil.frequency * .85, dt);
+    const kickRoll = this.kickRoll.update(0, spec.recoil.frequency * .7, dt), kickYaw = this.kickYaw.update(0, spec.recoil.frequency * .8, dt);
+    this.draw = Math.max(0, this.draw - dt / (HANDLING[weapon].draw * (1 - HOLSTER_SHARE)));
+    this.shotLife = Math.max(0, this.shotLife - dt);
+
+    // Camera-space choreography keys follow the gun from the hip they were authored at to this one.
+    if (spec.choreoFrame !== this.viewKeyFrom || spec.hip !== this.viewKeyTo) {
+      this.viewKeyFrom = spec.choreoFrame; this.viewKeyTo = spec.hip;
+      this.viewKeyFrame = spec.choreoFrame ? this.choreoTransform(spec.choreoFrame, spec.hip) : null;
     }
-    const pose = model.painted ? WEAPON_HIP_POSES[weapon] : null;
-    const modelScale = pose?.scale ?? .72;
-    this.holder.scale.setScalar(modelScale);
-    const swimBob = Math.sin(this.breathingTime * 2.1) * .009 * motion * this.swimPose;
-    const hipY = THREE.MathUtils.lerp(pose?.y ?? -.245, -model.sightY * modelScale, ads) + this.swimPose * (weapon === 'pistol' ? .035 : -.18) + swimBob;
-    this.holder.position.set(THREE.MathUtils.lerp(pose?.x ?? model.hipX + .045, 0, ads) + Math.sin(this.gait) * bob * .4 + swayX * motion * (1 - ads * .85),
-      hipY + breath + Math.abs(Math.sin(this.gait)) * bob - this.kick * .55 - lower * 1.05 + (swayY + landing) * motion - sprint * .08 - wall * .12 - magazineMotion * .045,
-      THREE.MathUtils.lerp(pose?.z ?? -.73, model.adsZ, ads) + this.kick * .8 + wall * .08 + sprint * .07);
-    this.holder.rotation.set((pose?.pitch ?? 0) * (1 - ads) + this.kick * 1.1 + lower * .65 + swayY * motion + magazineMotion * .24 + sprint * .16,
-      THREE.MathUtils.lerp(pose?.yaw ?? (pose ? 0 : .24), 0, ads) + wall * .28 + yawKick + swayX * motion,
-      THREE.MathUtils.lerp(pose?.roll ?? (pose ? 0 : -.055), 0, ads) + Math.sin(this.gait) * bob * 1.7 - magazineMotion * .13 + breath * .8 + swimBob * 1.2);
+    // ---- base pose: hip to sights
+    const hip = v3(spec.hip.pos), hipRot = this.quat.setFromEuler(this.euler.set(spec.hip.rot[0], spec.hip.rot[1], spec.hip.rot[2], 'YXZ'));
+    const adsRot = this.adsQuat.setFromAxisAngle(X_AXIS, spec.adsPitch ?? 0);
+    const eye = (spec.adsEye ? v3(spec.adsEye) : model.sight.clone()).multiplyScalar(spec.scale).applyQuaternion(adsRot);
+    const adsPos = new THREE.Vector3(0, 0, -spec.adsDistance).sub(eye);
+    const position = hip.lerp(adsPos, ads);
+    const rotation = hipRot.slerp(adsRot, ads);
+    this.basePosition.copy(position); this.baseRotation.copy(rotation);
+    // ---- additive layers (x right, y up, z back; pitch up, yaw left, roll left)
+    const bobScale = motion * this.movePose * (1 - ads * .85) * (1 + sprint * .9);
+    const bobX = Math.sin(this.gait * .5) * .011 * bobScale, bobY = -Math.abs(Math.cos(this.gait * .5)) * .009 * bobScale + .0045 * bobScale;
+    const breath = Math.sin(this.time * 1.6) * .0022 * motion * (1 - ads * .8) * (1 - sprint);
+    const lowered = smoothPose(Math.min(1, this.holster + this.draw));
+    const drawTwist = this.draw > 0 ? Math.sin(this.draw * Math.PI) * .25 : 0;
+    const swimLow = this.swimPose * (swimReady(weapon) ? -.3 : 1);
+    let px = bobX + swayYaw * .12 + strafe * .012 - this.leanPose * .01;
+    let py = bobY + breath + landing * .025 * motion + crouchDip * .02 * motion + swayPitch * .1 - lowered * .2 - swimLow * .12 - this.wallPose * .07;
+    let pz = kickZ * .016 + this.wallPose * .06 + lowered * .05;
+    let rx = kickPitch * .016 + swayPitch + landing * .03 * motion - lowered * .75 + this.wallPose * .5 - swimLow * .3 + breath * .6;
+    let ry = swayYaw + kickYaw * .01 + drawTwist * .5 + strafe * .02;
+    let rz = swayRoll + kickRoll * .01 + Math.sin(this.gait * .5) * .018 * bobScale + strafe * .07 - this.leanPose * .12 + drawTwist;
+    // Sprint carries the gun across the chest, muzzle high for pistols, canted for long guns.
+    const sprintPos = v3(spec.sprint.pos), sprintRot = spec.sprint.rot;
+    px += sprintPos.x * sprint; py += sprintPos.y * sprint; pz += sprintPos.z * sprint;
+    rx += sprintRot[0] * sprint * (1 + Math.sin(this.gait) * .06); ry += sprintRot[1] * sprint; rz += sprintRot[2] * sprint;
+    // ---- reload choreography (weapon part)
+    const keys = weapon === 'pistol' ? pistolReload(this.reloadEmpty) : weapon === 'smg' ? smgReload(this.reloadEmpty) : weapon === 'm4' ? m4Reload(this.reloadEmpty) :
+      weapon === 'dmr' ? dmrReload(this.reloadEmpty) : weapon === 'sniper' ? sniperReload(this.reloadEmpty) : weapon === 'coco' ? cocoReload(this.reloadAmmo) : sortedReloads[weapon];
+    const cycling = weapon === 'sniper' && this.shotLife > 0 && reload < 0;
+    const shotPhase = 1 - this.shotLife / weaponShotDuration(weapon);
+    const sample = reload >= 0 && keys ? sampleChoreo(keys, reload, this.sample) : cycling ? sampleChoreo(SNIPER_CYCLE, shotPhase, this.sample) : null;
+    if (cycling) {
+      for (const key of SNIPER_CYCLE) if (key.sfx && key.t > this.lastShotCycle && key.t <= shotPhase) this.onFoley(key.sfx);
+      this.lastShotCycle = shotPhase;
+    } else this.lastShotCycle = -1;
+    // Foley: every key the reload passed since the last frame plays its cue once.
+    if (keys && reload >= 0) {
+      for (const key of keys) if (key.sfx && key.t > this.lastReload && key.t <= reload) this.onFoley(key.sfx);
+      this.lastReload = reload;
+    } else this.lastReload = -1;
+    const choreo = reload >= 0 && !keys ? this.reloadPose(model, reload) : null;
+    if (choreo) { px += choreo.px; py += choreo.py; pz += choreo.pz; rx += choreo.rx; ry += choreo.ry; rz += choreo.rz; }
+    if (sample) { px += sample.p.x; py += sample.p.y; pz += sample.p.z; rx += sample.r.x; ry += sample.r.y; rz += sample.r.z; }
+    // Shell-by-shell reloads keep the loading port canted toward the paw between shells (a moderate roll, so
+    // the loading paw works from below with a natural wrist).
+    this.reloadHold = damp(this.reloadHold, reloading && spec.reload === 'shotgun' ? 1 : 0, 9, dt);
+    if (this.reloadHold > .001) { const h = this.reloadHold; px -= .05 * h; py += .05 * h; pz -= .02 * h; rx += .2 * h; ry += .18 * h; rz -= .6 * h; }
+    this.holder.position.set(position.x + px, position.y + py, position.z + pz);
+    this.offset.setFromEuler(this.euler.set(rx, ry, rz, 'YXZ'));
+    this.holder.quaternion.copy(rotation).multiply(this.offset);
+    this.holder.scale.setScalar(spec.scale);
     this.updateMelee(weapon, dt, settings.reducedMotion);
-    this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.rotation);
-    if (this.inspectTime >= 0) {
-      this.inspectTime += dt;
-      const progress = Math.min(1, this.inspectTime / 1.6);
-      const look = Math.sin(Math.PI * progress) ** 2 * (settings.reducedMotion ? .35 : 1);
-      this.holder.position.x -= look * .09; this.holder.position.y += look * .065;
-      this.holder.position.z += look * .04;
-      this.holder.rotation.x += look * .18;
-      this.holder.rotation.y -= look * (weapon === 'machete' ? .2 : weapon === 'slingshot' ? .3 : .65);
-      this.holder.rotation.z += look * (weapon === 'machete' ? -.3 : .35);
-      if (progress === 1) this.inspectTime = -1;
+    this.restPosition.copy(this.holder.position); this.restRotation.copy(this.holder.quaternion);
+    const inspect = this.inspectTime >= 0 ? this.applyInspect(weapon, dt, settings.reducedMotion) : null;
+    this.animateParts(model, reload, choreo, sample, ammo);
+    this.flashLight = Math.max(0, this.flashLight - dt / .07);
+    this.muzzleLight.intensity = this.flashLight * this.flashLight * 7;
+    if (this.flashLight > 0) { this.holder.updateMatrixWorld(true); model.muzzle.getWorldPosition(this.muzzleLight.position); }
+    // Hidden shoulders: the hip set, blended toward the aimed set so the support forearm stays under the gun.
+    const shoulders = spec.shoulders ?? SHOULDERS, aimed = spec.adsShoulders ?? shoulders;
+    v3(shoulders.R, this.shoulderR).lerp(v3(aimed.R, this.shoulderAds), ads); v3(shoulders.L, this.shoulderL).lerp(v3(aimed.L, this.shoulderAds), ads);
+    this.reloadArm = damp(this.reloadArm, reloading && spec.reloadShoulders ? 1 : 0, 10, dt);
+    if (spec.reloadShoulders && this.reloadArm > .001) {
+      this.shoulderR.lerp(v3(spec.reloadShoulders.R, this.shoulderAds), this.reloadArm);
+      this.shoulderL.lerp(v3(spec.reloadShoulders.L, this.shoulderAds), this.reloadArm);
     }
+    const rideR = Math.max(lowered, spec.armRide ?? 0), rideL = spec.freePaw ? 0 : lowered;
+    if (rideR > 0 || rideL > 0) {
+      // Drawing and holstering lower the whole gun: the shoulders ride with it, so the forearms keep
+      // their hold instead of swinging through the gun (and a blade's arm rides with every cut).
+      this.ride.compose(this.basePosition, this.baseRotation, ONE).invert()
+        .premultiply(this.rideTo.compose(this.holder.position, this.holder.quaternion, ONE));
+      if (!spec.armRide) {
+        // A lowered gun carries its shoulders down with it: translation only while it starts to drop (turning
+        // them with the gun's pitch would swing the hidden shoulders up into view), then rigidly once it is
+        // low and out of frame, so the forearms never sweep through the gun.
+        const rigid = THREE.MathUtils.smoothstep(lowered, .35, .8);
+        if (rigid < 1) {
+          this.rideShift.makeTranslation(this.holder.position.x - this.basePosition.x, this.holder.position.y - this.basePosition.y, this.holder.position.z - this.basePosition.z);
+          for (let i = 0; i < 16; i++) this.ride.elements[i] = this.rideShift.elements[i] + (this.ride.elements[i] - this.rideShift.elements[i]) * rigid;
+        }
+      }
+      this.shoulderR.lerp(this.shoulderAds.copy(this.shoulderR).applyMatrix4(this.ride), rideR);
+      this.shoulderL.lerp(this.shoulderAds.copy(this.shoulderL).applyMatrix4(this.ride), rideL);
+      this.rideTurn.setFromRotationMatrix(this.ride);
+    }
+    this.rideR = rideR; this.rideL = rideL;
+    this.tunedSpec = spec;
+    this.solveArms(model, grips, choreo, sample ?? inspect, spec.freePaw);
+    if (import.meta.env.DEV) this.debugOrbit();
+  }
+
+  // QA lab: window.__vmOrbit = { yaw, pitch, distance, target: [x, y, z] } views the rig from outside.
+  private debugOrbit() {
+    const orbit = (globalThis as { __vmOrbit?: { yaw: number; pitch: number; distance: number; target: number[] } }).__vmOrbit;
+    if (!orbit) { this.camera.position.set(0, 0, 0); this.camera.quaternion.identity(); return; }
+    const t = new THREE.Vector3(orbit.target[0], orbit.target[1], orbit.target[2]);
+    this.camera.position.set(Math.sin(orbit.yaw) * Math.cos(orbit.pitch), Math.sin(orbit.pitch), Math.cos(orbit.yaw) * Math.cos(orbit.pitch)).multiplyScalar(orbit.distance).add(t);
+    this.camera.lookAt(t);
+  }
+
+  private resetMotion() {
+    if (this.reloadEnd && this.models[this.active]) this.animateParts(this.models[this.active], -1, null, null);
+    this.lastReload = -1; this.reloadEmpty = false; this.reloadAmmo = 0;
+    this.shotgunReloading = false; this.shotgunBeganEmpty = false; this.shotgunPumpLife = 0; this.lastShotCycle = -1;
+    this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined;
+    for (const spring of [this.kickZ, this.kickPitch, this.kickRoll, this.kickYaw, this.swayYaw, this.swayPitch, this.swayRoll, this.strafe, this.land, this.crouchDip]) spring.reset();
+    this.swimPose = 0; this.swimming = false; this.sprintPose = 0; this.movePose = 0; this.wallPose = 0; this.leanPose = 0; this.reloadArm = 0;
+    this.gait = 0; this.time = 0;
+    this.meleeTime = MELEE_SECONDS; this.meleeSide = -1; this.meleeCount = 0; this.meleeStop = 0; this.meleeHit = false; this.smear.visible = false;
+    this.shotLife = 0; this.reloadEnd = 0; this.ads = 0; this.draw = 0; this.holster = 0;
+    sampleMelee(MELEE_SECONDS, this.meleeSide, this.meleePose);
+  }
+
+  // Weapon offsets plus the support paw's job for each reload family.
+  private reloadPose(model: Model, t: number): Choreo {
+    const c: Choreo = { px: 0, py: 0, pz: 0, rx: 0, ry: 0, rz: 0, support: 0, supportPos: new THREE.Vector3(), mag: 'in', magOut: 0, slide: 0 };
+    const style = model.spec.reload;
+    if (style === 'pistol' || style === 'rifle') {
+      // Tilt the gun to show the well, drop the old magazine, fetch and seat a
+      // new one, then rack or release the slide and settle back to the grip.
+      const tilt = window01(t, 0, .14) * (1 - window01(t, .82, 1));
+      c.rx += tilt * .22; c.rz += tilt * (style === 'pistol' ? .55 : -.45); c.ry += tilt * (style === 'pistol' ? .18 : -.1);
+      c.px += tilt * (style === 'pistol' ? -.035 : -.02); c.py += tilt * .02;
+      const eject = window01(t, .12, .24);
+      const fetch = window01(t, .16, .38), bring = window01(t, .38, .62), seat = window01(t, .62, .72);
+      c.support = window01(t, .08, .2) * (1 - window01(t, .8, .94));
+      // Magazine: in -> falling -> hidden -> in the paw -> seated.
+      if (t < .12) c.mag = 'in';
+      else if (t < .38) { c.mag = 'drop'; c.magOut = eject; }
+      else if (t < .62) { c.mag = 'hand'; c.magOut = 1 - bring; }
+      else { c.mag = 'in'; c.magOut = (1 - seat) * .35; }
+      // Support paw path: down to the belt, back up under the well.
+      c.supportPos.set(-.02 - fetch * .08 + bring * .08, -.12 - fetch * .22 + bring * .22 - seat * .02, .04 + fetch * .08 - bring * .08);
+      // Seating shoves the gun up; the slide snaps home a beat later.
+      const shove = bump(t, .66, .71, .8);
+      c.py += shove * .018; c.rx += shove * .06;
+      c.slide = window01(t, .12, .16) * (1 - window01(t, .8, .84));
+      const snap = bump(t, .8, .83, .92);
+      c.pz += snap * .02; c.rx += snap * .05;
+    } else {
+      // Families without authored paws yet: a clean dip and tilt.
+      const dip = bump(t, 0, .3, 1);
+      c.py -= dip * .06; c.rx += dip * .3; c.rz -= dip * .35; c.support = dip;
+      c.supportPos.set(-.05, -.18 * dip, .05);
+      c.mag = 'in'; c.magOut = model.parts.mag ? Math.sin(Math.PI * t) : 0;
+    }
+    return c;
+  }
+
+  private animateParts(model: Model, reload: number, choreo: Choreo | null, sample: ChoreoSample | null, ammo = WEAPONS[model.id].magazine) {
+    for (const [part, rest] of model.rest) { part.position.copy(rest.position); part.quaternion.copy(rest.quaternion); }
+    const { slide, trigger, hammer, mag, action } = model.parts;
+    const total = weaponShotDuration(model.id);
+    const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
+    const locked = sample?.parts.slide ?? choreo?.slide ?? (model.id === 'pistol' && this.pistolEmpty ? 1 : 0);
+    if (slide) slide.position.z += Math.max(cycle, locked) * .028;
+    if (trigger) trigger.rotation.x -= (this.shotLife > total * .5 ? .3 : 0);
+    if (hammer) hammer.rotation.x += cycle * -.6;
+    const phase = this.shotLife > 0 ? THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1) : 1;
+    const { cylinder, crane, rounds, pump, bolt, charge } = model.parts;
+    if (pump) {
+      // Rack after the shot: back, then home. Reloads can drive it too.
+      const racked = window01(phase, .25, .5) * (1 - window01(phase, .6, .85));
+      const finish = model.id === 'shotgun' && this.shotgunPumpLife > 0 ? 1 - this.shotgunPumpLife / .42 : 0;
+      const finalRack = window01(finish, .05, .35) * (1 - window01(finish, .60, .90));
+      pump.position.z += Math.max(racked, finalRack, sample?.parts.pump ?? 0) * (model.id === 'coco' ? .07 : .085);
+    }
+    if (cylinder && model.crane) {
+      this.cylinderSpin = damp(this.cylinderSpin, this.cylinderTarget, 22, this.lastDt);
+      this.offset.setFromAxisAngle(AXIS_Z, (sample?.parts.swing ?? 0) * 1.3);
+      const cases = [model.parts.case0, model.parts.case1, model.parts.case2, model.parts.case3, model.parts.case4, model.parts.case5];
+      for (const part of [cylinder, crane, action, rounds, ...cases]) if (part) {
+        const rest = model.rest.get(part)!;
+        part.position.copy(rest.position).sub(model.crane).applyQuaternion(this.offset).add(model.crane);
+        part.quaternion.copy(this.offset).multiply(rest.quaternion);
+        if (part !== crane) part.quaternion.multiply(this.quat.setFromAxisAngle(AXIS_Z, -this.cylinderSpin));
+      }
+      if (action) action.position.z += (sample?.parts.eject ?? 0) * .030;
+      if (rounds) {
+        const spent = sample?.parts.spent ?? 0, fresh = sample?.parts.fresh ?? 0;
+        rounds.visible = fresh > .5 || spent < .002;
+      }
+      const spent = sample?.parts.spent ?? 0;
+      cases.forEach((part, i) => {
+        if (!part) return;
+        part.visible = spent > .001 && spent < .995;
+        const tip = model.liveTips?.[i];
+        if (tip) tip.visible = part.visible && i < this.reloadAmmo;
+        if (!part.visible) return;
+        const free = Math.max(0, spent - .18), a = i * Math.PI / 3;
+        part.position.z += spent * .20;
+        part.position.x += (Math.cos(a) * .045 - .14) * free;
+        part.position.y += Math.sin(a) * free * .03 - free * free * .08;
+        part.rotation.x += free * (i % 2 ? 2.2 : -1.8);
+        part.rotation.y += free * (i - 2.5) * .55;
+        if (tip) { tip.position.copy(part.position); tip.quaternion.copy(part.quaternion); }
+      });
+    }
+    if (model.parts.ribbons) {
+      const moving = this.meleeTime < MELEE_SECONDS ? Math.sin(this.meleeTime * 22 - .8) : 0;
+      // The cloth hangs in world gravity as the blade rolls in the paw.
+      model.parts.ribbons.quaternion.copy(this.holder.quaternion).invert().multiply(this.inverseView);
+      // A slight rest tilt keeps the trailing cloth off the forearm, which rides with the blade.
+      model.parts.ribbons.rotation.x += Math.sin(this.time * 4.1) * .055 + moving * .34 + .18;
+      model.parts.ribbons.rotation.z += Math.sin(this.time * 3.7 + .6) * .045 + moving * .20;
+    }
+    if (bolt && model.id === 'm4') {
+      bolt.position.z += Math.max(cycle, sample?.parts.bolt ?? 0) * .035;
+    } else if (bolt && model.id === 'sniper') {
+      bolt.quaternion.multiply(this.quat.setFromAxisAngle(AXIS_Z, (sample?.parts.bolt ?? 0) * 1.1));
+      bolt.position.z += (sample?.parts.boltPull ?? 0) * .075;
+    }
+    if (model.parts.release) {
+      if (model.id === 'revolver') model.parts.release.position.z -= (sample?.parts.release ?? 0) * .004;
+      else model.parts.release.rotation.z += (sample?.parts.release ?? 0) * .20;
+    }
+    if (model.id === 'smg' && action) action.position.z += Math.max(cycle, sample?.parts.charge ?? 0) * .052;
+    if (charge) charge.position.z += (sample?.parts.charge ?? 0) * .065;
+    if (mag && !sample?.mag && (model.spec.reload === 'revolver' || model.spec.reload === 'shotgun')) mag.visible = false;
+    else if (mag && sample?.mag) {
+      const m = sample.mag;
+      mag.visible = m.visible;
+      mag.position.addScaledVector(model.magAxis, m.out).add(m.p);
+      mag.quaternion.multiply(this.offset.setFromEuler(this.euler.set(m.r.x, m.r.y, m.r.z, 'XYZ')));
+    } else if (mag && choreo) {
+      if (choreo.mag === 'drop') {
+        // Falls out along the well, then drops out of frame.
+        const out = choreo.magOut;
+        mag.position.addScaledVector(model.magAxis, out * .09);
+        mag.position.y -= out * out * .6; mag.rotation.x += out * .9; mag.rotation.z += out * .5;
+        mag.visible = out < .98;
+      } else if (choreo.mag === 'hand') {
+        mag.visible = true;
+        mag.position.addScaledVector(model.magAxis, .03 + choreo.magOut * .5);
+        mag.position.x -= choreo.magOut * .06; mag.rotation.z -= choreo.magOut * .6;
+      } else {
+        mag.visible = true;
+        mag.position.addScaledVector(model.magAxis, choreo.magOut * .06);
+      }
+    } else if (mag && model.spec.reload !== 'revolver' && model.spec.reload !== 'shotgun') mag.visible = true;
+    if (model.id === 'coco') {
+      if (mag && !sample?.mag) mag.visible = ammo >= 4;
+      if (model.parts.load1) model.parts.load1.visible = (sample?.parts.load1 ?? (ammo >= 3 ? 1 : 0)) >= .5;
+      if (model.parts.load2) model.parts.load2.visible = (sample?.parts.load2 ?? (ammo >= 2 ? 1 : 0)) >= .5;
+    }
+    if (model.id === 'revolver' && rounds && mag && (sample?.parts.fresh ?? 0) > .5 && (sample?.parts.loaded ?? 0) < .5) {
+      // Cartridges share the loader's frame until released into the chambers.
+      rounds.position.copy(mag.position); rounds.quaternion.copy(mag.quaternion); rounds.visible = mag.visible;
+    }
+    void reload;
+  }
+
+  private viewKeyFrame: THREE.Matrix4 | null = null;
+  private viewKeyFrom: ViewSpec['choreoFrame'] | null = null;
+  private viewKeyTo: ViewSpec['hip'] | null = null;
+  private readonly viewKeyMatrix = new THREE.Matrix4();
+  /** The rigid move from one hip framing to another: current hip times the inverse of the authored one. */
+  private choreoTransform(from: { pos: V3; rot: V3 }, to: { pos: V3; rot: V3 }) {
+    const a = new THREE.Matrix4().compose(v3(from.pos), new THREE.Quaternion().setFromEuler(new THREE.Euler(from.rot[0], from.rot[1], from.rot[2], 'YXZ')), new THREE.Vector3(1, 1, 1));
+    const b = new THREE.Matrix4().compose(v3(to.pos), new THREE.Quaternion().setFromEuler(new THREE.Euler(to.rot[0], to.rot[1], to.rot[2], 'YXZ')), new THREE.Vector3(1, 1, 1));
+    return this.viewKeyMatrix.multiplyMatrices(b, a.invert());
+  }
+  private furPreset: Settings['graphics'] | null = null;
+  private reloadHold = 0;
+  private reloadArm = 0;
+  private lastReload = -1;
+  /** Local Foley cues (reload mechanics, draws). */
+  onFoley: (cue: string) => void = () => {};
+  private cylinderSpin = 0;
+  private cylinderTarget = 0;
+  private lastDt = 1 / 60;
+
+  private gripTarget(model: Model, grip: GripSpec, out: HandTarget) {
+    const m = this.holder.matrixWorld;
+    out.wrist.set(grip.wrist[0], grip.wrist[1], grip.wrist[2]);
+    const follow = grip.part ? model.parts[grip.part as keyof Parts] : undefined;
+    if (follow) out.wrist.add(follow.position).sub(model.rest.get(follow)!.position);
+    out.wrist.applyMatrix4(m);
+    const rot = this.quat.setFromRotationMatrix(m);
+    out.forward.set(grip.forward[0], grip.forward[1], grip.forward[2]).normalize().applyQuaternion(rot);
+    out.palm.set(grip.palm[0], grip.palm[1], grip.palm[2]).normalize().applyQuaternion(rot);
+    out.curl = grip.curl; out.pole.set(grip.pole[0], grip.pole[1], grip.pole[2]).normalize();
+    void model;
+  }
+
+  private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null, sample: ChoreoSample | null, free = model.spec.freePaw) {
+    const arms = this.arms;
+    if (!arms) return;
+    this.holder.updateMatrixWorld(true);
+    this.gripTarget(model, grips.R, this.targetR);
+    if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);
+    // Riding shoulders carry their elbow direction too, so the whole arm moves as one piece.
+    if (this.rideR > 0) this.targetR.pole.lerp(this.ridePole.copy(this.targetR.pole).applyQuaternion(this.rideTurn), this.rideR).normalize();
+    // Natural wrists: the hidden shoulders give way so each forearm meets its paw inside anatomical limits.
+    const natural = this.tunedSpec?.natural ?? model.spec.natural;
+    this.targetR.natural = natural?.R === false ? undefined : WRIST_SOLVE; this.targetL.natural = natural?.L === false ? undefined : WRIST_SOLVE;
+    this.targetR.hidden = this.targetL.hidden = this.outOfView;
+    const aimedPoles = this.tunedSpec?.adsPoles ?? model.spec.adsPoles, aim = this.adsAmount;
+    if (aimedPoles?.R && aim > 0) this.targetR.pole.lerp(v3(aimedPoles.R, this.ridePole), aim).normalize();
+    arms.right.solve(this.shoulderR, this.targetR);
+    const L = grips.L;
+    arms.setVisible(true, !!L || this.swimPose > .5);
+    if (L) {
+      this.gripTarget(model, L, this.targetL);
+      if (choreo && choreo.support > 0) {
+        // Blend the support paw toward its choreography point (camera space, relative to the gun).
+        const away = new THREE.Vector3().copy(choreo.supportPos).add(this.holder.position);
+        this.targetL.wrist.lerp(away, choreo.support);
+        this.targetL.forward.lerp(new THREE.Vector3(.3, .5, -1).normalize(), choreo.support).normalize();
+        this.targetL.palm.lerp(new THREE.Vector3(.6, 0, .2).normalize(), choreo.support).normalize();
+        this.targetL.curl = blendCurl(L.curl, OPEN_CURL, choreo.support * .6);
+      }
+      if (free) {
+        // The free paw guards low on the left; it does not follow the blade and ducks under the cut.
+        const cut = this.meleeTime < MELEE_SECONDS ? Math.sin(Math.PI * this.meleeTime / MELEE_SECONDS) : 0;
+        v3(free.wrist, this.targetL.wrist).add(this.freeDip.set(-cut * .06, -cut * .11, cut * .05));
+        v3(free.forward, this.targetL.forward).normalize();
+        v3(free.palm, this.targetL.palm).normalize();
+        if (free.curl) this.targetL.curl = free.curl;
+      }
+      if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
+      const run = model.spec.sprintFree;
+      if (run && this.sprintPose > .001 && !sample?.L) {
+        // Handguns run one-handed (Call of Duty, Apex): the support paw lets go and swings low, out of frame.
+        const k = smoothPose(this.sprintPose);
+        this.targetL.wrist.lerp(v3(run.wrist, this.freeDip), k);
+        this.targetL.forward.lerp(v3(run.forward, this.freeDip), k).normalize();
+        this.targetL.palm.lerp(v3(run.palm, this.freeDip), k).normalize();
+        this.targetL.curl = blendCurl(this.targetL.curl, RUN_CURL, k);
+      }
+      if (aimedPoles?.L && aim > 0) this.targetL.pole.lerp(v3(aimedPoles.L, this.ridePole), aim).normalize();
+      if (this.rideL > 0) this.targetL.pole.lerp(this.ridePole.copy(this.targetL.pole).applyQuaternion(this.rideTurn), this.rideL).normalize();
+      arms.left.solve(this.shoulderL, this.targetL);
+    }
+  }
+
+  private readonly handA: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };
+  private readonly handB: HandTarget = { wrist: new THREE.Vector3(), forward: new THREE.Vector3(), palm: new THREE.Vector3(), curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3() };
+  private readonly sample: ChoreoSample = newSample();
+  private readonly inspectSample: ChoreoSample = newSample();
+  private readonly partOrigin = new THREE.Vector3();
+
+  private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget) {
+    if (key.space === 'grip') {
+      const offset = key.offset;
+      const clearGrip = offset ? { ...grip, wrist: [grip.wrist[0] + offset[0], grip.wrist[1] + offset[1], grip.wrist[2] + offset[2]] as V3 } : grip;
+      this.gripTarget(model, clearGrip, out);
+      if (key.curl) out.curl = { ...grip.curl, ...key.curl };
+      if (key.pole) out.pole.fromArray(key.pole).normalize();
+      return;
+    }
+    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: { ...grip.curl, ...key.curl }, pole: key.pole ?? grip.pole };
+    if (key.space === 'gun') { this.gripTarget(model, spec, out); return; }
+    out.wrist.set(spec.wrist[0], spec.wrist[1], spec.wrist[2]);
+    out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
+    out.palm.set(spec.palm[0], spec.palm[1], spec.palm[2]).normalize();
+    out.curl = spec.curl; out.pole.fromArray(spec.pole).normalize();
+    if (key.space === 'view' && this.viewKeyFrame) {
+      out.wrist.applyMatrix4(this.viewKeyFrame); this.quat.setFromRotationMatrix(this.viewKeyFrame);
+      out.forward.applyQuaternion(this.quat); out.palm.applyQuaternion(this.quat);
+    }
+    if (key.space === 'part') {
+      const part = model.parts[key.part as keyof Parts];
+      if (!part) throw new Error(`Reload contact part missing: ${model.id}/${key.part}`);
+      if (key.followRotation === false) {
+        this.holder.worldToLocal(part.getWorldPosition(this.partOrigin));
+        out.wrist.add(this.partOrigin).applyMatrix4(this.holder.matrixWorld);
+        this.holder.getWorldQuaternion(this.quat);
+      } else {
+        out.wrist.applyMatrix4(part.matrixWorld);
+        part.getWorldQuaternion(this.quat);
+      }
+      out.forward.applyQuaternion(this.quat); out.palm.applyQuaternion(this.quat);
+    }
+  }
+
+  private blendHand(model: Model, grip: GripSpec, pair: { a: HandKey; b: HandKey; u: number }, out: HandTarget) {
+    this.resolveHand(model, grip, pair.a, this.handA); this.resolveHand(model, grip, pair.b, this.handB);
+    const u = pair.u;
+    out.wrist.copy(this.handA.wrist).lerp(this.handB.wrist, u);
+    out.forward.copy(this.handA.forward).lerp(this.handB.forward, u).normalize();
+    out.palm.copy(this.handA.palm).lerp(this.handB.palm, u).normalize();
+    out.curl = blendCurl(this.handA.curl, this.handB.curl, u);
+    out.pole.copy(this.handA.pole).lerp(this.handB.pole, u).normalize();
+  }
+
+  private applyInspect(weapon: WeaponId, dt: number, reducedMotion: boolean): ChoreoSample | null {
+    this.inspectTime += dt;
+    const progress = Math.min(1, this.inspectTime / 1.8);
+    const authored = SHORT_INSPECTS[weapon] ?? LONG_INSPECTS[weapon];
+    if (authored) {
+      const pose = sampleChoreo(authored, progress, this.inspectSample), amount = reducedMotion ? .35 : 1;
+      this.holder.position.addScaledVector(pose.p, amount);
+      this.offset.setFromEuler(this.euler.set(pose.r.x * amount, pose.r.y * amount, pose.r.z * amount, 'YXZ'));
+      this.holder.quaternion.multiply(this.offset);
+      if (progress === 1) this.inspectTime = -1;
+      return progress < 1 ? pose : null;
+    }
+    const look = Math.sin(Math.PI * progress) ** 2 * (reducedMotion ? .35 : 1);
+    const showLongGun = weapon === 'm4' || weapon === 'shotgun' || weapon === 'sniper' || weapon === 'dmr' || weapon === 'coco';
+    this.holder.position.x -= look * .08; this.holder.position.y += look * .05;
+    this.holder.position.z += look * (showLongGun ? -.16 : .05);
+    const rotation = weapon === 'coco' ? [.08, .5, .08] : showLongGun ? [.1, .45, -.25] :
+      weapon === 'machete' ? [.2, -.2, -.3] : [.2, -.75, .45];
+    this.offset.setFromEuler(this.euler.set(look * rotation[0], look * rotation[1], look * rotation[2], 'YXZ'));
+    this.holder.quaternion.multiply(this.offset);
+    if (progress === 1) this.inspectTime = -1;
+    return null;
   }
 
   private updateMelee(weapon: WeaponId, dt: number, reducedMotion: boolean) {
@@ -802,14 +833,22 @@ export class WeaponView {
     }
     this.meleeTime = Math.min(MELEE_SECONDS, this.meleeTime + step);
     const pose = sampleMelee(this.meleeTime, this.meleeSide, this.meleePose), amount = reducedMotion ? .55 : 1;
+    const heavy = this.meleeCount > 0 && this.meleeCount % 3 === 0;
+    // The third cut is an overhead chop. Its contact and recovery still fit
+    // the authoritative melee cadence and the normal hit-stop window.
+    if (heavy) sampleHeavyMelee(this.meleeTime, pose);
+    // The blade is carried at the lower right: the backhand and the chop travel toward the right, so
+    // in first person their whole arc is carried left (and the chop a little higher) to stay on screen.
+    const arc = smoothPose(this.meleeTime / .085) * (1 - smoothPose((this.meleeTime - .245) / (MELEE_SECONDS - .245)));
+    if (heavy) { pose.x -= .1 * arc; pose.y += .035 * arc; } else if (this.meleeSide < 0) pose.x -= .14 * arc;
     this.holder.position.x += pose.x * amount; this.holder.position.y += pose.y * amount; this.holder.position.z += pose.z * amount;
-    this.holder.rotation.x += pose.pitch * amount; this.holder.rotation.y += pose.yaw * amount; this.holder.rotation.z += pose.roll * amount;
+    // Camera-space swings keep the cutting arc independent of the grip roll.
+    this.offset.setFromEuler(this.euler.set(-pose.pitch * 1.2 * amount, pose.yaw * amount, pose.roll * amount, 'YXZ'));
+    this.holder.quaternion.premultiply(this.offset);
     this.holder.updateWorldMatrix(true, true);
     this.models.machete.muzzle.getWorldPosition(this.trailTip);
     this.trailBase.set(0, .07, .01).applyMatrix4(this.models.machete.group.matrixWorld);
     if (!reducedMotion && pose.smear > .01 && this.meleeStop <= 0) {
-      // A paused redraw must retain the previous swept segment, not collapse
-      // its two endpoints onto the same pose.
       if (dt > 0) {
         const position = this.smear.geometry.getAttribute('position');
         const points = [this.lastTrailBase, this.lastTrailTip, this.trailTip, this.lastTrailBase, this.trailTip, this.trailBase];
@@ -821,9 +860,14 @@ export class WeaponView {
   }
 
   cameraFeedback(camera: THREE.Camera, reducedMotion: boolean) {
-    if (reducedMotion || !this.holder.visible || this.active !== 'machete') return;
-    camera.rotateX(-this.meleePose.kick * .012);
-    camera.rotateZ(this.meleePose.kick * this.meleeSide * .009);
+    if (reducedMotion || !this.holder.visible) return;
+    if (this.active === 'machete') {
+      camera.rotateX(-this.meleePose.kick * .012);
+      camera.rotateZ(this.meleePose.kick * this.meleeSide * .009);
+      return;
+    }
+    // A touch of the gun's roll reaches the view; aim itself is never moved here.
+    camera.rotateZ(this.kickRoll.value * .0012);
   }
 
   resize(width: number, height: number) { this.camera.aspect = width / Math.max(1, height); this.camera.updateProjectionMatrix(); }
@@ -832,28 +876,23 @@ export class WeaponView {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
-    this.painted?.dispose();
-    const geometries = new Set<THREE.BufferGeometry>();
-    const materials = new Set<THREE.Material>();
-    const textures = new Set<THREE.Texture>();
+    this.arms?.dispose();
+    const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
     this.scene.traverse(object => {
-      if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite) || object.userData.effects) return;
-      if (object instanceof THREE.Mesh) geometries.add(object.geometry);
-      const ownMaterials = Array.isArray(object.material) ? object.material : [object.material];
-      for (const material of ownMaterials) if (!Object.values(palette).includes(material)) {
+      if (!(object instanceof THREE.Mesh) || object.userData.effects) return;
+      geometries.add(object.geometry);
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
         materials.add(material);
-        if ('map' in material && material.map instanceof THREE.Texture) textures.add(material.map);
-        if (material instanceof THREE.MeshStandardMaterial) {
-          for (const texture of [material.normalMap, material.roughnessMap, material.metalnessMap, material.aoMap])
-            if (texture) textures.add(texture);
-        }
+        for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
       }
     });
-    geometries.forEach(value => value.dispose());
-    materials.forEach(value => value.dispose());
-    textures.forEach(value => value.dispose());
-    for (const material of Object.values(palette)) material.dispose();
-
-    furGrain.dispose(); woodGrain.dispose(); polymerGrain.dispose(); metalGrain.dispose(); scopeLensMap.dispose();
+    geometries.forEach(value => value.dispose()); materials.forEach(value => value.dispose()); textures.forEach(value => value.dispose());
   }
 }
+
+interface Choreo { px: number; py: number; pz: number; rx: number; ry: number; rz: number;
+  support: number; supportPos: THREE.Vector3; mag: 'in' | 'drop' | 'hand'; magOut: number; slide: number }
+const AXIS_Z = new THREE.Vector3(0, 0, 1), UP = new THREE.Vector3(0, 1, 0), ONE = new THREE.Vector3(1, 1, 1);
+const FUR_BY_PRESET: Record<Settings['graphics'], number> = { low: 4, medium: 8, high: 12 };
+const RUN_CURL: HandCurl = { index: [.5, .6, .4], middle: [.55, .65, .45], ring: [.6, .65, .45], thumb: [.3, .2, .1], spread: .1 };
+const OPEN_CURL: HandCurl = { index: [.35, .3, .2], middle: [.4, .35, .2], ring: [.45, .35, .25], thumb: [.2, .1, .1] };

@@ -1,5 +1,6 @@
-export const PROTOCOL_VERSION = 9;
-export const WORLD_VERSION = 'ilha-v3-rio-9';
+import type { LandmarkSpec } from './landmarks';
+export const PROTOCOL_VERSION = 12;
+export const WORLD_VERSION = 'ilha-v4-redentora-1';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
@@ -7,7 +8,7 @@ export type Mode = 'battle-royale' | 'deathmatch' | 'corrente';
 export const isArenaMode = (mode: Mode | undefined) => mode === 'deathmatch' || mode === 'corrente';
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'results';
 export type Difficulty = 'easy' | 'normal' | 'hard';
-export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'slingshot';
+export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'revolver' | 'coco';
 export type EmoteId = 'wave' | 'dance' | 'victory' | 'sit' | 'chill';
 export type ConsumableId = 'bandage' | 'medkit' | 'guarana' | 'acai' | 'rapadura';
 export interface Vec3 { x: number; y: number; z: number }
@@ -33,19 +34,25 @@ export interface InputFrame {
 }
 export type PlayerAction =
   | { type: 'reload'; id: number }
+  // Quick melee: one facão swing without selecting it, then back to the held gun.
+  | { type: 'melee'; id: number }
   | { type: 'slot'; id: number; slot: number }
   | { type: 'interact'; id: number; target: string }
+  | { type: 'drop'; id: number }
   | { type: 'consume'; id: number; item: ConsumableId }
   | { type: 'parachute'; id: number }
   | { type: 'jump'; id: number }
   | { type: 'emote'; id: number; emote: EmoteId | null }
   | { type: 'trigger'; id: number; yaw: number; pitch: number; lean: number; ads: boolean; clientTime: number };
-export interface WeaponState { id: WeaponId; ammo: number; reserve: number; rarity: number }
+// `box` is the fixed hotbar box (0-1 long guns, 2 sidearm, 3 facão); the array stays sorted by it.
+export interface WeaponState { id: WeaponId; ammo: number; reserve: number; rarity: number; box: number }
 export interface ActorState {
   id: string; name: string; color: string; bot: boolean; connected: boolean;
   pos: Vec3; velocity: Vec3; yaw: number; pitch: number; lean: number;
   hp: number; armor: number; helmet: number; alive: boolean; grounded: boolean;
   crouch: boolean; sprint: boolean; ads: boolean;
+  /** Airborne from a jump or a bounce (not from walking off an edge): no coyote jump. */
+  jumping?: boolean;
   swimming: boolean; wetUntil: number;
   emote: EmoteId | null; emoteUntil: number; soaking: boolean;
   bounceSeq: number; bounceProtected: boolean;
@@ -55,12 +62,16 @@ export interface ActorState {
   consumables: Record<ConsumableId, number>;
   reloadUntil: number; useUntil: number; using: ConsumableId | null;
   respawnAt: number; protectionUntil: number; lastInput: number; shotHeat: number;
+  /** Rounds fired so far: the shooter's client predicts the next one's seeded spread from it. */
+  shotSeq: number;
 }
 export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth'; pieceId?: string }
 export interface KitPlacement extends Vec3 {
   id: string; piece: string; yaw: number; scale?: number;
   paintVariant?: 0 | 1 | 2;
   interiorFloor?: 'wood' | 'warm-tile';
+  /** Atlas tile that replaces the piece's wall colour on this placement. */
+  facadeTile?: number;
 }
 export interface NavigationGraph { points: Vec3[]; links: number[][] }
 export interface BuildingRoute { id: string; pieceId: string; floorId: string; points: Vec3[] }
@@ -80,10 +91,12 @@ export interface WorldSpec {
   pieces?: KitPlacement[]; arenaBoundary?: string[]; walkways?: Collider[]; navigation?: NavigationGraph;
   buildingRoutes?: BuildingRoute[];
   mudBaths?: MudBathSpec[]; trampolines?: TrampolineSpec[];
+  landmarks?: LandmarkSpec[];
 }
 // Loot spilled from a chest carries where it came from and when, so clients can
 // animate it arcing out; its x/y/z is already the landing spot.
-export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number; from?: Vec3; spawnedAt?: number }
+// A dropped gun keeps its magazine and reserve so swapping back loses nothing.
+export interface LootState extends LootSpawn { active: boolean; rarity: number; respawnAt: number; from?: Vec3; spawnedAt?: number; ammo?: number; reserve?: number }
 export interface ZoneState { x: number; z: number; radius: number; nextRadius: number; nextX: number; nextZ: number; phase: number; shrinking: boolean; timeLeft: number; damage: number }
 export interface SupplyDropState {
   id: string; pos: Vec3; district: string; heading: number;
@@ -99,7 +112,8 @@ export interface WorldSnapshot {
 // What a shot's endpoint struck when it was not a capybara; `normal` faces the shooter's side.
 export type Surface = 'dirt' | 'sand' | 'foliage' | 'stone' | 'wood' | 'metal' | 'water';
 export type GameEvent =
-  | { type: 'shot'; id: number; actor: string; weapon: WeaponId; origin: Vec3; end: Vec3; hit: boolean; surface?: Surface; normal?: Vec3 }
+  // `seq` is the shooter's shotSeq for this round; their client skips effects it already predicted.
+  | { type: 'shot'; id: number; actor: string; weapon: WeaponId; origin: Vec3; end: Vec3; hit: boolean; surface?: Surface; normal?: Vec3; seq?: number }
   | { type: 'damage'; id: number; actor: string; target: string; amount: number; head: boolean; pos: Vec3; armorBreak?: boolean }
   // `from` is the eliminator's position and `distance` the gap in metres at the moment of the kill.
   | { type: 'kill'; id: number; actor: string | null; target: string; weapon: WeaponId | 'storm' | 'fall'; from?: Vec3; distance?: number }
@@ -111,19 +125,31 @@ export type GameEvent =
   | { type: 'bounce'; id: number; actor: string; pos: Vec3 }
   | { type: 'supply'; id: number; drop: string; pos: Vec3; district: string; stage: 'incoming' | 'landed' | 'opened' }
   | { type: 'use'; id: number; actor: string; item: ConsumableId }
-  // A slow projectile (slingshot stone) struck the world after its flight.
+  // A slow projectile (a coconut) struck the world after its flight.
   | { type: 'impact'; id: number; actor: string; weapon: WeaponId; pos: Vec3; surface: Surface; normal: Vec3 }
   // A bot has locked onto a human and will open fire after `delay` seconds.
   | { type: 'alert'; id: number; actor: string; target: string; delay: number }
   | { type: 'notice'; id: number; text: string };
 export interface Settings {
-  sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; frameLimit: 30 | 60; reducedMotion: boolean;
+  sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; reducedMotion: boolean;
+  // Frames per second: 0 is one frame per display refresh ("Taxa da tela"), 60 and 30 cap the rate.
+  frameLimit: 0 | 30 | 60;
+  // The player picked the frame rate themselves (the automatic default then never changes it).
+  frameLimitChosen: boolean;
+  // 3D render resolution: automatic (the preset's range, adjusted to hold the frame rate) or a fixed share of the screen's native resolution.
+  renderScale: 'auto' | 1 | .75 | .5;
+  // The player picked the preset or the 3D resolution themselves: the automatic step-down never overrides that.
+  graphicsChosen: boolean;
   master: number; effects: number; ambience: number; music: number;
   adsToggle: boolean; bindings: Record<string, string>;
+  // Controls feel (src/controls.ts CONTROL_OPTIONS): hold or toggle, aimed and scoped sensitivity multipliers, camera shake 0 to 1.
+  crouchToggle: boolean; sprintToggle: boolean; invertY: boolean; adsSensitivity: number; scopeSensitivity: number; cameraShake: number;
   // Legacy "Ajuste automático": practice bots adapt to recent placements.
   adaptive: boolean;
   // HUD preferences: FPS readout, interface size (0.8 to 1.2) and colour-blind friendly aim feedback.
   showFps: boolean; uiScale: number; crosshairColor: 'white' | 'yellow' | 'cyan' | 'magenta'; hitPalette: 'default' | 'colorblind';
+  // Floating damage numbers (aim comfort; look inversion and aimed sensitivity live in the controls model above).
+  damageNumbers: boolean;
 }
 export interface RenderFrame { snapshot: WorldSnapshot | null; playerId: string; input: InputFrame; dt: number; playing: boolean; spectateId: string | null; predicted?: Vec3; remoteActors?: ReadonlyMap<string, ActorState> }
 // Kit colours (bandana and vest trim), never fur: every player still reads as a capybara (style bible §3.7).

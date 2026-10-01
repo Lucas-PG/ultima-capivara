@@ -171,7 +171,7 @@ describe('capybara cosmetic colour contract', () => {
       const material = meshes[0].material as THREE.MeshStandardMaterial;
       expect(meshes.every(mesh => mesh.material === material)).toBe(true);
       expect(material.userData.toonCharacter).toBe(true);
-      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v3');
+      expect(material.customProgramCacheKey()).toContain('ilha-dourada-character-v6');
       expect(material.vertexColors).toBe(true);
       expect(material.emissiveMap).toBe(sourceMaterial.emissiveMap);
       expect(material.normalMap).toBe(sourceMaterial.normalMap); expect(material.roughnessMap).toBe(sourceMaterial.roughnessMap);
@@ -179,47 +179,21 @@ describe('capybara cosmetic colour contract', () => {
       expect((material as THREE.MeshPhysicalMaterial).specularColorMap).toBe(sourceMaterial.specularColorMap);
       expect(material.emissive.getHexString()).toBe('ffffff');
       expect((copy.body.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material).toBe(material);
-      const atlas = material.map as THREE.DataTexture, pixels = atlas.image.data!;
-      expect(atlas.colorSpace).toBe(THREE.SRGBColorSpace);
-      if (painted) {
-        expect([atlas.image.width, atlas.image.height]).toEqual([1024, 1024]);
-        expect(atlas.generateMipmaps).toBe(true); expect(atlas.minFilter).toBe(THREE.LinearMipmapLinearFilter);
-        const tiles = Array.from({ length: 16 }, (_, tile) => {
-          const hash = createHash('sha256');
-          for (let y = 0; y < 256; y++) {
-            const row = ((Math.floor(tile / 4) * 256 + y) * 1024 + tile % 4 * 256) * 4;
-            hash.update(pixels.subarray(row, row + 256 * 4));
-          }
-          return hash.digest('hex');
-        });
-        if (!baseTiles.length) baseTiles = tiles;
-        else for (let tile = 0; tile < 16; tile++) {
-          if (tile === 5 || tile === 6) expect(tiles[tile]).not.toBe(baseTiles[tile]);
-          else expect(tiles[tile], `Unchanged painted tile ${tile}`).toBe(baseTiles[tile]);
-        }
-        const furValues = new Set<number>();
-        for (let x = 0; x < 256; x++) furValues.add(pixels[x * 4]);
-        // Fine restrained fur has fewer luminance steps than the broad old bands.
-        expect(furValues.size).toBeGreaterThan(8);
-        expect(material.customProgramCacheKey()).toContain('character-v3:4');
-      } else {
-        expect([atlas.image.width, atlas.image.height]).toEqual([16, 16]);
-        const hexAt = (column: number) => Array.from(pixels.slice(column * 4, column * 4 + 3)).map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
-        expect([0, 1, 2, 3, 4].map(hexAt)).toEqual(['9A5C36', 'B7784C', '4A3327', '331F18', 'A97650']);
-        expect(hexAt(5)).toBe(color.slice(1).toUpperCase());
-        if (color === '#1FB5A8') expect(hexAt(6)).toBe('12877E');
-        expect(hexAt(7)).toBe('6E7040');
-      }
+      // Detail maps and vertex paint survive team recolouring; only the bandana is masked.
+      expect(material.map).toBe(sourceMaterial.map);
+      expect((material.userData.teamColor as THREE.Color).getHexString()).toBe(new THREE.Color(color).convertSRGBToLinear().getHexString());
+      if (baseTiles.length) expect(material).not.toBe(baseTiles[0] as unknown as THREE.Material);
+      baseTiles = [material as unknown as string];
       const disposed = vi.fn(); material.addEventListener('dispose', disposed);
       actor.body.skeleton.dispose(); copy.body.skeleton.dispose();
       expect(disposed).not.toHaveBeenCalled();
     }
     const actor = capy.buildCapybaraBody(colors[0]);
     const material = (actor.body.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh).material as THREE.MeshStandardMaterial;
-    const disposeMaterial = vi.fn(), disposeAtlas = vi.fn();
-    material.addEventListener('dispose', disposeMaterial); material.map!.addEventListener('dispose', disposeAtlas);
+    const disposeMaterial = vi.fn();
+    material.addEventListener('dispose', disposeMaterial);
     actor.body.skeleton.dispose(); capy.disposeCapybaraAssets();
-    expect(disposeMaterial).toHaveBeenCalledTimes(1); expect(disposeAtlas).toHaveBeenCalledTimes(1);
+    expect(disposeMaterial).toHaveBeenCalledTimes(1);
     expect(() => capy.buildCapybaraBody(colors[0])).toThrow('ainda não está pronta');
   });
 
@@ -252,6 +226,9 @@ describe('capybara asset readiness', () => {
     expect(entries).toEqual([{
       path: 'models/capybara/capybara.glb', kind: 'glb',
       bytes: statSync('public/models/capybara/capybara.glb').size, label: 'Capivara',
+    }, {
+      path: 'models/capybara/statue.glb', kind: 'glb',
+      bytes: statSync('public/models/capybara/statue.glb').size, label: 'Capivara Redentora',
     }]);
   });
 
@@ -268,7 +245,7 @@ describe('capybara asset readiness', () => {
     }]);
   });
 
-  it('replaces only legacy weapon assets in the optional painted manifest', async () => {
+  it('ships the first-person arms and arsenal, and never the retired weapon assets', async () => {
     vi.stubGlobal('location', { search: '?capy=v3&weapons=v3' });
     const { GameRenderer } = await import('../src/render/renderer');
     const { ASSET_MANIFEST } = await import('../src/render/asset-manifest');
@@ -277,10 +254,10 @@ describe('capybara asset readiness', () => {
     expect(() => new GameRenderer({} as HTMLCanvasElement, { objects: [] } as unknown as WorldSpec, {} as Settings)).toThrow(stop);
     const manifest = loaderConstructor.mock.calls[0][2] as readonly AssetEntry[];
     expect(manifest.some(asset => /^models\/(service-pistol|m700)\//.test(asset.path))).toBe(false);
-    expect(manifest.find(asset => asset.path === 'models/weapons/painted-weapons.glb')).toEqual({
-      path: 'models/weapons/painted-weapons.glb', kind: 'glb',
-      bytes: statSync('public/models/weapons/painted-weapons.glb').size, label: 'Armas da ilha',
-    });
+    // The painted palette guns are gone: first-person arms and the baked arsenal replace them.
+    expect(manifest.some(asset => asset.path === 'models/weapons/painted-weapons.glb')).toBe(false);
+    for (const path of ['models/fp/fp-arms.glb', 'models/arsenal/pistol.glb', 'models/arsenal/sniper.glb'])
+      expect(manifest.find(asset => asset.path === path)?.bytes).toBe(statSync(`public/${path}`).size);
     for (const entry of ASSET_MANIFEST.filter(asset => !/^models\/(service-pistol|m700)\//.test(asset.path))) expect(manifest).toContainEqual(entry);
     expect(manifest.some(asset => asset.path === 'models/capybara/capybara.glb')).toBe(true);
   });

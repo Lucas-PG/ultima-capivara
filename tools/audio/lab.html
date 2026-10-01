@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sound lab</title>
+  <style>
+    :root { color-scheme: light; --paper: #f6efe1; --ink: #2b2118; --accent: #1f8a7f; --muted: #7b6a58; }
+    body { margin: 0; font: 14px/1.4 system-ui, sans-serif; background: var(--paper); color: var(--ink); }
+    header { padding: 16px 20px; border-bottom: 2px solid #e2d6bf; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+    h1 { font-size: 18px; margin: 0; } #status { color: var(--muted); }
+    main { padding: 12px 20px 40px; display: grid; gap: 18px; }
+    section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; }
+    button { font: inherit; border: 1.5px solid #cdbd9f; background: #fffaf0; color: var(--ink); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+    button:hover { border-color: var(--accent); } button.scenario { border-color: var(--accent); }
+    label { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header><h1>Ultima Capivara sound lab</h1><span id="status">Click anywhere to start the audio and bake the bank.</span>
+    <label><input type="checkbox" id="mix" checked> play at mix level (default sliders)</label>
+    <button id="stop">Stop all</button></header>
+  <main id="main"></main>
+  <script type="module" src="./lab.ts"></script>
+</body>
+</html>

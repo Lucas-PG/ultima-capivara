@@ -7,9 +7,9 @@ const actor = (): ActorState => ({
   id: 'local', name: 'Capivara', color: '#bd8956', bot: false, connected: true,
   pos: { x: 0, y: 0, z: 0 }, velocity: { x: 3, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
   hp: 100, armor: 0, helmet: 0, alive: true, grounded: true, crouch: false, sprint: false, ads: false,
-  stage: 'ground', kills: 0, deaths: 0, damage: 0, weapons: [{ id: 'pistol', ammo: 4, reserve: 20, rarity: 0 }], slot: 0,
+  stage: 'ground', kills: 0, deaths: 0, damage: 0, weapons: [{ id: 'pistol', ammo: 4, reserve: 20, rarity: 0, box: 2 }], slot: 0,
   consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 }, reloadUntil: 0, useUntil: 0,
-  using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, shotHeat: 0, swimming: false, wetUntil: 0,
+  using: null, respawnAt: 0, protectionUntil: 0, lastInput: 0, shotHeat: 0, shotSeq: 0, swimming: false, wetUntil: 0,
   emote: null, emoteUntil: 0, weaponLevel: 0, soaking: false, bounceSeq: 0, bounceProtected: false,
 });
 

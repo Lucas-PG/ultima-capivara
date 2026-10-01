@@ -154,12 +154,11 @@ describe('lived-in rooms preserve ordinary access', () => {
       const c = Math.abs(Math.cos(picture.yaw)), s = Math.abs(Math.sin(picture.yaw));
       const hx = (c * definition.footprint[0] + s * definition.footprint[1]) * scale / 2;
       const hz = (s * definition.footprint[0] + c * definition.footprint[1]) * scale / 2;
-      for (const solid of world.colliders) {
-        const overlap = Math.min(picture.x + hx, solid.max.x) - Math.max(picture.x - hx, solid.min.x) > .015 &&
-          Math.min(picture.y + definition.height * scale, solid.max.y) - Math.max(picture.y, solid.min.y) > .015 &&
-          Math.min(picture.z + hz, solid.max.z) - Math.max(picture.z - hz, solid.min.z) > .015;
-        expect(overlap, `${picture.id} is buried in ${solid.id}`).toBe(false);
-      }
+      const buried = world.colliders.filter(solid =>
+        Math.min(picture.x + hx, solid.max.x) - Math.max(picture.x - hx, solid.min.x) > .015 &&
+        Math.min(picture.y + definition.height * scale, solid.max.y) - Math.max(picture.y, solid.min.y) > .015 &&
+        Math.min(picture.z + hz, solid.max.z) - Math.max(picture.z - hz, solid.min.z) > .015);
+      expect(buried.map(solid => solid.id), `${picture.id} is buried in a solid`).toEqual([]);
     }
   });
 });

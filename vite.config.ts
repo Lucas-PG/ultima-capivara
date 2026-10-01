@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  cacheDir: 'output/.vite',
   base: './',
   build: {
     target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 900,
@@ -11,4 +12,6 @@ export default defineConfig({
     ] } } },
   },
   worker: { format: 'es' },
+  // The e2e server must never reload pages mid-match when a source file is saved.
+  server: { hmr: process.env.E2E_NO_HMR !== '1' },
 });

@@ -7,9 +7,11 @@ import { inArena } from '../src/shared/layout';
 import type { ActorState, Difficulty, GameEvent, InputFrame } from '../src/shared/types';
 
 const TICK = 1 / 60;
+// Roaming stuck samples for diagnosis (STUCK_LOG=path writes them as JSON).
+export const stuckLog: { x: number; z: number; y: number; mode: string; loot: boolean; via: boolean; swim: boolean }[] = [];
 const world = createWorld();
 type Runtime = { state: ActorState; input: InputFrame; brain: any };
-type Sanity = { botSeconds: number; pushing: number; stuck: number; spins: number; jitter: number; openReload: number };
+type Sanity = { botSeconds: number; pushing: number; stuck: number; stuckRoaming: number; spins: number; jitter: number; openReload: number };
 
 // A new player who loots and never shoots back: the worst case for early deaths.
 function humanInput(sim: Simulation, me: ActorState, seq: number, dm: boolean): InputFrame {
@@ -29,7 +31,7 @@ function humanInput(sim: Simulation, me: ActorState, seq: number, dm: boolean): 
 
 function sanityTracker() {
   const last = new Map<string, { yaw: number; turn: number; flips: number[]; turns: { t: number; d: number }[]; window: { t: number; x: number; z: number } | null }>();
-  const s: Sanity = { botSeconds: 0, pushing: 0, stuck: 0, spins: 0, jitter: 0, openReload: 0 };
+  const s: Sanity = { botSeconds: 0, pushing: 0, stuck: 0, stuckRoaming: 0, spins: 0, jitter: 0, openReload: 0 };
   return {
     s,
     sample(sim: Simulation) {
@@ -56,7 +58,7 @@ function sanityTracker() {
         if (!moving) l.window = null;
         else if (!l.window) l.window = { t: time, x: st.pos.x, z: st.pos.z };
         else if (time - l.window.t >= 1) {
-          if (Math.hypot(st.pos.x - l.window.x, st.pos.z - l.window.z) < .4) s.stuck++;
+          if (Math.hypot(st.pos.x - l.window.x, st.pos.z - l.window.z) < .4) { s.stuck++; if (!fighting) { s.stuckRoaming++; stuckLog.push({ x: +st.pos.x.toFixed(1), z: +st.pos.z.toFixed(1), y: +st.pos.y.toFixed(1), mode: b.mode, loot: !!b.loot, via: !!b.via, swim: st.swimming }); } }
           l.window = { t: time, x: st.pos.x, z: st.pos.z };
         }
         l.yaw = st.yaw; last.set(st.id, l);
@@ -118,9 +120,10 @@ const perMinute = (n: number, seconds: number) => (n / Math.max(1, seconds / 60)
 if (process.argv[1]?.endsWith('bot-trials.ts')) {
   const seeds = Number(process.argv[2] || 12), difficulty = (process.argv[3] || 'normal') as Difficulty;
   const br = Array.from({ length: seeds }, (_, i) => battleRoyale(i + 1, difficulty));
+  if (process.env.STUCK_LOG) (await import('node:fs')).writeFileSync(process.env.STUCK_LOG, JSON.stringify(stuckLog));
   const dm = Array.from({ length: seeds }, (_, i) => correria(i + 1, difficulty));
   const total = (rows: { sanity: Sanity }[]) => rows.reduce((t, r) => { for (const k of Object.keys(t) as (keyof Sanity)[]) t[k] += r.sanity[k]; return t; },
-    { botSeconds: 0, pushing: 0, stuck: 0, spins: 0, jitter: 0, openReload: 0 } as Sanity);
+    { botSeconds: 0, pushing: 0, stuck: 0, stuckRoaming: 0, spins: 0, jitter: 0, openReload: 0 } as Sanity);
   console.log(`# Bot trials (${difficulty}, seeds 1-${seeds})\n`);
   console.log('## Battle royale, first 30 s after landing (human loots, never shoots)\n');
   console.log('| seed | landed s | died | first hit s | damage |\n|---|---|---|---|---|');
@@ -133,7 +136,7 @@ if (process.argv[1]?.endsWith('bot-trials.ts')) {
   for (const [name, rows] of [['Battle royale (90 s after landing)', br], ['Correria (60 s)', dm]] as const) {
     const t = total(rows);
     console.log(`## Bot sanity, ${name}: ${Math.round(t.botSeconds / 60)} bot-minutes\n`);
-    console.log(`| per bot-minute | pushing into walls s | stuck events | spins | jitter bursts | reloading in the open s |\n|---|---|---|---|---|---|`);
-    console.log(`| | ${perMinute(t.pushing, t.botSeconds)} | ${perMinute(t.stuck, t.botSeconds)} | ${perMinute(t.spins, t.botSeconds)} | ${perMinute(t.jitter, t.botSeconds)} | ${perMinute(t.openReload, t.botSeconds)} |\n`);
+    console.log(`| per bot-minute | pushing into walls s | stuck events (roaming) | spins | jitter bursts | reloading in the open s |\n|---|---|---|---|---|---|`);
+    console.log(`| | ${perMinute(t.pushing, t.botSeconds)} | ${perMinute(t.stuck, t.botSeconds)} (${perMinute(t.stuckRoaming, t.botSeconds)}) | ${perMinute(t.spins, t.botSeconds)} | ${perMinute(t.jitter, t.botSeconds)} | ${perMinute(t.openReload, t.botSeconds)} |\n`);
   }
 }

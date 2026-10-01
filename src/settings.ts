@@ -1,19 +1,15 @@
-import { PLAYER_COLORS, type Settings } from './shared/types';
+import { PLAYER_COLORS, type Settings, type WeaponId } from './shared/types';
+import { ADS_ZOOM } from './shared/weapons';
 import { clamp } from './shared/math';
+import { DEFAULT_BINDINGS, DEFAULT_CONTROL_OPTIONS, sanitizeBindings, sanitizeControlOptions } from './controls';
 
-export const DEFAULT_BINDINGS: Record<string, string> = {
-  forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', sprint: 'ShiftLeft',
-  jump: 'Space', crouch: 'KeyC', reload: 'KeyR', interact: 'KeyF', leanLeft: 'KeyQ', leanRight: 'KeyE', inspect: 'KeyI',
-  fire: 'Mouse0', ads: 'Mouse2', slot1: 'Digit1', slot2: 'Digit2', slot3: 'Digit3', slot4: 'Digit4',
-  useBandage: 'Digit5', useMedkit: 'Digit6', useGuarana: 'Digit7', useAcai: 'Digit8', useRapadura: 'Digit9',
-  scoreboard: 'Tab', map: 'KeyM', emote: 'KeyB',
-};
-// Keys by KeyboardEvent.code, mouse buttons as 'Mouse' + event.button. Escape stays reserved for the menu.
-export const BINDABLE_CODE = /^(Key[A-Z]|Digit[0-9]|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Space|Tab|Backquote|Arrow(Up|Down|Left|Right)|Mouse[0-4])$/;
+// The action list, defaults and rebinding rules live in the controls model.
+export { BINDABLE_CODE, DEFAULT_BINDINGS } from './controls';
 export const DEFAULT_SETTINGS: Settings = {
-  sensitivity: 1, fov: 78, graphics: 'medium', frameLimit: 60, reducedMotion: false,
-  master: .8, effects: .85, ambience: .45, music: .25, adsToggle: false, bindings: { ...DEFAULT_BINDINGS }, adaptive: true,
+  sensitivity: 1, fov: 100, graphics: 'medium', renderScale: 'auto', graphicsChosen: false, frameLimit: 0, frameLimitChosen: false, reducedMotion: false,
+  master: .8, effects: .85, ambience: .45, music: .5, bindings: { ...DEFAULT_BINDINGS }, adaptive: true, ...DEFAULT_CONTROL_OPTIONS,
   showFps: false, uiScale: 1, crosshairColor: 'white', hitPalette: 'default',
+  damageNumbers: true,
 };
 const STORAGE_KEY = 'uc-v2-settings';
 export function loadSettings(): Settings {
@@ -22,30 +18,45 @@ export function loadSettings(): Settings {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     const value = stored || JSON.parse(localStorage.getItem('uc-settings') || '{}');
     for (const key of ['sensitivity', 'fov', 'master', 'effects', 'ambience', 'music'] as const) {
-      const number = key === 'sensitivity' ? value.sensitivity ?? value.sens : value[key];
-      if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? 60 : key === 'sensitivity' ? .2 : 0, key === 'fov' ? 105 : key === 'sensitivity' ? 3 : 1);
+      let number = key === 'sensitivity' ? value.sensitivity ?? value.sens : value[key];
+      // Before the procedural score, .25 was the default. A version marker lets
+      // players deliberately choose .25 again without another migration.
+      if (key === 'music' && value.musicMix !== 2 && number === .25) number = DEFAULT_SETTINGS.music;
+      // Saves before v3 stored a vertical field of view; convert it to the horizontal (16:9) scale.
+      if (key === 'fov' && typeof number === 'number' && value.fovScale !== 'horizontal') number = horizontalFov(number);
+      if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? FOV_RANGE[0] : key === 'sensitivity' ? SENSITIVITY_RANGE[0] : 0, key === 'fov' ? FOV_RANGE[1] : key === 'sensitivity' ? SENSITIVITY_RANGE[1] : 1);
     }
     if (['low', 'medium', 'high'].includes(value.graphics)) result.graphics = value.graphics;
-    if (value.frameLimit === 30 || value.frameLimit === 60) result.frameLimit = value.frameLimit;
+    // Saves from before the display-rate option stored 60 as the default: only an explicit choice keeps it.
+    if (typeof value.frameLimitChosen === 'boolean') result.frameLimitChosen = value.frameLimitChosen;
+    if (value.frameLimit === 0 || value.frameLimit === 30 || (value.frameLimit === 60 && result.frameLimitChosen)) result.frameLimit = value.frameLimit;
+    if (value.frameLimit === 30) result.frameLimitChosen = true;
+    if (['auto', 1, .75, .5].includes(value.renderScale)) result.renderScale = value.renderScale;
+    if (typeof value.graphicsChosen === 'boolean') result.graphicsChosen = value.graphicsChosen;
     if (typeof value.reducedMotion === 'boolean') result.reducedMotion = value.reducedMotion;
-    if (typeof value.adsToggle === 'boolean') result.adsToggle = value.adsToggle;
+    Object.assign(result, sanitizeControlOptions(value));
     if (typeof value.adaptive === 'boolean') result.adaptive = value.adaptive;
     if (typeof value.showFps === 'boolean') result.showFps = value.showFps;
+    if (typeof value.damageNumbers === 'boolean') result.damageNumbers = value.damageNumbers;
     if (typeof value.uiScale === 'number' && Number.isFinite(value.uiScale)) result.uiScale = clamp(value.uiScale, .8, 1.2);
     if (['white', 'yellow', 'cyan', 'magenta'].includes(value.crosshairColor)) result.crosshairColor = value.crosshairColor;
     if (value.hitPalette === 'default' || value.hitPalette === 'colorblind') result.hitPalette = value.hitPalette;
-    if (value.bindings && typeof value.bindings === 'object') {
-      const valid = (code: unknown): code is string => typeof code === 'string' && BINDABLE_CODE.test(code);
-      const taken = new Set<string>();
-      for (const key of Object.keys(DEFAULT_BINDINGS)) if (valid(value.bindings[key])) { result.bindings[key] = value.bindings[key]; taken.add(value.bindings[key]); }
-      // An action the save does not know yet keeps its default only if no saved binding already uses
-      // that code; otherwise it stays unbound, so one press never triggers two actions.
-      for (const key of Object.keys(DEFAULT_BINDINGS)) if (!valid(value.bindings[key]) && taken.has(result.bindings[key])) result.bindings[key] = '';
-    }
+    result.bindings = sanitizeBindings(value.bindings);
   } catch { /* Blocked storage and old preferences must never prevent playing. */ }
   return result;
 }
-export function saveSettings(settings: Settings) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch { /* Ephemeral browser mode. */ } }
+export function saveSettings(settings: Settings) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, fovScale: 'horizontal', musicMix: 2 })); } catch { /* Ephemeral browser mode. */ } }
+// Field of view is shown and stored as horizontal degrees at 16:9 (Hor+: wider screens see more).
+export const FOV_RANGE = [80, 120] as const;
+/** Mouse sensitivity multiplier: [min, max, slider step]. */
+export const SENSITIVITY_RANGE = [.2, 3, .05] as const;
+export const verticalFov = (horizontal: number) => 2 * Math.atan(Math.tan(horizontal * Math.PI / 360) / (16 / 9)) * 180 / Math.PI;
+export const horizontalFov = (vertical: number) => 2 * Math.atan(Math.tan(vertical * Math.PI / 360) * (16 / 9)) * 180 / Math.PI;
+/** The camera and reticle share the rendered lens, including the existing scope zoom contract. */
+export function aimedFov(horizontal: number, weapon: WeaponId | null, ads: number): number {
+  const base = verticalFov(horizontal), zoom = 1 + ads * ((weapon ? ADS_ZOOM[weapon] : 1) - 1);
+  return weapon === 'm4' ? 2 * Math.atan(Math.tan(base * Math.PI / 360) / zoom) * 180 / Math.PI : base / zoom;
+}
 export function loadProfile(): { name: string; color: string } {
   try { const color = localStorage.getItem('uc-color') || ''; return { name: (localStorage.getItem('uc-nick') || '').replace(/[\x00-\x1f\x7f<>]/g, '').slice(0, 18), color: PLAYER_COLORS.includes(color) ? color : PLAYER_COLORS[0] }; }
   catch { return { name: '', color: PLAYER_COLORS[0] }; }

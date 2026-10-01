@@ -1,34 +1,23 @@
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { itemGeometry, itemMaterial } from '../src/render/item-geometry';
 import { worldWeaponMaterial } from '../src/render/world-weapons';
 import { LootView } from '../src/render/loot';
-import { PAINTED_WEAPON_IDS } from '../src/render/painted-weapons';
+import { WEAPONS } from '../src/shared/weapons';
+import type { WeaponId } from '../src/shared/types';
+const PAINTED_WEAPON_IDS = Object.keys(WEAPONS) as WeaponId[];
 import type { WorldSnapshot, WorldSpec } from '../src/shared/types';
-import metrics from '../public/models/weapons/world-metrics.json';
 
-describe('painted held and dropped weapons', () => {
-  it('derives all eight world designs from the current first-person art with bounded near and far geometry', () => {
-    expect(metrics.sourceSha256).toBe(createHash('sha256').update(readFileSync('public/models/weapons/painted-weapons.glb')).digest('hex'));
+describe('held and dropped weapons', () => {
+  it('bakes all eight ground and third-person guns from the first-person builders within the prop budget', () => {
     for (const id of PAINTED_WEAPON_IDS) {
       const near = itemGeometry('weapon', id), far = itemGeometry('weapon', id, 'far');
       try {
-        expect(near.index!.count / 3, id).toBeLessThanOrEqual(2200);
-        expect(far.index!.count / 3, id).toBeLessThanOrEqual(380);
-        expect(far.index!.count, id).toBeLessThan(near.index!.count * .4);
+        expect(near.index!.count / 3, id).toBeLessThanOrEqual(2400);
+        expect(far.index!.count / 3, id).toBeLessThanOrEqual(900);
+        expect(far.index!.count, id).toBeLessThan(near.index!.count * .55);
         for (const geometry of [near, far]) {
-          expect(geometry.getAttribute('uv').count).toBe(geometry.getAttribute('position').count);
           expect(geometry.getAttribute('color').count).toBe(geometry.getAttribute('position').count);
-          const uv = geometry.getAttribute('uv');
-          for (let i = 0; i < geometry.index!.count; i += 3) {
-            const cells = [0, 1, 2].map(corner => {
-              const vertex = geometry.index!.getX(i + corner);
-              return Math.floor(uv.getX(vertex) * 8) + 8 * Math.floor(uv.getY(vertex) * 4);
-            });
-            expect(new Set(cells).size, `${id} paint must not interpolate across unrelated atlas cells`).toBe(1);
-          }
           geometry.computeBoundingBox();
           expect(geometry.boundingBox!.isEmpty()).toBe(false);
           expect(geometry.boundingBox!.max.distanceTo(geometry.boundingBox!.min)).toBeLessThan(1.8);
@@ -40,12 +29,10 @@ describe('painted held and dropped weapons', () => {
     }
   });
 
-  it('shares textured weapon paint between held and instanced drops without changing other loot materials', () => {
+  it('shares one vertex-painted weapon material between held and instanced drops without changing other loot materials', () => {
     const paint = worldWeaponMaterial();
     expect(worldWeaponMaterial()).toBe(paint);
-    const map = paint.map as THREE.DataTexture;
-    expect(map.image.width).toBe(512); expect(map.image.height).toBe(512);
-    expect(paint.vertexColors).toBe(true); expect(paint.map!.colorSpace).toBe(THREE.SRGBColorSpace);
+    expect(paint.vertexColors).toBe(true);
     expect(paint).not.toBe(itemMaterial); expect(itemMaterial.map).toBeNull();
   });
 

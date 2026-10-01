@@ -1,36 +1,16 @@
 {
-  "sourceTriangles": 91450,
-  "nearDetailTriangles": 2146,
-  "palette": [
-    "9A5C36",
-    "B7784C",
-    "4A3327",
-    "331F18",
-    "A97650",
-    "1FB5A8",
-    "12877E",
-    "6E7040",
-    "5A3A22",
-    "1A120C",
-    "FFFFFF",
-    "9C5A3A",
-    "E9B44C",
-    "51532F",
-    "FFFFFF",
-    "4A3327"
-  ],
   "lods": [
     {
       "name": "Capybara_LOD0",
-      "triangles": 19800
+      "triangles": 40889
     },
     {
       "name": "Capybara_LOD1",
-      "triangles": 4786
+      "triangles": 9405
     },
     {
       "name": "Capybara_LOD2",
-      "triangles": 1298
+      "triangles": 2184
     }
   ],
   "hitbox": {
@@ -38,20 +18,29 @@
       "center": [
         0,
         1.6,
-        -0.04
+        -0.07
       ],
-      "radius": 0.25
+      "radius": 0.29
     },
     "body": {
-      "radius": 0.3,
+      "radius": 0.335,
       "top": 1.42
     }
   },
   "clips": [
     "backpedal",
+    "backpedal_l",
+    "backpedal_r",
     "boing",
     "chill",
+    "crouch_back",
+    "crouch_bl",
+    "crouch_br",
+    "crouch_fl",
+    "crouch_fr",
     "crouch_idle",
+    "crouch_strafe_l",
+    "crouch_strafe_r",
     "crouch_walk",
     "dance",
     "death",
@@ -63,21 +52,155 @@
     "face_victory",
     "fall",
     "idle",
+    "idle_armed",
     "jump",
     "land",
+    "parachute",
     "reload_tp",
     "run",
     "sit",
+    "skydive",
     "strafe_l",
     "strafe_r",
     "victory",
     "walk",
+    "walk_fl",
+    "walk_fr",
     "wave"
   ],
+  "material": "baked sculpt: albedo + normal + ORM (R team mask), _fur vertex mask",
+  "voxel": 0.0025,
+  "eye": {
+    "L": [
+      -0.0975717082619667,
+      1.7196216583251953,
+      -0.15573513507843018
+    ],
+    "R": [
+      0.0975717082619667,
+      1.7196216583251953,
+      -0.15573513507843018
+    ]
+  },
+  "footContact": {
+    "L": [
+      -0.30688828229904175,
+      0.001500000013038516,
+      -0.08269324898719788
+    ],
+    "R": [
+      0.30688828229904175,
+      0.001500000013038516,
+      -0.08269324898719788
+    ]
+  },
   "locomotionSpeed": {
-    "walk": 3.9,
-    "run": 6.4,
-    "crouch_walk": 2.1
+    "walk": 3.75,
+    "walk_fr": 3.75,
+    "strafe_r": 3.75,
+    "backpedal_r": 3.75,
+    "backpedal": 3.75,
+    "backpedal_l": 3.75,
+    "strafe_l": 3.75,
+    "walk_fl": 3.75,
+    "run": 6.000000000000001,
+    "crouch_walk": 1.5000000000000002,
+    "crouch_fr": 1.5000000000000002,
+    "crouch_strafe_r": 1.5000000000000002,
+    "crouch_br": 1.5000000000000002,
+    "crouch_back": 1.5000000000000002,
+    "crouch_bl": 1.5000000000000002,
+    "crouch_strafe_l": 1.5000000000000002,
+    "crouch_fl": 1.5000000000000002
+  },
+  "locomotionContact": {
+    "walk": 0.4,
+    "walk_fr": 0.4,
+    "strafe_r": 0.4,
+    "backpedal_r": 0.4,
+    "backpedal": 0.4,
+    "backpedal_l": 0.4,
+    "strafe_l": 0.4,
+    "walk_fl": 0.4,
+    "run": 0.3,
+    "crouch_walk": 0.5,
+    "crouch_fr": 0.5,
+    "crouch_strafe_r": 0.5,
+    "crouch_br": 0.5,
+    "crouch_back": 0.5,
+    "crouch_bl": 0.5,
+    "crouch_strafe_l": 0.5,
+    "crouch_fl": 0.5
+  },
+  "locomotionDirection": {
+    "walk": [
+      0,
+      1
+    ],
+    "walk_fr": [
+      0.70710678,
+      0.70710678
+    ],
+    "strafe_r": [
+      1,
+      0
+    ],
+    "backpedal_r": [
+      0.70710678,
+      -0.70710678
+    ],
+    "backpedal": [
+      0,
+      -1
+    ],
+    "backpedal_l": [
+      -0.70710678,
+      -0.70710678
+    ],
+    "strafe_l": [
+      -1,
+      0
+    ],
+    "walk_fl": [
+      -0.70710678,
+      0.70710678
+    ],
+    "run": [
+      0,
+      1
+    ],
+    "crouch_walk": [
+      0,
+      1
+    ],
+    "crouch_fr": [
+      0.70710678,
+      0.70710678
+    ],
+    "crouch_strafe_r": [
+      1,
+      0
+    ],
+    "crouch_br": [
+      0.70710678,
+      -0.70710678
+    ],
+    "crouch_back": [
+      0,
+      -1
+    ],
+    "crouch_bl": [
+      -0.70710678,
+      -0.70710678
+    ],
+    "crouch_strafe_l": [
+      -1,
+      0
+    ],
+    "crouch_fl": [
+      -0.70710678,
+      0.70710678
+    ]
   },
   "emotes": {
     "wave": {
@@ -114,16 +237,37 @@
   },
   "materials": 1,
   "skins": 1,
-  "joints": 35,
-  "bytes": 1870184,
-  "rawBytes": 3266580,
+  "joints": 71,
+  "bytes": 3782412,
+  "tiers": {
+    "high": {
+      "path": "models/capybara/capybara-high.glb",
+      "bytes": 6576208,
+      "size": 4096,
+      "gpuMB": 192
+    },
+    "medium": {
+      "path": "models/capybara/capybara.glb",
+      "bytes": 3782412,
+      "size": 2048,
+      "gpuMB": 48
+    },
+    "low": {
+      "path": "models/capybara/capybara-low.glb",
+      "bytes": 2805552,
+      "size": 1024,
+      "gpuMB": 12
+    }
+  },
+  "statueBytes": 55408,
+  "rawBytes": 7379344,
   "texture": {
-    "format": "PNG",
-    "width": 1024,
-    "height": 1024,
-    "tiles": [
-      4,
-      4
-    ]
+    "format": "baked albedo + tangent normal + ORM (R: team mask, G: roughness, B: metal)",
+    "count": 3,
+    "sizes": {
+      "capybara_normal": 2048,
+      "capybara_albedo": 2048,
+      "capybara_orm": 1024
+    }
   }
 }

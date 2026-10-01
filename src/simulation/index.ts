@@ -1,17 +1,20 @@
 import { aimDirection, clamp, emptyInput, rng } from '../shared/math';
 import { actorEye, clearSpawn, hasLineOfSight, moveActor, overlapsFootprint, raycastWorld, SWIM_DEPTH, SWIM_DRAFT, tryTrampoline } from '../shared/collision';
+import { pelletDirection, rayCapybara, shotOrigin } from '../shared/ballistics';
 import { terrainHeight } from '../shared/terrain';
 import { waterAt } from '../shared/water';
 import { EMOTES, EMOTE_LOOK_EPSILON, emoteInput, isEmote } from '../shared/emotes';
 import { MUD_HEAL_PER_SECOND, MUD_HURT_COOLDOWN, mudBathAt } from '../shared/recreation';
 import { chooseSupplyLanding, SUPPLY_APPROACH_SECONDS, SUPPLY_DESCENT_SECONDS, SUPPLY_DROP_TIMES } from '../shared/supply-drops';
 import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
-import { navigationWaypoint, walkableHeight, walkableSegment } from '../shared/navigation';
+import { navigationWaypoint, onMainNetwork, walkableHeight, walkableSegment } from '../shared/navigation';
 import { BotBuildingRoutes } from './building-routes';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
-import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
+import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, HANDLING, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
-import { adaptDifficulty, angleDiff, BOT_START, BOT_WEAPON, botValue, createBrain, DIFFICULTY, type BotBrain, type BotDifficulty } from './bots';
+import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
+import { MELEE_SECONDS } from '../shared/weapon-presentation';
+import { adaptDifficulty, aimLag, aimOffset, angleDiff, BOT_START, BOT_STYLE, BOT_STYLES, BOT_WEAPON, botValue, createBrain, DIFFICULTY, RECOVERY_SECONDS, recoveryDirection, trackAim, type BotBrain, type BotDifficulty } from './bots';
 import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
 import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
@@ -28,22 +31,22 @@ const STORM = [
   { wait: 15, shrink: 15, radius: 0, damage: 14 },
 ];
 const USE_TIME: Record<ConsumableId, number> = { bandage: 2.5, medkit: 5, guarana: 2, acai: 3, rapadura: 1.5 };
-const CHEST_WEAPONS: WeaponId[] = ['smg', 'shotgun', 'm4', 'dmr', 'sniper', 'slingshot'];
+const CHEST_WEAPONS: WeaponId[] = ['smg', 'shotgun', 'm4', 'dmr', 'sniper', 'revolver', 'coco', 'smg', 'm4', 'revolver'];
 const CHEST_EXTRA: [LootState['kind'], number][] = [['bandage', 20], ['medkit', 12], ['armor', 18], ['helmet', 12], ['guarana', 14], ['acai', 12], ['rapadura', 12]];
-const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, slingshot: 12 };
-// Legacy-sized hit shapes on the standing capybara (eye 1.62, facing -z): a head
-// sphere and a vertical body cylinder from the feet. When a bot shoots a human the
-// legacy player-favouring sizes apply. Crouching scales them by 1.3/1.8 from the feet.
-// Keep the movement capsule narrow enough for doors; shots use these volumes instead.
-const HIT_SHAPES = {
-  normal: { headY: 1.6, headZ: -.04, headR: .25, bodyR: .3, bodyTop: 1.42 },
-  favoured: { headY: 1.6, headZ: -.04, headR: .19, bodyR: .27, bodyTop: 1.36 },
-} as const;
+const AMMO: Record<WeaponId, number> = { pistol: 51, smg: 75, m4: 90, shotgun: 18, dmr: 36, sniper: 15, machete: 0, revolver: 24, coco: 8 };
+// Shots test the capybara's head sphere and body cylinder (shared/ballistics),
+// not the narrow movement capsule that keeps doors passable.
+// A semi-automatic click that lands during a sprint-out waits this long at most.
+const TRIGGER_HOLD = .35;
 interface ActorRuntime {
   state: ActorState; input: InputFrame; lastSeq: number; lastInputAt: number; lastAction: number;
   nextShot: number; wasFiring: boolean; lastShotPressId: number; jumpQueued: boolean; jumpQueuedUntil: number; triggerQueued: Extract<PlayerAction, { type: 'trigger' }> | null; disconnectedAt: number; lastHurt: number;
   brain: BotBrain | null; boostUntil: number; hot: number; shotHeat: number; adsAmount: number; elimination: number; stormExposure: number; landedAt: number;
   shots: number; hits: number; headshots: number; chests: number; longestShot: number; eliminatedAt: number | null;
+  // Cadence per weapon (a bolt or pump cycle survives a swap) and the end of the last sprint.
+  readyAt: Partial<Record<WeaponId, number>>; sprintEndedAt: number; wasSprinting: boolean; triggerAt: number;
+  // Quick melee: a swing due this tick, and the gun to return to when it ends.
+  meleeSwing: boolean; meleeReturn: { box: number; at: number } | null;
   history: { time: number; pos: Vec3; crouch: boolean; yaw: number }[];
 }
 interface Projectile { owner: string; weapon: WeaponId; origin: Vec3; pos: Vec3; velocity: Vec3; life: number }
@@ -58,8 +61,9 @@ const DEG = Math.PI / 180;
 export const BOT_TELL = .45;
 // Loot a bot will walk to must be on its own level (no stairs pathing).
 const LEVEL = 1.8;
-// Seconds after a human lands before bots may pick them as a target.
-export const LANDING_GRACE = 2.5;
+// Seconds after a human lands before bots may pick them as a target: long
+// enough to grab a gun, unless the human shoots first.
+export const LANDING_GRACE = 7;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export class Simulation {
@@ -69,6 +73,9 @@ export class Simulation {
   private readonly random: () => number;
   private readonly supplyRandom: () => number;
   private readonly personalityRandom: () => number;
+  // Styles and idle glances draw from their own stream, leaving combat and
+  // leisure sequences untouched.
+  private readonly styleRandom: () => number;
   private readonly supplyDrops: SupplyDropState[] = [];
   private readonly supplyRewards = new Map<string, { weapon: WeaponId; rarity: number }>();
   private readonly landedSupply = new Set<string>();
@@ -81,8 +88,11 @@ export class Simulation {
   private readonly buildingRoutes: BotBuildingRoutes;
   private readonly diff: BotDifficulty;
   private readonly landings: Vec3[] = [];
+  private landingSpots: Vec3[] | undefined;
   private botCount = 0;
   private readonly spentDrops = new Map<LootState, number>();
+  // Guns players let go of: arena copies fade after a while, royale piles stay but are capped.
+  private readonly droppedGuns = new Map<LootState, number>();
   private readonly approaches = new Map<string, Vec3 | 'open' | 'none'>();
   private readonly events: GameEvent[] = [];
   private readonly projectiles: Projectile[] = [];
@@ -116,9 +126,10 @@ export class Simulation {
     this.random = rng(seed);
     this.supplyRandom = rng(seed ^ 0x74756361);
     this.personalityRandom = rng(seed ^ 0x63617079);
+    this.styleRandom = rng(seed ^ 0x7374796c);
     // Snapshots must not carry undefined fields: finiteTree() rejects them and the
     // host would stop publishing. Non-weapon spawns may come with `weapon: undefined`.
-    this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: weapon === 'slingshot' ? 3 : Math.floor(this.random() * 4), respawnAt: 0 }));
+    this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: Math.floor(this.random() * 4), respawnAt: 0 }));
     if (config.mode === 'corrente') {
       for (const item of this.loot) item.active = false;
       for (const chest of world.chests) this.openedChests.add(chest.id);
@@ -166,7 +177,7 @@ export class Simulation {
     throw new Error('World has no safe spawn point');
   }
   private inArena(p: Vec3) { return inArena(p.x, p.z); }
-  private makeWeapon(id: WeaponId, rarity = 0): WeaponState { return { id, ammo: WEAPONS[id].magazine, reserve: AMMO[id], rarity }; }
+  private makeWeapon(id: WeaponId, rarity = 0): WeaponState { return { id, ammo: WEAPONS[id].magazine, reserve: AMMO[id], rarity, box: defaultBox(id) }; }
   private addActor(profile: PlayerProfile, bot: boolean) {
     if (this.actors.has(profile.id)) return;
     const spawn = this.spawnPoint(profile.id);
@@ -181,13 +192,13 @@ export class Simulation {
       weapons: this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[0])] : br ? bot ? this.botLoadout() :
         [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
       slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
-      reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0, shotHeat: 0,
+      reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0, shotHeat: 0, shotSeq: 0,
     };
     if (brain) {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
-    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [] });
+    this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [], readyAt: {}, sprintEndedAt: -Infinity, wasSprinting: false, triggerAt: 0, meleeSwing: false, meleeReturn: null });
   }
 
   input(id: string, input: InputFrame) {
@@ -226,13 +237,15 @@ export class Simulation {
     if (action.type === 'jump') { if (s.stage === 'plane') this.drop(actor); else if (s.stage === 'ground') { actor.jumpQueued = true; actor.jumpQueuedUntil = this.time + .1; } }
     // Old client clocks may still submit a new click. fire() bounds rewind at
     // execution and uses current targets outside that window; cadence stays authoritative.
-    else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) actor.triggerQueued = action; }
+    else if (action.type === 'trigger') { if (s.stage === 'ground' && actor.lastShotPressId < action.id) { actor.triggerQueued = action; actor.triggerAt = this.time; } }
     else if (action.type === 'parachute') { if (s.stage === 'falling') s.stage = 'parachute'; }
     else if (action.type === 'slot') {
-      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot && (!s.swimming || s.weapons[action.slot].id === 'pistol')) {
-        s.slot = action.slot; s.reloadUntil = 0; s.useUntil = 0; s.using = null; actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0;
+      if (Number.isInteger(action.slot) && action.slot >= 0 && action.slot < s.weapons.length && action.slot !== s.slot && (!s.swimming || swimReady(s.weapons[action.slot].id))) {
+        this.setSlot(s, action.slot);
       }
-    } else if (action.type === 'reload') this.startReload(actor);
+    } else if (action.type === 'drop') this.dropHeld(actor);
+    else if (action.type === 'reload') this.startReload(actor);
+    else if (action.type === 'melee') this.quickMelee(actor);
     else if (action.type === 'consume') this.startConsume(actor, action.item);
     else if (action.type === 'interact') this.interact(actor, action.target);
   }
@@ -319,7 +332,9 @@ export class Simulation {
       const queuedJump = actor.jumpQueued && this.time <= actor.jumpQueuedUntil;
       const consumeQueuedJump = queuedJump && s.grounded;
       moveActor(s, consumeQueuedJump ? { ...inp, jump: true } : inp, this.world, TICK, actor.boostUntil > this.time ? 1.15 : 1, this.config.mode);
-      if (s.slot !== previousSlot) { actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0; }
+      if (s.slot !== previousSlot) { actor.shotHeat = s.shotHeat = 0; actor.adsAmount = 0; this.drawWeapon(actor); }
+      if (actor.wasSprinting && !s.sprint) actor.sprintEndedAt = this.time;
+      actor.wasSprinting = s.sprint;
       if (s.swimming !== wasSwimming) this.waterTransition(actor);
       this.updateMudBath(actor);
       if (s.bounceSeq !== previousBounce) this.emit({ type: 'bounce', actor: s.id, pos: { ...s.pos } });
@@ -339,7 +354,18 @@ export class Simulation {
       }
       const weaponId = s.weapons[s.slot].id;
       actor.adsAmount = s.swimming ? 0 : advanceAds(weaponId, actor.adsAmount, s.ads && !s.sprint && !s.reloadUntil && weaponId !== 'machete', TICK);
-      if (s.alive && (inp.fire || trigger)) this.fire(actor, trigger?.clientTime, trigger?.id);
+      if (actor.meleeSwing) { actor.meleeSwing = false; this.fire(actor, inp.clientTime); }
+      else if (actor.meleeReturn && this.time >= actor.meleeReturn.at) {
+        const back = s.weapons.findIndex(w => w.box === actor.meleeReturn!.box);
+        actor.meleeReturn = null;
+        if (back >= 0 && WEAPONS[s.weapons[s.slot].id].melee && (!s.swimming || swimReady(s.weapons[back].id))) this.setSlot(s, back);
+      }
+      if (s.alive && (inp.fire || trigger)) {
+        const result = this.fire(actor, trigger?.clientTime, trigger?.id);
+        // A click during the sprint-out fires as soon as the gun is up, aimed where the view is then.
+        if (trigger && result === 'wait' && this.time - actor.triggerAt < TRIGGER_HOLD)
+          actor.triggerQueued = { ...trigger, yaw: inp.yaw, pitch: inp.pitch, lean: inp.lean, ads: inp.ads, clientTime: inp.clientTime };
+      }
       if (!inp.fire) actor.wasFiring = false;
       if (inp.jump) actor.input.jump = false;
       actor.history.push({ time: this.time, pos: { ...s.pos }, crouch: s.crouch, yaw: s.yaw });
@@ -347,6 +373,7 @@ export class Simulation {
     }
     if (!this.correnteWinner) this.updateProjectiles();
     for (const loot of this.loot) if (!loot.active && loot.respawnAt && this.time >= loot.respawnAt) { loot.active = true; loot.respawnAt = 0; }
+    for (const [loot, until] of this.droppedGuns) if (this.time >= until) { this.droppedGuns.delete(loot); if (loot.active) { loot.active = false; this.spentDrops.set(loot, this.time + 1); } }
     for (const [loot, until] of this.spentDrops) if (this.time >= until) { this.loot.splice(this.loot.indexOf(loot), 1); this.spentDrops.delete(loot); }
     if (this.correnteWinner || this.config.mode === 'deathmatch' && this.time >= this.config.duration + 3) this.finish();
     if (this.config.mode === 'battle-royale') {
@@ -424,7 +451,7 @@ export class Simulation {
     if (water && ground <= water.surfaceY - SWIM_DEPTH && s.pos.y <= water.surfaceY - SWIM_DRAFT) {
       s.pos.y = Math.max(ground, water.surfaceY - SWIM_DRAFT); s.velocity.y = 0; s.stage = 'ground'; a.landedAt = this.time;
       s.swimming = true; s.grounded = false; s.crouch = s.sprint = s.ads = false; s.lean = 0; s.bounceProtected = false;
-      const pistol = s.weapons.findIndex(w => w.id === 'pistol');
+      const pistol = sidearmIndex(s.weapons);
       if (pistol >= 0 && s.slot !== pistol) { s.slot = pistol; s.reloadUntil = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; }
       this.waterTransition(a);
       return;
@@ -536,7 +563,7 @@ export class Simulation {
       return;
     }
     if (!loot) return;
-    if (loot.kind === 'weapon') this.giveWeapon(s, loot.weapon || 'pistol', loot.rarity);
+    if (loot.kind === 'weapon') this.giveWeapon(s, loot.weapon || 'pistol', loot.rarity, loot);
     else if (loot.kind === 'ammo') { for (const w of s.weapons) if (w.id !== 'machete') w.reserve = Math.min(AMMO[w.id] * 3, w.reserve + WEAPONS[w.id].magazine); }
     else if (loot.kind === 'armor') s.armor = Math.min(100, s.armor + 50);
     else if (loot.kind === 'helmet') s.helmet = Math.min(60, s.helmet + 60);
@@ -551,7 +578,7 @@ export class Simulation {
   // in a fan facing whoever opened it; they are then picked up one by one.
   private spillChest(chest: ChestSpec, opener: ActorState) {
     const weapon = CHEST_WEAPONS[Math.floor(this.random() * CHEST_WEAPONS.length)];
-    const roll = this.random(), rarity = weapon === 'slingshot' ? 3 : roll < .55 ? 1 : roll < .87 ? 2 : 3;
+    const roll = this.random(), rarity = roll < .55 ? 1 : roll < .87 ? 2 : 3;
     let pickRoll = this.random() * CHEST_EXTRA.reduce((sum, [, weight]) => sum + weight, 0), extra: LootState['kind'] = 'bandage';
     for (const [kind, weight] of CHEST_EXTRA) { if ((pickRoll -= weight) < 0) { extra = kind; break; } }
     const kinds: LootState['kind'][] = ['weapon', 'ammo', extra];
@@ -578,43 +605,124 @@ export class Simulation {
     }
     return { x: chest.x, y: chest.y, z: chest.z };
   }
-  private giveWeapon(s: ActorState, id: WeaponId, rarity: number) {
-    const existing = s.weapons.find(w => w.id === id);
-    if (existing) { existing.rarity = Math.max(existing.rarity, rarity); existing.reserve = Math.min(AMMO[id] * 3, existing.reserve + AMMO[id]); return; }
-    if (s.weapons.length < 4) s.weapons.push(this.makeWeapon(id, rarity));
-    else { const slot = s.weapons.findIndex(w => w.id !== 'machete' && w.id !== 'pistol'); s.weapons[slot < 0 ? 0 : slot] = this.makeWeapon(id, rarity); }
+  // See planPickup: the same gun tops up, a free box fills, a full class swaps
+  // and the replaced gun lands at the player's feet with its ammo intact.
+  private giveWeapon(s: ActorState, id: WeaponId, rarity: number, source?: Pick<LootState, 'ammo' | 'reserve'>) {
+    const plan = planPickup(s.weapons, s.slot, id);
+    const incoming = this.makeWeapon(id, rarity);
+    if (source?.ammo !== undefined) incoming.ammo = Math.min(WEAPONS[id].magazine, source.ammo);
+    if (source?.reserve !== undefined) incoming.reserve = Math.min(AMMO[id] * 3, source.reserve);
+    if (plan.kind === 'merge') {
+      const existing = s.weapons[plan.index];
+      existing.rarity = Math.max(existing.rarity, rarity);
+      existing.reserve = Math.min(AMMO[id] * 3, existing.reserve + (WEAPONS[id].melee ? 0 : incoming.ammo + incoming.reserve));
+      return;
+    }
+    const held = s.weapons[s.slot];
+    incoming.box = plan.box;
+    if (plan.kind === 'swap') {
+      const [old] = s.weapons.splice(plan.index, 1);
+      this.dropGun(s, old);
+    }
+    const index = insertWeapon(s.weapons, incoming);
+    // Equip what replaced the held gun, or the first gun picked up while holding the facão.
+    const equip = plan.kind === 'swap' ? held?.box === plan.box : !held || WEAPONS[held.id].melee;
+    const selected = equip ? index : s.weapons.indexOf(held);
+    this.setSlot(s, selected < 0 ? index : selected);
+  }
+  private setSlot(s: ActorState, index: number) {
+    if (index === s.slot && s.weapons[index]) return;
+    const actor = this.actors.get(s.id);
+    s.slot = index; s.reloadUntil = 0; s.useUntil = 0; s.using = null; s.shotHeat = 0;
+    if (actor) { actor.shotHeat = 0; actor.adsAmount = 0; this.drawWeapon(actor); }
+  }
+  // Quick melee swings the facão at once (even out of a sprint) and returns to
+  // the held gun when the swing ends; that gun then takes its normal draw time.
+  private quickMelee(a: ActorRuntime) {
+    const s = a.state, facao = s.weapons.findIndex(w => WEAPONS[w.id].melee);
+    if (facao < 0 || s.stage !== 'ground' || s.swimming || s.using || s.emote || this.time + 1e-6 < (a.readyAt[s.weapons[facao].id] ?? 0)) return;
+    if (s.slot !== facao) {
+      a.meleeReturn = { box: s.weapons[s.slot].box, at: this.time + MELEE_SECONDS };
+      s.slot = facao; s.reloadUntil = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0;
+    }
+    a.nextShot = this.time; a.wasFiring = false; a.meleeSwing = true;
+  }
+  // A newly held weapon fires once it is drawn, and never before its own cycle
+  // (bolt, pump) has finished: swapping away and back cannot skip a cycle.
+  private drawWeapon(a: ActorRuntime) {
+    const id = a.state.weapons[a.state.slot]?.id;
+    if (id) a.nextShot = Math.max(this.time + HANDLING[id].draw, a.readyAt[id] ?? 0);
+  }
+  private dropHeld(a: ActorRuntime) {
+    const s = a.state, held = s.weapons[s.slot];
+    if (this.config.mode === 'corrente' || s.stage !== 'ground' || !canDrop(held) || s.swimming) return;
+    s.weapons.splice(s.slot, 1);
+    this.dropGun(s, held);
+    // Fall to the next box down, wrapping to the facão.
+    const next = s.weapons.findIndex(w => w.box > held.box);
+    s.slot = -1; this.setSlot(s, next < 0 ? s.weapons.length - 1 : next);
+  }
+  private dropGun(s: ActorState, weapon: WeaponState, side = 0) {
+    if (WEAPONS[weapon.id].melee) return;
+    const heading = s.yaw, from = { x: s.pos.x, y: s.pos.y + 1, z: s.pos.z };
+    let x = s.pos.x - Math.sin(heading) * 1.1 + Math.cos(heading) * side, z = s.pos.z - Math.cos(heading) * 1.1 - Math.sin(heading) * side;
+    if (!hasLineOfSight(from, { x, y: s.pos.y + .3, z }, this.world) || waterAt(x, z)) { x = s.pos.x; z = s.pos.z; }
+    const y = s.swimming || waterAt(x, z) ? Math.max(terrainHeight(x, z), s.pos.y) : Math.max(terrainHeight(x, z), s.grounded ? s.pos.y : terrainHeight(x, z));
+    const loot: LootState = { id: `drop-${++this.dropSeq}`, kind: 'weapon', weapon: weapon.id, x, y, z, active: true, rarity: weapon.rarity,
+      respawnAt: 0, from, spawnedAt: this.time, ammo: weapon.ammo, reserve: weapon.reserve };
+    this.loot.push(loot);
+    this.droppedGuns.set(loot, this.time + (isArenaMode(this.config.mode) ? 25 : Infinity));
+    // Keep the royale snapshot bounded: the oldest dropped gun disappears first.
+    if (this.droppedGuns.size > 48) {
+      const [oldest] = this.droppedGuns.keys();
+      this.droppedGuns.delete(oldest);
+      if (oldest.active) { oldest.active = false; this.spentDrops.set(oldest, this.time + 1); }
+    }
   }
   // `aim` is the bot path: a direction plus the legacy aim-error cone (radians).
-  private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }) {
+  // Returns 'wait' when only the sprint-out kept the gun from firing.
+  private fire(a: ActorRuntime, clientTime = a.input.clientTime, pressId = a.input.firePressId, aim?: { dir: Vec3; cone: number }): 'fired' | 'wait' | 'blocked' {
     const s = a.state, w = s.weapons[s.slot], def = w && WEAPONS[w.id];
-    if (!w || !def || s.stage !== 'ground' || s.using || s.emote || this.time < a.nextShot || (s.swimming && w.id !== 'pistol')) return;
-    if (!def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return;
+    if (!w || !def || s.stage !== 'ground' || s.using || s.emote || this.time + 1e-6 < a.nextShot || (s.swimming && !swimReady(w.id))) return 'blocked';
+    if (!def.automatic && !s.bot && (a.wasFiring || pressId !== undefined && a.lastShotPressId >= pressId)) return 'blocked';
+    // Firing ends a sprint (moveActor); the gun comes up before the first round. The facão swings straight out of a run.
+    if (!def.melee && (s.sprint || this.time + 1e-6 < a.sprintEndedAt + HANDLING[w.id].sprintOut)) return 'wait';
     if (s.reloadUntil) {
-      if (w.id !== 'shotgun' || w.ammo === 0) return;
+      if (w.id !== 'shotgun' || w.ammo === 0) return 'blocked';
       s.reloadUntil = 0;
     }
     a.wasFiring = true;
-    if (!def.melee && w.ammo <= 0) { this.startReload(a); return; }
-    const spread = shotSpread(w.id, a.adsAmount, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded && !s.swimming, a.shotHeat, s.swimming);
+    if (!def.melee && w.ammo <= 0) {
+      // A gun with nothing left hands over to the next one that can shoot, like a real draw.
+      if (w.reserve <= 0 && this.config.mode !== 'corrente') {
+        const ready = s.weapons.findIndex(other => other !== w && (WEAPONS[other.id].melee || other.ammo + other.reserve > 0) && (!s.swimming || swimReady(other.id)));
+        if (ready >= 0) this.setSlot(s, ready);
+      } else this.startReload(a);
+      return 'blocked';
+    }
+    const spread = shotSpread(w.id, a.adsAmount, Math.hypot(s.velocity.x, s.velocity.z), !s.grounded && !s.swimming, a.shotHeat, s.swimming, s.crouch);
     if (!s.bot && !def.melee && !def.projectile) a.shotHeat = s.shotHeat = Math.min(1.2, a.shotHeat + shotHeatGain(w.id));
     if (pressId !== undefined) a.lastShotPressId = Math.max(a.lastShotPressId, pressId);
     if (s.protectionUntil > this.time) s.protectionUntil = this.time;
-    a.nextShot = this.time + 60 / def.rpm;
+    // Holding the trigger keeps the exact cadence: the next round is due one
+    // interval after the previous one was due, not after the tick that fired it.
+    const interval = 60 / def.rpm, held = this.time - a.nextShot < TICK * 1.5;
+    a.nextShot = a.readyAt[w.id] = (held ? a.nextShot : this.time) + interval;
     if (!def.melee) w.ammo--;
     a.shots++;
-    const origin = center(s), forward = aim ? aim.dir : aimDirection(s.yaw, s.pitch);
-    const range = w.id === 'pistol' || w.id === 'smg' ? 60 : w.id === 'slingshot' ? 25 : def.melee ? 0 : 90;
+    const seq = ++s.shotSeq;
+    const origin = shotOrigin(s), forward = aim ? aim.dir : aimDirection(s.yaw, s.pitch);
+    const range = w.id === 'pistol' || w.id === 'smg' ? 60 : def.melee ? 0 : 90;
     if (range) this.alertBots(s.pos, range);
-    origin.x += Math.cos(s.yaw) * s.lean * .32; origin.z -= Math.sin(s.yaw) * s.lean * .32;
     if (def.projectile) {
       this.projectiles.push({ owner: s.id, weapon: w.id, origin: { ...origin }, pos: { ...origin }, velocity: { x: forward.x * (def.speed || 50), y: forward.y * (def.speed || 50), z: forward.z * (def.speed || 50) }, life: 3 });
-      this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: { x: origin.x + forward.x * 2, y: origin.y + forward.y * 2, z: origin.z + forward.z * 2 }, hit: false });
-      return;
+      this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: { x: origin.x + forward.x * 2, y: origin.y + forward.y * 2, z: origin.z + forward.z * 2 }, hit: false, seq });
+      return 'fired';
     }
     const pellets = def.pellets || 1; let hit = false, headHit = false, impact: Impact | null = null, endpoint = { x: origin.x + forward.x * def.range, y: origin.y + forward.y * def.range, z: origin.z + forward.z * def.range };
     for (let n = 0; n < pellets; n++) {
       const direction = aim ? this.cone(forward, aim.cone + (s.swimming ? 1.5 * DEG : 0) + (pellets > 1 ? def.spread * DEG * .5 : 0))
-        : def.melee ? forward : norm({ x: forward.x + (this.random() * 2 - 1) * spread * DEG, y: forward.y + (this.random() * 2 - 1) * spread * DEG, z: forward.z + (this.random() * 2 - 1) * spread * DEG });
+        : pelletDirection(w.id, this.matchId, s.id, seq, n, s.yaw, s.pitch, spread);
       const wall = raycastWorld(origin, direction, def.range, this.world);
       let best = wall?.distance ?? def.range, victim: ActorRuntime | null = null, head = false;
       for (const other of this.actors.values()) {
@@ -636,38 +744,11 @@ export class Simulation {
     }
     if (hit) { a.hits++; if (headHit) a.headshots++; }
     const struck = !hit && impact ? { surface: impact.surface, normal: { x: Math.round(impact.normal.x * 1000) / 1000, y: Math.round(impact.normal.y * 1000) / 1000, z: Math.round(impact.normal.z * 1000) / 1000 } } : {};
-    this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: endpoint, hit, ...struck });
+    this.emit({ type: 'shot', actor: s.id, weapon: w.id, origin, end: endpoint, hit, ...struck, seq });
+    return 'fired';
   }
   private rayActor(origin: Vec3, d: Vec3, actor: ActorState, max: number, position = actor.pos, crouch = actor.crouch, yaw = actor.yaw, favoured = false): { distance: number; head: boolean } | null {
-    const shape = favoured ? HIT_SHAPES.favoured : HIT_SHAPES.normal;
-    const scale = crouch ? 1.8 / 1.3 : 1;
-    const cos = Math.cos(yaw), sin = Math.sin(yaw);
-    const wx = origin.x - position.x, wz = origin.z - position.z;
-    const x = (cos * wx - sin * wz) * scale, y = (origin.y - position.y) * scale, z = (sin * wx + cos * wz) * scale;
-    const vx = (cos * d.x - sin * d.z) * scale, vy = d.y * scale, vz = (sin * d.x + cos * d.z) * scale;
-    let best = max, head = false;
-    // Head sphere.
-    {
-      const px = x, py = y - shape.headY, pz = z - shape.headZ;
-      const a = vx * vx + vy * vy + vz * vz, b = px * vx + py * vy + pz * vz, c = px * px + py * py + pz * pz - shape.headR ** 2;
-      const disc = b * b - a * c;
-      if (disc >= 0 && (-b + Math.sqrt(disc)) / a >= 0) { const near = Math.max(0, (-b - Math.sqrt(disc)) / a); if (near < best) { best = near; head = true; } }
-    }
-    // Body cylinder around the vertical axis, capped at the feet and the shoulders.
-    {
-      let low = 0, high = Infinity;
-      const a = vx * vx + vz * vz, b = x * vx + z * vz, c = x * x + z * z - shape.bodyR ** 2;
-      if (a < 1e-12) { if (c > 0) low = Infinity; }
-      else {
-        const disc = b * b - a * c;
-        if (disc < 0) low = Infinity;
-        else { low = Math.max(low, (-b - Math.sqrt(disc)) / a); high = Math.min(high, (-b + Math.sqrt(disc)) / a); }
-      }
-      if (Math.abs(vy) < 1e-12) { if (y < 0 || y > shape.bodyTop) low = Infinity; }
-      else { const t0 = -y / vy, t1 = (shape.bodyTop - y) / vy; low = Math.max(low, Math.min(t0, t1)); high = Math.min(high, Math.max(t0, t1)); }
-      if (low <= high && high >= 0 && low < best) { best = Math.max(0, low); head = false; }
-    }
-    return best < max ? { distance: best, head } : null;
+    return rayCapybara(origin, d, position, crouch, yaw, max, favoured);
   }
   private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean, shotDistance = 0) {
     const s = target.state;
@@ -707,12 +788,21 @@ export class Simulation {
     this.cancelEmote(s); s.bounceProtected = false;
     if (killer && killer !== target) {
       killer.state.kills++;
+      // Correria keeps the fight going: every elimination restocks one magazine per carried gun.
+      if (this.config.mode === 'deathmatch')
+        for (const w of killer.state.weapons) if (!WEAPONS[w.id].melee) w.reserve = Math.min(AMMO[w.id] * 3, w.reserve + WEAPONS[w.id].magazine);
       if (killer.brain && this.time >= killer.brain.leisureAt && this.personalityRandom() < .4) {
         killer.brain.celebrateAt = this.time + 3; killer.brain.celebrateUntil = this.time + 9;
       }
     }
     target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
     if (isArenaMode(this.config.mode)) s.respawnAt = this.time + 3;
+    // A royale elimination leaves the guns behind, fanned out so each can be picked.
+    else if (s.stage === 'ground') {
+      const guns = s.weapons.filter(canDrop);
+      guns.forEach((gun, i) => this.dropGun(s, gun, (i - (guns.length - 1) / 2) * .8));
+      s.weapons = s.weapons.filter(w => !canDrop(w)); s.slot = 0;
+    }
     const from = killer && killer !== target ? killer.state.pos : null;
     this.emit({ type: 'kill', actor: killer?.state.id || null, target: s.id, weapon,
       ...(from ? { from: { ...from }, distance: Math.round(Math.hypot(from.x - s.pos.x, from.y - s.pos.y, from.z - s.pos.z)) } : {}) });
@@ -741,7 +831,7 @@ export class Simulation {
     s.weapons = this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[s.weaponLevel])] :
       [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')]; s.slot = 0;
     s.reloadUntil = 0; s.useUntil = 0; s.using = null;
-    s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false;
+    s.protectionUntil = this.time + 2; s.respawnAt = 0; a.nextShot = this.time; a.wasFiring = false; a.readyAt = {}; a.sprintEndedAt = -Infinity; a.wasSprinting = false; a.meleeSwing = false; a.meleeReturn = null;
     // Press IDs survive respawn just like lastAction/lastSeq; a delayed reliable
     // copy of a held shot must not fire again in the new life. Reconnect resets IDs.
     a.input = emptyInput(); a.lastInputAt = -Infinity; a.jumpQueued = false; a.triggerQueued = null; a.hot = 0; a.shotHeat = s.shotHeat = 0; a.adsAmount = 0; a.boostUntil = 0; a.history = [];
@@ -770,15 +860,36 @@ export class Simulation {
       }
       const underground = p.pos.y < terrainHeight(p.pos.x, p.pos.z);
       const landed = victim ? null : resolveImpact(previous, dir, wall || (underground ? { distance: length, collider: { id: 'terrain', min: p.pos, max: p.pos, material: 'earth' } } : null), length);
-      if (landed) this.emit({ type: 'impact', actor: p.owner, weapon: p.weapon, pos: landed.point, surface: landed.surface, normal: landed.normal });
-      if (victim || wall || landed || underground || p.life <= 0) this.projectiles.splice(i, 1);
+      const done = victim || wall || landed || underground || p.life <= 0;
+      if (done && WEAPONS[p.weapon].splash) {
+        const at = landed?.point ?? { x: previous.x + dir.x * best, y: previous.y + dir.y * best, z: previous.z + dir.z * best };
+        this.explode(p, at, victim);
+        this.emit({ type: 'impact', actor: p.owner, weapon: p.weapon, pos: at, surface: landed?.surface ?? 'dirt', normal: landed?.normal ?? { x: 0, y: 1, z: 0 } });
+      } else if (landed) this.emit({ type: 'impact', actor: p.owner, weapon: p.weapon, pos: landed.point, surface: landed.surface, normal: landed.normal });
+      if (done) this.projectiles.splice(i, 1);
+    }
+  }
+  // Splash falls off linearly to the edge and needs a clear line from the burst,
+  // so walls still protect. The direct victim already took the full hit; the
+  // shooter takes a reduced share so point-blank shots are a real risk.
+  private explode(p: Projectile, at: Vec3, direct: ActorRuntime | null) {
+    const def = WEAPONS[p.weapon], radius = def.splash!, lifted = { x: at.x, y: at.y + .35, z: at.z };
+    this.alertBots(at, 40);
+    for (const other of this.actors.values()) {
+      const t = other.state;
+      if (other === direct || !t.alive || t.stage !== 'ground') continue;
+      const body = { x: t.pos.x, y: t.pos.y + .6, z: t.pos.z }, d = Math.hypot(body.x - at.x, body.y - at.y, body.z - at.z);
+      if (d > radius || !hasLineOfSight(lifted, body, this.world)) continue;
+      const scale = (1 - d / radius) * (t.id === p.owner ? .4 : 1);
+      if (scale > .02) this.damage(other, def.damage * .85 * scale, p.owner, p.weapon, false, Math.hypot(at.x - p.origin.x, at.z - p.origin.z));
     }
   }
   // ---------------- bots (ported from the legacy build) ----------------
   private rnd(a: number, b: number) { return a + (b - a) * this.random(); }
   private makeBrain(pos: Vec3): BotBrain {
     const elite = this.botCount++ < this.diff.elites;
-    return createBrain(elite, elite ? this.rnd(.8, 1.2) : this.rnd(1.6, 2.5), pos, this.random() < .5 ? 1 : -1);
+    const skill = elite ? this.rnd(.8, 1.2) : this.rnd(1.6, 2.5), flank = this.random() < .5 ? 1 : -1;
+    return createBrain(elite, skill, pos, flank, BOT_STYLES[Math.floor(this.styleRandom() * BOT_STYLES.length)]);
   }
   private botLoadout(): WeaponState[] {
     let roll = this.random() * BOT_START.reduce((sum, [, w]) => sum + w, 0), id: WeaponId = 'pistol';
@@ -799,13 +910,19 @@ export class Simulation {
     const side = (p: Vec3) => Math.abs((p.x - S.x) * -d.z + (p.z - S.z) * d.x);
     // Only spots within gliding reach of the route (about 100 m from 115 m up).
     // Open-sky spots only: a parachute aimed at loot under a roof lands on the roof.
-    const spots = [...this.world.loot, ...this.world.chests].filter(p => this.dryAround(p.x, p.z) && Math.abs(p.y - terrainHeight(p.x, p.z)) < .35 && Math.abs(p.x) < 118 && Math.abs(p.z) < 118 && side(p) < 90 && !this.roofed(p.x, p.y, p.z, 1.5));
+    // A sealed garden behind a row of houses is open sky, but a bot that lands
+    // in it can never walk out. Only spots on the island-wide network qualify.
+    this.landingSpots ??= [...this.world.loot, ...this.world.chests].filter(p => this.dryAround(p.x, p.z) && Math.abs(p.y - terrainHeight(p.x, p.z)) < .35 &&
+      Math.abs(p.x) < 118 && Math.abs(p.z) < 118 && !this.roofed(p.x, p.y, p.z, 1.5) && onMainNetwork(this.world, p));
+    let spots = this.landingSpots.filter(p => side(p) < 90);
+    if (!spots.length && this.landingSpots.length) spots = [...this.landingSpots].sort((p, q) => side(p) - side(q)).slice(0, 3);
     if (!spots.length) { b.land = { x: this.rnd(-60, 60), y: 0, z: this.rnd(-60, 60) }; b.jumpAt = this.rnd(5, 12); return; }
     let spot = spots[Math.floor(this.random() * spots.length)];
     for (let k = 0; k < 30 && this.landings.some(l => Math.hypot(l.x - spot.x, l.z - spot.z) < 26); k++) spot = spots[Math.floor(this.random() * spots.length)];
     this.landings.push(spot);
     b.land = { x: spot.x + this.rnd(-3, 3), y: 0, z: spot.z + this.rnd(-3, 3) };
-    if (!this.dryAround(b.land.x, b.land.z) || this.roofed(b.land.x, spot.y, b.land.z, 1.5)) b.land = { x: spot.x, y: 0, z: spot.z };
+    if (!this.dryAround(b.land.x, b.land.z) || this.roofed(b.land.x, spot.y, b.land.z, 1.5) ||
+      !onMainNetwork(this.world, { x: b.land.x, y: walkableHeight(b.land.x, b.land.z, this.world), z: b.land.z })) b.land = { x: spot.x, y: 0, z: spot.z };
     const along = (b.land.x - S.x) * d.x + (b.land.z - S.z) * d.z;
     b.jumpAt = clamp(3 + (along - 20) / PLANE_SPEED + this.rnd(-1.2, .8), 4.5, 3 + PLANE_ROUTE / PLANE_SPEED - 1);
   }
@@ -898,7 +1015,13 @@ export class Simulation {
       for (let r = 1.5; r <= 10; r += 1.5) {
         const x = s.pos.x + Math.cos(a) * r, z = s.pos.z + Math.sin(a) * r;
         if (!this.walkable(x, z)) break;
-        if (this.standAt(x, z, s.pos.y) < s.pos.y - 1.5) { if (r < bd) { bd = r; best = { x, y: s.pos.y, z }; } break; }
+        const landing = this.standAt(x, z, s.pos.y);
+        if (landing < s.pos.y - 1.5) {
+          if (r < bd && s.pos.y - landing < 6 && !waterAt(x, z) && onMainNetwork(this.world, { x, y: landing, z }, isArenaMode(this.config.mode)) &&
+            this.grid.sees({ ...s.pos, y: s.pos.y + .46 }, { x, y: s.pos.y + .46, z }) &&
+            this.grid.sees({ ...s.pos, y: s.pos.y + 1.78 }, { x, y: s.pos.y + 1.78, z })) { bd = r; best = { x, y: s.pos.y, z }; }
+          break;
+        }
       }
     }
     return best;
@@ -917,12 +1040,20 @@ export class Simulation {
     const sc = this.safeCircle(), spots = isArenaMode(this.config.mode) ? this.world.loot.filter(l => this.inArena(l)) : [...this.world.loot, ...this.world.chests];
     for (let k = 0; k < 20; k++) {
       let x: number, z: number;
-      if (this.random() < .3 && spots.length) { const p = spots[Math.floor(this.random() * spots.length)]; x = p.x; z = p.z; }
+      // World loot is placed on the connected walking network. Arbitrary
+      // hillside coordinates can be isolated terraces inside the arena fence.
+      if (spots.length) {
+        const p = spots[Math.floor(this.random() * spots.length)];
+        if (Math.abs(p.y - walkableHeight(p.x, p.z, this.world)) > .5) continue;
+        x = p.x; z = p.z;
+      }
       else if (isArenaMode(this.config.mode)) { x = ARENA.minX + 3 + this.random() * (ARENA.maxX - ARENA.minX - 6); z = ARENA.minZ + 3 + this.random() * (ARENA.maxZ - ARENA.minZ - 6); }
       else { const a = this.random() * Math.PI * 2, r = Math.sqrt(this.random()) * sc.r * .85; x = sc.x + Math.cos(a) * r; z = sc.z + Math.sin(a) * r; }
-      if (!this.walkable(x, z) || this.pointBlocked(x, terrainHeight(x, z), z)) continue;
+      if (!this.walkable(x, z) || !walkableSegment(this.world, { x, z }, { x, z }, isArenaMode(this.config.mode))) continue;
       if (!isArenaMode(this.config.mode) && Math.hypot(x - sc.x, z - sc.z) > sc.r * .95 && k < 15) continue;
-      return groundPoint(x, z);
+      const y = walkableHeight(x, z, this.world), water = waterAt(x, z);
+      if (water && y < water.surfaceY || !onMainNetwork(this.world, { x, y, z }, isArenaMode(this.config.mode))) continue;
+      return { x, y, z };
     }
     return this.walkable(sc.x, sc.z) ? groundPoint(sc.x, sc.z) : { ...s.pos };
   }
@@ -933,10 +1064,23 @@ export class Simulation {
     const outNow = Math.hypot(s.pos.x - this.zone.x, s.pos.z - this.zone.z) > this.zone.radius * .93;
     if (d < sc.r * .8 && !outNow) return null;
     const phase = STORM[this.zone.phase], left = !this.zone.shrinking ? this.zone.timeLeft + (phase ? phase.shrink : 0) : this.zone.timeLeft;
-    const need = Math.max(0, d - sc.r * .6) / 5.6;
-    if (!outNow && left > need * 1.6 + 10) return null;
+    const need = Math.max(0, d - sc.r * .6) / 5.6, rotate = BOT_STYLE[this.actors.get(s.id)?.brain?.style ?? 'flanker'].rotate;
+    // Anchors walk in early to hold the new circle; rushers ride the edge.
+    if (!outNow && left > (need * 1.6 + 10) * rotate) return null;
     const k = d > 0 ? sc.r * .55 / d : 0;
-    return groundPoint(sc.x + (s.pos.x - sc.x) * k, sc.z + (s.pos.z - sc.z) * k);
+    const x = sc.x + (s.pos.x - sc.x) * k, z = sc.z + (s.pos.z - sc.z) * k;
+    const goal = { x, y: walkableHeight(x, z, this.world), z };
+    // The circle can be centred on the canal or inside a solid building. A
+    // reachable dry graph node keeps rotation on the quays when land remains.
+    let best = goal, score = Infinity;
+    for (const point of this.world.navigation?.points ?? []) {
+      if (Math.hypot(point.x - sc.x, point.z - sc.z) > sc.r * .75) continue;
+      const water = waterAt(point.x, point.z);
+      if (water && point.y < water.surfaceY) continue;
+      const distance = Math.hypot(point.x - x, point.z - z);
+      if (distance < score) { best = point; score = distance; }
+    }
+    return best;
   }
   private heals(s: ActorState) { return s.consumables.bandage + s.consumables.medkit + s.consumables.rapadura; }
   private botHeal(a: ActorRuntime) {
@@ -948,9 +1092,9 @@ export class Simulation {
     else if (s.consumables.medkit) this.startConsume(a, 'medkit');
   }
   private bestWeapon(s: ActorState) {
-    if (s.swimming) { const pistol = s.weapons.findIndex(w => w.id === 'pistol'); return pistol < 0 ? s.slot : pistol; }
+    if (s.swimming) { const pistol = sidearmIndex(s.weapons); return pistol < 0 ? s.slot : pistol; }
     let best = s.slot, value = -1;
-    s.weapons.forEach((w, i) => { const v = botValue(w.id, w.rarity) + (w.id === 'machete' ? -5 : 0); if (v > value) { value = v; best = i; } });
+    s.weapons.forEach((w, i) => { const dry = !WEAPONS[w.id].melee && w.ammo + w.reserve <= 0; const v = botValue(w.id, w.rarity) + (w.id === 'machete' ? -5 : 0) - (dry ? 100 : 0); if (v > value) { value = v; best = i; } });
     return best;
   }
   private findLoot(s: ActorState): BotBrain['loot'] {
@@ -1052,20 +1196,45 @@ export class Simulation {
     }
     return false;
   }
-  private findCover(s: ActorState, threat: ActorState): Vec3 | null {
+  private findCover(s: ActorState, threat: Vec3): Vec3 | null {
     let best: Vec3 | null = null, score = Infinity;
     for (let k = 0; k < 20; k++) {
       const a = k / 20 * Math.PI * 2 + this.rnd(-.1, .1), r = k % 2 ? 3 : 6.5, x = s.pos.x + Math.cos(a) * r, z = s.pos.z + Math.sin(a) * r;
       if (!this.walkable(x, z)) continue;
-      const y = Math.max(terrainHeight(x, z), s.pos.y - .5);
-      if (this.pointBlocked(x, y, z)) continue;
-      const eye = { x, y: y + 1, z }, dx = threat.pos.x - x, dy = threat.pos.y + 1.2 - eye.y, dz = threat.pos.z - z, L = Math.hypot(dx, dy, dz);
+      const y = walkableHeight(x, z, this.world);
+      if (Math.abs(y - s.pos.y) > 1 || !walkableSegment(this.world, s.pos, { x, z }, isArenaMode(this.config.mode))) continue;
+      const water = waterAt(x, z);
+      if (water && y < water.surfaceY) continue;
+      const eye = { x, y: y + 1, z }, dx = threat.x - x, dy = threat.y + 1.2 - eye.y, dz = threat.z - z, L = Math.hypot(dx, dy, dz);
       const hit = this.grid.ray(eye, { x: dx / L, y: dy / L, z: dz / L }, Math.min(L, 3.6));
       if (hit === null || hit > L - .5 || hit > 3.5) continue;
       const sc = r + Math.max(0, 8 - L) * .5;
       if (sc < score) { score = sc; best = { x, y, z }; }
     }
     return best;
+  }
+  private findPeek(cover: Vec3, threat: Vec3, side: number): Vec3 | null {
+    const dx = threat.x - cover.x, dz = threat.z - cover.z, length = Math.hypot(dx, dz) || 1;
+    for (const distance of [1.1, 1.8, 2.5]) for (const direction of [side, -side]) {
+      const x = cover.x - dz / length * distance * direction, z = cover.z + dx / length * distance * direction;
+      const point = { x, y: walkableHeight(x, z, this.world), z };
+      if (Math.abs(point.y - cover.y) > .5 || !walkableSegment(this.world, cover, point, isArenaMode(this.config.mode))) continue;
+      if (this.grid.sees({ ...point, y: point.y + 1.42 }, { ...threat, y: threat.y + 1 })) return point;
+    }
+    return null;
+  }
+  // Idle look-around: favour the longest open view (a side street, a doorway,
+  // the square) within a comfortable turn of the walking direction.
+  private lookout(s: ActorState, heading: number) {
+    const eye = { x: s.pos.x, y: s.pos.y + 1.4, z: s.pos.z }, options: { yaw: number; weight: number }[] = [];
+    for (const degrees of [-80, -55, -30, 30, 55, 80]) {
+      const yaw = heading + degrees * DEG, dir = { x: -Math.sin(yaw), y: 0, z: -Math.cos(yaw) };
+      const open = this.grid.ray(eye, dir, 30) ?? 30;
+      options.push({ yaw, weight: open * open });
+    }
+    let pick = this.styleRandom() * options.reduce((sum, option) => sum + option.weight, 0);
+    for (const option of options) if ((pick -= option.weight) <= 0) return option.yaw;
+    return options[options.length - 1].yaw;
   }
   // When a wall blocks the straight line, head for the nearest visible corner of
   // that wall segment. Walls are split at openings, so this usually is a doorway.
@@ -1091,14 +1260,12 @@ export class Simulation {
   }
   private probe(s: ActorState, angle: number) {
     const dir = { x: -Math.sin(angle), y: 0, z: -Math.cos(angle) };
-    // Three rays as wide as the movement capsule, so corners and door jambs count as blocked.
-    for (const side of [0, -.28, .28]) {
-      const origin = { x: s.pos.x + dir.z * side, y: s.pos.y + .6, z: s.pos.z - dir.x * side };
-      if (this.grid.ray(origin, dir, 1.3) !== null) return false;
-    }
     const x = s.pos.x + dir.x * 1.3, z = s.pos.z + dir.z * 1.3;
-    // Water is a route. Only the same soft playable limits used by humans bound it.
-    return this.walkable(x, z);
+    // Check the whole capsule, including overhanging rocks and the next tread.
+    // A knee-height ray missed chest-high rocks and never released stuck bots.
+    const returning = !this.walkable(s.pos.x, s.pos.z) && Math.hypot(x, z) < Math.hypot(s.pos.x, s.pos.z);
+    if (!this.walkable(x, z) && !returning) return false;
+    return walkableSegment(this.world, s.pos, { x, z }, isArenaMode(this.config.mode));
   }
   private botThink(a: ActorRuntime) {
     const s = a.state, b = a.brain!, diff = this.diff, dm = isArenaMode(this.config.mode);
@@ -1148,56 +1315,99 @@ export class Simulation {
     b.recentDmg *= Math.exp(-dt * .8);
     // Pick the best gun; bots never run dry (legacy bots had endless reserves).
     const slot = this.bestWeapon(s);
-    if (slot !== s.slot && !s.reloadUntil) s.slot = slot;
-    const w = s.weapons[s.slot], def = WEAPONS[w.id], bw = BOT_WEAPON[w.id];
+    if (slot !== s.slot && !s.reloadUntil) { s.slot = slot; this.drawWeapon(a); }
+    const w = s.weapons[s.slot], def = WEAPONS[w.id], bw = BOT_WEAPON[w.id], style = BOT_STYLE[b.style];
     if (def.ammo && w.reserve < def.magazine) w.reserve = AMMO[w.id];
     const rethink = now >= b.thinkAt;
     if (rethink) { b.thinkAt = now + this.rnd(.15, .25); this.botThink(a); }
     const target = b.target ? this.actors.get(b.target) : undefined, t = target?.state;
     const fighting = !!(t && t.alive && b.sees && t.stage === 'ground' && t.protectionUntil <= now);
     b.trackT = fighting ? b.trackT + dt : Math.max(0, b.trackT - dt * 2);
+    if (fighting && t) trackAim(b, t, aimLag(this.diff, b.elite), dt);
     if (this.botLeisure(a, rethink)) return;
     let mx = 0, mz = 0, speed = 0, face = s.yaw, crouch = false, jump = false, pitch = s.pitch * Math.exp(-4 * dt), preciseBuilding = false;
+    let steer: Vec3 | null = null;
     const atCover = b.mode === 'cover' && !!b.coverPt && Math.hypot(b.coverPt.x - s.pos.x, b.coverPt.z - s.pos.z) <= .7;
+    // Rotation is urgent by definition of zoneNeed. A visible enemy must not
+    // pin a bot outside the circle, including while hiding or using a heal.
+    if (b.zoneGoal) {
+      if (s.using) { s.using = null; s.useUntil = 0; }
+      if (b.mode === 'cover') { b.mode = 'roam'; b.coverPt = null; b.peekPt = null; }
+    }
+    // Shot by someone it cannot see: get out of the line of fire first, then
+    // peek toward where the shot came from (as a human reads a damage arrow).
+    // A healthy rusher charges the sound instead.
+    if (!fighting && !b.zoneGoal && b.mode !== 'cover' && !s.using && now < b.hurtUntil && b.hearPos &&
+      now >= b.coverCdUntil && (b.style !== 'rusher' || s.hp < 70)) {
+      b.coverCdUntil = now + 5;
+      const cover = this.findCover(s, b.hearPos);
+      if (cover) {
+        b.mode = 'cover'; b.coverPt = cover; b.peekPt = null; b.coverUntil = now + this.rnd(1.2, 2.4) * style.hold;
+        b.lastSeen = { ...b.hearPos }; b.lastSeenAt = now; b.loot = null; b.via = null;
+      }
+    }
+    // Two bots peeking the same pair of corners could trade misses for half a
+    // minute. After a while in one spot, a healthy bot pushes instead.
+    if (b.mode !== 'cover') b.coverSince = now;
+    else if (now - b.coverSince > 9 * style.hold && s.hp >= 50 && !s.reloadUntil && !s.using && !b.peekPt) {
+      b.mode = 'fight'; b.coverPt = null; b.flank = -b.flank; b.coverCdUntil = now + 6; b.coverSince = now;
+    }
     if (s.using) {
       crouch = true;
       if (fighting && t) face = Math.atan2(-(t.pos.x - s.pos.x), -(t.pos.z - s.pos.z));
     } else if (b.mode === 'cover' && b.coverPt) {
-      const dx = b.coverPt.x - s.pos.x, dz = b.coverPt.z - s.pos.z, dist = Math.hypot(dx, dz);
-      if (dist > .7) { mx = dx / dist; mz = dz / dist; speed = 5.8; face = Math.atan2(-mx, -mz); }
-      else { crouch = true; if (this.heals(s) > 0 && s.hp < 70 && now >= b.hurtUntil) this.botHeal(a); }
+      if (b.peekPt && (now >= b.peekUntil || s.reloadUntil || s.using)) {
+        b.peekPt = null; b.coverUntil = now + this.rnd(1, 1.7) * style.hold;
+      }
+      const ready = now >= b.coverUntil && !s.reloadUntil && !s.using && (s.hp >= 60 || this.heals(s) === 0);
+      if (ready && !b.peekPt && atCover && b.lastSeen && now - b.lastSeenAt < 5) {
+        b.peekPt = this.findPeek(b.coverPt, b.lastSeen, b.flank); b.peekUntil = now + 2.6;
+      }
+      const goal = b.peekPt ?? b.coverPt;
+      const dx = goal.x - s.pos.x, dz = goal.z - s.pos.z, dist = Math.hypot(dx, dz);
+      if (dist > (b.peekPt ? .12 : .7)) { mx = dx / dist; mz = dz / dist; speed = b.peekPt ? Math.min(3.6, dist * 10) : 5.8; face = Math.atan2(-mx, -mz); }
+      else if (!b.peekPt) { crouch = true; if (this.heals(s) > 0 && s.hp < 70 && now >= b.hurtUntil) this.botHeal(a); }
       if (t && t.alive && dist <= .7) face = Math.atan2(-(t.pos.x - s.pos.x), -(t.pos.z - s.pos.z));
-      if (now >= b.coverUntil && !s.reloadUntil && !s.using && (s.hp >= 60 || this.heals(s) === 0)) { b.mode = 'fight'; b.coverPt = null; b.flank = -b.flank; }
-    } else if (fighting && t) {
+      else if (b.peekPt && b.lastSeen) face = Math.atan2(-(b.lastSeen.x - s.pos.x), -(b.lastSeen.z - s.pos.z));
+      if (ready && !b.peekPt) { b.mode = 'fight'; b.coverPt = null; b.flank = -b.flank; }
+    } else if (fighting && t && !b.zoneGoal) {
       b.mode = 'fight';
       const dx = t.pos.x - s.pos.x, dz = t.pos.z - s.pos.z, dist = Math.hypot(dx, dz) || 1, ux = dx / dist, uz = dz / dist;
       const reloading = !!s.reloadUntil;
       // Never stand still in the open while reloading: back off and keep side-stepping.
-      const forward = reloading ? -1 : dist > bw.range * 1.25 ? 1 : dist < bw.range * .55 ? -1 : 0;
+      const band = bw.range * style.range;
+      const forward = reloading || s.hp < 35 ? -1 : dist > band * 1.25 ? 1 : dist < band * .55 ? -1 : 0;
       if (reloading && b.strafeDir === 0) b.strafeDir = this.random() < .5 ? -1 : 1;
       if (now >= b.strafeUntil) {
         b.strafeDir = this.random() < .25 && !reloading ? 0 : this.random() < .5 ? -1 : 1; b.strafeUntil = now + this.rnd(.35, 1);
-        if (s.grounded && this.random() < .12 && dist < 25) jump = true;
+        if (s.grounded && this.random() < style.jump && dist < 25) jump = true;
       }
       mx = ux * forward - uz * b.strafeDir * .9; mz = uz * forward + ux * b.strafeDir * .9; speed = forward === 1 ? 4.4 : 3.6;
       face = Math.atan2(-dx, -dz);
       pitch = Math.atan2(t.pos.y + 1 - (s.pos.y + 1.42), dist);
-      if (b.strafeDir === 0 && dist > 16 && !reloading) crouch = true;
+      if (b.strafeDir === 0 && dist > 16 && !reloading && s.hp >= 50) crouch = true;
       // A reload that starts mid-fight looks for cover at once, whatever the search cooldown.
       const reloadStarted = reloading && !b.reloading;
-      if ((now >= b.coverCdUntil || reloadStarted) && ((s.hp < (b.elite ? 65 : 50) && this.heals(s) > 0) || (reloading && dist < 35) || b.recentDmg > 45)) {
-        const cover = this.findCover(s, t); b.coverCdUntil = now + 5;
-        if (cover) { b.mode = 'cover'; b.coverPt = cover; b.coverUntil = now + this.rnd(1.2, 2.4); }
+      if ((now >= b.coverCdUntil || reloadStarted) && (s.hp < (b.elite ? 65 : 50) + style.coverHp || (reloading && dist < 35) || b.recentDmg > 45)) {
+        const cover = this.findCover(s, t.pos); b.coverCdUntil = now + 5;
+        if (cover) { b.mode = 'cover'; b.coverPt = cover; b.peekPt = null; b.coverUntil = now + this.rnd(1.2, 2.4) * style.hold; }
       }
     } else {
       if (b.mode === 'fight') b.mode = 'roam';
-      let g: Vec3 | null = null, run = false, kind: 'zone' | 'chase' | 'hear' | 'loot' | 'leisure' | 'goal' = 'goal';
+      let g: Vec3 | null = null, run = false, kind: 'zone' | 'chase' | 'watch' | 'hear' | 'loot' | 'leisure' | 'goal' = 'goal';
       if (b.zoneGoal) { g = b.zoneGoal; run = true; kind = 'zone'; }
-      else if (b.lastSeen && now - b.lastSeenAt < 5) {
+      else if (b.lastSeen && now - b.lastSeenAt < style.chase) {
         // Push the last sighting, flanking to one side for the first seconds.
-        const px = -(b.lastSeen.z - s.pos.z), pz = b.lastSeen.x - s.pos.x, pl = Math.hypot(px, pz) || 1, k = now - b.lastSeenAt < 2.5 ? 6 * b.flank : 0;
+        const px = -(b.lastSeen.z - s.pos.z), pz = b.lastSeen.x - s.pos.x, pl = Math.hypot(px, pz) || 1, k = now - b.lastSeenAt < style.flankFor ? style.flank * b.flank : 0;
         g = { x: b.lastSeen.x + px / pl * k, y: b.lastSeen.y, z: b.lastSeen.z + pz / pl * k }; run = true; kind = 'chase';
-      } else if (now < b.alertUntil && b.hearPos) { g = b.hearPos; kind = 'hear'; }
+      } else if (b.lastSeen && now - b.lastSeenAt < style.chase + style.watch) {
+        // Hold the angle: crouch and watch where the enemy was last seen.
+        g = { ...s.pos }; kind = 'watch'; crouch = true;
+      } else if (now < b.alertUntil && b.hearPos) {
+        g = b.hearPos; kind = 'hear';
+        // The last stretch toward a gunshot is crept, quieter and lower; rushers just run in.
+        if (b.style !== 'rusher' && Math.hypot(g.x - s.pos.x, g.z - s.pos.z) < 16) crouch = true;
+      }
       else if (b.leisure) { g = b.leisure.pos; kind = 'leisure'; }
       else if (b.loot) {
         g = b.loot.pos; kind = 'loot';
@@ -1214,19 +1424,21 @@ export class Simulation {
         if (preciseBuilding) { b.via = null; b.routeFor = null; b.avoidOff = 0; }
       }
       // Up on a roof with the goal below: head for the nearest edge and drop off instead of circling.
-      if (!building && g.y < s.pos.y - 1.5 && s.grounded && s.pos.y - terrainHeight(s.pos.x, s.pos.z) > 2.2) {
+      if (!building && g.y < s.pos.y - 1.5 && s.grounded && s.pos.y - walkableHeight(s.pos.x, s.pos.z, this.world) > .6) {
         if (!b.drop || Math.hypot(b.drop.x - s.pos.x, b.drop.z - s.pos.z) < .6) b.drop = this.dropPoint(s);
-        if (b.drop) { g = b.drop; run = false; kind = 'goal'; }
+        if (b.drop) { g = b.drop; run = false; kind = 'goal'; preciseBuilding = true; b.via = null; b.avoidOff = 0; }
       } else b.drop = null;
-      // Commit to a detour corner until it is reached or lost from sight; re-planning every
-      // few frames made bots flip between the two ends of a wall.
+      // Keep an accepted static route until arrival or measured lack of progress.
+      // Re-sampling a slope from each moving origin can reject the very next
+      // graph link and repeatedly send the walker back to its previous node.
       const goalMoved = !b.routeFor || Math.hypot(b.routeFor.x - g.x, b.routeFor.z - g.z) > 2;
-      const viaLost = !!b.via && (this.world.navigation ? !walkableSegment(this.world, s.pos, b.via, isArenaMode(this.config.mode)) :
-        !this.grid.sees({ x: s.pos.x, y: s.pos.y + .7, z: s.pos.z }, { x: b.via.x, y: b.via.y + .7, z: b.via.z }));
-      if (!preciseBuilding && (goalMoved || viaLost || (!b.via && now >= b.routeAt))) {
+      if (!preciseBuilding && (goalMoved || (!b.via && now >= b.routeAt))) {
         b.routeAt = now + .3; b.routeFor = { ...g }; b.via = this.route(s, g, b.lastVia);
       }
-      if (b.via && Math.hypot(b.via.x - s.pos.x, b.via.z - s.pos.z) < 1) { b.lastVia = b.via; b.via = null; b.routeAt = now; }
+      if (b.via && Math.hypot(b.via.x - s.pos.x, b.via.z - s.pos.z) < .45) {
+        b.lastVia = b.via; b.via = this.route(s, g, b.lastVia); b.routeAt = now + .3;
+        if (kind === 'loot') b.lootSince = now;
+      }
       // Loot that stays out of reach (behind walls with no door found) is dropped for a while.
       if (kind === 'loot' && b.loot) {
         if (b.lootFor !== b.loot.id) {
@@ -1239,7 +1451,7 @@ export class Simulation {
       }
       const step = b.via || g, dist = Math.hypot(g.x - s.pos.x, g.z - s.pos.z);
       const dx = step.x - s.pos.x, dz = step.z - s.pos.z, stepDist = Math.hypot(dx, dz) || 1;
-      if (dist < (building?.waypoint ? .12 : kind === 'leisure' ? .45 : 1.3) && (!building || Math.abs(g.y - s.pos.y) < 1.6)) {
+      if (dist < (building?.waypoint || b.drop ? .12 : kind === 'leisure' ? .45 : 1.3) && (!building || Math.abs(g.y - s.pos.y) < 1.6)) {
         if (building?.waypoint) { /* The authored route advances at its height-checked waypoint. */ }
         else if (kind === 'goal') b.goal = null;
         else if (kind === 'hear') { b.hearPos = null; b.alertUntil = -1; }
@@ -1248,10 +1460,26 @@ export class Simulation {
           if (Math.abs(g.y - s.pos.y) < 1.6) this.interact(a, b.loot.id);
           b.loot = null; b.lootScanAt = now - .9;
         } else if (kind === 'chase') b.lastSeenAt = -99;
-      } else { mx = dx / stepDist; mz = dz / stepDist; speed = preciseBuilding ? Math.min(3.9, stepDist / .35 * 3.9) : run ? 5.8 : 4.2; }
-      if (now < b.alertUntil && b.hearPos && !run) face = Math.atan2(-(b.hearPos.x - s.pos.x), -(b.hearPos.z - s.pos.z));
-      else if (speed > 0) face = Math.atan2(-mx, -mz);
+      } else { mx = dx / stepDist; mz = dz / stepDist; speed = preciseBuilding ? Math.min(3.9, stepDist / .35 * 3.9) : run ? 5.8 : 4.2; steer = step; }
+      if (kind === 'watch' && b.lastSeen) face = Math.atan2(-(b.lastSeen.x - s.pos.x), -(b.lastSeen.z - s.pos.z));
+      else if (now < b.alertUntil && b.hearPos && !run) face = Math.atan2(-(b.hearPos.x - s.pos.x), -(b.hearPos.z - s.pos.z));
+      else if (speed > 0) {
+        face = Math.atan2(-mx, -mz);
+        // A walking bot glances down side streets and doorways now and then.
+        // Its sight follows its head, so a glance can also spot a flanker.
+        if (!run && !preciseBuilding && (kind === 'goal' || kind === 'loot')) {
+          if (b.glanceAt < 0) b.glanceAt = now + 1.5 + this.styleRandom() * 3;
+          else if (now >= b.glanceAt) { b.glanceAt = now + 2.5 + this.styleRandom() * 3; b.glanceUntil = now + .5 + this.styleRandom() * .6; b.glanceYaw = this.lookout(s, face); }
+          if (now < b.glanceUntil) face = b.glanceYaw;
+        }
+      }
       if (this.heals(s) > 0 && s.hp < 75 && now >= b.hurtUntil && !run) this.botHeal(a);
+    }
+    if (b.recoveryYaw !== null && now < b.recoveryUntil && !s.using) {
+      mx = -Math.sin(b.recoveryYaw); mz = -Math.cos(b.recoveryYaw); speed = 3.9; crouch = false;
+      jump = b.recoveryJump; b.recoveryJump = false;
+      if (!fighting) face = b.recoveryYaw;
+      preciseBuilding = true; b.avoidOff = 0; b.drop = null; b.via = null; b.routeFor = null;
     }
     if (crouch) speed = Math.min(speed, 2);
     const ml = Math.hypot(mx, mz);
@@ -1259,8 +1487,11 @@ export class Simulation {
       if (!preciseBuilding && now >= b.avoidAt) {
         b.avoidAt = now + .15;
         const angle = Math.atan2(-mx, -mz);
+        // A straight walk the capsule clears needs no side-step. Fanned probes
+        // at a 1 m garden gate failed on its posts and wiggled bots in place.
+        if (steer && walkableSegment(this.world, s.pos, steer, isArenaMode(this.config.mode))) b.avoidOff = 0;
         // Hold a side-step for at least 0.6 s before straightening, so bots do not wobble along walls.
-        if (this.probe(s, angle + b.avoidOff * .6)) { if (b.avoidOff && now >= b.avoidHold && this.probe(s, angle)) b.avoidOff = 0; }
+        else if (this.probe(s, angle + b.avoidOff * .6)) { if (b.avoidOff && now >= b.avoidHold && this.probe(s, angle)) b.avoidOff = 0; }
         else {
           let found = false; const sign = this.random() < .5 ? 1 : -1;
           for (const o of [1, -1, 2, -2, 3, -3]) if (this.probe(s, angle + o * sign * .6)) { b.avoidOff = o * sign; b.avoidHold = now + .6; found = true; break; }
@@ -1278,20 +1509,29 @@ export class Simulation {
       const order = [1, -1, 2, -2, 3, -3], next = order[(order.indexOf(b.avoidOff) + 1) % order.length];
       b.avoidOff = next; b.avoidAt = now + .5; b.pressT = 0; b.via = null;
     }
-    // Only grounded walking counts as stuck. Slow air steering during a bounce
-    // is not a blocked route and must not discard the safe exit goal.
-    if (ml === 0 || !s.grounded || b.stuckAt < 0) { b.stuckAt = now; b.lastPos = { ...s.pos }; }
+    // Observe progress on ground and in water. Slow air steering during a
+    // bounce must not discard the safe exit goal.
+    if (ml === 0 || !(s.grounded || s.swimming) || b.stuckAt < 0) { b.stuckAt = now; b.lastPos = { ...s.pos }; }
     else if (now - b.stuckAt > 1) {
       if (Math.hypot(s.pos.x - b.lastPos.x, s.pos.z - b.lastPos.z) < .4) {
+        // Precise stair steering has no side-steps or recovery of its own. Three
+        // seconds without progress on it and the journey is planned afresh.
+        if (preciseBuilding && !b.drop && ++b.preciseStuck >= 3) { this.buildingRoutes.release(b); b.preciseStuck = 0; }
+        if ((!preciseBuilding || b.drop) && now >= b.recoveryUntil) {
+          const recovery = recoveryDirection(this.world, s, b.zoneGoal ?? b.routeFor ?? b.goal, this.config.mode);
+          b.recoveryYaw = recovery?.yaw ?? null; b.recoveryJump = recovery?.jump ?? false;
+          b.recoveryUntil = now + RECOVERY_SECONDS;
+        }
         b.goal = this.randomGoal(s); b.avoidOff = 0;
         if (b.loot) { b.ignore.set(b.loot.id, now + 30); b.loot = null; }
         b.via = null;
         if (b.mode === 'cover') b.coverUntil = now;
         // Hop only over a genuinely low ledge; jumping at walls looks broken.
         const ahead = { x: -Math.sin(s.yaw), y: 0, z: -Math.cos(s.yaw) };
-        if (!preciseBuilding && s.grounded && this.grid.ray({ x: s.pos.x, y: s.pos.y + .3, z: s.pos.z }, ahead, 1) !== null &&
+        if ((b.recoveryYaw === null || now >= b.recoveryUntil) && (!preciseBuilding || b.drop) && s.grounded && this.grid.ray({ x: s.pos.x, y: s.pos.y + .3, z: s.pos.z }, ahead, 1) !== null &&
           this.grid.ray({ x: s.pos.x, y: s.pos.y + 1.1, z: s.pos.z }, ahead, 1.2) === null) jump = true;
       }
+      else b.preciseStuck = 0;
       b.lastPos = { ...s.pos }; b.stuckAt = now;
     }
     // Out of combat the heading eases toward where the bot wants to face; in a fight it tracks the target directly.
@@ -1304,10 +1544,11 @@ export class Simulation {
     inp.moveZ = (-Math.sin(yaw) * mx - Math.cos(yaw) * mz) * scale;
     inp.moveX = (Math.cos(yaw) * mx - Math.sin(yaw) * mz) * scale;
     b.reloading = !!s.reloadUntil;
-    if (fighting && t && !s.reloadUntil && !s.using) {
+    if (fighting && t && !b.zoneGoal && !s.reloadUntil && !s.using) {
       b.reactT -= dt;
       const dist = Math.hypot(t.pos.x - s.pos.x, t.pos.y - s.pos.y, t.pos.z - s.pos.z);
-      if (b.reactT <= 0 && now >= b.fireAt && now - a.landedAt >= .5 && dist <= def.range && Math.abs(angleDiff(yaw, face)) < .2 && (b.mode !== 'cover' || atCover)) this.botShoot(a, target!);
+      const peeking = b.peekPt && Math.hypot(b.peekPt.x - s.pos.x, b.peekPt.z - s.pos.z) <= .8;
+      if (b.reactT <= 0 && now >= b.fireAt && now - a.landedAt >= .5 && dist <= def.range && Math.abs(angleDiff(yaw, face)) < .2 && (b.mode !== 'cover' || peeking)) this.botShoot(a, target!);
     }
   }
   private botShoot(a: ActorRuntime, target: ActorRuntime) {
@@ -1315,8 +1556,9 @@ export class Simulation {
     if (!def.melee && w.ammo <= 0) { this.startReload(a); return; }
     const head = this.random() < (b.elite ? .2 : .1), k = t.crouch ? 1.3 / 1.8 : 1;
     // Aim at the head sphere or the upper body (see HIT_SHAPES).
-    const aim = head ? { x: t.pos.x - Math.sin(t.yaw) * .04 * k, y: t.pos.y + 1.6 * k, z: t.pos.z - Math.cos(t.yaw) * .04 * k }
-      : { x: t.pos.x, y: t.pos.y + 1.0 * k, z: t.pos.z };
+    const lead = aimOffset(b, t, aimLag(this.diff, b.elite));
+    const aim = head ? { x: t.pos.x - Math.sin(t.yaw) * .04 * k + lead.x, y: t.pos.y + 1.6 * k + lead.y, z: t.pos.z - Math.cos(t.yaw) * .04 * k + lead.z }
+      : { x: t.pos.x + lead.x, y: t.pos.y + 1.0 * k + lead.y, z: t.pos.z + lead.z };
     const eye = center(s), dist = Math.hypot(aim.x - eye.x, aim.y - eye.y, aim.z - eye.z);
     const tv = Math.hypot(t.velocity.x, t.velocity.z), sv = Math.hypot(s.velocity.x, s.velocity.z);
     const track = b.elite ? lerp(1.5, .45, clamp(b.trackT / 1.6, 0, 1)) : lerp(1.8, .75, clamp(b.trackT / 2.2, 0, 1));

@@ -35,7 +35,8 @@ function harness(ready: Promise<void> = Promise.resolve()) {
     worldView: { ready: Promise.resolve(), group: new THREE.Group(), dispose: vi.fn() },
     supplyDrops: { ready: Promise.resolve(), dispose: vi.fn() },
     avatars: { prepare: vi.fn(), warmupWeapons: new THREE.Group(), dispose: vi.fn() },
-    pipeline: { beginWarmup: vi.fn(), beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), resize: vi.fn(), dispose: vi.fn() },
+    pipeline: { beginWarmup: vi.fn(), beginFirstPersonWarmup: vi.fn(), warmup: vi.fn(async () => {}), renderPost: vi.fn(), setSize: vi.fn(), dispose: vi.fn(),
+      size: { outputWidth: 2940, outputHeight: 1912, allocWidth: 1846, allocHeight: 1203, width: 1838, height: 1195 } },
     environment: { dispose: vi.fn() }, onProgress: vi.fn(), resize: vi.fn(),
     effects: { warm: vi.fn(), dispose: vi.fn() },
     gl: { setRenderTarget: vi.fn(), compileAsync: vi.fn(async () => {}), render: vi.fn(), dispose: vi.fn(), shadowMap: { enabled: true } },
@@ -60,7 +61,8 @@ describe('renderer preparation lifecycle', () => {
     expect([output.width, output.height]).toEqual([64, 64]);
     expect(lod.autoUpdate).toBe(false); expect(sun.shadow.map).toBe(map);
     expect(sun.shadow.mapSize.toArray()).toEqual([1024, 1024]);
-    expect(h.pipeline.resize).toHaveBeenCalledOnce(); map.dispose();
+    // The play-size targets come back exactly as they were before the tiny warmup buffer.
+    expect(h.pipeline.setSize).toHaveBeenCalledExactlyOnceWith(h.pipeline.size); map.dispose();
   });
   it('keeps loading until kit geometry has replaced the placement placeholders', async () => {
     const kit = deferred(), h = harness(); h.worldView.ready = kit.promise;

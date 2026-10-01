@@ -16,7 +16,7 @@ it('reviews every delivery phase at one real dry landing with a valid landed pro
     cameraPosition: { x: 0, y: 0, z: 0 }, stats: { drawCalls: 0, triangles: 0 } };
   installQa({ world, settings: { ...DEFAULT_SETTINGS }, input: { frame: emptyInput() } as any,
     ui: { update: (_s: unknown, _id: string, _a: number, _b: boolean, _c: number, target: unknown) => { interaction = target; },
-      event: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
+      event: () => {}, frameCompass: () => {}, setPaused: () => {}, closeEmoteWheel: () => {} } as any, begin: async () => renderer as any });
   const qa = window.__capyQA!; await qa.start();
   const positions: Vec3[] = [];
   for (const [pose, phase] of [['supplyIncoming', 'incoming'], ['supplyDescending', 'descending'], ['supplyLanded', 'landed'], ['supplyOpened', 'opened']]) {

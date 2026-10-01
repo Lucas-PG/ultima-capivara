@@ -1,0 +1,598 @@
+[
+  {
+    "mode": "battle-royale",
+    "seed": 1,
+    "difficulty": "hard",
+    "complete": true,
+    "seconds": 210.38,
+    "tickP95Ms": 0.993,
+    "tickP99Ms": 2.63,
+    "tickMaxMs": 44.243,
+    "wallSeconds": 3.04,
+    "cpuSeconds": 3.59,
+    "botSeconds": 1949,
+    "movingSeconds": 1281,
+    "stuckSeconds": 16,
+    "longestStuck": 2,
+    "swimmingSeconds": 7,
+    "stormSeconds": 3,
+    "engagements": 70,
+    "shots": 1959,
+    "hits": 1037,
+    "pickups": 58,
+    "coverSeconds": 422,
+    "fallDeaths": 0,
+    "stormDeaths": 0,
+    "combatDeaths": 20,
+    "deathsInWater": 0,
+    "stuckPerBotMinute": 0.493,
+    "stuckSites": [
+      [
+        "66,-26,fight,dry",
+        2
+      ],
+      [
+        "34,-12,roam,dry",
+        1
+      ],
+      [
+        "-68,-22,roam,dry",
+        1
+      ],
+      [
+        "-4,60,roam,dry",
+        1
+      ],
+      [
+        "-96,60,fight,dry",
+        1
+      ],
+      [
+        "-96,-62,roam,dry",
+        1
+      ],
+      [
+        "78,-44,fight,dry",
+        1
+      ],
+      [
+        "-100,54,fight,dry",
+        1
+      ],
+      [
+        "-106,68,fight,dry",
+        1
+      ],
+      [
+        "66,-32,fight,dry",
+        1
+      ],
+      [
+        "-104,-68,roam,dry",
+        1
+      ],
+      [
+        "-60,-34,cover,dry",
+        1
+      ],
+      [
+        "56,-28,fight,dry",
+        1
+      ],
+      [
+        "58,-28,fight,dry",
+        1
+      ],
+      [
+        "4,-30,fight,dry",
+        1
+      ]
+    ]
+  },
+  {
+    "mode": "battle-royale",
+    "seed": 2,
+    "difficulty": "hard",
+    "complete": true,
+    "seconds": 235.45,
+    "tickP95Ms": 0.801,
+    "tickP99Ms": 2.152,
+    "tickMaxMs": 19.309,
+    "wallSeconds": 2.86,
+    "cpuSeconds": 3.24,
+    "botSeconds": 2089,
+    "movingSeconds": 1341,
+    "stuckSeconds": 26,
+    "longestStuck": 2,
+    "swimmingSeconds": 31,
+    "stormSeconds": 2,
+    "engagements": 59,
+    "shots": 2167,
+    "hits": 1133,
+    "pickups": 76,
+    "coverSeconds": 514,
+    "fallDeaths": 0,
+    "stormDeaths": 0,
+    "combatDeaths": 20,
+    "deathsInWater": 0,
+    "stuckPerBotMinute": 0.747,
+    "stuckSites": [
+      [
+        "-58,-52,roam,dry",
+        3
+      ],
+      [
+        "-100,16,roam,dry",
+        1
+      ],
+      [
+        "-64,64,roam,dry",
+        1
+      ],
+      [
+        "58,-24,fight,dry",
+        1
+      ],
+      [
+        "82,-6,fight,dry",
+        1
+      ],
+      [
+        "-8,78,fight,dry",
+        1
+      ],
+      [
+        "-28,86,fight,dry",
+        1
+      ],
+      [
+        "2,-54,fight,dry",
+        1
+      ],
+      [
+        "52,-12,cover,dry",
+        1
+      ],
+      [
+        "-92,0,fight,water",
+        1
+      ],
+      [
+        "-8,60,cover,dry",
+        1
+      ],
+      [
+        "68,8,fight,dry",
+        1
+      ],
+      [
+        "-72,24,roam,dry",
+        1
+      ],
+      [
+        "-82,16,roam,dry",
+        1
+      ],
+      [
+        "76,-6,roam,dry",
+        1
+      ],
+      [
+        "-62,34,roam,dry",
+        1
+      ],
+      [
+        "-10,74,roam,dry",
+        1
+      ],
+      [
+        "86,-16,roam,dry",
+        1
+      ],
+      [
+        "84,-16,roam,dry",
+        1
+      ],
+      [
+        "-4,-12,roam,dry",
+        1
+      ]
+    ]
+  },
+  {
+    "mode": "battle-royale",
+    "seed": 3,
+    "difficulty": "hard",
+    "complete": true,
+    "seconds": 192.57,
+    "tickP95Ms": 1.085,
+    "tickP99Ms": 5.364,
+    "tickMaxMs": 260.604,
+    "wallSeconds": 4.21,
+    "cpuSeconds": 3.17,
+    "botSeconds": 1853,
+    "movingSeconds": 1190,
+    "stuckSeconds": 23,
+    "longestStuck": 2,
+    "swimmingSeconds": 0,
+    "stormSeconds": 0,
+    "engagements": 53,
+    "shots": 1259,
+    "hits": 604,
+    "pickups": 65,
+    "coverSeconds": 450,
+    "fallDeaths": 0,
+    "stormDeaths": 0,
+    "combatDeaths": 20,
+    "deathsInWater": 0,
+    "stuckPerBotMinute": 0.745,
+    "stuckSites": [
+      [
+        "10,-34,roam,dry",
+        2
+      ],
+      [
+        "52,84,roam,dry",
+        1
+      ],
+      [
+        "-12,-90,fight,dry",
+        1
+      ],
+      [
+        "114,38,roam,dry",
+        1
+      ],
+      [
+        "-28,38,fight,dry",
+        1
+      ],
+      [
+        "-36,-70,fight,dry",
+        1
+      ],
+      [
+        "-34,-76,fight,dry",
+        1
+      ],
+      [
+        "-34,-62,fight,dry",
+        1
+      ],
+      [
+        "54,-36,fight,dry",
+        1
+      ],
+      [
+        "70,-22,fight,dry",
+        1
+      ],
+      [
+        "-38,-84,cover,dry",
+        1
+      ],
+      [
+        "-48,-112,fight,dry",
+        1
+      ],
+      [
+        "12,-54,roam,dry",
+        1
+      ],
+      [
+        "-16,-74,fight,dry",
+        1
+      ],
+      [
+        "-32,-62,fight,dry",
+        1
+      ],
+      [
+        "52,-10,roam,dry",
+        1
+      ],
+      [
+        "-48,-58,fight,dry",
+        1
+      ],
+      [
+        "-28,-64,fight,dry",
+        1
+      ],
+      [
+        "-16,-60,fight,dry",
+        1
+      ],
+      [
+        "72,-16,fight,dry",
+        1
+      ]
+    ]
+  },
+  {
+    "mode": "deathmatch",
+    "seed": 1,
+    "difficulty": "hard",
+    "complete": true,
+    "seconds": 303,
+    "tickP95Ms": 0.58,
+    "tickP99Ms": 1.565,
+    "tickMaxMs": 12.104,
+    "wallSeconds": 2.51,
+    "cpuSeconds": 3.01,
+    "botSeconds": 2172,
+    "movingSeconds": 1683,
+    "stuckSeconds": 13,
+    "longestStuck": 1,
+    "swimmingSeconds": 7,
+    "stormSeconds": 0,
+    "engagements": 161,
+    "shots": 2998,
+    "hits": 1139,
+    "pickups": 14,
+    "coverSeconds": 542,
+    "fallDeaths": 0,
+    "stormDeaths": 0,
+    "combatDeaths": 84,
+    "deathsInWater": 1,
+    "stuckPerBotMinute": 0.359,
+    "stuckSites": [
+      [
+        "-32,-12,roam,dry",
+        1
+      ],
+      [
+        "-42,-28,fight,dry",
+        1
+      ],
+      [
+        "28,6,fight,dry",
+        1
+      ],
+      [
+        "6,44,roam,dry",
+        1
+      ],
+      [
+        "-24,-36,fight,dry",
+        1
+      ],
+      [
+        "34,22,roam,dry",
+        1
+      ],
+      [
+        "22,-48,roam,dry",
+        1
+      ],
+      [
+        "0,34,roam,dry",
+        1
+      ],
+      [
+        "12,2,cover,dry",
+        1
+      ],
+      [
+        "6,42,roam,dry",
+        1
+      ],
+      [
+        "16,26,fight,dry",
+        1
+      ],
+      [
+        "26,-42,roam,dry",
+        1
+      ],
+      [
+        "6,46,roam,dry",
+        1
+      ]
+    ]
+  },
+  {
+    "mode": "deathmatch",
+    "seed": 2,
+    "difficulty": "hard",
+    "complete": true,
+    "seconds": 303,
+    "tickP95Ms": 0.555,
+    "tickP99Ms": 1.465,
+    "tickMaxMs": 11.405,
+    "wallSeconds": 2.64,
+    "cpuSeconds": 2.88,
+    "botSeconds": 2178,
+    "movingSeconds": 1618,
+    "stuckSeconds": 16,
+    "longestStuck": 1,
+    "swimmingSeconds": 14,
+    "stormSeconds": 0,
+    "engagements": 146,
+    "shots": 2576,
+    "hits": 1096,
+    "pickups": 17,
+    "coverSeconds": 611,
+    "fallDeaths": 0,
+    "stormDeaths": 0,
+    "combatDeaths": 82,
+    "deathsInWater": 0,
+    "stuckPerBotMinute": 0.441,
+    "stuckSites": [
+      [
+        "-6,26,cover,dry",
+        1
+      ],
+      [
+        "44,-32,fight,dry",
+        1
+      ],
+      [
+        "-24,24,cover,dry",
+        1
+      ],
+      [
+        "6,44,roam,dry",
+        1
+      ],
+      [
+        "46,-52,roam,dry",
+        1
+      ],
+      [
+        "-22,-36,fight,dry",
+        1
+      ],
+      [
+        "-2,-34,fight,dry",
+        1
+      ],
+      [
+        "34,14,fight,dry",
+        1
+      ],
+      [
+        "28,-36,roam,dry",
+        1
+      ],
+      [
+        "8,36,roam,dry",
+        1
+      ],
+      [
+        "-30,2,fight,dry",
+        1
+      ],
+      [
+        "-38,-8,fight,dry",
+        1
+      ],
+      [
+        "-40,-10,roam,dry",
+        1
+      ],
+      [
+        "40,-28,roam,dry",
+        1
+      ],
+      [
+        "-34,10,roam,water",
+        1
+      ],
+      [
+        "36,-38,fight,dry",
+        1
+      ]
+    ]
+  },
+  {
+    "mode": "deathmatch",
+    "seed": 3,
+    "difficulty": "hard",
+    "complete": true,
+    "seconds": 303,
+    "tickP95Ms": 0.752,
+    "tickP99Ms": 1.909,
+    "tickMaxMs": 26.393,
+    "wallSeconds": 3.12,
+    "cpuSeconds": 3.01,
+    "botSeconds": 2189,
+    "movingSeconds": 1724,
+    "stuckSeconds": 22,
+    "longestStuck": 1,
+    "swimmingSeconds": 99,
+    "stormSeconds": 0,
+    "engagements": 155,
+    "shots": 2582,
+    "hits": 1025,
+    "pickups": 26,
+    "coverSeconds": 492,
+    "fallDeaths": 0,
+    "stormDeaths": 0,
+    "combatDeaths": 78,
+    "deathsInWater": 0,
+    "stuckPerBotMinute": 0.603,
+    "stuckSites": [
+      [
+        "6,44,roam,dry",
+        2
+      ],
+      [
+        "-14,-38,roam,dry",
+        1
+      ],
+      [
+        "-44,-12,fight,dry",
+        1
+      ],
+      [
+        "38,-24,roam,dry",
+        1
+      ],
+      [
+        "-8,-38,roam,dry",
+        1
+      ],
+      [
+        "-36,-4,roam,dry",
+        1
+      ],
+      [
+        "-42,-22,fight,dry",
+        1
+      ],
+      [
+        "-22,22,cover,dry",
+        1
+      ],
+      [
+        "22,-42,fight,dry",
+        1
+      ],
+      [
+        "-4,6,roam,water",
+        1
+      ],
+      [
+        "28,-36,roam,dry",
+        1
+      ],
+      [
+        "6,38,roam,dry",
+        1
+      ],
+      [
+        "-8,6,roam,water",
+        1
+      ],
+      [
+        "0,18,fight,dry",
+        1
+      ],
+      [
+        "34,20,fight,dry",
+        1
+      ],
+      [
+        "-20,-16,fight,dry",
+        1
+      ],
+      [
+        "-6,28,fight,dry",
+        1
+      ],
+      [
+        "-44,-38,roam,dry",
+        1
+      ],
+      [
+        "26,-38,roam,dry",
+        1
+      ],
+      [
+        "46,-52,roam,dry",
+        1
+      ]
+    ]
+  }
+]

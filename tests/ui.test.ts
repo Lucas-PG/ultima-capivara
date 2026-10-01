@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_CENTRED_WIDTH, HUD_MIN_SCALE, HUD_MIN_TEXT, hudNarrow, hudScale, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_CENTRED_WIDTH, HUD_MIN_SCALE, HUD_MIN_TEXT, HUD_SHORT_HEIGHT, hudNarrow, hudScale, hudShort, HEALS, HEAL_INFO, bagSlotCentre, freshBoxes, canUseHeal, healTarget, suggestedHeal, healGains, healthTone, pickupCopy, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -36,16 +36,18 @@ describe('loading tips copy', () => {
   it('has at least 36 unique tips that fit two lines, with no em dash', () => {
     expect(TIPS.length).toBeGreaterThanOrEqual(36);
     expect(new Set(TIPS).size).toBe(TIPS.length);
-    for (const tip of TIPS) { expect(tip.length).toBeLessThanOrEqual(110); expect(tip).not.toMatch(/[—–]/); }
+    for (const tip of TIPS) { expect(tip.length).toBeLessThanOrEqual(110); expect(tip).not.toMatch(/[\u2014\u2013]/); }
   });
   it('replaces key placeholders with the player bindings', () => {
     expect(fillTip('{leanLeft} e {leanRight}', { leanLeft: 'Q', leanRight: 'E' })).toBe('Q e E');
-    const keys = { jump: 'Espaço', interact: 'F', leanLeft: 'Q', leanRight: 'E', reload: 'R', crouch: 'C' };
+    const keys = { jump: 'Espaço', interact: 'F', leanLeft: 'Q', leanRight: 'E', reload: 'R', crouch: 'C', map: 'M', scoreboard: 'Tab', ads: 'Mouse dir.' };
     for (const tip of TIPS) expect(fillTip(tip, keys)).not.toMatch(/\{\w+\}/);
+    // A remapped key must never be contradicted by the copy: no tip names a bindable key literally.
+    for (const tip of TIPS) expect(tip).not.toMatch(/Aperte [A-Z]\b|\bTab mostra|botão direito/);
   });
   // Tips quote gameplay numbers; if a retune changes them, the copy must change too.
   it('only states gameplay facts that are true', () => {
-    expect(WEAPONS.m4.headMultiplier).toBe(2);
+    expect(WEAPONS.dmr.headMultiplier).toBe(2);
     expect(WEAPONS.sniper.headMultiplier).toBe(2.5);
     expect(WEAPONS.shotgun.range).toBe(35);
     expect(WEAPONS.m4.ammo).toBe(WEAPONS.dmr.ammo);
@@ -66,21 +68,30 @@ describe('hud', () => {
       for (const size of [.8, .9, 1, 1.1, 1.2]) expect(HUD_MIN_TEXT * hudScale(w, h, size)).toBeGreaterThanOrEqual(TEXT_FLOOR);
     expect(hudScale(1280, 720, .8)).toBe(HUD_MIN_SCALE);
   });
-  it('keeps every desktop HUD, loading and results font at or above the 13 px design minimum', () => {
-    const css = readFileSync('src/ui/style.css', 'utf8').replace(/@media\(max-width:[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, '');
-    const rules = css.match(/(?:#hud|#loadingOverlay|#victory)[^{}]*\{[^}]*\}/g) || [];
-    const small = rules.filter(rule => [...rule.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].some(m => Number(m[1]) < HUD_MIN_TEXT));
-    expect(small).toEqual([]);
+  // The in-match HUD (hud.css, scaled by --ui) is designed at 14 px minimum, so hudScale's floor keeps it at 12 px or more;
+  // the overlays that never scale (loading, results, big map, emote wheel) keep their 13 px design minimum.
+  it('keeps every scaled HUD font at the 14 px design minimum and every other match font at 13 px or more', () => {
+    const strip = (css: string) => css.replace(/@media\(max-width:[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, '');
+    const small = (css: string, selector: RegExp, min: number) => (css.match(selector) || [])
+      .filter(rule => [...rule.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].some(m => Number(m[1]) < min));
+    const hud = strip(readFileSync('src/ui/hud.css', 'utf8')), all = strip(readFileSync('src/ui/style.css', 'utf8')) + hud;
+    expect(small(hud, /#hud[^{}]*\{[^}]*\}/g, HUD_MIN_TEXT)).toEqual([]);
+    expect(small(all, /(?:#hud|#loadingOverlay|#victory)[^{}]*\{[^}]*\}/g, 13)).toEqual([]);
   });
-  // The user saw the health card run into the weapon slots in a narrower window: the scale floor stops the HUD from
-  // shrinking there, so the layout must change instead.
-  it('moves the vitals aside whenever centred vitals would meet the weapon slots', () => {
-    for (const [w, h] of [[1024, 640], [1100, 900], [960, 1000], [1280, 1024]]) for (const size of [.8, 1, 1.2])
-      expect(hudNarrow(w, hudScale(w, h, size))).toBe(w / hudScale(w, h, size) < HUD_CENTRED_WIDTH);
-    expect(hudNarrow(1024, hudScale(1024, 640))).toBe(true);
-    for (const [w, h] of [[1280, 720], [1366, 768], [1600, 900], [1920, 1080], [2560, 1440]]) expect(hudNarrow(w, hudScale(w, h))).toBe(false);
-    // Phones keep their own stacked layout.
-    expect(hudNarrow(600, hudScale(600, 900))).toBe(false);
+  // The redo moved the four boxes into the bottom-right weapon cluster, so the bottom row only meets itself on
+  // portrait phones (under HUD_CENTRED_WIDTH layout px), where the cluster slims down and the bag wraps.
+  it('switches to the narrow layout only on portrait phone widths', () => {
+    for (const [w, h] of [[1280, 720], [1366, 768], [1470, 956], [1600, 900], [1920, 1080], [2560, 1080], [2560, 1440], [1024, 640], [960, 600], [844, 390]])
+      for (const size of [.8, 1, 1.2]) expect(hudNarrow(w, hudScale(w, h, size))).toBe(false);
+    expect(hudNarrow(390, hudScale(390, 844))).toBe(true);
+    expect(hudNarrow(500, hudScale(500, 900))).toBe(true);
+    expect(HUD_CENTRED_WIDTH).toBeLessThan(700);
+  });
+  it('keeps the feed short on short windows (21:9 laptops, phones on their side) only', () => {
+    expect(hudShort(390, hudScale(844, 390))).toBe(true);
+    expect(hudShort(548, hudScale(1280, 548))).toBe(true);
+    for (const [w, h] of [[1280, 720], [1470, 956], [1920, 1080], [2560, 1080], [2560, 1440]]) expect(hudShort(h, hudScale(w, h))).toBe(false);
+    expect(HUD_SHORT_HEIGHT).toBeGreaterThan(600);
   });
   it('formats result stats in pt-BR', () => {
     expect(formatSurvived(125.4)).toBe('2:05');
@@ -97,7 +108,7 @@ describe('hud', () => {
 describe('leaving a match', () => {
   // Formiga's smoke test: an eliminated player could only exit through a hidden spectator control.
   it('gives an eliminated battle royale player a visible exit next to spectate', () => {
-    expect(ELIMINATED_ACTIONS.map(a => a.do)).toEqual(['spectate', 'leave']);
+    expect(ELIMINATED_ACTIONS.map(a => a.do)).toEqual(['resume', 'leave']);
     expect(ELIMINATED_ACTIONS.find(a => a.do === 'leave')?.label).toBe('Voltar ao menu');
   });
   it('exits in one click when nothing is lost, and confirms when something is', () => {
@@ -144,6 +155,69 @@ describe('death cam card', () => {
   it('holds for the death cam duration', () => { expect(DEATH_CARD_SECONDS).toBe(1.8); });
 });
 
+describe('heals and pickups', () => {
+  // HEAL_INFO mirrors the host (src/simulation/index.ts): use times, amounts, caps and refusals must never drift.
+  it('mirrors the simulation heal times, amounts, caps and refusals', () => {
+    const sim = readFileSync('src/simulation/index.ts', 'utf8');
+    const times = sim.match(/USE_TIME: Record<ConsumableId, number> = \{([^}]*)\}/)![1];
+    for (const item of HEALS) expect(times).toContain(`${item}: ${HEAL_INFO[item].time}`);
+    expect(sim).toContain(`s.hp = Math.min(${HEAL_INFO.bandage.cap}, s.hp + ${HEAL_INFO.bandage.amount})`);
+    expect(sim).toContain(`s.hp = Math.min(100, s.hp + ${HEAL_INFO.rapadura.amount})`);
+    expect(sim).toContain(`s.armor = Math.min(100, s.armor + ${HEAL_INFO.acai.amount})`);
+    expect(sim).toContain(`a.hot = Math.min(${HEAL_INFO.guarana.amount}, 100 - s.hp)`);
+    expect(sim).toContain("item === 'bandage' && s.hp >= 75");
+    expect([canUseHeal('bandage', 75, 0), canUseHeal('bandage', 74, 0), canUseHeal('medkit', 100, 0), canUseHeal('acai', 50, 100), canUseHeal('guarana', 100, 100)]).toEqual([false, true, false, false, true]);
+  });
+  it('previews where each heal ends on its bar', () => {
+    expect(healTarget('bandage', 40, 0)).toEqual({ stat: 'hp', from: 40, to: 55 });
+    expect(healTarget('bandage', 70, 0)).toEqual({ stat: 'hp', from: 70, to: 75 });
+    expect(healTarget('medkit', 12, 30)).toEqual({ stat: 'hp', from: 12, to: 100 });
+    expect(healTarget('acai', 90, 85)).toEqual({ stat: 'armor', from: 85, to: 100 });
+    expect(healTarget('bandage', 80, 0).to).toBe(80);
+  });
+  it('singles out the heal that helps most, never one the host would refuse', () => {
+    const all = { bandage: 2, medkit: 1, guarana: 1, acai: 1, rapadura: 1 };
+    expect(suggestedHeal(all, 20, 0)).toBe('medkit');
+    expect(suggestedHeal({ ...all, medkit: 0 }, 20, 0)).toBe('bandage');
+    expect(suggestedHeal(all, 60, 50)).toBe('bandage');
+    expect(suggestedHeal(all, 90, 50)).toBe('acai');
+    expect(suggestedHeal({ ...all, acai: 0 }, 90, 50)).toBe('rapadura');
+    expect(suggestedHeal(all, 100, 100)).toBeNull();
+    expect(suggestedHeal({ bandage: 3 }, 80, 0)).toBeNull();
+    expect(suggestedHeal({}, 10, 0)).toBeNull();
+  });
+  it('pops each heal that lands in the bag, from any source, and nothing on the first tick or a reset', () => {
+    expect(healGains(null, { bandage: 2 })).toEqual([]);
+    expect(healGains({ bandage: 1, medkit: 0 }, { bandage: 2, medkit: 1 })).toEqual(['bandage', 'medkit']);
+    expect(healGains({ bandage: 3 }, { bandage: 2 })).toEqual([]);
+    expect(healGains({ bandage: 3, acai: 1 }, { bandage: 0, acai: 0 })).toEqual([]);
+  });
+  it('names a pickup by what it does, briefly enough for a phone', () => {
+    expect(pickupCopy('medkit', 2)).toEqual({ tone: 'heal', title: '+1 Kit médico', detail: 'vida cheia · 2 na bolsa' });
+    expect(pickupCopy('weapon', 0, 'Doze', 'Lendária')).toEqual({ tone: 'weapon', title: 'Doze', detail: 'Lendária · na mão' });
+    // Two short lines (title over detail) that fit the 196 px pop on a portrait phone.
+    for (const kind of [...HEALS, 'armor', 'helmet', 'ammo']) { const copy = pickupCopy(kind, 5); expect(copy.title.length).toBeLessThanOrEqual(16); expect(copy.detail.length).toBeLessThanOrEqual(28); }
+  });
+  it('pops a weapon tab only when its box receives a different gun', () => {
+    expect(freshBoxes(null, ['m4:0', '', 'pistol:0', 'machete:0'])).toEqual([false, false, false, false]);
+    expect(freshBoxes(['m4:0', '', 'pistol:0', 'machete:0'], ['m4:0', 'sniper:2', 'pistol:0', 'machete:0'])).toEqual([false, true, false, false]);
+    expect(freshBoxes(['m4:0', '', '', ''], ['m4:3', '', '', ''])).toEqual([true, false, false, false]);
+    expect(freshBoxes(['m4:0', 'sniper:2', '', ''], ['m4:0', '', '', ''])).toEqual([false, false, false, false]);
+  });
+  it('flies a picked-up heal to the centre of its slot in the bag', () => {
+    const desk = { size: 58, gap: 12, perRow: 5, bottom: 112 };
+    expect(bagSlotCentre(0, 1, desk)).toEqual({ x: 49, fromBottom: 141 });
+    expect(bagSlotCentre(2, 5, desk)).toEqual({ x: 189, fromBottom: 141 });
+    // Portrait phones wrap three to a row: the first row sits one pitch above the last.
+    const phone = { size: 52, gap: 12, perRow: 3, bottom: 112 };
+    expect(bagSlotCentre(1, 5, phone)).toEqual({ x: 110, fromBottom: 202 });
+    expect(bagSlotCentre(4, 5, phone)).toEqual({ x: 110, fromBottom: 138 });
+  });
+  it('warms the health bar as it drops', () => {
+    expect([healthTone(100), healthTone(60), healthTone(59), healthTone(30), healthTone(29), healthTone(0)]).toEqual(['ok', 'ok', 'hurt', 'hurt', 'low', 'low']);
+  });
+});
+
 describe('hud layout cost', () => {
   // Forja's M1 trace showed 55-98 ms synchronous layouts inside the frame; the HUD must never read layout per tick.
   it('does not read layout-forcing properties in the HUD code', () => {
@@ -165,9 +239,15 @@ describe('menu download budget', () => {
     for (const f of ['cover-1672', 'cover-960', 'cover-blur-480']) for (const ext of ['avif', 'webp'])
       expect(statSync(`public/assets/${f}.${ext}`).size).toBeLessThan(f === 'cover-1672' ? 260_000 : 120_000);
   });
-  it('never references the PNG master or the unused Barlow families from the stylesheet', () => {
-    const css = readFileSync('src/ui/style.css', 'utf8');
-    expect(css).not.toMatch(/cover-v2\.png|@fontsource\/barlow|'Barlow/);
+  it('never references the PNG master and loads only font families the stylesheets use', () => {
+    const css = readFileSync('src/ui/style.css', 'utf8') + readFileSync('src/ui/hud.css', 'utf8');
+    expect(css).not.toMatch(/cover-v2\.png/);
+    // The HUD uses Barlow Condensed for its numbers; plain Barlow stays out of the download.
+    expect(css).not.toMatch(/@fontsource\/barlow\//);
+    for (const [, family] of css.matchAll(/@import '@fontsource\/([a-z-]+)\//g)) {
+      const name = family.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+      expect(css, family).toContain(`"${name}"`);
+    }
   });
 });
 

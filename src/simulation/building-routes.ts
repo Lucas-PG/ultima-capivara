@@ -18,10 +18,16 @@ export class BotBuildingRoutes {
   private readonly journeys = new WeakMap<object, Journey>();
   private readonly lengths = new Map<BuildingRoute, number>();
   constructor(private readonly world: WorldSpec, private readonly arena: boolean) {
+    // A floor that some ground entrance reaches on the level (the Capela stair's
+    // adro, a pier deck resting on the quay) is outdoor ground: the route grid
+    // walks onto it. Treating it as a building floor sent a bot standing there
+    // back down the stair it had just climbed, to leave by the foot.
+    const level = new Set((world.buildingRoutes ?? []).filter(route => route.points.length > 1 && route.points.at(-1)!.y < route.points[0].y + .6)
+      .map(route => `${route.pieceId}/${route.floorId}`));
     for (const route of world.buildingRoutes ?? []) {
       const piece = world.pieces?.find(piece => piece.id === route.pieceId);
       const floor = piece && KIT_PIECES[piece.piece]?.traversal?.floors.find(floor => floor.id === route.floorId);
-      if (!piece || !floor || route.points.length < 2 || route.points.at(-1)!.y < route.points[0].y + .6 ||
+      if (!piece || !floor || route.points.length < 2 || level.has(`${route.pieceId}/${route.floorId}`) ||
         arena && route.points.some(point => !inArena(point.x, point.z, .5))) continue;
       const key = `${piece.id}/${floor.id}`;
       let placed = this.floors.find(placed => placed.key === key);
@@ -46,6 +52,8 @@ export class BotBuildingRoutes {
     });
   }
   contains(point: Vec3) { return !!this.floorAt(point); }
+  /** Abandon the current journey; the next step plans afresh. */
+  release(bot: object) { this.journeys.delete(bot); }
 
   private select(floor: Floor, from: Vec3, goal: Vec3, reverse: boolean): BuildingRoute | undefined {
     let best: BuildingRoute | undefined, cost = Infinity;
@@ -86,6 +94,11 @@ export class BotBuildingRoutes {
       this.journeys.set(bot, journey);
     }
     Object.assign(journey.last, from);
+    // Knocked or pushed off a flight: the next tread is now a wall at chest
+    // height. Pressing into it from the side held a bot there for minutes;
+    // outdoor routing takes over from the ground instead.
+    const next = journey.route.points[journey.index];
+    if (journey.entered && next && next.y - from.y > 1 && !this.floorAt(from)) { this.journeys.delete(bot); return null; }
     while (journey.index >= 0 && journey.index < journey.route.points.length) {
       const point = journey.route.points[journey.index];
       const end = journey.reverse ? journey.index === 0 : journey.index === journey.route.points.length - 1;

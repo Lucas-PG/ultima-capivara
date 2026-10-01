@@ -6,6 +6,7 @@ export const TIMING_NAMES = [
   'shader-compile-first-person', 'shader-compile-post', 'warmup-upload-world',
   'warmup-upload-first-person', 'gltf-parse-wall', 'gltf-parse-sync', 'texture-ready-wall', 'texture-decode-wall',
   'texture-upload', 'first-material-use', 'shader-program-created', 'resolution-change', 'driver-shader-compile', 'driver-program-link',
+  'avatars', 'effects', 'weapon-view', 'world-update', 'worker-tick',
 ] as const;
 export type TimingName = typeof TIMING_NAMES[number];
 export const PHASES = ['menu', 'loading', 'lobby', 'countdown', 'plane', 'playing', 'results'] as const;
@@ -90,5 +91,5 @@ export class TimingRecorder {
   dispose() { this.observer?.disconnect(); }
 }
 
-export const timing = new TimingRecorder(import.meta.env.DEV && typeof location !== 'undefined' &&
+export const timing = new TimingRecorder((import.meta.env.DEV || import.meta.env.VITE_QA === '1') && typeof location !== 'undefined' &&
   new URLSearchParams(location.search).get('timing') === '1');

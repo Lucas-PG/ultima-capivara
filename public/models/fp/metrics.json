@@ -1,0 +1,28 @@
+{
+  "triangles": 30000,
+  "vertices": 15004,
+  "bones": [
+    "upper",
+    "fore",
+    "fore_twist",
+    "hand",
+    "index1",
+    "index2",
+    "index3",
+    "middle1",
+    "middle2",
+    "middle3",
+    "ring1",
+    "ring2",
+    "ring3",
+    "thumb1",
+    "thumb2",
+    "thumb3"
+  ],
+  "shoulderOffsetX": 0.2,
+  "pawScale": 0.76923,
+  "material": "the world paw (capy_hand) at 1/1.3 with the character forearm and cuff: baked albedo + normal + ORM, fur shells from _FUR",
+  "digits": 4,
+  "textureSize": 2048,
+  "bytes": 1062192
+}

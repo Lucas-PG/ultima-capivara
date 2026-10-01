@@ -7,14 +7,15 @@ import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { SCENARIOS } from './scenarios.mjs';
 
-const [name = 'all', width = '1280', height = '720', out = '/Users/lucas_gaspe/dev/capivara-team/reviews'] = process.argv.slice(2);
+const [name = 'all', width = '1280', height = '720', out = 'output/vfx-review'] = process.argv.slice(2);
 const size = `${width}x${height}`;
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 const page = await browser.newPage({ viewport: { width: Number(width), height: Number(height) }, deviceScaleFactor: 1 });
 page.on('console', message => { if (message.type() === 'error' || message.type() === 'warning') console.log(`[${message.type()}]`, message.text()); });
-page.on('pageerror', error => console.log('[pageerror]', error.message));
-await page.goto('http://127.0.0.1:5185/tools/vfx/index.html');
+page.on('pageerror', error => { console.log('[pageerror]', error.message); process.exitCode = 1; });
+try {
+await page.goto(`${process.env.BASE || 'http://127.0.0.1:5185'}/tools/vfx/index.html`);
 await page.waitForFunction(() => '__vfx' in window);
 await page.evaluate(() => window.__vfx.init('medium'));
 
@@ -50,4 +51,4 @@ for (const key of list) {
   rmSync(tmp, { recursive: true, force: true });
   console.log(key, size, JSON.stringify(stats));
 }
-await browser.close();
+} finally { await browser.close(); }

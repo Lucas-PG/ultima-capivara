@@ -1,0 +1,40 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). Blender 5.0.1 headless for assets at /Applications/Blender.app/Contents/MacOS/Blender. The target is a commercial-quality stylized game (Overwatch / Fortnite finish) with a Brazilian, tropical, capybara identity.
+
+USER FEEDBACK ON THE MAP (verbatim essence)
+The map is boring, empty, small and predictable. Examples the user found (examples only, find the rest yourself): bridges ending in bare grass with no road onto them; gaps in the quay walls; floating landing stairs; an east-beach dock sitting on sand; blob trees; empty south-east and Lagoa-west areas; not enough detail on things; vegetation looks bad. The user said the map may look 100 percent different at the end, as long as it is a very clear jump in quality. You have full creative freedom.
+Reference mood images (open them): /Users/lucas_gaspe/dev/ultima-capivara/docs/art/character-benchmark/wide-aim-reference.jpg and /Users/lucas_gaspe/dev/ultima-capivara/docs/art/references/fp-hip-board.png: dense lived-in streets with bougainvillea, arches, balconies, awnings, crates, barrels, potted plants, wires and lamps, a harbour and a lighthouse hill.
+
+RULES
+- Work ONLY inside your worktree (given below). Never touch the main checkout, other worktrees, or remote git. Never push, never open PRs, never deploy.
+- Never spend money, never create accounts, never access personal apps or data. External assets only with licences compatible with a commercial game (CC0 preferred), documented in docs/assets.md.
+- Never use the em dash character anywhere (code, docs, commit messages).
+- Commit continuously in small logical commits on your worktree branch. Commit messages carry no co-author or agent lines.
+- Tests you must keep green: `npx tsc --noEmit` and `npx vitest run`. Do not run the Playwright e2e suite; ports 5173, 5174, 9001, 4186 are reserved for others.
+- Performance budget at the medium preset in the busiest views: about 260 draw calls and 1.8M triangles at most. Measure it (renderer.info via the QA hooks) before and after.
+- Judge your work visually, at player eye height from many spots and from above for the layout, at gameplay framing. Reject your own mediocre results and iterate. Tests passing does not mean quality.
+- Gameplay integrity: spawns, routes, collision, bots and the traversal tests (every building floor reachable) must keep working.
+- QA tooling: start your own dev server as a background Bash command (run_in_background) with `VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port <your port>` and use the scripts in tools/qa (cam.mjs free camera, capture.mjs named poses, play.mjs live match driver; they take a BASE env like BASE=http://127.0.0.1:<port>). Read each script's header for usage. Contact sheets: `montage -font /System/Library/Fonts/Supplemental/Arial.ttf -label '%t' -pointsize 14 <files> -tile 3x -geometry 560x315+2+2 out.jpg`.
+- Downscaled JPEGs look brighter than real pixels; sample actual values before judging colour.
+- When you finish (or if you must stop), write a short report at docs/overhaul/<your report name> in your worktree: what changed and why, before/after evidence (jpg files under docs/overhaul/evidence/world/, each under 300 KB), measured perf, test results, remaining issues. Commit it.
+- Work autonomously until the job is genuinely done to a high bar. Do not stop at a progress report.
+- Your shell may reset its working directory between commands: always use absolute paths or `cd <worktree> && ...` in every command.
+- Keep at most one dev server and one Chrome running at a time, and stop them when you finish.
+- Your final message goes back to the orchestrator: keep it under 200 words (what changed, commit list, test and perf numbers, report path, known issues).
+ROLE
+You are the world structure and dressing lead: layout, terrain, roads and bridges, quays and waterfront, buildings and kit pieces, props and street dressing, landmarks.
+
+WORKTREE
+/Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/agent-a56837e37d02f5268 (branch worktree-agent-a56837e37d02f5268). Your dev server port: 5175. Report name: world-structure-report.md.
+
+STATE
+A previous agent was stopped mid-task by a usage limit. Its last commit 0179608 is an unverified WIP (layout, terrain, world, kit pieces, a new waterfront kit and quay stairs). Review it: keep what is good, fix or finish the rest, then rewrite that WIP commit into proper small commits (git reset --soft is fine inside your branch). Read docs/overhaul/autonomous-progress.md (section D) and tools/blender/README.md for context.
+
+OWNERSHIP
+You own: src/shared/layout.ts, world.ts, terrain.ts, kit-pieces.json, src/render world/prop/kit code, tools/blender/kit/*, build-kit.mjs, props and dressing, related tests. You do NOT own vegetation (trees, palms, bushes, flowers, grass, ground cover, foliage atlas: src/render/vegetation/*, src/shared/vegetation-*.ts, tools/art/*foliage*, tools/art/*ground*): another agent is rebuilding those in parallel, so do not edit them. Also do not touch weapons, viewmodel, arms, character or HUD code (src/render/weapons.ts, viewmodel-*, fp-arms.ts, tools/blender/arsenal*, capy_paw.py, fp_arms.py, capybara*).
+
+GOALS
+1. Integrity audit and fixes across the whole island: every bridge connects to a road or path at both ends; no gaps in quay walls; no floating stairs or props; docks and piers stand over water on piles; nothing sits half-sunk or hovering; streets lead somewhere. Build an automated check for this where practical (for example a test that every bridge end meets a road surface and every stair base meets ground).
+2. Make the map less empty, less predictable and more alive: fill the empty south-east corner and the area west of the Lagoa with purposeful places (for example a fishing village on stilts, a sugar-cane mill, a favela-style hillside, a market square, a lighthouse hill), add landmarks and sightlines that break predictability, add vertical play and flanking routes, and raise street dressing density toward the reference mood (awnings, balconies, crates, barrels, market stalls, potted plants, hanging wires and lamps, laundry, signs in Portuguese, boats in the harbour). Houses should not all repeat one template.
+3. Consider growing the playable area if it makes the matches better; keep spawns fair.
+Stay inside the perf budget; batch or instance repeated dressing.

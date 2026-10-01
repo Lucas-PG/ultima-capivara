@@ -36,7 +36,8 @@ test('measures all quality presets in a rendered match', async ({ browser }) => 
     await Promise.all(pending.slice(0, beforeMenu));
     await downloadPage.locator('[data-do="practice"]').click();
     await expect(downloadPage.locator('#hud')).toBeVisible();
-    await expect(downloadPage.locator('#loadingOverlay')).toHaveCount(0);
+    // The island takes longer than the default 5 s expect to load on an M2 (M1 and the overhaul alike).
+    await expect(downloadPage.locator('#loadingOverlay')).toHaveCount(0, { timeout: 90_000 });
     await downloadPage.waitForLoadState('networkidle');
     await Promise.all(pending);
     await downloadPage.close();

@@ -31,7 +31,7 @@ describe('every building floor is reachable by ordinary walking', () => {
   });
 
   for (const piece of world.pieces!.filter(piece =>
-    ['church', 'market_hall', 'warehouse', 'beach_kiosk', 'bridge_stone'].includes(piece.piece))) {
+    ['church', 'church_hill', 'market_hall', 'warehouse', 'beach_kiosk', 'bridge_stone', 'bridge_arch', 'bridge_chapel', 'bridge_wood'].includes(piece.piece))) {
     it(`enters, crosses and returns from the walking deck in ${piece.id} (${piece.piece})`, () => {
       const floor = KIT_PIECES[piece.piece].colliders[0];
       if (floor.type !== 'box') throw new Error(`Missing deck in ${piece.id}`);

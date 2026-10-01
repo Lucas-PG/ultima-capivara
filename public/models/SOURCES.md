@@ -1,10 +1,13 @@
 # Model sources and license
 
-The `service-pistol` glTF, binary geometry, and three 1K PBR textures are the original [Service Pistol by Mateusz Sadek on Poly Haven](https://polyhaven.com/a/service_pistol), released under [CC0 1.0](https://polyhaven.com/license). They are bundled locally; the game does not call Poly Haven at runtime.
+All models are original project geometry built from Blender scripts in `tools/blender/`; no third-party model, texture or animation is incorporated.
 
-The source scene includes two display variants and loose props. The game loads variant A with the wood grip, its matching slide, hammer and trigger, and one loaded magazine. The blue-tape variant and loose props remain in the source bundle for provenance but are not added to the rendered scene.
+## Overhaul (2026-09-28 to 2026-10-01)
 
-The `m700` FBX is from [Free Sniper Rifle M700 CC0 by Stein Games](https://stein-indie.itch.io/m700), also released under CC0 1.0. The original skeletal FBX is bundled unchanged. Its 2048 px color, normal, and packed MAOR textures were resized to 1024 px WebP. Per the creator's channel specification, metallic comes from red, ambient occlusion from green, and roughness is the inverse of blue. The DirectX normal map uses an inverted green channel at runtime.
+- `fp/fp-arms.glb`: first-person capybara arms (`fp_arms.py`, packed by `build-fp.mjs`): the world character's paw (`capy_hand.py`) at 1 / 1.3 with its forearm and rolled cuff, baked albedo, normal and ORM maps, 32 bones for IK and digit curls.
+- `arsenal/*.glb`: the nine weapons (`arsenal_lib.py`, `arsenal.py`, `build-fp.mjs`; the slingshot was removed). Hard-surface parts, Cycles bakes of material id, occlusion, bevel edges, object normals and weapon-space position composited into albedo, ORM and normal maps per weapon (WebP inside the GLB), with stencilled liveries from `tools/art/stencils/` (original Codex-generated sheet, recorded in `docs/assets.md`).
+- `textures/world-arsenal.webp` and `src/render/world-weapon-data.json`: third-person and ground versions simplified from the same models (`build-world-arsenal.mjs`).
+- `capybara/capybara-high.glb`, `capybara.glb`, `capybara-low.glb`: character v6, four review rounds to 2026-10-01 (`capybara_form.py` sculpt with the paw from `capy_hand.py`, `capybara_v6.py` build with `capybara_paint.py`, `capybara_maps.py` and `capybara_weights.py`, clips in `capybara_clips.py` and `character_emotes.py`, packed by `build-characters.mjs`). A signed-distance sculpt polygonized with OpenVDB, decimated to three LODs and Cycles-baked, painted per texel at 4096 (High), 2048 (Medium) and 1024 (Low); the file is chosen by the graphics setting at load. Original geometry, textures and animation, no external assets. The Morro statue (`statue.glb`) is built from the same head, paws and feet by `capybara_statue.py`.
 
 ## Capivara M0
 

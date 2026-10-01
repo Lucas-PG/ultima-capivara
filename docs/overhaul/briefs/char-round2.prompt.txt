@@ -1,0 +1,67 @@
+CHARACTER ROUND 2: DESIGN, SHAPES AND LIFE
+
+VERDICT ON ROUND 1
+Merged as a clear improvement (head sculpt, 4K maps, gaits with planted feet, statue, tests). It is not at the bar yet. Round 1 raised the detail density; the design, the shapes and the life of the character are still far from the target sheet. Do not answer this round with more texture resolution. This is the most looked-at asset in the game after the first-person weapons: every opponent, every bot, the spectator view, the results screen. Take the time it needs.
+
+EVIDENCE (read these first, they are my review captures at 1920x1080, target on top, game below)
+/Users/lucas_gaspe/dev/ultima-capivara/output/review/char-r2/board-body.jpg       design sheet front, side, back vs the game at 3 m
+/Users/lucas_gaspe/dev/ultima-capivara/output/review/char-r2/board-face.jpg       target face vs the game at 1.1 m
+/Users/lucas_gaspe/dev/ultima-capivara/output/review/char-r2/board-hold.jpg       holding reference vs the game with the M4
+/Users/lucas_gaspe/dev/ultima-capivara/output/review/char-r2/board-clay.jpg       the sculpt alone (clay override)
+/Users/lucas_gaspe/dev/ultima-capivara/output/review/char-r2/board-details.jpg    paws on the M4, hip rag, backpack, face from the front
+/Users/lucas_gaspe/dev/ultima-capivara/output/review/char-r2/board-eye-level.jpg  what an opponent sees at 5 m and 10 m, eye height
+/Users/lucas_gaspe/dev/ultima-capivara/output/review/char-r2/board-idle.jpg       six idle frames 0.6 s apart, unarmed and armed
+Targets: docs/art/character-benchmark/character-design.jpg and holding-reference.jpg (also docs/art/references/character-turnaround.jpg and character-head.jpg).
+
+RULES (unchanged unless stated)
+- Worktree /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/char-polish, branch char-polish. First run git merge overhaul/aaa-autonomous (it has your merged work, a production build fix and this brief). Never push, open PRs, deploy or touch other worktrees or the main checkout.
+- Every shell command starts with export PATH=/Users/lucas_gaspe/.local/share/fnm/node-versions/v24.20.0/installation/bin:/opt/homebrew/bin:$PATH
+- You are now the only agent allowed to run Blender. Still start it through tools/blender/wait-for-blender.sh. One Chrome at a time (another agent runs one for the full-game review). Dev server port 5178.
+- No em dash anywhere. Small logical commits, no co-author or agent lines. Keep green: npx tsc --noEmit, npx vitest run, npm run build.
+- Codex CLI only for images (codex exec --skip-git-repo-check -m gpt-6.1-sol, image tool, exact output path) if you want extra reference views (for example the backpack, the knot of the scarf, a hand turnaround).
+- Do not touch the first-person arms, the viewmodel or the weapon models. The first-person arms will be matched to your character afterwards, in a separate step: design the character freely and do not hold anything back for their sake. That includes the paws: the third-person paw no longer has to be the first-person paw_sculpt paw.
+- Fixed gameplay contract: STANDING_HIT_SHAPE in src/shared/collision.ts (head sphere r .29 at y 1.6, z -.07; body r .335 up to y 1.42) and the crouched shape. The head must stay inside the head sphere in every clip; arms, paws, legs, pack and cloth may go where the design needs them. Eye height, weapon mount contract and the runtime contract of src/render/capybara.ts stay compatible with the rest of the game.
+
+WHAT IS WRONG, IN ORDER OF IMPACT
+
+1. Face. From the front (the view every opponent gets) the head is a dark loaf with a black disc covering a third of it and two beads at the edges. Target: board-face.jpg.
+   - Nose: a grey-brown leather T, not a disc: a modest pad at the upper front of the muzzle (about a third of the muzzle width), two nostrils, a narrow philtrum strip running down to the mouth, pale buff whisker pads on both sides with whisker dots and real whiskers that read at 1 to 3 m.
+   - Eyes: both must read clearly in a level front view at 3 m and still read at 8 m: larger, set high but turned forward, dark lid line, amber iris, catchlight, brow ridge above.
+   - Ears: dark grey-brown, cupped, upright; they must show in the silhouette from the front and from behind.
+   - Form: from the front taller than wide with full cheeks; from the side a long deep muzzle with a nearly flat line from brow to nose and a blunt front, chin set back, a gentle mouth line.
+   - Colour: the head is dark chocolate in the game light. Target a warm golden tan (it should render near #C08A58 on the lit side in the daylight review), with a darker crown and nape, lighter cheeks, jaw and throat, pale buff around the muzzle, soft transitions.
+
+2. Build and stance. The body reads as a person in a mascot suit: thin short arms glued to the torso, tiny paws, one olive barrel for both legs, feet together, bolt upright. Measured against the sheet, in head widths: forearm .25 (target .38), upper sleeve .41 (target .53), paw .20 wide and .36 long (target .42 and .62), stance 1.45 (target 2.1).
+   - Arms and paws: forearms about 1.5 times thicker, paws about 1.8 times larger, four thick fingers with short blunt claws, bare dark grey-brown leathery skin on the fingers and palm, fur on the back of the paw up to the knuckles, elbows carried slightly out.
+   - Legs: two separate legs from the crotch down, thick thighs, a wide planted stance with the toes turned out a little and soft knees; a round belly under the vest with shirt showing above the belt; broad round shoulders; the neck and head carried slightly forward.
+   - The gaits, the ground clamp and the planted-feet test must follow the new proportions.
+
+3. Team colour cloth. The scarf is a smooth red tube with a hole, the hip rag is red with dark blotches and reads as raw meat, the bedroll is a plastic sausage.
+   - Scarf: a folded triangular bandana tied in front with a real knot and two short tails, under a shirt collar, with sculpted folds.
+   - Rag: a soft cloth tucked in the belt, three or four vertical folds, a pointed end.
+   - Bedroll: a rolled blanket with spiral ends and two buckled leather straps.
+   - The team colour stays clean and saturated: detail comes from value (folds, occlusion, weave), never from hue noise or blotches. Check every player colour the game offers.
+
+4. Backpack: a plain brown box. Build the canvas rucksack of the sheet: a stuffed rounded body, a top flap with two buckled straps, side pockets, leather shoulder straps that visibly run over the shoulders to the vest front.
+
+5. Trousers, vest, shirt, belt.
+   - Trousers: waistband, fly, seat with two back pockets, cargo pockets with flaps on both thighs, knee and seat folds, rolled cuffs. Seams must read at 3 m.
+   - Vest: collar, two chest pockets with flaps and buttons, clean double topstitching, the D-ring on the back. Remove the ragged pale streaks along the seams: they read as stretched texture, not as wear.
+   - Shirt: collar above the scarf, button placket, rolled sleeves with a cuff band. The plaid reads as graph paper: make it a subtle weave.
+   - Belt: framed buckle and two leather pouches with flaps and studs.
+
+6. Paint style. The world is painterly and clean, the weapons are clean with liveries; the character is noisy where it should be simple. Paint large readable value shapes, soft gradients, occlusion in the folds and clean worn edges; keep micro noise under about 8 percent in value. Judge every material at 3 m and at 8 m first, close-ups second. Fur colour must be the same family on the head, arms, legs and feet (now the head is dark brown and the limbs orange), and the fur shells should fringe the silhouette on the cheeks, neck, forearms and shins at 3 m.
+
+7. Life. The idle is a statue: frames 0.6 s apart are almost identical (board-idle.jpg).
+   - Idle: breathing in the chest and belly, weight shifting from foot to foot over four to six seconds, the head looking around with small quick turns, ear flicks, blinks every three to six seconds, a nose twitch.
+   - Armed: a low-ready idle that breathes; the aim pose of the holding reference (knees bent, leaning into the gun, cheek toward the stock, elbows out); head and spine follow the aim pitch.
+   - Secondary motion in every gait: scarf tails, rag, bedroll and pack, ears (cheap spring or lag, no cloth simulation).
+   - Third-person holds for all nine weapons re-fitted to the new paws: trigger finger on the trigger, support paw under the handguard or fore-end with the thumb visible, no finger through a gun. Two angles per weapon.
+
+8. Cost. One character set is about 200 MB of GPU memory and 8.9 MB to download. Keep 4K for High; give Medium and Low 2K or smaller (built at build time, chosen at load by the quality setting, no double download). Report memory and load time per tier and the crowd timing again, now on a quiet machine.
+
+HOW TO WORK
+- For every item build the same kind of board I made (target next to game, same framing, daylight review, 1920x1080) and keep going until the difference is one of rendering style, not of design or quality. Look at the clay board too: the sculpt has to carry the design before paint.
+- Ask yourself at each step whether a player would call it a shipped character from a commercial stylized shooter. Reject and redo what is not.
+- Also rebuild the statue, LOD1 and LOD2 from the new design, and check the read at 15 m and 60 m.
+- Update docs/overhaul/char-polish-report.md (round 2 section, before and after boards in docs/overhaul/evidence/char-polish/, the final palette for the first-person arm match) and commit. Final reply to the orchestrator: under 200 words.

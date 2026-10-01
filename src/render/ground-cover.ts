@@ -1,258 +1,306 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { terrainColor, terrainHeight, WORLD_PALETTE } from '../shared/terrain';
+import { colliderGrid } from '../shared/collider-grid';
+import { fbm, grassAlbedo, pathWear, terrainColor, terrainHeight, wildflowers, WORLD_PALETTE } from '../shared/terrain';
 import { ROADS } from '../shared/layout';
-import type { Settings, WorldSpec } from '../shared/types';
+import type { Collider, Settings, WorldSpec } from '../shared/types';
 import { createToonMaterial } from './materials';
+import { GROUND_TILES, type GroundTile } from './vegetation/atlas';
 
-const CELL = 24, CANDIDATES = 2600;
+const CELL = 24;
+/** Cells nearer than this (metres from the camera to the cell) draw the full nine-blade lawn tuft. */
+const LAWN_NEAR = 10;
+/** Painted grass reach per preset. Tufts shrink into the ground over the outer quarter of the reach. */
 export const GROUND_COVER = {
   low: { fraction: 0, distance: 0 },
-  medium: { fraction: .85, distance: 32 },
-  high: { fraction: 1, distance: 35 },
+  medium: { fraction: .8, distance: 34 },
+  high: { fraction: 1, distance: 44 },
 } as const;
+/** Tallest ground cover (dune and wild grass), metres. Never enough to hide a crouched capybara (1.3 m). */
+export const GROUND_COVER_MAX_HEIGHT = .62;
+
 const grassy = new Set<string>([WORLD_PALETTE.grass, WORLD_PALETTE.grassLight, WORLD_PALETTE.dryGrass]);
+const sandy = new Set<string>([WORLD_PALETTE.sand, WORLD_PALETTE.sandLight]);
 const hash = (x: number, z: number, salt: number) => {
   let n = Math.imul(x + salt * 31, 374761393) ^ Math.imul(z - salt * 17, 668265263);
   n = Math.imul(n ^ n >>> 13, 1274126177);
   return ((n ^ n >>> 16) >>> 0) / 4294967296;
 };
 
-// Short plain blades carry the lawn; small painted fans break up the roots.
-// Both share one instanced draw and the same wind and distance fade.
-function blades() {
-  const positions: number[] = [], colors: number[] = [], indices: number[] = [], uv: number[] = [], masks: number[] = [];
-  for (let fan = 0; fan < 5; fan++) {
-    const angle = fan * 2.399, ca = Math.cos(angle), sa = Math.sin(angle), offset = positions.length / 3;
-    const spread = .19 * Math.sqrt(fan / 4);
+interface CardSet { tile: GroundTile; width: number; height: number; cards: number; lean?: number; flat?: boolean }
+
+/** A tuft of painted cards crossing at its root. Vertex colour darkens the base into the ground;
+ * `coverRoot` (the tuft's root) and `coverSway` (0 at the root, 1 at the tips) drive wind and fade. */
+function tuft({ tile, width, height, cards, lean = .12, flat }: CardSet, base: THREE.Color, tip: THREE.Color, root = new THREE.Vector3(), yaw = 0,
+  ground?: (x: number, z: number) => number) {
+  const t = GROUND_TILES[tile], positions: number[] = [], uvs: number[] = [], colors: number[] = [], roots: number[] = [], sway: number[] = [], index: number[] = [];
+  for (let c = 0; c < cards; c++) {
+    const a = yaw + c * Math.PI / cards, ca = Math.cos(a), sa = Math.sin(a), first = positions.length / 3;
+    for (let row = 0; row <= 2; row++) for (const side of [0, 1]) {
+      const v = row / 2, u = side, across = (u - t.root[0]) * width;
+      // Flat cards lie on the ground (clover, leaves); upright ones bow outward toward their tips.
+      const up = flat ? .018 : v * height, out = flat ? (v - .5) * height : v * v * height * lean * (c % 2 ? 1 : -1);
+      const px = root.x + ca * across - sa * out, pz = root.z + sa * across + ca * out;
+      // Every card follows the real heightfield under it, so tufts on a slope neither float nor sink.
+      positions.push(px, ground ? ground(px, pz) + (flat ? .018 : up - .02) : root.y + up, pz);
+      uvs.push(t.u0 + (t.u1 - t.u0) * u, t.v0 + (t.v1 - t.v0) * v);
+      const color = base.clone().lerp(tip, flat ? .6 : Math.pow(v, .7));
+      colors.push(color.r, color.g, color.b); roots.push(root.x, root.y, root.z); sway.push(flat ? 0 : v * v);
+    }
     for (let row = 0; row < 2; row++) {
-      const t = row, bend = t * .022;
-      for (const side of [-1, 1]) {
-        positions.push(ca * .13 * side + sa * (spread + bend), t * (.09 + fan * .007), sa * .13 * side - ca * (spread + bend));
-        const shade = .93 + .07 * t; colors.push(shade, shade, shade * .97); masks.push(1);
-        uv.push((side < 0 ? .012 : .988) / 4, 1 - (3.988 - t * .976) / 4);
-      }
+      const a0 = first + row * 2, a1 = a0 + 1, b0 = a0 + 2, b1 = a0 + 3;
+      index.push(a0, a1, b1, a0, b1, b0);
     }
-    indices.push(offset, offset + 1, offset + 2, offset + 1, offset + 3, offset + 2);
   }
-  const base = new THREE.Color(WORLD_PALETTE.grass), tip = new THREE.Color(WORLD_PALETTE.grassLight);
-  for (let blade = 0; blade < 3; blade++) {
-    const angle = blade * 2.399, ca = Math.cos(angle), sa = Math.sin(angle), offset = positions.length / 3;
-    const radius = .07 + hash(blade, 0, 20) * .20, height = .12 + hash(blade, 0, 21) * .10;
-    for (let row = 0; row < 2; row++) for (const side of [-1, 1]) {
-      const width = row ? .0015 : .010, bend = row * .055;
-      positions.push(ca * radius + sa * width * side + ca * bend, row * height, sa * radius - ca * width * side + sa * bend);
-      const c = row ? tip : base; colors.push(c.r, c.g, c.b); masks.push(0); uv.push(0, 0);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(positions.length).fill(0).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
+  g.setAttribute('coverRoot', new THREE.Float32BufferAttribute(roots, 3));
+  g.setAttribute('coverSway', new THREE.Float32BufferAttribute(sway, 1));
+  g.setAttribute('coverPaint', new THREE.Float32BufferAttribute(new Array(positions.length / 3).fill(1), 1));
+  g.setIndex(index);
+  return g;
+}
+
+/** The lawn: a tuft of plain curved blades, no texture and no alpha test. Colour runs from a dark
+ * root to lit tips; each instance multiplies in the ground albedo under it, so a lawn is the
+ * terrain's own paint standing up. */
+function bladeTuft(blades: number, widen = 1) {
+  const positions: number[] = [], colors: number[] = [], roots: number[] = [], sway: number[] = [], index: number[] = [];
+  const p = new THREE.Vector3();
+  for (let b = 0; b < blades; b++) {
+    const a = b * 2.399 + hash(b, 1, 40) * .6, ca = Math.cos(a), sa = Math.sin(a);
+    const r = .02 + Math.sqrt(hash(b, 2, 40)) * .13, height = .17 + hash(b, 3, 40) * .19, lean = .2 + hash(b, 4, 40) * .35;
+    const width = (.036 + hash(b, 5, 40) * .018) * widen, first = positions.length / 3;
+    const rx = ca * r, rz = sa * r, side = [-sa, ca];
+    const at = (t: number) => p.set(rx + ca * lean * height * t * t, height * t, rz + sa * lean * height * t * t);
+    for (const [t, w, shade] of [[0, 1, .6], [.55, .62, .98], [1, 0, 1.2]] as const) {
+      at(t);
+      const tint = [shade * (t > .5 ? 1.03 : 1), shade * (t > .5 ? 1.07 : 1), shade * (t > .5 ? .86 : 1)];
+      if (w > 0) for (const sgn of [-1, 1]) {
+        positions.push(p.x + side[0] * width * w * sgn * .5, p.y, p.z + side[1] * width * w * sgn * .5);
+        colors.push(...tint); roots.push(0, 0, 0); sway.push(t * t);
+      } else { positions.push(p.x, p.y, p.z); colors.push(...tint); roots.push(0, 0, 0); sway.push(1); }
     }
-    indices.push(offset, offset + 1, offset + 2, offset + 1, offset + 3, offset + 2);
+    index.push(first, first + 1, first + 3, first, first + 3, first + 2, first + 2, first + 3, first + 4);
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geometry.setAttribute('paintMask', new THREE.Float32BufferAttribute(masks, 1));
-  geometry.setIndex(indices); geometry.computeVertexNormals();
-  const normals = geometry.getAttribute('normal');
-  for (let i = 0; i < normals.count; i++) normals.setXYZ(i, 0, 1, 0);
-  geometry.computeBoundingSphere(); return geometry;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(positions.length).fill(0).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(positions.length / 3 * 2).fill(0), 2));
+  g.setAttribute('coverRoot', new THREE.Float32BufferAttribute(roots, 3));
+  g.setAttribute('coverSway', new THREE.Float32BufferAttribute(sway, 1));
+  g.setAttribute('coverPaint', new THREE.Float32BufferAttribute(new Array(positions.length / 3).fill(0), 1));
+  g.setIndex(index);
+  return g;
 }
 
-function groundCard(tile: number, width: number, height: number, flat = false) {
-  const geometry = new THREE.PlaneGeometry(width, height, flat ? 2 : 1, 2);
-  if (flat) geometry.rotateX(-Math.PI / 2).translate(0, .027, 0);
-  else {
-    geometry.translate(0, height / 2, 0);
-    const position = geometry.getAttribute('position');
-    for (let i = 0; i < position.count; i++)
-      position.setZ(i, (position.getY(i) / height) ** 2 * height * .22);
-  }
-  const uv = geometry.getAttribute('uv'), normals = geometry.getAttribute('normal');
-  for (let i = 0; i < uv.count; i++) {
-    uv.setXY(i, (tile % 4 + .012 + uv.getX(i) * .976) / 4,
-      1 - (Math.floor(tile / 4) + .988 - uv.getY(i) * .976) / 4);
-    normals.setXYZ(i, 0, 1, 0);
-  }
-  geometry.setAttribute('paintMask', new THREE.Float32BufferAttribute(new Array(uv.count).fill(1), 1));
-  return tint(geometry, '#F2F4DF');
+const ACCENTS = {
+  wild: { tile: 'wild-grass', width: .62, height: .58, cards: 3, lean: .16 },
+  dune: { tile: 'dune-grass', width: .7, height: .52, cards: 3, lean: .2 },
+  impatiens: { tile: 'impatiens', width: .5, height: .28, cards: 2, lean: .05 },
+  flowers: { tile: 'wildflowers', width: .34, height: .34, cards: 2, lean: .04 },
+  clover: { tile: 'clover', width: .42, height: .38, cards: 1, flat: true },
+  leaves: { tile: 'fallen-leaves', width: .4, height: .32, cards: 1, flat: true },
+} as const satisfies Record<string, CardSet>;
+type Accent = keyof typeof ACCENTS;
+
+/** The terrain colour map's grass albedo at a point: the same paint (tone patches and trodden
+ * paths included) that scripts/generate-terrain-colors.ts bakes, so tufts take the ground's own colour. */
+export function groundPaint(x: number, z: number, target = new THREE.Color()) {
+  const [r, g, b] = grassAlbedo(x, z);
+  return target.setRGB(r, g, b, THREE.SRGBColorSpace);
 }
 
-function tint(geometry: THREE.BufferGeometry, color: string) {
-  const c = new THREE.Color(color), values = new Float32Array(geometry.getAttribute('position').count * 3);
-  for (let i = 0; i < values.length; i += 3) { values[i] = c.r; values[i + 1] = c.g; values[i + 2] = c.b; }
-  geometry.setAttribute('color', new THREE.BufferAttribute(values, 3));
-  return geometry;
+/** Instance tint that brings a painted tile's mean colour to a target albedo (linear), so a tuft
+ * reads as the ground's own grass rather than a dark dot on it. */
+function matchTint(tile: GroundTile, target: THREE.Color, strength = .9) {
+  const mean = GROUND_TILES[tile].mean ?? [.5, .5, .5], out = new THREE.Color();
+  const have = new THREE.Color().setRGB(mean[0], mean[1], mean[2], THREE.SRGBColorSpace);
+  const channel = (want: number, got: number) => THREE.MathUtils.lerp(1, THREE.MathUtils.clamp(want / Math.max(.02, got), .35, 3.2), strength);
+  return out.setRGB(channel(target.r, have.r), channel(target.g, have.g), channel(target.b, have.b));
 }
-
-function groundDetails() {
-  const flower = groundCard(11, .28, .18), crossed = flower.clone().rotateY(Math.PI / 2);
-  const bloom = mergeGeometries([flower, crossed])!; flower.dispose(); crossed.dispose();
-  const pebble = tint(new THREE.IcosahedronGeometry(.11, 0).scale(1.4, .45, 1).translate(0, .035, 0), '#B9AE8F');
-  const leaf = groundCard(13, .34, .26, true), clover = groundCard(10, .40, .33, true);
-  const shell = new THREE.SphereGeometry(1, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2);
-  const shellVertices = shell.getAttribute('position');
-  for (let i = 0; i < shellVertices.count; i++) {
-    const x = shellVertices.getX(i), z = shellVertices.getZ(i), ridge = 1 + Math.cos(Math.atan2(z, x) * 12) * .085;
-    shellVertices.setXYZ(i, x * .09 * ridge, shellVertices.getY(i) * .028, z * .115 * ridge);
-  }
-  shell.computeVertexNormals(); tint(shell, '#EADCC7');
-  const understory = (tile: number, width: number, height: number) => {
-    const cards = Array.from({ length: 3 }, (_, i) => groundCard(tile, width, height)
-      .rotateY(i * Math.PI * 2 / 3));
-    const plant = mergeGeometries(cards)!; cards.forEach(card => card.dispose()); return plant;
-  };
-  const fern = understory(14, .36, .43), monstera = understory(9, .38, .44);
-  return [bloom, pebble, leaf, shell, clover, fern, monstera].map(geometry => {
-    if (!geometry.getAttribute('paintMask')) geometry.setAttribute('paintMask',
-      new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count), 1));
-    if (!geometry.index) return geometry;
-    const flat = geometry.toNonIndexed(); geometry.dispose(); return flat;
-  });
+function groundTint(tile: GroundTile, target: THREE.Color) {
+  const c = matchTint(tile, target);
+  return { base: c.clone().multiplyScalar(.72), tip: c.clone().multiplyScalar(1.04) };
 }
 
 export class GroundCover {
   readonly group = new THREE.Group();
-  private readonly geometry = blades();
-  private readonly material = createToonMaterial('foliage', { vertexColors: true, side: THREE.DoubleSide, roughness: 1, alphaTest: .4 });
-  private readonly detailMaterial = createToonMaterial('foliage', { vertexColors: true, roughness: 1, side: THREE.DoubleSide, alphaTest: .4 });
+  // Ground cover does not write depth: the depth-based ink pass would outline every tuft as a
+  // sticker. It draws after the opaque world (renderOrder), so it still hides behind solids.
+  private readonly material = createToonMaterial('foliage', { vertexColors: true, side: THREE.DoubleSide, roughness: 1, alphaTest: .42, depthWrite: false });
   private readonly time = { value: 0 };
   private readonly eye = { value: new THREE.Vector3() };
-  private readonly reach = { value: 38 };
-  private readonly cells: { x: number; z: number; blades: THREE.InstancedMesh; details: THREE.Mesh | null; count: number }[] = [];
+  private readonly reach = { value: GROUND_COVER.medium.distance as number };
+  private readonly lawnGeometry: THREE.BufferGeometry;
+  /** The same tufts with fewer blades, for cells beyond LAWN_NEAR. */
+  private readonly farLawnGeometry: THREE.BufferGeometry;
+  private readonly cells: { x: number; z: number; bottom: number; top: number; lawn: THREE.InstancedMesh | null; accents: THREE.Mesh | null; count: number }[] = [];
   private quality: Settings['graphics'] = 'medium';
 
   constructor(world: WorldSpec, atlas?: THREE.Texture) {
-    this.material.map = this.detailMaterial.map = atlas ?? null;
-    const detailCompile = this.detailMaterial.onBeforeCompile;
-    this.detailMaterial.onBeforeCompile = (shader, renderer) => {
-      detailCompile.call(this.detailMaterial, shader, renderer);
-      shader.vertexShader = `attribute float paintMask;varying float vCoverPaint;\n${shader.vertexShader}`
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCoverPaint=paintMask;');
-      shader.fragmentShader = `varying float vCoverPaint;\n${shader.fragmentShader}`
+    this.material.map = atlas ?? null;
+    const compile = this.material.onBeforeCompile;
+    this.material.onBeforeCompile = (shader, renderer) => {
+      compile.call(this.material, shader, renderer);
+      shader.uniforms.coverTime = this.time; shader.uniforms.coverEye = this.eye; shader.uniforms.coverReach = this.reach;
+      shader.vertexShader = 'attribute vec3 coverRoot;attribute float coverSway,coverPaint;varying float vCoverPaint;uniform float coverTime,coverReach;uniform vec3 coverEye;\n' + shader.vertexShader
+        .replace('#include <begin_vertex>', `
+          #include <begin_vertex>
+          vCoverPaint = coverPaint;
+          vec3 coverLocal = coverRoot;
+          #ifdef USE_INSTANCING
+            coverLocal = (instanceMatrix * vec4(coverRoot, 1.0)).xyz;
+          #endif
+          vec3 coverWorld = (modelMatrix * vec4(coverLocal, 1.0)).xyz;
+          // Full 3D distance: from a rooftop or the plane, grass far below fades like grass far away.
+          float coverFade = 1.0 - smoothstep(coverReach * .74, coverReach, length(coverWorld - coverEye));
+          float coverWind = sin(coverTime * 1.7 + coverWorld.x * .31 + coverWorld.z * .19) * .055 + sin(coverTime * 2.9 + coverWorld.z * .63 + coverWorld.x * .21) * .022;
+          transformed.x += coverWind * coverSway;
+          transformed.z += coverWind * .5 * coverSway;
+          // Distant tufts sink into the ground instead of popping out.
+          transformed = coverRoot + (transformed - coverRoot) * coverFade;
+        `);
+      shader.fragmentShader = 'varying float vCoverPaint;\n' + shader.fragmentShader
         .replace('#include <map_fragment>', `
           #ifdef USE_MAP
-            diffuseColor *= mix(vec4(1.0),texture2D(map,vMapUv),vCoverPaint);
+            diffuseColor *= mix(vec4(1.0), texture2D(map, vMapUv), vCoverPaint);
           #endif`)
-        .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
-          if (vCoverPaint > .5) { normal *= faceDirection; nonPerturbedNormal = normal; }`)
+        .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal *= faceDirection; nonPerturbedNormal = normal;')
         .replace('#include <alphatest_fragment>', `
           #ifdef USE_ALPHATEST
-            float threshold = mix(alphaTest, .2, smoothstep(10.0, 26.0, length(vViewPosition)) * vCoverPaint);
+            // Mip averaging thins painted blades with distance: lower the cut so tufts keep their body.
+            float threshold = mix(alphaTest, .2, smoothstep(10.0, 30.0, length(vViewPosition)));
             if (diffuseColor.a < threshold) discard;
-          #endif`);
+          #endif
+          // A camera down in the grass (a death cam) sees through the blades touching the lens,
+          // like the plants' own near fade (vegetation/foliage-material.ts).
+          float coverNear = 1.0 - smoothstep(.25, .55, length(vViewPosition));
+          if (coverNear > 0.0 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(.06711056, .00583715)))) < coverNear) discard;`);
     };
-    this.detailMaterial.customProgramCacheKey = () => 'botanical-ground-patches-v2';
+    this.material.customProgramCacheKey = () => 'painted-ground-cover-v9';
     this.group.name = 'ground-cover';
-    const coverCompile = this.material.onBeforeCompile;
-    this.material.onBeforeCompile = (shader, renderer) => {
-      coverCompile.call(this.material, shader, renderer);
-      shader.uniforms.coverTime = this.time; shader.uniforms.coverEye = this.eye; shader.uniforms.coverReach = this.reach;
-      shader.fragmentShader = 'varying float vCoverPaint;\n' + shader.fragmentShader;
-      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
-        #ifdef USE_MAP
-          diffuseColor *= mix(vec4(1.0), texture2D(map, vMapUv), vCoverPaint);
-        #endif`).replace('#include <normal_fragment_begin>',
-        '#include <normal_fragment_begin>\n normal *= faceDirection; nonPerturbedNormal = normal;')
-        .replace('#include <alphatest_fragment>', `
-          #ifdef USE_ALPHATEST
-            float threshold = mix(alphaTest, .18, smoothstep(12.0, 32.0, length(vViewPosition)));
-            if (diffuseColor.a < threshold) discard;
-          #endif`);
-      shader.vertexShader = 'attribute float paintMask;varying float vCoverPaint;uniform float coverTime,coverReach;uniform vec3 coverEye;\n' + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
-        #include <begin_vertex>
-        vCoverPaint=paintMask;
-        vec3 root=(modelMatrix*instanceMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;
-        float fade=1.0-smoothstep(coverReach*.78,coverReach,length(root.xz-coverEye.xz));
-        float tip=position.y/.24;
-        float wind=sin(coverTime*1.65+root.x*.31+root.z*.19)*.022+sin(coverTime*2.4+root.z*.63)*.008;
-        transformed.x+=wind*tip*tip;
-        transformed.z+=wind*.44*tip*tip;
-        transformed*=fade;
-      `);
-    };
-    this.material.customProgramCacheKey = () => 'painted-ground-cover-v6';
-    const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3();
-    const up = new THREE.Vector3(0, 1, 0), groundNormal = new THREE.Vector3(), tilt = new THREE.Quaternion(), detailShapes = groundDetails();
-    const alignToGround = (x: number, z: number, yaw: number) => {
-      groundNormal.set(-(terrainHeight(x + .12, z) - terrainHeight(x - .12, z)) / .24, 1,
-        -(terrainHeight(x, z + .12) - terrainHeight(x, z - .12)) / .24).normalize();
-      tilt.setFromUnitVectors(up, groundNormal);
-      rotation.setFromAxisAngle(up, yaw).premultiply(tilt);
-    };
-    const trees = world.objects.filter(object => object.kind === 'tree' && object.scale.y >= 2.5);
+    // The lawn tuft carries only its root-to-tip light; each instance carries the ground's albedo.
+    this.lawnGeometry = bladeTuft(9); this.farLawnGeometry = bladeTuft(5, 1.2);
+    const grid = colliderGrid(world);
     const dunes = world.objects.filter(object => object.detail === 'dune-grass');
+    const trees = world.objects.filter(object => (object.kind === 'tree' || object.kind === 'palm') && object.scale.y >= 2.5);
     const paving = world.objects.filter(o => o.detail === 'prop:plaza' || o.detail === 'floor' || o.detail === 'courtyard' || o.detail === 'path' || o.detail?.includes('pavement'));
-    for (let cz = -6; cz < 6; cz++) for (let cx = -6; cx < 6; cx++) {
-      const x0 = cx * CELL, z0 = cz * CELL, points: { x: number; y: number; z: number; seed: number }[] = [];
-      const shore: { x: number; y: number; z: number; seed: number }[] = [];
-      const nearbyTrees = trees.filter(tree => tree.pos.x + tree.scale.y * .32 > x0 && tree.pos.x - tree.scale.y * .32 < x0 + CELL &&
-        tree.pos.z + tree.scale.y * .32 > z0 && tree.pos.z - tree.scale.y * .32 < z0 + CELL);
-      const colliders = world.colliders.filter(c => c.min.x < x0 + CELL + .3 && c.max.x > x0 - .3 && c.min.z < z0 + CELL + .3 && c.max.z > z0 - .3);
-      for (let i = 0; i < CANDIDATES; i++) {
-        const x = x0 + hash(cx * CANDIDATES + i, cz, 1) * CELL, z = z0 + hash(cx, cz * CANDIDATES + i, 2) * CELL;
-        const y = terrainHeight(x, z), slope = Math.max(Math.abs(terrainHeight(x + .4, z) - y), Math.abs(terrainHeight(x, z + .4) - y)) / .4;
-        const color = terrainColor(x, z, y, slope);
-        const sand = color === WORLD_PALETTE.sand || color === WORLD_PALETTE.sandLight || color === WORLD_PALETTE.sandWet;
-        const dune = sand && dunes.some(patch => ((x - patch.pos.x) / (patch.scale.x * .5)) ** 2 + ((z - patch.pos.z) / (patch.scale.z * .5)) ** 2 < 1);
-        if (sand && y > .07 && y < 3.5 && slope < .5 && i % 61 === 0) shore.push({ x, y, z, seed: hash(cx * CANDIDATES + i, cz, 9) });
-        if (y < (dune ? .3 : .8) || slope > .7 || (!dune && !grassy.has(color))) continue;
-        if (ROADS.some(([x0, z0, x1, z1]) => x > x0 - .35 && x < x1 + .35 && z > z0 - .35 && z < z1 + .35)) continue;
-        if (paving.some(o => Math.abs(x - o.pos.x) < o.scale.x / 2 + .15 && Math.abs(z - o.pos.z) < o.scale.z / 2 + .15)) continue;
-        if (colliders.some(c => c.min.y < y + .45 && c.max.y > y - .05 && x > c.min.x - .2 && x < c.max.x + .2 && z > c.min.z - .2 && z < c.max.z + .2)) continue;
-        const roadEdge = ROADS.some(([a, b, c, d]) => Math.hypot(Math.max(a - x, 0, x - c), Math.max(b - z, 0, z - d)) < 1.5);
-        const plazaEdge = paving.some(o => Math.hypot(Math.max(0, Math.abs(x - o.pos.x) - o.scale.x / 2),
-          Math.max(0, Math.abs(z - o.pos.z) - o.scale.z / 2)) < 1.2);
-        if (!roadEdge && !plazaEdge && hash(cx * CANDIDATES + i, cz, 17) > .68) continue;
-        points.push({ x, y, z, seed: hash(cx * CANDIDATES + i, cz, 3) });
-      }
-      if (!points.length && !shore.length) continue;
-      const mesh = new THREE.InstancedMesh(this.geometry, this.material, Math.max(1, points.length));
-      mesh.count = points.length;
-      mesh.position.set(x0, 0, z0); mesh.name = `grass:${cx}:${cz}`; mesh.receiveShadow = true;
-      const details: THREE.BufferGeometry[] = [];
-      for (let i = 0; i < points.length; i++) {
-        const point = points[i], size = .8 + point.seed * .3;
-        position.set(point.x - x0, point.y - .015, point.z - z0); alignToGround(point.x, point.z, point.seed * Math.PI * 2); scale.set(size, size, size);
-        matrix.compose(position, rotation, scale); mesh.setMatrixAt(i, matrix);
-        const underTree = (i % 13 === 0 || i % 131 === 0) && nearbyTrees.some(tree =>
-          Math.hypot(point.x - tree.pos.x, point.z - tree.pos.z) < tree.scale.y * .32);
-        const clover = hash(Math.floor(point.x / 3), Math.floor(point.z / 3), 12) > .72;
-        const type = underTree && i % 131 === 0 ? point.seed > .5 ? 5 : 6 :
-          underTree && i % 13 === 0 ? 2 : clover && i % 7 === 0 ? 4 : i % 127 === 0 ? 0 : -1;
-        if (type >= 0) {
-          const detail = detailShapes[type].clone().applyMatrix4(matrix);
-          if (type === 2 || type === 4) {
-            // Ground paintings follow the real heightfield across slope seams.
-            const vertices = detail.getAttribute('position');
-            for (let v = 0; v < vertices.count; v++)
-              vertices.setY(v, terrainHeight(vertices.getX(v) + x0, vertices.getZ(v) + z0) + .014);
-          }
-          details.push(detail);
+    const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    const normal = new THREE.Vector3(), tilt = new THREE.Quaternion();
+    const DUNE = new THREE.Color('#C9C98A');
+    const LEAVES = { base: new THREE.Color(.95, .9, .82), tip: new THREE.Color(1, .96, .88) };
+    const FLOWERS = { base: new THREE.Color(.9, .92, .86), tip: new THREE.Color(1.04, 1.04, 1) };
+    const CLOVER = { base: new THREE.Color(.92, .95, .88), tip: new THREE.Color(1, 1, .96) };
+    const half = world.size / 2, albedo = new THREE.Color();
+    for (let cz = Math.floor(-half / CELL); cz < Math.ceil(half / CELL); cz++) for (let cx = Math.floor(-half / CELL); cx < Math.ceil(half / CELL); cx++) {
+      const x0 = cx * CELL, z0 = cz * CELL;
+      const solids = grid.query(x0 - 1, z0 - 1, x0 + CELL + 1, z0 + CELL + 1);
+      // Solids binned per metre (with the widest margin tested), so each candidate checks only its neighbours.
+      const bins: Collider[][] = Array.from({ length: CELL * CELL }, () => []);
+      for (const c of solids) for (let bz = Math.max(0, Math.floor(c.min.z - 1 - z0)); bz <= Math.min(CELL - 1, Math.floor(c.max.z + 1 - z0)); bz++)
+        for (let bx = Math.max(0, Math.floor(c.min.x - 1 - x0)); bx <= Math.min(CELL - 1, Math.floor(c.max.x + 1 - x0)); bx++) bins[bz * CELL + bx].push(c);
+      const roads = ROADS.filter(([a, b, c, d]) => a < x0 + CELL + 3 && c > x0 - 3 && b < z0 + CELL + 3 && d > z0 - 3);
+      const paved = paving.filter(o => Math.abs(o.pos.x - x0 - CELL / 2) < o.scale.x / 2 + CELL / 2 + 2 && Math.abs(o.pos.z - z0 - CELL / 2) < o.scale.z / 2 + CELL / 2 + 2);
+      const shade = trees.filter(t => t.pos.x > x0 - 6 && t.pos.x < x0 + CELL + 6 && t.pos.z > z0 - 6 && t.pos.z < z0 + CELL + 6);
+      const blocked = (x: number, z: number, y: number, margin: number) =>
+        bins[Math.min(CELL - 1, Math.floor(z - z0)) * CELL + Math.min(CELL - 1, Math.floor(x - x0))]
+          .some(c => c.min.y < y + .5 && c.max.y > y - .05 && x > c.min.x - margin && x < c.max.x + margin && z > c.min.z - margin && z < c.max.z + margin);
+      const onRoad = (x: number, z: number, margin: number) => roads.some(([a, b, c, d]) => x > a - margin && x < c + margin && z > b - margin && z < d + margin);
+      const onPaving = (x: number, z: number, margin: number) => paved.some(o => Math.abs(x - o.pos.x) < o.scale.x / 2 + margin && Math.abs(z - o.pos.z) < o.scale.z / 2 + margin);
+      const lawnMatrices: number[] = [], lawnColors: number[] = [], accents: THREE.BufferGeometry[] = [];
+      const accent = (kind: Accent, x: number, y: number, z: number, seed: number, tint: { base: THREE.Color; tip: THREE.Color }, size = 1) => {
+        const spec = ACCENTS[kind], s = size * (.8 + seed * .4);
+        const height = 'flat' in spec ? spec.height * s : Math.min(spec.height * s, GROUND_COVER_MAX_HEIGHT);
+        accents.push(tuft({ ...spec, width: spec.width * s, height }, tint.base, tint.tip, new THREE.Vector3(x - x0, y - .01, z - z0), seed * Math.PI * 2,
+          (lx, lz) => terrainHeight(lx + x0, lz + z0)));
+      };
+      // Jittered grid: every 0.4 m square gets one candidate, so coverage has no random holes.
+      const step = .4, n = CELL / step;
+      for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) {
+        const gx = cx * n + ix, gz = cz * n + iz;
+        const x = x0 + (ix + hash(gx, gz, 1)) * step, z = z0 + (iz + hash(gx, gz, 2)) * step;
+        const y = terrainHeight(x, z), dx = terrainHeight(x + .4, z) - y, dz = terrainHeight(x, z + .4) - y;
+        const slope = Math.max(Math.abs(dx), Math.abs(dz)) / .4;
+        if (y < .3 || slope > .75) continue;
+        const paint = terrainColor(x, z, y, slope);
+        const grass = grassy.has(paint), sand = sandy.has(paint);
+        if (!grass && !sand) continue;
+        if (onRoad(x, z, .3) || onPaving(x, z, .15) || blocked(x, z, y, .12)) continue;
+        const r = hash(gx, gz, 3), r2 = hash(gx, gz, 4);
+        if (sand) {
+          // Dune grass fills the authored dune patches and, sparser, drifts over the dry upper beach.
+          const inDune = dunes.some(p => ((x - p.pos.x) / (p.scale.x * .6)) ** 2 + ((z - p.pos.z) / (p.scale.z * .6)) ** 2 < 1);
+          const drift = y > 1.05 && fbm(x / 9 + 41, z / 9 - 23) > .22;
+          if ((inDune && r < .16) || (drift && r < .035)) accent('dune', x, y, z, r2, groundTint('dune-grass', DUNE), drift && !inDune ? .8 : 1);
+          continue;
         }
+        // Lawn density follows broad painted clumps: lush patches, thinner worn ones, never uniform speckle.
+        const clump = .5 + .5 * fbm(x / 7 + 13, z / 7 - 5), edge = onRoad(x, z, 1.6) || onPaving(x, z, 1.2) || blocked(x, z, y, 1.0);
+        // A trodden path keeps only a few flattened tufts along its edges.
+        const wear = pathWear(x, z);
+        const density = (.42 + .58 * THREE.MathUtils.smoothstep(clump, .15, .6)) * (1 - wear * .9);
+        groundPaint(x, z, albedo);
+        if (r < density) {
+          const size = .85 + r2 * .5 + (edge ? .15 : 0);
+          position.set(x - x0, y - .02, z - z0);
+          // Tufts lean half-way to the slope under them.
+          normal.set(-dx / .4, 1, -dz / .4).normalize().lerp(up, .5).normalize();
+          rotation.setFromAxisAngle(up, r2 * Math.PI * 2).premultiply(tilt.setFromUnitVectors(up, normal));
+          matrix.compose(position, rotation, scale.set(size, size * (.85 + r * .3), size));
+          for (let e = 0; e < 16; e++) lawnMatrices.push(matrix.elements[e]);
+          // Tint jitter keeps a lawn from reading as one flat colour.
+          const k = .92 + hash(gx, gz, 7) * .14;
+          lawnColors.push(albedo.r * k, albedo.g * k, albedo.b * k);
+        }
+        // Accents: wild grass where mowers never reach (walls, roads, tree feet), flowers and clover in patches.
+        const r3 = hash(gx, gz, 5);
+        if (r3 >= .065) continue;
+        const underTree = shade.some(t => Math.hypot(x - t.pos.x, z - t.pos.z) < t.scale.y * .34);
+        // Wildflowers grow in the clusters the colour map speckles, densest at their hearts.
+        const bloom = wear > .3 ? 0 : wildflowers(x, z), cloverPatch = fbm(x / 4 + 71, z / 4 - 3) > .45;
+        const flowerPatch = bloom > 0 && r3 < .012 + bloom * .038;
+        if (edge && r3 < .045) accent('wild', x, y, z, r2, groundTint('wild-grass', albedo));
+        else if (underTree && r3 < .05) accent('leaves', x, y, z, r2, LEAVES);
+        else if (underTree && r3 < .065) accent('wild', x, y, z, r2, groundTint('wild-grass', albedo), .85);
+        else if (flowerPatch) accent(r2 < .45 ? 'impatiens' : 'flowers', x, y, z, hash(gx, gz, 6), FLOWERS);
+        else if (cloverPatch && r3 < .02) accent('clover', x, y, z, r2, CLOVER);
       }
-      for (const point of shore) {
-        position.set(point.x - x0, point.y + .006, point.z - z0); alignToGround(point.x, point.z, point.seed * Math.PI * 2);
-        scale.setScalar(.7 + point.seed * 1.3); matrix.compose(position, rotation, scale);
-        details.push(detailShapes[point.seed > .45 ? 3 : 1].clone().applyMatrix4(matrix));
+      if (!lawnMatrices.length && !accents.length) continue;
+      const count = lawnMatrices.length / 16;
+      let lawnMesh: THREE.InstancedMesh | null = null;
+      if (count) {
+        lawnMesh = new THREE.InstancedMesh(this.lawnGeometry, this.material, count);
+        (lawnMesh.instanceMatrix.array as Float32Array).set(lawnMatrices);
+        lawnMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(lawnColors), 3);
+        lawnMesh.position.set(x0, 0, z0); lawnMesh.name = `grass:${cx}:${cz}`; lawnMesh.receiveShadow = true; lawnMesh.renderOrder = 2;
+        lawnMesh.computeBoundingBox(); lawnMesh.computeBoundingSphere();
+        if (lawnMesh.boundingSphere) lawnMesh.boundingSphere.radius += .3;
+        this.group.add(lawnMesh);
       }
-      mesh.computeBoundingBox(); mesh.computeBoundingSphere();
-      // Wind can extend past the undeformed ribbon bounds.
-      if (mesh.boundingSphere) mesh.boundingSphere.radius += .2;
-      this.group.add(mesh);
-      const detailGeometry = details.length ? mergeGeometries(details) : null;
-      details.forEach(g => g.dispose());
-      const detailMesh = detailGeometry ? new THREE.Mesh(detailGeometry, this.detailMaterial) : null;
-      if (detailMesh) { detailMesh.position.copy(mesh.position); detailMesh.receiveShadow = true; this.group.add(detailMesh); }
-      this.cells.push({ x: x0 + CELL / 2, z: z0 + CELL / 2, blades: mesh, details: detailMesh, count: points.length });
+      let accentMesh: THREE.Mesh | null = null;
+      if (accents.length) {
+        const merged = mergeGeometries(accents)!; accents.forEach(g => g.dispose());
+        merged.computeBoundingBox();
+        accentMesh = new THREE.Mesh(merged, this.material); accentMesh.position.set(x0, 0, z0); accentMesh.receiveShadow = true; accentMesh.renderOrder = 2;
+        accentMesh.name = `grass-accents:${cx}:${cz}`;
+        this.group.add(accentMesh);
+      }
+      const boxes = [lawnMesh?.boundingBox, accentMesh?.geometry.boundingBox].filter((b): b is THREE.Box3 => !!b);
+      this.cells.push({ x: x0 + CELL / 2, z: z0 + CELL / 2, bottom: Math.min(...boxes.map(b => b.min.y)), top: Math.max(...boxes.map(b => b.max.y)),
+        lawn: lawnMesh, accents: accentMesh, count });
     }
-    detailShapes.forEach(g => g.dispose());
   }
 
   setQuality(quality: Settings['graphics']) {
     this.quality = quality; this.group.visible = quality !== 'low'; this.reach.value = GROUND_COVER[quality].distance;
     for (const cell of this.cells) {
-      cell.blades.count = Math.floor(cell.count * GROUND_COVER[quality].fraction);
-      if (quality === 'low') { cell.blades.visible = false; if (cell.details) cell.details.visible = false; }
+      if (cell.lawn) cell.lawn.count = Math.floor(cell.count * GROUND_COVER[quality].fraction);
+      if (quality === 'low') { if (cell.lawn) cell.lawn.visible = false; if (cell.accents) cell.accents.visible = false; }
     }
   }
 
@@ -261,14 +309,19 @@ export class GroundCover {
     this.time.value = reducedMotion ? 0 : time; this.eye.value.copy(camera.position);
     const reach = GROUND_COVER[this.quality].distance;
     for (const cell of this.cells) {
-      const distance = Math.hypot(Math.max(0, Math.abs(cell.x - camera.position.x) - CELL / 2), Math.max(0, Math.abs(cell.z - camera.position.z) - CELL / 2));
-      cell.blades.visible = reach > 0 && distance < reach;
-      if (cell.details) cell.details.visible = reach > 0 && distance < reach * .7;
+      const distance = Math.hypot(Math.max(0, Math.abs(cell.x - camera.position.x) - CELL / 2), Math.max(0, Math.abs(cell.z - camera.position.z) - CELL / 2),
+        Math.max(0, camera.position.y - cell.top, cell.bottom - camera.position.y));
+      if (cell.lawn) {
+        cell.lawn.visible = reach > 0 && distance < reach;
+        // Past a few metres a tuft is a handful of pixels: draw it with five blades instead of nine.
+        cell.lawn.geometry = distance < LAWN_NEAR ? this.lawnGeometry : this.farLawnGeometry;
+      }
+      if (cell.accents) cell.accents.visible = reach > 0 && distance < reach;
     }
   }
 
   dispose() {
-    for (const cell of this.cells) { cell.blades.dispose(); cell.details?.geometry.dispose(); }
-    this.geometry.dispose(); this.material.dispose(); this.detailMaterial.dispose(); this.group.clear();
+    for (const cell of this.cells) { cell.lawn?.dispose(); cell.accents?.geometry.dispose(); }
+    this.lawnGeometry.dispose(); this.farLawnGeometry.dispose(); this.material.dispose(); this.group.clear();
   }
 }

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { KIT_PIECES } from '../shared/kit-collision';
+import { HOUSE_PIECES, isHousePiece } from '../shared/layout';
 import type { KitPlacement } from './kit';
+import { SUN_DIRECTION } from './materials';
 
 const ROOM_PALETTES = [
   ['#F3DBBA', '#C57552', '#548F86'], // Sunset cloth, terracotta border, teal motif.
@@ -8,14 +10,22 @@ const ROOM_PALETTES = [
   ['#E8CE91', '#847E54', '#B66545'], // Ochre cloth, olive border, clay motif.
 ].map(palette => palette.map(color => new THREE.Color(color)));
 
+// Painted wall tile of each house piece: a placement's facadeTile swaps it.
+const WALL_TILE: Record<string, number> = { house_small: 1, house_medium: 3, house_tall: 2, house_laje: 2, house_laje_b: 3, house_varanda: 0, sobrado: 3,
+  // Terraced street houses author their plaster on the cream tile.
+  row_terrea: 0, row_sobrado: 0, row_loja: 0, row_alto: 0,
+  // The stilt houses' painted planks.
+  palafita: 0, palafita_b: 0, bar_mare: 0 };
+
 // Called on an owned placement clone before its transform/cell merge. Only
 // existing colour/UV attributes change; positions, normals and indices do not.
 export function paintKitPlacement(geometry: THREE.BufferGeometry, placement: KitPlacement) {
   const palette = placement.paintVariant === undefined ? undefined : ROOM_PALETTES[placement.paintVariant];
   const decor = palette && (placement.piece === 'rug' || placement.piece === 'wall_picture');
-  const floors = placement.interiorFloor && /^house_(small|tall)$/.test(placement.piece)
-    ? KIT_PIECES[placement.piece].traversal?.floors : undefined;
-  if (!decor && !floors) return;
+  const floors = placement.interiorFloor && isHousePiece(placement.piece)
+    ? KIT_PIECES[placement.piece].traversal?.floors.filter(floor => floor.id.endsWith('-room')) : undefined;
+  const wallTile = WALL_TILE[placement.piece], facade = placement.facadeTile !== undefined && wallTile !== undefined && placement.facadeTile !== wallTile ? placement.facadeTile : undefined;
+  if (!decor && !floors && facade === undefined) return;
   const uv = geometry.getAttribute('uv'), color = geometry.getAttribute('color');
   const position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
   const tileAt = (i: number) => Math.floor(uv.getX(i) * 4) + Math.floor(uv.getY(i) * 4) * 4;
@@ -38,6 +48,7 @@ export function paintKitPlacement(geometry: THREE.BufferGeometry, placement: Kit
         color.setXYZ(i, tint.r * ao, tint.g * ao, tint.b * ao);
       }
     }
+    if (facade !== undefined && tile === wallTile) retile(i, facade);
     if (floors && normal.getY(i) > .85 && (tile === 5 || tile === 14) && floors.some(floor =>
       Math.abs(position.getY(i) - floor.y) < .025 && position.getX(i) >= floor.bounds[0] - .01 &&
       position.getX(i) <= floor.bounds[2] + .01 && position.getZ(i) >= floor.bounds[1] - .01 && position.getZ(i) <= floor.bounds[3] + .01)) {
@@ -53,9 +64,10 @@ export function kitInteriorLight(material: THREE.MeshStandardMaterial, model: TH
   placements: readonly KitPlacement[]) {
   const layouts = new Map<string, { floor: number; ceiling: number; half: THREE.Vector2; windows: THREE.Box3[][] }[]>();
   const point = new THREE.Vector3();
-  for (const id of ['house_small', 'house_tall']) {
+  for (const id of ['house_small', 'house_tall', 'house_laje', 'house_laje_b', 'sobrado']) {
     const mesh = model.getObjectByName(`${id}_LOD0`) as THREE.Mesh | undefined;
-    const definition = KIT_PIECES[id], base = definition.colliders[0];
+    const definition = KIT_PIECES[id], base = definition?.colliders[0];
+    if (!definition) continue;
     if (!mesh?.isMesh || base.type !== 'box') continue;
     const floors = definition.colliders.filter(c => c.type === 'box' && c.height < .3 &&
       c.width > base.width * .5 && c.depth > base.depth * .5 && (c === base || c.material === 'wood'));
@@ -83,7 +95,7 @@ export function kitInteriorLight(material: THREE.MeshStandardMaterial, model: TH
     const scale = placement.scale ?? 1;
     const inverse = new THREE.Matrix4().compose(new THREE.Vector3(placement.x, placement.y, placement.z),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), placement.yaw), new THREE.Vector3(scale, scale, scale)).invert();
-    const sun = new THREE.Vector3(-70, 32, -30).transformDirection(inverse);
+    const sun = SUN_DIRECTION.clone().transformDirection(inverse);
     return layout.map(room => ({ ...room, inverse, sun }));
   });
   const uniforms = {
@@ -167,4 +179,102 @@ export function kitInteriorLight(material: THREE.MeshStandardMaterial, model: TH
       break;
     }
   };
+}
+
+// From inside, houses had solid walls where the facade shows glazed windows.
+// Each exterior pane gets an inner counterpart on the room side of its wall: a
+// frame with the sky and horizon seen along the view ray, so rooms read as
+// connected to the street. One merged mesh, two triangles per window.
+export function kitInteriorWindows(model: THREE.Object3D, placements: readonly KitPlacement[]): THREE.Mesh | null {
+  const local = new Map<string, { center: THREE.Vector3; size: THREE.Vector2; axis: 'x' | 'z'; sign: number }[]>();
+  const point = new THREE.Vector3();
+  for (const id of HOUSE_PIECES) {
+    const mesh = model.getObjectByName(`${id}_LOD0`) as THREE.Mesh | undefined;
+    const base = KIT_PIECES[id]?.colliders[0];
+    if (!mesh?.isMesh || base?.type !== 'box') continue;
+    const position = mesh.geometry.getAttribute('position'), uv = mesh.geometry.getAttribute('uv');
+    const clusters = new Map<string, { box: THREE.Box3; axis: 'x' | 'z'; sign: number }>();
+    for (let i = 0; i < position.count; i++) {
+      if (Math.floor(uv.getX(i) * 4) + Math.floor(uv.getY(i) * 4) * 4 !== 10) continue;
+      point.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld);
+      const zWall = Math.abs(point.z) / base.depth > Math.abs(point.x) / base.width, axis = zWall ? 'z' : 'x';
+      const sign = Math.sign(zWall ? point.z : point.x), across = zWall ? point.x : point.z;
+      // Painted tile 10 is the pair of shutter boards; the window is the gap between a pair.
+      const key = `${axis}${sign}:${Math.round(across / 2.5)}:${point.y > 3 ? 1 : 0}`;
+      if (!clusters.has(key)) clusters.set(key, { box: new THREE.Box3(), axis, sign });
+      clusters.get(key)!.box.expandByPoint(point);
+    }
+    const panes = [];
+    for (const { box, axis, sign } of clusters.values()) {
+      const size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+      const width = (axis === 'z' ? size.x : size.z) - .12;
+      if (width < .3 || size.y < .3) continue;
+      // The room side of the wall comes from its collider: the solid box this window sits in.
+      let inner = 0;
+      const glass = axis === 'z' ? center.z * sign : center.x * sign, along = axis === 'z' ? center.x : center.z;
+      for (const shape of KIT_PIECES[id].colliders) {
+        if (shape.type !== 'box' || shape.height < 1) continue;
+        const face = (axis === 'z' ? shape.z : shape.x) * sign, thick = axis === 'z' ? shape.depth : shape.width;
+        const span = axis === 'z' ? [shape.x - shape.width / 2, shape.x + shape.width / 2] : [shape.z - shape.depth / 2, shape.z + shape.depth / 2];
+        if (thick > .6 || Math.abs(face - glass) > .6 || along < span[0] - width || along > span[1] + width) continue;
+        inner = Math.max(inner, face - thick / 2);
+      }
+      if (inner <= 0) continue;
+      const plane = sign * (inner - .012);
+      panes.push({ center: axis === 'z' ? new THREE.Vector3(center.x, center.y, plane) : new THREE.Vector3(plane, center.y, center.z),
+        size: new THREE.Vector2(width, size.y - .1), axis, sign });
+    }
+    local.set(id, panes);
+  }
+  const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
+  const corner = new THREE.Vector3();
+  for (const placement of placements) {
+    const panes = local.get(placement.piece);
+    if (!panes?.length) continue;
+    const scale = placement.scale ?? 1;
+    const matrix = new THREE.Matrix4().compose(new THREE.Vector3(placement.x, placement.y, placement.z),
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), placement.yaw), new THREE.Vector3(scale, scale, scale));
+    for (const pane of panes) {
+      const base = positions.length / 3;
+      for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+        const a = (u - .5) * pane.size.x, b = (v - .5) * pane.size.y;
+        // Winding faces the room: the pane looks back along -sign.
+        const across = pane.axis === 'z' ? -pane.sign * a : pane.sign * a;
+        corner.copy(pane.center).add(pane.axis === 'z' ? new THREE.Vector3(across, b, 0) : new THREE.Vector3(0, b, across)).applyMatrix4(matrix);
+        positions.push(corner.x, corner.y, corner.z); uvs.push(u, v);
+      }
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+  }
+  if (!positions.length) return null;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices); geometry.computeBoundingSphere();
+  // Front faces look into the room. Facade windows are real openings, so from the
+  // street the back face reads as dark glass in the same frame, hiding the room.
+  const material = new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    uniforms: { sunDirection: { value: SUN_DIRECTION.clone() } },
+    vertexShader: `varying vec2 vUv; varying vec3 vWorld;
+      void main(){ vUv = uv; vec4 world = modelMatrix * vec4(position, 1.0); vWorld = world.xyz; gl_Position = projectionMatrix * viewMatrix * world; }`,
+    fragmentShader: `uniform vec3 sunDirection; varying vec2 vUv; varying vec3 vWorld;
+      void main(){
+        vec3 ray = normalize(vWorld - cameraPosition);
+        vec3 horizon = vec3(.95, .82, .66), zenith = vec3(.55, .75, .89), ground = vec3(.54, .63, .35);
+        vec3 view = mix(horizon, zenith, smoothstep(0.0, .45, ray.y));
+        view = mix(view, mix(ground, ground * .7, smoothstep(-.05, -.5, ray.y)), smoothstep(.01, -.03, ray.y));
+        view += vec3(1.0, .75, .45) * pow(max(0.0, dot(ray, sunDirection)), 12.0) * .45;
+        vec2 edge = min(vUv, 1.0 - vUv);
+        float frame = 1.0 - step(.07, min(edge.x, edge.y));
+        float mullion = 1.0 - step(.025, min(abs(vUv.x - .5), abs(vUv.y - .5)));
+        vec3 wood = vec3(.86, .82, .72);
+        vec3 glass = gl_FrontFacing ? view * 1.08 : mix(vec3(.10, .17, .20), zenith, .18 + .3 * smoothstep(.2, .9, vUv.y));
+        gl_FragColor = vec4(mix(glass, wood, max(frame, mullion)), 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  const mesh = new THREE.Mesh(geometry, material); mesh.name = 'interior-windows';
+  return mesh;
 }

@@ -1,0 +1,689 @@
+{
+ "note": "Every 1280x720 visual baseline regenerated on the final build, compared with the previous approved set (docs/overhaul/evidence/final/approved-baselines.json, images from that approval). PSNR in dB; 47 and above is not visible. The three lowest differ in content, not rendering: cocoBlast in the shape of the random explosion, loading and hud-watch in the randomly chosen tip and elimination line.",
+ "rows": [
+  {
+   "baseline": "cocoBlast.png",
+   "psnrAgainstPreviousApproval": 24.9
+  },
+  {
+   "baseline": "loading.png",
+   "psnrAgainstPreviousApproval": 31.16
+  },
+  {
+   "baseline": "hud-watch.png",
+   "psnrAgainstPreviousApproval": 37.55
+  },
+  {
+   "baseline": "mudFull.png",
+   "psnrAgainstPreviousApproval": 47.18
+  },
+  {
+   "baseline": "mudSoak.png",
+   "psnrAgainstPreviousApproval": 47.22
+  },
+  {
+   "baseline": "tp-smg.png",
+   "psnrAgainstPreviousApproval": 47.88
+  },
+  {
+   "baseline": "trampolinePraia.png",
+   "psnrAgainstPreviousApproval": 48.02
+  },
+  {
+   "baseline": "tp-revolver.png",
+   "psnrAgainstPreviousApproval": 48.02
+  },
+  {
+   "baseline": "tp-pistol.png",
+   "psnrAgainstPreviousApproval": 48.08
+  },
+  {
+   "baseline": "capySide.png",
+   "psnrAgainstPreviousApproval": 48.11
+  },
+  {
+   "baseline": "fortWallNorth.png",
+   "psnrAgainstPreviousApproval": 48.2
+  },
+  {
+   "baseline": "tp-machete.png",
+   "psnrAgainstPreviousApproval": 48.21
+  },
+  {
+   "baseline": "capyFront.png",
+   "psnrAgainstPreviousApproval": 48.24
+  },
+  {
+   "baseline": "trampolineBounce.png",
+   "psnrAgainstPreviousApproval": 48.47
+  },
+  {
+   "baseline": "tp-m4.png",
+   "psnrAgainstPreviousApproval": 48.47
+  },
+  {
+   "baseline": "district-palafitas.png",
+   "psnrAgainstPreviousApproval": 48.48
+  },
+  {
+   "baseline": "spawn-palafitas.png",
+   "psnrAgainstPreviousApproval": 48.49
+  },
+  {
+   "baseline": "tp-shotgun.png",
+   "psnrAgainstPreviousApproval": 48.54
+  },
+  {
+   "baseline": "trampolineAir.png",
+   "psnrAgainstPreviousApproval": 48.55
+  },
+  {
+   "baseline": "loot-eye.png",
+   "psnrAgainstPreviousApproval": 48.6
+  },
+  {
+   "baseline": "spawn-praia.png",
+   "psnrAgainstPreviousApproval": 48.66
+  },
+  {
+   "baseline": "bakery.png",
+   "psnrAgainstPreviousApproval": 48.68
+  },
+  {
+   "baseline": "district-vila.png",
+   "psnrAgainstPreviousApproval": 48.76
+  },
+  {
+   "baseline": "clinicSobrado.png",
+   "psnrAgainstPreviousApproval": 48.77
+  },
+  {
+   "baseline": "quayNorth.png",
+   "psnrAgainstPreviousApproval": 48.77
+  },
+  {
+   "baseline": "varandaFazenda.png",
+   "psnrAgainstPreviousApproval": 48.78
+  },
+  {
+   "baseline": "spawn-vila.png",
+   "psnrAgainstPreviousApproval": 48.82
+  },
+  {
+   "baseline": "district-praia.png",
+   "psnrAgainstPreviousApproval": 48.86
+  },
+  {
+   "baseline": "spawn-farol.png",
+   "psnrAgainstPreviousApproval": 48.87
+  },
+  {
+   "baseline": "swimRemote.png",
+   "psnrAgainstPreviousApproval": 48.88
+  },
+  {
+   "baseline": "spawn-fazenda.png",
+   "psnrAgainstPreviousApproval": 49
+  },
+  {
+   "baseline": "loot-far.png",
+   "psnrAgainstPreviousApproval": 49.04
+  },
+  {
+   "baseline": "district-fazenda.png",
+   "psnrAgainstPreviousApproval": 49.04
+  },
+  {
+   "baseline": "spawn-mangue.png",
+   "psnrAgainstPreviousApproval": 49.04
+  },
+  {
+   "baseline": "emote-wave.png",
+   "psnrAgainstPreviousApproval": 49.09
+  },
+  {
+   "baseline": "emote-dance.png",
+   "psnrAgainstPreviousApproval": 49.12
+  },
+  {
+   "baseline": "supplyOpened.png",
+   "psnrAgainstPreviousApproval": 49.13
+  },
+  {
+   "baseline": "emote-victory.png",
+   "psnrAgainstPreviousApproval": 49.13
+  },
+  {
+   "baseline": "district-morro.png",
+   "psnrAgainstPreviousApproval": 49.14
+  },
+  {
+   "baseline": "spawn-morro.png",
+   "psnrAgainstPreviousApproval": 49.16
+  },
+  {
+   "baseline": "emote-sit.png",
+   "psnrAgainstPreviousApproval": 49.16
+  },
+  {
+   "baseline": "hud.png",
+   "psnrAgainstPreviousApproval": 49.19
+  },
+  {
+   "baseline": "district-farol.png",
+   "psnrAgainstPreviousApproval": 49.25
+  },
+  {
+   "baseline": "fp-pistol.png",
+   "psnrAgainstPreviousApproval": 49.32
+  },
+  {
+   "baseline": "fp-revolver.png",
+   "psnrAgainstPreviousApproval": 49.32
+  },
+  {
+   "baseline": "tp-coco.png",
+   "psnrAgainstPreviousApproval": 49.33
+  },
+  {
+   "baseline": "loot-down.png",
+   "psnrAgainstPreviousApproval": 49.33
+  },
+  {
+   "baseline": "district-mangue.png",
+   "psnrAgainstPreviousApproval": 49.34
+  },
+  {
+   "baseline": "plaza.png",
+   "psnrAgainstPreviousApproval": 49.35
+  },
+  {
+   "baseline": "trampolineForte.png",
+   "psnrAgainstPreviousApproval": 49.37
+  },
+  {
+   "baseline": "tp-dmr.png",
+   "psnrAgainstPreviousApproval": 49.4
+  },
+  {
+   "baseline": "ads-machete.png",
+   "psnrAgainstPreviousApproval": 49.42
+  },
+  {
+   "baseline": "fortStairTop.png",
+   "psnrAgainstPreviousApproval": 49.45
+  },
+  {
+   "baseline": "corrente-pistol.png",
+   "psnrAgainstPreviousApproval": 49.45
+  },
+  {
+   "baseline": "fp-machete.png",
+   "psnrAgainstPreviousApproval": 49.47
+  },
+  {
+   "baseline": "vilaStreet.png",
+   "psnrAgainstPreviousApproval": 49.51
+  },
+  {
+   "baseline": "corrente-smg.png",
+   "psnrAgainstPreviousApproval": 49.52
+  },
+  {
+   "baseline": "corrente-machete.png",
+   "psnrAgainstPreviousApproval": 49.55
+  },
+  {
+   "baseline": "ads-smg.png",
+   "psnrAgainstPreviousApproval": 49.55
+  },
+  {
+   "baseline": "fp-smg.png",
+   "psnrAgainstPreviousApproval": 49.6
+  },
+  {
+   "baseline": "redentoraVila.png",
+   "psnrAgainstPreviousApproval": 49.63
+  },
+  {
+   "baseline": "ads-revolver.png",
+   "psnrAgainstPreviousApproval": 49.64
+  },
+  {
+   "baseline": "ads-shotgun.png",
+   "psnrAgainstPreviousApproval": 49.65
+  },
+  {
+   "baseline": "ads-pistol.png",
+   "psnrAgainstPreviousApproval": 49.66
+  },
+  {
+   "baseline": "swimWaterline.png",
+   "psnrAgainstPreviousApproval": 49.67
+  },
+  {
+   "baseline": "corrente-revolver.png",
+   "psnrAgainstPreviousApproval": 49.67
+  },
+  {
+   "baseline": "lighthouseBalcony.png",
+   "psnrAgainstPreviousApproval": 49.75
+  },
+  {
+   "baseline": "lajeRoof.png",
+   "psnrAgainstPreviousApproval": 49.8
+  },
+  {
+   "baseline": "tp-sniper.png",
+   "psnrAgainstPreviousApproval": 49.82
+  },
+  {
+   "baseline": "ads-coco.png",
+   "psnrAgainstPreviousApproval": 49.83
+  },
+  {
+   "baseline": "quaySouth.png",
+   "psnrAgainstPreviousApproval": 49.83
+  },
+  {
+   "baseline": "dockStairTop.png",
+   "psnrAgainstPreviousApproval": 49.94
+  },
+  {
+   "baseline": "corrente-shotgun.png",
+   "psnrAgainstPreviousApproval": 50.02
+  },
+  {
+   "baseline": "sobradoPlaza.png",
+   "psnrAgainstPreviousApproval": 50.03
+  },
+  {
+   "baseline": "spawn-rosario.png",
+   "psnrAgainstPreviousApproval": 50.04
+  },
+  {
+   "baseline": "dockPorto.png",
+   "psnrAgainstPreviousApproval": 50.08
+  },
+  {
+   "baseline": "ads-m4.png",
+   "psnrAgainstPreviousApproval": 50.11
+  },
+  {
+   "baseline": "district-rosario.png",
+   "psnrAgainstPreviousApproval": 50.13
+  },
+  {
+   "baseline": "morroRoofs.png",
+   "psnrAgainstPreviousApproval": 50.19
+  },
+  {
+   "baseline": "river.png",
+   "psnrAgainstPreviousApproval": 50.21
+  },
+  {
+   "baseline": "trampolineVila.png",
+   "psnrAgainstPreviousApproval": 50.33
+  },
+  {
+   "baseline": "corrente-upgrade.png",
+   "psnrAgainstPreviousApproval": 50.37
+  },
+  {
+   "baseline": "bathVila.png",
+   "psnrAgainstPreviousApproval": 50.4
+  },
+  {
+   "baseline": "corrente-sniper.png",
+   "psnrAgainstPreviousApproval": 50.42
+  },
+  {
+   "baseline": "fp-m4.png",
+   "psnrAgainstPreviousApproval": 50.52
+  },
+  {
+   "baseline": "corrente-coco.png",
+   "psnrAgainstPreviousApproval": 50.55
+  },
+  {
+   "baseline": "corrente-m4.png",
+   "psnrAgainstPreviousApproval": 50.59
+  },
+  {
+   "baseline": "hud-full.png",
+   "psnrAgainstPreviousApproval": 50.61
+  },
+  {
+   "baseline": "fp-shotgun.png",
+   "psnrAgainstPreviousApproval": 50.82
+  },
+  {
+   "baseline": "swimExit.png",
+   "psnrAgainstPreviousApproval": 50.93
+  },
+  {
+   "baseline": "room-beach-kiosk.png",
+   "psnrAgainstPreviousApproval": 50.96
+  },
+  {
+   "baseline": "supplyLanded.png",
+   "psnrAgainstPreviousApproval": 51.12
+  },
+  {
+   "baseline": "corrente-dmr.png",
+   "psnrAgainstPreviousApproval": 51.25
+  },
+  {
+   "baseline": "morroApproach.png",
+   "psnrAgainstPreviousApproval": 51.37
+  },
+  {
+   "baseline": "morroStreet.png",
+   "psnrAgainstPreviousApproval": 51.37
+  },
+  {
+   "baseline": "hud-corrente.png",
+   "psnrAgainstPreviousApproval": 51.39
+  },
+  {
+   "baseline": "spawn-campinho.png",
+   "psnrAgainstPreviousApproval": 51.52
+  },
+  {
+   "baseline": "spawn-capela.png",
+   "psnrAgainstPreviousApproval": 51.54
+  },
+  {
+   "baseline": "district-campinho.png",
+   "psnrAgainstPreviousApproval": 51.56
+  },
+  {
+   "baseline": "emote-chill.png",
+   "psnrAgainstPreviousApproval": 51.58
+  },
+  {
+   "baseline": "district-capela.png",
+   "psnrAgainstPreviousApproval": 51.65
+  },
+  {
+   "baseline": "bathFazenda.png",
+   "psnrAgainstPreviousApproval": 51.69
+  },
+  {
+   "baseline": "district-mercado.png",
+   "psnrAgainstPreviousApproval": 51.82
+  },
+  {
+   "baseline": "dockMangue.png",
+   "psnrAgainstPreviousApproval": 51.9
+  },
+  {
+   "baseline": "spawn-mercado.png",
+   "psnrAgainstPreviousApproval": 51.99
+  },
+  {
+   "baseline": "spawn-porto.png",
+   "psnrAgainstPreviousApproval": 52
+  },
+  {
+   "baseline": "district-porto.png",
+   "psnrAgainstPreviousApproval": 52.04
+  },
+  {
+   "baseline": "forteBeach.png",
+   "psnrAgainstPreviousApproval": 52.04
+  },
+  {
+   "baseline": "fp-dmr.png",
+   "psnrAgainstPreviousApproval": 52.19
+  },
+  {
+   "baseline": "bathMangue.png",
+   "psnrAgainstPreviousApproval": 52.32
+  },
+  {
+   "baseline": "fp-sniper.png",
+   "psnrAgainstPreviousApproval": 52.34
+  },
+  {
+   "baseline": "fp-coco.png",
+   "psnrAgainstPreviousApproval": 52.54
+  },
+  {
+   "baseline": "district-forte.png",
+   "psnrAgainstPreviousApproval": 52.6
+  },
+  {
+   "baseline": "world-coco.png",
+   "psnrAgainstPreviousApproval": 52.71
+  },
+  {
+   "baseline": "district-cachoeira.png",
+   "psnrAgainstPreviousApproval": 52.94
+  },
+  {
+   "baseline": "spawn-cachoeira.png",
+   "psnrAgainstPreviousApproval": 52.99
+  },
+  {
+   "baseline": "world-sniper.png",
+   "psnrAgainstPreviousApproval": 53.03
+  },
+  {
+   "baseline": "emote-wheel.png",
+   "psnrAgainstPreviousApproval": 53.04
+  },
+  {
+   "baseline": "world-smg.png",
+   "psnrAgainstPreviousApproval": 53.05
+  },
+  {
+   "baseline": "world-pistol.png",
+   "psnrAgainstPreviousApproval": 53.07
+  },
+  {
+   "baseline": "world-machete.png",
+   "psnrAgainstPreviousApproval": 53.09
+  },
+  {
+   "baseline": "world-dmr.png",
+   "psnrAgainstPreviousApproval": 53.16
+  },
+  {
+   "baseline": "lighthouseStairTop.png",
+   "psnrAgainstPreviousApproval": 53.17
+  },
+  {
+   "baseline": "world-shotgun.png",
+   "psnrAgainstPreviousApproval": 53.2
+  },
+  {
+   "baseline": "world-m4.png",
+   "psnrAgainstPreviousApproval": 53.2
+  },
+  {
+   "baseline": "world-revolver.png",
+   "psnrAgainstPreviousApproval": 53.22
+  },
+  {
+   "baseline": "spawn-forte.png",
+   "psnrAgainstPreviousApproval": 53.26
+  },
+  {
+   "baseline": "spawn-engenho.png",
+   "psnrAgainstPreviousApproval": 53.34
+  },
+  {
+   "baseline": "district-engenho.png",
+   "psnrAgainstPreviousApproval": 53.72
+  },
+  {
+   "baseline": "dockStairBottom.png",
+   "psnrAgainstPreviousApproval": 53.73
+  },
+  {
+   "baseline": "fortStairBottom.png",
+   "psnrAgainstPreviousApproval": 53.89
+  },
+  {
+   "baseline": "mudPrompt.png",
+   "psnrAgainstPreviousApproval": 53.98
+  },
+  {
+   "baseline": "room-fisher.png",
+   "psnrAgainstPreviousApproval": 54.21
+  },
+  {
+   "baseline": "fortApproach.png",
+   "psnrAgainstPreviousApproval": 54.68
+  },
+  {
+   "baseline": "room-home-back.png",
+   "psnrAgainstPreviousApproval": 54.88
+  },
+  {
+   "baseline": "room-fishmonger.png",
+   "psnrAgainstPreviousApproval": 55.2
+  },
+  {
+   "baseline": "room-church.png",
+   "psnrAgainstPreviousApproval": 55.27
+  },
+  {
+   "baseline": "room-upper-home-2.png",
+   "psnrAgainstPreviousApproval": 55.45
+  },
+  {
+   "baseline": "ads-dmr.png",
+   "psnrAgainstPreviousApproval": 55.5
+  },
+  {
+   "baseline": "lighthouseStairBottom.png",
+   "psnrAgainstPreviousApproval": 55.56
+  },
+  {
+   "baseline": "supplyIncoming.png",
+   "psnrAgainstPreviousApproval": 55.69
+  },
+  {
+   "baseline": "scope.png",
+   "psnrAgainstPreviousApproval": 55.7
+  },
+  {
+   "baseline": "supplyDescending.png",
+   "psnrAgainstPreviousApproval": 55.75
+  },
+  {
+   "baseline": "ads-sniper.png",
+   "psnrAgainstPreviousApproval": 55.76
+  },
+  {
+   "baseline": "redentoraNear.png",
+   "psnrAgainstPreviousApproval": 55.77
+  },
+  {
+   "baseline": "room-cafe-back.png",
+   "psnrAgainstPreviousApproval": 55.8
+  },
+  {
+   "baseline": "room-bakery.png",
+   "psnrAgainstPreviousApproval": 55.91
+  },
+  {
+   "baseline": "room-market-hall.png",
+   "psnrAgainstPreviousApproval": 56.23
+  },
+  {
+   "baseline": "room-workshop.png",
+   "psnrAgainstPreviousApproval": 56.24
+  },
+  {
+   "baseline": "redentoraPlinth.png",
+   "psnrAgainstPreviousApproval": 56.24
+  },
+  {
+   "baseline": "houseUpper.png",
+   "psnrAgainstPreviousApproval": 56.54
+  },
+  {
+   "baseline": "room-upper-home-1.png",
+   "psnrAgainstPreviousApproval": 56.59
+  },
+  {
+   "baseline": "houseGround.png",
+   "psnrAgainstPreviousApproval": 56.87
+  },
+  {
+   "baseline": "room-upper-barracks.png",
+   "psnrAgainstPreviousApproval": 56.89
+  },
+  {
+   "baseline": "room-kiosk.png",
+   "psnrAgainstPreviousApproval": 56.9
+  },
+  {
+   "baseline": "room-home-1.png",
+   "psnrAgainstPreviousApproval": 56.95
+  },
+  {
+   "baseline": "room-home.png",
+   "psnrAgainstPreviousApproval": 57.39
+  },
+  {
+   "baseline": "pause.png",
+   "psnrAgainstPreviousApproval": 57.4
+  },
+  {
+   "baseline": "room-upper-home-back.png",
+   "psnrAgainstPreviousApproval": 57.55
+  },
+  {
+   "baseline": "room-upper-home.png",
+   "psnrAgainstPreviousApproval": 57.63
+  },
+  {
+   "baseline": "room-upper-home-0.png",
+   "psnrAgainstPreviousApproval": 57.72
+  },
+  {
+   "baseline": "room-cafe.png",
+   "psnrAgainstPreviousApproval": 57.75
+  },
+  {
+   "baseline": "room-barracks.png",
+   "psnrAgainstPreviousApproval": 57.84
+  },
+  {
+   "baseline": "room-warehouse.png",
+   "psnrAgainstPreviousApproval": 58
+  },
+  {
+   "baseline": "results.png",
+   "psnrAgainstPreviousApproval": 58.09
+  },
+  {
+   "baseline": "houseStairTop.png",
+   "psnrAgainstPreviousApproval": 58.43
+  },
+  {
+   "baseline": "room-home-2.png",
+   "psnrAgainstPreviousApproval": 58.51
+  },
+  {
+   "baseline": "room-home-0.png",
+   "psnrAgainstPreviousApproval": 59.25
+  },
+  {
+   "baseline": "houseStairBottom.png",
+   "psnrAgainstPreviousApproval": 60.24
+  },
+  {
+   "baseline": "lighthouseGround.png",
+   "psnrAgainstPreviousApproval": 60.26
+  },
+  {
+   "baseline": "results-correria.png",
+   "psnrAgainstPreviousApproval": 63.02
+  }
+ ]
+}

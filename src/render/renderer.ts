@@ -1,38 +1,59 @@
 import * as THREE from 'three';
 import { timing } from './timing';
 import { instrumentGpu, instrumentMaterials } from './timing-gpu';
+import { gpuPasses } from './gpu-passes';
 import { PaintedSky } from './sky';
 import { AmbientLife } from './ambient-life';
 import { PAINT } from './materials';
 import { preloadNameplateFont } from './nameplates';
-import { disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
+import { capybaraAssetEntry, disposeCapybaraAssets, preloadCapybaraAsset } from './capybara';
 import { damp } from '../shared/math';
 import { PLAYER_COLORS, isArenaMode, type GameEvent, type RenderFrame, type Settings, type Vec3, type WorldSpec, type ZoneState } from '../shared/types';
 import { AssetLoader } from './assets';
 import { ASSET_MANIFEST, type AssetEntry } from './asset-manifest';
 import capybaraMetrics from '../../public/models/capybara/metrics.json';
-import weaponMetrics from '../../public/models/weapons/metrics.json';
 import kitMetrics from '../../public/models/kit/metrics.json';
 import supplyMetrics from '../../public/models/supply-drop/metrics.json';
 import { KIT_PIECES } from '../shared/kit-collision';
 import { KIT_ASSET_PATH } from './kit';
-import { paintedWeaponsEnabled } from './painted-weapons';
+import { fpManifest } from './viewmodel-specs';
+import { SUN_DIRECTION } from './materials';
+import { verticalFov } from '../settings';
 import type { AssetProgressCallback } from './asset-progress';
 import { WorldScene } from './world-scene';
 import { WeaponView } from './weapons';
+import { worldWeaponMaterial } from './world-weapons';
 import { AvatarView, avatar, BOT_COLOR } from './avatars';
-import { CameraRig, makePlane } from './camera';
+import { CameraRig } from './camera';
+import { makePlane } from './aircraft';
 import { LootView } from './loot';
 import { SupplyDropView, SUPPLY_ASSET_PATH } from './supply-drops';
 import { EffectsView, type EffectsFrame } from './effects';
 import { StormView } from './storm';
+import { CombatCamera } from './combat-camera';
 import { DEATH_CAM_SECONDS } from '../shared/death-cam';
 import { actorEye } from '../shared/collision';
-import { RenderPipeline, PRESETS } from './pipeline';
+import { RenderPipeline, PRESETS, GUARD } from './pipeline';
+import { DynamicResolution, outputDensity, renderRange, renderSize } from './resolution';
+import { gpuFrameTimer } from './gpu-frame-timer';
+import { assignShadowDepth } from './shadow-depth';
 import { itemGeometry } from './item-geometry';
 import type { PresentationFrame } from './local-presentation';
 export { itemGeometry } from './item-geometry';
 
+const FOG_NEAR = 40, FOG_FAR = 520;
+
+// Three creates its own context with alpha always on, which makes the browser blend the whole canvas
+// over the page every frame. Every pixel the pipeline writes is opaque, so an opaque context shows
+// the same image. QA builds can compare context options with ?ctx=three|opaque|desync.
+function createContext(canvas: HTMLCanvasElement): WebGL2RenderingContext | undefined {
+  const choice = (import.meta.env.DEV || import.meta.env.VITE_QA === '1') && typeof location !== 'undefined'
+    ? new URLSearchParams(location.search).get('ctx') : null;
+  if (choice === 'three' || typeof canvas.getContext !== 'function') return undefined;
+  const context = canvas.getContext('webgl2', { alpha: false, depth: true, stencil: false, antialias: false, premultipliedAlpha: true,
+    preserveDrawingBuffer: false, powerPreference: 'high-performance', desynchronized: choice === 'desync' });
+  return context ?? undefined;
+}
 const ZONE_NONE: ZoneState = { x: 0, z: 0, radius: 0, nextRadius: 0, nextX: 0, nextZ: 0, phase: 0, shrinking: false, timeLeft: 0, damage: 0 };
 
 export class GameRenderer {
@@ -54,12 +75,14 @@ export class GameRenderer {
   private readonly pipeline: RenderPipeline;
   private readonly plane = makePlane();
   private readonly storm: StormView;
+  private readonly combatCamera = new CombatCamera();
   private stormAmount = 0;
   private stormPulse = 0;
+  private lowHealth = 0;
   private effectsMatch = '';
   private readonly propellers = this.plane.children.filter(child => child.name === 'propeller');
   private readonly sun: THREE.DirectionalLight;
-  private readonly sunOffset = new THREE.Vector3(-70, 32, -30);
+  private readonly sunOffset = SUN_DIRECTION.clone().multiplyScalar(Math.hypot(70, 32, 30));
   private readonly shadowDirection = this.sunOffset.clone().normalize();
   private readonly shadowRight = new THREE.Vector3(0, 1, 0).cross(this.shadowDirection).normalize();
   private readonly shadowUp = this.shadowDirection.clone().cross(this.shadowRight);
@@ -72,12 +95,11 @@ export class GameRenderer {
   private lastFrame: RenderFrame | null = null;
   private lastSize = { width: 1, height: 1 };
   private frameStats = { drawCalls: 0, triangles: 0 };
-  private resolutionScale = 1;
   private lastDeviceRatio = 0;
-  private frameInterval = 16.7;
   private lastUpdateAt = 0;
-  private slowFor = 0;
-  private fastFor = 0;
+  private lastCpuMs = 0;
+  private readonly dynamicResolution: DynamicResolution;
+  private outputRatio = 0;
   private warming: Promise<void> | null = null;
   private preparation: Promise<void> = Promise.resolve();
   private disposed = false;
@@ -89,7 +111,7 @@ export class GameRenderer {
     this.litRooms = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
       .map(object => ({ ...object.pos, y: object.pos.y - (object.kind === 'roof' ? 3.1 : 0),
         w: object.scale.x, d: object.scale.z, h: 3.1 }));
-    for (const piece of world.pieces ?? []) if (['house_small', 'house_tall', 'church', 'market_hall'].includes(piece.piece)) {
+    for (const piece of world.pieces ?? []) if (['house_small', 'house_tall', 'house_laje', 'house_laje_b', 'house_varanda', 'sobrado', 'church', 'church_hill', 'market_hall'].includes(piece.piece)) {
       const definition = KIT_PIECES[piece.piece], footprint = definition.footprint, scale = piece.scale ?? 1;
       const c = Math.abs(Math.cos(piece.yaw)), s = Math.abs(Math.sin(piece.yaw));
       const room = { x: piece.x, y: piece.y, z: piece.z, h: 3.1 * scale,
@@ -103,18 +125,20 @@ export class GameRenderer {
     }
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
-    this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
-    instrumentGpu(this.gl);
-    const weaponManifest: readonly AssetEntry[] = paintedWeaponsEnabled() ? [
-      ...ASSET_MANIFEST.filter(asset => !asset.path.startsWith('models/service-pistol/') && !asset.path.startsWith('models/m700/')),
-      { path: 'models/weapons/painted-weapons.glb', kind: 'glb', bytes: weaponMetrics.bytes, label: 'Armas da ilha' },
-    ] : ASSET_MANIFEST;
+    this.gl = new THREE.WebGLRenderer({ canvas, context: createContext(canvas), antialias: false, powerPreference: 'high-performance', alpha: false });
+    instrumentGpu(this.gl); gpuPasses.attach(this.gl); gpuFrameTimer.attach(this.gl);
+    const weaponManifest: readonly AssetEntry[] = [
+      ...ASSET_MANIFEST,
+      ...fpManifest(),
+    ];
     const manifest: readonly AssetEntry[] = [...weaponManifest, ...(world.pieces?.length ? [{
       path: KIT_ASSET_PATH, kind: 'glb' as const, bytes: kitMetrics.bytes, label: 'Casas e caminhos da ilha',
     }] : []), {
-      path: 'models/capybara/capybara.glb', kind: 'glb', bytes: capybaraMetrics.bytes, label: 'Capivara',
+      ...capybaraAssetEntry(settings?.graphics), kind: 'glb', label: 'Capivara',
     }, {
       path: SUPPLY_ASSET_PATH, kind: 'glb', bytes: supplyMetrics.bytes, label: 'Entrega do Tucano',
+    }, {
+      path: 'models/capybara/statue.glb', kind: 'glb', bytes: capybaraMetrics.statueBytes ?? 0, label: 'Capivara Redentora',
     }];
     this.assets = new AssetLoader(this.gl, this.onProgress, manifest);
     this.sky = new PaintedSky(this.assets);
@@ -133,15 +157,18 @@ export class GameRenderer {
     this.scene.add(this.sky.group); pmrem.dispose();
     this.weaponView.scene.environment = this.environment.texture;
     this.weaponView.scene.environmentIntensity = .35;
+    // Held and ground weapons share the same sky reflection as their FP model.
+    worldWeaponMaterial().envMap = this.environment.texture;
+    worldWeaponMaterial().envMapIntensity = .35;
     this.scene.background = new THREE.Color(PAINT.fog);
-    this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
-    this.camera = new THREE.PerspectiveCamera(settings.fov, 1, .07, 850);
+    this.scene.fog = new THREE.Fog(PAINT.fog, FOG_NEAR, FOG_FAR);
+    this.camera = new THREE.PerspectiveCamera(verticalFov(settings.fov), 1, .07, 850);
     this.camera.rotation.order = 'YXZ';
     this.avatars = new AvatarView(this.scene, this.camera, world);
     this.cameraRig = new CameraRig(this.camera, world, settings, this.avatars);
-    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, .88));
+    this.scene.add(new THREE.HemisphereLight(PAINT.hemisphereSky, PAINT.hemisphereGround, 1.15));
     this.scene.add(this.interiorLight);
-    this.sun = new THREE.DirectionalLight(PAINT.sun, 3.5); this.sun.position.set(-70, 32, -30);
+    this.sun = new THREE.DirectionalLight(PAINT.sun, 3.2); this.sun.position.copy(this.sunOffset);
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 1; this.sun.shadow.camera.far = 170;
     this.sun.shadow.bias = -.00035; this.sun.shadow.normalBias = .12;
@@ -158,15 +185,16 @@ export class GameRenderer {
     this.effectsFrame = { camera: this.camera, fpCamera: this.weaponView.camera, avatars: this.avatars,
       firstPerson: false, viewportHeight: 1, reducedMotion: settings.reducedMotion };
     this.pipeline = new RenderPipeline(this.gl, PRESETS[settings.graphics].samples);
+    this.dynamicResolution = new DynamicResolution(renderRange(settings.graphics, settings.renderScale ?? 'auto', window.devicePixelRatio || 1));
     this.applyPreset(settings);
     this.resize();
   }
 
   private applyPreset(settings: Settings) {
     const preset = PRESETS[settings.graphics];
-    this.applyPixelRatio();
     this.pipeline.setSamples(preset.samples);
     this.pipeline.setQuality(preset);
+    this.applyResolution(true);
     this.gl.shadowMap.enabled = preset.shadows; this.sun.castShadow = preset.shadows;
     this.interiorLight.visible = preset.interior;
     const reach = preset.shadowReach || 30, shadow = this.sun.shadow.camera;
@@ -180,44 +208,64 @@ export class GameRenderer {
     shadow.left = -reach; shadow.right = reach; shadow.top = reach; shadow.bottom = -reach; shadow.updateProjectionMatrix();
   }
 
-  private applyPixelRatio() {
-    const ratio = Math.min(window.devicePixelRatio || 1, PRESETS[this.settings.graphics].dpr) * this.resolutionScale;
-    if (Math.abs(this.gl.getPixelRatio() - ratio) > .01) {
+  // The canvas holds the screen's resolution (or the render ceiling, see outputDensity); the 3D
+  // targets are allocated once at the density ceiling and drawn through a viewport at the current
+  // density, so the dynamic resolution never reallocates anything (each change used to stall 80 to 230 ms).
+  private applyResolution(reset: boolean) {
+    const deviceRatio = window.devicePixelRatio || 1, { width, height } = this.lastSize;
+    const range = renderRange(this.settings.graphics, this.settings.renderScale ?? 'auto', deviceRatio);
+    if (reset) this.dynamicResolution.reset(range);
+    const output = outputDensity(this.settings.graphics, range, deviceRatio);
+    if (output !== this.outputRatio || reset) {
       const resizeAt = timing.begin();
-      this.gl.setPixelRatio(ratio); this.pipeline.resize();
+      this.outputRatio = output; this.gl.setDrawingBufferSize(width, height, output);
       timing.end('resolution-change', resizeAt, '', true);
     }
+    const canvas = this.gl.domElement, ceiling = renderSize(width, height, range.max), now = renderSize(width, height, this.dynamicResolution.density);
+    this.pipeline.setSize({ outputWidth: canvas.width, outputHeight: canvas.height,
+      allocWidth: ceiling.width + GUARD, allocHeight: ceiling.height + GUARD, width: now.width, height: now.height });
   }
 
-  // Only sustained misses reduce resolution. A tight floor preserves small
-  // details and readable silhouettes on Retina displays; isolated stalls do not.
-  private adaptResolution() {
-    const now = performance.now(), interval = now - this.lastUpdateAt; this.lastUpdateAt = now;
-    const budget = 1000 / (this.settings.frameLimit || 60);
-    if (interval <= 0 || interval > budget * 2.6) return;
-    this.frameInterval += (interval - this.frameInterval) * .08;
-    if (this.frameInterval > budget * 1.18) { this.slowFor += interval; this.fastFor = 0; }
-    else if (this.frameInterval < budget * 1.04) { this.fastFor += interval; this.slowFor = 0; }
-    else { this.slowFor = 0; this.fastFor = 0; }
-    if (this.slowFor > 3500 && this.resolutionScale > .85) { this.resolutionScale = Math.max(.85, this.resolutionScale - .05); this.slowFor = 0; this.applyPixelRatio(); }
-    else if (this.fastFor > 4000 && this.resolutionScale < 1) { this.resolutionScale = Math.min(1, this.resolutionScale + .05); this.fastFor = 0; this.applyPixelRatio(); }
+  /** Even the lowest automatic density cannot hold the frame rate (see DynamicResolution.overloaded). */
+  get overloaded() { return this.dynamicResolution.overloaded; }
+  /** The automatic density ceiling (render pixels per CSS pixel) of the current preset and screen. */
+  get densityCeiling() { return this.dynamicResolution.ceiling; }
+  /** Diagnostics: the dynamic resolution's smoothed GPU frame time. */
+  get gpuEstimate() { return this.dynamicResolution.gpuEstimate; }
+  /** Render pixels per CSS pixel this frame (the dynamic resolution's current density). */
+  get renderDensity() { return this.dynamicResolution.density; }
+
+  // Only sustained misses change the resolution (see DynamicResolution); isolated stalls do not.
+  // The display's own frame times decide: a frame the compositor showed a refresh late can follow
+  // render calls that were evenly spaced on the main thread (High on the M2: 5 to 9 misses a second
+  // in requestAnimationFrame timestamps, 0 to 2 between render calls).
+  private adaptResolution(budgetMs: number, displayIntervalMs?: number) {
+    const now = performance.now(), interval = displayIntervalMs ?? now - this.lastUpdateAt; this.lastUpdateAt = now;
+    if (!this.dynamicResolution.update({ intervalMs: interval, budgetMs, cpuMs: this.lastCpuMs, gpuMs: gpuFrameTimer.take() })) return;
+    const size = renderSize(this.lastSize.width, this.lastSize.height, this.dynamicResolution.density);
+    this.pipeline.setRenderSize(size.width, size.height);
   }
 
   update(frame: PresentationFrame, draw = true): void {
     if (this.disposed) return;
+    const startedAt = performance.now();
     if (this.lastDeviceRatio !== (window.devicePixelRatio || 1) || this.lastSize.width !== window.innerWidth || this.lastSize.height !== window.innerHeight) this.resize();
-    if (draw) this.adaptResolution();
+    if (draw) this.adaptResolution(frame.frameBudgetMs ?? 1000 / (this.settings.frameLimit || 60), frame.frameIntervalMs);
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
     // A new match starts with no marks, shells or effects from the previous one.
     if (frame.snapshot && frame.snapshot.matchId !== this.effectsMatch) { this.effectsMatch = frame.snapshot.matchId; this.effects.clear(); this.cameraRig.clearDeathCam(); this.worldView.resetRecreation(); }
     this.cameraRig.updatePlanePath(frame.snapshot, dt, this.elapsed);
+    const avatarsAt = timing.begin();
     this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed, this.settings.reducedMotion);
+    timing.end('avatars', avatarsAt);
     const cameraAt = timing.begin();
     this.cameraRig.update(frame, this.settings, this.elapsed, this.weaponView.adsAmount);
-    this.worldView.update(this.elapsed, this.camera, frame.snapshot?.actors, frame.localActor);
-    this.ambientLife.update(this.camera, this.elapsed, this.settings, this.gl.getPixelRatio());
     timing.end('camera', cameraAt);
+    const worldAt = timing.begin();
+    this.worldView.update(this.elapsed, this.camera, frame.snapshot?.actors, frame.localActor);
+    this.ambientLife.update(this.camera, this.elapsed, this.settings, this.dynamicResolution.density);
+    timing.end('world-update', worldAt);
     this.loot.update(frame.snapshot, this.elapsed, this.camera);
     this.supplyDrops.update(frame.snapshot, frame.simulationTime ?? frame.snapshot?.time ?? 0, this.camera, this.settings);
     let room: typeof this.litRooms[number] | undefined;
@@ -231,17 +279,29 @@ export class GameRenderer {
     this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? 9 : 0, 7, dt);
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
+    const weaponAt = timing.begin();
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0, this.camera.quaternion);
+    timing.end('weapon-view', weaponAt);
     this.weaponView.cameraFeedback(this.camera, this.settings.reducedMotion);
+    // Combat feedback rides the local first-person view only (never the death cam or a spectated view).
+    const ownView = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !this.cameraRig.deathCamActive);
+    if (ownView) this.combatCamera.apply(this.camera, dt, (this.settings.cameraShake ?? 1) * (this.settings.reducedMotion ? .25 : 1));
+    else this.combatCamera.clear();
     const held = viewed?.weapons[viewed.slot]?.id;
-    const scoped = viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr');
+    // The scope takes over only once the gun has been raised to the eye.
+    const scoped = this.scoped = !!(viewed?.ads && !viewed.sprint && viewed.reloadUntil <= (snapshot?.time || 0) && (held === 'sniper' || held === 'dmr')
+      && (viewed.id !== frame.playerId || this.weaponView.adsAmount > .8));
     const emoting = viewed?.emote && viewed.emoteUntil > (frame.simulationTime ?? snapshot?.time ?? 0);
     const firstPerson = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !scoped && !emoting && this.cameraRig.cameraBlend < .35);
     this.effectsFrame.firstPerson = firstPerson;
     this.effectsFrame.viewportHeight = this.lastSize.height;
     this.effectsFrame.reducedMotion = this.settings.reducedMotion;
     this.effectsFrame.lowQuality = this.settings.graphics === 'low';
+    this.effectsFrame.quality = this.settings.graphics;
+    this.effectsFrame.zone = frame.playing && snapshot?.config.mode === 'battle-royale' ? snapshot.zone : null;
+    const effectsAt = timing.begin();
     this.effects.update(dt, this.effectsFrame, snapshot?.actors, frame.simulationTime ?? snapshot?.time ?? 0, frame.localActor);
+    timing.end('effects', effectsAt);
     if (snapshot) {
       const zone = snapshot.zone;
       this.worldView.arenaBoundary.visible = isArenaMode(snapshot.config.mode);
@@ -257,13 +317,17 @@ export class GameRenderer {
       for (const propeller of this.propellers) propeller.rotation.z += dt * 34;
     } else { this.storm.update(ZONE_NONE, this.camera, this.elapsed, false); this.stormAmount = 0; this.plane.visible = false; this.worldView.arenaBoundary.visible = false; }
     this.stormPulse = Math.max(0, this.stormPulse - dt / .45);
-    this.pipeline.setScreenFeedback(this.stormAmount, this.settings.reducedMotion ? this.stormPulse * .5 : this.stormPulse);
+    // Under 30 HP the world greys toward the edges, strongest near zero; the heartbeat and HUD warn alongside.
+    const low = viewed?.alive && viewed.stage === 'ground' ? THREE.MathUtils.clamp((30 - viewed.hp) / 30, 0, 1) : 0;
+    this.lowHealth = damp(this.lowHealth, low > 0 ? .45 + .55 * low : 0, 4, dt);
+    this.pipeline.setScreenFeedback(this.stormAmount, this.settings.reducedMotion ? this.stormPulse * .5 : this.stormPulse, this.lowHealth);
     // Thin the haze with altitude so the island stays readable from the plane.
+    // At street level the first 40 m are clear: duels and name reads happen there.
     if (this.scene.fog instanceof THREE.Fog) {
-      const altitude = THREE.MathUtils.smoothstep(this.camera.position.y, 15, 110), far = 460;
-      this.scene.fog.near = 110 * (1 + altitude); this.scene.fog.far = far * (1 + .35 * altitude);
+      const altitude = THREE.MathUtils.smoothstep(this.camera.position.y, 15, 110);
+      this.scene.fog.near = FOG_NEAR * (1 + 2 * altitude); this.scene.fog.far = FOG_FAR * (1 + .35 * altitude);
     }
-    if (this.settings.graphics !== 'low') {
+    if (PRESETS[this.settings.graphics].shadows) {
       // Snap in light space so camera movement does not slide the shadow texels.
       const texel = 2 * PRESETS[this.settings.graphics].shadowReach / this.sun.shadow.mapSize.x;
       this.shadowAnchor.set(this.camera.position.x, 0, this.camera.position.z);
@@ -284,6 +348,7 @@ export class GameRenderer {
       firstPerson ? this.weaponView.scene : undefined, firstPerson ? this.weaponView.camera : undefined);
     timing.end('world-draw', drawAt);
     if (timing.enabled && (this.gl.info.programs?.length ?? 0) > programs) timing.record('shader-program-created', drawAt, 0, 'frame', true);
+    this.lastCpuMs = performance.now() - startedAt;
   }
 
   private hasPlanePassengers(snapshot: NonNullable<RenderFrame['snapshot']>) {
@@ -292,6 +357,13 @@ export class GameRenderer {
   }
 
   inspectWeapon(): void { this.weaponView.inspect(); }
+  /** How far the local first-person gun is raised to the sights (0 to 1). */
+  get adsAmount() { return this.weaponView.adsAmount; }
+  /** The viewed player holds a scoped gun (DMR or sniper): scope sensitivity applies. */
+  get scopeHeld() { const held = this.cameraRig.lastActor?.weapons[this.cameraRig.lastActor.slot]?.id; return held === 'dmr' || held === 'sniper'; }
+  /** A host shot this client already predicted: only its confirmed hit is paired. */
+  confirmShot(event: Extract<GameEvent, { type: 'shot' }>): void { this.effects.confirmShot(event); }
+  set onFoley(callback: (cue: string) => void) { this.weaponView.onFoley = callback; }
 
   event(event: GameEvent): void {
     const frame = this.lastFrame, viewed = frame?.spectateId || frame?.playerId;
@@ -303,10 +375,25 @@ export class GameRenderer {
       if (me) this.cameraRig.startDeathCam({ victimEye: { x: me.pos.x, y: me.pos.y + actorEye(me), z: me.pos.z }, killerId: event.actor,
         killerPos: event.from || null, duration: DEATH_CAM_SECONDS });
     }
+    if (frame && !frame.spectateId) this.combatFeedback(event, frame);
     if (event.type === 'respawn') this.avatars.respawn(event.actor);
     if (event.type === 'bounce') { this.worldView.bounce(event.pos); this.avatars.bounce(event.actor); }
     this.effects.event(event, this.avatars, this.weaponView, frame?.playerId, frame?.snapshot || null);
   }
+
+  private combatFeedback(event: GameEvent, frame: PresentationFrame) {
+    const me = frame.playerId;
+    if (event.type === 'shot' && event.actor === me && event.weapon !== 'machete') this.combatCamera.shot(event.weapon, this.weaponView.adsAmount);
+    else if (event.type === 'damage' && event.target === me) {
+      const from = event.actor ? frame.snapshot?.actors.find(actor => actor.id === event.actor)?.pos : undefined;
+      // Yaw turns the view left as it grows, so the attacker's bearing to the right is view yaw minus its yaw.
+      const toward = from && Math.atan2(-(from.x - this.camera.position.x), -(from.z - this.camera.position.z));
+      const bearing = toward === undefined ? null : Math.atan2(Math.sin(frame.input.yaw - toward), Math.cos(frame.input.yaw - toward));
+      this.combatCamera.hurt(event.amount, bearing);
+    } else if (event.type === 'kill' && event.actor === me && event.target !== me) this.combatCamera.kill();
+    else if (event.type === 'impact' && event.weapon === 'coco') this.combatCamera.blast(this.camera.position.distanceTo(this.scratch.set(event.pos.x, event.pos.y, event.pos.z)));
+  }
+  private readonly scratch = new THREE.Vector3();
 
   // Asset failures keep the loading screen from promising a ready match.
   // There is no timeout that silently defers work until landing or a weapon swap.
@@ -320,7 +407,7 @@ export class GameRenderer {
       this.requireActive();
       await this.weaponView.assets;
       this.requireActive();
-      await preloadCapybaraAsset(url => this.assets.gltf(url));
+      await preloadCapybaraAsset(url => this.assets.gltf(url), this.settings?.graphics);
       await preloadNameplateFont();
       this.requireActive();
       await this.worldView.ready;
@@ -386,10 +473,11 @@ export class GameRenderer {
     };
     this.scene.add(this.avatars.warmupWeapons);
     this.effects.warm(true);
+    assignShadowDepth(this.scene);
     reveal(this.scene); this.weaponView.revealAll(true); reveal(this.weaponView.scene);
     this.assets.prepareTextures(this.scene); this.assets.prepareTextures(this.weaponView.scene);
     instrumentMaterials(this.scene); instrumentMaterials(this.weaponView.scene);
-    const shadows = this.gl.shadowMap.enabled;
+    const shadows = this.gl.shadowMap.enabled, size = { ...this.pipeline.size };
     try {
       this.pipeline.beginWarmup();
       this.scene.traverse(object => {
@@ -430,7 +518,7 @@ export class GameRenderer {
       for (const { shadow, size, map } of shadowMaps) {
         shadow.map?.dispose(); shadow.map = map; shadow.mapSize.copy(size);
       }
-      if (!this.disposed) this.pipeline.resize();
+      if (!this.disposed) this.pipeline.setSize(size);
       this.weaponView.revealAll(false);
       this.effects.warm(false);
       target.dispose(); this.scene.remove(this.avatars.warmupWeapons);
@@ -450,23 +538,31 @@ export class GameRenderer {
     this.lastDeviceRatio = dpr;
     // Apply CSS extent and DPR together. Moving between displays must not
     // allocate the old extent at the new DPR, then allocate it all again.
-    this.gl.setDrawingBufferSize(width, height, Math.min(dpr, PRESETS[this.settings.graphics].dpr) * this.resolutionScale);
-    this.lastSize = { width, height }; this.pipeline.resize();
+    this.lastSize = { width, height }; this.applyResolution(true);
     this.camera.aspect = width / height; this.camera.updateProjectionMatrix(); this.weaponView.resize(width, height); this.avatars.resize(width, height);
   }
 
   setSettings(settings: Settings): void {
     this.settings = settings;
-    this.resolutionScale = 1; this.applyPreset(settings);
+    this.applyPreset(settings);
     this.worldView.setSettings(settings);
-    this.scene.fog = new THREE.Fog(PAINT.fog, 34, 285);
-    this.camera.fov = settings.fov; this.camera.updateProjectionMatrix(); this.resize();
+    this.scene.fog = new THREE.Fog(PAINT.fog, FOG_NEAR, FOG_FAR);
+    this.camera.fov = verticalFov(settings.fov); this.camera.updateProjectionMatrix(); this.resize();
   }
 
   // The spectate hand-off waits for the camera's own clock, which is clamped per frame.
   get deathCamActive() { return this.cameraRig.deathCamActive; }
 
   get stats() { return { ...this.frameStats }; }
+  /** Diagnostics: a world point in this frame's normalized device coordinates. */
+  project(point: Vec3): [number, number, number] { return new THREE.Vector3(point.x, point.y, point.z).project(this.camera).toArray(); }
+  /** Diagnostics for long sessions: live GPU resources and the scene's object count. */
+  get resources() { let objects = 0; this.scene.traverse(() => { objects++; }); return { ...this.gl.info.memory, programs: this.gl.info.programs?.length ?? 0, objects }; }
+  /** The scope overlay replaces the first-person gun this frame. */
+  scoped = false;
+  private readonly headingDir = new THREE.Vector3();
+  /** Compass heading of the view in degrees: 0 north (-z), 90 east (+x). */
+  get heading(): number { this.camera.getWorldDirection(this.headingDir); return Math.atan2(this.headingDir.x, -this.headingDir.z) * 180 / Math.PI; }
   get cameraPosition(): Vec3 { return { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z }; }
 
   dispose(): void {

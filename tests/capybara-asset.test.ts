@@ -1,49 +1,58 @@
+import { STANDING_HIT_SHAPE } from '../src/shared/collision';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { NodeIO, type Document } from '@gltf-transform/core';
-import { ALL_EXTENSIONS, type Specular } from '@gltf-transform/extensions';
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { AnimationMixer, Matrix4, SkinnedMesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { readFile } from 'node:fs/promises';
-import { inflateSync } from 'node:zlib';
 
 let asset: Document;
 beforeAll(async () => {
   asset = await new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder }).read('public/models/capybara/capybara.glb');
 });
 
+it('keeps Redentora a budgeted stone version of the current long-headed capybara', async () => {
+  const statue = await new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder }).read('public/models/capybara/statue.glb');
+  const root = statue.getRoot();
+  expect(root.listMeshes()).toHaveLength(1); expect(root.listMaterials()).toHaveLength(1);
+  expect(root.listTextures()).toHaveLength(0); expect(root.listSkins()).toHaveLength(0);
+  const node = root.listNodes().find(node => node.getMesh())!;
+  expect(node.getExtras().characterSource).toBe('capybara_form.head + eyes + paw (v6)');
+  const primitive = node.getMesh()!.listPrimitives()[0], position = primitive.getAttribute('POSITION')!;
+  expect(primitive.getIndices()!.getCount() / 3).toBeLessThanOrEqual(10000);
+  const transform = new Matrix4().fromArray(node.getWorldMatrix());
+  const low = new Vector3(Infinity, Infinity, Infinity), high = low.clone().multiplyScalar(-1);
+  const headLow = low.clone(), headHigh = high.clone();
+  for (let i = 0; i < position.getCount(); i++) {
+    const p = new Vector3().fromArray(position.getElement(i, [])).applyMatrix4(transform);
+    low.min(p); high.max(p);
+    if (p.y > 1.5) { headLow.min(p); headHigh.max(p); }
+  }
+  // Same feet-origin placement and arms-wide landmark silhouette, with the player's
+  // long blunt muzzle and small high ears rather than the old square metaball head.
+  expect(low.y).toBeCloseTo(.0015, 2); expect(high.y).toBeGreaterThan(1.79); expect(high.y).toBeLessThan(1.9);
+  expect(high.x - low.x).toBeGreaterThan(1.9); expect(headLow.z).toBeLessThan(-.32);
+  expect(headHigh.x - headLow.x).toBeGreaterThan(.32); expect(headHigh.z - headLow.z).toBeGreaterThan(.48);
+});
+
 describe('shipped capybara asset contract', () => {
-  it('keeps specular alpha off fur and the mouth, with soft reflection only on eyes, nose and nails', () => {
-    const texture = asset.getRoot().listMaterials()[0].getExtension<Specular>('KHR_materials_specular')?.getSpecularTexture();
-    expect(texture).toBeDefined();
-    const png = Buffer.from(texture!.getImage()!);
-    const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
-    expect(width).toBe(64); expect(height).toBe(64);
-    expect(png[24]).toBe(8); expect(png[25]).toBe(6); // RGBA, not an RGB mask with implicit alpha 1.
-    const chunks: Buffer[] = [];
-    for (let at = 8; at < png.length;) {
-      const length = png.readUInt32BE(at);
-      if (png.toString('ascii', at + 4, at + 8) === 'IDAT') chunks.push(png.subarray(at + 8, at + 8 + length));
-      at += length + 12;
-    }
-    const data = inflateSync(Buffer.concat(chunks)), stride = width * 4, pixels = new Uint8Array(stride * height);
-    for (let y = 0; y < height; y++) {
-      const filter = data[y * (stride + 1)]; expect(filter).toBeLessThanOrEqual(4);
-      for (let x = 0; x < stride; x++) {
-        const left = x < 4 ? 0 : pixels[y * stride + x - 4];
-        const up = y ? pixels[(y - 1) * stride + x] : 0;
-        const corner = y && x >= 4 ? pixels[(y - 1) * stride + x - 4] : 0;
-        const prediction = left + up - corner, dl = Math.abs(prediction - left), du = Math.abs(prediction - up), dc = Math.abs(prediction - corner);
-        const paeth = dl <= du && dl <= dc ? left : du <= dc ? up : corner;
-        const add = filter === 1 ? left : filter === 2 ? up : filter === 3 ? Math.floor((left + up) / 2) : filter === 4 ? paeth : 0;
-        pixels[y * stride + x] = (data[y * (stride + 1) + 1 + x] + add) & 255;
+  it('marks only the scarf and the hip cloth for the team colour, on an otherwise untinted skin', () => {
+    for (const mesh of asset.getRoot().listMeshes()) {
+      const primitive = mesh.listPrimitives()[0];
+      const colors = primitive.getAttribute('COLOR_0')!, team = primitive.getAttribute('_TEAM')!, position = primitive.getAttribute('POSITION')!;
+      expect(colors, mesh.getName()).toBeTruthy(); expect(team, mesh.getName()).toBeTruthy();
+      let masked = 0;
+      for (let i = 0; i < colors.getCount(); i++) {
+        // Colour lives in the baked albedo; a non-white vertex colour would tint it.
+        const [r, g, b] = colors.getElement(i, [0, 0, 0, 0]) as number[];
+        expect(Math.min(r, g, b), `${mesh.getName()} vertex colour ${i}`).toBeGreaterThan(.99);
+        if (team.getScalar(i) > .5) masked++;
       }
-    }
-    for (let tile = 0; tile < 16; tile++) {
-      const x = (tile % 4) * 16 + 8, y = Math.floor(tile / 4) * 16 + 8;
-      const alpha = pixels[(y * width + x) * 4 + 3];
-      if (tile === 9 || tile === 15) { expect(alpha).toBeGreaterThan(30); expect(alpha).toBeLessThan(128); }
-      else expect(alpha, `matte atlas tile ${tile}`).toBe(0);
+      // A scarf and a rag, not a recoloured body: a small share of the character takes the team hue.
+      expect(masked / colors.getCount(), mesh.getName()).toBeGreaterThan(.005);
+      expect(masked / colors.getCount(), mesh.getName()).toBeLessThan(.20);
+      expect(position.getCount()).toBeGreaterThan(0);
     }
   });
 
@@ -54,57 +63,63 @@ describe('shipped capybara asset contract', () => {
       const mesh = root.listMeshes().find(mesh => mesh.getName() === `Capybara_LOD${i}`)!;
       expect(mesh).toBeDefined();
       const triangles = mesh.listPrimitives().reduce((n, p) => n + p.getIndices()!.getCount() / 3, 0);
-      expect(triangles).toBeLessThanOrEqual([20000, 5000, 1500][i]);
-      // A simplified UV outside the atlas wraps to a different painted material.
-      for (const primitive of mesh.listPrimitives()) {
-        const uv = primitive.getAttribute('TEXCOORD_0')!;
-        const staysInAtlas = Array.from({ length: uv.getCount() }, (_, index) => uv.getElement(index, [])).every(pair => pair.every(value => value >= 0 && value <= 1));
-        expect(staysInAtlas, `LOD${i} painted atlas boundaries`).toBe(true);
-      }
+      expect(triangles).toBeLessThanOrEqual([50000, 10000, 2500][i]);
     }
-    expect(root.listMaterials().length).toBeLessThanOrEqual(3);
+    expect(root.listMaterials().length).toBeLessThanOrEqual(1);
+    expect(root.listTextures()).toHaveLength(3);
+    const surface = root.listMaterials()[0];
+    expect(surface.getBaseColorTexture()).toBeTruthy();
+    expect(surface.getNormalTexture()).toBeTruthy();
+    expect(surface.getMetallicRoughnessTexture()).toBeTruthy();
+    expect(surface.getExtras().capyCharacterV6).toBe(true);
     expect(root.listSkins()).toHaveLength(1);
-    expect(root.listMaterials()[0].getNormalTexture()).toBeDefined();
-    expect(root.listMaterials()[0].getMetallicRoughnessTexture()).toBeDefined();
-    // Painted fur must survive export; losing COLOR_0 turns the white carrier atlas into white fur.
+    const joints = root.listSkins()[0].listJoints().map(joint => joint.getName());
+    for (const side of ['L', 'R']) {
+      const digits = joints.filter(name => /^paw_(index|middle|ring|thumb)[1-3]_/.test(name) && name.endsWith(side));
+      expect(digits).toHaveLength(12);
+    }
+    // The skin colour lives in the baked albedo; COLOR_0 must exist and stay white, since the
+    // material multiplies it (a missing stream would render the character black).
     const colors = root.listMeshes()[0].listPrimitives()[0].getAttribute('COLOR_0');
     expect(colors).toBeDefined();
-    expect(Array.from({ length: colors!.getCount() }, (_, i) => colors!.getElement(i, [])).some(rgb => rgb.some(value => value > 0 && value < 1))).toBe(true);
-    const png = root.listTextures()[0].getImage()!;
-    const header = new DataView(png.buffer, png.byteOffset, png.byteLength);
-    expect(header.getUint32(16)).toBeLessThanOrEqual(1024);
-    expect(header.getUint32(20)).toBeLessThanOrEqual(1024);
+    expect(Array.from({ length: colors!.getCount() }, (_, i) => colors!.getElement(i, [])).every(rgb => rgb.slice(0, 3).every(value => value > .99))).toBe(true);
     const bytes = await readFile('public/models/capybara/capybara.glb');
     const json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
     expect(json.extensionsRequired).toContain('EXT_meshopt_compression');
-    // Uniform specular turned the dark mouth into a bright rim. Keep the authored
-    // nose/eye mask in the shipped asset so fur and the cavity remain matte.
-    expect(json.materials[0].extensions?.KHR_materials_specular?.specularTexture).toBeDefined();
   });
 
-  it('fits the normal standing hit shapes in every decoded LOD, except weapon arms', () => {
+  // The gameplay contract is the head: it must sit inside the head hit sphere so a headshot lands
+  // where the head is drawn. Arms, paws, legs, pack and cloth follow the design sheet (broad
+  // shoulders, wide stance), inside a sane envelope and on the ground.
+  it('keeps the head inside the head hit sphere in every decoded LOD and the body on the ground', () => {
     for (const node of asset.getRoot().listNodes().filter(node => node.getMesh())) {
       const skin = node.getSkin()!, joints = skin.listJoints(), inverse = skin.getInverseBindMatrices()!;
       const transforms = joints.map((joint, i) => new Matrix4().fromArray(joint.getWorldMatrix()).multiply(new Matrix4().fromArray(inverse.getElement(i, []))));
       for (const primitive of node.getMesh()!.listPrimitives()) {
         const positions = primitive.getAttribute('POSITION')!, indices = primitive.getAttribute('JOINTS_0')!, weights = primitive.getAttribute('WEIGHTS_0')!;
-        let smoothlyWeighted = 0;
+        let smoothlyWeighted = 0, headVertices = 0;
         for (let i = 0; i < positions.getCount(); i++) {
           const ids = indices.getElement(i, []), w = weights.getElement(i, []), p = new Vector3();
-          let armWeight = 0, influences = 0;
+          let headWeight = 0, influences = 0;
           expect(w.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 2);
           for (let j = 0; j < 4; j++) if (w[j] > 0) {
             p.add(new Vector3().fromArray(positions.getElement(i, [])).applyMatrix4(transforms[ids[j]]).multiplyScalar(w[j]));
-            if (/arm|paw/.test(joints[ids[j]].getName())) armWeight += w[j];
+            if (/^(head|jaw|nose|ear_|blink_|socket_|glint_|brow_|mouth_)/.test(joints[ids[j]].getName())) headWeight += w[j];
             influences++;
           }
           if (influences > 1) smoothlyWeighted++;
-          if (armWeight > 0) continue;
-          const inHead = Math.hypot(p.x, p.y - 1.6, p.z + .04) <= .25;
-          const inBody = Math.hypot(p.x, p.z) <= .30 && p.y >= -.002 && p.y <= 1.42;
-          expect(inHead || inBody, `${node.getName()} vertex ${i}: ${p.toArray()}`).toBe(true);
+          const shape = STANDING_HIT_SHAPE;
+          if (headWeight > .5) {
+            headVertices++;
+            // One centimetre of slack for decimation rounding; shots use the analytic volume.
+            expect(Math.hypot(p.x, p.y - shape.headY, p.z - shape.headZ), `${node.getName()} head vertex ${i}: ${p.toArray()}`).toBeLessThanOrEqual(shape.headR + .012);
+          } else {
+            expect(p.y, `${node.getName()} vertex ${i} below the ground`).toBeGreaterThanOrEqual(-.002);
+            expect(Math.abs(p.x) < .8 && Math.abs(p.z) < .8 && p.y < 1.9, `${node.getName()} vertex ${i}: ${p.toArray()}`).toBe(true);
+          }
         }
         expect(smoothlyWeighted).toBeGreaterThan(20);
+        expect(headVertices).toBeGreaterThan(100);
       }
     }
   });
@@ -126,14 +141,14 @@ describe('shipped capybara asset contract', () => {
   });
 
   it('includes the complete directional and action clip contract without root travel', () => {
-    const names = ['walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'fall', 'land', 'reload_tp', 'death'];
+    const names = ['walk', 'strafe_l', 'strafe_r', 'backpedal', 'crouch_idle', 'crouch_walk', 'crouch_back', 'crouch_strafe_l', 'crouch_strafe_r', 'fall', 'land', 'reload_tp', 'death'];
     for (const name of names) {
       const clip = asset.getRoot().listAnimations().find(animation => animation.getName() === name);
       expect(clip, name).toBeDefined();
       if (name === 'crouch_idle') {
         // Meshopt removes redundant samples from the quiet breath. Check its
         // actual expansion instead of tying the contract to a sample count.
-        const breath = clip!.listChannels().find(c => c.getTargetNode()?.getName() === 'spine' && c.getTargetPath() === 'scale');
+        const breath = clip!.listChannels().find(c => c.getTargetNode()?.getName() === 'belly' && c.getTargetPath() === 'scale');
         expect(breath).toBeDefined();
         const values = breath!.getSampler()!.getOutput()!;
         const widths = Array.from({ length: values.getCount() }, (_, i) => values.getElement(i, [])[0]);
@@ -232,7 +247,7 @@ describe('shipped capybara asset contract', () => {
     gltf.scene.traverse(object => { if (object instanceof SkinnedMesh) meshes.push(object); });
     const mixer = new AnimationMixer(gltf.scene), vertex = new Vector3();
     const expressions = ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'];
-    for (const name of [...expressions.map(name => `face_${name}`), 'idle', 'run', 'jump']) {
+    for (const name of [...expressions.map(name => `face_${name}`), 'idle', 'walk', 'strafe_l', 'backpedal', 'run', 'jump']) {
       const clip = gltf.animations.find(clip => clip.name === name)!;
       expect(clip, name).toBeDefined();
       mixer.stopAllAction(); mixer.clipAction(clip).play();
@@ -246,17 +261,46 @@ describe('shipped capybara asset contract', () => {
             let headWeight = 0;
             for (let j = 0; j < 4; j++) {
               const joint = mesh.skeleton.bones[indices.getComponent(i, j)];
-              if (/^(head|jaw|ear_|blink_|socket_|glint_|brow_|mouth_)/.test(joint.name)) headWeight += weights.getComponent(i, j);
+              if (/^(head|jaw|nose|ear_|blink_|socket_|glint_|brow_|mouth_)/.test(joint.name)) headWeight += weights.getComponent(i, j);
             }
             if (headWeight < .5) continue;
             mesh.getVertexPosition(i, vertex); vertex.applyMatrix4(mesh.matrixWorld);
-            maximum = Math.max(maximum, Math.hypot(vertex.x, vertex.y - 1.6, vertex.z + .04));
+            maximum = Math.max(maximum, Math.hypot(vertex.x, vertex.y - STANDING_HIT_SHAPE.headY, vertex.z - STANDING_HIT_SHAPE.headZ));
           }
         }
       }
-      expect(maximum, name).toBeLessThanOrEqual(.25);
+      expect(maximum, name).toBeLessThanOrEqual(STANDING_HIT_SHAPE.headR + .012);
     }
     mixer.stopAllAction(); mixer.uncacheRoot(gltf.scene);
   });
 
+});
+
+// Shots at a crouched capybara use the standing shapes scaled by 1.3 / 1.8 about the feet, so
+// the visible crouched head must sit where that smaller head sphere is.
+it('crouches its head into the crouched head volume', async () => {
+  const bytes = await readFile('public/models/capybara/capybara.glb');
+  vi.stubGlobal('self', globalThis);
+  vi.stubGlobal('createImageBitmap', async () => ({ width: 16, height: 16, close() {} }));
+  let gltf;
+  try {
+    gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+  } finally { vi.unstubAllGlobals(); }
+  gltf.scene.updateMatrixWorld(true);
+  const head = gltf.scene.getObjectByName('head')!;
+  const shape = STANDING_HIT_SHAPE, k = 1.3 / 1.8;
+  // The standing head centre, carried by the head bone.
+  const local = head.worldToLocal(new Vector3(0, shape.headY, shape.headZ));
+  const mixer = new AnimationMixer(gltf.scene);
+  for (const name of ['crouch_idle', 'crouch_walk', 'crouch_back', 'crouch_strafe_l', 'crouch_strafe_r']) {
+    const clip = gltf.animations.find(clip => clip.name === name)!;
+    mixer.stopAllAction(); mixer.clipAction(clip).play();
+    for (let sample = 0; sample < 6; sample++) {
+      mixer.setTime(clip.duration * sample / 6); gltf.scene.updateMatrixWorld(true);
+      const centre = head.localToWorld(local.clone());
+      const target = new Vector3(0, shape.headY * k, shape.headZ * k);
+      expect(centre.distanceTo(target), `${name} ${sample}`).toBeLessThan(shape.headR * k * .4);
+    }
+  }
+  mixer.stopAllAction(); mixer.uncacheRoot(gltf.scene);
 });
