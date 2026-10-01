@@ -1,0 +1,283 @@
+{
+ "note": "Event Timing (input timestamp to the presentation of the next frame after the handler, 8 ms granularity) for trusted mouse presses dispatched through CDP during a live practice Correria with bots, Medium, 1470x956 at deviceScaleFactor 2, headless Chrome with ANGLE Metal. The shot is predicted in the press handler, so its muzzle flash is in that frame.",
+ "runs": [
+  {
+   "run": "before",
+   "note": "14:26, final pair",
+   "quality": "medium",
+   "query": "",
+   "headless": true,
+   "attributes": {
+    "alpha": true,
+    "desynchronized": false
+   },
+   "presses": 94,
+   "fps": 45.7,
+   "density": null,
+   "toNextPaint": {
+    "p50": 96,
+    "p90": 112,
+    "mean": 96.8
+   },
+   "inputDelay": {
+    "p50": 0.7,
+    "p90": 8.3
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 92.1,
+    "p90": 111.9
+   },
+   "load": 6.7
+  },
+  {
+   "run": "after (final build, opaque context)",
+   "note": "14:27, final pair",
+   "quality": "medium",
+   "query": "",
+   "headless": true,
+   "attributes": {
+    "alpha": false,
+    "desynchronized": false
+   },
+   "presses": 97,
+   "fps": 59.8,
+   "density": 1.25,
+   "toNextPaint": {
+    "p50": 24,
+    "p90": 32,
+    "mean": 25.6
+   },
+   "inputDelay": {
+    "p50": 0.3,
+    "p90": 2.8
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 23.8,
+    "p90": 31.5
+   },
+   "load": 6
+  },
+  {
+   "run": "before",
+   "note": "11:29, calm pair with the v2 controller",
+   "quality": "medium",
+   "query": "",
+   "headless": true,
+   "attributes": {
+    "alpha": true,
+    "desynchronized": false
+   },
+   "presses": 97,
+   "fps": 44.4,
+   "density": null,
+   "toNextPaint": {
+    "p50": 96,
+    "p90": 120,
+    "mean": 102.5
+   },
+   "inputDelay": {
+    "p50": 0.4,
+    "p90": 5.7
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 95.7,
+    "p90": 115.3
+   },
+   "load": 8.5
+  },
+  {
+   "run": "after, opaque context (v2 controller, density 0.6)",
+   "note": "11:30",
+   "quality": "medium",
+   "query": "",
+   "headless": true,
+   "attributes": {
+    "alpha": false,
+    "desynchronized": false
+   },
+   "presses": 97,
+   "fps": 59.4,
+   "density": 0.6,
+   "toNextPaint": {
+    "p50": 24,
+    "p90": 32,
+    "mean": 29
+   },
+   "inputDelay": {
+    "p50": 0.4,
+    "p90": 3.2
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 23.8,
+    "p90": 31.6
+   },
+   "load": 6.6
+  },
+  {
+   "run": "after, three.js default context (alpha)",
+   "note": "11:31",
+   "quality": "medium",
+   "query": "&ctx=three",
+   "headless": true,
+   "attributes": {
+    "alpha": true,
+    "desynchronized": false
+   },
+   "presses": 90,
+   "fps": 53.8,
+   "density": 0.6,
+   "toNextPaint": {
+    "p50": 40,
+    "p90": 80,
+    "mean": 50.2
+   },
+   "inputDelay": {
+    "p50": 1.6,
+    "p90": 12.7
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 39.5,
+    "p90": 47.7
+   },
+   "load": 10.2
+  },
+  {
+   "run": "after-medium&ctx=desync",
+   "quality": "medium",
+   "query": "&ctx=desync",
+   "headless": true,
+   "attributes": {
+    "alpha": false,
+    "desynchronized": false
+   },
+   "presses": 96,
+   "fps": 59.3,
+   "density": 0.6,
+   "toNextPaint": {
+    "p50": 40,
+    "p90": 56,
+    "mean": 42.6
+   },
+   "inputDelay": {
+    "p50": 0.9,
+    "p90": 6.4
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 39.7,
+    "p90": 49.1
+   },
+   "load": 16.29541015625,
+   "note": "09:40 to 09:45, contended by another WebGL page"
+  },
+  {
+   "run": "after-medium&ctx=three",
+   "quality": "medium",
+   "query": "&ctx=three",
+   "headless": true,
+   "attributes": {
+    "alpha": true,
+    "desynchronized": false
+   },
+   "presses": 94,
+   "fps": 59.2,
+   "density": 0.6,
+   "toNextPaint": {
+    "p50": 40,
+    "p90": 72,
+    "mean": 49.6
+   },
+   "inputDelay": {
+    "p50": 0.7,
+    "p90": 5.5
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 39.8,
+    "p90": 71.6
+   },
+   "load": 10.78857421875,
+   "note": "09:40 to 09:45, contended by another WebGL page"
+  },
+  {
+   "run": "after-medium",
+   "quality": "medium",
+   "query": "",
+   "headless": true,
+   "attributes": {
+    "alpha": false,
+    "desynchronized": false
+   },
+   "presses": 91,
+   "fps": 58.4,
+   "density": 0.6,
+   "toNextPaint": {
+    "p50": 40,
+    "p90": 48,
+    "mean": 40.6
+   },
+   "inputDelay": {
+    "p50": 1,
+    "p90": 9
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 39,
+    "p90": 43.3
+   },
+   "load": 16.685546875,
+   "note": "09:40 to 09:45, contended by another WebGL page"
+  },
+  {
+   "run": "before-medium",
+   "quality": "medium",
+   "query": "",
+   "headless": true,
+   "attributes": {
+    "alpha": true,
+    "desynchronized": false
+   },
+   "presses": 97,
+   "fps": 16.3,
+   "toNextPaint": {
+    "p50": 280,
+    "p90": 304,
+    "mean": 276.5
+   },
+   "inputDelay": {
+    "p50": 0.4,
+    "p90": 2.7
+   },
+   "handler": {
+    "p50": 0.1
+   },
+   "afterHandler": {
+    "p50": 277.3,
+    "p90": 303.7
+   },
+   "load": 9.681640625,
+   "note": "09:40 to 09:45, contended by another WebGL page"
+  }
+ ]
+}
