@@ -26,7 +26,7 @@ const standard = (species) => {
     [`${species}-under`]: { plants: one, camera: [.9, 1.62, .6, 0, h * .9, 0, 85] },
   };
 };
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 page.on('console', m => { if (m.type() === 'error') console.error('console.error', m.text().slice(0, 300)); });

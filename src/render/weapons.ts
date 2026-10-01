@@ -262,6 +262,11 @@ export class WeaponView {
   ejectWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].eject.getWorldPosition(target); }
 
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number, viewRotation?: THREE.Quaternion) {
+    if (import.meta.env.DEV && actor) {
+      // QA motion review: window.__vmActor(actor, time) returns state overrides (walk, strafe, crouch, jump).
+      const patch = (globalThis as { __vmActor?: (actor: ActorState, time: number) => Partial<ActorState> | undefined }).__vmActor?.(actor, simulationTime);
+      if (patch) actor = { ...actor, ...patch };
+    }
     if (viewRotation) {
       this.inverseView.copy(viewRotation).invert();
       this.key.position.copy(SUN_DIRECTION).multiplyScalar(80).applyQuaternion(this.inverseView);

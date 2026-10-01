@@ -20,7 +20,7 @@ for (const shot of parsed) {
   if (!groups.has(key)) groups.set(key, []);
   groups.get(key).push(shot);
 }
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: Number(process.env.W || 960), height: Number(process.env.H || 720) } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 for (const [key, shots] of groups) {

@@ -12,7 +12,7 @@ const scales = (process.env.SCALES || '0.8,1,1.2').split(',').map(Number);
 const poses = (process.env.POSES || 'hud-full,hud-watch,hud-corrente').split(',');
 // Plates that may never touch each other or the window edge.
 const PLATES = ['topL', 'ladder', 'compass', 'safe', 'hOut', 'mapWrap', 'feed', 'matchMoment', 'banner', 'deathCard', 'specBar', 'prompt', 'use', 'alt', 'vitals', 'stance', 'consbar', 'hotbar', 'wpnbox', 'coach', 'killConfirm', 'storm'];
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const faults = [];
 try {
   for (const scale of scales) {

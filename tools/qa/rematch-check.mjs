@@ -8,7 +8,7 @@ const [out, mode = 'corrente'] = process.argv.slice(2);
 if (!out) throw new Error('Give a worktree-local output directory.');
 mkdirSync(out, { recursive: true });
 const PLATES = ['compass', 'mapWrap', 'topL', 'vitals', 'hotbar', 'wpnbox'];
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', e => { console.error('pageerror', e.message); process.exitCode = 1; });

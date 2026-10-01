@@ -20,7 +20,7 @@ function states(w) {
   if (w === 'shotgun') s.push(...range(2.4).map(t => ['reload-chain', t]));
   return s;
 }
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const report = {};
 try {
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
