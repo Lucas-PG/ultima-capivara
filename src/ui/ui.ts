@@ -101,6 +101,7 @@ export class GameUI {
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;
   private lastCounts: Partial<Record<ConsumableId, number>> | null = null;
+  private bagSlots: HTMLElement[] = [];
   private armorBrokeUntil = 0;
   private lastPrey: { name: string; color: string } | null = null;
   private thumbs: Map<WeaponId, string> | null = null;
@@ -464,7 +465,8 @@ export class GameUI {
     const gained = me.alive ? healGains(this.lastCounts, counts) : [];
     this.lastCounts = { ...counts };
     let carried = 0;
-    this.root.querySelectorAll<HTMLElement>('#consbar .cs').forEach(slot => {
+    if (!this.bagSlots[0]?.isConnected) this.bagSlots = [...this.root.querySelectorAll<HTMLElement>('#consbar .cs')];
+    this.bagSlots.forEach(slot => {
       const id = slot.dataset.k as ConsumableId, count = counts[id] || 0;
       this.textOf(slot.querySelector('b')!, count); if (slot.hidden !== count <= 0) slot.hidden = count <= 0;
       this.toggle(slot, 'use', me.using === id); this.toggle(slot, 'pick', suggested === id); this.toggle(slot, 'urgent', suggested === id && low);
