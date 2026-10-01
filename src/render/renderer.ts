@@ -236,8 +236,11 @@ export class GameRenderer {
   get renderDensity() { return this.dynamicResolution.density; }
 
   // Only sustained misses change the resolution (see DynamicResolution); isolated stalls do not.
-  private adaptResolution(budgetMs: number) {
-    const now = performance.now(), interval = now - this.lastUpdateAt; this.lastUpdateAt = now;
+  // The display's own frame times decide: a frame the compositor showed a refresh late can follow
+  // render calls that were evenly spaced on the main thread (High on the M2: 5 to 9 misses a second
+  // in requestAnimationFrame timestamps, 0 to 2 between render calls).
+  private adaptResolution(budgetMs: number, displayIntervalMs?: number) {
+    const now = performance.now(), interval = displayIntervalMs ?? now - this.lastUpdateAt; this.lastUpdateAt = now;
     if (!this.dynamicResolution.update({ intervalMs: interval, budgetMs, cpuMs: this.lastCpuMs, gpuMs: gpuFrameTimer.take() })) return;
     const size = renderSize(this.lastSize.width, this.lastSize.height, this.dynamicResolution.density);
     this.pipeline.setRenderSize(size.width, size.height);
@@ -247,7 +250,7 @@ export class GameRenderer {
     if (this.disposed) return;
     const startedAt = performance.now();
     if (this.lastDeviceRatio !== (window.devicePixelRatio || 1) || this.lastSize.width !== window.innerWidth || this.lastSize.height !== window.innerHeight) this.resize();
-    if (draw) this.adaptResolution(frame.frameBudgetMs ?? 1000 / (this.settings.frameLimit || 60));
+    if (draw) this.adaptResolution(frame.frameBudgetMs ?? 1000 / (this.settings.frameLimit || 60), frame.frameIntervalMs);
     const dt = Math.min(Math.max(frame.dt || 0, 0), .05);
     this.lastFrame = frame; this.elapsed += dt;
     // A new match starts with no marks, shells or effects from the previous one.

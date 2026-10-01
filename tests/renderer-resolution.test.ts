@@ -62,3 +62,16 @@ it('answers a sustained slow frame rate by drawing fewer pixels, without realloc
   expect(gl.setDrawingBufferSize).toHaveBeenCalledTimes(resized);
   expect(renderer.pipeline.setSize).toHaveBeenCalledTimes(allocated);
 });
+
+it('steers by the display cadence, which can show missed refreshes the main thread never saw', () => {
+  // High on the M2: render calls evenly spaced in performance.now() while requestAnimationFrame
+  // timestamps showed a refresh missed every six frames; reading the former, High stayed at 1.8.
+  let now = 1000;
+  vi.spyOn(performance, 'now').mockImplementation(() => now);
+  const { renderer } = harness({ innerWidth: 1470, innerHeight: 956, devicePixelRatio: 2 }, 'high');
+  renderer.resize(); renderer.lastUpdateAt = now;
+  const start = renderer.renderDensity;
+  for (let i = 0; i < 600; i++) { now += 1000 / 60; renderer.adaptResolution(1000 / 60, i % 6 === 0 ? 1000 / 30 : 1000 / 60); }
+  expect(renderer.renderDensity).toBeLessThan(start);
+});
+

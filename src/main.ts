@@ -470,7 +470,7 @@ function frame(now: number) {
   // Keep the cadence across small rAF timing variations (see FramePacer). Never catch up after a stall.
   if (!pacer.shouldRender(now, activeLimit)) return;
   const interval = pacer.intervalMs(activeLimit);
-  const renderDt = Math.min((now - lastRender) / 1000, .05); lastRender = now;
+  const frameIntervalMs = now - lastRender, renderDt = Math.min(frameIntervalMs / 1000, .05); lastRender = now;
   // Hand off once the kill has been seen and its cam has run; the events and snapshots channels may
   // arrive in either order, so a kill that never shows up still hands off after 1 s.
   if (diedAt && snapshot.phase === 'playing' && ((killSeen && !renderer?.deathCamActive) || (!killSeen && now - diedAt > 1000) || now - diedAt > DEATH_CAM_SECONDS * 1000 + 1500)) beginSpectating();
@@ -484,7 +484,7 @@ function frame(now: number) {
   interaction = closestInteraction();
   timing.end('interaction', interactionAt);
   if (input.locked || dirtyFrame || ended || watching || renderer?.deathCamActive) {
-    renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt; renderFrame.frameBudgetMs = interval;
+    renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt; renderFrame.frameBudgetMs = interval; renderFrame.frameIntervalMs = frameIntervalMs;
     renderFrame.remoteActors = remoteInterpolation.sample(now);
     renderFrame.simulationTime = snapshot.time + Math.min(.2, (now - receivedAt) / 1000);
     renderFrame.localActor = predicted ? localPresentation.sample(predicted, input.frame, inputClock.fraction(now), renderDt, renderFrame.simulationTime) : undefined;
