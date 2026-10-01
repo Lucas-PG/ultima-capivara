@@ -341,7 +341,7 @@ blinks looked like flat plates at 1 m. Boards (concept or round 3 above round 4,
   blinks, the half-lidded determined face, the victory squint and the hit squeeze all use the new lid.
 - **Golden in shade** (`materials.ts`): a warm fill in the fur's own colour where the sun does not reach
   (the light scattered through a stylized pelt), on the world character's fur only: cloth, paw skin, claws
-  and the first-person arms keep their shading. The shaded cheek went from a muddy `#4C2E0B` (round 3)
+  and the first-person arms keep their shading. The shaded cheek went from a muddy `#4B300D` (round 3)
   to a golden `#864C13` at the same camera (`r4-board-shade.jpg`).
 - **Paler muzzle**: the buff is paler (`#E6D2AE`, was `#D5B68C`) and covers the muzzle's sides in front
   of the eyes as well as the lips and chin, for the concept's cream muzzle against the golden head.
