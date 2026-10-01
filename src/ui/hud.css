@@ -174,7 +174,7 @@ body{
 #hud #vitals{position:absolute;left:16px;bottom:16px;display:flex;align-items:center}
 #hud #vitals .portrait{position:relative;z-index:1;flex:none;width:60px;height:60px;border-width:3px;border-radius:50%;overflow:hidden;background:var(--h-paper)}
 #hud #vitals .portrait svg{display:block;width:100%;height:100%}
-#hud .vcard{position:relative;display:flex;flex-direction:column;gap:5px;width:236px;margin-left:-12px;padding:6px 9px 6px 18px;border-radius:0 14px 14px 0}
+#hud .vcard{position:relative;display:flex;flex-direction:column;gap:5px;width:256px;margin-left:-12px;padding:6px 9px 6px 18px;border-radius:0 14px 14px 0}
 #hud .vcard .row{display:grid;grid-template-columns:20px 1fr 72px;align-items:center;gap:6px}
 #hud .vcard .row .icon{width:20px;height:20px}
 #hud .vcard .row b{font:26px/1 var(--h-num);text-align:right;font-variant-numeric:tabular-nums}
@@ -329,9 +329,9 @@ body{
 #hud .sp-main{display:flex;align-items:center;gap:10px;margin:4px 0 6px}
 #hud .sp-face{flex:none;width:42px;height:42px;border-radius:50%;overflow:hidden;border:3px solid var(--kit,var(--h-gold))}
 #hud .sp-face svg{display:block;width:100%;height:100%}
-#hud .sp-who{display:flex;flex-direction:column;min-width:0;flex:1}
+#hud .sp-who{display:flex;flex-direction:column;min-width:64px;flex:1}
 #hud .sp-who b{font:20px/1.1 var(--h-num);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#hud .sp-who small{font-size:14px;color:var(--h-ink-2)}
+#hud .sp-who small{font-size:14px;color:var(--h-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hud .sp-weapon{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:14px;color:var(--h-ink-2);border-bottom:3px solid var(--rc,transparent)}
 #hud .sp-weapon .weapon-icon{display:block;width:56px;height:17px;color:var(--h-ink)}
 #hud .sp-kills{display:flex;align-items:center;gap:4px;font:20px/1 var(--h-num)}
