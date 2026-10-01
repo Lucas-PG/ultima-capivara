@@ -267,7 +267,7 @@ export class WorldScene {
     groundColors.generateMipmaps = true;
     this.disposables.push(groundColors);
     const groundMaterial = createToonMaterial('terrain', { map: groundColors, roughness: 1 });
-    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v15:${ROADS.length}`;
+    groundMaterial.customProgramCacheKey = () => `terrain-ground-grass-response-v16:${ROADS.length}`;
     groundMaterial.onBeforeCompile = shader => {
       shader.uniforms.terrainRoads = { value: ROADS.map(([x0, z0, x1, z1]) => new THREE.Vector4(x0, z0, x1, z1)) };
       shader.uniforms.terrainAsphalt = { value: new THREE.Color(WORLD_PALETTE.road) };
@@ -331,34 +331,47 @@ export class WorldScene {
             terrainNoise(point * 4.3 + vec2(9.1, 3.7)) * 0.12;
         }
         ${STONE_GLSL}
-        float terrainRectDistance(vec2 point, vec4 rect) {
-          vec2 center = (rect.xy + rect.zw) * 0.5;
-          vec2 halfSize = (rect.zw - rect.xy) * 0.5;
-          vec2 outside = abs(point - center) - halfSize;
-          return length(max(outside, 0.0)) + min(max(outside.x, outside.y), 0.0);
-        }
       `).replace('#include <map_fragment>', `
+        // Every layer below is weighted by a mask (near range, road paint, paving, rock, sand,
+        // grass); its noise is only evaluated where that mask is not zero, which gives the same
+        // image at a fraction of the cost (the terrain was the costliest surface on screen).
+        // Derivatives stay outside those branches.
         // The colour map holds one texel per 0.5 m: near the eye its soft blends between grass,
         // earth and sand read as smudges. A small world-space warp of the lookup breaks every
         // blend into an irregular painted edge, and a fine wash adds grain; both fade with range.
         float terrainNear = 1.0 - smoothstep(12.0, 40.0, length(vViewPosition));
-        vec2 terrainWarp = (vec2(terrainFbm(vTerrainXZ / 1.1 + vec2(3.1, 8.7)), terrainFbm(vTerrainXZ / 1.1 + vec2(11.4, 2.9))) * .7 +
-          vec2(terrainNoise(vTerrainXZ / .32 + vec2(5.0, 1.0)), terrainNoise(vTerrainXZ / .32 + vec2(2.0, 9.0))) * .45) * terrainNear;
+        vec2 terrainWarp = vec2(0.0);
+        float terrainWash = 0.0;
+        if (terrainNear > 0.0) {
+          terrainWarp = (vec2(terrainFbm(vTerrainXZ / 1.1 + vec2(3.1, 8.7)), terrainFbm(vTerrainXZ / 1.1 + vec2(11.4, 2.9))) * .7 +
+            vec2(terrainNoise(vTerrainXZ / .32 + vec2(5.0, 1.0)), terrainNoise(vTerrainXZ / .32 + vec2(2.0, 9.0))) * .45) * terrainNear;
+          terrainWash = (terrainNoise(vTerrainXZ / .23) * .035 + terrainNoise(vTerrainXZ / .07) * .02) * terrainNear;
+        }
         vec4 sampledDiffuseColor = texture2D(map, vMapUv + terrainWarp / ${world.size.toFixed(1)});
         diffuseColor *= sampledDiffuseColor;
-        diffuseColor.rgb *= 1.0 + (terrainNoise(vTerrainXZ / .23) * .035 + terrainNoise(vTerrainXZ / .07) * .02) * terrainNear;
-        float distanceToRoad = 1e6;
-        for (int road = 0; road < ${ROADS.length}; road++)
-          distanceToRoad = min(distanceToRoad, terrainRectDistance(vTerrainXZ, terrainRoads[road]));
-        float edgeWidth = max(fwidth(distanceToRoad), 0.002);
-        float roadInterior = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
+        diffuseColor.rgb *= 1.0 + terrainWash;
+        vec2 terrainDx = dFdx(vTerrainXZ), terrainDy = dFdy(vTerrainXZ);
         float roadPaint = clamp(vTerrainRoadPaint, 0.0, 1.0);
+        // The nearest street or paving rectangle, with its distance gradient (for the edge filter).
+        float distanceToRoad = 1e6;
+        vec2 roadGradient = vec2(1.0, 0.0);
+        if (roadPaint > 0.0) {
+          for (int road = 0; road < ${ROADS.length}; road++) {
+            vec4 rect = terrainRoads[road];
+            vec2 relative = vTerrainXZ - (rect.xy + rect.zw) * 0.5, outside = abs(relative) - (rect.zw - rect.xy) * 0.5;
+            vec2 beyond = max(outside, 0.0);
+            float distance = length(beyond) + min(max(outside.x, outside.y), 0.0);
+            if (distance < distanceToRoad) {
+              distanceToRoad = distance;
+              roadGradient = max(outside.x, outside.y) > 0.0 ? sign(relative) * beyond / max(length(beyond), 1e-6)
+                : (outside.x > outside.y ? vec2(sign(relative.x), 0.0) : vec2(0.0, sign(relative.y)));
+            }
+          }
+        }
+        float edgeWidth = max(abs(dot(roadGradient, terrainDx)) + abs(dot(roadGradient, terrainDy)), 0.002);
+        float roadInterior = 1.0 - smoothstep(-edgeWidth, edgeWidth, distanceToRoad);
         float asphaltMask = roadInterior * roadPaint;
         float curbMask = (1.0 - smoothstep(0.4 - edgeWidth, 0.4 + edgeWidth, distanceToRoad)) * (1.0 - roadInterior) * roadPaint;
-        float broadWear = terrainFbm(vTerrainXZ / 18.0 + vec2(6.0, 19.0));
-        float fineWear = terrainNoise(vTerrainXZ / 3.8 + vec2(23.0, 7.0));
-        vec3 curbPaint = terrainCurb * (.97 + fineWear * .07 + broadWear * .03);
-        diffuseColor.rgb = mix(diffuseColor.rgb, curbPaint, curbMask);
         // Rounded, staggered stone courses use world metres. Their joints and
         // individual washes fade before becoming a distant checker pattern.
         vec2 pavingUV = vTerrainXZ / vec2(.68, .44);
@@ -371,14 +384,21 @@ export class WorldScene {
         vec2 stoneEdge = abs(fract(pavingUV) - .5) - vec2(.5 - cornerRadius);
         float stoneDistance = length(max(stoneEdge, 0.0)) + min(max(stoneEdge.x, stoneEdge.y), 0.0) - cornerRadius;
         float stoneAA = max(fwidth(stoneDistance), .001);
-        float stoneFace = 1.0 - smoothstep(-.018 - stoneAA, -.018 + stoneAA, stoneDistance);
-        float wornEdge = smoothstep(-.1, -.025, stoneDistance);
-        float stoneGrain = terrainNoise(vTerrainXZ * vec2(3.8, 5.1) + vec2(17.0, 31.0));
-        vec3 pavingPaint = terrainAsphalt * (.99 + stoneWash * .07 + fineWear * .04 + stoneGrain * .065 + wornEdge * .04);
-        pavingPaint = mix(terrainAsphalt * .79, pavingPaint, stoneFace);
-        pavingPaint = mix(terrainAsphalt * (.98 + broadWear * .06), pavingPaint, pavingDetail);
-        float pavingRelief = ((1.0 - smoothstep(-.1, -.018, stoneDistance)) * .006 + stoneGrain * .0015) * asphaltMask * pavingDetail;
-        diffuseColor.rgb = mix(diffuseColor.rgb, pavingPaint, asphaltMask);
+        float pavingRelief = 0.0;
+        if (asphaltMask > 0.0 || curbMask > 0.0) {
+          float broadWear = terrainFbm(vTerrainXZ / 18.0 + vec2(6.0, 19.0));
+          float fineWear = terrainNoise(vTerrainXZ / 3.8 + vec2(23.0, 7.0));
+          vec3 curbPaint = terrainCurb * (.97 + fineWear * .07 + broadWear * .03);
+          diffuseColor.rgb = mix(diffuseColor.rgb, curbPaint, curbMask);
+          float stoneFace = 1.0 - smoothstep(-.018 - stoneAA, -.018 + stoneAA, stoneDistance);
+          float wornEdge = smoothstep(-.1, -.025, stoneDistance);
+          float stoneGrain = terrainNoise(vTerrainXZ * vec2(3.8, 5.1) + vec2(17.0, 31.0));
+          vec3 pavingPaint = terrainAsphalt * (.99 + stoneWash * .07 + fineWear * .04 + stoneGrain * .065 + wornEdge * .04);
+          pavingPaint = mix(terrainAsphalt * .79, pavingPaint, stoneFace);
+          pavingPaint = mix(terrainAsphalt * (.98 + broadWear * .06), pavingPaint, pavingDetail);
+          pavingRelief = ((1.0 - smoothstep(-.1, -.018, stoneDistance)) * .006 + stoneGrain * .0015) * asphaltMask * pavingDetail;
+          diffuseColor.rgb = mix(diffuseColor.rgb, pavingPaint, asphaltMask);
+        }
         // Authored stone is albedo, so it receives the same sun and shadows
         // as grass. Lake banks retain their painted grass/sand substrate.
         float coastRadius = max(abs(vTerrainXZ.x), abs(vTerrainXZ.y)) * 0.65 + length(vTerrainXZ) * 0.35;
@@ -386,38 +406,48 @@ export class WorldScene {
         float rockMask = max(smoothstep(1.03, 1.13, vTerrainSlope),
           coastalRock * smoothstep(0.55, 0.7, vTerrainSlope));
         vec3 terrainPoint=vec3(vTerrainXZ.x,vTerrainWorldY,vTerrainXZ.y);
-        vec3 triWeights=abs(normalize(cross(dFdx(terrainPoint),dFdy(terrainPoint))));
-        triWeights/=max(dot(triWeights,vec3(1.0)),.001);
-        float rockWash=dot(triWeights,vec3(terrainFbm(terrainPoint.yz/3.5),terrainFbm(terrainPoint.xz/3.5),terrainFbm(terrainPoint.xy/3.5)));
-        vec3 rockPaint=mix(terrainRockPaint,terrainRockTop,smoothstep(-.3,.3,rockWash))*(.97+rockWash*.1);
+        vec3 terrainFace=cross(dFdx(terrainPoint),dFdy(terrainPoint));
+        float terrainFootprint=length(fwidth(terrainPoint));
         // World-space joints, grain and streaks: the 2 m colour grid alone smears up close.
         float rockShare = rockMask * (1.0 - asphaltMask - curbMask);
-        if (rockShare > 0.001) {
-          vec3 rockNormal = normalize(cross(dFdx(terrainPoint), dFdy(terrainPoint)));
-          rockNormal *= sign(rockNormal.y + 1e-4);
-          vec4 stone = stonePaint(terrainPoint, rockNormal, length(fwidth(terrainPoint)));
-          rockPaint *= stone.rgb;
-          pavingRelief += stone.w * rockShare;
+        if (rockShare > 0.0) {
+          vec3 triWeights=abs(normalize(terrainFace));
+          triWeights/=max(dot(triWeights,vec3(1.0)),.001);
+          float rockWash=dot(triWeights,vec3(terrainFbm(terrainPoint.yz/3.5),terrainFbm(terrainPoint.xz/3.5),terrainFbm(terrainPoint.xy/3.5)));
+          vec3 rockPaint=mix(terrainRockPaint,terrainRockTop,smoothstep(-.3,.3,rockWash))*(.97+rockWash*.1);
+          if (rockShare > 0.001) {
+            vec3 rockNormal = normalize(terrainFace);
+            rockNormal *= sign(rockNormal.y + 1e-4);
+            vec4 stone = stonePaint(terrainPoint, rockNormal, terrainFootprint);
+            rockPaint *= stone.rgb;
+            pavingRelief += stone.w * rockShare;
+          }
+          diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockShare);
         }
-        diffuseColor.rgb = mix(diffuseColor.rgb, rockPaint, rockShare);
         // Fine sand detail is expressed in metres, independent of the colour
         // map resolution. Filter the ripples analytically at grazing distance.
         float sandRatio=diffuseColor.r/max(diffuseColor.b,.001);
         float sandMask=smoothstep(1.35,1.9,sandRatio)*(1.0-smoothstep(.4,.7,vTerrainSlope))*(1.0-asphaltMask-curbMask);
-        float ripplePhase=dot(vTerrainXZ,vec2(5.8,2.7))+terrainFbm(vTerrainXZ/2.0)*2.8;
-        float ripple=sin(ripplePhase)*(1.0-smoothstep(.5,2.5,fwidth(ripplePhase)));
-        float sandWash=terrainFbm(vTerrainXZ/4.0)*.08+terrainFbm(vTerrainXZ/.8)*.025;
         float wet=1.0-smoothstep(.02,.65,vTerrainWorldY);
-        vec3 sandPaint=diffuseColor.rgb*(1.0+sandWash+ripple*.035)*(1.0-wet*.2);
-        diffuseColor.rgb=mix(diffuseColor.rgb,sandPaint,sandMask);
+        // The ripple filter follows the phase's dominant linear term, so it needs no derivative inside the branch.
+        float rippleWidth=abs(dot(terrainDx,vec2(5.8,2.7)))+abs(dot(terrainDy,vec2(5.8,2.7)));
+        if (sandMask > 0.0) {
+          float ripplePhase=dot(vTerrainXZ,vec2(5.8,2.7))+terrainFbm(vTerrainXZ/2.0)*2.8;
+          float ripple=sin(ripplePhase)*(1.0-smoothstep(.5,2.5,rippleWidth));
+          float sandWash=terrainFbm(vTerrainXZ/4.0)*.08+terrainFbm(vTerrainXZ/.8)*.025;
+          vec3 sandPaint=diffuseColor.rgb*(1.0+sandWash+ripple*.035)*(1.0-wet*.2);
+          diffuseColor.rgb=mix(diffuseColor.rgb,sandPaint,sandMask);
+        }
         // Broad paint weights preserve filtered sand/grass edges.
         float grassResponse = smoothstep(1.0, 1.45, diffuseColor.g / max(diffuseColor.r, 0.001)) *
           smoothstep(1.1, 2.0, diffuseColor.g / max(diffuseColor.b, 0.001));
-        float paintedPatch=terrainFbm(vTerrainXZ/8.0+vec2(3.0,9.0));
-        float dryFleck=smoothstep(.12,.4,terrainFbm(vTerrainXZ/18.0+vec2(13.0,2.0)));
-        vec3 variedGrass=diffuseColor.rgb*(.93+paintedPatch*.16);
-        variedGrass=mix(variedGrass,variedGrass*vec3(1.13,1.015,.82),dryFleck*.5);
-        diffuseColor.rgb=mix(diffuseColor.rgb,variedGrass,grassResponse);
+        if (grassResponse > 0.0) {
+          float paintedPatch=terrainFbm(vTerrainXZ/8.0+vec2(3.0,9.0));
+          float dryFleck=smoothstep(.12,.4,terrainFbm(vTerrainXZ/18.0+vec2(13.0,2.0)));
+          vec3 variedGrass=diffuseColor.rgb*(.93+paintedPatch*.16);
+          variedGrass=mix(variedGrass,variedGrass*vec3(1.13,1.015,.82),dryFleck*.5);
+          diffuseColor.rgb=mix(diffuseColor.rgb,variedGrass,grassResponse);
+        }
       `).replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         // Millimetre relief gives worn stones a soft bevel under the same light.
         // The actor still walks on the unchanged shared terrain surface.
