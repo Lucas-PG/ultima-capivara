@@ -627,7 +627,8 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     },
     async ab(toggle, frames, rounds) {
       if (!renderer) throw new Error('Call start first');
-      const internals = renderer as unknown as { scene: THREE.Scene; gl: THREE.WebGLRenderer; worldView: { water: THREE.Object3D; group: THREE.Group }; weaponView: { scene: THREE.Scene }; sky: { group: THREE.Group } };
+      const internals = renderer as unknown as { scene: THREE.Scene; gl: THREE.WebGLRenderer; worldView: { water: THREE.Object3D; group: THREE.Group }; weaponView: { scene: THREE.Scene }; sky: { group: THREE.Group };
+        interiorLight: THREE.PointLight; pipeline: { atmosphere: { enabled: boolean } | null } };
       const scene = internals.scene, named = (test: (object: THREE.Object3D) => boolean) => {
         const found: THREE.Object3D[] = []; scene.traverse(object => { if (object.visible && test(object)) found.push(object); }); return found; };
       const materialName = (object: THREE.Object3D) => ((object as THREE.Mesh).material as THREE.Material | undefined)?.name ?? '';
@@ -647,6 +648,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         firstPerson: () => hide(internals.weaponView.scene.children.filter(child => child.visible)),
         shading: () => ({ apply: () => { scene.overrideMaterial = basic; }, revert: () => { scene.overrideMaterial = null; } }),
         shadows: () => ({ apply: () => { internals.gl.shadowMap.enabled = false; }, revert: () => { internals.gl.shadowMap.enabled = true; } }),
+        pointLight: () => hide([internals.interiorLight]),
+        atmosphere: () => ({ apply: () => { if (internals.pipeline.atmosphere) internals.pipeline.atmosphere.enabled = false; },
+          revert: () => { if (internals.pipeline.atmosphere) internals.pipeline.atmosphere.enabled = true; } }),
+        fpFur: () => { const shells: THREE.Object3D[] = []; internals.weaponView.scene.traverse(o => { if (o.visible && (o as THREE.Mesh).geometry?.userData.shellIndices) shells.push(o); }); return hide(shells); },
+        characterFur: () => hide(named(o => (o as THREE.Mesh).geometry?.userData.shellIndices !== undefined || o.name.includes('fur'))),
+        terrainLast: () => { const ground = named(o => materialName(o) === 'paint:terrain');
+          return { apply: () => ground.forEach(o => { o.renderOrder = .5; }), revert: () => ground.forEach(o => { o.renderOrder = 0; }) }; },
       };
       if (!toggles[toggle]) throw new Error(`Unknown toggle ${toggle}: ${Object.keys(toggles).join(', ')}`);
       const change = toggles[toggle]();
