@@ -319,6 +319,9 @@ for name, (a, b, parent) in BONES.items():
     eb.head, eb.tail = Vector(tuple(V(a).tolist())), Vector(tuple(V(b).tolist()))
     if name.startswith('paw_') and name[4:].split('_')[0][:-1] in P.FINGERS:
         eb.align_roll(Vector((0, 0, 1)))
+    if name.startswith('socket_'):
+        # Local z along the gaze, so local x is the line through the eye corners (the lid hinge).
+        eb.align_roll(Vector(tuple(V(C.eye_point(1 if name.endswith('R') else -1)[1]).tolist())))
     if parent:
         eb.parent = arm_data.edit_bones[parent]
 bpy.ops.object.mode_set(mode='OBJECT')

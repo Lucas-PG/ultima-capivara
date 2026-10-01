@@ -120,6 +120,20 @@ def gait(n, phase, front, back, lift, contact=.40, direction=(0.0, 1.0), drop=0.
     leg(n, -forward * fwd + peel, up, s * right * fwd, drop, pitch, toe)
 
 
+# The eyeball rolls forward under its painted lid to blink: from open to shut the lid edge sweeps
+# from above the opening to below it (see capybara_paint, LID_EDGE).
+LID_SWING = 1.54
+
+
+def lids_from_blink():
+    """The blink scale stays the lid control of every clip (and of the tests); the eye closes by
+    rolling the eyeball (with its furred lid) on its socket bone, so derive that rotation from it.
+    A scale above 1 widens the eye a little (the iris lifts)."""
+    for s, n in SIDES:
+        closed = 1.0 - pb['blink_' + n].scale.y
+        pb['socket_' + n].rotation_euler.x = LID_SWING * closed if closed > 0 else .5 * LID_SWING * max(closed, -.2)
+
+
 def key_all(frame):
     for p in pb:
         p.keyframe_insert('rotation_euler', frame=frame, group=p.name)
@@ -180,6 +194,7 @@ def author(name, seconds, fn, loop=True, stabilize=0.0, step=1):
         t = (0 if loop and frame == frames else frame / frames)
         reset(); update()
         fn(t, t * seconds)
+        lids_from_blink()
         if stabilize:
             stabilize_head(stabilize)
         key_all(frame)
@@ -564,6 +579,7 @@ for expression in ['neutral', 'determined', 'hit', 'stunned', 'victory', 'blink'
                 pb['jaw'].rotation_euler.x = .09
             elif expression == 'blink':
                 lid.scale.y = .04
+        lids_from_blink()
         for p in face_parts:
             p.keyframe_insert('rotation_euler', frame=frame, group=p.name)
             p.keyframe_insert('location', frame=frame, group=p.name)
