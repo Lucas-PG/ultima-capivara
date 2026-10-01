@@ -1,6 +1,7 @@
 // HUD state boards: every in-match HUD state in a busy moment, through the real GameUI update and event paths
 // (QA build, window.__hudQA), at the sizes the player uses, composed into one labelled board per size.
-// node tools/qa/hud-boards.mjs <outDir> [prefix]   (BASE, SIZES=1280x720,1470x956, STATES=a,b to narrow, SINGLES=1 keeps each shot)
+// node tools/qa/hud-boards.mjs <outDir> [prefix]   (BASE, SIZES=1280x720,1470x956, STATES=a,b to narrow, SINGLES=1 keeps each shot,
+// SETTINGS='{"hitPalette":"colorblind","reducedMotion":true}' merges saved settings)
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 const [out, prefix = 'board'] = process.argv.slice(2);
@@ -54,7 +55,8 @@ const shots = new Map(), footprint = {};
 try {
   const page = await browser.newPage({ viewport: { width: sizes[0][0], height: sizes[0][1] } });
   page.on('pageerror', e => { console.error('pageerror', e.message); process.exitCode = 1; });
-  await page.addInitScript(() => localStorage.setItem('uc-onboarded', '1'));
+  await page.addInitScript(extra => { localStorage.setItem('uc-onboarded', '1');
+    if (extra) localStorage.setItem('uc-v2-settings', JSON.stringify({ ...JSON.parse(localStorage.getItem('uc-v2-settings') || '{}'), ...JSON.parse(extra) })); }, process.env.SETTINGS || '');
   await page.goto(`${base}/?qa=1`);
   await page.waitForFunction(() => !!window.__capyQA && !!window.__hudQA, null, { timeout: 60000 });
   await page.evaluate(() => { window.__qaStarted = false; window.__capyQA.start().then(() => { window.__qaStarted = true; }); });
