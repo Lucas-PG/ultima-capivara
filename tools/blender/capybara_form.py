@@ -130,8 +130,11 @@ def bones():
     for s, n in ((-1, 'L'), (1, 'R')):
         eye = eye_point(s)[0]
         b['ear_' + n] = (side(EAR + v(-.004, -.030, .000), s), side(EAR + v(.006, .044, .000), s), 'head')
-        for part in ('socket', 'blink'):
-            b[f'{part}_{n}'] = (eye, eye + v(0, .044, 0), 'head')
+        b['blink_' + n] = (eye, eye + v(0, .044, 0), 'head')
+        # The eyeball's hinge: at the eye centre, along the eye's own up (its roll puts local z on
+        # the gaze, so a rotation about local x rolls the eyeball and its painted lid forward over
+        # the iris). The clips key it from the blink scale (capybara_clips.lids_from_blink).
+        b['socket_' + n] = (eye, eye + eye_frame(s)[:, 2] * .044, 'head')
         for part in ('tip', 'peak'):
             b[f'blink_{part}_{n}'] = (eye, eye + v(0, .044, 0), 'blink_' + n)
         b['glint_' + n] = (eye + side(v(.006, .008, -.012), s), eye + side(v(.006, .05, -.012), s), 'blink_' + n)
@@ -247,7 +250,7 @@ def eye_point(s):
     if s not in _EYES:
         out = norm(side((.58, .16, -.80), s))
         surface = on_surface(head_mass(), side(EYE, s))[0]
-        _EYES[s] = (surface - out * EYE_R * .62, out)
+        _EYES[s] = (surface - out * EYE_R * .50, out)
     return _EYES[s]
 
 
@@ -256,7 +259,7 @@ def eye_opening(s):
     painter draws the lid line along its edge."""
     e, out = eye_point(s)
     E = eye_frame(s)
-    return Ellipsoid(e + out * (EYE_R + .002) - E[:, 2] * .004, (.044, .018, .0235), R=E)
+    return Ellipsoid(e + out * (EYE_R + .002) + E[:, 2] * .005, (.054, .020, .033), R=E)
 
 
 def eye_frame(s):
@@ -334,12 +337,11 @@ def head():
     for s in (-1, 1):
         e, out = eye_point(s)
         E = eye_frame(s)
-        # Lids: skin over the sunk eyeball (a low mound), the upper lid heavier and a soft brow
-        # shelf above it; the almond opening shows the eye.
-        # A heavy upper lid over the top of the iris (the calm, half-lidded capybara look) and an
-        # almond opening, longer than tall.
-        lid = Union([Sphere(e, EYE_R + .0035), Ellipsoid(e + E[:, 2] * .013 + out * (EYE_R * .62), (.046, .013, .016), R=E)], k=.008)
-        brow = Ellipsoid(e + E[:, 2] * .041 + out * (EYE_R * .30) + E[:, 0] * .006, (.056, .013, .017), R=E)
+        # Open, friendly eyes: the lid skin wraps the eyeball with a soft rim over the top of the
+        # iris and a soft brow shelf above; a tall almond opening. The eye blinks by rolling its own
+        # painted, furred lid into the opening (the socket bones), so the skin never stretches.
+        lid = Union([Sphere(e, EYE_R + .0035), Ellipsoid(e + E[:, 2] * .033 + out * (EYE_R * .58), (.052, .007, .009), R=E)], k=.008)
+        brow = Ellipsoid(e + E[:, 2] * .050 + out * (EYE_R * .15) + E[:, 0] * .006, (.060, .013, .017), R=E)
         face = Union([face, lid, brow], k=.012, mat=M['fur'])
         face = Cut(face, eye_opening(s), k=.0025)
     ears = []
@@ -702,7 +704,7 @@ def eyes():
     return Union([Material(Sphere(eye_point(s)[0], EYE_R), M['eye']) for s in (-1, 1)])
 
 
-EYE_R = .046
+EYE_R = .052
 
 # A free strip along the left and bottom atlas edges holds flat swatches for unbaked geometry.
 SWATCH_STRIP = .015
