@@ -59,10 +59,10 @@ describe('dynamic resolution', () => {
     expect(controller.density).toBe(renderRange('medium', 'auto', 2).min);
   });
 
-  it('drops straight to the density whose GPU time fits the budget when timer queries exist', () => {
+  it('reaches the density whose GPU time fits the budget within about two seconds when timer queries exist', () => {
     const controller = new DynamicResolution(renderRange('high', 'auto', 2));
     // 30 ms of GPU at 2: the pixels that fit 80 percent of 16.7 ms are (13.3 / 30) of them.
-    run(controller, 30, frame(33.3, { gpuMs: 30 }));
+    run(controller, 60, frame(33.3, { gpuMs: 30 }));
     expect(controller.density).toBeLessThan(2 * Math.sqrt(13.4 / 30) + .051);
     expect(controller.density).toBeGreaterThanOrEqual(.75);
   });
@@ -83,6 +83,27 @@ describe('dynamic resolution', () => {
     expect(controller.density).toBe(range.max);
   });
 
+  it('ignores one stray slow GPU sample (another app on the GPU) and the queries still in flight after a change', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    for (let i = 0; i < 300; i++) controller.update(frame(BUDGET, { gpuMs: i % 15 === 7 ? 40 : 9 }));
+    expect(controller.density).toBe(1.25);
+  });
+
+  it('stops the resolution breathing: a climb undone soon after doubles the wait before the next', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    run(controller, 60, frame(40));
+    const changes: number[] = [];
+    // The GPU fits only below the floor's next step: every climb fails.
+    for (let i = 0; i < 60 * 40; i++) {
+      const over = controller.density > .6 + 1e-6;
+      if (controller.update(frame(over ? 40 : BUDGET))) changes.push(i);
+    }
+    const gaps = changes.slice(1).map((at, i) => at - changes[i]).filter((_, i) => i % 2 === 1);
+    // Climb attempts space out: each wait at least as long as the one before, the last ones much longer.
+    expect(gaps.length).toBeGreaterThan(2);
+    expect(gaps.at(-1)!).toBeGreaterThan(gaps[0] * 3);
+  });
+
   it('holds a density whose next step would not fit', () => {
     const range = renderRange('high', 'auto', 2), controller = new DynamicResolution(range);
     run(controller, 60, frame(40, { gpuMs: 28 }));
@@ -96,15 +117,15 @@ describe('dynamic resolution', () => {
     const range = renderRange('medium', 'auto', 2), controller = new DynamicResolution(range);
     run(controller, 60, frame(40));
     const low = controller.density;
-    // Steady frames: the first probe comes after about 3 s.
+    // Steady frames: the first probe comes after about 1.5 s.
     let steps = 0; while (controller.density === low && steps < 1000) { controller.update(frame(BUDGET)); steps++; }
-    expect(steps * BUDGET).toBeGreaterThan(2900); expect(steps * BUDGET).toBeLessThan(5000);
+    expect(steps * BUDGET).toBeGreaterThan(1400); expect(steps * BUDGET).toBeLessThan(3000);
     // The probe misses: back down, and the next probe waits twice as long.
     const probe = controller.density; let guard = 0;
     while (controller.density === probe && guard++ < 100) controller.update(frame(40));
     const back = controller.density; expect(back).toBeLessThan(probe);
     steps = 0; while (controller.density === back && steps < 2000) { controller.update(frame(BUDGET)); steps++; }
-    expect(steps * BUDGET).toBeGreaterThan(5900);
+    expect(steps * BUDGET).toBeGreaterThan(2900);
   });
 
   it('never moves a fixed resolution', () => {

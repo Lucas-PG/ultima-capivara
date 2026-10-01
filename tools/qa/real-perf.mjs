@@ -80,17 +80,17 @@ try {
       const heap = performance.memory?.usedJSHeapSize;
       return { times, rendered: i.renderedFrames, phase: s?.phase, stage: me?.stage, alive: me?.alive, mode: s?.config.mode, actors: s?.actors.length,
         alivePlayers: s?.actors.filter(a => a.alive).length, pos: me && { x: +me.pos.x.toFixed(1), y: +me.pos.y.toFixed(1), z: +me.pos.z.toFixed(1) },
-        stats: i.renderer, density: i.renderDensity, gpu: window.__capivara.gpu(true), spans, longTasks: t.longTasks.map(task => Math.round(task.duration)),
+        stats: i.renderer, density: i.renderDensity, gpuEstimate: i.gpuEstimate, gpu: window.__capivara.gpu(true), spans, longTasks: t.longTasks.map(task => Math.round(task.duration)),
         heapMB: heap ? +(heap / 1048576).toFixed(1) : null, drawingBuffer: (() => { const c = document.querySelector('#game'); return [c.width, c.height]; })() };
     }, rafFrom);
     rafFrom += sample.times.length;
     const intervals = []; for (let k = 1; k < sample.times.length; k++) intervals.push(+(sample.times[k] - sample.times[k - 1]).toFixed(2));
     const cpu = {}; for (const [name, values] of Object.entries(sample.spans)) cpu[name] = { n: values.length, sum: +values.reduce((a, b) => a + b, 0).toFixed(2), max: +Math.max(...values).toFixed(2) };
     samples.push({ t: +elapsed.toFixed(1), ...machine(), intervals, renderedFrames: sample.rendered - lastRendered, phase: sample.phase, stage: sample.stage, alive: sample.alive,
-      alivePlayers: sample.alivePlayers, pos: sample.pos, draws: sample.stats?.drawCalls, triangles: sample.stats?.triangles, density: sample.density, gpu: sample.gpu, cpu, longTasks: sample.longTasks, heapMB: sample.heapMB, drawingBuffer: sample.drawingBuffer });
+      alivePlayers: sample.alivePlayers, pos: sample.pos, draws: sample.stats?.drawCalls, triangles: sample.stats?.triangles, density: sample.density, gpuEstimate: sample.gpuEstimate, gpu: sample.gpu, cpu, longTasks: sample.longTasks, heapMB: sample.heapMB, drawingBuffer: sample.drawingBuffer });
     lastRendered = sample.rendered;
-    if (samples.length % 30 === 0) console.log(JSON.stringify({ t: Math.round(elapsed), phase: sample.phase, stage: sample.stage, thermal: samples.at(-1).thermal, load: samples.at(-1).load[0],
-      fps: +(samples.slice(-30).reduce((a, s) => a + s.renderedFrames, 0) / 30).toFixed(1), density: sample.density, buffer: sample.drawingBuffer }));
+    if (samples.length % Number(env.LOG_EVERY || 30) === 0) console.log(JSON.stringify({ t: Math.round(elapsed), phase: sample.phase, stage: sample.stage, thermal: samples.at(-1).thermal, load: samples.at(-1).load[0],
+      fps: +(samples.slice(-30).reduce((a, s) => a + s.renderedFrames, 0) / 30).toFixed(1), density: sample.density, gpu: sample.gpuEstimate && +sample.gpuEstimate.toFixed(1), buffer: sample.drawingBuffer }));
     if (sample.phase === 'results') { console.log('match reached results at', Math.round(elapsed), 's'); break; }
     // PROFILE_AT: a 6 s main-thread CPU profile, summarised by self time per function.
     const profileDue = profileAt.find(at => elapsed >= at && !profiled.has(at));

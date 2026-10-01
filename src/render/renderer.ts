@@ -229,6 +229,8 @@ export class GameRenderer {
   get overloaded() { return this.dynamicResolution.overloaded; }
   /** The automatic density ceiling (render pixels per CSS pixel) of the current preset and screen. */
   get densityCeiling() { return this.dynamicResolution.ceiling; }
+  /** Diagnostics: the dynamic resolution's smoothed GPU frame time. */
+  get gpuEstimate() { return this.dynamicResolution.gpuEstimate; }
   /** Render pixels per CSS pixel this frame (the dynamic resolution's current density). */
   get renderDensity() { return this.dynamicResolution.density; }
 
