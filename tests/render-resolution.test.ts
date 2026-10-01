@@ -104,33 +104,43 @@ describe('dynamic resolution', () => {
     expect(gaps.at(-1)!).toBeGreaterThan(gaps[0] * 3);
   });
 
-  // A GPU whose frame costs `fixed` ms whatever the resolution plus `perPixel` ms per unit of density squared.
+  // A GPU whose frame costs `fixed` ms whatever the resolution plus `perPixel` ms per unit of density
+  // squared; a frame over the budget misses a refresh. Under the budget the timer reads what Apple's
+  // clock scaling shows (about 12 ms at any density), over it the real cost.
   const simulate = (controller: DynamicResolution, seconds: number, fixed: number, perPixel: number) => {
+    let missed = 0, frames = 0;
     for (let t = 0; t < seconds * 1000;) {
-      const gpu = fixed + perPixel * controller.density ** 2, interval = gpu > BUDGET ? BUDGET * 2 : BUDGET;
-      controller.update(frame(interval, { gpuMs: gpu })); t += interval;
+      const cost = fixed + perPixel * controller.density ** 2, over = cost > BUDGET, interval = over ? BUDGET * 2 : BUDGET;
+      controller.update(frame(interval, { gpuMs: over ? cost : 12 })); t += interval; frames++; if (over) missed++;
     }
+    return { missed, frames };
   };
+  const fits = (fixed: number, perPixel: number) => Math.sqrt((BUDGET - fixed) / perPixel);
 
-  it('settles where the GPU time fits, not at the floor, when much of the frame does not scale with pixels', () => {
-    // Measured on the M2 at Medium: about 7 ms of a 9 ms frame at the floor did not depend on resolution.
+  it('settles just under the density the GPU can draw, not at the floor, although the GPU time cannot tell', () => {
+    // Measured on the M2 at Medium: timer queries read 10 to 13 ms at every density from 0.6 to 1.15
+    // while a fixed 1.0 held 60 fps; the controller that trusted them sat at its 0.6 floor.
     const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
     // A heavy moment (a smoke-filled fight) first sends it to the floor...
-    for (let i = 0; i < 300; i++) controller.update(frame(40, { gpuMs: 14 + 12 * controller.density ** 2 }));
+    run(controller, 300, frame(40, { gpuMs: 30 }));
     expect(controller.density).toBe(.6);
-    // ...then the frame is back to 9 ms that do not depend on resolution plus 5 that do: it must climb back.
-    simulate(controller, 90, 9, 5);
-    // It holds anywhere the GPU time sits between the climb (78 percent of the budget) and the drop (95 percent).
-    const gpu = 9 + 5 * controller.density ** 2;
-    expect(gpu).toBeGreaterThan(BUDGET * .7); expect(gpu).toBeLessThan(BUDGET * .95);
-    expect(controller.density).toBeGreaterThan(.75);
+    // ...then 9 ms that do not depend on resolution plus 6 that do: room up to about 1.13.
+    simulate(controller, 30, 9, 6);
+    const settled = simulate(controller, 120, 9, 6);
+    expect(controller.density).toBeGreaterThan(fits(9, 6) - .1); expect(controller.density).toBeLessThan(fits(9, 6));
+    // Trying the step above costs a few frames, less and less often: under half a percent missed.
+    expect(settled.missed / settled.frames).toBeLessThan(.005);
+    // A lighter scene later: the marked step is tried again, holds, and the climb goes on to the ceiling.
+    simulate(controller, 90, 5, 6);
+    expect(controller.density).toBe(1.25);
   });
 
-  it('holds below the density whose GPU time would miss the budget', () => {
+  it('finds the highest density that fits on the way down from the ceiling and stays there', () => {
     const controller = new DynamicResolution(renderRange('high', 'auto', 2));
-    simulate(controller, 60, 2, 9);
-    const gpu = 2 + 9 * controller.density ** 2;
-    expect(gpu).toBeGreaterThan(BUDGET * .7); expect(gpu).toBeLessThan(BUDGET * .95);
+    simulate(controller, 30, 2, 9);
+    const settled = simulate(controller, 120, 2, 9);
+    expect(controller.density).toBeGreaterThan(fits(2, 9) - .1); expect(controller.density).toBeLessThan(fits(2, 9));
+    expect(settled.missed / settled.frames).toBeLessThan(.005);
   });
 
   it('probes upward without GPU timings and backs off after a failed probe', () => {
