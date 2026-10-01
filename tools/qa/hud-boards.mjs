@@ -99,14 +99,26 @@ try {
       // Let entrance motion settle to a representative frame, then freeze every animation there.
       await page.waitForTimeout(140);
       await page.evaluate(() => document.getAnimations().forEach(a => a.pause()));
-      // Footprint: the share of the window covered by HUD panels (union of their boxes on a 4 px grid).
+      // Footprint: the share of the window covered by what the HUD paints (boxes with a background or border, text,
+      // images), as a union on a 4 px grid. Layout containers and full-screen overlays do not count.
       footprint[`${state.name}-${width}x${height}`] = await page.evaluate(() => {
-        const W = innerWidth, H = innerHeight, cell = 4, cols = Math.ceil(W / cell), grid = new Uint8Array(cols * Math.ceil(H / cell));
-        const panels = [...document.querySelectorAll('#hud > *:not(#storm):not(#vign):not(#scope-overlay):not(#bigmap):not(#emoteWheel):not(#dmgInd):not(#nums):not(#cross):not(#hitm):not(#rring), #toast > *')];
-        for (const el of panels) {
-          if (el.hidden || !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
-          const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) continue;
-          for (let y = Math.max(0, Math.floor(r.top / cell)); y < Math.min(H / cell, Math.ceil(r.bottom / cell)); y++)
+        const W = innerWidth, H = innerHeight, cell = 4, cols = Math.ceil(W / cell), rows = Math.ceil(H / cell), grid = new Uint8Array(cols * rows);
+        const skip = '#storm,#vign,#scope-overlay,#bigmap,#emoteWheel,#scoreboard,#pause-panel,#victory,#dmgInd,#nums,#cross,#hitm,#rring,[hidden]';
+        for (const el of document.querySelectorAll('#hud *, #toast *')) {
+          if (el.closest(skip) || !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+          const box = el.getBoundingClientRect(); if (box.width < 2 || box.height < 2 || box.width * box.height > W * H / 4) continue;
+          // Clipped by an overflow ancestor (the compass ribbon is three turns long): count only what shows.
+          const r = { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+          for (let up = el.parentElement; up && up.id !== 'hud'; up = up.parentElement) {
+            if (getComputedStyle(up).overflow === 'visible') continue;
+            const c = up.getBoundingClientRect();
+            r.left = Math.max(r.left, c.left); r.top = Math.max(r.top, c.top); r.right = Math.min(r.right, c.right); r.bottom = Math.min(r.bottom, c.bottom);
+          }
+          if (r.right - r.left < 1 || r.bottom - r.top < 1) continue;
+          const cs = getComputedStyle(el), painted = (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && !cs.backgroundColor.endsWith(', 0)')) || cs.backgroundImage !== 'none' || parseFloat(cs.borderTopWidth) > 0;
+          const leaf = /^(IMG|svg|CANVAS)$/.test(el.tagName) || [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+          if (!painted && !leaf) continue;
+          for (let y = Math.max(0, Math.floor(r.top / cell)); y < Math.min(rows, Math.ceil(r.bottom / cell)); y++)
             for (let x = Math.max(0, Math.floor(r.left / cell)); x < Math.min(cols, Math.ceil(r.right / cell)); x++) grid[y * cols + x] = 1;
         }
         return +(grid.reduce((a, b) => a + b, 0) / grid.length * 100).toFixed(2);

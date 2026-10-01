@@ -987,11 +987,11 @@ export class GameUI {
     while (host.children.length > 3) host.firstElementChild!.remove();
   }
   private addFeed(entry: HTMLElement) {
-    // Six seconds per line (the Source convention), eight for lines about you, at most four on screen (two on short windows, by CSS).
+    // Six seconds per line (the Source convention), eight for lines about you, at most three on screen (two on short windows, by CSS).
     const mine = entry.classList.contains('me') || entry.classList.contains('bad'), life = mine ? 8000 : entry.classList.contains('info') ? 3500 : 6000;
     entry.style.setProperty('--life', `${(life - 400) / 1000}s`);
     const feed = this.el('feed'); feed.prepend(entry); window.setTimeout(() => entry.remove(), life);
-    while (feed.children.length > 4) feed.lastElementChild!.remove();
+    while (feed.children.length > 3) feed.lastElementChild!.remove();
   }
   private updateMoments(snapshot: WorldSnapshot, me: ActorState) {
     if (!me.alive) { clearTimeout(this.momentTimer); this.show('matchMoment', false); }

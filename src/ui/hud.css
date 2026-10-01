@@ -25,7 +25,7 @@ body{
 #hud .pill{display:flex;align-items:center;gap:6px;padding:2px 11px 2px 7px;border-radius:999px;font-size:14px;white-space:nowrap}
 
 /* Top centre: a paper compass tape, the heading on a tab under the needle, the safe zone as a gold diamond. */
-#hud #compass{position:absolute;top:12px;left:50%;translate:-50% 0;width:290px;height:30px;border-radius:10px}
+#hud #compass{position:absolute;top:12px;left:50%;translate:-50% 0;width:256px;height:30px;border-radius:10px}
 #hud .cmp-window{position:absolute;left:8px;right:8px;top:2px;height:24px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent)}
 #hud .cmp-strip{position:absolute;left:50%;top:0;height:100%;will-change:transform}
 #hud .cmp-strip i{position:absolute;top:0;translate:-50% 0;font-style:normal;line-height:1;text-align:center;white-space:nowrap}
@@ -48,7 +48,7 @@ body{
 
 /* Top right, one column: the minimap, the match strip and the feed. */
 #hud #rcol{position:absolute;top:14px;right:16px;display:flex;flex-direction:column;align-items:flex-end;gap:7px}
-#hud #mapWrap{position:relative;width:176px;height:176px;padding:0;border-width:3px;border-radius:18px;background:var(--h-ink);box-shadow:0 4px 0 var(--h-ink)}
+#hud #mapWrap{position:relative;width:162px;height:162px;padding:0;border-width:3px;border-radius:18px;background:var(--h-ink);box-shadow:0 4px 0 var(--h-ink)}
 #hud #minimap{display:block;width:100%;height:100%;border-radius:15px}
 #hud #mapWrap .tab{position:absolute;left:50%;bottom:6px;translate:-50% 0;max-width:150px;overflow:hidden;text-overflow:ellipsis;padding:1px 10px;font-size:14px;line-height:18px;white-space:nowrap;color:var(--h-ink);background:var(--h-paper);border:2px solid var(--h-ink);border-radius:999px}
 #hud #mapWrap .net{position:absolute;top:7px;left:7px;padding:0 6px;font-size:14px;line-height:18px;color:var(--h-paper);background:rgba(58,36,24,.82);border-radius:6px}
@@ -72,7 +72,7 @@ body{
 #hud #topL .zone.time.closing .icon{display:block}
 #hud #topL .zone.time.closing .storm-ico{display:none}
 #hud #feed{display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:300px}
-#hud .fd{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;font-size:14px;white-space:nowrap;border-width:2px;border-radius:999px;box-shadow:0 2px 0 var(--h-ink);animation:hud-fdin .22s var(--spring,ease-out),hud-fdout .4s ease-in var(--life,5.6s) forwards}
+#hud .fd{display:flex;align-items:center;gap:6px;height:24px;padding:0 10px;font-size:14px;white-space:nowrap;border-width:2px;border-radius:999px;box-shadow:0 2px 0 var(--h-ink);animation:hud-fdin .22s var(--spring,ease-out),hud-fdout .4s ease-in var(--life,5.6s) forwards}
 #hud .fd b{max-width:112px;overflow:hidden;text-overflow:ellipsis;font-weight:400}
 #hud .fd b.you{color:var(--h-terra)}
 #hud .fd em{font-style:normal;font-size:14px;color:var(--h-ink-2)}
@@ -172,10 +172,10 @@ body{
 
 /* Bottom left: the portrait and the vitals sticker. Health warms from green to gold to red as it drops. */
 #hud #vitals{position:absolute;left:16px;bottom:16px;display:flex;align-items:center}
-#hud #vitals .portrait{position:relative;z-index:1;flex:none;width:58px;height:58px;border-width:3px;border-radius:50%;overflow:hidden;background:var(--h-paper)}
+#hud #vitals .portrait{position:relative;z-index:1;flex:none;width:54px;height:54px;border-width:3px;border-radius:50%;overflow:hidden;background:var(--h-paper)}
 #hud #vitals .portrait svg{display:block;width:100%;height:100%}
-#hud .vcard{position:relative;display:flex;flex-direction:column;gap:5px;width:208px;margin-left:-12px;padding:6px 9px 6px 19px;border-radius:0 14px 14px 0}
-#hud .vcard .row{display:grid;grid-template-columns:18px 1fr 44px;align-items:center;gap:6px}
+#hud .vcard{position:relative;display:flex;flex-direction:column;gap:4px;width:202px;margin-left:-12px;padding:5px 8px 5px 18px;border-radius:0 14px 14px 0}
+#hud .vcard .row{display:grid;grid-template-columns:18px 1fr 50px;align-items:center;gap:6px}
 #hud .vcard .row .icon{width:18px;height:18px}
 #hud .vcard .row b{font:22px/1 var(--h-num);text-align:right;font-variant-numeric:tabular-nums}
 #hud .vcard .arm b{font-size:16px;color:#1d7f86}
@@ -200,7 +200,7 @@ body{
 #hud .vtag[data-k=break]{background:linear-gradient(180deg,#5fd2c6,#14897f)}
 #hud .vtag[data-k=prot]{color:var(--h-ink);background:var(--h-turq)}
 #hud #helm{position:absolute;right:-6px;top:-13px;z-index:2;display:flex;align-items:center;gap:3px;padding:0 7px 0 3px;font:14px/20px var(--h-num);background:var(--h-sheet);border:2px solid var(--h-ink);border-radius:999px}
-#hud #helm .item-art{width:17px;height:15px}
+#hud #helm .item-art{width:18px;height:18px}
 #hud #healPops{position:absolute;left:80px;bottom:100%;width:0;height:0}
 #hud .hp-pop{position:absolute;left:0;bottom:0;font:24px/1 var(--h-num);white-space:nowrap;color:#b9f58c;text-shadow:var(--h-ol);animation:hud-heal-pop 1.2s ease-out forwards}
 #hud .hp-pop.armor{color:var(--h-turq)}
@@ -210,10 +210,10 @@ body{
 #hud #vitals.healed .hp .bar::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.85);animation:hud-fade .5s ease-out forwards}
 
 /* Above the vitals, one column: the heal bag, the posture chip and the pickup pops (newest nearest the bag). */
-#hud #lcol{position:absolute;left:16px;bottom:96px;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:9px}
+#hud #lcol{position:absolute;left:16px;bottom:88px;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:9px}
 #hud #consbar{display:flex;flex-wrap:wrap;gap:8px 11px;max-width:290px;padding:7px 0 0 4px}
-#hud .cs{position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:13px}
-#hud .cs .item-art{width:30px;height:30px}
+#hud .cs{position:relative;display:grid;place-items:center;width:40px;height:40px;border-radius:12px}
+#hud .cs .item-art{width:32px;height:32px}
 #hud .cs kbd{position:absolute;left:-6px;top:-9px;height:19px;min-width:19px;padding:0 3px;border-radius:6px;font-size:14px}
 #hud .cs b{position:absolute;right:-7px;bottom:-7px;display:grid;place-items:center;min-width:21px;height:21px;padding:0 4px;font:14px/1 var(--h-num);font-weight:400;color:var(--h-paper);background:var(--h-ink);border-radius:999px}
 #hud .cs.pick{border-color:var(--h-gold-2);box-shadow:0 3px 0 var(--h-ink),0 0 0 3px var(--h-gold)}
@@ -251,16 +251,16 @@ body{
 /* Bottom right, one cluster: the four boxes as tabs, the magazine card under them. */
 #hud #wpnbox{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:7px}
 #hud #hotbar{display:flex;gap:5px}
-#hud .hs{position:relative;display:grid;place-items:center;width:52px;height:34px;border-radius:10px;border-width:2px;box-shadow:0 2px 0 var(--h-ink);transition:transform .12s}
+#hud .hs{position:relative;display:grid;place-items:center;width:48px;height:32px;border-radius:10px;border-width:2px;box-shadow:0 2px 0 var(--h-ink);transition:transform .12s}
 #hud .hs::after{content:"";position:absolute;left:6px;right:6px;bottom:2px;height:3px;border-radius:2px;background:var(--rc,transparent)}
 #hud .hs kbd{position:absolute;top:-8px;left:-7px;height:18px;min-width:18px;padding:0 3px;border-radius:6px;font-size:14px}
-#hud .hs img{max-width:44px;max-height:26px;display:block}
+#hud .hs img{max-width:42px;max-height:24px;display:block}
 #hud .hs .weapon-icon{width:42px;height:14px;color:var(--h-ink)}
 #hud .hs.on{background:linear-gradient(180deg,#ffe98f,#ffc23d 55%,#f39a23);border-width:2.5px;transform:translateY(-4px);box-shadow:0 4px 0 var(--h-ink)}
 #hud .hs.empty{background:rgba(255,244,214,.6);border-style:dashed;box-shadow:none}
 #hud .hs.empty .weapon-icon{opacity:.25}
 #hud .hs.nope{animation:hs-nope .25s}
-#hud #ammoBox{position:relative;display:flex;align-items:center;gap:12px;min-width:206px;padding:5px 12px 6px 12px;border-left:8px solid var(--rc,#c9c2b2);border-radius:14px}
+#hud #ammoBox{position:relative;display:flex;align-items:center;gap:10px;min-width:192px;padding:4px 11px 5px 11px;border-left:8px solid var(--rc,#c9c2b2);border-radius:14px}
 #hud #ammoBox .winfo{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
 #hud #ammoBox .wname{font-size:15px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
 #hud #ammoBox .wchips{display:flex;gap:4px}
@@ -270,7 +270,7 @@ body{
 #hud #reload{align-self:flex-start;padding:0 7px;font-size:14px;line-height:18px;color:var(--h-paper);background:var(--h-gold-2);border:1.5px solid var(--h-ink);border-radius:6px}
 #hud #reload.ask{background:var(--h-terra);animation:hud-pulse .8s ease-in-out infinite}
 #hud #ammoBox .ammo{display:flex;align-items:baseline;gap:3px;flex:none}
-#hud #ammoBox .ammo b{font:40px/.95 var(--h-num);font-variant-numeric:tabular-nums}
+#hud #ammoBox .ammo b{font:36px/.95 var(--h-num);font-variant-numeric:tabular-nums}
 #hud #ammoBox .ammo span{font:16px/1 var(--h-num);color:var(--h-ink-2)}
 #hud #ammoBox .ammo span:not(:empty)::before{content:"/ ";font-size:14px}
 #hud #ammoBox .ammo.low b{color:var(--h-red);animation:hud-pulse .8s ease-in-out infinite}
@@ -353,7 +353,7 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
    still fit the bottom row, and the bag wraps. */
 .hud-narrow #hud #compass{left:16px;translate:none;width:220px}
 .hud-narrow #hud #safe,.hud-narrow #hud #hOut{left:16px;translate:none}
-.hud-narrow #hud #mapWrap{width:150px;height:150px}
+.hud-narrow #hud #mapWrap{width:136px;height:136px}
 .hud-narrow #hud #ladder,.hud-narrow #hud #coach{top:132px}
 .hud-narrow #hud .vcard{width:160px}
 .hud-narrow #hud .hs{width:44px}
@@ -362,7 +362,7 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud #specBar{grid-template-columns:auto minmax(0,1fr) auto;width:calc(100vw / var(--ui,1) - 32px)}
 .hud-narrow #hud #deathCard{min-width:0;width:calc(100vw / var(--ui,1) - 32px)}
 /* Short windows: the map shrinks so the feed never reaches the weapon cluster. */
-.hud-short #hud #mapWrap{width:144px;height:144px}
+.hud-short #hud #mapWrap{width:136px;height:136px}
 
 @keyframes hud-pulse{50%{opacity:.62}}
 @keyframes hud-card{from{opacity:0;translate:-50% -10px}}
