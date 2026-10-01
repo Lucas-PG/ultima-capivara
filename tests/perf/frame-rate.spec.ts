@@ -3,29 +3,34 @@ import { test, expect, chromium } from '@playwright/test';
 // "Taxa da tela" draws once per display refresh: 120 on a ProMotion MacBook Pro, 144 or 240 on a
 // gaming monitor. Everything the player sees must move the same at any of those rates.
 
-test('first-person motion and the camera land on the same pose at 60, 120 and 144 fps', async ({ page }) => {
-  test.setTimeout(300_000);
-  await page.goto('/?qa=1');
-  await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 120_000 });
-  await page.evaluate(() => window.__capyQA!.start());
+test('first-person motion and the camera land on the same pose at 60, 120 and 144 fps', async ({ browser }) => {
+  test.setTimeout(400_000);
   const cases: [string, string, number][] = [['m4', 'reload', 1.3], ['m4', 'fire', .45], ['shotgun', 'sprint', 1], ['machete', 'swing-right', .5], ['pistol', 'land', .6], ['sniper', 'ads', .7]];
-  for (const [weapon, action, seconds] of cases) {
-    const states: { camera: number[]; viewmodel: number[] }[] = [];
-    for (const hz of [60, 120, 144]) {
-      states.push(await page.evaluate(async ([w, a, s, rate]) => {
-        await window.__capyQA!.motion(w as never, a as never, s as number, rate as number);
-        return window.__capyQA!.viewState();
-      }, [weapon, action, seconds, hz]));
-    }
-    for (const state of states.slice(1)) {
-      const camera = Math.max(...state.camera.map((value, i) => Math.abs(value - states[0].camera[i])));
-      const viewmodel = Math.max(...state.viewmodel.map((value, i) => Math.abs(value - states[0].viewmodel[i])));
-      expect(state.viewmodel.length, `${weapon} ${action}`).toBe(states[0].viewmodel.length);
-      // Millimetres and thousandths of a radian: the same pose, sampled at a different rate.
-      expect(camera, `${weapon} ${action} camera`).toBeLessThan(.01);
-      expect(viewmodel, `${weapon} ${action} first-person model`).toBeLessThan(.02);
-    }
+  // One fresh page per rate runs the same sequence, so time-driven sway starts from the same clock.
+  const runs: { camera: number[]; viewmodel: number[] }[][] = [];
+  for (const hz of [60, 120, 144]) {
+    const page = await browser.newPage();
+    await page.goto('/?qa=1');
+    await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 120_000 });
+    await page.evaluate(() => window.__capyQA!.start());
+    const states = [];
+    for (const [weapon, action, seconds] of cases) states.push(await page.evaluate(async ([w, a, s, rate]) => {
+      await window.__capyQA!.motion(w as never, a as never, s as number, rate as number);
+      return window.__capyQA!.viewState();
+    }, [weapon, action, seconds, hz] as const));
+    runs.push(states);
+    await page.close();
   }
+  cases.forEach(([weapon, action], index) => {
+    const reference = runs[0][index];
+    for (const run of runs.slice(1)) {
+      const state = run[index];
+      expect(state.viewmodel.length, `${weapon} ${action}`).toBe(reference.viewmodel.length);
+      // Millimetres and thousandths of a radian: the same pose, sampled at a different rate.
+      expect(Math.max(...state.camera.map((value, i) => Math.abs(value - reference.camera[i]))), `${weapon} ${action} camera`).toBeLessThan(.01);
+      expect(Math.max(...state.viewmodel.map((value, i) => Math.abs(value - reference.viewmodel[i]))), `${weapon} ${action} first-person model`).toBeLessThan(.02);
+    }
+  });
 });
 
 test('draws at the display rate when it is above 60, and holds the 60 and 30 caps', async ({ baseURL }) => {
