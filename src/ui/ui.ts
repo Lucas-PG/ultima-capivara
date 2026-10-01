@@ -419,7 +419,7 @@ export class GameUI {
     // Map, compass and the safe-zone cue follow whoever the camera shows: you, or the capybara you are watching.
     const viewed = (this.spectate?.target && snapshot.actors.find(a => a.id === this.spectate!.target)) || me;
     const safeDistance = Math.hypot(viewed.pos.x - zone.nextX, viewed.pos.z - zone.nextZ) - zone.nextRadius;
-    const showSafe = br && viewed.alive && viewed.stage !== 'plane' && !finalStorm && safeDistance > 0 && snapshot.phase === 'playing';
+    const showSafe = br && viewed.alive && viewed.stage !== 'plane' && !finalStorm && safeDistance >= .5 && snapshot.phase === 'playing';
     this.show('safe', showSafe && me.alive);
     this.safeBearing = br && viewed.alive && !finalStorm && snapshot.phase === 'playing' ? Math.atan2(zone.nextX - viewed.pos.x, -(zone.nextZ - viewed.pos.z)) * 180 / Math.PI : null;
     this.toggle(this.el('compass'), 'outside', showSafe);

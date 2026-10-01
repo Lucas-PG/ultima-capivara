@@ -258,8 +258,8 @@ body{
 #hud .hs img{max-width:42px;max-height:24px;display:block}
 #hud .hs .weapon-icon{width:42px;height:14px;color:var(--h-ink)}
 #hud .hs.on{background:linear-gradient(180deg,#ffe98f,#ffc23d 55%,#f39a23);border-width:2.5px;transform:translateY(-4px);box-shadow:0 4px 0 var(--h-ink)}
-#hud .hs.empty{background:rgba(255,244,214,.6);border-style:dashed;box-shadow:none}
-#hud .hs.empty .weapon-icon{opacity:.25}
+#hud .hs.empty{background:rgba(255,244,214,.82);border-style:dashed;border-color:rgba(58,36,24,.7);box-shadow:none}
+#hud .hs.empty .weapon-icon{opacity:.32;color:var(--h-ink-2)}
 #hud .hs.nope{animation:hs-nope .25s}
 #hud #ammoBox{position:relative;display:flex;align-items:center;gap:10px;min-width:192px;padding:4px 11px 5px 11px;border-left:8px solid var(--rc,#c9c2b2);border-radius:14px}
 #hud #ammoBox .winfo{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
