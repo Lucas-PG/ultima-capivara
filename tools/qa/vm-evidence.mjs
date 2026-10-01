@@ -21,6 +21,7 @@ const RELOAD_KEYS = {
 };
 const states = weapon => [
   ['hip', 'hip', 'pose'], ['aimed', 'aimed', 'pose-ads'], ['sprint', 'sprint', 'sprint', .6], ['walk', 'walk', 'walk', .9],
+  ['strafe', 'strafe left', 'strafe', .5], ['crouch', 'crouch dip', 'crouch', .12], ['land', 'land', 'land', .08], ['draw', 'draw', 'equip', .3],
   ...(weapon === 'machete' ? [] : [['fire', 'fire', 'fire', .05]]),
   ...RELOAD_KEYS[weapon], ['inspect-a', 'inspect', 'inspect', .55], ['inspect-b', 'inspect', 'inspect', 1.3],
   ['side-right', 'hip right side', 'orbit', Math.PI / 2], ['side-left', 'hip left side', 'orbit', -Math.PI / 2],
@@ -54,6 +55,18 @@ try {
         } else if (action === 'walk') {
           // Walking forward at 4.5 m/s: the motion fixture's sprint action, with the viewmodel told it walks.
           await page.evaluate(() => { window.__vmActor = a => ({ sprint: false, velocity: { x: -Math.sin(a.yaw) * 4.5, y: 0, z: -Math.cos(a.yaw) * 4.5 } }); });
+          await page.evaluate(([w, s]) => window.__capyQA.motion(w, 'sprint', s), [weapon, t]);
+        } else if (action === 'strafe') {
+          // Strafing left at 4.5 m/s.
+          await page.evaluate(() => { window.__vmActor = a => ({ sprint: false, velocity: { x: -Math.cos(a.yaw) * 4.5, y: 0, z: Math.sin(a.yaw) * 4.5 } }); });
+          await page.evaluate(([w, s]) => window.__capyQA.motion(w, 'sprint', s), [weapon, t]);
+        } else if (action === 'crouch') {
+          // The fixture settles at a fixed time, then plays the action: standing still, crouched from that moment.
+          await page.evaluate(() => {
+            const st = { prev: -1, start: Infinity };
+            window.__vmActor = (a, time) => { if (time === st.prev) st.start = Math.min(st.start, time); st.prev = time;
+              return { crouch: time > st.start, sprint: false, velocity: { x: 0, y: 0, z: 0 } }; };
+          });
           await page.evaluate(([w, s]) => window.__capyQA.motion(w, 'sprint', s), [weapon, t]);
         } else await page.evaluate(([w, a, s]) => window.__capyQA.motion(w, a, s), [weapon, action, t]);
         await page.waitForTimeout(60);

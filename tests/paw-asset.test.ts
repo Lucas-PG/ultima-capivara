@@ -160,3 +160,48 @@ it('builds the first-person paw as the world paw at 1 / TP_WEAPON_SCALE', async 
   // And it is the big paw, not the old small one (about 9 cm from wrist to the middle knuckle).
   expect(fp.knuckle).toBeGreaterThan(.08);
 });
+
+// First person draws the character's forearm slimmer toward its bone axis (viewmodel-research.md §7):
+// the forearm reaches its first-person girth, the paw, digits and wrist keep the character's own shape.
+it('slims only the first-person forearm and keeps the paw exactly', async () => {
+  const { MeshoptDecoder: decoder } = await import('meshoptimizer');
+  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+  const { ArmsRig, FP_FOREARM_GIRTH } = await import('../src/render/fp-arms');
+  await decoder.ready;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': decoder });
+  const doc = await io.read('public/models/fp/fp-arms.glb');
+  for (const texture of doc.getRoot().listTextures()) texture.dispose();
+  for (const extension of doc.getRoot().listExtensionsUsed())
+    if (extension.extensionName === 'EXT_meshopt_compression' || extension.extensionName === 'EXT_texture_webp') extension.dispose();
+  const bin = await io.writeBinary(doc);
+  const gltf = await new GLTFLoader().parseAsync(bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) as ArrayBuffer, '');
+  const meshes: THREE.SkinnedMesh[] = [];
+  gltf.scene.traverse(o => { if (o instanceof THREE.SkinnedMesh) meshes.push(o); });
+  gltf.scene.updateMatrixWorld(true);
+  const rest = meshes.map(mesh => Array.from({ length: mesh.geometry.attributes.position.count }, (_, i) => mesh.getVertexPosition(i, new Vector3())));
+  new ArmsRig(gltf as never);
+  meshes.forEach((mesh, m) => {
+    const side = mesh.name.endsWith('R') ? 'R' : 'L';
+    const bone = (name: string) => mesh.skeleton.bones.find(b => b.name === `${name}_${side}`)!.getWorldPosition(new Vector3());
+    const elbow = bone('fore'), wrist = bone('hand'), axis = wrist.clone().sub(elbow), length = axis.length(); axis.normalize();
+    const names = mesh.skeleton.bones.map(b => b.name.replace(/_[LR]$/, ''));
+    const skinIndex = mesh.geometry.attributes.skinIndex, skinWeight = mesh.geometry.attributes.skinWeight;
+    const dominant = (i: number) => { let best = 0, w = -1; for (let k = 0; k < 4; k++) if (skinWeight.getComponent(i, k) > w) { w = skinWeight.getComponent(i, k); best = skinIndex.getComponent(i, k); } return names[best]; };
+    const radii: number[] = [];
+    for (let i = 0; i < rest[m].length; i++) {
+      const now = mesh.getVertexPosition(i, new Vector3()), before = rest[m][i];
+      const t = before.clone().sub(elbow).dot(axis) / length;
+      // Digits, and the wrist past the forearm's free end, are untouched.
+      if (/^(index|middle|ring|thumb)\d$/.test(dominant(i)) || t > .97) expect(now.distanceTo(before), `${mesh.name} vertex ${i}`).toBeLessThan(1e-5);
+      // No vertex moves along the forearm or away from its axis.
+      const radial = (p: Vector3) => p.clone().sub(elbow).addScaledVector(axis, -p.clone().sub(elbow).dot(axis)).length();
+      expect(Math.abs(now.clone().sub(before).dot(axis))).toBeLessThan(1e-5);
+      expect(radial(now)).toBeLessThanOrEqual(radial(before) + 1e-5);
+      if (t > .45 && t < .55) radii.push(radial(now));
+    }
+    radii.sort((a, b) => a - b);
+    const median = radii[radii.length >> 1];
+    expect(median).toBeLessThan(FP_FOREARM_GIRTH[1][1] + .004);
+    expect(median).toBeGreaterThan(FP_FOREARM_GIRTH[1][1] - .006);
+  });
+}, 60_000);

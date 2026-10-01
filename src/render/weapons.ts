@@ -133,6 +133,10 @@ export class WeaponView {
   private readonly baseRotation = new THREE.Quaternion();
   private readonly ride = new THREE.Matrix4();
   private readonly rideTo = new THREE.Matrix4();
+  private readonly rideTurn = new THREE.Quaternion();
+  private readonly ridePole = new THREE.Vector3();
+  private rideR = 0;
+  private rideL = 0;
   private readonly targetR: HandTarget;
   private readonly targetL: HandTarget;
   private readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -460,14 +464,17 @@ export class WeaponView {
       this.shoulderR.lerp(v3(spec.reloadShoulders.R, this.shoulderAds), this.reloadArm);
       this.shoulderL.lerp(v3(spec.reloadShoulders.L, this.shoulderAds), this.reloadArm);
     }
-    if (lowered > 0) {
+    const rideR = Math.max(lowered, spec.armRide ?? 0), rideL = spec.freePaw ? 0 : lowered;
+    if (rideR > 0 || rideL > 0) {
       // Drawing and holstering lower the whole gun: the shoulders ride with it, so the forearms keep
-      // their hold instead of swinging through the gun.
+      // their hold instead of swinging through the gun (and a blade's arm rides with every cut).
       this.ride.compose(this.basePosition, this.baseRotation, ONE).invert()
         .premultiply(this.rideTo.compose(this.holder.position, this.holder.quaternion, ONE));
-      this.shoulderR.lerp(this.shoulderAds.copy(this.shoulderR).applyMatrix4(this.ride), lowered);
-      this.shoulderL.lerp(this.shoulderAds.copy(this.shoulderL).applyMatrix4(this.ride), lowered);
+      this.shoulderR.lerp(this.shoulderAds.copy(this.shoulderR).applyMatrix4(this.ride), rideR);
+      this.shoulderL.lerp(this.shoulderAds.copy(this.shoulderL).applyMatrix4(this.ride), rideL);
+      this.rideTurn.setFromRotationMatrix(this.ride);
     }
+    this.rideR = rideR; this.rideL = rideL;
     this.solveArms(model, grips, choreo, sample ?? inspect, spec.freePaw);
     if (import.meta.env.DEV) this.debugOrbit();
   }
@@ -671,6 +678,8 @@ export class WeaponView {
     this.holder.updateMatrixWorld(true);
     this.gripTarget(model, grips.R, this.targetR);
     if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);
+    // Riding shoulders carry their elbow direction too, so the whole arm moves as one piece.
+    if (this.rideR > 0) this.targetR.pole.lerp(this.ridePole.copy(this.targetR.pole).applyQuaternion(this.rideTurn), this.rideR).normalize();
     arms.right.solve(this.shoulderR, this.targetR);
     const L = grips.L;
     arms.setVisible(true, !!L || this.swimPose > .5);
@@ -692,6 +701,7 @@ export class WeaponView {
         v3(free.palm, this.targetL.palm).normalize();
       }
       if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
+      if (this.rideL > 0) this.targetL.pole.lerp(this.ridePole.copy(this.targetL.pole).applyQuaternion(this.rideTurn), this.rideL).normalize();
       arms.left.solve(this.shoulderL, this.targetL);
     }
   }

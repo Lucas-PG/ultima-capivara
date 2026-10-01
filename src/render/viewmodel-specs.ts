@@ -38,6 +38,9 @@ export interface ViewSpec {
   choreoFrame?: { pos: V3; rot: V3 };
   /** One-handed weapons: the free paw's rest (camera space); it dips under the cut while swinging. */
   freePaw?: { wrist: V3; forward: V3; palm: V3 };
+  /** Share (0 to 1) of the gun's motion (sway, bob, cuts, inspect) the hidden firing shoulder follows: a
+   * one-handed blade moves as one piece with its forearm. Holding paws always follow a draw or holster. */
+  armRide?: number;
   /** Hidden shoulders while reloading (blended in and out), where a reload's reaches need the arm from elsewhere. */
   reloadShoulders?: { R: V3; L: V3 };
   /** First-person elbow directions (camera space) for the rest grips; the shared grip data keeps its own. */
@@ -142,8 +145,8 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     choreoFrame: { pos: [.22, -.13, -.5], rot: [.04, .3, .25] },
     shoulders: { R: [.383, -.788, -.357], L: [.01, -.688, -.616] },
     // The coconut lifts reach over the tube to the hopper on its right: the support arm comes from the left
-    // for them, as authored (the earlier shoulders, carried with the gun to this hip).
-    reloadShoulders: { R: [.137, -.556, -.175], L: [-.342, -.53, -.552] }, adsShoulders: { R: [.147, -.807, -.114], L: [-.13, -.691, -.407] },
+    // for them, as authored (the earlier shoulders carried with the gun to this hip, a little further left).
+    reloadShoulders: { R: [.137, -.556, -.175], L: [-.42, -.53, -.55] }, adsShoulders: { R: [.147, -.807, -.114], L: [-.13, -.691, -.407] },
     grips: GRIPS.coco,
     recoil: { kick: 2.6, climb: 7.5, roll: 1.6, frequency: 16 }, inertia: 1.3,
   },
@@ -176,7 +179,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     sprint: { pos: [.03, -.08, .04], rot: [.18, -.35, .15] }, adsDistance: .3,
     shoulders: { R: [.45, -.6, -.5], L: [-.3, -.6, -.1] }, poles: { R: [.6, -1, .3], L: [-.6, -1, .2] },
     freePaw: { wrist: [-.21, -.17, -.44], forward: [.45, .45, -1], palm: [.75, -.6, .1] },
-    choreoFrame: { pos: [.19, -.12, -.48], rot: [.70, .85, 2.0] },
+    choreoFrame: { pos: [.19, -.12, -.48], rot: [.70, .85, 2.0] }, armRide: 1,
     grips: GRIPS.machete,
     recoil: { kick: 0, climb: 0, roll: 0, frequency: 20 }, inertia: .8,
   },
