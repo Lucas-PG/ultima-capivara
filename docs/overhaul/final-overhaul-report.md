@@ -5,11 +5,14 @@ Goal: turn the M1 build into a cohesive stylized shooter (Overwatch, Fortnite an
 
 Each pass has its own detailed report in `docs/overhaul/` (measurements, evidence, tests). This document is the summary and the map to them. Review verdicts for every delegated pass are in `docs/overhaul/briefs/review-log.md`.
 
-DRAFT NOTE: sections marked PENDING are filled in at the release gate.
-
 ## 1. Outcome
 
-PENDING (final state, what is at the bar, what is not).
+Done and pushed to `overhaul/m1-inventory` on 1 October 2026 (a fast-forward of `overhaul/aaa-autonomous`; the M1 branch had not moved since 7f48b7d).
+
+- Every area of the brief was rebuilt or reworked by a delegated pass, each reviewed by the orchestrator against independent captures before it was merged. Work below the bar went back: the long guns once (fingers-up support grips), the character four times (rounds 1 and 3 by the orchestrator, round 2 rejected by the user, round 4 for its fur-shell cost), and the final polish findings became a world finish pass.
+- Release gate on the final build, on this machine (Apple M2, 8 GB, real Chrome with ANGLE Metal, 1280x720): type check clean, 1,057 of 1,057 unit tests, production build green; 11 of 11 browser tests including every multiplayer test with two real game clients over PeerJS and the full Correria match with rematch; 171 visual baselines regenerated, reviewed by eye and passing; the same performance test run on M1 and on the final build back to back on a quiet machine (section 6); before and after sheets from the same cameras (section 8).
+- At the bar now: first person (arms that are the character's own paws, nine reworked weapons, measured grips), the world at street level and from the plane, combat feel and effects, the HUD, menus and spectating, the character's body, outfit and animation.
+- Short of the bar or unheard: the new audio has not been heard by a person; Medium and High run about 43 fps (not 60) in the 16-capybara plaza scene on this M2, as M1 did (section 6); the open items in section 9.
 
 ## 2. What changed, by area
 
@@ -18,15 +21,15 @@ PENDING (final state, what is at the bar, what is not).
 Before: a small blocky gun low in the corner, plain brown tubes for arms with paws baked into each gun, a 78 degree vertical field of view (fisheye), one sine bob and one recoil spring for every gun.
 
 Now:
-- One arm rig for every weapon, with inverse kinematics to authored grips in weapon space. Paws are a sculpted, baked asset (`tools/blender/paw_sculpt.py`, `fp_arms.py`): pads, plump digits with creased joints, an opposable thumb, claws, fur shells on the forearm and the back of the paw, a rolled linen cuff.
+- One arm rig for every weapon, with inverse kinematics to authored grips in weapon space. The arms are the third-person character's own arms: its paw (`tools/blender/capy_hand.py`, imported by `fp_arms.py`) at 1/1.3 scale, because third-person guns are drawn 1.3 times bigger to fit that paw, so the paw-to-gun proportion is the same in both views (tested); the character's forearm, rolled linen cuff, palette, combed fur and fur shells; bare leathery palm and digits, blunt claws. Built on the Linux machine: 30k triangles, 1.06 MB.
 - Per-weapon framing at the hip, aimed and sprinting; look inertia, gait bob, strafe tilt, jump, land and crouch springs; per-weapon recoil springs; draw and holster.
 - Every mechanism moves: slides, hammers, pump, bolts, cylinder and crane, charging handles, magazines, shells, the coconut hopper.
 - Reloads are keyframed per family with paw contacts that follow the moving part: empty and tactical magazine swaps, the revolver's ejector and speedloader, shell-by-shell shotgun loading, the bolt-action cycle. Inspect on every gun.
-- Grips were measured, not eyeballed: `tools/qa/grip-probe.mjs` reports the signed distance of each digit to the gun and its angle around the bore; `tools/qa/grip-fit.mjs` solves wrist, curls and thumb spread against an intent. Accepted clearances: worst -0.4 mm (long guns) and -0.3 mm (short guns) across hip, aim, fire, inspect and full reloads.
+- Grips are data (`src/render/fp-grips.json`, shared with the third-person holds) and were re-fitted to the new paw for all nine weapons in every state (hip, aimed, sprint, fire, draw, inspect, every reload); approach keys are offsets from their contact keys. Worst clearance -0.5 mm over 1,244 sampled poses. Grips were measured, not eyeballed: `tools/qa/grip-probe.mjs` reports the signed distance of each digit to the gun and its angle around the bore; `tools/qa/grip-fit.mjs` solves wrist, curls and thumb spread against an intent.
 - Field of view is horizontal (default 100, range 80 to 120); the viewmodel has its own lens per weapon (56 to 60).
 - Aiming: mild tangent-correct zoom per weapon, sensitivity relative to the lens, open sights where the design has them, a redrawn scope (bezel, tint, duplex and chevron reticles) with a flash inside the lens.
 
-Reports: `guns-short-report.md`, `guns-long-report.md`. References: `docs/art/references/` (boards and research notes; guides, not anatomy truth).
+Reports: `guns-short-report.md`, `guns-long-report.md`, `fp-arms-report.md`, `fp-arms-research.md`. References: `docs/art/references/` (boards and research notes; guides, not anatomy truth).
 
 ### 2.2 Weapons
 
@@ -40,7 +43,7 @@ Nine weapons (the slingshot was removed at the user's request; no new weapons, a
 
 Four rounds after the first rebuild, each reviewed against the targets at the same cameras (boards in `output/review/char-r2/` and `docs/overhaul/evidence/char-polish/`):
 - Round 1: re-sculpted head and cloth, 4K painted maps, LOD0 40.5k triangles, groomed fur shells, eight walk and crouch directions with planted feet, the rebuilt Capivara Redentora.
-- Round 2: a broad build with its own big leathery paws, two legs in a wide stance, a knotted bandana, pleated hip rag, canvas rucksack and blanket roll, a breathing idle and a low-ready armed idle with springs on the loose gear, holds re-fitted for all nine weapons (third-person guns drawn 1.3 times bigger to fit the paw), and High, Medium and Low texture tiers (7, 3.8 and 2.8 MB; 192, 48 and 12 MB of GPU memory).
+- Round 2: a broad build with its own big leathery paws, two legs in a wide stance, a knotted bandana, pleated hip rag, canvas rucksack and blanket roll, a breathing idle and a low-ready armed idle with springs on the loose gear, holds re-fitted for all nine weapons (third-person guns drawn 1.3 times bigger to fit the paw), and High, Medium and Low texture tiers chosen by the graphics setting at load (final files 6.3, 3.6 and 2.7 MB; 192, 48 and 12 MB of GPU memory).
 - Round 3, by a fresh agent at maximum effort after the user rejected round 2: knees that bent backwards in every clip (the leg IK pole pointed backward), a cartoon capybara head without the cheek lobes, fur that reads as fur (combed locks with a darker crown, nape and back), team colour readable at 60 m, the statue rebuilt and validated.
 - Round 4: open, bright eyes with catchlights, furred blinks, golden fur in shade, a paler muzzle; fur shells tiered by distance so a close crowd costs what round 2 did.
 Direction from the user on the final day: a fun, cartoonized capybara humanoid; the references are guides, not specs.
@@ -60,7 +63,7 @@ Now:
 - The kit grew from 56 to 89 pieces and stays inside its download budget.
 - Pickups rebuilt as objects (vest, helmet, ammo can, medkit, bandage, guaraná can, açaí bowl, rapadura); the supply drop has a light column and signal smoke.
 
-- Final polish: no leaf grows inside a room any more (60 plants had leaves in buildings; a test checks every drawn leaf against every room), foliage stays off arena spawns, and pickups carry a light column when a supply drop is announced.
+- Final polish: no leaf grows inside a room any more (60 plants had leaves in buildings; a test checks every drawn leaf against every room), foliage stays off arena spawns, loot beams thin out up close so they never cover the crosshair.
 - World finish: the faceted bougainvillea baked into the town facades was replaced by painted plantings and drapes (doors and windows kept clear); a world-space stone layer gives rocks and cliffs joints, grain and relief up close; the offshore islets were rebuilt as granite morros over forest with coves, surf and palms; the Capela do Morro became its own hill chapel; terrace end walls and the Campinho stands were dressed; spawns reject spots under tree crowns (tested).
 
 Reports: `world-structure-report.md`, `vegetation-report.md`, `world-polish-report.md`, `final-polish-report.md`, `world-finish-report.md`.
@@ -101,7 +104,7 @@ Reports: `audio-report.md`, `audio-research.md`.
 - HUD rebuilt toward a mockup: teal plates, portrait vitals, four weapon boxes with thumbnails from the models, magazine card, compass with the safe-zone bearing, minimap with the match strip, kill feed, death card, elimination confirmation.
 - Loading scenes per mode, results with a podium, a watching menu, settings that fit and scroll on short windows.
 
-- Final polish: the spectator camera rises over or swings along walls and treats foliage as soft (live: the watched capybara on screen in 97.9% of samples, within 1.2 m in 1.3%); scopes fill 90% of the screen height inside a lit scope body over a blurred, darkened world (was a 63% lens on black); the HUD was checked at 1280x720, 1600x900, 1920x1080 and 2560x1440 at interface scales 80, 100 and 120% with zero overlaps; the HUD is complete after a rematch in every mode; the eight non-weapon pickups were rebuilt with their own silhouettes (vest, helmet, ammo can, medkit, bandage, guarana can, acai bowl, rapadura).
+- Final polish: the spectator camera rises over or swings along walls and treats foliage as soft (live: the watched capybara on screen in 97.9% of samples, within 1.2 m in 1.3%); scopes fill 90% of the screen height inside a lit scope body over a blurred, darkened world (was a 63% lens on black); the HUD was checked at 1280x720, 1600x900, 1920x1080 and 2560x1440 at interface scales 80, 100 and 120% with zero overlaps; the HUD is complete after a rematch in every mode.
 - World finish: a near-camera foliage fade, local camera only, so first person, the death cam and the spectator never sit inside a bush (other players still see the bush as before).
 
 Reports: `ui-report.md`, `ui-research.md`, `integration-report.md`, `final-polish-report.md`.
@@ -128,9 +131,8 @@ Report: `bots-graphics-report.md` (bots half).
 - Procedural audio instead of samples: full control of loudness, spectrum and envelope, no licences to track, smaller download.
 - Third-person spectating instead of first person: it needs no viewmodel for the watched player and reads better at 20 Hz snapshots.
 - Client-side prediction of own shots with a seeded spread: aim was already client authoritative, the host still decides hits.
-- Delegation: independent passes ran as Claude Opus agents in git worktrees, each reviewed against independent captures before merging; two passes were sent back (long guns round 1, character round 1). Codex was used for image generation only, after the user's instruction.
+- Delegation: independent passes ran as Claude Opus agents in git worktrees, each reviewed against independent captures before merging and sent back when below the bar (section 1). Codex was used for image generation only, after the user's instruction.
 - Removed by user decision: the slingshot. Deferred by user decision: three proposed new weapons (`docs/art/references/new-weapons.md`).
-
 - Character direction (user, final day): a fun, cartoonized capybara humanoid; references are guides, not specs. Round 2 was rejected (head without fur, knees reading bent backwards, two lobes at the base of the head) and rebuilt by a fresh agent from round 2 in small steps.
 - First-person arms built from the third-person character's own paw at 1/1.3 scale, because third-person guns are drawn 1.3 times bigger to fit that paw: the paw-to-gun proportion matches in both views.
 
@@ -138,36 +140,60 @@ Rejected experiments: spiky fin fur on the arms (read as scales), a 1.18 paw sca
 
 ## 4. Tests
 
-PENDING (final counts). At b1c0424: `npx tsc --noEmit` clean, `npx vitest run` 1037 of 1037 in 113 files, `npm run build` green. Visual suite: 165 baselines reviewed and installed locally during integration (the baselines folder is gitignored; approvals are recorded in `evidence/integration/approved-baselines.json`).
+Final build (the commit pushed to M1):
+- `npx tsc --noEmit`: clean. `npm run build`: green.
+- `npx vitest run --maxWorkers=2`: 1,057 of 1,057 in 115 files (718 at the start of the overhaul). New suites guard the world (bridges, quays, stairs, docks, no trapped pockets, leaves out of rooms and off spawns), weapons and grips (clearances, ADS alignment, reload contacts), the character (hit volume in every clip, planted feet in 16 directions, the first-person paw equal to the world paw over 1.3), audio (no steady hiss, gunfire distinct from steps), spectating, controls, settings, HUD layout and the network protocol. Under heavy load a few world and loading suites time out at the default and pass alone.
+- Browser tests (`npx playwright test --project=chromium`, real Chrome with ANGLE Metal): 11 of 11, including `E2E_SLOW=1` for the full-match rematch gate (section 5), the scope flash, results and settings flows.
+- Visual (`playwright.visual.config.ts`): 171 baselines regenerated on the final build, reviewed by eye on contact sheets and passing (2 of 2 tests, including the character mask). `tests/visual/baselines/` is gitignored; the approved hashes are in `docs/overhaul/evidence/final/approved-baselines.json`.
 
 ## 5. Multiplayer
 
-PENDING (release gate run with real clients on a quiet machine). Protocol version 12 (shot sequence numbers, jump flag).
+Release gate, quiet machine (load 3 to 9), two real Chrome game clients over a local PeerJS signaling server (`tests/network-game.e2e.spec.ts`, `tests/network.e2e.spec.ts`), all passing:
+- two Corrente clients join, replicate movement and emotes, show the round trip time and recover the same player after a reload;
+- a silent room shows the join timeout and its retry button recovers;
+- a Correria guest selects, drops and picks a gun back up through the host;
+- a guest sees its own rounds on the input frame (shot prediction) and the host confirms each exactly once;
+- host and guest exchange the lobby, gameplay, recovery and close;
+- a full Correria ends on both clients and the host starts a clean rematch (5.6 minutes, `E2E_SLOW=1`).
+Protocol version 12 (shot sequence numbers, jump flag). The spectator camera was also verified with two real clients during the UI pass.
 
 ## 6. Performance
 
-PENDING (release gate numbers on Low, Medium and High on a quiet machine).
+Same test, same machine, back to back on 1 October at 02:10 to 02:15 (load average 5 to 7): `tests/perf/perf.spec.ts` (16 capybaras in the QA plaza, 1280x720, 5 s of real frame intervals per preset; downloads counted through the menu and the match). M1 is the original branch (7f48b7d) in a detached worktree.
+
+| Preset | M1 fps (p95 ms) | Final fps (p95 ms) | Draws M1 / final | Triangles M1 / final | JS heap MB M1 / final |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Low | 25.1 (83.4, 12 frames over 50 ms) | 60.0 (16.7, none over 50 ms) | 215 / 136 | 0.76M / 1.32M | 631 / 231 |
+| Medium | 44.7 (33.4) | 43.7 (33.4) | 305 / 155 | 1.60M / 1.69M | 619 / 240 |
+| High | 44.1 (33.4) | 42.1 (33.4) | 334 / 182 | 1.70M / 2.02M | 643 / 237 |
+
+- Low went from 25 to a steady 60 fps; Medium and High hold the same frame rate as M1 while drawing a far richer world and characters, with about half the draw calls; the JS heap fell by about 63% on every preset.
+- Medium and High miss 60 fps in this crowded plaza scene on an M2 both before and after (about 23 ms per frame on average, frames alternating between one and two vsync intervals). Live matches measured during the passes ran at 58 to 61 fps fresh (integration pass) and 16.7 ms p50 on every preset in practice Correria (final polish pass), under shared load. A close crowd of 15 capybaras costs 5 to 8 ms of GPU for the fur shells after the round 4 fix (round 2: 7 ms).
+- Download: the menu is 0.69 MB gzipped (0.64 before); a match downloads 30.1 MB on Low, 31.0 on Medium and 33.7 on High (19.7 before), mostly the kit, the weapons and the character tiers (High 6.3 MB, Medium 3.6, Low 2.7; GPU memory 192, 48 and 12 MB).
+- No leak in long runs: resource counts stayed flat over a 532 s Correria round (882 geometries, 90 textures, 78 programs); about 5.7 KB of garbage per frame.
 
 ## 7. Assets and licences
 
 - No external asset was downloaded for the overhaul and nothing was bought. Models are built by the Blender scripts in `tools/blender/`; audio is generated by the code in `src/sound/`.
 - Painted sources (foliage sheets, weapon stencils, effect sheets, loading scenes, reference boards and concept sheets) were generated with the Codex image tool from prompts recorded in `docs/assets.md`, next to the existing records.
 - Fonts come from the npm packages already in the project.
+- Tools only, never shipped: Blender 5.0.1 for Linux (GPL, the official download from blender.org, checksum verified) on the build machine.
 
 ## 8. Before and after
 
-PENDING (`docs/overhaul/evidence/final/`, same cameras as `docs/overhaul/evidence/baseline/`).
+Sheets in `docs/overhaul/evidence/final/` put each view of the 27 September baseline (`output/baseline`, before any change) next to the final build, same QA pose or the same scripted live sequence, 1280x720: `01-first-person` and `02-aiming` (all weapons), `03-third-person`, `04-ground-weapons`, `05-character-and-emotes`, `06-world-views`, `07-districts`, `08-interiors`, `09-effects-water-supply`, `10-hud-pause-results`, `11-live-deathmatch`, `12-live-battle-royale`. The slingshot tiles show "not in this build" (removed at the user's request). Per-pass before and after boards are in the evidence folder of each pass.
 
 ## 9. Limitations and follow-ups
 
-PENDING (consolidated at the release gate). Known now:
-- The new audio has not been heard by a person.
+Known at the release gate:
+- The new audio has not been heard by a person: every judgement is from measurements and spectrograms (`tools/audio/lab.html` to audition).
+- Medium and High run about 43 fps in the 16-capybara plaza scene on an M2 (as M1 did); a GPU profile of that scene is the next performance step. KTX2 texture compression (no encoder on this machine yet) would also cut GPU memory and download.
+- Character: a closed eye reads as a round lid inside a dark ring from the front at 1 m; yellow is the weakest team colour at 60 m in shade; the fur is stylized (painted locks plus shells), not strand-level.
+- First-person arms: during the pistol reload the two paws overlap each other for about 0.2 s (never the gun); the trigger digit rests on the trigger from outside the guard; the third-person Carabina still carries the sling the first-person model stowed; `paw_sculpt.py` is no longer used.
 - Trees and bushes have no collision (by the existing design).
 - Bots do not path up the Capela stair (they use the graded path) and sometimes swim under the Palafitas decks.
-- All three churches share one kit piece.
 - No first-person spectating.
 - Remote gunfire does not change with the shooter's facing; no per-enemy threat scoring.
-- KTX2 compressed textures are not used (no encoder on this machine), so GPU texture memory is higher than it could be.
 - The Rosario chapel still shares the town church kit piece; a few interior potted plants keep the faceted kit foliage; balcony and parapet drapes are thin at 8 to 10 m.
 - The spectator lens can still come under 1 m for a moment in tight rooms, the narrow street by the market hall and past lamp posts.
 - The near-camera foliage fade is a dither, visible as a stipple in still frames.
