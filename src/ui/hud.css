@@ -210,7 +210,7 @@ body{
 #hud #vitals.healed .hp .bar::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.85);animation:hud-fade .5s ease-out forwards}
 
 /* Above the vitals, one column: the heal bag, the posture chip and the pickup pops (newest nearest the bag). */
-#hud #lcol{position:absolute;left:16px;bottom:88px;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:9px}
+#hud #lcol{position:absolute;left:16px;bottom:94px;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:9px}
 #hud #consbar{display:flex;flex-wrap:wrap;gap:8px 11px;max-width:290px;padding:7px 0 0 4px}
 #hud .cs{position:relative;display:grid;place-items:center;width:40px;height:40px;border-radius:12px}
 #hud .cs .item-art{width:32px;height:32px}
@@ -302,7 +302,7 @@ body{
 #hud .dc-respawn svg{position:absolute;inset:0;rotate:-90deg}
 #hud .dc-respawn .bg{fill:#e8fbf8;stroke:rgba(58,36,24,.2);stroke-width:4}
 #hud .dc-respawn .fg{fill:none;stroke:var(--h-teal);stroke-width:4;stroke-linecap:round;stroke-dasharray:0 100;transition:stroke-dasharray .12s linear}
-#hud .dc-respawn b{font:26px/1 var(--h-num);margin-top:-8px}
+#hud .dc-respawn b{position:relative;font:26px/1 var(--h-num);margin-top:-8px}
 #hud .dc-respawn small{position:absolute;bottom:9px;font-size:14px;color:var(--h-ink-2)}
 #hud #specBar{position:absolute;left:50%;bottom:16px;translate:-50% 0;display:grid;grid-template-columns:auto 400px auto;align-items:center;gap:8px}
 #hud .sp-nav{pointer-events:auto;display:flex;align-items:center;gap:6px;height:48px;padding:0 10px;font:inherit;color:var(--h-ink);border-radius:14px;cursor:pointer}
