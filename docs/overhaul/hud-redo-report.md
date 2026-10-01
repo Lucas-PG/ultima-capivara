@@ -93,7 +93,7 @@ Measured on screen at 1470x956 (DPR 1, interface 100%), the user's screen size:
 
 | | before the redo | first pass | now | Fortnite, same height | Rumbleverse, same height |
 | --- | --- | --- | --- | --- | --- |
-| Heal slot | 22 px chip | 37 px | 53 px | about 56 px | about 90 px art |
+| Heal slot | 31 px chip | 37 px | 53 px | about 56 px | about 90 px art |
 | Heal art | 20 px drawn icon | 29 px drawn | 50 px painted | about 40 px | about 90 px |
 | Count | 15 px text in the chip | 13 px | 17.5 px in a 30x26 pill | about 18 px | none |
 | Selected heal | none | gold ring | raised gold slot, gold count, named with its key | slot outline | none |
