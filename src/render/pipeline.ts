@@ -35,6 +35,9 @@ class ScaledSMAA {
   readonly weights = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
   readonly source: SMAAPass;
   readonly uvScale = new THREE.Vector2(1, 1);
+  // The blend into the canvas covers exactly the rendered region; into a target, the padded one.
+  private readonly validScale = new THREE.Vector2(1, 1);
+  private readonly blendScale = new THREE.Vector2(1, 1);
   private readonly resolution = new THREE.Vector2(1, 1);
   readonly edgesMaterial: THREE.ShaderMaterial;
   readonly weightsMaterial: THREE.ShaderMaterial;
@@ -46,8 +49,8 @@ class ScaledSMAA {
     // The stock pass decodes the area and search lookup images; its own targets stay 1x1.
     this.source = new SMAAPass();
     const lookup = this.source as unknown as { _areaTexture: THREE.Texture; _searchTexture: THREE.Texture };
-    const scaled = (shader: { uniforms: Record<string, THREE.IUniform>; vertexShader: string; fragmentShader: string; defines?: Record<string, string> }) => new THREE.ShaderMaterial({
-      defines: { ...shader.defines }, uniforms: { ...THREE.UniformsUtils.clone(shader.uniforms), resolution: { value: this.resolution }, uvScale: { value: this.uvScale } },
+    const scaled = (shader: { uniforms: Record<string, THREE.IUniform>; vertexShader: string; fragmentShader: string; defines?: Record<string, string> }, scale = this.uvScale) => new THREE.ShaderMaterial({
+      defines: { ...shader.defines }, uniforms: { ...THREE.UniformsUtils.clone(shader.uniforms), resolution: { value: this.resolution }, uvScale: { value: scale } },
       vertexShader: `uniform vec2 uvScale;\n${shader.vertexShader.replace('vUv = uv;', 'vUv = uv * uvScale;')}`,
       fragmentShader: shader.fragmentShader, depthTest: false, depthWrite: false, toneMapped: false,
     });
@@ -55,7 +58,7 @@ class ScaledSMAA {
     this.weightsMaterial = scaled(SMAAWeightsShader);
     this.weightsMaterial.uniforms.tDiffuse.value = this.edges.texture;
     this.weightsMaterial.uniforms.tArea.value = lookup._areaTexture; this.weightsMaterial.uniforms.tSearch.value = lookup._searchTexture;
-    this.blendMaterial = scaled(SMAABlendShader);
+    this.blendMaterial = scaled(SMAABlendShader, this.blendScale);
     this.blendMaterial.uniforms.tDiffuse.value = this.weights.texture; this.blendMaterial.uniforms.tColor.value = input;
     this.mesh = quad(this.edgesMaterial); this.scene.add(this.mesh);
   }
@@ -63,13 +66,14 @@ class ScaledSMAA {
   setSize(width: number, height: number) {
     this.edges.setSize(width, height); this.weights.setSize(width, height); this.resolution.set(1 / width, 1 / height);
   }
-  setViewport(width: number, height: number, allocWidth: number, allocHeight: number) {
+  setViewport(width: number, height: number, allocWidth: number, allocHeight: number, validWidth: number, validHeight: number) {
     this.edges.viewport.set(0, 0, width, height); this.weights.viewport.set(0, 0, width, height);
-    this.uvScale.set(width / allocWidth, height / allocHeight);
+    this.uvScale.set(width / allocWidth, height / allocHeight); this.validScale.set(validWidth / allocWidth, validHeight / allocHeight);
   }
   render(gl: THREE.WebGLRenderer, camera: THREE.Camera, output: THREE.WebGLRenderTarget | null) {
     this.mesh.material = this.edgesMaterial; gl.setRenderTarget(this.edges); gl.render(this.scene, camera);
     this.mesh.material = this.weightsMaterial; gl.setRenderTarget(this.weights); gl.render(this.scene, camera);
+    this.blendScale.copy(output ? this.uvScale : this.validScale);
     this.mesh.material = this.blendMaterial; gl.setRenderTarget(output); gl.render(this.scene, camera);
   }
   dispose() {
@@ -103,6 +107,8 @@ export class RenderPipeline {
   private readonly upscaleScene = new THREE.Scene();
   private readonly postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly aaUvScale = new THREE.Vector2(1, 1);
+  private readonly aaPadded = new THREE.Vector2(1, 1);
+  private readonly aaValid = new THREE.Vector2(1, 1);
   readonly size: PipelineSize = { outputWidth: 1, outputHeight: 1, allocWidth: 1, allocHeight: 1, width: 1, height: 1 };
 
   constructor(private readonly gl: THREE.WebGLRenderer, samples: number) {
@@ -129,6 +135,9 @@ export class RenderPipeline {
     this.postMaterial.uniforms.suppressWater.value = 1;
     this.postScene.add(quad(this.postMaterial));
     this.upscaleMaterial = createUpscaleMaterial(this.scaledTarget.texture);
+    // QA builds can compare upscale sharpness with ?sharpen=0.2.
+    const sharpen = (import.meta.env.DEV || import.meta.env.VITE_QA === '1') && typeof location !== 'undefined' ? Number(new URLSearchParams(location.search).get('sharpen') ?? NaN) : NaN;
+    if (Number.isFinite(sharpen)) this.upscaleMaterial.uniforms.sharpness.value = sharpen;
     this.upscaleScene.add(quad(this.upscaleMaterial));
   }
 
@@ -188,8 +197,8 @@ export class RenderPipeline {
     this.mask.setViewport(width, height);
     this.aaTarget.viewport.set(0, 0, paddedWidth, paddedHeight); this.scaledTarget.viewport.set(0, 0, paddedWidth, paddedHeight);
     this.atmosphere?.setViewport(width, height, allocWidth, allocHeight);
-    this.smaa?.setViewport(paddedWidth, paddedHeight, allocWidth, allocHeight);
-    this.aaUvScale.set(paddedWidth / allocWidth, paddedHeight / allocHeight);
+    this.smaa?.setViewport(paddedWidth, paddedHeight, allocWidth, allocHeight, width, height);
+    this.aaPadded.set(paddedWidth / allocWidth, paddedHeight / allocHeight); this.aaValid.set(width / allocWidth, height / allocHeight);
     for (const material of [this.postMaterial, this.fpMaterial]) {
       // vUv spans the padded region; lookups stay inside the rendered one.
       material.uniforms.uvScale.value.set(paddedWidth / allocWidth, paddedHeight / allocHeight);
@@ -261,7 +270,11 @@ export class RenderPipeline {
 
   private renderAA(output: THREE.WebGLRenderTarget | null = null) {
     if (this.useSmaa && this.smaa) this.smaa.render(this.gl, this.postCamera, output);
-    else { this.gl.setRenderTarget(output); this.gl.render(this.aaScene, this.postCamera); }
+    else {
+      // Into the canvas the pass maps exactly the rendered region; into a target, the padded one.
+      this.aaUvScale.copy(output ? this.aaPadded : this.aaValid);
+      this.gl.setRenderTarget(output); this.gl.render(this.aaScene, this.postCamera);
+    }
   }
 
   beginFirstPersonWarmup() { this.gl.setRenderTarget(this.fpTarget); }

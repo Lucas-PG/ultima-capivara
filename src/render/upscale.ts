@@ -10,7 +10,7 @@ export function createUpscaleMaterial(source: THREE.Texture) {
       tSource: { value: source },
       // Allocated texture size and the valid (rendered) region inside it, in texels.
       sourceSize: { value: new THREE.Vector2(1, 1) }, validSize: { value: new THREE.Vector2(1, 1) },
-      sharpness: { value: .35 },
+      sharpness: { value: .25 },
     },
     depthTest: false, depthWrite: false, toneMapped: false,
     vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}',
