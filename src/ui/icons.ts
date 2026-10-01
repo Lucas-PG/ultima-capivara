@@ -91,7 +91,10 @@ export const HUD_ART = {
 };
 // HUD item art: painted icons (public/assets/ui/icon-<name>.webp, same family as the heart and shield) where they exist,
 // drawn stickers otherwise. Every item, heal and gear piece reads the same in the bag, the pickup pop and the prompt.
-const ITEM_PAINTED: Record<string, string> = {};
+const ITEM_PAINTED: Record<string, string> = {
+  bandage: 'bandage', medkit: 'medkit', guarana: 'guarana', acai: 'acai', rapadura: 'rapadura',
+  armor: 'vest', helmet: 'helmet', ammo: 'ammo', storm: 'storm', parachute: 'parachute',
+};
 const ITEM_DRAWN: Record<string, string> = {
   bandage: `<svg viewBox="0 0 48 48" aria-hidden="true"><g stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><path d="M30 33h11c2.5 0 4-1.5 4-4" fill="#fff4d6"/><circle cx="21" cy="24" r="15" fill="#fff4d6"/><path d="M12 13.5 26 37.5M18 10.5l13 23" stroke="#e2623a" stroke-width="4"/><circle cx="21" cy="24" r="15" fill="none"/><circle cx="21" cy="24" r="5" fill="#f1ddb0"/><path d="M12 17a10 10 0 0 1 7-5" fill="none" stroke="#fff" stroke-width="3" opacity=".85"/></g></svg>`,
   medkit: `<svg viewBox="0 0 48 48" aria-hidden="true"><g stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><path d="M18 11V8.5c0-1.5 1-2.5 2.5-2.5h7c1.5 0 2.5 1 2.5 2.5V11" fill="none" stroke-width="3.5"/><rect x="5" y="11" width="38" height="30" rx="7" fill="#fff4d6"/><path d="M5 34h38v0a7 7 0 0 1-7 7H12a7 7 0 0 1-7-7Z" fill="#f1ddb0" stroke="none"/><rect x="5" y="11" width="38" height="30" rx="7" fill="none"/><path d="M20.5 17h7v6h6v7h-6v6h-7v-6h-6v-7h6Z" fill="#e2623a"/><path d="M10 16h10" stroke="#fff" stroke-width="3" opacity=".9"/></g></svg>`,
