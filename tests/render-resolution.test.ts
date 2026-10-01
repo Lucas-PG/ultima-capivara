@@ -73,6 +73,18 @@ describe('dynamic resolution', () => {
     expect(controller.density).toBe(1.25);
   });
 
+  it('does not count frames stalled on the main thread, even in a burst (a swapping laptop)', () => {
+    // Live Medium on an 8 GB laptop deep in swap: bursts of 80 to 250 ms frames whose own draw
+    // submission took 50 to 180 ms each sent the density from 1.25 to 0.75 for twenty seconds.
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    for (let burst = 0; burst < 5; burst++) {
+      run(controller, 120, frame(BUDGET));
+      for (let i = 0; i < 8; i++) { controller.update(frame(150, { cpuMs: 140 })); controller.update(frame(BUDGET)); }
+    }
+    run(controller, 60, frame(BUDGET));
+    expect(controller.density).toBe(1.25);
+  });
+
   it('climbs back with headroom, guided by GPU time, without crossing the ceiling', () => {
     const range = renderRange('medium', 'auto', 2), controller = new DynamicResolution(range);
     run(controller, 120, frame(40, { gpuMs: 30 }));

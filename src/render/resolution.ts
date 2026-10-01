@@ -64,8 +64,8 @@ const quantize = (value: number) => Math.round(value / STEP) * STEP;
  * Apple GPUs lower their clock to fill the frame, so a Medium frame read 10 to 13 ms at every
  * density from 0.6 to 1.15 while a fixed 1.0 held 60 fps, and an earlier controller guided by those
  * times sat at its floor. A GPU time over budget (the clock at its peak) still vetoes a probe and
- * sizes a drop. A slow main thread never lowers the resolution, which would blur the image without
- * gaining a frame. */
+ * sizes a drop. A slow main thread never lowers the resolution, steadily or in a stall, which would
+ * blur the image without gaining a frame. */
 export class DynamicResolution {
   density: number;
   private range: RenderRange;
@@ -115,7 +115,9 @@ export class DynamicResolution {
       if (this.inFlight > 0) this.inFlight--;
       else { this.gpuSamples.push(frame.gpuMs); if (this.gpuSamples.length > 15) this.gpuSamples.shift(); }
     }
-    this.misses.push(intervalMs > budgetMs * 1.3);
+    // A frame whose own main-thread work took two budgets (a page fault, a collection, a long task)
+    // missed for a reason a lower resolution cannot fix.
+    this.misses.push(intervalMs > budgetMs * 1.3 && !(frame.cpuMs > budgetMs * 2));
     if (this.misses.length > 60) this.misses.shift();
     const recent = this.misses.slice(-30), missed = recent.filter(Boolean).length, missRate = missed / Math.max(1, recent.length);
     const gpu = this.gpuEstimate, cpuBound = this.cpu > budgetMs * .85;
