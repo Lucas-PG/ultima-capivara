@@ -54,13 +54,13 @@ export class CharacterMask {
     return material;
   }
   render(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
-    const layers = camera.layers.mask, background = scene.background;
+    const layers = camera.layers.mask, background = scene.background, override = scene.overrideMaterial;
     const shadows = gl.shadowMap.enabled, alpha = gl.getClearAlpha(), autoUpdate = scene.matrixWorldAutoUpdate; gl.getClearColor(this.clearColor);
     this.uniforms.near.value = camera.near; this.uniforms.far.value = camera.far;
     try {
       // The world pass just updated every matrix of this scene: a second traversal is pure CPU cost.
       scene.matrixWorldAutoUpdate = false;
-      camera.layers.set(1); scene.background = null;
+      camera.layers.set(1); scene.background = null; scene.overrideMaterial = null;
       scene.traverseVisible(object => {
         if (!(object as THREE.Mesh).isMesh || !object.layers.test(camera.layers)) return;
         const mesh = object as THREE.Mesh;
@@ -71,7 +71,7 @@ export class CharacterMask {
     } finally {
       for (let i = 0; i < this.swapped.length; i++) this.swapped[i].material = this.originals[i];
       this.swapped.length = 0; this.originals.length = 0;
-      camera.layers.mask = layers; scene.background = background; scene.matrixWorldAutoUpdate = autoUpdate;
+      camera.layers.mask = layers; scene.background = background; scene.overrideMaterial = override; scene.matrixWorldAutoUpdate = autoUpdate;
       gl.shadowMap.enabled = shadows; gl.setClearColor(this.clearColor, alpha);
     }
   }
