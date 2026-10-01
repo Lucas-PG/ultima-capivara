@@ -2,12 +2,12 @@
 
 All models are original project geometry built from Blender scripts in `tools/blender/`; no third-party model, texture or animation is incorporated.
 
-## Overhaul (2026-09-28)
+## Overhaul (2026-09-28 to 2026-10-01)
 
 - `fp/fp-arms.glb`: first-person capybara arms (`fp_arms.py`, packed by `build-fp.mjs`): the world character's paw (`capy_hand.py`) at 1 / 1.3 with its forearm and rolled cuff, baked albedo, normal and ORM maps, 32 bones for IK and digit curls.
-- `arsenal/*.glb`: the ten weapons (`arsenal_lib.py`, `arsenal.py`, `build-fp.mjs`). Hard-surface parts, Cycles bakes of material id, occlusion, bevel edges and object normals composited into a 1024 albedo and an ORM map per weapon (WebP inside the GLB).
+- `arsenal/*.glb`: the nine weapons (`arsenal_lib.py`, `arsenal.py`, `build-fp.mjs`; the slingshot was removed). Hard-surface parts, Cycles bakes of material id, occlusion, bevel edges, object normals and weapon-space position composited into albedo, ORM and normal maps per weapon (WebP inside the GLB), with stencilled liveries from `tools/art/stencils/` (original Codex-generated sheet, recorded in `docs/assets.md`).
 - `textures/world-arsenal.webp` and `src/render/world-weapon-data.json`: third-person and ground versions simplified from the same models (`build-world-arsenal.mjs`).
-- `capybara/capybara.glb`: character v6 (2026-09-30; `capybara_form.py` sculpt, `capybara_v6.py` build with `capybara_paint.py` and `capybara_weights.py`, clips in `capybara_clips.py` and `character_emotes.py`, packed by `build-characters.mjs`). A signed-distance sculpt polygonized with OpenVDB, decimated to three LODs and Cycles-baked into one 2048 texture set painted per texel; original geometry, textures and animation, no external assets. The Morro statue (`statue.glb`) is still built by `capybara_v4.py` with `capybara_statue.py`.
+- `capybara/capybara-high.glb`, `capybara.glb`, `capybara-low.glb`: character v6, four review rounds to 2026-10-01 (`capybara_form.py` sculpt with the paw from `capy_hand.py`, `capybara_v6.py` build with `capybara_paint.py`, `capybara_maps.py` and `capybara_weights.py`, clips in `capybara_clips.py` and `character_emotes.py`, packed by `build-characters.mjs`). A signed-distance sculpt polygonized with OpenVDB, decimated to three LODs and Cycles-baked, painted per texel at 4096 (High), 2048 (Medium) and 1024 (Low); the file is chosen by the graphics setting at load. Original geometry, textures and animation, no external assets. The Morro statue (`statue.glb`) is built from the same head, paws and feet by `capybara_statue.py`.
 
 ## Capivara M0
 
