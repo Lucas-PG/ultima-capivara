@@ -22,13 +22,35 @@ export interface ViewSpec {
   sprint: { pos: V3; rot: V3 };
   /** Eye-to-sight distance when aiming. */
   adsDistance: number;
-  /** Independent weapon lens; preserves peripheral world vision. */
+  /** Independent weapon lens at the hip (vertical degrees); preserves peripheral world vision. */
   viewmodelFov?: number;
+  /** Weapon lens while aimed; the lens blends from the hip lens by the aim amount. */
+  adsFov?: number;
   /** Aim point in weapon space when the sight socket is blocked by the gun's own body, and the muzzle-up pitch that puts the front sight on the crosshair. */
   adsEye?: V3; adsPitch?: number;
   grips: { R: GripSpec; L?: GripSpec };
   /** Hidden shoulder joints (camera space) the arms hang from; they set where each forearm enters the frame. */
   shoulders?: { R: V3; L: V3 };
+  /** Hidden shoulders while aimed (blended by the aim amount), so the support forearm hangs under the gun. */
+  adsShoulders?: { R: V3; L: V3 };
+  /** The hip framing the camera-space ('view') choreography keys were authored against. Those keys move
+   * rigidly with the gun from that hip to the current one, so they keep their place around the gun. */
+  choreoFrame?: { pos: V3; rot: V3 };
+  /** One-handed weapons: the free paw's rest (camera space); it dips under the cut while swinging. */
+  freePaw?: { wrist: V3; forward: V3; palm: V3; curl?: HandCurl };
+  /** Share (0 to 1) of the gun's motion (sway, bob, cuts, inspect) the hidden firing shoulder follows: a
+   * one-handed blade moves as one piece with its forearm. Holding paws always follow a draw or holster. */
+  armRide?: number;
+  /** Hidden shoulders while reloading (blended in and out), where a reload's reaches need the arm from elsewhere. */
+  reloadShoulders?: { R: V3; L: V3 };
+  /** Elbow directions while aimed (blended in by the aim amount). */
+  adsPoles?: { R?: V3; L?: V3 };
+  /** Natural-wrist arm solve per arm (default on, with WRIST_SOLVE): false keeps the authored shoulder and elbow. */
+  natural?: { R?: boolean; L?: boolean };
+  /** Handguns sprint one-handed: the support paw's free pose (camera space), blended in by the sprint. */
+  sprintFree?: { wrist: V3; forward: V3; palm: V3 };
+  /** First-person elbow directions (camera space) for the rest grips; the shared grip data keeps its own. */
+  poles?: { R?: V3; L?: V3 };
   /** Visual recoil: back kick (m/s), muzzle climb and roll (rad/s), spring frequency. */
   recoil: { kick: number; climb: number; roll: number; frequency: number };
   /** Heavier guns lag more behind the view. */
@@ -40,7 +62,6 @@ const curl = (index: V3, middle: V3, ring: V3, thumb: V3, spread?: number): Hand
 // lower right in line with its paw; long guns bring the support shoulder forward
 // so that arm reaches the handguard with a bent elbow instead of a locked one.
 export const SHOULDERS = { R: [.2, -.36, .25] as V3, L: [-.2, -.36, .2] as V3 };
-const RIFLE_SHOULDERS = { R: [.2, -.36, .25] as V3, L: [-.18, -.26, -.14] as V3 };
 // Wrapped digits, trigger finger resting on the trigger, thumb along the frame.
 const PISTOL_R = curl([.25, .65, .35], [1.0, .7, .4], [1.05, .7, .4], [.5, .3, .2]);
 const PISTOL_L = curl([1.3, 1.2, .8], [1.4, 1.2, .8], [1.45, 1.25, .85], [.1, .1, .05]);
@@ -56,84 +77,138 @@ const UNDERHAND_L = (wrist: V3, part?: string): GripSpec => ({ wrist, forward: [
 const FOREGRIP_L = (wrist: V3): GripSpec => ({ wrist, forward: [.05, -.2, -1], palm: [1, 0, 0], curl: PISTOL_R, pole: [-.8, -1, .2] });
 const RIFLE_GRIP_R = (wrist: V3 = [.037, -.030, .047]): GripSpec => ({ wrist, forward: [-.03, -.15, -1], palm: [-1, 0, 0], curl: RIFLE_R, pole: [.8, -1, .3] });
 const RECOIL = { light: { kick: 1.1, climb: 2.2, roll: 1.2, frequency: 22 }, rifle: { kick: 1.4, climb: 3, roll: 1.4, frequency: 21 } };
-const LONG_SPRINT = { pos: [-.03, -.05, .06] as V3, rot: [.22, .6, .38] as V3 };
 
 // Paw grips per weapon (weapon space), fitted to the first-person paw with tools/qa/grip-fit.mjs
 // and checked with tools/qa/fp-clearance.mjs. The world character holds guns with the same data.
 const GRIPS = fittedGrips as unknown as Record<WeaponId, ViewSpec['grips']>;
 
+// Hip framing per weapon (camera space, metres and radians), placed from the target composition in
+// docs/overhaul/viewmodel-research.md: the gun points nearly along the view (a small inward yaw and
+// cant, the muzzle just right of and below the reticle), the sight sits right of centre a little below
+// the horizon, the support paw under the rear of the fore-end just right of centre and low, its forearm
+// foreshortened from the bottom edge, the firing paw's back at the lower right. Hidden shoulders and
+// elbow poles (hip, and blended in while aiming) were solved with tools/qa/vm-arm-solve.mts so each
+// forearm continues its paw with a natural wrist; the arm solver keeps that true in every other state.
+// One narrow hip lens (VIEWMODEL_FOV) for every gun; while aiming the lens blends back to each gun's
+// authored sight picture (adsFov).
 export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   pistol: {
     url: 'models/arsenal/pistol.glb', scale: 1, handling: 'pistol', reload: 'pistol',
-    hip: { pos: [.13, -.085, -.40], rot: [.03, .10, .16] },
-    sprint: { pos: [-.025, -.025, .035], rot: [.62, .18, .22] },
-    adsDistance: .32, viewmodelFov: 64, shoulders: { R: [.22, -.36, .25], L: [-.25, -.30, .18] },
+    hip: { pos: [.056, -.085, -.393], rot: [.035, .052, .07] },
+    // Sprint: low and canted inward, muzzle forward-down, so the slide's flank shows (MW, Apex).
+    sprint: { pos: [-.035, -.02, .03], rot: [-.15, .25, .35] },
+    sprintFree: { wrist: [-.2, -.42, -.3], forward: [.25, .6, -1], palm: [.7, -.5, .2] },
+    adsDistance: .32, adsFov: 64, poles: { R: [-.249, -.938, .243], L: [.072, -.876, .478] }, adsPoles: { R: [-.548, -.769, .33], L: [-.121, -.759, .64] },
+    choreoFrame: { pos: [.13, -.085, -.40], rot: [.03, .10, .16] },
+    shoulders: { R: [.056, -.076, .079], L: [-.213, -.043, -.059] }, adsShoulders: { R: [.097, -.081, .077], L: [-.226, .004, -.134] },
     grips: GRIPS.pistol,
     recoil: { kick: 1.25, climb: 5.2, roll: 1.5, frequency: 26 }, inertia: .7,
   },
   revolver: {
     url: 'models/arsenal/revolver.glb', scale: 1, handling: 'pistol', reload: 'revolver',
-    hip: { pos: [.12, -.10, -.43], rot: [.04, .15, -.06] },
-    sprint: { pos: [-.02, -.05, .07], rot: [.95, .25, .3] },
-    shoulders: { R: [.2, -.36, .25], L: [-.20, -.28, .18] }, adsDistance: .3, viewmodelFov: 64,
+    hip: { pos: [.059, -.1, -.422], rot: [.035, .052, .07] },
+    sprint: { pos: [-.035, -.03, .035], rot: [-.15, .25, .35] },
+    sprintFree: { wrist: [-.2, -.42, -.3], forward: [.25, .6, -1], palm: [.7, -.5, .2] },
+    adsDistance: .3, adsFov: 64, poles: { R: [-.23, -.955, .187], L: [.187, -.825, .534] }, adsPoles: { R: [-.492, -.807, .326], L: [-.129, -.751, .648] },
+    choreoFrame: { pos: [.12, -.10, -.43], rot: [.04, .15, -.06] },
+    shoulders: { R: [.05, -.122, .053], L: [-.172, -.041, -.083] }, adsShoulders: { R: [.077, -.102, .066], L: [-.221, -.014, -.136] },
+    // Reloading, the support arm works from below and left (the crane, the ejector, the loader), not across the top.
+    reloadShoulders: { R: [.05, -.122, .053], L: [-.25, -.3, -.1] },
     grips: GRIPS.revolver,
     recoil: { kick: 1.7, climb: 8, roll: 2.2, frequency: 21 }, inertia: .75,
   },
   smg: {
     url: 'models/arsenal/smg.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: { pos: [.16, -.145, -.46], rot: [.04, .20, -.08] },
+    hip: { pos: [.134, -.145, -.517], rot: [.087, .122, .122] },
     sprint: { pos: [-.025, -.02, .035], rot: [.30, .45, .28] },
-    shoulders: { R: [.2, -.36, .25], L: [-.24, -.35, .10] }, adsDistance: .23, viewmodelFov: 64,
+    adsDistance: .23, adsFov: 64, poles: { R: [.206, -.969, -.135], L: [.054, -.979, -.196] }, adsPoles: { R: [-.515, -.831, .21], L: [-.4, -1, .3] },
+    choreoFrame: { pos: [.16, -.145, -.46], rot: [.04, .20, -.08] },
+    shoulders: { R: [.042, -.345, .072], L: [-.016, -.315, -.135] },
+    // Reloading, the support arm hangs further left so its forearm clears the magazine on the way back to the foregrip.
+    reloadShoulders: { R: [.042, -.345, .072], L: [-.15, -.35, -.05] }, adsShoulders: { R: [.064, -.124, .218], L: [-.3, -.4, 0] },
     grips: GRIPS.smg,
     recoil: { kick: .9, climb: 1.8, roll: 1.4, frequency: 24 }, inertia: .85,
   },
   m4: {
     url: 'models/arsenal/m4.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: {"pos": [0.168, -0.112, -0.325], "rot": [0.07, 0.32, 0.4]},
-    sprint: { pos: [-.03, -.045, .015], rot: [-.12, .6, .1] }, adsDistance: .15, viewmodelFov: 70, shoulders: { R: [0.32, -0.42, 0.08], L: [-0.3, -0.45, -0.12] },
-    // Right index occupies the roomy guard; support wraps the rear handguard.
-    // Contact coordinates are measured against the packed asset in metres.
+    hip: { pos: [.157, -.167, -.589], rot: [.105, .14, .14] },
+    sprint: { pos: [-.03, -.045, .015], rot: [-.12, .6, .1] },
+    adsDistance: .15, adsFov: 70, poles: { R: [-.04, -.999, -.02], L: [.757, -.616, .218] }, adsPoles: { R: [-.364, -.815, .45], L: [.507, -.427, .749] },
+    choreoFrame: { pos: [.168, -.112, -.325], rot: [.07, .32, .4] },
+    shoulders: { R: [.201, -.295, .012], L: [-.242, -.441, -.334] }, adsShoulders: { R: [.075, -.084, .211], L: [-.519, -.246, -.088] },
     grips: GRIPS.m4,
     recoil: RECOIL.rifle, inertia: 1,
   },
   shotgun: {
     url: 'models/arsenal/shotgun.glb', scale: 1, handling: 'heavy', reload: 'shotgun',
-    hip: {"pos": [0.22, -0.1, -0.5], "rot": [0, 0.3, 0.4]}, viewmodelFov: 56,
+    hip: { pos: [.155, -.156, -.537], rot: [.052, .122, .14] },
+    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] },
     // The receiver stands taller than the rib: sight from above it, down the rib to the bead.
-    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] }, shoulders: { R: [0.28, -0.42, 0], L: [-0.25, -0.45, -0.3] }, adsDistance: .3, adsEye: [0, .113, .03], adsPitch: .003,
+    adsDistance: .3, adsEye: [0, .113, .03], adsPitch: .003, adsFov: 56, poles: { R: [-.291, -.955, .06], L: [.842, -.34, .419] }, adsPoles: { R: [-.698, -.62, .359], L: [.614, -.572, .543] },
+    choreoFrame: { pos: [.22, -.1, -.5], rot: [0, .3, .4] },
+    shoulders: { R: [.25, -.3, -.05], L: [-.221, -.419, -.35] }, adsShoulders: { R: [.102, -.096, .068], L: [-.448, -.242, -.218] },
     grips: GRIPS.shotgun,
     recoil: { kick: 2.4, climb: 6.5, roll: 2.5, frequency: 17 }, inertia: 1.25,
   },
   coco: {
     url: 'models/arsenal/coco.glb', scale: 1, handling: 'heavy', reload: 'coco',
-    hip: {"pos": [0.22, -0.13, -0.5], "rot": [0.04, 0.3, 0.25]}, viewmodelFov: 58,
+    hip: { pos: [.188, -.255, -.669], rot: [.087, .14, .14] },
+    sprint: { pos: [-.035, -.025, .02], rot: [-.14, .40, .1] },
     // The hopper rides on the right of the tube, below the sight line: aim straight down the tube top.
-    sprint: { pos: [-.035, -.025, .02], rot: [-.14, .40, .1] }, shoulders: { R: [0.28, -0.42, 0], L: [-0.25, -0.46, -0.3] }, adsDistance: 0.34, adsEye: [0, 0.245, 0.084], adsPitch: 0,
+    adsDistance: .34, adsEye: [0, .245, .084], adsPitch: 0, adsFov: 58, poles: { R: [.109, -.992, .068], L: [.839, -.485, .247] }, adsPoles: { R: [-.244, -.875, .418], L: [.757, -.416, .504] },
+    choreoFrame: { pos: [.22, -.13, -.5], rot: [.04, .3, .25] },
+    shoulders: { R: [.22, -.339, -.073], L: [-.136, -.494, -.473] },
+    // The coconut lifts reach over the tube to the hopper on its right: the support arm comes from the left
+    // for them, as authored (the earlier shoulders carried with the gun to this hip, a little further left).
+    reloadShoulders: { R: [.137, -.556, -.175], L: [-.42, -.53, -.55] }, adsShoulders: { R: [.043, -.187, .039], L: [-.37, -.349, -.243] },
     grips: GRIPS.coco,
     recoil: { kick: 2.6, climb: 7.5, roll: 1.6, frequency: 16 }, inertia: 1.3,
   },
   dmr: {
     url: 'models/arsenal/dmr.glb', scale: 1, handling: 'rifle', reload: 'rifle',
-    hip: {"pos": [0.217, -0.096, -0.46], "rot": [0, 0.3, 0.45]}, viewmodelFov: 58,
-    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .15] }, shoulders: { R: [0.4, -0.4, 0.05], L: [-0.26, -0.46, -0.26] }, adsDistance: .12,
+    hip: { pos: [.171, -.193, -.669], rot: [.07, .14, .14] },
+    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .15] },
+    adsDistance: .12, adsFov: 58, poles: { R: [.104, -.995, -.004], L: [.894, -.298, .333] }, adsPoles: { R: [-.181, -.859, .478], L: [.458, -.57, .683] },
+    choreoFrame: { pos: [.217, -.096, -.46], rot: [0, .3, .45] },
+    shoulders: { R: [.28, -.31, -.027], L: [-.156, -.399, -.452] }, adsShoulders: { R: [.082, -.094, .233], L: [-.471, -.223, -.25] },
     grips: GRIPS.dmr,
     recoil: { kick: 1.7, climb: 4.2, roll: 1.6, frequency: 20 }, inertia: 1.05,
   },
   sniper: {
     url: 'models/arsenal/sniper.glb', scale: 1, handling: 'heavy', reload: 'bolt',
-    hip: {"pos": [0.217, -0.096, -0.46], "rot": [0, 0.3, 0.45]}, viewmodelFov: 58,
-    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] }, shoulders: { R: [0.4, -0.4, 0.05], L: [-0.26, -0.46, -0.26] }, adsDistance: .12,
+    hip: { pos: [.19, -.195, -.69], rot: [.044, .122, .14] },
+    sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] },
+    adsDistance: .12, adsFov: 58, poles: { R: [-.077, -.996, -.034], L: [.558, -.79, .254] }, adsPoles: { R: [-.263, -.882, .39], L: [.202, -.255, .946] },
+    choreoFrame: { pos: [.217, -.096, -.46], rot: [0, .3, .45] },
+    shoulders: { R: [.275, -.325, -.068], L: [-.207, -.302, -.392] }, adsShoulders: { R: [.059, -.111, .212], L: [-.497, -.238, -.331] },
     grips: GRIPS.sniper,
     recoil: { kick: 2.8, climb: 7, roll: 2, frequency: 15 }, inertia: 1.35,
   },
   machete: {
     url: 'models/arsenal/machete.glb', scale: 1, handling: 'melee', reload: 'none',
-    hip: { pos: [.19, -.12, -.48], rot: [.70, .85, 2.0] },
-    sprint: { pos: [.03, -.08, .04], rot: [.18, -.35, .15] }, adsDistance: .3, viewmodelFov: 64,
+    // Carried at the lower right, the blade rising diagonally up and left to just short of the reticle, its
+    // flat and the back of the gripping paw toward the eye; the free paw guards open at the lower left
+    // (Valorant's and Call of Duty's knife framing).
+    hip: { pos: [.207, -.17, -.6], rot: [.599, .419, 2.281] },
+    sprint: { pos: [.03, -.08, .04], rot: [.18, -.35, .15] }, adsDistance: .3,
+    shoulders: { R: [.12, -.565, -.706], L: [-.3, -.6, -.1] }, poles: { R: [-.348, -.405, .846], L: [-.6, -1, .2] },
+    // The free paw rests relaxed and open low at the lower left, mostly out of frame.
+    freePaw: { wrist: [-.27, -.31, -.43], forward: [.3, .55, -1], palm: [.65, -.6, .2],
+      curl: { index: [.35, .45, .3], middle: [.4, .5, .3], ring: [.45, .5, .35], thumb: [.2, .15, .1], spread: .25 } },
+    choreoFrame: { pos: [.19, -.12, -.48], rot: [.70, .85, 2.0] }, armRide: 1,
+    // The blade's arm rides rigidly with the cut, so its wrist keeps the carry's natural angles throughout.
+    natural: { R: false },
     grips: GRIPS.machete,
     recoil: { kick: 0, climb: 0, roll: 0, frequency: 20 }, inertia: .8,
   },
 };
+
+/** A weapon's rest grips with its first-person elbow directions applied. */
+export function framedGrips(spec: Pick<ViewSpec, 'grips' | 'poles'>): ViewSpec['grips'] {
+  const R = spec.poles?.R ? { ...spec.grips.R, pole: spec.poles.R } : spec.grips.R;
+  const L = spec.grips.L && spec.poles?.L ? { ...spec.grips.L, pole: spec.poles.L } : spec.grips.L;
+  return L ? { R, L } : { R };
+}
 
 const ARSENAL_BYTES = arsenalMetrics as Record<string, { bytes: number }>;
 export function fpManifest(): AssetEntry[] {

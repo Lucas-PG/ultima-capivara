@@ -14,6 +14,10 @@
 //     "contactParts": { "thumb": "mag" }, "palmFacing": [x, y, z, maxDegrees, weight],
 //     "forwardFacing": [x, y, z, maxDegrees, weight],
 //     "palm": [a, b], "thumbAlong": deg, "wristBend": deg, "contact": ["palm", "index", ...],
+//     "wristLimits": { "flexion": [ext, flex], "deviation": [ulnar, radial], "pronation": [sup, pron], "weight": 1 }, // degrees
+//     "shoulders": { "R": [x, y, z], "L": [x, y, z] }, // hidden shoulders (camera space) for the fit
+//     "hiddenArm": 20, // weight: the elbow and upper arm must stay out of view
+//     "withPaw": true, // the other paw is a solid too; "contactParts": { "index": "paw" } asks a digit to touch it
 //     "curlBounds": { "index": [[min, max], [min, max], [min, max]], "spread": [min, max] },
 //     "rotateAtPalm": true } // Keeps the palm centre steady during orientation steps.
 import { chromium } from '@playwright/test';
@@ -91,6 +95,19 @@ try {
           }
         }
       });
+      // Two-handed holds: the other paw (posed on its own rest grip) is a solid the paw must touch, not enter.
+      if (intent.withPaw) {
+        vm.solveArms(model, model.grips, null, null); vm.arms.group.updateMatrixWorld(true);
+        const other = vm.arms.meshes.find(m => m.name.endsWith(side === 'L' ? 'R' : 'L'));
+        const pos = other.geometry.attributes.position, idx = other.geometry.index, vtx = new V3();
+        const at = i => other.getVertexPosition(idx ? idx.getX(i) : i, new V3()).applyMatrix4(other.matrixWorld).applyMatrix4(toGun).multiplyScalar(scale);
+        const count = idx ? idx.count : pos.count;
+        for (let i = 0; i < count; i += 3) {
+          const a = at(i), b = at(i + 1), c = at(i + 2), n = new V3().subVectors(b, a).cross(new V3().subVectors(c, a));
+          if (n.lengthSq() > 1e-16) { const triangle = { a, b, c, n }; tris.push(triangle); (partTris.paw ??= []).push(triangle); }
+        }
+        void vtx;
+      }
       // A static BVH avoids thousands of string-key grid lookups for each skin
       // vertex on every candidate. Nearest triangle and sign remain exact.
       const buildTree = items => {
@@ -218,7 +235,8 @@ try {
       const wristW = new V3(), elbowW = new V3(), knuckleW = new V3();
       function evaluate(P, detail = false) {
         const grip = build(P);
-        vm.solveArms(model, { ...model.grips, [side]: asWeaponGrip(grip) }, null, null, intent.shoulders ?? window.__vmTune?.[weapon]?.shoulders);
+        if (intent.shoulders) { vm.shoulderR.fromArray(intent.shoulders.R); vm.shoulderL.fromArray(intent.shoulders.L); }
+        vm.solveArms(model, { ...model.grips, [side]: asWeaponGrip(grip) }, null, null);
         vm.arms.group.updateMatrixWorld(true);
         mesh.skeleton.update();
         const boneMatrices = mesh.skeleton.boneMatrices;
@@ -289,6 +307,23 @@ try {
         const fore = new V3().subVectors(wristW, elbowW).normalize(), hand = new V3().subVectors(knuckleW, wristW).normalize();
         const bend = Math.acos(Math.max(-1, Math.min(1, fore.dot(hand)))) * 180 / Math.PI;
         terms.wrist = (Math.max(0, bend - (intent.wristBend ?? 30)) / 6) ** 2; where.bend = Math.round(bend);
+        // Anatomical wrist (flexion/extension, radial/ulnar deviation, pronation/supination) inside limits.
+        if (intent.wristLimits && window.__vmWristAngles) {
+          const lim = intent.wristLimits, target = side === 'L' ? vm.targetL : vm.targetR;
+          const shoulderW = arm.upper.bone.getWorldPosition(new V3());
+          const w = window.__vmWristAngles(shoulderW, elbowW, wristW, target.forward, target.palm, side);
+          const over = (v, [lo, hi]) => Math.max(0, lo - v, v - hi);
+          terms.wrist += ((over(w.flexion, lim.flexion ?? [-45, 45]) / 4) ** 2 + (over(w.deviation, lim.deviation ?? [-30, 20]) / 4) ** 2
+            + (over(w.pronation, lim.pronation ?? [-80, 80]) / 6) ** 2) * (lim.weight ?? 1);
+          where.wrist = [w.flexion, w.deviation, w.pronation].map(Math.round);
+        }
+        // Hidden arm: the elbow and the upper arm stay out of the eye's view (vm.outOfView, camera space).
+        if (intent.hiddenArm && vm.outOfView) {
+          const sh = arm.upper.bone.getWorldPosition(new V3()), el = arm.fore.bone.getWorldPosition(new V3());
+          let shows = vm.outOfView(el) ? 0 : 1;
+          for (const k of [.3, .65, 1]) if (!vm.outOfView(el.clone().lerp(sh, k))) shows += 3;
+          terms.wrist += shows * intent.hiddenArm; where.shows = shows;
+        }
         // Forearm roll relative to the elbow hinge stays inside a natural supination range.
         // Stay near the authored start (keeps a look that already works, fixing only what the other terms flag).
         terms.stay = 0;

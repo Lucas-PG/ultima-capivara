@@ -298,3 +298,15 @@ describe('procedural music settings migration', () => {
     expect(JSON.parse(store.get('uc-v2-settings')!).musicMix).toBe(2);
   });
 });
+
+describe('retired settings', () => {
+  it('loads a save that still carries the removed first-person weapon size, and drops it', () => {
+    const store = new Map<string, string>([['uc-v2-settings', JSON.stringify({ weaponSize: 1.2, sensitivity: 1.5, fov: 104, fovScale: 'horizontal' })]]);
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => store.set(key, value) });
+    const settings = loadSettings();
+    expect(settings.sensitivity).toBe(1.5); expect(settings.fov).toBe(104);
+    expect('weaponSize' in settings).toBe(false);
+    saveSettings(settings);
+    expect(JSON.parse(store.get('uc-v2-settings')!)).not.toHaveProperty('weaponSize');
+  });
+});
