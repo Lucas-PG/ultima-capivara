@@ -76,12 +76,17 @@ export class AtmospherePass {
           // Depth silhouettes interrupt a short radial integration toward the
           // sun, creating shafts only where the canopy actually opens.
           float shafts=0.0; vec2 ray=(sunScreen.xy-vUv)*.025;
-          for(int i=0;i<12;i++){
-            vec2 uv=vUv+ray*float(i+1);
-            float inside=step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0);
-            shafts+=step(.99995,texture2D(tDepth,source(uv)).r)*inside*(1.0-float(i)/14.0);
+          // The shafts fade with the angle to the sun and the distance from it on screen; where their
+          // weight cannot reach a visible level (facing away from the sun, most of the time) the twelve taps are skipped.
+          float shaftWeight=sunScreen.z*exp(-length(vUv-sunScreen.xy)*3.5)*.055;
+          if(shaftWeight>.001){
+            for(int i=0;i<12;i++){
+              vec2 uv=vUv+ray*float(i+1);
+              float inside=step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0);
+              shafts+=step(.99995,texture2D(tDepth,source(uv)).r)*inside*(1.0-float(i)/14.0);
+            }
           }
-          shafts*=sunScreen.z*exp(-length(vUv-sunScreen.xy)*3.5)*.055;
+          shafts*=shaftWeight;
           glow+=vec3(1.0,.66,.3)*shafts;
           gl_FragColor=vec4(glow,1.0-ao);
         }

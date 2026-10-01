@@ -30,6 +30,16 @@ if (!THREE.ShaderChunk.lights_fragment_begin.includes('paintedSunShadow')) {
     directLight.color *= mix(vec3(${shadowTint.r.toFixed(6)},${shadowTint.g.toFixed(6)},${shadowTint.b.toFixed(6)}),vec3(1.0),paintedSunShadow);`);
 }
 
+// The interior lamp is one point light in every lit shader, dark outdoors and zero past its 14 m
+// reach: skip its BRDF wherever it contributes nothing (the same image; wide views spent up to 3 ms on it).
+{
+  const chunk = THREE.ShaderChunk.lights_fragment_begin, info = 'getPointLightInfo( pointLight, geometryPosition, directLight );';
+  const at = chunk.indexOf(info), direct = 'RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );';
+  const call = at >= 0 ? chunk.indexOf(direct, at) : -1;
+  if (call >= 0 && !chunk.includes('paintedPointSkip')) THREE.ShaderChunk.lights_fragment_begin =
+    `${chunk.slice(0, call)}/* paintedPointSkip */ if ( directLight.visible ) ${chunk.slice(call)}`;
+}
+
 // Ink outlines from depth discontinuities, the Direction A colour curve, then the
 // renderer's own tone mapping and output colour space.
 export function createOutlineMaterial(color: THREE.Texture, depth: THREE.DepthTexture) {
