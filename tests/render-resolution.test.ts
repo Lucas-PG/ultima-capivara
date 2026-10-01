@@ -104,13 +104,33 @@ describe('dynamic resolution', () => {
     expect(gaps.at(-1)!).toBeGreaterThan(gaps[0] * 3);
   });
 
-  it('holds a density whose next step would not fit', () => {
-    const range = renderRange('high', 'auto', 2), controller = new DynamicResolution(range);
-    run(controller, 60, frame(40, { gpuMs: 28 }));
-    const settled = controller.density;
-    // 11 ms at this density: one more step predicts more than 75 percent of the budget.
-    run(controller, 3000, frame(BUDGET, { gpuMs: 11.5 * (settled / settled) }));
-    expect(controller.density).toBeLessThanOrEqual(settled + .05);
+  // A GPU whose frame costs `fixed` ms whatever the resolution plus `perPixel` ms per unit of density squared.
+  const simulate = (controller: DynamicResolution, seconds: number, fixed: number, perPixel: number) => {
+    for (let t = 0; t < seconds * 1000;) {
+      const gpu = fixed + perPixel * controller.density ** 2, interval = gpu > BUDGET ? BUDGET * 2 : BUDGET;
+      controller.update(frame(interval, { gpuMs: gpu })); t += interval;
+    }
+  };
+
+  it('settles where the GPU time fits, not at the floor, when much of the frame does not scale with pixels', () => {
+    // Measured on the M2 at Medium: about 7 ms of a 9 ms frame at the floor did not depend on resolution.
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    // A heavy moment (a smoke-filled fight) first sends it to the floor...
+    for (let i = 0; i < 300; i++) controller.update(frame(40, { gpuMs: 14 + 12 * controller.density ** 2 }));
+    expect(controller.density).toBe(.6);
+    // ...then the frame is back to 9 ms that do not depend on resolution plus 5 that do: it must climb back.
+    simulate(controller, 90, 9, 5);
+    // It holds anywhere the GPU time sits between the climb (78 percent of the budget) and the drop (95 percent).
+    const gpu = 9 + 5 * controller.density ** 2;
+    expect(gpu).toBeGreaterThan(BUDGET * .7); expect(gpu).toBeLessThan(BUDGET * .95);
+    expect(controller.density).toBeGreaterThan(.75);
+  });
+
+  it('holds below the density whose GPU time would miss the budget', () => {
+    const controller = new DynamicResolution(renderRange('high', 'auto', 2));
+    simulate(controller, 60, 2, 9);
+    const gpu = 2 + 9 * controller.density ** 2;
+    expect(gpu).toBeGreaterThan(BUDGET * .7); expect(gpu).toBeLessThan(BUDGET * .95);
   });
 
   it('probes upward without GPU timings and backs off after a failed probe', () => {

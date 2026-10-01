@@ -54,9 +54,9 @@ const STEP = .05;
 const quantize = (value: number) => Math.round(value / STEP) * STEP;
 
 /** Holds the frame-time budget by moving the render density between the range's floor and ceiling.
- * GPU cost follows the pixel count, the square of the density: a frame over budget steps down toward
- * the density that fits (at most a fifth per step, a third when most frames miss), a frame with room
- * climbs back one small step at a time. GPU times are the median of recent timer queries, ignoring the
+ * The part of the GPU cost that follows the pixel count grows with the square of the density (see
+ * slope): a frame over budget steps down toward the density that fits (at most a fifth per step, a
+ * third when most frames miss), a frame with room climbs back one small step at a time. GPU times are the median of recent timer queries, ignoring the
  * few still in flight from before a change, so a stray spike (another app on the GPU) cannot send the
  * image to the floor. A climb that is undone within 4 s doubles the wait before the next one, which
  * stops the resolution from breathing. Without GPU timings a climb is a probe that backs off the same
@@ -74,8 +74,24 @@ export class DynamicResolution {
   private climbDelay = CLIMB_DELAY;
   private stableFor = 0;
   private overloadMs = 0;
+  // GPU ms per unit of density squared, measured across density changes (null until one is seen).
+  private perPixel: number | null = null;
+  // The settled median at the density before the last change, waiting for one at the new density.
+  private before: { x: number; y: number } | null = null;
 
   constructor(range: RenderRange) { this.range = range; this.density = range.max; }
+
+  /** GPU milliseconds per unit of density squared. Much of a frame does not scale with pixels
+   * (geometry, the shadow map, the upscale to the canvas, other work on the GPU): measured on this
+   * laptop, about 7 of the 9 ms at Medium's floor. Reading all of the time as pixel cost kept the
+   * resolution at its floor although it had room. Each density change measures the slope from the
+   * settled GPU times just before and just after it (a fraction of a second apart, so the scene is
+   * the same), averaged over recent changes and kept between a quarter of and all of the current
+   * cost; before any change, all of it counts (the cautious reading). */
+  private slope(gpu: number) {
+    const all = gpu / this.density ** 2;
+    return this.perPixel === null ? all : Math.min(all, Math.max(all * .25, this.perPixel));
+  }
 
   get ceiling() { return this.range.max; }
   /** The median GPU frame time behind the decisions, when timer queries exist (diagnostics too). */
@@ -89,6 +105,7 @@ export class DynamicResolution {
   reset(range: RenderRange) {
     this.range = range; this.density = range.max; this.misses.length = 0; this.gpuSamples.length = 0; this.inFlight = 0;
     this.sinceChange = 0; this.sinceRaise = Infinity; this.climbDelay = CLIMB_DELAY; this.stableFor = 0; this.overloadMs = 0;
+    this.perPixel = null; this.before = null;
   }
 
   /** The GPU still misses the budget at the floor density for about 15 s of play (with recovery
@@ -111,15 +128,23 @@ export class DynamicResolution {
     if (this.misses.length > 60) this.misses.shift();
     const recent = this.misses.slice(-30), missRate = recent.filter(Boolean).length / Math.max(1, recent.length);
     const gpu = this.gpuEstimate, cpuBound = this.cpu > budgetMs * .85;
+    const settled = gpu !== null && this.gpuSamples.length >= 9;
+    if (settled && this.before) {
+      const dx = this.density ** 2 - this.before.x, sample = Math.max(0, (gpu - this.before.y) / dx);
+      this.perPixel = this.perPixel === null ? sample : this.perPixel + (sample - this.perPixel) * .3;
+      this.before = null;
+    }
     const gpuOver = gpu !== null && gpu > budgetMs * .95, missing = recent.length >= 20 && missRate >= .25;
     const severe = recent.length >= 20 && missRate >= .6;
     const { min, max } = this.range;
     const struggling = !cpuBound && (gpuOver || missing);
     this.overloadMs = struggling && this.density <= min + 1e-6 ? this.overloadMs + intervalMs : Math.max(0, this.overloadMs - intervalMs * .5);
     if (struggling && this.sinceChange >= (severe ? 300 : 500)) {
-      // Toward the pixels that fit 80 percent of the budget, from the GPU time (or the frame time) at this density.
-      const cost = gpu !== null && gpuOver ? gpu : Math.max(budgetMs * 1.3, intervalAverage(this.misses, budgetMs));
-      const factor = Math.min(.95, Math.max(severe ? .7 : .8, Math.sqrt(budgetMs * .8 / cost)));
+      // Toward the density whose GPU time fits 80 percent of the budget (with frame times only, the pixels that would).
+      let target: number;
+      if (gpu !== null && gpuOver) target = Math.sqrt(Math.max(0, this.density ** 2 - (gpu - budgetMs * .8) / this.slope(gpu)));
+      else target = this.density * Math.sqrt(budgetMs * .8 / Math.max(budgetMs * 1.3, intervalAverage(this.misses, budgetMs)));
+      const factor = Math.min(.95, Math.max(severe ? .7 : .8, target / this.density));
       // A climb undone this soon was one step too far: wait twice as long before the next.
       if (this.sinceRaise < 4000) this.climbDelay = Math.min(30000, this.climbDelay * 2);
       this.stableFor = 0; this.sinceRaise = Infinity;
@@ -128,7 +153,7 @@ export class DynamicResolution {
     if (this.density >= max || this.misses.length < 60 || this.misses.some(Boolean) || this.sinceChange < this.climbDelay) return false;
     const next = Math.min(max, quantize(this.density + STEP));
     // With GPU timings, climb only when the next step still fits comfortably; without, probe.
-    if (gpu !== null && gpu * (next / this.density) ** 2 > budgetMs * .72) return false;
+    if (gpu !== null && gpu + this.slope(gpu) * (next ** 2 - this.density ** 2) > budgetMs * .78) return false;
     if (this.set(next)) { this.sinceRaise = 0; return true; }
     return false;
   }
@@ -137,6 +162,8 @@ export class DynamicResolution {
     density = Math.min(this.range.max, Math.max(this.range.min, +density.toFixed(4)));
     if (Math.abs(density - this.density) < 1e-6) return false;
     // Queries already submitted measured the old density: let them pass, then measure afresh.
+    const gpu = this.gpuSamples.length >= 9 ? this.gpuEstimate : null;
+    this.before = gpu === null ? null : { x: this.density ** 2, y: gpu };
     this.density = density; this.sinceChange = 0; this.misses.length = 0; this.gpuSamples.length = 0; this.inFlight = 4;
     return true;
   }
