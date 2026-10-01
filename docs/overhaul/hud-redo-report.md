@@ -142,4 +142,4 @@ All product changes are in `src/ui/ui.ts` (HUD markup, update and events only; t
 - The board tool sets HUD states through `GameUI` directly (the same calls a match makes); heals, pickups and armour breaks were also seen live, but not every combination of them at once.
 - The minimap tick cost (about 0.1 ms per HUD tick) could drop by drawing a smaller canvas; the label and compass constants in `drawMapView` assume 480 px, so it was left for a separate change.
 - The Playwright visual snapshots (`tests/visual`) differ for every HUD view and need re-approval.
-- The bot names in live feeds carry a star (from the bot naming, not the HUD).
+- Elite bots carry a star in their names in the feed (the simulation names them so; not a HUD change).
