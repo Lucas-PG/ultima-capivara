@@ -105,6 +105,7 @@ export class GameUI {
   private lastCounts: Partial<Record<ConsumableId, number>> | null = null;
   private bagSlots: HTMLElement[] = [];
   private hudScaleNow = 1;
+  private lastBoxes: string[] | null = null;
   private armorBrokeUntil = 0;
   private lastPrey: { name: string; color: string } | null = null;
   private thumbs: Map<WeaponId, string> | null = null;
@@ -341,7 +342,7 @@ export class GameUI {
   game(playerId: string) {
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
     clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0; this.supplyNotice = null;
-    this.lastBanner = ''; this.deathInfo = null; this.watchSince = 0; this.sawAlive = false; this.killCount = 0; this.lastHits.clear(); this.useTrack = null; this.lastCounts = null; this.armorBrokeUntil = 0; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null;
+    this.lastBanner = ''; this.deathInfo = null; this.watchSince = 0; this.sawAlive = false; this.killCount = 0; this.lastHits.clear(); this.useTrack = null; this.lastCounts = null; this.lastBoxes = null; this.armorBrokeUntil = 0; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null;
     if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
     this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
@@ -460,7 +461,11 @@ export class GameUI {
     if (this.inventoryKey !== inventoryKey) {
       this.inventoryKey = inventoryKey;
       // Boxes are fixed (two long guns, sidearm, facão): tabs with the gun itself; an empty tab shows a faint silhouette.
-      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(box => { const i = indexOfBox(me.weapons, box), w = me.weapons[i]; return `<div class="hs${w && i === me.slot ? ' on' : ''}${w ? '' : ' empty'}" data-box="${box}" style="--rc:${w ? rarityOf(w.rarity).color : 'transparent'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${box + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : `${weaponIcon(BOX_HINT[box])}<span class="sr">${BOX_LABELS[box]} vazia</span>`}</div>`; }).join('');
+      // A box that just received a different gun pops like a heal landing in the bag.
+      const boxes = [0, 1, 2, 3].map(box => { const w = me.weapons[indexOfBox(me.weapons, box)]; return w ? `${w.id}:${w.rarity}` : ''; });
+      const fresh = this.lastBoxes ? boxes.map((key, box) => !!key && key !== this.lastBoxes![box]) : [false, false, false, false];
+      this.lastBoxes = boxes;
+      this.el('hotbar').innerHTML = [0, 1, 2, 3].map(box => { const i = indexOfBox(me.weapons, box), w = me.weapons[i]; return `<div class="hs${w && i === me.slot ? ' on' : ''}${w ? '' : ' empty'}${fresh[box] && !this.reducedMotion() ? ' gain' : ''}" data-box="${box}" style="--rc:${w ? rarityOf(w.rarity).color : 'transparent'}"><kbd>${esc(chipKey(bindingOf(this.settings.bindings, `slot${box + 1}`)))}</kbd>${w ? this.thumbs?.get(w.id) ? `<img src="${this.thumbs.get(w.id)}" alt="">` : weaponIcon(w.id) : `${weaponIcon(BOX_HINT[box])}<span class="sr">${BOX_LABELS[box]} vazia</span>`}</div>`; }).join('');
     }
     // The heal bag: only what you carry, each with its count and key. The heal that helps most right now wears a gold
     // ring (it bounces while health is low); the one in use fills its ring; a new one pops as it lands in the bag.

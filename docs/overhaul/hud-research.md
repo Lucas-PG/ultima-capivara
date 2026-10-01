@@ -19,6 +19,26 @@ No third-party image was saved or committed; everything here is text.
 11. **Shield break is its own event.** Fortnite's shield break has a distinct glass-shatter cue players learn to hunt for (secondary). The redo gives armour breaking its own feedback both ways: on you (the armour bar shatters, "Colete quebrou!" tag) and on the opponent (a dashed turquoise ring marker and "QUEBROU!" next to the reticle).
 12. **Diegesis taxonomy as a tool, not a rule.** Fagerholt and Lorentzon's diegetic, non-diegetic, spatial and meta categories: our capybara game is a fast multiplayer shooter, so core numbers stay non-diegetic; low health and storm use meta screen-edge dots (cheap, already in the art style); items in the world keep their spatial glow.
 
+## Reference images viewed (second pass, 1 October 2026)
+
+The first pass of this research was text only. For the second pass I collected official screenshots, store images, wiki uploads and frames from official trailers of every reference game, viewed them as contact sheets and at full size, and compared them with our HUD at the same screen height (1470x956). The images are a private reference in `~/capivara-hud/refs/research/` on the build machine, never in the repository and never shipped.
+
+| Game | Source | Moment | What I took |
+| --- | --- | --- | --- |
+| Fortnite | Fortnite wiki, "Zapotron (Gameplay) - Screenshot" (2560x1440, Chapter 1 in match) | looting a legendary sniper next to a chest | Heals are full hotbar slots as big as the guns (about 56 px at our screen height) with big counts (about 18 px); pickups list next to the inventory ("x5 Bandage", "x30 Pierre"); the pickup prompt is a rarity-coloured card by the item. Our bag slots grew from 37 to 55 px with 18 px counts, and every pickup gets its own pop next to the bag. |
+| Fortnite | Wikipedia, "Battling in Fortnite" (small) and the wiki's "Inventory - User Interface" | fight; inventory screen | Wide health and shield bars with numbers at the bottom centre; inventory slots are plain squares with the count bottom-right. |
+| Rumbleverse | Rumbleverse wiki, "UI - Rumbleverse" (1920x1080, in match) | falling into the city with a full kit | The closest match to our art: heals are big painted illustrations (roast chicken, drumstick, about 90 px at our height) on a numbered cross of slots, with small green hearts marking food as healing; thick segmented health and stamina bars with italic outlined numbers ("1600/1600"); big painted special-move art. This is the strongest argument for painted heal art that breaks out of its slot, and for thicker segmented bars. |
+| Apex Legends | frames from the official "Marked Gameplay Trailer" (Steam, DASH video, ffmpeg) and Wikipedia's gameplay screenshot | holding the Nemesis; a ping wheel fight | The weapon card is tinted in the rarity colour as a whole, with a slanted outline, the magazine as the biggest number; health is a thin bar at the bottom left. We tinted the magazine card by rarity. |
+| Overwatch 2 | Wikipedia, "Overwatch screenshot" (small, in match); the Overwatch wiki "HealthBarGuide" | Tracer in a fight; the health segment diagram | Health in chunky slanted 25 HP segments; ultimate charge at the centre bottom; ammo bottom right. Our health bar now shows 25-point chunks like the armour. |
+| Brawl Stars | Google Play store screenshots (12, 1920 wide), in-match frames from Showdown, Gem Grab, Ranked | Showdown with three brawlers; Gem Grab with a big count | Very heavy rounded type with a dark outline, bright slanted mode ribbon ("SHOWDOWN"), health numbers over characters, big counts ("10") with a drop. Confirms Dela Gothic numbers with an ink outline over the world, and bigger counts. |
+| Fall Guys | Fall Guys wiki in-match screenshot (1919x1079) | "Race to the finish!" round start | Slanted pink ribbon with the round goal at the top left, a black card with heavy white type ("QUALIFIED 0/20") at the top right; names and crowns over characters. Shape language: slanted, high contrast, few elements. Our moments keep their tilted stamps. |
+| Splatoon 3 | Wikipedia Turf War and Salmon Run screenshots (small, in match); Nintendo store gallery (11 images) | Turf War; Salmon Run wave; menus | Top bar of player squid icons with the timer, comic sticker labels ("Danger!"), ink-splat shapes and bold outlined type in the menus, almost nothing else on screen. Confirms the sticker look and keeping the corners light. |
+| Sea of Thieves | Steam store screenshots (13), frames from "A Pirate's Life Gameplay Trailer", Wikipedia gameplay screenshot | ship battles, islands | No HUD at all in any official image: information lives in the world. Confirms "quiet until it matters". |
+| Ratchet and Clank: Rift Apart | Steam screenshots (8), frames from the launch trailer, the wiki's Rift Apart gallery (4), Wikipedia's gameplay GIF | combat, traversal | Official images hide the HUD; the GIF shows a contextual HUD that appears only for a tutorial prompt. No usable HUD detail; noted as a gap. |
+| Valorant | Wikipedia gameplay screenshot (small) | holding an SMG in a corridor | Minimal corners: "100" health bottom left, "30" ammo bottom right, team portraits top centre. Confirms that the main numbers can be small if they are high contrast. |
+
+Measured at the same screen height (956 px), before this pass: our heal slots were about 37 px with 29 px icons and 13 px counts. After: 55 px slots with 50 px painted heals and 18 px counts, the selected heal raised in gold and named over the bag ("Kit médico · vida cheia" with its key), and a picked-up heal flies from under the reticle into its slot, which pops with a "+1".
+
 ## By game
 
 ### Fortnite
@@ -80,11 +100,32 @@ No third-party image was saved or committed; everything here is text.
 
 ## Gaps
 
-- No developer source on Brawl Stars', Rumbleverse's or Fortnite's pickup feed was reachable; those notes rest on guides or common knowledge and are marked.
+- No developer source on Brawl Stars', Rumbleverse's or Fortnite's pickup feed was reachable; the second pass replaced most of those guesses with what the in-match images show.
+- No official image shows Ratchet and Clank: Rift Apart's or Overwatch 2's full in-match HUD at a usable size; the store and press images hide it.
 - I found no official source confirming an Apex "health preview" segment while healing; our preview is our own design, inspired by the green progress bar.
 - The Bonn longitudinal study on HUD minimalism (2025) was behind a bot wall; only its title is recorded.
 
 ## Sources
+
+Images viewed (private reference, not redistributed):
+
+- https://store.steampowered.com/api/appdetails?appids=1172470 (Apex Legends: store screenshots and trailers)
+- https://store.steampowered.com/api/appdetails?appids=2357570 (Overwatch: store screenshots and the S24 trailer)
+- https://store.steampowered.com/api/appdetails?appids=1172620 (Sea of Thieves: store screenshots and trailers)
+- https://store.steampowered.com/api/appdetails?appids=1097150 (Fall Guys: store screenshots)
+- https://store.steampowered.com/api/appdetails?appids=1895880 (Ratchet and Clank: Rift Apart: store screenshots and trailer)
+- https://fortnite.fandom.com/wiki/File:Zapotron_(Gameplay)_-_Screenshot_-_Fortnite.png
+- https://fortnite.fandom.com/wiki/File:Inventory_-_User_Interface_-_Fortnite.png
+- https://rumbleverse.fandom.com/wiki/File:UI_-_Rumbleverse.jpg
+- https://overwatch.fandom.com/wiki/File:HealthBarGuide.png
+- https://fallguysultimateknockout.fandom.com/wiki/File:Screenshot_2025-07-31_094306.png
+- https://ratchetandclank.fandom.com/wiki/Ratchet_%26_Clank:_Rift_Apart
+- https://play.google.com/store/apps/details?id=com.supercell.brawlstars
+- https://www.nintendo.com/us/store/products/splatoon-3-switch/
+- https://www.ea.com/games/apex-legends/news/shockwave-game-updates
+- https://en.wikipedia.org/wiki/File:Battling_in_fortnite.jpg, File:Splatoon_3_Turf_War.jpg, File:Splatoon_3_Salmon_Run.jpg, File:Sea_of_Thieves_gameplay_screenshot.jpg, File:Brawl_Stars_Bounty_gameplay.png, File:Ratchet_and_Clank_-_Rift_Apart_gameplay.gif, File:Apex_Legends_gameplay_screenshot.jpg, File:Valorant_gameplay.jpg, File:Overwatch_screenshot.png
+
+Text sources:
 
 - https://gameaccessibilityguidelines.com/avoid-placing-essential-temporary-information-outside-the-players-eye-line/
 - https://playcaliber.com/en/news/638/about-our-approach-to-hud-design/
