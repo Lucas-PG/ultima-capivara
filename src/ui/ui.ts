@@ -155,6 +155,8 @@ export class GameUI {
   private uiSoundAt = 0;
   constructor(private world: WorldSpec, private settings: Settings, private profile: Profile, private callbacks: UICallbacks) {
     try { this.onboarded = localStorage.getItem(ONBOARD_KEY) === '1'; } catch { this.onboarded = false; }
+    // QA builds only: tools/qa/hud-boards.mjs drives HUD states (low health, heals, pickups) through the real update path.
+    if (import.meta.env.VITE_QA === '1') Object.defineProperty(window, '__hudQA', { value: this, configurable: true });
     this.applyHudPrefs(); window.addEventListener('resize', () => this.applyHudPrefs());
     window.addEventListener('pagehide', () => this.lifecycle.abort(), { once: true });
     // Quiet mallet notes from the sound engine. Audio starts only on an intentional press and follows the sound settings.

@@ -1,0 +1,222 @@
+hud-1280x548-ui80: feed overlaps wpnbox by 203x31
+hud-full-1280x548-ui80: feed overlaps wpnbox by 203x31
+hud-watch-1280x548-ui80: compass overlaps deathCard by 333x4
+hud-corrente-1280x548-ui80: feed overlaps wpnbox by 203x31
+hud-1024x640-ui80: compass overlaps coach by 4x42
+hud-full-1024x640-ui80: compass overlaps coach by 4x42
+hud-full-1024x640-ui80: matchMoment overlaps coach by 36x15
+hud-960x600-ui80: compass overlaps coach by 36x42
+hud-960x600-ui80: feed overlaps hotbar by 230x52
+hud-full-960x600-ui80: compass overlaps coach by 36x42
+hud-full-960x600-ui80: feed overlaps hotbar by 230x52
+hud-full-960x600-ui80: matchMoment overlaps coach by 68x15
+hud-watch-960x600-ui80: feed overlaps specBar by 64x23
+hud-corrente-960x600-ui80: feed overlaps hotbar by 230x52
+hud-844x390-ui80: feed leaves the window (597,305 to 827,471)
+hud-844x390-ui80: topL overlaps hotbar by 318x28
+hud-844x390-ui80: topL overlaps wpnbox by 203x15
+hud-844x390-ui80: compass overlaps coach by 94x42
+hud-844x390-ui80: mapWrap overlaps hotbar by 207x15
+hud-844x390-ui80: feed overlaps wpnbox by 203x68
+hud-full-844x390-ui80: feed leaves the window (598,305 to 827,471)
+hud-full-844x390-ui80: topL overlaps prompt by 105x33
+hud-full-844x390-ui80: topL overlaps hotbar by 318x28
+hud-full-844x390-ui80: topL overlaps wpnbox by 203x15
+hud-full-844x390-ui80: compass overlaps coach by 94x42
+hud-full-844x390-ui80: safe overlaps matchMoment by 130x6
+hud-full-844x390-ui80: mapWrap overlaps hotbar by 207x15
+hud-full-844x390-ui80: feed overlaps wpnbox by 203x68
+hud-full-844x390-ui80: matchMoment overlaps coach by 126x32
+hud-full-844x390-ui80: prompt overlaps vitals by 45x7
+hud-full-844x390-ui80: prompt overlaps hotbar by 49x7
+hud-watch-844x390-ui80: feed leaves the window (597,305 to 827,471)
+hud-watch-844x390-ui80: topL overlaps specBar by 266x55
+hud-watch-844x390-ui80: compass overlaps deathCard by 333x20
+hud-watch-844x390-ui80: feed overlaps specBar by 122x68
+hud-corrente-844x390-ui80: feed leaves the window (597,305 to 827,471)
+hud-corrente-844x390-ui80: topL overlaps hotbar by 318x28
+hud-corrente-844x390-ui80: topL overlaps wpnbox by 203x7
+hud-corrente-844x390-ui80: ladder overlaps compass by 38x42
+hud-corrente-844x390-ui80: mapWrap overlaps hotbar by 207x15
+hud-corrente-844x390-ui80: feed overlaps wpnbox by 203x68
+hud-390x844-ui80: topL overlaps feed by 230x55
+hud-390x844-ui80: compass overlaps mapWrap by 71x42
+hud-390x844-ui80: compass overlaps coach by 240x42
+hud-390x844-ui80: mapWrap overlaps coach by 100x106
+hud-390x844-ui80: vitals overlaps wpnbox by 96x69
+hud-390x844-ui80: hotbar overlaps wpnbox by 203x8
+hud-full-390x844-ui80: topL leaves the window (-1,242 to 373,297)
+hud-full-390x844-ui80: topL overlaps feed by 230x55
+hud-full-390x844-ui80: compass overlaps mapWrap by 71x42
+hud-full-390x844-ui80: compass overlaps coach by 240x42
+hud-full-390x844-ui80: safe overlaps mapWrap by 16x29
+hud-full-390x844-ui80: safe overlaps coach by 130x29
+hud-full-390x844-ui80: mapWrap overlaps matchMoment by 52x49
+hud-full-390x844-ui80: mapWrap overlaps coach by 100x106
+hud-full-390x844-ui80: feed overlaps matchMoment by 152x79
+hud-full-390x844-ui80: matchMoment overlaps coach by 202x26
+hud-full-390x844-ui80: vitals overlaps wpnbox by 96x69
+hud-full-390x844-ui80: consbar overlaps hotbar by 318x15
+hud-full-390x844-ui80: hotbar overlaps wpnbox by 203x8
+hud-watch-390x844-ui80: topL leaves the window (-1,242 to 373,297)
+hud-watch-390x844-ui80: topL overlaps feed by 230x55
+hud-watch-390x844-ui80: compass overlaps mapWrap by 71x42
+hud-watch-390x844-ui80: mapWrap overlaps deathCard by 129x62
+hud-watch-390x844-ui80: feed overlaps deathCard by 230x64
+hud-corrente-390x844-ui80: topL leaves the window (-37,242 to 373,289)
+hud-corrente-390x844-ui80: topL overlaps feed by 230x47
+hud-corrente-390x844-ui80: ladder overlaps compass by 219x42
+hud-corrente-390x844-ui80: ladder overlaps mapWrap by 50x70
+hud-corrente-390x844-ui80: compass overlaps mapWrap by 71x42
+hud-corrente-390x844-ui80: mapWrap overlaps coach by 100x50
+hud-corrente-390x844-ui80: feed overlaps coach by 201x46
+hud-corrente-390x844-ui80: vitals overlaps wpnbox by 96x69
+hud-corrente-390x844-ui80: hotbar overlaps wpnbox by 203x8
+hud-1280x548-ui100: feed overlaps wpnbox by 203x31
+hud-full-1280x548-ui100: feed overlaps wpnbox by 203x31
+hud-watch-1280x548-ui100: compass overlaps deathCard by 333x4
+hud-corrente-1280x548-ui100: feed overlaps wpnbox by 203x31
+hud-1024x640-ui100: compass overlaps coach by 4x42
+hud-full-1024x640-ui100: compass overlaps coach by 4x42
+hud-full-1024x640-ui100: matchMoment overlaps coach by 36x15
+hud-960x600-ui100: compass overlaps coach by 36x42
+hud-960x600-ui100: feed overlaps hotbar by 230x52
+hud-full-960x600-ui100: compass overlaps coach by 36x42
+hud-full-960x600-ui100: feed overlaps hotbar by 230x52
+hud-full-960x600-ui100: matchMoment overlaps coach by 68x15
+hud-watch-960x600-ui100: feed overlaps specBar by 64x23
+hud-corrente-960x600-ui100: feed overlaps hotbar by 230x52
+hud-844x390-ui100: feed leaves the window (597,305 to 827,471)
+hud-844x390-ui100: topL overlaps hotbar by 318x28
+hud-844x390-ui100: topL overlaps wpnbox by 203x15
+hud-844x390-ui100: compass overlaps coach by 94x42
+hud-844x390-ui100: mapWrap overlaps hotbar by 207x15
+hud-844x390-ui100: feed overlaps wpnbox by 203x68
+hud-full-844x390-ui100: feed leaves the window (598,305 to 827,471)
+hud-full-844x390-ui100: topL overlaps prompt by 105x33
+hud-full-844x390-ui100: topL overlaps hotbar by 318x28
+hud-full-844x390-ui100: topL overlaps wpnbox by 203x15
+hud-full-844x390-ui100: compass overlaps coach by 94x42
+hud-full-844x390-ui100: safe overlaps matchMoment by 130x6
+hud-full-844x390-ui100: mapWrap overlaps hotbar by 207x15
+hud-full-844x390-ui100: feed overlaps wpnbox by 203x68
+hud-full-844x390-ui100: matchMoment overlaps coach by 126x32
+hud-full-844x390-ui100: prompt overlaps vitals by 45x7
+hud-full-844x390-ui100: prompt overlaps hotbar by 49x7
+hud-watch-844x390-ui100: feed leaves the window (597,305 to 827,471)
+hud-watch-844x390-ui100: topL overlaps specBar by 266x55
+hud-watch-844x390-ui100: compass overlaps deathCard by 333x20
+hud-watch-844x390-ui100: feed overlaps specBar by 122x68
+hud-corrente-844x390-ui100: feed leaves the window (597,305 to 827,471)
+hud-corrente-844x390-ui100: topL overlaps hotbar by 318x28
+hud-corrente-844x390-ui100: topL overlaps wpnbox by 203x7
+hud-corrente-844x390-ui100: ladder overlaps compass by 38x42
+hud-corrente-844x390-ui100: mapWrap overlaps hotbar by 207x15
+hud-corrente-844x390-ui100: feed overlaps wpnbox by 203x68
+hud-390x844-ui100: topL overlaps feed by 230x55
+hud-390x844-ui100: compass overlaps mapWrap by 71x42
+hud-390x844-ui100: compass overlaps coach by 240x42
+hud-390x844-ui100: mapWrap overlaps coach by 100x106
+hud-390x844-ui100: vitals overlaps wpnbox by 96x69
+hud-390x844-ui100: hotbar overlaps wpnbox by 203x8
+hud-full-390x844-ui100: topL leaves the window (-1,242 to 373,297)
+hud-full-390x844-ui100: topL overlaps feed by 230x55
+hud-full-390x844-ui100: compass overlaps mapWrap by 71x42
+hud-full-390x844-ui100: compass overlaps coach by 240x42
+hud-full-390x844-ui100: safe overlaps mapWrap by 16x29
+hud-full-390x844-ui100: safe overlaps coach by 130x29
+hud-full-390x844-ui100: mapWrap overlaps matchMoment by 52x49
+hud-full-390x844-ui100: mapWrap overlaps coach by 100x106
+hud-full-390x844-ui100: feed overlaps matchMoment by 152x79
+hud-full-390x844-ui100: matchMoment overlaps coach by 202x26
+hud-full-390x844-ui100: vitals overlaps wpnbox by 96x69
+hud-full-390x844-ui100: consbar overlaps hotbar by 318x15
+hud-full-390x844-ui100: hotbar overlaps wpnbox by 203x8
+hud-watch-390x844-ui100: topL leaves the window (-1,242 to 373,297)
+hud-watch-390x844-ui100: topL overlaps feed by 230x55
+hud-watch-390x844-ui100: compass overlaps mapWrap by 71x42
+hud-watch-390x844-ui100: mapWrap overlaps deathCard by 129x62
+hud-watch-390x844-ui100: feed overlaps deathCard by 230x64
+hud-corrente-390x844-ui100: topL leaves the window (-37,242 to 373,289)
+hud-corrente-390x844-ui100: topL overlaps feed by 230x47
+hud-corrente-390x844-ui100: ladder overlaps compass by 219x42
+hud-corrente-390x844-ui100: ladder overlaps mapWrap by 50x70
+hud-corrente-390x844-ui100: compass overlaps mapWrap by 71x42
+hud-corrente-390x844-ui100: mapWrap overlaps coach by 100x50
+hud-corrente-390x844-ui100: feed overlaps coach by 201x46
+hud-corrente-390x844-ui100: vitals overlaps wpnbox by 96x69
+hud-corrente-390x844-ui100: hotbar overlaps wpnbox by 203x8
+hud-1280x548-ui120: feed overlaps wpnbox by 203x31
+hud-full-1280x548-ui120: feed overlaps wpnbox by 203x31
+hud-watch-1280x548-ui120: compass overlaps deathCard by 333x4
+hud-corrente-1280x548-ui120: feed overlaps wpnbox by 203x31
+hud-1024x640-ui120: compass overlaps coach by 4x42
+hud-full-1024x640-ui120: compass overlaps coach by 4x42
+hud-full-1024x640-ui120: matchMoment overlaps coach by 36x15
+hud-960x600-ui120: compass overlaps coach by 36x42
+hud-960x600-ui120: feed overlaps hotbar by 230x52
+hud-full-960x600-ui120: compass overlaps coach by 36x42
+hud-full-960x600-ui120: feed overlaps hotbar by 230x52
+hud-full-960x600-ui120: matchMoment overlaps coach by 68x15
+hud-watch-960x600-ui120: feed overlaps specBar by 64x23
+hud-corrente-960x600-ui120: feed overlaps hotbar by 230x52
+hud-844x390-ui120: feed leaves the window (597,305 to 827,471)
+hud-844x390-ui120: topL overlaps hotbar by 318x28
+hud-844x390-ui120: topL overlaps wpnbox by 203x15
+hud-844x390-ui120: compass overlaps coach by 94x42
+hud-844x390-ui120: mapWrap overlaps hotbar by 207x15
+hud-844x390-ui120: feed overlaps wpnbox by 203x68
+hud-full-844x390-ui120: feed leaves the window (598,305 to 827,471)
+hud-full-844x390-ui120: topL overlaps prompt by 105x33
+hud-full-844x390-ui120: topL overlaps hotbar by 318x28
+hud-full-844x390-ui120: topL overlaps wpnbox by 203x15
+hud-full-844x390-ui120: compass overlaps coach by 94x42
+hud-full-844x390-ui120: safe overlaps matchMoment by 130x6
+hud-full-844x390-ui120: mapWrap overlaps hotbar by 207x15
+hud-full-844x390-ui120: feed overlaps wpnbox by 203x68
+hud-full-844x390-ui120: matchMoment overlaps coach by 126x32
+hud-full-844x390-ui120: prompt overlaps vitals by 45x7
+hud-full-844x390-ui120: prompt overlaps hotbar by 49x7
+hud-watch-844x390-ui120: feed leaves the window (597,305 to 827,471)
+hud-watch-844x390-ui120: topL overlaps specBar by 266x55
+hud-watch-844x390-ui120: compass overlaps deathCard by 333x20
+hud-watch-844x390-ui120: feed overlaps specBar by 122x68
+hud-corrente-844x390-ui120: feed leaves the window (597,305 to 827,471)
+hud-corrente-844x390-ui120: topL overlaps hotbar by 318x28
+hud-corrente-844x390-ui120: topL overlaps wpnbox by 203x7
+hud-corrente-844x390-ui120: ladder overlaps compass by 38x42
+hud-corrente-844x390-ui120: mapWrap overlaps hotbar by 207x15
+hud-corrente-844x390-ui120: feed overlaps wpnbox by 203x68
+hud-390x844-ui120: topL overlaps feed by 230x55
+hud-390x844-ui120: compass overlaps mapWrap by 71x42
+hud-390x844-ui120: compass overlaps coach by 240x42
+hud-390x844-ui120: mapWrap overlaps coach by 100x106
+hud-390x844-ui120: vitals overlaps wpnbox by 96x69
+hud-390x844-ui120: hotbar overlaps wpnbox by 203x8
+hud-full-390x844-ui120: topL leaves the window (-1,242 to 373,297)
+hud-full-390x844-ui120: topL overlaps feed by 230x55
+hud-full-390x844-ui120: compass overlaps mapWrap by 71x42
+hud-full-390x844-ui120: compass overlaps coach by 240x42
+hud-full-390x844-ui120: safe overlaps mapWrap by 16x29
+hud-full-390x844-ui120: safe overlaps coach by 130x29
+hud-full-390x844-ui120: mapWrap overlaps matchMoment by 52x49
+hud-full-390x844-ui120: mapWrap overlaps coach by 100x106
+hud-full-390x844-ui120: feed overlaps matchMoment by 152x79
+hud-full-390x844-ui120: matchMoment overlaps coach by 202x26
+hud-full-390x844-ui120: vitals overlaps wpnbox by 96x69
+hud-full-390x844-ui120: consbar overlaps hotbar by 318x15
+hud-full-390x844-ui120: hotbar overlaps wpnbox by 203x8
+hud-watch-390x844-ui120: topL leaves the window (-1,242 to 373,297)
+hud-watch-390x844-ui120: topL overlaps feed by 230x55
+hud-watch-390x844-ui120: compass overlaps mapWrap by 71x42
+hud-watch-390x844-ui120: mapWrap overlaps deathCard by 129x62
+hud-watch-390x844-ui120: feed overlaps deathCard by 230x84
+hud-corrente-390x844-ui120: topL leaves the window (-37,242 to 373,289)
+hud-corrente-390x844-ui120: topL overlaps feed by 230x47
+hud-corrente-390x844-ui120: ladder overlaps compass by 219x42
+hud-corrente-390x844-ui120: ladder overlaps mapWrap by 50x70
+hud-corrente-390x844-ui120: compass overlaps mapWrap by 71x42
+hud-corrente-390x844-ui120: mapWrap overlaps coach by 100x50
+hud-corrente-390x844-ui120: feed overlaps coach by 201x46
+hud-corrente-390x844-ui120: vitals overlaps wpnbox by 96x69
+hud-corrente-390x844-ui120: hotbar overlaps wpnbox by 203x8
