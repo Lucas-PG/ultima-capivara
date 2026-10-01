@@ -13,9 +13,10 @@ const scales = (process.env.SCALES || '0.8,1,1.2').split(',').map(Number);
 const poses = (process.env.POSES || 'hud,hud-full,hud-watch,hud-corrente').split(',');
 // Plates that may never touch each other or the window edge.
 const TEXT_FLOOR = 12;
-// Columns (rcol: map, strip, feed; lcol: bag, posture, pickups; ccol: prompt, elimination, heal) stack their children,
-// so the columns are checked against everything else.
-const PLATES = ['rcol', 'lcol', 'ccol', 'ladder', 'compass', 'safe', 'hOut', 'matchMoment', 'banner', 'deathCard', 'specBar', 'alt', 'vitals', 'wpnbox', 'coach', 'toast'];
+// Every painted plate, including each child of the stacked columns (map, strip and feed lines; bag, posture and
+// pickup pops; prompt, elimination and heal), so a long feed line or pop is caught where it actually reaches.
+const PLATES = ['#mapWrap', '#topL', '#feed .fd', '#consbar', '#stance', '#pickups .pk', '#prompt', '#killConfirm', '#use', '#ladder', '#compass', '#safe', '#hOut',
+  '#matchMoment', '#banner', '#deathCard', '#specBar', '#alt', '#vitals', '#wpnbox', '#coach', '#toast .toast-item'];
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const faults = [];
 try {
@@ -36,12 +37,11 @@ try {
         await page.waitForTimeout(450);
         const name = `${pose}-${width}x${height}-ui${Math.round(scale * 100)}`;
         await page.screenshot({ path: `${out}/${name}.jpg`, quality: 82 });
-        const rects = await page.evaluate(ids => ids.flatMap(id => {
-          const el = document.getElementById(id);
-          if (!el || el.hidden || !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return [];
-          const r = el.getBoundingClientRect();
+        const rects = await page.evaluate(selectors => selectors.flatMap(sel => [...document.querySelectorAll(sel)].flatMap((el, i) => {
+          if (el.hidden || el.closest('[hidden]') || !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return [];
+          const r = el.getBoundingClientRect(), id = i ? `${sel}#${i + 1}` : sel;
           return r.width < 2 || r.height < 2 ? [] : [{ id, x0: r.left, y0: r.top, x1: r.right, y1: r.bottom }];
-        }), PLATES);
+        })), PLATES);
         const found = [];
         for (const r of rects) if (r.x0 < -1 || r.y0 < -1 || r.x1 > width + 1 || r.y1 > height + 1)
           found.push(`${r.id} leaves the window (${Math.round(r.x0)},${Math.round(r.y0)} to ${Math.round(r.x1)},${Math.round(r.y1)})`);

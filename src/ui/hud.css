@@ -95,7 +95,7 @@ body{
 #hud #ladder.final .ladder-track i.current{background:var(--h-terra)}
 #hud #ladderNext{font-size:14px;color:var(--h-ink-2)}
 #hud #ladder.upgrade{animation:hud-pop .45s var(--spring,ease-out)}
-#hud #coach{position:absolute;left:16px;top:14px;width:min(330px,calc(100vw / var(--ui,1) - 32px));display:flex;flex-direction:column;gap:5px;padding:8px 12px 9px;border-radius:14px;rotate:-.6deg;animation:hud-coach-in .3s ease-out}
+#hud #coach{position:absolute;left:16px;top:14px;width:min(300px,calc(100vw / var(--ui,1) - 32px));display:flex;flex-direction:column;gap:5px;padding:8px 12px 9px;border-radius:14px;rotate:-.6deg;animation:hud-coach-in .3s ease-out}
 #hud.corrente #coach{top:96px}
 #hud #coach .ck{align-self:flex-start;padding:0 9px;font-size:14px;line-height:20px;color:var(--h-ink);background:var(--h-gold);border:2px solid var(--h-ink);border-radius:999px}
 #hud #coach p{margin:0;font-family:var(--sans,sans-serif);font-size:15px;font-weight:700;line-height:1.45;color:var(--h-ink)}
@@ -232,12 +232,13 @@ body{
 #hud #figure,#hud #torso{transition:transform .15s}
 #hud #pickups{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 #hud #pickups:empty{display:none}
-#hud .pk{display:flex;align-items:center;gap:8px;padding:3px 13px 3px 3px;border-radius:999px;transform-origin:0 50%;animation:hud-pk-in .38s var(--spring,ease-out),hud-pk-out .35s ease-in var(--life,2s) forwards}
+#hud .pk{display:flex;align-items:center;gap:8px;max-width:300px;padding:3px 13px 3px 3px;border-radius:999px;transform-origin:0 50%;animation:hud-pk-in .38s var(--spring,ease-out),hud-pk-out .35s ease-in var(--life,2s) forwards}
 #hud .pk-ico{position:relative;flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#fff;border:2px solid var(--h-ink)}
 #hud .pk-ico .item-art,#hud .pk-ico>img.item-art{width:32px;height:32px}
 #hud .pk-ico img:not(.item-art){max-width:38px;max-height:24px}
 #hud .pk-ico .weapon-icon{width:36px;height:12px;color:var(--h-ink)}
-#hud .pk-txt{display:flex;flex-direction:column;line-height:1.2;white-space:nowrap}
+#hud .pk-txt{display:flex;flex-direction:column;min-width:0;line-height:1.2;white-space:nowrap}
+#hud .pk-txt :is(b,small){overflow:hidden;text-overflow:ellipsis}
 #hud .pk-txt b{font-size:16px;font-weight:400}
 #hud .pk-txt small{font-size:14px;color:var(--h-ink-2)}
 #hud .pk.heal{border-color:var(--h-green);border-width:3px;background:linear-gradient(180deg,#fbfff4,#e3f6cf)}
@@ -336,7 +337,8 @@ body{
 /* Big centre text keeps the menus' stamped look, a size smaller so the view stays open. */
 #hud #banner{font-size:min(56px,5vw)}
 #hud #banner.countdown{font-size:96px}
-#hud #matchMoment{top:100px}
+#hud #matchMoment{top:108px}
+#hud #matchMoment small{font-size:14px}
 #hud #matchMoment strong{font-size:clamp(22px,2.4vw,34px);padding:7px 16px;border-width:3px;box-shadow:4px 5px 0 var(--brown,#3a2418)}
 #hud #matchMoment[data-kind=drop] strong{font-size:48px;padding:4px 28px}
 #hud #matchMoment[data-kind=delivery] strong{font-size:24px}
@@ -354,8 +356,17 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud #compass{left:16px;translate:none;width:220px}
 .hud-narrow #hud #safe,.hud-narrow #hud #hOut{left:16px;translate:none}
 .hud-narrow #hud #mapWrap{width:136px;height:136px}
-.hud-narrow #hud #ladder,.hud-narrow #hud #coach{top:132px}
-.hud-narrow #hud .vcard{width:160px}
+.hud-narrow #hud #ladder,.hud-narrow #hud #coach{top:300px;width:calc(100vw / var(--ui,1) - 32px)}
+.hud-narrow #hud.corrente #coach{top:384px}
+.hud-narrow #hud #matchMoment{top:calc(43vh / var(--ui,1))}
+.hud-narrow #hud #matchMoment strong{font-size:22px}
+.hud-narrow #hud #ccol{top:calc(50% + 72px)}
+.hud-narrow #hud #deathCard{top:calc(40vh / var(--ui,1))}
+.hud-narrow #hud .pk{max-width:196px}
+.hud-narrow #hud .pk:not(:last-child){display:none}
+.hud-narrow #hud #ammoBox .wchips{display:none}
+.hud-narrow #hud #ammoBox .wname{max-width:96px}
+.hud-narrow #hud .vcard{width:150px}
 .hud-narrow #hud .hs{width:44px}
 .hud-narrow #hud #ammoBox{min-width:0}
 .hud-narrow #hud #consbar{max-width:220px}
@@ -363,6 +374,8 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud #deathCard{min-width:0;width:calc(100vw / var(--ui,1) - 32px)}
 /* Short windows: the map shrinks so the feed never reaches the weapon cluster. */
 .hud-short #hud #mapWrap{width:136px;height:136px}
+.hud-short #hud .pk:not(:last-child){display:none}
+.hud-short #hud #coach{width:276px}
 
 @keyframes hud-pulse{50%{opacity:.62}}
 @keyframes hud-card{from{opacity:0;translate:-50% -10px}}

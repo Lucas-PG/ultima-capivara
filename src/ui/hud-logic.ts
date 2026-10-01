@@ -54,11 +54,11 @@ export const hudShort = (height: number, scale: number) => height / scale < HUD_
 // up to which cap, and when the host refuses it. The HUD previews the result on the bar and names it on pickup.
 export const HEALS: readonly ConsumableId[] = ['bandage', 'medkit', 'guarana', 'acai', 'rapadura'];
 export const HEAL_INFO: Record<ConsumableId, { name: string; stat: 'hp' | 'armor'; amount: number; cap: number; time: number; effect: string }> = {
-  bandage: { time: 2.5, name: 'Bandagem', stat: 'hp', amount: 15, cap: 75, effect: '+15 de vida, até 75' },
+  bandage: { time: 2.5, name: 'Bandagem', stat: 'hp', amount: 15, cap: 75, effect: '+15 de vida' },
   medkit: { time: 5, name: 'Kit médico', stat: 'hp', amount: 100, cap: 100, effect: 'vida cheia' },
-  guarana: { time: 2, name: 'Guaraná', stat: 'hp', amount: 30, cap: 100, effect: '+30 de vida aos poucos e mais pique' },
+  guarana: { time: 2, name: 'Guaraná', stat: 'hp', amount: 30, cap: 100, effect: '+30 aos poucos' },
   acai: { time: 3, name: 'Açaí', stat: 'armor', amount: 25, cap: 100, effect: '+25 de colete' },
-  rapadura: { time: 1.5, name: 'Rapadura', stat: 'hp', amount: 10, cap: 100, effect: '+10 de vida, rapidinho' },
+  rapadura: { time: 1.5, name: 'Rapadura', stat: 'hp', amount: 10, cap: 100, effect: '+10 de vida' },
 };
 export const canUseHeal = (item: ConsumableId, hp: number, armor: number) =>
   item === 'bandage' ? hp < 75 : item === 'medkit' || item === 'rapadura' ? hp < 100 : item === 'acai' ? armor < 100 : true;
@@ -90,8 +90,8 @@ export function pickupCopy(kind: string, count = 0, weaponName = '', rarityName 
   }
   if (kind === 'weapon') return { tone: 'weapon', title: weaponName || 'Arma', detail: rarityName ? `${rarityName} · na mão` : 'na mão' };
   if (kind === 'armor') return { tone: 'gear', title: '+50 de colete', detail: 'colete vestido' };
-  if (kind === 'helmet') return { tone: 'gear', title: 'Capacete', detail: 'protege a cachola' };
-  if (kind === 'ammo') return { tone: 'ammo', title: '+ Munição', detail: 'um pente a mais para cada arma' };
+  if (kind === 'helmet') return { tone: 'gear', title: 'Capacete', detail: 'cachola protegida' };
+  if (kind === 'ammo') return { tone: 'ammo', title: '+ Munição', detail: 'pente extra' };
   return { tone: 'gear', title: 'Equipamento', detail: '' };
 }
 
