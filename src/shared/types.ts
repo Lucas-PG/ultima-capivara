@@ -131,7 +131,11 @@ export type GameEvent =
   | { type: 'alert'; id: number; actor: string; target: string; delay: number }
   | { type: 'notice'; id: number; text: string };
 export interface Settings {
-  sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; frameLimit: 30 | 60; reducedMotion: boolean;
+  sensitivity: number; fov: number; graphics: 'low' | 'medium' | 'high'; reducedMotion: boolean;
+  // Frames per second: 0 is one frame per display refresh ("Taxa da tela"), 60 and 30 cap the rate.
+  frameLimit: 0 | 30 | 60;
+  // The player picked the frame rate themselves (the automatic default then never changes it).
+  frameLimitChosen: boolean;
   // 3D render resolution: automatic (the preset's range, adjusted to hold the frame rate) or a fixed share of the screen's native resolution.
   renderScale: 'auto' | 1 | .75 | .5;
   // The player picked the preset or the 3D resolution themselves: the automatic step-down never overrides that.

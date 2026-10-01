@@ -41,6 +41,18 @@ import type { PresentationFrame } from './local-presentation';
 export { itemGeometry } from './item-geometry';
 
 const FOG_NEAR = 40, FOG_FAR = 520;
+
+// Three creates its own context with alpha always on, which makes the browser blend the whole canvas
+// over the page every frame. Every pixel the pipeline writes is opaque, so an opaque context shows
+// the same image. QA builds can compare context options with ?ctx=three|opaque|desync.
+function createContext(canvas: HTMLCanvasElement): WebGL2RenderingContext | undefined {
+  const choice = (import.meta.env.DEV || import.meta.env.VITE_QA === '1') && typeof location !== 'undefined'
+    ? new URLSearchParams(location.search).get('ctx') : null;
+  if (choice === 'three' || typeof canvas.getContext !== 'function') return undefined;
+  const context = canvas.getContext('webgl2', { alpha: false, depth: true, stencil: false, antialias: false, premultipliedAlpha: true,
+    preserveDrawingBuffer: false, powerPreference: 'high-performance', desynchronized: choice === 'desync' });
+  return context ?? undefined;
+}
 const ZONE_NONE: ZoneState = { x: 0, z: 0, radius: 0, nextRadius: 0, nextX: 0, nextZ: 0, phase: 0, shrinking: false, timeLeft: 0, damage: 0 };
 
 export class GameRenderer {
@@ -112,7 +124,7 @@ export class GameRenderer {
     }
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
-    this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
+    this.gl = new THREE.WebGLRenderer({ canvas, context: createContext(canvas), antialias: false, powerPreference: 'high-performance', alpha: false });
     instrumentGpu(this.gl); gpuPasses.attach(this.gl); gpuFrameTimer.attach(this.gl);
     const weaponManifest: readonly AssetEntry[] = [
       ...ASSET_MANIFEST,
@@ -215,6 +227,8 @@ export class GameRenderer {
 
   /** Even the lowest automatic density cannot hold the frame rate (see DynamicResolution.overloaded). */
   get overloaded() { return this.dynamicResolution.overloaded; }
+  /** The automatic density ceiling (render pixels per CSS pixel) of the current preset and screen. */
+  get densityCeiling() { return this.dynamicResolution.ceiling; }
   /** Render pixels per CSS pixel this frame (the dynamic resolution's current density). */
   get renderDensity() { return this.dynamicResolution.density; }
 

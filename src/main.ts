@@ -21,6 +21,7 @@ import { SoundEngine } from './audio';
 import { loadProfile, loadSettings, saveProfile, saveSettings, loadAdapt, recordPlacement } from './settings';
 import { GameUI } from './ui/ui';
 import { SpectateDirector } from './spectate';
+import { FramePacer, HEADROOM_DENSITY, HEADROOM_SECONDS } from './frame-pacing';
 
 const world = createWorld();
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
@@ -67,7 +68,12 @@ let predicted: ActorState | null = null;
 let pending: InputFrame[] = [];
 let receivedAt = 0, lastEvent = 0, match = '', playing = false;
 let lastAlive = true, lastStage = '', initializedPose = false;
-let lastFrame = performance.now(), lastRender = 0, renderDeadline = 0;
+let lastFrame = performance.now(), lastRender = 0;
+const pacer = new FramePacer();
+// Automatic display rate (the default "Taxa da tela" the player never picked): on a high-refresh
+// screen it falls back to 60 for the session once holding the display rate costs image detail.
+let displayRateCostly = false, lowDetailFor = 0;
+const frameLimit = () => settings.frameLimit === 0 && !settings.frameLimitChosen && displayRateCostly ? 60 : settings.frameLimit;
 let fps = 0, frameCount = 0, fpsAt = performance.now();
 let renderedFrames = 0;
 let dirtyFrame = true;
@@ -130,7 +136,7 @@ const ui = new GameUI(world, settings, profile, {
   spectate(direction = 1) { spectateStep(direction); void input.lock(); },
   settings(next) {
     if (next.frameLimit !== activeFrameLimit) {
-      savedFrameLimit = next.frameLimit; activeFrameLimit = next.frameLimit; renderDeadline = 0;
+      savedFrameLimit = next.frameLimit; activeFrameLimit = next.frameLimit; pacer.reset();
     }
     settings = next; saveSettings({ ...next, frameLimit: savedFrameLimit }); input.setSettings(next); sound.setSettings(next); renderer?.setSettings(next); dirtyFrame = true;
   },
@@ -402,7 +408,7 @@ input.onMelee = () => { quickMeleeAt = performance.now(); sendAction({ type: 'me
 input.onLastWeapon = () => { if (previousBox >= 0) input.onBox(previousBox); };
 input.onInteract = () => { interaction = closestInteraction(); if (interaction) sendAction({ type: 'interact', id: input.actionIdNext(), target: interaction.id }); };
 input.onPause = () => { input.onCancelEmote(); if (playing) ui.setPaused(true); };
-input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
+input.onLock = () => { pacer.reset(); lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 const inputClock = new InputClock(
   () => (!document.hidden || input.locked) && playing && !!snapshot && ui.screen === 'game' && (!loading || readyToReveal),
@@ -443,6 +449,7 @@ document.addEventListener('visibilitychange', () => {
 // and cap frames on high-refresh displays instead of saturating the GPU.
 function frame(now: number) {
   requestAnimationFrame(frame);
+  pacer.tick(now);
   const dt = Math.min((now - lastFrame) / 1000, .1); lastFrame = now;
   if (document.hidden || (loading && !readyToReveal)) return;
   timing.context(loading ? 'loading' : snapshot?.phase ?? 'menu', snapshot?.tick ?? -1, renderedFrames);
@@ -459,12 +466,10 @@ function frame(now: number) {
   if ((!playing && !ended) || !snapshot || ui.screen !== 'game') return;
   // Watching after an elimination is live play: it renders at full rate even with the mouse released.
   const watching = playing && snapshot.phase === 'playing' && !!me && !me.alive;
-  const activeLimit = networkQaFps ?? (input.locked || watching ? settings.frameLimit : ended ? 30 : 10);
-  const interval = 1000 / activeLimit;
-  if (now < renderDeadline - .5) return;
-  // Keep the cadence across small rAF timing variations instead of dropping
-  // every frame that arrives a fraction early. Never catch up after a stall.
-  renderDeadline = Math.max(renderDeadline + interval, now + interval * .05);
+  const activeLimit = networkQaFps ?? (input.locked || watching ? frameLimit() : ended ? 30 : 10);
+  // Keep the cadence across small rAF timing variations (see FramePacer). Never catch up after a stall.
+  if (!pacer.shouldRender(now, activeLimit)) return;
+  const interval = pacer.intervalMs(activeLimit);
   const renderDt = Math.min((now - lastRender) / 1000, .05); lastRender = now;
   // Hand off once the kill has been seen and its cam has run; the events and snapshots channels may
   // arrive in either order, so a kill that never shows up still hands off after 1 s.
@@ -490,6 +495,10 @@ function frame(now: number) {
     timing.end('render', renderAt);
     renderedRemoteTime = remoteInterpolation.time;
     renderedFrames++; frameCount++; dirtyFrame = false;
+    if (renderer && activeLimit === 0 && !settings.frameLimitChosen && pacer.displayMs < 15) {
+      lowDetailFor = renderer.renderDensity < renderer.densityCeiling * HEADROOM_DENSITY ? lowDetailFor + renderDt : 0;
+      if (lowDetailFor > HEADROOM_SECONDS) { displayRateCostly = true; pacer.reset(); }
+    }
     // First play on a machine the preset is too rich for: step down once the lowest automatic
     // resolution has missed the frame rate for a while. A preset the player picked is never touched.
     if (renderer?.overloaded && !settings.graphicsChosen && settings.graphics !== 'low') {

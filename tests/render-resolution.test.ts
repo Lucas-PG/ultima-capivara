@@ -61,9 +61,9 @@ describe('dynamic resolution', () => {
 
   it('drops straight to the density whose GPU time fits the budget when timer queries exist', () => {
     const controller = new DynamicResolution(renderRange('high', 'auto', 2));
-    // 30 ms of GPU at 1.5: the pixels that fit 80 percent of 16.7 ms are (13.3 / 30) of them.
+    // 30 ms of GPU at 2: the pixels that fit 80 percent of 16.7 ms are (13.3 / 30) of them.
     run(controller, 30, frame(33.3, { gpuMs: 30 }));
-    expect(controller.density).toBeLessThan(1.5 * Math.sqrt(13.4 / 30) + .051);
+    expect(controller.density).toBeLessThan(2 * Math.sqrt(13.4 / 30) + .051);
     expect(controller.density).toBeGreaterThanOrEqual(.75);
   });
 
@@ -134,7 +134,7 @@ describe('dynamic resolution', () => {
     const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
     run(controller, 300, frame(50));
     controller.reset(renderRange('high', 'auto', 2));
-    expect(controller.density).toBe(1.5);
+    expect(controller.density).toBe(2);
   });
 });
 

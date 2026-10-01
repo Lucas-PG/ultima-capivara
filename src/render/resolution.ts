@@ -13,7 +13,8 @@ export const RENDER_SCALES: readonly RenderScale[] = ['auto', 1, .75, .5];
 export const PRESET_DENSITY: Record<Settings['graphics'], { readonly min: number; readonly max: number }> = {
   low: { min: .5, max: .75 },
   medium: { min: .6, max: 1.25 },
-  high: { min: .75, max: 1.5 },
+  // High climbs to the screen's own density whenever the GPU time leaves room for it.
+  high: { min: .75, max: 2 },
 };
 
 export type RenderRange = { min: number; max: number; dynamic: boolean };
@@ -69,6 +70,8 @@ export class DynamicResolution {
   private overloadMs = 0;
 
   constructor(range: RenderRange) { this.range = range; this.density = range.max; }
+
+  get ceiling() { return this.range.max; }
 
   /** A new range (preset, setting or screen change) starts again at its ceiling. */
   reset(range: RenderRange) {
