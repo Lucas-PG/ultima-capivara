@@ -6,6 +6,7 @@ Previous session record: `docs/overhaul/progress.md` (kept for history).
 
 ## CURRENT STATE (2026-10-01 12:16): read this first
 
+UPDATE 15:55. HUD MERGED (a706e5d) after the Mac review (review-log), pushed to M1 under the standing approval. Remaining: the holding second pass (running on Linux), then the screenshots for the user.
 UPDATE 15:30. STANDING APPROVAL from the user (current turn), in their words: "No need to ask me. If both pass your review just push them. At the end send me some screenshots of the changes though." So: push the holding and HUD passes to M1 once each passes review, without asking, then send before and after screenshots. The hourly job was recreated with this text (fddfa46a, :23). The HUD finished first, so it merges first.
 UPDATE 15:25. PUSHED: the user approved in the current turn ("Yup, go on"); `overhaul/m1-inventory` fast-forwarded 6d57249 to 241f73a and pushed to `lucas`. Next M1 push: the holding pass after its review (ask again in that turn), then the HUD (ask).
 UPDATE 15:12. PERFORMANCE PASS MERGED into `overhaul/aaa-autonomous` (merge 0134468, report correction 2eb10ce): Medium 60 fps at real conditions (independent check: 60 fps, p95 16.8 ms, no frame over 50 ms), final report section 6 corrected, review in `briefs/review-log.md`, the 171 approved baselines copied into this checkout. Then the holding pass (second pass running), then the HUD (pass 2 done at 0b3a1b8; ask before pushing). The perf worktree `.claude/worktrees/perf` can go to the Trash after the push.
