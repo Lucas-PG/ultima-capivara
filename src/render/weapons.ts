@@ -134,6 +134,7 @@ export class WeaponView {
   private readonly baseRotation = new THREE.Quaternion();
   private readonly ride = new THREE.Matrix4();
   private readonly rideTo = new THREE.Matrix4();
+  private readonly rideShift = new THREE.Matrix4();
   private readonly rideTurn = new THREE.Quaternion();
   private readonly ridePole = new THREE.Vector3();
   /** Out of the eye's view (camera space, the eye at the origin): behind it, or outside a frustum a
@@ -480,9 +481,14 @@ export class WeaponView {
       this.ride.compose(this.basePosition, this.baseRotation, ONE).invert()
         .premultiply(this.rideTo.compose(this.holder.position, this.holder.quaternion, ONE));
       if (!spec.armRide) {
-        // A lowered gun carries its shoulders down with it (translation only: turning them with the gun's
-        // pitch would swing the hidden shoulders up into view); the arm solve re-aims the forearms.
-        this.ride.makeTranslation(this.holder.position.x - this.basePosition.x, this.holder.position.y - this.basePosition.y, this.holder.position.z - this.basePosition.z);
+        // A lowered gun carries its shoulders down with it: translation only while it starts to drop (turning
+        // them with the gun's pitch would swing the hidden shoulders up into view), then rigidly once it is
+        // low and out of frame, so the forearms never sweep through the gun.
+        const rigid = THREE.MathUtils.smoothstep(lowered, .35, .8);
+        if (rigid < 1) {
+          this.rideShift.makeTranslation(this.holder.position.x - this.basePosition.x, this.holder.position.y - this.basePosition.y, this.holder.position.z - this.basePosition.z);
+          for (let i = 0; i < 16; i++) this.ride.elements[i] = this.rideShift.elements[i] + (this.ride.elements[i] - this.rideShift.elements[i]) * rigid;
+        }
       }
       this.shoulderR.lerp(this.shoulderAds.copy(this.shoulderR).applyMatrix4(this.ride), rideR);
       this.shoulderL.lerp(this.shoulderAds.copy(this.shoulderL).applyMatrix4(this.ride), rideL);
@@ -724,6 +730,15 @@ export class WeaponView {
         if (free.curl) this.targetL.curl = free.curl;
       }
       if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
+      const run = model.spec.sprintFree;
+      if (run && this.sprintPose > .001 && !sample?.L) {
+        // Handguns run one-handed (Call of Duty, Apex): the support paw lets go and swings low, out of frame.
+        const k = smoothPose(this.sprintPose);
+        this.targetL.wrist.lerp(v3(run.wrist, this.freeDip), k);
+        this.targetL.forward.lerp(v3(run.forward, this.freeDip), k).normalize();
+        this.targetL.palm.lerp(v3(run.palm, this.freeDip), k).normalize();
+        this.targetL.curl = blendCurl(this.targetL.curl, RUN_CURL, k);
+      }
       if (aimedPoles?.L && aim > 0) this.targetL.pole.lerp(v3(aimedPoles.L, this.ridePole), aim).normalize();
       if (this.rideL > 0) this.targetL.pole.lerp(this.ridePole.copy(this.targetL.pole).applyQuaternion(this.rideTurn), this.rideL).normalize();
       arms.left.solve(this.shoulderL, this.targetL);
@@ -878,4 +893,5 @@ interface Choreo { px: number; py: number; pz: number; rx: number; ry: number; r
   support: number; supportPos: THREE.Vector3; mag: 'in' | 'drop' | 'hand'; magOut: number; slide: number }
 const AXIS_Z = new THREE.Vector3(0, 0, 1), UP = new THREE.Vector3(0, 1, 0), ONE = new THREE.Vector3(1, 1, 1);
 const FUR_BY_PRESET: Record<Settings['graphics'], number> = { low: 4, medium: 8, high: 12 };
+const RUN_CURL: HandCurl = { index: [.5, .6, .4], middle: [.55, .65, .45], ring: [.6, .65, .45], thumb: [.3, .2, .1], spread: .1 };
 const OPEN_CURL: HandCurl = { index: [.35, .3, .2], middle: [.4, .35, .2], ring: [.45, .35, .25], thumb: [.2, .1, .1] };

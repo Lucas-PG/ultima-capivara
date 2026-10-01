@@ -47,6 +47,8 @@ export interface ViewSpec {
   adsPoles?: { R?: V3; L?: V3 };
   /** Natural-wrist arm solve per arm (default on, with WRIST_SOLVE): false keeps the authored shoulder and elbow. */
   natural?: { R?: boolean; L?: boolean };
+  /** Handguns sprint one-handed: the support paw's free pose (camera space), blended in by the sprint. */
+  sprintFree?: { wrist: V3; forward: V3; palm: V3 };
   /** First-person elbow directions (camera space) for the rest grips; the shared grip data keeps its own. */
   poles?: { R?: V3; L?: V3 };
   /** Visual recoil: back kick (m/s), muzzle climb and roll (rad/s), spring frequency. */
@@ -94,7 +96,8 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     url: 'models/arsenal/pistol.glb', scale: 1, handling: 'pistol', reload: 'pistol',
     hip: { pos: [.056, -.085, -.393], rot: [.035, .052, .07] },
     // Sprint: low and canted inward, muzzle forward-down, so the slide's flank shows (MW, Apex).
-    sprint: { pos: [-.035, -.02, .03], rot: [-.3, .32, .7] },
+    sprint: { pos: [-.035, -.02, .03], rot: [-.15, .25, .35] },
+    sprintFree: { wrist: [-.2, -.42, -.3], forward: [.25, .6, -1], palm: [.7, -.5, .2] },
     adsDistance: .32, adsFov: 64, poles: { R: [-.249, -.938, .243], L: [.072, -.876, .478] }, adsPoles: { R: [-.548, -.769, .33], L: [-.121, -.759, .64] },
     choreoFrame: { pos: [.13, -.085, -.40], rot: [.03, .10, .16] },
     shoulders: { R: [.056, -.076, .079], L: [-.213, -.043, -.059] }, adsShoulders: { R: [.097, -.081, .077], L: [-.226, .004, -.134] },
@@ -104,12 +107,13 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
   revolver: {
     url: 'models/arsenal/revolver.glb', scale: 1, handling: 'pistol', reload: 'revolver',
     hip: { pos: [.059, -.1, -.422], rot: [.035, .052, .07] },
-    sprint: { pos: [-.035, -.03, .035], rot: [-.25, .3, .65] },
+    sprint: { pos: [-.035, -.03, .035], rot: [-.15, .25, .35] },
+    sprintFree: { wrist: [-.2, -.42, -.3], forward: [.25, .6, -1], palm: [.7, -.5, .2] },
     adsDistance: .3, adsFov: 64, poles: { R: [-.23, -.955, .187], L: [.187, -.825, .534] }, adsPoles: { R: [-.492, -.807, .326], L: [-.129, -.751, .648] },
     choreoFrame: { pos: [.12, -.10, -.43], rot: [.04, .15, -.06] },
     shoulders: { R: [.05, -.122, .053], L: [-.172, -.041, -.083] }, adsShoulders: { R: [.077, -.102, .066], L: [-.221, -.014, -.136] },
     // Reloading, the support arm works from below and left (the crane, the ejector, the loader), not across the top.
-    reloadShoulders: { R: [.05, -.122, .053], L: [-.25, -.42, -.12] },
+    reloadShoulders: { R: [.05, -.122, .053], L: [-.25, -.3, -.1] },
     grips: GRIPS.revolver,
     recoil: { kick: 1.7, climb: 8, roll: 2.2, frequency: 21 }, inertia: .75,
   },
@@ -117,9 +121,11 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     url: 'models/arsenal/smg.glb', scale: 1, handling: 'rifle', reload: 'rifle',
     hip: { pos: [.134, -.145, -.517], rot: [.087, .122, .122] },
     sprint: { pos: [-.025, -.02, .035], rot: [.30, .45, .28] },
-    adsDistance: .23, adsFov: 64, poles: { R: [.206, -.969, -.135], L: [.054, -.979, -.196] }, adsPoles: { R: [-.515, -.831, .21], L: [.26, -.913, .315] },
+    adsDistance: .23, adsFov: 64, poles: { R: [.206, -.969, -.135], L: [.054, -.979, -.196] }, adsPoles: { R: [-.515, -.831, .21], L: [-.4, -1, .3] },
     choreoFrame: { pos: [.16, -.145, -.46], rot: [.04, .20, -.08] },
-    shoulders: { R: [.042, -.345, .072], L: [-.016, -.315, -.135] }, adsShoulders: { R: [.064, -.124, .218], L: [-.066, -.085, -.083] },
+    shoulders: { R: [.042, -.345, .072], L: [-.016, -.315, -.135] },
+    // Reloading, the support arm hangs further left so its forearm clears the magazine on the way back to the foregrip.
+    reloadShoulders: { R: [.042, -.345, .072], L: [-.15, -.35, -.05] }, adsShoulders: { R: [.064, -.124, .218], L: [-.3, -.4, 0] },
     grips: GRIPS.smg,
     recoil: { kick: .9, climb: 1.8, roll: 1.4, frequency: 24 }, inertia: .85,
   },
@@ -140,7 +146,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     // The receiver stands taller than the rib: sight from above it, down the rib to the bead.
     adsDistance: .3, adsEye: [0, .113, .03], adsPitch: .003, adsFov: 56, poles: { R: [-.291, -.955, .06], L: [.842, -.34, .419] }, adsPoles: { R: [-.698, -.62, .359], L: [.614, -.572, .543] },
     choreoFrame: { pos: [.22, -.1, -.5], rot: [0, .3, .4] },
-    shoulders: { R: [.12, -.192, .022], L: [-.221, -.419, -.35] }, adsShoulders: { R: [.102, -.096, .068], L: [-.448, -.242, -.218] },
+    shoulders: { R: [.25, -.3, -.05], L: [-.221, -.419, -.35] }, adsShoulders: { R: [.102, -.096, .068], L: [-.448, -.242, -.218] },
     grips: GRIPS.shotgun,
     recoil: { kick: 2.4, climb: 6.5, roll: 2.5, frequency: 17 }, inertia: 1.25,
   },
