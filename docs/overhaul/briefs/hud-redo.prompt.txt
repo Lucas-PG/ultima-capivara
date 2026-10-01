@@ -1,0 +1,48 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant / Apex, commercial quality) on a tropical Brazilian island where the players are cartoon capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, a host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with Google Chrome. Read docs/overhaul/final-overhaul-report.md, docs/overhaul/ui-report.md, docs/overhaul/ui-research.md and docs/overhaul/final-polish-report.md (its HUD sections) before you start.
+
+ROLE AND SCOPE
+You own the in-match HUD. Redesign and rebuild it completely. The user, in their words: "the current version of it doesn't fit the game at all. I think it's too big, too bulky, and too modern. It doesn't fit the cartoonized style of the game, so I would like that completely redone." And: "when I get a cure [a heal], it's very small, so it's difficult to see that I have a cure. Just have him review the whole thing and build it again." You have full creative freedom inside that goal.
+
+In scope, every element a player sees during a match: the health and armour vitals and the portrait; the four weapon boxes and the magazine card (ammo, reserve, fire mode, rarity); the consumables (bandage, medkit, guarana, acai, rapadura: counts, which one is selected, using one, the heal in progress); the compass and the safe-zone bearing; the minimap with its district tab, the match strip (players left, eliminations, storm clock and phases) and the Corrente ladder; the kill feed; the banners, prompts, toasts and match moments; the crosshair, hit markers, damage numbers, damage direction arcs, the reload ring and the elimination confirmation; the death card and the spectator watch bar; the first-run coach; the parachute and plane states; the storm warning; low-health and armour-break feedback; pickup feedback (what you just picked up must be obvious, heals above all).
+Out of scope: the menus (home, lobby, settings screen, pause, loading, results, scoreboard, emote wheel and big map keep their painted paper and wood look; the new HUD should belong to the same family). Do not change the settings dialog code: two other agents are adding options there right now. If a HUD option is needed (the existing "Tamanho da interface" scale exists), keep it working and list any settings change in your report for the merge.
+
+DIRECTION
+- Cartoonized and playful, matching the game's art: the menus' cream paper, wood and hand-painted look, the existing display fonts (Mochiy Pop One for headings, the project's --heading and --display families), chunky shapes with soft outlines and drop shadows, painted icons. Avoid the flat, thin, modern look of the current teal plates and condensed fonts.
+- Small and light: it must cover far less of the screen than today and keep the centre and the play area clear. Information density and glanceability first: the most important numbers (health, armour, ammo) readable in a split second, the rest quiet until it matters.
+- Clear feedback where it matters: heals and pickups must be impossible to miss (count, a pickup pop, the selected consumable, the heal in progress), as must taking damage, low health, armour breaking, hitting and eliminating an opponent.
+- Research first and write docs/overhaul/hud-research.md with sources: HUDs of stylized and cartoon shooters and action games (for example Fortnite, Overwatch 2, Splatoon 3, Sea of Thieves, Brawl Stars, Fall Guys, Ratchet and Clank, Rumbleverse) and readability lessons from Apex Legends and Valorant; GDC or developer talks and articles on HUD design. Record what you take from each: footprint, placement, hierarchy, how pickups and heals are shown, motion. Never put third-party images in the repository.
+
+ASSETS
+- Reuse the painted UI art in public/assets/ui/ (icons, paper-cream, wood-plank, capybara portraits and so on) and draw new shapes as CSS or inline SVG.
+- If you need new painted images (icons, frames, badges, textures), write each request into ~/capivara-hud/image-requests.md: what it is, the exact prompt, size, transparent background or not, and the target path in the repository. The orchestrator generates them with an image model and copies them into ~/capivara-hud/incoming/ within about an hour; meanwhile keep going with placeholders. Record every new asset (source, prompt, licence) in docs/assets.md.
+
+QUALITY GATES
+- Layout at 1280x720, 1470x956 (the user plays on a MacBook Air M2 Retina screen, devicePixelRatio 2), 1920x1080, 2560x1440 and 21:9, at interface scale 80, 100 and 120 percent, plus the existing narrow and phone layouts: zero overlaps, nothing clipped (tools/qa/hud-review.mjs and the QA poses hud, hud-full, hud-watch and hud-corrente). Text never below the existing readability floor.
+- Accessibility: the colour-blind hit palette, reduced motion and the existing contrast rules keep working.
+- Performance: the user is fighting lag; the HUD must stay cheap. Keep the update cadence (src/ui/ui.ts throttles HUD writes), avoid layout thrash, heavy CSS filters, backdrop blur and per-frame box-shadow animation; measure ui.update time before and after and report it.
+- Before and after boards in docs/overhaul/evidence/hud-redo/: every HUD state above, at 1280x720 and 1470x956, in a busy moment (a fight with low health, a pickup, a heal in progress, the storm, spectating, Corrente).
+- Keep green: npx tsc --noEmit, npx vitest run (this machine has 16 threads; --maxWorkers=6 is fine), npm run build. Update tests/ui.test.ts and the HUD logic tests with intent, and add tests for new logic.
+- Judge from real renders in live matches and reject mediocre results.
+
+ENVIRONMENT (this Linux machine)
+- Your git worktree: ~/ultima-capivara-hud, branch hud-redo (from overhaul/aaa-autonomous). Another agent works in ~/ultima-capivara on branch viewmodel-framing (first-person weapon holding): never touch that folder or branch. The packages are installed in your worktree. The git identity is set: commit in small logical steps.
+- Browser: Google Chrome stable at /usr/bin/google-chrome-stable, through Playwright channel "chrome". The QA tools pass --use-gl=angle --use-angle=metal, which only exists on macOS: on this machine use --use-gl=angle --use-angle=gl-egl (headless Chrome then renders on the AMD Radeon RX 9060 XT; without it, it falls back to slow software rendering). The holding agent may already have added a platform check to the tools in its own branch; in yours, adapt the tools the same minimal way (macOS keeps metal, Linux uses gl-egl).
+- Fonts and colours render through Mesa on Linux, so tiny differences from the Mac are expected; judge layout and design. The orchestrator re-checks on the Mac after merging.
+- Dev server: cd ~/ultima-capivara-hud && VITE_QA=1 npx vite --host 127.0.0.1 --strictPort --port 5176 in the background; QA tools take BASE=http://127.0.0.1:5176. Live matches: tools/qa/play.mjs. At most two browsers at a time; stop servers and browsers when not in use.
+- Work only in ~/ultima-capivara-hud and ~/capivara-hud. No sudo, no system package installs, no global configuration changes.
+
+COORDINATION
+A performance agent works on the Mac on src/render/pipeline.ts, src/render/renderer.ts, src/render/resolution.ts, src/main.ts (the frame-rate limit), tests/visual/qa-hook.ts, the perf tools and new graphics settings. The holding agent changes src/render/viewmodel-*.ts, fp-grips.json, fp-arms.ts, weapons.ts and adds a "Tamanho da arma" setting. Stay out of those files; if the HUD truly needs a change there (for example a QA pose in qa-hook.ts), keep it minimal and list it for the merge.
+
+RULES
+- Never use the em dash character anywhere: code, docs, commit messages, UI text.
+- Commit messages carry no co-author or agent lines.
+- Never push, never open pull requests, never deploy; the orchestrator fetches your branch over SSH when you are done.
+- Never spend money, create accounts or access personal apps or data.
+- All UI text stays in Brazilian Portuguese, in the voice of the existing UI.
+- This is a headless run with no one to answer questions: decide yourself and document the decisions. Do not end your turn while background work runs: run long commands in the foreground with a timeout, or poll them in the same turn; keep each background job's PID (job & pid=$!) and poll kill -0 $pid; never pgrep -f a string that appears in your own loop's command line.
+- If a usage limit cuts you off, a supervisor resumes this same session after the reset: carry on from where you stopped, so commit finished pieces often.
+
+FINISH
+Write docs/overhaul/hud-redo-report.md (the research summary, the design and why it fits the game, every HUD element before and after, the footprint before and after as a share of the screen, the heal and pickup feedback, layout checks at every size, performance, tests, any change outside the HUD files, known issues) and commit it. Then write a short summary, under 200 words, to ~/capivara-hud/DONE: the supervisor stops when that file exists.
