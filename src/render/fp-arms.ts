@@ -205,7 +205,7 @@ class Arm {
     };
     const forearmFor = (goalF: number, goalD: number, out: THREE.Vector3) => {
       let a1 = goalF, a2 = goalD;
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 10; i++) {
         out.copy(h).addScaledVector(p, -Math.tan(a1)).addScaledVector(t, -Math.tan(a2)).normalize();
         const [fx, dv] = bendOf(out); a1 += goalF - fx; a2 += goalD - dv;
       }
@@ -233,24 +233,24 @@ class Arm {
     const authored = wristAngles(start, elbow0, W, target.forward, target.palm, this.side);
     const strain = (v: number, [lo, hi]: readonly [number, number]) => Math.max(0, lo - v, v - hi);
     let best: { shoulder: THREE.Vector3; pole: THREE.Vector3 } | null = null;
-    // Past the hard limits (the solve limits plus their margin, WRIST_LIMITS) the strain costs more than two points of a showing upper arm.
-    const hard = (v: number, [lo, hi]: readonly [number, number], m: number) => v < lo - m || v > hi + m ? 45 : 0;
+    // Past the hard limits (the solve limits plus their margin, WRIST_LIMITS) the strain costs more than a showing upper arm (three points).
+    const hard = (v: number, [lo, hi]: readonly [number, number], m: number) => v < lo - m || v > hi + m ? 60 : 0;
     let bestScore = shows(elbow0, start) * 10 + (strain(authored.flexion, limits.flexion) + strain(authored.deviation, limits.deviation) + strain(authored.pronation, limits.pronation)) / 3
       + hard(authored.flexion, limits.flexion, 5) + hard(authored.deviation, limits.deviation, 4) + hard(authored.pronation, limits.pronation, 6);
     if (bestScore === 0) return null;
     for (const [k, [gf, gd]] of goals.entries()) {
       if (k === 0 && Math.abs(gf - fx0) < 1e-9 && Math.abs(gd - dv0) < 1e-9) f.copy(f0); else forearmFor(gf, gd, f);
       elbow.copy(W).addScaledVector(f, -b);
-      // The upper arm heads to the anchor, kept bent (45 to 175 degrees at the elbow).
+      // The upper arm heads to the anchor, kept bent (45 to 158 degrees at the elbow: straighter would exceed the IK reach).
       u.subVectors(anchor, elbow);
       if (u.lengthSq() < 1e-8) u.copy(side).negate();
       u.normalize();
       const bend = Math.acos(THREE.MathUtils.clamp(u.dot(f), -1, 1));
-      if (bend < rad(45) || bend > rad(175)) {
+      if (bend < rad(45) || bend > rad(158)) {
         const across = new THREE.Vector3().copy(u).addScaledVector(f, -u.dot(f));
         if (across.lengthSq() < 1e-8) across.copy(side);
         across.normalize();
-        const goal = THREE.MathUtils.clamp(bend, rad(45), rad(175));
+        const goal = THREE.MathUtils.clamp(bend, rad(45), rad(158));
         u.copy(f).multiplyScalar(Math.cos(goal)).addScaledVector(across, Math.sin(goal)).normalize();
       }
       // Forearm roll: turn the upper arm about the forearm until the paw's pronation is inside its range

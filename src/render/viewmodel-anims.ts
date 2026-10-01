@@ -551,6 +551,6 @@ export const LONG_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
   shotgun: longInspect([-.05, .03, -.08], [.1, .3, -.4], [.08, -.1, .8]),
   dmr: longInspect([-.05, .03, -.08], [.1, .3, -.4], [.08, -.05, .45]),
   sniper: longInspect([-.045, .03, -.08], [.08, .25, -.35], [.06, -.08, .7]),
-  coco: longInspect([-.06, .04, -.02], [.1, .3, -.35], [.08, -.1, .75]),
+  coco: longInspect([-.05, .03, -.07], [.1, .3, -.35], [.08, -.1, .75]),
 };
 

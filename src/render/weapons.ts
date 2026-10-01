@@ -452,9 +452,10 @@ export class WeaponView {
     const choreo = reload >= 0 && !keys ? this.reloadPose(model, reload) : null;
     if (choreo) { px += choreo.px; py += choreo.py; pz += choreo.pz; rx += choreo.rx; ry += choreo.ry; rz += choreo.rz; }
     if (sample) { px += sample.p.x; py += sample.p.y; pz += sample.p.z; rx += sample.r.x; ry += sample.r.y; rz += sample.r.z; }
-    // Shell-by-shell reloads keep the loading port canted toward the paw between shells.
+    // Shell-by-shell reloads keep the loading port canted toward the paw between shells (a moderate roll, so
+    // the loading paw works from below with a natural wrist).
     this.reloadHold = damp(this.reloadHold, reloading && spec.reload === 'shotgun' ? 1 : 0, 9, dt);
-    if (this.reloadHold > .001) { const h = this.reloadHold; px -= .05 * h; py += .05 * h; pz -= .02 * h; rx += .2 * h; ry += .18 * h; rz -= 1.05 * h; }
+    if (this.reloadHold > .001) { const h = this.reloadHold; px -= .05 * h; py += .05 * h; pz -= .02 * h; rx += .2 * h; ry += .18 * h; rz -= .6 * h; }
     this.holder.position.set(position.x + px, position.y + py, position.z + pz);
     this.offset.setFromEuler(this.euler.set(rx, ry, rz, 'YXZ'));
     this.holder.quaternion.copy(rotation).multiply(this.offset);
