@@ -95,9 +95,24 @@ it('ships its own baked maps and a fur length that spares the pads, claws and cl
     const values = Array.from({ length: fur.getCount() }, (_, i) => fur.getScalar(i));
     expect(Math.min(...values)).toBeGreaterThanOrEqual(0);
     expect(Math.max(...values)).toBeLessThanOrEqual(1);
-    // Most of the arm is furred, but a real share (sole, digit pads, claws, sleeve) is bare.
+    // The character's rule: the forearm and the back of the paw are furred, the digits (bare
+    // leathery skin and claws) are not. Classify vertices by their dominant joint.
+    const joints = primitive.getAttribute('JOINTS_0')!, weights = primitive.getAttribute('WEIGHTS_0')!;
+    const skin = arms.getRoot().listSkins()[0].listJoints().map(joint => joint.getName().replace(/_[LR]$/, ''));
+    const share = (test: (bone: string) => boolean) => {
+      let n = 0, furred = 0;
+      for (let i = 0; i < fur.getCount(); i++) {
+        const w = weights.getElement(i, []), j = joints.getElement(i, []);
+        const bone = skin[j[w.indexOf(Math.max(...w))]];
+        if (!test(bone)) continue;
+        n++; if (fur.getScalar(i) > .02) furred++;
+      }
+      return furred / n;
+    };
+    expect(share(bone => bone === 'fore_twist'), 'distal forearm').toBeGreaterThan(.8);
+    expect(share(bone => /^(index|middle|ring|thumb)[23]$/.test(bone)), 'digits').toBeLessThan(.1);
     const bare = values.filter(v => v < .02).length / values.length;
-    expect(bare).toBeGreaterThan(.15); expect(bare).toBeLessThan(.7);
+    expect(bare).toBeGreaterThan(.15);
   }
 });
 

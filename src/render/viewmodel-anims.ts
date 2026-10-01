@@ -336,8 +336,8 @@ export const sniperReload = (empty: boolean): Choreography => empty ? SNIPER_REL
 const REVOLVER_CYLINDER_HAND: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.080089, -0.043126, 0.031289],
   forward: [-0.019041, 0.284059, -0.958618], palm: [0.999803, -0, -0.019859],
   curl: { index: [0.605, -0.010066, 0.400446], middle: [0.2925, 0.387285, 0.705675], ring: [0.2952, 0.4329, 0.2916], thumb: [0.045, 0.108, 0.1305], spread: -0.6000 } };
-const REVOLVER_CYLINDER_OPEN: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.110249, -0.004255, 0.037667],
-  forward: [0.036586, 0.273656, -0.961132], palm: [0.9852, -0.171044, -0.011198],
+// The crane swings out under the same paw: one orientation, a little further back, digits closing.
+const REVOLVER_CYLINDER_OPEN: HandKey = { ...REVOLVER_CYLINDER_HAND, wrist: add(REVOLVER_CYLINDER_HAND.wrist as Vec, [-.004, .003, .012]),
   curl: { index: [1.632401, 0.210489, -0.077845], middle: [1.440153, 0.348435, 0.658494], ring: [0.482847, 0.588015, 0.6354], thumb: [-0.09, 0.383625, 0.062415], spread: -0.6000 } };
 // Follow the rod position, keeping the paw clear regardless of cylinder spin.
 const REVOLVER_EJECT_HAND: HandKey = { space: 'part', part: 'action', followRotation: false, wrist: [-0.104899, -0.027724, -0.208188],
