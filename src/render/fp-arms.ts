@@ -278,6 +278,74 @@ function furShellMesh(mesh: THREE.SkinnedMesh, base: THREE.MeshStandardMaterial)
   return shells;
 }
 
+// First-person forearm girth. The world character's forearm (about 12 cm across mid-forearm at the
+// first-person scale) fills much of the lower screen this close to the eye, so the viewmodel draws it
+// slimmer: a first-person-only cheat, like the viewmodel distortions of Valve's and Unreal's
+// first-person rendering. Target skin radius (metres) from the elbow (t = 0) toward the wrist
+// (t = 1); the cuff and upper arm scale with the forearm just below the cuff, the taper is kept, and
+// the wrist, paw and digits keep the character's own shape.
+export const FP_FOREARM_GIRTH: readonly (readonly [number, number])[] = [[.2, .052], [.5, .049], [.85, .047]];
+const GIRTH_FREE = .97;
+const girthAt = (t: number) => {
+  const g = FP_FOREARM_GIRTH;
+  if (t <= g[0][0]) return g[0][1];
+  for (let i = 1; i < g.length; i++) if (t <= g[i][0]) return g[i - 1][1] + (g[i][1] - g[i - 1][1]) * (t - g[i - 1][0]) / (g[i][0] - g[i - 1][0]);
+  return g[g.length - 1][1];
+};
+/** Scales the forearm's skin toward its bone axis in the bind pose (vertex positions only; weights,
+ * normals, maps and the fur pelt follow). Returns the radial scale used at mid-forearm. */
+export function slimForearm(mesh: THREE.SkinnedMesh, side: Side): number {
+  const bone = (name: string) => mesh.skeleton.bones.find(b => b.name === `${name}_${side}`);
+  const fore = bone('fore'), hand = bone('hand');
+  if (!fore || !hand) return 1;
+  mesh.updateMatrixWorld(true);
+  const elbow = mesh.worldToLocal(fore.getWorldPosition(new THREE.Vector3())), wrist = mesh.worldToLocal(hand.getWorldPosition(new THREE.Vector3()));
+  const axis = wrist.clone().sub(elbow), length = axis.length(); axis.normalize();
+  const geometry = mesh.geometry, source = geometry.getAttribute('position'), count = source.count;
+  const skinIndex = geometry.getAttribute('skinIndex'), skinWeight = geometry.getAttribute('skinWeight');
+  if (!skinIndex || !skinWeight || length < 1e-6) return 1;
+  const digit = new Set(mesh.skeleton.bones.map((b, i) => /^(index|middle|ring|thumb)\d_/.test(b.name) ? i : -1).filter(i => i >= 0));
+  const rest = Array.from({ length: count }, (_, i) => mesh.getVertexPosition(i, new THREE.Vector3()));
+  const along = (p: THREE.Vector3) => p.clone().sub(elbow).dot(axis) / length;
+  const dominant = (i: number) => { let best = 0, w = -1; for (let k = 0; k < 4; k++) { const wk = skinWeight.getComponent(i, k); if (wk > w) { w = wk; best = skinIndex.getComponent(i, k); } } return best; };
+  // Median skin radius per section, so the scale keeps each section's own shape (locks, oval wrist).
+  const STEP = .05, bins = new Map<number, number[]>();
+  rest.forEach((p, i) => {
+    if (digit.has(dominant(i))) return;
+    const t = along(p), r = p.clone().sub(elbow).addScaledVector(axis, -t * length).length(), key = Math.round(t / STEP);
+    if (t > -.5 && t < 1.1) (bins.get(key) ?? bins.set(key, []).get(key)!).push(r);
+  });
+  const median = (t: number) => {
+    const values = bins.get(Math.round(t / STEP)); if (!values?.length) return 0;
+    values.sort((a, b) => a - b); return values[values.length >> 1];
+  };
+  const scaleAt = (t: number) => {
+    const clampT = Math.max(FP_FOREARM_GIRTH[0][0], Math.min(FP_FOREARM_GIRTH[FP_FOREARM_GIRTH.length - 1][0], t));
+    const r = median(clampT), s = r > 0 ? THREE.MathUtils.clamp(girthAt(clampT) / r, .55, 1) : 1;
+    const free = THREE.MathUtils.smoothstep(t, FP_FOREARM_GIRTH[FP_FOREARM_GIRTH.length - 1][0], GIRTH_FREE);
+    return s + (1 - s) * free;
+  };
+  // Rest skinning is one affine map for every bone; invert it to move geometry-space positions.
+  const index0 = skinIndex.getComponent(0, 0);
+  const restMap = new THREE.Matrix4().copy(mesh.bindMatrixInverse).multiply(mesh.skeleton.bones[index0].matrixWorld)
+    .multiply(mesh.skeleton.boneInverses[index0]).multiply(mesh.bindMatrix);
+  const inverse = restMap.clone().invert().setPosition(0, 0, 0);
+  const positions = new Float32Array(count * 3), v = new THREE.Vector3(), delta = new THREE.Vector3();
+  rest.forEach((p, i) => {
+    v.fromBufferAttribute(source, i);
+    const t = along(p);
+    if (t < GIRTH_FREE && !digit.has(dominant(i))) {
+      const radial = p.clone().sub(elbow).addScaledVector(axis, -t * length);
+      delta.copy(radial).multiplyScalar(scaleAt(t) - 1).applyMatrix4(inverse);
+      v.add(delta);
+    }
+    v.toArray(positions, i * 3);
+  });
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.computeBoundingSphere();
+  return scaleAt(.5);
+}
+
 export class ArmsRig {
   readonly group = new THREE.Group();
   readonly right: Arm;
@@ -298,6 +366,7 @@ export class ArmsRig {
       material.vertexColors = false;
       const side: Side = mesh.name.endsWith('R') ? 'R' : 'L';
       this.sides.set(mesh, side);
+      if (!(globalThis as { __fpFullGirth?: boolean }).__fpFullGirth) slimForearm(mesh, side);
       let shells = (mesh.parent!.getObjectByName(`${mesh.name}_fur`) as THREE.SkinnedMesh | undefined) ?? null;
       if (!shells && (shells = furShellMesh(mesh, material))) {
         applyCharacterStyle(shells.material as THREE.MeshStandardMaterial, 4);

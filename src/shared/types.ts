@@ -136,6 +136,8 @@ export interface Settings {
   adsToggle: boolean; bindings: Record<string, string>;
   // Controls feel (src/controls.ts CONTROL_OPTIONS): hold or toggle, aimed and scoped sensitivity multipliers, camera shake 0 to 1.
   crouchToggle: boolean; sprintToggle: boolean; invertY: boolean; adsSensitivity: number; scopeSensitivity: number; cameraShake: number;
+  // First-person weapon size at the hip (0.8 to 1.2, 1 = the authored framing); it scales the viewmodel lens.
+  weaponSize: number;
   // Legacy "Ajuste automático": practice bots adapt to recent placements.
   adaptive: boolean;
   // HUD preferences: FPS readout, interface size (0.8 to 1.2) and colour-blind friendly aim feedback.

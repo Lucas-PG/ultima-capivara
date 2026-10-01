@@ -115,9 +115,14 @@ describe('first-person viewmodel', () => {
     const internal = h.view as unknown as { targetL: { wrist: THREE.Vector3 } };
     expect(h.view.inspect()).toBe(true);
     for (let i = 0; i < 84; i++) h.step();
-    expect(internal.targetL.wrist.distanceTo(new THREE.Vector3(-.25, -.25, -.40))).toBeLessThan(.002);
-    for (let i = 0; i < 36; i++) h.step();
+    // The free camera-space key keeps its place around the gun: it moves rigidly from the hip it was
+    // authored at (choreoFrame) to the current hip.
     const { VIEW_SPECS } = await import('../src/render/viewmodel-specs');
+    const pose = (f: { pos: readonly number[]; rot: readonly number[] }) => new THREE.Matrix4().compose(new THREE.Vector3(...f.pos),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(f.rot[0], f.rot[1], f.rot[2], 'YXZ')), new THREE.Vector3(1, 1, 1));
+    const carried = new THREE.Vector3(-.25, -.25, -.40).applyMatrix4(pose(VIEW_SPECS.smg.hip).multiply(pose(VIEW_SPECS.smg.choreoFrame!).invert()));
+    expect(internal.targetL.wrist.distanceTo(carried)).toBeLessThan(.002);
+    for (let i = 0; i < 36; i++) h.step();
     const contact = new THREE.Vector3(...VIEW_SPECS.smg.grips.L!.wrist).applyMatrix4(h.holder.matrixWorld);
     expect(internal.targetL.wrist.distanceTo(contact)).toBeLessThan(1e-6);
   });

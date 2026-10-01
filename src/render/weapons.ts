@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
-import { VIEW_SPECS, SHOULDERS, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
+import { VIEW_SPECS, SHOULDERS, framedGrips, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS, LONG_INSPECTS } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
@@ -16,9 +16,11 @@ import { sampleMelee, sampleHeavyMelee, smoothPose, weaponShotDuration,
 import type { ActorState, Settings, WeaponId } from '../shared/types';
 import { swimReady } from '../shared/inventory';
 
-// Viewmodel FOV (vertical). Narrower than the world so the paws and guns keep
-// their proportions instead of stretching toward the screen edges.
-export const VIEWMODEL_FOV = 58;
+// Hip viewmodel lens (vertical degrees), about two thirds of the world's at the default field of view,
+// like Source's viewmodel_fov 54 to 68 and Call of Duty's fixed weapon lens: the guns sit a
+// natural distance from the eye and the paws and forearms keep their proportions instead of growing
+// toward the screen edges.
+export const VIEWMODEL_FOV = 44;
 // A swap spends this share of the incoming weapon's draw time lowering the old
 // gun and the rest raising the new one, so it settles exactly when it may fire.
 const HOLSTER_SHARE = .4;
@@ -125,6 +127,12 @@ export class WeaponView {
   private readonly restRotation = new THREE.Quaternion();
   private readonly shoulderR = new THREE.Vector3();
   private readonly shoulderL = new THREE.Vector3();
+  private readonly shoulderAds = new THREE.Vector3();
+  private readonly freeDip = new THREE.Vector3();
+  private readonly basePosition = new THREE.Vector3();
+  private readonly baseRotation = new THREE.Quaternion();
+  private readonly ride = new THREE.Matrix4();
+  private readonly rideTo = new THREE.Matrix4();
   private readonly targetR: HandTarget;
   private readonly targetL: HandTarget;
   private readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -146,7 +154,13 @@ export class WeaponView {
       curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3(0, -1, 0) });
     this.targetR = target(); this.targetL = target();
     // QA probe (tools/qa/grip-probe.mjs): measures paw-to-gun contact on the live rig.
-    if (import.meta.env.DEV) (globalThis as { __vmProbe?: WeaponView }).__vmProbe = this;
+    if (import.meta.env.DEV) {
+      (globalThis as { __vmProbe?: WeaponView }).__vmProbe = this;
+      // QA framing measure (tools/qa/vm-frame.mjs): screen positions, coverage, angles, near plane.
+      void import('./viewmodel-frame').then(({ measureFrame }) => {
+        (globalThis as { __vmMeasure?: (columns?: number) => unknown }).__vmMeasure = columns => measureFrame(this, columns);
+      });
+    }
     this.assets = this.load().then(() => {
       if (this.disposed) throw new Error('Weapon view disposed before preparation completed');
       onAssetsReady();
@@ -197,7 +211,7 @@ export class WeaponView {
         cylinder: get('cylinder'), crane: get('crane'), rounds: get('rounds'), pump: get('pump'), bolt: get('bolt'), charge: get('charge'), release: get('release'), ribbons: get('ribbons'),
         load1: get('load1'), load2: get('load2'),
         case0: get('case0'), case1: get('case1'), case2: get('case2'), case3: get('case3'), case4: get('case4'), case5: get('case5') },
-      rest: new Map(), grips: spec.grips, magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent,
+      rest: new Map(), grips: framedGrips(spec), magAxis: new THREE.Vector3(0, -1, 0), rarity: -1, accent,
       liveTips: id === 'revolver' ? Array.from({ length: 6 }, (_, i) => get(`live${i}`)) : undefined };
     // Blender axis (x, y, z) is (x, z, -y) here.
     const axis = (arsenalMetrics as Record<string, { magAxis?: number[] }>)[id]?.magAxis;
@@ -288,14 +302,16 @@ export class WeaponView {
       }
     } else this.holster = damp(this.holster, 0, 20, dt);
     const weapon = this.active, model = this.models[weapon];
-    let spec = model.spec;
+    let spec = model.spec, grips = model.grips;
     let viewmodelFov = spec.viewmodelFov ?? VIEWMODEL_FOV;
     if (import.meta.env.DEV) {
-      // QA tuning: window.__vmTune = { pistol: { hip: {...}, grips: {...}, fov } } overrides the spec live.
+      // QA tuning: window.__vmTune = { pistol: { hip: {...}, grips: {...}, poles: {...}, fov } } overrides the spec live.
       const tune = (globalThis as { __vmTune?: Record<string, Partial<ViewSpec> & { fov?: number }> }).__vmTune?.[weapon];
-      if (tune) { spec = { ...spec, ...tune, grips: { ...model.grips, ...tune.grips } }; viewmodelFov = tune.fov ?? spec.viewmodelFov ?? VIEWMODEL_FOV; }
+      if (tune) {
+        spec = { ...spec, ...tune, grips: { ...spec.grips, ...tune.grips } };
+        grips = framedGrips(spec); viewmodelFov = tune.fov ?? spec.viewmodelFov ?? VIEWMODEL_FOV;
+      }
     }
-    if (this.camera.fov !== viewmodelFov) { this.camera.fov = viewmodelFov; this.camera.updateProjectionMatrix(); }
     model.group.visible = true;
     const rarity = actor.weapons[actor.slot]?.rarity ?? 0;
     if (rarity !== model.rarity) {
@@ -335,6 +351,12 @@ export class WeaponView {
     const wantAds = actor.ads && !actor.swimming && !reloading && this.shotgunPumpLife <= 0 && !actor.sprint && weapon !== 'machete' && this.draw < .5;
     this.ads = advanceAds(weapon, this.ads, wantAds, dt);
     const ads = this.adsAmount;
+    // Weapon size setting: a narrower or wider lens at the hip, faded out while aiming so the
+    // authored sight picture stays exact (the scale is about the screen centre, where the sight sits).
+    const size = 1 + ((settings.weaponSize ?? 1) - 1) * (1 - ads);
+    const authored = viewmodelFov + ((spec.adsFov ?? viewmodelFov) - viewmodelFov) * ads;
+    const lens = size === 1 ? authored : 2 * THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(authored / 2)) / size));
+    if (Math.abs(this.camera.fov - lens) > 1e-4) { this.camera.fov = lens; this.camera.updateProjectionMatrix(); }
     // ---- look inertia: the gun trails the view and settles with a slight overshoot.
     const yaw = actor.yaw || 0, pitch = actor.pitch || 0;
     if (this.lastYaw === undefined) { this.grounded = actor.grounded; this.swimming = actor.swimming; this.verticalSpeed = actor.velocity.y; this.crouched = actor.crouch; }
@@ -368,6 +390,11 @@ export class WeaponView {
     this.draw = Math.max(0, this.draw - dt / (HANDLING[weapon].draw * (1 - HOLSTER_SHARE)));
     this.shotLife = Math.max(0, this.shotLife - dt);
 
+    // Camera-space choreography keys follow the gun from the hip they were authored at to this one.
+    if (spec.choreoFrame !== this.viewKeyFrom || spec.hip !== this.viewKeyTo) {
+      this.viewKeyFrom = spec.choreoFrame; this.viewKeyTo = spec.hip;
+      this.viewKeyFrame = spec.choreoFrame ? this.choreoTransform(spec.choreoFrame, spec.hip) : null;
+    }
     // ---- base pose: hip to sights
     const hip = v3(spec.hip.pos), hipRot = this.quat.setFromEuler(this.euler.set(spec.hip.rot[0], spec.hip.rot[1], spec.hip.rot[2], 'YXZ'));
     const adsRot = this.adsQuat.setFromAxisAngle(X_AXIS, spec.adsPitch ?? 0);
@@ -375,6 +402,7 @@ export class WeaponView {
     const adsPos = new THREE.Vector3(0, 0, -spec.adsDistance).sub(eye);
     const position = hip.lerp(adsPos, ads);
     const rotation = hipRot.slerp(adsRot, ads);
+    this.basePosition.copy(position); this.baseRotation.copy(rotation);
     // ---- additive layers (x right, y up, z back; pitch up, yaw left, roll left)
     const bobScale = motion * this.movePose * (1 - ads * .85) * (1 + sprint * .9);
     const bobX = Math.sin(this.gait * .5) * .011 * bobScale, bobY = -Math.abs(Math.cos(this.gait * .5)) * .009 * bobScale + .0045 * bobScale;
@@ -424,7 +452,23 @@ export class WeaponView {
     this.flashLight = Math.max(0, this.flashLight - dt / .07);
     this.muzzleLight.intensity = this.flashLight * this.flashLight * 7;
     if (this.flashLight > 0) { this.holder.updateMatrixWorld(true); model.muzzle.getWorldPosition(this.muzzleLight.position); }
-    this.solveArms(model, spec.grips, choreo, sample ?? inspect, spec.shoulders);
+    // Hidden shoulders: the hip set, blended toward the aimed set so the support forearm stays under the gun.
+    const shoulders = spec.shoulders ?? SHOULDERS, aimed = spec.adsShoulders ?? shoulders;
+    v3(shoulders.R, this.shoulderR).lerp(v3(aimed.R, this.shoulderAds), ads); v3(shoulders.L, this.shoulderL).lerp(v3(aimed.L, this.shoulderAds), ads);
+    this.reloadArm = damp(this.reloadArm, reloading && spec.reloadShoulders ? 1 : 0, 10, dt);
+    if (spec.reloadShoulders && this.reloadArm > .001) {
+      this.shoulderR.lerp(v3(spec.reloadShoulders.R, this.shoulderAds), this.reloadArm);
+      this.shoulderL.lerp(v3(spec.reloadShoulders.L, this.shoulderAds), this.reloadArm);
+    }
+    if (lowered > 0) {
+      // Drawing and holstering lower the whole gun: the shoulders ride with it, so the forearms keep
+      // their hold instead of swinging through the gun.
+      this.ride.compose(this.basePosition, this.baseRotation, ONE).invert()
+        .premultiply(this.rideTo.compose(this.holder.position, this.holder.quaternion, ONE));
+      this.shoulderR.lerp(this.shoulderAds.copy(this.shoulderR).applyMatrix4(this.ride), lowered);
+      this.shoulderL.lerp(this.shoulderAds.copy(this.shoulderL).applyMatrix4(this.ride), lowered);
+    }
+    this.solveArms(model, grips, choreo, sample ?? inspect, spec.freePaw);
     if (import.meta.env.DEV) this.debugOrbit();
   }
 
@@ -443,7 +487,7 @@ export class WeaponView {
     this.shotgunReloading = false; this.shotgunBeganEmpty = false; this.shotgunPumpLife = 0; this.lastShotCycle = -1;
     this.cancelInspect(); this.inspectAllowed = false; this.lastYaw = undefined;
     for (const spring of [this.kickZ, this.kickPitch, this.kickRoll, this.kickYaw, this.swayYaw, this.swayPitch, this.swayRoll, this.strafe, this.land, this.crouchDip]) spring.reset();
-    this.swimPose = 0; this.swimming = false; this.sprintPose = 0; this.movePose = 0; this.wallPose = 0; this.leanPose = 0;
+    this.swimPose = 0; this.swimming = false; this.sprintPose = 0; this.movePose = 0; this.wallPose = 0; this.leanPose = 0; this.reloadArm = 0;
     this.gait = 0; this.time = 0;
     this.meleeTime = MELEE_SECONDS; this.meleeSide = -1; this.meleeCount = 0; this.meleeStop = 0; this.meleeHit = false; this.smear.visible = false;
     this.shotLife = 0; this.reloadEnd = 0; this.ads = 0; this.draw = 0; this.holster = 0;
@@ -588,8 +632,19 @@ export class WeaponView {
     void reload;
   }
 
+  private viewKeyFrame: THREE.Matrix4 | null = null;
+  private viewKeyFrom: ViewSpec['choreoFrame'] | null = null;
+  private viewKeyTo: ViewSpec['hip'] | null = null;
+  private readonly viewKeyMatrix = new THREE.Matrix4();
+  /** The rigid move from one hip framing to another: current hip times the inverse of the authored one. */
+  private choreoTransform(from: { pos: V3; rot: V3 }, to: { pos: V3; rot: V3 }) {
+    const a = new THREE.Matrix4().compose(v3(from.pos), new THREE.Quaternion().setFromEuler(new THREE.Euler(from.rot[0], from.rot[1], from.rot[2], 'YXZ')), new THREE.Vector3(1, 1, 1));
+    const b = new THREE.Matrix4().compose(v3(to.pos), new THREE.Quaternion().setFromEuler(new THREE.Euler(to.rot[0], to.rot[1], to.rot[2], 'YXZ')), new THREE.Vector3(1, 1, 1));
+    return this.viewKeyMatrix.multiplyMatrices(b, a.invert());
+  }
   private furPreset: Settings['graphics'] | null = null;
   private reloadHold = 0;
+  private reloadArm = 0;
   private lastReload = -1;
   /** Local Foley cues (reload mechanics, draws). */
   onFoley: (cue: string) => void = () => {};
@@ -610,13 +665,12 @@ export class WeaponView {
     void model;
   }
 
-  private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null, sample: ChoreoSample | null, shoulders = model.spec.shoulders) {
+  private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null, sample: ChoreoSample | null, free = model.spec.freePaw) {
     const arms = this.arms;
     if (!arms) return;
     this.holder.updateMatrixWorld(true);
     this.gripTarget(model, grips.R, this.targetR);
     if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);
-    v3((shoulders ?? SHOULDERS).R, this.shoulderR); v3((shoulders ?? SHOULDERS).L, this.shoulderL);
     arms.right.solve(this.shoulderR, this.targetR);
     const L = grips.L;
     arms.setVisible(true, !!L || this.swimPose > .5);
@@ -630,12 +684,12 @@ export class WeaponView {
         this.targetL.palm.lerp(new THREE.Vector3(.6, 0, .2).normalize(), choreo.support).normalize();
         this.targetL.curl = blendCurl(L.curl, OPEN_CURL, choreo.support * .6);
       }
-      if (model.id === 'machete') {
-        // The free paw guards low on the left; it does not follow the blade.
+      if (free) {
+        // The free paw guards low on the left; it does not follow the blade and ducks under the cut.
         const cut = this.meleeTime < MELEE_SECONDS ? Math.sin(Math.PI * this.meleeTime / MELEE_SECONDS) : 0;
-        this.targetL.wrist.set(-.23 - cut * .06, -.22 - cut * .11, -.39 + cut * .05);
-        this.targetL.forward.set(.18, .12, -1).normalize();
-        this.targetL.palm.set(.2, -.95, -.05).normalize();
+        v3(free.wrist, this.targetL.wrist).add(this.freeDip.set(-cut * .06, -cut * .11, cut * .05));
+        v3(free.forward, this.targetL.forward).normalize();
+        v3(free.palm, this.targetL.palm).normalize();
       }
       if (sample?.L) this.blendHand(model, L, sample.L, this.targetL);
       arms.left.solve(this.shoulderL, this.targetL);
@@ -663,6 +717,10 @@ export class WeaponView {
     out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
     out.palm.set(spec.palm[0], spec.palm[1], spec.palm[2]).normalize();
     out.curl = spec.curl; out.pole.fromArray(spec.pole).normalize();
+    if (key.space === 'view' && this.viewKeyFrame) {
+      out.wrist.applyMatrix4(this.viewKeyFrame); this.quat.setFromRotationMatrix(this.viewKeyFrame);
+      out.forward.applyQuaternion(this.quat); out.palm.applyQuaternion(this.quat);
+    }
     if (key.space === 'part') {
       const part = model.parts[key.part as keyof Parts];
       if (!part) throw new Error(`Reload contact part missing: ${model.id}/${key.part}`);
@@ -725,11 +783,14 @@ export class WeaponView {
     }
     this.meleeTime = Math.min(MELEE_SECONDS, this.meleeTime + step);
     const pose = sampleMelee(this.meleeTime, this.meleeSide, this.meleePose), amount = reducedMotion ? .55 : 1;
-    if (this.meleeCount > 0 && this.meleeCount % 3 === 0) {
-      // The third cut is an overhead chop. Its contact and recovery still fit
-      // the authoritative melee cadence and the normal hit-stop window.
-      sampleHeavyMelee(this.meleeTime, pose);
-    }
+    const heavy = this.meleeCount > 0 && this.meleeCount % 3 === 0;
+    // The third cut is an overhead chop. Its contact and recovery still fit
+    // the authoritative melee cadence and the normal hit-stop window.
+    if (heavy) sampleHeavyMelee(this.meleeTime, pose);
+    // The blade is carried at the lower right: the backhand and the chop travel toward the right, so
+    // in first person their whole arc is carried left (and the chop a little higher) to stay on screen.
+    const arc = smoothPose(this.meleeTime / .085) * (1 - smoothPose((this.meleeTime - .245) / (MELEE_SECONDS - .245)));
+    if (heavy) { pose.x -= .1 * arc; pose.y += .035 * arc; } else if (this.meleeSide < 0) pose.x -= .14 * arc;
     this.holder.position.x += pose.x * amount; this.holder.position.y += pose.y * amount; this.holder.position.z += pose.z * amount;
     // Camera-space swings keep the cutting arc independent of the grip roll.
     this.offset.setFromEuler(this.euler.set(-pose.pitch * 1.2 * amount, pose.yaw * amount, pose.roll * amount, 'YXZ'));
@@ -781,6 +842,6 @@ export class WeaponView {
 
 interface Choreo { px: number; py: number; pz: number; rx: number; ry: number; rz: number;
   support: number; supportPos: THREE.Vector3; mag: 'in' | 'drop' | 'hand'; magOut: number; slide: number }
-const AXIS_Z = new THREE.Vector3(0, 0, 1), UP = new THREE.Vector3(0, 1, 0);
+const AXIS_Z = new THREE.Vector3(0, 0, 1), UP = new THREE.Vector3(0, 1, 0), ONE = new THREE.Vector3(1, 1, 1);
 const FUR_BY_PRESET: Record<Settings['graphics'], number> = { low: 4, medium: 8, high: 12 };
 const OPEN_CURL: HandCurl = { index: [.35, .3, .2], middle: [.4, .35, .2], ring: [.45, .35, .25], thumb: [.2, .1, .1] };
