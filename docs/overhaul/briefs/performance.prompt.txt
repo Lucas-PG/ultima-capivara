@@ -1,0 +1,47 @@
+PROJECT
+"Ultima Capivara" is a stylized multiplayer FPS (target finish: Overwatch 2 / Fortnite / Valorant, commercial quality) on a tropical Brazilian island where the players are capybaras. Stack: Three.js 0.186, TypeScript, Vite 8, host-authoritative simulation in a Web Worker, PeerJS multiplayer, Vitest, Playwright with real Chrome (channel "chrome", ANGLE Metal). The overhaul is finished and pushed; read docs/overhaul/final-overhaul-report.md (section 6 is the performance state, and it is too optimistic, see below) and docs/overhaul/autonomous-progress.md for context.
+
+ROLE
+You own performance. The user played a match on Medium on this Mac and it was "very laggy". Their goal, in their words: "The target is the most amount of fps and fluidity we can do. This game looks incredible ... But people won't enjoy it if it's constantly lagging. We need to make this as optimized as it can be while still maintaining the new awesome graphics." Make the game as fast and as smooth as it can be without a visible loss of the new look. You have full creative and technical freedom inside that goal: research how shipped games and the best WebGL/Three.js titles do it, experiment, measure everything, and reject changes that do not pay off.
+
+WHAT WE ALREADY KNOW
+- Hardware: MacBook Air M2 (fanless, 8 GB of RAM, often swapping), built-in Retina display 2880x1864 (devicePixelRatio 2, a full-screen Chrome window is about 1470x956 CSS pixels), real Chrome with ANGLE Metal.
+- Resolution is the first suspect: src/render/pipeline.ts PRESETS caps the pixel ratio at 2 on Medium and High (Low .75), so on this screen Medium renders about 2940x1912, roughly 6 times the pixels of the release-gate test (1280x720 at 1x). The dynamic resolution in src/render/renderer.ts only drops to 85 percent (resolutionScale floor .85).
+- Release gate numbers (tests/perf/perf.spec.ts, 16 capybaras in the QA plaza, 1280x720, deviceScaleFactor 1, quiet machine): Low 60 fps, Medium 43.7 fps, High 42.1 fps (p95 33.4 ms), draws 136/155/182, triangles 1.3M/1.7M/2.0M, JS heap about 235 MB. These undersell the real problem because of the resolution.
+- Earlier passes measured: fur shells 5 to 8 ms of GPU for a close crowd of 15 after the round 4 fix; vegetation is one batched draw; haze and grade are cheap; Low's shadow pass about 1.4 ms of GPU; 5.7 KB of garbage per frame; no leak over a 532 s round.
+- Existing tools: tools/qa/perf-probe.mjs (live practice match, frame intervals and CPU spans per preset), tools/qa/alloc-probe.mjs, tools/qa/charperf.mjs, tools/qa/wide-perf.mjs, the QA hook's __capyQA.bench(frames) with GPU timer queries (EXT_disjoint_timer_query_webgl2), the QA poses in tests/visual/qa-views.ts, tools/qa/play.mjs (live match driver), __capivara.perf() and __capivara.inspect().
+
+TARGETS (measure them, do not assume them)
+Real play conditions: the production build (npm run build, served by vite preview), a Chrome window at 1470x956 CSS pixels with deviceScaleFactor 2, live practice matches with bots (battle royale including the plane, the drop and a fight in town; Correria with a busy fight), sustained for at least 5 minutes, because this fanless laptop throttles under long GPU load.
+- Medium (the default): a steady 60 fps, p95 frame time at most 18 ms, 1 percent low at least 50 fps, no hitch over 50 ms after the first 10 seconds of a match.
+- Low: a locked 60 fps with headroom on this machine.
+- High: as close to 60 fps as possible while keeping the High look; report what it reaches.
+- Fluidity, not just averages: even frame pacing, no periodic stutters (garbage collection, shader compiles the first time an effect, weapon or district appears, texture uploads, layout thrash in the HUD), smooth input-to-photon feel.
+- Loading: report time to the menu and to the first playable frame before and after; do not make them worse.
+Beat these where you can; the user wants the most fps and fluidity possible.
+
+THE VISUAL BAR
+"Maintaining the new awesome graphics" means: at gameplay distance, on Medium and High, the image must look the same or better. Prove it with before and after captures at the same cameras (first person with several weapons, the plaza, a street, the Morro, the harbour, a close crowd of capybaras, the plane view, a fight with effects) at the real resolution. Any visible difference must be shown, explained and judged worth it. Prefer techniques that cost nothing visible: dynamic resolution with good upscaling and sharpening, smarter LODs and culling, batching and instancing, cheaper shaders at distance, fewer full-screen passes (merge post passes), shadow caching or lower update rates for static casters, overdraw reduction in foliage, fur shells only where they read, shader and texture warm-up before play, and texture compression if a commercially compatible encoder can be installed without an account.
+
+HOW TO WORK
+1. Measure first. Build the real-condition harness (production build, 1470x956 at deviceScaleFactor 2, live matches, per preset, sustained) and record the before numbers, with GPU timer splits per pass (shadows, opaque world, foliage, characters and fur, water, transparent effects, post, HUD) and CPU spans (main thread render update, avatars, effects, UI, the worker simulation, garbage). Record the machine load and the thermal state (notifyutil -g com.apple.system.thermalpressurelevel) next to every number.
+2. Fix in order of measured impact. Re-measure after every change and keep an experiment log (change, before, after, kept or rejected and why).
+3. Resolution is the obvious first lever; consider at least: per-preset pixel-ratio caps tuned for Retina, a dynamic resolution that holds a frame-time target with a lower floor and a good upscale (sharpening such as a contrast-adaptive sharpen), and a render-resolution option in the settings (most shooters offer one). Then the per-pixel and per-draw costs, then the CPU side.
+4. Consider a first-run auto quality choice (a short benchmark or GPU and screen heuristics) so a player who never opens the settings still gets a fluid game; the player's choice always wins.
+5. Settings must stay honest: every graphics option shown does what it says, with pt-BR labels in the style of the existing settings screen (the controls model and settings code are in src/controls.ts, src/settings.ts and src/ui/ui.ts).
+
+GUARDS
+- Add a performance test at the real conditions (deviceScaleFactor 2, 1470x956, production build) next to tests/perf/perf.spec.ts, with sane thresholds, so this cannot slip through again; keep the existing test.
+- Unit tests for any new logic (dynamic resolution controller, auto quality, preset table).
+- Keep green: npx tsc --noEmit, npx vitest run --maxWorkers=2 (a suite that only times out under load: rerun the file alone and say so), npm run build. At the end also run the browser tests (npx playwright test --project=chromium, and E2E_SLOW=1 for the full Correria rematch), regenerate the visual baselines on your final build (npx playwright test -c playwright.visual.config.ts --update-snapshots, then the plain run), look at every changed baseline by eye and record the approved hashes in docs/overhaul/evidence/performance/approved-baselines.json.
+- Do not change gameplay, balance, the network protocol or the look of the HUD; multiplayer must not regress.
+
+RULES
+- Worktree /Users/lucas_gaspe/dev/ultima-capivara/.claude/worktrees/perf (branch perf-pass, from overhaul/aaa-autonomous at 6d57249; node_modules is a real copy). Never push, open PRs, deploy or touch other worktrees or the main checkout.
+- Start every shell command with export PATH=/Users/lucas_gaspe/.local/share/fnm/node-versions/v24.20.0/installation/bin:/opt/homebrew/bin:$PATH.
+- You have the machine to yourself: no other agent runs, and the orchestrator stays off the GPU. Still run one Chrome at a time and stop your servers and browsers when not measuring. The Claude desktop app itself uses some GPU; note it if it disturbs a measurement. Do not wait for the machine to become quiet beyond a minute or two; measure, and report the load.
+- If any Blender rebuild is needed (for example new LODs), run it on the Linux build machine: BLENDER_BIN=/Users/lucas_gaspe/dev/ultima-capivara/tools/blender/remote-blender.sh (see tools/blender/README.md); never run Blender on this Mac.
+- Background waits: keep the job's PID (job & pid=$!) and poll kill -0 $pid; never pgrep -f a string that appears in your own loop's command line; stop every loop when you move on.
+- Never spend money, create accounts or access personal apps or data. New dependencies only with commercially compatible licences and a clear payoff; record any in docs/assets.md.
+- Never use the em dash character anywhere. Small logical commits with no co-author or agent lines; commit finished pieces as you go.
+- When done, write docs/overhaul/performance-report.md (before and after tables per preset at the real conditions and at the old 1280x720 test, the GPU and CPU splits, the experiment log, before and after image boards in docs/overhaul/evidence/performance/, settings changes, tests, known limits and what would come next) and commit it. Final reply to the orchestrator: under 200 words.
