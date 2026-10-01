@@ -174,8 +174,8 @@ body{
 #hud #vitals{position:absolute;left:16px;bottom:16px;display:flex;align-items:center}
 #hud #vitals .portrait{position:relative;z-index:1;flex:none;width:60px;height:60px;border-width:3px;border-radius:50%;overflow:hidden;background:var(--h-paper)}
 #hud #vitals .portrait svg{display:block;width:100%;height:100%}
-#hud .vcard{position:relative;display:flex;flex-direction:column;gap:5px;width:222px;margin-left:-12px;padding:6px 8px 6px 18px;border-radius:0 14px 14px 0}
-#hud .vcard .row{display:grid;grid-template-columns:20px 1fr 56px;align-items:center;gap:6px}
+#hud .vcard{position:relative;display:flex;flex-direction:column;gap:5px;width:236px;margin-left:-12px;padding:6px 9px 6px 18px;border-radius:0 14px 14px 0}
+#hud .vcard .row{display:grid;grid-template-columns:20px 1fr 72px;align-items:center;gap:6px}
 #hud .vcard .row .icon{width:20px;height:20px}
 #hud .vcard .row b{font:26px/1 var(--h-num);text-align:right;font-variant-numeric:tabular-nums}
 #hud .vcard .arm b{font-size:18px;color:#1d7f86}

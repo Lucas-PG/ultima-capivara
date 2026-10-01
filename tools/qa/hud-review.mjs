@@ -58,6 +58,13 @@ try {
           return px < floor - .05 ? [`${el.id || el.getAttribute('class') || el.tagName}:${px.toFixed(1)}px`] : [];
         }), TEXT_FLOOR);
         if (small.length) found.push(`text under ${TEXT_FLOOR}px: ${[...new Set(small)].slice(0, 6).join(', ')}`);
+        // Numbers and labels that spill out of their own box (an intentional ellipsis is fine).
+        const spill = await page.evaluate(() => [...document.querySelectorAll('#hud b, #hud small, #hud span, #hud kbd')].flatMap(el => {
+          if (el.closest('[hidden],.sr,#bigmap,#emoteWheel,#scoreboard,#pause-panel,#victory,#nums') || !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return [];
+          if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) || getComputedStyle(el).textOverflow === 'ellipsis' || getComputedStyle(el).display === 'inline') return [];
+          return el.scrollWidth > el.clientWidth + 1 ? [`${el.id || el.getAttribute('class') || el.tagName}:${el.textContent.trim().slice(0, 12)}`] : [];
+        }));
+        if (spill.length) found.push(`text spills its box: ${[...new Set(spill)].slice(0, 6).join(', ')}`);
         console.log(name, found.length ? found.join('; ') : 'clean', `(${rects.length} plates)`);
         for (const fault of found) faults.push(`${name}: ${fault}`);
       }
