@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { timing } from './timing';
 import { instrumentGpu, instrumentMaterials } from './timing-gpu';
+import { gpuPasses } from './gpu-passes';
 import { PaintedSky } from './sky';
 import { AmbientLife } from './ambient-life';
 import { PAINT } from './materials';
@@ -111,7 +112,7 @@ export class GameRenderer {
     // No canvas MSAA: every frame is drawn through the post target, so a multisampled
     // canvas only added a full-screen resolve.
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false });
-    instrumentGpu(this.gl);
+    instrumentGpu(this.gl); gpuPasses.attach(this.gl);
     const weaponManifest: readonly AssetEntry[] = [
       ...ASSET_MANIFEST,
       ...fpManifest(),
@@ -224,12 +225,16 @@ export class GameRenderer {
     // A new match starts with no marks, shells or effects from the previous one.
     if (frame.snapshot && frame.snapshot.matchId !== this.effectsMatch) { this.effectsMatch = frame.snapshot.matchId; this.effects.clear(); this.cameraRig.clearDeathCam(); this.worldView.resetRecreation(); }
     this.cameraRig.updatePlanePath(frame.snapshot, dt, this.elapsed);
+    const avatarsAt = timing.begin();
     this.avatars.update(frame, this.cameraRig.cameraBlend, this.elapsed, this.settings.reducedMotion);
+    timing.end('avatars', avatarsAt);
     const cameraAt = timing.begin();
     this.cameraRig.update(frame, this.settings, this.elapsed, this.weaponView.adsAmount);
+    timing.end('camera', cameraAt);
+    const worldAt = timing.begin();
     this.worldView.update(this.elapsed, this.camera, frame.snapshot?.actors, frame.localActor);
     this.ambientLife.update(this.camera, this.elapsed, this.settings, this.gl.getPixelRatio());
-    timing.end('camera', cameraAt);
+    timing.end('world-update', worldAt);
     this.loot.update(frame.snapshot, this.elapsed, this.camera);
     this.supplyDrops.update(frame.snapshot, frame.simulationTime ?? frame.snapshot?.time ?? 0, this.camera, this.settings);
     let room: typeof this.litRooms[number] | undefined;
@@ -243,7 +248,9 @@ export class GameRenderer {
     this.interiorLight.intensity = damp(this.interiorLight.intensity, room ? 9 : 0, 7, dt);
     const snapshot = frame.snapshot;
     const viewed = this.cameraRig.lastActor;
+    const weaponAt = timing.begin();
     this.weaponView.update(frame.playing && viewed?.id === frame.playerId ? viewed : undefined, dt, this.settings, this.cameraRig.closeWall(), frame.simulationTime ?? snapshot?.time ?? 0, this.camera.quaternion);
+    timing.end('weapon-view', weaponAt);
     this.weaponView.cameraFeedback(this.camera, this.settings.reducedMotion);
     // Combat feedback rides the local first-person view only (never the death cam or a spectated view).
     const ownView = !!(frame.playing && viewed?.alive && viewed.stage === 'ground' && viewed.id === frame.playerId && !this.cameraRig.deathCamActive);
@@ -261,7 +268,9 @@ export class GameRenderer {
     this.effectsFrame.lowQuality = this.settings.graphics === 'low';
     this.effectsFrame.quality = this.settings.graphics;
     this.effectsFrame.zone = frame.playing && snapshot?.config.mode === 'battle-royale' ? snapshot.zone : null;
+    const effectsAt = timing.begin();
     this.effects.update(dt, this.effectsFrame, snapshot?.actors, frame.simulationTime ?? snapshot?.time ?? 0, frame.localActor);
+    timing.end('effects', effectsAt);
     if (snapshot) {
       const zone = snapshot.zone;
       this.worldView.arenaBoundary.visible = isArenaMode(snapshot.config.mode);

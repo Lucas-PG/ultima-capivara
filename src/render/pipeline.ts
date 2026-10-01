@@ -5,6 +5,7 @@ import { timing } from './timing';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { AtmospherePass } from './atmosphere-pass';
+import { gpuPasses } from './gpu-passes';
 
 // Full-resolution character silhouettes stay thin. Medium/High use SMAA;
 // Low uses FXAA and omits ambient occlusion and bloom, but keeps a short-reach
@@ -98,10 +99,13 @@ export class RenderPipeline {
 
   render(scene: THREE.Scene, camera: THREE.PerspectiveCamera, stats: { drawCalls: number; triangles: number },
     firstPersonScene?: THREE.Scene, firstPersonCamera?: THREE.PerspectiveCamera) {
+    gpuPasses.mark('world');
     this.gl.setRenderTarget(this.postTarget); this.gl.render(scene, camera);
     stats.drawCalls = this.gl.info.render.calls; stats.triangles = this.gl.info.render.triangles;
+    gpuPasses.mark('mask');
     this.mask.render(this.gl, scene, camera);
     stats.drawCalls += this.gl.info.render.calls; stats.triangles += this.gl.info.render.triangles;
+    gpuPasses.mark('atmosphere');
     if (this.atmosphere) { this.atmosphere.render(this.gl, camera); stats.drawCalls++; stats.triangles += 2; }
     this.postMaterial.uniforms.cameraWorldY.value = camera.position.y;
     const matrix = camera.matrixWorld.elements;
@@ -109,9 +113,11 @@ export class RenderPipeline {
     this.postMaterial.uniforms.inverseProjectionScale.value.set(1 / camera.projectionMatrix.elements[0], 1 / camera.projectionMatrix.elements[5]);
     this.postMaterial.uniforms.cn.value = camera.near; this.postMaterial.uniforms.cf.value = camera.far;
     this.postMaterial.uniforms.toneMappingExposure.value = this.gl.toneMappingExposure;
+    gpuPasses.mark('post');
     this.gl.setRenderTarget(this.aaTarget); this.gl.render(this.postScene, this.postCamera);
     stats.drawCalls++; stats.triangles += 2;
     if (firstPersonScene && firstPersonCamera) {
+      gpuPasses.mark('fp-scene');
       const started = timing.begin(), alpha = this.gl.getClearAlpha(); this.gl.getClearColor(this.savedClear);
       try {
         this.gl.setClearColor(0, 0); this.gl.setRenderTarget(this.fpTarget); this.gl.render(firstPersonScene, firstPersonCamera);
@@ -119,12 +125,15 @@ export class RenderPipeline {
       } finally { this.gl.setClearColor(this.savedClear, alpha); }
       this.fpMaterial.uniforms.cn.value = firstPersonCamera.near; this.fpMaterial.uniforms.cf.value = firstPersonCamera.far;
       this.fpMaterial.uniforms.toneMappingExposure.value = this.gl.toneMappingExposure;
+      gpuPasses.mark('fp-composite');
       this.gl.setRenderTarget(this.aaTarget); this.gl.autoClear = false;
       try { this.gl.render(this.fpScene, this.postCamera); } finally { this.gl.autoClear = true; }
       stats.drawCalls++; stats.triangles += 2;
       timing.end('first-person-draw', started);
     }
+    gpuPasses.mark('aa');
     this.renderAA();
+    gpuPasses.endFrame();
     stats.drawCalls += this.useSmaa ? 3 : 1; stats.triangles += this.useSmaa ? 6 : 2;
   }
 

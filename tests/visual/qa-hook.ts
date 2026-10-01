@@ -17,6 +17,8 @@ import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type GameEvent, type InputFrame, type LootSpawn, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
+import { gpuPasses } from '../../src/render/gpu-passes';
+import type * as THREE from 'three';
 import type { GameUI } from '../../src/ui/ui';
 import type { InputController } from '../../src/input';
 import { DISTRICT_VIEWS, VIEWS, viewStance, type WorldView } from './qa-views';
@@ -32,6 +34,10 @@ type QaApi = {
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   /** Uncapped cost of one frame: CPU submission plus GPU completion, median of `frames`. */
   bench(frames: number): Promise<{ medianMs: number; p90Ms: number; gpuMedianMs: number | null; gpuP90Ms: number | null }>;
+  /** GPU milliseconds per render pass, each pass timed alone on an idle GPU (needs ?gpu=1). */
+  passes(frames: number): Promise<ReturnType<typeof gpuPasses.summary>>;
+  /** GPU cost of each top-level group of the scene: the frame's GPU time with and without it. */
+  attribution(frames: number): Promise<{ baseGpuMs: number | null; groups: { label: string; triangles: number; gpuMs: number | null }[] }>;
   names(): string[];
   event(event: GameEvent): void;
   motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
@@ -572,25 +578,64 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const gl = document.querySelector('canvas')!.getContext('webgl2')!, pixel = new Uint8Array(4), samples: number[] = [], gpu: number[] = [];
       const timer = gl.getExtension('EXT_disjoint_timer_query_webgl2') as { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null;
       const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-      draw(); sync();
-      const queries: WebGLQuery[] = [];
-      for (let i = 0; i < frames; i++) {
-        const query = timer ? gl.createQuery() : null, started = performance.now();
-        if (query) { gl.beginQuery(timer!.TIME_ELAPSED_EXT, query); queries.push(query); }
-        draw();
-        if (query) gl.endQuery(timer!.TIME_ELAPSED_EXT);
-        sync(); samples.push(performance.now() - started);
+      // Pass timing (?gpu=1) would open its own queries inside this frame's query.
+      gpuPasses.suspended = true;
+      try {
+        draw(); sync();
+        const queries: WebGLQuery[] = [];
+        for (let i = 0; i < frames; i++) {
+          const query = timer ? gl.createQuery() : null, started = performance.now();
+          if (query) { gl.beginQuery(timer!.TIME_ELAPSED_EXT, query); queries.push(query); }
+          draw();
+          // ANGLE Metal times only command buffers committed while the query is open: complete the frame first.
+          sync();
+          if (query) gl.endQuery(timer!.TIME_ELAPSED_EXT);
+          samples.push(performance.now() - started);
+        }
+        // Results arrive a little after completion; a disjoint event voids the batch.
+        for (let wait = 0; wait < 40 && queries.some(query => !gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)); wait++)
+          await new Promise(resolve => setTimeout(resolve, 25));
+        const disjoint = timer ? gl.getParameter(timer.GPU_DISJOINT_EXT) : true;
+        for (const query of queries) {
+          if (!disjoint && gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) gpu.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
+          gl.deleteQuery(query);
+        }
+        const at = (values: number[], q: number) => values.length ? values.sort((a, b) => a - b)[Math.floor(values.length * q)] : null;
+        return { medianMs: at(samples, .5)!, p90Ms: at(samples, .9)!, gpuMedianMs: at(gpu, .5), gpuP90Ms: at(gpu, .9) };
+      } finally { gpuPasses.suspended = false; }
+    },
+    async passes(frames) {
+      if (!gpuPasses.supported) throw new Error('Open the page with ?gpu=1 on a browser with timer queries');
+      const gl = document.querySelector('canvas')!.getContext('webgl2')!, pixel = new Uint8Array(4);
+      draw(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+      await gpuPasses.drain(); gpuPasses.reset(); gpuPasses.calibrate(); gpuPasses.sync = true;
+      try { for (let i = 0; i < frames; i++) { draw(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel); } await gpuPasses.drain(); }
+      finally { gpuPasses.sync = false; }
+      const summary = gpuPasses.summary(); gpuPasses.reset(); return summary;
+    },
+    async attribution(frames) {
+      if (!renderer) throw new Error('Call start first');
+      const internals = renderer as unknown as { scene: THREE.Scene; worldView: { group: THREE.Group } };
+      const world = internals.worldView.group, candidates = [...internals.scene.children.filter(child => child !== world), ...world.children];
+      const triangles = (root: THREE.Object3D) => { let n = 0; root.traverse(object => {
+        const geometry = (object as THREE.Mesh).geometry; if (!geometry) return;
+        const count = geometry.index ? geometry.index.count : geometry.attributes.position?.count ?? 0;
+        n += count / 3 * ((object as THREE.InstancedMesh).count ?? 1);
+      }); return Math.round(n); };
+      const label = (object: THREE.Object3D) => {
+        const named = object.name || object.children.find(child => child.name)?.name || '';
+        const material = (object as THREE.Mesh).material as THREE.Material | undefined;
+        return `${object.type}${named ? ':' + named : ''}${material && !Array.isArray(material) && material.name ? '[' + material.name + ']' : ''}#${object.children.length}`;
+      };
+      const base = await this.bench(frames), groups: { label: string; triangles: number; gpuMs: number | null }[] = [];
+      for (const object of candidates) {
+        if (!object.visible) continue;
+        object.visible = false;
+        try { const without = await this.bench(frames); groups.push({ label: label(object), triangles: triangles(object),
+          gpuMs: base.gpuMedianMs === null || without.gpuMedianMs === null ? null : +(base.gpuMedianMs - without.gpuMedianMs).toFixed(2) }); }
+        finally { object.visible = true; }
       }
-      // Results arrive a little after completion; a disjoint event voids the batch.
-      for (let wait = 0; wait < 40 && queries.some(query => !gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)); wait++)
-        await new Promise(resolve => setTimeout(resolve, 25));
-      const disjoint = timer ? gl.getParameter(timer.GPU_DISJOINT_EXT) : true;
-      for (const query of queries) {
-        if (!disjoint && gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) gpu.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
-        gl.deleteQuery(query);
-      }
-      const at = (values: number[], q: number) => values.length ? values.sort((a, b) => a - b)[Math.floor(values.length * q)] : null;
-      return { medianMs: at(samples, .5)!, p90Ms: at(samples, .9)!, gpuMedianMs: at(gpu, .5), gpuP90Ms: at(gpu, .9) };
+      return { baseGpuMs: base.gpuMedianMs, groups };
     },
     names: () => names,
     buildings: () => deps.world.pieces!.filter(piece => KIT_PIECES[piece.piece].traversal)

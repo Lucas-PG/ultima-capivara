@@ -157,7 +157,7 @@ export class CameraRig {
 
   update(frame: PresentationFrame, settings: Settings, elapsed: number, adsAmount: number) {
     this.settings = settings; this.elapsed = elapsed; this.adsAmount = adsAmount;
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') {
       // QA: window.__camOverride = [x, y, z, targetX, targetY, targetZ, fov?] frames the world freely.
       const view = (globalThis as { __camOverride?: number[] }).__camOverride;
       if (view) {

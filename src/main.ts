@@ -11,6 +11,7 @@ import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, Ro
 import { LocalPresentation, type PresentationFrame } from './render/local-presentation';
 import type { GameRenderer } from './render/renderer';
 import { timing } from './render/timing';
+import { gpuPasses } from './render/gpu-passes';
 import { RoomSession } from './network/session';
 import { RemoteInterpolation, shotClientTime } from './network/interpolation';
 import { InputController } from './input';
@@ -205,7 +206,8 @@ function startReadyWorker(config: RoomConfig, players: PlayerProfile[], matchId:
       if (data.snapshot.matchId !== match) return;
       if (room?.isHost) session.publish(data.snapshot, data.events);
       acceptSnapshot(data.snapshot); acceptEvents(data.events);
-    } else if (data.type === 'suspended') ui.toast('A partida retomou após uma pausa do navegador.');
+    } else if (data.type === 'metrics') timing.record('worker-tick', performance.now(), data.tickMs);
+    else if (data.type === 'suspended') ui.toast('A partida retomou após uma pausa do navegador.');
     else if (data.type === 'error') { leave(); ui.toast(data.message, true); }
   };
   worker.onerror = () => { leave(); ui.toast('A partida foi interrompida. Volte ao início e tente novamente.', true); };
@@ -517,11 +519,11 @@ if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has(
 
 // Real networking QA drives InputController without a browser pointer-lock dependency.
 if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has('networkQa')) {
-  void import('../tests/network-game-hook').then(({ installNetworkInput }) => installNetworkInput(input));
+  void import('../tests/network-game-hook').then(({ installNetworkInput }) => installNetworkInput(input, world));
 }
 
-// Read-only diagnostics for local QA. Never exposed in the production build.
-if (import.meta.env.DEV) {
+// Read-only diagnostics for local QA and the QA build (VITE_QA=1). Never exposed in the production build.
+if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') {
   // Perf probe: frame intervals from an independent rAF loop plus long tasks.
   const intervals: number[] = [], longTasks: number[] = []; let lastTick = performance.now();
   timing.observeLongTasks();
@@ -543,6 +545,7 @@ if (import.meta.env.DEV) {
     timings: () => ({ ...timing.snapshot(), preset: settings.graphics, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } }),
     audio: () => sound.stats(),
     resources: () => renderer?.resources ?? null,
+    gpu: (reset = false) => { const summary = gpuPasses.summary(); if (reset) gpuPasses.reset(); return summary; },
     // Spectator framing: where the watched capybara's chest lands on screen, how far it is, and whether a solid hides it.
     framing: (id: string) => {
       const actor = snapshot?.actors.find(a => a.id === id), rendered = renderFrame.remoteActors?.get(id);
