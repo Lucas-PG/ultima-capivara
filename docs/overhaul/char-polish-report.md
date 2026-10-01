@@ -358,3 +358,24 @@ draws and triangles unchanged. Tests: `npx tsc --noEmit` clean, `npm run build` 
 Known issues: seen from the front at 1 m a closed eye reads as a round furred lid inside the dark lid
 ring (fine from 3 m and in motion); the eye whites of the concept are not painted (the iris fills the
 opening).
+
+### Round 4 performance check
+
+The director measured High 33.2 / 33.4 and Medium 16.7 / 33.4 ms p50/p95 with 16 capybaras (QA plaza)
+against round 2's 16.7 / 16.7. Measured here with GPU timer queries (`__capyQA.bench`, tools in the
+session scratchpad), round 2's runtime (its assets, `capybara.ts`, `capybara-fur.ts`, `materials.ts`)
+against round 4's in the same worktree, interleaved, steady state:
+- **QA plaza, 16 capybaras** (the bots stand 12 to 24 m away, beyond the 6.5 m fur range): the same GPU
+  time within noise on every preset (low 15.4 to 17.8 against 14.5 to 17.6 ms, medium 23.9 to 24.7
+  against 18.1 to 26.1, high 24.0 to 29.0 against 22.8 to 26.2). The vsync misses were GPU contention:
+  another session's WebGL jobs (`fp-clearance.mjs`, `grip-fit.mjs`) shared the GPU through these runs,
+  and round 2's own runtime then misses vsync the same way (low 16.7 / 33.3, medium 33.3 / 33.4).
+- **A close crowd, 15 capybaras at 2.5 to 6 m** (inside the fur range): here was a real regression. Round 3's
+  shells (8 layers, three combed-noise frames per scale) cost about 14 to 16 ms GPU against round 2's 7.
+  Fix (`capybara-fur.ts`): every layer within 3 m, 4 layers to 4.5 m and 2 to 6.5 m (each set inner to
+  outer, sharing one upload), and the combed noise evaluates only the regions that reach a fragment.
+  Shells now cost 5 to 8 ms (close crowd GPU 35.8 to 39.2 against round 2's 38.0 to 42.9 on medium).
+  The look within 3 m is pixel-identical; at 4 and 5.5 m it differs by under 1 percent RMSE. Tested
+  (`tests/capybara-fur.test.ts`).
+- vsync timing could not be shown at 16.7 / 16.7 on a quiet GPU in this session: the CPU load was 6 to 17
+  but the GPU was shared throughout; the release gate redoes performance on a quiet machine.
