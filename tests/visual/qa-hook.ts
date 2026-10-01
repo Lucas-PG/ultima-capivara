@@ -44,7 +44,9 @@ type QaApi = {
   ab(toggle: string, frames: number, rounds: number): Promise<{ toggle: string; baseMs: number; withoutMs: number; costMs: number; rounds: number[] }>;
   names(): string[];
   event(event: GameEvent): void;
-  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
+  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number, hz?: number): Promise<void>;
+  /** The view a motion ends on: camera transform and the first-person model's world matrices (frame-rate checks). */
+  viewState(): { camera: number[]; viewmodel: number[] };
   buildings(): { id: string; piece: string; role: string }[];
   tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'reload-partial' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit' | 'slash' | 'slash-left' | 'chop', seconds: number): Promise<void>;
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
@@ -450,7 +452,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     async start() { renderer ||= await deps.begin(); },
     pose,
     event(event) { renderer?.event(event); deps.ui.event(event); },
-    async motion(weapon, action, seconds) {
+    viewState() {
+      const internals = renderer as unknown as { camera: THREE.PerspectiveCamera; weaponView: { scene: THREE.Scene } };
+      const viewmodel: number[] = [];
+      internals.weaponView.scene.traverse(object => { if ((object as THREE.Mesh).isMesh && object.visible && viewmodel.length < 16 * 24) viewmodel.push(...object.matrixWorld.elements); });
+      return { camera: [...internals.camera.position.toArray(), ...internals.camera.quaternion.toArray()], viewmodel };
+    },
+    async motion(weapon, action, seconds, hz = 120) {
       if (!WEAPONS.includes(weapon) || !Number.isFinite(seconds) || seconds < 0 || seconds > 4) throw new Error('Invalid motion review');
       await pose(`fp-${weapon}`);
       const s = current!, me = s.actors.find(actor => actor.id === 'practice')!;
@@ -461,7 +469,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const advance = (duration: number) => {
         const end = s.time + duration; let elapsed = 0;
         while (elapsed < duration - 1e-8) {
-          const dt = Math.min(1 / 120, duration - elapsed); elapsed += dt; s.time += dt;
+          const dt = Math.min(1 / hz, duration - elapsed); elapsed += dt; s.time += dt;
           if ((action === 'reload' || action === 'reload-partial' || action === 'reload-chain') && me.reloadUntil > 0 && s.time >= me.reloadUntil) {
             if (action === 'reload-chain' && weapon === 'shotgun') {
               me.weapons[0].ammo++; me.weapons[0].reserve--;
@@ -653,6 +661,11 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
           revert: () => { if (internals.pipeline.atmosphere) internals.pipeline.atmosphere.enabled = true; } }),
         fpFur: () => { const shells: THREE.Object3D[] = []; internals.weaponView.scene.traverse(o => { if (o.visible && (o as THREE.Mesh).geometry?.userData.shellIndices) shells.push(o); }); return hide(shells); },
         characterFur: () => hide(named(o => (o as THREE.Mesh).geometry?.userData.shellIndices !== undefined || o.name.includes('fur'))),
+        treesAfter: () => { const trees = named(o => o.name === 'vegetation-root'), meshes: THREE.Object3D[] = [];
+          trees.forEach(root => root.traverse(o => { if ((o as THREE.Mesh).isMesh) meshes.push(o); }));
+          return { apply: () => meshes.forEach(o => { o.renderOrder = .25; }), revert: () => meshes.forEach(o => { o.renderOrder = 0; }) }; },
+        treesSorted: () => { const batches: THREE.BatchedMesh[] = []; scene.traverse(o => { if ((o as THREE.BatchedMesh).isBatchedMesh && o.name === 'vegetation') batches.push(o as THREE.BatchedMesh); });
+          return { apply: () => batches.forEach(o => { o.sortObjects = true; }), revert: () => batches.forEach(o => { o.sortObjects = false; }) }; },
         terrainLast: () => { const ground = named(o => materialName(o) === 'paint:terrain');
           return { apply: () => ground.forEach(o => { o.renderOrder = .5; }), revert: () => ground.forEach(o => { o.renderOrder = 0; }) }; },
       };

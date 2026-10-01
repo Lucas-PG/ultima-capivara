@@ -23,6 +23,11 @@ export function summarize(run) {
   const cpuFrames = Math.max(1, cpu.render?.n ?? rendered);
   const thermal = {}; for (const s of settled) thermal[s.thermal] = (thermal[s.thermal] ?? 0) + 1;
   const stages = {}; for (const s of settled) stages[s.stage ?? s.phase] = (stages[s.stage ?? s.phase] ?? 0) + 1;
+  // Per stage over the whole match, the first seconds included (a royale's plane ride is there).
+  const byStage = {};
+  for (const s of run.samples) { const key = s.phase === 'playing' ? s.stage : s.phase, e = byStage[key] ||= { seconds: 0, frames: 0, p95: [] };
+    e.seconds += s.intervals.reduce((a, b) => a + b, 0) / 1000; e.frames += s.renderedFrames; e.p95.push(...s.intervals); }
+  const stageFps = Object.fromEntries(Object.entries(byStage).map(([k, e]) => [k, { seconds: Math.round(e.seconds), fps: +(e.frames / Math.max(.001, e.seconds)).toFixed(1), p95: +at([...e.p95].sort((a, b) => a - b), .95).toFixed(1) }]));
   const minutes = []; let minuteAt = 0, frames = 0, ms = 0;
   for (const s of settled) { frames += s.renderedFrames; ms += s.intervals.reduce((x, y) => x + y, 0); if (s.t - minuteAt >= 60 || s === settled.at(-1)) { minutes.push(+(frames / Math.max(.001, ms / 1000)).toFixed(1)); minuteAt = s.t; frames = 0; ms = 0; } }
   return {
@@ -38,13 +43,21 @@ export function summarize(run) {
     draws: Math.round(mean(settled.map(s => s.draws ?? 0))), triangles: Math.round(mean(settled.map(s => s.triangles ?? 0))),
     density: settled.some(s => s.density) ? { mean: +mean(settled.map(s => s.density ?? 0)).toFixed(2), min: Math.min(...settled.map(s => s.density ?? 9)), max: Math.max(...settled.map(s => s.density ?? 0)) } : null,
     buffer: settled.at(-1)?.drawingBuffer, buffers: [...new Set(settled.map(s => s.drawingBuffer?.join('x')))],
-    thermal, load: +mean(settled.map(s => s.load[0])).toFixed(2), stages, gc: run.gcTraces, errors: run.errors?.length ?? 0,
+    thermal, load: +mean(settled.map(s => s.load[0])).toFixed(2), stages, stageFps, errors: run.errors?.length ?? 0,
+    // Main-thread collector pauses in the 10 s traces: young (MinorGC) and full (MajorGC) collections.
+    gc: (run.gcTraces ?? []).map(trace => ({ at: trace.at, ...Object.fromEntries(['MinorGC', 'MajorGC'].map(name => [name, trace.byName[name]
+      ? { n: trace.byName[name].n, totalMs: +trace.byName[name].total.toFixed(1), maxMs: +trace.byName[name].max.toFixed(1) } : null])) })),
   };
 }
 
 if (files.length) {
   const rows = files.map(file => ({ file, ...summarize(JSON.parse(readFileSync(file, 'utf8'))) }));
   if (asJson) console.log(JSON.stringify(rows, null, 2));
+  else if (process.argv.includes('--md')) {
+    console.log('| Run | Preset | Mode | Seconds | fps | fps by minute | p50 ms | p95 ms | 1% low fps | frames > 50 ms | max ms | render density | main thread ms/frame | thermal (0/1/2 s) | load |');
+    console.log('| --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | ---: |');
+    for (const r of rows) console.log(`| ${r.file.split('/').pop().replace('.json', '')} | ${r.quality} | ${r.mode === 'deathmatch' ? 'Correria' : 'Battle royale'} | ${r.seconds} | ${r.fps} | ${r.fpsByMinute.join(' ')} | ${r.p50} | ${r.p95} | ${r.low1} | ${r.over50} | ${r.max} | ${r.density ? `${r.density.mean} (${r.density.min} to ${r.density.max})` : 'native, old controller'} | ${r.cpuMsPerFrame.render ?? ''} | ${[0, 1, 2].map(level => r.thermal[level] ?? 0).join('/')} | ${r.load} |`);
+  }
   else for (const r of rows) {
     console.log(`${r.file.split('/').pop()}: ${r.quality} ${r.mode} ${r.headless ? 'headless' : 'headed'} ${r.seconds}s fps ${r.fps} (by minute ${r.fpsByMinute.join(' ')}) p50 ${r.p50} p95 ${r.p95} p99 ${r.p99} max ${r.max} 1%low ${r.low1} >20ms ${r.over20} >50ms ${r.over50} of ${r.frames}`);
     console.log(`  gpu ${r.gpuMs} ms ${JSON.stringify(r.gpuPasses)}`);
@@ -52,5 +65,6 @@ if (files.length) {
     console.log(`  cpu max ${JSON.stringify(r.cpuMax)}`);
     console.log(`  draws ${r.draws} tris ${r.triangles} density ${JSON.stringify(r.density)} buffers ${r.buffers.join(',')} heap ${r.heapMB.join('-')} MB thermal ${JSON.stringify(r.thermal)} load ${r.load} stages ${JSON.stringify(r.stages)} menu ${r.menuMs} ms first frame ${r.firstFrameMs} ms errors ${r.errors}`);
     if (r.gc?.length) console.log(`  gc ${JSON.stringify(r.gc)}`);
+    console.log(`  by stage ${JSON.stringify(r.stageFps)}`);
   }
 }
