@@ -38,7 +38,14 @@ Nine weapons (the slingshot was removed at the user's request; no new weapons, a
 
 ### 2.3 Character
 
-PENDING (round 2 in progress). State after round 1: re-sculpted head and cloth, 4K painted maps, LOD0 40.5k triangles, groomed fur shells, eight walk and crouch directions with planted feet (median sole slip under .03 m/s), rebuilt Capivara Redentora statue, team colour in the rim at range. Reports: `character-report.md`, `char-polish-report.md`.
+Four rounds after the first rebuild, each reviewed against the targets at the same cameras (boards in `output/review/char-r2/` and `docs/overhaul/evidence/char-polish/`):
+- Round 1: re-sculpted head and cloth, 4K painted maps, LOD0 40.5k triangles, groomed fur shells, eight walk and crouch directions with planted feet, the rebuilt Capivara Redentora.
+- Round 2: a broad build with its own big leathery paws, two legs in a wide stance, a knotted bandana, pleated hip rag, canvas rucksack and blanket roll, a breathing idle and a low-ready armed idle with springs on the loose gear, holds re-fitted for all nine weapons (third-person guns drawn 1.3 times bigger to fit the paw), and High, Medium and Low texture tiers (7, 3.8 and 2.8 MB; 192, 48 and 12 MB of GPU memory).
+- Round 3, by a fresh agent at maximum effort after the user rejected round 2: knees that bent backwards in every clip (the leg IK pole pointed backward), a cartoon capybara head without the cheek lobes, fur that reads as fur (combed locks with a darker crown, nape and back), team colour readable at 60 m, the statue rebuilt and validated.
+- Round 4: open, bright eyes with catchlights, furred blinks, golden fur in shade, a paler muzzle; fur shells tiered by distance so a close crowd costs what round 2 did.
+Direction from the user on the final day: a fun, cartoonized capybara humanoid; the references are guides, not specs.
+
+Reports: `character-report.md`, `char-polish-report.md`.
 
 ### 2.4 World
 
