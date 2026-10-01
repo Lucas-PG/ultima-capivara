@@ -337,7 +337,7 @@ export class GameUI {
   game(playerId: string) {
     this.callbacks.cancelEmote?.(); this.closeEmoteWheel();
     clearTimeout(this.momentTimer); this.momentPhase = this.momentStage = null; this.firstStormBeat = 0; this.supplyNotice = null;
-    this.lastBanner = ''; this.deathInfo = null; this.watchSince = 0; this.sawAlive = false; this.killCount = 0; this.lastHits.clear(); this.useTrack = null; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null;
+    this.lastBanner = ''; this.deathInfo = null; this.watchSince = 0; this.sawAlive = false; this.killCount = 0; this.lastHits.clear(); this.useTrack = null; this.lastCounts = null; this.armorBrokeUntil = 0; this.lastPrey = null; this.mapOpen = false; this.planeDir = null; this.lastPlane = null;
     if (!this.thumbs) void import('../render/thumbnails').then(m => this.lifecycle.signal.aborted ? new Map() : m.loadWeaponThumbnails(this.lifecycle.signal)).then(map => { if (!this.lifecycle.signal.aborted && map.size) { this.thumbs = map; this.inventoryKey = ''; } });
     this.localId = playerId; this.screen = 'game'; this.inventoryKey = ''; this.lastResults = ''; this.scoreKey = ''; this.els.clear(); document.body.dataset.screen = 'game';
     this.coach = this.onboarded || this.room ? null : { step: 'intro', visibleAt: null, startPos: null };
@@ -488,7 +488,7 @@ export class GameUI {
     this.toggle(this.el('reload'), 'ask', empty);
     if (reloading) {
       this.text('reloadTxt', weapon!.id === 'shotgun' ? 'Botando cartucho' : 'Recarregando');
-      this.attr(this.el('rringFg'), 'stroke-dasharray', `${(clamp(1 - (me.reloadUntil - t) / Math.max(.1, def!.reload), 0, 1) * 100).toFixed(1)} 100`);
+      this.style(this.el('rringFg'), 'stroke-dasharray', `${(clamp(1 - (me.reloadUntil - t) / Math.max(.1, def!.reload), 0, 1) * 100).toFixed(1)} 100`);
     } else if (empty) this.text('reloadTxt', `${keyName(this.settings.bindings.reload)} recarrega`);
     // Heal in progress: the item in a filling ring under the reticle, and the bar it heals shows where it will end.
     const using = me.alive && me.using && me.useUntil > t ? me.using : null;
@@ -497,7 +497,7 @@ export class GameUI {
       this.useTrack = { item: using, until: me.useUntil, total: info.time };
       if (this.el('useIcon').dataset.k !== using) { this.el('useIcon').dataset.k = using; this.el('useIcon').innerHTML = itemIcon(using); this.text('useName', USE_LABEL[using]); }
       this.text('useTxt', `${left.toFixed(1).replace('.', ',')} s · ${info.effect}`);
-      this.attr(this.el('useRing'), 'stroke-dasharray', `${(clamp(1 - left / info.time, 0, 1) * 100).toFixed(1)} 100`);
+      this.style(this.el('useRing'), 'stroke-dasharray', `${(clamp(1 - left / info.time, 0, 1) * 100).toFixed(1)} 100`);
       const target = healTarget(using, hp, armor);
       this.ghost(target.stat === 'hp' ? 'hpGhost' : 'armGhost', target.from, target.to); this.ghost(target.stat === 'hp' ? 'armGhost' : 'hpGhost', 0, 0);
     } else { this.useTrack = null; this.ghost('hpGhost', 0, 0); this.ghost('armGhost', 0, 0); }
@@ -568,7 +568,7 @@ export class GameUI {
       if (!br) {
         const left = Math.max(0, me.respawnAt - t);
         this.text('dcCount', Math.max(1, Math.ceil(left)));
-        this.attr(this.el('dcRing'), 'stroke-dasharray', `${(clamp(1 - left / 3, 0, 1) * 100).toFixed(1)} 100`);
+        this.style(this.el('dcRing'), 'stroke-dasharray', `${(clamp(1 - left / 3, 0, 1) * 100).toFixed(1)} 100`);
       }
     }
     // Watching: whoever the camera follows, with their vitals, weapon and eliminations, and both ways to switch.

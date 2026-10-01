@@ -20,7 +20,8 @@ body{
 #hud .item-art svg{display:block;width:100%;height:100%}
 #hud kbd{white-space:nowrap;display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;font:14px/1 var(--h-num);color:var(--h-ink);background:linear-gradient(180deg,#ffe98f,#ffc23d 55%,#f39a23);border:2px solid var(--h-ink);border-radius:7px;box-shadow:0 2px 0 var(--h-ink)}
 /* A sticker: cream paper, a 2.5 px ink outline, a hard drop. */
-#hud :is(.pill,.vcard,.portrait,.cs,.pk,.hs,#ammoBox,#mapWrap,#topL .cell,#compass,#ladder,#coach,#deathCard,.sp-card,.sp-nav,#prompt,#use,#killConfirm,.fd){background:var(--h-sheet);border:2.5px solid var(--h-ink);box-shadow:var(--h-drop)}
+/* :where keeps this at the specificity of #hud alone, so every element rule below can restyle it. */
+#hud :where(.pill,.vcard,.portrait,.cs,.pk,.hs,#ammoBox,#mapWrap,#topL .cell,#compass,#ladder,#coach,#deathCard,.sp-card,.sp-nav,#prompt,#use,#killConfirm,.fd){background:var(--h-sheet);border:2.5px solid var(--h-ink);box-shadow:var(--h-drop)}
 #hud .pill{display:flex;align-items:center;gap:6px;padding:2px 11px 2px 7px;border-radius:999px;font-size:14px;white-space:nowrap}
 
 /* Top centre: a paper compass tape, the heading on a tab under the needle, the safe zone as a gold diamond. */
@@ -173,8 +174,8 @@ body{
 #hud #vitals{position:absolute;left:16px;bottom:16px;display:flex;align-items:center}
 #hud #vitals .portrait{position:relative;z-index:1;flex:none;width:58px;height:58px;border-width:3px;border-radius:50%;overflow:hidden;background:var(--h-paper)}
 #hud #vitals .portrait svg{display:block;width:100%;height:100%}
-#hud .vcard{position:relative;display:flex;flex-direction:column;gap:5px;width:190px;margin-left:-12px;padding:6px 9px 6px 19px;border-radius:0 14px 14px 0}
-#hud .vcard .row{display:grid;grid-template-columns:18px 1fr 34px;align-items:center;gap:6px}
+#hud .vcard{position:relative;display:flex;flex-direction:column;gap:5px;width:208px;margin-left:-12px;padding:6px 9px 6px 19px;border-radius:0 14px 14px 0}
+#hud .vcard .row{display:grid;grid-template-columns:18px 1fr 44px;align-items:center;gap:6px}
 #hud .vcard .row .icon{width:18px;height:18px}
 #hud .vcard .row b{font:22px/1 var(--h-num);text-align:right;font-variant-numeric:tabular-nums}
 #hud .vcard .arm b{font-size:16px;color:#1d7f86}
@@ -210,10 +211,10 @@ body{
 
 /* Above the vitals, one column: the heal bag, the posture chip and the pickup pops (newest nearest the bag). */
 #hud #lcol{position:absolute;left:16px;bottom:96px;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:9px}
-#hud #consbar{display:flex;flex-wrap:wrap;gap:7px;max-width:280px;padding-top:6px}
+#hud #consbar{display:flex;flex-wrap:wrap;gap:8px 11px;max-width:290px;padding:7px 0 0 4px}
 #hud .cs{position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:13px}
 #hud .cs .item-art{width:30px;height:30px}
-#hud .cs kbd{position:absolute;left:-7px;top:-8px;height:19px;min-width:19px;padding:0 3px;border-radius:6px;font-size:14px}
+#hud .cs kbd{position:absolute;left:-6px;top:-9px;height:19px;min-width:19px;padding:0 3px;border-radius:6px;font-size:14px}
 #hud .cs b{position:absolute;right:-7px;bottom:-7px;display:grid;place-items:center;min-width:21px;height:21px;padding:0 4px;font:14px/1 var(--h-num);font-weight:400;color:var(--h-paper);background:var(--h-ink);border-radius:999px}
 #hud .cs.pick{border-color:var(--h-gold-2);box-shadow:0 3px 0 var(--h-ink),0 0 0 3px var(--h-gold)}
 #hud .cs.urgent{animation:hud-bounce .9s var(--spring,ease-out) infinite}
@@ -354,10 +355,10 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud #safe,.hud-narrow #hud #hOut{left:16px;translate:none}
 .hud-narrow #hud #mapWrap{width:150px;height:150px}
 .hud-narrow #hud #ladder,.hud-narrow #hud #coach{top:132px}
-.hud-narrow #hud .vcard{width:148px}
+.hud-narrow #hud .vcard{width:160px}
 .hud-narrow #hud .hs{width:44px}
 .hud-narrow #hud #ammoBox{min-width:0}
-.hud-narrow #hud #consbar{max-width:204px}
+.hud-narrow #hud #consbar{max-width:220px}
 .hud-narrow #hud #specBar{grid-template-columns:auto minmax(0,1fr) auto;width:calc(100vw / var(--ui,1) - 32px)}
 .hud-narrow #hud #deathCard{min-width:0;width:calc(100vw / var(--ui,1) - 32px)}
 /* Short windows: the map shrinks so the feed never reaches the weapon cluster. */
