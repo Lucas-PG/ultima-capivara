@@ -16,7 +16,7 @@ const views = {
   sun: [0, 28, 120, -60, 60, 20, 65],
 };
 mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const rows = [], rangeRows = [], errors = [];
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });

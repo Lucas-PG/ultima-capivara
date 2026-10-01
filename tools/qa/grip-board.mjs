@@ -13,7 +13,7 @@ const load = v => typeof v === 'string' && v.startsWith('@') ? (j => j.final?.gr
 const spec = JSON.parse(specArg.startsWith('@') ? readFileSync(specArg.slice(1), 'utf8') : specArg);
 // Orbit directions in weapon space (x right, y up, -z to the muzzle), turned into camera-space orbits.
 const orbits = { 'gun right': [1, .25, .15], 'gun left': [-1, .25, .15], 'gun below': [.15, -1, .25], 'gun front': [.1, .15, -1], 'gun top': [.15, 1, .2] };
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', e => console.error('pageerror', e.message));

@@ -6,7 +6,7 @@ const [out, ...poses] = process.argv.slice(2);
 if (!out) throw new Error('Give a worktree-local output directory.');
 mkdirSync(out, { recursive: true });
 const base = process.env.BASE || 'http://127.0.0.1:5173';
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 try {
   const page = await browser.newPage({ viewport: { width: Number(process.env.W || 1280), height: Number(process.env.H || 720) } });
   page.on('pageerror', e => { console.error('pageerror', e.message); process.exitCode = 1; });

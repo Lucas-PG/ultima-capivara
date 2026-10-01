@@ -10,7 +10,7 @@ import { chromium } from '@playwright/test';
 import { createInterface } from 'node:readline';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('console', m => { if (m.text().startsWith('fit-progress')) console.log(m.text()); });
 page.on('pageerror', e => console.error('pageerror', e.message));

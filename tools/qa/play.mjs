@@ -9,7 +9,7 @@ const [out, mode = 'deathmatch', stepsJson = '[]'] = process.argv.slice(2);
 const steps = JSON.parse(stepsJson);
 if (!out) throw new Error('Give a worktree-local output directory.');
 mkdirSync(out, { recursive: true });
-const browser = await chromium.launch(process.env.BUNDLED ? {} : { channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch(process.env.BUNDLED ? {} : { channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const size = { width: Math.min(1280, Number(process.env.W || 1280)), height: Math.min(720, Number(process.env.H || 720)) };
 const page = await browser.newPage({ viewport: size, ...(process.env.VIDEO ? { recordVideo: { dir: process.env.VIDEO, size } } : {}) });
 const errors = [];

@@ -2,7 +2,7 @@
 // node tools/qa/tpmotion.mjs <outDir> <weapon> <actions csv> [times csv] [camera: side|front|back|three]
 import { chromium } from '@playwright/test';
 const [out, weapon, actions, timesCsv = '.1,.25,.4,.55,.7,.85,1.0,1.2', cam = 'three'] = process.argv.slice(2);
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: +(process.env.W || 800), height: +(process.env.H || 600) } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1`);
