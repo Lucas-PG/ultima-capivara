@@ -17,6 +17,10 @@ import { waterAt } from '../../src/shared/water';
 import { CORRENTE_LADDER, WEAPONS as WEAPON_DEFS } from '../../src/shared/weapons';
 import { DEFAULT_CONFIG, PLAYER_COLORS, type GameEvent, type InputFrame, type LootSpawn, type Settings, type Vec3, type WeaponId, type WorldSnapshot, type WorldSpec } from '../../src/shared/types';
 import type { GameRenderer } from '../../src/render/renderer';
+import { gpuPasses } from '../../src/render/gpu-passes';
+import { PRESET_DENSITY } from '../../src/render/resolution';
+import { gpuFrameTimer } from '../../src/render/gpu-frame-timer';
+import * as THREE from 'three';
 import type { GameUI } from '../../src/ui/ui';
 import type { InputController } from '../../src/input';
 import { DISTRICT_VIEWS, VIEWS, viewStance, type WorldView } from './qa-views';
@@ -26,15 +30,25 @@ type QaApi = {
   start(): Promise<void>;
   pose(name: string): Promise<{ camera: { x: number; y: number; z: number }; drawCalls: number; triangles: number }>;
   quality(quality: Quality): void;
+  /** Experiments: overrides every preset's render pixel ratio cap (null restores the shipped caps). */
+  density(ratio: number | null): void;
   actors(count: number, positions?: Pick<Vec3, 'x' | 'z'>[]): void;
   loading(on: boolean): void;
   loop(on: boolean): void;
   stats(): { drawCalls: number; triangles: number; renderedFrames: number };
   /** Uncapped cost of one frame: CPU submission plus GPU completion, median of `frames`. */
   bench(frames: number): Promise<{ medianMs: number; p90Ms: number; gpuMedianMs: number | null; gpuP90Ms: number | null }>;
+  /** GPU milliseconds per render pass, each pass timed alone on an idle GPU (needs ?gpu=1). */
+  passes(frames: number): Promise<ReturnType<typeof gpuPasses.summary>>;
+  /** GPU cost of one part of the frame, as paired back-to-back benches with and without it (median of rounds). */
+  ab(toggle: string, frames: number, rounds: number): Promise<{ toggle: string; baseMs: number; withoutMs: number; costMs: number; rounds: number[] }>;
   names(): string[];
   event(event: GameEvent): void;
-  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number): Promise<void>;
+  motion(weapon: WeaponId, action: 'reload' | 'reload-partial' | 'reload-chain' | 'inspect' | 'chop' | 'swing-right' | 'swing-left' | 'hit-right' | 'hit-left' | 'equip' | 'sprint' | 'ads' | 'land' | 'fire', seconds: number, hz?: number): Promise<void>;
+  /** Program lookups per frame by material: each one is a program parameter rebuild (garbage) in three. */
+  programChurn(frames: number): Record<string, number>;
+  /** The view a motion ends on: camera transform and the first-person model's world matrices (frame-rate checks). */
+  viewState(): { camera: number[]; viewmodel: number[] };
   buildings(): { id: string; piece: string; role: string }[];
   tpMotion(weapon: WeaponId, action: 'run' | 'walk' | 'strafe' | 'backpedal' | 'reload' | 'reload-partial' | 'death' | 'crouch' | 'jump' | 'idle' | 'hit' | 'slash' | 'slash-left' | 'chop', seconds: number): Promise<void>;
   walkBuilding(pieceId: string, direction?: 'up' | 'down'): Promise<{ ok: boolean; ticks: number; position: { x: number; y: number; z: number } }>;
@@ -58,6 +72,10 @@ const ROOM_POSES = ['home', 'bakery', 'cafe', 'fisher', 'fishmonger', 'workshop'
   'church', 'market_hall', 'warehouse', 'beach_kiosk', 'barracks',
   'upper-home', 'upper-barracks',
   'home-0', 'home-1', 'home-2', 'upper-home-0', 'upper-home-1', 'upper-home-2', 'home-back', 'cafe-back', 'upper-home-back'].map(role => `room-${role}`);
+// Review frames hold the preset's full render density: dynamic resolution never reacts to the
+// slow, synchronised frames of a capture or a bench.
+const QA_BUDGET = Infinity;
+const shippedDensity = structuredClone(PRESET_DENSITY);
 export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputController; settings: Settings; begin(): Promise<GameRenderer> }) {
   const fixture = new Simulation(deps.world, { ...DEFAULT_CONFIG, bots: false },
     [{ id: 'practice', name: 'Capivara', color: '#bd8956', ready: true, connected: true }], 'qa-seed-2026', 0x5eed2026);
@@ -74,7 +92,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
 
   function draw() {
     if (!renderer || !current) return;
-    renderer.update({ snapshot: current, playerId: 'practice', input: deps.input.frame as InputFrame,
+    renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: current, playerId: 'practice', input: deps.input.frame as InputFrame,
       dt: looping ? 1 / 60 : 0, playing: true, spectateId: null });
     renderedFrames++;
   }
@@ -369,7 +387,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     current = s;
     deps.input.frame.yaw = yaw; deps.input.frame.pitch = pitch;
-    for (let i = 0; i < 20; i++) renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
+    for (let i = 0; i < 20; i++) renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: .05, playing: true, spectateId: null }, i === 19);
     // A rapid pose switch can otherwise keep the preceding HUD and scope state.
     await new Promise(resolve => setTimeout(resolve, 80));
     deps.ui.scopeReady = renderer.scoped;
@@ -413,7 +431,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         moveActor(jumper, emptyInput(), deps.world, 1 / 60);
         if (jumper.bounceSeq !== previous)
           renderer.event({ type: 'bounce', id: 2, actor: jumper.id, pos: { x: trampoline.x, y: trampoline.y, z: trampoline.z } });
-        renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame,
+        renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame,
           dt: 1 / 60, playing: true, spectateId: null }, i === bounceTicks - 1);
       }
       if (jumper.bounceSeq !== initialBounce + 1 || jumper.grounded || !jumper.bounceProtected)
@@ -421,13 +439,13 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     }
     if (name.startsWith('ads-') || name.startsWith('fp-')) {
       // Settle the weapon: draw, sway and the aim-down-sights blend run on real frame time.
-      for (let i = 0; i < 45; i++) { s.time += 1 / 60; renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 44); }
+      for (let i = 0; i < 45; i++) { s.time += 1 / 60; renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 44); }
     }
     if (name === 'cocoBlast') {
       // A real coconut impact 9 m ahead, rendered 0.15 s into the burst.
       const x = me.pos.x - Math.sin(yaw) * 7, z = me.pos.z - Math.cos(yaw) * 7;
       renderer.event({ type: 'impact', id: 3, actor: 'bot', weapon: 'coco', pos: { x, y: terrainHeight(x, z), z }, surface: 'dirt', normal: { x: 0, y: 1, z: 0 } });
-      for (let i = 0; i < 9; i++) { s.time += 1 / 60; renderer.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 8); }
+      for (let i = 0; i < 9; i++) { s.time += 1 / 60; renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 1 / 60, playing: true, spectateId: null }, i === 8); }
     }
     if (!name.startsWith('results')) document.querySelector('#victory')?.remove();
     return { camera: renderer.cameraPosition, ...renderer.stats };
@@ -436,18 +454,54 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
     async start() { renderer ||= await deps.begin(); },
     pose,
     event(event) { renderer?.event(event); deps.ui.event(event); },
-    async motion(weapon, action, seconds) {
+    programChurn(frames) {
+      const env = globalThis as { churnDetail?: boolean };
+      const counts: Record<string, number> = {}, proto = THREE.Material.prototype, original = proto.customProgramCacheKey;
+      const label = (material: THREE.Material) => `${material.type}:${material.name || '-'}:${material.uuid.slice(0, 4)}`;
+      proto.customProgramCacheKey = function (this: THREE.Material) { counts[label(this)] = (counts[label(this)] ?? 0) + 1; return original.call(this); };
+      const wrapped: [THREE.Material, () => string][] = [];
+      const internals = renderer as unknown as { scene: THREE.Scene; weaponView: { scene: THREE.Scene } };
+      for (const root of [internals.scene, internals.weaponView.scene]) root.traverse(object => {
+        const materials = (object as THREE.Mesh).material; if (!materials) return;
+        for (const material of Array.isArray(materials) ? materials : [materials]) if (Object.prototype.hasOwnProperty.call(material, 'customProgramCacheKey') && !wrapped.some(([m]) => m === material)) {
+          const own = material.customProgramCacheKey; wrapped.push([material, own]);
+          material.customProgramCacheKey = () => { counts[label(material)] = (counts[label(material)] ?? 0) + 1; return own.call(material); };
+        }
+      });
+      try { for (let i = 0; i < frames; i++) draw(); } finally {
+        proto.customProgramCacheKey = original;
+        for (const [material, own] of wrapped) material.customProgramCacheKey = own;
+      }
+      // The kinds of mesh sharing each churning material (a shared material switching between them rebuilds).
+      const users = new Map<string, Set<string>>();
+      for (const root of [internals.scene, internals.weaponView.scene]) root.traverse(object => {
+        const materials = (object as THREE.Mesh).material; if (!materials) return;
+        const mesh = object as THREE.Mesh, kind = `${(mesh as THREE.SkinnedMesh).isSkinnedMesh ? 'skinned' : (mesh as THREE.InstancedMesh).isInstancedMesh ? 'instanced' : (mesh as THREE.BatchedMesh).isBatchedMesh ? 'batched' : mesh.type}` +
+          `${mesh.geometry?.morphAttributes?.position ? '+morph' + mesh.geometry.morphAttributes.position.length : ''}${mesh.geometry?.attributes?.color ? '+color' + mesh.geometry.attributes.color.itemSize : ''}${root === internals.scene ? '' : '@fp'}` +
+          (env.churnDetail ? `[${mesh.name}|${Object.keys(mesh.geometry?.attributes ?? {}).sort().join('+')}|${mesh.receiveShadow ? 'r' : ''}${mesh.castShadow ? 'c' : ''}|${(() => { const chain: string[] = []; let at = mesh.parent; while (at && chain.length < 4) { chain.push(at.name || at.type); at = at.parent; } return chain.join('<'); })()}]` : '');
+        for (const material of Array.isArray(materials) ? materials : [materials]) { const key = label(material); if (!users.has(key)) users.set(key, new Set()); users.get(key)!.add(kind); }
+      });
+      const perFrame: [string, number][] = Object.entries(counts).map(([k, v]) => [`${k} (${[...(users.get(k) ?? [])].join(' ')})`, +(v / frames).toFixed(1)]);
+      return Object.fromEntries(perFrame.sort((a, b) => b[1] - a[1]));
+    },
+    viewState() {
+      const internals = renderer as unknown as { camera: THREE.PerspectiveCamera; weaponView: { scene: THREE.Scene } };
+      const viewmodel: number[] = [];
+      internals.weaponView.scene.traverse(object => { if ((object as THREE.Mesh).isMesh && object.visible && viewmodel.length < 16 * 24) viewmodel.push(...object.matrixWorld.elements); });
+      return { camera: [...internals.camera.position.toArray(), ...internals.camera.quaternion.toArray()], viewmodel };
+    },
+    async motion(weapon, action, seconds, hz = 120) {
       if (!WEAPONS.includes(weapon) || !Number.isFinite(seconds) || seconds < 0 || seconds > 4) throw new Error('Invalid motion review');
       await pose(`fp-${weapon}`);
       const s = current!, me = s.actors.find(actor => actor.id === 'practice')!;
-      const frame = (dt: number, draw = false, playing = true) => renderer!.update({ snapshot: s, playerId: me.id,
+      const frame = (dt: number, draw = false, playing = true) => renderer!.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: me.id,
         input: deps.input.frame, dt, playing, spectateId: null, simulationTime: s.time }, draw);
       frame(0, false, false); // Reset transient motion, then establish a dry, still grip.
       for (let i = 0; i < 30; i++) frame(1 / 60);
       const advance = (duration: number) => {
         const end = s.time + duration; let elapsed = 0;
         while (elapsed < duration - 1e-8) {
-          const dt = Math.min(1 / 120, duration - elapsed); elapsed += dt; s.time += dt;
+          const dt = Math.min(1 / hz, duration - elapsed); elapsed += dt; s.time += dt;
           if ((action === 'reload' || action === 'reload-partial' || action === 'reload-chain') && me.reloadUntil > 0 && s.time >= me.reloadUntil) {
             if (action === 'reload-chain' && weapon === 'shotgun') {
               me.weapons[0].ammo++; me.weapons[0].reserve--;
@@ -522,7 +576,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       }
       if (action === 'slash' || action === 'slash-left' || action === 'chop') {
         if (weapon !== 'machete') throw new Error('Cut review requires machete');
-        const update = () => renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, false);
+        const update = () => renderer!.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, false);
         bot.weapons[0].id = 'pistol'; update(); bot.weapons[0].id = 'machete'; update();
         const origin = { x: bot.pos.x, y: bot.pos.y + 1.55, z: bot.pos.z };
         for (let i = 0; i < (action === 'chop' ? 3 : action === 'slash-left' ? 2 : 1); i++) {
@@ -552,11 +606,15 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
           hurt = true;
           renderer!.event({ type: 'damage', id: 901, actor: 'practice', target: bot.id, amount: 30, head: false, pos: bot.pos } as never);
         }
-        renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: step, playing: true, spectateId: null, simulationTime: s.time }, false);
+        renderer!.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: step, playing: true, spectateId: null, simulationTime: s.time }, false);
       }
-      renderer!.update({ snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, true);
+      renderer!.update({ frameBudgetMs: QA_BUDGET, snapshot: s, playerId: 'practice', input: deps.input.frame, dt: 0, playing: true, spectateId: null, simulationTime: s.time }, true);
     },
     quality(quality) { if (!renderer) throw new Error('Call start first'); deps.settings.graphics = quality; renderer.setSettings(deps.settings); draw(); },
+    density(ratio) {
+      for (const name of Object.keys(PRESET_DENSITY) as Quality[]) PRESET_DENSITY[name] = ratio === null ? { ...shippedDensity[name] } : { min: ratio, max: ratio };
+      this.quality(deps.settings.graphics);
+    },
     actors(count, positions) { if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('Expected 1 to 16 actors'); actorCount = count; actorPositions = positions ?? []; },
     loading(on) { deps.ui.setLoading(on); },
     loop(on) {
@@ -572,25 +630,91 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
       const gl = document.querySelector('canvas')!.getContext('webgl2')!, pixel = new Uint8Array(4), samples: number[] = [], gpu: number[] = [];
       const timer = gl.getExtension('EXT_disjoint_timer_query_webgl2') as { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null;
       const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-      draw(); sync();
-      const queries: WebGLQuery[] = [];
-      for (let i = 0; i < frames; i++) {
-        const query = timer ? gl.createQuery() : null, started = performance.now();
-        if (query) { gl.beginQuery(timer!.TIME_ELAPSED_EXT, query); queries.push(query); }
-        draw();
-        if (query) gl.endQuery(timer!.TIME_ELAPSED_EXT);
-        sync(); samples.push(performance.now() - started);
+      // Pass and frame timing would open their own queries inside this frame's query.
+      gpuPasses.suspended = true; gpuFrameTimer.suspended = true;
+      try {
+        draw(); sync();
+        const queries: WebGLQuery[] = [];
+        for (let i = 0; i < frames; i++) {
+          const query = timer ? gl.createQuery() : null, started = performance.now();
+          if (query) { gl.beginQuery(timer!.TIME_ELAPSED_EXT, query); queries.push(query); }
+          draw();
+          // ANGLE Metal times only command buffers committed while the query is open: complete the frame first.
+          sync();
+          if (query) gl.endQuery(timer!.TIME_ELAPSED_EXT);
+          samples.push(performance.now() - started);
+        }
+        // Results arrive a little after completion; a disjoint event voids the batch.
+        for (let wait = 0; wait < 40 && queries.some(query => !gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)); wait++)
+          await new Promise(resolve => setTimeout(resolve, 25));
+        const disjoint = timer ? gl.getParameter(timer.GPU_DISJOINT_EXT) : true;
+        for (const query of queries) {
+          if (!disjoint && gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) gpu.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
+          gl.deleteQuery(query);
+        }
+        const at = (values: number[], q: number) => values.length ? values.sort((a, b) => a - b)[Math.floor(values.length * q)] : null;
+        return { medianMs: at(samples, .5)!, p90Ms: at(samples, .9)!, gpuMedianMs: at(gpu, .5), gpuP90Ms: at(gpu, .9) };
+      } finally { gpuPasses.suspended = false; gpuFrameTimer.suspended = false; }
+    },
+    async passes(frames) {
+      if (!gpuPasses.supported) throw new Error('Open the page with ?gpu=1 on a browser with timer queries');
+      const gl = document.querySelector('canvas')!.getContext('webgl2')!, pixel = new Uint8Array(4);
+      draw(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+      await gpuPasses.drain(); gpuPasses.reset(); gpuPasses.calibrate(); gpuPasses.sync = true;
+      try { for (let i = 0; i < frames; i++) { draw(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel); } await gpuPasses.drain(); }
+      finally { gpuPasses.sync = false; }
+      const summary = gpuPasses.summary(); gpuPasses.reset(); return summary;
+    },
+    async ab(toggle, frames, rounds) {
+      if (!renderer) throw new Error('Call start first');
+      const internals = renderer as unknown as { scene: THREE.Scene; gl: THREE.WebGLRenderer; worldView: { water: THREE.Object3D; group: THREE.Group }; weaponView: { scene: THREE.Scene }; sky: { group: THREE.Group };
+        interiorLight: THREE.PointLight; pipeline: { atmosphere: { enabled: boolean } | null } };
+      const scene = internals.scene, named = (test: (object: THREE.Object3D) => boolean) => {
+        const found: THREE.Object3D[] = []; scene.traverse(object => { if (object.visible && test(object)) found.push(object); }); return found; };
+      const materialName = (object: THREE.Object3D) => ((object as THREE.Mesh).material as THREE.Material | undefined)?.name ?? '';
+      const hide = (objects: THREE.Object3D[]) => ({ apply: () => objects.forEach(o => { o.visible = false; }), revert: () => objects.forEach(o => { o.visible = true; }) });
+      const basic = new THREE.MeshBasicMaterial({ color: '#888888' });
+      const toggles: Record<string, () => { apply(): void; revert(): void }> = {
+        terrain: () => hide(named(o => materialName(o) === 'paint:terrain')),
+        vegetation: () => hide(named(o => o.name === 'vegetation-root' || o.name === 'ground-cover')),
+        groundCover: () => hide(named(o => o.name === 'ground-cover')),
+        trees: () => hide(named(o => o.name === 'vegetation-root')),
+        kit: () => hide(named(o => o.name === 'Ilha_modular')),
+        characters: () => hide(named(o => o.name.startsWith('Capivara_'))),
+        water: () => hide(named(o => o === internals.worldView.water || materialName(o).includes('water'))),
+        backdrop: () => hide(named(o => o.name === 'Ilhas distantes')),
+        sky: () => hide([internals.sky.group]),
+        streets: () => hide(named(o => o.name === 'vida-das-ruas')),
+        firstPerson: () => hide(internals.weaponView.scene.children.filter(child => child.visible)),
+        shading: () => ({ apply: () => { scene.overrideMaterial = basic; }, revert: () => { scene.overrideMaterial = null; } }),
+        shadows: () => ({ apply: () => { internals.gl.shadowMap.enabled = false; }, revert: () => { internals.gl.shadowMap.enabled = true; } }),
+        pointLight: () => hide([internals.interiorLight]),
+        atmosphere: () => ({ apply: () => { if (internals.pipeline.atmosphere) internals.pipeline.atmosphere.enabled = false; },
+          revert: () => { if (internals.pipeline.atmosphere) internals.pipeline.atmosphere.enabled = true; } }),
+        fpFur: () => { const shells: THREE.Object3D[] = []; internals.weaponView.scene.traverse(o => { if (o.visible && (o as THREE.Mesh).geometry?.userData.shellIndices) shells.push(o); }); return hide(shells); },
+        characterFur: () => hide(named(o => (o as THREE.Mesh).geometry?.userData.shellIndices !== undefined || o.name.includes('fur'))),
+        treesAfter: () => { const trees = named(o => o.name === 'vegetation-root'), meshes: THREE.Object3D[] = [];
+          trees.forEach(root => root.traverse(o => { if ((o as THREE.Mesh).isMesh) meshes.push(o); }));
+          return { apply: () => meshes.forEach(o => { o.renderOrder = .25; }), revert: () => meshes.forEach(o => { o.renderOrder = 0; }) }; },
+        treesSorted: () => { const batches: THREE.BatchedMesh[] = []; scene.traverse(o => { if ((o as THREE.BatchedMesh).isBatchedMesh && o.name === 'vegetation') batches.push(o as THREE.BatchedMesh); });
+          return { apply: () => batches.forEach(o => { o.sortObjects = true; }), revert: () => batches.forEach(o => { o.sortObjects = false; }) }; },
+        terrainLast: () => { const ground = named(o => materialName(o) === 'paint:terrain');
+          return { apply: () => ground.forEach(o => { o.renderOrder = .5; }), revert: () => ground.forEach(o => { o.renderOrder = 0; }) }; },
+      };
+      if (!toggles[toggle]) throw new Error(`Unknown toggle ${toggle}: ${Object.keys(toggles).join(', ')}`);
+      const change = toggles[toggle]();
+      const results: { base: number; without: number }[] = [];
+      // One unmeasured round compiles any program the toggle needs.
+      change.apply(); await this.bench(2); change.revert();
+      for (let round = 0; round < rounds; round++) {
+        const base = (await this.bench(frames)).gpuMedianMs ?? NaN;
+        change.apply();
+        try { results.push({ base, without: (await this.bench(frames)).gpuMedianMs ?? NaN }); } finally { change.revert(); }
       }
-      // Results arrive a little after completion; a disjoint event voids the batch.
-      for (let wait = 0; wait < 40 && queries.some(query => !gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)); wait++)
-        await new Promise(resolve => setTimeout(resolve, 25));
-      const disjoint = timer ? gl.getParameter(timer.GPU_DISJOINT_EXT) : true;
-      for (const query of queries) {
-        if (!disjoint && gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) gpu.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
-        gl.deleteQuery(query);
-      }
-      const at = (values: number[], q: number) => values.length ? values.sort((a, b) => a - b)[Math.floor(values.length * q)] : null;
-      return { medianMs: at(samples, .5)!, p90Ms: at(samples, .9)!, gpuMedianMs: at(gpu, .5), gpuP90Ms: at(gpu, .9) };
+      const median = (values: number[]) => values.sort((a, b) => a - b)[values.length >> 1];
+      const costs = results.map(r => r.base - r.without);
+      return { toggle, baseMs: +median(results.map(r => r.base)).toFixed(2), withoutMs: +median(results.map(r => r.without)).toFixed(2),
+        costMs: +median([...costs]).toFixed(2), rounds: costs.map(n => +n.toFixed(2)) };
     },
     names: () => names,
     buildings: () => deps.world.pieces!.filter(piece => KIT_PIECES[piece.piece].traversal)
@@ -620,7 +744,7 @@ export function installQa(deps: { world: WorldSpec; ui: GameUI; input: InputCont
         Object.assign(me, actor); me.pitch = -.08;
         current!.time += 3 / 60;
         deps.input.frame.yaw = me.yaw; deps.input.frame.pitch = me.pitch;
-        renderer.update({ snapshot: current!, playerId: me.id, input: deps.input.frame,
+        renderer.update({ frameBudgetMs: QA_BUDGET, snapshot: current!, playerId: me.id, input: deps.input.frame,
           dt: 3 / 60, playing: true, spectateId: null });
         renderedFrames++;
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));

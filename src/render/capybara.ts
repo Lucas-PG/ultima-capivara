@@ -127,8 +127,12 @@ function teamMaterial(source: THREE.MeshStandardMaterial, tint: THREE.Color): TH
   return applyCharacterStyle(material, 4);
 }
 
-function characterMaterial(source: THREE.MeshStandardMaterial, color: string): THREE.MeshStandardMaterial {
-  const tint = new THREE.Color(color), key = `${source.uuid}:${tint.getHexString()}`;
+// One material per team colour and per kind of mesh (vertex colours with alpha, morph targets): a
+// material shared by level-of-detail meshes of different kinds rebuilt its program parameters every
+// time two capybaras of a colour drew at different levels.
+function characterMaterial(source: THREE.MeshStandardMaterial, color: string, geometry?: THREE.BufferGeometry): THREE.MeshStandardMaterial {
+  const tint = new THREE.Color(color), variant = geometry ? `${geometry.attributes.color?.itemSize ?? 0}:${geometry.morphAttributes.position?.length ?? 0}` : '';
+  const key = `${source.uuid}:${tint.getHexString()}:${variant}`;
   const cached = characterMaterials.get(key);
   if (cached) return cached;
   const material = teamMaterial(source, tint); material.name = `Capivara_team_${tint.getHexString()}`;
@@ -139,6 +143,8 @@ function characterMaterial(source: THREE.MeshStandardMaterial, color: string): T
 interface CharacterInstance {
   scene: THREE.Group; mixer: THREE.AnimationMixer; actions: Record<string, THREE.AnimationAction>;
   faceActions: (THREE.AnimationAction | undefined)[];
+  /** Body clips blended by weight (not faces or the additive reload), listed once. */
+  bodyActions: [string, THREE.AnimationAction][];
   active: string; weights: Record<string, number>; targets: Record<string, number>; grounded: boolean; swimming: boolean; swimBlend: number; landing: number; spine?: THREE.Bone; crown: THREE.Vector3; crownTips: { bone: THREE.Bone; local: THREE.Vector3 }[]; crownScratch: THREE.Vector3; expression: CapybaraExpression; forcedExpression: CapybaraExpression | null; faceTime: number;
   hitTime: number; hitX: number; hitZ: number; deathTime: number; deathSide: number; emoteTime: number; unarmed: number; head: THREE.Bone; arms: THREE.Bone[]; root: THREE.Bone; elapsed: number;
   legacyBones: THREE.Bone[]; skeleton: THREE.Skeleton; poseBones: THREE.Bone[]; baseRotations: THREE.Quaternion[];
@@ -317,7 +323,7 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
   // Quantization uses a scene-wide grid, so all LODs retain one shared skin.
   for (let i = 0; i < meshes.length; i++) {
     const mesh = meshes[i];
-    mesh.material = characterMaterial(mesh.material as THREE.MeshStandardMaterial, color);
+    mesh.material = characterMaterial(mesh.material as THREE.MeshStandardMaterial, color, mesh.geometry);
     if (mesh.skeleton !== skeleton) mesh.skeleton.dispose();
     mesh.skeleton = skeleton;
     lod.addLevel(mesh, [0, 12, 28][i], .1);
@@ -348,7 +354,8 @@ function installCharacter(body: THREE.SkinnedMesh, legacyBones: THREE.Bone[], co
     weights[name] = name === 'idle' ? 1 : 0; targets[name] = 0; action.setEffectiveWeight(weights[name]).play();
   }
   const runtime: CharacterInstance = {
-    scene, mixer, actions, weights, targets, grounded: true, swimming: false, swimBlend: 0, landing: 0,
+    scene, mixer, actions, weights, targets,
+    bodyActions: Object.entries(actions).filter(([name]) => !name.startsWith('face_') && name !== 'reload_tp'), grounded: true, swimming: false, swimBlend: 0, landing: 0,
     gesture: null, gestureDeadline: 0, gestureElapsed: 0, gestureBlend: 0, gestureJoints: {},
     bounceSeq: null, gaitPhase: 0, dangles: [], lastForward: 0, lastSide: 0, lastLift: 0, aim: 1, aimHold: 0, lastShot: -1, fur, chest: scene.getObjectByName('chest') as THREE.Bone | undefined,
     spine: scene.getObjectByName('spine') as THREE.Bone | undefined, crown: characterCrownPoint.clone().setX(0), crownTips: [], crownScratch: new THREE.Vector3(), faceActions: FACE_EXPRESSIONS.map(name => actions[`face_${name}`]), active: 'idle', expression: 'neutral', forcedExpression: null, faceTime: 0,
@@ -554,6 +561,15 @@ function groundFeet(runtime: CharacterInstance): void {
 }
 
 /** Animate the loaded rig without allocating per update. */
+/** Damped clip weight that reaches exactly zero once under a thousandth: the mixer evaluates every
+ * clip whose weight is above zero, and a weight that only decays kept every clip a capybara had ever
+ * played (gaits, crouch, faces) evaluating on every frame, which made animation the costliest CPU
+ * work in a crowded fight. A thousandth of a pose is invisible. */
+export function settle(current: number, target: number, lambda: number, step: number) {
+  const next = THREE.MathUtils.damp(current, target, lambda, step);
+  return target === 0 && next < 1e-3 ? 0 : next;
+}
+
 export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, dt: number, simulationTime = 0): boolean {
   const runtime = characterInstances.get(body);
   if (!runtime) return false;
@@ -585,7 +601,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   runtime.gestureElapsed += step;
   runtime.gestureBlend = THREE.MathUtils.damp(runtime.gestureBlend, gesture ? 1 : 0, 14, step);
   const targets = runtime.targets;
-  for (const name of Object.keys(targets)) targets[name] = 0;
+  for (const name in targets) targets[name] = 0;
   const weight = (name: string, amount: number, fallback = 'run') => {
     const available = actions[name] ? name : actions[fallback] ? fallback : 'idle';
     targets[available] += amount;
@@ -632,17 +648,17 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   runtime.grounded = actor.grounded;
   runtime.swimming = actor.swimming;
   runtime.swimBlend = THREE.MathUtils.damp(runtime.swimBlend, actor.swimming && !dead ? 1 : 0, 9, step);
-  for (const [name, action] of Object.entries(actions)) if (!name.startsWith('face_') && name !== 'reload_tp') {
+  for (const [name, action] of runtime.bodyActions) {
     const target = targets[name] || 0;
     if (target > 0 && runtime.weights[name] < .001 && name !== 'death' && name !== 'land' && name !== 'boing' && name !== gesture) action.reset().play();
-    runtime.weights[name] = THREE.MathUtils.damp(runtime.weights[name], target, 18, step);
+    runtime.weights[name] = settle(runtime.weights[name], target, 18, step);
     action.setEffectiveWeight(runtime.weights[name]);
   }
   advanceGait(runtime, speed, step);
   const reload = actions.reload_tp, held = actor.weapons[actor.slot];
   if (reload) {
     const active = !dead && !bouncing && !!held && actor.reloadUntil > simulationTime;
-    reload.setEffectiveWeight(THREE.MathUtils.damp(reload.getEffectiveWeight(), active ? 1 : 0, 20, step));
+    reload.setEffectiveWeight(settle(reload.getEffectiveWeight(), active ? 1 : 0, 20, step));
     reload.paused = true;
     if (active) reload.time = reload.getClip().duration * THREE.MathUtils.clamp(1 - (actor.reloadUntil - simulationTime) / (WEAPONS[held.id].reload || 1), 0, 1);
   }
@@ -655,7 +671,7 @@ export function updateCapybaraBody(body: THREE.SkinnedMesh, actor: ActorState, d
   const expression = runtime.forcedExpression || runtime.expression;
   for (let i = 0; i < FACE_EXPRESSIONS.length; i++) {
     const action = runtime.faceActions[i];
-    if (action) action.setEffectiveWeight(THREE.MathUtils.damp(action.getEffectiveWeight(), expression === FACE_EXPRESSIONS[i] ? 1 : 0, 24, step));
+    if (action) action.setEffectiveWeight(settle(action.getEffectiveWeight(), expression === FACE_EXPRESSIONS[i] ? 1 : 0, 24, step));
   }
   runtime.elapsed += step; mixer.update(step);
   const heldRig = holdRigs.get(body);

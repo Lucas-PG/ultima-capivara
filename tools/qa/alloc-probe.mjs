@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test';
 const base = process.env.BASE || 'http://127.0.0.1:5173', mode = process.env.MODE || 'deathmatch', seconds = Number(process.env.SECONDS || 15);
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const page = await browser.newPage({ viewport: { width: Number(process.env.W || 1280), height: Number(process.env.H || 720) }, deviceScaleFactor: Number(process.env.DPR || 1) });
   await page.goto(`${base}/?networkQa=1&calm`);
   await page.locator(`[data-mode="${mode}"]`).click();
   await page.locator('[data-do="practice"]').click();
@@ -14,7 +14,8 @@ try {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('HeapProfiler.enable');
   const heapBefore = await page.evaluate(() => performance.memory?.usedJSHeapSize);
-  await cdp.send('HeapProfiler.startSampling', { samplingInterval: 16384 });
+  // Include what the collectors already freed: the garbage is what causes the pauses.
+  await cdp.send('HeapProfiler.startSampling', { samplingInterval: 16384, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
   // Walk and turn so the frame does real work.
   await page.evaluate(() => { window.__networkQA.key('KeyW', true); });
   const frames0 = await page.evaluate(() => window.__capivara.inspect().renderedFrames);

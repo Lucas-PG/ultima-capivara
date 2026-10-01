@@ -12,7 +12,7 @@ test('Settings keeps keyboard access, saved values, remapping and calm controls'
   await page.screenshot({ path: testInfo.outputPath('settings-controls.png') });
   await expect(dialog.locator('input[type=range]')).toHaveCount(7 + CONTROL_OPTIONS.filter(o => o.min !== undefined).length);
   await expect(dialog.locator('input[type=checkbox]')).toHaveCount(4 + CONTROL_OPTIONS.filter(o => o.min === undefined).length);
-  await expect(dialog.locator('select')).toHaveCount(4);
+  await expect(dialog.locator('select')).toHaveCount(5);
   // Tab reaches each control without landing on the replaced, hidden selects.
   await dialog.locator('.close-modal').focus();
   const reached = new Set<string>();
@@ -38,6 +38,14 @@ test('Settings keeps keyboard access, saved values, remapping and calm controls'
   const low = dialog.getByRole('group', { name: 'Qualidade gráfica', exact: true }).getByRole('button', { name: 'Leve', exact: true });
   await low.focus(); await page.keyboard.press('Space'); await expect(low).toHaveAttribute('aria-pressed', 'true');
   await expect(dialog.locator('#quality-note')).toContainText('mais fôlego');
+  // The 3D resolution: automatic by default, a fixed share of native when picked; the help line follows.
+  const resolution = dialog.getByRole('group', { name: 'Resolução 3D', exact: true });
+  await expect(resolution.getByRole('button', { name: 'Automática', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(dialog.locator('#render-note')).toContainText('manter o jogo fluido');
+  await resolution.getByRole('button', { name: '75%', exact: true }).click();
+  await expect(dialog.locator('#render-note')).toContainText('75% da resolução nativa');
+  const frames = dialog.getByRole('group', { name: 'Limite de quadros', exact: true });
+  await expect(frames.getByRole('button', { name: 'Taxa da tela', exact: true })).toHaveAttribute('aria-pressed', 'true');
   for (const id of ['reduced-motion', 'adaptive', 'show-fps']) {
     const box = dialog.locator(`#${id}`), before = await box.isChecked();
     await box.focus(); await page.keyboard.press('Space'); expect(await box.isChecked()).toBe(!before);
@@ -70,6 +78,7 @@ test('Settings keeps keyboard access, saved values, remapping and calm controls'
   await page.reload(); await page.locator('[data-do="settings"]').click();
   await expect(page.getByRole('slider', { name: 'Sensibilidade do mouse', exact: true })).toHaveValue('1.05');
   await expect(page.locator('#graphics')).toHaveValue('low'); await expect(page.locator('#reduced-motion')).toBeChecked();
+  await expect(page.locator('#render-scale')).toHaveValue('0.75');
   for (const option of CONTROL_OPTIONS) {
     if (option.min === undefined) await expect(page.getByRole('checkbox', { name: option.label, exact: true })).toBeChecked();
     else await expect(page.getByRole('slider', { name: option.label, exact: true })).toHaveValue(String(option.max));

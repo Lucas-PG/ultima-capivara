@@ -268,7 +268,7 @@ export class WeaponView {
       this.rim.position.set(-70, 65, -30).applyQuaternion(this.inverseView);
       this.fill.position.set(60, 10, 40).applyQuaternion(this.inverseView);
     }
-    const ready = !!this.models[this.active] && !(import.meta.env.DEV && (globalThis as { __camOverride?: unknown }).__camOverride);
+    const ready = !!this.models[this.active] && !((import.meta.env.DEV || import.meta.env.VITE_QA === '1') && (globalThis as { __camOverride?: unknown }).__camOverride);
     this.holder.visible = ready && !!actor && actor.alive && actor.stage === 'ground' && !(actor.emote && actor.emoteUntil > simulationTime);
     if (this.arms) this.arms.group.visible = this.holder.visible;
     if (!actor || !this.holder.visible) { this.resetMotion(); return; }

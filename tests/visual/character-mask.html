@@ -10,7 +10,8 @@ const camera=new THREE.PerspectiveCamera(17.3,1,.07,850),scene=new THREE.Scene()
 const lift=2;camera.position.y=lift;
 const body=new THREE.Mesh(new THREE.PlaneGeometry(1,1.9,12,12),new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide}));body.layers.enable(1);scene.add(body);
 const wall=new THREE.Mesh(new THREE.PlaneGeometry(6,6),new THREE.MeshBasicMaterial({color:0x000000}));scene.add(wall);
-const px=new Uint8Array(size*size*4),ref=new Uint8Array(px.length),rows=[];
+// The mask is one 8-bit channel: one byte per pixel when read back, rows padded to 4 bytes; the references are RGBA.
+const stride=(size+3)&~3,px=new Uint8Array(stride*size),ref=new Uint8Array(size*size*4),rows=[];
 for(const samples of [0,2]){
  const world=new THREE.WebGLRenderTarget(size,size,{samples,type:THREE.HalfFloatType});world.depthTexture=new THREE.DepthTexture(size,size);
  const reference=new THREE.WebGLRenderTarget(size,size),mask=new CharacterMask(world.depthTexture);mask.resize(size,size);
@@ -21,7 +22,7 @@ for(const samples of [0,2]){
   gl.setRenderTarget(world);gl.render(scene,camera);mask.render(gl,scene,camera);gl.readRenderTargetPixels(mask.target,0,0,size,size,px);
   wall.visible=false;gl.setRenderTarget(reference);gl.render(scene,camera);gl.readRenderTargetPixels(reference,0,0,size,size,ref);
   let inside=0,holes=0,leaks=0,silhouette=0;
-  for(let i=0;i<px.length;i+=4){ if(ref[i]>250){ silhouette++; if(gap===null&&distance<150){inside++;if(px[i]<250)holes++;} else if(px[i]>10)leaks++; } }
+  for(let i=0;i<ref.length;i+=4){ const p=i>>2,m=px[Math.floor(p/size)*stride+p%size]; if(ref[i]>250){ silhouette++; if(gap===null&&distance<150){inside++;if(m<250)holes++;} else if(m>10)leaks++; } }
   rows.push({samples,rot,distance,gap,silhouette,inside,holes,leaks});
  }
  mask.dispose();world.dispose();reference.dispose();
@@ -40,7 +41,7 @@ const mixer=new THREE.AnimationMixer(gltf.scene),idle=gltf.animations.find(a=>/i
 camera.fov=42;camera.aspect=900/700;camera.position.set(Math.sin(155*Math.PI/180),1.6,Math.cos(155*Math.PI/180));camera.lookAt(0,1.6,0);camera.updateProjectionMatrix();
 const width=900,height=700;
 gl.setSize(width,height);
-const facePx=new Uint8Array(width*height*4),faceRef=new Uint8Array(facePx.length);
+const faceStride=(width+3)&~3,facePx=new Uint8Array(faceStride*height),faceRef=new Uint8Array(width*height*4);
 for(const samples of [0,2]){
  const world=new THREE.WebGLRenderTarget(width,height,{samples,type:THREE.HalfFloatType});world.depthTexture=new THREE.DepthTexture(width,height);
  const reference=new THREE.WebGLRenderTarget(width,height),mask=new CharacterMask(world.depthTexture);mask.resize(width,height);
@@ -49,7 +50,7 @@ for(const samples of [0,2]){
  let inside=0,holes=0;
  for(let y=2;y<height-2;y++)for(let x=2;x<width-2;x++){
   const i=(y*width+x)*4;
-  if(faceRef[i]>250&&faceRef[i-4]>250&&faceRef[i+4]>250&&faceRef[i-width*4]>250&&faceRef[i+width*4]>250){inside++;if(facePx[i]<250)holes++;}
+  if(faceRef[i]>250&&faceRef[i-4]>250&&faceRef[i+4]>250&&faceRef[i-width*4]>250&&faceRef[i+width*4]>250){inside++;if(facePx[y*faceStride+x]<250)holes++;}
  }
  rows.push({kind:'skinned-face',samples,inside,holes,leaks:0});
  scene.overrideMaterial.dispose();scene.overrideMaterial=null;mask.dispose();world.dispose();reference.dispose();

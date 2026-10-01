@@ -11,6 +11,7 @@ import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, Ro
 import { LocalPresentation, type PresentationFrame } from './render/local-presentation';
 import type { GameRenderer } from './render/renderer';
 import { timing } from './render/timing';
+import { gpuPasses } from './render/gpu-passes';
 import { RoomSession } from './network/session';
 import { RemoteInterpolation, shotClientTime } from './network/interpolation';
 import { InputController } from './input';
@@ -20,6 +21,7 @@ import { SoundEngine } from './audio';
 import { loadProfile, loadSettings, saveProfile, saveSettings, loadAdapt, recordPlacement } from './settings';
 import { GameUI } from './ui/ui';
 import { SpectateDirector } from './spectate';
+import { FramePacer, HEADROOM_DENSITY, HEADROOM_SECONDS } from './frame-pacing';
 
 const world = createWorld();
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
@@ -66,7 +68,12 @@ let predicted: ActorState | null = null;
 let pending: InputFrame[] = [];
 let receivedAt = 0, lastEvent = 0, match = '', playing = false;
 let lastAlive = true, lastStage = '', initializedPose = false;
-let lastFrame = performance.now(), lastRender = 0, renderDeadline = 0;
+let lastFrame = performance.now(), lastRender = 0;
+const pacer = new FramePacer();
+// Automatic display rate (the default "Taxa da tela" the player never picked): on a high-refresh
+// screen it falls back to 60 for the session once holding the display rate costs image detail.
+let displayRateCostly = false, lowDetailFor = 0;
+const frameLimit = () => settings.frameLimit === 0 && !settings.frameLimitChosen && displayRateCostly ? 60 : settings.frameLimit;
 let fps = 0, frameCount = 0, fpsAt = performance.now();
 let renderedFrames = 0;
 let dirtyFrame = true;
@@ -129,7 +136,7 @@ const ui = new GameUI(world, settings, profile, {
   spectate(direction = 1) { spectateStep(direction); void input.lock(); },
   settings(next) {
     if (next.frameLimit !== activeFrameLimit) {
-      savedFrameLimit = next.frameLimit; activeFrameLimit = next.frameLimit; renderDeadline = 0;
+      savedFrameLimit = next.frameLimit; activeFrameLimit = next.frameLimit; pacer.reset();
     }
     settings = next; saveSettings({ ...next, frameLimit: savedFrameLimit }); input.setSettings(next); sound.setSettings(next); renderer?.setSettings(next); dirtyFrame = true;
   },
@@ -205,7 +212,8 @@ function startReadyWorker(config: RoomConfig, players: PlayerProfile[], matchId:
       if (data.snapshot.matchId !== match) return;
       if (room?.isHost) session.publish(data.snapshot, data.events);
       acceptSnapshot(data.snapshot); acceptEvents(data.events);
-    } else if (data.type === 'suspended') ui.toast('A partida retomou após uma pausa do navegador.');
+    } else if (data.type === 'metrics') timing.record('worker-tick', performance.now(), data.tickMs);
+    else if (data.type === 'suspended') ui.toast('A partida retomou após uma pausa do navegador.');
     else if (data.type === 'error') { leave(); ui.toast(data.message, true); }
   };
   worker.onerror = () => { leave(); ui.toast('A partida foi interrompida. Volte ao início e tente novamente.', true); };
@@ -400,7 +408,7 @@ input.onMelee = () => { quickMeleeAt = performance.now(); sendAction({ type: 'me
 input.onLastWeapon = () => { if (previousBox >= 0) input.onBox(previousBox); };
 input.onInteract = () => { interaction = closestInteraction(); if (interaction) sendAction({ type: 'interact', id: input.actionIdNext(), target: interaction.id }); };
 input.onPause = () => { input.onCancelEmote(); if (playing) ui.setPaused(true); };
-input.onLock = () => { renderDeadline = 0; lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
+input.onLock = () => { pacer.reset(); lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 const inputClock = new InputClock(
   () => (!document.hidden || input.locked) && playing && !!snapshot && ui.screen === 'game' && (!loading || readyToReveal),
@@ -441,6 +449,7 @@ document.addEventListener('visibilitychange', () => {
 // and cap frames on high-refresh displays instead of saturating the GPU.
 function frame(now: number) {
   requestAnimationFrame(frame);
+  pacer.tick(now);
   const dt = Math.min((now - lastFrame) / 1000, .1); lastFrame = now;
   if (document.hidden || (loading && !readyToReveal)) return;
   timing.context(loading ? 'loading' : snapshot?.phase ?? 'menu', snapshot?.tick ?? -1, renderedFrames);
@@ -457,13 +466,11 @@ function frame(now: number) {
   if ((!playing && !ended) || !snapshot || ui.screen !== 'game') return;
   // Watching after an elimination is live play: it renders at full rate even with the mouse released.
   const watching = playing && snapshot.phase === 'playing' && !!me && !me.alive;
-  const activeLimit = networkQaFps ?? (input.locked || watching ? settings.frameLimit : ended ? 30 : 10);
-  const interval = 1000 / activeLimit;
-  if (now < renderDeadline - .5) return;
-  // Keep the cadence across small rAF timing variations instead of dropping
-  // every frame that arrives a fraction early. Never catch up after a stall.
-  renderDeadline = Math.max(renderDeadline + interval, now + interval * .05);
-  const renderDt = Math.min((now - lastRender) / 1000, .05); lastRender = now;
+  const activeLimit = networkQaFps ?? (input.locked || watching ? frameLimit() : ended ? 30 : 10);
+  // Keep the cadence across small rAF timing variations (see FramePacer). Never catch up after a stall.
+  if (!pacer.shouldRender(now, activeLimit)) return;
+  const interval = pacer.intervalMs(activeLimit);
+  const frameIntervalMs = now - lastRender, renderDt = Math.min(frameIntervalMs / 1000, .05); lastRender = now;
   // Hand off once the kill has been seen and its cam has run; the events and snapshots channels may
   // arrive in either order, so a kill that never shows up still hands off after 1 s.
   if (diedAt && snapshot.phase === 'playing' && ((killSeen && !renderer?.deathCamActive) || (!killSeen && now - diedAt > 1000) || now - diedAt > DEATH_CAM_SECONDS * 1000 + 1500)) beginSpectating();
@@ -477,7 +484,7 @@ function frame(now: number) {
   interaction = closestInteraction();
   timing.end('interaction', interactionAt);
   if (input.locked || dirtyFrame || ended || watching || renderer?.deathCamActive) {
-    renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt;
+    renderFrame.snapshot = snapshot; renderFrame.playerId = playerId; renderFrame.input = input.frame; renderFrame.dt = renderDt; renderFrame.frameBudgetMs = interval; renderFrame.frameIntervalMs = frameIntervalMs;
     renderFrame.remoteActors = remoteInterpolation.sample(now);
     renderFrame.simulationTime = snapshot.time + Math.min(.2, (now - receivedAt) / 1000);
     renderFrame.localActor = predicted ? localPresentation.sample(predicted, input.frame, inputClock.fraction(now), renderDt, renderFrame.simulationTime) : undefined;
@@ -488,6 +495,17 @@ function frame(now: number) {
     timing.end('render', renderAt);
     renderedRemoteTime = remoteInterpolation.time;
     renderedFrames++; frameCount++; dirtyFrame = false;
+    if (renderer && activeLimit === 0 && !settings.frameLimitChosen && pacer.displayMs < 15) {
+      lowDetailFor = renderer.renderDensity < renderer.densityCeiling * HEADROOM_DENSITY ? lowDetailFor + renderDt : 0;
+      if (lowDetailFor > HEADROOM_SECONDS) { displayRateCostly = true; pacer.reset(); }
+    }
+    // First play on a machine the preset is too rich for: step down once the lowest automatic
+    // resolution has missed the frame rate for a while. A preset the player picked is never touched.
+    if (renderer?.overloaded && !settings.graphicsChosen && settings.graphics !== 'low') {
+      const lighter = settings.graphics === 'high' ? 'medium' : 'low';
+      settings.graphics = lighter; saveSettings({ ...settings, frameLimit: savedFrameLimit }); renderer.setSettings(settings); sound.setSettings(settings);
+      ui.toast(`Qualidade ajustada para ${lighter === 'low' ? 'Leve' : 'Equilibrada'} para o jogo ficar fluido. Dá para mudar em Ajustes.`);
+    }
     if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }
   if (now - fpsAt >= 1000) { fps = frameCount * 1000 / (now - fpsAt); frameCount = 0; fpsAt = now; }
@@ -517,11 +535,11 @@ if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has(
 
 // Real networking QA drives InputController without a browser pointer-lock dependency.
 if (import.meta.env.VITE_QA === '1' && new URLSearchParams(location.search).has('networkQa')) {
-  void import('../tests/network-game-hook').then(({ installNetworkInput }) => installNetworkInput(input));
+  void import('../tests/network-game-hook').then(({ installNetworkInput }) => installNetworkInput(input, world));
 }
 
-// Read-only diagnostics for local QA. Never exposed in the production build.
-if (import.meta.env.DEV) {
+// Read-only diagnostics for local QA and the QA build (VITE_QA=1). Never exposed in the production build.
+if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') {
   // Perf probe: frame intervals from an independent rAF loop plus long tasks.
   const intervals: number[] = [], longTasks: number[] = []; let lastTick = performance.now();
   timing.observeLongTasks();
@@ -529,7 +547,7 @@ if (import.meta.env.DEV) {
   requestAnimationFrame(tick);
   try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
-    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, pending: pending.length, spectateId, spectate: { lastKiller, killSeen, diedAt, fellAt, target: spectator.target, hold: spectator.hold },
+    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, renderDensity: renderer?.renderDensity, gpuEstimate: renderer?.gpuEstimate, pending: pending.length, spectateId, spectate: { lastKiller, killSeen, diedAt, fellAt, target: spectator.target, hold: spectator.hold },
       camera: renderer ? { ...renderer.cameraPosition, fov: renderer.camera.fov } : null,
       clientInput: { ...input.frame, locked: input.locked }, renderState: { loading, readyToReveal, hidden: document.hidden },
       network: { status: session.connectionStatus, latencies: session.latencies, interpolationDelayMs: remoteInterpolation.delay * 1000 },
@@ -543,6 +561,7 @@ if (import.meta.env.DEV) {
     timings: () => ({ ...timing.snapshot(), preset: settings.graphics, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } }),
     audio: () => sound.stats(),
     resources: () => renderer?.resources ?? null,
+    gpu: (reset = false) => { const summary = gpuPasses.summary(); if (reset) gpuPasses.reset(); return summary; },
     // Spectator framing: where the watched capybara's chest lands on screen, how far it is, and whether a solid hides it.
     framing: (id: string) => {
       const actor = snapshot?.actors.find(a => a.id === id), rendered = renderFrame.remoteActors?.get(id);

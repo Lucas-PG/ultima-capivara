@@ -6,7 +6,7 @@ import { DEFAULT_BINDINGS, DEFAULT_CONTROL_OPTIONS, sanitizeBindings, sanitizeCo
 // The action list, defaults and rebinding rules live in the controls model.
 export { BINDABLE_CODE, DEFAULT_BINDINGS } from './controls';
 export const DEFAULT_SETTINGS: Settings = {
-  sensitivity: 1, fov: 100, graphics: 'medium', frameLimit: 60, reducedMotion: false,
+  sensitivity: 1, fov: 100, graphics: 'medium', renderScale: 'auto', graphicsChosen: false, frameLimit: 0, frameLimitChosen: false, reducedMotion: false,
   master: .8, effects: .85, ambience: .45, music: .5, bindings: { ...DEFAULT_BINDINGS }, adaptive: true, ...DEFAULT_CONTROL_OPTIONS,
   showFps: false, uiScale: 1, crosshairColor: 'white', hitPalette: 'default',
   damageNumbers: true,
@@ -27,7 +27,12 @@ export function loadSettings(): Settings {
       if (typeof number === 'number' && Number.isFinite(number)) result[key] = clamp(number, key === 'fov' ? FOV_RANGE[0] : key === 'sensitivity' ? SENSITIVITY_RANGE[0] : 0, key === 'fov' ? FOV_RANGE[1] : key === 'sensitivity' ? SENSITIVITY_RANGE[1] : 1);
     }
     if (['low', 'medium', 'high'].includes(value.graphics)) result.graphics = value.graphics;
-    if (value.frameLimit === 30 || value.frameLimit === 60) result.frameLimit = value.frameLimit;
+    // Saves from before the display-rate option stored 60 as the default: only an explicit choice keeps it.
+    if (typeof value.frameLimitChosen === 'boolean') result.frameLimitChosen = value.frameLimitChosen;
+    if (value.frameLimit === 0 || value.frameLimit === 30 || (value.frameLimit === 60 && result.frameLimitChosen)) result.frameLimit = value.frameLimit;
+    if (value.frameLimit === 30) result.frameLimitChosen = true;
+    if (['auto', 1, .75, .5].includes(value.renderScale)) result.renderScale = value.renderScale;
+    if (typeof value.graphicsChosen === 'boolean') result.graphicsChosen = value.graphicsChosen;
     if (typeof value.reducedMotion === 'boolean') result.reducedMotion = value.reducedMotion;
     Object.assign(result, sanitizeControlOptions(value));
     if (typeof value.adaptive === 'boolean') result.adaptive = value.adaptive;
