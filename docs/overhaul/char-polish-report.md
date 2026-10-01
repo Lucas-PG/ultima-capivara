@@ -316,3 +316,45 @@ unchanged.
 - Yellow is still the weakest team colour at 60 m (its hue is close to the fur's).
 - The build machine does not receive `CAPY_REUSE_BAKES` (the remote runner passes no environment), so
   every character build re-bakes (about 3.5 minutes there).
+
+## Round 4: the face's appeal
+
+Brief: the director's review of round 3 (`output/review/char-r2/evolution-face-r3.jpg`): small half-closed
+eyes read sleepy or grumpy, the shaded side of the head read muddier than round 2 and the concept, and
+blinks looked like flat plates at 1 m. Boards (concept or round 3 above round 4, same cameras):
+`docs/overhaul/evidence/char-polish/r4-board-face.jpg`, `r4-board-eyes.jpg`, `r4-board-blinks.jpg`,
+`r4-board-shade.jpg`.
+
+- **Open, larger, bright eyes** (`capybara_form.py`, `capybara_paint.py`): the neutral eye is open (no
+  heavy upper lid): a larger eyeball (52 mm, was 46) set a little prouder in a tall almond opening (66 mm,
+  was 47) under a soft brow, a warmer and brighter iris (`#C0812F` to `#6A3C18`), a larger catchlight and
+  the round 3 lid line. The half lid is now only in blinks and expressions. At 3 m the eyes and their
+  highlights read clearly; at 8 m front and three-quarter they still read (round 3: barely)
+  (`r4-board-eyes.jpg`, game view, 70 degrees).
+- **Blinks with furred lids** (`capybara_weights.py`, `capybara_clips.py`, `capybara_v6.py`): the round 3
+  blink squashed the lid skin and the eyeball toward the eye's centre line (the plate). Now the eyeball
+  carries its own furred upper lid, painted over its top where the head hides it while the eye is open
+  (strands, the colours of the skin round the eye, a dark lash edge), and the `socket_` bones roll the
+  eyeball forward about the line through the eye corners: the lash edge and the fur slide down over the
+  iris inside the opening, and no skin stretches. The `blink_*` scale stays the lid control of every clip
+  and of the tests; the clips derive the roll from it (`lids_from_blink`, 1.54 rad shut), so the idle
+  blinks, the half-lidded determined face, the victory squint and the hit squeeze all use the new lid.
+- **Golden in shade** (`materials.ts`): a warm fill in the fur's own colour where the sun does not reach
+  (the light scattered through a stylized pelt), on the world character's fur only: cloth, paw skin, claws
+  and the first-person arms keep their shading. The shaded cheek went from a muddy `#4C2E0B` (round 3)
+  to a golden `#864C13` at the same camera (`r4-board-shade.jpg`).
+- **Paler muzzle**: the buff is paler (`#E6D2AE`, was `#D5B68C`) and covers the muzzle's sides in front
+  of the eyes as well as the lips and chin, for the concept's cream muzzle against the golden head.
+- Forearm, paw skin, claw and cuff colours are unchanged (the palette above). For the arm match: the
+  world character now adds the warm shade fill on its fur; the first-person arms do not.
+
+Measurements: LODs 40,889 / 9,405 / 2,184 triangles (unchanged); High / Medium / Low 6.58 / 3.78 /
+2.81 MB; head vertices stay inside the head sphere in every clip (worst 0.293 m of 0.302). Crowd timing
+(16 capybaras, load average 7 to 11): low 16.7 / 16.8 ms p50/p95, medium 16.7 / 33.4, high 33.2 / 33.4;
+draws and triangles unchanged. Tests: `npx tsc --noEmit` clean, `npm run build` passes, `npx vitest run
+--maxWorkers=2` 1050 of 1054 with 4 timeouts in four world files at a load of 6 to 23, which pass alone
+(49 of 49); the character suites pass.
+
+Known issues: seen from the front at 1 m a closed eye reads as a round furred lid inside the dark lid
+ring (fine from 3 m and in motion); the eye whites of the concept are not painted (the iris fills the
+opening).
