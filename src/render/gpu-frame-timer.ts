@@ -26,7 +26,11 @@ export class GpuFrameTimer {
   private get active() { return !!this.ext && !this.suspended && !gpuPasses.enabled; }
 
   begin() {
-    if (!this.active || this.open || this.pending.length > 4) return;
+    if (!this.active || this.open) return;
+    // Collect finished results first: polling only after a query ended would stall for good once
+    // the queue was full (no query opened, so none ended), freezing the estimate the controller uses.
+    this.poll();
+    if (this.pending.length > 4) return;
     const query = this.gl!.createQuery();
     if (!query) return;
     this.gl!.beginQuery(this.ext!.TIME_ELAPSED_EXT, query); this.pending.push(query); this.open = true;
@@ -41,6 +45,7 @@ export class GpuFrameTimer {
   private poll() {
     const gl = this.gl!, ext = this.ext!;
     if (gl.getParameter(ext.GPU_DISJOINT_EXT)) { for (const query of this.pending.splice(0, this.open ? this.pending.length - 1 : this.pending.length)) gl.deleteQuery(query); return; }
+    if (this.pending.length > (this.open ? 1 : 0) && gl.isContextLost()) { this.pending.length = 0; return; }
     while (this.pending.length > (this.open ? 1 : 0) && gl.getQueryParameter(this.pending[0], gl.QUERY_RESULT_AVAILABLE)) {
       const query = this.pending.shift()!;
       this.latestMs = gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6;
