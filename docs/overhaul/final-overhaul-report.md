@@ -161,3 +161,6 @@ PENDING (consolidated at the release gate). Known now:
 - No first-person spectating.
 - Remote gunfire does not change with the shooter's facing; no per-enemy threat scoring.
 - KTX2 compressed textures are not used (no encoder on this machine), so GPU texture memory is higher than it could be.
+- The Rosario chapel still shares the town church kit piece; a few interior potted plants keep the faceted kit foliage; balcony and parapet drapes are thin at 8 to 10 m.
+- The spectator lens can still come under 1 m for a moment in tight rooms, the narrow street by the market hall and past lamp posts.
+- The near-camera foliage fade is a dither, visible as a stipple in still frames.
