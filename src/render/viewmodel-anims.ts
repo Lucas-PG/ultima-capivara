@@ -98,6 +98,8 @@ const SUPPORT_CLEAR: HandKey = { ...SUPPORT_RELEASE, offset: [-.075, -.035, .02]
 // Pump grips drop straight off the pump first, then clear to the left.
 const PUMP_DROP: HandKey = { ...SUPPORT_RELEASE, offset: [-.006, -.04, 0] };
 const PUMP_CLEAR: HandKey = { ...SUPPORT_RELEASE, offset: [-.11, -.05, 0] };
+// The firing paw lets go of its grip and opens to the right of the action (bolt and charging handle reaches).
+const FIRING_CLEAR: HandKey = { space: 'grip', offset: [.135, 0, 0] };
 // Contact keys live in the magazine's own frame, so its rotation and the paw
 // cannot drift apart. These normalized phases also drive the nearby world rig.
 export const M4_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.0612, -0.136442, 0.02362],
@@ -141,7 +143,7 @@ const M4_SWAP: Choreography = [
 export const M4_RELOAD_EMPTY: Choreography = [
   { t: 0, parts: { bolt: 1 } },
   ...M4_SWAP,
-  { t: .807, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.135, -.25, -.115] } },
+  { t: .807, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.17, -.30, -.115] } },
   { t: .83, L: shift(M4_CATCH_HAND, [-.114, -.003, -.042]), parts: { bolt: 1, release: 0 } },
   { t: .86, L: M4_CATCH_HAND, parts: { bolt: 1, release: 1 }, ease: 'snap' },
   { t: .87, parts: { bolt: 0, release: 1 }, sfx: 'slide-home', ease: 'snap', p: add(M4_TILT.p, [.008, -.002, .007]), r: add(M4_TILT.r, [.015, -.02, .05]) },
@@ -153,7 +155,7 @@ export const M4_RELOAD_EMPTY: Choreography = [
 ];
 export const M4_RELOAD_PARTIAL: Choreography = [
   ...M4_SWAP,
-  { t: .813, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.135, -.25, -.115] } },
+  { t: .813, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.17, -.30, -.115] } },
   { t: .87, L: SUPPORT_CLEAR },
   { t: .901, L: SUPPORT_RELEASE },
   { t: .94, L: { space: 'grip' }, R: { space: 'grip' } },
@@ -169,7 +171,7 @@ const SMG_CLEAR: HandKey = { space: 'grip', offset: [-.05, -.01, 0] };
 const SMG_SWAP: Choreography = [
   { t: .035, L: SMG_CLEAR },
   { t: .07, R: { space: 'grip', curl: { index: [-.08, .03, .01] } }, p: [-.06, .055, .025], r: [.16, .15, -.32], ease: 'out' },
-  { t: .08, L: { space: 'gun', wrist: [-.12, -.085, -.075], forward: [.1, .1, -1], palm: [1, 0, .1], curl: OPEN } },
+  { t: .08, L: { space: 'gun', wrist: [-.15, -.095, -.075], forward: [.1, .1, -1], palm: [1, 0, .1], curl: OPEN } },
   { t: .12, L: SMG_MAG_OUTSIDE },
   { t: .15, L: SMG_MAG_CLEAR },
   { t: .17, L: SMG_MAG_HAND, mag: { out: 0 }, sfx: 'mag-out' },
@@ -240,13 +242,13 @@ const DMR_RELOAD_PARTIAL: Choreography = [...DMR_SWAP,
 ];
 const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key.t * .86 })),
   { t: .725, R: { space: 'grip' } },
-  { t: .765, R: { space: 'gun', wrist: [0.16, -0.05018, 0.10291], curl: OPEN } },
+  { t: .765, R: { ...FIRING_CLEAR, curl: OPEN } },
   { t: .80, R: shift(DMR_CHARGE_HAND, [.11, 0, 0]), parts: { charge: 0 } },
   { t: .83, R: DMR_CHARGE_HAND, parts: { charge: 0 } },
   { t: .89, R: DMR_CHARGE_HAND, parts: { charge: 1 }, sfx: 'slide-back' },
   { t: .915, R: DMR_CHARGE_HAND, parts: { charge: 0 }, ease: 'snap', sfx: 'slide-home' },
   { t: .945, R: shift(DMR_CHARGE_HAND, [.11, 0, 0], { curl: OPEN }) },
-  { t: .985, R: { space: 'gun', wrist: [0.16, -0.05018, 0.10291] } },
+  { t: .985, R: FIRING_CLEAR },
   { t: 1, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 export const dmrReload = (empty: boolean): Choreography => empty ? DMR_RELOAD_EMPTY : DMR_RELOAD_PARTIAL;
@@ -259,7 +261,7 @@ export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [
   curl: { index: [0.959756, 0.857292, -0.076965], middle: [1.522784, 0.302333, 0.858708], ring: [1.17, 0.99, 0.72], thumb: [0.445386, 0.009091, 0.171975], spread: -0.5987 } };
 // A complete four-beat bolt stroke, anchored to the actual moving knob.
 export const SNIPER_CYCLE: Choreography = [
-  { t: .08, R: { space: 'gun', wrist: [0.16, -0.076478, 0.107616], curl: OPEN }, parts: { bolt: 0, boltPull: 0 } },
+  { t: .08, R: { ...FIRING_CLEAR, curl: OPEN }, parts: { bolt: 0, boltPull: 0 } },
   { t: .15, R: shift(SNIPER_BOLT_HAND, [.11, 0, 0]) },
   { t: .22, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .34, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
@@ -268,7 +270,7 @@ export const SNIPER_CYCLE: Choreography = [
   { t: .72, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 } },
   { t: .84, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap', sfx: 'bolt-home' },
   { t: .9, R: shift(SNIPER_BOLT_HAND, [.11, 0, 0], { curl: OPEN }) },
-  { t: .95, R: { space: 'gun', wrist: [0.16, -0.076478, 0.107616] } },
+  { t: .95, R: FIRING_CLEAR },
   { t: 1, R: { space: 'grip' } },
 ];
 const SNIPER_TILT: { p: Vec; r: Vec } = { p: [-.045, .03, -.06], r: [.18, .28, -.42] };
@@ -300,24 +302,24 @@ const SNIPER_RELOAD_PARTIAL: Choreography = [
   { t: .98, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 const SNIPER_RELOAD_EMPTY: Choreography = [
-  { t: .05, p: SNIPER_TILT.p, r: SNIPER_TILT.r, ease: 'out', R: { space: 'gun', wrist: [0.16, -0.076478, 0.107616], curl: OPEN } },
+  { t: .05, p: SNIPER_TILT.p, r: SNIPER_TILT.r, ease: 'out', R: { ...FIRING_CLEAR, curl: OPEN } },
   { t: .085, R: shift(SNIPER_BOLT_HAND, [.11, 0, 0]), parts: { bolt: 0, boltPull: 0 } },
   { t: .12, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .17, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .23, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
   { t: .26, R: shift(SNIPER_BOLT_HAND, [.11, 0, 0], { curl: OPEN }) },
-  { t: .285, R: { space: 'gun', wrist: [0.16, -0.076478, 0.107616] } },
+  { t: .285, R: FIRING_CLEAR },
   { t: .31, R: { space: 'grip' } },
   { t: .315, L: { space: 'grip' } },
   ...sniperMagazine(.33, .82),
   { t: .825, R: { space: 'grip' } },
-  { t: .845, R: { space: 'gun', wrist: [0.16, -0.076478, 0.107616], curl: OPEN } },
+  { t: .845, R: { ...FIRING_CLEAR, curl: OPEN } },
   { t: .865, R: shift(SNIPER_BOLT_HAND, [.11, 0, .04]) },
   { t: .89, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .935, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 }, sfx: 'bolt-home' },
   { t: .96, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap' },
   { t: .975, R: shift(SNIPER_BOLT_HAND, [.11, 0, 0], { curl: OPEN }) },
-  { t: .99, R: { space: 'gun', wrist: [0.16, -0.076478, 0.107616] } },
+  { t: .99, R: FIRING_CLEAR },
   { t: 1, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 export const sniperReload = (empty: boolean): Choreography => empty ? SNIPER_RELOAD_EMPTY : SNIPER_RELOAD_PARTIAL;
@@ -370,7 +372,7 @@ export const REVOLVER_RELOAD: Choreography = [
   { t: .82, L: REVOLVER_CYLINDER_OPEN, parts: { swing: 1 } },
   { t: .835, L: REVOLVER_CYLINDER_HAND, parts: { swing: 1 } },
   { t: .88, L: REVOLVER_CYLINDER_HAND, parts: { swing: 0 }, sfx: 'cylinder-close', ease: 'snap', p: [-.035, .025, .025], r: [.03, .2, -.15] },
-  { t: .92, L: { space: 'gun', wrist: [-.09, -.065, .055], forward: [.15, .2, -1], palm: [1, 0, .1], curl: OPEN } },
+  { t: .92, L: { space: 'gun', wrist: [-.12, -.075, .055], forward: [.15, .2, -1], palm: [1, 0, .1], curl: OPEN } },
   { t: .94, L: { space: 'grip', offset: [-.025, 0, 0] } },
   { t: .96, L: { space: 'grip' }, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
   { t: .999, mag: { visible: false }, parts: { spent: 1, fresh: 1, loaded: 1 } },
@@ -419,7 +421,7 @@ function makeCocoReload(ammo: number): Choreography {
       { t: t + .055, L: COCO_FRUIT_HAND, mag: { p: [-.12, .15, z] } },
       { t: t + .072, L: COCO_FRUIT_HAND, mag: { p: [0, .15, z] } },
       { t: t + .096, L: shift(COCO_FRUIT_HAND, [-.127, -.01, 0], { curl: OPEN }), mag: { p: [0, .15, z] } },
-      { t: t + .132, L: { space: 'gun', wrist: [-.2, .17, z + .065], curl: OPEN }, mag: { p: [0, 0, z] }, ease: 'in', sfx: 'coconut-in' },
+      { t: t + .132, L: { space: 'gun', wrist: [-.25, .19, z + .065], curl: OPEN }, mag: { p: [0, 0, z] }, ease: 'in', sfx: 'coconut-in' },
       { t: t + .15, L: { space: 'gun', wrist: [-.26, -.2, z + .065], curl: OPEN }, mag: { visible: slot === 0, p: [0, 0, z] } },
     );
     if (slot) keys.push({ t: t + .131, parts: { ['load' + slot]: 0 } }, { t: t + .132, parts: { ['load' + slot]: 1 } });
