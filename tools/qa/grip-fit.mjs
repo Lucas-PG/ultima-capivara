@@ -10,6 +10,7 @@
 //   { "side": "L", "zone": [zMin, zMax], "digits": { "index": { "tip": [a, b], "base": [a, b], "along": 80, "weight": 1 }, ... },
 //     "part": "mag", "partOffset": [0, .15, 0],
 //     "axisOrigin": [x, y, z], // Optional grip axis, e.g. the pump below the barrel.
+//     "axis": [x, y, z], // Direction of that member (default the bore, -z); a pistol grip runs down.
 //     "contactParts": { "thumb": "mag" }, "palmFacing": [x, y, z, maxDegrees, weight],
 //     "forwardFacing": [x, y, z, maxDegrees, weight],
 //     "palm": [a, b], "thumbAlong": deg, "wristBend": deg, "contact": ["palm", "index", ...],
@@ -190,7 +191,13 @@ try {
       const skinCheck = new V3();
       const arm = side === 'L' ? vm.arms.left : vm.arms.right;
       const wrap = a => ((a % 360) + 360) % 360;
-      const angle = v => wrap(Math.atan2(v.y - bore.y, v.x - bore.x) * 180 / Math.PI);
+      // Angles around the gripped member: the bore by default, or `axis` through `axisOrigin`
+      // (e.g. a pistol grip raked down and back). 0 = right (+x), 90 = x cross axis (up for the
+      // bore, forward for a downward grip), 180 = left.
+      const gripAxis = new V3(...(intent.axis ?? [0, 0, -1])).normalize();
+      const refU = new V3(1, 0, 0).addScaledVector(gripAxis, -gripAxis.x).normalize(), refV = new V3().crossVectors(refU, gripAxis);
+      const rel = new V3();
+      const angle = v => { rel.subVectors(v, bore); return wrap(Math.atan2(rel.dot(refV), rel.dot(refU)) * 180 / Math.PI); };
       // Distance (degrees) from an angle to a wrapping range [a, b].
       const outside = (x, [a, b]) => { a = wrap(a); b = wrap(b); const inside = a <= b ? x >= a && x <= b : x >= a || x <= b;
         if (inside) return 0; const da = Math.min(Math.abs(x - a), 360 - Math.abs(x - a)), db = Math.min(Math.abs(x - b), 360 - Math.abs(x - b)); return Math.min(da, db); };

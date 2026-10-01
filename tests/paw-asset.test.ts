@@ -95,9 +95,24 @@ it('ships its own baked maps and a fur length that spares the pads, claws and cl
     const values = Array.from({ length: fur.getCount() }, (_, i) => fur.getScalar(i));
     expect(Math.min(...values)).toBeGreaterThanOrEqual(0);
     expect(Math.max(...values)).toBeLessThanOrEqual(1);
-    // Most of the arm is furred, but a real share (sole, digit pads, claws, sleeve) is bare.
+    // The character's rule: the forearm and the back of the paw are furred, the digits (bare
+    // leathery skin and claws) are not. Classify vertices by their dominant joint.
+    const joints = primitive.getAttribute('JOINTS_0')!, weights = primitive.getAttribute('WEIGHTS_0')!;
+    const skin = arms.getRoot().listSkins()[0].listJoints().map(joint => joint.getName().replace(/_[LR]$/, ''));
+    const share = (test: (bone: string) => boolean) => {
+      let n = 0, furred = 0;
+      for (let i = 0; i < fur.getCount(); i++) {
+        const w = weights.getElement(i, [] as number[]), j = joints.getElement(i, [] as number[]);
+        const bone = skin[j[w.indexOf(Math.max(...w))]];
+        if (!test(bone)) continue;
+        n++; if (fur.getScalar(i) > .02) furred++;
+      }
+      return furred / n;
+    };
+    expect(share(bone => bone === 'fore_twist'), 'distal forearm').toBeGreaterThan(.8);
+    expect(share(bone => /^(index|middle|ring|thumb)[23]$/.test(bone)), 'digits').toBeLessThan(.1);
     const bare = values.filter(v => v < .02).length / values.length;
-    expect(bare).toBeGreaterThan(.15); expect(bare).toBeLessThan(.7);
+    expect(bare).toBeGreaterThan(.15);
   }
 });
 
@@ -124,4 +139,24 @@ it('grows fur shells only over the baked pelt', async () => {
   rig.group.traverse(object => { if (object instanceof THREE.SkinnedMesh && object.name.endsWith('_fur')) shells.push(object); });
   expect(shells).toHaveLength(2);
   for (const shell of shells) expect(shell.geometry.index!.count).toBe(18 * FUR_SHELLS);
+});
+
+// The first-person paw is the world character's paw at the first-person gun scale: world guns
+// are drawn at TP_WEAPON_SCALE so the big paw holds them, first-person guns at 1, so every grip
+// reads with the same paw-to-gun proportion in both views. Joint nodes carry true metres (mesh
+// quantization lives in the inverse bind matrices).
+it('builds the first-person paw as the world paw at 1 / TP_WEAPON_SCALE', async () => {
+  const { TP_WEAPON_SCALE } = await import('../src/render/capybara');
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
+  const joints = async (path: string, hand: string, prefix: string) => {
+    const doc = await io.read(path);
+    const at = (name: string) => new Vector3().setFromMatrixPosition(new Matrix4().fromArray(doc.getRoot().listNodes().find(n => n.getName() === name)!.getWorldMatrix()));
+    const wrist = at(`${hand}_R`), p = (n: string) => at(`${prefix}${n}_R`);
+    return { knuckle: wrist.distanceTo(p('middle1')), middle: p('middle1').distanceTo(p('middle2')), tip: p('middle2').distanceTo(p('middle3')),
+      span: p('index1').distanceTo(p('ring1')), thumb: p('thumb1').distanceTo(p('thumb2')) };
+  };
+  const fp = await joints('public/models/fp/fp-arms.glb', 'hand', ''), tp = await joints('public/models/capybara/capybara.glb', 'paw', 'paw_');
+  for (const key of Object.keys(fp) as (keyof typeof fp)[]) expect(fp[key] * TP_WEAPON_SCALE / tp[key], key).toBeCloseTo(1, 2);
+  // And it is the big paw, not the old small one (about 9 cm from wrist to the middle knuckle).
+  expect(fp.knuckle).toBeGreaterThan(.08);
 });
