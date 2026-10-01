@@ -26,10 +26,11 @@ export function renderRange(graphics: Settings['graphics'], scale: RenderScale, 
   return { min: Math.min(max, preset.min), max, dynamic: true };
 }
 
-/** Canvas density: the screen's own, so the upscale (not the browser's bilinear stretch) fills it. */
-export function outputDensity(range: RenderRange, deviceRatio: number) {
-  void range;
-  return Math.max(.5, deviceRatio || 1);
+/** Canvas density: the screen's own on Medium and High, so the upscale (not the browser's bilinear
+ * stretch) fills it; Low keeps its canvas at the render ceiling and saves that full-screen pass. */
+export function outputDensity(graphics: Settings['graphics'], range: RenderRange, deviceRatio: number) {
+  const native = Math.max(.5, deviceRatio || 1);
+  return graphics === 'low' ? Math.min(native, range.max) : native;
 }
 
 /** Render size in pixels for a CSS viewport at a density, never below 1. */
@@ -65,14 +66,19 @@ export class DynamicResolution {
   private sinceChange = 0;
   private probeDelay = 3000;
   private probing = false;
+  private overloadMs = 0;
 
   constructor(range: RenderRange) { this.range = range; this.density = range.max; }
 
   /** A new range (preset, setting or screen change) starts again at its ceiling. */
   reset(range: RenderRange) {
     this.range = range; this.density = range.max; this.misses.length = 0;
-    this.gpu = null; this.sinceChange = 0; this.probeDelay = 3000; this.probing = false;
+    this.gpu = null; this.sinceChange = 0; this.probeDelay = 3000; this.probing = false; this.overloadMs = 0;
   }
+
+  /** The GPU still misses the budget at the floor density for about 15 s of play (with recovery
+   * paying it back at half the rate): a lighter preset would play better. */
+  get overloaded() { return this.overloadMs > 15000; }
 
   /** Feeds one frame; returns true when the density changed. */
   update(frame: FrameSample): boolean {
@@ -88,6 +94,8 @@ export class DynamicResolution {
     const cpuBound = this.cpu > budgetMs * .85;
     const gpuOver = this.gpu !== null && this.gpu > budgetMs * .92;
     const { min, max } = this.range;
+    const struggling = !cpuBound && (gpuOver || (recent.length >= 20 && missRate >= .2));
+    this.overloadMs = struggling && this.density <= min + 1e-6 ? this.overloadMs + intervalMs : Math.max(0, this.overloadMs - intervalMs * .5);
     if (this.sinceChange >= 300 && !cpuBound && (gpuOver || (recent.length >= 20 && missRate >= .2))) {
       // The pixels that fit 80 percent of the budget, from the GPU time (or the frame time) at this density.
       const cost = this.gpu !== null && gpuOver ? this.gpu : Math.max(budgetMs * 1.3, recent.length ? intervalAverage(this.misses, budgetMs) : budgetMs * 1.3);

@@ -202,7 +202,7 @@ export class GameRenderer {
     const deviceRatio = window.devicePixelRatio || 1, { width, height } = this.lastSize;
     const range = renderRange(this.settings.graphics, this.settings.renderScale ?? 'auto', deviceRatio);
     if (reset) this.dynamicResolution.reset(range);
-    const output = outputDensity(range, deviceRatio);
+    const output = outputDensity(this.settings.graphics, range, deviceRatio);
     if (output !== this.outputRatio || reset) {
       const resizeAt = timing.begin();
       this.outputRatio = output; this.gl.setDrawingBufferSize(width, height, output);
@@ -213,6 +213,8 @@ export class GameRenderer {
       allocWidth: ceiling.width + GUARD, allocHeight: ceiling.height + GUARD, width: now.width, height: now.height });
   }
 
+  /** Even the lowest automatic density cannot hold the frame rate (see DynamicResolution.overloaded). */
+  get overloaded() { return this.dynamicResolution.overloaded; }
   /** Render pixels per CSS pixel this frame (the dynamic resolution's current density). */
   get renderDensity() { return this.dynamicResolution.density; }
 

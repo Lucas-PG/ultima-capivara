@@ -490,6 +490,13 @@ function frame(now: number) {
     timing.end('render', renderAt);
     renderedRemoteTime = remoteInterpolation.time;
     renderedFrames++; frameCount++; dirtyFrame = false;
+    // First play on a machine the preset is too rich for: step down once the lowest automatic
+    // resolution has missed the frame rate for a while. A preset the player picked is never touched.
+    if (renderer?.overloaded && !settings.graphicsChosen && settings.graphics !== 'low') {
+      const lighter = settings.graphics === 'high' ? 'medium' : 'low';
+      settings.graphics = lighter; saveSettings({ ...settings, frameLimit: savedFrameLimit }); renderer.setSettings(settings); sound.setSettings(settings);
+      ui.toast(`Qualidade ajustada para ${lighter === 'low' ? 'Leve' : 'Equilibrada'} para o jogo ficar fluido. Dá para mudar em Ajustes.`);
+    }
     if (loading && readyToReveal) { loading = false; ui.setLoading(false); }
   }
   if (now - fpsAt >= 1000) { fps = frameCount * 1000 / (now - fpsAt); frameCount = 0; fpsAt = now; }

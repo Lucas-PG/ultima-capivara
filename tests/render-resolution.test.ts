@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { DynamicResolution, PRESET_DENSITY, renderRange, renderSize, type FrameSample } from '../src/render/resolution';
+import { describe, expect, it, vi } from 'vitest';
+import { loadSettings } from '../src/settings';
+import { DynamicResolution, PRESET_DENSITY, outputDensity, renderRange, renderSize, type FrameSample } from '../src/render/resolution';
 
 const BUDGET = 1000 / 60;
 const frame = (intervalMs: number, extra: Partial<FrameSample> = {}): FrameSample => ({ intervalMs, budgetMs: BUDGET, cpuMs: 6, gpuMs: null, ...extra });
@@ -24,6 +25,13 @@ describe('render range', () => {
     expect(renderRange('medium', 1, 2)).toEqual({ min: 2, max: 2, dynamic: false });
     expect(renderRange('low', .5, 2)).toEqual({ min: 1, max: 1, dynamic: false });
     expect(renderRange('high', .75, 1)).toEqual({ min: .75, max: .75, dynamic: false });
+  });
+
+  it('upscales Medium and High into a native canvas, while Low skips that pass and lets the browser stretch its canvas', () => {
+    expect(outputDensity('medium', renderRange('medium', 'auto', 2), 2)).toBe(2);
+    expect(outputDensity('high', renderRange('high', .5, 2), 2)).toBe(2);
+    expect(outputDensity('low', renderRange('low', 'auto', 2), 2)).toBe(.75);
+    expect(outputDensity('low', renderRange('low', 1, 2), 2)).toBe(2);
   });
 
   it('keeps each preset range ordered and sizes in whole pixels', () => {
@@ -105,10 +113,38 @@ describe('dynamic resolution', () => {
     expect(controller.density).toBe(2);
   });
 
+  it('reports a machine the preset is too rich for only after the floor density keeps missing for about 15 s', () => {
+    const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
+    // 40 ms frames: 25 a second. About 7 s at the floor is not yet a verdict.
+    run(controller, 25 * 8, frame(40));
+    expect(controller.density).toBe(.6); expect(controller.overloaded).toBe(false);
+    run(controller, 25 * 12, frame(40));
+    expect(controller.overloaded).toBe(true);
+    // A main thread that is the bottleneck never asks for a lighter preset.
+    const cpu = new DynamicResolution(renderRange('medium', 'auto', 2));
+    run(cpu, 60 * 30, frame(40, { cpuMs: 30 }));
+    expect(cpu.overloaded).toBe(false);
+    // Short bursts with recovery in between do not add up to an overload.
+    const bursts = new DynamicResolution(renderRange('medium', 'auto', 2));
+    for (let i = 0; i < 30; i++) { run(bursts, 25, frame(40)); run(bursts, 180, frame(BUDGET)); }
+    expect(bursts.overloaded).toBe(false);
+  });
+
   it('restarts at the ceiling when the range changes', () => {
     const controller = new DynamicResolution(renderRange('medium', 'auto', 2));
     run(controller, 300, frame(50));
     controller.reset(renderRange('high', 'auto', 2));
     expect(controller.density).toBe(1.5);
+  });
+});
+
+describe('render scale setting', () => {
+  it('loads a saved 3D resolution and the player choice flag, and falls back to automatic', () => {
+    const store = new Map([['uc-v2-settings', JSON.stringify({ renderScale: .75, graphicsChosen: true })]]);
+    vi.stubGlobal('localStorage', { getItem: (key: string) => store.get(key) ?? null, setItem: () => {} });
+    expect(loadSettings()).toMatchObject({ renderScale: .75, graphicsChosen: true });
+    store.set('uc-v2-settings', JSON.stringify({ renderScale: 2, graphicsChosen: 'yes' }));
+    expect(loadSettings()).toMatchObject({ renderScale: 'auto', graphicsChosen: false });
+    vi.unstubAllGlobals();
   });
 });
