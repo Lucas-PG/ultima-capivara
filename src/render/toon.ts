@@ -26,7 +26,9 @@ shadowTint.setRGB(shadowTint.r / sunTint.r * .23, shadowTint.g / sunTint.g * .23
 const sunShadow = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
 if (!THREE.ShaderChunk.lights_fragment_begin.includes('paintedSunShadow')) {
   THREE.ShaderChunk.lights_fragment_begin = THREE.ShaderChunk.lights_fragment_begin.replace(sunShadow, `
-    float paintedSunShadow = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;
+    // A face turned more than the wrap (.28) away from the sun receives no sunlight at all, so its
+    // five shadow taps are skipped: the same image.
+    float paintedSunShadow = ( directLight.visible && receiveShadow && dot( geometryNormal, directLight.direction ) > -.29 ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;
     directLight.color *= mix(vec3(${shadowTint.r.toFixed(6)},${shadowTint.g.toFixed(6)},${shadowTint.b.toFixed(6)}),vec3(1.0),paintedSunShadow);`);
 }
 

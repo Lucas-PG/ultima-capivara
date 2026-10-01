@@ -51,7 +51,7 @@ export const STONE_GLSL = /* glsl */ `
     float pit = smoothstep(.8, .95, stoneNoise(q / .07 + 23.0));
     float plate = big.y - .5;
     // Rain streaks: long vertical runs of darker stone down the faces.
-    float streak = smoothstep(.5, .85, stoneFbm(vec2(q.x / .45, q.y / 6.0) + 3.0)) * wall;
+    float streak = wall > 0.0 ? smoothstep(.5, .85, stoneFbm(vec2(q.x / .45, q.y / 6.0) + 3.0)) * wall : 0.0;
     float tone = 1.0 + plate * .12 - streak * .12 + grain * .09 * grainFade;
     tone *= 1.0 - crack * .36 * jointFade - pit * .07 * fineFade;
     tone += lip * .045 * jointFade + fleck * .05 * fineFade;
@@ -60,8 +60,13 @@ export const STONE_GLSL = /* glsl */ `
   }
   vec4 stonePaint(vec3 p, vec3 n, float footprint) {
     vec3 t = pow(abs(n), vec3(4.0)); t /= max(t.x + t.y + t.z, 1e-4);
-    vec4 a = stonePlane(p.zy, 1.0, footprint), b = stonePlane(p.xz + 31.0, 0.0, footprint), c = stonePlane(p.xy + 57.0, 1.0, footprint);
-    vec4 s = a * t.x + b * t.y + c * t.z;
+    // A projection carrying under 0.2 percent of the blend cannot show: its noise is skipped
+    // (most faces need one plane, edges two), which roughly halves the cost of the stone.
+    t *= step(.002, t); t /= max(t.x + t.y + t.z, 1e-4);
+    vec4 s = vec4(0.0);
+    if (t.x > 0.0) s += stonePlane(p.zy, 1.0, footprint) * t.x;
+    if (t.y > 0.0) s += stonePlane(p.xz + 31.0, 0.0, footprint) * t.y;
+    if (t.z > 0.0) s += stonePlane(p.xy + 57.0, 1.0, footprint) * t.z;
     // Lichen and fine moss on the upward faces, in pale grey-green crusts.
     float lichen = smoothstep(.58, .74, stoneFbm(p.xz / .6 + 4.0)) * smoothstep(.45, .85, n.y) * (1.0 - smoothstep(.02, .06, footprint));
     // Faint strata: warm and cool bands a few decimetres high, bent by the rock.
@@ -113,6 +118,6 @@ export function installKitStone(material: THREE.MeshStandardMaterial) {
           if (abs(sdet) > 1e-10) normal = normalize(abs(sdet) * normal - sign(sdet) * (dFdx(stoneRelief) * sr1 + dFdy(stoneRelief) * sr2));
         }`);
   };
-  material.customProgramCacheKey = () => `${key}:kit-stone-v2`;
+  material.customProgramCacheKey = () => `${key}:kit-stone-v3`;
   material.needsUpdate = true;
 }
