@@ -12,7 +12,7 @@ Done and pushed to `overhaul/m1-inventory` on 1 October 2026 (a fast-forward of 
 - Every area of the brief was rebuilt or reworked by a delegated pass, each reviewed by the orchestrator against independent captures before it was merged. Work below the bar went back: the long guns once (fingers-up support grips), the character four times (rounds 1 and 3 by the orchestrator, round 2 rejected by the user, round 4 for its fur-shell cost), and the final polish findings became a world finish pass.
 - Release gate on the final build, on this machine (Apple M2, 8 GB, real Chrome with ANGLE Metal, 1280x720): type check clean, 1,057 of 1,057 unit tests, production build green; 11 of 11 browser tests including every multiplayer test with two real game clients over PeerJS and the full Correria match with rematch; 171 visual baselines regenerated, reviewed by eye and passing; the same performance test run on M1 and on the final build back to back on a quiet machine (section 6); before and after sheets from the same cameras (section 8).
 - At the bar now: first person (arms that are the character's own paws, nine reworked weapons, measured grips), the world at street level and from the plane, combat feel and effects, the HUD, menus and spectating, the character's body, outfit and animation.
-- Short of the bar or unheard: the new audio has not been heard by a person; Medium and High run about 43 fps (not 60) in the 16-capybara plaza scene on this M2, as M1 did (section 6); the open items in section 9.
+- Short of the bar or unheard: the new audio has not been heard by a person; the open items in section 9. Performance was short of the bar in a way this release gate did not show (it measured 1280x720 at 1x; the user's Retina screen draws about 6 times those pixels, and Medium ran 35 to 37 fps in live matches): the performance pass of 1 October fixed it, Medium now holds 60 fps at real conditions (section 6).
 
 ## 2. What changed, by area
 
@@ -159,6 +159,24 @@ Protocol version 12 (shot sequence numbers, jump flag). The spectator camera was
 
 ## 6. Performance
 
+### Correction after the performance pass (1 October, afternoon)
+
+The numbers below this subsection came from the release gate at 1280x720 and deviceScaleFactor 1, and they undersold the real problem: on the user's MacBook Air M2 Retina screen (a full-screen window is 1470x956 CSS pixels at deviceScaleFactor 2) Medium and High drew the 3D image at native density, about 6 times the gate's pixels, and the user found Medium "very laggy" in a real match. A dedicated pass (`docs/overhaul/performance-report.md`, branch `perf-pass`, merged on 1 October) measured and fixed it at real conditions: production build, 1470x956 at deviceScaleFactor 2, live bot matches, five minutes per run.
+
+| Preset | Correria fps before / after | Battle royale fps before / after | p95 ms before / after | Frames over 50 ms per run before / after |
+| --- | --- | --- | --- | --- |
+| Medium | 37.4 / 60.7 | 34.9 / 60.7 | 33 to 50 / 16.7 to 16.8 | 191 to 303 / 1 to 6 |
+| High | 30.5 / 59.8 | 33.7 / 60.0 | 50 / 16.8 | 94 to 336 / 1 to 6 |
+| Low | 60.9 / 60.7 | 60.2 / 60.1 | 16.7 to 16.8 / 16.7 to 16.8 | 1 to 11 / 4 to 17 |
+
+- How: each preset draws the 3D image at its own render density and upscales it into the native canvas (Medium up to 1.25 render pixels per CSS pixel), a dynamic resolution driven by the frames the display actually missed (GPU timers do not show headroom on Apple GPUs), cheaper shaders and post passes with the same image (47 to 56 dB PSNR at the same density), CPU and garbage cuts (animation level of detail, no program rebuilds from shared materials). Input to the next frame fell from 96 to 24 ms (median); loading is unchanged.
+- The look: at normal viewing distance Medium is hard to tell from native; at 1:1 it is a little softer on fine detail (wires, string lights, the fur fringe of a capybara at arm's length). "Resolução 3D: 100% nativa" draws the native image for players who prefer it.
+- New settings: "Resolução 3D" (Automática, 100%, 75%, 50%) and a "Taxa da tela" default for the frame limit (one frame per display refresh); a first play steps down one preset if even the lowest automatic resolution keeps missing frames, never over a choice the player made.
+- Orchestrator check on the merged build (15:08, load 4 to 12, thermal nominal then heavy): `tests/perf/real-conditions.spec.ts`, 40 s of live Correria per preset at 1470x956 and deviceScaleFactor 2: Medium 60 fps (p95 16.8 ms, 1% low 57.3, no frame over 50 ms, density 1.25), Low 60 (p95 16.8, none), High 58.1 (p95 16.8, 6 frames over 50 ms, density 1.35, under heavy thermal pressure).
+- Still short: Medium's 1% low is about 45 fps in the five-minute runs (target 50), from a few main-thread stalls on this swapping 8 GB laptop; High misses about 1 frame in 60. `tests/perf/real-conditions.spec.ts` now guards real conditions next to the old test.
+
+### The release gate test (1280x720 at 1x)
+
 Same test, same machine, back to back on 1 October at 02:10 to 02:15 (load average 5 to 7): `tests/perf/perf.spec.ts` (16 capybaras in the QA plaza, 1280x720, 5 s of real frame intervals per preset; downloads counted through the menu and the match). M1 is the original branch (7f48b7d) in a detached worktree.
 
 | Preset | M1 fps (p95 ms) | Final fps (p95 ms) | Draws M1 / final | Triangles M1 / final | JS heap MB M1 / final |
@@ -187,7 +205,7 @@ Sheets in `docs/overhaul/evidence/final/` put each view of the 27 September base
 
 Known at the release gate:
 - The new audio has not been heard by a person: every judgement is from measurements and spectrograms (`tools/audio/lab.html` to audition).
-- Medium and High run about 43 fps in the 16-capybara plaza scene on an M2 (as M1 did); a GPU profile of that scene is the next performance step. KTX2 texture compression (no encoder on this machine yet) would also cut GPU memory and download.
+- Performance after the 1 October pass (section 6): Medium's 1% low is about 45 fps at real conditions (main-thread stalls on a swapping 8 GB laptop) and High misses about 1 frame in 60; next steps are in `docs/overhaul/performance-report.md` section 14 (shadow caching, cheaper crowd animation, the remaining garbage, a temporal upscaler, KTX2 textures once an encoder is installed, coarser distant geometry).
 - Character: a closed eye reads as a round lid inside a dark ring from the front at 1 m; yellow is the weakest team colour at 60 m in shade; the fur is stylized (painted locks plus shells), not strand-level.
 - First-person arms: during the pistol reload the two paws overlap each other for about 0.2 s (never the gun); the trigger digit rests on the trigger from outside the guard; the third-person Carabina still carries the sling the first-person model stowed; `paw_sculpt.py` is no longer used.
 - Trees and bushes have no collision (by the existing design).
