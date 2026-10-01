@@ -3,7 +3,7 @@
 import { chromium } from '@playwright/test';
 const [out, weapon = 'pistol', mode = 'fp'] = process.argv.slice(2);
 const base = process.env.BASE || 'http://127.0.0.1:5173';
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 page.on('console', m => { if (m.type() === 'error') console.error('console', m.text()); });

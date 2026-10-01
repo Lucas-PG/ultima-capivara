@@ -38,7 +38,7 @@ async function* queuedJobs() {
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 }
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 page.on('console', m => { if (m.type() === 'log') console.log(m.text()); });

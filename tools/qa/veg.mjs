@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 const [out, ...names] = process.argv.slice(2);
 const all = JSON.parse(readFileSync(process.env.VIEWS || 'tools/qa/veg-views.json', 'utf8'));
 const views = names.length ? Object.fromEntries(names.map(n => [n, all[n]])) : all;
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 page.on('console', m => { if (m.type() === 'error') console.error('console.error', m.text().slice(0, 300)); });

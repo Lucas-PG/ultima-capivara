@@ -7,7 +7,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { measureGrip } from './grip-measure.mjs';
 const [out, weapon, actions = 'hip,ads', timeCsv = '0,.15,.3,.45,.6,.7,.82,.94,1', viewCsv = 'eye'] = process.argv.slice(2);
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => { throw e; });
 const results = [];

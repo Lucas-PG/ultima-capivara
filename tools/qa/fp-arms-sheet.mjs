@@ -22,7 +22,7 @@ const reloads = {
   machete: [['slash', 'swing-right', .12], ['slash', 'swing-left', .14], ['chop', 'chop', .1], ['chop', 'chop', .2]],
 };
 const orbits = { 'hip right side': [Math.PI / 2, .15, .7], 'hip left side': [-Math.PI / 2, .15, .7], 'hip front': [Math.PI + .35, .1, .85] };
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', e => console.error('pageerror', e.message));

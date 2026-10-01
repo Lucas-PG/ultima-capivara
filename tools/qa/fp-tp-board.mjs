@@ -9,7 +9,7 @@ import { chromium } from '@playwright/test';
 const [out, list = 'm4,pistol,shotgun,machete'] = process.argv.slice(2);
 const dir = `${dirname(out)}/fp-tp-frames`; mkdirSync(dir, { recursive: true });
 const FONT = process.env.FONT || '/System/Library/Fonts/Supplemental/Arial.ttf';
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const tiles = [];
 try {
   const page = await browser.newPage({ viewport: { width: 960, height: 540 } });

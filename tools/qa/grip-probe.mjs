@@ -9,7 +9,7 @@ import { chromium } from '@playwright/test';
 import { measure } from './weapon-contact.mjs';
 const [out, weapon, side = 'L', variantsJson = '{"current":{}}', viewList = '', mode = 'fp'] = process.argv.slice(2);
 const variants = JSON.parse(variantsJson);
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1`);

@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs';
 const [out, weapon, clips, frames = '6', step = '.07', angle = 'side', distance = '3.2'] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
 const base = process.env.BASE || 'http://127.0.0.1:5176';
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const page = await browser.newPage({ viewport: { width: Number(process.env.W || 420), height: Number(process.env.H || 520) } });
 page.on('pageerror', e => console.error('pageerror', e.message));
 const frame = { ...(process.env.FOCUS ? { focus: Number(process.env.FOCUS) } : {}), ...(process.env.FOV ? { fov: Number(process.env.FOV) } : {}) };

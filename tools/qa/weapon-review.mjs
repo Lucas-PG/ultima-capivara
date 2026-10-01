@@ -11,7 +11,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { measure } from './weapon-contact.mjs';
 const [out, weaponIds, actionsCsv = 'hip,ads,sprint,inspect,reload,reload-partial,fire', viewsCsv = 'eye,left,right,below', timesCsv = '.12,.3,.5,.65,.78,.9'] = process.argv.slice(2);
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', e => console.error(e.message));
