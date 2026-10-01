@@ -628,7 +628,7 @@ export class WeaponView {
       if (model.id === 'machete') {
         // The free paw guards low on the left; it does not follow the blade.
         const cut = this.meleeTime < MELEE_SECONDS ? Math.sin(Math.PI * this.meleeTime / MELEE_SECONDS) : 0;
-        this.targetL.wrist.set(-.21 - cut * .035, -.21 - cut * .045, -.39 + cut * .035);
+        this.targetL.wrist.set(-.23 - cut * .06, -.22 - cut * .05, -.39 + cut * .035);
         this.targetL.forward.set(.18, .12, -1).normalize();
         this.targetL.palm.set(.2, -.95, -.05).normalize();
       }

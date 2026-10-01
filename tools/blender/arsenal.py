@@ -769,7 +769,8 @@ def dmr():
     # Sling follows the lower silhouette and stays outside the hand and magazine travel.
     for y, z in ((-.327, -.099), (.41, .039)):
         parts['body'] += [tube('sling_loop', (-.008, y, z), (.008, y, z), .012, .008, 'brass', sides=16, bevel=.0007)]
-    anchors = [Vector(p) for p in [(0, -.327, -.105), (.052, -.244, -.190), (.08, -.07, -.210), (.08, .13, -.190), (.052, .307, -.1), (0, .41, .033)]]
+    # The slack hangs left of centre: the firing forearm rises to the grip from the lower right.
+    anchors = [Vector(p) for p in [(0, -.327, -.105), (-.03, -.244, -.200), (-.036, -.07, -.225), (-.012, .13, -.200), (.02, .307, -.1), (0, .41, .033)]]
     strap = []
     for i in range(len(anchors) - 1):
         a, b, c, d = anchors[max(0, i - 1)], anchors[i], anchors[i + 1], anchors[min(len(anchors) - 1, i + 2)]

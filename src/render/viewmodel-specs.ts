@@ -67,7 +67,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     url: 'models/arsenal/pistol.glb', scale: 1, handling: 'pistol', reload: 'pistol',
     hip: { pos: [.13, -.085, -.40], rot: [.03, .10, .16] },
     sprint: { pos: [-.025, -.025, .035], rot: [.62, .18, .22] },
-    adsDistance: .32, viewmodelFov: 64, shoulders: { R: [.2, -.36, .25], L: [-.20, -.28, .18] },
+    adsDistance: .32, viewmodelFov: 64, shoulders: { R: [.22, -.36, .25], L: [-.25, -.30, .18] },
     grips: GRIPS.pistol,
     recoil: { kick: 1.25, climb: 5.2, roll: 1.5, frequency: 26 }, inertia: .7,
   },
