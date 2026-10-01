@@ -38,14 +38,16 @@ export class CharacterMask {
   setViewport(width: number, height: number) { this.target.viewport.set(0, 0, width, height); }
   render(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     const layers = camera.layers.mask, background = scene.background, override = scene.overrideMaterial;
-    const shadows = gl.shadowMap.enabled, alpha = gl.getClearAlpha(); gl.getClearColor(this.clearColor);
+    const shadows = gl.shadowMap.enabled, alpha = gl.getClearAlpha(), autoUpdate = scene.matrixWorldAutoUpdate; gl.getClearColor(this.clearColor);
     this.uniforms.near.value = camera.near; this.uniforms.far.value = camera.far;
     try {
+      // The world pass just updated every matrix of this scene: a second traversal is pure CPU cost.
+      scene.matrixWorldAutoUpdate = false;
       camera.layers.set(1); scene.background = null; scene.overrideMaterial = this.material;
       gl.shadowMap.enabled = false; gl.setClearColor(0, 0);
       gl.setRenderTarget(this.target); gl.render(scene, camera);
     } finally {
-      camera.layers.mask = layers; scene.background = background; scene.overrideMaterial = override;
+      camera.layers.mask = layers; scene.background = background; scene.overrideMaterial = override; scene.matrixWorldAutoUpdate = autoUpdate;
       gl.shadowMap.enabled = shadows; gl.setClearColor(this.clearColor, alpha);
     }
   }

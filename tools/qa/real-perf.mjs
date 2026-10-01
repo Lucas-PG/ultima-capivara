@@ -21,6 +21,7 @@ const base = env.BASE || 'http://127.0.0.1:4187', quality = env.QUALITY || 'medi
 const seconds = Number(env.DURATION || 300), width = Number(env.W || 1470), height = Number(env.H || 956), dpr = Number(env.DPR || 2);
 const gpu = env.GPU !== '0', timingOn = env.TIMING !== '0';
 const traceAt = (env.TRACE_AT ?? '60').split(',').filter(Boolean).map(Number);
+const profileAt = (env.PROFILE_AT ?? '').split(',').filter(Boolean).map(Number);
 const extraSettings = JSON.parse(env.SETTINGS || '{}');
 
 const thermal = () => { try { return Number(execSync('notifyutil -g com.apple.system.thermalpressurelevel').toString().trim().split(/\s+/).pop()); } catch { return null; } };
@@ -136,7 +137,7 @@ try {
   const started = Date.now(), samples = [], gcTraces = [];
   let rafFrom = await page.evaluate(() => window.__rafTimes.count), lastRendered = await page.evaluate(() => window.__capivara.inspect().renderedFrames);
   await page.evaluate(() => { window.__capivara.resetPerf(); window.__capivara.gpu(true); });
-  const traced = new Set();
+  const traced = new Set(), profiled = new Set(), profiles = [];
   while ((Date.now() - started) / 1000 < seconds) {
     await page.waitForTimeout(1000);
     const elapsed = (Date.now() - started) / 1000;
@@ -160,6 +161,20 @@ try {
     if (samples.length % 30 === 0) console.log(JSON.stringify({ t: Math.round(elapsed), phase: sample.phase, stage: sample.stage, thermal: samples.at(-1).thermal, load: samples.at(-1).load[0],
       fps: +(samples.slice(-30).reduce((a, s) => a + s.renderedFrames, 0) / 30).toFixed(1), density: sample.density, buffer: sample.drawingBuffer }));
     if (sample.phase === 'results') { console.log('match reached results at', Math.round(elapsed), 's'); break; }
+    // PROFILE_AT: a 6 s main-thread CPU profile, summarised by self time per function.
+    const profileDue = profileAt.find(at => elapsed >= at && !profiled.has(at));
+    if (profileDue !== undefined) {
+      profiled.add(profileDue);
+      await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 200 }); await cdp.send('Profiler.start');
+      await page.waitForTimeout(6000);
+      const { profile } = await cdp.send('Profiler.stop');
+      const self = new Map(), dt = profile.timeDeltas, byId = new Map(profile.nodes.map(n => [n.id, n]));
+      let total = 0;
+      profile.samples.forEach((id, i) => { const f = byId.get(id).callFrame, key = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber + 1}:${f.columnNumber + 1}`; self.set(key, (self.get(key) || 0) + dt[i] / 1000); total += dt[i] / 1000; });
+      const top = [...self].sort((a, b) => b[1] - a[1]).slice(0, 40).map(([k, v]) => [k, +v.toFixed(1)]);
+      profiles.push({ at: profileDue, totalMs: Math.round(total), top });
+      console.log('profiled', profileDue, JSON.stringify(top.slice(0, 12)));
+    }
     const due = traceAt.find(at => elapsed >= at && !traced.has(at));
     if (due !== undefined) {
       traced.add(due);
@@ -177,6 +192,6 @@ try {
   const resources = await page.evaluate(() => window.__capivara.resources());
   await page.evaluate(() => clearInterval(window.__perfDriver));
   writeFileSync(out, JSON.stringify({ measuredAt: new Date().toISOString(), base, quality, mode, seconds, viewport: { width, height, dpr }, gpu: gpuName,
-    gpuTiming: gpu, cpuTiming: timingOn, headless: env.HEADED !== '1', settings: extraSettings, menuMs: Math.round(menuMs), firstFrameMs: Math.round(firstFrameMs), errors, resources, gcTraces, samples }));
+    gpuTiming: gpu, cpuTiming: timingOn, headless: env.HEADED !== '1', settings: extraSettings, menuMs: Math.round(menuMs), firstFrameMs: Math.round(firstFrameMs), errors, resources, gcTraces, profiles, samples }));
   console.log('wrote', out);
 } finally { await browser.close(); }

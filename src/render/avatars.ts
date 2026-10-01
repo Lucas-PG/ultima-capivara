@@ -19,6 +19,18 @@ interface Avatar {
   weaponId: WeaponId | null; chute: THREE.Group; label: THREE.Sprite; plate: Nameplate; targetable: boolean; initialized: boolean; awaitingAlive: boolean; sawDead: boolean; celebrated: boolean; emoting: boolean;
   bounceAge: number;
   strike: { time: number; side: number; heavy: boolean; count: number };
+  // Animation level of detail: frames since the skeleton was last posed and the time they covered.
+  poseAge: number; poseDt: number; posedWeapon?: WeaponId | null;
+}
+
+/** Frames between skeleton poses for a capybara (animation level of detail, as shipped shooters do
+ * for distant characters): every frame within 20 m and for the watched capybara, every second frame
+ * to 50 m, every third beyond, every fourth off screen (its shadow may still show). Its position
+ * and heading still move every frame. */
+export function animationInterval(distance: number, onScreen: boolean, viewed: boolean): number {
+  if (viewed) return 1;
+  if (!onScreen) return 4;
+  return distance < 20 ? 1 : distance < 50 ? 2 : 3;
 }
 export function avatar(color: string, name: string): Avatar {
   const group = new THREE.Group();
@@ -38,7 +50,7 @@ export function avatar(color: string, name: string): Avatar {
   const chute = makeParachute(color); group.add(chute);
   const plate = new Nameplate(name, color), label = plate.sprite; group.add(label);
   return { color, name, group, body, bones, weapon, weaponId: null, chute, label, plate, targetable: false, initialized: false, awaitingAlive: false, sawDead: false, celebrated: false, emoting: false, bounceAge: Infinity,
-    strike: { time: MELEE_SECONDS, side: -1, heavy: false, count: 0 } };
+    strike: { time: MELEE_SECONDS, side: -1, heavy: false, count: 0 }, poseAge: Infinity, poseDt: 0 };
 }
 
 export class AvatarView {
@@ -58,6 +70,9 @@ export class AvatarView {
   private readonly forward = new THREE.Vector3();
   private readonly up = new THREE.Vector3();
   private readonly packed: Nameplate[] = [];
+  private readonly frustum = new THREE.Frustum();
+  private readonly viewProjection = new THREE.Matrix4();
+  private readonly bounds = new THREE.Sphere(new THREE.Vector3(), 1.6);
   resize(width: number, height: number) { this.width = Math.max(1, width); this.height = Math.max(1, height); }
   constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.PerspectiveCamera, private readonly world?: WorldSpec) {
     this.weapons.set(null, new THREE.BufferGeometry());
@@ -90,12 +105,14 @@ export class AvatarView {
     if (visual) {
       if (reaction.kind === 'death') visual.awaitingAlive = false;
       reactCapybara(visual.body, reaction);
+      // A flinch or a fall shows on the next frame, whatever the capybara's animation rate.
+      visual.poseAge = Infinity;
     }
   }
   respawn(id: string) {
     const visual = this.visuals.get(id);
     if (!visual) return;
-    resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = true;
+    resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = true; visual.poseAge = Infinity;
     visual.bounceAge = Infinity; visual.body.scale.setScalar(1);
     visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
   }
@@ -149,7 +166,7 @@ export class AvatarView {
     const matchId = frame.snapshot!.matchId;
     if (this.matchId !== null && this.matchId !== matchId) {
       for (const visual of this.ordered) {
-        resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = false; visual.celebrated = false;
+        resetCapybaraPose(visual.body); visual.initialized = false; visual.sawDead = false; visual.awaitingAlive = false; visual.celebrated = false; visual.poseAge = Infinity;
         visual.bounceAge = Infinity; visual.body.scale.setScalar(1);
         visual.strike.time = MELEE_SECONDS; visual.strike.side = -1; visual.strike.count = 0;
       }
@@ -157,6 +174,7 @@ export class AvatarView {
     this.matchId = matchId;
     const viewed = frame.spectateId || frame.playerId;
     this.camera.updateMatrixWorld(); this.camera.getWorldDirection(this.forward);
+    this.frustum.setFromProjectionMatrix(this.viewProjection.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));
     this.up.setFromMatrixColumn(this.camera.matrixWorld, 1);
     let aimed: Avatar | null = null, nearest = Infinity;
     for (const state of actors) {
@@ -170,7 +188,7 @@ export class AvatarView {
       }
       if (winner && !visual.celebrated) {
         // A deathmatch winner can be down when the clock ends; results are presentation only.
-        resetCapybaraPose(visual.body); celebrateCapybara(visual.body); visual.sawDead = false; visual.celebrated = true;
+        resetCapybaraPose(visual.body); celebrateCapybara(visual.body); visual.sawDead = false; visual.celebrated = true; visual.poseAge = Infinity;
       }
       if (!actor.alive && !winner && !visual.awaitingAlive) {
         visual.sawDead = true;
@@ -220,7 +238,14 @@ export class AvatarView {
       mag.visible = held === 'm4' && !distantWeapon; mag.position.set(0, .02, -.071); mag.quaternion.identity();
       visual.weaponId = held;
       visual.weapon.visible = !dead && !emoting && actor.stage === 'ground' && !!held;
-      this.poseAvatar(visual, actor, frame.dt, simulationTime);
+      this.bounds.center.copy(visual.group.position); this.bounds.center.y += 1;
+      const interval = animationInterval(Math.sqrt(weaponDistance), this.frustum.intersectsSphere(this.bounds), actor.id === viewed);
+      visual.poseDt += frame.dt;
+      // A held weapon change re-poses at once, so the paws never hold the previous gun's grip.
+      if (++visual.poseAge >= interval || held !== visual.posedWeapon) {
+        this.poseAvatar(visual, actor, visual.poseDt, simulationTime);
+        visual.poseAge = 0; visual.poseDt = 0; visual.posedWeapon = held;
+      }
       if (reducedMotion || dead || actor.swimming || actor.stage !== 'ground') visual.bounceAge = Infinity;
       visual.bounceAge += Math.max(0, Math.min(frame.dt, .05));
       const age = visual.bounceAge;
