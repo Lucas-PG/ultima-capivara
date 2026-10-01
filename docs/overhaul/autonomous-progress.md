@@ -4,7 +4,10 @@ Branch: `overhaul/aaa-autonomous` (local), started from `overhaul/m1-inventory` 
 M1 (`overhaul/m1-inventory`) is not touched until the whole overhaul is finished; then it is integrated, re-verified and pushed.
 Previous session record: `docs/overhaul/progress.md` (kept for history).
 
-## CURRENT STATE (2026-10-01 03:00): DONE, read this first
+## CURRENT STATE (2026-10-01 07:30): read this first
+
+PERFORMANCE PASS RUNNING (user request after a laggy match on Medium): agent afb0890c4036649b7 (capivara-builder-xhigh, Opus 5.5 at xhigh), worktree `.claude/worktrees/perf`, branch `perf-pass`, brief `docs/overhaul/briefs/performance.prompt.txt`. Cause found first: Medium and High cap the pixel ratio at 2, so on the 2880x1864 Retina screen Medium renders about 6 times the pixels the release gate measured (1280x720 at 1x); the dynamic resolution floor is 85 percent. The release gate missed it, so section 6 of the final report must be corrected with real-condition numbers after this pass. Review it like every pass, merge, re-run the gate, fast-forward M1 and push (pre-approved for the overhaul; confirm with the user for this follow-up).
+Cleanup on 2026-10-01: the 17 agent worktrees and `output/review/m1-base` were moved to the macOS Trash (the user empties it); the five older worktrees in `~/dev/capivara-floors` and the merged branch names were left.
 
 The overhaul is complete: `overhaul/aaa-autonomous` was fast-forwarded into `overhaul/m1-inventory`, re-verified there and pushed to `lucas overhaul/m1-inventory` (the push the user pre-approved). The summary is `docs/overhaul/final-overhaul-report.md`; every pass review is in `docs/overhaul/briefs/review-log.md`.
 
