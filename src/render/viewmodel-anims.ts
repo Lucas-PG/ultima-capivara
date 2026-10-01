@@ -216,6 +216,7 @@ export const DMR_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.06
 export const DMR_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [0.085247, -0.064489, 0.058628],
   forward: [-0.025311, 0.932039, -0.361473], palm: [-0.887942, -0.187077, -0.420193], pole: [1, -.35, .2],
   curl: { index: [1.028073, 0.63286, 1.153242], middle: [1.334, 0.194167, 1.0042], ring: [1.17, 0.99, 0.72], thumb: [0.637656, 0.282854, 0.014837], spread: -0.5602 } };
+const DMR_CHARGE_OPEN = blendCurl(DMR_CHARGE_HAND.curl as HandCurl, OPEN, .5);
 const DMR_TILT: { p: Vec; r: Vec } = { p: [-.05, .03, -.06], r: [.2, .3, -.45] };
 const DMR_SWAP: Choreography = [
   { t: .015, L: SUPPORT_RELEASE },
@@ -246,10 +247,11 @@ const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key
   { t: .725, R: { space: 'grip' } },
   { t: .745, R: FIRING_RELEASE },
   { t: .765, R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .80, R: shift(DMR_CHARGE_HAND, [.11, .035, 0], { curl: OPEN }), parts: { charge: 0 } },
+  { t: .80, R: shift(DMR_CHARGE_HAND, [.05, 0, -.02], { curl: DMR_CHARGE_OPEN }), parts: { charge: 0 } },
   { t: .83, R: DMR_CHARGE_HAND, parts: { charge: 0 } },
   { t: .89, R: DMR_CHARGE_HAND, parts: { charge: 1 }, sfx: 'slide-back' },
   { t: .915, R: DMR_CHARGE_HAND, parts: { charge: 0 }, ease: 'snap', sfx: 'slide-home' },
+  { t: .925, R: shift(DMR_CHARGE_HAND, [.012, 0, 0], { curl: DMR_CHARGE_OPEN }) },
   { t: .945, R: shift(DMR_CHARGE_HAND, [.11, .035, 0], { curl: OPEN }) },
   { t: .985, R: FIRING_CLEAR },
   { t: .993, R: FIRING_RELEASE },
@@ -263,13 +265,13 @@ export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0
 export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.123252, -0.08807, 0.065733],
   forward: [-0.090106, 0.932039, -0.350976], palm: [-0.903789, -0.224569, -0.364327], pole: [1, -.35, .2],
   curl: { index: [1.7, -0.1, -0.1], middle: [1.481625, 0.148333, 0.5392], ring: [1.17, 0.99, 0.72], thumb: [0.46395, -0.09157, 0.817014], spread: -0.6000 } };
-// Coming back to the pulled bolt, the paw reaches the knob half open and closes on it in place.
+// The paw reaches the knob half open from the right and below, and leaves it open to the right.
 const SNIPER_BOLT_OPEN = blendCurl(SNIPER_BOLT_HAND.curl as HandCurl, OPEN, .5);
 // A complete four-beat bolt stroke, anchored to the actual moving knob.
 export const SNIPER_CYCLE: Choreography = [
   { t: .04, R: FIRING_RELEASE },
   { t: .08, R: { ...FIRING_CLEAR, curl: OPEN }, parts: { bolt: 0, boltPull: 0 } },
-  { t: .15, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0], { curl: OPEN }) },
+  { t: .15, R: shift(SNIPER_BOLT_HAND, [.04, -.02, 0], { curl: SNIPER_BOLT_OPEN }) },
   { t: .22, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .34, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .49, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
@@ -316,7 +318,7 @@ const SNIPER_RELOAD_EMPTY: Choreography = [
   { t: .12, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .17, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .23, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
-  { t: .26, R: shift(SNIPER_BOLT_HAND, [.13, 0, 0], { curl: OPEN }) },
+  { t: .26, R: shift(SNIPER_BOLT_HAND, [.10, -.03, .03], { curl: OPEN }) },
   { t: .285, R: FIRING_CLEAR },
   { t: .298, R: FIRING_RELEASE },
   { t: .31, R: { space: 'grip' } },
@@ -325,8 +327,7 @@ const SNIPER_RELOAD_EMPTY: Choreography = [
   { t: .825, R: { space: 'grip' } },
   { t: .835, R: FIRING_RELEASE },
   { t: .845, R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .865, R: shift(SNIPER_BOLT_HAND, [.15, .06, .04], { curl: OPEN }) },
-  { t: .883, R: { ...SNIPER_BOLT_HAND, curl: SNIPER_BOLT_OPEN } },
+  { t: .865, R: shift(SNIPER_BOLT_HAND, [.04, -.02, 0], { curl: SNIPER_BOLT_OPEN }) },
   { t: .89, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .935, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 }, sfx: 'bolt-home' },
   { t: .96, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap' },
