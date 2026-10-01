@@ -766,34 +766,11 @@ def dmr():
             pts = [(side * .0153, q.x + math.cos(a) * off, q.y + math.sin(a) * off) for q, a in axis[3:-1]]
             parts['mag'] += [sweep('mag_rib', pts, [.0013] * len(pts), 'gunmetal', sides=6, aspect=.7, up=(1, 0, 0))]
     parts['mag'] += [cyl('top_round', (0, .052, .026), (0, .103, .026), .0048, 'brass', sides=12, bevel=.0005)]
-    # Sling follows the lower silhouette and stays outside the hand and magazine travel.
+    # Brass sling loops on the stock toe and the handguard.
     for y, z in ((-.327, -.099), (.41, .039)):
         parts['body'] += [tube('sling_loop', (-.008, y, z), (.008, y, z), .012, .008, 'brass', sides=16, bevel=.0007)]
-    # The slack hangs left of centre: the firing forearm rises to the grip from the lower right.
-    anchors = [Vector(p) for p in [(0, -.327, -.105), (-.03, -.244, -.200), (-.036, -.07, -.225), (-.012, .13, -.200), (.02, .307, -.1), (0, .41, .033)]]
-    strap = []
-    for i in range(len(anchors) - 1):
-        a, b, c, d = anchors[max(0, i - 1)], anchors[i], anchors[i + 1], anchors[min(len(anchors) - 1, i + 2)]
-        for step in range(6):
-            t = step / 6
-            strap.append((2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t) * .5)
-    strap.append(anchors[-1])
-    # The broad leather face hangs vertically; its thin edge faces the ground.
-    parts['body'] += [sweep('leather_sling', strap, [.012] * len(strap), 'leather', sides=8, aspect=.16, up=(1, 0, 0))]
-    for edge in (-1, 1):
-        seam = []
-        for i, point in enumerate(strap):
-            tangent = (strap[min(i + 1, len(strap) - 1)] - strap[max(0, i - 1)]).normalized()
-            wide = tangent.cross(Vector((1, 0, 0))).normalized()
-            seam.append(point + wide * (edge * .0095) + Vector((-.002, 0, 0)))
-        parts['body'] += [sweep('sling_seam', seam, [.00065] * len(seam), 'rope', sides=4)]
-    centre = anchors[-2] + Vector((-.003, 0, 0))
-    tangent = (anchors[-1] - anchors[-3]).normalized()
-    wide = tangent.cross(Vector((1, 0, 0))).normalized()
-    corners = [centre + tangent * along + wide * across for along, across in [(-.019, -.016), (.019, -.016), (.019, .016), (-.019, .016)]]
-    for i in range(4):
-        parts['body'] += [cyl('sling_buckle', corners[i], corners[(i + 1) % 4], .0023, 'brass', sides=10, bevel=.0003)]
-    parts['body'] += [cyl('buckle_pin', centre - wide * .016, centre + wide * .016, .0015, 'brass', sides=8, bevel=.0003)]
+    # The sling itself is stowed: with the big capybara paws, its slack under the gun crossed the
+    # firing forearm and the support paw at the magazine. The brass loops stay on the stock and handguard.
     sockets = {'muzzle': (0, .68, bore), 'eject': (.026, .055, .074), 'sight': (0, -.106, sz)}
     pivots = {'mag': (0, .081, .022), 'charge': (.023, .061, .074), 'trigger': (0, .004, .006)}
     # Keep the trigger within a short digit's reach from the backstrap.

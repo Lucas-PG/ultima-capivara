@@ -210,7 +210,7 @@ export const SMG_RELOAD_PARTIAL: Choreography = [...SMG_SWAP,
 ];
 const smgReloads = [SMG_RELOAD_PARTIAL, SMG_RELOAD_EMPTY].map(keys => [...keys].sort((a, b) => a.t - b.t));
 export const smgReload = (empty: boolean): Choreography => smgReloads[empty ? 1 : 0];
-export const DMR_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.068581, -0.157494, 0.021746],
+export const DMR_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.068581, -0.177494, 0.021746],
   forward: [0.073174, 0.932039, -0.354892], palm: [0.982424, -0.006091, 0.186566],
   curl: { index: [1.7, 0.347659, 0.323166], middle: [1.7, 1.7, 0.4023], ring: [1.7, 1.7, 0.396], thumb: [0.576417, 1.197744, 0.86638], spread: 0.0319 } };
 export const DMR_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [0.085247, -0.064489, 0.058628],
@@ -246,7 +246,7 @@ const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key
   { t: .725, R: { space: 'grip' } },
   { t: .745, R: FIRING_RELEASE },
   { t: .765, R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .80, R: shift(DMR_CHARGE_HAND, [.11, 0, 0]), parts: { charge: 0 } },
+  { t: .80, R: shift(DMR_CHARGE_HAND, [.11, .035, 0], { curl: OPEN }), parts: { charge: 0 } },
   { t: .83, R: DMR_CHARGE_HAND, parts: { charge: 0 } },
   { t: .89, R: DMR_CHARGE_HAND, parts: { charge: 1 }, sfx: 'slide-back' },
   { t: .915, R: DMR_CHARGE_HAND, parts: { charge: 0 }, ease: 'snap', sfx: 'slide-home' },
@@ -267,14 +267,14 @@ export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [
 export const SNIPER_CYCLE: Choreography = [
   { t: .04, R: FIRING_RELEASE },
   { t: .08, R: { ...FIRING_CLEAR, curl: OPEN }, parts: { bolt: 0, boltPull: 0 } },
-  { t: .15, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0]) },
+  { t: .15, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0], { curl: OPEN }) },
   { t: .22, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .34, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .49, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
   { t: .56, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .72, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 } },
   { t: .84, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap', sfx: 'bolt-home' },
-  { t: .9, R: shift(SNIPER_BOLT_HAND, [.11, 0, 0], { curl: OPEN }) },
+  { t: .9, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0], { curl: OPEN }) },
   { t: .95, R: FIRING_CLEAR },
   { t: .975, R: FIRING_RELEASE },
   { t: 1, R: { space: 'grip' } },
@@ -310,11 +310,11 @@ const SNIPER_RELOAD_PARTIAL: Choreography = [
 const SNIPER_RELOAD_EMPTY: Choreography = [
   { t: .025, R: FIRING_RELEASE },
   { t: .05, p: SNIPER_TILT.p, r: SNIPER_TILT.r, ease: 'out', R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .085, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0]), parts: { bolt: 0, boltPull: 0 } },
+  { t: .085, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0], { curl: OPEN }), parts: { bolt: 0, boltPull: 0 } },
   { t: .12, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .17, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .23, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
-  { t: .26, R: shift(SNIPER_BOLT_HAND, [.11, 0, 0], { curl: OPEN }) },
+  { t: .26, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0], { curl: OPEN }) },
   { t: .285, R: FIRING_CLEAR },
   { t: .298, R: FIRING_RELEASE },
   { t: .31, R: { space: 'grip' } },
@@ -323,11 +323,11 @@ const SNIPER_RELOAD_EMPTY: Choreography = [
   { t: .825, R: { space: 'grip' } },
   { t: .835, R: FIRING_RELEASE },
   { t: .845, R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .865, R: shift(SNIPER_BOLT_HAND, [.15, .06, .04]) },
+  { t: .865, R: shift(SNIPER_BOLT_HAND, [.15, .06, .04], { curl: OPEN }) },
   { t: .89, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .935, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 }, sfx: 'bolt-home' },
   { t: .96, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap' },
-  { t: .975, R: shift(SNIPER_BOLT_HAND, [.11, 0, 0], { curl: OPEN }) },
+  { t: .975, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0], { curl: OPEN }) },
   { t: .99, R: FIRING_CLEAR },
   { t: .995, R: FIRING_RELEASE },
   { t: 1, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
@@ -523,12 +523,12 @@ export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
 // over to the right flank and ejection side, hold, settle. Both paws keep their
 // grips; the firing index rests off the trigger while the gun is on show.
 const longInspect = (lift: Vec, left: Vec, right: Vec): Choreography => [
-  { t: .06, R: { space: 'grip', curl: { index: [.12, .15, .1] } } },
+  { t: .06, R: { space: 'grip', curl: { index: [.25, .35, .2] } } },
   { t: .2, p: lift, r: left, ease: 'out' },
   { t: .46, p: [lift[0] - .005, lift[1] + .006, lift[2]], r: [left[0] + .02, left[1] + .03, left[2] - .05] },
   { t: .68, p: [lift[0] + .02, lift[1] + .01, lift[2]], r: right },
   { t: .86, p: [lift[0] + .018, lift[1] + .014, lift[2]], r: [right[0] + .02, right[1] - .03, right[2] + .05] },
-  { t: .9, R: { space: 'grip', curl: { index: [.12, .15, .1] } } },
+  { t: .9, R: { space: 'grip', curl: { index: [.25, .35, .2] } } },
   { t: .97, R: { space: 'grip' } },
 ];
 export const LONG_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
