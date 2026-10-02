@@ -1176,6 +1176,10 @@ export class GameUI {
     const scale = hudScale(innerWidth, innerHeight, this.settings.uiScale); this.hudScaleNow = scale;
     body.setProperty('--ui', String(scale)); body.setProperty('--hud-w', (innerWidth / scale).toFixed(0));
     document.body.classList.toggle('hud-narrow', hudNarrow(innerWidth, scale)); document.body.classList.toggle('hud-short', hudShort(innerHeight, scale));
+    // Resizing into a compact layout also preserves one notice, with connection errors first.
+    if (this.screen === 'game' && (document.body.classList.contains('hud-narrow') || document.body.classList.contains('hud-short'))) {
+      while (this.toastItems.length > 1) this.dropToast(this.toastItems.find(item => !item.el.classList.contains('error')) ?? this.toastItems[0]);
+    }
     body.setProperty('--xc', CROSSHAIR_COLORS[this.settings.crosshairColor]);
     body.setProperty('--hit', hit); body.setProperty('--hithead', head); body.setProperty('--hitkill', kill);
     document.body.classList.toggle('reduce-motion', CALM || this.settings.reducedMotion);

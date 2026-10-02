@@ -116,6 +116,13 @@ test('Compact notices preserve the active error and clear the equipment cards', 
   await page.goto('/?qa=1');
   await page.waitForFunction(() => !!window.__capyQA && !!window.__hudQA);
   await page.evaluate(async () => { await window.__capyQA!.start(); await window.__capyQA!.pose('hud-full'); });
+  await page.setViewportSize({ width: 1470, height: 956 });
+  await expect(page.locator('body')).not.toHaveClass(/hud-narrow|hud-short/);
+  await page.evaluate(() => { window.__hudQA!.toast('A conexão caiu. Aguenta firme!', true); window.__hudQA!.toast('Uma entrega chegou!'); });
+  await expect(page.locator('#toast .toast-item.visible')).toHaveCount(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('#toast .toast-item.visible')).toHaveCount(1);
+  await expect(page.locator('#toast .toast-item.visible')).toHaveText('A conexão caiu. Aguenta firme!');
   for (const [width, height] of [[390, 844], [844, 390]]) {
     await page.setViewportSize({ width, height });
     await expect(page.locator('body')).toHaveClass(width === 390 ? /hud-narrow/ : /hud-short/);
