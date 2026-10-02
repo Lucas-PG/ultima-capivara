@@ -550,7 +550,7 @@ export class GameUI {
     if (out && !hud.classList.contains('out')) { this.el('dmgInd').replaceChildren(); this.el('nums').replaceChildren(); this.el('hitm').classList.remove('on'); }
     this.toggle(hud, 'out', out);
     this.updateDown(snapshot, me, now, alive);
-    const score = this.el('scoreboard'); this.show('scoreboard', scoreboard);
+    const score = this.el('scoreboard'); this.show('scoreboard', scoreboard); this.toggle(hud, 'score-open', scoreboard);
     if (scoreboard) {
       // Rebuild the table only when a row changes, never on every HUD tick.
       const key = snapshot.actors.map(a => `${a.id}:${a.weaponLevel}:${a.kills}:${a.deaths}:${Math.round(a.damage)}:${a.alive ? 1 : 0}:${this.latencies[a.id] ?? ''}:${a.connected}`).join('|');
@@ -670,7 +670,8 @@ export class GameUI {
   // Results over the live island: a stamped placement, then stats, awards, the board and the next step.
   private victory(snapshot: WorldSnapshot) {
     clearTimeout(this.momentTimer); this.show('matchMoment', false);
-    const hud = this.el('hud'); hud.classList.add('ended'); this.el('pause-panel').hidden = true; this.el('scoreboard').hidden = true; this.coach = null; this.show('coach', false);
+    this.toggleMap(false); this.closeEmoteWheel();
+    const hud = this.el('hud'); hud.classList.remove('paused', 'score-open'); hud.classList.add('ended'); this.el('pause-panel').hidden = true; this.el('scoreboard').hidden = true; this.coach = null; this.show('coach', false);
     const br = snapshot.config.mode === 'battle-royale', results = snapshot.results as ResultStats[], winners = results.filter(r => r.winner), won = winners.some(r => r.id === this.localId);
     const me = results.find(r => r.id === this.localId), place = me?.place ?? results.length, names = winners.map(w => esc(w.name)).join(' e ');
     const title = won ? br ? 'Última Capivara!' : snapshot.config.mode === 'corrente' ? 'Fechou a corrente!' : 'Dona da correria!' : 'Boa partida!';
@@ -727,7 +728,7 @@ export class GameUI {
     const me = this.snapshot?.actors.find(a => a.id === this.localId);
     if (this.screen !== 'game' || this.snapshot?.phase !== 'playing' || !me?.alive || me.stage !== 'ground' || !me.grounded || me.swimming || me.using || me.reloadUntil > this.snapshot.time || this.modal || !this.el('pause-panel').hidden || this.root.querySelector('#loadingOverlay')) return false;
     this.toggleMap(false); this.emoteActive = true; this.emoteX = this.emoteY = 0;
-    this.show('emoteWheel', true); this.selectEmote(null);
+    this.show('emoteWheel', true); this.toggle(this.el('hud'), 'emote-open', true); this.selectEmote(null);
     this.style(this.el('emotePointer'), 'transform', 'translate(0px,0px)');
     this.text('emoteKey', chipKey(bindingOf(this.settings.bindings, 'emote')));
     return true;
@@ -749,12 +750,12 @@ export class GameUI {
   closeEmoteWheel(commit = false) {
     if (!this.emoteActive) return;
     const selected = this.emoteSelected;
-    this.emoteActive = false; this.emoteSelected = null; this.show('emoteWheel', false);
+    this.emoteActive = false; this.emoteSelected = null; this.show('emoteWheel', false); this.toggle(this.el('hud'), 'emote-open', false);
     if (commit && selected !== null) this.callbacks.emote?.(EMOTE_IDS[selected]);
   }
   setPaused(paused: boolean) {
     if (paused) { this.callbacks.cancelEmote?.(); this.closeEmoteWheel(); }
-    if (this.screen !== 'game') return; const panel = this.el('pause-panel'); panel.hidden = !paused;
+    if (this.screen !== 'game') return; const panel = this.el('pause-panel'); panel.hidden = !paused; this.toggle(this.el('hud'), 'paused', paused);
     if (panel.hidden) return;
     this.toggleMap(false);
     const snapshot = this.snapshot, online = !!this.room, alive = snapshot ? snapshot.actors.filter(a => a.alive).length : 0, b = this.settings.bindings;
@@ -1332,7 +1333,7 @@ export class GameUI {
   }
   toggleMap(open = !this.mapOpen) {
     if (this.screen !== 'game') return; const big = this.root.querySelector<HTMLElement>('#bigmap'); if (!big) return;
-    this.mapOpen = open && !this.root.querySelector('#hud.ended'); big.hidden = !this.mapOpen; this.hudTime = 0;
+    this.mapOpen = open && !this.root.querySelector('#hud.ended'); big.hidden = !this.mapOpen; this.toggle(this.el('hud'), 'map-open', this.mapOpen); this.hudTime = 0;
     const actor = this.snapshot?.actors.find(a => a.id === this.localId);
     if (this.mapOpen && this.snapshot && actor) this.drawMap(this.snapshot, actor);
   }

@@ -96,7 +96,7 @@ body[data-screen=game] .score-table,#victory .score-table{font-family:var(--body
 #victory .vstats{display:flex;gap:10px}#victory .vstats div{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--paper-2);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);padding:5px 12px;min-width:74px}#victory .vstats div:nth-child(odd){transform:rotate(-1.5deg)}#victory .vstats div:nth-child(even){transform:rotate(1.2deg)}#victory .vstats b{font-family:var(--display);font-weight:400;font-size:26px;line-height:1.1}#victory .vstats span{font-size:13px;text-transform:uppercase;color:var(--lmuted)}
 #victory .vactions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}#victory .vactions .button{height:48px;font-size:15px}#victory .vboard{grid-column:1/-1;max-height:min(20vh,150px);overflow:auto;border-top:2.5px dashed rgba(22,18,14,.3);padding-top:8px}#victory .vboard .score-table{width:100%}
 #victory #confetti i{position:absolute;top:-4vh;width:10px;height:16px;border:2px solid var(--ink);animation:hud-fall linear forwards}@keyframes hud-fall{to{transform:translateY(112vh) rotate(720deg)}}#victory #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none}#victory #flash.on{animation:hud-flash .5s ease-out}@keyframes hud-flash{0%{opacity:.95}100%{opacity:0}}
-@media(max-width:640px){#hud #banner{font-size:36px;top:34%;white-space:normal;width:92vw}#hud #banner small{font-size:12px;margin-top:10px}body[data-screen=game] #toast{top:auto;bottom:260px}#pause-panel .ctl,#pause-panel .set{grid-template-columns:1fr}#pause-panel .play{font-size:20px;padding:12px 22px}#victory .vhero{top:24%}#victory .vsub{font-size:12px;white-space:normal;text-align:center;max-width:86vw}#victory .vpanel{grid-template-columns:1fr;bottom:10px;padding:10px}#victory .vstats{justify-content:center}#victory .vactions{justify-content:center}#victory .vactions .button{flex:1;height:44px;font-size:13px;padding:0 10px}#victory .vboard{max-height:22vh}}
+@media(max-width:640px){#hud #banner{font-size:36px;top:34%;white-space:normal;width:92vw}#hud #banner small{font-size:14px;margin-top:10px;white-space:normal}body[data-screen=game] #toast{top:auto;bottom:260px}#pause-panel .ctl,#pause-panel .set{grid-template-columns:1fr}#pause-panel .play{font-size:20px;padding:12px 22px}#victory .vhero{top:24%}#victory .vsub{font-size:12px;white-space:normal;text-align:center;max-width:86vw}#victory .vpanel{grid-template-columns:1fr;bottom:10px;padding:10px}#victory .vstats{justify-content:center}#victory .vactions{justify-content:center}#victory .vactions .button{flex:1;height:44px;font-size:13px;padding:0 10px}#victory .vboard{max-height:22vh}}
 
 
 /* Menus, cartoon direction (B-interface.md, 22:40): cream painted paper, wooden signs, cloth ribbons with stitched edges,
@@ -848,10 +848,10 @@ body.reduce-motion .settings-modal .seg button{animation:none!important;transiti
   background:var(--flash-sheet) 71.428571% 66.666667%/800% 400% no-repeat}
 .scope-overlay[data-kind=dmr] .scope-flash:after{width:41vmin;height:41vmin;bottom:-16vmin}
 
-/* Match overlays share the paper family and keep combat flashes out of the reading surface. */
-body:has(#pause-panel:not([hidden]),#scoreboard:not([hidden])) #hud{visibility:hidden}
-#hud:has(#bigmap:not([hidden]))>:not(#bigmap){visibility:hidden}
-#hud:has(#emoteWheel:not([hidden]))>:not(#emoteWheel){visibility:hidden}
+/* Panel state changes once on open/close; avoid invalidating the full HUD for every descendant update. */
+#hud.paused,#hud.score-open{visibility:hidden}
+#hud.map-open>:not(#bigmap){visibility:hidden}
+#hud.emote-open>:not(#emoteWheel){visibility:hidden}
 .modal kbd{font-size:12px}
 @media(max-width:700px){
   .topbar .brand{font-size:12px}
@@ -869,6 +869,14 @@ body:has(#pause-panel:not([hidden]),#scoreboard:not([hidden])) #hud{visibility:h
   .title-screen .hero-facts .burst{width:72px;height:72px;font-size:12px;margin:0}
 }
 @media(max-width:550px){
+  .modal .modal-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 8px}
+  .modal .modal-heading>div{display:contents}
+  .modal .modal-heading .eyebrow{grid-column:1;grid-row:1;align-self:center;margin:0;font-size:12px}
+  .modal .modal-heading h2{grid-column:1/-1;grid-row:2;justify-self:start;max-width:100%;font-size:22px;overflow-wrap:break-word}
+  .modal .modal-heading .close-modal{grid-column:2;grid-row:1}
+  .modal .how-grid,.modal .controls-grid{grid-template-columns:minmax(0,1fr)}
+  .modal .modal-actions{flex-direction:column}
+  .modal .modal-actions .button{width:100%}
   #hud .emote-ring{width:330px;height:360px;scale:1;translate:none}
   #hud .emote-option{left:calc(50% + var(--ex) * .75);top:calc(50% + var(--ey) * .75);width:96px;height:84px;padding:4px}
   #hud .emote-option img,#hud .emote-option .emote-art{width:40px;height:40px}

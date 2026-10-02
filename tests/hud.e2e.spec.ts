@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { GameUI } from '../src/ui/ui';
 import type { WorldSnapshot } from '../src/shared/types';
 
-type HudReview = Pick<GameUI, 'game' | 'update' | 'event' | 'toggleMap' | 'setPaused'> & { snapshot: WorldSnapshot; hudTime: number };
+type HudReview = Pick<GameUI, 'game' | 'update' | 'event' | 'toggleMap' | 'setPaused' | 'openEmoteWheel' | 'closeEmoteWheel'> & { snapshot: WorldSnapshot; hudTime: number };
 declare global { interface Window { __hudQA?: HudReview } }
 
 test('Navigation, readable weapon cards and combat outcomes have distinct places', async ({ page }) => {
@@ -71,6 +71,17 @@ test('Full-screen match panels clear combat feedback and preserve keyboard dismi
       && parseFloat(getComputedStyle(el).fontSize) < 12).map(el => el.className));
   expect(small).toEqual([]);
   await page.evaluate(() => window.__hudQA!.setPaused(false));
+  await expect(page.locator('#hotbar')).toBeVisible();
+  await page.evaluate(() => { const ui = window.__hudQA!; ui.hudTime = 0; ui.update(ui.snapshot, 'practice', 0, true, 60, null); });
+  await expect(page.locator('#scoreboard')).toBeVisible();
+  await expect(page.locator('#mapWrap')).toBeHidden();
+  await page.evaluate(() => { const ui = window.__hudQA!; ui.hudTime = 0; ui.update(ui.snapshot, 'practice', 0, false, 60, null); });
+  await expect(page.locator('#mapWrap')).toBeVisible();
+  await page.evaluate(() => window.__hudQA!.openEmoteWheel());
+  await expect(page.locator('#emoteWheel')).toBeVisible();
+  await expect(page.locator('#hotbar')).toBeHidden();
+  await page.evaluate(() => window.__hudQA!.closeEmoteWheel());
+  await expect(page.locator('#emoteWheel')).toBeHidden();
   await expect(page.locator('#hotbar')).toBeVisible();
 });
 
