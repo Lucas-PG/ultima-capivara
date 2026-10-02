@@ -138,7 +138,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     url: 'models/arsenal/smg.glb', scale: 1, handling: 'rifle', reload: 'rifle',
     hip: { pos: [.134, -.145, -.517], rot: [.087, .122, .122] },
     sprint: { pos: [-.025, -.02, .035], rot: [.30, .45, .28] },
-    adsDistance: .23, adsFov: 64, poles: { R: [.206, -.969, -.135], L: [.054, -.979, -.196] }, adsPoles: { R: [-.515, -.831, .21], L: [-.4, -1, .3] },
+    adsDistance: .23, adsFov: 64, poles: { R: [.206, -.969, -.135], L: [-.6, -1, .2] }, adsPoles: { R: [-.515, -.831, .21], L: [-.4, -1, .3] },
     choreoFrame: { pos: [.16, -.145, -.46], rot: [.04, .20, -.08] },
     shoulders: { R: [.042, -.345, .072], L: [-.016, -.315, -.135] },
     // Reloading, the support arm hangs further left so its forearm clears the magazine on the way back to the foregrip.
