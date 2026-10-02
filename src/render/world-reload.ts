@@ -19,6 +19,8 @@ export function worldReload(id: WeaponId, empty: boolean): Choreography | null {
   if (!cache.has(name)) {
     const reference = (time: number) => source.find(key => key.t === time)!.L!;
     const keys = source.map(key => {
+      // Traverse the independently measured world index route in the rig.
+      if (id === 'm4' && key.R?.indexed) key = { ...key, R: { ...key.R, indexed: undefined } };
       const hand = key.L;
       if (id === 'm4' && key.t >= .17 && key.t <= .7 && hand) return { ...key, L: undefined };
       if (id === 'm4' && hand && key.t >= .733 && key.t <= .785) return { ...key, L: key.t === .77 ? fits.m4Seat : translated(fits.m4Seat, hand, reference(.77)) };

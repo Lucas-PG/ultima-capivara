@@ -1046,7 +1046,10 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
     magazine.visible &&= m.visible; magazine.updateWorldMatrix(true, false);
   }
   const contactParts = parts && short ? parts : magazine ? { mag: magazine } : {};
-  const rightRest = id !== 'machete' && (sprint || reload >= 0) ? { ...grips.R, curl: heldCurl(grips.R, reload >= 0 ? 1 : sprint) } : grips.R;
+  const reloadIndex = id === 'm4' && reload >= 0
+    ? Math.min(THREE.MathUtils.smoothstep(reload, 0, .06), 1 - THREE.MathUtils.smoothstep(reload, rig.reloadEmpty ? .91 : .88, rig.reloadEmpty ? .97 : .94))
+    : reload >= 0 ? 1 : sprint;
+  const rightRest = id !== 'machete' && (sprint || reload >= 0) ? { ...grips.R, curl: heldCurl(grips.R, reloadIndex) } : grips.R;
   const right = shortWorldGrip(rightRest, sample?.R ?? null, contactParts, weapon, character);
   const leftRest = grips.L ? shortWorldGrip(grips.L, sample?.L ?? null, contactParts, weapon, character) : undefined;
   const holdsRight = handContact(sample?.R ?? null, 'body');
