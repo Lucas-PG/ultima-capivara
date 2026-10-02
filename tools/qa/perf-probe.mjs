@@ -2,7 +2,7 @@
 // Short live perf probe: practice match with bots, standing player, frame intervals over N seconds.
 import { chromium } from '@playwright/test';
 const base = process.env.BASE || 'http://127.0.0.1:5173', mode = process.env.MODE || 'deathmatch', seconds = Number(process.env.SECONDS || 20);
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=metal'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=gl-egl'] });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   if (process.env.QUALITY) await page.addInitScript(graphics => { const saved = JSON.parse(localStorage.getItem('uc-v2-settings') || '{}'); localStorage.setItem('uc-v2-settings', JSON.stringify({ ...saved, graphics })); }, process.env.QUALITY);
