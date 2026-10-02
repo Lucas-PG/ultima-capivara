@@ -1,7 +1,7 @@
 // Geometry-only companion to fp-clearance.mjs. Same actual skin, contact regions and failures.
 // Bundle into node_modules/.cache with import.meta.env.DEV=true; pass out.json and states.json.
 import { readFile, writeFile } from 'node:fs/promises';
-import { holdingFixture } from './fp-state-node.mts';
+import { holdingFixture } from './fp-state-node';
 import { measureGrip } from './grip-measure.mjs';
 import { holdingMetrics, holdingSummary } from './holding-metrics.mjs';
 const [out, statesFile] = process.argv.slice(2);

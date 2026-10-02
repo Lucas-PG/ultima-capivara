@@ -76,6 +76,6 @@ describe('shared trigger poses', () => {
     expect(heldCurl(grip)).toBe(grip.curl);
     const from = { ...grip.curl, indexSpread: -.2 }, to = { ...grip.curl, indexSpread: .4 };
     expect(blendCurl(from, to, .5).indexSpread).toBeCloseTo(.1, 10);
-    expect(blendCurl(from, grip.curl, 1).indexSpread).toBe(0);
+    expect(blendCurl(from, { ...grip.curl, indexSpread: undefined }, 1).indexSpread).toBe(0);
   });
 });

@@ -1,7 +1,7 @@
 // Geometry-only runner for grip-fit-core. Bundle with esbuild, defining import.meta.env.DEV=true,
 // into node_modules/.cache/grip-fit-node.mjs; then pass a jobs JSON file. No browser or rendering.
 import { readFile, writeFile } from 'node:fs/promises';
-import { holdingFixture } from './fp-state-node.mts';
+import { holdingFixture } from './fp-state-node';
 import { wristAngles } from '../../src/render/fp-arms';
 import { fitGrip } from './grip-fit-core.mjs';
 import { measureGrip } from './grip-measure.mjs';
