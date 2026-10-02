@@ -55,13 +55,17 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   if (intent.withPaw) {
     vm.solveArms(model, restGrips, null, null); vm.arms.group.updateMatrixWorld(true);
     const other = vm.arms.meshes.find(m => m.name.endsWith(side === 'L' ? 'R' : 'L'));
+    window.__qaCloseContactBoundary?.(other.geometry);
     const pos = other.geometry.attributes.position, idx = other.geometry.index, vtx = new V3();
     const at = i => other.getVertexPosition(idx ? idx.getX(i) : i, new V3()).applyMatrix4(other.matrixWorld).applyMatrix4(toGun).multiplyScalar(scale);
     const count = idx ? idx.count : pos.count;
     const topology = window.__qaSolidComponents(other.geometry), solidBase = nextSolid; nextSolid += topology.count;
     for (let i = 0; i < count; i += 3) {
       const a = at(i), b = at(i + 1), c = at(i + 2), n = new V3().subVectors(b, a).cross(new V3().subVectors(c, a));
-      if (n.lengthSq() > 1e-16) { const triangle = { a, b, c, n, solid: solidBase + topology.labels[i / 3] }; tris.push(triangle); (partTris.paw ??= []).push(triangle); }
+      if (n.lengthSq() > 1e-16) {
+        const triangle = { a, b, c, n, solid: solidBase + topology.labels[i / 3], contact: i / 3 < (other.geometry.userData.qaContactTriangleCount ?? Infinity) };
+        tris.push(triangle); (partTris.paw ??= []).push(triangle);
+      }
     }
     void vtx;
   }
@@ -134,6 +138,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
       if (bound(p, node) > best + 1e-10) continue;
       if (node.items) {
         for (const t of node.items) {
+          if (t.contact === false) continue;
           closest(p, t.a, t.b, t.c, c0);
           const d = c0.distanceToSquared(p), s = t.n.dot(q.subVectors(p, c0)) < 0 ? -1 : 1;
           if (d < best - 1e-12) { best = d; sign = s; } else if (d < best + 1e-10 && s > 0) sign = 1;
@@ -148,7 +153,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
       const node = nested.pop();
       if (bound(p, node) > Math.max(...depths.values()) + 1e-10) continue;
       if (!node.items) { nested.push(node.left, node.right); continue; }
-      for (const t of node.items) if (inside.has(t.solid)) {
+      for (const t of node.items) if (t.contact !== false && inside.has(t.solid)) {
         closest(p, t.a, t.b, t.c, c0); depths.set(t.solid, Math.min(depths.get(t.solid), c0.distanceToSquared(p)));
       }
     }

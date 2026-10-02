@@ -7,6 +7,45 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
   const M4 = holder.matrixWorld.constructor, V3 = holder.position.constructor;
   const toGun = new M4().copy(holder.matrixWorld).invert();
   const scale = holder.scale.x;
+  // A virtual world paw is cropped at the wrist. Close only its containment
+  // volume; appended cap triangles never count as rendered contact surfaces.
+  const closeBoundary = window.__qaCloseContactBoundary ??= geometry => {
+    if (!geometry.userData.qaCloseContactBoundary || geometry.userData.qaContactTriangleCount !== undefined) return;
+    const position = geometry.attributes.position, index = geometry.index;
+    const count = index ? index.count : position.count;
+    const triangles = Array.from({ length: count }, (_, i) => index ? index.getX(i) : i);
+    const welded = [], points = new Map(), edges = new Map();
+    for (let i = 0; i < position.count; i++) {
+      const key = [position.getX(i), position.getY(i), position.getZ(i)].map(v => Math.round(v * 1e7)).join(',');
+      if (!points.has(key)) points.set(key, i);
+      welded[i] = points.get(key);
+    }
+    for (let i = 0; i < count; i += 3) for (let k = 0; k < 3; k++) {
+      const a = welded[triangles[i + k]], b = welded[triangles[i + (k + 1) % 3]];
+      const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+      const edge = edges.get(key);
+      if (edge) edge.count++; else edges.set(key, { a, b, count: 1 });
+    }
+    const outgoing = new Map();
+    for (const edge of edges.values()) if (edge.count === 1) {
+      if (outgoing.has(edge.a)) throw new Error('Ambiguous cropped contact boundary');
+      outgoing.set(edge.a, edge.b);
+    }
+    while (outgoing.size) {
+      const first = outgoing.keys().next().value, loop = [first];
+      let current = first;
+      do {
+        const next = outgoing.get(current);
+        if (next === undefined) throw new Error('Unclosed cropped contact boundary');
+        outgoing.delete(current); current = next;
+        if (current !== first) loop.push(current);
+      } while (current !== first);
+      for (let i = 1; i + 1 < loop.length; i++) triangles.push(loop[0], loop[i + 1], loop[i]);
+    }
+    geometry.userData.qaContactTriangleCount = count / 3;
+    geometry.setIndex(triangles);
+  };
+  for (const mesh of vm.arms.meshes) closeBoundary(mesh.geometry);
   // Arsenal exports merge disjoint primitive solids into a single mesh. Weld UV-split positions
   // and follow shared edges to classify each closed component separately. The topology is static.
   const components = window.__qaSolidComponents ??= geometry => {
@@ -50,7 +89,7 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
     const count = idx ? idx.count : pos.count;
     const topology = components(o.geometry), solidBase = nextSolid; nextSolid += topology.count;
     const at = i => (o.isSkinnedMesh ? o.getVertexPosition(idx ? idx.getX(i) : i, new V3()) : new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i)).applyMatrix4(m).multiplyScalar(scale);
-    for (let i = 0; i < count; i += 3) tris.push([at(i), at(i + 1), at(i + 2), o.name, solidBase + topology.labels[i / 3]]);
+    for (let i = 0; i < count; i += 3) tris.push([at(i), at(i + 1), at(i + 2), o.name, solidBase + topology.labels[i / 3], i / 3 < (o.geometry.userData.qaContactTriangleCount ?? Infinity)]);
   });
   const mesh = vm.arms.meshes.find(m => m.name.endsWith(side));
   const bones = mesh.skeleton.bones.map(b => b.name.replace(/_[LR]$/, ''));
@@ -97,7 +136,7 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
   for (const v of measured) { lo.min(v.p); hi.max(v.p); }
   lo.subScalar(.03); hi.addScalar(.03);
   const desiredNormal = options.normal ? new V3(...options.normal).normalize() : null;
-  const near = tris.filter(([a, b, c]) => Math.max(a.x, b.x, c.x) > lo.x && Math.min(a.x, b.x, c.x) < hi.x && Math.max(a.y, b.y, c.y) > lo.y &&
+  const near = tris.filter(([a, b, c, , , contact]) => contact && Math.max(a.x, b.x, c.x) > lo.x && Math.min(a.x, b.x, c.x) < hi.x && Math.max(a.y, b.y, c.y) > lo.y &&
     Math.min(a.y, b.y, c.y) < hi.y && Math.max(a.z, b.z, c.z) > lo.z && Math.min(a.z, b.z, c.z) < hi.z &&
     (!desiredNormal || n.subVectors(b, a).cross(ac.subVectors(c, a)).normalize().dot(desiredNormal) >= (options.minNormalDot ?? .5)));
   // A median BVH keeps the full-vertex pass exact while avoiding a scan of
@@ -201,7 +240,7 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
       const inspect = node => {
         if (distanceToBox(v.p, node) > Math.max(...depths.values()) + 1e-10) return;
         if (!node.triangles) { inspect(node.left); inspect(node.right); return; }
-        for (const [a, b, c, part, solid] of node.triangles) if (inside.has(solid)) {
+        for (const [a, b, c, part, solid, contact] of node.triangles) if (contact && inside.has(solid)) {
           closest(v.p, a, b, c, c0);
           const d = c0.distanceToSquared(v.p);
           if (d < depths.get(solid)) {
