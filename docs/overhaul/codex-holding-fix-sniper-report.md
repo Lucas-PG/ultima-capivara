@@ -37,6 +37,7 @@ The magazine has 0.179 mm whole-skin clearance. The bolt's held contact remains 
 
 - 121 tests pass across the eight contact, skin, control and index-route suites, including the new DMR, SMG, sniper magazine and sniper bolt regressions.
 - All 48 ready tests for these three weapons pass, covering 16 states per weapon and actual trigger contact.
+- All 83 viewmodel and framing tests pass after the final bolt change, including the full sampled near-plane and natural-wrist checks.
 - The sniper bolt was additionally swept at 10 ms through 225 states, with zero whole-skin or held-bolt contact failures. The SMG charge approach, pull and release were swept at 5 ms through 85 states, also with zero failures.
 - `npx tsc --noEmit` and `VITE_QA=1 npm run build` pass. Repository-wide integration gates are recorded in the main follow-up report.
 - Fresh before and after views were captured on Mesa 26.2 at 1470 x 956, medium quality. The final eye, left and right views were reviewed: the magazine sits inside the supporting paw, the bolt hand clears its route, and the charge motions retain their intended controls. The eye framing remains readable throughout the changed states.
