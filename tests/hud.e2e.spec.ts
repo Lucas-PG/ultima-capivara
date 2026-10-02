@@ -49,6 +49,12 @@ test('Navigation, readable weapon cards and combat outcomes have distinct places
   await page.evaluate(() => window.__capyQA!.pose('results'));
   await expect(page.locator('#victory .vnum b')).toHaveText('#1');
   await expect(page.locator('#victory .vmascot')).toHaveAttribute('src', /capy-win/);
+  await expect(page.locator('#victory .victory-banner h1')).toHaveText('Última Capivara!');
+  const banner = (await page.locator('#victory .victory-banner').boundingBox())!;
+  const summary = (await page.locator('#victory .vpanel').boundingBox())!;
+  expect(banner.width).toBeGreaterThan(700);
+  expect(banner.y + banner.height).toBeLessThan(summary.y);
+  expect(summary.y + summary.height).toBeLessThanOrEqual(720);
 });
 
 test('Full-screen match panels clear combat feedback and preserve keyboard dismissal', async ({ page }) => {

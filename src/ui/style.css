@@ -422,7 +422,7 @@ body #victory #confetti{display:none}
 .modal .binding-group{font-family:var(--display);font-weight:400;font-size:14px;color:var(--ink);margin:18px 0 8px}
 .modal .key-binding.capturing{background:var(--paper);outline:3px solid #1fb5a8;outline-offset:2px;animation:rm-pulse .8s ease-in-out infinite}
 .modal .binding-note{min-height:1.5em;margin:14px 0 10px}
-.modal .binding-note kbd{font-size:11px;padding:0 5px}
+.modal .binding-note kbd{font-size:12px;padding:0 5px}
 .modal .key-binding{min-width:96px;white-space:nowrap}
 .modal .key-binding.unbound{background:var(--paper);color:var(--red);border-style:dashed;font-size:12px}
 .modal .bindings .unbound-count{color:var(--red)}
@@ -588,7 +588,7 @@ body.reduce-motion #hud .emote-option{transition:none}
 #victory{grid-template-columns:minmax(280px,460px) minmax(400px,600px);place-items:center;place-content:center;gap:clamp(28px,4vw,60px);padding:30px;overflow:auto;pointer-events:auto;isolation:isolate;background:rgba(40,26,16,.68)}
 #victory::before{background:radial-gradient(ellipse at 28% 48%,rgba(255,194,61,.3),transparent 65%);pointer-events:none}
 #victory::after{pointer-events:none;z-index:-1}
-#victory .vrays{left:-25%;top:-25%;width:150%;height:150%;margin:0;opacity:.3;transform:rotate(-8deg);animation:none;pointer-events:none;background:repeating-conic-gradient(from -8deg at 28% 50%,#ffc23d55 0 8deg,transparent 8deg 16deg);mask-image:radial-gradient(ellipse,#000 10%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse,#000 10%,transparent 75%)}
+#victory .vrays{left:0;top:0;width:100%;height:100%;margin:0;opacity:.3;transform:none;animation:none;pointer-events:none;background:repeating-conic-gradient(from -8deg at 28% 50%,#ffc23d55 0 8deg,transparent 8deg 16deg);mask-image:radial-gradient(ellipse,#000 10%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse,#000 10%,transparent 75%)}
 #victory .vhero,#victory:has(.vpanel.show) .vhero{position:relative;left:auto;top:auto;bottom:auto;transform:none;translate:none;scale:1;zoom:1;transition:none;width:100%;display:flex;flex-direction:column;align-items:center;gap:14px;animation:victory-stamp .32s var(--spring) both;background:none;border:0;box-shadow:none;padding:0;margin:0}
 #victory .vsticker{margin:0;background:var(--candy-teal);border:3px solid var(--brown);border-radius:999px;padding:6px 17px;color:var(--brown);font:14px var(--heading);box-shadow:0 4px 0 var(--brown);rotate:-3deg}
 #victory .vtitle,#victory.lost .vtitle{max-width:100%;margin:0;font-size:clamp(36px,4.2vw,60px);line-height:1.1;white-space:normal;text-transform:uppercase;text-wrap:balance;text-align:center;color:var(--gold);text-shadow:var(--ol-b),5px 7px 0 var(--brown);rotate:-3deg}
@@ -909,4 +909,55 @@ body.reduce-motion .settings-modal .seg button{animation:none!important;transiti
   #loadingOverlay .ltipbox{bottom:58px;padding:8px 14px}
   #loadingOverlay .ltip{font-size:14px;min-height:2.4em}
   #loadingOverlay .lfoot{bottom:10px}
+}
+
+/* The winning moment gets one broad paper banner over the still-visible island. */
+#victory.won{grid-template-columns:minmax(250px,380px) minmax(440px,600px);grid-template-rows:auto auto;gap:22px 42px;padding:24px 38px;background:rgba(40,26,16,.42)}
+#victory .victory-banner{grid-column:1/-1;position:relative;isolation:isolate;display:flex;align-items:center;gap:22px;width:min(940px,100%);padding:12px 26px;border:4px solid var(--brown);border-radius:18px;background:var(--paper);background-image:var(--paper-tex);box-shadow:0 7px 0 var(--brown);color:var(--brown);rotate:-2deg;animation:victory-stamp .32s var(--spring) both;z-index:2}
+#victory .victory-banner::before{content:"";position:absolute;inset:10px -16px;border:3px solid var(--brown);border-radius:8px;background:var(--candy-gold);transform:rotate(3deg);z-index:-1}
+#victory .victory-banner .vnum{position:relative;left:auto;top:auto;flex:none;margin:-18px 0;rotate:-6deg;min-width:110px;padding:12px}
+#victory .victory-banner .vnum b{font-size:58px}
+#victory .victory-callout{flex:1;min-width:0}
+#victory .victory-callout p{margin:0 0 5px;font:13px var(--body);letter-spacing:1px;color:var(--brown-2)}
+#victory .victory-callout h1{margin:0;font:clamp(32px,3.8vw,52px)/1.12 var(--heading);text-transform:uppercase;letter-spacing:-1px;color:var(--brown);text-shadow:0 3px 0 #fff9e8}
+#victory .victory-banner>.icon{flex:none;width:66px;height:66px}
+#victory.won .vhero{grid-column:1;grid-row:2;gap:10px}
+#victory.won .vpanel{grid-column:2;grid-row:2;gap:10px;padding:18px}
+#victory.won .vpanel-heading .eyebrow{display:none}
+#victory.won .vpanel-heading h2{font-size:22px;margin-top:0}
+#victory.won .vstats{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+#victory.won .vstats div:nth-child(n){padding:9px 5px}
+#victory.won .vstats b{font-size:27px}
+#victory.won .vboard{max-height:160px}
+#victory .vwinner b{white-space:normal;overflow-wrap:anywhere}
+#victory .vactions .wait{min-width:0;overflow-wrap:anywhere}
+#victory .vpanel{grid-template-columns:minmax(0,1fr);min-width:0}
+#victory .vpanel>*{min-width:0}
+#victory .vchampion b{max-width:100%;min-width:0}
+#victory .vactions{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+#victory .score-table{table-layout:fixed}
+#victory .score-table th:first-child{width:60%}
+#victory .score-table td:first-child{overflow:hidden;text-overflow:ellipsis}
+body.reduce-motion #victory .victory-banner{animation:none!important}
+@media(prefers-reduced-motion:reduce){#victory .victory-banner{animation:none!important}}
+@media(max-width:900px){
+  #victory.won{grid-template-columns:minmax(0,620px);grid-template-rows:auto;gap:22px;padding:24px 20px 32px;align-content:start}
+  #victory.won .vhero,#victory.won .vpanel{grid-column:1;grid-row:auto}
+  #victory .victory-banner{gap:14px;padding:12px 16px}
+  #victory .victory-banner .vnum{min-width:84px;padding:9px;margin:0}
+  #victory .victory-banner .vnum b{font-size:40px}
+  #victory .victory-banner>.icon{width:40px;height:40px}
+  #victory .victory-callout h1{font-size:32px}
+}
+@media(max-width:550px){
+  #victory .victory-banner{gap:10px;padding:12px 10px}
+  #victory .victory-banner .vnum{min-width:74px;padding:7px}
+  #victory .victory-banner .vnum b{font-size:34px}
+  #victory .victory-banner .vnum small{font-size:12px}
+  #victory .victory-callout h1{font-size:25px;letter-spacing:-.5px}
+  #victory .victory-callout p{font-size:12px;letter-spacing:0}
+  #victory .victory-banner>.icon{display:none}
+  #victory.won .vstats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #victory .vactions{grid-template-columns:minmax(0,1fr)}
+  #victory .vchampion span{align-items:flex-start;flex-direction:column;gap:4px}
 }

@@ -102,6 +102,10 @@ export const publicUrl = (file: string, base: string = import.meta.env.BASE_URL,
 // pt-BR formatting for the results screen.
 export const formatSurvived = (seconds: number) => { const s = Math.max(0, Math.round(seconds)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 export const accuracyText = (hits: number, shots: number) => shots > 0 ? `${Math.round(Math.min(1, hits / shots) * 100)}%` : '–';
+export function resultTitle(mode: string, won: boolean): string {
+  if (!won) return 'Boa partida!';
+  return ({ 'battle-royale': 'Última Capivara!', corrente: 'Fechou a corrente!', deathmatch: 'Dona da correria!', duel: 'Duelo vencido!', squads: 'Sua turma venceu!' } as Record<string, string>)[mode] ?? 'A vitória é sua!';
+}
 export const ordinal = (place: number) => `${place}º`;
 
 // Leaving asks for confirmation only when something is lost: an online host closes the room for everyone,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { accuracyText, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_CENTRED_WIDTH, HUD_MIN_SCALE, HUD_MIN_TEXT, HUD_SHORT_HEIGHT, hudNarrow, hudScale, hudShort, HEALS, HEAL_INFO, bagSlotCentre, freshBoxes, canUseHeal, healTarget, suggestedHeal, healGains, healthTone, pickupCopy, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
+import { accuracyText, resultTitle, cleanLabel, ELIMINATED_ACTIONS, DEATH_CARD_SECONDS, killCardParts, formatSurvived, RESULTS_ACTIONS_DELAY, HUD_CENTRED_WIDTH, HUD_MIN_SCALE, HUD_MIN_TEXT, HUD_SHORT_HEIGHT, hudNarrow, hudScale, hudShort, HEALS, HEAL_INFO, bagSlotCentre, freshBoxes, canUseHeal, healTarget, suggestedHeal, healGains, healthTone, pickupCopy, leaveNeedsConfirm, coverImageSet, startButtonState, BINDING_LABELS, BINDING_GROUPS, bindingOf, captureMousePress, isBindableCode, keyLabel, remapBinding, unboundActions, loadingLabel, nextProgress, publicUrl, TEXT_FLOOR, tipBag } from '../src/ui/hud-logic';
 import { fillTip, TIPS } from '../src/ui/tips';
 import { WEAPONS } from '../src/shared/weapons';
 import { PLAYER_COLORS } from '../src/shared/types';
@@ -134,6 +134,14 @@ describe('deploy base', () => {
 });
 
 describe('results screen', () => {
+  it('names the win for each mode and keeps losses about the player', () => {
+    expect(resultTitle('battle-royale', true)).toBe('Última Capivara!');
+    expect(resultTitle('corrente', true)).toBe('Fechou a corrente!');
+    expect(resultTitle('deathmatch', true)).toBe('Dona da correria!');
+    expect(resultTitle('duel', true)).toBe('Duelo vencido!');
+    expect(resultTitle('squads', true)).toBe('Sua turma venceu!');
+    for (const mode of ['battle-royale', 'corrente', 'deathmatch', 'duel', 'squads']) expect(resultTitle(mode, false)).toBe('Boa partida!');
+  });
   // Sentinela: the rematch and menu actions were unreachable for 2.2 s behind the victory stamp.
   it('makes the actions reachable within the 400 ms input budget', () => {
     expect(RESULTS_ACTIONS_DELAY).toBeLessThanOrEqual(400);
