@@ -11,6 +11,19 @@ Carrying palm and wrap remain in -0.5 to +1.5 mm, whole visible skin stays at or
 | pistol | 1023 | 1017 | 6 | 0 | -0.484 | -0.149 | -0.058 |
 | shotgun | 752 | 744 | 8 | 0 | -0.419 | -0.325 | n/a |
 
+The final table deduplicates these audit sets by action and time:
+
+| Audit set | Pistol samples | Doze samples | Result |
+| --- | ---: | ---: | --- |
+| Main dense sweep | 652 | 463 | 0 failures in each |
+| Original key times missing from the new sample list | 2 | 0 | 0 failures |
+| Uniform 25 ms supplement | 159 | 159 | Doze 0; two pistol release failures superseded below |
+| Final sprint/inspect sweep plus authored keys | 309 + 10 | 0 | 0 failures; replaces every earlier pistol sprint/inspect row |
+| Shell transfer at 1 ms | 0 | 101 | 0 failures |
+| Pump/shell release at 1 ms | 0 | 67 | 0 failures |
+
+The separate 130 pistol R-skin checks below are not included in the full-contract state count. The preserved main/extra rows cover unchanged actions; all affected sprint and inspect rows come from the final `fbff404` replay.
+
 Distances are millimetres; positive means separated, negative means penetration. Inactive rows are weapon-switch boundaries where the requested weapon is not active, never a relaxed contact gate. Two additional original pistol key times absent from the new key list also pass.
 
 The dense sweep uses the production `holdingMetrics` contract and actual posed skin against the shipped GLB triangles. Every action in `holdingStates` is covered at uniform 25 ms cadence, including locomotion and inspect, every authored reload key is included, and the new pistol reload transitions/magazine sweep have 5 ms checks. Doze adds 5 ms reload checks, 101 transfer samples at 1 ms, and 67 pump/shell release samples at 1 ms, all passing.
