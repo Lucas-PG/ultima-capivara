@@ -64,7 +64,7 @@ export class RoundModesUI {
       });
       this.hud.innerHTML = `<div class="round-score">${teams[0]}<div class="round-clock"><small>${esc(title)}</small><b>${clock(seconds)}</b><span>Até ${round.target} pontos</span></div>${teams[1]}</div>` +
         (snapshot.config.mode === 'duel' ? `<div class="round-kit">${weaponIcon(round.weapon ?? '')}<span>${esc(round.weapon ? WEAPONS[round.weapon].name : '')} para os dois</span></div>` :
-          `<button class="round-wallet" data-open-shop ${round.phase !== 'buy' || snapshot.phase !== 'playing' || !me.alive ? 'disabled' : ''}><b>${money(me.money ?? 0)}</b><span>${round.phase === 'buy' ? `<kbd>${esc(buyKey || 'Clique')}</kbd> Comprar` : 'Moedas da rodada'}</span></button>`);
+          `<button class="round-wallet" data-open-shop ${round.phase !== 'buy' || snapshot.phase !== 'playing' || !me.alive ? 'disabled' : ''}><b>${money(me.money ?? 0)}</b><span>${round.phase === 'buy' ? `<kbd>${esc(buyKey || 'Clique')}</kbd> Comprar` : `Sua turma: ${TEAM_NAMES[me.team ?? 0]}`}</span></button>`);
     }
     if (this.dialog) this.updateShop();
   }
