@@ -18,7 +18,8 @@ const poses = (env.POSES || 'fp-m4,plaza16,vilaStreet,crowd,plane,fight').split(
 const wide = JSON.parse(readFileSync(new URL('./wide-views.json', import.meta.url), 'utf8'));
 const views = { 'fp-m4': ['fp-m4', 1], plaza16: ['plaza', 16], vilaStreet: ['vilaStreet', 1],
   crowd: ['capyFront', 12], plane: ['plaza', 1, wide.plane], fight: ['cocoBlast', 8] };
-for (const name of poses) if (!views[name]) throw new Error(`Unknown pose ${name}`);
+const cases = env.CASES ? env.CASES.split(',').map(item => item.split(':')) : presets.flatMap(preset => poses.map(name => [preset, name]));
+for (const [preset, name] of cases) if (!['low', 'medium', 'high'].includes(preset) || !views[name]) throw new Error(`Unknown case ${preset}:${name}`);
 const machineSample = () => ({ measuredAt: new Date().toISOString(), load: loadavg(), freeMemoryMB: Math.round(freemem() / 1048576),
   cpuTimes: cpus().map(cpu => cpu.times), processes: execFileSync('ps', ['-eo', 'pid,ppid,stat,pcpu,comm', '--sort=-pcpu'], { encoding: 'utf8' }).split('\n').slice(0, 21) });
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle',
@@ -47,7 +48,7 @@ try {
       return { renderer: String(gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER)), timerQuery: !!gl.getExtension('EXT_disjoint_timer_query_webgl2') };
     });
   }
-  for (const preset of presets) for (const name of poses) {
+  for (const [preset, name] of cases) {
     const [pose, actors, camera] = views[name];
     for (const page of Object.values(pages)) {
       await page.bringToFront();
@@ -69,10 +70,17 @@ try {
       samples.push({ round, variant, bench, state, machineBefore, machineAfter });
       console.log(preset, name, round, variant, bench.medianMs.toFixed(2), 'ms', 'load', machineAfter.load[0].toFixed(2), 'density', state.density);
     }
-    rows.push({ preset, name, pose, actors, camera: camera ?? null, samples });
+    const churn = {};
+    for (const [variant, page] of Object.entries(pages)) {
+      await page.bringToFront();
+      churn[variant] = await page.evaluate(() => window.__capyQA.programChurn(12));
+    }
+    // capyFront adds its close review bot to the requested crowd fixture.
+    rows.push({ preset, name, pose, actors, actualActors: actors + (pose === 'capyFront' ? 1 : 0), camera: camera ?? null, samples, churn });
     writeFileSync(out, JSON.stringify({ startedAt, measuredAt: new Date().toISOString(), before: env.BEFORE, after: env.AFTER,
       viewport, gpu, chromeVersion: browser.version(), cpuThrottle, seed, frames, rounds, order: 'A-B-B-A', thermal: null,
       headless: true, densityPinnedBy: 'QA frame budget Infinity, shipped preset ceiling',
+      measurementPurpose: env.PURPOSE || 'paired frozen frame cost',
       machine: { platform: process.platform, cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemoryMB: Math.round(totalmem() / 1048576) }, rows, errors }, null, 1));
   }
 } finally { await browser.close(); }
