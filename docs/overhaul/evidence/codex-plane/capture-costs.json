@@ -1,0 +1,156 @@
+{
+  "before-plane-front": {
+    "drawCalls": 199,
+    "triangles": 2137149,
+    "modelDraws": 31,
+    "modelTriangles": 4844,
+    "modelLines": 0
+  },
+  "before-plane-side": {
+    "drawCalls": 107,
+    "triangles": 942872,
+    "modelDraws": 31,
+    "modelTriangles": 4844,
+    "modelLines": 0
+  },
+  "before-plane-rear": {
+    "drawCalls": 112,
+    "triangles": 1090923,
+    "modelDraws": 31,
+    "modelTriangles": 4844,
+    "modelLines": 0
+  },
+  "before-plane-ground": {
+    "drawCalls": 95,
+    "triangles": 697373,
+    "modelDraws": 31,
+    "modelTriangles": 4844,
+    "modelLines": 0
+  },
+  "before-plane-cabin": {
+    "drawCalls": 105,
+    "triangles": 974686,
+    "modelDraws": 31,
+    "modelTriangles": 4844,
+    "modelLines": 0
+  },
+  "before-plane-door": {
+    "drawCalls": 106,
+    "triangles": 966684,
+    "modelDraws": 31,
+    "modelTriangles": 4844,
+    "modelLines": 0
+  },
+  "before-plane-cockpit": {
+    "drawCalls": 136,
+    "triangles": 1899853,
+    "modelDraws": 31,
+    "modelTriangles": 4844,
+    "modelLines": 0
+  },
+  "before-chute-front": {
+    "drawCalls": 105,
+    "triangles": 2020635,
+    "modelDraws": 10,
+    "modelTriangles": 672,
+    "modelLines": 8
+  },
+  "before-chute-back": {
+    "drawCalls": 72,
+    "triangles": 1355659,
+    "modelDraws": 10,
+    "modelTriangles": 672,
+    "modelLines": 8
+  },
+  "before-chute-eye": {
+    "drawCalls": 66,
+    "triangles": 1229400,
+    "modelDraws": 10,
+    "modelTriangles": 672,
+    "modelLines": 8
+  },
+  "before-chute-grip": {
+    "drawCalls": 153,
+    "triangles": 2463934,
+    "modelDraws": 10,
+    "modelTriangles": 672,
+    "modelLines": 8
+  },
+  "after-plane-front": {
+    "drawCalls": 150,
+    "triangles": 2177769,
+    "modelDraws": 4,
+    "modelTriangles": 24760,
+    "modelLines": 0
+  },
+  "after-plane-side": {
+    "drawCalls": 58,
+    "triangles": 983492,
+    "modelDraws": 4,
+    "modelTriangles": 24760,
+    "modelLines": 0
+  },
+  "after-plane-rear": {
+    "drawCalls": 63,
+    "triangles": 1131543,
+    "modelDraws": 4,
+    "modelTriangles": 24760,
+    "modelLines": 0
+  },
+  "after-plane-ground": {
+    "drawCalls": 46,
+    "triangles": 737993,
+    "modelDraws": 4,
+    "modelTriangles": 24760,
+    "modelLines": 0
+  },
+  "after-plane-cabin": {
+    "drawCalls": 58,
+    "triangles": 1015794,
+    "modelDraws": 4,
+    "modelTriangles": 24760,
+    "modelLines": 0
+  },
+  "after-plane-door": {
+    "drawCalls": 63,
+    "triangles": 1008412,
+    "modelDraws": 4,
+    "modelTriangles": 24760,
+    "modelLines": 0
+  },
+  "after-plane-cockpit": {
+    "drawCalls": 110,
+    "triangles": 1943017,
+    "modelDraws": 4,
+    "modelTriangles": 24760,
+    "modelLines": 0
+  },
+  "after-chute-front": {
+    "drawCalls": 98,
+    "triangles": 2027211,
+    "modelDraws": 2,
+    "modelTriangles": 3928,
+    "modelLines": 0
+  },
+  "after-chute-back": {
+    "drawCalls": 65,
+    "triangles": 1362235,
+    "modelDraws": 2,
+    "modelTriangles": 3928,
+    "modelLines": 0
+  },
+  "after-chute-eye": {
+    "drawCalls": 59,
+    "triangles": 1235976,
+    "modelDraws": 2,
+    "modelTriangles": 3928,
+    "modelLines": 0
+  },
+  "after-chute-grip": {
+    "drawCalls": 147,
+    "triangles": 2470574,
+    "modelDraws": 2,
+    "modelTriangles": 3928,
+    "modelLines": 0
+  }
+}

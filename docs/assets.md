@@ -1,5 +1,24 @@
 # Origem dos recursos
 
+## Avião e paraquedas Capivara (02/10/2026)
+
+- `public/models/aircraft/aircraft.glb`: geometria original criada em Blender 5.0.1
+  por `tools/blender/aircraft.py` e comprimida por `build-aircraft.mjs`. Avião de
+  transporte com cabine aberta, bancos, painel, hélices e trem de pouso; paraquedas
+  de nove células com tirantes, comandos e arnês. Cores por vértice, dois materiais,
+  nenhuma textura de imagem. As letras usam a Bfont incluída no Blender, convertida
+  em malha. Sem modelo, imagem, textura ou animação de terceiros incorporados.
+- Três níveis de detalhe: avião 24.760 / 11.684 / 3.360 triângulos, paraquedas
+  3.928 / 2.644 / 1.668. Quatro desenhos de cor por avião e dois por paraquedas,
+  além das passagens de sombra. Arquivo de 286.040 bytes, 124.312 bytes em gzip.
+- Pesquisa visual: Battle Bus e asa-delta do Fortnite, nave do Apex, avião do
+  PUBG, Twin Otter e diagrama de linhas de paraquedas. As imagens foram vistas
+  apenas como referência e permanecem em `~/codex-team/refs/plane`, fora do jogo.
+  Links, decisões e evidências constam em `docs/overhaul/codex-plane-report.md`.
+  Nenhuma geração de imagem, API paga ou recurso externo foi usado na produção.
+- `tools/qa/aircraft-baseline.ts` conserva a arte procedural do próprio projeto
+  no commit `b721224`, apenas para comparação. O código de produção não o importa.
+
 ## Conceitos de produção M1
 
 Gerações originais com ImageGen integrada em 24/09/2026, direção A, para os briefs T1-T4 do Pincel. Pincel aprovou os quatro sheets como meta de modelagem em 24/09/2026. Originais 1672 x 941 em `docs/concepts/` e `/Users/lucas_gaspe/dev/capivara-team/reviews/`.

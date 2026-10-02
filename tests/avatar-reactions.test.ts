@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { AvatarView } from '../src/render/avatars';
+import { disposeAircraftAssets, makePlane, preloadAircraftAsset } from '../src/render/aircraft';
+import { loadAircraftFixture } from './helpers/aircraft-fixture';
 import { capybaraIsDead, disposeCapybaraAssets, preloadCapybaraAsset, tpGripOffset } from '../src/render/capybara';
 import { emptyInput } from '../src/shared/math';
 import type { ActorState, RenderFrame, WorldSnapshot } from '../src/shared/types';
@@ -16,10 +18,11 @@ beforeEach(async () => {
   vi.stubGlobal('createImageBitmap', async () => ({ width: 16, height: 16, close() {} }));
   const bytes = await readFile('public/models/capybara/capybara.glb');
   await preloadCapybaraAsset(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), ''));
+  await preloadAircraftAsset(loadAircraftFixture, makePlane());
   camera = new THREE.PerspectiveCamera(); camera.position.set(0, 1.6, 5); camera.lookAt(0, 1.6, 0);
   view = new AvatarView(new THREE.Scene(), camera); view.resize(1280, 720);
 });
-afterEach(() => { view?.dispose(); disposeCapybaraAssets(); vi.unstubAllGlobals(); });
+afterEach(() => { view?.dispose(); disposeCapybaraAssets(); disposeAircraftAssets(); vi.unstubAllGlobals(); });
 
 function harness() {
   const actor = { id: 'target', name: 'Capivara', color: '#1fb5a8', pos: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 },

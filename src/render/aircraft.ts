@@ -1,86 +1,104 @@
 import * as THREE from 'three';
+import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import type { AssetEntry } from './asset-manifest';
+import metrics from '../../public/models/aircraft/metrics.json';
 
-// The two things every royale opens with: the drop plane and each capybara's
-// parachute. Cartoon proportions, flat livery colours, readable from far away.
+/** Original Blender aircraft and canopy. Their origins match the host's existing
+ * plane position and the capybara's foot root; no flight or glide rule lives here. */
+export const AIRCRAFT_ASSET_ENTRY: AssetEntry = {
+  path: 'models/aircraft/aircraft.glb', kind: 'glb', bytes: metrics.bytes, label: 'Avião e paraquedas',
+};
+let aircraft: GLTF | null = null;
+let generation = 0;
 
-const paint = (color: string, roughness = .7) => new THREE.MeshStandardMaterial({ color, roughness, metalness: .05 });
+function mesh(kind: string, level: number, tint?: string): THREE.Mesh {
+  const source = aircraft?.scene.getObjectByName(`${kind}_LOD${level}`);
+  if (!(source instanceof THREE.Mesh) || !(source.material instanceof THREE.MeshStandardMaterial))
+    throw new Error(`Peça do avião ausente: ${kind}_LOD${level}`);
+  // Each instance owns its resources, matching the avatar and renderer disposal
+  // contract. Keep the export transform on the mesh: writing metre positions
+  // into normalized integer buffers would clamp Meshopt vertices to a cube.
+  const geometry = source.geometry.clone();
+  const material = source.material.clone();
+  material.vertexColors = true;
+  material.forceSinglePass = true;
+  if (tint) material.color.set(tint);
+  if (kind === 'plane_glass') { material.depthWrite = false; material.side = THREE.DoubleSide; }
+  const result = new THREE.Mesh(geometry, material);
+  result.name = source.name;
+  result.applyMatrix4(source.matrixWorld);
+  result.castShadow = kind !== 'plane_glass';
+  result.receiveShadow = true;
+  return result;
+}
 
-// Striped canopy in the player's kit colour. Every mesh owns its geometry and
-// material because avatars dispose their chute when they leave.
+function levels(target: THREE.LOD, kinds: readonly string[], distances: readonly number[], tint?: string) {
+  for (let level = 0; level < 3; level++) {
+    const group = new THREE.Group();
+    for (const kind of kinds) group.add(mesh(kind, level, kind === 'chute_team' ? tint : undefined));
+    target.addLevel(group, distances[level], .12);
+  }
+}
+
+/** Keep the two direct propeller children stable: GameRenderer captures those
+ * references before warmup and continues its existing time-based spin. */
+export function makePlane(): THREE.Group {
+  const plane = new THREE.Group(); plane.name = 'Avião Capivara';
+  const body = new THREE.LOD(); body.name = 'Fuselagem'; plane.add(body);
+  for (const point of metrics.propellers) {
+    const propeller = new THREE.Group(); propeller.name = 'propeller';
+    propeller.position.fromArray(point); propeller.add(new THREE.LOD()); plane.add(propeller);
+  }
+  return plane;
+}
+
+/** Awaited by the renderer's readiness barrier before any avatar or GPU upload.
+ * A missing/corrupt model is a loading failure, never a late airborne swap. */
+export async function preloadAircraftAsset(load: (path: string) => Promise<GLTF>, plane: THREE.Group): Promise<void> {
+  const token = generation;
+  const source = await load(AIRCRAFT_ASSET_ENTRY.path);
+  if (token !== generation) { disposeSource(source); throw new Error('O carregamento do avião foi cancelado.'); }
+  source.scene.updateMatrixWorld(true);
+  for (const kind of ['plane_body', 'plane_glass', 'plane_propeller', 'chute_base', 'chute_team'])
+    for (let level = 0; level < 3; level++) {
+      const part = source.scene.getObjectByName(`${kind}_LOD${level}`);
+      if (!(part instanceof THREE.Mesh) || !(part.material instanceof THREE.MeshStandardMaterial)) {
+        disposeSource(source);
+        throw new Error(`Modelo do avião incompleto: ${kind}_LOD${level}`);
+      }
+    }
+  aircraft = source;
+  const body = plane.getObjectByName('Fuselagem') as THREE.LOD;
+  if (body.levels.length) return;
+  levels(body, ['plane_body', 'plane_glass'], metrics.planeDistances);
+  for (const propeller of plane.children.filter(child => child.name === 'propeller'))
+    levels(propeller.children[0] as THREE.LOD, ['plane_propeller'], metrics.planeDistances);
+}
+
+/** Two draws per canopy at every distance. Six colored cells use the actor's kit
+ * tint; the cream panels, seams, load lines, risers and harness share one mesh. */
 export function makeParachute(kit: string): THREE.Group {
-  const chute = new THREE.Group();
-  const canopy = new THREE.SphereGeometry(1, 32, 10, 0, Math.PI * 2, 0, 1.05).toNonIndexed();
-  canopy.scale(2.1, .95, 1.45); canopy.translate(0, 3.05, 0);
-  const position = canopy.getAttribute('position'), colors = new Float32Array(position.count * 3);
-  const stripe = new THREE.Color(kit), cream = new THREE.Color('#fff1d0'), color = new THREE.Color();
-  for (let i = 0; i < position.count; i += 3) {
-    // Colour whole triangles by their centre angle so gores stay crisp.
-    const x = (position.getX(i) + position.getX(i + 1) + position.getX(i + 2)) / 3;
-    const z = (position.getZ(i) + position.getZ(i + 1) + position.getZ(i + 2)) / 3;
-    const gore = Math.floor((Math.atan2(z, x) + Math.PI) / (Math.PI * 2) * 12);
-    color.copy(gore % 2 ? stripe : cream);
-    for (let k = 0; k < 3; k++) colors.set([color.r, color.g, color.b], (i + k) * 3);
-  }
-  canopy.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  canopy.computeVertexNormals();
-  const cloth = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .85, side: THREE.DoubleSide });
-  const dome = new THREE.Mesh(canopy, cloth); dome.castShadow = true; chute.add(dome);
-  const vent = new THREE.Mesh(new THREE.CylinderGeometry(.34, .4, .12, 16), paint('#fff1d0'));
-  vent.position.set(0, 4.02, 0); chute.add(vent);
-  const lineMaterial = new THREE.LineBasicMaterial({ color: '#f7ebcd' });
-  for (let i = 0; i < 8; i++) {
-    const a = i / 8 * Math.PI * 2;
-    const start = new THREE.Vector3(Math.cos(a) * 2.02, 3.3, Math.sin(a) * 1.38), end = new THREE.Vector3(Math.cos(a) * .22, 1.3, Math.sin(a) * .16);
-    chute.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), i ? lineMaterial.clone() : lineMaterial));
-  }
+  if (!aircraft) throw new Error('O paraquedas ainda não está pronto.');
+  const chute = new THREE.Group(); chute.name = 'Paraquedas Capivara';
+  const lod = new THREE.LOD(); lod.name = 'Velame e tirantes';
+  levels(lod, ['chute_base', 'chute_team'], metrics.chuteDistances, kit);
+  chute.add(lod);
   return chute;
 }
 
-// A chunky twin-prop island hopper in cream with a teal stripe and an orange tail.
-// Nose points down -Z; direct children named 'propeller' spin around Z.
-export function makePlane(): THREE.Group {
-  const group = new THREE.Group();
-  const cream = paint('#f3ead2'), teal = paint('#2f8f86'), orange = paint('#e8793f'), dark = paint('#243038', .3), grey = paint('#9aa7a8', .5);
-  const add = (geometry: THREE.BufferGeometry, material: THREE.Material, x = 0, y = 0, z = 0) => {
-    const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x, y, z); mesh.castShadow = true; group.add(mesh); return mesh;
-  };
-  // Fuselage: a fat capsule tapering into a tail boom.
-  const body = new THREE.CapsuleGeometry(1.7, 9, 8, 20); body.rotateX(Math.PI / 2); body.scale(1, 1.05, 1);
-  add(body, cream, 0, 0, -.5);
-  const boom = new THREE.CylinderGeometry(1.55, .55, 6, 20); boom.rotateX(-Math.PI / 2);
-  add(boom, cream, 0, .35, 7.2);
-  const stripe = new THREE.CylinderGeometry(1.74, 1.74, 10.5, 20, 1, true, Math.PI * .25, Math.PI * .5); stripe.rotateX(Math.PI / 2);
-  add(stripe, teal, 0, 0, -.6).rotation.z = Math.PI / 2;
-  add(new THREE.CylinderGeometry(1.74, 1.74, 10.5, 20, 1, true, Math.PI * 1.25, Math.PI * .5).rotateX(Math.PI / 2), teal, 0, 0, -.6).rotation.z = Math.PI / 2;
-  // Cockpit glass band and round cabin windows.
-  const glass = new THREE.SphereGeometry(1.55, 20, 10, Math.PI * .75, Math.PI * 1.5, Math.PI * .22, Math.PI * .22);
-  add(glass, dark, 0, .25, -5.3).rotation.x = Math.PI / 2;
-  for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
-    const window = new THREE.CylinderGeometry(.3, .3, .2, 14); window.rotateZ(Math.PI / 2);
-    add(window, dark, side * 1.62, .45, -2.8 + i * 1.45);
-  }
-  // High wing with rounded tips, engines and three-blade props.
-  const wing = new THREE.CapsuleGeometry(.28, 20, 4, 12); wing.rotateZ(Math.PI / 2); wing.scale(1, 1, 5.5);
-  add(wing, cream, 0, 1.75, -1.2);
-  add(new THREE.BoxGeometry(20.5, .1, .5), teal, 0, 2.02, -2.4);
-  for (const x of [-5.4, 5.4]) {
-    const nacelle = new THREE.CapsuleGeometry(.72, 3, 6, 16); nacelle.rotateX(Math.PI / 2);
-    add(nacelle, orange, x, 1.2, -2.2);
-    add(new THREE.SphereGeometry(.42, 14, 10), grey, x, 1.2, -4.25);
-    const prop = new THREE.Group(); prop.name = 'propeller'; prop.position.set(x, 1.2, -4.45); group.add(prop);
-    for (let b = 0; b < 3; b++) {
-      const blade = new THREE.Mesh(new THREE.CapsuleGeometry(.14, 1.6, 4, 8), dark);
-      blade.scale.set(1, 1, .35); blade.rotation.z = b / 3 * Math.PI * 2; blade.translateY(1); prop.add(blade);
-    }
-  }
-  // Tail: fin and stabilisers in orange, a teal tip.
-  const fin = new THREE.Shape(); fin.moveTo(0, 0); fin.lineTo(2.6, 0); fin.quadraticCurveTo(2.2, 2.4, 1.2, 3.3); fin.lineTo(.5, 3.3); fin.quadraticCurveTo(.2, 1.4, 0, 0);
-  const finGeometry = new THREE.ExtrudeGeometry(fin, { depth: .22, bevelEnabled: true, bevelThickness: .06, bevelSize: .06, bevelSegments: 2 });
-  finGeometry.translate(0, 0, -.11); finGeometry.rotateY(-Math.PI / 2);
-  add(finGeometry, orange, 0, .9, 7.8);
-  const stabiliser = new THREE.CapsuleGeometry(.14, 6.4, 4, 10); stabiliser.rotateZ(Math.PI / 2); stabiliser.scale(1, 1, 5);
-  add(stabiliser, orange, 0, .75, 9.3);
-  // Fixed landing gear keeps the silhouette toy-like.
-  for (const x of [-1.4, 1.4]) add(new THREE.CylinderGeometry(.5, .5, .4, 16).rotateZ(Math.PI / 2), dark, x, -2, -.8);
-  return group;
+function disposeSource(source: GLTF): void {
+  const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
+  source.scene.traverse(object => {
+    if (!(object instanceof THREE.Mesh)) return;
+    geometries.add(object.geometry);
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) materials.add(material);
+  });
+  geometries.forEach(geometry => geometry.dispose());
+  materials.forEach(material => material.dispose());
+}
+
+export function disposeAircraftAssets(): void {
+  generation++;
+  if (aircraft) disposeSource(aircraft);
+  aircraft = null;
 }

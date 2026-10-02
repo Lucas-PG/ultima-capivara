@@ -46,12 +46,22 @@ function fixture(): GLTF {
   return { scene, animations: ['idle', 'run', 'jump'].map(name => new THREE.AnimationClip(name, 1, [])) } as unknown as GLTF;
 }
 
-async function warmupHarness(load = vi.fn(async () => fixture())) {
+async function warmupHarness(load: (path: string) => Promise<GLTF> = vi.fn(async () => fixture())) {
   const { GameRenderer } = await import('../src/render/renderer');
+  const { makePlane } = await import('../src/render/aircraft');
+  const aircraftScene = new THREE.Group();
+  for (const kind of ['plane_body', 'plane_glass', 'plane_propeller', 'chute_base', 'chute_team'])
+    for (let level = 0; level < 3; level++) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+      mesh.name = `${kind}_LOD${level}`; aircraftScene.add(mesh);
+    }
   const upload = vi.fn();
-  const assets = { gltf: load, ready: vi.fn().mockResolvedValue(undefined), dispose: vi.fn() };
+  const assets = { gltf: (path: string) => path.endsWith('aircraft.glb')
+    ? Promise.resolve({ scene: aircraftScene } as unknown as GLTF) : load(path),
+  ready: vi.fn().mockResolvedValue(undefined), dispose: vi.fn() };
   const renderer = Object.assign(Object.create(GameRenderer.prototype), {
     disposed: false, warming: null, assets, onProgress: vi.fn(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
+    plane: makePlane(),
     worldView: { skyTexture: { image: { data: [] } } },
     supplyDrops: { ready: Promise.resolve() },
     weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera() },
