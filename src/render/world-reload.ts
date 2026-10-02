@@ -19,6 +19,8 @@ export function worldReload(id: WeaponId, empty: boolean): Choreography | null {
   if (!cache.has(name)) {
     const reference = (time: number) => source.find(key => key.t === time)!.L!;
     const keys = source.map(key => {
+      // FP reload palm keys are independently fitted; retain the measured TP carry.
+      if (id === 'pistol' && key.R) key = { ...key, R: { space: 'grip', indexed: true } };
       // Traverse the independently measured world index route in the rig.
       if (id === 'm4' && key.R?.indexed) key = { ...key, R: { ...key.R, indexed: undefined } };
       const hand = key.L;
