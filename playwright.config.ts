@@ -7,11 +7,11 @@ export default defineConfig({
   workers: 1,
   timeout: 90_000,
   expect: { timeout: 10_000 },
-  use: { baseURL: process.env.BASE || 'http://127.0.0.1:5174', trace: 'retain-on-failure' },
+  use: { baseURL: process.env.BASE || 'http://127.0.0.1:5191', trace: 'retain-on-failure' },
   projects: [
     // Two full game clients need a real GPU; software GL stalls for seconds per frame.
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], ...(process.platform === 'darwin' ? {
-      channel: 'chrome', launchOptions: { args: ['--use-gl=angle', '--use-angle=metal'] } } : {}) } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chrome',
+      launchOptions: { args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] } } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
@@ -24,9 +24,9 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
-      command: 'npx vite --host 127.0.0.1 --port 5174 --strictPort',
+      command: 'npx vite --host 127.0.0.1 --port 5191 --strictPort',
       env: { E2E_NO_HMR: '1', VITE_QA: '1', VITE_PEER_HOST: '127.0.0.1', VITE_PEER_PORT: '9001', VITE_PEER_SECURE: 'false', VITE_PEER_PATH: '/peerjs' },
-      url: 'http://127.0.0.1:5174/testfixtures/net.html',
+      url: 'http://127.0.0.1:5191/testfixtures/net.html',
       reuseExistingServer: false,
       timeout: 30_000,
     },
