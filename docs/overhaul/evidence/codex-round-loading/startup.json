@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-02",
+  "branch": "codex-fix-rounds",
+  "baseCommit": "8111d38",
+  "sourceCommits": ["3fd7354", "15f9bb6"],
+  "protocol": 14,
+  "openingCapMs": 30000,
+  "buyWindowSeconds": 12,
+  "environment": {
+    "browser": "Chrome",
+    "platform": "Linux",
+    "angle": "gl-egl",
+    "maxBrowsers": 1,
+    "maxContexts": 2,
+    "vitePort": 5196,
+    "peerPort": 9002
+  },
+  "finalRoundChromeRun": {
+    "testsPassed": 4,
+    "durationMinutes": 2.4,
+    "delayedGuest": {
+      "withheldRendererMinimumMs": 8000,
+      "cpuThrottle": 2,
+      "hostSimulationTimeWhileWithheld": 0,
+      "releaseReason": "ready",
+      "openingWaitMs": 23813,
+      "elapsedFromHoldUntilShopCheckMs": 25915,
+      "guestSceneLoaded": true,
+      "guestBuySecondsRemaining": 11.45,
+      "requiredBuySecondsRemaining": 10,
+      "hostConfirmedPurchase": true,
+      "sharedTeamScoreAndRoundTwo": true
+    },
+    "preparedGuestReconnect": {
+      "samePlayerAndMatch": true,
+      "readinessAcksOnDistinctConnections": 2,
+      "hostSimulationTimeBeforeLocalRelease": 0,
+      "releaseReason": "ready",
+      "openingWaitMs": 4683,
+      "guestBuySecondsRemaining": 11.667,
+      "guestPageReloaded": false
+    }
+  },
+  "verification": {
+    "typescript": "passed",
+    "focusedVitest": { "filesPassed": 5, "testsPassed": 67 },
+    "productionBuild": "passed, existing large-chunk warning",
+    "correriaGuestInventory": "passed in 23.4 seconds",
+    "priorCorreriaAttempt": "initial join handshake closed before gameplay; next run passed without a runtime change"
+  }
+}

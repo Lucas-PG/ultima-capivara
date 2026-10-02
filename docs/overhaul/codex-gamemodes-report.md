@@ -86,6 +86,8 @@ No incomplete mode is exposed and no new mode blocker remains in the checks abov
 
 ## Integration follow-ups
 
+The 2 October slow-guest follow-up supersedes the earlier host-only opening gate: protocol 14 waits for each connected human's first prepared frame and HUD, with a fixed 30-second wall-clock cap, while preserving later-round timing. See [the loading fix report](codex-round-loading-fix-report.md) for readiness, reconnect, late-join and timing evidence.
+
 Root's full suite found an outdated prototype-call fixture in `tests/emote-ui.test.ts`: the HUD's class-based overlay invalidation added `toggle`, but the fixture did not supply it. `8f6dcec` fixes only that fixture and verifies that opening and closing clear the overlay class correctly. All six gesture UI tests and TypeScript pass.
 
 The full Chrome gate also exposed a test interaction race at its deliberate two-FPS rendering cap. Reproducing against the integrated root server showed the guest fully loaded, with no loading overlay, at round-one time 3.2 seconds and the buy phase ending at 15 seconds. Its received snapshot was already playing, while the last rendered HUD frame still held the countdown and a disabled shop button. Sending O at that instant was too early for the rendered UI; 11.8 seconds of buying remained, so the guest had not lost its buy window to loading. The test now waits for the scene, loading-overlay removal and enabled buy control, then requires round one, the buy phase and at least ten seconds remaining before a single O press. Host-confirmed money, team-only spectating and shared next-round assertions remain intact. Three consecutive cold-context runs pass against root's integrated server, with no runtime change.
