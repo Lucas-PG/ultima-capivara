@@ -37,6 +37,7 @@ export const CONTROL_ACTIONS: readonly ControlAction[] = [
   { id: 'scoreboard', label: 'Placar', group: 'interface', default: 'Tab' },
   { id: 'map', label: 'Mapa da ilha', group: 'interface', default: 'KeyM' },
   { id: 'emote', label: 'Gestos (segurar)', group: 'interface', default: 'KeyB' },
+  { id: 'buy', label: 'Loja nas rodadas', group: 'interface', default: 'KeyO' },
 ];
 
 export const DEFAULT_BINDINGS: Record<string, string> = Object.fromEntries(CONTROL_ACTIONS.map(action => [action.id, action.default]));

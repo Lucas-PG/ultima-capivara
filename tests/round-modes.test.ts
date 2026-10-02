@@ -130,14 +130,14 @@ describe('Team elimination and economy', () => {
     sim.action('a', { type: 'buy', id: 2, round: 1, item: 'armor' });
     sim.action('a', { type: 'buy', id: 3, round: 1, item: 'medkit' });
     live(sim);
-    a.state.weapons[0].ammo = 1; a.state.armor = 37; a.state.hp = 15;
+    a.state.weapons[0].ammo = 1; a.state.weapons[0].rarity = 2; a.state.armor = 37; a.state.hp = 15;
     wipe(runtime, 1, a); advance(sim, .02);
     expect(a.state.money).toBe(5000 - 2900 - 650 - 400 + 2 * ELIMINATION_MONEY + WIN_MONEY);
     expect(b.state.money).toBe(START_MONEY + lossMoney(1));
     const awarded = a.state.money; advance(sim, 1); expect(a.state.money).toBe(awarded);
     advance(sim, ROUND_BREAK_SECONDS);
     expect(a.state.hp).toBe(100); expect(a.state.armor).toBe(37); expect(a.state.consumables.medkit).toBe(1);
-    expect(a.state.weapons[0]).toMatchObject({ id: 'm4', ammo: WEAPONS.m4.magazine });
+    expect(a.state.weapons[0]).toMatchObject({ id: 'm4', rarity: 2, ammo: WEAPONS.m4.magazine });
     expect(b.state.weapons.map((weapon: any) => weapon.id)).toEqual(['pistol', 'machete']); expect(b.state.armor).toBe(0);
     expect(lossMoney(1)).toBe(1900); expect(lossMoney(2)).toBe(2400); expect(lossMoney(10)).toBe(3400);
   });

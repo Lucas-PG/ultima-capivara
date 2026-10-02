@@ -186,7 +186,7 @@ export class Simulation {
         s.armor = 50; s.helmet = 0;
       } else if (kept) {
         Object.assign(s, kept);
-        s.weapons = kept.weapons.map(w => this.makeWeapon(w.id));
+        s.weapons = kept.weapons.map(w => ({ ...this.makeWeapon(w.id, w.rarity), box: w.box }));
       } else {
         s.weapons = [this.makeWeapon('pistol'), this.makeWeapon('machete')];
       }

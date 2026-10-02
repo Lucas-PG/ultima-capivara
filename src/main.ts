@@ -1,5 +1,6 @@
 import './ui/style.css';
 import './ui/hud.css';
+import './ui/round-modes.css';
 import { createWorld } from './shared/world';
 import { hasLineOfSight, moveActor } from './shared/collision';
 import { clamp } from './shared/math';
@@ -7,7 +8,8 @@ import { closestInteraction as findInteraction } from './shared/interaction';
 import { indexOfBox, nextBoxSlot } from './shared/inventory';
 import { WEAPONS } from './shared/weapons';
 import { DEATH_CAM_SECONDS } from './shared/death-cam';
-import type { ActorState, GameEvent, InputFrame, PlayerAction, PlayerProfile, RoomConfig, RoomState, WorldSnapshot } from './shared/types';
+import { roundSpectators } from './shared/round-modes';
+import { isRoundMode, type ActorState, type GameEvent, type InputFrame, type PlayerAction, type PlayerProfile, type RoomConfig, type RoomState, type WorldSnapshot } from './shared/types';
 import { LocalPresentation, type PresentationFrame } from './render/local-presentation';
 import type { GameRenderer } from './render/renderer';
 import { timing } from './render/timing';
@@ -68,6 +70,7 @@ let predicted: ActorState | null = null;
 let pending: InputFrame[] = [];
 let receivedAt = 0, lastEvent = 0, match = '', playing = false;
 let lastAlive = true, lastStage = '', initializedPose = false;
+let lastRound = 0;
 let lastFrame = performance.now(), lastRender = 0;
 const pacer = new FramePacer();
 // Automatic display rate (the default "Taxa da tela" the player never picked): on a high-refresh
@@ -131,6 +134,9 @@ const ui = new GameUI(world, settings, profile, {
   },
   emote(emote) { sendAction({ type: 'emote', id: input.actionIdNext(), emote }); },
   cancelEmote() { input.closeEmoteWheel(); },
+  buy(item, round) { sendAction({ type: 'buy', item, round, id: input.actionIdNext() }); },
+  refund(round) { sendAction({ type: 'refund', round, id: input.actionIdNext() }); },
+  releasePointer() { input.unlock(); },
   resume() { void sound.unlock(); void input.lock(); },
   uiSound(kind) { if (kind !== 'hover') void sound.unlock(); sound.ui(kind); },
   spectate(direction = 1) { spectateStep(direction); void input.lock(); },
@@ -188,7 +194,7 @@ function beginMatch(id: string, matchId: string) {
   stopMatch();
   ensureRenderer();
   playerId = id; match = matchId; playing = true; dirtyFrame = true;
-  lastEvent = 0; initializedPose = false; lastAlive = true; lastStage = '';
+  lastEvent = 0; lastRound = 0; initializedPose = false; lastAlive = true; lastStage = '';
   input.reset(); ui.closeModal(); ui.game(id); ui.setPaused(!input.locked);
   loading = true; readyToReveal = false; matchPreparation = null; ui.setLoading(true);
   ui.setLoadingProgress(Math.min(.98, loadFraction), loadFraction >= .98 ? 'Carregando o avião' : loadLabel);
@@ -255,7 +261,7 @@ function acceptSnapshot(next: WorldSnapshot) {
       if (!playing || match !== preparingId || pageDisposed) return;
       return renderer!.prepareMatch(next);
     }).then(() => {
-      if (playing && match === preparingId) { readyToReveal = true; dirtyFrame = true; }
+      if (playing && match === preparingId) { readyToReveal = true; dirtyFrame = true; if (isRoundMode(next.config.mode)) worker?.postMessage({ type: 'match-ready', matchId: preparingId }); }
     }).catch(error => {
       if (match !== preparingId || pageDisposed) return;
       leave(); ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
@@ -264,9 +270,11 @@ function acceptSnapshot(next: WorldSnapshot) {
   }
   const actor = next.actors.find(a => a.id === playerId);
   if (actor) {
-    if (!initializedPose || (!lastAlive && actor.alive)) {
+    const newRound = !!next.round && next.round.number !== lastRound;
+    if (!initializedPose || (!lastAlive && actor.alive) || newRound) {
       input.frame.yaw = actor.yaw; input.frame.pitch = actor.pitch;
       initializedPose = true; pending = [];
+      if (newRound) { lastRound = next.round!.number; input.clear(); firePredictor.reset(); spectator.reset(); spectateId = null; diedAt = 0; }
     }
     // Authoritative state is replayed with only unacknowledged movement inputs.
     pending = pending.filter(frame => frame.seq > actor.lastInput);
@@ -277,8 +285,9 @@ function acceptSnapshot(next: WorldSnapshot) {
     if (box !== heldBox) { if (heldBox >= 0 && performance.now() - quickMeleeAt > 1500) previousBox = heldBox; heldBox = box; }
     if (next.phase === 'playing') for (const frame of pending) predict(frame);
     localPresentation.reconcile(predicted);
-    if (!actor.alive && lastAlive && next.config.mode === 'battle-royale') {
+    if (!actor.alive && lastAlive && (next.config.mode === 'battle-royale' || isRoundMode(next.config.mode))) {
       diedAt = performance.now(); fellAt = { ...actor.pos };
+      if (next.config.mode === 'squads') beginSpectating();
     }
     if (lastStage !== actor.stage) pending = [];
     lastAlive = actor.alive; lastStage = actor.stage;
@@ -312,7 +321,7 @@ function acceptEvents(events: GameEvent[]) {
       lastKiller = event.actor; killSeen = true;
       // The kill can land after the one-second fallback already started watching whoever was nearest: move to the
       // eliminator unless the player has switched by hand since.
-      if (spectator.active && autoSpectateAt && performance.now() - autoSpectateAt < 5000 && snapshot) spectator.begin(snapshot.actors, playerId, event.actor, fellAt);
+      if (spectator.active && autoSpectateAt && performance.now() - autoSpectateAt < 5000 && snapshot) spectator.begin(spectateRoster(), playerId, event.actor, fellAt);
     }
     if (event.type === 'kill') spectator.kill(event.target, event.actor);
   }
@@ -320,14 +329,15 @@ function acceptEvents(events: GameEvent[]) {
 function sendAction(action: PlayerAction) {
   if (!playing || !snapshot) return;
   const me = snapshot.actors.find(a => a.id === playerId);
-  if (!me?.alive && snapshot.config.mode === 'battle-royale') {
+  if (!me?.alive && (snapshot.config.mode === 'battle-royale' || isRoundMode(snapshot.config.mode))) {
     // Watching: jump or fire moves to the next capybara (and skips the rest of the death cam).
     if (action.type === 'jump' || action.type === 'trigger') spectateStep(1);
     return;
   }
   if (action.type === 'jump' && me?.stage === 'falling') action = { type: 'parachute', id: action.id };
-  if (predicted) localPresentation.action(action, predicted, simulationNow());
-  if (predicted && snapshot.phase === 'playing') {
+  const frozen = !!snapshot.round && snapshot.round.phase !== 'live';
+  if (predicted && !frozen) localPresentation.action(action, predicted, simulationNow());
+  if (predicted && snapshot.phase === 'playing' && !frozen) {
     const now = performance.now() / 1000;
     if (action.type === 'slot') firePredictor.swap(action.slot, now);
     if (action.type === 'trigger') showPredicted(firePredictor.press(predicted, action.id, action.yaw, action.pitch, action.lean, now, simulationNow(), match, world, predictionTargets()));
@@ -359,26 +369,30 @@ function showPredicted(shot: ShotEvent | null) {
   if (input.locked && shot.weapon !== 'machete') input.applyRecoil(shot.weapon, renderer?.adsAmount ?? 0);
 }
 function predict(frame: InputFrame) {
-  if (!predicted || snapshot?.phase !== 'playing') return;
+  if (!predicted || snapshot?.phase !== 'playing' || snapshot.round && snapshot.round.phase !== 'live') return;
   predicted.yaw = frame.yaw; predicted.pitch = frame.pitch;
   moveActor(predicted, frame, world, 1 / 60, 1, snapshot.config.mode);
 }
 // Starts watching (your eliminator, or whoever is nearest to where you fell), or steps through the others.
 let autoSpectateAt = 0;
+function spectateRoster() {
+  if (!snapshot) return [];
+  return roundSpectators(snapshot, playerId);
+}
 function beginSpectating(auto = true) {
   diedAt = 0; killSeen = false; autoSpectateAt = auto ? performance.now() : 0;
-  if (snapshot) spectator.begin(snapshot.actors, playerId, lastKiller, fellAt);
+  if (snapshot) spectator.begin(spectateRoster(), playerId, lastKiller, fellAt);
   dirtyFrame = true;
 }
 function spectateStep(direction: number) {
   const me = snapshot?.actors.find(a => a.id === playerId);
-  if (!snapshot || !me || me.alive || snapshot.config.mode !== 'battle-royale' || snapshot.phase !== 'playing') return;
+  if (!snapshot || !me || me.alive || !(snapshot.config.mode === 'battle-royale' || isRoundMode(snapshot.config.mode)) || snapshot.phase !== 'playing') return;
   if (!spectator.active) beginSpectating(false);
-  else { spectator.cycle(snapshot.actors, playerId, direction < 0 ? -1 : 1); autoSpectateAt = 0; }
+  else { spectator.cycle(spectateRoster(), playerId, direction < 0 ? -1 : 1); autoSpectateAt = 0; }
   dirtyFrame = true;
 }
 function closestInteraction() {
-  return findInteraction(world, snapshot, predicted, interactionResult);
+  return snapshot && isRoundMode(snapshot.config.mode) ? null : findInteraction(world, snapshot, predicted, interactionResult);
 }
 input.onAction = sendAction;
 input.onCancelEmote = () => {
@@ -407,7 +421,7 @@ input.onBox = box => {
 input.onMelee = () => { quickMeleeAt = performance.now(); sendAction({ type: 'melee', id: input.actionIdNext() }); };
 input.onLastWeapon = () => { if (previousBox >= 0) input.onBox(previousBox); };
 input.onInteract = () => { interaction = closestInteraction(); if (interaction) sendAction({ type: 'interact', id: input.actionIdNext(), target: interaction.id }); };
-input.onPause = () => { input.onCancelEmote(); if (playing) ui.setPaused(true); };
+input.onPause = () => { input.onCancelEmote(); if (playing && !ui.buying) ui.setPaused(true); };
 input.onLock = () => { pacer.reset(); lastRender = performance.now(); frameCount = 0; fpsAt = lastRender; ui.closeModal(); ui.setPaused(false); };
 input.onError = message => ui.toast(message, true);
 const inputClock = new InputClock(
@@ -419,7 +433,7 @@ const inputClock = new InputClock(
     else session.sendInput(next);
     if (snapshot!.phase === 'playing') {
       pending.push(next); if (pending.length > 120) pending.shift(); predict(next);
-      if (predicted) {
+      if (predicted && (!snapshot!.round || snapshot!.round.phase === 'live')) {
         localPresentation.tick(predicted);
         showPredicted(firePredictor.tick(predicted, next, now / 1000, time, match, world, predictionTargets()));
       }
@@ -475,9 +489,9 @@ function frame(now: number) {
   // arrive in either order, so a kill that never shows up still hands off after 1 s.
   if (diedAt && snapshot.phase === 'playing' && ((killSeen && !renderer?.deathCamActive) || (!killSeen && now - diedAt > 1000) || now - diedAt > DEATH_CAM_SECONDS * 1000 + 1500)) beginSpectating();
   // Right mouse steps back through the watch order (its press, not its hold).
-  if (watching && input.frame.ads && !spectateAds && spectator.active) { spectator.cycle(snapshot.actors, playerId, -1); autoSpectateAt = 0; }
+  if (watching && input.frame.ads && !spectateAds && spectator.active) { spectator.cycle(spectateRoster(), playerId, -1); autoSpectateAt = 0; }
   spectateAds = watching && input.frame.ads;
-  const view = spectator.active ? spectator.update(snapshot.actors, playerId, now / 1000) : null;
+  const view = spectator.active ? spectator.update(spectateRoster(), playerId, now / 1000) : null;
   spectateId = view?.target ?? null;
   ui.setSpectate(view);
   const interactionAt = timing.begin();
