@@ -7,6 +7,7 @@ import type { Choreography, HandKey } from './viewmodel-choreo';
 // parts in weapon space unless the key says 'view'.
 const curl = (index: number[], middle: number[], ring: number[], thumb: number[]) =>
   ({ index, middle, ring, thumb }) as unknown as HandCurl;
+const INDEXED: HandKey = { space: 'grip', indexed: true };
 const OPEN = curl([.25, .2, .15], [.3, .25, .15], [.35, .25, .2], [.15, .1, .05]);
 const HOLD_MAG = curl([.9, .9, .6], [1.1, 1, .7], [1.2, 1.05, .75], [.6, .4, .3]);
 const PINCH = curl([.7, .9, .7], [1.2, 1.1, .8], [1.3, 1.1, .8], [.9, .6, .4]);
@@ -28,8 +29,8 @@ const PISTOL_RELEASE_HAND: HandKey = { space: 'part', part: 'release', wrist: [-
   curl: { index: [0.2088, 0.18, 0.135], middle: [0.2538, 0.225, 0.135], ring: [0.3312, 0.225, 0.18], thumb: [0.31749, 0.228741, 0.142476], spread: -0.1858 } };
 const pistolSwap = (retain: boolean): Choreography => [
   { t: .035, L: PISTOL_CLEAR },
-  { t: .04, R: { space: 'grip', curl: { index: [.06, .2, .1] } } },
-  { t: .91, R: { space: 'grip', curl: { index: [.06, .2, .1] } } },
+  { t: .04, R: INDEXED },
+  { t: .91, R: INDEXED },
   { t: .99, R: { space: 'grip' } },
   { t: .08, p: [-.035, .018, .015], r: [.18, .12, -.32], ease: 'out' },
   { t: .075, L: { space: 'gun', wrist: [-.125, -.09, .09], forward: [.35, .12, -1], palm: [1, 0, .15], curl: OPEN } },
@@ -111,7 +112,7 @@ const M4_SEAT_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.039363, -
   forward: [0.922329, 0.267645, -0.278703], palm: [-0.257714, 0.963504, 0.072407],
   curl: { index: [0.09, 0.135, 0.09], middle: [0.09, 0.135, 0.09], ring: [0.108, 0.135, 0.09], thumb: [0.09, 0.09, 0.09], spread: 0.2000 } };
 const M4_CATCH_HAND: HandKey = { space: 'gun', wrist: [-0.060181, -0.017140, 0.059754], forward: [-0.101290, 0.870514, -0.481607], palm: [0.795853, 0.361380, 0.485820], curl: { index: [0.180000, 0.220000, 0.090000], middle: [0.180000, 0.220000, 0.090000], ring: [-0.095196, 0.219917, 0.090180], thumb: [0.090000, 0.090000, 0.090000], spread: 0.2000 }, pole: [-1, -.25, .3] };
-const M4_TRIGGER_CLEAR: HandKey = { space: 'gun', curl: {index: [0.12, 0.15, 0.1], middle: [0.927018, 0.599134, 1.024462], ring: [1.7, 0.299979, -0.1], thumb: [0.082804, -0.095181, 0.078912], spread: 0.342322} };
+const M4_TRIGGER_CLEAR = INDEXED;
 // Present the magazine well: lift and roll the rifle's belly toward the eye.
 const M4_TILT: { p: Vec; r: Vec } = { p: [-.06, .035, -.05], r: [.22, .3, -.5] };
 const M4_SWAP: Choreography = [
@@ -173,7 +174,7 @@ const SMG_MAG_OUTSIDE = shift(SMG_MAG_HAND, [-.117, -.036, 0]);
 const SMG_CLEAR: HandKey = { space: 'grip', offset: [-.04, -.05, 0] };
 const SMG_SWAP: Choreography = [
   { t: .035, L: SMG_CLEAR },
-  { t: .07, R: { space: 'grip', curl: { index: [-.08, .03, .01] } }, p: [-.06, .055, .025], r: [.16, .15, -.32], ease: 'out' },
+  { t: .07, R: INDEXED, p: [-.06, .055, .025], r: [.16, .15, -.32], ease: 'out' },
   { t: .08, L: { space: 'gun', wrist: [-.15, -.095, -.075], forward: [.1, .1, -1], palm: [1, 0, .1], curl: OPEN } },
   { t: .12, L: SMG_MAG_OUTSIDE },
   { t: .15, L: SMG_MAG_CLEAR },
@@ -190,7 +191,7 @@ const SMG_SWAP: Choreography = [
   { t: .715, L: SMG_MAG_CLEAR },
   { t: .735, L: SMG_MAG_OUTSIDE },
   { t: .72, p: [-.06, .055, .025], r: [.16, .15, -.32] },
-  { t: .90, R: { space: 'grip', curl: { index: [-.08, .03, .01] } } },
+  { t: .90, R: INDEXED },
   { t: .98, R: { space: 'grip' }, L: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 const SMG_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [-0.075646, -0.036563, 0.049335],
@@ -360,7 +361,7 @@ export const REVOLVER_LOADER_HAND: HandKey = { space: 'part', part: 'mag', wrist
 // The whole reload is held further out (10 to 15 cm) so the gun, not the support forearm, is the subject.
 export const REVOLVER_RELOAD: Choreography = [
   { t: 0, mag: { visible: false }, parts: { swing: 0, spent: 0, fresh: 0, loaded: 0 } },
-  { t: .05, R: { space: 'grip', curl: { index: [.06, .2, .1] } } },
+  { t: .05, R: INDEXED },
   { t: .08, p: [-.04, 0, -.15], r: [.20, .25, -.25], ease: 'out',
     L: shift(REVOLVER_CYLINDER_HAND, [-.048, 0, 0]) },
   { t: .12, L: REVOLVER_CYLINDER_HAND, parts: { release: 1, swing: 0 } },
@@ -488,6 +489,7 @@ export const RELOADS: Partial<Record<WeaponId, Choreography>> = {
 // Two deliberate turns reveal the slide finish and the control side, then settle.
 export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
   smg: [
+    { t: .06, R: INDEXED }, { t: .9, R: INDEXED }, { t: .97, R: { space: 'grip' } },
     { t: .22, p: [-.035, .04, -.045], r: [.16, .45, -.20], ease: 'out' },
     { t: .42, L: { space: 'grip' } },
     { t: .46, p: [-.035, .04, -.045], r: [.16, .50, -.22] },
@@ -499,8 +501,8 @@ export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
     { t: .99, L: { space: 'grip' } },
   ],
   revolver: [
-    { t: .08, R: { space: 'grip', curl: { index: [.06, .2, .1] } } },
-    { t: .88, R: { space: 'grip', curl: { index: [.06, .2, .1] } } },
+    { t: .08, R: INDEXED },
+    { t: .88, R: INDEXED },
     { t: .97, R: { space: 'grip' } },
     { t: .08, L: { space: 'grip', offset: [-.06, 0, 0] } },
     { t: .18, L: { space: 'view', wrist: [-.20, -.25, -.40], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: OPEN } },
@@ -519,8 +521,8 @@ export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
     { t: .82, p: [-.015, .02, .02], r: [-.18, .10, -.30] },
   ],
   pistol: [
-    { t: .08, R: { space: 'grip', curl: { index: [.06, .2, .1] } } },
-    { t: .88, R: { space: 'grip', curl: { index: [.06, .2, .1] } } },
+    { t: .08, R: INDEXED },
+    { t: .88, R: INDEXED },
     { t: .97, R: { space: 'grip' } },
     { t: .08, L: { space: 'grip', offset: [-.06, 0, 0] } },
     { t: .18, L: { space: 'view', wrist: [-.20, -.25, -.40], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: OPEN } },
@@ -538,12 +540,12 @@ export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
 // over to the right flank and ejection side, hold, settle. Both paws keep their
 // grips; the firing index rests off the trigger while the gun is on show.
 const longInspect = (lift: Vec, left: Vec, right: Vec): Choreography => [
-  { t: .06, R: { space: 'grip', curl: { index: [.05, .08, .05] } } },
+  { t: .06, R: INDEXED },
   { t: .2, p: lift, r: left, ease: 'out' },
   { t: .46, p: [lift[0] - .005, lift[1] + .006, lift[2]], r: [left[0] + .02, left[1] + .03, left[2] - .05] },
   { t: .68, p: [lift[0] + .02, lift[1] + .01, lift[2]], r: right },
   { t: .86, p: [lift[0] + .018, lift[1] + .014, lift[2]], r: [right[0] + .02, right[1] - .03, right[2] + .05] },
-  { t: .9, R: { space: 'grip', curl: { index: [.05, .08, .05] } } },
+  { t: .9, R: INDEXED },
   { t: .97, R: { space: 'grip' } },
 ];
 export const LONG_INSPECTS: Partial<Record<WeaponId, Choreography>> = {

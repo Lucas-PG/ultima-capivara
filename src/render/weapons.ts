@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
-import { VIEW_SPECS, SHOULDERS, framedGrips, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
+import { VIEW_SPECS, SHOULDERS, framedGrips, heldCurl, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
 import { newSample, sampleChoreo, handContact, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { WRIST_SOLVE } from './viewmodel-targets';
 import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS, LONG_INSPECTS } from './viewmodel-anims';
@@ -79,6 +79,8 @@ export class WeaponView {
   private readonly models = {} as Record<WeaponId, Model>;
   private arms: ArmsRig | null = null;
   private active: WeaponId = 'pistol';
+  private carryIndex = 0;
+  private triggerPull = 0;
   private ads = 0;
   // Visual springs. Values are metres or radians in camera space.
   private readonly kickZ = new Spring(); private readonly kickPitch = new Spring(); private readonly kickRoll = new Spring(); private readonly kickYaw = new Spring();
@@ -499,6 +501,10 @@ export class WeaponView {
     }
     this.rideR = rideR; this.rideL = rideL;
     this.tunedSpec = spec;
+    // The load-bearing palm does not move when the index withdraws for a lowered carry or reload.
+    const reloadIndex = reloading ? smoothPose(Math.max(0, Math.min(1, reload / .04, (1 - reload) / .04))) : 0;
+    this.carryIndex = weapon === 'machete' ? 0 : Math.max(sprint, lowered, reloadIndex);
+    this.triggerPull = this.shotLife > weaponShotDuration(weapon) * .5 ? 1 : 0;
     this.holdingContacts.trigger = weapon !== 'machete' && !reloading && !inspect && sprint < .001 && lowered < .001;
     this.solveArms(model, grips, choreo, sample ?? inspect, spec.freePaw);
     if (import.meta.env.DEV) this.debugOrbit();
@@ -711,6 +717,7 @@ export class WeaponView {
     if (this.holdingContacts.R !== 'body') this.holdingContacts.trigger = false;
     this.holder.updateMatrixWorld(true);
     this.gripTarget(model, grips.R, this.targetR);
+    if (model.id !== 'machete') this.targetR.curl = heldCurl(grips.R, this.carryIndex, this.triggerPull);
     if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);
     // Riding shoulders carry their elbow direction too, so the whole arm moves as one piece.
     if (this.rideR > 0) this.targetR.pole.lerp(this.ridePole.copy(this.targetR.pole).applyQuaternion(this.rideTurn), this.rideR).normalize();
@@ -763,16 +770,20 @@ export class WeaponView {
   private readonly inspectSample: ChoreoSample = newSample();
   private readonly partOrigin = new THREE.Vector3();
 
-  private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget) {
+  private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget, indexedAmount = 0, triggerPull = 0) {
     if (key.space === 'grip') {
       const offset = key.offset;
       const clearGrip = offset ? { ...grip, wrist: [grip.wrist[0] + offset[0], grip.wrist[1] + offset[1], grip.wrist[2] + offset[2]] as V3 } : grip;
       this.gripTarget(model, clearGrip, out);
-      if (key.curl) out.curl = { ...grip.curl, ...key.curl };
+      out.curl = heldCurl(grip, indexedAmount, triggerPull);
+      if (key.curl) out.curl = { ...out.curl, ...key.curl, indexSpread: key.curl.indexSpread ?? (key.curl.index ? 0 : out.curl.indexSpread) };
+      if (key.indexed) out.curl = heldCurl({ ...grip, curl: out.curl }, 1);
       if (key.pole) out.pole.fromArray(key.pole).normalize();
       return;
     }
-    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: { ...grip.curl, ...key.curl }, pole: key.pole ?? grip.pole };
+    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm,
+      curl: { ...grip.curl, ...key.curl, indexSpread: key.curl?.indexSpread ?? (key.curl?.index ? 0 : grip.curl.indexSpread) }, pole: key.pole ?? grip.pole };
+    if (key.indexed) spec.curl = heldCurl({ ...grip, curl: spec.curl }, 1);
     if (key.space === 'gun') { this.gripTarget(model, spec, out); return; }
     out.wrist.set(spec.wrist[0], spec.wrist[1], spec.wrist[2]);
     out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
@@ -798,7 +809,8 @@ export class WeaponView {
   }
 
   private blendHand(model: Model, grip: GripSpec, pair: { a: HandKey; b: HandKey; u: number }, out: HandTarget) {
-    this.resolveHand(model, grip, pair.a, this.handA); this.resolveHand(model, grip, pair.b, this.handB);
+    const indexed = out === this.targetR ? this.carryIndex : 0, pull = out === this.targetR ? this.triggerPull : 0;
+    this.resolveHand(model, grip, pair.a, this.handA, indexed, pull); this.resolveHand(model, grip, pair.b, this.handB, indexed, pull);
     const u = pair.u;
     out.wrist.copy(this.handA.wrist).lerp(this.handB.wrist, u);
     out.forward.copy(this.handA.forward).lerp(this.handB.forward, u).normalize();
