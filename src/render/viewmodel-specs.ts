@@ -128,7 +128,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     // Sprint: low and canted inward, muzzle forward-down, so the slide's flank shows (MW, Apex).
     sprint: { pos: [-.035, -.02, .03], rot: [-.15, .25, .35] },
     sprintFree: { wrist: [-.2, -.42, -.3], forward: [.25, .6, -1], palm: [.7, -.5, .2] },
-    adsDistance: .32, adsFov: 64, poles: { R: [-.249, -.938, .243], L: [.072, -.876, .478] }, adsPoles: { R: [-.548, -.769, .33], L: [-.121, -.759, .64] },
+    adsDistance: .32, adsFov: 64, poles: { R: [1, -1, .3], L: [.072, -.876, .478] }, adsPoles: { R: [-.548, -.769, .33], L: [-.121, -.759, .64] },
     choreoFrame: { pos: [.13, -.085, -.40], rot: [.03, .10, .16] },
     shoulders: { R: [.056, -.076, .079], L: [-.213, -.043, -.059] }, adsShoulders: { R: [.097, -.081, .077], L: [-.226, .004, -.134] },
     grips: GRIPS.pistol,

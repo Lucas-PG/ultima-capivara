@@ -25,18 +25,29 @@ const PISTOL_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.078594
   curl: { index: [-0.1, 0.2707668, 0.127294], middle: [-0.0158199, 0.27, 0.135], ring: [0.225186, 0.2694, 0.135], thumb: [1.4, 0.5214256, 0.0424187], spread: 0.0704499, indexSpread: 0.65 } };
 const PISTOL_MAG_CLEAR = shift(PISTOL_MAG_HAND, [0, -.039, 0]);
 const PISTOL_MAG_OUTSIDE = shift(PISTOL_MAG_HAND, [-.108, -.039, 0]);
-const PISTOL_CLEAR: HandKey = { space: 'grip', offset: [-.045, 0, 0] };
+const PISTOL_CLEAR: HandKey = { space: 'grip', offset: [-.06, -.02, 0] };
 const PISTOL_RETURN_CLEAR: HandKey = { space: 'grip', offset: [-.045, -.025, 0] };
 const PISTOL_RELEASE_HAND: HandKey = { space: 'part', part: 'release', wrist: [-0.0523961, -0.0845468, -0.0218285],
   forward: [-0.0228905, 0.7940599, -0.6074083],
   palm: [0.9970598, 0.0625748, 0.0442288],
   pole: [-1, -0.5, 0.3],
   curl: { index: [0.1942984, 0.1859468, 0.127659], middle: [0.1705234, 0.2246227, 0.1382764], ring: [0.1138685, 0.2156006, 0.164218], thumb: [0.1490603, 0.2830322, 0.0607156], spread: 0.3145627, indexSpread: 0.0048042, indexRoll: 0 } };
+// A fitted reload hold clears the magazine's swept path while the palm and wrap carry the grip.
+const PISTOL_RELOAD_HOLD: HandKey = { space: 'gun', contact: 'body', wrist: [0.03726642847, -0.1043853105, 0.08007228938],
+  forward: [0.3411367836, 0.4343394781, -0.8336515535], palm: [-0.919691667, -0.02919254217, -0.3915546362], pole: [1, -1, 0.3],
+  curl: { index: [0.05, 0.08, 0.05], middle: [0.815783137, 0.3095488795, 0.2095882589], ring: [1.183409809, 0.4802219305, 0.5244103115], thumb: [0.5531420024, 0.4946569955, 0.2115953837], spread: 0.7265735896, indexSpread: 0, indexRoll: 0 } };
+const PISTOL_RELOAD_OPEN: HandKey = { space: 'grip', curl: { ring: [1.155, 0.5182772376, 0.5167532119] } };
+const PISTOL_RELOAD_OPEN_HOLD: HandKey = { ...PISTOL_RELOAD_HOLD, curl: { ...PISTOL_RELOAD_HOLD.curl, ring: [1.155, 0.4802219305, 0.5244103115] } };
 const pistolSwap = (retain: boolean): Choreography => [
   { t: .035, L: PISTOL_CLEAR },
-  { t: .04, R: INDEXED },
-  { t: .91, R: INDEXED },
-  { t: .99, R: { space: 'grip' } },
+  { t: .055, R: { space: 'grip' } },
+  { t: .075, R: PISTOL_RELOAD_OPEN },
+  { t: .12, R: PISTOL_RELOAD_OPEN_HOLD },
+  { t: .14, R: PISTOL_RELOAD_HOLD },
+  { t: .73, R: PISTOL_RELOAD_HOLD },
+  { t: .75, R: PISTOL_RELOAD_OPEN_HOLD },
+  { t: .79, R: PISTOL_RELOAD_OPEN },
+  { t: .83, R: { space: 'grip' } },
   { t: .08, p: [-.035, .018, .015], r: [.18, .12, -.32], ease: 'out' },
   { t: .075, L: { space: 'gun', wrist: [-.125, -.09, .09], forward: [.35, .12, -1], palm: [1, 0, .15], curl: OPEN } },
   { t: .105, L: retain ? PISTOL_MAG_OUTSIDE : undefined },
