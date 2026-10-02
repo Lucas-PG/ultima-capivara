@@ -28,13 +28,13 @@ def write_rock_collision(pieces, root):
                                 segments=segments, affect='EDGES', profile=.5)
                 mesh.normal_update()
                 points.extend(vertex.co.copy() for vertex in mesh.verts)
-                if segments == 2:
+                if segments == 1:
                     normals.extend(face.normal.copy().normalized() for face in mesh.faces)
                 mesh.free()
             planes = {}
             for normal in normals:
                 # A support plane covers the same bevel at every LOD. Using
-                # the middle bevel face normals avoids hull triangulation's spurious
+                # the distant bevel face normals avoids hull triangulation's spurious
                 # tiny float32 facets and keeps the runtime face count small. The one-centimetre
                 # allowance covers decimation and meshopt quantization.
                 distance = max(normal.dot(point) for point in points) + .01

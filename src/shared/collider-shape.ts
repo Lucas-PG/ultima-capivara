@@ -1,6 +1,15 @@
 import type { Collider, Vec3, WorldSpec } from './types';
 
 const dressing = new WeakMap<WorldSpec, WorldSpec>();
+const horizontalFaces = new WeakMap<Collider, Float64Array>();
+function horizontalLengths(c: Collider) {
+  let lengths = horizontalFaces.get(c);
+  if (!lengths) {
+    lengths = Float64Array.from(c.hull!, ([x, , z]) => Math.hypot(x, z));
+    horizontalFaces.set(c, lengths);
+  }
+  return lengths;
+}
 /** Decoration is authored with placement cores, independently of collision. */
 export function dressingWorld(world: WorldSpec): WorldSpec {
   if (!world.dressingColliders) return world;
@@ -16,8 +25,10 @@ export function colliderSpan(c: Collider, x: number, z: number, radius = 0): [nu
     return dx * dx + dz * dz > radius * radius ? null : [c.min.y, c.max.y];
   }
   let low = -Infinity, high = Infinity;
-  for (const [nx, ny, nz, distance] of c.hull) {
-    const available = distance + radius * Math.hypot(nx, nz) - nx * x - nz * z;
+  const horizontal = radius ? horizontalLengths(c) : null;
+  for (let i = 0; i < c.hull.length; i++) {
+    const [nx, ny, nz, distance] = c.hull[i];
+    const available = distance + (horizontal ? radius * horizontal[i] : 0) - nx * x - nz * z;
     if (Math.abs(ny) < 1e-9) { if (available < 0) return null; }
     else if (ny > 0) high = Math.min(high, available / ny);
     else low = Math.max(low, available / ny);
@@ -66,8 +77,9 @@ export function sweepCollider(c: Collider, origin: Vec3, dir: Vec3, length: numb
 export function pushFromHull(c: Collider, p: Vec3, height: number, radius: number): boolean {
   if (!c.hull || !intersectsCollider(c, p, height, radius, .001)) return false;
   let shift = Infinity, dx = 0, dz = 0;
-  for (const [nx, ny, nz, distance] of c.hull) {
-    const horizontal = Math.hypot(nx, nz);
+  const lengths = horizontalLengths(c);
+  for (let i = 0; i < c.hull.length; i++) {
+    const [nx, ny, nz, distance] = c.hull[i], horizontal = lengths[i];
     if (horizontal < 1e-8) continue;
     const penetration = (distance + radius * horizontal - Math.min(0, ny) * height - nx * p.x - ny * p.y - nz * p.z) / horizontal;
     if (penetration < shift) { shift = penetration; dx = nx / horizontal; dz = nz / horizontal; }
