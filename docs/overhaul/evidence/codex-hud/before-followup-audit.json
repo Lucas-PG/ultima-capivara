@@ -1,0 +1,140 @@
+{
+  "kill-long-name-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "death-long-name-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "watch-long-name-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "mud-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "crouch-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "lean-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "result-host-1280x720": {
+    "smallText": [
+      "ord: 8.1px",
+      "ord: 8.7px"
+    ],
+    "clippedWeapons": [],
+    "panelOverflow": [
+      "victory"
+    ],
+    "horizontalOverflow": false
+  },
+  "result-guest-1280x720": {
+    "smallText": [
+      "ord: 8.1px",
+      "ord: 8.7px"
+    ],
+    "clippedWeapons": [],
+    "panelOverflow": [
+      "victory"
+    ],
+    "horizontalOverflow": false
+  },
+  "result-long-name-1280x720": {
+    "smallText": [
+      "ord: 8.1px",
+      "ord: 8.7px"
+    ],
+    "clippedWeapons": [],
+    "panelOverflow": [
+      "victory"
+    ],
+    "horizontalOverflow": false
+  },
+  "kill-long-name-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "death-long-name-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "watch-long-name-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "mud-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "crouch-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "lean-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "result-host-1470x956": {
+    "smallText": [
+      "ord: 8.1px",
+      "ord: 8.7px"
+    ],
+    "clippedWeapons": [],
+    "panelOverflow": [
+      "victory"
+    ],
+    "horizontalOverflow": false
+  },
+  "result-guest-1470x956": {
+    "smallText": [
+      "ord: 8.1px",
+      "ord: 8.7px"
+    ],
+    "clippedWeapons": [],
+    "panelOverflow": [
+      "victory"
+    ],
+    "horizontalOverflow": false
+  },
+  "result-long-name-1470x956": {
+    "smallText": [
+      "ord: 8.1px",
+      "ord: 8.7px"
+    ],
+    "clippedWeapons": [],
+    "panelOverflow": [
+      "victory"
+    ],
+    "horizontalOverflow": false
+  }
+}

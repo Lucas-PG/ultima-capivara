@@ -1,0 +1,163 @@
+{
+  "sourceRevision": "2bca8485a6a54ea16cfd64bccab6393d16c05437",
+  "sourceSha256": {
+    "src/ui/hud.css": "39613193127572e5d4dd01b4fa364c6e32e14fba5a17f946a66ee7dba005315d",
+    "src/ui/ui.ts": "4b485891d2c7aa972290605451b07f547b1d326d5bdb954b996a44ff10bebe0d",
+    "src/ui/style.css": "1877e297ee6a0a3d6739be78f05a7908ba2f6da6e0e0b97ab0e6512c029222e7",
+    "src/ui/hud-logic.ts": "d4f91e27bcf66331763107d07736ed540f174f27b8232b4d2230739fbc71553f",
+    "src/ui/icons.ts": "04b58d535e033824877d9ade8562fe8568d43004779bebb0ed8b7cd5eb6bbebc"
+  },
+  "baselineRevision": "6d82174ce5b467a5a6a80c8769c4a45821c3ecd8",
+  "baselineHudRevision": "b721224",
+  "environment": "Google Chrome, --use-gl=angle --use-angle=gl-egl, one own browser at a time, Linux AMD Radeon RX 9060 XT, DPR1",
+  "buildCommand": "VITE_QA=1 npm run build -- --outDir /home/lucas/codex-team/hud-after-dist --emptyOutDir",
+  "build": "passed, including tsc --noEmit; existing large-chunk warning remains",
+  "stateAudit": {
+    "after-audit.json": {
+      "cases": 88,
+      "faults": 0
+    },
+    "after-compact-audit.json": {
+      "cases": 88,
+      "faults": 0
+    },
+    "after-overlays.json": {
+      "cases": 88,
+      "faults": 0
+    },
+    "after-calm-audit.json": {
+      "cases": 10,
+      "faults": 0
+    },
+    "notice-stress-audit.json": {
+      "cases": 24,
+      "faults": 0
+    }
+  },
+  "finalRuns": [
+    {
+      "label": "after-all",
+      "code": 0,
+      "start": "2026-10-02T15:51:01.697Z",
+      "end": "2026-10-02T15:52:08.374Z"
+    },
+    {
+      "label": "after-compact",
+      "code": 0,
+      "start": "2026-10-02T15:52:08.374Z",
+      "end": "2026-10-02T15:53:09.511Z"
+    },
+    {
+      "label": "layout",
+      "code": 0,
+      "start": "2026-10-02T15:53:09.511Z",
+      "end": "2026-10-02T15:55:18.274Z"
+    },
+    {
+      "label": "e2e",
+      "code": 0,
+      "start": "2026-10-02T15:55:18.274Z",
+      "end": "2026-10-02T15:56:25.131Z"
+    }
+  ],
+  "overlayAndCalmRuns": [
+    {
+      "label": "after-all",
+      "code": 0,
+      "start": "2026-10-02T15:15:49.684Z",
+      "end": "2026-10-02T15:16:54.870Z"
+    },
+    {
+      "label": "after-compact",
+      "code": 0,
+      "start": "2026-10-02T15:16:54.870Z",
+      "end": "2026-10-02T15:17:55.381Z"
+    },
+    {
+      "label": "overlays",
+      "code": 0,
+      "start": "2026-10-02T15:17:55.381Z",
+      "end": "2026-10-02T15:19:29.598Z"
+    },
+    {
+      "label": "calm",
+      "code": 0,
+      "start": "2026-10-02T15:19:29.599Z",
+      "end": "2026-10-02T15:19:59.240Z"
+    },
+    {
+      "label": "layout",
+      "code": 0,
+      "start": "2026-10-02T15:19:59.240Z",
+      "end": "2026-10-02T15:22:34.126Z"
+    }
+  ],
+  "layout": {
+    "command": "BASE=http://127.0.0.1:5195 node tools/qa/hud-review.mjs /home/lucas/codex-team/hud-layout-final-notices",
+    "sizes": [
+      "1280x720",
+      "1470x956",
+      "1600x900",
+      "1920x1080",
+      "2560x1440",
+      "2560x1080",
+      "1280x548",
+      "1024x640",
+      "960x600",
+      "844x390",
+      "390x844"
+    ],
+    "scales": [
+      0.8,
+      1,
+      1.2
+    ],
+    "poses": [
+      "hud",
+      "hud-full",
+      "hud-watch",
+      "hud-corrente"
+    ],
+    "cases": 132,
+    "faults": 0
+  },
+  "chromium": {
+    "command": "BASE=http://127.0.0.1:5195 node node_modules/@playwright/test/cli.js test tests/hud.e2e.spec.ts tests/scope.e2e.spec.ts tests/results.e2e.spec.ts tests/settings.e2e.spec.ts --project=chromium",
+    "passed": 9,
+    "workers": 1
+  },
+  "vitest": {
+    "fullEarlierRun": {
+      "passed": 1130,
+      "files": 120,
+      "stage": "2e22ac8 redesign"
+    },
+    "outcomeFollowup": {
+      "command": "npx vitest run tests/ui.test.ts --maxWorkers=1",
+      "passed": 43,
+      "files": 1,
+      "stage": "2bca8485a6a54ea16cfd64bccab6393d16c05437"
+    }
+  },
+  "notes": [
+    "All 176 final state cases and 132 layout cases include the final compact fixes and strengthened card, banner and notice overlap checks.",
+    "Overlay and calm shots use dc81f23. Later runtime changes affect compact combat cards and transient notices; those do not appear in the captured overlay/menu variants. Calm shots are desktop states unaffected by those compact and spectating-notice rules.",
+    "All 28 result/size variants check scroll and click actionability of every result button without invoking rematch callbacks.",
+    "Final HUD-source cost repeat is reserved for 13:18 to 13:20; accepted earlier d6d6837 data remains separately identified.",
+    "Root integration runs the complete project gates after all streams merge."
+  ],
+  "noticeStress": {
+    "command": "NOTICE_STRESS=1 SIZES=1280x720,1470x956,844x390,390x844 STATES=plane,countdown,coach,delivery,kill-long-name,watch SINGLES=1 BASE=http://127.0.0.1:5195 node tools/qa/hud-boards.mjs /home/lucas/codex-team/hud-notice-stress after",
+    "cases": 24,
+    "faults": 0,
+    "start": "2026-10-02T15:47:24.016Z",
+    "end": "2026-10-02T15:47:50.545Z",
+    "source": "2bca848 runtime; final comment-only edits followed the capture"
+  },
+  "frozenFinalBuild": {
+    "command": "VITE_QA=1 npm run build -- --outDir /home/lucas/codex-team/hud-final-dist --emptyOutDir",
+    "result": "passed",
+    "sourceRevision": "2bca8485a6a54ea16cfd64bccab6393d16c05437",
+    "purpose": "Exact committed HUD source for the reserved final quiet-window cost comparison"
+  }
+}

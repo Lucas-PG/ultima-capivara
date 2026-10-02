@@ -1,0 +1,632 @@
+{
+  "normal-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "fight-low-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "pickup-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "heal-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "storm-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "reload-kill-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "death-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "watch-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "corrente-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "respawn-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "plane-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "parachute-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "countdown-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "coach-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "delivery-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "scope-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "falling-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "landing-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "heal-complete-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "upgrade-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "storm-warning-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "swim-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "death-storm-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "death-fall-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "late-join-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "respawn-ready-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "pickup-weapon-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "pickup-gear-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "empty-ammo-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "no-reserve-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "toast-error-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "kill-long-name-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "death-long-name-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "watch-long-name-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "mud-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "crouch-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "lean-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "victory-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-loss-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-correria-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-corrente-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-host-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-guest-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-long-name-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "normal-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "fight-low-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "pickup-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "heal-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "storm-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "reload-kill-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "death-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "watch-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "corrente-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "respawn-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "plane-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "parachute-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "countdown-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "coach-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "delivery-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "scope-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "falling-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "landing-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "heal-complete-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "upgrade-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "storm-warning-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "swim-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "death-storm-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "death-fall-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "late-join-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "respawn-ready-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "pickup-weapon-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "pickup-gear-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "empty-ammo-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "no-reserve-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "toast-error-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "kill-long-name-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "death-long-name-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "watch-long-name-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "mud-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "crouch-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "lean-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": []
+  },
+  "victory-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-loss-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-correria-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-corrente-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-host-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-guest-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  },
+  "result-long-name-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "contentFaults": [],
+    "actionFaults": []
+  }
+}
