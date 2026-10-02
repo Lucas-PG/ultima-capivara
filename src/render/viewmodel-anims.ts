@@ -375,9 +375,11 @@ const REVOLVER_EJECT_APPROACH = shift(REVOLVER_EJECT_HAND, [-.045, 0, -.026]);
 const REVOLVER_EJECT_CLEAR = shift(REVOLVER_EJECT_HAND, [-.055, 0, -.025]);
 const REVOLVER_CYLINDER_CLEAR: HandKey = { space: 'gun', wrist: [-.145, .008, -.005],
   forward: [.120078, .379252, -.917469], palm: [.973055, .138274, .184511], curl: OPEN };
-export const REVOLVER_LOADER_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.090575, 0.066225, 0.07539],
-  forward: [0.866839, -0.451027, -0.212521], palm: [-0.164948, 0.142825, -0.975906],
-  curl: { index: [1.301026, 1.413858, -0.09], middle: [1.607007, 0.013634, -0.09], ring: [0.747, -0.0585, 0.0666], thumb: [0.064511, 0.184419, 0.200391], spread: -0.5904 } };
+// The palm seats the loader from behind while the opposed thumb and middle wrap retain it.
+export const REVOLVER_LOADER_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.05476685, 0.06577439, 0.09280667],
+  forward: [0.70129708, -0.54634644, -0.45791699], palm: [-0.28156934, 0.37783421, -0.88202042],
+  curl: { index: [1.69402186, 1.16271518, -0.0990648], middle: [1.69977404, -0.07128009, 0.03852169], ring: [0.56256675, -0.09809991, -0.0999614],
+    thumb: [0.07342672, -0.02417476, -0.03463604], spread: -0.57367058, indexSpread: -0.26679073, indexRoll: -0.32436789 } };
 // The whole reload is held further out (10 to 15 cm) so the gun, not the support forearm, is the subject.
 export const REVOLVER_RELOAD: Choreography = [
   { t: 0, mag: { visible: false }, parts: { swing: 0, spent: 0, fresh: 0, loaded: 0 } },
