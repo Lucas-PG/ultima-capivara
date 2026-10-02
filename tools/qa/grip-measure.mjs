@@ -7,6 +7,36 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
   const M4 = holder.matrixWorld.constructor, V3 = holder.position.constructor;
   const toGun = new M4().copy(holder.matrixWorld).invert();
   const scale = holder.scale.x;
+  // Arsenal exports merge disjoint primitive solids into a single mesh. Weld UV-split positions
+  // and follow shared edges to classify each closed component separately. The topology is static.
+  const components = window.__qaSolidComponents ??= geometry => {
+    const position = geometry.attributes.position, index = geometry.index, cached = geometry.userData.qaSolidTopology;
+    if (cached?.position === position && cached?.index === index) return cached;
+    const count = (index ? index.count : position.count) / 3, parent = new Uint32Array(count);
+    for (let i = 0; i < count; i++) parent[i] = i;
+    const root = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+    const points = new Map(), welded = new Uint32Array(position.count);
+    for (let i = 0; i < position.count; i++) {
+      const key = [position.getX(i), position.getY(i), position.getZ(i)].map(v => Math.round(v * 1e7)).join(',');
+      if (!points.has(key)) points.set(key, points.size);
+      welded[i] = points.get(key);
+    }
+    const edges = new Map();
+    for (let triangle = 0; triangle < count; triangle++) {
+      const vertices = [0, 1, 2].map(k => welded[index ? index.getX(triangle * 3 + k) : triangle * 3 + k]);
+      for (let k = 0; k < 3; k++) {
+        const a = vertices[k], b = vertices[(k + 1) % 3], key = a < b ? `${a}:${b}` : `${b}:${a}`;
+        if (edges.has(key)) parent[root(triangle)] = root(edges.get(key)); else edges.set(key, triangle);
+      }
+    }
+    const groups = new Map(), labels = new Uint32Array(count);
+    for (let i = 0; i < count; i++) {
+      const component = root(i); if (!groups.has(component)) groups.set(component, groups.size);
+      labels[i] = groups.get(component);
+    }
+    return geometry.userData.qaSolidTopology = { position, index, labels, count: groups.size };
+  };
+  let nextSolid = 0;
   // Gun triangles in weapon space (metres at scale 1).
   const tris = [];
   const surface = opposingPaw ? vm.arms.meshes.find(m => m.name.endsWith(side === 'R' ? 'L' : 'R')) :
@@ -18,8 +48,9 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
     if (hidden) return;
     const m = new M4().multiplyMatrices(toGun, o.matrixWorld), pos = o.geometry.attributes.position, idx = o.geometry.index;
     const count = idx ? idx.count : pos.count;
+    const topology = components(o.geometry), solidBase = nextSolid; nextSolid += topology.count;
     const at = i => (o.isSkinnedMesh ? o.getVertexPosition(idx ? idx.getX(i) : i, new V3()) : new V3().fromBufferAttribute(pos, idx ? idx.getX(i) : i)).applyMatrix4(m).multiplyScalar(scale);
-    for (let i = 0; i < count; i += 3) tris.push([at(i), at(i + 1), at(i + 2), o.name]);
+    for (let i = 0; i < count; i += 3) tris.push([at(i), at(i + 1), at(i + 2), o.name, solidBase + topology.labels[i / 3]]);
   });
   const mesh = vm.arms.meshes.find(m => m.name.endsWith(side));
   const bones = mesh.skeleton.bones.map(b => b.name.replace(/_[LR]$/, ''));
@@ -100,7 +131,7 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
       }
       if (leave < enter) return;
       if (!node.triangles) { visit(node.left); visit(node.right); return; }
-      for (const [a, b, c] of node.triangles) {
+      for (const [a, b, c, , solid] of node.triangles) {
         const ex = b.x - a.x, ey = b.y - a.y, ez = b.z - a.z;
         const fx = c.x - a.x, fy = c.y - a.y, fz = c.z - a.z;
         const hx = direction.y * fz - direction.z * fy, hy = direction.z * fx - fz, hz = fy - direction.y * fx;
@@ -113,17 +144,17 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
         const v = (qx + direction.y * qy + direction.z * qz) / det;
         if (v < -1e-8 || u + v > 1 + 1e-8) continue;
         const distance = (fx * qx + fy * qy + fz * qz) / det;
-        if (distance > 1e-8) hits.push([distance, det < 0 ? 1 : -1]);
+        if (distance > 1e-8) hits.push([distance, det < 0 ? 1 : -1, solid]);
       }
     };
     visit(volumeRoot); hits.sort((a, b) => a[0] - b[0]);
-    let winding = 0;
+    const winding = new Map();
     for (let i = 0; i < hits.length;) {
-      const distance = hits[i][0]; let sign = 0;
-      do { sign += hits[i++][1]; } while (i < hits.length && hits[i][0] - distance < 1e-7);
-      winding += Math.sign(sign);
+      const distance = hits[i][0], signs = new Map();
+      do { const [, sign, solid] = hits[i++]; signs.set(solid, (signs.get(solid) ?? 0) + sign); } while (i < hits.length && hits[i][0] - distance < 1e-7);
+      for (const [solid, sign] of signs) winding.set(solid, (winding.get(solid) ?? 0) + Math.sign(sign));
     }
-    return winding !== 0;
+    return new Set([...winding].filter(([, count]) => count !== 0).map(([solid]) => solid));
   };
   const distanceToBox = (p, node) => {
     let d = 0;
@@ -150,7 +181,28 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
       }
     };
     visit(root);
-    if (sign < 0 && (distanceToBox(v.p, surfaceBounds) > 0 || !insideSurface(v.p))) sign = 1;
+    // A closer positive face from an overlapping part must never hide penetration into another.
+    // Classify each rendered solid, then retain the deepest containing solid's signed clearance.
+    const inside = distanceToBox(v.p, surfaceBounds) > 0 ? new Set() : insideSurface(v.p);
+    sign = inside.size ? -1 : 1;
+    if (inside.size && !desiredNormal) {
+      const depths = new Map([...inside].map(solid => [solid, Infinity]));
+      const contacts = new Map();
+      const inspect = node => {
+        if (distanceToBox(v.p, node) > Math.max(...depths.values()) + 1e-10) return;
+        if (!node.triangles) { inspect(node.left); inspect(node.right); return; }
+        for (const [a, b, c, part, solid] of node.triangles) if (inside.has(solid)) {
+          closest(v.p, a, b, c, c0);
+          const d = c0.distanceToSquared(v.p);
+          if (d < depths.get(solid)) {
+            depths.set(solid, d); contacts.set(solid, { closest: c0.clone(), normal: n.subVectors(b, a).cross(ac.subVectors(c, a)).normalize().clone(), part });
+          }
+        }
+      };
+      inspect(volumeRoot);
+      const [solid, depth] = [...depths].sort((a, b) => b[1] - a[1])[0];
+      best = depth; Object.assign(v, contacts.get(solid));
+    }
     v.d = Math.sqrt(best) * sign;
     const g = groups[v.bone] ??= { n: 0, inside: 0, contact: 0, min: Infinity, tip: null, tipAlong: -Infinity };
     g.n++; if (v.d < -.0005) g.inside++; if (v.d >= -.0005 && v.d <= .0015) g.contact++;
