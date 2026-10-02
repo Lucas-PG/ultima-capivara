@@ -114,10 +114,14 @@ export const M4_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.059
   forward: [-0.0642325252, 0.932038919, -0.356619735], palm: [0.960904205, 0.154210395, 0.229961436], pole: [-0.6, -1, 0.2],
   curl: { index: [1.4111503, 1.07548386, 0.243035708], middle: [1.69919657, 1.26077337, 0.166553947], ring: [1.64799083, 1.64687312, 0.402045], thumb: [1.29825442, 1.18090287, 0.624376383],
     spread: -0.15668296, indexSpread: 0.000856693515, indexRoll: 0.0742739061 } };
-const M4_SEAT_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.039363, -0.271518, -0.037076],
-  forward: [0.922329, 0.267645, -0.278703], palm: [-0.257714, 0.963504, 0.072407],
-  curl: { index: [0.09, 0.135, 0.09], middle: [0.09, 0.135, 0.09], ring: [0.108, 0.135, 0.09], thumb: [0.09, 0.09, 0.09], spread: 0.2000 } };
-const M4_CATCH_HAND: HandKey = { space: 'gun', contact: 'release', wrist: [-0.060181, -0.017140, 0.059754], forward: [-0.101290, 0.870514, -0.481607], palm: [0.795853, 0.361380, 0.485820], curl: { index: [0.180000, 0.220000, 0.090000], middle: [0.180000, 0.220000, 0.090000], ring: [-0.095196, 0.219917, 0.090180], thumb: [0.090000, 0.090000, 0.090000], spread: 0.2000 }, pole: [-1, -.25, .3] };
+const M4_SEAT_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.039363, -0.271518, -0.034076],
+  forward: [0.922329003, 0.267645001, -0.278703001], palm: [-0.257713991, 0.963504398, 0.0724069953], pole: [-0.6, -1, 0.2],
+  curl: { index: [0.09, 0.135, 0.09], middle: [0.09, 0.135, 0.09], ring: [0.108, 0.135, 0.09], thumb: [0.09, 0.09, 0.09],
+    spread: 0.2, indexSpread: 0, indexRoll: 0 } };
+const M4_CATCH_HAND: HandKey = { space: 'gun', contact: 'release', wrist: [-0.0604106248, -0.017342856, 0.0569210825],
+  forward: [-0.105187603, 0.868329589, -0.484705367], palm: [0.805265146, 0.360368485, 0.470831816], pole: [-1, -0.25, 0.3],
+  curl: { index: [0.195093226, 0.235093226, 0.105093226], middle: [0.195093226, 0.235093226, 0.105093226], ring: [-0.0952160449, 0.215055577, 0.105273226], thumb: [0.105093226, 0.105093226, 0.105093226],
+    spread: 0.211319919, indexSpread: 0.00905593534, indexRoll: 0.00905593534 } };
 const M4_TRIGGER_CLEAR = INDEXED;
 // Present the magazine well: lift and roll the rifle's belly toward the eye.
 const M4_TILT: { p: Vec; r: Vec } = { p: [-.06, .035, -.05], r: [.22, .3, -.5] };
@@ -200,9 +204,10 @@ const SMG_SWAP: Choreography = [
   { t: .90, R: INDEXED },
   { t: .98, R: { space: 'grip' }, L: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
-const SMG_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [-0.075646, -0.036563, 0.049335],
-  forward: [0.274431, 0.482582, -0.831747], palm: [0.96102, -0.107428, 0.254754],
-  curl: { index: [1.056161, 1.166807, 0.498414], middle: [1.1781, 1.115445, 1.262282], ring: [1.17, 0.99, 0.72], thumb: [0.564424, 0.227683, 0.045244], spread: -0.3087 } };
+const SMG_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [-0.0712715207, -0.0365287927, 0.0465020958],
+  forward: [0.259133355, 0.461110908, -0.848661673], palm: [0.9624155, -0.0493324025, 0.267063137], pole: [-0.6, -1, 0.2],
+  curl: { index: [1.12551124, 1.21059965, 0.535734993], middle: [1.28353255, 1.00933023, 1.2760274], ring: [1.25893331, 1.19648349, 0.758054273], thumb: [0.516442284, 0.143842169, -0.0551321481],
+    spread: -0.512847704, indexSpread: 0.0160632489, indexRoll: -0.00905554362 } };
 export const SMG_RELOAD_EMPTY: Choreography = [...SMG_SWAP,
   { t: .77, L: { space: 'gun', wrist: [-.145, .04, -.13], forward: [.1, .3, -1], palm: [1, -.1, .05], curl: OPEN } },
   { t: .805, L: SMG_CHARGE_HAND, parts: { charge: 0 } },
@@ -273,9 +278,10 @@ export const dmrReload = (empty: boolean): Choreography => empty ? DMR_RELOAD_EM
 export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.088988, -0.160195, 0.011241],
   forward: [0.21378, 0.897557, -0.385604], palm: [0.830176, 0.041127, 0.555982],
   curl: { index: [0.771627, 0.221598, 0.286337], middle: [1.461854, 1.092202, -0.057784], ring: [1.7, 1.7, 0.396], thumb: [0.897567, 0.589462, 0.546293], spread: -0.1879 } };
-export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.123252, -0.08807, 0.065733],
-  forward: [-0.090106, 0.932039, -0.350976], palm: [-0.903789, -0.224569, -0.364327], pole: [1, -.35, .2],
-  curl: { index: [1.7, -0.1, -0.1], middle: [1.481625, 0.148333, 0.5392], ring: [1.17, 0.99, 0.72], thumb: [0.46395, -0.09157, 0.817014], spread: -0.6000 } };
+export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.124036664, -0.0881238791, 0.0570596199],
+  forward: [-0.075888258, 0.932039048, -0.35432215], palm: [-0.933322825, -0.191458369, -0.303730469], pole: [1, -0.35, 0.2],
+  curl: { index: [1.69910537, -0.1, -0.0597593187], middle: [1.49371764, 0.195701799, 0.672218425], ring: [1.17030999, 0.970000092, 0.765884855], thumb: [0.466614927, -0.0920849344, 0.804425041],
+    spread: -0.576427671, indexSpread: -0.0175922303, indexRoll: -0.075282557 } };
 // The paw reaches the knob half open from the right and below, and leaves it open to the right.
 const SNIPER_BOLT_OPEN = blendCurl(SNIPER_BOLT_HAND.curl as HandCurl, OPEN, .5);
 // A complete four-beat bolt stroke, anchored to the actual moving knob.
