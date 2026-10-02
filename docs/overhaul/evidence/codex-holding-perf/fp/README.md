@@ -24,7 +24,7 @@ Inactive rows are draw/holster moments when another weapon is active. They are n
 
 [Every state measurement](fp-contact-audit.json) preserves contact regions, trigger front/guard checks, actual wrist angles and failure messages. [Exact failures](fp-contact-failures.json) additionally records the actual worst skin point and contacted part. No bound was widened.
 
-The nine JPG boards pair matching before/after renders for every captured state, including all authored keys. The `native` directory contains selected original-resolution JPEG conversions for close review. The initial baseline has717 PNGs and the final list has720, including three added SMG inspect times. The matching status is recorded in capture-index.json; original PNGs remain in the local QA artifact directories.
+The nine JPG boards pair matching before/after renders for every captured state, including all authored keys. The `native` directory contains selected original-resolution JPEG conversions for close review. The initial baseline has717 PNGs and the final list has720, including three added SMG inspect times. The three missing baseline times were captured from preserved f40ea9c source with HMR disabled. All720 pairs match and their source PNG SHA-256 hashes are in capture-index.json; original PNGs remain in the local QA artifact directories.
 
 The numeric and screenshot fixtures are complementary. Screenshots use the authored key times listed in `capture-index.json`; the denser geometry audit includes additional fixed-time transition samples.
 
