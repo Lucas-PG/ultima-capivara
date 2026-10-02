@@ -18,17 +18,14 @@ export async function holdingMetrics(weapon, state, pose, probe) {
       const cm = await probe([weapon, side, surface === 'paw', options]);
       row.contacts[side] = { surface, gap: cm.worst, skin: cm.summary };
       if (surface === 'body' || surface === 'pump' || surface === 'paw') {
-        for (const region of ['palm', 'wrap']) {
-          const m = await probe([weapon, side, surface === 'paw', { ...options, region }]);
-          row.contacts[side][region] = m.worst;
-        }
+        for (const region of ['palm', 'wrap']) row.contacts[side][region] = cm.regions[region];
       }
     }
   }
-  if (weapon === 'pistol' || weapon === 'revolver') row.pair = (await probe([weapon, 'L', true])).worst;
+  if (weapon === 'pistol' || weapon === 'revolver') row.pair = row.contacts.L?.surface === 'paw' ? row.contacts.L.gap : (await probe([weapon, 'L', true])).worst;
   if (pose.contacts?.trigger) {
     const trigger = await probe([weapon, 'R', false, TRIGGER_FACE]);
-    row.trigger = { gap: trigger.worst, insideGuard: triggerInGuard(weapon, trigger.digits.index?.tip), digits: trigger.digits, skin: trigger.summary };
+    row.trigger = { frontDistance: trigger.nearestSurfaceDistance, signedDiagnostic: trigger.worst, insideGuard: triggerInGuard(weapon, trigger.digits.index?.tip), digits: trigger.digits, skin: trigger.summary };
   }
   row.failures = [];
   for (const key of ['R', 'L', 'pair']) if (row[key] !== undefined && row[key] < -.5) row.failures.push(`${key} penetrates ${row[key]} mm`);
@@ -36,7 +33,8 @@ export async function holdingMetrics(weapon, state, pose, probe) {
     if (badContact(contact.gap)) row.failures.push(`${side} ${contact.surface} contact ${contact.gap} mm`);
     for (const region of ['palm', 'wrap']) if (contact[region] !== undefined && badContact(contact[region])) row.failures.push(`${side} ${contact.surface} ${region} contact ${contact[region]} mm`);
   }
-  if (row.trigger && badContact(row.trigger.gap)) row.failures.push(`trigger front contact ${row.trigger.gap} mm`);
+  if (row.trigger && (!Number.isFinite(row.trigger.frontDistance) || row.trigger.frontDistance < 0 || row.trigger.frontDistance > 1.5))
+    row.failures.push(`trigger front contact ${row.trigger.frontDistance} mm`);
   if (row.trigger && !row.trigger.insideGuard) row.failures.push('trigger digit outside guard');
   for (const [side, wrist] of Object.entries(pose.wrists ?? {})) {
     if (!wrist || !pose.visible[side]) continue;
@@ -48,5 +46,5 @@ export async function holdingMetrics(weapon, state, pose, probe) {
 
 export function holdingSummary(rows) {
   const worst = key => rows.reduce((best, r) => r[key] !== undefined && r[key] < best.v ? { v: r[key], at: `${r.action} ${r.t} ${r[`${key}at`] ?? ''}` } : best, { v: Infinity, at: '' });
-  return { R: worst('R'), L: worst('L'), pair: worst('pair'), failed: rows.filter(r => r.failures?.length).length, rows };
+  return { R: worst('R'), L: worst('L'), pair: worst('pair'), failed: rows.filter(r => r.failures?.length).length, active: rows.filter(r => !r.inactive).length, inactive: rows.filter(r => r.inactive).length, rows };
 }

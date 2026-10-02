@@ -9,6 +9,12 @@ describe('shipped SMG carrying skin', () => {
   let fixture: Awaited<ReturnType<typeof holdingFixture>>;
   beforeAll(async () => { fixture = await holdingFixture(); });
   afterAll(() => fixture.dispose());
+  it('aggregates the same actual palm and wrapping skin as isolated region scans', () => {
+    fixture.pose('smg', 'hip', 0);
+    const scan = measureGrip(['smg', 'L', false, { surface: 'body' }]);
+    for (const region of ['palm', 'wrap'])
+      expect(scan.regions[region]).toBe(measureGrip(['smg', 'L', false, { surface: 'body', region }]).worst);
+  }, 30_000);
   it.each([['hip', 0], ['fire', .001], ['sprint', .6]] as const)('holds its surfaces through %s', async (action, t) => {
     const pose = fixture.pose('smg', action, t);
     const row = await holdingMetrics('smg', { action, t }, pose, measureGrip);

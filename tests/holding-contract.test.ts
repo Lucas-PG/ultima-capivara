@@ -48,7 +48,7 @@ describe('active contact audit', () => {
     const row = await holdingMetrics('smg', { action: 'hip', t: 0 }, {
       active: 'smg', visible: { R: true, L: false }, contacts: { R: 'body', trigger: true }, wrists: {},
     }, async ([, , , options = {}]: [string, string, boolean?, { surface?: string; region?: string }?]) => ({
-      worst: options.region === 'palm' ? 4 : .2, summary: {}, digits: { index: { tip: [3, -14, -35] } },
+      worst: options.region === 'palm' ? 4 : .2, regions: { palm: 4, wrap: .2 }, nearestSurfaceDistance: .2, summary: {}, digits: { index: { tip: [3, -14, -35] } },
     }));
     expect(row.failures).toEqual(['R body palm contact 4 mm']);
   });

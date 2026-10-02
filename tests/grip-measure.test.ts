@@ -68,6 +68,20 @@ describe('signed skin contact probe', () => {
     expect(probe([0, 0, -.0095]).read({ normal: [0, 0, -1] }).worst).toBe(-.5);
   });
 
+  it('keeps a permitted side graze separate from front-face contact', () => {
+    const fixture = probe([.0098, 0, 0]);
+    fixture.paw.geometry.setAttribute('position', new THREE.Float32BufferAttribute([.0098, 0, 0, 0, 0, -.0104], 3));
+    fixture.paw.geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(Array(8).fill(0), 4));
+    fixture.paw.geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0], 4));
+    expect(fixture.read().worst).toBe(-.2);
+    const front = fixture.read({ normal: [0, 0, -1] });
+    // The side-grazing vertex lies 10 mm behind the front, but only 0.2 mm inside the solid.
+    expect(front.worst).toBe(-10);
+    expect(front.nearestSurfaceDistance).toBe(.4);
+    expect(front.nearestSurface.at).toEqual([0, 0, -10.4]);
+    expect(front.nearestSurface.surfaceAt).toEqual([0, 0, -10]);
+  });
+
   it('detects penetration when an overlapping part has the nearest outward-facing surface', () => {
     const fixture = probe([.008, 0, 0]);
     const overlap = new THREE.Mesh(new THREE.BoxGeometry(.02, .02, .02), new THREE.MeshBasicMaterial());
@@ -83,6 +97,7 @@ describe('signed skin contact probe', () => {
     const fixture = probe([.0105, 0, 0]);
     Object.assign(fixture.paw, { bindPalmPosition: (_index: number, out: THREE.Vector3) => out.set(0, -.02, -.03) });
     expect(fixture.read({ region: 'palm' }).worst).toBe(.5);
+    expect(fixture.read().regions.palm).toBe(.5);
     fixture.paw.skeleton.bones[0].position.x = .003;
     expect(fixture.read({ region: 'palm' }).worst).toBe(3.5);
   });

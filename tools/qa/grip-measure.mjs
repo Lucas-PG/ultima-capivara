@@ -65,15 +65,17 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
     for (let k = 0; k < 4; k++) { const wk = skinWeight.getComponent(i, k); if (wk > w) { w = wk; best = skinIndex.getComponent(i, k); } }
     const bone = bones[best];
     if (bone === 'upper' || bone === 'fore' || (options.bones && !options.bones.includes(bone))) continue;
-    if (options.region === 'palm') {
+    let palm = false;
+    if (bone === 'hand') {
       const rest = mesh.bindPalmPosition ? mesh.bindPalmPosition(i, new V3()) :
         new V3().fromBufferAttribute(mesh.geometry.attributes.position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
-      if (bone !== 'hand' || rest.y >= -.006 || rest.z >= -.012) continue;
+      palm = rest.y < -.006 && rest.z < -.012;
     }
-    if (options.region === 'wrap' && !/^(index|middle|ring)[23]$/.test(bone)) continue;
+    const wrap = /^(index|middle|ring)[23]$/.test(bone);
+    if (options.region === 'palm' && !palm || options.region === 'wrap' && !wrap) continue;
     mesh.getVertexPosition(i, p); p.applyMatrix4(mesh.matrixWorld).applyMatrix4(toGun).multiplyScalar(scale);
     const world = new V3(); mesh.getVertexPosition(i, world); world.applyMatrix4(mesh.matrixWorld);
-    pts.push({ bone, p: p.clone(), world });
+    pts.push({ bone, palm, wrap, p: p.clone(), world });
   }
   // Closest point on a triangle (Ericson).
   const ab = new V3(), ac = new V3(), ap = new V3(), bp = new V3(), cp = new V3(), q = new V3(), n = new V3();
@@ -162,6 +164,7 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
     return d;
   };
   const c0 = new V3();
+  let nearestSurfaceDistance = Infinity, nearestSurface;
   for (const v of measured) {
     let best = Infinity, sign = 1;
     const visit = node => {
@@ -181,6 +184,13 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
       }
     };
     visit(root);
+    // A face-restricted contact is a Euclidean distance to that face. Its sign cannot come from
+    // a different side of the solid: a permitted side graze may be centimetres behind the front.
+    if (best < nearestSurfaceDistance) {
+      nearestSurfaceDistance = best;
+      nearestSurface = { bone: v.bone, at: v.p.toArray().map(n => +(n * 1000).toFixed(3)),
+        surfaceAt: v.closest?.toArray().map(n => +(n * 1000).toFixed(3)), part: v.part };
+    }
     // A closer positive face from an overlapping part must never hide penetration into another.
     // Classify each rendered solid, then retain the deepest containing solid's signed clearance.
     const inside = distanceToBox(v.p, surfaceBounds) > 0 ? new Set() : insideSurface(v.p);
@@ -223,6 +233,7 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
   }
   const summary = Object.fromEntries(Object.entries(groups).map(([k, g]) => [k, { min: +(g.min * 1000).toFixed(3), inside: g.inside, contact: g.contact, n: g.n, at: g.at, surfaceAt: g.surfaceAt, normalAt: g.normalAt, part: g.part }]));
   const centroid = measured.filter(v => v.bone === 'hand').reduce((s, v) => s.add(v.world), new V3()).multiplyScalar(1 / Math.max(1, measured.filter(v => v.bone === 'hand').length));
-  return { summary, digits, bore: [bore.x, bore.y, bore.z].map(x => +(x * 1000).toFixed(0)), trianglesNear: near.length,
+  const regions = Object.fromEntries(['palm', 'wrap'].map(region => [region, +(Math.min(...measured.filter(v => v[region]).map(v => v.d)) * 1000).toFixed(3)]));
+  return { summary, digits, regions, nearestSurfaceDistance: +(Math.sqrt(nearestSurfaceDistance) * 1000).toFixed(3), nearestSurface, bore: [bore.x, bore.y, bore.z].map(x => +(x * 1000).toFixed(0)), trianglesNear: near.length,
     centroid: [centroid.x, centroid.y, centroid.z], worst: +(Math.min(...measured.map(v => v.d)) * 1000).toFixed(3) };
 }
