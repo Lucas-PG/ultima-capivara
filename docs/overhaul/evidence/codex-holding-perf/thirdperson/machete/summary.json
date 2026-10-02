@@ -1,0 +1,212 @@
+{
+  "weapon": "machete",
+  "viewport": {
+    "width": 1470,
+    "height": 956
+  },
+  "beforeCommit": "b721224",
+  "afterHoldingCommit": "aa8207b",
+  "captureRootHead": "2886a449cae68260f64efa3fbdac15ced3f29834",
+  "sourceBefore": "/home/lucas/codex-team/evidence/tp-before",
+  "sourceAfter": "/home/lucas/codex-team/evidence/tp-final",
+  "rows": [
+    {
+      "state": "idle",
+      "clip": "idle",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "001-idle.jpg"
+    },
+    {
+      "state": "aimed",
+      "clip": "idle",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "002-aimed.jpg"
+    },
+    {
+      "state": "walk",
+      "clip": "walk",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "003-walk.jpg"
+    },
+    {
+      "state": "strafe",
+      "clip": "strafe_l",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "004-strafe.jpg"
+    },
+    {
+      "state": "sprint",
+      "clip": "run",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "005-sprint.jpg"
+    },
+    {
+      "state": "crouch",
+      "clip": "crouch",
+      "seconds": 0.3,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "006-crouch.jpg"
+    },
+    {
+      "state": "jump",
+      "clip": "jump",
+      "seconds": 0.2,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "007-jump.jpg"
+    },
+    {
+      "state": "land",
+      "clip": "idle",
+      "seconds": 0.1,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "008-land.jpg"
+    },
+    {
+      "state": "fire",
+      "clip": "idle",
+      "seconds": 0.08,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "009-fire.jpg"
+    },
+    {
+      "state": "slash",
+      "clip": "idle",
+      "seconds": 0.12,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "010-slash.jpg"
+    },
+    {
+      "state": "chop",
+      "clip": "idle",
+      "seconds": 0.16,
+      "before": {
+        "Rwhole": -6.2,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.118,
+        "Lwhole": null,
+        "Rpalm": -0.118,
+        "Rwrap": -0.117,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "011-chop.jpg"
+    }
+  ]
+}

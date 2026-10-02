@@ -1,0 +1,470 @@
+[
+  {
+    "weapon": "pistol",
+    "state": "reload-0.14",
+    "side": "L",
+    "wholeMm": -16.837,
+    "bone": "middle3",
+    "part": "world body",
+    "board": "017-reload-0.14.jpg"
+  },
+  {
+    "weapon": "pistol",
+    "state": "reload-0.15",
+    "side": "L",
+    "wholeMm": -18.199,
+    "bone": "index3",
+    "part": "world body",
+    "board": "018-reload-0.15.jpg"
+  },
+  {
+    "weapon": "smg",
+    "state": "reload-0.805",
+    "side": "L",
+    "wholeMm": -3.165,
+    "bone": "middle2",
+    "part": "smg_charge",
+    "board": "032-reload-0.805.jpg"
+  },
+  {
+    "weapon": "smg",
+    "state": "reload-0.845",
+    "side": "L",
+    "wholeMm": -3.165,
+    "bone": "middle2",
+    "part": "smg_charge",
+    "board": "033-reload-0.845.jpg"
+  },
+  {
+    "weapon": "smg",
+    "state": "reload-0.86",
+    "side": "L",
+    "wholeMm": -3.166,
+    "bone": "middle2",
+    "part": "smg_charge",
+    "board": "034-reload-0.86.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.17",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "016-reload-0.17.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.2",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "017-reload-0.2.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.3",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "018-reload-0.3.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.35",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "019-reload-0.35.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.4",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "020-reload-0.4.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.5",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "023-reload-0.5.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.55",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "024-reload-0.55.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.6",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "025-reload-0.6.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.67",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "026-reload-0.67.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.7",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "027-reload-0.7.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.77",
+    "side": "L",
+    "wholeMm": -3.148,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "032-reload-0.77.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-0.86",
+    "side": "L",
+    "wholeMm": -6.309,
+    "bone": "hand",
+    "part": "world body",
+    "board": "038-reload-0.86.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.17",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "052-reload-partial-0.17.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.2",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "053-reload-partial-0.2.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.3",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "054-reload-partial-0.3.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.35",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "055-reload-partial-0.35.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.4",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "056-reload-partial-0.4.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.5",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "059-reload-partial-0.5.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.55",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "060-reload-partial-0.55.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.6",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "061-reload-partial-0.6.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.67",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "062-reload-partial-0.67.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.7",
+    "side": "L",
+    "wholeMm": -5.979,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "063-reload-partial-0.7.jpg"
+  },
+  {
+    "weapon": "m4",
+    "state": "reload-partial-0.77",
+    "side": "L",
+    "wholeMm": -3.148,
+    "bone": "hand",
+    "part": "m4_mag",
+    "board": "068-reload-partial-0.77.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-0.17200000000000001",
+    "side": "L",
+    "wholeMm": -0.712,
+    "bone": "middle3",
+    "part": "world body",
+    "board": "016-reload-0.17200000000000001.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-0.6622",
+    "side": "L",
+    "wholeMm": -4.737,
+    "bone": "hand",
+    "part": "world body",
+    "board": "029-reload-0.6622.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-0.6966",
+    "side": "L",
+    "wholeMm": -1.383,
+    "bone": "middle3",
+    "part": "world body",
+    "board": "030-reload-0.6966.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-0.7094999999999999",
+    "side": "L",
+    "wholeMm": -1.445,
+    "bone": "middle3",
+    "part": "world body",
+    "board": "031-reload-0.7094999999999999.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-0.7223999999999999",
+    "side": "L",
+    "wholeMm": -1.535,
+    "bone": "ring2",
+    "part": "world body",
+    "board": "032-reload-0.7223999999999999.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-0.725",
+    "side": "L",
+    "wholeMm": -1.67,
+    "bone": "middle2",
+    "part": "world body",
+    "board": "033-reload-0.725.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-partial-0.2",
+    "side": "L",
+    "wholeMm": -1.038,
+    "bone": "ring3",
+    "part": "world body",
+    "board": "053-reload-partial-0.2.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-partial-0.67",
+    "side": "L",
+    "wholeMm": -9.655,
+    "bone": "hand",
+    "part": "world body",
+    "board": "062-reload-partial-0.67.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-partial-0.7",
+    "side": "L",
+    "wholeMm": -1.637,
+    "bone": "middle3",
+    "part": "world body",
+    "board": "063-reload-partial-0.7.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-partial-0.708",
+    "side": "L",
+    "wholeMm": -1.369,
+    "bone": "middle3",
+    "part": "world body",
+    "board": "064-reload-partial-0.708.jpg"
+  },
+  {
+    "weapon": "dmr",
+    "state": "reload-partial-0.735",
+    "side": "L",
+    "wholeMm": -0.99,
+    "bone": "middle3",
+    "part": "world body",
+    "board": "065-reload-partial-0.735.jpg"
+  },
+  {
+    "weapon": "sniper",
+    "state": "reload-0.17",
+    "side": "L",
+    "wholeMm": -13.991,
+    "bone": "hand",
+    "part": "world body",
+    "board": "015-reload-0.17.jpg"
+  },
+  {
+    "weapon": "sniper",
+    "state": "reload-0.7121999999999999",
+    "side": "L",
+    "wholeMm": -14.914,
+    "bone": "hand",
+    "part": "world body",
+    "board": "035-reload-0.7121999999999999.jpg"
+  },
+  {
+    "weapon": "sniper",
+    "state": "reload-0.7464999999999999",
+    "side": "L",
+    "wholeMm": -0.839,
+    "bone": "ring3",
+    "part": "world body",
+    "board": "036-reload-0.7464999999999999.jpg"
+  },
+  {
+    "weapon": "sniper",
+    "state": "reload-partial-0.16199999999999998",
+    "side": "L",
+    "wholeMm": -6.483,
+    "bone": "hand",
+    "part": "world body",
+    "board": "058-reload-partial-0.16199999999999998.jpg"
+  },
+  {
+    "weapon": "sniper",
+    "state": "reload-partial-0.7140000000000001",
+    "side": "L",
+    "wholeMm": -15.778,
+    "bone": "hand",
+    "part": "world body",
+    "board": "069-reload-partial-0.7140000000000001.jpg"
+  },
+  {
+    "weapon": "coco",
+    "state": "reload-0.75",
+    "side": "L",
+    "wholeMm": -0.608,
+    "bone": "hand",
+    "part": "world body",
+    "board": "052-reload-0.75.jpg"
+  },
+  {
+    "weapon": "coco",
+    "state": "reload-0.765",
+    "side": "L",
+    "wholeMm": -0.597,
+    "bone": "hand",
+    "part": "world body",
+    "board": "053-reload-0.765.jpg"
+  },
+  {
+    "weapon": "coco",
+    "state": "reload-0.7819999999999999",
+    "side": "L",
+    "wholeMm": -0.583,
+    "bone": "hand",
+    "part": "world body",
+    "board": "054-reload-0.7819999999999999.jpg"
+  },
+  {
+    "weapon": "coco",
+    "state": "reload-0.8059999999999999",
+    "side": "L",
+    "wholeMm": -0.559,
+    "bone": "hand",
+    "part": "world body",
+    "board": "055-reload-0.8059999999999999.jpg"
+  },
+  {
+    "weapon": "coco",
+    "state": "reload-0.842",
+    "side": "L",
+    "wholeMm": -0.514,
+    "bone": "hand",
+    "part": "world body",
+    "board": "056-reload-0.842.jpg"
+  },
+  {
+    "weapon": "coco",
+    "state": "reload-partial-0.75",
+    "side": "L",
+    "wholeMm": -0.608,
+    "bone": "hand",
+    "part": "world body",
+    "board": "094-reload-partial-0.75.jpg"
+  },
+  {
+    "weapon": "coco",
+    "state": "reload-partial-0.752",
+    "side": "L",
+    "wholeMm": -0.606,
+    "bone": "hand",
+    "part": "world body",
+    "board": "095-reload-partial-0.752.jpg"
+  },
+  {
+    "weapon": "coco",
+    "state": "reload-partial-0.77",
+    "side": "L",
+    "wholeMm": -0.593,
+    "bone": "hand",
+    "part": "world body",
+    "board": "096-reload-partial-0.77.jpg"
+  }
+]
