@@ -32,5 +32,13 @@ export function checkHudContents() {
   // The weapon column has empty space beside its narrower ammo card; check the painted cards themselves.
   if (visible(confirmation)) for (const plate of document.querySelectorAll('#bagTag,#consbar,#vitals,#ammoBox,#hotbar .hs'))
     if (visible(plate) && overlaps(confirmation, plate)) faults.push(`killConfirm overlaps ${label(plate)}`);
+  for (const toast of document.querySelectorAll('#toast .toast-item')) {
+    if (!visible(toast)) continue;
+    for (const plate of document.querySelectorAll('#mapWrap,#topL,#feed .fd,#compass,#safe,#hOut,#banner,#matchMoment,#coach,#specBar,#bagTag,#consbar,#vitals,#ammoBox,#hotbar .hs,#killConfirm,#prompt,#use'))
+      if (visible(plate) && overlaps(toast, plate)) faults.push(`toast overlaps ${label(plate)}`);
+  }
+  const banner = document.querySelector('#banner');
+  if (visible(banner)) for (const plate of document.querySelectorAll('#mapWrap,#topL,#feed .fd,#compass,#safe,#hOut,#ammoBox,#hotbar .hs'))
+    if (visible(plate) && overlaps(banner, plate)) faults.push(`banner overlaps ${label(plate)}`);
   return faults;
 }

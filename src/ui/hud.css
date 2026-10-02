@@ -360,9 +360,9 @@ body{
 #hud #matchMoment[data-kind=drop] strong{font-size:48px;padding:4px 28px}
 #hud #matchMoment[data-kind=delivery] strong{font-size:24px}
 
-/* Toasts in a match: small paper pills at the bottom centre, which the new layout keeps clear. */
+/* Match notices use paper pills; compact rules reserve space around the equipment below. */
 body[data-screen=game] #toast{top:auto;bottom:22px}
-body[data-screen=game]:has(#hud.watching) #toast{bottom:150px}
+body[data-screen=game]:not(.hud-narrow):has(#hud.watching) #toast{bottom:200px}
 body[data-screen=game] #toast .toast-item{font-family:var(--h-label);font-size:15px;font-weight:400;color:var(--h-ink);background:var(--h-sheet);border:2.5px solid var(--h-ink);border-radius:999px;box-shadow:var(--h-drop);padding:4px 14px;text-shadow:none}
 body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);background:#ffe1d4}
 /* The scope: the compass and the safe chip step aside from the lens; the corner stickers stay. */
@@ -404,6 +404,7 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud.corrente #coach{top:448px}
 .hud-narrow #hud #matchMoment{top:calc(40vh / var(--ui,1))}
 .hud-narrow #hud #matchMoment strong{font-size:22px}
+.hud-narrow #hud #banner.countdown{top:37%}
 .hud-narrow #hud #ccol{top:calc(50% + 72px);width:calc(100vw / var(--ui,1) - 32px)}
 .hud-narrow #hud #killConfirm{max-width:100%;padding:6px 12px;gap:8px}
 .hud-narrow #hud #killConfirm span{min-width:0}
@@ -444,6 +445,7 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud .sp-who{min-width:0}
 .hud-narrow #hud .sp-eyebrow{gap:10px;white-space:nowrap}
 .hud-narrow #hud .sp-hint{grid-row:3}
+body.hud-narrow[data-screen=game] #toast{top:auto;bottom:calc(50% - 58px);max-width:calc(100vw / var(--ui,1) - 32px)}
 /* Short windows reserve the space below the smaller map for mode progress. */
 .hud-short #hud #mapWrap{width:148px;padding:4px}
 .hud-short #hud #minimap{width:134px;height:134px}
@@ -464,6 +466,10 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-short #hud #ammoBox{min-width:260px;padding:5px 10px}
 .hud-short #hud:has(#scope-overlay:not([hidden])) #hotbar{display:grid;grid-template-columns:repeat(2,86px)}
 .hud-short #hud #deathCard,.hud-short #hud.watching #deathCard{top:136px;min-width:430px;padding:10px 14px}
+.hud-short #hud #banner{font-size:32px;max-width:calc(100vw / var(--ui,1) - 620px);white-space:normal}
+.hud-short #hud #banner.countdown{font-size:72px}
+.hud-short #hud #banner small{white-space:normal;line-height:1.25}
+body.hud-short[data-screen=game] #toast{left:calc(50% - 30px);max-width:calc(100vw / var(--ui,1) - 720px)}
 /* In compact windows, brief match announcements take the guide's place until they clear. */
 @media(max-width:1120px){
   #hud:has(#matchMoment:not([hidden])) #coach{visibility:hidden}

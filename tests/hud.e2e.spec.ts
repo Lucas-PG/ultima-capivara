@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { GameUI } from '../src/ui/ui';
 import type { WorldSnapshot } from '../src/shared/types';
 
-type HudReview = Pick<GameUI, 'game' | 'update' | 'event' | 'toggleMap' | 'setPaused' | 'openEmoteWheel' | 'closeEmoteWheel'> & { snapshot: WorldSnapshot; hudTime: number };
+type HudReview = Pick<GameUI, 'game' | 'update' | 'event' | 'toast' | 'toggleMap' | 'setPaused' | 'openEmoteWheel' | 'closeEmoteWheel'> & { snapshot: WorldSnapshot; hudTime: number };
 declare global { interface Window { __hudQA?: HudReview } }
 
 test('Navigation, readable weapon cards and combat outcomes have distinct places', async ({ page }) => {
@@ -109,4 +109,27 @@ test('Colorblind hit shapes and calm combat feedback survive the match layout', 
   const motion = await page.locator('#killConfirm').evaluate(el => getComputedStyle(el).animationName);
   expect(motion).toBe('rm-in');
   await expect(page.locator('#killConfirm small')).toHaveText('Eliminou');
+});
+
+test('Compact notices preserve the active error and clear the equipment cards', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('uc-onboarded', '1'));
+  await page.goto('/?qa=1');
+  await page.waitForFunction(() => !!window.__capyQA && !!window.__hudQA);
+  await page.evaluate(async () => { await window.__capyQA!.start(); await window.__capyQA!.pose('hud-full'); });
+  for (const [width, height] of [[390, 844], [844, 390]]) {
+    await page.setViewportSize({ width, height });
+    await expect(page.locator('body')).toHaveClass(width === 390 ? /hud-narrow/ : /hud-short/);
+    const message = width === 390 ? 'Reconectando à sala. Aguenta firme!' : 'A sala perdeu a conexão. Aguenta firme!';
+    await page.evaluate(message => { window.__hudQA!.toast(message, true); window.__hudQA!.toast('A tempestade está fechando!'); }, message);
+    const notice = page.locator('#toast .toast-item.visible');
+    await expect(notice).toHaveCount(1);
+    await expect(notice).toHaveText(message);
+    const toast = (await notice.boundingBox())!;
+    for (const selector of ['#vitals', '#ammoBox', '#hotbar .hs']) for (const card of await page.locator(selector).all()) {
+      const box = (await card.boundingBox())!;
+      const overlapX = Math.min(toast.x + toast.width, box.x + box.width) - Math.max(toast.x, box.x);
+      const overlapY = Math.min(toast.y + toast.height, box.y + box.height) - Math.max(toast.y, box.y);
+      expect(overlapX <= 2 || overlapY <= 2).toBe(true);
+    }
+  }
 });

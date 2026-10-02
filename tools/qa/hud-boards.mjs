@@ -1,7 +1,7 @@
 // HUD state boards: every in-match HUD state in a busy moment, through the real GameUI update and event paths
 // (QA build, window.__hudQA), at the sizes the player uses, composed into one labelled board per size.
 // node tools/qa/hud-boards.mjs <outDir> [prefix]   (BASE, SIZES=1280x720,1470x956, STATES=a,b to narrow, SINGLES=1 keeps each shot,
-// SETTINGS='{"hitPalette":"colorblind","reducedMotion":true}' merges saved settings)
+// SETTINGS='{"hitPalette":"colorblind","reducedMotion":true}' merges saved settings, NOTICE_STRESS=1 adds two notices)
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import { checkHudContents } from './hud-content-check.mjs';
@@ -77,7 +77,9 @@ const STATES = [
   { name: 'result-host', label: 'Dona da sala: chamar a revanche', pose: 'hud-full', result: { mode: 'battle-royale', place: 2, room: 'host' }, wait: 1150 },
   { name: 'result-guest', label: 'Convidada: aguardando a revanche', pose: 'hud-full', result: { mode: 'battle-royale', place: 8, room: 'guest' }, wait: 1150 },
   { name: 'result-long-name', label: 'Resultado: nomes de 18 letras largas', pose: 'hud-full', result: { mode: 'battle-royale', place: 8, room: 'guest', longNames: true }, wait: 1150 },
-].filter(state => !process.env.STATES || process.env.STATES.split(',').includes(state.name));
+].filter(state => !process.env.STATES || process.env.STATES.split(',').includes(state.name)).map(state => process.env.NOTICE_STRESS && !state.result ? {
+  ...state, wait: 400, js: `${state.js}\nfor (const item of ui.toastItems) clearTimeout(item.timer); ui.toastItems = []; ui.toast('Reconectando à sala. Aguenta firme!', true); ui.toast('A tempestade está fechando!');`,
+} : state);
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const shots = new Map(), footprint = {}, audit = {};

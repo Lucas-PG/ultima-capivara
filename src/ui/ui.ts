@@ -1121,18 +1121,20 @@ export class GameUI {
     const dx = x - me.pos.x, dz = z - me.pos.z;
     return Math.atan2(dx * Math.cos(me.yaw) - dz * Math.sin(me.yaw), -dx * Math.sin(me.yaw) - dz * Math.cos(me.yaw));
   }
-  // Toasts stack (at most two), drop duplicates that arrive together, and never cover the view with a red slab.
+  // Notices use one compact slot or two roomy slots; an active compact error keeps priority.
   toast(message: string, error = false) {
     if (error) { const line = this.root.querySelector('#lockErr'); if (line) line.textContent = message; }
     // Nothing is clickable during loading: hold messages until the island is on screen.
     if (this.root.querySelector('#loadingOverlay:not(.out)')) { if (!this.pendingToasts.some(t => t.message === message)) this.pendingToasts.push({ message, error }); return; }
     const host = document.querySelector<HTMLElement>('#toast')!, now = performance.now();
     if (this.toastItems.some(item => item.text === message && now - item.at < 1500)) return;
+    const compact = this.screen === 'game' && (document.body.classList.contains('hud-narrow') || document.body.classList.contains('hud-short'));
+    if (compact && !error && this.toastItems.some(item => item.el.classList.contains('error'))) return;
     const el = document.createElement('div'); el.className = `toast-item${error ? ' error' : ''}`; el.textContent = message;
     host.appendChild(el); requestAnimationFrame(() => el.classList.add('visible'));
     const item = { text: message, el, at: now, timer: window.setTimeout(() => this.dropToast(item), error ? 6000 : 3000) };
     this.toastItems.push(item);
-    while (this.toastItems.length > 2) this.dropToast(this.toastItems[0]);
+    while (this.toastItems.length > (compact ? 1 : 2)) this.dropToast(this.toastItems[0]);
   }
   private dropToast(item: { el: HTMLElement; timer: number }) {
     clearTimeout(item.timer); this.toastItems = this.toastItems.filter(other => other !== item);
