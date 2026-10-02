@@ -2,8 +2,8 @@
 // through the real input layer, with no health, damage or time overrides. In a royale it leaves the
 // plane over a weapon inside the safe zone and glides to it; then it loots, routes to the nearest
 // enemy with the game's own navigation, aims and fires.
-export async function startDriver(page) {
-  await page.evaluate(() => {
+export async function startDriver(page, options = {}) {
+  await page.evaluate(options => {
     const q = window.__networkQA, { world, nav, collision, weapons } = q.driver;
     const d = { routeAt: 0, waypoint: null, direct: false, lastJump: 0, lastAction: 0, switchedAt: 0, watchedAt: 0, drop: null, anchor: null, wanderUntil: 0, wanderYaw: 0, yaw: 0 };
     const tap = code => { q.key(code, true); q.key(code, false); };
@@ -18,14 +18,14 @@ export async function startDriver(page) {
       }
       if (me.stage !== 'ground') {
         if (me.stage === 'plane') d.drop = null;
-        d.drop ||= s.loot.filter(l => l.active && l.kind === 'weapon' && !['pistol', 'machete'].includes(l.weapon) &&
+        d.drop ||= options.drop || s.loot.filter(l => l.active && l.kind === 'weapon' && !['pistol', 'machete'].includes(l.weapon) &&
           Math.hypot(l.x - s.zone.nextX, l.z - s.zone.nextZ) < s.zone.nextRadius * .7)
           .sort((a, b) => Math.hypot(a.x - me.pos.x, a.z - me.pos.z) - Math.hypot(b.x - me.pos.x, b.z - me.pos.z))[0] || { x: s.zone.nextX, z: s.zone.nextZ };
         const dx = d.drop.x - me.pos.x, dz = d.drop.z - me.pos.z, far = Math.hypot(dx, dz);
         if (me.stage === 'plane') { if (far < 45 || now > 11) tap('Space'); return; }
         q.look(Math.atan2(-dx, -dz), -.6);
         q.key('KeyW', far > 4);
-        if (me.stage === 'falling' && me.pos.y < 25) tap('Space');
+        if (me.stage === 'falling' && me.pos.y < (options.chuteAltitude || 25)) tap('Space');
         return;
       }
       if (!i.clientInput.locked) q.activate();
@@ -73,7 +73,7 @@ export async function startDriver(page) {
       if (goal && Math.hypot(me.velocity.x, me.velocity.z) < .2 && now - d.lastJump > 2) { tap('Space'); d.lastJump = now; }
     };
     window.__perfDriver = setInterval(() => { try { step(); } catch (error) { console.error('driver', error.message); } }, 50);
-  });
+  }, options);
 }
 
 export async function stopDriver(page) { await page.evaluate(() => clearInterval(window.__perfDriver)); }
