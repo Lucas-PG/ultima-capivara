@@ -78,4 +78,12 @@ describe('shared trigger poses', () => {
     expect(blendCurl(from, to, .5).indexSpread).toBeCloseTo(.1, 10);
     expect(blendCurl(from, { ...grip.curl, indexSpread: undefined }, 1).indexSpread).toBe(0);
   });
+  it('blends axial index rotation and removes ready roll at the safe default', () => {
+    const grip = { ...VIEW_SPECS.pistol.grips.R, curl: { ...VIEW_SPECS.pistol.grips.R.curl, indexRoll: .3 },
+      fired: { index: [.8, .1, .2] as const, indexRoll: -.1 } };
+    expect(heldCurl(grip, 0, .5).indexRoll).toBeCloseTo(.1, 10);
+    expect(heldCurl(grip, 1).indexRoll).toBe(0);
+    expect(heldCurl(grip, .999).indexRoll).toBeCloseTo(.0003, 10);
+    expect(blendCurl(grip.curl, { ...grip.curl, indexRoll: undefined }, 1).indexRoll).toBe(0);
+  });
 });

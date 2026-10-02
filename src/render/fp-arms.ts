@@ -13,6 +13,8 @@ export type HandCurl = Record<Finger, readonly [number, number, number]> & {
   /** Index knuckle abduction in the palm plane. It lets the trigger digit enter a guard independently
    * of the palm's grip, using the same articulation in the first-person and character rigs. */
   indexSpread?: number;
+  /** Axial rotation of the index knuckle, in radians. The unchanged pad can turn inside a guard. */
+  indexRoll?: number;
 };
 /** A hand target in the viewmodel (camera) space. */
 export interface HandTarget {
@@ -87,11 +89,12 @@ export function blendCurl(a: HandCurl, b: HandCurl, t: number): HandCurl {
   const mix = (x: readonly [number, number, number], y: readonly [number, number, number]) => [x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t] as const;
   const spread = (a.spread ?? 0) + ((b.spread ?? 0) - (a.spread ?? 0)) * t;
   const indexSpread = (a.indexSpread ?? 0) + ((b.indexSpread ?? 0) - (a.indexSpread ?? 0)) * t;
-  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb), spread, indexSpread };
+  const indexRoll = (a.indexRoll ?? 0) + ((b.indexRoll ?? 0) - (a.indexRoll ?? 0)) * t;
+  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb), spread, indexSpread, indexRoll };
 }
 
 interface ChainBone { bone: THREE.Bone; restWorld: THREE.Quaternion; restLocal: THREE.Quaternion; length: number }
-interface FingerBone { bone: THREE.Bone; restLocal: THREE.Quaternion; hinge: THREE.Vector3; spread?: THREE.Vector3 }
+interface FingerBone { bone: THREE.Bone; restLocal: THREE.Quaternion; hinge: THREE.Vector3; spread?: THREE.Vector3; axial?: THREE.Vector3 }
 /** Shared articulation for the world character and first-person paws. Joint
  * axes come from the bind geometry itself (digit directions and the palm they
  * curl toward), so both rigs flex the same way whatever their export frame. */
@@ -124,7 +127,7 @@ export class PawPose {
         const worldMatrix = bind(bone), world = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(worldMatrix));
         const local = skeleton && bone.parent instanceof THREE.Bone
           ? new THREE.Quaternion().setFromRotationMatrix(bind(bone.parent).invert().multiply(worldMatrix)) : bone.quaternion.clone();
-        let hinge = new THREE.Vector3(-1, 0, 0), spread: THREE.Vector3 | undefined;
+        let hinge = new THREE.Vector3(-1, 0, 0), spread: THREE.Vector3 | undefined, axial: THREE.Vector3 | undefined;
         if (palm && base && tip) {
           const along = new THREE.Vector3().subVectors(tip, base).normalize();
           if (finger === 'thumb') {
@@ -136,10 +139,13 @@ export class PawPose {
             if (i === 1) spread.applyQuaternion(world.clone().invert()).normalize(); else spread = undefined;
           } else {
             hinge = new THREE.Vector3().crossVectors(along, palm).normalize();
-            if (finger === 'index' && i === 1) spread = palm.clone().multiplyScalar(side === 'R' ? 1 : -1).applyQuaternion(world.clone().invert()).normalize();
+            if (finger === 'index' && i === 1) {
+              spread = palm.clone().multiplyScalar(side === 'R' ? 1 : -1).applyQuaternion(world.clone().invert()).normalize();
+              axial = along.clone().multiplyScalar(side === 'R' ? 1 : -1).applyQuaternion(world.clone().invert()).normalize();
+            }
           }
         }
-        this.fingers[finger].push({ bone, restLocal: local, hinge: hinge.applyQuaternion(world.invert()).normalize(), spread });
+        this.fingers[finger].push({ bone, restLocal: local, hinge: hinge.applyQuaternion(world.invert()).normalize(), spread, axial });
       }
     }
   }
@@ -149,6 +155,7 @@ export class PawPose {
       const spread = finger === 'index' ? curl.indexSpread : curl.spread;
       if (f.spread && spread) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.spread, spread));
       f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.hinge, curl[finger][i]));
+      if (f.axial && curl.indexRoll) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.axial, THREE.MathUtils.clamp(curl.indexRoll, -.65, .65)));
     });
   }
 }

@@ -26,7 +26,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     forward: new V3(...grip.forward).applyQuaternion(partRotation).toArray(),
     palm: new V3(...grip.palm).applyQuaternion(partRotation).toArray(),
     // A manipulating hand's explicitly fitted index is independent of the carrier's reload index.
-    indexed: { index: grip.curl.index, indexSpread: grip.curl.indexSpread ?? 0 } } : grip;
+    indexed: { index: grip.curl.index, indexSpread: grip.curl.indexSpread ?? 0, indexRoll: grip.curl.indexRoll ?? 0 } } : grip;
   const bore = intent.axisOrigin ? new V3(...intent.axisOrigin).multiplyScalar(scale) : model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
   // ---- gun triangles in weapon space, bucketed in a grid for nearest queries
   const tris = [], partTris = {}; let nextSolid = 0;
@@ -208,7 +208,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
       wrist.addScaledVector(palm0, .004).addScaledVector(palm, -.004);
     }
     return { wrist: wrist.toArray(), forward: [f.x, f.y, f.z], palm: [palm.x, palm.y, palm.z], pole: start.pole,
-      curl: { index: c(6), middle: c(9), ring: c(12), thumb: c(15), spread: P[18], indexSpread: P[19] }, part: start.part };
+      curl: { index: c(6), middle: c(9), ring: c(12), thumb: c(15), spread: P[18], indexSpread: P[19], indexRoll: P[20] }, part: start.part };
   };
   const wristW = new V3(), elbowW = new V3(), knuckleW = new V3();
   function evaluate(P, detail = false) {
@@ -338,16 +338,17 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   const yaw0 = Math.atan2(-f0.z, f0.x), pitch0 = Math.asin(f0.y);
   const up0 = new V3(0, 1, 0).addScaledVector(f0, -f0.y).normalize(), palm0 = new V3(...start.palm).addScaledVector(f0, -new V3(...start.palm).dot(f0)).normalize();
   const roll0 = Math.atan2(new V3().crossVectors(up0, palm0).dot(f0), up0.dot(palm0));
-  let P = [...start.wrist, yaw0, pitch0, roll0, ...start.curl.index, ...start.curl.middle, ...start.curl.ring, ...start.curl.thumb, start.curl.spread ?? 0, start.curl.indexSpread ?? 0];
+  let P = [...start.wrist, yaw0, pitch0, roll0, ...start.curl.index, ...start.curl.middle, ...start.curl.ring, ...start.curl.thumb, start.curl.spread ?? 0, start.curl.indexSpread ?? 0, start.curl.indexRoll ?? 0];
   const P0 = [...P];
   const lock = new Set(intent.lock ?? []);
-  let steps = [.006, .006, .006, .15, .1, .15, ...Array(12).fill(.2), .15, .12];
-  const lo = [-Infinity, -Infinity, -Infinity, -Infinity, -1.2, -Infinity, ...Array(12).fill(-.1), -.6, -.65];
-  const hi = [Infinity, Infinity, Infinity, Infinity, 1.2, Infinity, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.4, 1.2, 1, 1.2, .65];
+  let steps = [.006, .006, .006, .15, .1, .15, ...Array(12).fill(.2), .15, .12, .12];
+  const lo = [-Infinity, -Infinity, -Infinity, -Infinity, -1.2, -Infinity, ...Array(12).fill(-.1), -.6, -.65, -.65];
+  const hi = [Infinity, Infinity, Infinity, Infinity, 1.2, Infinity, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.4, 1.2, 1, 1.2, .65, .65];
   for (const [finger, offset] of Object.entries({ index: 6, middle: 9, ring: 12, thumb: 15 }))
     for (const [joint, range] of (intent.curlBounds?.[finger] ?? []).entries()) if (range) [lo[offset + joint], hi[offset + joint]] = range;
   if (intent.curlBounds?.spread) [lo[18], hi[18]] = intent.curlBounds.spread;
   if (intent.curlBounds?.indexSpread) [lo[19], hi[19]] = intent.curlBounds.indexSpread;
+  if (intent.curlBounds?.indexRoll) [lo[20], hi[20]] = intent.curlBounds.indexRoll;
   P = P.map((x, i) => Math.min(hi[i], Math.max(lo[i], x)));
   let best = evaluate(P), count = 1, stalled = 0;
   const initial = evaluate(P, true);
