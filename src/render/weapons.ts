@@ -575,7 +575,7 @@ export class WeaponView {
     const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
     const locked = sample?.parts.slide ?? choreo?.slide ?? (model.id === 'pistol' && this.pistolEmpty ? 1 : 0);
     if (slide) slide.position.z += Math.max(cycle, locked) * .028;
-    if (trigger) trigger.rotation.x -= (this.shotLife > total * .5 ? .3 : 0);
+    if (trigger) trigger.rotation.x -= this.shotLife > total * .5 ? (model.id === 'pistol' ? .1 : .3) : 0;
     if (hammer) hammer.rotation.x += cycle * -.6;
     const phase = this.shotLife > 0 ? THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1) : 1;
     const { cylinder, crane, rounds, pump, bolt, charge } = model.parts;
