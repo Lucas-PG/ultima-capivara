@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Override only for the explicit local smoke run on Ponte's port 5187.
-const gameUrl = process.env.PONTE_GAME_URL || 'http://127.0.0.1:5174/';
+// Keep rendered multiplayer on the same configured server as the other gates.
+const gameUrl = process.env.PONTE_GAME_URL || process.env.BASE || 'http://127.0.0.1:5191/';
 const inspect = (page: Page) => page.evaluate(() => (window as any).__capivara.inspect());
 const player = (page: Page, id?: string) => page.evaluate(id => {
   const state = (window as any).__capivara.inspect();
