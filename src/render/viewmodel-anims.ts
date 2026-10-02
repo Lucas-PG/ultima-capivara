@@ -18,9 +18,11 @@ const add = (a: Vec, b: Vec, k = 1): Vec => [a[0] + b[0] * k, a[1] + b[1] * k, a
 const shift = (key: HandKey, d: Vec, extra: Partial<HandKey> = {}): HandKey => ({ ...key, contact: false, ...extra, wrist: add(key.wrist as Vec, d) });
 
 // The support paw remains in magazine space from acquisition through the palm seat.
-const PISTOL_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.075152, -0.145803, 0.032576],
-  forward: [0.981206, 0.0706, -0.179583], palm: [-0.047567, 0.99044, 0.129481],
-  curl: { index: [0.0945, 0.27144, 0.1269], middle: [0.18, 0.27, 0.135], ring: [0.225, 0.27, 0.135], thumb: [1.4, 0.477825, 0.043246], spread: 0.0865 } };
+const PISTOL_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.0785948, -0.1461899, 0.0391613],
+  forward: [0.901984, -0.0589296, -0.4277291],
+  palm: [0.2762471, 0.8401116, 0.4667977],
+  pole: [-1, -0.5, 0.3],
+  curl: { index: [-0.1, 0.2707668, 0.127294], middle: [-0.0158199, 0.27, 0.135], ring: [0.225186, 0.2694, 0.135], thumb: [1.4, 0.5214256, 0.0424187], spread: 0.0704499, indexSpread: 0.65 } };
 const PISTOL_MAG_CLEAR = shift(PISTOL_MAG_HAND, [0, -.039, 0]);
 const PISTOL_MAG_OUTSIDE = shift(PISTOL_MAG_HAND, [-.108, -.039, 0]);
 const PISTOL_CLEAR: HandKey = { space: 'grip', offset: [-.045, 0, 0] };
