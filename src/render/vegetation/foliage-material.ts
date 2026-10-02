@@ -114,14 +114,16 @@ export function createFoliageMaterial(atlas?: THREE.Texture) {
           vec3 leafSun = normalize( directionalLights[0].direction );
           float leafOnly = step( .5, vAux.y ) * step( vAux.y, 1.5 );
           float through = pow( max( dot( -normal, leafSun ), 0.0 ), 1.4 );
-          float rim = pow( 1.0 - abs( dot( normalize( normal ), normalize( vViewPosition ) ) ), 2.8 );
+          // Float normalization can round the cosine past +/-1. A negative base
+          // makes this fractional power undefined and can poison the bloom taps.
+          float rim = pow( max( 1.0 - abs( dot( normalize( normal ), normalize( vViewPosition ) ) ), 0.0 ), 2.8 );
           float sunEdge = max( dot( normalize( normal ), leafSun ) * .5 + .5, 0.0 );
           outgoingLight += leafOnly * diffuseColor.rgb * vec3( 1.0, .77, .32 ) * ( .30 * through + .10 * rim * sunEdge );
         #endif
         #include <opaque_fragment>
       `);
   };
-  material.customProgramCacheKey = () => 'ilha-dourada-foliage-v3';
+  material.customProgramCacheKey = () => 'ilha-dourada-foliage-v4';
   return { material, uniforms, depthMaterial: createFoliageDepthMaterial(uniforms) };
 }
 
