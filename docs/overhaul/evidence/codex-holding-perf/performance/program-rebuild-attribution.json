@@ -1,0 +1,478 @@
+{
+ "measuredAt": "2026-10-02T15:40:49.039Z",
+ "before": "http://127.0.0.1:5193/mask-v2",
+ "after": "http://127.0.0.1:5193",
+ "viewport": {
+  "width": 1470,
+  "height": 956,
+  "dpr": 2
+ },
+ "gpu": {
+  "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+  "timerQuery": true
+ },
+ "chromeVersion": "150.0.7871.186",
+ "cpuThrottle": 1,
+ "seed": 20261002,
+ "measurementPurpose": "program rebuild attribution only, not timing data",
+ "rows": [
+  {
+   "preset": "low",
+   "name": "fp-m4",
+   "pose": "fp-m4",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2
+    }
+   },
+   "baselineTotal": 29,
+   "staticOnlyTotal": 29,
+   "maskOnlyTotal": 12,
+   "combinedTotal": 12
+  },
+  {
+   "preset": "low",
+   "name": "plaza16",
+   "pose": "plaza",
+   "actors": 16,
+   "actualActors": 16,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 27,
+   "staticOnlyTotal": 27,
+   "maskOnlyTotal": 6,
+   "combinedTotal": 6
+  },
+  {
+   "preset": "low",
+   "name": "vilaStreet",
+   "pose": "vilaStreet",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2
+    }
+   },
+   "baselineTotal": 29,
+   "staticOnlyTotal": 29,
+   "maskOnlyTotal": 12,
+   "combinedTotal": 12
+  },
+  {
+   "preset": "low",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "actualActors": 13,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2
+    }
+   },
+   "baselineTotal": 37,
+   "staticOnlyTotal": 37,
+   "maskOnlyTotal": 16,
+   "combinedTotal": 16
+  },
+  {
+   "preset": "low",
+   "name": "plane",
+   "pose": "plaza",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": [
+    -60,
+    95,
+    -95,
+    10,
+    0,
+    10,
+    60
+   ],
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 27,
+   "staticOnlyTotal": 27,
+   "maskOnlyTotal": 4,
+   "combinedTotal": 4
+  },
+  {
+   "preset": "low",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "actualActors": 8,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 21,
+   "staticOnlyTotal": 21,
+   "maskOnlyTotal": 6,
+   "combinedTotal": 6
+  },
+  {
+   "preset": "medium",
+   "name": "fp-m4",
+   "pose": "fp-m4",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    }
+   },
+   "baselineTotal": 31,
+   "staticOnlyTotal": 31,
+   "maskOnlyTotal": 14,
+   "combinedTotal": 14
+  },
+  {
+   "preset": "medium",
+   "name": "plaza16",
+   "pose": "plaza",
+   "actors": 16,
+   "actualActors": 16,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 29,
+   "staticOnlyTotal": 29,
+   "maskOnlyTotal": 8,
+   "combinedTotal": 8
+  },
+  {
+   "preset": "medium",
+   "name": "vilaStreet",
+   "pose": "vilaStreet",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    }
+   },
+   "baselineTotal": 31,
+   "staticOnlyTotal": 31,
+   "maskOnlyTotal": 14,
+   "combinedTotal": 14
+  },
+  {
+   "preset": "medium",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "actualActors": 13,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    }
+   },
+   "baselineTotal": 39,
+   "staticOnlyTotal": 39,
+   "maskOnlyTotal": 18,
+   "combinedTotal": 18
+  },
+  {
+   "preset": "medium",
+   "name": "plane",
+   "pose": "plaza",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": [
+    -60,
+    95,
+    -95,
+    10,
+    0,
+    10,
+    60
+   ],
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 27,
+   "staticOnlyTotal": 27,
+   "maskOnlyTotal": 4,
+   "combinedTotal": 4
+  },
+  {
+   "preset": "medium",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "actualActors": 8,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 23,
+   "staticOnlyTotal": 23,
+   "maskOnlyTotal": 8,
+   "combinedTotal": 8
+  },
+  {
+   "preset": "high",
+   "name": "fp-m4",
+   "pose": "fp-m4",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    }
+   },
+   "baselineTotal": 31,
+   "staticOnlyTotal": 31,
+   "maskOnlyTotal": 14,
+   "combinedTotal": 14
+  },
+  {
+   "preset": "high",
+   "name": "plaza16",
+   "pose": "plaza",
+   "actors": 16,
+   "actualActors": 16,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 29,
+   "staticOnlyTotal": 29,
+   "maskOnlyTotal": 8,
+   "combinedTotal": 8
+  },
+  {
+   "preset": "high",
+   "name": "vilaStreet",
+   "pose": "vilaStreet",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    }
+   },
+   "baselineTotal": 31,
+   "staticOnlyTotal": 31,
+   "maskOnlyTotal": 14,
+   "combinedTotal": 14
+  },
+  {
+   "preset": "high",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "actualActors": 13,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    }
+   },
+   "baselineTotal": 39,
+   "staticOnlyTotal": 39,
+   "maskOnlyTotal": 18,
+   "combinedTotal": 18
+  },
+  {
+   "preset": "high",
+   "name": "plane",
+   "pose": "plaza",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": [
+    -60,
+    95,
+    -95,
+    10,
+    0,
+    10,
+    60
+   ],
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 27,
+   "staticOnlyTotal": 27,
+   "maskOnlyTotal": 4,
+   "combinedTotal": 4
+  },
+  {
+   "preset": "high",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "actualActors": 8,
+   "camera": null,
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:0832 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:ec43 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "baselineTotal": 23,
+   "staticOnlyTotal": 23,
+   "maskOnlyTotal": 8,
+   "combinedTotal": 8
+  }
+ ]
+}

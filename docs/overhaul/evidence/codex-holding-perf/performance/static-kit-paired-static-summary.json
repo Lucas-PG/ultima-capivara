@@ -1,0 +1,6302 @@
+{
+ "startedAt": "2026-10-02T15:00:14.887Z",
+ "measuredAt": "2026-10-02T15:08:16.475Z",
+ "before": "http://127.0.0.1:5193/before",
+ "after": "http://127.0.0.1:5193",
+ "viewport": {
+  "width": 1470,
+  "height": 956,
+  "dpr": 2
+ },
+ "gpu": {
+  "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+  "timerQuery": true
+ },
+ "cpuThrottle": 4,
+ "seed": 20261002,
+ "frames": 72,
+ "rounds": 2,
+ "order": "A-B-B-A",
+ "thermal": null,
+ "machine": {
+  "platform": "linux",
+  "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+  "logicalCpus": 16,
+  "totalMemoryMB": 15905
+ },
+ "rows": [
+  {
+   "preset": "low",
+   "name": "fp-m4",
+   "pose": "fp-m4",
+   "actors": 1,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 18.799999998882413,
+      "p90Ms": 21.699999999254942,
+      "gpuMedianMs": 1.07028,
+      "gpuP90Ms": 1.08784
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1311332,
+      "renderedFrames": 87,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:11.803Z",
+      "load": [
+       6.65,
+       3.29,
+       1.47
+      ],
+      "freeMemoryMB": 7214
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:13.255Z",
+      "load": [
+       6.65,
+       3.29,
+       1.47
+      ],
+      "freeMemoryMB": 7467
+     },
+     "hostCpuBusyPercent": 41.138140747176365
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 17.300000000745058,
+      "p90Ms": 19,
+      "gpuMedianMs": 1.06528,
+      "gpuP90Ms": 1.07852
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1311332,
+      "renderedFrames": 87,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:13.275Z",
+      "load": [
+       6.65,
+       3.29,
+       1.47
+      ],
+      "freeMemoryMB": 7467
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:14.601Z",
+      "load": [
+       6.65,
+       3.29,
+       1.47
+      ],
+      "freeMemoryMB": 7466
+     },
+     "hostCpuBusyPercent": 39.91416309012875
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 16.59999999962747,
+      "p90Ms": 19,
+      "gpuMedianMs": 1.06268,
+      "gpuP90Ms": 1.07088
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1311332,
+      "renderedFrames": 160,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:14.621Z",
+      "load": [
+       6.65,
+       3.29,
+       1.47
+      ],
+      "freeMemoryMB": 7466
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:15.896Z",
+      "load": [
+       6.65,
+       3.29,
+       1.47
+      ],
+      "freeMemoryMB": 7451
+     },
+     "hostCpuBusyPercent": 40.59701492537314
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 17.799999998882413,
+      "p90Ms": 20.40000000037253,
+      "gpuMedianMs": 1.06864,
+      "gpuP90Ms": 1.08508
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1311332,
+      "renderedFrames": 160,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:15.914Z",
+      "load": [
+       6.65,
+       3.29,
+       1.47
+      ],
+      "freeMemoryMB": 7451
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:17.281Z",
+      "load": [
+       6.52,
+       3.32,
+       1.49
+      ],
+      "freeMemoryMB": 7438
+     },
+     "hostCpuBusyPercent": 40.416666666666664
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 17,
+      "p90Ms": 19,
+      "gpuMedianMs": 1.06764,
+      "gpuP90Ms": 1.08552
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1311332,
+      "renderedFrames": 233,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:17.299Z",
+      "load": [
+       6.52,
+       3.32,
+       1.49
+      ],
+      "freeMemoryMB": 7437
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:18.592Z",
+      "load": [
+       6.52,
+       3.32,
+       1.49
+      ],
+      "freeMemoryMB": 7490
+     },
+     "hostCpuBusyPercent": 39.22244094488189
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 15.800000000745058,
+      "p90Ms": 19.59999999962747,
+      "gpuMedianMs": 1.06604,
+      "gpuP90Ms": 1.08148
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1311332,
+      "renderedFrames": 233,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:18.610Z",
+      "load": [
+       6.52,
+       3.32,
+       1.49
+      ],
+      "freeMemoryMB": 7490
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:19.862Z",
+      "load": [
+       6.52,
+       3.32,
+       1.49
+      ],
+      "freeMemoryMB": 7466
+     },
+     "hostCpuBusyPercent": 41.97780020181635
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 14.799999998882413,
+      "p90Ms": 16.699999999254942,
+      "gpuMedianMs": 1.06336,
+      "gpuP90Ms": 1.07008
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1311332,
+      "renderedFrames": 306,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:19.880Z",
+      "load": [
+       6.52,
+       3.32,
+       1.49
+      ],
+      "freeMemoryMB": 7466
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:21.004Z",
+      "load": [
+       6.48,
+       3.37,
+       1.51
+      ],
+      "freeMemoryMB": 7444
+     },
+     "hostCpuBusyPercent": 39.17700112739571
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 16.700000001117587,
+      "p90Ms": 18.90000000037253,
+      "gpuMedianMs": 1.06564,
+      "gpuP90Ms": 1.07988
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1311332,
+      "renderedFrames": 306,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:21.023Z",
+      "load": [
+       6.48,
+       3.37,
+       1.51
+      ],
+      "freeMemoryMB": 7444
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:22.311Z",
+      "load": [
+       6.48,
+       3.37,
+       1.51
+      ],
+      "freeMemoryMB": 7457
+     },
+     "hostCpuBusyPercent": 40.62961141170684
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 17.399999999441206,
+     "p90Ms": 19.700000000186265,
+     "gpuMedianMs": 1.06814,
+     "batchMediansMs": [
+      18.799999998882413,
+      17.799999998882413,
+      17,
+      16.700000001117587
+     ]
+    },
+    "after": {
+     "medianMs": 16.200000000186265,
+     "p90Ms": 19,
+     "gpuMedianMs": 1.06432,
+     "batchMediansMs": [
+      17.300000000745058,
+      16.59999999962747,
+      15.800000000745058,
+      14.799999998882413
+     ]
+    },
+    "changePercent": -6.89655172007747,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "low",
+   "name": "plaza16",
+   "pose": "plaza",
+   "actors": 16,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 29.90000000037253,
+      "p90Ms": 38.90000000037253,
+      "gpuMedianMs": 1.23664,
+      "gpuP90Ms": 1.25692
+     },
+     "state": {
+      "drawCalls": 131,
+      "triangles": 1514915,
+      "renderedFrames": 394,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:27.502Z",
+      "load": [
+       6.36,
+       3.39,
+       1.53
+      ],
+      "freeMemoryMB": 7512
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:29.808Z",
+      "load": [
+       6.36,
+       3.39,
+       1.53
+      ],
+      "freeMemoryMB": 7550
+     },
+     "hostCpuBusyPercent": 40.844298245614034
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 28.09999999962747,
+      "p90Ms": 36.59999999962747,
+      "gpuMedianMs": 1.23844,
+      "gpuP90Ms": 1.27044
+     },
+     "state": {
+      "drawCalls": 131,
+      "triangles": 1514915,
+      "renderedFrames": 394,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:29.830Z",
+      "load": [
+       6.36,
+       3.39,
+       1.53
+      ],
+      "freeMemoryMB": 7547
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:32.032Z",
+      "load": [
+       6.25,
+       3.42,
+       1.55
+      ],
+      "freeMemoryMB": 7606
+     },
+     "hostCpuBusyPercent": 40.43041606886657
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 28.600000001490116,
+      "p90Ms": 37.59999999962747,
+      "gpuMedianMs": 1.23864,
+      "gpuP90Ms": 1.26528
+     },
+     "state": {
+      "drawCalls": 131,
+      "triangles": 1514915,
+      "renderedFrames": 467,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:32.050Z",
+      "load": [
+       6.25,
+       3.42,
+       1.55
+      ],
+      "freeMemoryMB": 7606
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:34.297Z",
+      "load": [
+       6.25,
+       3.42,
+       1.55
+      ],
+      "freeMemoryMB": 7641
+     },
+     "hostCpuBusyPercent": 40.76163610719323
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 36.29999999888241,
+      "p90Ms": 47.90000000037253,
+      "gpuMedianMs": 1.23804,
+      "gpuP90Ms": 1.26864
+     },
+     "state": {
+      "drawCalls": 131,
+      "triangles": 1514915,
+      "renderedFrames": 467,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:34.317Z",
+      "load": [
+       6.25,
+       3.42,
+       1.55
+      ],
+      "freeMemoryMB": 7641
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:37.046Z",
+      "load": [
+       7.11,
+       3.65,
+       1.63
+      ],
+      "freeMemoryMB": 7164
+     },
+     "hostCpuBusyPercent": 51.48354195642096
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 47,
+      "p90Ms": 64.40000000037253,
+      "gpuMedianMs": 1.256,
+      "gpuP90Ms": 1.28144
+     },
+     "state": {
+      "drawCalls": 131,
+      "triangles": 1514915,
+      "renderedFrames": 540,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:37.071Z",
+      "load": [
+       7.11,
+       3.65,
+       1.63
+      ],
+      "freeMemoryMB": 7143
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:40.730Z",
+      "load": [
+       7.11,
+       3.65,
+       1.63
+      ],
+      "freeMemoryMB": 6256
+     },
+     "hostCpuBusyPercent": 66.02895553257497
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 47.29999999888241,
+      "p90Ms": 65.09999999962747,
+      "gpuMedianMs": 1.26192,
+      "gpuP90Ms": 1.29128
+     },
+     "state": {
+      "drawCalls": 131,
+      "triangles": 1514915,
+      "renderedFrames": 540,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:40.750Z",
+      "load": [
+       7.11,
+       3.65,
+       1.63
+      ],
+      "freeMemoryMB": 6248
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:44.472Z",
+      "load": [
+       7.5,
+       3.79,
+       1.69
+      ],
+      "freeMemoryMB": 5804
+     },
+     "hostCpuBusyPercent": 71.60995429151853
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 43.69999999925494,
+      "p90Ms": 61.19999999925494,
+      "gpuMedianMs": 1.25184,
+      "gpuP90Ms": 1.6698
+     },
+     "state": {
+      "drawCalls": 131,
+      "triangles": 1514915,
+      "renderedFrames": 613,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:44.493Z",
+      "load": [
+       7.5,
+       3.79,
+       1.69
+      ],
+      "freeMemoryMB": 5796
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:47.947Z",
+      "load": [
+       7.78,
+       3.91,
+       1.74
+      ],
+      "freeMemoryMB": 5782
+     },
+     "hostCpuBusyPercent": 68.0672268907563
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 49.600000001490116,
+      "p90Ms": 64.59999999962747,
+      "gpuMedianMs": 1.26272,
+      "gpuP90Ms": 1.68716
+     },
+     "state": {
+      "drawCalls": 131,
+      "triangles": 1514915,
+      "renderedFrames": 613,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:47.976Z",
+      "load": [
+       7.78,
+       3.91,
+       1.74
+      ],
+      "freeMemoryMB": 5839
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:51.660Z",
+      "load": [
+       8.28,
+       4.07,
+       1.81
+      ],
+      "freeMemoryMB": 6928
+     },
+     "hostCpuBusyPercent": 69.57494407158836
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 41.64999999944121,
+     "p90Ms": 56.15000000037253,
+     "gpuMedianMs": 1.24702,
+     "batchMediansMs": [
+      29.90000000037253,
+      36.29999999888241,
+      47,
+      49.600000001490116
+     ]
+    },
+    "after": {
+     "medianMs": 36.15000000037253,
+     "p90Ms": 49.39999999944121,
+     "gpuMedianMs": 1.24524,
+     "batchMediansMs": [
+      28.09999999962747,
+      28.600000001490116,
+      47.29999999888241,
+      43.69999999925494
+     ]
+    },
+    "changePercent": -13.205282110786232,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "low",
+   "name": "vilaStreet",
+   "pose": "vilaStreet",
+   "actors": 1,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 28.199999999254942,
+      "p90Ms": 36.600000001490116,
+      "gpuMedianMs": 1.03112,
+      "gpuP90Ms": 1.05568
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1303570,
+      "renderedFrames": 701,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:54.259Z",
+      "load": [
+       8.28,
+       4.07,
+       1.81
+      ],
+      "freeMemoryMB": 6565
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:56.421Z",
+      "load": [
+       8.42,
+       4.17,
+       1.85
+      ],
+      "freeMemoryMB": 6115
+     },
+     "hostCpuBusyPercent": 69.84034833091437
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 21,
+      "p90Ms": 28.5,
+      "gpuMedianMs": 1.02952,
+      "gpuP90Ms": 1.039
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1303570,
+      "renderedFrames": 701,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:56.443Z",
+      "load": [
+       8.42,
+       4.17,
+       1.85
+      ],
+      "freeMemoryMB": 6115
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:01:58.145Z",
+      "load": [
+       8.42,
+       4.17,
+       1.85
+      ],
+      "freeMemoryMB": 6248
+     },
+     "hostCpuBusyPercent": 60.55080014886491
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 25.800000000745058,
+      "p90Ms": 30.600000001490116,
+      "gpuMedianMs": 1.03108,
+      "gpuP90Ms": 1.046
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1303570,
+      "renderedFrames": 774,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:01:58.165Z",
+      "load": [
+       8.42,
+       4.17,
+       1.85
+      ],
+      "freeMemoryMB": 6247
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:00.070Z",
+      "load": [
+       8.42,
+       4.17,
+       1.85
+      ],
+      "freeMemoryMB": 5784
+     },
+     "hostCpuBusyPercent": 70.60192883272364
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 24.699999999254942,
+      "p90Ms": 32.100000001490116,
+      "gpuMedianMs": 1.02732,
+      "gpuP90Ms": 1.05536
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1303570,
+      "renderedFrames": 774,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:00.101Z",
+      "load": [
+       8.42,
+       4.17,
+       1.85
+      ],
+      "freeMemoryMB": 5776
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:01.945Z",
+      "load": [
+       8.55,
+       4.27,
+       1.89
+      ],
+      "freeMemoryMB": 6185
+     },
+     "hostCpuBusyPercent": 63.305898491083674
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 17.5,
+      "p90Ms": 21,
+      "gpuMedianMs": 1.02976,
+      "gpuP90Ms": 1.04188
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1303570,
+      "renderedFrames": 847,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:01.964Z",
+      "load": [
+       8.55,
+       4.27,
+       1.89
+      ],
+      "freeMemoryMB": 6185
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:03.349Z",
+      "load": [
+       8.55,
+       4.27,
+       1.89
+      ],
+      "freeMemoryMB": 6246
+     },
+     "hostCpuBusyPercent": 48.40036563071298
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 16.799999998882413,
+      "p90Ms": 22.199999999254942,
+      "gpuMedianMs": 1.03012,
+      "gpuP90Ms": 1.04492
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1303570,
+      "renderedFrames": 847,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:03.370Z",
+      "load": [
+       8.55,
+       4.27,
+       1.89
+      ],
+      "freeMemoryMB": 6246
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:04.699Z",
+      "load": [
+       8.55,
+       4.27,
+       1.89
+      ],
+      "freeMemoryMB": 6326
+     },
+     "hostCpuBusyPercent": 48.8804192472606
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 24.09999999962747,
+      "p90Ms": 33.90000000037253,
+      "gpuMedianMs": 1.03428,
+      "gpuP90Ms": 1.05484
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1303570,
+      "renderedFrames": 920,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:04.719Z",
+      "load": [
+       8.55,
+       4.27,
+       1.89
+      ],
+      "freeMemoryMB": 6331
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:06.599Z",
+      "load": [
+       8.74,
+       4.38,
+       1.94
+      ],
+      "freeMemoryMB": 5800
+     },
+     "hostCpuBusyPercent": 68.6491935483871
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 18.5,
+      "p90Ms": 26.59999999962747,
+      "gpuMedianMs": 1.02788,
+      "gpuP90Ms": 1.04084
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 1303570,
+      "renderedFrames": 920,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:06.627Z",
+      "load": [
+       8.74,
+       4.38,
+       1.94
+      ],
+      "freeMemoryMB": 5748
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:08.164Z",
+      "load": [
+       8.74,
+       4.38,
+       1.94
+      ],
+      "freeMemoryMB": 6602
+     },
+     "hostCpuBusyPercent": 51.445086705202314
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 21.59999999962747,
+     "p90Ms": 29.350000000558794,
+     "gpuMedianMs": 1.02882,
+     "batchMediansMs": [
+      28.199999999254942,
+      24.699999999254942,
+      17.5,
+      18.5
+     ]
+    },
+    "after": {
+     "medianMs": 22.549999999813735,
+     "p90Ms": 29.550000000745058,
+     "gpuMedianMs": 1.0306,
+     "batchMediansMs": [
+      21,
+      25.800000000745058,
+      16.799999998882413,
+      24.09999999962747
+     ]
+    },
+    "changePercent": 4.398148149086345,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "low",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 26.59999999962747,
+      "p90Ms": 36.59999999962747,
+      "gpuMedianMs": 1.29216,
+      "gpuP90Ms": 1.31272
+     },
+     "state": {
+      "drawCalls": 143,
+      "triangles": 1607153,
+      "renderedFrames": 1008,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:12.619Z",
+      "load": [
+       8.44,
+       4.39,
+       1.96
+      ],
+      "freeMemoryMB": 6933
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:14.664Z",
+      "load": [
+       8.44,
+       4.39,
+       1.96
+      ],
+      "freeMemoryMB": 6873
+     },
+     "hostCpuBusyPercent": 37.732919254658384
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 30.09999999962747,
+      "p90Ms": 36.90000000037253,
+      "gpuMedianMs": 1.2972,
+      "gpuP90Ms": 1.31836
+     },
+     "state": {
+      "drawCalls": 143,
+      "triangles": 1607153,
+      "renderedFrames": 1008,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:14.689Z",
+      "load": [
+       8.44,
+       4.39,
+       1.96
+      ],
+      "freeMemoryMB": 6871
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:16.980Z",
+      "load": [
+       8.25,
+       4.42,
+       1.98
+      ],
+      "freeMemoryMB": 6756
+     },
+     "hostCpuBusyPercent": 39.286701686480505
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 28.5,
+      "p90Ms": 34.90000000037253,
+      "gpuMedianMs": 1.2966,
+      "gpuP90Ms": 1.31724
+     },
+     "state": {
+      "drawCalls": 143,
+      "triangles": 1607153,
+      "renderedFrames": 1081,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:16.998Z",
+      "load": [
+       8.25,
+       4.42,
+       1.98
+      ],
+      "freeMemoryMB": 6755
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:19.209Z",
+      "load": [
+       8.25,
+       4.42,
+       1.98
+      ],
+      "freeMemoryMB": 6634
+     },
+     "hostCpuBusyPercent": 39.897113460988855
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 27.399999998509884,
+      "p90Ms": 34.59999999962747,
+      "gpuMedianMs": 1.28868,
+      "gpuP90Ms": 1.3208
+     },
+     "state": {
+      "drawCalls": 143,
+      "triangles": 1607153,
+      "renderedFrames": 1081,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:19.227Z",
+      "load": [
+       8.25,
+       4.42,
+       1.98
+      ],
+      "freeMemoryMB": 6634
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:21.356Z",
+      "load": [
+       7.91,
+       4.41,
+       1.99
+      ],
+      "freeMemoryMB": 7712
+     },
+     "hostCpuBusyPercent": 35.61440047604879
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 28.700000001117587,
+      "p90Ms": 36.09999999962747,
+      "gpuMedianMs": 1.29296,
+      "gpuP90Ms": 1.36636
+     },
+     "state": {
+      "drawCalls": 143,
+      "triangles": 1607153,
+      "renderedFrames": 1154,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:21.374Z",
+      "load": [
+       7.91,
+       4.41,
+       1.99
+      ],
+      "freeMemoryMB": 7711
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:23.575Z",
+      "load": [
+       7.91,
+       4.41,
+       1.99
+      ],
+      "freeMemoryMB": 7556
+     },
+     "hostCpuBusyPercent": 40.190146931719966
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 30.899999998509884,
+      "p90Ms": 38.90000000037253,
+      "gpuMedianMs": 1.29552,
+      "gpuP90Ms": 1.32824
+     },
+     "state": {
+      "drawCalls": 143,
+      "triangles": 1607153,
+      "renderedFrames": 1154,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:23.594Z",
+      "load": [
+       7.91,
+       4.41,
+       1.99
+      ],
+      "freeMemoryMB": 7556
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:25.968Z",
+      "load": [
+       8.08,
+       4.5,
+       2.04
+      ],
+      "freeMemoryMB": 7475
+     },
+     "hostCpuBusyPercent": 40.373831775700936
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 30.300000000745058,
+      "p90Ms": 37.80000000074506,
+      "gpuMedianMs": 1.28944,
+      "gpuP90Ms": 1.3034
+     },
+     "state": {
+      "drawCalls": 143,
+      "triangles": 1607153,
+      "renderedFrames": 1227,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:25.987Z",
+      "load": [
+       8.08,
+       4.5,
+       2.04
+      ],
+      "freeMemoryMB": 7475
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:28.343Z",
+      "load": [
+       8.08,
+       4.5,
+       2.04
+      ],
+      "freeMemoryMB": 7450
+     },
+     "hostCpuBusyPercent": 39.74805682122755
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 30.90000000037253,
+      "p90Ms": 39.59999999962747,
+      "gpuMedianMs": 1.29888,
+      "gpuP90Ms": 1.32972
+     },
+     "state": {
+      "drawCalls": 143,
+      "triangles": 1607153,
+      "renderedFrames": 1227,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:28.362Z",
+      "load": [
+       8.08,
+       4.5,
+       2.04
+      ],
+      "freeMemoryMB": 7451
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:30.769Z",
+      "load": [
+       8.08,
+       4.5,
+       2.04
+      ],
+      "freeMemoryMB": 7772
+     },
+     "hostCpuBusyPercent": 43.102536997885835
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 28.049999999813735,
+     "p90Ms": 36.34999999962747,
+     "gpuMedianMs": 1.29256,
+     "batchMediansMs": [
+      26.59999999962747,
+      27.399999998509884,
+      28.700000001117587,
+      30.90000000037253
+     ]
+    },
+    "after": {
+     "medianMs": 30.200000000186265,
+     "p90Ms": 37.35000000055879,
+     "gpuMedianMs": 1.29606,
+     "batchMediansMs": [
+      30.09999999962747,
+      28.5,
+      30.899999998509884,
+      30.300000000745058
+     ]
+    },
+    "changePercent": 7.664884136851358,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "low",
+   "name": "plane",
+   "pose": "plaza",
+   "actors": 1,
+   "camera": [
+    -60,
+    95,
+    -95,
+    10,
+    0,
+    10,
+    60
+   ],
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 17.800000000745058,
+      "p90Ms": 20.199999999254942,
+      "gpuMedianMs": 1.1046,
+      "gpuP90Ms": 1.12316
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 842455,
+      "renderedFrames": 1315,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:32.519Z",
+      "load": [
+       7.91,
+       4.53,
+       2.06
+      ],
+      "freeMemoryMB": 7784
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:33.887Z",
+      "load": [
+       7.91,
+       4.53,
+       2.06
+      ],
+      "freeMemoryMB": 7801
+     },
+     "hostCpuBusyPercent": 41.2093023255814
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 17,
+      "p90Ms": 19.199999999254942,
+      "gpuMedianMs": 1.10616,
+      "gpuP90Ms": 1.12008
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 842455,
+      "renderedFrames": 1315,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:33.905Z",
+      "load": [
+       7.91,
+       4.53,
+       2.06
+      ],
+      "freeMemoryMB": 7801
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:35.194Z",
+      "load": [
+       7.91,
+       4.53,
+       2.06
+      ],
+      "freeMemoryMB": 7848
+     },
+     "hostCpuBusyPercent": 41.28620520373098
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 17.300000000745058,
+      "p90Ms": 19.899999998509884,
+      "gpuMedianMs": 1.105,
+      "gpuP90Ms": 1.12196
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 842455,
+      "renderedFrames": 1388,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:35.213Z",
+      "load": [
+       7.91,
+       4.53,
+       2.06
+      ],
+      "freeMemoryMB": 7846
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:36.516Z",
+      "load": [
+       7.76,
+       4.55,
+       2.08
+      ],
+      "freeMemoryMB": 7859
+     },
+     "hostCpuBusyPercent": 41.59806295399516
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 19.09999999962747,
+      "p90Ms": 22.699999999254942,
+      "gpuMedianMs": 1.10288,
+      "gpuP90Ms": 1.12004
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 842455,
+      "renderedFrames": 1388,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:36.535Z",
+      "load": [
+       7.76,
+       4.55,
+       2.08
+      ],
+      "freeMemoryMB": 7859
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:37.989Z",
+      "load": [
+       7.76,
+       4.55,
+       2.08
+      ],
+      "freeMemoryMB": 7822
+     },
+     "hostCpuBusyPercent": 43.70918589464519
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 17.699999999254942,
+      "p90Ms": 20.199999999254942,
+      "gpuMedianMs": 1.10676,
+      "gpuP90Ms": 1.1168
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 842455,
+      "renderedFrames": 1461,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:38.006Z",
+      "load": [
+       7.76,
+       4.55,
+       2.08
+      ],
+      "freeMemoryMB": 7821
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:39.345Z",
+      "load": [
+       7.76,
+       4.55,
+       2.08
+      ],
+      "freeMemoryMB": 7830
+     },
+     "hostCpuBusyPercent": 41.0377358490566
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 17.09999999962747,
+      "p90Ms": 19.600000001490116,
+      "gpuMedianMs": 1.10376,
+      "gpuP90Ms": 1.11972
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 842455,
+      "renderedFrames": 1461,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:39.363Z",
+      "load": [
+       7.76,
+       4.55,
+       2.08
+      ],
+      "freeMemoryMB": 7829
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:40.679Z",
+      "load": [
+       7.76,
+       4.55,
+       2.08
+      ],
+      "freeMemoryMB": 7835
+     },
+     "hostCpuBusyPercent": 42.67942583732057
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 16.5,
+      "p90Ms": 19.200000001117587,
+      "gpuMedianMs": 1.10364,
+      "gpuP90Ms": 1.11932
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 842455,
+      "renderedFrames": 1534,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:40.696Z",
+      "load": [
+       7.76,
+       4.55,
+       2.08
+      ],
+      "freeMemoryMB": 7834
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:41.975Z",
+      "load": [
+       7.7,
+       4.6,
+       2.11
+      ],
+      "freeMemoryMB": 7839
+     },
+     "hostCpuBusyPercent": 42.50371103414152
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 18.700000001117587,
+      "p90Ms": 21.300000000745058,
+      "gpuMedianMs": 1.10688,
+      "gpuP90Ms": 1.11892
+     },
+     "state": {
+      "drawCalls": 121,
+      "triangles": 842455,
+      "renderedFrames": 1534,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:41.993Z",
+      "load": [
+       7.7,
+       4.6,
+       2.11
+      ],
+      "freeMemoryMB": 7839
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:43.414Z",
+      "load": [
+       7.7,
+       4.6,
+       2.11
+      ],
+      "freeMemoryMB": 7845
+     },
+     "hostCpuBusyPercent": 42.71019677996422
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 18.250000000931323,
+     "p90Ms": 20.75,
+     "gpuMedianMs": 1.10568,
+     "batchMediansMs": [
+      17.800000000745058,
+      19.09999999962747,
+      17.699999999254942,
+      18.700000001117587
+     ]
+    },
+    "after": {
+     "medianMs": 17.049999999813735,
+     "p90Ms": 19.40000000130385,
+     "gpuMedianMs": 1.10438,
+     "batchMediansMs": [
+      17,
+      17.300000000745058,
+      17.09999999962747,
+      16.5
+     ]
+    },
+    "changePercent": -6.575342471541646,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "low",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 31,
+      "p90Ms": 38.70000000111759,
+      "gpuMedianMs": 1.13716,
+      "gpuP90Ms": 1.20508
+     },
+     "state": {
+      "drawCalls": 108,
+      "triangles": 1367135,
+      "renderedFrames": 1622,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:46.937Z",
+      "load": [
+       7.96,
+       4.7,
+       2.15
+      ],
+      "freeMemoryMB": 7778
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:49.302Z",
+      "load": [
+       7.96,
+       4.7,
+       2.15
+      ],
+      "freeMemoryMB": 6924
+     },
+     "hostCpuBusyPercent": 58.65204600160471
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 31.300000000745058,
+      "p90Ms": 36.09999999962747,
+      "gpuMedianMs": 1.14636,
+      "gpuP90Ms": 1.1676
+     },
+     "state": {
+      "drawCalls": 108,
+      "triangles": 1367135,
+      "renderedFrames": 1622,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:49.328Z",
+      "load": [
+       7.96,
+       4.7,
+       2.15
+      ],
+      "freeMemoryMB": 6914
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:51.646Z",
+      "load": [
+       8.12,
+       4.79,
+       2.2
+      ],
+      "freeMemoryMB": 6969
+     },
+     "hostCpuBusyPercent": 56.306429548563614
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 31.5,
+      "p90Ms": 39.899999998509884,
+      "gpuMedianMs": 1.144,
+      "gpuP90Ms": 1.16284
+     },
+     "state": {
+      "drawCalls": 108,
+      "triangles": 1367135,
+      "renderedFrames": 1695,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:51.669Z",
+      "load": [
+       8.12,
+       4.79,
+       2.2
+      ],
+      "freeMemoryMB": 6969
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:54.079Z",
+      "load": [
+       8.12,
+       4.79,
+       2.2
+      ],
+      "freeMemoryMB": 6368
+     },
+     "hostCpuBusyPercent": 55.66902330452998
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 33.80000000074506,
+      "p90Ms": 41,
+      "gpuMedianMs": 1.14532,
+      "gpuP90Ms": 1.17776
+     },
+     "state": {
+      "drawCalls": 108,
+      "triangles": 1367135,
+      "renderedFrames": 1695,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:54.101Z",
+      "load": [
+       8.12,
+       4.79,
+       2.2
+      ],
+      "freeMemoryMB": 6358
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:56.674Z",
+      "load": [
+       8.27,
+       4.88,
+       2.24
+      ],
+      "freeMemoryMB": 7126
+     },
+     "hostCpuBusyPercent": 61.333006616025486
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 35.90000000037253,
+      "p90Ms": 47.90000000037253,
+      "gpuMedianMs": 1.14828,
+      "gpuP90Ms": 1.1728
+     },
+     "state": {
+      "drawCalls": 108,
+      "triangles": 1367135,
+      "renderedFrames": 1768,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:56.712Z",
+      "load": [
+       8.27,
+       4.88,
+       2.24
+      ],
+      "freeMemoryMB": 7125
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:02:59.536Z",
+      "load": [
+       8.27,
+       4.88,
+       2.24
+      ],
+      "freeMemoryMB": 6441
+     },
+     "hostCpuBusyPercent": 63.144908030506954
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 28,
+      "p90Ms": 34.19999999925494,
+      "gpuMedianMs": 1.1362,
+      "gpuP90Ms": 1.1544
+     },
+     "state": {
+      "drawCalls": 108,
+      "triangles": 1367135,
+      "renderedFrames": 1768,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:02:59.556Z",
+      "load": [
+       8.27,
+       4.88,
+       2.24
+      ],
+      "freeMemoryMB": 6440
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:01.744Z",
+      "load": [
+       8.57,
+       5,
+       2.29
+      ],
+      "freeMemoryMB": 5995
+     },
+     "hostCpuBusyPercent": 53.31221198156682
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 33.5,
+      "p90Ms": 42.5,
+      "gpuMedianMs": 1.137,
+      "gpuP90Ms": 1.1704
+     },
+     "state": {
+      "drawCalls": 108,
+      "triangles": 1367135,
+      "renderedFrames": 1841,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:01.764Z",
+      "load": [
+       8.57,
+       5,
+       2.29
+      ],
+      "freeMemoryMB": 5995
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:04.339Z",
+      "load": [
+       8.57,
+       5,
+       2.29
+      ],
+      "freeMemoryMB": 5722
+     },
+     "hostCpuBusyPercent": 63.462481608631684
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 33.5,
+      "p90Ms": 43.40000000037253,
+      "gpuMedianMs": 1.13984,
+      "gpuP90Ms": 1.20312
+     },
+     "state": {
+      "drawCalls": 108,
+      "triangles": 1367135,
+      "renderedFrames": 1841,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:04.359Z",
+      "load": [
+       8.57,
+       5,
+       2.29
+      ],
+      "freeMemoryMB": 5722
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:06.936Z",
+      "load": [
+       8.69,
+       5.08,
+       2.33
+      ],
+      "freeMemoryMB": 5957
+     },
+     "hostCpuBusyPercent": 63.14496314496314
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 33.65000000037253,
+     "p90Ms": 42.200000000186265,
+     "gpuMedianMs": 1.14258,
+     "batchMediansMs": [
+      31,
+      33.80000000074506,
+      35.90000000037253,
+      33.5
+     ]
+    },
+    "after": {
+     "medianMs": 31.40000000037253,
+     "p90Ms": 37.99999999906868,
+     "gpuMedianMs": 1.1404999999999998,
+     "batchMediansMs": [
+      31.300000000745058,
+      31.5,
+      28,
+      33.5
+     ]
+    },
+    "changePercent": -6.686478454606515,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "fp-m4",
+   "pose": "fp-m4",
+   "actors": 1,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 24.799999998882413,
+      "p90Ms": 28.699999999254942,
+      "gpuMedianMs": 2.6246,
+      "gpuP90Ms": 2.64284
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1521411,
+      "renderedFrames": 1929,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:09.579Z",
+      "load": [
+       8.69,
+       5.08,
+       2.33
+      ],
+      "freeMemoryMB": 6005
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:11.472Z",
+      "load": [
+       8.55,
+       5.11,
+       2.36
+      ],
+      "freeMemoryMB": 5981
+     },
+     "hostCpuBusyPercent": 53.164556962025316
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 23.59999999962747,
+      "p90Ms": 27.700000001117587,
+      "gpuMedianMs": 2.62408,
+      "gpuP90Ms": 2.64512
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1521411,
+      "renderedFrames": 1929,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:11.491Z",
+      "load": [
+       8.55,
+       5.11,
+       2.36
+      ],
+      "freeMemoryMB": 5981
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:13.285Z",
+      "load": [
+       8.55,
+       5.11,
+       2.36
+      ],
+      "freeMemoryMB": 5999
+     },
+     "hostCpuBusyPercent": 53.56638418079096
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 23.699999999254942,
+      "p90Ms": 28.300000000745058,
+      "gpuMedianMs": 2.62436,
+      "gpuP90Ms": 2.64116
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1521411,
+      "renderedFrames": 2002,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:13.308Z",
+      "load": [
+       8.55,
+       5.11,
+       2.36
+      ],
+      "freeMemoryMB": 5997
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:15.143Z",
+      "load": [
+       8.55,
+       5.11,
+       2.36
+      ],
+      "freeMemoryMB": 6073
+     },
+     "hostCpuBusyPercent": 54.80636237897649
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 25.700000001117587,
+      "p90Ms": 29.299999998882413,
+      "gpuMedianMs": 2.62128,
+      "gpuP90Ms": 2.63652
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1521411,
+      "renderedFrames": 2002,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:15.165Z",
+      "load": [
+       8.55,
+       5.11,
+       2.36
+      ],
+      "freeMemoryMB": 6073
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:17.114Z",
+      "load": [
+       8.43,
+       5.14,
+       2.38
+      ],
+      "freeMemoryMB": 6472
+     },
+     "hostCpuBusyPercent": 55.62015503875969
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 25.09999999962747,
+      "p90Ms": 29.09999999962747,
+      "gpuMedianMs": 2.62272,
+      "gpuP90Ms": 2.63828
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1521411,
+      "renderedFrames": 2075,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:17.138Z",
+      "load": [
+       8.43,
+       5.14,
+       2.38
+      ],
+      "freeMemoryMB": 6472
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:19.045Z",
+      "load": [
+       8.43,
+       5.14,
+       2.38
+      ],
+      "freeMemoryMB": 6572
+     },
+     "hostCpuBusyPercent": 54.53342157511582
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 24.200000001117587,
+      "p90Ms": 27.700000001117587,
+      "gpuMedianMs": 2.62164,
+      "gpuP90Ms": 2.64144
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1521411,
+      "renderedFrames": 2075,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:19.067Z",
+      "load": [
+       8.43,
+       5.14,
+       2.38
+      ],
+      "freeMemoryMB": 6570
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:20.887Z",
+      "load": [
+       8.43,
+       5.14,
+       2.38
+      ],
+      "freeMemoryMB": 6568
+     },
+     "hostCpuBusyPercent": 52.67919276270007
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 23.600000001490116,
+      "p90Ms": 28,
+      "gpuMedianMs": 2.62928,
+      "gpuP90Ms": 2.92432
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1521411,
+      "renderedFrames": 2148,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:20.909Z",
+      "load": [
+       8.43,
+       5.14,
+       2.38
+      ],
+      "freeMemoryMB": 6568
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:22.722Z",
+      "load": [
+       8.23,
+       5.16,
+       2.4
+      ],
+      "freeMemoryMB": 6500
+     },
+     "hostCpuBusyPercent": 53.20266013300665
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 24.90000000037253,
+      "p90Ms": 28.59999999962747,
+      "gpuMedianMs": 2.61972,
+      "gpuP90Ms": 2.63412
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1521411,
+      "renderedFrames": 2148,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:22.742Z",
+      "load": [
+       8.23,
+       5.16,
+       2.4
+      ],
+      "freeMemoryMB": 6635
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:24.552Z",
+      "load": [
+       8.23,
+       5.16,
+       2.4
+      ],
+      "freeMemoryMB": 6632
+     },
+     "hostCpuBusyPercent": 52.95557887373207
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 25,
+     "p90Ms": 28.899999999441206,
+     "gpuMedianMs": 2.622,
+     "batchMediansMs": [
+      24.799999998882413,
+      25.700000001117587,
+      25.09999999962747,
+      24.90000000037253
+     ]
+    },
+    "after": {
+     "medianMs": 23.65000000037253,
+     "p90Ms": 27.850000000558794,
+     "gpuMedianMs": 2.62422,
+     "batchMediansMs": [
+      23.59999999962747,
+      23.699999999254942,
+      24.200000001117587,
+      23.600000001490116
+     ]
+    },
+    "changePercent": -5.399999998509886,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "plaza16",
+   "pose": "plaza",
+   "actors": 16,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 37.40000000037253,
+      "p90Ms": 49.600000001490116,
+      "gpuMedianMs": 2.80956,
+      "gpuP90Ms": 2.83328
+     },
+     "state": {
+      "drawCalls": 149,
+      "triangles": 1690487,
+      "renderedFrames": 2236,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:29.981Z",
+      "load": [
+       8.29,
+       5.22,
+       2.44
+      ],
+      "freeMemoryMB": 6577
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:32.861Z",
+      "load": [
+       8.27,
+       5.27,
+       2.47
+      ],
+      "freeMemoryMB": 7609
+     },
+     "hostCpuBusyPercent": 43.01762114537445
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 35,
+      "p90Ms": 44.09999999962747,
+      "gpuMedianMs": 2.80252,
+      "gpuP90Ms": 2.82292
+     },
+     "state": {
+      "drawCalls": 149,
+      "triangles": 1690487,
+      "renderedFrames": 2236,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:32.880Z",
+      "load": [
+       8.27,
+       5.27,
+       2.47
+      ],
+      "freeMemoryMB": 7608
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:35.570Z",
+      "load": [
+       8.27,
+       5.27,
+       2.47
+      ],
+      "freeMemoryMB": 7997
+     },
+     "hostCpuBusyPercent": 41.5706560075241
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 29.90000000037253,
+      "p90Ms": 38.600000001490116,
+      "gpuMedianMs": 2.79704,
+      "gpuP90Ms": 2.82824
+     },
+     "state": {
+      "drawCalls": 149,
+      "triangles": 1690487,
+      "renderedFrames": 2309,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:35.589Z",
+      "load": [
+       8.27,
+       5.27,
+       2.47
+      ],
+      "freeMemoryMB": 7997
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:37.927Z",
+      "load": [
+       7.93,
+       5.25,
+       2.48
+      ],
+      "freeMemoryMB": 8058
+     },
+     "hostCpuBusyPercent": 33.18860244233379
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 32.5,
+      "p90Ms": 42.5,
+      "gpuMedianMs": 2.80216,
+      "gpuP90Ms": 2.82768
+     },
+     "state": {
+      "drawCalls": 149,
+      "triangles": 1690487,
+      "renderedFrames": 2309,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:37.945Z",
+      "load": [
+       7.93,
+       5.25,
+       2.48
+      ],
+      "freeMemoryMB": 8059
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:40.467Z",
+      "load": [
+       7.93,
+       5.25,
+       2.48
+      ],
+      "freeMemoryMB": 8080
+     },
+     "hostCpuBusyPercent": 33.9874213836478
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 31.699999999254942,
+      "p90Ms": 40,
+      "gpuMedianMs": 2.80036,
+      "gpuP90Ms": 2.82236
+     },
+     "state": {
+      "drawCalls": 149,
+      "triangles": 1690487,
+      "renderedFrames": 2382,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:40.485Z",
+      "load": [
+       7.93,
+       5.25,
+       2.48
+      ],
+      "freeMemoryMB": 8080
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:42.923Z",
+      "load": [
+       7.69,
+       5.24,
+       2.49
+      ],
+      "freeMemoryMB": 8222
+     },
+     "hostCpuBusyPercent": 33.56697819314642
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 29.700000001117587,
+      "p90Ms": 38.09999999962747,
+      "gpuMedianMs": 2.80392,
+      "gpuP90Ms": 2.83212
+     },
+     "state": {
+      "drawCalls": 149,
+      "triangles": 1690487,
+      "renderedFrames": 2382,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:42.941Z",
+      "load": [
+       7.69,
+       5.24,
+       2.49
+      ],
+      "freeMemoryMB": 8222
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:45.265Z",
+      "load": [
+       7.69,
+       5.24,
+       2.49
+      ],
+      "freeMemoryMB": 8138
+     },
+     "hostCpuBusyPercent": 35.262008733624455
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 28.800000000745058,
+      "p90Ms": 38.20000000111759,
+      "gpuMedianMs": 2.80084,
+      "gpuP90Ms": 2.82128
+     },
+     "state": {
+      "drawCalls": 149,
+      "triangles": 1690487,
+      "renderedFrames": 2455,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:45.283Z",
+      "load": [
+       7.69,
+       5.24,
+       2.49
+      ],
+      "freeMemoryMB": 8138
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:47.523Z",
+      "load": [
+       7.48,
+       5.24,
+       2.51
+      ],
+      "freeMemoryMB": 8104
+     },
+     "hostCpuBusyPercent": 32.38122171945702
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 37.399999998509884,
+      "p90Ms": 48.19999999925494,
+      "gpuMedianMs": 2.80304,
+      "gpuP90Ms": 2.94096
+     },
+     "state": {
+      "drawCalls": 149,
+      "triangles": 1690487,
+      "renderedFrames": 2455,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:47.540Z",
+      "load": [
+       7.48,
+       5.24,
+       2.51
+      ],
+      "freeMemoryMB": 8104
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:50.373Z",
+      "load": [
+       7.48,
+       5.24,
+       2.51
+      ],
+      "freeMemoryMB": 7894
+     },
+     "hostCpuBusyPercent": 45.16562220232766
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 34.94999999925494,
+     "p90Ms": 45.34999999962747,
+     "gpuMedianMs": 2.8026,
+     "batchMediansMs": [
+      37.40000000037253,
+      32.5,
+      31.699999999254942,
+      37.399999998509884
+     ]
+    },
+    "after": {
+     "medianMs": 29.800000000745058,
+     "p90Ms": 38.40000000130385,
+     "gpuMedianMs": 2.80168,
+     "batchMediansMs": [
+      35,
+      29.90000000037253,
+      29.700000001117587,
+      28.800000000745058
+     ]
+    },
+    "changePercent": -14.735336190614223,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "vilaStreet",
+   "pose": "vilaStreet",
+   "actors": 1,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 20.699999999254942,
+      "p90Ms": 23.59999999962747,
+      "gpuMedianMs": 2.46368,
+      "gpuP90Ms": 2.47704
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1513149,
+      "renderedFrames": 2543,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:52.304Z",
+      "load": [
+       7.36,
+       5.25,
+       2.52
+      ],
+      "freeMemoryMB": 7874
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:53.887Z",
+      "load": [
+       7.36,
+       5.25,
+       2.52
+      ],
+      "freeMemoryMB": 7840
+     },
+     "hostCpuBusyPercent": 42.834267413931144
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 19.59999999962747,
+      "p90Ms": 22.90000000037253,
+      "gpuMedianMs": 2.46396,
+      "gpuP90Ms": 2.4858
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1513149,
+      "renderedFrames": 2543,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:53.906Z",
+      "load": [
+       7.36,
+       5.25,
+       2.52
+      ],
+      "freeMemoryMB": 7826
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:55.400Z",
+      "load": [
+       7.36,
+       5.25,
+       2.52
+      ],
+      "freeMemoryMB": 7809
+     },
+     "hostCpuBusyPercent": 41.603053435114504
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 18.799999998882413,
+      "p90Ms": 21.199999999254942,
+      "gpuMedianMs": 2.4602,
+      "gpuP90Ms": 2.48088
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1513149,
+      "renderedFrames": 2616,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:55.419Z",
+      "load": [
+       7.36,
+       5.25,
+       2.52
+      ],
+      "freeMemoryMB": 7809
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:56.835Z",
+      "load": [
+       7.33,
+       5.28,
+       2.55
+      ],
+      "freeMemoryMB": 7963
+     },
+     "hostCpuBusyPercent": 40.63620071684588
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 23.399999998509884,
+      "p90Ms": 29.299999998882413,
+      "gpuMedianMs": 2.47044,
+      "gpuP90Ms": 2.48856
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1513149,
+      "renderedFrames": 2616,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:56.853Z",
+      "load": [
+       7.33,
+       5.28,
+       2.55
+      ],
+      "freeMemoryMB": 7946
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:03:58.664Z",
+      "load": [
+       7.33,
+       5.28,
+       2.55
+      ],
+      "freeMemoryMB": 7459
+     },
+     "hostCpuBusyPercent": 49.58041958041958
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 23.699999999254942,
+      "p90Ms": 29.09999999962747,
+      "gpuMedianMs": 2.47692,
+      "gpuP90Ms": 2.48888
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1513149,
+      "renderedFrames": 2689,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:03:58.684Z",
+      "load": [
+       7.33,
+       5.28,
+       2.55
+      ],
+      "freeMemoryMB": 7457
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:00.503Z",
+      "load": [
+       7.33,
+       5.28,
+       2.55
+      ],
+      "freeMemoryMB": 7006
+     },
+     "hostCpuBusyPercent": 48.339100346020764
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 20.699999999254942,
+      "p90Ms": 23.5,
+      "gpuMedianMs": 2.47116,
+      "gpuP90Ms": 2.49224
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1513149,
+      "renderedFrames": 2689,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:00.523Z",
+      "load": [
+       7.33,
+       5.28,
+       2.55
+      ],
+      "freeMemoryMB": 7002
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:02.109Z",
+      "load": [
+       7.38,
+       5.33,
+       2.58
+      ],
+      "freeMemoryMB": 6687
+     },
+     "hostCpuBusyPercent": 41.286970423661074
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 21.59999999962747,
+      "p90Ms": 24.200000001117587,
+      "gpuMedianMs": 2.47148,
+      "gpuP90Ms": 2.48952
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1513149,
+      "renderedFrames": 2762,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:02.128Z",
+      "load": [
+       7.38,
+       5.33,
+       2.58
+      ],
+      "freeMemoryMB": 6686
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:03.759Z",
+      "load": [
+       7.38,
+       5.33,
+       2.58
+      ],
+      "freeMemoryMB": 6534
+     },
+     "hostCpuBusyPercent": 44.80342545737641
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 21.90000000037253,
+      "p90Ms": 28.40000000037253,
+      "gpuMedianMs": 2.46836,
+      "gpuP90Ms": 2.49076
+     },
+     "state": {
+      "drawCalls": 142,
+      "triangles": 1513149,
+      "renderedFrames": 2762,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:03.778Z",
+      "load": [
+       7.38,
+       5.33,
+       2.58
+      ],
+      "freeMemoryMB": 6530
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:05.500Z",
+      "load": [
+       7.38,
+       5.33,
+       2.58
+      ],
+      "freeMemoryMB": 6706
+     },
+     "hostCpuBusyPercent": 44.51827242524917
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 22.649999999441206,
+     "p90Ms": 28.75,
+     "gpuMedianMs": 2.4694000000000003,
+     "batchMediansMs": [
+      20.699999999254942,
+      23.399999998509884,
+      23.699999999254942,
+      21.90000000037253
+     ]
+    },
+    "after": {
+     "medianMs": 20.149999999441206,
+     "p90Ms": 23.200000000186265,
+     "gpuMedianMs": 2.4675599999999998,
+     "batchMediansMs": [
+      19.59999999962747,
+      18.799999998882413,
+      20.699999999254942,
+      21.59999999962747
+     ]
+    },
+    "changePercent": -11.03752759409129,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 47.19999999925494,
+      "p90Ms": 55,
+      "gpuMedianMs": 2.925,
+      "gpuP90Ms": 3.39228
+     },
+     "state": {
+      "drawCalls": 162,
+      "triangles": 1781425,
+      "renderedFrames": 2850,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:09.901Z",
+      "load": [
+       7.27,
+       5.34,
+       2.6
+      ],
+      "freeMemoryMB": 6142
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:13.375Z",
+      "load": [
+       7.41,
+       5.4,
+       2.63
+      ],
+      "freeMemoryMB": 5978
+     },
+     "hostCpuBusyPercent": 59.63669391462307
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 37.40000000037253,
+      "p90Ms": 47.40000000037253,
+      "gpuMedianMs": 2.92092,
+      "gpuP90Ms": 2.95816
+     },
+     "state": {
+      "drawCalls": 162,
+      "triangles": 1781425,
+      "renderedFrames": 2850,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:13.397Z",
+      "load": [
+       7.41,
+       5.4,
+       2.63
+      ],
+      "freeMemoryMB": 5978
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:16.235Z",
+      "load": [
+       7.54,
+       5.46,
+       2.67
+      ],
+      "freeMemoryMB": 6026
+     },
+     "hostCpuBusyPercent": 57.51779359430605
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 45.09999999962747,
+      "p90Ms": 55.59999999962747,
+      "gpuMedianMs": 2.93156,
+      "gpuP90Ms": 3.03952
+     },
+     "state": {
+      "drawCalls": 162,
+      "triangles": 1781425,
+      "renderedFrames": 2923,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:16.256Z",
+      "load": [
+       7.54,
+       5.46,
+       2.67
+      ],
+      "freeMemoryMB": 6025
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:19.659Z",
+      "load": [
+       7.54,
+       5.46,
+       2.67
+      ],
+      "freeMemoryMB": 5586
+     },
+     "hostCpuBusyPercent": 67.29769858945805
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 51.90000000037253,
+      "p90Ms": 63,
+      "gpuMedianMs": 2.93712,
+      "gpuP90Ms": 4.14628
+     },
+     "state": {
+      "drawCalls": 162,
+      "triangles": 1781425,
+      "renderedFrames": 2923,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:19.679Z",
+      "load": [
+       7.54,
+       5.46,
+       2.67
+      ],
+      "freeMemoryMB": 5578
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:23.543Z",
+      "load": [
+       7.9,
+       5.57,
+       2.72
+      ],
+      "freeMemoryMB": 6540
+     },
+     "hostCpuBusyPercent": 66.4437194127243
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 62.69999999925494,
+      "p90Ms": 80.10000000149012,
+      "gpuMedianMs": 2.9406,
+      "gpuP90Ms": 3.294
+     },
+     "state": {
+      "drawCalls": 162,
+      "triangles": 1781425,
+      "renderedFrames": 2996,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:23.567Z",
+      "load": [
+       7.9,
+       5.57,
+       2.72
+      ],
+      "freeMemoryMB": 6526
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:28.232Z",
+      "load": [
+       8.14,
+       5.66,
+       2.76
+      ],
+      "freeMemoryMB": 6841
+     },
+     "hostCpuBusyPercent": 80.17859558923014
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 58,
+      "p90Ms": 69.90000000037253,
+      "gpuMedianMs": 2.9398,
+      "gpuP90Ms": 3.33984
+     },
+     "state": {
+      "drawCalls": 162,
+      "triangles": 1781425,
+      "renderedFrames": 2996,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:28.270Z",
+      "load": [
+       8.14,
+       5.66,
+       2.76
+      ],
+      "freeMemoryMB": 6801
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:32.692Z",
+      "load": [
+       8.37,
+       5.75,
+       2.81
+      ],
+      "freeMemoryMB": 5445
+     },
+     "hostCpuBusyPercent": 76.01085869409916
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 51.40000000037253,
+      "p90Ms": 70.69999999925494,
+      "gpuMedianMs": 2.92924,
+      "gpuP90Ms": 3.03768
+     },
+     "state": {
+      "drawCalls": 162,
+      "triangles": 1781425,
+      "renderedFrames": 3069,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:32.720Z",
+      "load": [
+       8.37,
+       5.75,
+       2.81
+      ],
+      "freeMemoryMB": 5445
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:36.660Z",
+      "load": [
+       8.5,
+       5.82,
+       2.84
+      ],
+      "freeMemoryMB": 5145
+     },
+     "hostCpuBusyPercent": 74.08179631114675
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 57.19999999925494,
+      "p90Ms": 73.09999999962747,
+      "gpuMedianMs": 2.93716,
+      "gpuP90Ms": 4.1402
+     },
+     "state": {
+      "drawCalls": 162,
+      "triangles": 1781425,
+      "renderedFrames": 3069,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:36.682Z",
+      "load": [
+       8.5,
+       5.82,
+       2.84
+      ],
+      "freeMemoryMB": 5145
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:40.955Z",
+      "load": [
+       8.5,
+       5.82,
+       2.84
+      ],
+      "freeMemoryMB": 5174
+     },
+     "hostCpuBusyPercent": 74.14174156475615
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 54.549999999813735,
+     "p90Ms": 68.04999999981374,
+     "gpuMedianMs": 2.9371400000000003,
+     "batchMediansMs": [
+      47.19999999925494,
+      51.90000000037253,
+      62.69999999925494,
+      57.19999999925494
+     ]
+    },
+    "after": {
+     "medianMs": 48.25,
+     "p90Ms": 62.75,
+     "gpuMedianMs": 2.9304,
+     "batchMediansMs": [
+      37.40000000037253,
+      45.09999999962747,
+      58,
+      51.40000000037253
+     ]
+    },
+    "changePercent": -11.549037579899624,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "plane",
+   "pose": "plaza",
+   "actors": 1,
+   "camera": [
+    -60,
+    95,
+    -95,
+    10,
+    0,
+    10,
+    60
+   ],
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 35.600000001490116,
+      "p90Ms": 42.80000000074506,
+      "gpuMedianMs": 2.56752,
+      "gpuP90Ms": 2.58816
+     },
+     "state": {
+      "drawCalls": 129,
+      "triangles": 919340,
+      "renderedFrames": 3157,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:43.348Z",
+      "load": [
+       8.94,
+       5.95,
+       2.9
+      ],
+      "freeMemoryMB": 5008
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:45.939Z",
+      "load": [
+       8.94,
+       5.95,
+       2.9
+      ],
+      "freeMemoryMB": 5054
+     },
+     "hostCpuBusyPercent": 73.23121808898614
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 31.5,
+      "p90Ms": 37.59999999962747,
+      "gpuMedianMs": 2.56716,
+      "gpuP90Ms": 2.59444
+     },
+     "state": {
+      "drawCalls": 129,
+      "triangles": 919340,
+      "renderedFrames": 3157,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:45.960Z",
+      "load": [
+       8.94,
+       5.95,
+       2.9
+      ],
+      "freeMemoryMB": 5054
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:48.325Z",
+      "load": [
+       9.35,
+       6.09,
+       2.96
+      ],
+      "freeMemoryMB": 5110
+     },
+     "hostCpuBusyPercent": 72.94994675186368
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 31.40000000037253,
+      "p90Ms": 35.69999999925494,
+      "gpuMedianMs": 2.56384,
+      "gpuP90Ms": 2.58328
+     },
+     "state": {
+      "drawCalls": 129,
+      "triangles": 919340,
+      "renderedFrames": 3230,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:48.349Z",
+      "load": [
+       9.35,
+       6.09,
+       2.96
+      ],
+      "freeMemoryMB": 5109
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:50.695Z",
+      "load": [
+       9.35,
+       6.09,
+       2.96
+      ],
+      "freeMemoryMB": 5595
+     },
+     "hostCpuBusyPercent": 70.85790884718499
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 29.90000000037253,
+      "p90Ms": 37.90000000037253,
+      "gpuMedianMs": 2.5672,
+      "gpuP90Ms": 2.5864
+     },
+     "state": {
+      "drawCalls": 129,
+      "triangles": 919340,
+      "renderedFrames": 3230,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:50.719Z",
+      "load": [
+       9.35,
+       6.09,
+       2.96
+      ],
+      "freeMemoryMB": 5616
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:53.011Z",
+      "load": [
+       10.04,
+       6.28,
+       3.05
+      ],
+      "freeMemoryMB": 5741
+     },
+     "hostCpuBusyPercent": 65.97031335898845
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 31.200000001117587,
+      "p90Ms": 37.59999999962747,
+      "gpuMedianMs": 2.56628,
+      "gpuP90Ms": 2.59452
+     },
+     "state": {
+      "drawCalls": 129,
+      "triangles": 919340,
+      "renderedFrames": 3303,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:53.039Z",
+      "load": [
+       10.04,
+       6.28,
+       3.05
+      ],
+      "freeMemoryMB": 5739
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:55.378Z",
+      "load": [
+       10.04,
+       6.28,
+       3.05
+      ],
+      "freeMemoryMB": 5840
+     },
+     "hostCpuBusyPercent": 66.91851052347545
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 29.90000000037253,
+      "p90Ms": 35.79999999888241,
+      "gpuMedianMs": 2.56064,
+      "gpuP90Ms": 2.58016
+     },
+     "state": {
+      "drawCalls": 129,
+      "triangles": 919340,
+      "renderedFrames": 3303,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:55.405Z",
+      "load": [
+       10.04,
+       6.28,
+       3.05
+      ],
+      "freeMemoryMB": 5839
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:57.568Z",
+      "load": [
+       10.28,
+       6.4,
+       3.1
+      ],
+      "freeMemoryMB": 5886
+     },
+     "hostCpuBusyPercent": 66.30656934306569
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 26.09999999962747,
+      "p90Ms": 31.299999998882413,
+      "gpuMedianMs": 2.5618,
+      "gpuP90Ms": 2.58204
+     },
+     "state": {
+      "drawCalls": 129,
+      "triangles": 919340,
+      "renderedFrames": 3376,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:57.592Z",
+      "load": [
+       10.28,
+       6.4,
+       3.1
+      ],
+      "freeMemoryMB": 5886
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:04:59.555Z",
+      "load": [
+       10.28,
+       6.4,
+       3.1
+      ],
+      "freeMemoryMB": 5910
+     },
+     "hostCpuBusyPercent": 66.12074502247913
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 23.90000000037253,
+      "p90Ms": 32.19999999925494,
+      "gpuMedianMs": 2.55992,
+      "gpuP90Ms": 2.58452
+     },
+     "state": {
+      "drawCalls": 129,
+      "triangles": 919340,
+      "renderedFrames": 3376,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:04:59.580Z",
+      "load": [
+       10.28,
+       6.4,
+       3.1
+      ],
+      "freeMemoryMB": 5910
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:01.476Z",
+      "load": [
+       10.18,
+       6.44,
+       3.13
+      ],
+      "freeMemoryMB": 5785
+     },
+     "hostCpuBusyPercent": 61.97464976651101
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 30.550000000745058,
+     "p90Ms": 37.75,
+     "gpuMedianMs": 2.5667400000000002,
+     "batchMediansMs": [
+      35.600000001490116,
+      29.90000000037253,
+      31.200000001117587,
+      23.90000000037253
+     ]
+    },
+    "after": {
+     "medianMs": 30.65000000037253,
+     "p90Ms": 35.74999999906868,
+     "gpuMedianMs": 2.56282,
+     "batchMediansMs": [
+      31.5,
+      31.40000000037253,
+      29.90000000037253,
+      26.09999999962747
+     ]
+    },
+    "changePercent": 0.32733224099847913,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 36.30000000074506,
+      "p90Ms": 44.79999999888241,
+      "gpuMedianMs": 2.70328,
+      "gpuP90Ms": 2.72852
+     },
+     "state": {
+      "drawCalls": 126,
+      "triangles": 1541285,
+      "renderedFrames": 3464,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:05.878Z",
+      "load": [
+       10.18,
+       6.44,
+       3.13
+      ],
+      "freeMemoryMB": 5827
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:08.670Z",
+      "load": [
+       10.4,
+       6.55,
+       3.18
+      ],
+      "freeMemoryMB": 5767
+     },
+     "hostCpuBusyPercent": 63.351375732972485
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 37.5,
+      "p90Ms": 50.600000001490116,
+      "gpuMedianMs": 2.7068,
+      "gpuP90Ms": 2.7352
+     },
+     "state": {
+      "drawCalls": 126,
+      "triangles": 1541285,
+      "renderedFrames": 3464,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:08.693Z",
+      "load": [
+       10.4,
+       6.55,
+       3.18
+      ],
+      "freeMemoryMB": 5762
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:11.663Z",
+      "load": [
+       10.37,
+       6.61,
+       3.22
+      ],
+      "freeMemoryMB": 5792
+     },
+     "hostCpuBusyPercent": 64.44066354742662
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 42.59999999962747,
+      "p90Ms": 56.40000000037253,
+      "gpuMedianMs": 2.71116,
+      "gpuP90Ms": 2.9642
+     },
+     "state": {
+      "drawCalls": 126,
+      "triangles": 1541285,
+      "renderedFrames": 3537,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:11.685Z",
+      "load": [
+       10.37,
+       6.61,
+       3.22
+      ],
+      "freeMemoryMB": 5794
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:14.913Z",
+      "load": [
+       10.37,
+       6.61,
+       3.22
+      ],
+      "freeMemoryMB": 6611
+     },
+     "hostCpuBusyPercent": 67.62519561815337
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 44.399999998509884,
+      "p90Ms": 54.70000000111759,
+      "gpuMedianMs": 2.71388,
+      "gpuP90Ms": 2.7508
+     },
+     "state": {
+      "drawCalls": 126,
+      "triangles": 1541285,
+      "renderedFrames": 3537,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:14.935Z",
+      "load": [
+       10.37,
+       6.61,
+       3.22
+      ],
+      "freeMemoryMB": 6613
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:18.236Z",
+      "load": [
+       10.9,
+       6.78,
+       3.3
+      ],
+      "freeMemoryMB": 6479
+     },
+     "hostCpuBusyPercent": 74.10799465750812
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 47.40000000037253,
+      "p90Ms": 60.19999999925494,
+      "gpuMedianMs": 2.70704,
+      "gpuP90Ms": 2.90852
+     },
+     "state": {
+      "drawCalls": 126,
+      "triangles": 1541285,
+      "renderedFrames": 3610,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:18.263Z",
+      "load": [
+       10.9,
+       6.78,
+       3.3
+      ],
+      "freeMemoryMB": 6463
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:21.828Z",
+      "load": [
+       10.83,
+       6.83,
+       3.33
+      ],
+      "freeMemoryMB": 5856
+     },
+     "hostCpuBusyPercent": 70.58302321460216
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 46.40000000037253,
+      "p90Ms": 61,
+      "gpuMedianMs": 2.71676,
+      "gpuP90Ms": 3.84748
+     },
+     "state": {
+      "drawCalls": 126,
+      "triangles": 1541285,
+      "renderedFrames": 3610,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:21.858Z",
+      "load": [
+       10.83,
+       6.83,
+       3.33
+      ],
+      "freeMemoryMB": 5864
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:25.396Z",
+      "load": [
+       10.83,
+       6.83,
+       3.33
+      ],
+      "freeMemoryMB": 5947
+     },
+     "hostCpuBusyPercent": 73.1859511499376
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 42.5,
+      "p90Ms": 57,
+      "gpuMedianMs": 2.70976,
+      "gpuP90Ms": 3.8502
+     },
+     "state": {
+      "drawCalls": 126,
+      "triangles": 1541285,
+      "renderedFrames": 3683,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:25.425Z",
+      "load": [
+       10.83,
+       6.83,
+       3.33
+      ],
+      "freeMemoryMB": 5936
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:28.698Z",
+      "load": [
+       11.4,
+       7.02,
+       3.41
+      ],
+      "freeMemoryMB": 5619
+     },
+     "hostCpuBusyPercent": 69.68115942028986
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 37.90000000037253,
+      "p90Ms": 49.399999998509884,
+      "gpuMedianMs": 2.70808,
+      "gpuP90Ms": 2.74448
+     },
+     "state": {
+      "drawCalls": 126,
+      "triangles": 1541285,
+      "renderedFrames": 3683,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:28.720Z",
+      "load": [
+       11.4,
+       7.02,
+       3.41
+      ],
+      "freeMemoryMB": 5593
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:31.665Z",
+      "load": [
+       11.21,
+       7.05,
+       3.44
+      ],
+      "freeMemoryMB": 5669
+     },
+     "hostCpuBusyPercent": 64.07787762088147
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 41.14999999944121,
+     "p90Ms": 52.049999999813735,
+     "gpuMedianMs": 2.70756,
+     "batchMediansMs": [
+      36.30000000074506,
+      44.399999998509884,
+      47.40000000037253,
+      37.90000000037253
+     ]
+    },
+    "after": {
+     "medianMs": 42.549999999813735,
+     "p90Ms": 56.700000000186265,
+     "gpuMedianMs": 2.7104600000000003,
+     "batchMediansMs": [
+      37.5,
+      42.59999999962747,
+      46.40000000037253,
+      42.5
+     ]
+    },
+    "changePercent": 3.4021871212431165,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "high",
+   "name": "fp-m4",
+   "pose": "fp-m4",
+   "actors": 1,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 37.20000000111759,
+      "p90Ms": 44.90000000037253,
+      "gpuMedianMs": 5.34516,
+      "gpuP90Ms": 5.47464
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 3771,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:34.742Z",
+      "load": [
+       11.21,
+       7.05,
+       3.44
+      ],
+      "freeMemoryMB": 5495
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:37.528Z",
+      "load": [
+       11.03,
+       7.08,
+       3.47
+      ],
+      "freeMemoryMB": 6376
+     },
+     "hostCpuBusyPercent": 66.44006344890097
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 46.30000000074506,
+      "p90Ms": 56.19999999925494,
+      "gpuMedianMs": 5.36456,
+      "gpuP90Ms": 5.48836
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 3771,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:37.557Z",
+      "load": [
+       11.03,
+       7.08,
+       3.47
+      ],
+      "freeMemoryMB": 6364
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:40.955Z",
+      "load": [
+       11.03,
+       7.08,
+       3.47
+      ],
+      "freeMemoryMB": 5600
+     },
+     "hostCpuBusyPercent": 77.59643916913947
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 43.5,
+      "p90Ms": 53.09999999962747,
+      "gpuMedianMs": 5.34864,
+      "gpuP90Ms": 5.55148
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 3844,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:40.985Z",
+      "load": [
+       11.03,
+       7.08,
+       3.47
+      ],
+      "freeMemoryMB": 5584
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:44.309Z",
+      "load": [
+       11.11,
+       7.17,
+       3.52
+      ],
+      "freeMemoryMB": 4945
+     },
+     "hostCpuBusyPercent": 78.0459988595324
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 42.40000000037253,
+      "p90Ms": 48.59999999962747,
+      "gpuMedianMs": 5.337,
+      "gpuP90Ms": 5.4932
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 3844,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:44.337Z",
+      "load": [
+       11.11,
+       7.17,
+       3.52
+      ],
+      "freeMemoryMB": 4945
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:47.442Z",
+      "load": [
+       11.34,
+       7.28,
+       3.57
+      ],
+      "freeMemoryMB": 4543
+     },
+     "hostCpuBusyPercent": 71.48350536328678
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 40.5,
+      "p90Ms": 50.69999999925494,
+      "gpuMedianMs": 5.3468,
+      "gpuP90Ms": 5.39236
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 3917,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:47.470Z",
+      "load": [
+       11.34,
+       7.28,
+       3.57
+      ],
+      "freeMemoryMB": 4518
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:50.571Z",
+      "load": [
+       11.34,
+       7.28,
+       3.57
+      ],
+      "freeMemoryMB": 4425
+     },
+     "hostCpuBusyPercent": 76.98557789965469
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 40.79999999888241,
+      "p90Ms": 59.19999999925494,
+      "gpuMedianMs": 5.35144,
+      "gpuP90Ms": 5.55848
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 3917,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:50.604Z",
+      "load": [
+       11.34,
+       7.28,
+       3.57
+      ],
+      "freeMemoryMB": 4409
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:53.801Z",
+      "load": [
+       13.4,
+       7.77,
+       3.75
+      ],
+      "freeMemoryMB": 5646
+     },
+     "hostCpuBusyPercent": 85.47110055423595
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 41.30000000074506,
+      "p90Ms": 48.40000000037253,
+      "gpuMedianMs": 5.34116,
+      "gpuP90Ms": 5.61488
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 3990,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:53.834Z",
+      "load": [
+       13.4,
+       7.77,
+       3.75
+      ],
+      "freeMemoryMB": 5638
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:56.875Z",
+      "load": [
+       13.37,
+       7.86,
+       3.8
+      ],
+      "freeMemoryMB": 4804
+     },
+     "hostCpuBusyPercent": 80.89910917754298
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 36.30000000074506,
+      "p90Ms": 43.69999999925494,
+      "gpuMedianMs": 5.32404,
+      "gpuP90Ms": 5.3826
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 3990,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:05:56.900Z",
+      "load": [
+       13.37,
+       7.86,
+       3.8
+      ],
+      "freeMemoryMB": 4806
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:05:59.621Z",
+      "load": [
+       13.37,
+       7.86,
+       3.8
+      ],
+      "freeMemoryMB": 5584
+     },
+     "hostCpuBusyPercent": 69.18443002780351
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 38.85000000055879,
+     "p90Ms": 46.75,
+     "gpuMedianMs": 5.34108,
+     "batchMediansMs": [
+      37.20000000111759,
+      42.40000000037253,
+      40.5,
+      36.30000000074506
+     ]
+    },
+    "after": {
+     "medianMs": 42.40000000037253,
+     "p90Ms": 54.64999999944121,
+     "gpuMedianMs": 5.35004,
+     "batchMediansMs": [
+      46.30000000074506,
+      43.5,
+      40.79999999888241,
+      41.30000000074506
+     ]
+    },
+    "changePercent": 9.137709137098259,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "high",
+   "name": "plaza16",
+   "pose": "plaza",
+   "actors": 16,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 48.5,
+      "p90Ms": 60,
+      "gpuMedianMs": 5.51468,
+      "gpuP90Ms": 5.74648
+     },
+     "state": {
+      "drawCalls": 173,
+      "triangles": 2035813,
+      "renderedFrames": 4078,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:05.588Z",
+      "load": [
+       13.1,
+       7.9,
+       3.84
+      ],
+      "freeMemoryMB": 7173
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:09.239Z",
+      "load": [
+       12.85,
+       7.93,
+       3.87
+      ],
+      "freeMemoryMB": 6448
+     },
+     "hostCpuBusyPercent": 54.936883970257654
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 44.19999999925494,
+      "p90Ms": 52.600000001490116,
+      "gpuMedianMs": 5.5412,
+      "gpuP90Ms": 5.59136
+     },
+     "state": {
+      "drawCalls": 173,
+      "triangles": 2035813,
+      "renderedFrames": 4078,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:09.260Z",
+      "load": [
+       12.85,
+       7.93,
+       3.87
+      ],
+      "freeMemoryMB": 6447
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:12.539Z",
+      "load": [
+       12.38,
+       7.92,
+       3.89
+      ],
+      "freeMemoryMB": 6316
+     },
+     "hostCpuBusyPercent": 52.074529389166344
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 40.90000000037253,
+      "p90Ms": 49,
+      "gpuMedianMs": 5.54588,
+      "gpuP90Ms": 5.60664
+     },
+     "state": {
+      "drawCalls": 173,
+      "triangles": 2035813,
+      "renderedFrames": 4151,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:12.559Z",
+      "load": [
+       12.38,
+       7.92,
+       3.89
+      ],
+      "freeMemoryMB": 6316
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:15.650Z",
+      "load": [
+       12.38,
+       7.92,
+       3.89
+      ],
+      "freeMemoryMB": 6373
+     },
+     "hostCpuBusyPercent": 48.425756652447696
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 42.59999999962747,
+      "p90Ms": 51.09999999962747,
+      "gpuMedianMs": 5.54272,
+      "gpuP90Ms": 5.59332
+     },
+     "state": {
+      "drawCalls": 173,
+      "triangles": 2035813,
+      "renderedFrames": 4151,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:15.669Z",
+      "load": [
+       12.38,
+       7.92,
+       3.89
+      ],
+      "freeMemoryMB": 6373
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:18.908Z",
+      "load": [
+       12.03,
+       7.92,
+       3.91
+      ],
+      "freeMemoryMB": 6400
+     },
+     "hostCpuBusyPercent": 48.19277108433735
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 39.79999999888241,
+      "p90Ms": 49,
+      "gpuMedianMs": 5.54816,
+      "gpuP90Ms": 5.58452
+     },
+     "state": {
+      "drawCalls": 173,
+      "triangles": 2035813,
+      "renderedFrames": 4224,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:18.928Z",
+      "load": [
+       12.03,
+       7.92,
+       3.91
+      ],
+      "freeMemoryMB": 6400
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:21.980Z",
+      "load": [
+       11.54,
+       7.89,
+       3.92
+      ],
+      "freeMemoryMB": 6703
+     },
+     "hostCpuBusyPercent": 44.91350906095552
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 36,
+      "p90Ms": 43.90000000037253,
+      "gpuMedianMs": 5.52848,
+      "gpuP90Ms": 5.57676
+     },
+     "state": {
+      "drawCalls": 173,
+      "triangles": 2035813,
+      "renderedFrames": 4224,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:22.000Z",
+      "load": [
+       11.54,
+       7.89,
+       3.92
+      ],
+      "freeMemoryMB": 6703
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:24.733Z",
+      "load": [
+       11.54,
+       7.89,
+       3.92
+      ],
+      "freeMemoryMB": 6661
+     },
+     "hostCpuBusyPercent": 40.39658750288218
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 38.30000000074506,
+      "p90Ms": 47.20000000111759,
+      "gpuMedianMs": 5.5434,
+      "gpuP90Ms": 5.59232
+     },
+     "state": {
+      "drawCalls": 173,
+      "triangles": 2035813,
+      "renderedFrames": 4297,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:24.752Z",
+      "load": [
+       11.54,
+       7.89,
+       3.92
+      ],
+      "freeMemoryMB": 6665
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:27.667Z",
+      "load": [
+       11.42,
+       7.92,
+       3.95
+      ],
+      "freeMemoryMB": 6609
+     },
+     "hostCpuBusyPercent": 42.912705272255835
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 38.399999998509884,
+      "p90Ms": 45.90000000037253,
+      "gpuMedianMs": 5.55612,
+      "gpuP90Ms": 5.58344
+     },
+     "state": {
+      "drawCalls": 173,
+      "triangles": 2035813,
+      "renderedFrames": 4297,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:27.684Z",
+      "load": [
+       11.42,
+       7.92,
+       3.95
+      ],
+      "freeMemoryMB": 6608
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:30.610Z",
+      "load": [
+       11.42,
+       7.92,
+       3.95
+      ],
+      "freeMemoryMB": 6522
+     },
+     "hostCpuBusyPercent": 42.17877094972067
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 41.19999999925494,
+     "p90Ms": 50.049999999813735,
+     "gpuMedianMs": 5.54544,
+     "batchMediansMs": [
+      48.5,
+      42.59999999962747,
+      39.79999999888241,
+      38.399999998509884
+     ]
+    },
+    "after": {
+     "medianMs": 39.60000000055879,
+     "p90Ms": 48.10000000055879,
+     "gpuMedianMs": 5.5423,
+     "batchMediansMs": [
+      44.19999999925494,
+      40.90000000037253,
+      36,
+      38.30000000074506
+     ]
+    },
+    "changePercent": -3.883495142536608,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "high",
+   "name": "vilaStreet",
+   "pose": "vilaStreet",
+   "actors": 1,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 28.40000000037253,
+      "p90Ms": 33.59999999962747,
+      "gpuMedianMs": 4.90788,
+      "gpuP90Ms": 4.94756
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1718732,
+      "renderedFrames": 4385,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:32.771Z",
+      "load": [
+       11.15,
+       7.92,
+       3.98
+      ],
+      "freeMemoryMB": 6294
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:34.935Z",
+      "load": [
+       11.15,
+       7.92,
+       3.98
+      ],
+      "freeMemoryMB": 5902
+     },
+     "hostCpuBusyPercent": 58.22289156626506
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 27.699999999254942,
+      "p90Ms": 32.59999999962747,
+      "gpuMedianMs": 4.89484,
+      "gpuP90Ms": 4.93384
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1718732,
+      "renderedFrames": 4385,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:34.962Z",
+      "load": [
+       11.15,
+       7.92,
+       3.98
+      ],
+      "freeMemoryMB": 5887
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:37.096Z",
+      "load": [
+       11.13,
+       7.97,
+       4.01
+      ],
+      "freeMemoryMB": 6092
+     },
+     "hostCpuBusyPercent": 61.324659964518034
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 24.300000000745058,
+      "p90Ms": 28.799999998882413,
+      "gpuMedianMs": 4.90108,
+      "gpuP90Ms": 4.94004
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1718732,
+      "renderedFrames": 4458,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:37.116Z",
+      "load": [
+       11.13,
+       7.97,
+       4.01
+      ],
+      "freeMemoryMB": 6091
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:38.971Z",
+      "load": [
+       11.13,
+       7.97,
+       4.01
+      ],
+      "freeMemoryMB": 6454
+     },
+     "hostCpuBusyPercent": 49.77913693510024
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 23.699999999254942,
+      "p90Ms": 26,
+      "gpuMedianMs": 4.8986,
+      "gpuP90Ms": 4.9288
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1718732,
+      "renderedFrames": 4458,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:38.991Z",
+      "load": [
+       11.13,
+       7.97,
+       4.01
+      ],
+      "freeMemoryMB": 6454
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:40.786Z",
+      "load": [
+       11.13,
+       7.97,
+       4.01
+      ],
+      "freeMemoryMB": 6489
+     },
+     "hostCpuBusyPercent": 47.610681658468025
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 25.699999999254942,
+      "p90Ms": 32.09999999962747,
+      "gpuMedianMs": 4.91412,
+      "gpuP90Ms": 4.94624
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1718732,
+      "renderedFrames": 4531,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:40.804Z",
+      "load": [
+       11.13,
+       7.97,
+       4.01
+      ],
+      "freeMemoryMB": 6489
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:42.791Z",
+      "load": [
+       10.88,
+       7.97,
+       4.04
+      ],
+      "freeMemoryMB": 6540
+     },
+     "hostCpuBusyPercent": 53.47068145800317
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 23,
+      "p90Ms": 27.800000000745058,
+      "gpuMedianMs": 4.90292,
+      "gpuP90Ms": 4.93688
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1718732,
+      "renderedFrames": 4531,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:42.813Z",
+      "load": [
+       10.88,
+       7.97,
+       4.04
+      ],
+      "freeMemoryMB": 6545
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:44.574Z",
+      "load": [
+       10.88,
+       7.97,
+       4.04
+      ],
+      "freeMemoryMB": 6633
+     },
+     "hostCpuBusyPercent": 49.24838940586972
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 22.300000000745058,
+      "p90Ms": 25.800000000745058,
+      "gpuMedianMs": 4.89608,
+      "gpuP90Ms": 4.93156
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1718732,
+      "renderedFrames": 4604,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:44.594Z",
+      "load": [
+       10.88,
+       7.97,
+       4.04
+      ],
+      "freeMemoryMB": 6635
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:46.296Z",
+      "load": [
+       10.49,
+       7.94,
+       4.05
+      ],
+      "freeMemoryMB": 6651
+     },
+     "hostCpuBusyPercent": 48.44444444444444
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 25.90000000037253,
+      "p90Ms": 32.09999999962747,
+      "gpuMedianMs": 4.89792,
+      "gpuP90Ms": 4.93728
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1718732,
+      "renderedFrames": 4604,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:46.314Z",
+      "load": [
+       10.49,
+       7.94,
+       4.05
+      ],
+      "freeMemoryMB": 6651
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:48.295Z",
+      "load": [
+       10.49,
+       7.94,
+       4.05
+      ],
+      "freeMemoryMB": 7588
+     },
+     "hostCpuBusyPercent": 54.392106938255885
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 25.799999999813735,
+     "p90Ms": 32.09999999962747,
+     "gpuMedianMs": 4.90324,
+     "batchMediansMs": [
+      28.40000000037253,
+      23.699999999254942,
+      25.699999999254942,
+      25.90000000037253
+     ]
+    },
+    "after": {
+     "medianMs": 23.65000000037253,
+     "p90Ms": 28.299999999813735,
+     "gpuMedianMs": 4.898580000000001,
+     "batchMediansMs": [
+      27.699999999254942,
+      24.300000000745058,
+      23,
+      22.300000000745058
+     ]
+    },
+    "changePercent": -8.333333331227632,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "high",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 45.80000000074506,
+      "p90Ms": 57.100000001490116,
+      "gpuMedianMs": 5.77244,
+      "gpuP90Ms": 5.9662
+     },
+     "state": {
+      "drawCalls": 186,
+      "triangles": 2108760,
+      "renderedFrames": 4692,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:53.672Z",
+      "load": [
+       10.21,
+       7.93,
+       4.06
+      ],
+      "freeMemoryMB": 6372
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:06:57.134Z",
+      "load": [
+       10.03,
+       7.93,
+       4.08
+      ],
+      "freeMemoryMB": 6124
+     },
+     "hostCpuBusyPercent": 57.81506474557724
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 42.90000000037253,
+      "p90Ms": 53.30000000074506,
+      "gpuMedianMs": 5.79528,
+      "gpuP90Ms": 6.02364
+     },
+     "state": {
+      "drawCalls": 186,
+      "triangles": 2108760,
+      "renderedFrames": 4692,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:06:57.157Z",
+      "load": [
+       10.03,
+       7.93,
+       4.08
+      ],
+      "freeMemoryMB": 6126
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:00.429Z",
+      "load": [
+       10.03,
+       7.93,
+       4.08
+      ],
+      "freeMemoryMB": 7279
+     },
+     "hostCpuBusyPercent": 55.97447795823666
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 56.70000000111759,
+      "p90Ms": 73.19999999925494,
+      "gpuMedianMs": 5.80852,
+      "gpuP90Ms": 5.9734
+     },
+     "state": {
+      "drawCalls": 186,
+      "triangles": 2108760,
+      "renderedFrames": 4765,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:00.447Z",
+      "load": [
+       10.03,
+       7.93,
+       4.08
+      ],
+      "freeMemoryMB": 7279
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:04.739Z",
+      "load": [
+       10.03,
+       7.96,
+       4.12
+      ],
+      "freeMemoryMB": 5920
+     },
+     "hostCpuBusyPercent": 71.84237612115865
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 50.19999999925494,
+      "p90Ms": 60.79999999888241,
+      "gpuMedianMs": 5.79272,
+      "gpuP90Ms": 5.85608
+     },
+     "state": {
+      "drawCalls": 186,
+      "triangles": 2108760,
+      "renderedFrames": 4765,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:04.760Z",
+      "load": [
+       10.03,
+       7.96,
+       4.12
+      ],
+      "freeMemoryMB": 5921
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:08.539Z",
+      "load": [
+       9.95,
+       7.98,
+       4.14
+      ],
+      "freeMemoryMB": 4917
+     },
+     "hostCpuBusyPercent": 59.21338912133891
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 48.899999998509884,
+      "p90Ms": 60.69999999925494,
+      "gpuMedianMs": 5.81972,
+      "gpuP90Ms": 6.14644
+     },
+     "state": {
+      "drawCalls": 186,
+      "triangles": 2108760,
+      "renderedFrames": 4838,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:08.560Z",
+      "load": [
+       9.95,
+       7.98,
+       4.14
+      ],
+      "freeMemoryMB": 4916
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:12.263Z",
+      "load": [
+       10.03,
+       8.03,
+       4.18
+      ],
+      "freeMemoryMB": 6700
+     },
+     "hostCpuBusyPercent": 60.63811636239549
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 38.100000001490116,
+      "p90Ms": 47.5,
+      "gpuMedianMs": 5.801,
+      "gpuP90Ms": 5.9392
+     },
+     "state": {
+      "drawCalls": 186,
+      "triangles": 2108760,
+      "renderedFrames": 4838,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:12.281Z",
+      "load": [
+       10.03,
+       8.03,
+       4.18
+      ],
+      "freeMemoryMB": 6697
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:15.252Z",
+      "load": [
+       10.03,
+       8.03,
+       4.18
+      ],
+      "freeMemoryMB": 6249
+     },
+     "hostCpuBusyPercent": 48.66709319684367
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 38.90000000037253,
+      "p90Ms": 48.29999999888241,
+      "gpuMedianMs": 5.80124,
+      "gpuP90Ms": 5.85508
+     },
+     "state": {
+      "drawCalls": 186,
+      "triangles": 2108760,
+      "renderedFrames": 4911,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:15.270Z",
+      "load": [
+       10.03,
+       8.03,
+       4.18
+      ],
+      "freeMemoryMB": 6246
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:18.228Z",
+      "load": [
+       9.87,
+       8.03,
+       4.2
+      ],
+      "freeMemoryMB": 7155
+     },
+     "hostCpuBusyPercent": 48.38433554461802
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 53.69999999925494,
+      "p90Ms": 65.19999999925494,
+      "gpuMedianMs": 5.82804,
+      "gpuP90Ms": 7.38992
+     },
+     "state": {
+      "drawCalls": 186,
+      "triangles": 2108760,
+      "renderedFrames": 4911,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:18.249Z",
+      "load": [
+       9.87,
+       8.03,
+       4.2
+      ],
+      "freeMemoryMB": 7163
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:22.350Z",
+      "load": [
+       9.8,
+       8.05,
+       4.23
+      ],
+      "freeMemoryMB": 6040
+     },
+     "hostCpuBusyPercent": 64.27912695972948
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 49.54999999888241,
+     "p90Ms": 60.74999999906868,
+     "gpuMedianMs": 5.80622,
+     "batchMediansMs": [
+      45.80000000074506,
+      50.19999999925494,
+      48.899999998509884,
+      53.69999999925494
+     ]
+    },
+    "after": {
+     "medianMs": 40.90000000037253,
+     "p90Ms": 50.799999999813735,
+     "gpuMedianMs": 5.80112,
+     "batchMediansMs": [
+      42.90000000037253,
+      56.70000000111759,
+      38.100000001490116,
+      38.90000000037253
+     ]
+    },
+    "changePercent": -17.457114023622566,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "high",
+   "name": "plane",
+   "pose": "plaza",
+   "actors": 1,
+   "camera": [
+    -60,
+    95,
+    -95,
+    10,
+    0,
+    10,
+    60
+   ],
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 30.90000000037253,
+      "p90Ms": 37.30000000074506,
+      "gpuMedianMs": 5.0552,
+      "gpuP90Ms": 5.09104
+     },
+     "state": {
+      "drawCalls": 145,
+      "triangles": 1071597,
+      "renderedFrames": 4999,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:24.571Z",
+      "load": [
+       9.8,
+       8.05,
+       4.23
+      ],
+      "freeMemoryMB": 5572
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:26.873Z",
+      "load": [
+       9.82,
+       8.08,
+       4.26
+      ],
+      "freeMemoryMB": 6424
+     },
+     "hostCpuBusyPercent": 61.242440901594286
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 29.09999999962747,
+      "p90Ms": 34.29999999888241,
+      "gpuMedianMs": 5.04772,
+      "gpuP90Ms": 5.08652
+     },
+     "state": {
+      "drawCalls": 145,
+      "triangles": 1071597,
+      "renderedFrames": 4999,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:26.898Z",
+      "load": [
+       9.82,
+       8.08,
+       4.26
+      ],
+      "freeMemoryMB": 6421
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:29.120Z",
+      "load": [
+       9.82,
+       8.08,
+       4.26
+      ],
+      "freeMemoryMB": 6386
+     },
+     "hostCpuBusyPercent": 64.84951731970472
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 30.800000000745058,
+      "p90Ms": 36.30000000074506,
+      "gpuMedianMs": 5.0426,
+      "gpuP90Ms": 5.08248
+     },
+     "state": {
+      "drawCalls": 145,
+      "triangles": 1071597,
+      "renderedFrames": 5072,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:29.145Z",
+      "load": [
+       9.82,
+       8.08,
+       4.26
+      ],
+      "freeMemoryMB": 6384
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:31.495Z",
+      "load": [
+       9.99,
+       8.14,
+       4.3
+      ],
+      "freeMemoryMB": 5877
+     },
+     "hostCpuBusyPercent": 65.80783682232958
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 30.799999998882413,
+      "p90Ms": 39.100000001490116,
+      "gpuMedianMs": 5.04348,
+      "gpuP90Ms": 5.07668
+     },
+     "state": {
+      "drawCalls": 145,
+      "triangles": 1071597,
+      "renderedFrames": 5072,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:31.516Z",
+      "load": [
+       9.99,
+       8.14,
+       4.3
+      ],
+      "freeMemoryMB": 5874
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:33.892Z",
+      "load": [
+       9.99,
+       8.14,
+       4.3
+      ],
+      "freeMemoryMB": 5509
+     },
+     "hostCpuBusyPercent": 66.11789697291556
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 32.59999999962747,
+      "p90Ms": 39,
+      "gpuMedianMs": 5.03156,
+      "gpuP90Ms": 5.08104
+     },
+     "state": {
+      "drawCalls": 145,
+      "triangles": 1071597,
+      "renderedFrames": 5145,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:33.919Z",
+      "load": [
+       9.99,
+       8.14,
+       4.3
+      ],
+      "freeMemoryMB": 5509
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:36.367Z",
+      "load": [
+       10.07,
+       8.19,
+       4.34
+      ],
+      "freeMemoryMB": 5401
+     },
+     "hostCpuBusyPercent": 65.78269824922761
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 29.700000001117587,
+      "p90Ms": 34.90000000037253,
+      "gpuMedianMs": 5.04648,
+      "gpuP90Ms": 5.09024
+     },
+     "state": {
+      "drawCalls": 145,
+      "triangles": 1071597,
+      "renderedFrames": 5145,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:36.390Z",
+      "load": [
+       10.07,
+       8.19,
+       4.34
+      ],
+      "freeMemoryMB": 5396
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:38.627Z",
+      "load": [
+       10.07,
+       8.19,
+       4.34
+      ],
+      "freeMemoryMB": 6296
+     },
+     "hostCpuBusyPercent": 64.08450704225352
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 32.90000000037253,
+      "p90Ms": 36.59999999962747,
+      "gpuMedianMs": 5.04128,
+      "gpuP90Ms": 5.08492
+     },
+     "state": {
+      "drawCalls": 145,
+      "triangles": 1071597,
+      "renderedFrames": 5218,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:38.650Z",
+      "load": [
+       10.07,
+       8.19,
+       4.34
+      ],
+      "freeMemoryMB": 6291
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:41.105Z",
+      "load": [
+       10.07,
+       8.22,
+       4.37
+      ],
+      "freeMemoryMB": 6072
+     },
+     "hostCpuBusyPercent": 70.42289840123775
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 30.300000000745058,
+      "p90Ms": 39.19999999925494,
+      "gpuMedianMs": 5.0428,
+      "gpuP90Ms": 5.08676
+     },
+     "state": {
+      "drawCalls": 145,
+      "triangles": 1071597,
+      "renderedFrames": 5218,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:41.130Z",
+      "load": [
+       10.07,
+       8.22,
+       4.37
+      ],
+      "freeMemoryMB": 6070
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:43.464Z",
+      "load": [
+       10.07,
+       8.22,
+       4.37
+      ],
+      "freeMemoryMB": 6351
+     },
+     "hostCpuBusyPercent": 66.68472372697725
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 30.84999999962747,
+     "p90Ms": 39.05000000074506,
+     "gpuMedianMs": 5.043139999999999,
+     "batchMediansMs": [
+      30.90000000037253,
+      30.799999998882413,
+      32.59999999962747,
+      30.300000000745058
+     ]
+    },
+    "after": {
+     "medianMs": 30.250000000931323,
+     "p90Ms": 35.60000000055879,
+     "gpuMedianMs": 5.04454,
+     "batchMediansMs": [
+      29.09999999962747,
+      30.800000000745058,
+      29.700000001117587,
+      32.90000000037253
+     ]
+    },
+    "changePercent": -1.94489464733677,
+    "drawTriangleDensityBufferExact": true
+   }
+  },
+  {
+   "preset": "high",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 59.30000000074506,
+      "p90Ms": 80.19999999925494,
+      "gpuMedianMs": 5.4862,
+      "gpuP90Ms": 6.85616
+     },
+     "state": {
+      "drawCalls": 150,
+      "triangles": 1872905,
+      "renderedFrames": 5306,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:48.728Z",
+      "load": [
+       10.22,
+       8.28,
+       4.41
+      ],
+      "freeMemoryMB": 5737
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:53.294Z",
+      "load": [
+       10.36,
+       8.35,
+       4.45
+      ],
+      "freeMemoryMB": 4520
+     },
+     "hostCpuBusyPercent": 83.19536423841059
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 50.40000000037253,
+      "p90Ms": 67.20000000111759,
+      "gpuMedianMs": 5.485,
+      "gpuP90Ms": 5.7718
+     },
+     "state": {
+      "drawCalls": 150,
+      "triangles": 1872905,
+      "renderedFrames": 5306,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:53.316Z",
+      "load": [
+       10.36,
+       8.35,
+       4.45
+      ],
+      "freeMemoryMB": 4513
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:07:57.259Z",
+      "load": [
+       10.26,
+       8.36,
+       4.47
+      ],
+      "freeMemoryMB": 4299
+     },
+     "hostCpuBusyPercent": 73.9776357827476
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 40,
+      "p90Ms": 51.70000000111759,
+      "gpuMedianMs": 5.45212,
+      "gpuP90Ms": 5.6376
+     },
+     "state": {
+      "drawCalls": 150,
+      "triangles": 1872905,
+      "renderedFrames": 5379,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:07:57.292Z",
+      "load": [
+       10.26,
+       8.36,
+       4.47
+      ],
+      "freeMemoryMB": 4298
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:08:00.488Z",
+      "load": [
+       10.26,
+       8.36,
+       4.47
+      ],
+      "freeMemoryMB": 5205
+     },
+     "hostCpuBusyPercent": 65.78322784810126
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 40,
+      "p90Ms": 50.899999998509884,
+      "gpuMedianMs": 5.45872,
+      "gpuP90Ms": 7.7722
+     },
+     "state": {
+      "drawCalls": 150,
+      "triangles": 1872905,
+      "renderedFrames": 5379,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:08:00.511Z",
+      "load": [
+       10.26,
+       8.36,
+       4.47
+      ],
+      "freeMemoryMB": 5203
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:08:03.591Z",
+      "load": [
+       9.99,
+       8.33,
+       4.49
+      ],
+      "freeMemoryMB": 5281
+     },
+     "hostCpuBusyPercent": 68.79852881078872
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 40.29999999888241,
+      "p90Ms": 52.30000000074506,
+      "gpuMedianMs": 5.42984,
+      "gpuP90Ms": 6.2622
+     },
+     "state": {
+      "drawCalls": 150,
+      "triangles": 1872905,
+      "renderedFrames": 5452,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:08:03.610Z",
+      "load": [
+       9.99,
+       8.33,
+       4.49
+      ],
+      "freeMemoryMB": 5281
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:08:06.702Z",
+      "load": [
+       10.48,
+       8.46,
+       4.55
+      ],
+      "freeMemoryMB": 5251
+     },
+     "hostCpuBusyPercent": 73.27357914035446
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 42.80000000074506,
+      "p90Ms": 59.59999999962747,
+      "gpuMedianMs": 5.47508,
+      "gpuP90Ms": 7.84628
+     },
+     "state": {
+      "drawCalls": 150,
+      "triangles": 1872905,
+      "renderedFrames": 5452,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:08:06.720Z",
+      "load": [
+       10.48,
+       8.46,
+       4.55
+      ],
+      "freeMemoryMB": 5236
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:08:10.029Z",
+      "load": [
+       10.48,
+       8.46,
+       4.55
+      ],
+      "freeMemoryMB": 5230
+     },
+     "hostCpuBusyPercent": 87.61615778494216
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 41,
+      "p90Ms": 56.59999999962747,
+      "gpuMedianMs": 5.45408,
+      "gpuP90Ms": 7.86264
+     },
+     "state": {
+      "drawCalls": 150,
+      "triangles": 1872905,
+      "renderedFrames": 5525,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:08:10.062Z",
+      "load": [
+       10.48,
+       8.46,
+       4.55
+      ],
+      "freeMemoryMB": 5229
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:08:13.197Z",
+      "load": [
+       11.56,
+       8.72,
+       4.65
+      ],
+      "freeMemoryMB": 5551
+     },
+     "hostCpuBusyPercent": 88.08808808808809
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 42.5,
+      "p90Ms": 53.600000001490116,
+      "gpuMedianMs": 5.4856,
+      "gpuP90Ms": 7.85444
+     },
+     "state": {
+      "drawCalls": 150,
+      "triangles": 1872905,
+      "renderedFrames": 5525,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T15:08:13.218Z",
+      "load": [
+       11.56,
+       8.72,
+       4.65
+      ],
+      "freeMemoryMB": 5549
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T15:08:16.420Z",
+      "load": [
+       12.4,
+       8.94,
+       4.75
+      ],
+      "freeMemoryMB": 5543
+     },
+     "hostCpuBusyPercent": 89.41291585127202
+    }
+   ],
+   "summary": {
+    "before": {
+     "medianMs": 41.39999999944121,
+     "p90Ms": 52.95000000111759,
+     "gpuMedianMs": 5.47216,
+     "batchMediansMs": [
+      59.30000000074506,
+      40,
+      40.29999999888241,
+      42.5
+     ]
+    },
+    "after": {
+     "medianMs": 41.90000000037253,
+     "p90Ms": 58.09999999962747,
+     "gpuMedianMs": 5.46458,
+     "batchMediansMs": [
+      50.40000000037253,
+      40,
+      42.80000000074506,
+      41
+     ]
+    },
+    "changePercent": 1.2077294708649156,
+    "drawTriangleDensityBufferExact": true
+   }
+  }
+ ],
+ "errors": [],
+ "raw": "/home/lucas/codex-team/logs/performance/static-kit-paired-static.json",
+ "backgroundWork": "General team work active, recorded process names and lifetime CPU percentages in raw file"
+}

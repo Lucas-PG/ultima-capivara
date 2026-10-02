@@ -1,0 +1,121 @@
+[
+  {
+    "file": "/home/lucas/codex-team/logs/performance/static-kit-before-correria-clean.json",
+    "quality": "medium",
+    "mode": "deathmatch",
+    "seconds": 41,
+    "headless": true,
+    "menuMs": 2880,
+    "firstFrameMs": 20469,
+    "cpuThrottle": 4,
+    "pinDensity": true,
+    "machine": {
+      "platform": "linux",
+      "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+      "logicalCpus": 16,
+      "totalMemoryMB": 15905
+    },
+    "fps": 50.7,
+    "fpsByMinute": [
+      50.7
+    ],
+    "p50": 16.7,
+    "p95": 33.4,
+    "p99": 33.4,
+    "max": 50.1,
+    "low1": 24.2,
+    "over20": 370,
+    "over50": 4,
+    "frames": 2067,
+    "gpuMs": 2.63,
+    "gpuPasses": {
+      "world": 1.16,
+      "shadow": 0.24,
+      "mask": 0.03,
+      "atmosphere": 0.3,
+      "post": 0.18,
+      "fp-scene": 0.29,
+      "fp-composite": 0.03,
+      "aa": 0.18,
+      "upscale": 0.24
+    },
+    "cpuMsPerFrame": {
+      "audio": 0.15,
+      "interaction": 0.04,
+      "avatars": 3,
+      "camera": 0.04,
+      "world-update": 0.25,
+      "weapon-view": 0.47,
+      "effects": 0.11,
+      "texture-upload": 0.11,
+      "first-person-draw": 0.73,
+      "world-draw": 11.08,
+      "render": 15.46,
+      "hud": 0.68,
+      "snapshot": 0.07,
+      "driver-shader-compile": 0,
+      "driver-program-link": 0,
+      "shader-program-created": 0
+    },
+    "cpuMax": {
+      "audio": 2.1,
+      "interaction": 2.7,
+      "avatars": 7.8,
+      "camera": 0.8,
+      "world-update": 1.1,
+      "weapon-view": 3.9,
+      "effects": 5.5,
+      "texture-upload": 0.9,
+      "first-person-draw": 4.5,
+      "world-draw": 17.8,
+      "render": 27.2,
+      "hud": 11.4,
+      "snapshot": 0.9,
+      "driver-shader-compile": 0,
+      "driver-program-link": 0,
+      "shader-program-created": 0,
+      "worker-tick": 0.8
+    },
+    "workerTickMs": 0.47,
+    "longTasks": 0,
+    "heapMB": [
+      249.7,
+      316.5
+    ],
+    "draws": 144,
+    "triangles": 1466246,
+    "density": {
+      "mean": 1.25,
+      "min": 1.25,
+      "max": 1.25
+    },
+    "buffer": [
+      2940,
+      1912
+    ],
+    "buffers": [
+      "2940x1912"
+    ],
+    "thermal": {
+      "null": 40
+    },
+    "load": 0.75,
+    "stages": {
+      "ground": 40
+    },
+    "stageFps": {
+      "countdown": {
+        "seconds": 2,
+        "fps": 55.4,
+        "p95": 33.3
+      },
+      "ground": {
+        "seconds": 48,
+        "fps": 51.2,
+        "p95": 33.4
+      }
+    },
+    "errors": 0,
+    "gc": []
+  }
+]
