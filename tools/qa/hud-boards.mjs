@@ -48,6 +48,16 @@ const STATES = [
     post.push({ type: 'supply', id: 9501, drop: 'supply-9', pos: at, district: 'vila', stage: 'landed' });
     post.push({ type: 'notice', id: 9502, text: 'A tempestade está fechando!' });` },
   { name: 'scope', label: 'Mira de luneta', pose: 'hud-full', js: `me.slot = 1; me.ads = true;` },
+  { name: 'falling', label: 'Queda livre: abrir paraquedas', pose: 'hud-full', js: `me.stage = 'falling'; me.pos.y = at.y + 65;` },
+  { name: 'landing', label: 'Pousou na ilha', pose: 'hud-full', js: `ui.showMoment('Pé na ilha!', 'A última capivara de pé vence.', 'launch');` },
+  { name: 'heal-complete', label: 'Cura concluída e ganho de vida', pose: 'hud-full', js: `me.hp = 100; post.push({ type: 'use', id: 9601, actor: 'practice', item: 'medkit' });` },
+  { name: 'upgrade', label: 'Corrente: próxima arma', pose: 'hud-corrente', js: `post.push({ type: 'upgrade', id: 9602, actor: 'practice', weapon: 'dmr', level: 6 });` },
+  { name: 'storm-warning', label: 'Aviso de tempestade', pose: 'hud-full', js: `ui.showMoment('10', 'A tempestade vem aí!', 'storm');` },
+  { name: 'swim', label: 'Nadando: restrição de arma', pose: 'hud-full', js: `me.swimming = true; me.slot = 2;` },
+  { name: 'victory', label: 'Vitória: última capivara de pé', pose: 'hud-full', result: { mode: 'battle-royale', place: 1 }, wait: 1150 },
+  { name: 'result-loss', label: 'Fim de partida: sua posição e a campeã', pose: 'hud-full', result: { mode: 'battle-royale', place: 8 }, wait: 1150 },
+  { name: 'result-correria', label: 'Correria: resultado e quedas', pose: 'hud-full', result: { mode: 'deathmatch', place: 2 }, wait: 1150 },
+  { name: 'result-corrente', label: 'Corrente: sequência completa', pose: 'hud-full', result: { mode: 'corrente', place: 1 }, wait: 1150 },
 ].filter(state => !process.env.STATES || process.env.STATES.split(',').includes(state.name));
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
@@ -66,10 +76,20 @@ try {
     await page.waitForTimeout(300);
     for (const state of STATES) {
       await page.evaluate(p => window.__capyQA.pose(p), state.pose);
-      await page.evaluate(async ({ js, prompt, coach, pose, scope }) => {
+      await page.evaluate(async ({ js, prompt, coach, pose, scope, result }) => {
         const ui = window.__hudQA, s = structuredClone(ui.snapshot), me = s.actors.find(a => a.id === 'practice');
         // A fresh HUD per state (as at the start of a match), so nothing transient leaks from the previous shot.
         const heading = ui.heading; ui.game('practice'); ui.scopeReady = scope; document.querySelector('#toast')?.replaceChildren();
+        if (result) {
+          s.config.mode = result.mode; s.phase = 'results';
+          const order = s.actors.filter(a => a.id !== 'practice'); order.splice(result.place - 1, 0, me);
+          s.results = order.map((actor, index) => ({ id: actor.id, name: actor.name, color: actor.color, bot: actor.bot,
+            place: index + 1, winner: index === 0, kills: Math.max(1, 9 - index), deaths: result.mode === 'battle-royale' ? Number(index > 0) : index + 2,
+            damage: Math.max(120, 1268 - index * 97), shots: 83, hits: 38, headshots: Math.max(0, 3 - index), survived: 746 - index * 22,
+            chests: index === 0 ? 5 : 2, longestShot: index === 0 ? 87 : 31 }));
+          ui.hudTime = 0; ui.update(s, 'practice', 0, false, 60, null);
+          return;
+        }
         const t = s.time, at = { ...me.pos }, post = [], pre = structuredClone(me);
         let spectate = ui.spectate, watchAgo = 0, useFrom = null;
         document.getAnimations().forEach(a => a.cancel());
@@ -97,7 +117,7 @@ try {
         if (watchAgo) ui.watchSince = performance.now() - watchAgo;
         ui.hudTime = 0; ui.update(s, 'practice', 0, false, 60, interaction);
         ui.heading = -1; ui.frameCompass(heading);
-      }, { js: state.js, prompt: !!state.prompt, coach: !!state.coach, pose: state.pose, scope: state.name === 'scope' });
+      }, { js: state.js, prompt: !!state.prompt, coach: !!state.coach, pose: state.pose, scope: state.name === 'scope', result: state.result });
       // Let entrance motion settle to a representative frame, then freeze every animation there.
       await page.waitForTimeout(state.wait ?? 140);
       await page.evaluate(() => document.getAnimations().forEach(a => a.pause()));
