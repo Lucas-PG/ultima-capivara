@@ -37,6 +37,12 @@ const contact = (value: number, label: string) => {
 const samples = reported.map(row => ({ weapon: row.weapon as WeaponId, phase: Number(row.state.split('-').at(-1)), empty: !row.state.startsWith('reload-partial') }));
 // Keep the rifle-carrying wrist anatomical through the generic belt reach.
 for (const phase of [.375, .45, .5, .55, .625]) samples.push({ weapon: 'sniper', phase, empty: true });
+// Sample real holding and open-hand travel between the SMG fitted keys.
+for (const phase of [.17, .2225, .305, .35, .42, .475, .5, .525, .57, .66, .685, .695, .7075, .7275]) samples.push({ weapon: 'smg', phase, empty: true });
+// Exercise both actual reload ramps through intermediate digit poses.
+for (const empty of [true, false]) for (const phase of [.003, .01, .02, .03, .04, .05, .06, ...(empty ? [.913, .92, .93, .94, .95, .96, .97] : [.883, .89, .9, .91, .92, .93, .94])]) samples.push({ weapon: 'm4', phase, empty });
+for (const phase of [.305, .31, .34, .35, .355, .36]) samples.push({ weapon: 'm4', phase, empty: true });
+for (const phase of [.005, .465, .47, .47125, .4975, .515, .51875, .799, .801, .804]) samples.push({ weapon: 'smg', phase, empty: true });
 // The previous candidate's two interpolation gaps must be accepted independently.
 for (const phase of [.28375, .60875]) samples.push({ weapon: 'm4', phase, empty: true });
 describe('replicated world reload real-skin regressions', () => {
@@ -68,5 +74,16 @@ describe('replicated world reload real-skin regressions', () => {
       expect.soft(wrist.deviation, `${side} deviation`).toBeGreaterThanOrEqual(-25.01); expect.soft(wrist.deviation, `${side} deviation`).toBeLessThanOrEqual(20.01);
       expect.soft(Math.abs(wrist.pronation), `${side} pronation`).toBeLessThanOrEqual(80.01);
     }
+  });
+});
+
+
+describe('world revolver open cylinder skin', () => {
+  for (const empty of [true, false]) for (const phase of [.17, .835]) it(`open support ${phase} ${empty ? 'empty' : 'tactical'} clears the cylinder`, () => {
+    const avatar = poseWorldReload(view, scene, 'revolver', phase, empty);
+    probeWindow.capyReview = { avatar, renderer: { scene } }; installThirdPersonGripProbe({ weaponId: 'revolver' });
+    expect(measureGrip(['revolver', 'L']).worst).toBeGreaterThanOrEqual(-.5);
+    const support = measureGrip(['revolver', 'L', false, { surface: 'cylinder' }]);
+    contact(support.regions.palm, 'open cylinder palm'); contact(support.regions.wrap, 'open cylinder wrap');
   });
 });

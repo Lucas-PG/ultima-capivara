@@ -52,8 +52,9 @@ try {
           if (Math.abs(w.flexion) > 45.01 || w.deviation < -25.01 || w.deviation > 20.01 || Math.abs(w.pronation) > 80.01) row.failures.push(`${side} wrist outside anatomical limits`);
           continue;
         }
+        const openCylinder = weapon === 'revolver' && surface === 'cylinder' && (sample?.parts.swing ?? 0) >= 1 - 1e-6;
         const cm = measureGrip([weapon, side, surface === 'paw', { surface: surface === 'paw' ? undefined : surface, bones: side === 'R' && surface === 'body' ? carrying : undefined }]);
-        const c = row.contacts[side] = { surface, gap: cm.worst, ...(intent === 'mag-seat' ? { palm: cm.regions.palm } : ['body', 'paw', 'pump', 'mag'].includes(surface) ? { palm: cm.regions.palm, wrap: cm.regions.wrap } : {}) };
+        const c = row.contacts[side] = { surface, gap: cm.worst, ...(intent === 'mag-seat' ? { palm: cm.regions.palm } : (['body', 'paw', 'pump', 'mag'].includes(surface) || openCylinder) ? { palm: cm.regions.palm, wrap: cm.regions.wrap } : {}) };
         for (const key of ['gap', 'palm', 'wrap']) if (c[key] !== undefined && (!Number.isFinite(c[key]) || c[key] < -.5 || c[key] > 1.5)) row.failures.push(`${side} ${surface} ${key} ${c[key]} mm`);
       }
       const w = wrists[side] as { flexion: number; deviation: number; pronation: number };

@@ -40,12 +40,12 @@ try {
     WORLD_GRIPS[weapon] = grips;
     const phase = job.reloadPhase as number | undefined, empty = job.empty !== false;
     const keys = phase === undefined ? null : worldReload(weapon, empty);
-    if (phase !== undefined && (phase < 0 || phase >= 1 || job.intent.side !== 'L')) throw new Error('Reload fitting needs an authored L channel and phase in [0, 1)');
-    const baseline = keys ? structuredClone(sampleChoreo(keys, phase!, newSample()).L) : null;
-    const originalKeys = keys?.map(key => ({ key, L: key.L }));
+    if (phase !== undefined && (phase < 0 || phase >= 1)) throw new Error('Reload fitting needs phase in [0, 1)');
+    const baseline = keys ? structuredClone(sampleChoreo(keys, phase!, newSample())[job.intent.side as 'R' | 'L']) : null;
+    const originalKeys = keys?.map(key => ({ key, hand: key[job.intent.side as 'R' | 'L'] }));
     // This process alone replaces the support channel. All moving parts and
     // gun/body choreography remain at the actual requested reload phase.
-    for (const entry of originalKeys ?? []) entry.key.L = { space: 'grip' };
+    for (const entry of originalKeys ?? []) entry.key[job.intent.side as 'R' | 'L'] = { space: 'grip' };
     avatars.prepare([]);
     const actor = { id: 'fit', name: 'Capivara', color: '#1fb5a8', pos: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 },
       alive: true, hp: 100, armor: 0, helmet: 0, kills: 0, stage: 'ground', grounded: true, crouch: false, yaw: 0, pitch: 0, lean: 0,
@@ -62,7 +62,8 @@ try {
     const avatar = avatars.get(actor.id)!;
     Object.assign(globalThis, { capyReview: { avatar, renderer: { scene } } });
     const indices = await worldTriggerIndices(weapon);
-    const contactIndices = job.bakedPart ? { [job.bakedPart]: await worldContactIndices(weapon, job.bakedPart) } : undefined;
+    const contactName = job.bakedPart === 'body' ? 'bodyContact' : job.bakedPart;
+    const contactIndices = job.bakedPart ? { [contactName]: await worldContactIndices(weapon, job.bakedPart) } : undefined;
     installThirdPersonGripProbe({ weaponId: weapon, triggerIndices: indices, contactIndices });
     const vm = (globalThis as any).__vmProbe, model = vm.models[weapon];
     const source = avatar.body.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh;
@@ -75,7 +76,7 @@ try {
     // supplies a contact target; it does not change or render the weapon mesh.
     const trigger = model.parts.trigger;
     model.parts.body = avatar.weapon;
-    model.group = { traverse(callback: (o: unknown) => void) { avatar.weapon.traverse(callback); if (trigger) callback(trigger); if (job.bakedPart) callback(model.parts[job.bakedPart]); },
+    model.group = { traverse(callback: (o: unknown) => void) { avatar.weapon.traverse(callback); if (trigger) callback(trigger); if (job.bakedPart) callback(model.parts[contactName]); },
       getObjectByName: avatar.weapon.getObjectByName.bind(avatar.weapon) };
     vm.solveArms = (_model: unknown, next: typeof grips) => {
       WORLD_GRIPS[weapon] = next;
@@ -95,8 +96,8 @@ try {
     }
     measureGrip([weapon, job.intent.side]);
     const baselineKey = baseline?.a as HandKey | undefined;
-    let start = job.startFrom ? JSON.parse(await readFile(job.startFrom, 'utf8')).final.grip : job.start ?? (baselineKey?.space === 'part' ? {
-      ...grips.L, ...baselineKey, curl: { ...grips.L!.curl, ...baselineKey.curl }, pole: baselineKey.pole ?? grips.L!.pole,
+    let start = job.startFrom ? JSON.parse(await readFile(job.startFrom, 'utf8')).final.grip : job.start ?? ((baselineKey?.space === 'part' || baselineKey?.space === 'gun') ? {
+      ...grips[job.intent.side as 'R' | 'L'], ...baselineKey, curl: { ...grips[job.intent.side as 'R' | 'L']!.curl, ...baselineKey.curl }, pole: baselineKey.pole ?? grips[job.intent.side as 'R' | 'L']!.pole,
     } : grips[job.intent.side as 'R' | 'L']);
     if (job.seedNeutral && job.intent.part) {
       // An optional search seed straightens the actual arm while preserving the
@@ -145,7 +146,7 @@ try {
     // and canonical regions match the browser evidence exactly.
     installThirdPersonGripProbe({ weaponId: weapon, triggerIndices: indices, contactIndices });
     const side = job.intent.side, opposing = !job.intent.part && side === 'L' && (weapon === 'pistol' || weapon === 'revolver');
-    const contactOptions = job.intent.part ? { surface: job.intent.part } : {};
+    const contactOptions = job.measureSurface ? { surface: job.measureSurface } : job.intent.part ? { surface: job.intent.part } : {};
     result.skin = measureGrip([weapon, side]);
     if (job.intent.withPaw) result.pair = measureGrip([weapon, side, true]);
     result.contact = measureGrip([weapon, side, opposing, contactOptions]);
@@ -170,7 +171,7 @@ try {
       carrying: result.carryingSkin?.worst, trigger: result.trigger?.nearestSurfaceDistance, guard: result.insideGuard }));
     WORLD_GRIPS[weapon] = original;
     for (const entry of originalKeys ?? []) {
-      if (entry.L) entry.key.L = entry.L; else delete entry.key.L;
+      if (entry.hand) entry.key[job.intent.side as 'R' | 'L'] = entry.hand; else delete entry.key[job.intent.side as 'R' | 'L'];
     }
   }
 } finally { avatars.dispose(); disposeCapybaraAssets(); disposeAircraftAssets(); }

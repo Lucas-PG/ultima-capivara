@@ -833,9 +833,11 @@ function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun
     const pf = freePalmFore.copy(p).addScaledVector(f, -p.dot(f)).normalize();
     const tf = freeThumbFore.crossVectors(f, pf).multiplyScalar(sign).normalize();
     const along = h.dot(f);
-    const flex = THREE.MathUtils.clamp(Math.atan2(h.dot(pf), along), -42 * radians, 42 * radians);
-    const dev = THREE.MathUtils.clamp(Math.atan2(h.dot(tf), along), -22 * radians, 17 * radians);
-    const roll = THREE.MathUtils.clamp(-sign * Math.atan2(freeCross.crossVectors(medial, pf).dot(f), medial.dot(pf)), -77 * radians, 77 * radians);
+    const rawFlex = Math.atan2(h.dot(pf), along), rawDev = Math.atan2(h.dot(tf), along);
+    const rawRoll = -sign * Math.atan2(freeCross.crossVectors(medial, pf).dot(f), medial.dot(pf));
+    const flex = THREE.MathUtils.clamp(rawFlex, -44.9 * radians, 44.9 * radians);
+    const dev = THREE.MathUtils.clamp(rawDev, -24.9 * radians, 19.9 * radians);
+    const roll = THREE.MathUtils.clamp(rawRoll, -79.9 * radians, 79.9 * radians);
     pf.copy(medial).applyAxisAngle(f, -sign * roll);
     tf.crossVectors(f, pf).multiplyScalar(sign).normalize();
     h.copy(f).addScaledVector(pf, Math.tan(flex)).addScaledVector(tf, Math.tan(dev)).normalize();
