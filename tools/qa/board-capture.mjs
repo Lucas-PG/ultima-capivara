@@ -17,11 +17,16 @@ const BOARD_ALL = {
 };
 const BOARD = env.POSES ? Object.fromEntries(env.POSES.split(',').map(name => [name, BOARD_ALL[name]])) : BOARD_ALL;
 const browser = await chromium.launch({ headless: env.HEADED !== '1', channel: 'chrome',
-  args: ['--use-gl=angle', '--use-angle=metal', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
+  args: ['--use-gl=angle', process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=gl-egl', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
 try {
   const page = await browser.newPage({ viewport: { width: 1470, height: 956 }, deviceScaleFactor: 2 });
   page.on('pageerror', error => console.error('pageerror', error.message));
   await page.addInitScript(() => localStorage.setItem('uc-onboarded', '1'));
+  // Optional fixed procedural randomness for strict pixel identity experiments.
+  if (env.SEED) await page.addInitScript(seed => {
+    let state = seed >>> 0;
+    Math.random = () => { state = Math.imul(state ^ (state >>> 16), 2246822507); state = Math.imul(state ^ (state >>> 13), 3266489909); state ^= state >>> 16; return (state >>> 0) / 4294967296; };
+  }, Number(env.SEED));
   await page.goto(`${base}/?qa=1${env.QUERY || ''}`);
   await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 120_000 });
   await page.evaluate(() => window.__capyQA.start());
@@ -36,7 +41,7 @@ try {
       // A fresh preset application restores the preset's full render density before the capture.
       await page.evaluate(q => window.__capyQA.quality(q), preset);
       await page.waitForTimeout(250);
-      await page.screenshot({ path: `${out}/${preset}-${name}.png` });
+      await page.screenshot({ path: `${out}/${preset}-${name}.png`, animations: 'disabled' });
       const size = await page.evaluate(() => [document.querySelector('#game').width, document.querySelector('#game').height]);
       console.log(preset, name, size.join('x'));
     }

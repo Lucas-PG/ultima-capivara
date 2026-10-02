@@ -32,6 +32,7 @@ export function summarize(run) {
   for (const s of settled) { frames += s.renderedFrames; ms += s.intervals.reduce((x, y) => x + y, 0); if (s.t - minuteAt >= 60 || s === settled.at(-1)) { minutes.push(+(frames / Math.max(.001, ms / 1000)).toFixed(1)); minuteAt = s.t; frames = 0; ms = 0; } }
   return {
     quality: run.quality, mode: run.mode, seconds: Math.round(seconds), headless: run.headless, menuMs: run.menuMs, firstFrameMs: run.firstFrameMs,
+    cpuThrottle: run.cpuThrottle ?? 1, pinDensity: run.pinDensity ?? false, machine: run.machine ?? null,
     fps: +(rendered / Math.max(1, seconds)).toFixed(1), fpsByMinute: minutes,
     p50: +at(sorted, .5).toFixed(1), p95: +at(sorted, .95).toFixed(1), p99: +at(sorted, .99).toFixed(1), max: +(sorted.at(-1) ?? 0).toFixed(1),
     low1: +(1000 / Math.max(1, mean(worst))).toFixed(1), over20: intervals.filter(n => n > 20).length, over50: intervals.filter(n => n > 50).length,
