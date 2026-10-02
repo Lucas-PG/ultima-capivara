@@ -15,7 +15,7 @@ const states = [
   ['inspect', 'inspect', 1.2], ['draw', 'draw', .2], ['holster', 'holster', .06],
 ];
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=gl-egl'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const captures = [];
 try {
   const page = await browser.newPage({ viewport: { width: 1470, height: 956 }, deviceScaleFactor: 1 });
