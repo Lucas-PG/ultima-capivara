@@ -11,7 +11,7 @@ The original left wrist exceeded the radial-deviation limit while pressing the r
 
 At both held phases, the corrected whole left skin minimum is 0.038 mm and the opposing-paw minimum is 5.314 mm. The right carrying palm and wrap remain required and measured. Across 44 empty-reload samples from phase 0.750 through 0.965, spaced by 0.005, all skin, contact and wrist checks pass. The corrected held wrist flexion is about -42 degrees, within the unchanged +/-45-degree limit.
 
-Validation passes: 19 new release and transition regressions, both original pistol reload regressions, all nine pistol ready states, TypeScript and the QA production build. Replaying all 122 original pistol rows against the same local baseline (`19fa917`) reduces failed rows from 53 to 51 with no newly failing row. This patch resolves the two release-lever findings.
+Validation passes: 19 new release and transition regressions, both original pistol reload regressions, all nine pistol ready states, TypeScript and the QA production build. Replaying all 122 original pistol rows against the same local baseline (`19fa917`) reduces failed rows from 53 to 51 with no newly failing row. This patch resolves the two release-lever findings. The lead then combined it with the independent world fetch corrections and replayed the same 122-row catalogue: 47 rows remain failing, as recorded in the [integration report](codex-holding-fix-report.md).
 
 The magazine-carry cluster and right-paw collisions with the moving magazine remain outside this retained change. A trial vertical magazine fit seated the palm and wrap at phase 0.67, but produced excessive wrist deviation during the lowered pose and collisions on approach/exit. That candidate was rejected and its raw output remains private.
 
