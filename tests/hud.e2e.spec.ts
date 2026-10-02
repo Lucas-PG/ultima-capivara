@@ -73,3 +73,23 @@ test('Full-screen match panels clear combat feedback and preserve keyboard dismi
   await page.evaluate(() => window.__hudQA!.setPaused(false));
   await expect(page.locator('#hotbar')).toBeVisible();
 });
+
+test('Colorblind hit shapes and calm combat feedback survive the match layout', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('uc-onboarded', '1');
+    localStorage.setItem('uc-v2-settings', JSON.stringify({ hitPalette: 'colorblind', reducedMotion: true }));
+  });
+  await page.goto('/?qa=1');
+  await page.waitForFunction(() => !!window.__capyQA && !!window.__hudQA);
+  await page.evaluate(async () => { await window.__capyQA!.start(); await window.__capyQA!.pose('hud-full'); });
+  await expect(page.locator('body')).toHaveClass(/reduce-motion/);
+  const palette = await page.locator('body').evaluate(el => ({
+    head: getComputedStyle(el).getPropertyValue('--hithead').trim(),
+    kill: getComputedStyle(el).getPropertyValue('--hitkill').trim(),
+  }));
+  expect(palette).toEqual({ head: '#3fd8ff', kill: '#ff4fd8' });
+  await expect(page.locator('#hotbar .hs.on .hs-selected')).toBeVisible();
+  const motion = await page.locator('#killConfirm').evaluate(el => getComputedStyle(el).animationName);
+  expect(motion).toBe('rm-in');
+  await expect(page.locator('#killConfirm small')).toHaveText('Eliminou');
+});

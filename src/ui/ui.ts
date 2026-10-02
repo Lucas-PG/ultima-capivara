@@ -97,7 +97,7 @@ export class GameUI {
   private deathInfo: { place: number; line: string; card: string | null; until: number; late: boolean; left: string | null } | null = null;
   private watchSince = 0;
   private killConfirmTimer = 0;
-  // Own eliminations this match, counted from the kill events (the snapshot may or may not include the newest yet).
+  // Distinguishes joining an ongoing match from being eliminated after playing.
   private sawAlive = false;
   private lastHits = new Map<string, { actor: string; head: boolean }>();
   private useTrack: { item: ConsumableId; until: number; total: number } | null = null;

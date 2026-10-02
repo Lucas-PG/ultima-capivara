@@ -857,13 +857,14 @@ body:has(#pause-panel:not([hidden]),#scoreboard:not([hidden])) #hud{visibility:h
   .topbar .brand{font-size:12px}
   .title-screen h1{--h:min(11vw,64px)}
   .title-screen h1 .logo-top{padding-bottom:20px}
-  .title-screen h1 .title-stamp{left:calc(var(--h) * 4.65);top:0}
+  .title-screen h1 .title-stamp{left:calc(var(--h) * 4.65);top:0;width:128px}
   .title-screen .logo-lockup{max-width:100%}
-  .title-screen .hero-actions .button.warmup{padding:12px;gap:10px;font-size:18px}
+  .title-screen .hero-actions .button.warmup{padding:12px;gap:10px;font-size:18px;white-space:normal}
+  .title-screen .hero-actions .button.warmup>span{min-width:0}
   .title-screen .hero-actions .button.warmup>.icon:first-child{width:42px;height:42px;padding:8px}
   .title-screen .hero-actions .button.warmup>.icon:last-child{display:none}
   .title-screen .hero-actions .button.secondary{flex-basis:100%;font-size:14px}
-  .title-screen .hero-facts{padding-left:0;gap:8px;margin-top:10px}
+  .title-screen .hero-facts{padding-left:0;gap:8px;margin-top:10px;flex-wrap:wrap}
   .title-screen .hero-facts>span{font-size:12px;letter-spacing:0;padding:4px 8px}
   .title-screen .hero-facts .burst{width:72px;height:72px;font-size:12px;margin:0}
 }
