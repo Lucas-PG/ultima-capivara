@@ -10,10 +10,14 @@ export async function startDriver(page, options = {}) {
     const step = () => {
       const i = window.__capivara.inspect(), s = i.snapshot;
       if (!s) return;
-      const me = s.actors.find(a => !a.bot), now = s.time;
+      const me = s.actors.find(a => a.id === i.room?.myId) || s.actors.find(a => !a.bot), now = s.time;
       if (s.phase !== 'playing' || !me.alive) {
         q.key('KeyW', false); q.key('ShiftLeft', false); q.key('Mouse2', false);
         if (s.phase === 'playing' && s.config.mode === 'battle-royale' && now - d.watchedAt > 12) { tap('Space'); d.watchedAt = now; }
+        return;
+      }
+      if (s.round && s.round.phase !== 'live') {
+        q.key('KeyW', false); q.key('ShiftLeft', false); q.key('Mouse2', false);
         return;
       }
       if (me.stage !== 'ground') {
@@ -30,7 +34,7 @@ export async function startDriver(page, options = {}) {
       }
       if (!i.clientInput.locked) q.activate();
       const eye = { ...me.pos, y: me.pos.y + (me.crouch ? 1.02 : 1.62) };
-      const enemies = s.actors.filter(a => a.bot && a.alive && a.stage === 'ground')
+      const enemies = s.actors.filter(a => a.bot && a.alive && a.stage === 'ground' && (me.team === undefined || a.team !== me.team))
         .map(a => ({ a, distance: Math.hypot(a.pos.x - me.pos.x, a.pos.z - me.pos.z) })).sort((a, b) => a.distance - b.distance);
       const enemy = enemies.find(e => e.distance < 55 && collision.hasLineOfSight(eye, { ...e.a.pos, y: e.a.pos.y + 1.1 }, world));
       const held = me.weapons[me.slot], def = held && weapons.WEAPONS[held.id];
