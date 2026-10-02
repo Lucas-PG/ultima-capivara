@@ -48,7 +48,7 @@ export class RoundModesUI {
   update(snapshot: WorldSnapshot, me: ActorState, buyKey: string, thumbs: Map<string, string> | null) {
     this.snapshot = snapshot; this.me = me; this.buyKey = buyKey; this.thumbs = thumbs;
     const round = snapshot.round;
-    this.hud.hidden = !round || snapshot.phase === 'results';
+    this.hud.hidden = !round || snapshot.phase !== 'playing';
     if (!round || !isRoundMode(snapshot.config.mode)) { this.close(false); return; }
     if (this.dialog && (round.phase !== 'buy' || !me.alive || snapshot.phase === 'results')) this.close(true);
     const seconds = Math.max(0, Math.ceil(round.endsAt - snapshot.time));
