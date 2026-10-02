@@ -25,7 +25,7 @@ export async function holdingMetrics(weapon, state, pose, probe) {
   if (weapon === 'pistol' || weapon === 'revolver') row.pair = row.contacts.L?.surface === 'paw' ? row.contacts.L.gap : (await probe([weapon, 'L', true])).worst;
   if (pose.contacts?.trigger) {
     const trigger = await probe([weapon, 'R', false, TRIGGER_FACE]);
-    row.trigger = { frontDistance: trigger.nearestSurfaceDistance, signedDiagnostic: trigger.worst, insideGuard: triggerInGuard(weapon, trigger.digits.index?.tip), digits: trigger.digits, skin: trigger.summary };
+    row.trigger = { frontDistance: trigger.nearestSurfaceDistance, signedDiagnostic: trigger.worst, insideGuard: triggerInGuard(weapon, trigger.digits.index?.tip, pose.weaponScale ?? 1), digits: trigger.digits, skin: trigger.summary };
   }
   row.failures = [];
   for (const key of ['R', 'L', 'pair']) if (row[key] !== undefined && row[key] < -.5) row.failures.push(`${key} penetrates ${row[key]} mm`);

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import metrics from '../../public/models/arsenal/metrics.json';
 import type { WeaponId } from '../shared/types';
-import type { GripSpec } from './viewmodel-specs';
+import { heldCurl, type GripSpec } from './viewmodel-specs';
 import type { ChoreoSample, HandKey } from './viewmodel-choreo';
 import { blendCurl } from './fp-arms';
 import { pistolReload, smgReload, REVOLVER_RELOAD } from './viewmodel-anims';
@@ -77,7 +77,9 @@ export function shortWorldGrip(rest: GripSpec, channel: ChoreoSample['L'], parts
       forward.applyQuaternion(rotation); palm.applyQuaternion(rotation);
     }
     if (key.offset) wrist.add(new THREE.Vector3().fromArray(key.offset));
-    return { ...rest, wrist: wrist.toArray(), forward: forward.toArray(), palm: palm.toArray(), curl: { ...rest.curl, ...key.curl } };
+    const curl = key.indexed ? heldCurl(rest, 1) : rest.curl;
+    return { ...rest, wrist: wrist.toArray(), forward: forward.toArray(), palm: palm.toArray(),
+      curl: { ...curl, ...key.curl, indexSpread: key.curl?.indexSpread ?? (key.curl?.index ? 0 : curl.indexSpread) } };
   };
   const a = resolve(channel.a), b = resolve(channel.b), u = channel.u;
   const mix = (v: readonly number[], w: readonly number[]) => new THREE.Vector3().fromArray(v).lerp(new THREE.Vector3().fromArray(w), u).toArray();
