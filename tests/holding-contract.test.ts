@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { blendCurl } from '../src/render/fp-arms';
-import { handContact } from '../src/render/viewmodel-choreo';
+import { handContact, newSample, sampleChoreo } from '../src/render/viewmodel-choreo';
+import { M4_RELOAD_EMPTY, RELOADS } from '../src/render/viewmodel-anims';
 import { heldCurl, VIEW_SPECS } from '../src/render/viewmodel-specs';
 // @ts-expect-error Standalone browser/Node QA probes deliberately have no TypeScript dependency.
 import { triggerInGuard } from '../tools/qa/trigger-guard.mjs';
+// @ts-expect-error Standalone browser/Node QA report contract.
+import { holdingMetrics } from '../tools/qa/holding-metrics.mjs';
 
 describe('trigger guard intent', () => {
   it('rejects the original lateral contacts even when their surface gap was small', () => {
@@ -37,6 +40,23 @@ describe('carrying contact intent', () => {
   });
   it('keeps the load-bearing fingers in contact when only the trigger digit indexes', () => {
     expect(handContact({ a: { space: 'grip' }, b: { space: 'grip', curl: { index: [0, 0, 0] } }, u: .5 }, 'body')).toBe('body');
+  });
+});
+
+describe('active contact audit', () => {
+  it('rejects a floating palm even when wrapping fingers and the trigger both touch', async () => {
+    const row = await holdingMetrics('smg', { action: 'hip', t: 0 }, {
+      active: 'smg', visible: { R: true, L: false }, contacts: { R: 'body', trigger: true }, wrists: {},
+    }, async ([, , , options = {}]: [string, string, boolean?, { surface?: string; region?: string }?]) => ({
+      worst: options.region === 'palm' ? 4 : .2, summary: {}, digits: { index: { tip: [3, -14, -35] } },
+    }));
+    expect(row.failures).toEqual(['R body palm contact 4 mm']);
+  });
+  it('requires shell push and bolt catch contact while exempting the open magazine approach', () => {
+    expect(handContact(sampleChoreo(M4_RELOAD_EMPTY, .72, newSample()).L, 'body')).toBeNull();
+    expect(handContact(sampleChoreo(M4_RELOAD_EMPTY, .86, newSample()).L, 'body')).toBe('release');
+    expect(handContact(sampleChoreo(RELOADS.shotgun!, .665, newSample()).L, 'pump')).toBe('mag');
+    expect(handContact(sampleChoreo(RELOADS.shotgun!, .70, newSample()).L, 'pump')).toBe('mag');
   });
 });
 

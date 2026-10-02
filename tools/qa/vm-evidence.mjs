@@ -43,6 +43,7 @@ try {
     await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1`);
     await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 90000 });
     await page.evaluate(async () => { await window.__capyQA.start(); window.__capyQA.quality('medium'); });
+    if (process.env.TUNE) await page.evaluate(tune => { window.__vmTune = tune; }, JSON.parse(readFileSync(process.env.TUNE, 'utf8')));
     await page.addStyleTag({ content: '#confetti,#flash{display:none!important}' });
     for (const weapon of list.split(',')) {
       for (const [id, label, action, t] of states(weapon).filter(([id]) => !process.env.ONLY || process.env.ONLY.split(',').includes(id))) {

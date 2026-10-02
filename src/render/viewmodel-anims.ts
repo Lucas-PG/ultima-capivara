@@ -111,7 +111,7 @@ export const M4_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.061
 const M4_SEAT_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.039363, -0.271518, -0.037076],
   forward: [0.922329, 0.267645, -0.278703], palm: [-0.257714, 0.963504, 0.072407],
   curl: { index: [0.09, 0.135, 0.09], middle: [0.09, 0.135, 0.09], ring: [0.108, 0.135, 0.09], thumb: [0.09, 0.09, 0.09], spread: 0.2000 } };
-const M4_CATCH_HAND: HandKey = { space: 'gun', wrist: [-0.060181, -0.017140, 0.059754], forward: [-0.101290, 0.870514, -0.481607], palm: [0.795853, 0.361380, 0.485820], curl: { index: [0.180000, 0.220000, 0.090000], middle: [0.180000, 0.220000, 0.090000], ring: [-0.095196, 0.219917, 0.090180], thumb: [0.090000, 0.090000, 0.090000], spread: 0.2000 }, pole: [-1, -.25, .3] };
+const M4_CATCH_HAND: HandKey = { space: 'gun', contact: 'release', wrist: [-0.060181, -0.017140, 0.059754], forward: [-0.101290, 0.870514, -0.481607], palm: [0.795853, 0.361380, 0.485820], curl: { index: [0.180000, 0.220000, 0.090000], middle: [0.180000, 0.220000, 0.090000], ring: [-0.095196, 0.219917, 0.090180], thumb: [0.090000, 0.090000, 0.090000], spread: 0.2000 }, pole: [-1, -.25, .3] };
 const M4_TRIGGER_CLEAR = INDEXED;
 // Present the magazine well: lift and roll the rifle's belly toward the eye.
 const M4_TILT: { p: Vec; r: Vec } = { p: [-.06, .035, -.05], r: [.22, .3, -.5] };
@@ -135,7 +135,7 @@ const M4_SWAP: Choreography = [
   { t: .70, L: M4_MAG_HAND, mag: { out: .025 } },
   // Release the shaft, clear its left edge and put the palm beneath the floorplate.
   { t: .709, L: shift(M4_MAG_HAND, [-.108, 0, 0], { curl: OPEN }) },
-  { t: .72, L: { ...M4_MAG_HAND, wrist: [-.17, -.31, -.045], curl: OPEN } },
+  { t: .72, L: { ...M4_MAG_HAND, contact: false, wrist: [-.17, -.31, -.045], curl: OPEN } },
   { t: .733, L: shift(M4_SEAT_HAND, [-.15, -.047, 0]) },
   { t: .75, L: shift(M4_SEAT_HAND, [0, -.029, 0]) },
   { t: .77, L: M4_SEAT_HAND, mag: { out: 0 }, ease: 'snap', sfx: 'mag-in' },
@@ -419,8 +419,8 @@ const SHOTGUN_SHELL: Choreography = [
   { t: .56, L: shift(SHOTGUN_PUSH_START, [-.012, -.02, 0]), mag: { out: .02, p: [0, -.016, 0] } },
   // Uncurl below the gate, lift into the tube axis, then push the case head.
   { t: .62, L: SHOTGUN_PUSH_START, mag: { out: .02, p: [0, .019, 0] } },
-  { t: .665, L: shift(SHOTGUN_PUSH_START, [-.004, -.008, 0]), mag: { out: .04, p: [0, .019, 0] } },
-  { t: .70, L: shift(SHOTGUN_PUSH_HAND, [-.003, -.008, 0]), mag: { out: .065, p: [0, .019, 0] }, ease: 'snap', sfx: 'shell-in' },
+  { t: .665, L: shift(SHOTGUN_PUSH_START, [-.004, -.008, 0], { contact: 'mag' }), mag: { out: .04, p: [0, .019, 0] } },
+  { t: .70, L: shift(SHOTGUN_PUSH_HAND, [-.003, -.008, 0], { contact: 'mag' }), mag: { out: .065, p: [0, .019, 0] }, ease: 'snap', sfx: 'shell-in' },
   { t: .74, L: SHOTGUN_PUSH_HAND, mag: { out: .085, p: [0, .019, 0] } },
   { t: .78, L: shift(SHOTGUN_PUSH_HAND, [-.105, -.112, 0]), mag: { visible: false, out: .095, p: [0, .019, 0] } },
   { t: .85, L: PUMP_CLEAR },
