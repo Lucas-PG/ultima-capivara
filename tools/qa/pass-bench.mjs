@@ -33,6 +33,10 @@ const rows = [];
 let gpuName;
 try {
   const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr });
+  if (env.SEED) await context.addInitScript(seed => {
+    let state = seed >>> 0;
+    Math.random = () => { state = Math.imul(state ^ (state >>> 16), 2246822507); state = Math.imul(state ^ (state >>> 13), 3266489909); state ^= state >>> 16; return (state >>> 0) / 4294967296; };
+  }, Number(env.SEED));
   await context.addInitScript(extra => {
     const saved = JSON.parse(localStorage.getItem('uc-v2-settings') || '{}');
     localStorage.setItem('uc-v2-settings', JSON.stringify({ ...saved, frameLimit: 60, ...extra }));
@@ -79,6 +83,6 @@ try {
   }
   await page.evaluate(() => { window.__camOverride = undefined; });
 } finally {
-  writeFileSync(out, JSON.stringify({ measuredAt: new Date().toISOString(), base, viewport: { width, height, dpr }, gpu: gpuName, cpuThrottle: Number(env.CPU_THROTTLE || 1), frames, rows }, null, 1));
+  writeFileSync(out, JSON.stringify({ measuredAt: new Date().toISOString(), base, viewport: { width, height, dpr }, gpu: gpuName, cpuThrottle: Number(env.CPU_THROTTLE || 1), seed: env.SEED ? Number(env.SEED) : null, frames, rows }, null, 1));
   await browser.close();
 }
