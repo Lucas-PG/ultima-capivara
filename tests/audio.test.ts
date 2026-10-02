@@ -110,6 +110,48 @@ describe('ground contact audio', () => {
     }
   });
 
+  it.each([false, true])('keeps downhill and stair steps proportional to distance without micro-drop landings (remote: %s)', async remote => {
+    const run = async (descending: boolean) => {
+      const { audio } = await steps(), local = actor(), walker = remote ? actor('remote') : local;
+      if (remote) local.velocity.x = 0;
+      const others = remote ? [walker] : [];
+      update(audio, local, others);
+      for (let i = 1; i <= 120; i++) {
+        walker.pos.x = i * .065; // 7.8 m at the ordinary 3.9 m/s walking speed.
+        if (descending) {
+          // Every 0.65 m tread drops 20 cm. Physics briefly loses contact.
+          const frame = i % 10;
+          walker.grounded = frame > 2;
+          walker.velocity.y = walker.grounded ? 0 : -frame * .7;
+          walker.pos.y = -Math.floor(i / 10) * .2 - (frame === 1 ? .03 : frame === 2 ? .08 : 0);
+        }
+        update(audio, local, others);
+      }
+      return audio.footstep.mock.calls;
+    };
+    const flat = await run(false), downhill = await run(true);
+    expect(flat).toHaveLength(4);
+    expect(downhill).toHaveLength(flat.length);
+    expect(downhill.every((call: unknown[]) => call[2] === false)).toBe(true);
+  });
+
+  it.each([false, true])('keeps a real ledge landing audible after suppressing small drops (remote: %s)', async remote => {
+    const { audio } = await steps(), local = actor(), walker = remote ? actor('remote') : local;
+    if (remote) local.velocity.x = 0;
+    const others = remote ? [walker] : [];
+    update(audio, local, others);
+    walker.grounded = false;
+    for (let i = 1; i <= 12; i++) {
+      walker.pos.x += .04; walker.pos.y = -i * .08; walker.velocity.y = -i * .4;
+      update(audio, local, others);
+    }
+    walker.grounded = true; walker.velocity.y = 0;
+    update(audio, local, others);
+    for (let i = 0; i < 10; i++) update(audio, local, others);
+    expect(audio.footstep).toHaveBeenCalledOnce();
+    expect(audio.footstep.mock.calls[0][2]).toBe(true);
+  });
+
   it('keeps your own steps well under an enemy\'s at arm\'s length', () => {
     expect(LEVEL.remoteStep - LEVEL.ownStep).toBeGreaterThanOrEqual(10);
   });
