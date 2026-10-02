@@ -11,7 +11,7 @@ import { chromium } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { loadavg } from 'node:os';
+import { cpus, freemem, loadavg, totalmem } from 'node:os';
 import { startDriver, stopDriver } from '../../tests/perf/live-driver.mjs';
 
 const out = process.argv[2];
@@ -25,12 +25,13 @@ const traceAt = (env.TRACE_AT ?? '60').split(',').filter(Boolean).map(Number);
 const profileAt = (env.PROFILE_AT ?? '').split(',').filter(Boolean).map(Number);
 const allocAt = (env.ALLOC_AT ?? '').split(',').filter(Boolean).map(Number);
 const extraSettings = JSON.parse(env.SETTINGS || '{}');
+const cpuThrottle = Number(env.CPU_THROTTLE || 1), pinDensity = env.PIN_DENSITY === '1';
 
-const thermal = () => { try { return Number(execSync('notifyutil -g com.apple.system.thermalpressurelevel').toString().trim().split(/\s+/).pop()); } catch { return null; } };
-const machine = () => ({ load: loadavg().map(n => +n.toFixed(2)), thermal: thermal() });
+const thermal = () => { if (process.platform !== 'darwin') return null; try { return Number(execSync('notifyutil -g com.apple.system.thermalpressurelevel').toString().trim().split(/\s+/).pop()); } catch { return null; } };
+const machine = () => ({ load: loadavg().map(n => +n.toFixed(2)), thermal: thermal(), freeMemoryMB: Math.round(freemem() / 1048576) });
 
 const browser = await chromium.launch({ headless: env.HEADED !== '1', channel: 'chrome',
-  args: ['--use-gl=angle', '--use-angle=metal', '--enable-precise-memory-info', '--disable-background-timer-throttling',
+  args: ['--use-gl=angle', process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=gl-egl', '--enable-precise-memory-info', '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', `--window-size=${width},${height + 90}`] });
 const errors = [];
 try {
@@ -45,10 +46,14 @@ try {
     window.__rafTimes = { read(from) { return Array.from(times.subarray(from, count)); }, get count() { return count; } };
   }, [quality, extraSettings]);
   const page = await context.newPage();
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuThrottle });
   page.on('pageerror', error => errors.push(error.message));
   const query = `networkQa=1&calm${gpu ? '&gpu=1' : ''}${timingOn ? '&timing=1' : ''}`;
   await page.goto(`${base}/?${query}`);
   await page.locator('[data-do="practice"]').waitFor({ timeout: 120_000 });
+  await page.waitForFunction(() => !!window.__networkQA);
+  if (pinDensity) await page.evaluate(() => window.__networkQA.pinPresetDensity());
   const menuMs = await page.evaluate(() => performance.now());
   await page.locator(`[data-mode="${mode}"]`).click();
   const clickAt = await page.evaluate(() => performance.now());
@@ -65,9 +70,9 @@ try {
   // The driver plays inside the page at 20 Hz through the real input layer (no health, damage or time overrides).
   await startDriver(page);
 
-  const cdp = await context.newCDPSession(page);
   const started = Date.now(), samples = [], gcTraces = [];
   let rafFrom = await page.evaluate(() => window.__rafTimes.count), lastRendered = await page.evaluate(() => window.__capivara.inspect().renderedFrames);
+  let lastRaf = (await page.evaluate(from => window.__rafTimes.read(from - 1), rafFrom))[0];
   await page.evaluate(() => { window.__capivara.resetPerf(); window.__capivara.gpu(true); });
   const traced = new Set(), profiled = new Set(), profiles = [], sampledAlloc = new Set(), allocations = [];
   while ((Date.now() - started) / 1000 < seconds) {
@@ -80,18 +85,22 @@ try {
       window.__capivara.resetPerf();
       const heap = performance.memory?.usedJSHeapSize;
       return { times, rendered: i.renderedFrames, phase: s?.phase, stage: me?.stage, alive: me?.alive, mode: s?.config.mode, actors: s?.actors.length,
+        nearbyActors: s?.actors.filter(a => a.alive && a.stage === 'ground' && i.camera && Math.hypot(a.pos.x - i.camera.x, a.pos.z - i.camera.z) < 20).length,
         alivePlayers: s?.actors.filter(a => a.alive).length, pos: me && { x: +me.pos.x.toFixed(1), y: +me.pos.y.toFixed(1), z: +me.pos.z.toFixed(1) },
         stats: i.renderer, density: i.renderDensity, gpuEstimate: i.gpuEstimate, gpu: window.__capivara.gpu(true), spans, longTasks: t.longTasks.map(task => Math.round(task.duration)),
         heapMB: heap ? +(heap / 1048576).toFixed(1) : null, drawingBuffer: (() => { const c = document.querySelector('#game'); return [c.width, c.height]; })() };
     }, rafFrom);
     rafFrom += sample.times.length;
-    const intervals = []; for (let k = 1; k < sample.times.length; k++) intervals.push(+(sample.times[k] - sample.times[k - 1]).toFixed(2));
+    const intervals = []; for (const now of sample.times) { if (lastRaf !== undefined) intervals.push(+(now - lastRaf).toFixed(2)); lastRaf = now; }
     const cpu = {}; for (const [name, values] of Object.entries(sample.spans)) cpu[name] = { n: values.length, sum: +values.reduce((a, b) => a + b, 0).toFixed(2), max: +Math.max(...values).toFixed(2) };
     samples.push({ t: +elapsed.toFixed(1), ...machine(), intervals, renderedFrames: sample.rendered - lastRendered, phase: sample.phase, stage: sample.stage, alive: sample.alive,
-      alivePlayers: sample.alivePlayers, pos: sample.pos, draws: sample.stats?.drawCalls, triangles: sample.stats?.triangles, density: sample.density, gpuEstimate: sample.gpuEstimate, gpu: sample.gpu, cpu, longTasks: sample.longTasks, heapMB: sample.heapMB, drawingBuffer: sample.drawingBuffer });
+      actors: sample.actors, nearbyActors: sample.nearbyActors, alivePlayers: sample.alivePlayers, pos: sample.pos, draws: sample.stats?.drawCalls, triangles: sample.stats?.triangles, density: sample.density, gpuEstimate: sample.gpuEstimate, gpu: sample.gpu, cpu, longTasks: sample.longTasks, heapMB: sample.heapMB, drawingBuffer: sample.drawingBuffer });
     lastRendered = sample.rendered;
-    if (samples.length % Number(env.LOG_EVERY || 30) === 0) console.log(JSON.stringify({ t: Math.round(elapsed), phase: sample.phase, stage: sample.stage, thermal: samples.at(-1).thermal, load: samples.at(-1).load[0],
-      fps: +(samples.slice(-30).reduce((a, s) => a + s.renderedFrames, 0) / 30).toFixed(1), density: sample.density, gpu: sample.gpuEstimate && +sample.gpuEstimate.toFixed(1), buffer: sample.drawingBuffer }));
+    if (samples.length % Number(env.LOG_EVERY || 30) === 0) {
+      const recent = samples.slice(-30), elapsedMs = recent.reduce((sum, s) => sum + s.intervals.reduce((a, b) => a + b, 0), 0);
+      console.log(JSON.stringify({ t: Math.round(elapsed), phase: sample.phase, stage: sample.stage, thermal: samples.at(-1).thermal, load: samples.at(-1).load[0],
+        fps: +(1000 * recent.reduce((sum, s) => sum + s.renderedFrames, 0) / elapsedMs).toFixed(1), density: sample.density, gpu: sample.gpuEstimate && +sample.gpuEstimate.toFixed(1), buffer: sample.drawingBuffer }));
+    }
     if (sample.phase === 'results') { console.log('match reached results at', Math.round(elapsed), 's'); break; }
     // PROFILE_AT: a 6 s main-thread CPU profile, summarised by self time per function.
     const profileDue = profileAt.find(at => elapsed >= at && !profiled.has(at));
@@ -100,6 +109,7 @@ try {
       await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 200 }); await cdp.send('Profiler.start');
       await page.waitForTimeout(6000);
       const { profile } = await cdp.send('Profiler.stop');
+      writeFileSync(`${out.replace(/\.json$/, '')}-cpu-${profileDue}.cpuprofile`, JSON.stringify(profile));
       const self = new Map(), dt = profile.timeDeltas, byId = new Map(profile.nodes.map(n => [n.id, n]));
       let total = 0;
       profile.samples.forEach((id, i) => { const f = byId.get(id).callFrame, key = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber + 1}:${f.columnNumber + 1}`; self.set(key, (self.get(key) || 0) + dt[i] / 1000); total += dt[i] / 1000; });
@@ -116,6 +126,7 @@ try {
       await cdp.send('HeapProfiler.startSampling', { samplingInterval: 8192, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
       await page.waitForTimeout(10_000);
       const { profile } = await cdp.send('HeapProfiler.stopSampling');
+      writeFileSync(`${out.replace(/\.json$/, '')}-alloc-${allocDue}.json`, JSON.stringify(profile));
       const frames = (await page.evaluate(() => window.__capivara.inspect().renderedFrames)) - before;
       const self = new Map();
       const walk = node => { const f = node.callFrame, key = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber + 1}:${f.columnNumber + 1}`;
@@ -143,6 +154,7 @@ try {
   const resources = await page.evaluate(() => window.__capivara.resources());
   await stopDriver(page);
   writeFileSync(out, JSON.stringify({ measuredAt: new Date().toISOString(), base, quality, mode, seconds, viewport: { width, height, dpr }, gpu: gpuName,
+    cpuThrottle, pinDensity, machine: { platform: process.platform, cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemoryMB: Math.round(totalmem() / 1048576) },
     gpuTiming: gpu, cpuTiming: timingOn, headless: env.HEADED !== '1', settings: extraSettings, menuMs: Math.round(menuMs), firstFrameMs: Math.round(firstFrameMs), errors, resources, gcTraces, profiles, allocations, samples }));
   console.log('wrote', out);
 } finally { await browser.close(); }
