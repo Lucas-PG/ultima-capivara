@@ -1,0 +1,85 @@
+{
+  "recordedAt": "2026-10-02T13:59:12.785834-03:00",
+  "recordedHead": "447a1a16aba1960ad035c2991bfc0658420a0522",
+  "runtimeSource": "b9e6e6f",
+  "platform": "Linux Ryzen 7 5700X, Radeon RX 9060 XT",
+  "typecheck": {
+    "command": "npx tsc --noEmit",
+    "exitCode": 0
+  },
+  "vitest": {
+    "command": "npx vitest run --maxWorkers=6",
+    "filesPassed": 138,
+    "testsPassed": 1517,
+    "exitCode": 0
+  },
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0
+  },
+  "chromium": {
+    "command": "BASE=http://127.0.0.1:5191 npx playwright test --project=chromium",
+    "passed": 18,
+    "skipped": 1,
+    "skip": "Full five-minute Correria is opt-in and ran separately.",
+    "exitCode": 0
+  },
+  "correria": {
+    "command": "E2E_SLOW=1 BASE=http://127.0.0.1:5191 npx playwright test --project=chromium tests/network-game.e2e.spec.ts -g 'a full Correria ends'",
+    "passed": 1,
+    "exitCode": 0
+  },
+  "hudLayout": {
+    "command": "BASE=http://127.0.0.1:5191 node tools/qa/hud-review.mjs /home/lucas/codex-team/evidence/hud-integrated-final",
+    "cases": 132,
+    "layoutFaults": 0,
+    "sizes": [
+      "1280x720",
+      "1470x956",
+      "1600x900",
+      "1920x1080",
+      "2560x1440",
+      "2560x1080",
+      "1280x548",
+      "1024x640",
+      "960x600",
+      "844x390",
+      "390x844"
+    ],
+    "scales": [
+      0.8,
+      1,
+      1.2
+    ],
+    "poses": [
+      "hud",
+      "hud-full",
+      "hud-watch",
+      "hud-corrente"
+    ],
+    "textFloorCssPx": 12,
+    "deviceScaleFactor": 1,
+    "exitCode": 0
+  },
+  "logSha256": {
+    "vitest.log": "134b3fc8fd2f455aa1553ec51d3c518e98ec782bc63655e38c2d4a5727158a2b",
+    "hud-layout.log": "6440139ea8b12dfb5004279cf02f20420c7bc162e3e9560f4693bc0727a678c7",
+    "chromium.log": "7ef770db8334ef7b572f86dfb0c3a465c74fba91f1f0ea8b1cdd8f6b12989bb5",
+    "correria-full-match.log": "609044eca8d7f63d59977ed62322cf73551fb5cae00ee77704429b103d70488d",
+    "typecheck.log": "b418ea31de07bb07880953b53e8094ee8c0d6fd2375212e9dc4750f3ab9ab774",
+    "production-build.log": "3be00bc92f75a80df5ec89b211f10c68f1cf622f888b6d21c453a0357d80283e"
+  },
+  "completedIntegrationHead": "224f1330d6b11bfa80a39f0ff654cd738895d78b",
+  "completedIntegrationLocalTime": "2026-10-02T13:59:34-03:00",
+  "allQaJobsStoppedLocalTime": "2026-10-02T14:00:09-03:00",
+  "sourceUnchangedAfterFinalGates": true,
+  "originalLogSha256": {
+    "vitest.log": "3dac29e27a5ec18f809ec5a29a8cfa58e803405088764905ddd11f5e0a684ec7",
+    "hud-layout.log": "6440139ea8b12dfb5004279cf02f20420c7bc162e3e9560f4693bc0727a678c7",
+    "chromium.log": "7ef770db8334ef7b572f86dfb0c3a465c74fba91f1f0ea8b1cdd8f6b12989bb5",
+    "correria-full-match.log": "d26b9ec1c891d280a915e28f15c68dfbc6a126dcd49292ff852cb30fc69b1777",
+    "typecheck.log": "b418ea31de07bb07880953b53e8094ee8c0d6fd2375212e9dc4750f3ab9ab774",
+    "production-build.log": "16d5b1a9933aad1334a6ab27ab1db6584d9df18808c07d73cb4499bd6c79e5c9"
+  },
+  "logNormalization": "Trailing whitespace and empty end lines removed from committed logs; original byte hashes preserved."
+}
