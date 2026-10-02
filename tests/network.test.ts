@@ -441,4 +441,24 @@ describe('match scene readiness transport', () => {
     runtime.roomValue = null; session.matchLoaded(runtime.matchId); runtime.onHostControl(conn, ack);
     expect(loaded).not.toHaveBeenCalled(); expect(conn.send).not.toHaveBeenCalled();
   });
+
+  it('delivers another start for a resumed same-match connection so the prepared guest can ack again', () => {
+    const start = vi.fn();
+    const session = new RoomSession({ room: () => {}, start, input: () => {}, action: () => {},
+      player: () => {}, snapshot: () => {}, events: () => {}, error: () => {}, closed: () => {} });
+    const runtime = session as any;
+    const profile = { id: 'guest', name: 'Convidada', color: PLAYER_COLORS[0], ready: true, connected: true };
+    const config = { mode: 'squads', capacity: 4, teamSize: 2, bots: true, difficulty: 'normal', duration: 300 };
+    runtime.roomValue = { isHost: false, myId: profile.id, phase: 'countdown', config };
+    const first = { open: true, send: vi.fn() }, resumed = { open: true, send: vi.fn() };
+    const beginning = packet('start', { config, players: [profile], matchId: snapshot.matchId });
+    runtime.hostConn = first; runtime.onGuestControl(first, beginning); session.matchLoaded(snapshot.matchId);
+    runtime.hostConn = resumed;
+    runtime.onGuestControl(first, beginning); // A closed/replaced connection cannot reset client readiness.
+    runtime.onGuestControl(resumed, beginning); session.matchLoaded(snapshot.matchId);
+    expect(start).toHaveBeenCalledTimes(2);
+    expect(start).toHaveBeenNthCalledWith(2, config, [profile], snapshot.matchId);
+    expect(first.send).toHaveBeenCalledExactlyOnceWith(packet('match-loaded', { matchId: snapshot.matchId }));
+    expect(resumed.send).toHaveBeenCalledExactlyOnceWith(packet('match-loaded', { matchId: snapshot.matchId }));
+  });
 });

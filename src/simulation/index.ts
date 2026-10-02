@@ -308,8 +308,9 @@ export class Simulation {
       hp: 100, armor: 0, helmet: 0, alive: true, grounded: !br, crouch: false, sprint: false, ads: false, swimming: false, wetUntil: 0,
       emote: null, emoteUntil: 0, soaking: false, bounceSeq: 0, bounceProtected: false,
       stage: br ? 'plane' : 'ground', kills: 0, deaths: 0, damage: 0, weaponLevel: 0,
-      weapons: this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[0])] : br ? bot ? this.botLoadout() :
-        [this.makeWeapon('pistol'), this.makeWeapon('machete')] : [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
+      weapons: this.config.mode === 'corrente' ? [this.makeWeapon(CORRENTE_LADDER[0])] : br && bot ? this.botLoadout() :
+        br || isRoundMode(this.config.mode) ? [this.makeWeapon('pistol'), this.makeWeapon('machete')] :
+          [this.makeWeapon('smg'), this.makeWeapon('pistol'), this.makeWeapon('machete')],
       slot: 0, consumables: { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 },
       reloadUntil: 0, useUntil: 0, using: null, respawnAt: 0, protectionUntil: br ? 0 : this.time + (this.phase === 'playing' ? 2 : 5), lastInput: 0, shotHeat: 0, shotSeq: 0,
     };
@@ -382,7 +383,7 @@ export class Simulation {
     if (status === 'join' && !actor) {
       if ([...this.actors.values()].filter(a => !a.state.bot).length >= 16) return;
       const max = isRoundMode(this.config.mode) ? this.config.capacity : this.config.mode === 'battle-royale' ? 21 : 16;
-      const spectator = (this.config.mode === 'battle-royale' || isRoundMode(this.config.mode)) && this.phase !== 'countdown';
+      const spectator = isRoundMode(this.config.mode) || this.config.mode === 'battle-royale' && this.phase !== 'countdown';
       let replacedTeam: 0 | 1 | undefined;
       if (isRoundMode(this.config.mode) && this.actors.size >= max) {
         const replace = [...this.actors.values()].reverse().find(a => a.state.bot || a.disconnectedAt === -Infinity);

@@ -14,6 +14,7 @@ describe('host-owned opening load gate', () => {
     expect(gate.waiting(8_100)).toBe(true);
     gate.loaded(matchId, 'guest');
     expect(gate.waiting(8_100)).toBe(false);
+    expect(gate.releaseReason).toBe('ready');
   });
 
   it('removes a disconnected or expired blocker, while a reconnect must prepare again', () => {
@@ -46,6 +47,7 @@ describe('host-owned opening load gate', () => {
     }
     expect(gate.waiting(500 + OPENING_LOAD_CAP_MS - 1)).toBe(true);
     expect(gate.waiting(500 + OPENING_LOAD_CAP_MS)).toBe(false);
+    expect(gate.releaseReason).toBe('timeout');
     gate.player(profile('still-stuck'), 'join');
     expect(gate.waiting(500 + OPENING_LOAD_CAP_MS + 1)).toBe(false);
   });
@@ -61,8 +63,10 @@ async function workerFixture() {
   vi.resetModules(); vi.stubEnv('VITE_QA', '1');
   let now = 0, pulse = () => {};
   const snapshots: WorldSnapshot[] = [];
+  const releases: { reason: 'ready' | 'timeout'; waitedMs: number }[] = [];
   const surface = { onmessage: null as null | ((event: { data: any }) => void), postMessage(message: any) {
     if (message.type === 'snapshot') snapshots.push(message.snapshot);
+    if (message.type === 'opening-loaded') releases.push(message);
     if (message.type === 'error') throw new Error(message.message);
   } };
   vi.stubGlobal('self', surface);
@@ -82,7 +86,7 @@ async function workerFixture() {
   };
   const loaded = (id: string, match = matchId) => send({ type: 'match-loaded', matchId: match, id });
   const latest = () => snapshots.at(-1)!;
-  return { init, send, elapse, loaded, latest, snapshots };
+  return { init, send, elapse, loaded, latest, snapshots, releases };
 }
 
 describe('real worker startup and round clocks', () => {
@@ -102,6 +106,7 @@ describe('real worker startup and round clocks', () => {
     expect(buying.phase).toBe('playing'); expect(buying.round?.phase).toBe('buy');
     expect(buying.round!.endsAt - buying.time).toBeGreaterThan(BUY_SECONDS - .2);
     expect(buying.actors.every(actor => actor.shotSeq === 0)).toBe(true);
+    expect(worker.releases).toEqual([expect.objectContaining({ reason: 'ready', waitedMs: 8_010 })]);
   });
 
   it('starts after the fixed stuck-client cap with a complete first buy window', async () => {
@@ -112,6 +117,7 @@ describe('real worker startup and round clocks', () => {
     const buying = worker.latest();
     expect(buying.phase).toBe('playing'); expect(buying.round?.phase).toBe('buy');
     expect(buying.round!.endsAt - buying.time).toBeGreaterThan(BUY_SECONDS - .2);
+    expect(worker.releases).toEqual([expect.objectContaining({ reason: 'timeout', waitedMs: OPENING_LOAD_CAP_MS })]);
   });
 
   it('unblocks a departing guest and transmits its disconnection while waiting', async () => {
@@ -128,7 +134,9 @@ describe('real worker startup and round clocks', () => {
     const worker = await workerFixture(); worker.init(); worker.loaded('host');
     worker.send({ type: 'player', profile: profile('late'), status: 'join' }); worker.loaded('guest'); worker.elapse(5_000);
     expect(worker.latest().time).toBe(0);
-    expect(worker.latest().actors.find(actor => actor.id === 'late')).toMatchObject({ connected: true, bot: false });
+    const late = worker.latest().actors.find(actor => actor.id === 'late')!;
+    expect(late).toMatchObject({ connected: true, bot: false, alive: false });
+    expect(late.weapons.some(weapon => weapon.id === 'smg')).toBe(false);
     worker.loaded('late'); worker.elapse(3_100);
     expect(worker.latest().phase).toBe('playing');
   });

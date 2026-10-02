@@ -56,7 +56,11 @@ setInterval(() => {
   previous = now;
   if (!simulation) return;
   const holdOpening = openingLoad?.waiting(now) ?? false;
-  if (!holdOpening) openingLoad = null;
+  if (!holdOpening && openingLoad) {
+    if (import.meta.env.VITE_QA === '1') self.postMessage({ type: 'opening-loaded', matchId: openingLoad.matchId,
+      reason: openingLoad.releaseReason, waitedMs: now - openingLoad.startedAt });
+    openingLoad = null;
+  }
   // A sleeping host must never fast-forward damage or empty a magazine on resume.
   if (elapsed > .5) {
     accumulator = 0;

@@ -9,15 +9,18 @@ export class OpeningLoadGate {
   private readonly pending = new Set<string>();
   private readonly connected = new Set<string>();
   private released = false;
+  private reason: 'ready' | 'timeout' | null = null;
   private readonly deadline: number;
 
-  constructor(private readonly matchId: string, players: PlayerProfile[], startedAt: number) {
+  constructor(readonly matchId: string, players: PlayerProfile[], readonly startedAt: number) {
     this.deadline = startedAt + OPENING_LOAD_CAP_MS;
     // Room profiles are humans. The simulation's generated bots need no ack.
     for (const player of players) if (player.connected) {
       this.connected.add(player.id); this.pending.add(player.id);
     }
   }
+
+  get releaseReason() { return this.reason; }
 
   loaded(matchId: string, playerId: string) {
     if (!this.released && matchId === this.matchId && this.connected.has(playerId)) this.pending.delete(playerId);
@@ -33,7 +36,9 @@ export class OpeningLoadGate {
   }
 
   waiting(now: number): boolean {
-    if (!this.released && (this.pending.size === 0 || now >= this.deadline)) this.released = true;
+    if (!this.released && (this.pending.size === 0 || now >= this.deadline)) {
+      this.released = true; this.reason = this.pending.size === 0 ? 'ready' : 'timeout';
+    }
     return !this.released;
   }
 }

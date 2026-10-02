@@ -56,6 +56,7 @@ class RendererUnavailableError extends Error {}
 const rendererUnavailableMessage = 'Não foi possível iniciar o gráfico 3D. Ative a aceleração de hardware e tente novamente.';
 let matchPreparation: Promise<void> | null = null;
 let sceneLoaded = false;
+let openingRelease: { reason: 'ready' | 'timeout'; waitedMs: number } | null = null;
 const loadedPlayers = new Set<string>();
 const queuedPlayers: { profile: PlayerProfile; status: 'join' | 'disconnect' | 'reconnect' | 'expired' }[] = [];
 let loadFraction = 0, loadLabel = 'Desenhando a ilha';
@@ -199,6 +200,8 @@ function warmLobby() {
   });
 }
 function beginMatch(id: string, matchId: string) {
+  // A same-match reconnect also needs a fresh ack on its new connection. Keep
+  // the renderer, but reset preparation/first-frame readiness on every start.
   stopMatch();
   ensureRenderer();
   playerId = id; match = matchId; playing = true; dirtyFrame = true;
@@ -226,7 +229,8 @@ function startReadyWorker(config: RoomConfig, players: PlayerProfile[], matchId:
       if (data.snapshot.matchId !== match) return;
       if (room?.isHost) session.publish(data.snapshot, data.events);
       acceptSnapshot(data.snapshot); acceptEvents(data.events);
-    } else if (data.type === 'metrics') timing.record('worker-tick', performance.now(), data.tickMs);
+    } else if (data.type === 'opening-loaded' && data.matchId === match) openingRelease = { reason: data.reason, waitedMs: data.waitedMs };
+    else if (data.type === 'metrics') timing.record('worker-tick', performance.now(), data.tickMs);
     else if (data.type === 'suspended') ui.toast('A partida retomou após uma pausa do navegador.');
     else if (data.type === 'error') { leave(); ui.toast(data.message, true); }
   };
@@ -253,7 +257,7 @@ function stopMatch() {
   localPresentation.clear(); renderFrame.localActor = undefined;
   remoteInterpolation.reset(); renderedRemoteTime = null;
   playing = false; input.unlock(); worker?.terminate(); worker = null;
-  loadedPlayers.clear(); queuedPlayers.length = 0; sceneLoaded = false;
+  loadedPlayers.clear(); queuedPlayers.length = 0; sceneLoaded = false; openingRelease = null;
   snapshot = null; predicted = null; pending = []; spectateId = null; inputClock.reset(); interaction = null; diedAt = 0; lastKiller = null; killSeen = false; fellAt = null;
   spectator.reset(); ui.setSpectate(null);
   firePredictor.reset(); heldBox = previousBox = -1;
@@ -544,7 +548,7 @@ function frame(now: number) {
   timing.end('hud', hudAt);
   // Warmup/preparation uploads assets. Ack only after the real first frame,
   // loading-overlay removal and HUD update have also completed on this client.
-  if (!loading && readyToReveal && !sceneLoaded && isRoundMode(snapshot.config.mode)) {
+  if (!loading && readyToReveal && !sceneLoaded && !document.querySelector('#loadingOverlay') && isRoundMode(snapshot.config.mode)) {
     sceneLoaded = true;
     if (practiceConfig) acceptLoaded(playerId, match);
     else session.matchLoaded(match);
@@ -583,7 +587,7 @@ if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') {
   requestAnimationFrame(tick);
   try { new PerformanceObserver(list => { for (const entry of list.getEntries()) { if (longTasks.length === 256) longTasks.shift(); longTasks.push(Math.round(entry.duration)); } }).observe({ type: 'longtask', buffered: true }); } catch { /* unsupported */ }
   Object.defineProperty(window, '__capivara', { value: {
-    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, renderDensity: renderer?.renderDensity, gpuEstimate: renderer?.gpuEstimate, pending: pending.length, spectateId, spectate: { lastKiller, killSeen, diedAt, fellAt, target: spectator.target, hold: spectator.hold },
+    inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, openingRelease, renderer: renderer?.stats, renderDensity: renderer?.renderDensity, gpuEstimate: renderer?.gpuEstimate, pending: pending.length, spectateId, spectate: { lastKiller, killSeen, diedAt, fellAt, target: spectator.target, hold: spectator.hold },
       camera: renderer ? { ...renderer.cameraPosition, fov: renderer.camera.fov } : null,
       clientInput: { ...input.frame, locked: input.locked }, renderState: { loading, readyToReveal, sceneLoaded, hidden: document.hidden },
       network: { status: session.connectionStatus, latencies: session.latencies, interpolationDelayMs: remoteInterpolation.delay * 1000 },
