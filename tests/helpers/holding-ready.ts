@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { WeaponId } from '../src/shared/types';
-import { WRIST_LIMITS } from '../src/render/viewmodel-targets';
-import { holdingFixture } from '../tools/qa/fp-state-node';
+import type { WeaponId } from '../../src/shared/types';
+import { WRIST_LIMITS } from '../../src/render/viewmodel-targets';
+import { holdingFixture } from '../../tools/qa/fp-state-node';
 // @ts-expect-error The same numerical audit runs against browser and Node geometry.
-import { holdingMetrics } from '../tools/qa/holding-metrics.mjs';
+import { holdingMetrics } from '../../tools/qa/holding-metrics.mjs';
 // @ts-expect-error The probe reads actual posed skin vertices and weapon triangles.
-import { measureGrip } from '../tools/qa/grip-measure.mjs';
+import { measureGrip } from '../../tools/qa/grip-measure.mjs';
 // @ts-expect-error Reuse the capture audit's authored state times.
-import { HOLDING_WEAPONS, holdingStates } from '../tools/qa/holding-states.mjs';
+import { HOLDING_WEAPONS, holdingStates } from '../../tools/qa/holding-states.mjs';
 
 type State = { action: string; t: number };
 type Pose = ReturnType<Awaited<ReturnType<typeof holdingFixture>>['pose']>;
@@ -93,43 +93,49 @@ function assertReadyHold(id: WeaponId, state: State, pose: Pose, row: Metrics) {
   }
 }
 
-describe('shipped holding skin through ready and movement states', () => {
-  let fixture: Awaited<ReturnType<typeof holdingFixture>>;
-  beforeAll(async () => { fixture = await holdingFixture(); }, 120_000);
-  afterAll(() => fixture?.dispose());
+// The matrix is split across holding-ready-1..3.test.ts so CI can run the
+// parts in parallel. Every weapon falls in exactly one part by its index.
+export const READY_PARTS = 3;
 
-  for (const id of ids) describe(id, () => {
-    for (const state of statesFor(id)) it(`${state.action} at ${state.t}s preserves contact and natural wrists`, async () => {
-      const pose = fixture.pose(id, state.action, state.t);
-      const row = await holdingMetrics(id, state, pose, measureGrip) as Metrics;
-      assertReadyHold(id, state, pose, row);
+export function describeReadyHolds(part: number) {
+  describe('shipped holding skin through ready and movement states', () => {
+    let fixture: Awaited<ReturnType<typeof holdingFixture>>;
+    beforeAll(async () => { fixture = await holdingFixture(); }, 120_000);
+    afterAll(() => fixture?.dispose());
+
+    for (const id of ids.filter((_, i) => i % READY_PARTS === part)) describe(id, () => {
+      for (const state of statesFor(id)) it(`${state.action} at ${state.t}s preserves contact and natural wrists`, async () => {
+        const pose = fixture.pose(id, state.action, state.t);
+        const row = await holdingMetrics(id, state, pose, measureGrip) as Metrics;
+        assertReadyHold(id, state, pose, row);
+      }, 30_000);
+    });
+
+    if (part === 0) it('rejects a displaced real paw while its contact metadata remains unchanged', async () => {
+      const state = { action: 'hip', t: 0 }, pose = fixture.pose('smg', state.action, state.t);
+      const attached = await holdingMetrics('smg', state, pose, measureGrip) as Metrics;
+      expect(attached.failures).toEqual([]);
+      const rig = fixture.view as unknown as { arms: { meshes: THREE.SkinnedMesh[] }; holder: THREE.Group };
+      const mesh = rig.arms.meshes.find(arm => arm.name.endsWith('R'))!;
+      const hand = mesh.skeleton.bones.find(bone => bone.name === 'hand_R')!;
+      expect(hand, 'negative control moves the actual firing-paw bone').toBeDefined();
+      const original = hand.position.clone();
+      const world = hand.getWorldPosition(new THREE.Vector3());
+      const away = new THREE.Vector3(.025, 0, 0).applyQuaternion(rig.holder.getWorldQuaternion(new THREE.Quaternion()));
+      hand.position.copy(hand.parent!.worldToLocal(world.add(away)));
+      hand.updateMatrixWorld(true);
+      try {
+        const displaced = await holdingMetrics('smg', state, pose, measureGrip) as Metrics;
+        expect(pose.contacts.R).toBe('body');
+        expect(pose.contacts.trigger).toBe(true);
+        expect(displaced.failures.length, 'real skin movement is rejected without a metadata change').toBeGreaterThan(0);
+        expect(displaced.failures.some(failure => failure.startsWith('R body') || failure.startsWith('trigger'))).toBe(true);
+        expect(displaced.trigger!.insideGuard).toBe(false);
+        expect(displaced.contacts.R!.palm, 'the moved palm leaves the grip').toBeGreaterThan(1.5);
+      } finally {
+        hand.position.copy(original);
+        hand.updateMatrixWorld(true);
+      }
     }, 30_000);
   });
-
-  it('rejects a displaced real paw while its contact metadata remains unchanged', async () => {
-    const state = { action: 'hip', t: 0 }, pose = fixture.pose('smg', state.action, state.t);
-    const attached = await holdingMetrics('smg', state, pose, measureGrip) as Metrics;
-    expect(attached.failures).toEqual([]);
-    const rig = fixture.view as unknown as { arms: { meshes: THREE.SkinnedMesh[] }; holder: THREE.Group };
-    const mesh = rig.arms.meshes.find(arm => arm.name.endsWith('R'))!;
-    const hand = mesh.skeleton.bones.find(bone => bone.name === 'hand_R')!;
-    expect(hand, 'negative control moves the actual firing-paw bone').toBeDefined();
-    const original = hand.position.clone();
-    const world = hand.getWorldPosition(new THREE.Vector3());
-    const away = new THREE.Vector3(.025, 0, 0).applyQuaternion(rig.holder.getWorldQuaternion(new THREE.Quaternion()));
-    hand.position.copy(hand.parent!.worldToLocal(world.add(away)));
-    hand.updateMatrixWorld(true);
-    try {
-      const displaced = await holdingMetrics('smg', state, pose, measureGrip) as Metrics;
-      expect(pose.contacts.R).toBe('body');
-      expect(pose.contacts.trigger).toBe(true);
-      expect(displaced.failures.length, 'real skin movement is rejected without a metadata change').toBeGreaterThan(0);
-      expect(displaced.failures.some(failure => failure.startsWith('R body') || failure.startsWith('trigger'))).toBe(true);
-      expect(displaced.trigger!.insideGuard).toBe(false);
-      expect(displaced.contacts.R!.palm, 'the moved palm leaves the grip').toBeGreaterThan(1.5);
-    } finally {
-      hand.position.copy(original);
-      hand.updateMatrixWorld(true);
-    }
-  }, 30_000);
-});
+}
