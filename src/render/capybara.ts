@@ -11,7 +11,7 @@ import type { AvatarReaction } from './effects';
 import { applyCharacterStyle } from './materials';
 import { heldCurl, type GripSpec } from './viewmodel-specs';
 import { WORLD_GRIPS } from './world-grips';
-import { PawPose, blendCurl, wristAngles, type HandCurl } from './fp-arms';
+import { PawPose, blendCurl, type HandCurl } from './fp-arms';
 import { worldElbow } from './world-arm';
 import { correctWorldPalmWeights } from './world-palm-weights';
 import type { WeaponId } from '../shared/types';
@@ -806,6 +806,10 @@ function aimBone(bone: THREE.Bone, from: THREE.Vector3, to: THREE.Vector3, want:
 interface ArmChain { side: 'R' | 'L'; upper: THREE.Bone; fore: THREE.Bone; twist?: THREE.Bone; twistBind?: THREE.Quaternion; restTwistInverse: THREE.Matrix4; paw: THREE.Bone; pawBind: THREE.Quaternion; restHandInverse: THREE.Matrix4; fingers: PawPose; elbowAngle: number }
 const armForward = new THREE.Vector3(), armPalm = new THREE.Vector3(), armAxis = new THREE.Vector3(), armSide = new THREE.Vector3(), armCross = new THREE.Vector3();
 const armFrame = new THREE.Matrix4(), armTwist = new THREE.Quaternion(), armProximal = new THREE.Quaternion();
+const freeFore = new THREE.Vector3(), freeUpper = new THREE.Vector3(), freeAnterior = new THREE.Vector3(), freeMedial = new THREE.Vector3();
+const freeForward = new THREE.Vector3(), freePalm = new THREE.Vector3(), freePalmFore = new THREE.Vector3(), freeThumbFore = new THREE.Vector3(), freeCross = new THREE.Vector3();
+const freeInverse = new THREE.Quaternion();
+const radians = Math.PI / 180;
 function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun: THREE.Quaternion, grip: GripSpec, freeWrist = false) {
   arm.upper.getWorldPosition(ikA); arm.fore.getWorldPosition(ikB); arm.paw.getWorldPosition(ikC);
   const l1 = ikA.distanceTo(ikB), l2 = ikB.distanceTo(ikC);
@@ -820,22 +824,24 @@ function reachArm(arm: ArmChain, target: THREE.Vector3, pole: THREE.Vector3, gun
   // this free frame; a carrying contact keeps its measured part-local frame.
   if (freeWrist) {
     arm.upper.getWorldPosition(ikA); arm.fore.getWorldPosition(ikB);
-    const f = new THREE.Vector3().subVectors(target, ikB).normalize();
-    const u = new THREE.Vector3().subVectors(ikB, ikA).normalize();
-    const anterior = f.clone().addScaledVector(u, -f.dot(u)).normalize();
+    const f = freeFore.subVectors(target, ikB).normalize();
+    const u = freeUpper.subVectors(ikB, ikA).normalize();
+    const anterior = freeAnterior.copy(f).addScaledVector(u, -f.dot(u)).normalize();
     const sign = arm.side === 'R' ? 1 : -1;
-    const medial = new THREE.Vector3().crossVectors(anterior, u).multiplyScalar(sign).normalize();
-    const h = forward.clone().applyQuaternion(gun), p = palm.clone().applyQuaternion(gun);
-    const angles = wristAngles(ikA, ikB, target, h, p, arm.side);
-    const flex = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(angles.flexion, -42, 42));
-    const dev = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(angles.deviation, -22, 17));
-    const roll = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(angles.pronation, -77, 77));
-    const pf = medial.applyAxisAngle(f, -sign * roll);
-    const tf = new THREE.Vector3().crossVectors(f, pf).multiplyScalar(sign).normalize();
+    const medial = freeMedial.crossVectors(anterior, u).multiplyScalar(sign).normalize();
+    const h = freeForward.copy(forward).applyQuaternion(gun), p = freePalm.copy(palm).applyQuaternion(gun);
+    const pf = freePalmFore.copy(p).addScaledVector(f, -p.dot(f)).normalize();
+    const tf = freeThumbFore.crossVectors(f, pf).multiplyScalar(sign).normalize();
+    const along = h.dot(f);
+    const flex = THREE.MathUtils.clamp(Math.atan2(h.dot(pf), along), -42 * radians, 42 * radians);
+    const dev = THREE.MathUtils.clamp(Math.atan2(h.dot(tf), along), -22 * radians, 17 * radians);
+    const roll = THREE.MathUtils.clamp(-sign * Math.atan2(freeCross.crossVectors(medial, pf).dot(f), medial.dot(pf)), -77 * radians, 77 * radians);
+    pf.copy(medial).applyAxisAngle(f, -sign * roll);
+    tf.crossVectors(f, pf).multiplyScalar(sign).normalize();
     h.copy(f).addScaledVector(pf, Math.tan(flex)).addScaledVector(tf, Math.tan(dev)).normalize();
     p.copy(pf).addScaledVector(f, -pf.dot(h) / Math.max(.01, f.dot(h))).normalize();
-    const inverseGun = gun.clone().invert();
-    forward.copy(h).applyQuaternion(inverseGun); palm.copy(p).applyQuaternion(inverseGun);
+    freeInverse.copy(gun).invert();
+    forward.copy(h).applyQuaternion(freeInverse); palm.copy(p).applyQuaternion(freeInverse);
   }
   // Use the same wrist-to-knuckle direction and palm contact as the viewmodel.
   if (arm.twist && arm.twistBind) {
@@ -992,6 +998,7 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   const keys = worldReload(id, rig.reloadEmpty);
   const sample = keys && reload >= 0 ? sampleChoreo(keys, reload, rig.sample) : null;
   const tilt = reload >= 0 && !keys ? Math.sin(Math.PI * THREE.MathUtils.clamp(reload, 0, 1)) : 0;
+  const reloadTilt = id === 'sniper' ? tilt * .15 : tilt;
   const fetch = tilt > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp((reload - .15) / .6, 0, 1)) : 0;
   const long = hold === 'rifle' || hold === 'heavy';
   // Standing quiet, the gun rests at low ready (muzzle down across the body); moving, aiming,
@@ -1003,7 +1010,7 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   runtime.aim = THREE.MathUtils.damp(runtime.aim, runtime.aimHold > 0 ? 1 : 0, runtime.aimHold > 0 ? 16 : 5, step);
   const rest = (1 - runtime.aim) * (1 - sprint) * (hold === 'melee' ? 0 : 1);
   const lowReady = sprint * (hold === 'pistol' ? .9 : .55) + rest * (hold === 'pistol' ? .55 : .40);
-  holdEuler.set(pitch * (1 - .6 * rest) - lowReady + tilt * .10, pose.yaw + sprint * (long ? .55 : .2) + rest * (long ? .30 : .05) + tilt * .10, pose.roll - tilt * (hold === 'pistol' ? .5 : .25), 'YXZ');
+  holdEuler.set(pitch * (1 - .6 * rest) - lowReady + reloadTilt * .10, pose.yaw + sprint * (long ? .55 : .2) + rest * (long ? .30 : .05) + reloadTilt * .10, pose.roll - reloadTilt * (hold === 'pistol' ? .5 : .25), 'YXZ');
   const cutting = id === 'machete' && strike && strike.time < MELEE_SECONDS;
   if (cutting) {
     if (strike.heavy) sampleHeavyMelee(strike.time, worldCut); else sampleMelee(strike.time, strike.side, worldCut);
@@ -1018,7 +1025,7 @@ export function holdWeapon(body: THREE.SkinnedMesh, weapon: THREE.Object3D, acto
   // The short fore-ends need the mount farther ahead for a level support forearm.
   if (id === 'm4' || id === 'sniper') holdPos.z -= .10;
   if (id === 'smg') holdPos.x -= .045;
-  holdPos.y -= sprint * .06 + tilt * .05 + rest * (long ? .07 : .02); holdPos.x -= sprint * (long ? .06 : 0) + rest * (long ? .03 : 0);
+  holdPos.y -= sprint * .06 + reloadTilt * .05 + rest * (long ? .07 : .02); holdPos.x -= sprint * (long ? .06 : 0) + rest * (long ? .03 : 0);
   if (hold === 'pistol') { holdPos.x += sprint * .18; holdPos.z -= sprint * .035; }
   if (sample) { holdPos.addScaledVector(sample.p, .55); holdPos.y -= .03 * Math.sin(Math.PI * THREE.MathUtils.clamp(reload, 0, 1)); }
   if (cutting) { holdPos.x += worldCut.x * .6; holdPos.y += worldCut.y * .6; holdPos.z += worldCut.z * .6; }

@@ -35,6 +35,8 @@ const contact = (value: number, label: string) => {
   expect.soft(value, label).toBeGreaterThanOrEqual(-.5); expect.soft(value, label).toBeLessThanOrEqual(1.5);
 };
 const samples = reported.map(row => ({ weapon: row.weapon as WeaponId, phase: Number(row.state.split('-').at(-1)), empty: !row.state.startsWith('reload-partial') }));
+// Keep the rifle-carrying wrist anatomical through the generic belt reach.
+for (const phase of [.375, .45, .5, .55, .625]) samples.push({ weapon: 'sniper', phase, empty: true });
 // The previous candidate's two interpolation gaps must be accepted independently.
 for (const phase of [.28375, .60875]) samples.push({ weapon: 'm4', phase, empty: true });
 describe('replicated world reload real-skin regressions', () => {
