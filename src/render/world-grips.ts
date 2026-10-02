@@ -10,6 +10,6 @@ import indexFits from './world-index-grips.json';
 const fits = measured as unknown as Partial<Record<WeaponId, { R?: Partial<GripSpec>; L?: Partial<GripSpec> }>>;
 export const WORLD_GRIPS = Object.fromEntries(Object.entries(VIEW_SPECS).map(([id, spec]) => {
   const fit = fits[id as WeaponId];
-  const digit = id === 'm4' ? indexFits.m4 as unknown as Pick<GripSpec, 'indexed' | 'indexExit'> : {}; 
+  const digit = id === 'm4' ? indexFits.m4 as unknown as Pick<GripSpec, 'indexed' | 'indexExit'> : {};
   return [id, { R: { ...spec.grips.R, ...fit?.R, ...digit }, L: spec.grips.L ? { ...spec.grips.L, ...fit?.L } : undefined }];
 })) as Record<WeaponId, ViewSpec['grips']>;

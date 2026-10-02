@@ -15,7 +15,6 @@ export function worldContactIndices(weapon, name) {
   return cache.get(`${weapon}/${name}`);
 }
 async function identify(weapon, name) {
-  
   await MeshoptDecoder.ready;
   const doc = await io.read(new URL(`../../public/models/arsenal/${weapon}.glb`, import.meta.url).pathname);
   const trigger = doc.getRoot().listNodes().find(node => node.getName() === `${weapon}_${name}`);

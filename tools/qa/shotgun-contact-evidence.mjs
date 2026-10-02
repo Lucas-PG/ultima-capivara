@@ -10,7 +10,7 @@ const states = process.argv[3] ? JSON.parse(await readFile(process.argv[3], 'utf
   ['shotgun', 'draw', .25], ['shotgun', 'holster', .025], ['shotgun', 'inspect', 1.7],
   ['shotgun', 'fire', .2], ['shotgun', 'reload', .25], ['shotgun', 'reload', .385],
 ];
-const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=gl-egl'] });
+const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const captures = [];
 try {
   const page = await browser.newPage({ viewport: { width: 1470, height: 956 } });
