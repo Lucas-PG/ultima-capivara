@@ -820,6 +820,12 @@ export class WeaponView {
     out.forward.copy(this.handA.forward).lerp(this.handB.forward, u).normalize();
     out.palm.copy(this.handA.palm).lerp(this.handB.palm, u).normalize();
     out.curl = blendCurl(this.handA.curl, this.handB.curl, u);
+    if (grip.indexExit?.length && pair.a.space === 'grip' && pair.b.space === 'grip' && !pair.a.curl && !pair.b.curl) {
+      // Interpolate progress along the measured exit route. Blending its two
+      // resolved endpoints cuts through the guard during reloads and inspects.
+      const a = pair.a.indexed ? 1 : indexed, b = pair.b.indexed ? 1 : indexed;
+      out.curl = heldCurl(grip, a + (b - a) * u, pull);
+    }
     out.pole.copy(this.handA.pole).lerp(this.handB.pole, u).normalize();
   }
 
