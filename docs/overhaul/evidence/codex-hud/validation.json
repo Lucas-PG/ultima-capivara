@@ -1,15 +1,15 @@
 {
-  "sourceRevision": "2bca8485a6a54ea16cfd64bccab6393d16c05437",
+  "sourceRevision": "ed134035a803b7a063bc5efd8bc66e983bdf5373",
   "sourceSha256": {
     "src/ui/hud.css": "39613193127572e5d4dd01b4fa364c6e32e14fba5a17f946a66ee7dba005315d",
-    "src/ui/ui.ts": "4b485891d2c7aa972290605451b07f547b1d326d5bdb954b996a44ff10bebe0d",
+    "src/ui/ui.ts": "5b552879ddf50dcac83bb9b96f51fd85fca9a2ebb4c5b358e836b4df9a18a876",
     "src/ui/style.css": "1877e297ee6a0a3d6739be78f05a7908ba2f6da6e0e0b97ab0e6512c029222e7",
     "src/ui/hud-logic.ts": "d4f91e27bcf66331763107d07736ed540f174f27b8232b4d2230739fbc71553f",
     "src/ui/icons.ts": "04b58d535e033824877d9ade8562fe8568d43004779bebb0ed8b7cd5eb6bbebc"
   },
   "baselineRevision": "6d82174ce5b467a5a6a80c8769c4a45821c3ecd8",
   "baselineHudRevision": "b721224",
-  "environment": "Google Chrome, --use-gl=angle --use-angle=gl-egl, one own browser at a time, Linux AMD Radeon RX 9060 XT, DPR1",
+  "environment": "Google Chrome 150.0.7871.186, --use-gl=angle --use-angle=gl-egl, one own browser at a time, Linux AMD Radeon RX 9060 XT, DPR1",
   "buildCommand": "VITE_QA=1 npm run build -- --outDir /home/lucas/codex-team/hud-after-dist --emptyOutDir",
   "build": "passed, including tsc --noEmit; existing large-chunk warning remains",
   "stateAudit": {
@@ -136,15 +136,16 @@
       "command": "npx vitest run tests/ui.test.ts --maxWorkers=1",
       "passed": 43,
       "files": 1,
-      "stage": "2bca8485a6a54ea16cfd64bccab6393d16c05437"
+      "stage": "ed134035a803b7a063bc5efd8bc66e983bdf5373"
     }
   },
   "notes": [
     "All 176 final state cases and 132 layout cases include the final compact fixes and strengthened card, banner and notice overlap checks.",
     "Overlay and calm shots use dc81f23. Later runtime changes affect compact combat cards and transient notices; those do not appear in the captured overlay/menu variants. Calm shots are desktop states unaffected by those compact and spectating-notice rules.",
     "All 28 result/size variants check scroll and click actionability of every result button without invoking rematch callbacks.",
-    "Final HUD-source cost repeat is reserved for 13:18 to 13:20; accepted earlier d6d6837 data remains separately identified.",
-    "Root integration runs the complete project gates after all streams merge."
+    "Final ed13403 source cost repeat completed in the exclusive 13:18 to 13:20 window with all three map pairs unchanged; earlier d6d6837 and rejected timing data remain separately identified.",
+    "Root integration runs the complete project gates after all streams merge.",
+    "Final ed13403 adds only compact notice trimming during resize, with the expanded Chrome regression and all nine relevant Chrome tests repeated. CSS and 176/132/88/24 visual-layout results are unchanged."
   ],
   "noticeStress": {
     "command": "NOTICE_STRESS=1 SIZES=1280x720,1470x956,844x390,390x844 STATES=plane,countdown,coach,delivery,kill-long-name,watch SINGLES=1 BASE=http://127.0.0.1:5195 node tools/qa/hud-boards.mjs /home/lucas/codex-team/hud-notice-stress after",
@@ -155,9 +156,81 @@
     "source": "2bca848 runtime; final comment-only edits followed the capture"
   },
   "frozenFinalBuild": {
-    "command": "VITE_QA=1 npm run build -- --outDir /home/lucas/codex-team/hud-final-dist --emptyOutDir",
+    "command": "node node_modules/typescript/bin/tsc --noEmit, then VITE_QA=1 node node_modules/vite/bin/vite.js build --outDir /home/lucas/codex-team/hud-final-dist --emptyOutDir",
     "result": "passed",
-    "sourceRevision": "2bca8485a6a54ea16cfd64bccab6393d16c05437",
+    "sourceRevision": "ed134035a803b7a063bc5efd8bc66e983bdf5373",
     "purpose": "Exact committed HUD source for the reserved final quiet-window cost comparison"
+  },
+  "visualSourceRevision": "2bca8485a6a54ea16cfd64bccab6393d16c05437",
+  "resizeFinalRuns": [
+    {
+      "label": "tsc",
+      "code": 0,
+      "start": "2026-10-02T16:08:21.887Z",
+      "end": "2026-10-02T16:08:22.703Z"
+    },
+    {
+      "label": "build",
+      "code": 0,
+      "start": "2026-10-02T16:08:22.704Z",
+      "end": "2026-10-02T16:08:23.583Z"
+    },
+    {
+      "label": "unit",
+      "code": 0,
+      "start": "2026-10-02T16:08:23.583Z",
+      "end": "2026-10-02T16:08:23.999Z"
+    },
+    {
+      "label": "e2e",
+      "code": 0,
+      "start": "2026-10-02T16:08:24.501Z",
+      "end": "2026-10-02T16:09:27.749Z"
+    }
+  ],
+  "hudCost": {
+    "sourceRevision": "ed134035a803b7a063bc5efd8bc66e983bdf5373",
+    "method": "tools/qa/hud-tick.mjs unchanged, alternating production QA builds, 1470x956, Chrome, one browser, N=1000",
+    "start": "2026-10-02T16:18:19.749Z",
+    "end": "2026-10-02T16:19:33.338Z",
+    "mapPairs": 3,
+    "samplesPerRun": 1000,
+    "baseline": {
+      "p50": [
+        0.8,
+        0.8,
+        0.8
+      ],
+      "p95": [
+        0.9,
+        0.9,
+        0.9
+      ]
+    },
+    "final": {
+      "p50": [
+        0.8,
+        0.8,
+        0.8
+      ],
+      "p95": [
+        0.9,
+        0.9,
+        0.9
+      ]
+    },
+    "withoutMapDiagnostic": {
+      "baseline": {
+        "p50": 0,
+        "p95": 0.1
+      },
+      "final": {
+        "p50": 0,
+        "p95": 0.1
+      }
+    },
+    "data": "tick-complete.json",
+    "processes": "tick-processes.json",
+    "allOwnProcessesClosed": "2026-10-02T16:19:33.353Z"
   }
 }
