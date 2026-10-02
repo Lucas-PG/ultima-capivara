@@ -262,22 +262,31 @@ describe('first-person viewmodel', () => {
     expect(loader.visible).toBe(false);
   });
 
-  it('supports the swinging cylinder without rolling the paw into the frame', async () => {
-    const h = await harness(); h.actor.weapons = [{ id: 'revolver', rarity: 0, ammo: 0, reserve: 24, box: 0 }];
-    for (let i = 0; i < 30; i++) h.step();
-    const view = h.view as unknown as { targetL: { wrist: THREE.Vector3; palm: THREE.Vector3 } };
-    const drum = h.holder.getObjectByName('revolver_cylinder')!;
-    const start = h.now(); h.actor.reloadUntil = start + WEAPONS.revolver.reload;
-    const contacts: { palm: THREE.Vector3; offset: THREE.Vector3 }[] = [];
-    for (const phase of [.12, .15, .19, .82, .85, .88]) {
-      while (h.now() < start + WEAPONS.revolver.reload * phase) h.step(1 / 240);
-      contacts.push({ palm: view.targetL.palm.clone().applyQuaternion(h.holder.quaternion.clone().invert()),
-        offset: h.holder.worldToLocal(view.targetL.wrist.clone()).sub(drum.position) });
-    }
-    for (const contact of contacts) {
-      expect(contact.palm.angleTo(contacts[0].palm)).toBeLessThan(.01);
-      expect(contact.offset.x).toBeLessThan(-.055);
-      expect(Math.abs(contact.offset.y - contacts[0].offset.y)).toBeLessThan(.006);
+  it('keeps the cylinder transfer independent of chamber spin after firing', async () => {
+    // The operating thumb now transfers into an open-cylinder palm hold.
+    // Its authored orientation changes with swing, but chamber spin must not
+    // roll the paw into the frame. Real-skin clearance has its own regression.
+    const baseline: { palm: THREE.Vector3; offset: THREE.Vector3; rotation: THREE.Quaternion }[] = [];
+    for (const shots of [0, 2]) {
+      const h = await harness(); h.actor.weapons = [{ id: 'revolver', rarity: 0, ammo: 0, reserve: 24, box: 0 }];
+      for (let i = 0; i < 30; i++) h.step();
+      for (let n = 0; n < shots; n++) { h.view.shot('revolver'); for (let i = 0; i < 60; i++) h.step(); }
+      const view = h.view as unknown as { targetL: { wrist: THREE.Vector3; palm: THREE.Vector3 } };
+      const drum = h.holder.getObjectByName('revolver_cylinder')!;
+      const start = h.now(); h.actor.reloadUntil = start + WEAPONS.revolver.reload;
+      for (const [index, phase] of [.12, .15, .17, .19, .82, .835, .85, .88].entries()) {
+        const end = start + WEAPONS.revolver.reload * phase;
+        while (h.now() < end - 1e-8) h.step(Math.min(1 / 240, end - h.now()));
+        const contact = { palm: view.targetL.palm.clone().applyQuaternion(h.holder.quaternion.clone().invert()),
+          offset: h.holder.worldToLocal(view.targetL.wrist.clone()).sub(drum.position), rotation: drum.quaternion.clone() };
+        if (!shots) baseline.push(contact);
+        else {
+          expect(contact.rotation.angleTo(baseline[index].rotation)).toBeGreaterThan(.9);
+          expect(contact.palm.angleTo(baseline[index].palm)).toBeLessThan(.001);
+          expect(contact.offset.distanceTo(baseline[index].offset)).toBeLessThan(.0001);
+        }
+      }
+      h.view.dispose();
     }
   });
 

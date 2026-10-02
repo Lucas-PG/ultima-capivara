@@ -8,6 +8,8 @@ import { disposeAircraftAssets, makePlane, preloadAircraftAsset } from '../src/r
 import { loadAircraftFixture } from './helpers/aircraft-fixture';
 import { capybaraIsDead, disposeCapybaraAssets, preloadCapybaraAsset } from '../src/render/capybara';
 import { emptyInput } from '../src/shared/math';
+import { worldReload } from '../src/render/world-reload';
+import { newSample, sampleChoreo, type HandKey } from '../src/render/viewmodel-choreo';
 import type { ActorState, RenderFrame, WorldSnapshot } from '../src/shared/types';
 
 let view: AvatarView, camera: THREE.PerspectiveCamera;
@@ -42,23 +44,31 @@ function harness() {
   return { actor, snapshot, frame, visual, rig, lid, mouth, advance };
 }
 
+// The world paw has its own measured keys. This suite checks part tracking and
+// visibility; thirdperson-reload.test.ts checks the actual skin and contact.
+function magazineWrist(id: 'pistol' | 'smg' | 'm4', phase: number, weapon: THREE.Object3D, mag: THREE.Object3D) {
+  const channel = sampleChoreo(worldReload(id, true)!, phase, newSample()).L!;
+  const endpoint = (key: HandKey) => {
+    expect(key.space).toBe('part'); expect(key.part).toBe('mag');
+    const p = new THREE.Vector3().fromArray(key.wrist!);
+    if (key.followRotation !== false) p.applyQuaternion(mag.quaternion);
+    return p.add(mag.position);
+  };
+  return endpoint(channel.a).lerp(endpoint(channel.b), channel.u).applyMatrix4(weapon.matrixWorld);
+}
+
 describe('authoritative character reactions', () => {
-  it('keeps short-gun magazines attached to the support paw and chambers only after an empty reload', async () => {
-    const { pistolReload, smgReload } = await import('../src/render/viewmodel-anims');
+  it('follows the world magazine holding keys and chambers only after an empty reload', async () => {
     const { WEAPONS } = await import('../src/shared/weapons');
     const h = harness();
     for (const id of ['pistol', 'smg'] as const) {
       h.actor.weapons = [{ id, ammo: 0, reserve: 60, rarity: 0, box: 0 }];
       const duration = WEAPONS[id].reload;
       h.actor.reloadUntil = 10 + duration;
-      const keys = id === 'pistol' ? pistolReload(true) : smgReload(true);
-      // At matched paw/weapon scales, the fitted part-space wrist is shared exactly.
-      const key = keys.find(k => k.L?.space === 'part' && k.L.part === 'mag' && k.mag?.out === 0)!.L!;
-      const contact = key.wrist!;
       for (const phase of id === 'pistol' ? [.42, .55, .67] : [.17, .29, .57, .68]) {
         h.snapshot.time = 10 + phase * duration; view.update(h.frame, 0, h.snapshot.time); h.visual.group.updateMatrixWorld(true);
         const mag = h.visual.weapon.getObjectByName(`${id}_mag`)!;
-        const expected = new THREE.Vector3().fromArray(contact).applyMatrix4(mag.matrixWorld);
+        const expected = magazineWrist(id, phase, h.visual.weapon, mag);
         expect(h.visual.body.getObjectByName('paw_L')!.getWorldPosition(new THREE.Vector3()).distanceTo(expected), `${id} magazine contact ${phase}`).toBeLessThan(.015);
         expect(mag.visible).toBe(true);
       }
@@ -126,8 +136,7 @@ describe('authoritative character reactions', () => {
     view.attack(h.actor.id); view.respawn(h.actor.id); expect(h.visual.strike.count).toBe(0);
   });
 
-  it('keeps the nearby M4 magazine in the support paw throughout removal and insertion, with a combined far LOD', async () => {
-    const { M4_MAG_HAND } = await import('../src/render/viewmodel-anims');
+  it('tracks the M4 world magazine hold during removal and insertion, with a combined far LOD', () => {
     const h = harness(); h.actor.weapons = [{ id: 'm4', ammo: 0, reserve: 60, rarity: 0, box: 0 }];
     h.actor.reloadUntil = 3.5;
     const mag = h.visual.weapon.getObjectByName('m4_mag')!;
@@ -135,7 +144,7 @@ describe('authoritative character reactions', () => {
       h.snapshot.time = 1 + phase * 2.5;
       view.update(h.frame, 0, h.snapshot.time);
       h.visual.group.updateMatrixWorld(true);
-      const expected = new THREE.Vector3().fromArray(M4_MAG_HAND.wrist!).applyMatrix4(mag.matrixWorld);
+      const expected = magazineWrist('m4', phase, h.visual.weapon, mag);
       const paw = h.visual.body.getObjectByName('paw_L')!.getWorldPosition(new THREE.Vector3());
       expect(paw.distanceTo(expected), `contact at ${phase}`).toBeLessThan(.008);
       expect(mag.visible).toBe(true);

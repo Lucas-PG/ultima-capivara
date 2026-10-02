@@ -1,0 +1,648 @@
+{
+  "baseline": "8111d38",
+  "runtimeSource": "7fe9039",
+  "units": "mm",
+  "method": "Lead replay of the unchanged original sample list, in separate weapon jobs. Changed weapons were replayed after their last source change. Other jobs use equivalent final code for that weapon. Raw deformed-skin measurements remain private.",
+  "sampleList": "docs/overhaul/evidence/codex-holding-perf/fp/fp-contact-audit.json",
+  "weapons": {
+    "pistol": {
+      "sampled": 245,
+      "active": 241,
+      "inactive": 4,
+      "beforeFailed": 6,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": -1.602,
+          "at": "reload 1.15 ring3"
+        },
+        "L": {
+          "v": -0.149,
+          "at": "reload 0.8 thumb2"
+        },
+        "pair": {
+          "v": -34.326,
+          "at": "draw 0.25 "
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": -0.434,
+          "at": "reload 1.485 ring3"
+        },
+        "L": {
+          "v": -0.149,
+          "at": "reload 0.8 thumb2"
+        },
+        "pair": {
+          "v": -0.058,
+          "at": "hip 0 "
+        }
+      },
+      "carryingPalm": [
+        0.337,
+        1.188
+      ],
+      "carryingWrap": [
+        -0.322,
+        -0.058
+      ],
+      "requiredTriggerSamples": 75,
+      "triggerFrontDistance": [
+        0.698,
+        0.963
+      ],
+      "triggerOutsideGuard": 0
+    },
+    "revolver": {
+      "sampled": 276,
+      "active": 271,
+      "inactive": 5,
+      "beforeFailed": 68,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": -0.1,
+          "at": "fire 0 index3"
+        },
+        "L": {
+          "v": -0.244,
+          "at": "hip 0 hand"
+        },
+        "pair": {
+          "v": -0.368,
+          "at": "fire 0 "
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": -0.1,
+          "at": "fire 0 index3"
+        },
+        "L": {
+          "v": -0.244,
+          "at": "hip 0 hand"
+        },
+        "pair": {
+          "v": -0.368,
+          "at": "fire 0 "
+        }
+      },
+      "carryingPalm": [
+        0.733,
+        0.95
+      ],
+      "carryingWrap": [
+        0.495,
+        0.517
+      ],
+      "requiredTriggerSamples": 74,
+      "triggerFrontDistance": [
+        0.168,
+        0.202
+      ],
+      "triggerOutsideGuard": 0
+    },
+    "smg": {
+      "sampled": 242,
+      "active": 237,
+      "inactive": 5,
+      "beforeFailed": 1,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": -0.066,
+          "at": "fire 0 index2"
+        },
+        "L": {
+          "v": -2.265,
+          "at": "reload 1.6 middle3"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": -0.066,
+          "at": "fire 0 index2"
+        },
+        "L": {
+          "v": 0.122,
+          "at": "reload 1.65 thumb3"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "carryingPalm": [
+        0.191,
+        1.183
+      ],
+      "carryingWrap": [
+        0.201,
+        0.499
+      ],
+      "requiredTriggerSamples": 74,
+      "triggerFrontDistance": [
+        0.182,
+        0.51
+      ],
+      "triggerOutsideGuard": 0
+    },
+    "m4": {
+      "sampled": 254,
+      "active": 249,
+      "inactive": 5,
+      "beforeFailed": 0,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": -0.444,
+          "at": "hip 0 index3"
+        },
+        "L": {
+          "v": 0.089,
+          "at": "reload 2.15 hand"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": -0.481,
+          "at": "draw 0.2 index3"
+        },
+        "L": {
+          "v": 0.089,
+          "at": "reload 2.15 hand"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "carryingPalm": [
+        -0.249,
+        0.486
+      ],
+      "carryingWrap": [
+        0.202,
+        0.497
+      ],
+      "requiredTriggerSamples": 73,
+      "triggerFrontDistance": [
+        0.438,
+        0.5
+      ],
+      "triggerOutsideGuard": 0
+    },
+    "shotgun": {
+      "sampled": 233,
+      "active": 228,
+      "inactive": 5,
+      "beforeFailed": 35,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": -6.711,
+          "at": "reload 0.25 middle3"
+        },
+        "L": {
+          "v": -1.124,
+          "at": "fire 0.2 hand"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": -0.387,
+          "at": "holster 0.025 index3"
+        },
+        "L": {
+          "v": -0.316,
+          "at": "reload 0.407 thumb3"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "carryingPalm": [
+        -0.194,
+        1.26
+      ],
+      "carryingWrap": [
+        -0.178,
+        -0.106
+      ],
+      "requiredTriggerSamples": 89,
+      "triggerFrontDistance": [
+        0.03,
+        0.5
+      ],
+      "triggerOutsideGuard": 0
+    },
+    "dmr": {
+      "sampled": 273,
+      "active": 268,
+      "inactive": 5,
+      "beforeFailed": 8,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": -2.344,
+          "at": "reload 2.2 middle3"
+        },
+        "L": {
+          "v": -0.151,
+          "at": "hip 0 ring3"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": -0.378,
+          "at": "reload 1.9 middle3"
+        },
+        "L": {
+          "v": -0.151,
+          "at": "hip 0 ring3"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "carryingPalm": [
+        0.266,
+        0.727
+      ],
+      "carryingWrap": [
+        -0.151,
+        -0.081
+      ],
+      "requiredTriggerSamples": 73,
+      "triggerFrontDistance": [
+        0.005,
+        0.444
+      ],
+      "triggerOutsideGuard": 0
+    },
+    "sniper": {
+      "sampled": 324,
+      "active": 318,
+      "inactive": 6,
+      "beforeFailed": 74,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": -3.763,
+          "at": "reload 2.65 middle3"
+        },
+        "L": {
+          "v": -2.535,
+          "at": "reload 1 hand"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": -0.486,
+          "at": "fire 0 index3"
+        },
+        "L": {
+          "v": 0.179,
+          "at": "reload 1.25 thumb2"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "carryingPalm": [
+        0.532,
+        0.878
+      ],
+      "carryingWrap": [
+        0.321,
+        0.788
+      ],
+      "requiredTriggerSamples": 74,
+      "triggerFrontDistance": [
+        0.8,
+        1.063
+      ],
+      "triggerOutsideGuard": 0
+    },
+    "coco": {
+      "sampled": 317,
+      "active": 312,
+      "inactive": 5,
+      "beforeFailed": 0,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": 0.182,
+          "at": "hip 0 index3"
+        },
+        "L": {
+          "v": 0.088,
+          "at": "reload-partial 1.85 ring3"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": 0.182,
+          "at": "hip 0 index3"
+        },
+        "L": {
+          "v": 0.088,
+          "at": "reload-partial 1.85 ring3"
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "carryingPalm": [
+        0.738,
+        1.149
+      ],
+      "carryingWrap": [
+        0.493,
+        0.5
+      ],
+      "requiredTriggerSamples": 81,
+      "triggerFrontDistance": [
+        0.192,
+        0.423
+      ],
+      "triggerOutsideGuard": 0
+    },
+    "machete": {
+      "sampled": 141,
+      "active": 137,
+      "inactive": 4,
+      "beforeFailed": 0,
+      "afterFailed": 0,
+      "beforeWorst": {
+        "R": {
+          "v": 0.816,
+          "at": "hip 0 hand"
+        },
+        "L": {
+          "v": null,
+          "at": ""
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "afterWorst": {
+        "R": {
+          "v": 0.816,
+          "at": "hip 0 hand"
+        },
+        "L": {
+          "v": null,
+          "at": ""
+        },
+        "pair": {
+          "v": null,
+          "at": ""
+        }
+      },
+      "carryingPalm": [
+        0.816,
+        0.816
+      ],
+      "carryingWrap": [
+        1.12,
+        1.12
+      ],
+      "requiredTriggerSamples": 0,
+      "triggerFrontDistance": null,
+      "triggerOutsideGuard": 0
+    }
+  },
+  "totals": {
+    "sampled": 2305,
+    "active": 2261,
+    "inactive": 44,
+    "beforeFailed": 192,
+    "afterFailed": 0
+  },
+  "correctedRows": [
+    {"weapon":"pistol","action":"draw","t":0.2,"before":{"R":-0.43,"L":-0.097,"pair":-12.246,"failures":["pair penetrates -12.246 mm","L paw contact -12.246 mm"],"contacts":{"R":{"surface":"body","gap":-0.322,"palm":1.188,"wrap":-0.322},"L":{"surface":"paw","gap":-12.246,"palm":0.337,"wrap":-0.058}}},"after":{"R":-0.43,"L":-0.097,"pair":-0.058,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.322,"palm":1.188,"wrap":-0.322},"L":{"surface":"paw","gap":-0.058,"palm":0.337,"wrap":-0.058}}}},
+    {"weapon":"pistol","action":"draw","t":0.25,"before":{"R":-0.43,"L":-0.097,"pair":-34.326,"failures":["pair penetrates -34.326 mm","L paw contact -34.326 mm","L paw wrap contact -34.326 mm"],"contacts":{"R":{"surface":"body","gap":-0.322,"palm":1.188,"wrap":-0.322},"L":{"surface":"paw","gap":-34.326,"palm":0.337,"wrap":-34.326}}},"after":{"R":-0.43,"L":-0.097,"pair":-0.058,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.322,"palm":1.188,"wrap":-0.322},"L":{"surface":"paw","gap":-0.058,"palm":0.337,"wrap":-0.058}}}},
+    {"weapon":"pistol","action":"reload","t":0.3,"before":{"R":-1.54,"L":null,"pair":32.896,"failures":["R penetrates -1.54 mm"],"contacts":{"R":{"surface":"body","gap":-0.322,"palm":1.188,"wrap":-0.322}}},"after":{"R":-0.251,"L":null,"pair":137.217,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.251,"palm":1.183,"wrap":-0.207}}}},
+    {"weapon":"pistol","action":"reload","t":1.15,"before":{"R":-1.602,"L":-0.149,"pair":1.144,"failures":["R penetrates -1.602 mm"],"contacts":{"R":{"surface":"body","gap":-0.322,"palm":1.188,"wrap":-0.322},"L":{"surface":"mag","gap":-0.149}}},"after":{"R":-0.251,"L":-0.149,"pair":1.564,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.251,"palm":1.183,"wrap":-0.207},"L":{"surface":"mag","gap":-0.149}}}},
+    {"weapon":"pistol","action":"reload-partial","t":0.3,"before":{"R":-1.54,"L":-0.149,"pair":2.836,"failures":["R penetrates -1.54 mm"],"contacts":{"R":{"surface":"body","gap":-0.322,"palm":1.188,"wrap":-0.322},"L":{"surface":"mag","gap":-0.149}}},"after":{"R":-0.251,"L":-0.149,"pair":3.412,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.251,"palm":1.183,"wrap":-0.207},"L":{"surface":"mag","gap":-0.149}}}},
+    {"weapon":"pistol","action":"reload-partial","t":1.15,"before":{"R":-1.602,"L":-0.149,"pair":1.144,"failures":["R penetrates -1.602 mm"],"contacts":{"R":{"surface":"body","gap":-0.322,"palm":1.188,"wrap":-0.322},"L":{"surface":"mag","gap":-0.149}}},"after":{"R":-0.251,"L":-0.149,"pair":1.564,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.251,"palm":1.183,"wrap":-0.207},"L":{"surface":"mag","gap":-0.149}}}},
+    {"weapon":"revolver","action":"reload","t":0.3,"before":{"R":0.201,"L":6.684,"pair":44.228,"failures":["L cylinder contact 6.684 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.684}}},"after":{"R":0.201,"L":0.187,"pair":45.834,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":0.915}}}},
+    {"weapon":"revolver","action":"reload","t":0.35,"before":{"R":0.201,"L":6.688,"pair":54.105,"failures":["L cylinder contact 6.688 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.688}}},"after":{"R":0.201,"L":0.082,"pair":53.356,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":0.082}}}},
+    {"weapon":"revolver","action":"reload","t":0.65,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.217,"pair":87.016,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload","t":0.7,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.19,"pair":75.456,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload","t":0.75,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.096,"pair":75.318,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload","t":0.8,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.096,"pair":75.318,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload","t":1.15,"before":{"R":0.201,"L":2.517,"pair":27.538,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":5.849,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.2,"before":{"R":0.201,"L":2.517,"pair":34.274,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":29.433,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.25,"before":{"R":0.201,"L":2.517,"pair":27.427,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":23.596,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.3,"before":{"R":0.201,"L":2.517,"pair":12.91,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":8.869,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.35,"before":{"R":0.201,"L":2.517,"pair":9.046,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":4.253,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.4,"before":{"R":0.201,"L":2.517,"pair":8.87,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":4.171,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.45,"before":{"R":0.201,"L":2.517,"pair":7.58,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":2.386,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.5,"before":{"R":0.201,"L":2.517,"pair":5.059,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":7.039,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.55,"before":{"R":0.201,"L":2.517,"pair":8.798,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":8.025,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.6,"before":{"R":0.201,"L":2.517,"pair":11.523,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":11.057,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.65,"before":{"R":0.201,"L":2.517,"pair":36.472,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":38.441,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.7,"before":{"R":0.201,"L":2.517,"pair":38.98,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":28.63,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.75,"before":{"R":0.201,"L":2.517,"pair":49.051,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":52.196,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.95,"before":{"R":0.201,"L":6.648,"pair":28.878,"failures":["L cylinder contact 6.648 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.648}}},"after":{"R":0.201,"L":0.585,"pair":32.729,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":0.585}}}},
+    {"weapon":"revolver","action":"reload","t":2,"before":{"R":0.201,"L":1.14,"pair":25.339,"failures":["L cylinder contact 6.668 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.668}}},"after":{"R":0.201,"L":0.071,"pair":26.583,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":1.215}}}},
+    {"weapon":"revolver","action":"reload","t":0.276,"before":{"R":0.201,"L":1.12,"pair":33.934,"failures":["L cylinder contact 6.667 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.667}}},"after":{"R":0.201,"L":0.055,"pair":35.278,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":1.215}}}},
+    {"weapon":"revolver","action":"reload","t":0.391,"before":{"R":0.201,"L":6.632,"pair":59.066,"failures":["L cylinder contact 6.632 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.632}}},"after":{"R":0.201,"L":-0.109,"pair":53.755,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":-0.109}}}},
+    {"weapon":"revolver","action":"reload","t":0.644,"before":{"R":0.201,"L":20.306,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.217,"pair":92.54,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload","t":0.736,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.096,"pair":75.318,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload","t":0.805,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.096,"pair":75.318,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload","t":1.127,"before":{"R":0.201,"L":2.517,"pair":18.588,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":2.767,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.38,"before":{"R":0.201,"L":2.517,"pair":8.87,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":4.145,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.5525,"before":{"R":0.201,"L":2.517,"pair":9.971,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":10.182,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.5548,"before":{"R":0.201,"L":2.517,"pair":9.969,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":10.176,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.679,"before":{"R":0.201,"L":2.517,"pair":34.891,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":33.249,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.771,"before":{"R":0.201,"L":2.517,"pair":48.648,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":49.367,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload","t":1.9205,"before":{"R":0.201,"L":6.632,"pair":42.696,"failures":["L cylinder contact 6.632 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.632}}},"after":{"R":0.201,"L":-0.109,"pair":46.099,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":-0.109}}}},
+    {"weapon":"revolver","action":"reload","t":2.024,"before":{"R":0.201,"L":1.12,"pair":25.329,"failures":["L cylinder contact 6.667 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.667}}},"after":{"R":0.201,"L":0.055,"pair":26.563,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":1.215}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.3,"before":{"R":0.201,"L":6.684,"pair":44.228,"failures":["L cylinder contact 6.684 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.684}}},"after":{"R":0.201,"L":0.187,"pair":45.834,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":0.915}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.35,"before":{"R":0.201,"L":6.688,"pair":54.105,"failures":["L cylinder contact 6.688 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.688}}},"after":{"R":0.201,"L":0.082,"pair":53.356,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":0.082}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.65,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.217,"pair":87.016,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.7,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.19,"pair":75.456,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.75,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.096,"pair":75.318,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.8,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.096,"pair":75.318,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.15,"before":{"R":0.201,"L":2.517,"pair":27.538,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":5.849,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.2,"before":{"R":0.201,"L":2.517,"pair":34.274,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":29.433,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.25,"before":{"R":0.201,"L":2.517,"pair":27.427,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":23.596,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.3,"before":{"R":0.201,"L":2.517,"pair":12.91,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":8.869,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.35,"before":{"R":0.201,"L":2.517,"pair":9.046,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":4.253,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.4,"before":{"R":0.201,"L":2.517,"pair":8.87,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":4.171,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.45,"before":{"R":0.201,"L":2.517,"pair":7.58,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":2.386,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.5,"before":{"R":0.201,"L":2.517,"pair":5.059,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":7.039,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.55,"before":{"R":0.201,"L":2.517,"pair":8.798,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":8.025,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.6,"before":{"R":0.201,"L":2.517,"pair":11.523,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":11.057,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.65,"before":{"R":0.201,"L":2.517,"pair":36.472,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":38.441,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.7,"before":{"R":0.201,"L":2.517,"pair":38.98,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":28.63,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.75,"before":{"R":0.201,"L":2.517,"pair":49.051,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":52.196,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.95,"before":{"R":0.201,"L":6.648,"pair":28.878,"failures":["L cylinder contact 6.648 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.648}}},"after":{"R":0.201,"L":0.585,"pair":32.729,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":0.585}}}},
+    {"weapon":"revolver","action":"reload-partial","t":2,"before":{"R":0.201,"L":1.14,"pair":25.339,"failures":["L cylinder contact 6.668 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.668}}},"after":{"R":0.201,"L":0.071,"pair":26.583,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":1.215}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.276,"before":{"R":0.201,"L":1.12,"pair":33.934,"failures":["L cylinder contact 6.667 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.667}}},"after":{"R":0.201,"L":0.055,"pair":35.278,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":1.215}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.391,"before":{"R":0.201,"L":6.632,"pair":59.066,"failures":["L cylinder contact 6.632 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.632}}},"after":{"R":0.201,"L":-0.109,"pair":53.755,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":-0.109}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.644,"before":{"R":0.201,"L":20.306,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.217,"pair":92.54,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.736,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.096,"pair":75.318,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload-partial","t":0.805,"before":{"R":0.201,"L":20.608,"pair":null,"failures":["L action contact 108.568 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":108.568}}},"after":{"R":0.201,"L":0.096,"pair":75.318,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"action","gap":0.217}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.127,"before":{"R":0.201,"L":2.517,"pair":18.588,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":2.767,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.38,"before":{"R":0.201,"L":2.517,"pair":8.87,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":4.145,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.5525,"before":{"R":0.201,"L":2.517,"pair":9.971,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":10.182,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.5548,"before":{"R":0.201,"L":2.517,"pair":9.969,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":10.176,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.679,"before":{"R":0.201,"L":2.517,"pair":34.891,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":33.249,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.771,"before":{"R":0.201,"L":2.517,"pair":48.648,"failures":["L mag contact 2.517 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":2.517}}},"after":{"R":0.201,"L":-0.122,"pair":49.367,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"mag","gap":-0.122}}}},
+    {"weapon":"revolver","action":"reload-partial","t":1.9205,"before":{"R":0.201,"L":6.632,"pair":42.696,"failures":["L cylinder contact 6.632 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.632}}},"after":{"R":0.201,"L":-0.109,"pair":46.099,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":-0.109}}}},
+    {"weapon":"revolver","action":"reload-partial","t":2.024,"before":{"R":0.201,"L":1.12,"pair":25.329,"failures":["L cylinder contact 6.667 mm"],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":6.667}}},"after":{"R":0.201,"L":0.055,"pair":26.563,"failures":[],"contacts":{"R":{"surface":"body","gap":0.201,"palm":0.95,"wrap":0.495},"L":{"surface":"cylinder","gap":1.215}}}},
+    {"weapon":"smg","action":"reload","t":1.6,"before":{"R":0.191,"L":-2.265,"failures":["L penetrates -2.265 mm"],"contacts":{"R":{"surface":"body","gap":0.191,"palm":0.191,"wrap":0.201}}},"after":{"R":0.191,"L":1.023,"failures":[],"contacts":{"R":{"surface":"body","gap":0.191,"palm":0.191,"wrap":0.201}}}},
+    {"weapon":"shotgun","action":"holster","t":0.025,"before":{"R":-1.705,"L":-0.196,"failures":["R penetrates -1.705 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.196,"palm":0.641,"wrap":-0.196}}},"after":{"R":-0.387,"L":-0.106,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.106,"palm":1.26,"wrap":-0.106}}}},
+    {"weapon":"shotgun","action":"draw","t":0.25,"before":{"R":-2.362,"L":-0.196,"failures":["R penetrates -2.362 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.196,"palm":0.643,"wrap":-0.196}}},"after":{"R":-0.2,"L":-0.106,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.106,"palm":1.253,"wrap":-0.106}}}},
+    {"weapon":"shotgun","action":"draw","t":0.3,"before":{"R":-0.652,"L":-0.196,"failures":["R penetrates -0.652 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.196,"palm":0.626,"wrap":-0.196}}},"after":{"R":-0.248,"L":-0.106,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.106,"palm":1.241,"wrap":-0.106}}}},
+    {"weapon":"shotgun","action":"inspect","t":1.7,"before":{"R":-3.037,"L":-0.196,"failures":["R penetrates -3.037 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.196,"palm":0.65,"wrap":-0.196}}},"after":{"R":-0.281,"L":-0.106,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.106,"palm":1.254,"wrap":-0.106}}}},
+    {"weapon":"shotgun","action":"fire","t":0.2,"before":{"R":-0.2,"L":-1.124,"failures":["L penetrates -1.124 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.196,"palm":0.641,"wrap":-0.196}}},"after":{"R":-0.2,"L":-0.223,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.106,"palm":1.26,"wrap":-0.106}}}},
+    {"weapon":"shotgun","action":"fire","t":0.25,"before":{"R":-0.2,"L":-1.124,"failures":["L penetrates -1.124 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.196,"palm":0.641,"wrap":-0.196}}},"after":{"R":-0.2,"L":-0.223,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.106,"palm":1.26,"wrap":-0.106}}}},
+    {"weapon":"shotgun","action":"reload","t":0.25,"before":{"R":-6.711,"L":1.164,"failures":["R penetrates -6.711 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.164}}},"after":{"R":-0.2,"L":-0.181,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":-0.181}}}},
+    {"weapon":"shotgun","action":"reload","t":0.35,"before":{"R":-0.2,"L":3.622,"failures":["L mag contact 4.922 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":4.922}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload","t":0.4,"before":{"R":-0.2,"L":4.144,"failures":["L mag contact 7.04 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":7.04}}},"after":{"R":-0.2,"L":0.708,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload","t":0.65,"before":{"R":-0.2,"L":-0.605,"failures":["L penetrates -0.605 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.196,"palm":0.641,"wrap":-0.196}}},"after":{"R":-0.2,"L":-0.106,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"pump","gap":-0.106,"palm":1.26,"wrap":-0.106}}}},
+    {"weapon":"shotgun","action":"reload","t":0.264,"before":{"R":-2.974,"L":0.665,"failures":["R penetrates -2.974 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.164}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload","t":0.341,"before":{"R":-0.2,"L":2.721,"failures":["L mag contact 2.721 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":2.721}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload","t":0.36575,"before":{"R":-0.2,"L":4.025,"failures":["L mag contact 11.38 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":11.38}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload","t":0.385,"before":{"R":-0.2,"L":3.886,"failures":["L mag contact 13.977 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":13.977}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload","t":0.407,"before":{"R":-0.2,"L":2.539,"failures":["L mag contact 5.435 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":5.435}}},"after":{"R":-0.2,"L":-0.316,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-partial","t":0.25,"before":{"R":-6.711,"L":1.164,"failures":["R penetrates -6.711 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.164}}},"after":{"R":-0.2,"L":-0.181,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":-0.181}}}},
+    {"weapon":"shotgun","action":"reload-partial","t":0.35,"before":{"R":-0.2,"L":3.622,"failures":["L mag contact 4.922 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":4.922}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-partial","t":0.4,"before":{"R":-0.2,"L":4.144,"failures":["L mag contact 7.04 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":7.04}}},"after":{"R":-0.2,"L":0.708,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-partial","t":0.264,"before":{"R":-2.974,"L":0.665,"failures":["R penetrates -2.974 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.164}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-partial","t":0.341,"before":{"R":-0.2,"L":2.721,"failures":["L mag contact 2.721 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":2.721}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-partial","t":0.36575,"before":{"R":-0.2,"L":4.025,"failures":["L mag contact 11.38 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":11.38}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-partial","t":0.385,"before":{"R":-0.2,"L":3.886,"failures":["L mag contact 13.977 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":13.977}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-partial","t":0.407,"before":{"R":-0.2,"L":2.539,"failures":["L mag contact 5.435 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":5.435}}},"after":{"R":-0.2,"L":-0.316,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":0.25,"before":{"R":-6.711,"L":1.164,"failures":["R penetrates -6.711 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.164}}},"after":{"R":-0.2,"L":-0.181,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":-0.181}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":0.35,"before":{"R":-0.2,"L":3.622,"failures":["L mag contact 4.922 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":4.922}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":0.4,"before":{"R":-0.2,"L":4.144,"failures":["L mag contact 7.04 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":7.04}}},"after":{"R":-0.2,"L":0.708,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":0.8,"before":{"R":-6.711,"L":1.164,"failures":["R penetrates -6.711 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.164}}},"after":{"R":-0.2,"L":-0.181,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":-0.181}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":0.9,"before":{"R":-0.2,"L":3.622,"failures":["L mag contact 4.922 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":4.922}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":0.95,"before":{"R":-0.2,"L":4.144,"failures":["L mag contact 7.04 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":7.04}}},"after":{"R":-0.2,"L":0.708,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":1.35,"before":{"R":-6.711,"L":1.164,"failures":["R penetrates -6.711 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.164}}},"after":{"R":-0.2,"L":-0.181,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":-0.181}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":1.45,"before":{"R":-0.2,"L":3.622,"failures":["L mag contact 4.922 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":4.922}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":1.5,"before":{"R":-0.2,"L":4.144,"failures":["L mag contact 7.04 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":7.04}}},"after":{"R":-0.2,"L":0.708,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":1.9,"before":{"R":-6.711,"L":1.164,"failures":["R penetrates -6.711 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.164}}},"after":{"R":-0.2,"L":-0.181,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":-0.181}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":2,"before":{"R":-0.2,"L":3.622,"failures":["L mag contact 4.922 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":4.922}}},"after":{"R":-0.2,"L":1.404,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"shotgun","action":"reload-chain","t":2.05,"before":{"R":-0.2,"L":4.144,"failures":["L mag contact 7.04 mm"],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":7.04}}},"after":{"R":-0.2,"L":0.708,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.2,"palm":-0.194,"wrap":-0.178},"L":{"surface":"mag","gap":1.404}}}},
+    {"weapon":"dmr","action":"reload","t":2.15,"before":{"R":-2.226,"L":-0.151,"failures":["R penetrates -2.226 mm"],"contacts":{"L":{"surface":"body","gap":-0.151,"palm":0.727,"wrap":-0.151}}},"after":{"R":0.845,"L":-0.151,"failures":[],"contacts":{"L":{"surface":"body","gap":-0.151,"palm":0.727,"wrap":-0.151}}}},
+    {"weapon":"dmr","action":"reload","t":2.2,"before":{"R":-2.344,"L":-0.151,"failures":["R penetrates -2.344 mm","R charge contact -2.344 mm"],"contacts":{"R":{"surface":"charge","gap":-2.344},"L":{"surface":"body","gap":-0.151,"palm":0.674,"wrap":-0.151}}},"after":{"R":0.649,"L":-0.151,"failures":[],"contacts":{"R":{"surface":"charge","gap":0.649},"L":{"surface":"body","gap":-0.151,"palm":0.674,"wrap":-0.151}}}},
+    {"weapon":"dmr","action":"reload","t":2.25,"before":{"R":-2.344,"L":-0.151,"failures":["R penetrates -2.344 mm","R charge contact -2.344 mm"],"contacts":{"R":{"surface":"charge","gap":-2.344},"L":{"surface":"body","gap":-0.151,"palm":0.671,"wrap":-0.151}}},"after":{"R":0.649,"L":-0.151,"failures":[],"contacts":{"R":{"surface":"charge","gap":0.649},"L":{"surface":"body","gap":-0.151,"palm":0.671,"wrap":-0.151}}}},
+    {"weapon":"dmr","action":"reload","t":2.3,"before":{"R":-2.344,"L":-0.151,"failures":["R penetrates -2.344 mm","R charge contact -2.344 mm"],"contacts":{"R":{"surface":"charge","gap":-2.344},"L":{"surface":"body","gap":-0.151,"palm":0.668,"wrap":-0.151}}},"after":{"R":0.649,"L":-0.151,"failures":[],"contacts":{"R":{"surface":"charge","gap":0.649},"L":{"surface":"body","gap":-0.151,"palm":0.668,"wrap":-0.151}}}},
+    {"weapon":"dmr","action":"reload","t":2.35,"before":{"R":-2.344,"L":-0.151,"failures":["R penetrates -2.344 mm","R charge contact -2.344 mm"],"contacts":{"R":{"surface":"charge","gap":-2.344},"L":{"surface":"body","gap":-0.151,"palm":0.666,"wrap":-0.151}}},"after":{"R":0.649,"L":-0.151,"failures":[],"contacts":{"R":{"surface":"charge","gap":0.649},"L":{"surface":"body","gap":-0.151,"palm":0.666,"wrap":-0.151}}}},
+    {"weapon":"dmr","action":"reload","t":2.158,"before":{"R":-2.344,"L":-0.151,"failures":["R penetrates -2.344 mm","R charge contact -2.344 mm"],"contacts":{"R":{"surface":"charge","gap":-2.344},"L":{"surface":"body","gap":-0.151,"palm":0.727,"wrap":-0.151}}},"after":{"R":0.649,"L":-0.151,"failures":[],"contacts":{"R":{"surface":"charge","gap":0.649},"L":{"surface":"body","gap":-0.151,"palm":0.727,"wrap":-0.151}}}},
+    {"weapon":"dmr","action":"reload","t":2.314,"before":{"R":-2.344,"L":-0.151,"failures":["R penetrates -2.344 mm","R charge contact -2.344 mm"],"contacts":{"R":{"surface":"charge","gap":-2.344},"L":{"surface":"body","gap":-0.151,"palm":0.668,"wrap":-0.151}}},"after":{"R":0.649,"L":-0.151,"failures":[],"contacts":{"R":{"surface":"charge","gap":0.649},"L":{"surface":"body","gap":-0.151,"palm":0.668,"wrap":-0.151}}}},
+    {"weapon":"dmr","action":"reload","t":2.379,"before":{"R":-2.344,"L":-0.151,"failures":["R penetrates -2.344 mm","R charge contact -2.344 mm"],"contacts":{"R":{"surface":"charge","gap":-2.344},"L":{"surface":"body","gap":-0.151,"palm":0.666,"wrap":-0.151}}},"after":{"R":0.649,"L":-0.151,"failures":[],"contacts":{"R":{"surface":"charge","gap":0.649},"L":{"surface":"body","gap":-0.151,"palm":0.666,"wrap":-0.151}}}},
+    {"weapon":"sniper","action":"sprint","t":0.4,"before":{"R":-0.778,"L":0.269,"failures":["R penetrates -0.778 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"body","gap":0.321,"palm":0.539,"wrap":0.321}}},"after":{"R":-0.304,"L":0.269,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"body","gap":0.321,"palm":0.539,"wrap":0.321}}}},
+    {"weapon":"sniper","action":"sprint","t":0.5,"before":{"R":-0.776,"L":0.269,"failures":["R penetrates -0.776 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"body","gap":0.321,"palm":0.538,"wrap":0.321}}},"after":{"R":-0.304,"L":0.269,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"body","gap":0.321,"palm":0.538,"wrap":0.321}}}},
+    {"weapon":"sniper","action":"inspect","t":1.7,"before":{"R":-2.992,"L":0.269,"failures":["R penetrates -2.992 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"body","gap":0.321,"palm":0.54,"wrap":0.321}}},"after":{"R":-0.304,"L":0.269,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"body","gap":0.321,"palm":0.54,"wrap":0.321}}}},
+    {"weapon":"sniper","action":"fire","t":0.2,"before":{"R":-0.61,"L":0.269,"failures":["R penetrates -0.61 mm"],"contacts":{"L":{"surface":"body","gap":0.321,"palm":0.534,"wrap":0.321}}},"after":{"R":0.554,"L":0.269,"failures":[],"contacts":{"L":{"surface":"body","gap":0.321,"palm":0.534,"wrap":0.321}}}},
+    {"weapon":"sniper","action":"reload","t":0.35,"before":{"R":-0.914,"L":0.269,"failures":["R penetrates -0.914 mm"],"contacts":{"L":{"surface":"body","gap":0.321,"palm":0.536,"wrap":0.321}}},"after":{"R":0.428,"L":0.269,"failures":[],"contacts":{"L":{"surface":"body","gap":0.321,"palm":0.536,"wrap":0.321}}}},
+    {"weapon":"sniper","action":"reload","t":0.7,"before":{"R":-0.86,"L":0.269,"failures":["R penetrates -0.86 mm"],"contacts":{"L":{"surface":"body","gap":0.321,"palm":0.536,"wrap":0.321}}},"after":{"R":0.31,"L":0.269,"failures":[],"contacts":{"L":{"surface":"body","gap":0.321,"palm":0.536,"wrap":0.321}}}},
+    {"weapon":"sniper","action":"reload","t":1,"before":{"R":-0.304,"L":-2.535,"failures":["L penetrates -2.535 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":18.468,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload","t":1.25,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.3,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.35,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.4,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.45,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.5,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.55,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.6,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.8,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.85,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.9,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.95,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":2,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":2.05,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":2.1,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":2.45,"before":{"R":-0.304,"L":-0.98,"failures":["L penetrates -0.98 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":1.048,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload","t":2.65,"before":{"R":-3.763,"L":0.269,"failures":["R penetrates -3.763 mm"],"contacts":{"L":{"surface":"body","gap":0.321,"palm":0.533,"wrap":0.321}}},"after":{"R":1.205,"L":0.269,"failures":[],"contacts":{"L":{"surface":"body","gap":0.321,"palm":0.533,"wrap":0.321}}}},
+    {"weapon":"sniper","action":"reload","t":0.99,"before":{"R":-0.304,"L":-2.312,"failures":["L penetrates -2.312 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":16.83,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload","t":1.2105,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.284,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.4604,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.6074,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.7691,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":1.9896,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":2.1366,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload","t":2.42325,"before":{"R":-0.304,"L":-2.312,"failures":["L penetrates -2.312 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":16.89,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.1,"before":{"R":-0.304,"L":-1.679,"failures":["L penetrates -1.679 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":2.56,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.2,"before":{"R":-0.304,"L":-2.443,"failures":["L penetrates -2.443 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":14.496,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.25,"before":{"R":-0.304,"L":-2.345,"failures":["L penetrates -2.345 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":16.781,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.3,"before":{"R":-0.304,"L":-0.713,"failures":["L penetrates -0.713 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":24.362,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.65,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.7,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.75,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.8,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.85,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.9,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.95,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.05,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.1,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.15,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.2,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.25,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.3,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.55,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.6,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.65,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.7,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.75,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.8,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.85,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.9,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.95,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":2,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":2.05,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":2.1,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":2.6,"before":{"R":-0.304,"L":-2.244,"failures":["L penetrates -2.244 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":17.956,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":2.65,"before":{"R":-0.304,"L":-1.482,"failures":["L penetrates -1.482 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":1.847,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.24,"before":{"R":-0.304,"L":-2.416,"failures":["L penetrates -2.416 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":16.61,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.27,"before":{"R":-0.304,"L":-2.312,"failures":["L penetrates -2.312 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":16.86,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":0.63,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.038,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.278,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.542,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":null,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}},
+    {"weapon":"sniper","action":"reload-partial","t":1.902,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":2.142,"before":{"R":-0.304,"L":2.523,"failures":["L mag contact 2.523 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":2.523}}},"after":{"R":-0.304,"L":0.179,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788},"L":{"surface":"mag","gap":0.179}}}},
+    {"weapon":"sniper","action":"reload-partial","t":2.61,"before":{"R":-0.304,"L":-2.312,"failures":["L penetrates -2.312 mm"],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}},"after":{"R":-0.304,"L":16.884,"failures":[],"contacts":{"R":{"surface":"body","gap":-0.304,"palm":0.878,"wrap":0.788}}}}
+  ]
+}

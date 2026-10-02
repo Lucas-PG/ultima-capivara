@@ -1,7 +1,9 @@
+import { triggerInGuard } from './trigger-guard.mjs';
+
 // Run inside the character review page. Exposes the actual posed world paw to
 // the same signed skin probe used for first person, without moving either mesh.
 export function installThirdPersonGripProbe(input) {
-  const { weaponId, triggerIndices } = typeof input === 'string' ? { weaponId: input } : input;
+  const { weaponId, triggerIndices, contactIndices } = typeof input === 'string' ? { weaponId: input } : input;
   const review = window.capyReview, { avatar, renderer } = review;
   const source = avatar.body.getObjectByName('Capybara_LOD0');
   if (!source?.isSkinnedMesh) throw new Error('Missing visible world-character skin');
@@ -80,10 +82,35 @@ export function installThirdPersonGripProbe(input) {
     const geometry = weapon.geometry.clone(); geometry.setIndex(triggerIndices);
     parts.trigger = { ...body, name: `${weaponId}_trigger`, geometry };
   }
+  for (const [name, indices] of Object.entries(contactIndices ?? {})) {
+    const geometry = weapon.geometry.clone(); geometry.setIndex(indices);
+    parts[name] = { ...body, name: `${weaponId}_${name}`, geometry, position: new V3(), quaternion: new Q() };
+  }
   const mag = weapon.getObjectByName(`${weaponId}_mag`); if (mag) parts.mag = mag;
   window.__vmProbe = { scene, holder: { matrixWorld: weapon.matrixWorld, position: weapon.position, quaternion: weapon.quaternion, scale: weapon.getWorldScale(new V3()) },
     arms: { meshes }, models: { [weaponId]: { group: weapon, muzzle, parts } } };
-  window.__tpProbeMeshes = [...meshes, ...(parts.trigger ? [parts.trigger] : [])];
+  window.__tpProbeMeshes = [...meshes, ...(parts.trigger ? [parts.trigger] : []), ...Object.keys(contactIndices ?? {}).map(name => parts[name])];
   return { vertices: Object.fromEntries(meshes.map(mesh => [mesh.name.at(-1), mesh.geometry.attributes.position.count])),
     scale: weapon.getWorldScale(new V3()).toArray(), weaponGeometry: weapon.geometry.name };
+}
+
+/** Count actual posed index vertices still occupying the physical guard opening. */
+export function worldIndexGuardOccupancy(weaponId, side = 'R') {
+  const probe = window.__vmProbe;
+  probe.scene.updateMatrixWorld(true);
+  const mesh = probe.arms.meshes.find(arm => arm.name.endsWith(side));
+  const M4 = probe.holder.matrixWorld.constructor, V3 = probe.holder.position.constructor;
+  const inverse = new M4().copy(probe.holder.matrixWorld).invert(), point = new V3();
+  const indices = mesh.geometry.attributes.skinIndex, weights = mesh.geometry.attributes.skinWeight;
+  const bones = new Set(mesh.skeleton.bones.flatMap((bone, i) => /^index[123]_[LR]$/.test(bone.name) ? [i] : []));
+  let total = 0, inside = 0;
+  for (let i = 0; i < indices.count; i++) {
+    let belongs = false;
+    for (let k = 0; k < 4; k++) if (weights.getComponent(i, k) > 0 && bones.has(indices.getComponent(i, k))) belongs = true;
+    if (!belongs) continue;
+    mesh.getVertexPosition(i, point).applyMatrix4(mesh.matrixWorld).applyMatrix4(inverse).multiplyScalar(1000);
+    total++; if (triggerInGuard(weaponId, point.toArray())) inside++;
+  }
+  if (!total) throw new Error(`Missing actual index skin for ${weaponId}/${side}`);
+  return { total, inside };
 }

@@ -3,7 +3,7 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, SHOULDERS, framedGrips, heldCurl, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
-import { newSample, sampleChoreo, handContact, type ChoreoSample, type HandKey } from './viewmodel-choreo';
+import { newSample, sampleChoreo, handContact, handIndexed, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { WRIST_SOLVE } from './viewmodel-targets';
 import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS, LONG_INSPECTS } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
@@ -714,7 +714,7 @@ export class WeaponView {
       const surface = this.holdingContacts[side];
       if (surface && surface !== 'body' && surface !== 'paw' && model.parts[surface as keyof Parts]?.visible === false) this.holdingContacts[side] = null;
     }
-    if (this.holdingContacts.R !== 'body') this.holdingContacts.trigger = false;
+    if (this.holdingContacts.R !== 'body' || handIndexed(sample?.R ?? null)) this.holdingContacts.trigger = false;
     this.holder.updateMatrixWorld(true);
     this.gripTarget(model, grips.R, this.targetR);
     if (model.id !== 'machete') this.targetR.curl = heldCurl(grips.R, this.carryIndex, this.triggerPull);
@@ -820,6 +820,12 @@ export class WeaponView {
     out.forward.copy(this.handA.forward).lerp(this.handB.forward, u).normalize();
     out.palm.copy(this.handA.palm).lerp(this.handB.palm, u).normalize();
     out.curl = blendCurl(this.handA.curl, this.handB.curl, u);
+    if (grip.indexExit?.length && pair.a.space === 'grip' && pair.b.space === 'grip' && !pair.a.curl && !pair.b.curl) {
+      // Interpolate progress along the measured exit route. Blending its two
+      // resolved endpoints cuts through the guard during reloads and inspects.
+      const a = pair.a.indexed ? 1 : indexed, b = pair.b.indexed ? 1 : indexed;
+      out.curl = heldCurl(grip, a + (b - a) * u, pull);
+    }
     out.pole.copy(this.handA.pole).lerp(this.handB.pole, u).normalize();
   }
 

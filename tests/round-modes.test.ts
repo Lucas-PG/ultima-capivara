@@ -213,6 +213,31 @@ it('replaces a practice bot with a guest who waits until the next round, preserv
   expect(sim.snapshot().actors.find(actor => actor.id === 'guest')).toMatchObject({ alive: true, hp: 100, team: 1 });
 });
 
+it('keeps fresh opening arrivals spectating with free basics and preserves a reconnecting human body and funds', () => {
+  for (const mode of ['duel', 'squads'] as const) {
+    const config: RoomConfig = { mode, capacity: mode === 'duel' ? 2 : 4, teamSize: 2, bots: true, difficulty: 'normal', duration: 300 };
+    const sim = new Simulation(world, config, [profile('host')], 'a'.repeat(48), 40), runtime = sim as any;
+    sim.step(.25, true); sim.player(profile('late'), 'join');
+    const arrived = sim.snapshot(), late = arrived.actors.find(actor => actor.id === 'late')!;
+    expect(arrived.time).toBe(0); expect(arrived.phase).toBe('countdown');
+    expect(late.alive).toBe(false); expect(late.weapons.map(weapon => weapon.id)).toEqual(['pistol', 'machete']);
+    expect(rebuildFrame(fastPart(arrived), worldPart(arrived), gearPart(arrived))).not.toBeNull();
+    advance(sim, 3.1);
+    const funds = runtime.actors.get('late').state.money;
+    sim.action('late', { type: 'buy', id: 1, round: 1, item: 'armor' });
+    expect(runtime.actors.get('late').state).toMatchObject({ alive: false, armor: 0, money: funds });
+    const host = runtime.actors.get('host').state;
+    host.money = 2345; const body = structuredClone({ pos: host.pos, hp: host.hp, weapons: host.weapons, money: host.money });
+    sim.player({ ...profile('host'), connected: false }, 'disconnect'); sim.player(profile('host'), 'reconnect');
+    expect(host.alive).toBe(true);
+    expect({ pos: host.pos, hp: host.hp, weapons: host.weapons, money: host.money }).toEqual(body);
+    runtime.prepareRound();
+    const spawned = sim.snapshot().actors.find(actor => actor.id === 'late')!;
+    expect(spawned.alive).toBe(true);
+    expect(spawned.weapons[0].id).toBe(mode === 'duel' ? sim.snapshot().round!.weapon : 'pistol');
+  }
+});
+
 it('keeps squads spectating on allies and leaves the duel opponent watchable', async () => {
   const { roundSpectators } = await import('../src/shared/round-modes');
   const { sim } = fixture('squads');

@@ -25,18 +25,29 @@ const PISTOL_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.078594
   curl: { index: [-0.1, 0.2707668, 0.127294], middle: [-0.0158199, 0.27, 0.135], ring: [0.225186, 0.2694, 0.135], thumb: [1.4, 0.5214256, 0.0424187], spread: 0.0704499, indexSpread: 0.65 } };
 const PISTOL_MAG_CLEAR = shift(PISTOL_MAG_HAND, [0, -.039, 0]);
 const PISTOL_MAG_OUTSIDE = shift(PISTOL_MAG_HAND, [-.108, -.039, 0]);
-const PISTOL_CLEAR: HandKey = { space: 'grip', offset: [-.045, 0, 0] };
+const PISTOL_CLEAR: HandKey = { space: 'grip', offset: [-.06, -.02, 0] };
 const PISTOL_RETURN_CLEAR: HandKey = { space: 'grip', offset: [-.045, -.025, 0] };
 const PISTOL_RELEASE_HAND: HandKey = { space: 'part', part: 'release', wrist: [-0.0523961, -0.0845468, -0.0218285],
   forward: [-0.0228905, 0.7940599, -0.6074083],
   palm: [0.9970598, 0.0625748, 0.0442288],
   pole: [-1, -0.5, 0.3],
   curl: { index: [0.1942984, 0.1859468, 0.127659], middle: [0.1705234, 0.2246227, 0.1382764], ring: [0.1138685, 0.2156006, 0.164218], thumb: [0.1490603, 0.2830322, 0.0607156], spread: 0.3145627, indexSpread: 0.0048042, indexRoll: 0 } };
+// A fitted reload hold clears the magazine's swept path while the palm and wrap carry the grip.
+const PISTOL_RELOAD_HOLD: HandKey = { space: 'gun', contact: 'body', wrist: [0.03726642847, -0.1043853105, 0.08007228938],
+  forward: [0.3411367836, 0.4343394781, -0.8336515535], palm: [-0.919691667, -0.02919254217, -0.3915546362], pole: [1, -1, 0.3],
+  curl: { index: [0.05, 0.08, 0.05], middle: [0.815783137, 0.3095488795, 0.2095882589], ring: [1.183409809, 0.4802219305, 0.5244103115], thumb: [0.5531420024, 0.4946569955, 0.2115953837], spread: 0.7265735896, indexSpread: 0, indexRoll: 0 } };
+const PISTOL_RELOAD_OPEN: HandKey = { space: 'grip', curl: { ring: [1.155, 0.5182772376, 0.5167532119] } };
+const PISTOL_RELOAD_OPEN_HOLD: HandKey = { ...PISTOL_RELOAD_HOLD, curl: { ...PISTOL_RELOAD_HOLD.curl, ring: [1.155, 0.4802219305, 0.5244103115] } };
 const pistolSwap = (retain: boolean): Choreography => [
   { t: .035, L: PISTOL_CLEAR },
-  { t: .04, R: INDEXED },
-  { t: .91, R: INDEXED },
-  { t: .99, R: { space: 'grip' } },
+  { t: .055, R: { space: 'grip' } },
+  { t: .075, R: PISTOL_RELOAD_OPEN },
+  { t: .12, R: PISTOL_RELOAD_OPEN_HOLD },
+  { t: .14, R: PISTOL_RELOAD_HOLD },
+  { t: .73, R: PISTOL_RELOAD_HOLD },
+  { t: .75, R: PISTOL_RELOAD_OPEN_HOLD },
+  { t: .79, R: PISTOL_RELOAD_OPEN },
+  { t: .83, R: { space: 'grip' } },
   { t: .08, p: [-.035, .018, .015], r: [.18, .12, -.32], ease: 'out' },
   { t: .075, L: { space: 'gun', wrist: [-.125, -.09, .09], forward: [.35, .12, -1], palm: [1, 0, .15], curl: OPEN } },
   { t: .105, L: retain ? PISTOL_MAG_OUTSIDE : undefined },
@@ -169,7 +180,7 @@ export const M4_RELOAD_EMPTY: Choreography = [
 export const M4_RELOAD_PARTIAL: Choreography = [
   ...M4_SWAP,
   { t: .813, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.17, -.30, -.115] } },
-  { t: .845, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.12, -.13, -.18] } },
+  { t: .845, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.18, -.13, -.18] } },
   { t: .87, L: SUPPORT_CLEAR },
   { t: .901, L: SUPPORT_RELEASE },
   { t: .94, L: { space: 'grip' }, R: { space: 'grip' } },
@@ -206,10 +217,10 @@ const SMG_SWAP: Choreography = [
 ];
 const SMG_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [-0.0712715207, -0.0365287927, 0.0465020958],
   forward: [0.259133355, 0.461110908, -0.848661673], palm: [0.9624155, -0.0493324025, 0.267063137], pole: [-0.6, -1, 0.2],
-  curl: { index: [1.12551124, 1.21059965, 0.535734993], middle: [1.28353255, 1.00933023, 1.2760274], ring: [1.25893331, 1.19648349, 0.758054273], thumb: [0.516442284, 0.143842169, -0.0551321481],
+  curl: { index: [1.12551124, 1.21059965, 0.535734993], middle: [.05, .3, .3], ring: [1.25893331, 1.19648349, 0.758054273], thumb: [0.516442284, 0.143842169, -0.0551321481],
     spread: -0.512847704, indexSpread: 0.0160632489, indexRoll: -0.00905554362 } };
 export const SMG_RELOAD_EMPTY: Choreography = [...SMG_SWAP,
-  { t: .77, L: { space: 'gun', wrist: [-.145, .04, -.13], forward: [.1, .3, -1], palm: [1, -.1, .05], curl: OPEN } },
+  { t: .77, L: { space: 'gun', wrist: [-.145, .06, -.11], forward: [.1, .3, -1], palm: [1, -.1, .05], curl: OPEN } },
   { t: .805, L: SMG_CHARGE_HAND, parts: { charge: 0 } },
   { t: .845, L: SMG_CHARGE_HAND, parts: { charge: 1 }, sfx: 'slide-back' },
   { t: .86, L: SMG_CHARGE_HAND, parts: { charge: 1 } },
@@ -227,9 +238,9 @@ export const DMR_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.05
   forward: [-0.0730927614, 0.931327437, -0.356772551], palm: [0.997298788, 0.0708548799, -0.0193575112], pole: [-0.6, -1, 0.2],
   curl: { index: [1.69525368, 0.502577814, 0.0885968163], middle: [1.68389985, 1.68670036, 0.00712259756], ring: [1.69991943, 1.68057842, 0.566507556], thumb: [0.627791661, 1.2, 0.749037448],
     spread: -0.0377629519, indexSpread: -0.184319642, indexRoll: 0.202376869 } };
-export const DMR_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [0.085247, -0.064489, 0.058628],
+export const DMR_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [0.085247, -0.061489, 0.058628],
   forward: [-0.025311, 0.932039, -0.361473], palm: [-0.887942, -0.187077, -0.420193], pole: [1, -.35, .2],
-  curl: { index: [1.028073, 0.63286, 1.153242], middle: [1.334, 0.194167, 1.0042], ring: [1.17, 0.99, 0.72], thumb: [0.637656, 0.282854, 0.014837], spread: -0.5602 } };
+  curl: { index: [1.028073, 0.63286, 1.153242], middle: [1.5, .9, .3], ring: [1.17, 0.99, 0.72], thumb: [0.637656, 0.282854, 0.014837], spread: -0.5602 } };
 const DMR_CHARGE_OPEN = blendCurl(DMR_CHARGE_HAND.curl as HandCurl, OPEN, .5);
 const DMR_TILT: { p: Vec; r: Vec } = { p: [-.05, .03, -.06], r: [.2, .3, -.45] };
 // The Carabina's support paw clears straight down off its long fore-end (a sideways clear bends the wrist).
@@ -267,7 +278,7 @@ const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key
   { t: .83, R: DMR_CHARGE_HAND, parts: { charge: 0 } },
   { t: .89, R: DMR_CHARGE_HAND, parts: { charge: 1 }, sfx: 'slide-back' },
   { t: .915, R: DMR_CHARGE_HAND, parts: { charge: 0 }, ease: 'snap', sfx: 'slide-home' },
-  { t: .925, R: shift(DMR_CHARGE_HAND, [.012, 0, 0], { curl: DMR_CHARGE_OPEN }) },
+  { t: .925, R: shift(DMR_CHARGE_HAND, [.012, 0, 0]) },
   { t: .945, R: shift(DMR_CHARGE_HAND, [.11, .035, 0], { curl: OPEN }) },
   { t: .985, R: FIRING_CLEAR },
   { t: .993, R: FIRING_RELEASE },
@@ -275,37 +286,48 @@ const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key
 ];
 export const dmrReload = (empty: boolean): Choreography => empty ? DMR_RELOAD_EMPTY : DMR_RELOAD_PARTIAL;
 
-export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.088988, -0.160195, 0.011241],
-  forward: [0.21378, 0.897557, -0.385604], palm: [0.830176, 0.041127, 0.555982],
-  curl: { index: [0.771627, 0.221598, 0.286337], middle: [1.461854, 1.092202, -0.057784], ring: [1.7, 1.7, 0.396], thumb: [0.897567, 0.589462, 0.546293], spread: -0.1879 } };
+export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.06168303, -0.130380905, 0.020969671],
+  forward: [-0.081614336, 0.932038888, -0.353047604], palm: [0.941218682, 0.188578059, 0.280260072], pole: [-.6, -1, .2],
+  curl: { index: [1.453161833, 1.096850318, 0.357420103], middle: [1.699294604, 1.164363146, 0.119951493],
+    ring: [1.698009674, 1.667844655, 0.311541437], thumb: [1.389409786, 1.152091779, 0.892753878],
+    spread: -0.372212105, indexSpread: -0.051981285, indexRoll: 0.072361654 } };
 export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.124036664, -0.0881238791, 0.0570596199],
   forward: [-0.075888258, 0.932039048, -0.35432215], palm: [-0.933322825, -0.191458369, -0.303730469], pole: [1, -0.35, 0.2],
-  curl: { index: [1.69910537, -0.1, -0.0597593187], middle: [1.49371764, 0.195701799, 0.672218425], ring: [1.17030999, 0.970000092, 0.765884855], thumb: [0.466614927, -0.0920849344, 0.804425041],
+  curl: { index: [1.69910537, -0.1, -0.0597593187], middle: [1.7, 1.3, .4], ring: [1.17030999, 0.970000092, 0.765884855], thumb: [0.466614927, -0.0920849344, 0.804425041],
     spread: -0.576427671, indexSpread: -0.0175922303, indexRoll: -0.075282557 } };
-// The paw reaches the knob half open from the right and below, and leaves it open to the right.
+// The paw reaches the knob half open from the right and rear, then reverses that clear approach.
 const SNIPER_BOLT_OPEN = blendCurl(SNIPER_BOLT_HAND.curl as HandCurl, OPEN, .5);
+const SNIPER_BOLT_APPROACH = shift(SNIPER_BOLT_HAND, [.04, 0, .02], { curl: SNIPER_BOLT_OPEN });
+const SNIPER_FIRING_RELEASE: HandKey = { ...FIRING_RELEASE, indexed: true,
+  curl: { middle: [.5, .4, .3], ring: [.5, .4, .3], thumb: [.2, .1, .05] } };
 // A complete four-beat bolt stroke, anchored to the actual moving knob.
 export const SNIPER_CYCLE: Choreography = [
-  { t: .04, R: FIRING_RELEASE },
+  { t: .015, R: INDEXED },
+  { t: .04, R: SNIPER_FIRING_RELEASE },
   { t: .08, R: { ...FIRING_CLEAR, curl: OPEN }, parts: { bolt: 0, boltPull: 0 } },
-  { t: .15, R: shift(SNIPER_BOLT_HAND, [.04, -.02, 0], { curl: SNIPER_BOLT_OPEN }) },
+  { t: .15, R: SNIPER_BOLT_APPROACH },
   { t: .22, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .34, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .49, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
   { t: .56, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .72, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 } },
   { t: .84, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap', sfx: 'bolt-home' },
+  { t: .87, R: SNIPER_BOLT_APPROACH },
   { t: .9, R: shift(SNIPER_BOLT_HAND, [.13, 0, 0], { curl: OPEN }) },
   { t: .95, R: FIRING_CLEAR },
-  { t: .975, R: FIRING_RELEASE },
+  { t: .965, R: SNIPER_FIRING_RELEASE },
+  { t: .982, R: INDEXED },
   { t: 1, R: { space: 'grip' } },
 ];
 const SNIPER_TILT: { p: Vec; r: Vec } = { p: [-.045, .03, -.06], r: [.18, .28, -.42] };
+// Clear the fore-end downward and toward the muzzle before travelling back to the magazine.
+const SNIPER_SUPPORT_RELEASE: HandKey = { ...SUPPORT_RELEASE, offset: [-.009, -.05, -.025] };
+const SNIPER_SUPPORT_CLEAR: HandKey = { ...SUPPORT_CLEAR, offset: [-.045, -.065, -.025] };
 function sniperMagazine(start: number, end: number): Choreography {
   const at = (u: number) => start + (end - start) * u;
   return [
-    { t: at(0), L: SUPPORT_RELEASE },
-    { t: at(.035), L: SUPPORT_CLEAR },
+    { t: at(0), L: SNIPER_SUPPORT_RELEASE },
+    { t: at(.035), L: SNIPER_SUPPORT_CLEAR },
     { t: at(.09), L: shift(SNIPER_MAG_HAND, [-.082, 0, 0]) },
     { t: at(.15), L: SNIPER_MAG_HAND, mag: { out: 0 } },
     { t: at(.2), L: SNIPER_MAG_HAND, mag: { out: 0 }, sfx: 'mag-out' },
@@ -318,8 +340,8 @@ function sniperMagazine(start: number, end: number): Choreography {
     { t: at(.78), L: SNIPER_MAG_HAND, mag: { out: 0 }, ease: 'snap', sfx: 'mag-in' },
     { t: at(.85), L: shift(SNIPER_MAG_HAND, [-.108, 0, 0], { curl: OPEN }) },
     { t: at(.9), L: { space: 'gun', wrist: [-.15, -.10, -.20] } },
-    { t: at(.95), L: SUPPORT_CLEAR },
-    { t: at(.975), L: SUPPORT_RELEASE },
+    { t: at(.95), L: SNIPER_SUPPORT_CLEAR },
+    { t: at(.975), L: SNIPER_SUPPORT_RELEASE },
     { t: at(1), L: { space: 'grip' } },
   ];
 }
@@ -329,48 +351,77 @@ const SNIPER_RELOAD_PARTIAL: Choreography = [
   { t: .98, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 const SNIPER_RELOAD_EMPTY: Choreography = [
-  { t: .025, R: FIRING_RELEASE },
+  { t: .012, R: INDEXED },
+  { t: .025, R: SNIPER_FIRING_RELEASE },
   { t: .05, p: SNIPER_TILT.p, r: SNIPER_TILT.r, ease: 'out', R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .085, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0], { curl: OPEN }), parts: { bolt: 0, boltPull: 0 } },
+  { t: .085, R: SNIPER_BOLT_APPROACH, parts: { bolt: 0, boltPull: 0 } },
   { t: .12, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .17, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .23, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
   { t: .26, R: shift(SNIPER_BOLT_HAND, [.10, -.03, .03], { curl: OPEN }) },
   { t: .285, R: FIRING_CLEAR },
-  { t: .298, R: FIRING_RELEASE },
-  { t: .31, R: { space: 'grip' } },
+  { t: .298, R: SNIPER_FIRING_RELEASE },
+  { t: .31, R: INDEXED },
   { t: .315, L: { space: 'grip' } },
   ...sniperMagazine(.33, .82),
   { t: .825, R: { space: 'grip' } },
-  { t: .835, R: FIRING_RELEASE },
+  { t: .835, R: SNIPER_FIRING_RELEASE },
   { t: .845, R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .865, R: shift(SNIPER_BOLT_HAND, [.04, -.02, 0], { curl: SNIPER_BOLT_OPEN }) },
+  { t: .855, R: shift(SNIPER_BOLT_HAND, [.10, -.06, .03], { curl: OPEN }) },
+  { t: .865, R: SNIPER_BOLT_APPROACH },
   { t: .89, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .935, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 }, sfx: 'bolt-home' },
   { t: .96, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap' },
+  { t: .968, R: SNIPER_BOLT_APPROACH },
   { t: .975, R: shift(SNIPER_BOLT_HAND, [.13, 0, 0], { curl: OPEN }) },
   { t: .99, R: FIRING_CLEAR },
-  { t: .995, R: FIRING_RELEASE },
+  { t: .993, R: SNIPER_FIRING_RELEASE },
+  { t: .997, R: INDEXED },
   { t: 1, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 export const sniperReload = (empty: boolean): Choreography => empty ? SNIPER_RELOAD_EMPTY : SNIPER_RELOAD_PARTIAL;
-const REVOLVER_CYLINDER_HAND: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.080089, -0.043126, 0.031289],
+// The thumb operates the closed drum while the firing paw carries the gun.
+const REVOLVER_CYLINDER_HAND: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.082289, -0.043126, 0.031289],
   forward: [-0.019041, 0.284059, -0.958618], palm: [0.999803, -0, -0.019859],
-  curl: { index: [0.605, -0.010066, 0.400446], middle: [0.2925, 0.387285, 0.705675], ring: [0.2952, 0.4329, 0.2916], thumb: [0.045, 0.108, 0.1305], spread: -0.6000 } };
-// The crane swings out under the same paw: one orientation, a little further back, digits closing.
-const REVOLVER_CYLINDER_OPEN: HandKey = shift(REVOLVER_CYLINDER_HAND, [-.008, .003, .012]);
-// Follow the rod position, keeping the paw clear regardless of cylinder spin.
-const REVOLVER_EJECT_HAND: HandKey = { space: 'part', part: 'action', followRotation: false, wrist: [-0.104899, -0.027724, -0.208188],
-  forward: [0.932744, 0.168518, -0.318732], palm: [0.281621, 0.211447, 0.935938], pole: [-1, -.2, -.1],
-  curl: { index: [1, 1, 0.6], middle: [1.7, 1.300141, 0.9], ring: [1.7, 1.299862, 0.9], thumb: [0.36, 0.135, 0.135], spread: -0.2000 } };
+  curl: { index: [0.605, -0.010066, 0.400446], middle: [0.2925, 0.387285, 0.705675], ring: [0.2952, 0.4329, 0.2916],
+    thumb: [0.23421637, 0.01146226, 0.03533607], spread: -0.6000 } };
+const REVOLVER_CYLINDER_HOLD: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.07976809, -0.03386608, 0.03692756],
+  forward: [0.31131404, 0.36516032, -0.87734914], palm: [0.9447089, -0.01885601, 0.32736759],
+  curl: { index: [0.67216502, 0.56511613, 0.56968173], middle: [0.03612153, 0.25586821, 0.56296411], ring: [0.29670741, 0.311389, 0.30438672],
+    thumb: [0.07538948, 0.15208919, 0.02638258], spread: -0.58857659, indexSpread: -0.18801034, indexRoll: 0.02800623 } };
+// The thumb stays on the moving drum while the other fingers pass outside the barrel and close into a wrap.
+// Nodes use cylinder swing; the reload keys invert its existing out/snap easing without changing the part track.
+const REVOLVER_CYLINDER_TRANSFER = [
+  [.1, -.002, 0], [.2, -.004, 0], [.3, -.005, 0], [.4, -.0045, .0008], [.5, -.0047, .001],
+  [.525, -.00395, .0012, -.001], [.5375, -.003375, .0011, -.0005], [.55, -.0032, .0014], [.575, -.0033, .0016], [.6, -.0046, .0018],
+  [.65, -.0046, .0013], [.675, -.0038, .00165], [.6875, -.0049, .000825, 0, .04], [.7, -.006, 0], [.8, -.0048, 0], [.9, -.003, 0],
+].map(([swing, x, y, z = 0, indexClearance = 0]) => {
+  const a = REVOLVER_CYLINDER_HAND, b = REVOLVER_CYLINDER_HOLD;
+  const mix = (from: readonly number[], to: readonly number[]): Vec => from.map((v, i) => v + (to[i] - v) * swing) as Vec;
+  const curl = blendCurl(a.curl as HandCurl, b.curl as HandCurl, swing);
+  // Briefly uncurl the index by 2.3 degrees at the barrel corner, leaving the operating thumb planted.
+  curl.index = [curl.index[0] - indexClearance, curl.index[1], curl.index[2]];
+  const hand: HandKey = { ...a, wrist: add(mix(a.wrist!, b.wrist!), [x, y, z]), forward: mix(a.forward!, b.forward!),
+    palm: mix(a.palm!, b.palm!), curl };
+  return { swing, hand };
+});
+const REVOLVER_CYLINDER_OPEN = shift(REVOLVER_CYLINDER_HOLD, [-.008, .003, .012]);
+// The palm presses the rod's front cap, following its full extraction stroke in gun axes.
+const REVOLVER_EJECT_HAND: HandKey = { space: 'part', part: 'action', followRotation: false, wrist: [-0.08593031, -0.02023016, -0.10887405],
+  forward: [0.96544354, 0.22035956, 0.13914182], palm: [-0.16669059, 0.11172083, 0.97965948], pole: [-1, -.2, -.1],
+  curl: { index: [1.24140009, 1.25129948, 0.35067221], middle: [1.69972106, 1.67469269, 0.59956379], ring: [1.66619032, 1.51201032, 0.92777167],
+    thumb: [0.42462933, 0.32189328, -0.02038075], spread: -0.08614119, indexSpread: -0.04060769, indexRoll: 0.08627977 } };
 const REVOLVER_EJECT_PRESS: HandKey = { ...REVOLVER_EJECT_HAND };
-const REVOLVER_EJECT_APPROACH: HandKey = { ...REVOLVER_EJECT_HAND, space: 'gun', wrist: [-.18, .001, -.185] };
-const REVOLVER_EJECT_CLEAR: HandKey = { ...REVOLVER_EJECT_APPROACH, wrist: [-.18, .001, -.090] };
+const REVOLVER_EJECT_APPROACH = shift(REVOLVER_EJECT_HAND, [-.045, 0, -.026]);
+// Withdraw in front of the rod before dropping left of the falling cartridge cases.
+const REVOLVER_EJECT_CLEAR = shift(REVOLVER_EJECT_HAND, [-.055, 0, -.025]);
 const REVOLVER_CYLINDER_CLEAR: HandKey = { space: 'gun', wrist: [-.145, .008, -.005],
   forward: [.120078, .379252, -.917469], palm: [.973055, .138274, .184511], curl: OPEN };
-export const REVOLVER_LOADER_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.090575, 0.066225, 0.07539],
-  forward: [0.866839, -0.451027, -0.212521], palm: [-0.164948, 0.142825, -0.975906],
-  curl: { index: [1.301026, 1.413858, -0.09], middle: [1.607007, 0.013634, -0.09], ring: [0.747, -0.0585, 0.0666], thumb: [0.064511, 0.184419, 0.200391], spread: -0.5904 } };
+// The palm seats the loader from behind while the opposed thumb and middle wrap retain it.
+export const REVOLVER_LOADER_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.05476685, 0.06577439, 0.09280667],
+  forward: [0.70129708, -0.54634644, -0.45791699], palm: [-0.28156934, 0.37783421, -0.88202042],
+  curl: { index: [1.69402186, 1.16271518, -0.0990648], middle: [1.69977404, -0.07128009, 0.03852169], ring: [0.56256675, -0.09809991, -0.0999614],
+    thumb: [0.07342672, -0.02417476, -0.03463604], spread: -0.57367058, indexSpread: -0.26679073, indexRoll: -0.32436789 } };
 // The whole reload is held further out (10 to 15 cm) so the gun, not the support forearm, is the subject.
 export const REVOLVER_RELOAD: Choreography = [
   { t: 0, mag: { visible: false }, parts: { swing: 0, spent: 0, fresh: 0, loaded: 0 } },
@@ -378,7 +429,8 @@ export const REVOLVER_RELOAD: Choreography = [
   { t: .08, p: [-.04, 0, -.15], r: [.20, .25, -.25], ease: 'out',
     L: shift(REVOLVER_CYLINDER_HAND, [-.048, 0, 0]) },
   { t: .12, L: REVOLVER_CYLINDER_HAND, parts: { release: 1, swing: 0 } },
-  { t: .17, L: REVOLVER_CYLINDER_HAND, parts: { swing: 1, release: 0 }, ease: 'out' },
+  ...REVOLVER_CYLINDER_TRANSFER.map(({ swing, hand }) => ({ t: .12 + .05 * (1 - Math.cbrt(1 - swing)), L: hand, ease: 'linear' as const })),
+  { t: .17, L: REVOLVER_CYLINDER_HOLD, parts: { swing: 1, release: 0 }, ease: 'out' },
   { t: .19, L: REVOLVER_CYLINDER_OPEN, parts: { swing: 1, release: 0 }, sfx: 'cylinder-open', ease: 'out' },
   { t: .23, L: REVOLVER_CYLINDER_CLEAR },
   { t: .255, L: REVOLVER_EJECT_APPROACH },
@@ -387,7 +439,7 @@ export const REVOLVER_RELOAD: Choreography = [
   { t: .32, L: REVOLVER_EJECT_PRESS, parts: { eject: 1, spent: .22 }, ease: 'snap', sfx: 'eject' },
   { t: .35, L: REVOLVER_EJECT_PRESS, parts: { eject: 1, spent: .5 }, p: [.01, -.06, -.17], r: [.6, .18, -.22] },
   { t: .365, L: REVOLVER_EJECT_CLEAR, parts: { eject: 1 } },
-  { t: .39, L: { space: 'gun', wrist: [-.17, -.07, .10], forward: [.5, .5, -.7], palm: [.7, 0, .7], curl: OPEN }, parts: { eject: 0, spent: 1 } },
+  { t: .39, L: { space: 'gun', wrist: [-.215, -.10, .08], forward: [.5, .5, -.7], palm: [.7, 0, .7], curl: OPEN }, parts: { eject: 0, spent: 1 } },
   { t: .43, p: [-.05, 0, -.14], r: [-.18, .32, -.30],
     L: { space: 'view', wrist: [-.24, -.46, .015], forward: [.7, .3, -.6], palm: [.6, 0, .8], curl: HOLD_MAG } },
   { t: .48, L: REVOLVER_LOADER_HAND, mag: { visible: false, out: .22, p: [-.10, -.09, .04], r: [0, 0, 1.3] }, parts: { fresh: 0 } },
@@ -401,8 +453,10 @@ export const REVOLVER_RELOAD: Choreography = [
   { t: .785, L: REVOLVER_LOADER_HAND },
   { t: .80, L: { ...REVOLVER_CYLINDER_CLEAR, wrist: [-.15, .008, .06] } },
   { t: .82, L: REVOLVER_CYLINDER_OPEN, parts: { swing: 1 } },
-  { t: .835, L: REVOLVER_CYLINDER_HAND, parts: { swing: 1 } },
+  { t: .835, L: REVOLVER_CYLINDER_HOLD, parts: { swing: 1 } },
+  ...[...REVOLVER_CYLINDER_TRANSFER].reverse().map(({ swing, hand }) => ({ t: .835 + .045 * (1 - swing ** .2), L: hand, ease: 'linear' as const })),
   { t: .88, L: REVOLVER_CYLINDER_HAND, parts: { swing: 0 }, sfx: 'cylinder-close', ease: 'snap', p: [-.035, .01, -.1], r: [.03, .2, -.15] },
+  { t: .89, L: shift(REVOLVER_CYLINDER_HAND, [-.012, 0, 0]) },
   { t: .92, L: { space: 'gun', wrist: [-.145, -.06, .07], forward: [.15, .2, -1], palm: [1, 0, .1], curl: OPEN } },
   { t: .94, L: { space: 'grip', offset: [-.025, 0, 0] } },
   { t: .96, L: { space: 'grip' }, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
@@ -414,28 +468,66 @@ export const REVOLVER_RELOAD: Choreography = [
 export const SHOTGUN_SHELL_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.076501, -0.065773, 0.048781],
   forward: [0.638213, -0.193053, -0.745262], palm: [0.355875, 0.932392, 0.063230],
   curl: { index: [0.402615, 0.468904, 0.448619], middle: [0.592363, 1.067581, 0.147305], ring: [1.326215, 0.269641, -0.100000], thumb: [0.801185, 0.148668, -0.095655], spread: -0.5868 } };
-const SHOTGUN_PUSH_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.062853, -0.090781, 0.068157],
-  forward: [0.589528, -0.160549, -0.791631], palm: [0.323353, 0.945001, 0.049148],
-  curl: { index: [0.708804, 0.517739, -0.098317], middle: [0.354097, 0.944999, 0.404278], ring: [1.326215, 0.269641, -0.100000], thumb: [0.324015, 0.267099, 0.181688], spread: -0.0767 }, pole: [-1, -0.2, 0.3] };
-// The thumb push starts under the gate and ends with the shell home: two fitted keys along the stroke.
-const SHOTGUN_PUSH_START: HandKey = { space: 'part', part: 'mag', wrist: [-0.069680, -0.099085, 0.080285],
-  forward: [0.667606, -0.125024, -0.733942], palm: [0.348782, 0.923453, 0.159952],
-  curl: { index: [0.967429, 0.426235, -0.100000], middle: [0.354097, 0.944999, 0.404278], ring: [1.216215, 0.269641, -0.100000], thumb: [0.263515, 0.267099, 0.181688], spread: -0.0767 }, pole: [-1, -0.2, 0.3] };
+// The thumb follows the brass case head through the loading port.
+const SHOTGUN_PUSH_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.03934336443, -0.08056528468, 0.07548856288],
+  forward: [0.7061960261, -0.01636587814, -0.7078271899], palm: [0.172778898, 0.973491515, 0.1498723546], pole: [-1, -0.2, 0.3],
+  curl: { index: [-0.007259485642, 1.593086428, 0.4112079128], middle: [0.9714162684, 0.2909297807, 0.4130556655], ring: [0.8047126263, 0.06707094847, 0.0401642947], thumb: [0.6911483027, -0.09736905912, -0.09735590079], spread: -0.5996603795, indexSpread: 0.256989761, indexRoll: -0.1926338234 } };
+// Roll the shell from a three-digit pinch onto the case-head thumb before entering the port.
+const SHOTGUN_TRANSFER: readonly HandKey[] = [
+  { space: 'part', part: 'mag', wrist: [-0.07545364778, -0.06797251779, 0.05087022268],
+    forward: [0.6431774541, -0.1821787318, -0.7437295693], palm: [0.3447574923, 0.93616489, 0.06883001016], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.3469978447, 0.5391654017, 0.4462808071], middle: [0.6160538293, 1.019040299, 0.1639144166], ring: [1.293621102, 0.2569803718, -0.09123973158], thumb: [0.7943077064, 0.1492906838, -0.0957613063], spread: -0.5876037737, indexSpread: 0.01606186006, indexRoll: -0.01203961396 } },
+  { space: 'part', part: 'mag', wrist: [-0.07392629556, -0.06969203558, 0.05343944536],
+    forward: [0.6480487277, -0.1712780749, -0.7420893933], palm: [0.3335890945, 0.9397773653, 0.07440980937], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.3233806893, 0.6094268035, 0.4439426141], middle: [0.6397446585, 0.9704995976, 0.1805238332], ring: [1.261027204, 0.2443197436, -0.08247946317], thumb: [0.7874304129, 0.1179133676, -0.0958676126], spread: -0.5884075475, indexSpread: 0.03212372012, indexRoll: -0.02407922792 } },
+  { space: 'part', part: 'mag', wrist: [-0.06919159111, -0.07145107117, 0.05593789072],
+    forward: [0.6575082058, -0.1494037168, -0.7384859435], palm: [0.3111091981, 0.9465200442, 0.08550364235], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.2841463786, 0.749949607, 0.4392662282], middle: [0.6871263171, 0.8734181952, 0.2137426664], ring: [1.195839407, 0.2189984871, -0.06495892633], thumb: [0.7736758257, 0.08715873522, -0.0960802252], spread: -0.5900150949, indexSpread: 0.06424744024, indexRoll: -0.04815845585 } },
+  { space: 'part', part: 'mag', wrist: [-0.06624938666, -0.07414010676, 0.05927633608],
+    forward: [0.6666273827, -0.1273393406, -0.7344335402], palm: [0.2883422882, 0.9526475753, 0.09654699424], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.2489120679, 0.8904724105, 0.4345898423], middle: [0.7345079757, 0.7763367927, 0.2469614996], ring: [1.13065161, 0.1936772306, -0.04743838949], thumb: [0.7759212385, 0.05640410283, -0.0962928378], spread: -0.5916226424, indexSpread: 0.09637116037, indexRoll: -0.07223768378 } },
+  { space: 'part', part: 'mag', wrist: [-0.06478211409, -0.07446041501, 0.06033609218],
+    forward: [0.6694406109, -0.1203191647, -0.7330570013], palm: [0.2810816403, 0.9544563938, 0.1000305145], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.2326482483, 0.9350799692, 0.4331053704], middle: [0.7495488093, 0.7455192724, 0.2575064859], ring: [1.109958396, 0.185639251, -0.04187667028], thumb: [0.7715549824, 0.04664135232, -0.09636032954], spread: -0.5921329422, indexSpread: 0.1065685141, indexRoll: -0.07988139389 } },
+  { space: 'part', part: 'mag', wrist: [-0.06217918222, -0.07514914234, 0.06316678144],
+    forward: [0.6753556373, -0.1052002904, -0.7299504518], palm: [0.265418654, 0.9581233652, 0.107482813], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.1976777572, 1.030995214, 0.4299134564], middle: [0.7818896342, 0.6792553903, 0.2801803327], ring: [1.065463813, 0.1683559742, -0.02991785265], thumb: [0.7461666514, 0.02564947044, -0.0965054504], spread: -0.5932301898, indexSpread: 0.1284948805, indexRoll: -0.09631691171 } },
+  { space: 'part', part: 'mag', wrist: [-0.05966946484, -0.0760027498, 0.06346118714],
+    forward: [0.6780436934, -0.09815912191, -0.728437737], palm: [0.2581123683, 0.9597252295, 0.1109301092], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.1814139376, 1.075602773, 0.4284289845], middle: [0.7969304679, 0.6484378699, 0.2907253191], ring: [1.044770599, 0.1603179946, -0.02435613344], thumb: [0.7666887152, 0.03188671993, -0.09657294214], spread: -0.5937404896, indexSpread: 0.1386922342, indexRoll: -0.1039606218 } },
+  { space: 'part', part: 'mag', wrist: [-0.05545997777, -0.07783817793, 0.0663132268],
+    forward: [0.6836878527, -0.08299954459, -0.7250393063], palm: [0.2423579489, 0.9629472764, 0.1183011728], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.1464434465, 1.171518018, 0.4252370705], middle: [0.8292712928, 0.5821739879, 0.3133991659], ring: [1.000276016, 0.1430347178, -0.01239731581], thumb: [0.7604120642, -0.00510516195, -0.096718063], spread: -0.5948377372, indexSpread: 0.1606186006, indexRoll: -0.1203961397 } },
+  { space: 'part', part: 'mag', wrist: [-0.04761277332, -0.07884721351, 0.06881167216],
+    forward: [0.6916191411, -0.06075012633, -0.7197029845], palm: [0.2191797655, 0.9671200424, 0.1289924572], pole: [-1, -0.2, 0.3],
+    curl: { index: [0.09520913577, 1.312040821, 0.4205606846], middle: [0.8766529513, 0.4850925855, 0.3466179991], ring: [0.9350882197, 0.1177134614, 0.005123221025], thumb: [0.718657477, -0.03585979434, -0.09693067559], spread: -0.5964452846, indexSpread: 0.1927423207, indexRoll: -0.1444753676 } }
+];
 const SHOTGUN_SHELL: Choreography = [
   { t: 0, mag: { visible: false, p: [0, -.016, 0] } },
+  { t: .015, L: { space: 'grip', offset: [0, -.004, 0] } },
   { t: .065, L: PUMP_DROP },
   { t: .12, L: PUMP_CLEAR, mag: { visible: false, p: [-.10, -.25, .07] } },
   { t: .26, L: SHOTGUN_SHELL_HAND, mag: { visible: false, p: [-.10, -.25, .07] } },
   { t: .29, L: SHOTGUN_SHELL_HAND, mag: { p: [-.10, -.25, .07] } },
-  { t: .48, L: SHOTGUN_SHELL_HAND, mag: { p: [0, -.045, .018] } },
-  { t: .52, L: SHOTGUN_SHELL_HAND, mag: { out: .02, p: [0, -.03, 0] } },
-  { t: .56, L: shift(SHOTGUN_PUSH_START, [-.012, -.02, 0]), mag: { out: .02, p: [0, -.016, 0] } },
-  // Uncurl below the gate, lift into the tube axis, then push the case head.
-  { t: .62, L: SHOTGUN_PUSH_START, mag: { out: .02, p: [0, .019, 0] } },
-  { t: .665, L: shift(SHOTGUN_PUSH_START, [-.004, -.008, 0], { contact: 'mag' }), mag: { out: .04, p: [0, .019, 0] } },
-  { t: .70, L: shift(SHOTGUN_PUSH_HAND, [-.003, -.008, 0], { contact: 'mag' }), mag: { out: .065, p: [0, .019, 0] }, ease: 'snap', sfx: 'shell-in' },
+  { t: 0.3, L: SHOTGUN_TRANSFER[0] },
+  { t: 0.31, L: SHOTGUN_TRANSFER[1] },
+  { t: 0.33, L: SHOTGUN_TRANSFER[2] },
+  { t: 0.355, L: SHOTGUN_TRANSFER[3] },
+  { t: 0.365, L: SHOTGUN_TRANSFER[4] },
+  { t: 0.38, L: SHOTGUN_TRANSFER[5] },
+  { t: 0.39, L: SHOTGUN_TRANSFER[6] },
+  { t: 0.405, L: SHOTGUN_TRANSFER[7] },
+  { t: 0.43, L: SHOTGUN_TRANSFER[8] },
+  // Present the nose to the tube from below, then level the shell as the thumb pushes its case head.
+  { t: .48, L: SHOTGUN_PUSH_HAND, mag: { out: .04, p: [0, -.065, 0], r: [.5, 0, 0] } },
+  { t: .52, L: SHOTGUN_PUSH_HAND, mag: { out: .04, p: [0, -.045, 0], r: [.5, 0, 0] } },
+  { t: .56, L: SHOTGUN_PUSH_HAND, mag: { out: .04, p: [0, -.03, 0], r: [.5, 0, 0] } },
+  { t: .62, L: SHOTGUN_PUSH_HAND, mag: { out: .04, p: [0, -.012, 0], r: [.5, 0, 0] } },
+  { t: .665, L: SHOTGUN_PUSH_HAND, mag: { out: .055, p: [0, 0, 0], r: [.32, 0, 0] } },
+  { t: .70, L: SHOTGUN_PUSH_HAND, mag: { out: .07, p: [0, .010, 0], r: [.15, 0, 0] }, ease: 'snap', sfx: 'shell-in' },
   { t: .74, L: SHOTGUN_PUSH_HAND, mag: { out: .085, p: [0, .019, 0] } },
-  { t: .78, L: shift(SHOTGUN_PUSH_HAND, [-.105, -.112, 0]), mag: { visible: false, out: .095, p: [0, .019, 0] } },
+  { t: .76, L: shift(SHOTGUN_PUSH_HAND, [0, -.035, 0]) },
+  { t: .78, L: shift(SHOTGUN_PUSH_HAND, [-.105, -.112, .018]), mag: { visible: false, out: .095, p: [0, .019, 0] } },
   { t: .85, L: PUMP_CLEAR },
   { t: .92, L: PUMP_DROP },
   { t: 1, L: { space: 'grip' }, mag: { visible: false } },
@@ -537,12 +629,12 @@ export const SHORT_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
     { t: .08, R: INDEXED },
     { t: .88, R: INDEXED },
     { t: .97, R: { space: 'grip' } },
-    { t: .08, L: { space: 'grip', offset: [-.06, 0, 0] } },
+    { t: .08, L: PISTOL_CLEAR },
     { t: .18, L: { space: 'view', wrist: [-.20, -.25, -.40], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: OPEN } },
     { t: .24, p: [-.035, .025, .025], r: [.16, -.72, .23], ease: 'out' },
     { t: .48, p: [-.035, .028, .025], r: [.17, -.78, .26] },
     { t: .52, L: { space: 'view', wrist: [-.20, -.25, -.40], forward: [.18, .12, -1], palm: [.2, -.95, -.05], curl: OPEN } },
-    { t: .62, L: { space: 'grip', offset: [-.065, 0, 0] } },
+    { t: .62, L: { space: 'grip', offset: [-.065, -.02, 0] } },
     { t: .70, L: { space: 'grip' } },
     { t: .72, p: [-.015, .015, .015], r: [.12, .10, -.25] },
     { t: .82, p: [-.015, .015, .015], r: [.12, .10, -.25] },

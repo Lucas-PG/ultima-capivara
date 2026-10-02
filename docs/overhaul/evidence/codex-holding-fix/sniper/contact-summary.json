@@ -1,0 +1,368 @@
+{
+  "baseline": "8111d38",
+  "source": "a957bbd",
+  "date": "2026-10-02",
+  "distanceUnit": "mm",
+  "method": "holdingStates + original replaced key times; actual shipped skin; holdingMetrics + measureGrip",
+  "limits": {
+    "wholeSkinMinimum": -0.5,
+    "carryingPalmAndWrap": [
+      -0.5,
+      1.5
+    ],
+    "wristFlexion": [
+      -45,
+      45
+    ],
+    "wristDeviation": [
+      -25,
+      20
+    ],
+    "wristPronation": [
+      -80,
+      80
+    ]
+  },
+  "weapons": {
+    "sniper": {
+      "baselineRows": 324,
+      "baselineFailed": 74,
+      "finalRows": 333,
+      "finalFailed": 0,
+      "originalRowsRetained": 324,
+      "addedRows": 9,
+      "skinMinimum": {
+        "R": -0.486,
+        "L": 0.179
+      },
+      "wrists": {
+        "flexion": [
+          -40.0,
+          40.0
+        ],
+        "deviation": [
+          -21.0,
+          16.0
+        ],
+        "pronation": [
+          -74.0,
+          49.333
+        ]
+      }
+    },
+    "dmr": {
+      "baselineRows": 273,
+      "baselineFailed": 8,
+      "finalRows": 273,
+      "finalFailed": 0,
+      "originalRowsRetained": 273,
+      "addedRows": 0,
+      "skinMinimum": {
+        "R": -0.378,
+        "L": -0.151
+      },
+      "wrists": {
+        "flexion": [
+          -40.0,
+          40.0
+        ],
+        "deviation": [
+          -21.0,
+          16.0
+        ],
+        "pronation": [
+          -33.338,
+          74.0
+        ]
+      }
+    },
+    "smg": {
+      "baselineRows": 242,
+      "baselineFailed": 1,
+      "finalRows": 242,
+      "finalFailed": 0,
+      "originalRowsRetained": 242,
+      "addedRows": 0,
+      "skinMinimum": {
+        "R": -0.066,
+        "L": 0.122
+      },
+      "wrists": {
+        "flexion": [
+          -40.0,
+          40.0
+        ],
+        "deviation": [
+          -21.0,
+          16.0
+        ],
+        "pronation": [
+          -74.0,
+          74.0
+        ]
+      }
+    }
+  },
+  "samples": [
+    {
+      "weapon": "sniper",
+      "action": "sprint",
+      "time": 0.4,
+      "hand": "R",
+      "before": {
+        "skinMinimum": -0.778,
+        "bone": "fore_twist",
+        "contact": {
+          "surface": "body",
+          "gap": -0.304,
+          "palm": 0.878,
+          "wrap": 0.788
+        },
+        "failures": [
+          "R penetrates -0.778 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": -0.304,
+        "bone": "thumb3",
+        "contact": {
+          "surface": "body",
+          "gap": -0.304,
+          "palm": 0.878,
+          "wrap": 0.788
+        },
+        "failures": []
+      }
+    },
+    {
+      "weapon": "sniper",
+      "action": "inspect",
+      "time": 1.7,
+      "hand": "R",
+      "before": {
+        "skinMinimum": -2.992,
+        "bone": "index3",
+        "contact": {
+          "surface": "body",
+          "gap": -0.304,
+          "palm": 0.878,
+          "wrap": 0.788
+        },
+        "failures": [
+          "R penetrates -2.992 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": -0.304,
+        "bone": "thumb3",
+        "contact": {
+          "surface": "body",
+          "gap": -0.304,
+          "palm": 0.878,
+          "wrap": 0.788
+        },
+        "failures": []
+      }
+    },
+    {
+      "weapon": "sniper",
+      "action": "reload",
+      "time": 1.25,
+      "hand": "L",
+      "before": {
+        "skinMinimum": 2.523,
+        "bone": "ring1",
+        "contact": {
+          "surface": "mag",
+          "gap": 2.523
+        },
+        "failures": [
+          "L mag contact 2.523 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": 0.179,
+        "bone": "thumb2",
+        "contact": {
+          "surface": "mag",
+          "gap": 0.179
+        },
+        "failures": []
+      }
+    },
+    {
+      "weapon": "sniper",
+      "action": "reload-partial",
+      "time": 0.2,
+      "hand": "L",
+      "before": {
+        "skinMinimum": -2.443,
+        "bone": "hand",
+        "contact": {},
+        "failures": [
+          "L penetrates -2.443 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": 14.496,
+        "bone": "hand",
+        "contact": {},
+        "failures": []
+      }
+    },
+    {
+      "weapon": "sniper",
+      "action": "fire",
+      "time": 0.2,
+      "hand": "R",
+      "before": {
+        "skinMinimum": -0.61,
+        "bone": "middle3",
+        "contact": {},
+        "failures": [
+          "R penetrates -0.61 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": 0.554,
+        "bone": "index3",
+        "contact": {},
+        "failures": []
+      }
+    },
+    {
+      "weapon": "sniper",
+      "action": "reload",
+      "time": 0.35,
+      "hand": "R",
+      "before": {
+        "skinMinimum": -0.914,
+        "bone": "middle3",
+        "contact": {},
+        "failures": [
+          "R penetrates -0.914 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": 0.428,
+        "bone": "thumb3",
+        "contact": {},
+        "failures": []
+      }
+    },
+    {
+      "weapon": "sniper",
+      "action": "reload",
+      "time": 2.65,
+      "hand": "R",
+      "before": {
+        "skinMinimum": -3.763,
+        "bone": "middle3",
+        "contact": {},
+        "failures": [
+          "R penetrates -3.763 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": 1.205,
+        "bone": "index3",
+        "contact": {},
+        "failures": []
+      }
+    },
+    {
+      "weapon": "dmr",
+      "action": "reload",
+      "time": 2.2,
+      "hand": "R",
+      "before": {
+        "skinMinimum": -2.344,
+        "bone": "middle3",
+        "contact": {
+          "surface": "charge",
+          "gap": -2.344
+        },
+        "failures": [
+          "R penetrates -2.344 mm",
+          "R charge contact -2.344 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": 0.649,
+        "bone": "middle2",
+        "contact": {
+          "surface": "charge",
+          "gap": 0.649
+        },
+        "failures": []
+      }
+    },
+    {
+      "weapon": "smg",
+      "action": "reload",
+      "time": 1.6,
+      "hand": "L",
+      "before": {
+        "skinMinimum": -2.265,
+        "bone": "middle3",
+        "contact": {},
+        "failures": [
+          "L penetrates -2.265 mm"
+        ]
+      },
+      "after": {
+        "skinMinimum": 1.023,
+        "bone": "index3",
+        "contact": {},
+        "failures": []
+      }
+    },
+    {
+      "weapon": "smg",
+      "action": "reload",
+      "time": 1.65,
+      "hand": "L",
+      "before": {
+        "skinMinimum": 0.083,
+        "bone": "middle2",
+        "contact": {
+          "surface": "charge",
+          "gap": 0.083
+        },
+        "failures": []
+      },
+      "after": {
+        "skinMinimum": 0.122,
+        "bone": "thumb3",
+        "contact": {
+          "surface": "charge",
+          "gap": 0.122
+        },
+        "failures": []
+      }
+    }
+  ],
+  "sniperMagazineRegions": {
+    "time": 1.25,
+    "before": {
+      "palm": 11.512,
+      "wrap": 3.587
+    },
+    "after": {
+      "palm": 0.598,
+      "wrap": 0.188
+    }
+  },
+  "additionalSweeps": {
+    "sniperBolt": {
+      "stepSeconds": 0.01,
+      "rows": 225,
+      "failed": 0
+    },
+    "smgCharge": {
+      "stepSeconds": 0.005,
+      "rows": 85,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-02",
+  "branch": "codex-fix-rounds",
+  "baseCommit": "8111d38",
+  "sourceCommits": [
+    "3fd7354",
+    "15f9bb6"
+  ],
+  "protocol": 14,
+  "openingCapMs": 30000,
+  "buyWindowSeconds": 12,
+  "environment": {
+    "browser": "Chrome",
+    "platform": "Linux",
+    "angle": "gl-egl",
+    "maxBrowsers": 1,
+    "maxContexts": 2,
+    "vitePort": 5196,
+    "peerPort": 9002
+  },
+  "finalRoundChromeRun": {
+    "testsPassed": 4,
+    "durationMinutes": 2.4,
+    "delayedGuest": {
+      "withheldRendererMinimumMs": 8000,
+      "cpuThrottle": 2,
+      "hostSimulationTimeWhileWithheld": 0,
+      "releaseReason": "ready",
+      "openingWaitMs": 23813,
+      "elapsedFromHoldUntilShopCheckMs": 25915,
+      "guestSceneLoaded": true,
+      "guestBuySecondsRemaining": 11.45,
+      "requiredBuySecondsRemaining": 10,
+      "hostConfirmedPurchase": true,
+      "sharedTeamScoreAndRoundTwo": true
+    },
+    "preparedGuestReconnect": {
+      "samePlayerAndMatch": true,
+      "readinessAcksOnDistinctConnections": 2,
+      "hostSimulationTimeBeforeLocalRelease": 0,
+      "releaseReason": "ready",
+      "openingWaitMs": 4683,
+      "guestBuySecondsRemaining": 11.667,
+      "guestPageReloaded": false
+    }
+  },
+  "verification": {
+    "typescript": "passed",
+    "focusedVitest": {
+      "filesPassed": 5,
+      "testsPassed": 67
+    },
+    "productionBuild": "passed, existing large-chunk warning",
+    "correriaGuestInventory": "passed in 23.4 seconds",
+    "priorCorreriaAttempt": "initial join handshake closed before gameplay; next run passed without a runtime change"
+  },
+  "integratedLeadVerification": {
+    "branch": "codex-holding-fix",
+    "checkedHeadBeforeReport": "2d64513",
+    "date": "2026-10-02",
+    "unitTests": {
+      "files": 155,
+      "passed": 2083,
+      "failed": 0,
+      "command": "npx vitest run --maxWorkers=6"
+    },
+    "typescript": "passed",
+    "productionBuild": "passed, existing large-chunk warning",
+    "chromium": {
+      "command": "E2E_SLOW=1 npx playwright test --project=chromium",
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "durationMinutes": 9.7,
+      "fullCorreriaMatchAndRematch": true
+    },
+    "environment": {
+      "cpu": "Ryzen 7 5700X",
+      "logicalThreads": 16,
+      "memoryGB": 16,
+      "gpu": "AMD Radeon RX 9060 XT",
+      "driver": "Mesa 26.2",
+      "node": "26.10.0",
+      "browser": "Chrome 150.0.7871.186",
+      "backend": "ANGLE gl-egl",
+      "suiteStartedLocal": "2026-10-02 16:40:50 UTC-3",
+      "loadAverageAtStart": [
+        2.02,
+        4.54,
+        6.01
+      ],
+      "otherAgentBrowserOrBuildJobs": 0,
+      "cpuThrottling": "2x for the intentionally delayed guest only; otherwise none"
+    },
+    "delayedGuest": {
+      "delayedGuestMs": 22681,
+      "hostTimeWhileLoading": 0,
+      "guestBuySeconds": 11.483,
+      "guestSceneLoaded": true,
+      "releaseReason": "ready",
+      "openingWaitMs": 20655,
+      "guestCpuThrottle": 2
+    },
+    "preparedGuestReconnect": {
+      "samePlayerAndMatch": true,
+      "guestReadinessAcks": 2,
+      "releaseReason": "ready",
+      "openingWaitMs": 4306,
+      "guestBuySeconds": 11.683
+    }
+  }
+}

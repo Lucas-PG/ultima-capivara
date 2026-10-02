@@ -464,6 +464,11 @@ export class RoomSession {
         for (const g of this.guests.values()) send(g.conn, packet('latency', { data: this.latencyValues }));
       } break;
       case 'game-ready': if (m.id === guest.channelId) { guest.gameReady = true; guest.gameCompression = m.compression === true; } break;
+      // Identity comes from this live connection, never a client-supplied ID.
+      case 'match-loaded': if (m.matchId === this.matchId && this.matchId && guest.profile.connected &&
+        isRoundMode(this.roomValue.config.mode) && this.roomValue.phase === 'countdown') {
+        this.callbacks.loaded?.(guest.profile.id, this.matchId);
+      } break;
     }
   }
   private onHostGame(guest: Guest, raw: unknown) { const m = parseWire(raw, MAX_FRAME_BYTES); if (m?.t === 'input') this.acceptInput(guest, m); }
@@ -487,6 +492,12 @@ export class RoomSession {
     if (!this.roomValue || this.roomValue.phase !== 'lobby') return;
     if (this.roomValue.isHost) { this.roomValue.players[0].ready = value; this.broadcastRoom(); }
     else send(this.hostConn, packet('ready', { value }));
+  }
+  matchLoaded(matchId: string) {
+    const room = this.roomValue;
+    if (!room || !matchId || matchId !== this.matchId || !isRoundMode(room.config.mode) || room.phase !== 'countdown') return;
+    if (room.isHost) this.callbacks.loaded?.(room.myId, matchId);
+    else send(this.hostConn, packet('match-loaded', { matchId }));
   }
   configure(config: RoomConfig) {
     const room = this.roomValue;
