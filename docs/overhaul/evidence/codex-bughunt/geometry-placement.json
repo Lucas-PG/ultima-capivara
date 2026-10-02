@@ -1,0 +1,175 @@
+{
+  "rocks": 134,
+  "hulls": 536,
+  "planes": 53528,
+  "diffs": [
+    {
+      "id": "kit-cliff_rock_low-716",
+      "before": {
+        "id": "kit-cliff_rock_low-716",
+        "piece": "cliff_rock_low",
+        "x": 47.8,
+        "y": 0.649999988079071,
+        "z": -96.9,
+        "yaw": 1.5707963267948966,
+        "scale": 0.28
+      },
+      "after": {
+        "id": "kit-cliff_rock_low-716",
+        "piece": "cliff_rock_low",
+        "x": 46.8,
+        "y": 0.649999988079071,
+        "z": -97.4,
+        "yaw": 1.5707963267948966,
+        "scale": 0.28
+      },
+      "distance": 1.118033988749895
+    },
+    {
+      "id": "kit-cliff_rock_low-1123",
+      "before": {
+        "id": "kit-cliff_rock_low-1123",
+        "piece": "cliff_rock_low",
+        "x": -105.62449779521309,
+        "y": 16.804658332262285,
+        "z": -80.83053910648536,
+        "yaw": -2.917584641373017,
+        "scale": 2.6610386120504654
+      },
+      "after": {
+        "id": "kit-cliff_rock_low-1123",
+        "piece": "cliff_rock_low",
+        "x": -106.12449779521309,
+        "y": 15.724325750506459,
+        "z": -81.33053910648536,
+        "yaw": -2.917584641373017,
+        "scale": 2.6610386120504654
+      },
+      "distance": 0.7071067811865476
+    },
+    {
+      "id": "kit-cliff_rock_low-1145",
+      "before": {
+        "id": "kit-cliff_rock_low-1145",
+        "piece": "cliff_rock_low",
+        "x": 38.162159413588824,
+        "y": 0.8270436499834597,
+        "z": 57.441184443191375,
+        "yaw": -2.070012173966868,
+        "scale": 2.2465239931984766
+      },
+      "after": {
+        "id": "kit-cliff_rock_low-1145",
+        "piece": "cliff_rock_low",
+        "x": 36.662159413588824,
+        "y": 0.6589167656135135,
+        "z": 56.441184443191375,
+        "yaw": -2.070012173966868,
+        "scale": 2.2465239931984766
+      },
+      "distance": 1.8027756377319948
+    },
+    {
+      "id": "kit-cliff_rock_low-1146",
+      "before": {
+        "id": "kit-cliff_rock_low-1146",
+        "piece": "cliff_rock_low",
+        "x": 90.46318515969813,
+        "y": -1.431929169935176,
+        "z": 72.33283134388869,
+        "yaw": 0.7577863497574157,
+        "scale": 2.1245612138767833
+      },
+      "after": {
+        "id": "kit-cliff_rock_low-1146",
+        "piece": "cliff_rock_low",
+        "x": 93.46318515969813,
+        "y": -1.461640887822855,
+        "z": 72.33283134388869,
+        "yaw": 0.7577863497574157,
+        "scale": 2.1245612138767833
+      },
+      "distance": 3
+    },
+    {
+      "id": "kit-cliff_rock_low-1149",
+      "before": {
+        "id": "kit-cliff_rock_low-1149",
+        "piece": "cliff_rock_low",
+        "x": 51.423248189641455,
+        "y": -0.8347536973018066,
+        "z": -60.21640697502823,
+        "yaw": 0.15586209549057423,
+        "scale": 2.2940696587992147
+      },
+      "after": {
+        "id": "kit-cliff_rock_low-1149",
+        "piece": "cliff_rock_low",
+        "x": 50.923248189641455,
+        "y": -0.8347536973018066,
+        "z": -60.21640697502823,
+        "yaw": 0.15586209549057423,
+        "scale": 2.2940696587992147
+      },
+      "distance": 0.5
+    }
+  ],
+  "bikes": [
+    {
+      "id": "prop:street-bike-154",
+      "before": {
+        "x": -107.9,
+        "y": 22.566408157348633,
+        "z": -75.15
+      },
+      "after": {
+        "x": -107.4,
+        "y": 22.566408157348633,
+        "z": -74.65
+      }
+    }
+  ],
+  "types": {
+    "cliff_rock": {
+      "instances": 10,
+      "facesPerChunk": [
+        88,
+        106,
+        94,
+        106
+      ]
+    },
+    "cliff_rock_low": {
+      "instances": 74,
+      "facesPerChunk": [
+        106,
+        94,
+        94,
+        106
+      ]
+    },
+    "cliff_rock_tall": {
+      "instances": 34,
+      "facesPerChunk": [
+        100,
+        100,
+        100,
+        94
+      ]
+    },
+    "cliff_ledge": {
+      "instances": 16,
+      "facesPerChunk": [
+        106,
+        100,
+        106,
+        100
+      ]
+    }
+  },
+  "fittedTo": "public/models/kit/kit.glb, all3LODs",
+  "roomFloorCorrection": {
+    "createMs": 874.1566829999999,
+    "environment": "Single createWorld check under shared load; CPU interleaved medians predate the room-floor reflow correction."
+  }
+}

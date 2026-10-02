@@ -2,6 +2,7 @@ import { clamp } from './math';
 import { terrainHeight } from './terrain';
 import { boundaryFeedback } from './bounds';
 import { colliderGrid } from './collider-grid';
+import { colliderSpan, intersectsCollider, pushFromHull, sweepCollider } from './collider-shape';
 import { waterAt } from './water';
 import { emoteInput } from './emotes';
 import { mudBathAt } from './recreation';
@@ -33,6 +34,7 @@ export function tryTrampoline(actor: ActorState, world: WorldSpec): boolean {
   return true;
 }
 export const overlapsFootprint = (pos: Vec3, collider: Collider): boolean => {
+  if (collider.hull) return colliderSpan(collider, pos.x, pos.z, RADIUS) !== null;
   const x = pos.x - clamp(pos.x, collider.min.x, collider.max.x);
   const z = pos.z - clamp(pos.z, collider.min.z, collider.max.z);
   return x * x + z * z < RADIUS * RADIUS;
@@ -40,12 +42,19 @@ export const overlapsFootprint = (pos: Vec3, collider: Collider): boolean => {
 
 const hasHeadroom = (pos: Vec3, world: WorldSpec, height: number): boolean =>
   colliderGrid(world).query(pos.x - RADIUS, pos.z - RADIUS, pos.x + RADIUS, pos.z + RADIUS)
-    .every(c => !overlapsFootprint(pos, c) || pos.y >= c.max.y - .01 || pos.y + height <= c.min.y);
+    .every(c => c.hull ? !intersectsCollider(c, pos, height, RADIUS, .01) :
+      !overlapsFootprint(pos, c) || pos.y >= c.max.y - .01 || pos.y + height <= c.min.y);
 
 export function raycastWorld(origin: Vec3, direction: Vec3, maxDistance: number, world: WorldSpec): { distance: number; collider: Collider; point: Vec3 } | null {
   let nearest: { distance: number; collider: Collider; point: Vec3 } | null = null;
   const endX = origin.x + direction.x * maxDistance, endZ = origin.z + direction.z * maxDistance;
   for (const collider of colliderGrid(world).query(Math.min(origin.x, endX), Math.min(origin.z, endZ), Math.max(origin.x, endX), Math.max(origin.z, endZ))) {
+    if (collider.hull) {
+      const low = sweepCollider(collider, origin, direction, maxDistance);
+      if (low < maxDistance && (!nearest || low < nearest.distance)) nearest = { distance: low, collider,
+        point: { x: origin.x + direction.x * low, y: origin.y + direction.y * low, z: origin.z + direction.z * low } };
+      continue;
+    }
     let low = 0, high = maxDistance;
     for (const axis of ['x', 'y', 'z'] as const) {
       const d = direction[axis], o = origin[axis];
@@ -76,6 +85,7 @@ export function hasLineOfSight(a: Vec3, b: Vec3, world: WorldSpec): boolean {
   // Boolean visibility needs no hit record, direction object or terrain points.
   // Keep the same slab bounds and endpoint tolerance as raycastWorld.
   for (const collider of colliderGrid(world).query(Math.min(a.x, b.x), Math.min(a.z, b.z), Math.max(a.x, b.x), Math.max(a.z, b.z))) {
+    if (collider.hull) { if (sweepCollider(collider, a, { x: dx, y: dy, z: dz }, limit) < limit) return false; continue; }
     let low = 0, high = limit;
     for (let axis = 0; axis < 3; axis++) {
       const d = axis === 0 ? dx : axis === 1 ? dy : dz, o = axis === 0 ? a.x : axis === 1 ? a.y : a.z;
@@ -97,7 +107,7 @@ export function hasLineOfSight(a: Vec3, b: Vec3, world: WorldSpec): boolean {
 }
 
 export function clearSpawn(pos: Vec3, world: WorldSpec): boolean {
-  return colliderGrid(world).query(pos.x - RADIUS, pos.z - RADIUS, pos.x + RADIUS, pos.z + RADIUS).every(c => pos.y >= c.max.y - .01 || pos.y + 1.8 <= c.min.y ||
+  return colliderGrid(world).query(pos.x - RADIUS, pos.z - RADIUS, pos.x + RADIUS, pos.z + RADIUS).every(c => c.hull ? !intersectsCollider(c, pos, 1.8, RADIUS, .01) : pos.y >= c.max.y - .01 || pos.y + 1.8 <= c.min.y ||
     pos.x + RADIUS <= c.min.x || pos.x - RADIUS >= c.max.x || pos.z + RADIUS <= c.min.z || pos.z - RADIUS >= c.max.z);
 }
 
@@ -142,6 +152,15 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
   let candidates = grid.queryIndices(p.x - RADIUS, p.z - RADIUS, p.x + RADIUS, p.z + RADIUS);
   for (let i = 0; i < candidates.length; i++) {
     const index = candidates[i], c = world.colliders[index];
+    if (c.hull) {
+      const span = colliderSpan(c, p.x, p.z, RADIUS);
+      if (!span || p.y >= span[1] - .01 || p.y + height <= span[0]) continue;
+      if ((actor.grounded || actor.swimming) && span[1] - p.y <= STEP && hasHeadroom({ x: p.x, y: span[1], z: p.z }, world, height)) p.y = Math.max(p.y, span[1]);
+      else if (pushFromHull(c, p, height, RADIUS)) {
+        candidates = grid.queryIndices(p.x - RADIUS, p.z - RADIUS, p.x + RADIUS, p.z + RADIUS, index); i = -1;
+      }
+      continue;
+    }
     if (p.y >= c.max.y - .01 || p.y + height <= c.min.y) continue;
     const cx = clamp(p.x, c.min.x, c.max.x), cz = clamp(p.z, c.min.z, c.max.z);
     const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
@@ -153,9 +172,27 @@ export function moveActor(actor: ActorState, input: InputFrame, world: WorldSpec
     // the new footprint, exactly as the former full-array pass would do.
     candidates = grid.queryIndices(p.x - RADIUS, p.z - RADIUS, p.x + RADIUS, p.z + RADIUS, index); i = -1;
   }
+  // Chunks overlap to form a boulder. A later chunk's outward push can enter
+  // an earlier one, so resolve the union before gravity or ground contact.
+  for (let pass = 0; pass < 8; pass++) {
+    let pushed = false;
+    for (const c of grid.query(p.x - RADIUS, p.z - RADIUS, p.x + RADIUS, p.z + RADIUS)) {
+      if (!c.hull) continue;
+      const span = colliderSpan(c, p.x, p.z, RADIUS);
+      if (span && span[1] - p.y > STEP) pushed = pushFromHull(c, p, height, RADIUS) || pushed;
+    }
+    if (!pushed) break;
+  }
   actor.velocity.y -= 22 * dt;
   let ground = terrainHeight(p.x, p.z);
   for (const c of grid.query(p.x - RADIUS, p.z - RADIUS, p.x + RADIUS, p.z + RADIUS)) {
+    if (c.hull) {
+      const span = colliderSpan(c, p.x, p.z, RADIUS);
+      if (!span) continue;
+      if (p.y >= span[1] - STEP) ground = Math.max(ground, span[1]);
+      else if (actor.velocity.y > 0 && p.y + height <= span[0] && p.y + height + actor.velocity.y * dt > span[0]) actor.velocity.y = 0;
+      continue;
+    }
     if (!overlapsFootprint(p, c)) continue;
     if (p.y >= c.max.y - STEP) ground = Math.max(ground, c.max.y);
     else if (actor.velocity.y > 0 && p.y + height <= c.min.y && p.y + height + actor.velocity.y * dt > c.min.y) actor.velocity.y = 0;

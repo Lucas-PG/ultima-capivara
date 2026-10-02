@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { dressingWorld } from '../shared/collider-shape';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { AssetLoader } from './assets';
@@ -199,6 +200,7 @@ export class WorldScene {
   private readonly spinners: THREE.Object3D[] = [];
 
   constructor(world: WorldSpec, settings: Settings, loader: AssetLoader, onAssetsReady: () => void = () => {}) {
+    world = dressingWorld(world);
     this.recreation = new RecreationView(world, loader, settings.graphics); this.group.add(this.recreation.group);
     // Foliage-only kit pieces (bush clusters, hedges) are drawn by the vegetation batch instead.
     this.kit = createKit(this.group, loader, (world.pieces ?? []).filter(piece => !this.recreation.pieceIds.has(piece.id) &&

@@ -1,8 +1,9 @@
 import { rng } from './math';
 import { terrainHeight } from './terrain';
-import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, CAPELA_STAIR, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, ROADS, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
+import { ARENA, ARENA_CENTER, BAY, BRIDGE_PLANS, CAMPINHO, CAPELA, CAPELA_STAIR, DISTRICTS, ENGENHO, WATER_WHEEL, HOUSE_BODY, HOUSE_SIZE, SMALL_PLAN, TWO_STOREY, isHousePiece, CHURCH, DISTRICT_ARRIVALS, FAROL, FORTE, HOUSES, MARKET_RECT, MERCADAO, MORRO_LOTS, LOT_RECTS, NAV_ROUTES, PLAZA, PLAZA_RECT, MARE, PORTO_QUAY_Z, QUAY_FACES, QUAYS, QUAY_X, ROADS, STREETS, ROSARIO, ROW_LOTS, inArena, quayFaceAt, riverAtX, riverDistance, riverSample, routeDistance, type HouseLot, type RowLot } from './layout';
 import { KIT_PIECES, kitColliders } from './kit-collision';
-import { hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
+import { colliderSpan, intersectsCollider } from './collider-shape';
+import { clearSpawn, hasLineOfSight, TRAMPOLINE_IMPULSE } from './collision';
 import { SIGN_ART } from './signage';
 import { buildNavigation, walkableHeight, walkableSegment } from './navigation';
 import { buildingRole, buildingRooms, groundRoomPoint, interiorPlacements } from './building-interiors';
@@ -76,7 +77,7 @@ export function createWorld(): WorldSpec {
   const place = (piece: string, x: number, z: number, yaw = 0, scale = 1, y = ground(x, z), label = piece) => {
     const instance: KitPlacement = { id: id(`kit-${label}`), piece, x, y, z, yaw, ...(scale === 1 ? {} : { scale }) };
     pieces.push(instance);
-    const shapes = kitColliders(instance);
+    const shapes = kitColliders(instance, true);
     addSolids(shapes);
     if (/^(bridge_|passarela|palafita|bar_mare)/.test(piece) || piece === 'dock_wood')
       walkways.push(...shapes.filter(c => c.max.y - c.min.y < .7 * scale && c.max.x - c.min.x > 2 && c.max.z - c.min.z > 2));
@@ -364,7 +365,7 @@ export function createWorld(): WorldSpec {
     const radius = Math.max(...definition.footprint) * scale * .72 + 1.4;
     const routes = cliffRoutes.filter(point => Math.abs(point.x - x) < radius && Math.abs(point.z - z) < radius);
     const houses = [...HOUSES, ...MORRO_LOTS].filter(h => Math.abs(h.x - x) < radius + h.w / 2 && Math.abs(h.z - z) < radius + h.d / 2);
-    const shapes = kitColliders({ id: 'cliff-clearance', piece, x, y: bottom, z, yaw, scale });
+    const shapes = kitColliders({ id: 'cliff-clearance', piece, x, y: bottom, z, yaw, scale }, true);
     // A cliff may sit under an elevated route or house, but never in its aisle.
     // Centre-distance rejection left those exact terrace faces completely bare.
     if (shapes.some(c => routes.some(point => point.y < c.max.y + .03 && point.y + 1.8 > c.min.y &&
@@ -952,6 +953,61 @@ export function createWorld(): WorldSpec {
     }
     if (target) plant.pos = target; else objects.splice(index, 1);
   }
+  // Complete rock collision after visual placement has finished. Its former
+  // internal cores still author the unchanged scatter, foliage and scenery.
+  const rocks = pieces.filter(piece => KIT_PIECES[piece.piece].collisionHulls);
+  // Keep full stone shells clear of public approaches and authored room floors.
+  // Internal cores also hid a stone intrusion in a furnished home; preserve
+  // its usable floor, rather than allowing the visible shell through furniture.
+  const approaches = [...cliffRoutes, ...pieces.flatMap(piece =>
+    (KIT_PIECES[piece.piece].traversal?.entrances ?? []).filter(entrance => !entrance.platform)
+      .map(entrance => buildingPoint(piece, entrance.point))
+      .filter(point => Math.abs(point.y - ground(point.x, point.z)) <= .45)
+      .map(point => ({ ...point, y: ground(point.x, point.z) }))),
+    ...pieces.flatMap(piece => buildingRooms(piece).flatMap(room => {
+      const [x0, z0, x1, z1] = room.bounds, points = [];
+      // Half-metre footprints overlap across the floor sampling grid. Room stone
+      // must stay below the floor; ordinary outdoor paths allow a legal step.
+      const size = piece.scale ?? 1;
+      const nx = Math.max(1, Math.ceil((x1 - x0 - .7) * size / .65)), nz = Math.max(1, Math.ceil((z1 - z0 - .7) * size / .65));
+      for (let ix = 0; ix <= nx; ix++) for (let iz = 0; iz <= nz; iz++) points.push({
+        ...buildingPoint(piece, [x0 + .35 + (x1 - x0 - .7) * ix / nx, room.y,
+          z0 + .35 + (z1 - z0 - .7) * iz / nz]), room: true,
+      });
+      return points;
+    }))];
+  const offsets = Array.from({ length: 17 }, (_, x) => Array.from({ length: 17 }, (_, z) =>
+    ({ x: (x - 8) * .5, z: (z - 8) * .5 }))).flat()
+    .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
+  for (const rock of rocks) {
+    const nearby = approaches.filter(point => Math.abs(point.x - rock.x) < 24 && Math.abs(point.z - rock.z) < 24);
+    const clear = (placement: KitPlacement) => {
+      const shell = kitColliders(placement);
+      return nearby.every(point => shell.every(c => {
+        const span = colliderSpan(c, point.x, point.z, .5);
+        return !span || span[1] <= point.y + ('room' in point ? .01 : .45) || !intersectsCollider(c, point, 1.8, .5, .01);
+      }));
+    };
+    if (clear(rock)) continue;
+    for (const offset of offsets) {
+      const x = rock.x + offset.x, z = rock.z + offset.z;
+      const moved = { ...rock, x, z, y: rock.y + ground(x, z) - ground(rock.x, rock.z) };
+      if (clear(moved)) { Object.assign(rock, moved); break; }
+    }
+  }
+  const rockIds = new Set(rocks.map(piece => piece.id));
+  world.dressingColliders = colliders;
+  world.colliders = colliders.filter(c => !c.pieceId || !rockIds.has(c.pieceId)).concat(rocks.flatMap(piece => kitColliders(piece)));
+  // A street bike beside the farol previously occupied the invisible space
+  // between a stone shell and its core. Keep such props beside the stone.
+  for (const object of objects.filter(object => object.detail === 'prop:street-bike')) {
+    if (!world.colliders.some(c => c.hull && intersectsCollider(c, object.pos, 1.4, .32))) continue;
+    for (const offset of offsets) {
+      const x = object.pos.x + offset.x, z = object.pos.z + offset.z, y = ground(x, z);
+      if (LOT_RECTS.some(([x0, z0, x1, z1]) => x > x0 + .2 && x < x1 - .2 && z > z0 + .2 && z < z1 - .2)) continue;
+      if (clearSpawn({ x, y, z }, world)) { object.pos = { x, y, z }; break; }
+    }
+  }
   world.buildingRoutes = buildBuildingRoutes(world);
   const graph = world.navigation = buildNavigation(world, NAV_ROUTES), seen = new Set<number>();
   let mainRoutes: number[] = [];
@@ -981,6 +1037,7 @@ export function createWorld(): WorldSpec {
     if (playAreaAt(x, z, radius + .5)) return false;
     const y = walkableHeight(x, z, world);
     if (y < .55 || Math.abs(x) > 120 || Math.abs(z) > 120) return false;
+    if (!clearSpawn({ x, y, z }, world)) return false;
     if (Math.hypot(ground(x + .6, z) - ground(x - .6, z), ground(x, z + .6) - ground(x, z - .6)) / 1.2 > .6) return false;
     if (anySolid(x - radius, z - radius, x + radius, z + radius, c => !(y >= c.max.y - .015 || y + 1.8 <= c.min.y ||
       x + radius <= c.min.x || x - radius >= c.max.x || z + radius <= c.min.z || z - radius >= c.max.z))) return false;

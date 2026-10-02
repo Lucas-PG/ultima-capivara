@@ -5,6 +5,7 @@ import type { WorldSnapshot } from '../src/shared/types';
 
 // Character download/validation has its own readiness suite; this harness isolates GPU lifecycle.
 vi.mock('../src/render/capybara', () => ({ preloadCapybaraAsset: vi.fn(async () => {}), disposeCapybaraAssets: vi.fn() }));
+vi.mock('../src/render/aircraft', () => ({ AIRCRAFT_ASSET_ENTRY: {}, makePlane: () => new THREE.Group(), preloadAircraftAsset: vi.fn(async () => {}), disposeAircraftAssets: vi.fn() }));
 vi.mock('../src/render/weapons', () => ({ WeaponView: vi.fn() }));
 vi.mock('../src/render/thumbnails', () => ({ loadWeaponThumbnails: vi.fn(async () => {}) }));
 vi.mock('../src/render/avatars', async () => {

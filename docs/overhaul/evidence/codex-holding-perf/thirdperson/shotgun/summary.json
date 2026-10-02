@@ -1,0 +1,948 @@
+{
+  "weapon": "shotgun",
+  "viewport": {
+    "width": 1470,
+    "height": 956
+  },
+  "beforeCommit": "b721224",
+  "afterHoldingCommit": "aa8207b",
+  "captureRootHead": "2886a449cae68260f64efa3fbdac15ced3f29834",
+  "sourceBefore": "/home/lucas/codex-team/evidence/tp-before",
+  "sourceAfter": "/home/lucas/codex-team/evidence/tp-final",
+  "rows": [
+    {
+      "state": "idle",
+      "clip": "idle",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.913
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135,
+        "triggerFront": 0.071,
+        "insideGuard": true
+      },
+      "board": "001-idle.jpg"
+    },
+    {
+      "state": "aimed",
+      "clip": "idle",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135,
+        "triggerFront": 0.071,
+        "insideGuard": true
+      },
+      "board": "002-aimed.jpg"
+    },
+    {
+      "state": "walk",
+      "clip": "walk",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135,
+        "triggerFront": 0.071,
+        "insideGuard": true
+      },
+      "board": "003-walk.jpg"
+    },
+    {
+      "state": "strafe",
+      "clip": "strafe_l",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.913
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135,
+        "triggerFront": 0.071,
+        "insideGuard": true
+      },
+      "board": "004-strafe.jpg"
+    },
+    {
+      "state": "sprint",
+      "clip": "run",
+      "seconds": 0.6,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.913
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "005-sprint.jpg"
+    },
+    {
+      "state": "crouch",
+      "clip": "crouch",
+      "seconds": 0.3,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135,
+        "triggerFront": 0.071,
+        "insideGuard": true
+      },
+      "board": "006-crouch.jpg"
+    },
+    {
+      "state": "jump",
+      "clip": "jump",
+      "seconds": 0.2,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.913
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135,
+        "triggerFront": 0.071,
+        "insideGuard": true
+      },
+      "board": "007-jump.jpg"
+    },
+    {
+      "state": "land",
+      "clip": "idle",
+      "seconds": 0.1,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.913
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135,
+        "triggerFront": 0.071,
+        "insideGuard": true
+      },
+      "board": "008-land.jpg"
+    },
+    {
+      "state": "fire",
+      "clip": "idle",
+      "seconds": 0.08,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135,
+        "triggerFront": 0.071,
+        "insideGuard": true
+      },
+      "board": "009-fire.jpg"
+    },
+    {
+      "state": "reload-0",
+      "clip": "reload",
+      "seconds": 0,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.913
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "010-reload-0.jpg"
+    },
+    {
+      "state": "reload-0.065",
+      "clip": "reload",
+      "seconds": 0.035750000000000004,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "011-reload-0.065.jpg"
+    },
+    {
+      "state": "reload-0.12",
+      "clip": "reload",
+      "seconds": 0.066,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "012-reload-0.12.jpg"
+    },
+    {
+      "state": "reload-0.15",
+      "clip": "reload",
+      "seconds": 0.0825,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.116,
+        "Lwhole": -0.135,
+        "Rpalm": -0.116,
+        "Rwrap": 0.058,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "013-reload-0.15.jpg"
+    },
+    {
+      "state": "reload-0.26",
+      "clip": "reload",
+      "seconds": 0.14300000000000002,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "014-reload-0.26.jpg"
+    },
+    {
+      "state": "reload-0.29",
+      "clip": "reload",
+      "seconds": 0.1595,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": 104.183
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "015-reload-0.29.jpg"
+    },
+    {
+      "state": "reload-0.35",
+      "clip": "reload",
+      "seconds": 0.1925,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "016-reload-0.35.jpg"
+    },
+    {
+      "state": "reload-0.48",
+      "clip": "reload",
+      "seconds": 0.264,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "017-reload-0.48.jpg"
+    },
+    {
+      "state": "reload-0.52",
+      "clip": "reload",
+      "seconds": 0.28600000000000003,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "018-reload-0.52.jpg"
+    },
+    {
+      "state": "reload-0.55",
+      "clip": "reload",
+      "seconds": 0.30250000000000005,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "019-reload-0.55.jpg"
+    },
+    {
+      "state": "reload-0.56",
+      "clip": "reload",
+      "seconds": 0.30800000000000005,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "020-reload-0.56.jpg"
+    },
+    {
+      "state": "reload-0.62",
+      "clip": "reload",
+      "seconds": 0.341,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "021-reload-0.62.jpg"
+    },
+    {
+      "state": "reload-0.665",
+      "clip": "reload",
+      "seconds": 0.3657500000000001,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "022-reload-0.665.jpg"
+    },
+    {
+      "state": "reload-0.7",
+      "clip": "reload",
+      "seconds": 0.385,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "023-reload-0.7.jpg"
+    },
+    {
+      "state": "reload-0.74",
+      "clip": "reload",
+      "seconds": 0.40700000000000003,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.207
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": 13.38,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": 13.38,
+        "Lwrap": 28.125
+      },
+      "board": "024-reload-0.74.jpg"
+    },
+    {
+      "state": "reload-0.75",
+      "clip": "reload",
+      "seconds": 0.41250000000000003,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "025-reload-0.75.jpg"
+    },
+    {
+      "state": "reload-0.78",
+      "clip": "reload",
+      "seconds": 0.42900000000000005,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "026-reload-0.78.jpg"
+    },
+    {
+      "state": "reload-0.85",
+      "clip": "reload",
+      "seconds": 0.4675,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "027-reload-0.85.jpg"
+    },
+    {
+      "state": "reload-0.9",
+      "clip": "reload",
+      "seconds": 0.49500000000000005,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "028-reload-0.9.jpg"
+    },
+    {
+      "state": "reload-0.92",
+      "clip": "reload",
+      "seconds": 0.5060000000000001,
+      "before": {
+        "Rwhole": -14.163,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.116,
+        "Lwhole": -0.135,
+        "Rpalm": -0.116,
+        "Rwrap": 0.058,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "029-reload-0.92.jpg"
+    },
+    {
+      "state": "reload-1",
+      "clip": "reload",
+      "seconds": 0.55,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "030-reload-1.jpg"
+    },
+    {
+      "state": "reload-partial-0",
+      "clip": "reload-partial",
+      "seconds": 0,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.913
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "031-reload-partial-0.jpg"
+    },
+    {
+      "state": "reload-partial-0.065",
+      "clip": "reload-partial",
+      "seconds": 0.035750000000000004,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "032-reload-partial-0.065.jpg"
+    },
+    {
+      "state": "reload-partial-0.12",
+      "clip": "reload-partial",
+      "seconds": 0.066,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "033-reload-partial-0.12.jpg"
+    },
+    {
+      "state": "reload-partial-0.15",
+      "clip": "reload-partial",
+      "seconds": 0.0825,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.116,
+        "Lwhole": -0.135,
+        "Rpalm": -0.116,
+        "Rwrap": 0.058,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "034-reload-partial-0.15.jpg"
+    },
+    {
+      "state": "reload-partial-0.26",
+      "clip": "reload-partial",
+      "seconds": 0.14300000000000002,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "035-reload-partial-0.26.jpg"
+    },
+    {
+      "state": "reload-partial-0.29",
+      "clip": "reload-partial",
+      "seconds": 0.1595,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": 104.183
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "036-reload-partial-0.29.jpg"
+    },
+    {
+      "state": "reload-partial-0.35",
+      "clip": "reload-partial",
+      "seconds": 0.1925,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "037-reload-partial-0.35.jpg"
+    },
+    {
+      "state": "reload-partial-0.48",
+      "clip": "reload-partial",
+      "seconds": 0.264,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "038-reload-partial-0.48.jpg"
+    },
+    {
+      "state": "reload-partial-0.52",
+      "clip": "reload-partial",
+      "seconds": 0.28600000000000003,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "039-reload-partial-0.52.jpg"
+    },
+    {
+      "state": "reload-partial-0.55",
+      "clip": "reload-partial",
+      "seconds": 0.30250000000000005,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "040-reload-partial-0.55.jpg"
+    },
+    {
+      "state": "reload-partial-0.56",
+      "clip": "reload-partial",
+      "seconds": 0.30800000000000005,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "041-reload-partial-0.56.jpg"
+    },
+    {
+      "state": "reload-partial-0.62",
+      "clip": "reload-partial",
+      "seconds": 0.341,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "042-reload-partial-0.62.jpg"
+    },
+    {
+      "state": "reload-partial-0.665",
+      "clip": "reload-partial",
+      "seconds": 0.3657500000000001,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "043-reload-partial-0.665.jpg"
+    },
+    {
+      "state": "reload-partial-0.7",
+      "clip": "reload-partial",
+      "seconds": 0.385,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": null
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": null,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": null,
+        "Lwrap": null
+      },
+      "board": "044-reload-partial-0.7.jpg"
+    },
+    {
+      "state": "reload-partial-0.74",
+      "clip": "reload-partial",
+      "seconds": 0.40700000000000003,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.207
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": 13.38,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": 13.38,
+        "Lwrap": 28.125
+      },
+      "board": "045-reload-partial-0.74.jpg"
+    },
+    {
+      "state": "reload-partial-0.75",
+      "clip": "reload-partial",
+      "seconds": 0.41250000000000003,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "046-reload-partial-0.75.jpg"
+    },
+    {
+      "state": "reload-partial-0.78",
+      "clip": "reload-partial",
+      "seconds": 0.42900000000000005,
+      "before": {
+        "Rwhole": -14.161,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "047-reload-partial-0.78.jpg"
+    },
+    {
+      "state": "reload-partial-0.85",
+      "clip": "reload-partial",
+      "seconds": 0.4675,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "048-reload-partial-0.85.jpg"
+    },
+    {
+      "state": "reload-partial-0.9",
+      "clip": "reload-partial",
+      "seconds": 0.49500000000000005,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.057,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "049-reload-partial-0.9.jpg"
+    },
+    {
+      "state": "reload-partial-0.92",
+      "clip": "reload-partial",
+      "seconds": 0.5060000000000001,
+      "before": {
+        "Rwhole": -14.163,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.116,
+        "Lwhole": -0.135,
+        "Rpalm": -0.116,
+        "Rwrap": 0.058,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "050-reload-partial-0.92.jpg"
+    },
+    {
+      "state": "reload-partial-1",
+      "clip": "reload-partial",
+      "seconds": 0.55,
+      "before": {
+        "Rwhole": -14.162,
+        "Lwhole": -8.912
+      },
+      "after": {
+        "Rwhole": -0.117,
+        "Lwhole": -0.135,
+        "Rpalm": -0.117,
+        "Rwrap": 0.058,
+        "Lpalm": -0.036,
+        "Lwrap": -0.135
+      },
+      "board": "051-reload-partial-1.jpg"
+    }
+  ]
+}

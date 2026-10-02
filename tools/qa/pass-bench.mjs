@@ -23,13 +23,14 @@ const POSES = {
   morroRoofs: ['morroRoofs', 1], praia: ['district-praia', 1], capela: ['district-capela', 1],
 };
 const poses = (env.POSES || Object.keys(POSES).join(',')).split(',');
-const thermal = () => { try { return Number(execSync('notifyutil -g com.apple.system.thermalpressurelevel').toString().trim().split(/\s+/).pop()); } catch { return null; } };
+const thermal = () => { if (process.platform !== 'darwin') return null; try { return Number(execSync('notifyutil -g com.apple.system.thermalpressurelevel').toString().trim().split(/\s+/).pop()); } catch { return null; } };
 const wide = JSON.parse((await import('node:fs')).readFileSync(new URL('./wide-views.json', import.meta.url), 'utf8'));
 
 const browser = await chromium.launch({ headless: env.HEADED !== '1', channel: 'chrome',
-  args: ['--use-gl=angle', '--use-angle=metal', '--enable-precise-memory-info', '--disable-background-timer-throttling',
+  args: ['--use-gl=angle', process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=gl-egl', '--enable-precise-memory-info', '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', `--window-size=${width},${height + 90}`] });
 const rows = [];
+let gpuName;
 try {
   const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr });
   await context.addInitScript(extra => {
@@ -37,10 +38,16 @@ try {
     localStorage.setItem('uc-v2-settings', JSON.stringify({ ...saved, frameLimit: 60, ...extra }));
   }, JSON.parse(env.SETTINGS || '{}'));
   const page = await context.newPage();
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(env.CPU_THROTTLE || 1) });
   page.on('pageerror', error => console.error('pageerror', error.message));
   await page.goto(`${base}/?qa=1&gpu=1`);
   await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 120_000 });
   await page.evaluate(() => window.__capyQA.start());
+  gpuName = await page.evaluate(() => {
+    const gl = document.querySelector('#game').getContext('webgl2'), debug = gl.getExtension('WEBGL_debug_renderer_info');
+    return { renderer: String(gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER)), timerQuery: !!gl.getExtension('EXT_disjoint_timer_query_webgl2') };
+  });
   await page.addStyleTag({ content: '#confetti,#flash{display:none!important}' });
   if (env.DENSITY) await page.evaluate(d => window.__capyQA.density(d), Number(env.DENSITY));
   for (const preset of presets) {
@@ -62,7 +69,8 @@ try {
         attribution.push(result); console.log('   ', name, toggle, `${result.costMs} ms of ${result.baseMs}`, JSON.stringify(result.rounds));
       }
       if (shots) await page.screenshot({ path: `${shots}/${preset}-${name}.png` });
-      const row = { preset, name, pose, actors, camera: camera ?? null, load: loadavg()[0], thermal: thermal(), bench, passes, stats, attribution };
+      const churn = await page.evaluate(() => window.__capyQA.programChurn(12));
+      const row = { preset, name, pose, actors, camera: camera ?? null, load: loadavg()[0], thermal: thermal(), bench, passes, stats, attribution, churn };
       rows.push(row);
       console.log(preset.padEnd(7), name.padEnd(14), `frame ${bench.medianMs.toFixed(1)} ms gpu ${bench.gpuMedianMs?.toFixed(1)} ms`,
         `passes ${passes.total.mean.toFixed(1)} ms`, Object.entries(passes.passes).map(([k, v]) => `${k} ${v.mean.toFixed(1)}`).join(' '),
@@ -71,6 +79,6 @@ try {
   }
   await page.evaluate(() => { window.__camOverride = undefined; });
 } finally {
-  writeFileSync(out, JSON.stringify({ measuredAt: new Date().toISOString(), base, viewport: { width, height, dpr }, frames, rows }, null, 1));
+  writeFileSync(out, JSON.stringify({ measuredAt: new Date().toISOString(), base, viewport: { width, height, dpr }, gpu: gpuName, cpuThrottle: Number(env.CPU_THROTTLE || 1), frames, rows }, null, 1));
   await browser.close();
 }

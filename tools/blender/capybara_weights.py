@@ -79,6 +79,10 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
     y = pts[:, 1]
     out = []
     M = C.M
+    # The paw bone's +Y bind axis is the sculpt's wrist-to-digit axis. Keep this
+    # transition in sync with render/world-palm-weights.ts for shipped exports.
+    paw_along = {n: (pts - C.wrist(s)) @ C.paw_frame(s)[:, 1]
+                 for s, n in ((-1, 'L'), (1, 'R'))}
     paw_cache = {}
     for s, n in ((-1, 'L'), (1, 'R')):
         idx = np.where(soft[:, names.index('paw_' + n)] > 0)[0]
@@ -190,6 +194,22 @@ def weights(parts, root, REST, pts, nrm, partv, sigma=.013):
         if any(k.startswith('paw_') and k[4:].rstrip('_LR').rstrip('0123456789') in P.FINGERS for k in w):
             # A digit vertex belongs to its paw chain only (no blend with the sleeve or belly).
             w = {k: val for k, val in w.items() if k.startswith('paw_')}
+        else:
+            # SDF forearm ownership must not pull the distal palm off a held gun.
+            # Move only existing same-side forearm mass, preserving stronger paw
+            # ownership and leaving all other body influences unchanged.
+            for n in 'LR':
+                paw = 'paw_' + n
+                fore = ('forearm_' + n, 'forearm_twist_' + n)
+                fw = sum(w.get(bone, 0) for bone in fore)
+                if paw not in w or fw <= 0:
+                    continue
+                moved = max(0, (w[paw] + fw) * float(ss(-.020, .012, paw_along[n][i])) - w[paw])
+                if moved > 0:
+                    for bone in fore:
+                        if bone in w:
+                            w[bone] *= max(0, 1 - moved / fw)
+                    w[paw] += moved
         top = sorted(w.items(), key=lambda kv: -kv[1])[:4]
         total = sum(v for _, v in top)
         out.append({k: v / total for k, v in top if v / total > .002})

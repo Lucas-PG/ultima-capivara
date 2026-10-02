@@ -4,6 +4,8 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { GameRenderer } from '../src/render/renderer';
 import { disposeCapybaraAssets, preloadCapybaraAsset } from '../src/render/capybara';
 import { AvatarView } from '../src/render/avatars';
+import { disposeAircraftAssets, makePlane, preloadAircraftAsset } from '../src/render/aircraft';
+import { loadAircraftFixture } from './helpers/aircraft-fixture';
 import type { ActorState } from '../src/shared/types';
 
 vi.mock('../src/render/thumbnails', () => ({ loadWeaponThumbnails: vi.fn().mockResolvedValue(undefined) }));
@@ -17,7 +19,8 @@ afterAll(() => vi.unstubAllGlobals());
 
 let source: THREE.Group;
 beforeEach(async () => {
-  disposeCapybaraAssets();
+  disposeCapybaraAssets(); disposeAircraftAssets();
+  await preloadAircraftAsset(loadAircraftFixture, makePlane());
   source = new THREE.Group();
   const bones = ['root', 'head', 'arm_L', 'arm_R'].map(name => {
     const bone = new THREE.Bone(); bone.name = name; return bone;
@@ -48,13 +51,13 @@ describe('match avatar preparation', () => {
     const owned = () => ({ dispose: vi.fn() });
     const compile = vi.fn(() => compilation);
     const renderer = Object.assign(Object.create(GameRenderer.prototype), {
-      disposed: false, warming: null, scene, avatars: view, camera: new THREE.PerspectiveCamera(),
+      disposed: false, warming: null, plane: makePlane(), scene, avatars: view, camera: new THREE.PerspectiveCamera(),
       worldView: { group: new THREE.Group(), ...owned() },
       supplyDrops: { ready: Promise.resolve(), ...owned() },
       ambientLife: owned(),
       sky: { group: new THREE.Group(), ...owned() }, storm: { mesh: new THREE.Mesh(), ...owned() },
       weaponView: { assets: Promise.resolve(), scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), revealAll: vi.fn(), ...owned() },
-      environment: owned(), pipeline: { beginWarmup: vi.fn(), resize: vi.fn(), ...owned() }, assets: { ready: vi.fn().mockResolvedValue(undefined), prepareTextures: vi.fn(), ...owned() },
+      environment: owned(), pipeline: { beginWarmup: vi.fn(), resize: vi.fn(), ...owned() }, assets: { gltf: loadAircraftFixture, ready: vi.fn().mockResolvedValue(undefined), prepareTextures: vi.fn(), ...owned() },
       onProgress: vi.fn(), resize: vi.fn(), effects: { warm: vi.fn(), ...owned() },
       gl: { compileAsync: compile, setRenderTarget: vi.fn(), shadowMap: { enabled: true }, ...owned() },
     }) as GameRenderer;

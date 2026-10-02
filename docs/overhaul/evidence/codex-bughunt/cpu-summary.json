@@ -1,0 +1,38 @@
+{
+  "environment": {
+    "date": "2026-10-02",
+    "runtime": "v26.4.0",
+    "hardware": "shared desktop Linux, concurrent agents and live Chrome",
+    "baseline": "b721224",
+    "candidate": "8ad717f + 99af8bc collision-only files",
+    "seed": 37,
+    "warmupTicks": 1800,
+    "timedTicks": 600,
+    "actors": 21,
+    "order": [
+      "baseline",
+      "reduced",
+      "reduced",
+      "baseline",
+      "baseline",
+      "reduced"
+    ],
+    "limit": "Results compare changed collision behavior and shared-load runs; no M2 performance claim."
+  },
+  "summary": {
+    "baseline": {
+      "createMs": 742.0989730000001,
+      "tickMs": 0.586146038333333,
+      "p95TickMs": 2.0816839999997683,
+      "sightMs": 379.24009599999977,
+      "navMs": 7.007942000000185
+    },
+    "reduced": {
+      "createMs": 815.824165,
+      "tickMs": 0.45683290166667345,
+      "p95TickMs": 1.651307000000088,
+      "sightMs": 300.0494239999998,
+      "navMs": 11.121103999999832
+    }
+  }
+}

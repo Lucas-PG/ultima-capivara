@@ -5,6 +5,8 @@
 // node tools/qa/vm-evidence.mjs <outDir> [weapons csv] [sizes csv, e.g. 1280x720,1470x956]   (BASE env overrides the URL)
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
+import { poseHoldingState } from './fp-state.mjs';
+import { holdingStates } from './holding-states.mjs';
 const [out, list = 'pistol,revolver,smg,m4,shotgun,dmr,sniper,coco,machete', sizes = '1280x720,1470x956'] = process.argv.slice(2);
 if (!out) throw new Error('Give an output directory.');
 // [id, label, action, seconds]; reload keys follow each weapon's own choreography.
@@ -21,11 +23,13 @@ const RELOAD_KEYS = {
 };
 const states = weapon => [
   ['hip', 'hip', 'pose'], ['aimed', 'aimed', 'pose-ads'], ['sprint', 'sprint', 'sprint', .6], ['walk', 'walk', 'walk', .9],
-  ['strafe', 'strafe left', 'strafe', .5], ['crouch', 'crouch dip', 'crouch', .12], ['land', 'land', 'land', .08],
+  ['strafe', 'strafe left', 'strafe', .5], ['crouch', 'crouch dip', 'crouch', .12], ['jump', 'jump', 'jump', .15], ['land', 'land', 'land', .08],
+  ['aim-blend', 'aim blend', 'ads', .15],
   ['holster', 'holster', 'equip', .06], ['draw', 'draw', 'draw', .2],
   ...(weapon === 'machete' ? [] : [['fire', 'fire', 'fire', .05]]),
   ...RELOAD_KEYS[weapon], ['inspect-a', 'inspect', 'inspect', .55], ['inspect-b', 'inspect', 'inspect', 1.3],
   ['side-right', 'hip right side', 'orbit', Math.PI / 2], ['side-left', 'hip left side', 'orbit', -Math.PI / 2],
+  ...(process.env.ALL_KEYS ? holdingStates(weapon).filter(s => s.key).map(s => [`key-${s.action}-${s.t.toFixed(6)}`, `${s.action} key`, s.action, s.t]) : []),
 ];
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const index = {};
@@ -39,6 +43,7 @@ try {
     await page.goto(`${process.env.BASE || 'http://127.0.0.1:5173'}/?qa=1`);
     await page.waitForFunction(() => !!window.__capyQA, null, { timeout: 90000 });
     await page.evaluate(async () => { await window.__capyQA.start(); window.__capyQA.quality('medium'); });
+    if (process.env.TUNE) await page.evaluate(tune => { window.__vmTune = tune; }, JSON.parse(readFileSync(process.env.TUNE, 'utf8')));
     await page.addStyleTag({ content: '#confetti,#flash{display:none!important}' });
     for (const weapon of list.split(',')) {
       for (const [id, label, action, t] of states(weapon).filter(([id]) => !process.env.ONLY || process.env.ONLY.split(',').includes(id))) {
@@ -53,6 +58,8 @@ try {
             window.__vmOrbit = { yaw, pitch: .15, distance: .7, target: [p.x - .02, p.y - .04, p.z + .1] };
           }, t);
           await page.evaluate(w => window.__capyQA.pose(`fp-${w}`), weapon);
+        } else if (action === 'jump') {
+          await poseHoldingState(page, weapon, action, t);
         } else if (action === 'walk') {
           // Walking forward at 4.5 m/s: the motion fixture's sprint action, with the viewmodel told it walks.
           await page.evaluate(() => { window.__vmActor = a => ({ sprint: false, velocity: { x: -Math.sin(a.yaw) * 4.5, y: 0, z: -Math.cos(a.yaw) * 4.5 } }); });

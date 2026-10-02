@@ -1,0 +1,12 @@
+{
+  "opening": {
+    "phase": "countdown",
+    "hidden": true
+  },
+  "prepared": {
+    "phase": "playing",
+    "round": "buy",
+    "hidden": false
+  },
+  "errors": []
+}

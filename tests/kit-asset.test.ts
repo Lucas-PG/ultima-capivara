@@ -8,6 +8,8 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { createKit } from '../src/render/kit';
 import type { AssetLoader } from '../src/render/assets';
 import metadata from '../src/shared/kit-pieces.json';
+import { kitColliders, KIT_PIECES } from '../src/shared/kit-collision';
+import { containsCollider, sweepCollider } from '../src/shared/collider-shape';
 
 let document: Document, asset: GLTF;
 beforeAll(async () => {
@@ -136,6 +138,61 @@ describe('island kit geometry and traversal contract', () => {
           }
         }
       }
+    }
+  });
+
+  it('covers the complete visible stone shell with the source hull instead of only an internal core', () => {
+    asset.scene.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster();
+    for (const piece of ['cliff_rock', 'cliff_rock_low', 'cliff_rock_tall', 'cliff_ledge']) {
+      const solids = kitColliders({ id: piece, piece, x: 0, y: 0, z: 0, yaw: 0 });
+      const bevel = Math.max(...KIT_PIECES[piece].collisionHulls!.map(h => h.bevel));
+      let samples = 0;
+      for (let lod = 0; lod < 3; lod++) {
+        const rock = asset.scene.getObjectByName(`${piece}_LOD${lod}`) as THREE.Mesh;
+        const positions = rock.geometry.getAttribute('position'), colors = rock.geometry.getAttribute('color'), indices = rock.geometry.index!;
+        for (let vertex = 0; vertex < positions.count; vertex++) {
+          if (colors.getW(vertex) > .5) continue;
+          const point = new THREE.Vector3().fromBufferAttribute(positions, vertex).applyMatrix4(rock.matrixWorld);
+          expect(solids.some(s => containsCollider(s, point, .005)), `${piece} LOD${lod} stone vertex ${vertex} ${point.toArray()}`).toBe(true);
+        }
+        const triangles: THREE.Triangle[] = [];
+        for (let i = 0; i < indices.count; i += 3) {
+          if (colors.getW(indices.getX(i)) > .5) continue;
+          triangles.push(new THREE.Triangle(...[0, 1, 2].map(n => new THREE.Vector3()
+            .fromBufferAttribute(positions, indices.getX(i + n)).applyMatrix4(rock.matrixWorld)) as [THREE.Vector3, THREE.Vector3, THREE.Vector3]));
+        }
+        // Interior triangle samples cannot lie in the bevel's tiny round
+        // corner cut. Decorative grass/fissures are excluded by the ray: its
+        // entry must have a substantial outward stone face behind it.
+        for (let angle = 0; angle < 24; angle++) for (let layer = 1; layer < 9; layer++) {
+          const direction = new THREE.Vector3(Math.sin(angle * Math.PI / 12), 0, Math.cos(angle * Math.PI / 12));
+          const origin = new THREE.Vector3(direction.x * 30, KIT_PIECES[piece].height * layer / 10, direction.z * 30);
+          direction.negate(); ray.set(origin, direction);
+          const visual = ray.intersectObject(rock, false)[0];
+          if (!visual) continue;
+          if (visual.face && colors.getW(visual.face.a) > .5) continue; // painted grass or fissure inlay
+          const distance = Math.min(...solids.map(c => sweepCollider(c, origin, direction, 60)));
+          expect(solids.some(c => containsCollider(c, visual.point, .025)), `${piece} LOD${lod} side ${angle} layer ${layer}`).toBe(true);
+          // A grazing ray can hit a different chunk, amplifying tiny surface
+          // clearance into a long ray distance. Measure the nearest actual
+          // stone triangle to the collision entry instead.
+          const entry = origin.clone().addScaledVector(direction, distance), closest = new THREE.Vector3();
+          const gap = Math.sqrt(Math.min(...triangles.map(triangle =>
+            triangle.closestPointToPoint(entry, closest).distanceToSquared(entry))));
+          expect(gap, `${piece} LOD${lod} collision entry stays on stone`).toBeLessThan(bevel * 1.5 + .025);
+          samples++;
+        }
+        for (let i = 0; i < indices.count; i += 3) {
+          if (colors.getW(indices.getX(i)) > .5) continue;
+          const a = new THREE.Vector3().fromBufferAttribute(positions, indices.getX(i));
+          const b = new THREE.Vector3().fromBufferAttribute(positions, indices.getX(i + 1));
+          const c = new THREE.Vector3().fromBufferAttribute(positions, indices.getX(i + 2));
+          const centroid = a.add(b).add(c).divideScalar(3).applyMatrix4(rock.matrixWorld);
+          expect(solids.some(s => containsCollider(s, centroid, .005)), `${piece} ${lod} stone face ${centroid.toArray()}`).toBe(true);
+        }
+      }
+      expect(samples).toBeGreaterThan(300);
     }
   });
 

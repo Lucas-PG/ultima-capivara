@@ -1,0 +1,530 @@
+{
+  "scoreboard-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-correria-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-corrente-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "bigmap-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "pause-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "pause-watch-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "leave-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "emote-wheel-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "home-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "how-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "host-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "join-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-correria-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-corrente-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-guest-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-loading-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-bindings-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-footer-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-complete-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-correria-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-corrente-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "bigmap-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "pause-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "pause-watch-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "leave-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "emote-wheel-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "home-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "how-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "host-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "join-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-correria-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-corrente-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-guest-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-loading-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-bindings-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-footer-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-complete-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-correria-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-corrente-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "bigmap-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "pause-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "pause-watch-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "leave-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "emote-wheel-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "home-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "how-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "host-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "join-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-correria-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-corrente-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-guest-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-loading-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-bindings-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-footer-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-complete-844x390": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-correria-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "scoreboard-corrente-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "bigmap-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "pause-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "pause-watch-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "leave-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "emote-wheel-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "home-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "how-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "host-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "join-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-correria-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-corrente-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-guest-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-loading-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-bindings-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-footer-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-complete-390x844": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  }
+}

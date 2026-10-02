@@ -25,7 +25,7 @@ import { WeaponView } from './weapons';
 import { worldWeaponMaterial } from './world-weapons';
 import { AvatarView, avatar, BOT_COLOR } from './avatars';
 import { CameraRig } from './camera';
-import { makePlane } from './aircraft';
+import { AIRCRAFT_ASSET_ENTRY, disposeAircraftAssets, makePlane, preloadAircraftAsset } from './aircraft';
 import { LootView } from './loot';
 import { SupplyDropView, SUPPLY_ASSET_PATH } from './supply-drops';
 import { EffectsView, type EffectsFrame } from './effects';
@@ -129,6 +129,7 @@ export class GameRenderer {
     instrumentGpu(this.gl); gpuPasses.attach(this.gl); gpuFrameTimer.attach(this.gl);
     const weaponManifest: readonly AssetEntry[] = [
       ...ASSET_MANIFEST,
+      AIRCRAFT_ASSET_ENTRY,
       ...fpManifest(),
     ];
     const manifest: readonly AssetEntry[] = [...weaponManifest, ...(world.pieces?.length ? [{
@@ -408,6 +409,7 @@ export class GameRenderer {
       await this.weaponView.assets;
       this.requireActive();
       await preloadCapybaraAsset(url => this.assets.gltf(url), this.settings?.graphics);
+      await preloadAircraftAsset(url => this.assets.gltf(url), this.plane);
       await preloadNameplateFont();
       this.requireActive();
       await this.worldView.ready;
@@ -589,7 +591,7 @@ export class GameRenderer {
     geometries.forEach(geometry => geometry.dispose());
     textures.forEach(texture => texture.dispose());
     materials.forEach(mat => mat.dispose());
-    disposeCapybaraAssets();
+    disposeCapybaraAssets(); disposeAircraftAssets();
     this.gl.dispose();
   }
 }

@@ -1,9 +1,10 @@
 // HUD state boards: every in-match HUD state in a busy moment, through the real GameUI update and event paths
 // (QA build, window.__hudQA), at the sizes the player uses, composed into one labelled board per size.
 // node tools/qa/hud-boards.mjs <outDir> [prefix]   (BASE, SIZES=1280x720,1470x956, STATES=a,b to narrow, SINGLES=1 keeps each shot,
-// SETTINGS='{"hitPalette":"colorblind","reducedMotion":true}' merges saved settings)
+// SETTINGS='{"hitPalette":"colorblind","reducedMotion":true}' merges saved settings, NOTICE_STRESS=1 adds two notices)
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
+import { checkHudContents } from './hud-content-check.mjs';
 const [out, prefix = 'board'] = process.argv.slice(2);
 if (!out) throw new Error('Give an output directory.');
 mkdirSync(out, { recursive: true });
@@ -48,10 +49,40 @@ const STATES = [
     post.push({ type: 'supply', id: 9501, drop: 'supply-9', pos: at, district: 'vila', stage: 'landed' });
     post.push({ type: 'notice', id: 9502, text: 'A tempestade está fechando!' });` },
   { name: 'scope', label: 'Mira de luneta', pose: 'hud-full', js: `me.slot = 1; me.ads = true;` },
-].filter(state => !process.env.STATES || process.env.STATES.split(',').includes(state.name));
+  { name: 'falling', label: 'Queda livre: abrir paraquedas', pose: 'hud-full', js: `me.stage = 'falling'; me.pos.y = at.y + 65;` },
+  { name: 'landing', label: 'Pousou na ilha', pose: 'hud-full', js: `ui.showMoment('Pé na ilha!', 'A última capivara de pé vence.', 'launch');` },
+  { name: 'heal-complete', label: 'Cura concluída e ganho de vida', pose: 'hud-full', js: `me.hp = 100; post.push({ type: 'use', id: 9601, actor: 'practice', item: 'medkit' });` },
+  { name: 'upgrade', label: 'Corrente: próxima arma', pose: 'hud-corrente', js: `post.push({ type: 'upgrade', id: 9602, actor: 'practice', weapon: 'dmr', level: 6 });` },
+  { name: 'storm-warning', label: 'Aviso de tempestade', pose: 'hud-full', js: `ui.showMoment('10', 'A tempestade vem aí!', 'storm');` },
+  { name: 'swim', label: 'Nadando: restrição de arma', pose: 'hud-full', js: `me.swimming = true; me.slot = 2;` },
+  { name: 'death-storm', label: 'Eliminada pela tempestade', pose: 'hud-full', js: `me.alive = false; me.hp = 0; spectate = null; post.push({ type: 'kill', id: 9701, actor: null, target: 'practice', weapon: 'storm' });` },
+  { name: 'death-fall', label: 'Eliminada por queda', pose: 'hud-full', js: `me.alive = false; me.hp = 0; spectate = null; post.push({ type: 'kill', id: 9702, actor: null, target: 'practice', weapon: 'fall' });` },
+  { name: 'late-join', label: 'Entrou com a partida em andamento', pose: 'hud-full', js: `me.alive = false; me.hp = 0; me.kills = 0; me.damage = 0; me.deaths = 1; spectate = { target: 'bot-hud-2', hold: null, index: 1, count: 13 };` },
+  { name: 'respawn-ready', label: 'Correria: voltou protegida', pose: 'hud-full', js: `s.config.mode = 'deathmatch'; me.hp = 100; me.armor = 0; me.protectionUntil = t + 3;` },
+  { name: 'pickup-weapon', label: 'Nova arma e raridade', pose: 'hud-full', js: `s.loot.push({ id: 'qa-gun', kind: 'weapon', weapon: 'shotgun', rarity: 3, x: at.x, y: at.y, z: at.z, active: false, respawnAt: 0 }); post.push({ type: 'pickup', id: 9703, actor: 'practice', item: 'qa-gun' });` },
+  { name: 'pickup-gear', label: 'Pegou proteção', pose: 'hud-full', js: `s.loot.push({ id: 'qa-helmet', kind: 'helmet', rarity: 0, x: at.x, y: at.y, z: at.z, active: false, respawnAt: 0 }); post.push({ type: 'pickup', id: 9704, actor: 'practice', item: 'qa-helmet' });` },
+  { name: 'empty-ammo', label: 'Carregador vazio: recarregar', pose: 'hud-full', js: `me.weapons[0].ammo = 0; me.reloadUntil = 0;` },
+  { name: 'no-reserve', label: 'Sem munição de reserva', pose: 'hud-full', js: `me.weapons[0].ammo = 0; me.weapons[0].reserve = 0; me.reloadUntil = 0;` },
+  { name: 'toast-error', label: 'Aviso de conexão', pose: 'hud-full', js: `ui.toast('Reconectando à sala. Aguenta firme!', true);` },
+  { name: 'kill-long-name', label: 'Eliminação: nome de 18 letras largas', pose: 'hud-full', js: `s.actors.find(a => a.id === 'bot-hud-6').name = 'MMMMMMMMMMMMMMMMMM'; post.push({ type: 'kill', id: 9801, actor: 'practice', target: 'bot-hud-6', weapon: 'm4', distance: 31 });` },
+  { name: 'death-long-name', label: 'Eliminadora: nome de 18 letras largas', pose: 'hud-watch', js: `spectate = null; s.actors.find(a => a.id === 'bot-hud-2').name = 'MMMMMMMMMMMMMMMMMM';` },
+  { name: 'watch-long-name', label: 'Assistindo: nome de 18 letras largas', pose: 'hud-watch', js: `watchAgo = 6000; s.actors.find(a => a.id === 'bot-hud-2').name = 'MMMMMMMMMMMMMMMMMM';` },
+  { name: 'mud', label: 'Banho de lama: recuperando vida', pose: 'hud-full', js: `me.soaking = true; me.hp = 46;` },
+  { name: 'crouch', label: 'Agachada', pose: 'hud-full', js: `me.crouch = true;` },
+  { name: 'lean', label: 'Espiando à esquerda', pose: 'hud-full', js: `me.lean = -1;` },
+  { name: 'victory', label: 'Vitória: última capivara de pé', pose: 'hud-full', result: { mode: 'battle-royale', place: 1 }, wait: 1150 },
+  { name: 'result-loss', label: 'Fim de partida: sua posição e a campeã', pose: 'hud-full', result: { mode: 'battle-royale', place: 8 }, wait: 1150 },
+  { name: 'result-correria', label: 'Correria: resultado e quedas', pose: 'hud-full', result: { mode: 'deathmatch', place: 2 }, wait: 1150 },
+  { name: 'result-corrente', label: 'Corrente: sequência completa', pose: 'hud-full', result: { mode: 'corrente', place: 1 }, wait: 1150 },
+  { name: 'result-host', label: 'Dona da sala: chamar a revanche', pose: 'hud-full', result: { mode: 'battle-royale', place: 2, room: 'host' }, wait: 1150 },
+  { name: 'result-guest', label: 'Convidada: aguardando a revanche', pose: 'hud-full', result: { mode: 'battle-royale', place: 8, room: 'guest' }, wait: 1150 },
+  { name: 'result-long-name', label: 'Resultado: nomes de 18 letras largas', pose: 'hud-full', result: { mode: 'battle-royale', place: 8, room: 'guest', longNames: true }, wait: 1150 },
+].filter(state => !process.env.STATES || process.env.STATES.split(',').includes(state.name)).map(state => process.env.NOTICE_STRESS && !state.result ? {
+  ...state, wait: 400, js: `${state.js}\nfor (const item of ui.toastItems) clearTimeout(item.timer); ui.toastItems = []; ui.toast('Reconectando à sala. Aguenta firme!', true); ui.toast('A tempestade está fechando!');`,
+} : state);
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
-const shots = new Map(), footprint = {};
+const shots = new Map(), footprint = {}, audit = {};
 try {
   const page = await browser.newPage({ viewport: { width: sizes[0][0], height: sizes[0][1] } });
   page.on('pageerror', e => { console.error('pageerror', e.message); process.exitCode = 1; });
@@ -66,10 +97,24 @@ try {
     await page.waitForTimeout(300);
     for (const state of STATES) {
       await page.evaluate(p => window.__capyQA.pose(p), state.pose);
-      await page.evaluate(async ({ js, prompt, coach, pose, scope }) => {
+      await page.evaluate(async ({ js, prompt, coach, pose, scope, result }) => {
         const ui = window.__hudQA, s = structuredClone(ui.snapshot), me = s.actors.find(a => a.id === 'practice');
         // A fresh HUD per state (as at the start of a match), so nothing transient leaks from the previous shot.
-        const heading = ui.heading; ui.game('practice'); ui.scopeReady = scope; document.querySelector('#toast')?.replaceChildren();
+        const heading = ui.heading; ui.setRoom(null); ui.game('practice'); ui.scopeReady = scope; document.querySelector('#toast')?.replaceChildren();
+        if (result) {
+          s.config.mode = result.mode; s.phase = 'results';
+          if (result.longNames) for (const actor of s.actors) actor.name = 'MMMMMMMMMMMMMMMMMM';
+          if (result.room) ui.setRoom({ code: 'CAPY42', myId: 'practice', hostId: result.room === 'host' ? 'practice' : s.actors.find(a => a.id !== 'practice').id,
+            isHost: result.room === 'host', phase: 'playing', config: s.config,
+            players: s.actors.slice(0, 6).map(a => ({ id: a.id, name: a.name, color: a.color, ready: true, connected: true })) });
+          const order = s.actors.filter(a => a.id !== 'practice'); order.splice(result.place - 1, 0, me);
+          s.results = order.map((actor, index) => ({ id: actor.id, name: actor.name, color: actor.color, bot: actor.bot,
+            place: index + 1, winner: index === 0, kills: Math.max(1, 9 - index), deaths: result.mode === 'battle-royale' ? Number(index > 0) : index + 2,
+            damage: Math.max(120, 1268 - index * 97), shots: 83, hits: 38, headshots: Math.max(0, 3 - index), survived: 746 - index * 22,
+            chests: index === 0 ? 5 : 2, longestShot: index === 0 ? 87 : 31 }));
+          ui.hudTime = 0; ui.update(s, 'practice', 0, false, 60, null);
+          return;
+        }
         const t = s.time, at = { ...me.pos }, post = [], pre = structuredClone(me);
         let spectate = ui.spectate, watchAgo = 0, useFrom = null;
         document.getAnimations().forEach(a => a.cancel());
@@ -97,10 +142,27 @@ try {
         if (watchAgo) ui.watchSince = performance.now() - watchAgo;
         ui.hudTime = 0; ui.update(s, 'practice', 0, false, 60, interaction);
         ui.heading = -1; ui.frameCompass(heading);
-      }, { js: state.js, prompt: !!state.prompt, coach: !!state.coach, pose: state.pose, scope: state.name === 'scope' });
+      }, { js: state.js, prompt: !!state.prompt, coach: !!state.coach, pose: state.pose, scope: state.name === 'scope', result: state.result });
       // Let entrance motion settle to a representative frame, then freeze every animation there.
       await page.waitForTimeout(state.wait ?? 140);
       await page.evaluate(() => document.getAnimations().forEach(a => a.pause()));
+      audit[`${state.name}-${width}x${height}`] = await page.evaluate(() => {
+        const smallText = [...document.querySelectorAll('#hud *,#toast *')].flatMap(el => {
+          if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) || el.closest('[hidden],.sr,svg')) return [];
+          if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) return [];
+          const px = parseFloat(getComputedStyle(el).fontSize) * (el.currentCSSZoom || 1);
+          return px < 11.95 ? [`${el.id || el.className || el.tagName}: ${px.toFixed(1)}px`] : [];
+        });
+        const clippedWeapons = [...document.querySelectorAll('#hotbar .hs-name')].flatMap(el => {
+          if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return [];
+          const text = el.getBoundingClientRect(), card = el.parentElement.getBoundingClientRect();
+          return el.scrollHeight > el.clientHeight + 1 || text.bottom > card.bottom - 2 ? [el.textContent.trim()] : [];
+        });
+        const panelOverflow = [...document.querySelectorAll('#victory,#victory .vpanel,#victory .vboard')]
+          .filter(el => el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && el.scrollWidth > el.clientWidth + 1).map(el => el.id || el.className);
+        return { smallText: [...new Set(smallText)], clippedWeapons, panelOverflow, horizontalOverflow: document.documentElement.scrollWidth > innerWidth };
+      });
+      audit[`${state.name}-${width}x${height}`].contentFaults = await page.evaluate(checkHudContents);
       // Footprint: the share of the window covered by what the HUD paints (boxes with a background or border, text,
       // images), as a union on a 4 px grid. Layout containers and full-screen overlays do not count.
       footprint[`${state.name}-${width}x${height}`] = await page.evaluate(() => {
@@ -127,6 +189,20 @@ try {
       });
       const file = `${out}/${prefix}-${state.name}-${width}x${height}.jpg`;
       await page.screenshot({ path: file, quality: 85 });
+      if (state.result) {
+        const actionFaults = [];
+        const actions = page.locator('#victory .vactions button');
+        for (let i = 0; i < await actions.count(); i++) {
+          const button = actions.nth(i), label = (await button.textContent()).trim();
+          try {
+            await button.click({ trial: true, timeout: 3000 });
+            const box = await button.boundingBox();
+            if (!box || box.x < 0 || box.y < 0 || box.x + box.width > width + 1 || box.y + box.height > height + 1) actionFaults.push(`${label}: outside viewport after scrolling`);
+          } catch { actionFaults.push(`${label}: not reachable after scrolling`); }
+        }
+        audit[`${state.name}-${width}x${height}`].actionFaults = actionFaults;
+        if (process.env.SINGLES) await page.screenshot({ path: `${out}/${prefix}-${state.name}-actions-${width}x${height}.jpg`, quality: 85 });
+      }
       shots.set(`${state.name}-${width}`, { file, label: state.label });
       console.log(state.name, width, height);
     }
@@ -143,6 +219,9 @@ try {
     console.log('board', `${out}/${prefix}-${width}x${height}.jpg`);
   }
   writeFileSync(`${out}/${prefix}-footprint.json`, JSON.stringify(footprint, null, 1));
+  writeFileSync(`${out}/${prefix}-audit.json`, JSON.stringify(audit, null, 2));
+  const faults = Object.entries(audit).filter(([, value]) => value.smallText.length || value.clippedWeapons.length || value.panelOverflow.length || value.actionFaults?.length || value.contentFaults.length || value.horizontalOverflow);
+  if (faults.length) { console.error('HUD state faults:', JSON.stringify(Object.fromEntries(faults))); process.exitCode = 1; }
   console.log('footprint % of window', JSON.stringify(footprint));
   if (!process.env.SINGLES) for (const { file } of shots.values()) unlinkSync(file);
 } finally { await browser.close(); }

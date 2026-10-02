@@ -3,6 +3,7 @@ import { clamp } from './shared/math';
 import { terrainHeight } from './shared/terrain';
 import { waterAt } from './shared/water';
 import { colliderGrid } from './shared/collider-grid';
+import { colliderSpan } from './shared/collider-shape';
 import { hasLineOfSight } from './shared/collision';
 import { WEAPONS } from './shared/weapons';
 import { weaponShotDuration } from './shared/weapon-presentation';
@@ -11,6 +12,7 @@ import type { ActorState, ConsumableId, EmoteId, GameEvent, Settings, Surface, V
 import { bakeOrder, renderSound, type Quality } from './sound/bank';
 import type { BakeMessage, BakeRequest } from './sound/bake.worker';
 import type { StepMaterial } from './sound/foley';
+import { StepCadence } from './sound/step-cadence';
 import {
   ambienceMix, critterWeights, GUN_RANGE, gunDistance, incomingShotWeight, LEVEL, levelGain, OCCLUDED, safetyCurve, STEP_RANGE, stepDistance, worldDistance, type Place,
 } from './sound/mix';
@@ -84,16 +86,12 @@ export class SoundEngine {
   private nextCritter = 0;
   private lastSnapshot: WorldSnapshot | null = null;
   // Local movement.
-  private lastPosition: Vec3 | null = null;
   private lastActorId: string | null = null;
-  private lastGrounded = false;
-  private lastSwimming = false;
-  private lastVelocityY = 0;
+  private localSteps: StepCadence | null = null;
   private lastCrouch = false;
   private lastStage = '';
-  private distanceToStep = 0;
   private stepCount = 0;
-  private remoteSteps = new Map<string, { pos: Vec3; travelled: number; grounded: boolean; swimming: boolean; velocityY: number }>();
+  private remoteSteps = new Map<string, StepCadence>();
   private mudVoices = new Map<string, { next: number; end: number; channel: GainNode | null }>();
   private soakingActors = new Set<string>();
   // Combat, feedback and match flow.
@@ -565,7 +563,7 @@ export class SoundEngine {
       }
     } else this.nextHeart = Math.max(this.nextHeart, now);
     if (!actor || !snapshot || menu || !Number.isFinite(dt) || dt <= 0) {
-      this.lastPosition = null; this.lastActorId = null; this.lastGrounded = false; this.lastSwimming = false; this.distanceToStep = 0;
+      this.localSteps = null; this.lastActorId = null;
       this.remoteSteps.clear();
       this.clearMudVoices();
       this.cancelReload();
@@ -587,36 +585,24 @@ export class SoundEngine {
       }
     }
     this.updateReload(actor, snapshot, now);
-    if (!actor.alive) { this.lastActorId = null; this.lastPosition = null; this.distanceToStep = 0; return; }
+    if (!actor.alive) { this.lastActorId = null; this.localSteps = null; return; }
     const grounded = actor.grounded && actor.stage === 'ground' && !actor.swimming;
     if (this.lastActorId !== actor.id) {
-      this.lastActorId = actor.id; this.lastPosition = { ...actor.pos };
-      this.lastGrounded = grounded; this.lastSwimming = actor.swimming; this.lastVelocityY = actor.velocity.y; this.distanceToStep = 0; this.lastCrouch = actor.crouch;
+      this.lastActorId = actor.id; this.localSteps = new StepCadence(actor); this.lastCrouch = actor.crouch;
       return;
     }
     if (actor.crouch !== this.lastCrouch && grounded) this.play('cloth', { level: LEVEL.ownCloth });
     this.lastCrouch = actor.crouch;
-    // Ordinary jumps keep stage='ground'. Contact, not stage, owns the cadence.
-    if (actor.swimming && this.lastSwimming && this.lastPosition && Math.hypot(actor.velocity.x, actor.velocity.z) > .15) {
-      const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
-      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
-      if (this.distanceToStep >= 1.6) { this.distanceToStep %= 1.6; this.waterSound(null, now, null, LEVEL.swim); }
-    } else if (!this.lastGrounded && !this.lastSwimming && grounded) {
-      this.footstep(actor.pos, LEVEL.ownLand + clamp(-this.lastVelocityY, 0, 18) * .45, true);
-      this.distanceToStep = 0;
-    } else if (this.lastGrounded && !grounded && !actor.swimming && actor.velocity.y > 1.5) {
-      this.play('jump', { level: LEVEL.ownJump });
-    } else if (this.lastPosition && grounded && this.lastGrounded && Math.hypot(actor.velocity.x, actor.velocity.z) > .1) {
-      const travelled = Math.hypot(actor.pos.x - this.lastPosition.x, actor.pos.z - this.lastPosition.z);
-      this.distanceToStep = travelled < 2 ? this.distanceToStep + travelled : 0;
-      const stride = actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
-      if (this.distanceToStep >= stride) {
-        this.distanceToStep %= stride;
+    const movement = this.localSteps!.update(actor);
+    if (movement.landing) this.footstep(actor.pos, LEVEL.ownLand + clamp(movement.fallSpeed, 0, 18) * .45, true);
+    else if (movement.jump) this.play('jump', { level: LEVEL.ownJump });
+    else if (movement.step) {
+      if (actor.swimming) this.waterSound(null, now, null, LEVEL.swim);
+      else {
         this.footstep(actor.pos, LEVEL.ownStep + (actor.crouch ? -6 : actor.sprint ? 3 : 0), false);
         if (actor.sprint && this.stepCount++ % 2 === 0) this.play('gear', { level: LEVEL.ownGear, at: now + .05 });
       }
-    } else this.distanceToStep = 0;
-    this.lastPosition = { ...actor.pos }; this.lastGrounded = grounded; this.lastSwimming = actor.swimming; this.lastVelocityY = actor.velocity.y;
+    }
   }
 
   /** What the paws are touching: a collider top under the feet, shallow water, or the painted terrain. */
@@ -624,6 +610,11 @@ export class SoundEngine {
     if (this.world) {
       let best: StepMaterial | null = null, top = -Infinity;
       for (const c of [...colliderGrid(this.world).query(pos.x - .05, pos.z - .05, pos.x + .05, pos.z + .05), ...(this.world.walkways || [])]) {
+        if (c.hull) {
+          const surface = colliderSpan(c, pos.x, pos.z, .32)?.[1];
+          if (surface !== undefined && surface <= pos.y + .15 && surface >= pos.y - .4 && surface > top) { top = surface; best = 'stone'; }
+          continue;
+        }
         if (pos.x < c.min.x || pos.x > c.max.x || pos.z < c.min.z || pos.z > c.max.z) continue;
         if (c.max.y > pos.y + .15 || c.max.y < pos.y - .4 || c.max.y <= top) continue;
         top = c.max.y; best = c.material === 'earth' ? 'dirt' : c.material;
@@ -655,17 +646,10 @@ export class SoundEngine {
     const seen = new Set<string>(), ear = { ...listener.pos, y: listener.pos.y + 1.5 };
     for (const { actor } of nearby) {
       seen.add(actor.id);
-      const grounded = actor.grounded && actor.stage === 'ground' && !actor.swimming;
-      const prior = this.remoteSteps.get(actor.id) || { pos: { ...actor.pos }, travelled: 0, grounded, swimming: actor.swimming, velocityY: actor.velocity.y };
-      const landing = !prior.grounded && !prior.swimming && grounded, fallSpeed = Math.max(0, -prior.velocityY);
-      const moved = Math.hypot(actor.pos.x - prior.pos.x, actor.pos.z - prior.pos.z);
-      const steady = (grounded && prior.grounded) || (actor.swimming && prior.swimming);
-      prior.travelled = steady && Math.hypot(actor.velocity.x, actor.velocity.z) > .15 && moved < 2 ? prior.travelled + moved : 0;
-      prior.grounded = grounded; prior.swimming = actor.swimming; prior.velocityY = actor.velocity.y;
-      prior.pos = { ...actor.pos }; this.remoteSteps.set(actor.id, prior);
-      const stride = actor.swimming ? 1.6 : actor.crouch ? 2.7 : actor.sprint ? 2.15 : 1.65;
-      if (!landing && prior.travelled < stride) continue;
-      prior.travelled %= stride;
+      const prior = this.remoteSteps.get(actor.id);
+      if (!prior) { this.remoteSteps.set(actor.id, new StepCadence(actor)); continue; }
+      const { landing, step, fallSpeed } = prior.update(actor);
+      if (!landing && !step) continue;
       const occluded = this.occluded(ear, { ...actor.pos, y: actor.pos.y + 1 });
       if (actor.swimming) { this.waterSound(actor.pos, this.context!.currentTime, null, LEVEL.swim + 4 + (occluded ? -8 : 0), listener.pos); continue; }
       const range = landing ? STEP_RANGE.sprint : actor.crouch ? STEP_RANGE.crouch : actor.sprint ? STEP_RANGE.sprint : STEP_RANGE.walk;

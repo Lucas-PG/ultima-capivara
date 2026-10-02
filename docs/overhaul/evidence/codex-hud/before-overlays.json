@@ -1,0 +1,212 @@
+{
+  "scoreboard-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "scoreboard-correria-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "scoreboard-corrente-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "bigmap-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "pause-1280x720": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "pause-watch-1280x720": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "settings-1280x720": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px",
+      "KBD: 10.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "leave-1280x720": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px",
+      "eyebrow: 9.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "emote-wheel-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "home-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "how-1280x720": {
+    "smallText": [
+      "eyebrow: 9.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "host-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "join-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "lobby-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "loading-1280x720": {
+    "smallText": [
+      "eyebrow: 11.2px",
+      "lmode: 11.2px",
+      "SPAN: 11.2px",
+      "KBD: 11.2px"
+    ],
+    "horizontalOverflow": false
+  },
+  "loading-correria-1280x720": {
+    "smallText": [
+      "eyebrow: 11.2px",
+      "lmode: 11.2px",
+      "SPAN: 11.2px",
+      "KBD: 11.2px"
+    ],
+    "horizontalOverflow": false
+  },
+  "loading-corrente-1280x720": {
+    "smallText": [
+      "eyebrow: 11.2px",
+      "lmode: 11.2px",
+      "SPAN: 11.2px",
+      "KBD: 11.2px"
+    ],
+    "horizontalOverflow": false
+  },
+  "scoreboard-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "scoreboard-correria-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "scoreboard-corrente-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "bigmap-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "pause-1470x956": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "pause-watch-1470x956": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "settings-1470x956": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px",
+      "KBD: 10.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "leave-1470x956": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px",
+      "eyebrow: 9.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "emote-wheel-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "home-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "how-1470x956": {
+    "smallText": [
+      "eyebrow: 9.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "host-1470x956": {
+    "smallText": [
+      "eyebrow: 9.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "join-1470x956": {
+    "smallText": [
+      "eyebrow: 9.0px"
+    ],
+    "horizontalOverflow": false
+  },
+  "lobby-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false
+  },
+  "loading-1470x956": {
+    "smallText": [
+      "eyebrow: 11.9px",
+      "lmode: 11.9px",
+      "SPAN: 11.9px",
+      "KBD: 11.9px"
+    ],
+    "horizontalOverflow": false
+  },
+  "loading-correria-1470x956": {
+    "smallText": [
+      "eyebrow: 11.9px",
+      "lmode: 11.9px",
+      "SPAN: 11.9px",
+      "KBD: 11.9px"
+    ],
+    "horizontalOverflow": false
+  },
+  "loading-corrente-1470x956": {
+    "smallText": [
+      "eyebrow: 11.9px",
+      "lmode: 11.9px",
+      "SPAN: 11.9px",
+      "KBD: 11.9px"
+    ],
+    "horizontalOverflow": false
+  }
+}

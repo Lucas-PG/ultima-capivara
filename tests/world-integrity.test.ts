@@ -4,6 +4,7 @@ import { KIT_PIECES } from '../src/shared/kit-collision';
 import { terrainHeight } from '../src/shared/terrain';
 import { WATER_LEVEL } from '../src/shared/water';
 import { walkableHeight } from '../src/shared/navigation';
+import { intersectsCollider } from '../src/shared/collider-shape';
 import { BRIDGE_PLANS, LOT_RECTS, QUAYS, QUAY_X, ROADS, STREETS, quayFaceAt } from '../src/shared/layout';
 import type { Collider, KitPlacement } from '../src/shared/types';
 
@@ -110,7 +111,8 @@ describe('island physical integrity', () => {
     const inRect = (rects: readonly (readonly number[])[], x: number, z: number, inset: number) =>
       rects.some(([x0, z0, x1, z1]) => x > x0 + inset && x < x1 - inset && z > z0 + inset && z < z1 - inset);
     const inWall = (x: number, z: number) => inRect(LOT_RECTS, x, z, .2) || world.colliders.some(c => c.max.y - c.min.y > 1.2 &&
-      x > c.min.x + .05 && x < c.max.x - .05 && z > c.min.z + .05 && z < c.max.z - .05);
+      (c.hull ? intersectsCollider(c, { x, y: terrainHeight(x, z), z }, 1.4, 0, .05) :
+        x > c.min.x + .05 && x < c.max.x - .05 && z > c.min.z + .05 && z < c.max.z - .05));
     const faults: string[] = [];
     for (const object of world.objects) {
       const kind = object.detail?.startsWith('prop:street-') ? object.detail.slice(12).split(':')[0] : '';
@@ -141,7 +143,15 @@ describe('island physical integrity', () => {
       for (const road of ROADS) if (overlaps(row, road, .5)) faults.push(`${row.id} crosses the road ${road.join(',')}`);
       for (const pave of paving) if (overlaps(row, pave, .5)) faults.push(`${row.id} crosses paving`);
       for (const lot of LOT_RECTS) if (overlaps(row, lot, 0)) faults.push(`${row.id} runs into a building`);
-      for (const c of world.colliders) if (c.max.y > row.pos.y + .1 && overlaps(row, [c.min.x, c.min.z, c.max.x, c.max.z], 0)) faults.push(`${row.id} runs into ${c.id}`);
+      for (const c of world.colliders) {
+        if (c.max.y <= row.pos.y + .1 || !overlaps(row, [c.min.x, c.min.z, c.max.x, c.max.z], 0)) continue;
+        // A rock's broad bounds include empty corners. Probe the actual soil
+        // rectangle against its faces, including both edges and the centre.
+        const crosses = !c.hull || [-.5, 0, .5].some(dx =>
+          Array.from({ length: Math.ceil(row.scale.z / .2) + 1 }, (_, i) => row.pos.z - row.scale.z / 2 + i * .2)
+            .some(z => intersectsCollider(c, { x: row.pos.x + dx * row.scale.x, y: row.pos.y, z }, .3, 0)));
+        if (crosses) faults.push(`${row.id} runs into ${c.id}`);
+      }
       // Bushes, hedges and other planting keep off the soil: the crops are drawn along it.
       for (const p of world.pieces!) if (/^(bush_cluster|hedge|flower_bed|planter)$/.test(p.piece) && overlaps(row, [p.x, p.z, p.x, p.z], 1)) faults.push(`${p.id} grows on ${row.id}`);
       for (const o of world.objects) if ((o.kind === 'tree' || o.kind === 'palm') && overlaps(row, [o.pos.x, o.pos.z, o.pos.x, o.pos.z], .5)) faults.push(`${o.id} grows on ${row.id}`);

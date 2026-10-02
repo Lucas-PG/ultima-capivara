@@ -1,5 +1,6 @@
 import { clearSpawn, overlapsFootprint } from './collision';
 import { colliderGrid } from './collider-grid';
+import { colliderSpan, intersectsCollider } from './collider-shape';
 import { KIT_PIECES } from './kit-collision';
 import { terrainHeight } from './terrain';
 import { walkableHeight } from './navigation';
@@ -47,10 +48,10 @@ export function buildBuildingRoutes(world: WorldSpec): BuildingRoute[] {
     }
   }
   const supported = (point: Vec3) => Math.abs(terrainHeight(point.x, point.z) - point.y) <= .06 ||
-    colliderGrid(world).query(point.x, point.z, point.x, point.z).some(c => Math.abs(c.max.y - point.y) <= .06 &&
+    colliderGrid(world).query(point.x, point.z, point.x, point.z).some(c => c.hull ? Math.abs((colliderSpan(c, point.x, point.z, .32)?.[1] ?? Infinity) - point.y) <= .06 : Math.abs(c.max.y - point.y) <= .06 &&
       point.x >= c.min.x && point.x <= c.max.x && point.z >= c.min.z && point.z <= c.max.z);
   const standingClear = (point: Vec3) => colliderGrid(world).query(point.x - .5, point.z - .5, point.x + .5, point.z + .5)
-    .every(c => point.y >= c.max.y - .01 || point.y + 1.8 <= c.min.y || !overlapsFootprint(point, c));
+    .every(c => c.hull ? !intersectsCollider(c, point, 1.8, .32, .01) : point.y >= c.max.y - .01 || point.y + 1.8 <= c.min.y || !overlapsFootprint(point, c));
   const list = [...nodes.values()];
   for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
     const a = list[i], b = list[j], distance = Math.hypot(a.point.x - b.point.x, a.point.z - b.point.z);

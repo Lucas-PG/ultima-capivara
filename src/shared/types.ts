@@ -1,18 +1,20 @@
 import type { LandmarkSpec } from './landmarks';
-export const PROTOCOL_VERSION = 12;
+export const PROTOCOL_VERSION = 13;
 export const WORLD_VERSION = 'ilha-v4-redentora-1';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
 export const MAX_PLAYERS = 16;
-export type Mode = 'battle-royale' | 'deathmatch' | 'corrente';
-export const isArenaMode = (mode: Mode | undefined) => mode === 'deathmatch' || mode === 'corrente';
+export type Mode = 'battle-royale' | 'deathmatch' | 'corrente' | 'duel' | 'squads';
+export const isRoundMode = (mode: Mode | undefined) => mode === 'duel' || mode === 'squads';
+export const isArenaMode = (mode: Mode | undefined) => mode === 'deathmatch' || mode === 'corrente' || isRoundMode(mode);
+export const isRespawnMode = (mode: Mode | undefined) => mode === 'deathmatch' || mode === 'corrente';
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'results';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export type WeaponId = 'pistol' | 'smg' | 'm4' | 'shotgun' | 'dmr' | 'sniper' | 'machete' | 'revolver' | 'coco';
 export type EmoteId = 'wave' | 'dance' | 'victory' | 'sit' | 'chill';
 export type ConsumableId = 'bandage' | 'medkit' | 'guarana' | 'acai' | 'rapadura';
 export interface Vec3 { x: number; y: number; z: number }
-export interface RoomConfig { mode: Mode; capacity: number; bots: boolean; difficulty: Difficulty; duration: 300 | 480 | 600; adapt?: number /* practice only: legacy adaptive difficulty in [-1, 1] */ }
+export interface RoomConfig { mode: Mode; capacity: number; bots: boolean; difficulty: Difficulty; duration: 300 | 480 | 600; teamSize?: 2 | 3; adapt?: number /* practice only: legacy adaptive difficulty in [-1, 1] */ }
 export const DEFAULT_CONFIG: RoomConfig = { mode: 'battle-royale', capacity: 8, bots: true, difficulty: 'normal', duration: 480 };
 export interface PlayerProfile { id: string; name: string; color: string; ready: boolean; connected: boolean }
 export interface RoomState { code: string; myId: string; hostId: string; isHost: boolean; phase: Phase; config: RoomConfig; players: PlayerProfile[] }
@@ -33,6 +35,8 @@ export interface InputFrame {
   clientTime: number; firePressId?: number;
 }
 export type PlayerAction =
+  | { type: 'buy'; id: number; round: number; item: BuyItemId }
+  | { type: 'refund'; id: number; round: number }
   | { type: 'reload'; id: number }
   // Quick melee: one facão swing without selecting it, then back to the held gun.
   | { type: 'melee'; id: number }
@@ -48,6 +52,8 @@ export type PlayerAction =
 export interface WeaponState { id: WeaponId; ammo: number; reserve: number; rarity: number; box: number }
 export interface ActorState {
   id: string; name: string; color: string; bot: boolean; connected: boolean;
+  /** Only present in round modes. Match currency has no real-money value. */
+  team?: 0 | 1; money?: number;
   pos: Vec3; velocity: Vec3; yaw: number; pitch: number; lean: number;
   hp: number; armor: number; helmet: number; alive: boolean; grounded: boolean;
   crouch: boolean; sprint: boolean; ads: boolean;
@@ -65,7 +71,10 @@ export interface ActorState {
   /** Rounds fired so far: the shooter's client predicts the next one's seeded spread from it. */
   shotSeq: number;
 }
-export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth'; pieceId?: string }
+export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth'; pieceId?: string;
+  /** Static convex stone faces, n dot point <= distance. The AABB is broad phase only. */
+  hull?: readonly (readonly [number, number, number, number])[];
+}
 export interface KitPlacement extends Vec3 {
   id: string; piece: string; yaw: number; scale?: number;
   paintVariant?: 0 | 1 | 2;
@@ -87,6 +96,8 @@ export interface MudBathSpec extends Vec3 { id: string; radius: number }
 export interface TrampolineSpec extends Vec3 { id: string; radius: number; impulse: number }
 export interface WorldSpec {
   version: string; size: number; colliders: Collider[]; objects: MapObject[];
+  /** Authored placement cores keep painted foliage and water dressing stable. */
+  dressingColliders?: Collider[];
   spawns: SpawnPoint[]; loot: LootSpawn[]; chests: ChestSpec[]; districts: District[];
   pieces?: KitPlacement[]; arenaBoundary?: string[]; walkways?: Collider[]; navigation?: NavigationGraph;
   buildingRoutes?: BuildingRoute[];
@@ -103,11 +114,17 @@ export interface SupplyDropState {
   announcedAt: number; releaseAt: number; landsAt: number; opened: boolean;
 }
 export interface MatchResult { id: string; name: string; color: string; bot: boolean; kills: number; deaths: number; damage: number; place: number; winner: boolean; shots: number; hits: number; headshots: number; survived: number; chests: number; longestShot: number }
+export type BuyItemId = Exclude<WeaponId, 'pistol' | 'machete'> | 'armor' | 'helmet' | 'medkit';
+export interface RoundState {
+  number: number; phase: 'buy' | 'live' | 'over'; endsAt: number;
+  score: [number, number]; target: number; winner: 0 | 1 | null; weapon: WeaponId | null;
+}
 export interface WorldSnapshot {
   protocol: number; world: string; matchId: string; tick: number; time: number; phase: Phase;
   config: RoomConfig; countdown: number; remaining: number; actors: ActorState[];
   loot: LootState[]; openedChests: string[]; zone: ZoneState; supplyDrops: SupplyDropState[];
   results: MatchResult[]; plane: Vec3;
+  round?: RoundState;
 }
 // What a shot's endpoint struck when it was not a capybara; `normal` faces the shooter's side.
 export type Surface = 'dirt' | 'sand' | 'foliage' | 'stone' | 'wood' | 'metal' | 'water';

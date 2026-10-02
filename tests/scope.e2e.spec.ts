@@ -16,11 +16,11 @@ test('Both scopes flash for local fire, keep the reticle and clear between shots
     expect(lens / 720).toBeGreaterThan(.86); expect(lens / 720).toBeLessThan(.94);
     expect(await scope.locator('i').evaluate(el => (el as HTMLElement).offsetWidth)).toBeCloseTo(lens, 0);
     expect(await scope.locator('.scope-flash').evaluate(el => (el as HTMLElement).offsetWidth)).toBeCloseTo(lens, 0);
-    // The compass on the lens axis steps aside; the corner stickers stay, clear of the lens (the weapon slots
-    // moved from the bottom centre into the bottom-right cluster with the HUD redo).
+    // The compass steps aside; the upper-left map, upper-right status and larger bottom weapon cards
+    // remain outside the lens after the HUD layout change.
     await expect(page.locator('#compass')).toHaveCSS('opacity', '0'); await expect(page.locator('#hotbar')).toHaveCSS('opacity', '1');
     await expect(page.locator('#vitals')).toBeVisible(); await expect(page.locator('#wpnbox')).toHaveCSS('opacity', '1');
-    for (const plate of ['#vitals', '#wpnbox', '#hotbar']) {
+    for (const plate of ['#mapWrap', '#topL', '#vitals', '#wpnbox', '#hotbar']) {
       const box = (await page.locator(plate).boundingBox())!;
       const nearX = Math.max(box.x, Math.min(640, box.x + box.width)), nearY = Math.max(box.y, Math.min(360, box.y + box.height));
       expect(Math.hypot(nearX - 640, nearY - 360), `${plate} stays outside the lens`).toBeGreaterThan(lens / 2);

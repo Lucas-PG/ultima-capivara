@@ -1,0 +1,94 @@
+{
+  "lobby-guest-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-loading-1280x720": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-bindings-1280x720": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px",
+      "KBD: 11.0px",
+      "KBD: 10.0px"
+    ],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-footer-1280x720": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px",
+      "KBD: 10.0px"
+    ],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-complete-1280x720": {
+    "smallText": [
+      "eyebrow: 11.2px",
+      "lmode: 11.2px",
+      "SPAN: 11.2px",
+      "KBD: 11.2px"
+    ],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-guest-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "lobby-loading-1470x956": {
+    "smallText": [],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-bindings-1470x956": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px",
+      "KBD: 11.0px",
+      "KBD: 10.0px"
+    ],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "settings-footer-1470x956": {
+    "smallText": [
+      "kc: 10.0px",
+      "SPAN: 10.0px",
+      "B: 10.0px",
+      "KBD: 10.0px"
+    ],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  },
+  "loading-complete-1470x956": {
+    "smallText": [
+      "eyebrow: 11.9px",
+      "lmode: 11.9px",
+      "SPAN: 11.9px",
+      "KBD: 11.9px"
+    ],
+    "horizontalOverflow": false,
+    "panelOverflow": [],
+    "clippedControls": []
+  }
+}

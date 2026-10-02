@@ -6,20 +6,11 @@
 import { chromium } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { WRIST_LIMITS } from '../../src/render/viewmodel-targets.ts';
+import { holdingStates } from './holding-states.mjs';
+import { poseHoldingState } from './fp-state.mjs';
 const [out = '-', list = 'pistol,revolver,smg,m4,shotgun,dmr,sniper,coco,machete', mode = 'hip', size = '1280x720'] = process.argv.slice(2);
 const [width, height] = size.split('x').map(Number);
-const RELOAD = { pistol: 1.8, smg: 2, m4: 2.5, shotgun: .55, dmr: 2.6, sniper: 3, revolver: 2.3, coco: 2.8 };
-const range = (end, dt) => Array.from({ length: Math.floor(end / dt) + 1 }, (_, i) => +(i * dt).toFixed(3));
-function states(w) {
-  const s = [['hip', 0], ['ads', 0]];
-  if (mode === 'hip') return s;
-  s.push(...[.15, .3, .6].map(t => ['sprint', t]), ...[.05, .15, .3].map(t => ['ads', t]), ...range(1.8, .1).map(t => ['inspect', t]), ...range(.5, .05).map(t => ['equip', t]));
-  if (w === 'machete') return [...s, ...range(.6, .05).map(t => ['swing-right', t]), ...range(.6, .05).map(t => ['swing-left', t]), ...range(.6, .05).map(t => ['chop', t])];
-  s.push(...range(w === 'sniper' ? 1.3 : w === 'shotgun' ? 1.1 : .3, .05).map(t => ['fire', t]), ...range(RELOAD[w] + .1, .05).map(t => ['reload', t]));
-  if (['pistol', 'smg', 'm4', 'dmr', 'sniper', 'revolver', 'coco'].includes(w)) s.push(...range(RELOAD[w] + .1, .1).map(t => ['reload-partial', t]));
-  if (w === 'shotgun') s.push(...range(2.4, .05).map(t => ['reload-chain', t]));
-  return s;
-}
+const states = weapon => mode === 'hip' ? [['hip', 0], ['aimed', 0]] : holdingStates(weapon).map(({ action, t }) => [action, t]);
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
 const report = {};
 const r2 = v => Math.round(v * 1000) / 1000;
@@ -35,8 +26,8 @@ try {
     const rows = [];
     for (const [action, t] of states(weapon)) {
       await page.evaluate(tune => { window.__vmOrbit = undefined; window.__vmTune = tune; }, tune);
-      if (t === 0 && (action === 'hip' || action === 'ads')) await page.evaluate(([w, a]) => window.__capyQA.pose(`${a === 'ads' ? 'ads' : 'fp'}-${w}`), [weapon, action]);
-      else await page.evaluate(([w, a, s]) => window.__capyQA.motion(w, a, s), [weapon, action, t]);
+      await poseHoldingState(page, weapon, action, t);
+      if (await page.evaluate(() => window.__vmProbe.active) !== weapon) continue;
       const f = await page.evaluate(() => window.__vmMeasure(160));
       rows.push({ action, t, ...f });
     }

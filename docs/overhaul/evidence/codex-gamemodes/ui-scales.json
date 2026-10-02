@@ -1,0 +1,1359 @@
+{
+  "errors": [],
+  "rows": [
+    {
+      "mode": "duel",
+      "scale": 0.8,
+      "size": [
+        1920,
+        1080
+      ],
+      "minFont": 13.44,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 13.44
+        },
+        {
+          "text": "0",
+          "pixels": 26.88
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 13.44
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 13.44
+        },
+        {
+          "text": "0:03",
+          "pixels": 22.08
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 13.44
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 13.44
+        },
+        {
+          "text": "0",
+          "pixels": 26.88
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 13.44
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 13.44
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 1,
+      "size": [
+        1920,
+        1080
+      ],
+      "minFont": 16.8,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 16.8
+        },
+        {
+          "text": "0",
+          "pixels": 33.6
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 16.8
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 16.8
+        },
+        {
+          "text": "0:03",
+          "pixels": 27.599999999999998
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 16.8
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 16.8
+        },
+        {
+          "text": "0",
+          "pixels": 33.6
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 16.8
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 16.8
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 1.2,
+      "size": [
+        1920,
+        1080
+      ],
+      "minFont": 20.16,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 20.16
+        },
+        {
+          "text": "0",
+          "pixels": 40.32
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 20.16
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 20.16
+        },
+        {
+          "text": "0:03",
+          "pixels": 33.12
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 20.16
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 20.16
+        },
+        {
+          "text": "0",
+          "pixels": 40.32
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 20.16
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 20.16
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 0.8,
+      "size": [
+        1280,
+        720
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 24.024
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 12.012
+        },
+        {
+          "text": "0:03",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 24.024
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 1,
+      "size": [
+        1280,
+        720
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 24.024
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 12.012
+        },
+        {
+          "text": "0:03",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 24.024
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 1.2,
+      "size": [
+        1280,
+        720
+      ],
+      "minFont": 13.44,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 13.44
+        },
+        {
+          "text": "0",
+          "pixels": 26.88
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 13.44
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 13.44
+        },
+        {
+          "text": "0:03",
+          "pixels": 22.08
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 13.44
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 13.44
+        },
+        {
+          "text": "0",
+          "pixels": 26.88
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 13.44
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 13.44
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 0.8,
+      "size": [
+        390,
+        844
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 12.012
+        },
+        {
+          "text": "0:02",
+          "pixels": 18.018
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 1,
+      "size": [
+        390,
+        844
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 12.012
+        },
+        {
+          "text": "0:02",
+          "pixels": 18.018
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 1.2,
+      "size": [
+        390,
+        844
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 12.012
+        },
+        {
+          "text": "0:02",
+          "pixels": 18.018
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 0.8,
+      "size": [
+        844,
+        390
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 12.012
+        },
+        {
+          "text": "0:02",
+          "pixels": 17.16
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 1,
+      "size": [
+        844,
+        390
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 12.012
+        },
+        {
+          "text": "0:02",
+          "pixels": 17.16
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "duel",
+      "scale": 1.2,
+      "size": [
+        844,
+        390
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Você",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Prepare o duelo",
+          "pixels": 12.012
+        },
+        {
+          "text": "0:02",
+          "pixels": 17.16
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Tico ★",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "1 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Sniper para os dois",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "phone-shop",
+      "footerInside": true,
+      "scrollable": true,
+      "noHorizontalOverflow": true
+    },
+    {
+      "name": "automatic-shop-close",
+      "locked": true
+    },
+    {
+      "mode": "squads",
+      "scale": 0.8,
+      "size": [
+        1920,
+        1080
+      ],
+      "minFont": 13.44,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 13.44
+        },
+        {
+          "text": "0",
+          "pixels": 26.88
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 13.44
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 13.44
+        },
+        {
+          "text": "1:30",
+          "pixels": 22.08
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 13.44
+        },
+        {
+          "text": "Brasa",
+          "pixels": 13.44
+        },
+        {
+          "text": "0",
+          "pixels": 26.88
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 13.44
+        },
+        {
+          "text": "$ 800",
+          "pixels": 16.32
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 13.44
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 1,
+      "size": [
+        1920,
+        1080
+      ],
+      "minFont": 16.8,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 16.8
+        },
+        {
+          "text": "0",
+          "pixels": 33.6
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 16.8
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 16.8
+        },
+        {
+          "text": "1:30",
+          "pixels": 27.599999999999998
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 16.8
+        },
+        {
+          "text": "Brasa",
+          "pixels": 16.8
+        },
+        {
+          "text": "0",
+          "pixels": 33.6
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 16.8
+        },
+        {
+          "text": "$ 800",
+          "pixels": 20.4
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 16.8
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 1.2,
+      "size": [
+        1920,
+        1080
+      ],
+      "minFont": 20.16,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 20.16
+        },
+        {
+          "text": "0",
+          "pixels": 40.32
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 20.16
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 20.16
+        },
+        {
+          "text": "1:30",
+          "pixels": 33.12
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 20.16
+        },
+        {
+          "text": "Brasa",
+          "pixels": 20.16
+        },
+        {
+          "text": "0",
+          "pixels": 40.32
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 20.16
+        },
+        {
+          "text": "$ 800",
+          "pixels": 24.48
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 20.16
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 0.8,
+      "size": [
+        1280,
+        720
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 24.024
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 12.012
+        },
+        {
+          "text": "1:30",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Brasa",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 24.024
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "$ 800",
+          "pixels": 14.586
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 1,
+      "size": [
+        1280,
+        720
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 24.024
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 12.012
+        },
+        {
+          "text": "1:30",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Brasa",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 24.024
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "$ 800",
+          "pixels": 14.586
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 1.2,
+      "size": [
+        1280,
+        720
+      ],
+      "minFont": 13.44,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 13.44
+        },
+        {
+          "text": "0",
+          "pixels": 26.88
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 13.44
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 13.44
+        },
+        {
+          "text": "1:30",
+          "pixels": 22.08
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 13.44
+        },
+        {
+          "text": "Brasa",
+          "pixels": 13.44
+        },
+        {
+          "text": "0",
+          "pixels": 26.88
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 13.44
+        },
+        {
+          "text": "$ 800",
+          "pixels": 16.32
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 13.44
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 0.8,
+      "size": [
+        390,
+        844
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 12.012
+        },
+        {
+          "text": "1:29",
+          "pixels": 18.018
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Brasa",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "$ 800",
+          "pixels": 14.586
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 1,
+      "size": [
+        390,
+        844
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 12.012
+        },
+        {
+          "text": "1:29",
+          "pixels": 18.018
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Brasa",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "$ 800",
+          "pixels": 14.586
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 1.2,
+      "size": [
+        390,
+        844
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 12.012
+        },
+        {
+          "text": "1:29",
+          "pixels": 18.018
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Brasa",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 19.733999999999998
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "$ 800",
+          "pixels": 14.586
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 0.8,
+      "size": [
+        844,
+        390
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 12.012
+        },
+        {
+          "text": "1:29",
+          "pixels": 17.16
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Brasa",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "$ 800",
+          "pixels": 14.586
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 1,
+      "size": [
+        844,
+        390
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 12.012
+        },
+        {
+          "text": "1:29",
+          "pixels": 17.16
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Brasa",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "$ 800",
+          "pixels": 14.586
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    },
+    {
+      "mode": "squads",
+      "scale": 1.2,
+      "size": [
+        844,
+        390
+      ],
+      "minFont": 12.012,
+      "fonts": [
+        {
+          "text": "Maré",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "Rodada 1",
+          "pixels": 12.012
+        },
+        {
+          "text": "1:29",
+          "pixels": 17.16
+        },
+        {
+          "text": "Até 5 pontos",
+          "pixels": 12.012
+        },
+        {
+          "text": "Brasa",
+          "pixels": 12.012
+        },
+        {
+          "text": "0",
+          "pixels": 18.876
+        },
+        {
+          "text": "2 em pé",
+          "pixels": 12.012
+        },
+        {
+          "text": "$ 800",
+          "pixels": 14.586
+        },
+        {
+          "text": "Sua turma: Maré",
+          "pixels": 12.012
+        }
+      ],
+      "compassOverlap": false,
+      "inside": true,
+      "horizontalOverflow": false
+    }
+  ]
+}

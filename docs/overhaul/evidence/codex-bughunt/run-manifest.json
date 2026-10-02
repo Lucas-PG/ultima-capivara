@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-02",
+  "timezone": "America/Sao_Paulo",
+  "browser": "Installed Google Chrome, ANGLE gl-egl, headless, hardware channel chrome",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "input": "Real keyboard and mouse via network QA helper; 20Hz driver; no health, damage, bot or time mutation",
+  "liveSamplingSeconds": 5,
+  "graphics": "Medium",
+  "runs": [
+    {
+      "folder": "live-v1",
+      "source": "8ad717f (initial full hulls, frozen before final reduction and local bicycle correction)",
+      "rounds": [
+        {
+          "mode": "deathmatch",
+          "rematch": false,
+          "completed": true,
+          "lastSimulationTime": 483.04999999988934,
+          "kills": 51,
+          "deaths": 11,
+          "stuckCandidates": 0
+        }
+      ],
+      "gameErrors": 0,
+      "harnessErrors": [
+        {
+          "type": "harness",
+          "message": "locator.click: Error: strict mode violation: locator('[data-do=\"leave\"]') resolved to 2 elements:"
+        }
+      ]
+    },
+    {
+      "folder": "live-v2",
+      "source": "8ad717f (initial full hulls, frozen before final reduction and local bicycle correction)",
+      "rounds": [
+        {
+          "mode": "battle-royale",
+          "rematch": false,
+          "completed": true,
+          "lastSimulationTime": 176.7500000000328,
+          "kills": 5,
+          "deaths": 1,
+          "stuckCandidates": 1
+        },
+        {
+          "mode": "corrente",
+          "rematch": false,
+          "completed": true,
+          "lastSimulationTime": 114.09999999999481,
+          "kills": 9,
+          "deaths": 4,
+          "stuckCandidates": 0
+        }
+      ],
+      "gameErrors": 0,
+      "harnessErrors": []
+    },
+    {
+      "folder": "live-v3",
+      "source": "8ad717f + HUD dc81f23/2b7ffdb + modes b91015a/4df20af",
+      "rounds": [
+        {
+          "mode": "duel",
+          "rematch": false,
+          "completed": true,
+          "lastSimulationTime": 96.99999999999578,
+          "kills": 5,
+          "deaths": 0,
+          "score": [
+            5,
+            0
+          ],
+          "stuckCandidates": 0
+        },
+        {
+          "mode": "duel",
+          "rematch": true,
+          "completed": true,
+          "lastSimulationTime": 129.09999999999488,
+          "kills": 5,
+          "deaths": 1,
+          "score": [
+            5,
+            1
+          ],
+          "stuckCandidates": 0
+        },
+        {
+          "mode": "squads",
+          "rematch": false,
+          "completed": false,
+          "lastSimulationTime": 123.64999999999426,
+          "kills": 1,
+          "deaths": 3,
+          "score": [
+            2,
+            1
+          ],
+          "stuckCandidates": 0
+        }
+      ],
+      "gameErrors": 0,
+      "harnessErrors": [
+        {
+          "type": "harness",
+          "message": "locator.click: Timeout 30000ms exceeded."
+        }
+      ]
+    },
+    {
+      "folder": "live-v4",
+      "source": "99af8bc + 136623e + HUD dc81f23/2b7ffdb + modes b91015a/4df20af",
+      "rounds": [
+        {
+          "mode": "squads",
+          "teamSize": 2,
+          "rematch": false,
+          "completed": true,
+          "lastSimulationTime": 242.75000000008532,
+          "kills": 5,
+          "deaths": 4,
+          "score": [
+            5,
+            1
+          ],
+          "stuckCandidates": 0
+        },
+        {
+          "mode": "squads",
+          "teamSize": 3,
+          "rematch": false,
+          "completed": true,
+          "lastSimulationTime": 284.5000000000699,
+          "kills": 9,
+          "deaths": 4,
+          "score": [
+            5,
+            1
+          ],
+          "stuckCandidates": 0
+        },
+        {
+          "mode": "deathmatch",
+          "rematch": false,
+          "completed": false,
+          "lastSimulationTime": 123.34999999999428,
+          "kills": 12,
+          "deaths": 3,
+          "stuckCandidates": 0
+        }
+      ],
+      "gameErrors": 0,
+      "harnessErrors": [],
+      "interruption": "Capacity restart stopped the repeated deathmatch at 123.35s; both squad matches completed."
+    }
+  ]
+}

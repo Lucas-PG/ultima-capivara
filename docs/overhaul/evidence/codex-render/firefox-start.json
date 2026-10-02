@@ -1,0 +1,31 @@
+{
+  "measuredAt": "2026-10-02T15:06:36.668Z",
+  "base": "http://127.0.0.1:5196/after",
+  "build": "/home/lucas/codex-team/logs/render/after-dist",
+  "browser": "firefox",
+  "angle": "gl-egl",
+  "version": "155.0",
+  "cpuThrottle": 1,
+  "viewport": {
+    "width": 1470,
+    "height": 956
+  },
+  "diagnostic": "Original shaders, floating target readbacks; synthetic QA stages, not live performance samples",
+  "hardware": [],
+  "controls": [],
+  "errors": [
+    {
+      "type": "console",
+      "message": "THREE.WebGLRenderer: A WebGL context could not be created. Reason:  WebGL creation failed: \n* AllowWebgl2:false restricts context creation on this system. ()"
+    },
+    {
+      "type": "console",
+      "message": "THREE.WebGLRenderer: A WebGL context could not be created. Reason:  WebGL creation failed: \n* AllowWebgl2:false restricts context creation on this system. ()"
+    },
+    {
+      "type": "console",
+      "message": "THREE.WebGLRenderer: THREE.WebGLRenderer: Error creating WebGL context."
+    }
+  ],
+  "rows": []
+}

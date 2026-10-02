@@ -8,7 +8,7 @@ import type { V3 } from './viewmodel-specs';
 
 export type Ease = 'smooth' | 'in' | 'out' | 'linear' | 'snap' | 'back';
 /** 'grip': the weapon's rest grip; 'gun': weapon space; 'view': camera space. */
-export interface HandKey { space: 'grip' | 'gun' | 'view' | 'part'; part?: string; /** Keep offsets and orientation in gun axes while following the part's origin. */ followRotation?: boolean; /** Weapon-space clearance from a fitted grip. */ offset?: V3; wrist?: V3; forward?: V3; palm?: V3; /** Camera-space elbow direction for a reach. */ pole?: V3; curl?: Partial<HandCurl> }
+export interface HandKey { space: 'grip' | 'gun' | 'view' | 'part'; part?: string; /** Contact surface while this key holds; false marks an open approach or release. Part-space keys otherwise hold their named part. */ contact?: string | false; /** Use the fitted safe trigger digit while retaining the carrying palm and other fingers. */ indexed?: boolean; /** Keep offsets and orientation in gun axes while following the part's origin. */ followRotation?: boolean; /** Weapon-space clearance from a fitted grip. */ offset?: V3; wrist?: V3; forward?: V3; palm?: V3; /** Camera-space elbow direction for a reach. */ pole?: V3; curl?: Partial<HandCurl> }
 export interface PartKey { visible?: boolean; out?: number; p?: V3; r?: V3 }
 export interface Key {
   t: number; ease?: Ease;
@@ -30,6 +30,22 @@ export interface ChoreoSample {
   R: { a: HandKey; b: HandKey; u: number } | null;
   mag: { visible: boolean; out: number; p: THREE.Vector3; r: THREE.Vector3 } | null;
   parts: Record<string, number>;
+}
+
+/** The surface a paw is actually carrying. A transition between different surfaces is an approach or
+ * release, not a hold. A pair of keys on one moving part must retain contact through the whole blend. */
+export function handContact(pair: ChoreoSample['R'], gripSurface: string): string | null {
+  if (!pair) return gripSurface;
+  const contact = (key: HandKey): string | null => {
+    if (key.contact !== undefined) return key.contact || null;
+    if (key.space === 'part') return key.part ?? null;
+    if (key.space === 'grip' && (!key.offset || key.offset.every(v => Math.abs(v) < 1e-8))) return gripSurface;
+    return null;
+  };
+  const a = contact(pair.a), b = contact(pair.b);
+  if (pair.u <= 1e-6) return a;
+  if (pair.u >= 1 - 1e-6) return b;
+  return a === b ? a : null;
 }
 
 function shape(u: number, ease: Ease = 'smooth') {

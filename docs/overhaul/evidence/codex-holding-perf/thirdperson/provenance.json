@@ -1,0 +1,37 @@
+{
+  "capturedFrom": "http://127.0.0.1:5191",
+  "rootHead": "2886a449cae68260f64efa3fbdac15ced3f29834",
+  "holdingCommit": "aa8207b",
+  "started": "2026-10-02T16:27:43.963612+00:00",
+  "server": "E2E_NO_HMR=1 VITE_QA=1",
+  "before": "/home/lucas/codex-team/evidence/tp-before",
+  "viewport": {
+    "width": 1470,
+    "height": 956
+  },
+  "freshAllWeapons": true,
+  "finished": "2026-10-02T16:36:08.550426+00:00",
+  "completedNativePngs": 1208,
+  "refreshes": {
+    "m4": {
+      "capturedFrom": "http://127.0.0.1:5191",
+      "rootHead": "d090ac54b3554c9d1988d167dc291d9d833ff913",
+      "holdingCommit": "aa8207b",
+      "refreshCommit": "6220526",
+      "started": "2026-10-02T16:46:11.806015+00:00",
+      "server": "E2E_NO_HMR=1 VITE_QA=1",
+      "before": "/home/lucas/codex-team/evidence/tp-before",
+      "previousAfter": "/home/lucas/codex-team/evidence/tp-final",
+      "viewport": {
+        "width": 1470,
+        "height": 956
+      },
+      "freshWeapons": [
+        "m4"
+      ],
+      "reason": "M4 right indexed curl explicitly matches its fitted world ready curl",
+      "finished": "2026-10-02T16:47:43.299873+00:00",
+      "completedNativePngs": 156
+    }
+  }
+}

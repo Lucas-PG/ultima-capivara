@@ -3,10 +3,15 @@ import type { WorldSpec } from '../src/shared/types';
 import { hasLineOfSight } from '../src/shared/collision';
 import { navigationWaypoint, walkableSegment } from '../src/shared/navigation';
 import { WEAPONS } from '../src/shared/weapons';
+import { PRESET_DENSITY } from '../src/render/resolution';
 
 /** Loaded only with VITE_QA=1 and ?networkQa=1, never by a production build. */
 export function installNetworkInput(input: InputController, world?: WorldSpec) {
   Object.defineProperty(window, '__networkQA', { value: {
+    // Performance comparisons keep the shipped preset's exact ceiling throughout live play.
+    pinPresetDensity() {
+      for (const preset of Object.values(PRESET_DENSITY)) Object.assign(preset, { min: preset.max });
+    },
     activate() { input.locked = true; input.onLock(); },
     pause() { input.unlock(); input.locked = false; input.onPause(); },
     key(code: string, down: boolean) {

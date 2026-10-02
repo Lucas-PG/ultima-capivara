@@ -1,0 +1,2533 @@
+{
+ "startedAt": "2026-10-02T16:19:58.280Z",
+ "measuredAt": "2026-10-02T16:21:36.684Z",
+ "before": "http://127.0.0.1:5193/before",
+ "after": "http://127.0.0.1:5193",
+ "viewport": {
+  "width": 1470,
+  "height": 956,
+  "dpr": 2
+ },
+ "gpu": {
+  "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+  "timerQuery": true
+ },
+ "chromeVersion": "150.0.7871.186",
+ "cpuThrottle": 4,
+ "seed": 20261002,
+ "frames": 48,
+ "rounds": 2,
+ "order": "A-B-B-A",
+ "thermal": null,
+ "headless": true,
+ "densityPinnedBy": "QA frame budget Infinity, shipped preset ceiling",
+ "measurementPurpose": "paired frozen frame cost",
+ "machine": {
+  "platform": "linux",
+  "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+  "logicalCpus": 16,
+  "totalMemoryMB": 15905
+ },
+ "errors": [],
+ "source": "baseline b721224 vs static 14b9cfa plus mask 5723746, immutable QA builds",
+ "summaryMethod": "median of four batch medians per variant; two A-B-B-A rounds, 48 frames per batch; full raw host CPU times and process names outside repository",
+ "rows": [
+  {
+   "preset": "low",
+   "name": "plaza16",
+   "pose": "plaza",
+   "actors": 16,
+   "actualActors": 16,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 16,
+      "p90Ms": 22.699999999254942,
+      "gpuMedianMs": 1.22716,
+      "gpuP90Ms": 1.23968
+     },
+     "state": {
+      "drawCalls": 133,
+      "triangles": 1504703,
+      "renderedFrames": 63,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:46.479Z",
+      "load": [
+       1.26,
+       1.5,
+       2.65
+      ],
+      "freeMemoryMB": 9763
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:47.384Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9760
+     },
+     "hostCpuBusyPercent": 11.67
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 14.300000000745058,
+      "p90Ms": 21.199999999254942,
+      "gpuMedianMs": 1.22344,
+      "gpuP90Ms": 1.23492
+     },
+     "state": {
+      "drawCalls": 133,
+      "triangles": 1504703,
+      "renderedFrames": 63,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:47.401Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9758
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:48.221Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9752
+     },
+     "hostCpuBusyPercent": 11.91
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 14,
+      "p90Ms": 20.899999998509884,
+      "gpuMedianMs": 1.21904,
+      "gpuP90Ms": 1.23696
+     },
+     "state": {
+      "drawCalls": 133,
+      "triangles": 1504703,
+      "renderedFrames": 112,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:48.236Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9752
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:49.034Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9766
+     },
+     "hostCpuBusyPercent": 11.94
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 15.300000000745058,
+      "p90Ms": 21.5,
+      "gpuMedianMs": 1.2298,
+      "gpuP90Ms": 1.23704
+     },
+     "state": {
+      "drawCalls": 133,
+      "triangles": 1504703,
+      "renderedFrames": 112,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:49.049Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9765
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:49.914Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9765
+     },
+     "hostCpuBusyPercent": 11.79
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 14.800000000745058,
+      "p90Ms": 22,
+      "gpuMedianMs": 1.23604,
+      "gpuP90Ms": 1.25384
+     },
+     "state": {
+      "drawCalls": 133,
+      "triangles": 1504703,
+      "renderedFrames": 161,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:49.930Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9765
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:50.785Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9768
+     },
+     "hostCpuBusyPercent": 11.56
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 13.399999998509884,
+      "p90Ms": 19.599999997764826,
+      "gpuMedianMs": 1.22428,
+      "gpuP90Ms": 1.2472
+     },
+     "state": {
+      "drawCalls": 133,
+      "triangles": 1504703,
+      "renderedFrames": 161,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:50.800Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9770
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:51.567Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9775
+     },
+     "hostCpuBusyPercent": 12.08
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 13.399999998509884,
+      "p90Ms": 18.900000002235174,
+      "gpuMedianMs": 1.22504,
+      "gpuP90Ms": 1.2416
+     },
+     "state": {
+      "drawCalls": 133,
+      "triangles": 1504703,
+      "renderedFrames": 210,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:51.583Z",
+      "load": [
+       1.32,
+       1.51,
+       2.65
+      ],
+      "freeMemoryMB": 9776
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:52.337Z",
+      "load": [
+       1.38,
+       1.51,
+       2.64
+      ],
+      "freeMemoryMB": 9776
+     },
+     "hostCpuBusyPercent": 11.72
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 14.700000002980232,
+      "p90Ms": 20.800000000745058,
+      "gpuMedianMs": 1.22816,
+      "gpuP90Ms": 1.24532
+     },
+     "state": {
+      "drawCalls": 133,
+      "triangles": 1504703,
+      "renderedFrames": 210,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:52.351Z",
+      "load": [
+       1.38,
+       1.51,
+       2.64
+      ],
+      "freeMemoryMB": 9775
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:53.182Z",
+      "load": [
+       1.38,
+       1.51,
+       2.64
+      ],
+      "freeMemoryMB": 9783
+     },
+     "hostCpuBusyPercent": 11.57
+    }
+   ],
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:f7d3 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2,
+     "MeshStandardMaterial:-:8b76 (instanced+color3)": 1,
+     "MeshStandardMaterial:pickup:8ba5 (instanced+color3)": 1,
+     "MeshStandardMaterial:paint:painted-metal:3d58 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:5de5 (Mesh)": 1,
+     "MeshStandardMaterial:-:dbc0 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:3a43 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:bb00 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:plaster:8597 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:affa (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:foliage:b459 (batched+color3)": 1,
+     "MeshStandardMaterial:Capivara_team_1fb5a8:d7f7 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_1fb5a8:b3f2 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_e76f51:1d58 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_e76f51:e3a5 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_ffc23d:a7cf (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_ffc23d:d1fc (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_3d6fb6:5d84 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_3d6fb6:f29f (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_a468ff:60dc (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_a468ff:1f56 (skinned+color4)": 1,
+     "MeshStandardMaterial:paint:terrain:a30d (Mesh)": 1
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:3f97 (Mesh+color4 batched+color4)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "result": {
+    "before": {
+     "medianOfBatchMediansMs": 15.05,
+     "medianOfBatchP90Ms": 21.75,
+     "medianOfBatchGpuMediansMs": 1.229,
+     "loadRange": [
+      1.26,
+      1.38
+     ],
+     "freeMemoryMBRange": [
+      9760,
+      9783
+     ],
+     "hostCpuBusyPercentRange": [
+      11.56,
+      11.79
+     ]
+    },
+    "after": {
+     "medianOfBatchMediansMs": 13.7,
+     "medianOfBatchP90Ms": 20.25,
+     "medianOfBatchGpuMediansMs": 1.224,
+     "loadRange": [
+      1.32,
+      1.38
+     ],
+     "freeMemoryMBRange": [
+      9752,
+      9776
+     ],
+     "hostCpuBusyPercentRange": [
+      11.72,
+      12.08
+     ]
+    }
+   },
+   "changePercent": -9,
+   "byRound": [
+    {
+     "round": 0,
+     "beforeMs": 15.65,
+     "afterMs": 14.15,
+     "changePercent": -9.6
+    },
+    {
+     "round": 1,
+     "beforeMs": 14.75,
+     "afterMs": 13.4,
+     "changePercent": -9.2
+    }
+   ],
+   "allMeasuredRenderStatesMatch": true,
+   "measuredRenderStates": [
+    {
+     "drawCalls": 133,
+     "triangles": 1504703,
+     "density": 0.75,
+     "buffer": [
+      1102,
+      717
+     ]
+    }
+   ]
+  },
+  {
+   "preset": "low",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "actualActors": 13,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 14.300000000745058,
+      "p90Ms": 18.799999997019768,
+      "gpuMedianMs": 1.28216,
+      "gpuP90Ms": 1.2964
+     },
+     "state": {
+      "drawCalls": 146,
+      "triangles": 1597149,
+      "renderedFrames": 286,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:55.601Z",
+      "load": [
+       1.38,
+       1.51,
+       2.64
+      ],
+      "freeMemoryMB": 9729
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:56.401Z",
+      "load": [
+       1.38,
+       1.51,
+       2.64
+      ],
+      "freeMemoryMB": 9736
+     },
+     "hostCpuBusyPercent": 11.64
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 13.199999999254942,
+      "p90Ms": 17.699999999254942,
+      "gpuMedianMs": 1.27992,
+      "gpuP90Ms": 1.29284
+     },
+     "state": {
+      "drawCalls": 146,
+      "triangles": 1597149,
+      "renderedFrames": 286,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:56.415Z",
+      "load": [
+       1.38,
+       1.51,
+       2.64
+      ],
+      "freeMemoryMB": 9735
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:57.152Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9746
+     },
+     "hostCpuBusyPercent": 11.84
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 12.899999998509884,
+      "p90Ms": 17.899999998509884,
+      "gpuMedianMs": 1.27616,
+      "gpuP90Ms": 1.29504
+     },
+     "state": {
+      "drawCalls": 146,
+      "triangles": 1597149,
+      "renderedFrames": 335,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:57.167Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9745
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:57.905Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9751
+     },
+     "hostCpuBusyPercent": 11.4
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 14.600000001490116,
+      "p90Ms": 19.100000001490116,
+      "gpuMedianMs": 1.28284,
+      "gpuP90Ms": 1.2966
+     },
+     "state": {
+      "drawCalls": 146,
+      "triangles": 1597149,
+      "renderedFrames": 335,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:57.920Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9751
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:58.736Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9767
+     },
+     "hostCpuBusyPercent": 12.39
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 14.399999998509884,
+      "p90Ms": 19.5,
+      "gpuMedianMs": 1.2824,
+      "gpuP90Ms": 1.2952
+     },
+     "state": {
+      "drawCalls": 146,
+      "triangles": 1597149,
+      "renderedFrames": 384,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:58.749Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9765
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:20:59.564Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9767
+     },
+     "hostCpuBusyPercent": 11.44
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 13,
+      "p90Ms": 17.300000000745058,
+      "gpuMedianMs": 1.2782,
+      "gpuP90Ms": 1.29072
+     },
+     "state": {
+      "drawCalls": 146,
+      "triangles": 1597149,
+      "renderedFrames": 384,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:20:59.579Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9767
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:00.306Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9778
+     },
+     "hostCpuBusyPercent": 11.66
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 13.299999997019768,
+      "p90Ms": 17.800000000745058,
+      "gpuMedianMs": 1.285,
+      "gpuP90Ms": 1.29844
+     },
+     "state": {
+      "drawCalls": 146,
+      "triangles": 1597149,
+      "renderedFrames": 433,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:00.321Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9777
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:01.067Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9785
+     },
+     "hostCpuBusyPercent": 11.62
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 14.699999999254942,
+      "p90Ms": 19.199999999254942,
+      "gpuMedianMs": 1.2788,
+      "gpuP90Ms": 1.2862
+     },
+     "state": {
+      "drawCalls": 146,
+      "triangles": 1597149,
+      "renderedFrames": 433,
+      "density": 0.75,
+      "buffer": [
+       1102,
+       717
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:01.083Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9786
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:01.894Z",
+      "load": [
+       1.43,
+       1.52,
+       2.64
+      ],
+      "freeMemoryMB": 9820
+     },
+     "hostCpuBusyPercent": 11.68
+    }
+   ],
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:f7d3 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:-:8b76 (instanced+color3)": 1,
+     "MeshStandardMaterial:pickup:8ba5 (instanced+color3)": 1,
+     "MeshStandardMaterial:-:5de5 (Mesh)": 1,
+     "MeshStandardMaterial:-:dbc0 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:3a43 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:bb00 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:plaster:8597 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:wood:7b64 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:affa (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:foliage:b459 (batched+color3)": 1,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:77f7 (Mesh+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_1fb5a8:d7f7 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_1fb5a8:b3f2 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_e76f51:1d58 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_e76f51:e3a5 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_f4f1e8:ebbd (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_f4f1e8:2c22 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_bd8956:1f66 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_bd8956:a28d (skinned+color4)": 1,
+     "MeshStandardMaterial:paint:terrain:a30d (Mesh)": 1,
+     "MeshStandardMaterial:Capivara_team_bd8956:33af (skinned+color4)": 1
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:3f97 (Mesh+color4 batched+color4)": 2
+    }
+   },
+   "result": {
+    "before": {
+     "medianOfBatchMediansMs": 14.5,
+     "medianOfBatchP90Ms": 19.15,
+     "medianOfBatchGpuMediansMs": 1.282,
+     "loadRange": [
+      1.38,
+      1.43
+     ],
+     "freeMemoryMBRange": [
+      9729,
+      9820
+     ],
+     "hostCpuBusyPercentRange": [
+      11.44,
+      12.39
+     ]
+    },
+    "after": {
+     "medianOfBatchMediansMs": 13.1,
+     "medianOfBatchP90Ms": 17.75,
+     "medianOfBatchGpuMediansMs": 1.279,
+     "loadRange": [
+      1.38,
+      1.43
+     ],
+     "freeMemoryMBRange": [
+      9735,
+      9785
+     ],
+     "hostCpuBusyPercentRange": [
+      11.4,
+      11.84
+     ]
+    }
+   },
+   "changePercent": -9.7,
+   "byRound": [
+    {
+     "round": 0,
+     "beforeMs": 14.45,
+     "afterMs": 13.05,
+     "changePercent": -9.7
+    },
+    {
+     "round": 1,
+     "beforeMs": 14.55,
+     "afterMs": 13.15,
+     "changePercent": -9.6
+    }
+   ],
+   "allMeasuredRenderStatesMatch": true,
+   "measuredRenderStates": [
+    {
+     "drawCalls": 146,
+     "triangles": 1597149,
+     "density": 0.75,
+     "buffer": [
+      1102,
+      717
+     ]
+    }
+   ]
+  },
+  {
+   "preset": "medium",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "actualActors": 13,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 16.5,
+      "p90Ms": 20.800000000745058,
+      "gpuMedianMs": 2.89604,
+      "gpuP90Ms": 2.91172
+     },
+     "state": {
+      "drawCalls": 165,
+      "triangles": 1763767,
+      "renderedFrames": 509,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:03.993Z",
+      "load": [
+       1.47,
+       1.53,
+       2.63
+      ],
+      "freeMemoryMB": 9838
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:04.899Z",
+      "load": [
+       1.47,
+       1.53,
+       2.63
+      ],
+      "freeMemoryMB": 9842
+     },
+     "hostCpuBusyPercent": 11.6
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 15.600000001490116,
+      "p90Ms": 20.600000001490116,
+      "gpuMedianMs": 2.8962,
+      "gpuP90Ms": 2.90924
+     },
+     "state": {
+      "drawCalls": 165,
+      "triangles": 1763767,
+      "renderedFrames": 509,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:04.915Z",
+      "load": [
+       1.47,
+       1.53,
+       2.63
+      ],
+      "freeMemoryMB": 9843
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:05.777Z",
+      "load": [
+       1.47,
+       1.53,
+       2.63
+      ],
+      "freeMemoryMB": 9853
+     },
+     "hostCpuBusyPercent": 11.13
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 15.399999998509884,
+      "p90Ms": 21.299999997019768,
+      "gpuMedianMs": 2.89736,
+      "gpuP90Ms": 2.91464
+     },
+     "state": {
+      "drawCalls": 165,
+      "triangles": 1763767,
+      "renderedFrames": 558,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:05.794Z",
+      "load": [
+       1.47,
+       1.53,
+       2.63
+      ],
+      "freeMemoryMB": 9853
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:06.659Z",
+      "load": [
+       1.47,
+       1.53,
+       2.63
+      ],
+      "freeMemoryMB": 9835
+     },
+     "hostCpuBusyPercent": 11.8
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 16.100000001490116,
+      "p90Ms": 21,
+      "gpuMedianMs": 2.89452,
+      "gpuP90Ms": 2.90644
+     },
+     "state": {
+      "drawCalls": 165,
+      "triangles": 1763767,
+      "renderedFrames": 558,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:06.675Z",
+      "load": [
+       1.47,
+       1.53,
+       2.63
+      ],
+      "freeMemoryMB": 9835
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:07.557Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9857
+     },
+     "hostCpuBusyPercent": 11.41
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 15.800000000745058,
+      "p90Ms": 20.399999998509884,
+      "gpuMedianMs": 2.89036,
+      "gpuP90Ms": 2.9066
+     },
+     "state": {
+      "drawCalls": 165,
+      "triangles": 1763767,
+      "renderedFrames": 607,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:07.572Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9857
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:08.446Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9861
+     },
+     "hostCpuBusyPercent": 11.29
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 15,
+      "p90Ms": 19.799999997019768,
+      "gpuMedianMs": 2.8956,
+      "gpuP90Ms": 2.90624
+     },
+     "state": {
+      "drawCalls": 165,
+      "triangles": 1763767,
+      "renderedFrames": 607,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:08.461Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9862
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:09.297Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9861
+     },
+     "hostCpuBusyPercent": 11.02
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 15.400000002235174,
+      "p90Ms": 19.5,
+      "gpuMedianMs": 2.89828,
+      "gpuP90Ms": 2.91296
+     },
+     "state": {
+      "drawCalls": 165,
+      "triangles": 1763767,
+      "renderedFrames": 656,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:09.312Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9861
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:10.151Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9864
+     },
+     "hostCpuBusyPercent": 10.98
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 15.800000000745058,
+      "p90Ms": 20.5,
+      "gpuMedianMs": 2.89548,
+      "gpuP90Ms": 2.91172
+     },
+     "state": {
+      "drawCalls": 165,
+      "triangles": 1763767,
+      "renderedFrames": 656,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:10.165Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9865
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:11.036Z",
+      "load": [
+       1.52,
+       1.54,
+       2.63
+      ],
+      "freeMemoryMB": 9867
+     },
+     "hostCpuBusyPercent": 10.95
+    }
+   ],
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:f7d3 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshStandardMaterial:-:8b76 (instanced+color3)": 1,
+     "MeshStandardMaterial:pickup:8ba5 (instanced+color3)": 1,
+     "MeshStandardMaterial:-:5de5 (Mesh)": 1,
+     "MeshStandardMaterial:-:dbc0 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:3a43 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:bb00 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:plaster:8597 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:wood:7b64 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:affa (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:foliage:b459 (batched+color3)": 1,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:77f7 (Mesh+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_1fb5a8:d7f7 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_1fb5a8:b3f2 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_e76f51:1d58 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_e76f51:e3a5 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_f4f1e8:ebbd (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_f4f1e8:2c22 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_bd8956:1f66 (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_bd8956:a28d (skinned+color4)": 1,
+     "MeshStandardMaterial:paint:terrain:a30d (Mesh)": 1,
+     "MeshStandardMaterial:Capivara_team_bd8956:33af (skinned+color4)": 1
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 12,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:3f97 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    }
+   },
+   "result": {
+    "before": {
+     "medianOfBatchMediansMs": 15.95,
+     "medianOfBatchP90Ms": 20.65,
+     "medianOfBatchGpuMediansMs": 2.895,
+     "loadRange": [
+      1.47,
+      1.52
+     ],
+     "freeMemoryMBRange": [
+      9835,
+      9867
+     ],
+     "hostCpuBusyPercentRange": [
+      10.95,
+      11.6
+     ]
+    },
+    "after": {
+     "medianOfBatchMediansMs": 15.4,
+     "medianOfBatchP90Ms": 20.2,
+     "medianOfBatchGpuMediansMs": 2.897,
+     "loadRange": [
+      1.47,
+      1.52
+     ],
+     "freeMemoryMBRange": [
+      9835,
+      9864
+     ],
+     "hostCpuBusyPercentRange": [
+      10.98,
+      11.8
+     ]
+    }
+   },
+   "changePercent": -3.4,
+   "byRound": [
+    {
+     "round": 0,
+     "beforeMs": 16.3,
+     "afterMs": 15.5,
+     "changePercent": -4.9
+    },
+    {
+     "round": 1,
+     "beforeMs": 15.8,
+     "afterMs": 15.2,
+     "changePercent": -3.8
+    }
+   ],
+   "allMeasuredRenderStatesMatch": true,
+   "measuredRenderStates": [
+    {
+     "drawCalls": 165,
+     "triangles": 1763767,
+     "density": 1.25,
+     "buffer": [
+      2940,
+      1912
+     ]
+    }
+   ]
+  },
+  {
+   "preset": "medium",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "actualActors": 8,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 13.5,
+      "p90Ms": 17.100000001490116,
+      "gpuMedianMs": 2.68672,
+      "gpuP90Ms": 2.70552
+     },
+     "state": {
+      "drawCalls": 132,
+      "triangles": 1539563,
+      "renderedFrames": 732,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:13.328Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9862
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:14.065Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9860
+     },
+     "hostCpuBusyPercent": 11.62
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 12.100000001490116,
+      "p90Ms": 14.899999998509884,
+      "gpuMedianMs": 2.68684,
+      "gpuP90Ms": 2.6932
+     },
+     "state": {
+      "drawCalls": 132,
+      "triangles": 1539563,
+      "renderedFrames": 732,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:14.079Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9859
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:14.747Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9852
+     },
+     "hostCpuBusyPercent": 11.14
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 12.5,
+      "p90Ms": 15.800000000745058,
+      "gpuMedianMs": 2.68676,
+      "gpuP90Ms": 2.70468
+     },
+     "state": {
+      "drawCalls": 132,
+      "triangles": 1539563,
+      "renderedFrames": 781,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:14.763Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9856
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:15.451Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9861
+     },
+     "hostCpuBusyPercent": 11.61
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 13.600000001490116,
+      "p90Ms": 16.399999998509884,
+      "gpuMedianMs": 2.6844,
+      "gpuP90Ms": 2.69676
+     },
+     "state": {
+      "drawCalls": 132,
+      "triangles": 1539563,
+      "renderedFrames": 781,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:15.467Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9861
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:16.208Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9863
+     },
+     "hostCpuBusyPercent": 11.55
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 13.5,
+      "p90Ms": 17.300000000745058,
+      "gpuMedianMs": 2.68944,
+      "gpuP90Ms": 2.70688
+     },
+     "state": {
+      "drawCalls": 132,
+      "triangles": 1539563,
+      "renderedFrames": 830,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:16.223Z",
+      "load": [
+       1.56,
+       1.55,
+       2.63
+      ],
+      "freeMemoryMB": 9863
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:16.970Z",
+      "load": [
+       1.67,
+       1.57,
+       2.63
+      ],
+      "freeMemoryMB": 9857
+     },
+     "hostCpuBusyPercent": 13.15
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 12.300000000745058,
+      "p90Ms": 14.599999997764826,
+      "gpuMedianMs": 2.68668,
+      "gpuP90Ms": 2.69712
+     },
+     "state": {
+      "drawCalls": 132,
+      "triangles": 1539563,
+      "renderedFrames": 830,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:16.985Z",
+      "load": [
+       1.67,
+       1.57,
+       2.63
+      ],
+      "freeMemoryMB": 9857
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:17.649Z",
+      "load": [
+       1.67,
+       1.57,
+       2.63
+      ],
+      "freeMemoryMB": 9866
+     },
+     "hostCpuBusyPercent": 11.4
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 12.099999997764826,
+      "p90Ms": 14.699999999254942,
+      "gpuMedianMs": 2.6894,
+      "gpuP90Ms": 2.7006
+     },
+     "state": {
+      "drawCalls": 132,
+      "triangles": 1539563,
+      "renderedFrames": 879,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:17.664Z",
+      "load": [
+       1.67,
+       1.57,
+       2.63
+      ],
+      "freeMemoryMB": 9865
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:18.324Z",
+      "load": [
+       1.67,
+       1.57,
+       2.63
+      ],
+      "freeMemoryMB": 9869
+     },
+     "hostCpuBusyPercent": 11.37
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 12.900000002235174,
+      "p90Ms": 15.600000001490116,
+      "gpuMedianMs": 2.6856,
+      "gpuP90Ms": 2.70268
+     },
+     "state": {
+      "drawCalls": 132,
+      "triangles": 1539563,
+      "renderedFrames": 879,
+      "density": 1.25,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:18.339Z",
+      "load": [
+       1.67,
+       1.57,
+       2.63
+      ],
+      "freeMemoryMB": 9869
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:19.046Z",
+      "load": [
+       1.67,
+       1.57,
+       2.63
+      ],
+      "freeMemoryMB": 9872
+     },
+     "hostCpuBusyPercent": 11.39
+    }
+   ],
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:f7d3 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2,
+     "MeshStandardMaterial:-:8b76 (instanced+color3)": 1,
+     "MeshStandardMaterial:pickup:8ba5 (instanced+color3)": 1,
+     "MeshStandardMaterial:paint:painted-metal:3d58 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:5de5 (Mesh)": 1,
+     "MeshStandardMaterial:-:dbc0 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:3a43 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:bb00 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:plaster:8597 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:affa (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:foliage:b459 (batched+color3)": 1,
+     "MeshStandardMaterial:Capivara_team_a468ff:60dc (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_a468ff:1f56 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_f28db2:5ded (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_f28db2:3f31 (skinned+color4)": 1,
+     "MeshStandardMaterial:paint:terrain:a30d (Mesh)": 1
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:3f97 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "result": {
+    "before": {
+     "medianOfBatchMediansMs": 13.5,
+     "medianOfBatchP90Ms": 16.75,
+     "medianOfBatchGpuMediansMs": 2.686,
+     "loadRange": [
+      1.56,
+      1.67
+     ],
+     "freeMemoryMBRange": [
+      9857,
+      9872
+     ],
+     "hostCpuBusyPercentRange": [
+      11.39,
+      13.15
+     ]
+    },
+    "after": {
+     "medianOfBatchMediansMs": 12.2,
+     "medianOfBatchP90Ms": 14.8,
+     "medianOfBatchGpuMediansMs": 2.687,
+     "loadRange": [
+      1.56,
+      1.67
+     ],
+     "freeMemoryMBRange": [
+      9852,
+      9869
+     ],
+     "hostCpuBusyPercentRange": [
+      11.14,
+      11.61
+     ]
+    }
+   },
+   "changePercent": -9.6,
+   "byRound": [
+    {
+     "round": 0,
+     "beforeMs": 13.55,
+     "afterMs": 12.3,
+     "changePercent": -9.2
+    },
+    {
+     "round": 1,
+     "beforeMs": 13.2,
+     "afterMs": 12.2,
+     "changePercent": -7.6
+    }
+   ],
+   "allMeasuredRenderStatesMatch": true,
+   "measuredRenderStates": [
+    {
+     "drawCalls": 132,
+     "triangles": 1539563,
+     "density": 1.25,
+     "buffer": [
+      2940,
+      1912
+     ]
+    }
+   ]
+  },
+  {
+   "preset": "high",
+   "name": "fp-m4",
+   "pose": "fp-m4",
+   "actors": 1,
+   "actualActors": 1,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 14.100000001490116,
+      "p90Ms": 15.699999999254942,
+      "gpuMedianMs": 5.29312,
+      "gpuP90Ms": 5.3384
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 955,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:21.214Z",
+      "load": [
+       1.67,
+       1.57,
+       2.63
+      ],
+      "freeMemoryMB": 9872
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:21.957Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9831
+     },
+     "hostCpuBusyPercent": 15.34
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 11.899999998509884,
+      "p90Ms": 12.699999999254942,
+      "gpuMedianMs": 5.28568,
+      "gpuP90Ms": 5.33164
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 955,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:21.973Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9831
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:22.603Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9829
+     },
+     "hostCpuBusyPercent": 12.93
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 12,
+      "p90Ms": 13.199999999254942,
+      "gpuMedianMs": 5.293,
+      "gpuP90Ms": 5.32904
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 1004,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:22.617Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9829
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:23.256Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9833
+     },
+     "hostCpuBusyPercent": 11.58
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 13.100000001490116,
+      "p90Ms": 14.5,
+      "gpuMedianMs": 5.27932,
+      "gpuP90Ms": 5.31124
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 1004,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:23.271Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9833
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:23.968Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9841
+     },
+     "hostCpuBusyPercent": 12.02
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 13.399999998509884,
+      "p90Ms": 14.899999998509884,
+      "gpuMedianMs": 5.2954,
+      "gpuP90Ms": 5.33048
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 1053,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:23.983Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9842
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:24.694Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9843
+     },
+     "hostCpuBusyPercent": 11.38
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 12.300000000745058,
+      "p90Ms": 13.700000002980232,
+      "gpuMedianMs": 5.27788,
+      "gpuP90Ms": 5.31968
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 1053,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:24.708Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9842
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:25.363Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9843
+     },
+     "hostCpuBusyPercent": 12.19
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 11.900000002235174,
+      "p90Ms": 12.799999997019768,
+      "gpuMedianMs": 5.29064,
+      "gpuP90Ms": 5.35076
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 1102,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:25.377Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9843
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:26.008Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9842
+     },
+     "hostCpuBusyPercent": 11.56
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 12.900000002235174,
+      "p90Ms": 13.899999998509884,
+      "gpuMedianMs": 5.29076,
+      "gpuP90Ms": 5.32752
+     },
+     "state": {
+      "drawCalls": 157,
+      "triangles": 1726994,
+      "renderedFrames": 1102,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:26.023Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9843
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:26.710Z",
+      "load": [
+       1.78,
+       1.59,
+       2.63
+      ],
+      "freeMemoryMB": 9842
+     },
+     "hostCpuBusyPercent": 11.12
+    }
+   ],
+   "churn": {
+    "before": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:f7d3 (Mesh+color4 batched+color4)": 3,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshStandardMaterial:-:8b76 (instanced+color3)": 1,
+     "MeshStandardMaterial:pickup:8ba5 (instanced+color3)": 1,
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 1,
+     "MeshPhysicalMaterial:-:9516 (Mesh)": 1,
+     "MeshStandardMaterial:paint:painted-metal:3d58 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:5de5 (Mesh)": 1,
+     "MeshStandardMaterial:-:dbc0 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:3a43 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:bb00 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:plaster:8597 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:wood:7b64 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:affa (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:foliage:b459 (batched+color3)": 1,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:f00b (Mesh+color4)": 1,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:77f7 (Mesh+color4)": 1,
+     "MeshStandardMaterial:paint:terrain:a30d (Mesh)": 1
+    },
+    "after": {
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 10,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:3f97 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2
+    }
+   },
+   "result": {
+    "before": {
+     "medianOfBatchMediansMs": 13.25,
+     "medianOfBatchP90Ms": 14.7,
+     "medianOfBatchGpuMediansMs": 5.292,
+     "loadRange": [
+      1.67,
+      1.78
+     ],
+     "freeMemoryMBRange": [
+      9831,
+      9872
+     ],
+     "hostCpuBusyPercentRange": [
+      11.12,
+      15.34
+     ]
+    },
+    "after": {
+     "medianOfBatchMediansMs": 11.95,
+     "medianOfBatchP90Ms": 13,
+     "medianOfBatchGpuMediansMs": 5.288,
+     "loadRange": [
+      1.78,
+      1.78
+     ],
+     "freeMemoryMBRange": [
+      9829,
+      9843
+     ],
+     "hostCpuBusyPercentRange": [
+      11.56,
+      12.93
+     ]
+    }
+   },
+   "changePercent": -9.8,
+   "byRound": [
+    {
+     "round": 0,
+     "beforeMs": 13.6,
+     "afterMs": 11.95,
+     "changePercent": -12.1
+    },
+    {
+     "round": 1,
+     "beforeMs": 13.15,
+     "afterMs": 12.1,
+     "changePercent": -8
+    }
+   ],
+   "allMeasuredRenderStatesMatch": true,
+   "measuredRenderStates": [
+    {
+     "drawCalls": 157,
+     "triangles": 1726994,
+     "density": 2,
+     "buffer": [
+      2940,
+      1912
+     ]
+    }
+   ]
+  },
+  {
+   "preset": "high",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "actualActors": 8,
+   "camera": null,
+   "samples": [
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 15.400000002235174,
+      "p90Ms": 18.100000001490116,
+      "gpuMedianMs": 5.40528,
+      "gpuP90Ms": 5.469
+     },
+     "state": {
+      "drawCalls": 151,
+      "triangles": 1900533,
+      "renderedFrames": 1178,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:29.690Z",
+      "load": [
+       1.88,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9831
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:30.512Z",
+      "load": [
+       1.88,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9839
+     },
+     "hostCpuBusyPercent": 11.27
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 14.699999999254942,
+      "p90Ms": 17.699999999254942,
+      "gpuMedianMs": 5.4182,
+      "gpuP90Ms": 5.46624
+     },
+     "state": {
+      "drawCalls": 151,
+      "triangles": 1900533,
+      "renderedFrames": 1178,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:30.526Z",
+      "load": [
+       1.88,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9839
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:31.311Z",
+      "load": [
+       1.88,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9845
+     },
+     "hostCpuBusyPercent": 11.3
+    },
+    {
+     "round": 0,
+     "variant": "after",
+     "bench": {
+      "medianMs": 14.699999999254942,
+      "p90Ms": 18,
+      "gpuMedianMs": 5.39596,
+      "gpuP90Ms": 5.46012
+     },
+     "state": {
+      "drawCalls": 151,
+      "triangles": 1900533,
+      "renderedFrames": 1227,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:31.325Z",
+      "load": [
+       1.88,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9845
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:32.119Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9848
+     },
+     "hostCpuBusyPercent": 11.13
+    },
+    {
+     "round": 0,
+     "variant": "before",
+     "bench": {
+      "medianMs": 16,
+      "p90Ms": 19,
+      "gpuMedianMs": 5.40152,
+      "gpuP90Ms": 5.48028
+     },
+     "state": {
+      "drawCalls": 151,
+      "triangles": 1900533,
+      "renderedFrames": 1227,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:32.134Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9849
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:32.983Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9857
+     },
+     "hostCpuBusyPercent": 11.2
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 15.800000000745058,
+      "p90Ms": 19.100000001490116,
+      "gpuMedianMs": 5.40796,
+      "gpuP90Ms": 5.47848
+     },
+     "state": {
+      "drawCalls": 151,
+      "triangles": 1900533,
+      "renderedFrames": 1276,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:32.999Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9856
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:33.855Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9846
+     },
+     "hostCpuBusyPercent": 11.28
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 14.700000002980232,
+      "p90Ms": 17.199999999254942,
+      "gpuMedianMs": 5.40924,
+      "gpuP90Ms": 5.44908
+     },
+     "state": {
+      "drawCalls": 151,
+      "triangles": 1900533,
+      "renderedFrames": 1276,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:33.870Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9845
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:34.655Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9846
+     },
+     "hostCpuBusyPercent": 10.71
+    },
+    {
+     "round": 1,
+     "variant": "after",
+     "bench": {
+      "medianMs": 14.899999998509884,
+      "p90Ms": 17.600000001490116,
+      "gpuMedianMs": 5.40028,
+      "gpuP90Ms": 5.43732
+     },
+     "state": {
+      "drawCalls": 151,
+      "triangles": 1900533,
+      "renderedFrames": 1325,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:34.669Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9846
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:35.463Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9851
+     },
+     "hostCpuBusyPercent": 11.27
+    },
+    {
+     "round": 1,
+     "variant": "before",
+     "bench": {
+      "medianMs": 16.600000001490116,
+      "p90Ms": 18.600000001490116,
+      "gpuMedianMs": 5.39068,
+      "gpuP90Ms": 5.44912
+     },
+     "state": {
+      "drawCalls": 151,
+      "triangles": 1900533,
+      "renderedFrames": 1325,
+      "density": 2,
+      "buffer": [
+       2940,
+       1912
+      ]
+     },
+     "machineBefore": {
+      "measuredAt": "2026-10-02T16:21:35.478Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9850
+     },
+     "machineAfter": {
+      "measuredAt": "2026-10-02T16:21:36.389Z",
+      "load": [
+       1.89,
+       1.62,
+       2.63
+      ],
+      "freeMemoryMB": 9933
+     },
+     "hostCpuBusyPercent": 12.1
+    }
+   ],
+   "churn": {
+    "before": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:f7d3 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2,
+     "MeshStandardMaterial:-:8b76 (instanced+color3)": 1,
+     "MeshStandardMaterial:pickup:8ba5 (instanced+color3)": 1,
+     "MeshStandardMaterial:paint:painted-metal:3d58 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:5de5 (Mesh)": 1,
+     "MeshStandardMaterial:-:dbc0 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:3a43 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:bb00 (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:plaster:8597 (Mesh+color3)": 1,
+     "MeshStandardMaterial:-:affa (Mesh+color3)": 1,
+     "MeshStandardMaterial:paint:foliage:b459 (batched+color3)": 1,
+     "MeshStandardMaterial:Capivara_team_a468ff:60dc (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_a468ff:1f56 (skinned+color4)": 1,
+     "MeshStandardMaterial:Capivara_team_f28db2:5ded (skinned)": 1,
+     "MeshStandardMaterial:Capivara_team_f28db2:3f31 (skinned+color4)": 1,
+     "MeshStandardMaterial:paint:terrain:a30d (Mesh)": 1
+    },
+    "after": {
+     "MeshStandardMaterial:world-arsenal:60d6 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:Ilha_painted_atlas:3f97 (Mesh+color4 batched+color4)": 2,
+     "MeshStandardMaterial:paint:foliage:bd48 (instanced+color3 Mesh+color3)": 2,
+     "MeshPhysicalMaterial:-:ced8 (Mesh)": 2
+    }
+   },
+   "result": {
+    "before": {
+     "medianOfBatchMediansMs": 15.9,
+     "medianOfBatchP90Ms": 18.8,
+     "medianOfBatchGpuMediansMs": 5.403,
+     "loadRange": [
+      1.88,
+      1.89
+     ],
+     "freeMemoryMBRange": [
+      9831,
+      9933
+     ],
+     "hostCpuBusyPercentRange": [
+      11.2,
+      12.1
+     ]
+    },
+    "after": {
+     "medianOfBatchMediansMs": 14.7,
+     "medianOfBatchP90Ms": 17.65,
+     "medianOfBatchGpuMediansMs": 5.405,
+     "loadRange": [
+      1.88,
+      1.89
+     ],
+     "freeMemoryMBRange": [
+      9839,
+      9851
+     ],
+     "hostCpuBusyPercentRange": [
+      10.71,
+      11.3
+     ]
+    }
+   },
+   "changePercent": -7.5,
+   "byRound": [
+    {
+     "round": 0,
+     "beforeMs": 15.7,
+     "afterMs": 14.7,
+     "changePercent": -6.4
+    },
+    {
+     "round": 1,
+     "beforeMs": 16.2,
+     "afterMs": 14.8,
+     "changePercent": -8.6
+    }
+   ],
+   "allMeasuredRenderStatesMatch": true,
+   "measuredRenderStates": [
+    {
+     "drawCalls": 151,
+     "triangles": 1900533,
+     "density": 2,
+     "buffer": [
+      2940,
+      1912
+     ]
+    }
+   ]
+  }
+ ]
+}

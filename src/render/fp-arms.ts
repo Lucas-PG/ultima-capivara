@@ -8,7 +8,16 @@ export const FINGERS = ['index', 'middle', 'ring', 'thumb'] as const;
 export type Finger = typeof FINGERS[number];
 /** Curl in radians per joint (knuckle, middle, tip); `spread` swings the thumb
  * away from the fingers in the palm plane (radians, 0 = the modelled rest). */
-export type HandCurl = Record<Finger, readonly [number, number, number]> & { spread?: number };
+export type HandCurl = Record<Finger, readonly [number, number, number]> & {
+  spread?: number;
+  /** Index knuckle abduction in the palm plane. It lets the trigger digit enter a guard independently
+   * of the palm's grip, using the same articulation in the first-person and character rigs. */
+  indexSpread?: number;
+  /** Axial rotation of the index knuckle, in radians. The unchanged pad can turn inside a guard. */
+  indexRoll?: number;
+  /** Soft distal-pad compression perpendicular to the bind digit axis. Length stays unchanged. */
+  indexPad?: number;
+};
 /** A hand target in the viewmodel (camera) space. */
 export interface HandTarget {
   wrist: THREE.Vector3;
@@ -81,11 +90,15 @@ function frameQuaternion(primary: THREE.Vector3, secondary: THREE.Vector3, out: 
 export function blendCurl(a: HandCurl, b: HandCurl, t: number): HandCurl {
   const mix = (x: readonly [number, number, number], y: readonly [number, number, number]) => [x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t] as const;
   const spread = (a.spread ?? 0) + ((b.spread ?? 0) - (a.spread ?? 0)) * t;
-  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb), spread };
+  const indexSpread = (a.indexSpread ?? 0) + ((b.indexSpread ?? 0) - (a.indexSpread ?? 0)) * t;
+  const indexRoll = (a.indexRoll ?? 0) + ((b.indexRoll ?? 0) - (a.indexRoll ?? 0)) * t;
+  const indexPad = (a.indexPad ?? 1) + ((b.indexPad ?? 1) - (a.indexPad ?? 1)) * t;
+  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb), spread, indexSpread, indexRoll, indexPad };
 }
 
 interface ChainBone { bone: THREE.Bone; restWorld: THREE.Quaternion; restLocal: THREE.Quaternion; length: number }
-interface FingerBone { bone: THREE.Bone; restLocal: THREE.Quaternion; hinge: THREE.Vector3; spread?: THREE.Vector3 }
+interface FingerBone { bone: THREE.Bone; restLocal: THREE.Quaternion; hinge: THREE.Vector3; spread?: THREE.Vector3; axial?: THREE.Vector3;
+  pad?: { axis: THREE.Vector3; matrix: THREE.Matrix4; auto: boolean } }
 /** Shared articulation for the world character and first-person paws. Joint
  * axes come from the bind geometry itself (digit directions and the palm they
  * curl toward), so both rigs flex the same way whatever their export frame. */
@@ -118,7 +131,7 @@ export class PawPose {
         const worldMatrix = bind(bone), world = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(worldMatrix));
         const local = skeleton && bone.parent instanceof THREE.Bone
           ? new THREE.Quaternion().setFromRotationMatrix(bind(bone.parent).invert().multiply(worldMatrix)) : bone.quaternion.clone();
-        let hinge = new THREE.Vector3(-1, 0, 0), spread: THREE.Vector3 | undefined;
+        let hinge = new THREE.Vector3(-1, 0, 0), spread: THREE.Vector3 | undefined, axial: THREE.Vector3 | undefined;
         if (palm && base && tip) {
           const along = new THREE.Vector3().subVectors(tip, base).normalize();
           if (finger === 'thumb') {
@@ -128,17 +141,39 @@ export class PawPose {
             spread = palm.clone();
             if (new THREE.Vector3().crossVectors(spread, along).dot(across) > 0) spread.negate();
             if (i === 1) spread.applyQuaternion(world.clone().invert()).normalize(); else spread = undefined;
-          } else hinge = new THREE.Vector3().crossVectors(along, palm).normalize();
+          } else {
+            hinge = new THREE.Vector3().crossVectors(along, palm).normalize();
+            if (finger === 'index' && i === 1) {
+              spread = palm.clone().multiplyScalar(side === 'R' ? 1 : -1).applyQuaternion(world.clone().invert()).normalize();
+              axial = along.clone().multiplyScalar(side === 'R' ? 1 : -1).applyQuaternion(world.clone().invert()).normalize();
+            }
+          }
         }
-        this.fingers[finger].push({ bone, restLocal: local, hinge: hinge.applyQuaternion(world.invert()).normalize(), spread });
+        const pad = finger === 'index' && i === 3 && base && tip
+          ? { axis: tip.clone().sub(base).normalize().applyQuaternion(world.clone().invert()).normalize(), matrix: new THREE.Matrix4(), auto: bone.matrixAutoUpdate } : undefined;
+        this.fingers[finger].push({ bone, restLocal: local, hinge: hinge.applyQuaternion(world.invert()).normalize(), spread, axial, pad });
       }
     }
   }
   apply(curl: HandCurl) {
     for (const finger of FINGERS) this.fingers[finger].forEach((f, i) => {
       f.bone.quaternion.copy(f.restLocal);
-      if (f.spread && curl.spread) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.spread, curl.spread));
+      const spread = finger === 'index' ? curl.indexSpread : curl.spread;
+      if (f.spread && spread) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.spread, spread));
       f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.hinge, curl[finger][i]));
+      if (f.axial && curl.indexRoll) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.axial, THREE.MathUtils.clamp(curl.indexRoll, -.65, .65)));
+      if (f.pad) {
+        const c = THREE.MathUtils.clamp(curl.indexPad ?? 1, .96, 1);
+        f.bone.matrixAutoUpdate = c === 1 ? f.pad.auto : false;
+        if (c < 1) {
+          // c I + (1-c) aa^T preserves the bind longitudinal axis exactly,
+          // including rigs whose exported digit axes are not aligned to local Y.
+          const { x, y, z } = f.pad.axis, k = 1 - c;
+          f.pad.matrix.set(c + k*x*x, k*x*y, k*x*z, 0, k*y*x, c + k*y*y, k*y*z, 0,
+            k*z*x, k*z*y, c + k*z*z, 0, 0, 0, 0, 1);
+          f.bone.updateMatrix(); f.bone.matrix.multiply(f.pad.matrix);
+        }
+      }
     });
   }
 }

@@ -1,4 +1,5 @@
 import { colliderGrid } from './collider-grid';
+import { intersectsCollider } from './collider-shape';
 import { clamp } from './math';
 import { walkableSegment } from './navigation';
 import { terrainHeight } from './terrain';
@@ -61,7 +62,8 @@ export function clearSupplyLanding(world: WorldSpec, point: Vec3): boolean {
   if (world.chests.some(chest => Math.hypot(x - chest.x, z - chest.z) < 3)) return false;
   if (world.loot.some(loot => Math.hypot(x - loot.x, z - loot.z) < 2)) return false;
   const margin = 1.25;
-  if (colliderGrid(world).query(x - margin, z - margin, x + margin, z + margin).some(c =>
+  if (colliderGrid(world).query(x - margin, z - margin, x + margin, z + margin).some(c => c.hull ?
+    intersectsCollider(c, { x, y: y + .03, z }, SUPPLY_RELEASE_HEIGHT + SUPPLY_CANOPY_HEIGHT - .03, margin) :
     c.min.x < x + margin && c.max.x > x - margin && c.min.z < z + margin && c.max.z > z - margin &&
     c.max.y > y + .03 && c.min.y < y + SUPPLY_RELEASE_HEIGHT + SUPPLY_CANOPY_HEIGHT)) return false;
   let approaches = 0;

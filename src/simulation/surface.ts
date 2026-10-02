@@ -25,6 +25,13 @@ export function terrainSurface(x: number, z: number): Surface {
 // The face of an axis-aligned box that a ray entering at `point` crossed.
 function boxNormal(point: Vec3, c: Collider, d: Vec3): Vec3 {
   let best = Infinity, normal: Vec3 = { x: 0, y: 1, z: 0 };
+  if (c.hull) {
+    for (const [x, y, z, distance] of c.hull) {
+      const gap = Math.abs(point.x * x + point.y * y + point.z * z - distance);
+      if (gap < best && x * d.x + y * d.y + z * d.z <= 0) { best = gap; normal = { x, y, z }; }
+    }
+    return normal;
+  }
   for (const axis of ['x', 'y', 'z'] as const) {
     for (const [plane, sign] of [[c.min[axis], -1], [c.max[axis], 1]] as const) {
       const gap = Math.abs(point[axis] - plane);

@@ -1,0 +1,64 @@
+{
+  "fight-low-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "reload-kill-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "death-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "scope-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "victory-1280x720": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "actionFaults": []
+  },
+  "fight-low-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "reload-kill-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "death-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "scope-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false
+  },
+  "victory-1470x956": {
+    "smallText": [],
+    "clippedWeapons": [],
+    "panelOverflow": [],
+    "horizontalOverflow": false,
+    "actionFaults": []
+  }
+}

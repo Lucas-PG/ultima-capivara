@@ -1,0 +1,20 @@
+{
+ "death-storm-1280x720": 9.4,
+ "death-fall-1280x720": 8.87,
+ "late-join-1280x720": 12.91,
+ "respawn-ready-1280x720": 11.64,
+ "pickup-weapon-1280x720": 13.19,
+ "pickup-gear-1280x720": 13.22,
+ "empty-ammo-1280x720": 11.61,
+ "no-reserve-1280x720": 11.7,
+ "toast-error-1280x720": 12.87,
+ "death-storm-1470x956": 7.1,
+ "death-fall-1470x956": 6.65,
+ "late-join-1470x956": 9.66,
+ "respawn-ready-1470x956": 8.76,
+ "pickup-weapon-1470x956": 9.98,
+ "pickup-gear-1470x956": 10,
+ "empty-ammo-1470x956": 8.79,
+ "no-reserve-1470x956": 8.87,
+ "toast-error-1470x956": 9.78
+}

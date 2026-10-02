@@ -1,0 +1,19 @@
+{
+  "quiet": {
+    "window": "2026-10-02 13:18 to 13:26:40 America/Sao_Paulo",
+    "state": "No own browser, preview, tests or build jobs active; initial capacity restart ended the prior run.",
+    "allClear": "2026-10-02 13:26:40 America/Sao_Paulo"
+  },
+  "peerCapture": {
+    "previewPid": 128845,
+    "signalingPid": 128947,
+    "driverPid": 128967,
+    "chromePid": 129005,
+    "ports": [
+      5197,
+      9017
+    ],
+    "end": "2026-10-02T16:28:10.242Z",
+    "shutdown": "Chrome and driver exited normally; preview and signaling received SIGINT; ps -p confirmed all four PIDs absent."
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "sourceRevision": "dc81f23f07e0f3acdd407471a299a0c5cbb6b396",
+  "note": "These three failures were reproduced by the strengthened content checker before the compact follow-up. Main baseline images are separately labelled before.",
+  "cases": {
+    "watch-390x844": {
+      "smallText": [],
+      "clippedWeapons": [],
+      "panelOverflow": [],
+      "horizontalOverflow": false,
+      "contentFaults": [
+        "#specBar .sp-card: content scrolls sideways",
+        "spWeapon leaves #specBar .sp-card",
+        "sp-kills leaves #specBar .sp-card"
+      ]
+    },
+    "empty-ammo-390x844": {
+      "smallText": [],
+      "clippedWeapons": [],
+      "panelOverflow": [],
+      "horizontalOverflow": false,
+      "contentFaults": [
+        "reload overlaps ammo"
+      ]
+    },
+    "kill-long-name-390x844": {
+      "smallText": [],
+      "clippedWeapons": [],
+      "panelOverflow": [],
+      "horizontalOverflow": false,
+      "contentFaults": [
+        "killConfirm overlaps bagTag"
+      ]
+    }
+  }
+}

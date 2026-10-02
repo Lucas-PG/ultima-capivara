@@ -2,6 +2,23 @@
 
 All models are original project geometry built from Blender scripts in `tools/blender/`; no third-party model, texture or animation is incorporated.
 
+## Avião e paraquedas (2 October 2026)
+
+`aircraft/aircraft.glb` is original geometry, lettering, colors and hardware authored
+in `tools/blender/aircraft.py`, built in Blender 5.0.1 and compressed with
+`tools/blender/build-aircraft.mjs` (glTF Transform and Meshopt). The island aircraft
+and nine-cell parachute have three LODs, two source materials and no image textures.
+The compressed asset is 286,040 bytes, or 124,312 bytes with gzip level 9.
+No image generator or external model, texture, font file or animation was used.
+Lettering uses Blender's built-in Bfont converted to mesh.
+
+Research images were viewed locally for direction only: Fortnite Battle Bus and
+glider, Apex dropship, PUBG transport plane, a Twin Otter photograph and a
+parachute line diagram. Sources and what was actually viewed are recorded in
+`docs/overhaul/codex-plane-report.md`; private copies remain outside this repository.
+The original procedural comparison in `tools/qa/aircraft-baseline.ts` is copied
+from this project's `b721224`, for QA only, and is not imported by the game.
+
 ## Overhaul (2026-09-28 to 2026-10-01)
 
 - `fp/fp-arms.glb`: first-person capybara arms (`fp_arms.py`, packed by `build-fp.mjs`): the world character's paw (`capy_hand.py`) at 1 / 1.3 with its forearm and rolled cuff, baked albedo, normal and ORM maps, 32 bones for IK and digit curls.

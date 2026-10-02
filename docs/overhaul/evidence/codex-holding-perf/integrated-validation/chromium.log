@@ -1,0 +1,30 @@
+npm notice run ultima-capivara@2.0.0 npx
+npm notice run 'playwright' test --project=chromium
+
+Running 19 tests using 1 worker
+
+(node:140997) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/foliage-finite.e2e.spec.ts:4:1 › Foliage rim stays finite when normalized dot products round past either unit endpoint (169ms)
+  ✓   2 [chromium] › tests/hud.e2e.spec.ts:8:1 › Navigation, readable weapon cards and combat outcomes have distinct places (10.8s)
+  ✓   3 [chromium] › tests/hud.e2e.spec.ts:60:1 › Full-screen match panels clear combat feedback and preserve keyboard dismissal (8.2s)
+  ✓   4 [chromium] › tests/hud.e2e.spec.ts:94:1 › Colorblind hit shapes and calm combat feedback survive the match layout (8.0s)
+  ✓   5 [chromium] › tests/hud.e2e.spec.ts:114:1 › Compact notices preserve the active error and clear the equipment cards (9.5s)
+Game multiplayer evidence: {"guestId":"p-985bc700a9e2","rtt":"1 ms","recoveryMs":3375,"movementReplicationErrorLimitM":0.15,"interpolationDelayMs":156.03624945496742,"errors":[]}
+  ✓   6 [chromium] › tests/network-game.e2e.spec.ts:76:1 › two Corrente game contexts join, replicate movement and emotes, show RTT, and recover the same player (26.5s)
+  ✓   7 [chromium] › tests/network-game.e2e.spec.ts:220:1 › a silent room exposes the join timeout and its retry button recovers (12.7s)
+  ✓   8 [chromium] › tests/network-game.e2e.spec.ts:255:1 › a Correria guest selects, drops and picks back a gun through the host (14.1s)
+  ✓   9 [chromium] › tests/network-game.e2e.spec.ts:305:1 › a guest sees its own rounds on the input frame and the host confirms each one exactly once (16.4s)
+  -  10 [chromium] › tests/network-game.e2e.spec.ts:355:1 › a full Correria ends on both clients and the host starts a clean rematch
+  ✓  11 [chromium] › tests/network.e2e.spec.ts:7:1 › host and guest exchange lobby, gameplay, recovery, and close over local PeerJS (1.4s)
+  ✓  12 [chromium] › tests/results.e2e.spec.ts:3:1 › Respawn-mode results count falls, not a time alive everyone shares, and never crown a survivor (8.7s)
+  ✓  13 [chromium] › tests/round-modes.e2e.spec.ts:10:49 › duel starts from the menu with the exact bot roster and round HUD (18.4s)
+  ✓  14 [chromium] › tests/round-modes.e2e.spec.ts:10:49 › squads starts from the menu with the exact bot roster and round HUD (27.2s)
+  ✓  15 [chromium] › tests/round-modes.e2e.spec.ts:50:1 › a real guest buys through the host and receives the same team score and next round (35.1s)
+  ✓  16 [chromium] › tests/scope.e2e.spec.ts:3:1 › Both scopes flash for local fire, keep the reticle and clear between shots (9.3s)
+  ✓  17 [chromium] › tests/settings.e2e.spec.ts:4:1 › Settings keeps keyboard access, saved values, remapping and calm controls (3.9s)
+  ✓  18 [chromium] › tests/settings.e2e.spec.ts:93:1 › Mouse rebinding swaps actions, cancels safely and persists the new actions (3.9s)
+  ✓  19 [chromium] › tests/settings.e2e.spec.ts:112:1 › The pause key list names every everyday action, follows a rebinding and stays readable (8.4s)
+
+  1 skipped
+  18 passed (3.7m)

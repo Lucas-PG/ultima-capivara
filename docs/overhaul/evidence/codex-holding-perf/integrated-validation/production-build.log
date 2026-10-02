@@ -1,0 +1,32 @@
+npm notice run ultima-capivara@2.0.0 build
+npm notice run tsc --noEmit && vite build
+vite v8.3.1 building client environment for production...
+transforming...
+✓ 213 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                  1.44 kB │ gzip:   0.83 kB
+dist/licenses/dependencies.md                                   10.60 kB
+dist/assets/dela-gothic-one-latin-400-normal-AgyGD05y.woff2     13.80 kB
+dist/assets/dela-gothic-one-latin-400-normal-qxqiosUh.woff      17.44 kB
+dist/assets/mochiy-pop-one-latin-400-normal-B-XEkQuZ.woff2      18.28 kB
+dist/assets/mochiy-pop-one-latin-400-normal-D7_dByCQ.woff       22.78 kB
+dist/assets/bake.worker-DBJdYsaq.js                             44.66 kB
+dist/assets/basis_transcoder-o4Hde_L7.js                        57.52 kB
+dist/assets/host.worker-2vigtYW5.js                            359.40 kB
+dist/assets/basis_transcoder-VXdx5NbI.wasm                     527.33 kB │ gzip: 248.94 kB
+dist/assets/renderer-mSWzhl9J.css                                0.23 kB │ gzip:   0.17 kB
+dist/assets/index-CxLoDp9o.css                                 181.34 kB │ gzip:  37.18 kB
+dist/assets/thumbnails-Ds1Tqa4e.js                               2.09 kB │ gzip:   1.16 kB │ map:     7.93 kB
+dist/assets/FBXLoader-DwWAlHBW.js                               49.94 kB │ gzip:  16.62 kB │ map:   312.96 kB
+dist/assets/three-engine-D0WbOjqP.js                           650.76 kB │ gzip: 164.15 kB │ map: 3,003.86 kB
+dist/assets/renderer-CjDaSUjd.js                               735.39 kB │ gzip: 273.03 kB │ map: 2,116.28 kB
+dist/assets/index-C4RS5lnf.js                                  738.05 kB │ gzip: 224.41 kB │ map: 1,682.19 kB
+dist/assets/item-geometry-BPI_HdNU.js                        2,797.43 kB │ gzip: 643.62 kB │ map: 8,503.26 kB
+
+✓ built in 900ms
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 900 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

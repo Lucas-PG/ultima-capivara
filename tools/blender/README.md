@@ -1,5 +1,35 @@
 # Capivara asset pipeline
 
+## Aircraft and parachute (2 October 2026)
+
+```sh
+BLENDER_BIN="$HOME/blender/blender-5.0.1-linux-x64/blender" BLENDER_THREADS=4 node tools/blender/build-aircraft.mjs
+```
+
+`aircraft.py` authors the hollow island aircraft, cockpit, seats, propellers and
+nine-cell canopy with lines and risers. Game coordinates are metres, +Y up and
+-Z forward. Meshopt compresses the three LODs into `public/models/aircraft/aircraft.glb`.
+`metrics.json` records decoded bounds, triangles, download size and attachment points.
+No texture bake is needed: original vertex colors share two source materials.
+Plane budgets are 42k / 18k / 7k triangles and canopy budgets 6.5k / 3.5k / 1.8k;
+the build rejects a file above 1 MiB raw or 450 KiB gzip. Actual costs are in metrics.
+
+The renderer includes the asset in progress, awaits `preloadAircraftAsset` before
+avatars and GPU upload, and calls `disposeAircraftAssets` on teardown. A failure
+stays in the existing loading error flow. The stable direct `propeller` groups
+retain the existing spin. No movement, camera or authoritative timing changes.
+Each avatar owns its canopy resources to match the existing disposal contract.
+Do not bake a decoded world transform into normalized integer position buffers;
+keep it on the cloned mesh, or Meshopt positions clamp and collapse the shape.
+
+With Vite running, `tools/blender/aircraft-review.html` shows the real world lighting
+and post pipeline. `?version=before` uses this project's procedural `b721224` art.
+`node tools/qa/aircraft-evidence.mjs` saves native 1470x956 comparisons;
+`node tools/qa/aircraft-live.mjs` checks real BR plane/drop cameras in a QA build;
+`node tools/qa/aircraft-cost.mjs` measures warmed, alternating old/new frame costs
+at DPR 2 with 4x CPU throttling. Each script defaults to `http://127.0.0.1:5198`,
+accepts `BASE`, owns one Chrome process, and closes it on completion.
+
 ## Character v6 (current)
 
 `npm run assets:characters` (or `tools/blender/wait-for-blender.sh && node tools/blender/build-characters.mjs`;

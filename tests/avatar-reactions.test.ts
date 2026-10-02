@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'meshoptimizer';
 import { AvatarView } from '../src/render/avatars';
-import { capybaraIsDead, disposeCapybaraAssets, preloadCapybaraAsset, tpGripOffset } from '../src/render/capybara';
+import { disposeAircraftAssets, makePlane, preloadAircraftAsset } from '../src/render/aircraft';
+import { loadAircraftFixture } from './helpers/aircraft-fixture';
+import { capybaraIsDead, disposeCapybaraAssets, preloadCapybaraAsset } from '../src/render/capybara';
 import { emptyInput } from '../src/shared/math';
 import type { ActorState, RenderFrame, WorldSnapshot } from '../src/shared/types';
 
@@ -16,10 +18,11 @@ beforeEach(async () => {
   vi.stubGlobal('createImageBitmap', async () => ({ width: 16, height: 16, close() {} }));
   const bytes = await readFile('public/models/capybara/capybara.glb');
   await preloadCapybaraAsset(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), ''));
+  await preloadAircraftAsset(loadAircraftFixture, makePlane());
   camera = new THREE.PerspectiveCamera(); camera.position.set(0, 1.6, 5); camera.lookAt(0, 1.6, 0);
   view = new AvatarView(new THREE.Scene(), camera); view.resize(1280, 720);
 });
-afterEach(() => { view?.dispose(); disposeCapybaraAssets(); vi.unstubAllGlobals(); });
+afterEach(() => { view?.dispose(); disposeCapybaraAssets(); disposeAircraftAssets(); vi.unstubAllGlobals(); });
 
 function harness() {
   const actor = { id: 'target', name: 'Capivara', color: '#1fb5a8', pos: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 },
@@ -49,10 +52,9 @@ describe('authoritative character reactions', () => {
       const duration = WEAPONS[id].reload;
       h.actor.reloadUntil = 10 + duration;
       const keys = id === 'pistol' ? pistolReload(true) : smgReload(true);
-      // The world paw is its own larger hand: its wrist sits a fixed offset from the grip wrist.
-      const { VIEW_SPECS } = await import('../src/render/viewmodel-specs');
-      const key = keys.find(k => k.L?.space === 'part' && k.L.part === 'mag' && k.mag?.out === 0)!.L!, rest = VIEW_SPECS[id].grips.L!;
-      const contact = new THREE.Vector3().fromArray(key.wrist!).add(tpGripOffset(key.forward ?? rest.forward, key.palm ?? rest.palm)).toArray();
+      // At matched paw/weapon scales, the fitted part-space wrist is shared exactly.
+      const key = keys.find(k => k.L?.space === 'part' && k.L.part === 'mag' && k.mag?.out === 0)!.L!;
+      const contact = key.wrist!;
       for (const phase of id === 'pistol' ? [.42, .55, .67] : [.17, .29, .57, .68]) {
         h.snapshot.time = 10 + phase * duration; view.update(h.frame, 0, h.snapshot.time); h.visual.group.updateMatrixWorld(true);
         const mag = h.visual.weapon.getObjectByName(`${id}_mag`)!;
@@ -112,7 +114,7 @@ describe('authoritative character reactions', () => {
       windHeights.push(new THREE.Vector3(0, 0, -.45).applyMatrix4(weapon.matrixWorld).y);
       h.advance(.10); weapon.updateWorldMatrix(true, true);
       const grip = VIEW_SPECS.machete.grips.R;
-      const contact = new THREE.Vector3().fromArray(grip.wrist).add(tpGripOffset(grip.forward, grip.palm)).applyMatrix4(weapon.matrixWorld);
+      const contact = new THREE.Vector3().fromArray(grip.wrist).applyMatrix4(weapon.matrixWorld);
       expect(right.getWorldPosition(new THREE.Vector3()).distanceTo(contact)).toBeLessThan(.015);
       expect(left.getWorldPosition(new THREE.Vector3()).distanceTo(free)).toBeLessThan(.015);
       expect(weapon.getWorldPosition(new THREE.Vector3()).distanceTo(start)).toBeGreaterThan(.07);
@@ -133,7 +135,7 @@ describe('authoritative character reactions', () => {
       h.snapshot.time = 1 + phase * 2.5;
       view.update(h.frame, 0, h.snapshot.time);
       h.visual.group.updateMatrixWorld(true);
-      const expected = new THREE.Vector3().fromArray(M4_MAG_HAND.wrist!).add(tpGripOffset(M4_MAG_HAND.forward!, M4_MAG_HAND.palm!)).applyMatrix4(mag.matrixWorld);
+      const expected = new THREE.Vector3().fromArray(M4_MAG_HAND.wrist!).applyMatrix4(mag.matrixWorld);
       const paw = h.visual.body.getObjectByName('paw_L')!.getWorldPosition(new THREE.Vector3());
       expect(paw.distanceTo(expected), `contact at ${phase}`).toBeLessThan(.008);
       expect(mag.visible).toBe(true);

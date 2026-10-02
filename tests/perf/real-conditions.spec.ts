@@ -18,7 +18,8 @@ const LIMITS: Record<Preset, { fps: number; p95: number; hitches: number } | nul
   high: null,
 };
 const SECONDS = process.env.QA_SMOKE ? 10 : 40;
-const thermal = () => { try { return Number(execFileSync('notifyutil', ['-g', 'com.apple.system.thermalpressurelevel']).toString().trim().split(/\s+/).pop()); } catch { return null; } };
+const thermal = () => { if (process.platform !== 'darwin') return null; try { return Number(execFileSync('notifyutil', ['-g', 'com.apple.system.thermalpressurelevel']).toString().trim().split(/\s+/).pop()); } catch { return null; } };
+const cpuThrottle = Number(process.env.CPU_THROTTLE || 1), pinDensity = process.env.PIN_DENSITY === '1';
 
 test('holds the frame rate at real play conditions on a Retina laptop', async ({ browser }) => {
   test.setTimeout(900_000);
@@ -33,8 +34,16 @@ test('holds the frame rate at real play conditions on a Retina laptop', async ({
       (window as unknown as { __rafTimes: unknown }).__rafTimes = { read: (from: number) => Array.from(times.subarray(from, count)), get count() { return count; } };
     }, preset);
     const page = await context.newPage();
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuThrottle });
     await page.goto('/?networkQa=1&calm', { waitUntil: 'domcontentloaded' });
     await page.locator('[data-do="practice"]').waitFor({ timeout: 120_000 });
+    if (pinDensity) {
+      await page.waitForFunction(() => !!(window as unknown as { __networkQA?: unknown }).__networkQA);
+      await page.evaluate(() => {
+        (window as unknown as { __networkQA: { pinPresetDensity(): void } }).__networkQA.pinPresetDensity();
+      });
+    }
     const menuMs = await page.evaluate(() => performance.now());
     await page.locator('[data-mode="deathmatch"]').click();
     const clickedAt = await page.evaluate(() => performance.now());
@@ -54,7 +63,7 @@ test('holds the frame rate at real play conditions on a Retina laptop', async ({
     await context.close();
     const intervals = sample.times.slice(1).map((t, i) => t - sample.times[i]), sorted = [...intervals].sort((a, b) => a - b);
     const elapsed = intervals.reduce((a, b) => a + b, 0) / 1000, worst = sorted.slice(Math.floor(sorted.length * .99));
-    const row = { preset, fps: +((sample.rendered - renderedBefore) / elapsed).toFixed(1), p50: +sorted[Math.floor(sorted.length * .5)].toFixed(1),
+    const row = { preset, cpuThrottle, pinDensity, fps: +((sample.rendered - renderedBefore) / elapsed).toFixed(1), p50: +sorted[Math.floor(sorted.length * .5)].toFixed(1),
       p95: +sorted[Math.floor(sorted.length * .95)].toFixed(1), low1: +(1000 / (worst.reduce((a, b) => a + b, 0) / worst.length)).toFixed(1),
       hitches: intervals.filter(n => n > 50).length, max: +sorted.at(-1)!.toFixed(1), density: sample.density, draws: sample.stats?.drawCalls,
       menuMs: Math.round(menuMs), firstFrameMs: Math.round(firstFrameMs), load: +loadavg()[0].toFixed(2), thermal: thermal() };

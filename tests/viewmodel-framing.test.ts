@@ -149,6 +149,9 @@ describe('every sampled state', () => {
     actor.velocity = { x: 0, y: 0, z: -4.5 }; run('walk', .6);
     actor.velocity = { x: -4.5, y: 0, z: 0 }; run('strafe', .5);
     actor.velocity = { x: 0, y: 0, z: 0 }; actor.crouch = true; run('crouch', .3); actor.crouch = false; step(.3);
+    actor.grounded = false; actor.velocity.y = 6; run('jump', .18, .06);
+    actor.velocity.y = -10; run('fall', .12, .06);
+    actor.grounded = true; actor.velocity.y = 0; run('land', .22, .055);
     if (id !== 'machete') { view.shot(id); run('fire', id === 'sniper' ? 1 : id === 'shotgun' ? .6 : .3, .05); }
     actor.sprint = true; actor.velocity = { x: 0, y: 0, z: -7 }; run('sprint', .6);
     actor.sprint = false; actor.velocity = { x: 0, y: 0, z: 0 }; step(.6);

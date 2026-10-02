@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
-import { VIEW_SPECS, SHOULDERS, framedGrips, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
-import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
+import { VIEW_SPECS, SHOULDERS, framedGrips, heldCurl, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
+import { newSample, sampleChoreo, handContact, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { WRIST_SOLVE } from './viewmodel-targets';
 import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS, LONG_INSPECTS } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
@@ -66,6 +66,8 @@ function applyRarityAccent(material: THREE.MeshStandardMaterial) {
 export class WeaponView {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(VIEWMODEL_FOV, 1, .01, 10);
+  /** Active carrying surfaces for geometry QA. Null means an authored free, approaching or releasing paw. */
+  readonly holdingContacts: { R: string | null; L: string | null; trigger: boolean } = { R: 'body', L: null, trigger: false };
   private readonly holder = new THREE.Group();
   private readonly key = new THREE.DirectionalLight(PAINT.sun, 3.1);
   private readonly rim = new THREE.DirectionalLight(PAINT.rim, .8);
@@ -77,6 +79,8 @@ export class WeaponView {
   private readonly models = {} as Record<WeaponId, Model>;
   private arms: ArmsRig | null = null;
   private active: WeaponId = 'pistol';
+  private carryIndex = 0;
+  private triggerPull = 0;
   private ads = 0;
   // Visual springs. Values are metres or radians in camera space.
   private readonly kickZ = new Spring(); private readonly kickPitch = new Spring(); private readonly kickRoll = new Spring(); private readonly kickYaw = new Spring();
@@ -170,7 +174,7 @@ export class WeaponView {
       curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3(0, -1, 0) });
     this.targetR = target(); this.targetL = target();
     // QA probe (tools/qa/grip-probe.mjs): measures paw-to-gun contact on the live rig.
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') {
       (globalThis as { __vmProbe?: WeaponView }).__vmProbe = this;
       // QA framing measure (tools/qa/vm-frame.mjs): screen positions, coverage, angles, near plane.
       void import('./viewmodel-frame').then(({ measureFrame, measureWrists, wristAngles }) => {
@@ -293,7 +297,7 @@ export class WeaponView {
   ejectWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].eject.getWorldPosition(target); }
 
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number, viewRotation?: THREE.Quaternion) {
-    if (import.meta.env.DEV && actor) {
+    if ((import.meta.env.DEV || import.meta.env.VITE_QA === '1') && actor) {
       // QA motion review: window.__vmActor(actor, time) returns state overrides (walk, strafe, crouch, jump).
       const patch = (globalThis as { __vmActor?: (actor: ActorState, time: number) => Partial<ActorState> | undefined }).__vmActor?.(actor, simulationTime);
       if (patch) actor = { ...actor, ...patch };
@@ -497,8 +501,13 @@ export class WeaponView {
     }
     this.rideR = rideR; this.rideL = rideL;
     this.tunedSpec = spec;
+    // The load-bearing palm does not move when the index withdraws for a lowered carry or reload.
+    const reloadIndex = reloading ? smoothPose(Math.max(0, Math.min(1, reload / .04, (1 - reload) / .04))) : 0;
+    this.carryIndex = weapon === 'machete' ? 0 : Math.max(sprint, lowered, reloadIndex);
+    this.triggerPull = this.shotLife > weaponShotDuration(weapon) * .5 ? 1 : 0;
+    this.holdingContacts.trigger = weapon !== 'machete' && !reloading && !inspect && sprint < .001 && lowered < .001;
     this.solveArms(model, grips, choreo, sample ?? inspect, spec.freePaw);
-    if (import.meta.env.DEV) this.debugOrbit();
+    if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') this.debugOrbit();
   }
 
   // QA lab: window.__vmOrbit = { yaw, pitch, distance, target: [x, y, z] } views the rig from outside.
@@ -566,7 +575,7 @@ export class WeaponView {
     const cycle = this.shotLife > 0 ? Math.sin(Math.PI * THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1)) : 0;
     const locked = sample?.parts.slide ?? choreo?.slide ?? (model.id === 'pistol' && this.pistolEmpty ? 1 : 0);
     if (slide) slide.position.z += Math.max(cycle, locked) * .028;
-    if (trigger) trigger.rotation.x -= (this.shotLife > total * .5 ? .3 : 0);
+    if (trigger) trigger.rotation.x -= this.shotLife > total * .5 ? (model.id === 'pistol' || model.id === 'sniper' ? .1 : .3) : 0;
     if (hammer) hammer.rotation.x += cycle * -.6;
     const phase = this.shotLife > 0 ? THREE.MathUtils.clamp(1 - this.shotLife / total, 0, 1) : 1;
     const { cylinder, crane, rounds, pump, bolt, charge } = model.parts;
@@ -698,8 +707,17 @@ export class WeaponView {
   private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null, sample: ChoreoSample | null, free = model.spec.freePaw) {
     const arms = this.arms;
     if (!arms) return;
+    this.holdingContacts.R = handContact(sample?.R ?? null, 'body');
+    const supportSurface = model.id === 'pistol' || model.id === 'revolver' ? 'paw' : grips.L?.part ?? 'body';
+    this.holdingContacts.L = !grips.L || free || (model.spec.sprintFree && this.sprintPose > .001) ? null : handContact(sample?.L ?? null, supportSurface);
+    for (const side of ['R', 'L'] as const) {
+      const surface = this.holdingContacts[side];
+      if (surface && surface !== 'body' && surface !== 'paw' && model.parts[surface as keyof Parts]?.visible === false) this.holdingContacts[side] = null;
+    }
+    if (this.holdingContacts.R !== 'body') this.holdingContacts.trigger = false;
     this.holder.updateMatrixWorld(true);
     this.gripTarget(model, grips.R, this.targetR);
+    if (model.id !== 'machete') this.targetR.curl = heldCurl(grips.R, this.carryIndex, this.triggerPull);
     if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);
     // Riding shoulders carry their elbow direction too, so the whole arm moves as one piece.
     if (this.rideR > 0) this.targetR.pole.lerp(this.ridePole.copy(this.targetR.pole).applyQuaternion(this.rideTurn), this.rideR).normalize();
@@ -752,16 +770,24 @@ export class WeaponView {
   private readonly inspectSample: ChoreoSample = newSample();
   private readonly partOrigin = new THREE.Vector3();
 
-  private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget) {
+  private resolveHand(model: Model, grip: GripSpec, key: HandKey, out: HandTarget, indexedAmount = 0, triggerPull = 0) {
     if (key.space === 'grip') {
       const offset = key.offset;
       const clearGrip = offset ? { ...grip, wrist: [grip.wrist[0] + offset[0], grip.wrist[1] + offset[1], grip.wrist[2] + offset[2]] as V3 } : grip;
       this.gripTarget(model, clearGrip, out);
-      if (key.curl) out.curl = { ...grip.curl, ...key.curl };
+      out.curl = heldCurl(grip, indexedAmount, triggerPull);
+      if (key.curl) out.curl = { ...out.curl, ...key.curl, indexSpread: key.curl.indexSpread ?? (key.curl.index ? 0 : out.curl.indexSpread),
+        indexRoll: key.curl.indexRoll ?? (key.curl.index ? 0 : out.curl.indexRoll),
+        indexPad: key.curl.indexPad ?? (key.curl.index ? 1 : out.curl.indexPad) };
+      if (key.indexed) out.curl = heldCurl({ ...grip, curl: out.curl }, 1);
       if (key.pole) out.pole.fromArray(key.pole).normalize();
       return;
     }
-    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm, curl: { ...grip.curl, ...key.curl }, pole: key.pole ?? grip.pole };
+    const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm,
+      curl: { ...grip.curl, ...key.curl, indexSpread: key.curl?.indexSpread ?? (key.curl?.index ? 0 : grip.curl.indexSpread),
+        indexRoll: key.curl?.indexRoll ?? (key.curl?.index ? 0 : grip.curl.indexRoll),
+        indexPad: key.curl?.indexPad ?? (key.curl?.index ? 1 : grip.curl.indexPad) }, pole: key.pole ?? grip.pole };
+    if (key.indexed) spec.curl = heldCurl({ ...grip, curl: spec.curl }, 1);
     if (key.space === 'gun') { this.gripTarget(model, spec, out); return; }
     out.wrist.set(spec.wrist[0], spec.wrist[1], spec.wrist[2]);
     out.forward.set(spec.forward[0], spec.forward[1], spec.forward[2]).normalize();
@@ -787,7 +813,8 @@ export class WeaponView {
   }
 
   private blendHand(model: Model, grip: GripSpec, pair: { a: HandKey; b: HandKey; u: number }, out: HandTarget) {
-    this.resolveHand(model, grip, pair.a, this.handA); this.resolveHand(model, grip, pair.b, this.handB);
+    const indexed = out === this.targetR ? this.carryIndex : 0, pull = out === this.targetR ? this.triggerPull : 0;
+    this.resolveHand(model, grip, pair.a, this.handA, indexed, pull); this.resolveHand(model, grip, pair.b, this.handB, indexed, pull);
     const u = pair.u;
     out.wrist.copy(this.handA.wrist).lerp(this.handB.wrist, u);
     out.forward.copy(this.handA.forward).lerp(this.handB.forward, u).normalize();

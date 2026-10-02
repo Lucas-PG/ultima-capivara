@@ -3,6 +3,7 @@ import { buildingRole, buildingRooms, roomVariant } from '../src/shared/building
 import { clearSpawn } from '../src/shared/collision';
 import { KIT_PIECES, kitColliders } from '../src/shared/kit-collision';
 import { createWorld } from '../src/shared/world';
+import { boxOverlapsCollider } from './shape-overlap';
 import type { KitPlacement } from '../src/shared/types';
 
 const world = createWorld(), pieces = world.pieces!;
@@ -154,10 +155,9 @@ describe('lived-in rooms preserve ordinary access', () => {
       const c = Math.abs(Math.cos(picture.yaw)), s = Math.abs(Math.sin(picture.yaw));
       const hx = (c * definition.footprint[0] + s * definition.footprint[1]) * scale / 2;
       const hz = (s * definition.footprint[0] + c * definition.footprint[1]) * scale / 2;
-      const buried = world.colliders.filter(solid =>
-        Math.min(picture.x + hx, solid.max.x) - Math.max(picture.x - hx, solid.min.x) > .015 &&
-        Math.min(picture.y + definition.height * scale, solid.max.y) - Math.max(picture.y, solid.min.y) > .015 &&
-        Math.min(picture.z + hz, solid.max.z) - Math.max(picture.z - hz, solid.min.z) > .015);
+      const buried = world.colliders.filter(solid => boxOverlapsCollider(
+        { x: picture.x - hx, y: picture.y, z: picture.z - hz },
+        { x: picture.x + hx, y: picture.y + definition.height * scale, z: picture.z + hz }, solid));
       expect(buried.map(solid => solid.id), `${picture.id} is buried in a solid`).toEqual([]);
     }
   });

@@ -1,0 +1,436 @@
+{
+  "errors": [],
+  "checks": [
+    {
+      "name": "mode-selection-1920x1080",
+      "size": [
+        1920,
+        1080
+      ],
+      "boxes": []
+    },
+    {
+      "name": "mode-selection-1280x720",
+      "size": [
+        1280,
+        720
+      ],
+      "boxes": []
+    },
+    {
+      "name": "squads-room-options-1280x720",
+      "size": [
+        1280,
+        720
+      ],
+      "boxes": [
+        {
+          "element": "round-team-size",
+          "rect": [
+            599.359375,
+            610.34375,
+            606.40625,
+            55
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "squads-room-options-390x844",
+      "size": [
+        390,
+        844
+      ],
+      "boxes": [
+        {
+          "element": "round-team-size",
+          "rect": [
+            27.296875,
+            1725.484375,
+            335.40625,
+            55
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "duel-live-1920x1080",
+      "size": [
+        1920,
+        1080
+      ],
+      "mode": "duel",
+      "round": {
+        "number": 1,
+        "phase": "live",
+        "endsAt": 96.01666666666665,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": "smg"
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            748.8046875,
+            88.796875,
+            422.390625,
+            151.328125
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "duel-live-1280x720",
+      "size": [
+        1280,
+        720
+      ],
+      "mode": "duel",
+      "round": {
+        "number": 1,
+        "phase": "live",
+        "endsAt": 96.01666666666665,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": "smg"
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            488.9921875,
+            63.484375,
+            302.015625,
+            106.703125
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "duel-live-390x844",
+      "size": [
+        390,
+        844
+      ],
+      "mode": "duel",
+      "round": {
+        "number": 1,
+        "phase": "live",
+        "endsAt": 96.01666666666665,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": "smg"
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            72.3125,
+            235.9375,
+            245.375,
+            103.5
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "duel-live-844x390",
+      "size": [
+        844,
+        390
+      ],
+      "mode": "duel",
+      "round": {
+        "number": 1,
+        "phase": "live",
+        "endsAt": 96.01666666666665,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": "smg"
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            299.3125,
+            55.765625,
+            245.375,
+            96.53125
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "duel-result-1280x720",
+      "size": [
+        1280,
+        720
+      ],
+      "mode": "duel",
+      "round": {
+        "number": 5,
+        "phase": "over",
+        "endsAt": 39.68333333333259,
+        "score": [
+          5,
+          0
+        ],
+        "target": 5,
+        "winner": 0,
+        "weapon": "dmr"
+      },
+      "boxes": [
+        {
+          "element": "round-result",
+          "rect": [
+            573,
+            235.09375,
+            556,
+            68
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "squads-buy-1920x1080",
+      "size": [
+        1920,
+        1080
+      ],
+      "mode": "squads",
+      "round": {
+        "number": 1,
+        "phase": "buy",
+        "endsAt": 15,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": null
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            748.8046875,
+            88.796875,
+            422.390625,
+            154.9375
+          ],
+          "overflowX": false
+        },
+        {
+          "element": "round-shop",
+          "rect": [
+            520,
+            163.40625,
+            880,
+            753.1875
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "squads-buy-390x844",
+      "size": [
+        390,
+        844
+      ],
+      "mode": "squads",
+      "round": {
+        "number": 1,
+        "phase": "buy",
+        "endsAt": 15,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": null
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            72.3125,
+            235.9375,
+            245.375,
+            122.625
+          ],
+          "overflowX": false
+        },
+        {
+          "element": "round-shop",
+          "rect": [
+            17,
+            14,
+            356,
+            816
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "automatic-shop-close",
+      "locked": true,
+      "pointerLocked": true
+    },
+    {
+      "name": "squads-live-1920x1080",
+      "size": [
+        1920,
+        1080
+      ],
+      "mode": "squads",
+      "round": {
+        "number": 1,
+        "phase": "live",
+        "endsAt": 105.00000000000033,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": null
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            748.8046875,
+            88.796875,
+            422.390625,
+            154.9375
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "squads-live-1280x720",
+      "size": [
+        1280,
+        720
+      ],
+      "mode": "squads",
+      "round": {
+        "number": 1,
+        "phase": "live",
+        "endsAt": 105.00000000000033,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": null
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            488.9921875,
+            63.484375,
+            302.015625,
+            108.828125
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "squads-live-390x844",
+      "size": [
+        390,
+        844
+      ],
+      "mode": "squads",
+      "round": {
+        "number": 1,
+        "phase": "live",
+        "endsAt": 105.00000000000033,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": null
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            72.3125,
+            235.9375,
+            245.375,
+            105.625
+          ],
+          "overflowX": false
+        }
+      ]
+    },
+    {
+      "name": "squads-live-844x390",
+      "size": [
+        844,
+        390
+      ],
+      "mode": "squads",
+      "round": {
+        "number": 1,
+        "phase": "live",
+        "endsAt": 105.00000000000033,
+        "score": [
+          0,
+          0
+        ],
+        "target": 5,
+        "winner": null,
+        "weapon": null
+      },
+      "boxes": [
+        {
+          "element": "round-hud",
+          "rect": [
+            299.3125,
+            55.765625,
+            245.375,
+            98.65625
+          ],
+          "overflowX": false
+        }
+      ]
+    }
+  ]
+}

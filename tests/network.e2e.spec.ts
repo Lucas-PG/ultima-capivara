@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { ActorState } from '../src/shared/types';
 
-const url = 'http://127.0.0.1:5174/testfixtures/net.html';
+const url = `${process.env.BASE || 'http://127.0.0.1:5191'}/testfixtures/net.html`;
 const config = { mode: 'battle-royale', capacity: 2, bots: true, difficulty: 'normal', duration: 480 };
 
 test('host and guest exchange lobby, gameplay, recovery, and close over local PeerJS', async ({ browser }) => {

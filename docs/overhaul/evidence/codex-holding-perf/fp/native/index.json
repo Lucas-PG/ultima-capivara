@@ -1,0 +1,88 @@
+{
+ "pistol": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "fire",
+  "reload-b",
+  "draw"
+ ],
+ "revolver": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "fire",
+  "reload-b",
+  "key-reload-0.644000"
+ ],
+ "sniper": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "fire",
+  "reload-b",
+  "key-reload-1.210500"
+ ],
+ "m4": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "fire",
+  "reload-b"
+ ],
+ "smg": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "fire",
+  "reload-b"
+ ],
+ "shotgun": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "fire",
+  "reload-b",
+  "key-reload-0.385000"
+ ],
+ "dmr": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "fire",
+  "reload-b",
+  "key-reload-2.158000"
+ ],
+ "coco": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "fire",
+  "reload-b"
+ ],
+ "machete": [
+  "hip",
+  "aimed",
+  "sprint",
+  "side-right",
+  "side-left",
+  "reload-a",
+  "reload-b"
+ ]
+}

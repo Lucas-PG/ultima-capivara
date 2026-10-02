@@ -1,0 +1,1417 @@
+{
+  "method": "tools/qa/hud-tick.mjs unchanged, alternating production QA builds, 1470x956, Chrome, one browser, N=1000",
+  "beforeRevision": "6d82174",
+  "beforeHudRevision": "b721224",
+  "afterRevision": "6ea102b",
+  "throttleNote": "Null hardware throttle counters mean this Linux host does not expose these counters; no no-throttling claim is inferred.",
+  "results": [
+    {
+      "which": "before",
+      "round": 1,
+      "noMap": false,
+      "start": "2026-10-02T13:00:57.413Z",
+      "end": "2026-10-02T13:01:06.797Z",
+      "n": 1000,
+      "p50": 0.8,
+      "p95": 0.9,
+      "hostBefore": {
+        "loadavg": "0.62 3.81 4.57 1/673 42782",
+        "cpu0KHz": "1742662",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 30000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 50000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 29500
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 29250
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 27000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 19000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 35000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      },
+      "hostAfter": {
+        "loadavg": "0.68 3.71 4.53 1/685 43002",
+        "cpu0KHz": "3299407",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 28000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 30000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 48000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44625
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 32000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 35000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      }
+    },
+    {
+      "which": "after",
+      "round": 1,
+      "noMap": false,
+      "start": "2026-10-02T13:01:07.023Z",
+      "end": "2026-10-02T13:01:16.722Z",
+      "n": 1000,
+      "p50": 1.4,
+      "p95": 1.5,
+      "hostBefore": {
+        "loadavg": "0.68 3.71 4.53 2/685 43043",
+        "cpu0KHz": "1742662",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 48000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44500
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 32000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 35000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      },
+      "hostAfter": {
+        "loadavg": "0.89 3.66 4.51 1/682 43222",
+        "cpu0KHz": "4083785",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 48000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44375
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 31000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      }
+    },
+    {
+      "which": "before",
+      "round": 2,
+      "noMap": false,
+      "start": "2026-10-02T13:01:16.946Z",
+      "end": "2026-10-02T13:01:26.311Z",
+      "n": 1000,
+      "p50": 0.8,
+      "p95": 0.9,
+      "hostBefore": {
+        "loadavg": "0.89 3.66 4.51 1/682 43263",
+        "cpu0KHz": "3894638",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 48000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44125
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 29000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      },
+      "hostAfter": {
+        "loadavg": "0.91 3.57 4.47 1/683 43451",
+        "cpu0KHz": "4173084",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 49000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 45000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 32000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 45000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      }
+    },
+    {
+      "which": "after",
+      "round": 2,
+      "noMap": false,
+      "start": "2026-10-02T13:01:26.535Z",
+      "end": "2026-10-02T13:01:36.263Z",
+      "n": 1000,
+      "p50": 1.4,
+      "p95": 1.5,
+      "hostBefore": {
+        "loadavg": "0.91 3.57 4.47 1/684 43493",
+        "cpu0KHz": "1742662",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 48000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44750
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 29250
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 45000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      },
+      "hostAfter": {
+        "loadavg": "2.40 3.81 4.54 1/685 43733",
+        "cpu0KHz": "3386094",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 49000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44875
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 32750
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 45000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      }
+    },
+    {
+      "which": "before",
+      "round": 3,
+      "noMap": false,
+      "start": "2026-10-02T13:01:36.488Z",
+      "end": "2026-10-02T13:01:45.671Z",
+      "n": 1000,
+      "p50": 0.8,
+      "p95": 0.9,
+      "hostBefore": {
+        "loadavg": "2.40 3.81 4.54 1/685 43774",
+        "cpu0KHz": "3574512",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 48000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44750
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 28250
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      },
+      "hostAfter": {
+        "loadavg": "3.01 3.90 4.56 1/680 43952",
+        "cpu0KHz": "4187782",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 49000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44750
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 32250
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      }
+    },
+    {
+      "which": "after",
+      "round": 3,
+      "noMap": false,
+      "start": "2026-10-02T13:01:45.894Z",
+      "end": "2026-10-02T13:01:55.881Z",
+      "n": 1000,
+      "p50": 1.4,
+      "p95": 1.5,
+      "hostBefore": {
+        "loadavg": "3.01 3.90 4.56 1/680 43993",
+        "cpu0KHz": "4147357",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 50000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44500
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 29000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 37000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      },
+      "hostAfter": {
+        "loadavg": "2.70 3.80 4.52 1/685 44210",
+        "cpu0KHz": "3876775",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 50000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44250
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 32000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      }
+    },
+    {
+      "which": "before",
+      "round": 1,
+      "noMap": true,
+      "start": "2026-10-02T13:01:56.103Z",
+      "end": "2026-10-02T13:02:04.522Z",
+      "n": 1000,
+      "p50": 0,
+      "p95": 0.1,
+      "hostBefore": {
+        "loadavg": "2.70 3.80 4.52 2/686 44251",
+        "cpu0KHz": "3877115",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 48000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 44125
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 29500
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 44000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      },
+      "hostAfter": {
+        "loadavg": "4.11 4.06 4.59 1/685 44484",
+        "cpu0KHz": "4635701",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 50000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 45375
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 31750
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 45000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      }
+    },
+    {
+      "which": "after",
+      "round": 1,
+      "noMap": true,
+      "start": "2026-10-02T13:02:04.753Z",
+      "end": "2026-10-02T13:02:13.130Z",
+      "n": 1000,
+      "p50": 0,
+      "p95": 0.1,
+      "hostBefore": {
+        "loadavg": "4.11 4.06 4.59 1/685 44525",
+        "cpu0KHz": "1742662",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 29000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 31000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 48000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 45125
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 30000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 45000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      },
+      "hostAfter": {
+        "loadavg": "3.86 4.01 4.58 1/684 44702",
+        "cpu0KHz": "3409882",
+        "coreThrottles": null,
+        "packageThrottles": null,
+        "thermal": [
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "acpitz",
+            "label": null,
+            "milliC": 16800
+          },
+          {
+            "sensor": "nvme",
+            "label": "Composite",
+            "milliC": 30850
+          },
+          {
+            "sensor": "nvme",
+            "label": "Sensor 2",
+            "milliC": 49850
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "edge",
+            "milliC": 30000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "junction",
+            "milliC": 32000
+          },
+          {
+            "sensor": "amdgpu",
+            "label": "mem",
+            "milliC": 50000
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tctl",
+            "milliC": 45250
+          },
+          {
+            "sensor": "k10temp",
+            "label": "Tccd1",
+            "milliC": 31000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 25000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 45000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 20000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 36000
+          },
+          {
+            "sensor": "gigabyte_wmi",
+            "label": null,
+            "milliC": 34000
+          }
+        ]
+      }
+    }
+  ]
+}

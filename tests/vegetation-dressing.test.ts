@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildTemplates } from '../src/render/vegetation/templates';
+import { containsCollider } from '../src/shared/collider-shape';
 import { colliderGrid } from '../src/shared/collider-grid';
 import { KIT_PIECES } from '../src/shared/kit-collision';
 import { ROADS } from '../src/shared/layout';
@@ -15,7 +16,7 @@ const world = createWorld(), dressing = vegetationDressing(world), grid = collid
 const crowded = (foliage: CrownShape) => !!walkingSurfaces(world).inRoom(foliage) || world.spawns.some(spawn => [[0, 0], [.6, 0], [-.6, 0], [0, .6], [0, -.6]]
   .some(([dx, dz]) => { const span = foliageSpan(foliage, spawn.x + dx, spawn.z + dz); return !!span && span[0] < spawn.y + 2.2 && span[1] > spawn.y + .35; }));
 const inside = (x: number, y: number, z: number) => grid.query(x - .01, z - .01, x + .01, z + .01)
-  .some(c => x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z && y >= c.min.y && y <= c.max.y);
+  .some(c => containsCollider(c, { x, y, z }));
 
 describe('vegetation dressing', () => {
   it('is derived deterministically from the world, never from runtime state', () => {
