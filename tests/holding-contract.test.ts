@@ -2,6 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { blendCurl } from '../src/render/fp-arms';
 import { handContact } from '../src/render/viewmodel-choreo';
 import { heldCurl, VIEW_SPECS } from '../src/render/viewmodel-specs';
+// @ts-expect-error Standalone browser/Node QA probes deliberately have no TypeScript dependency.
+import { triggerInGuard } from '../tools/qa/trigger-guard.mjs';
+
+describe('trigger guard intent', () => {
+  it('rejects the original lateral contacts even when their surface gap was small', () => {
+    expect(triggerInGuard('shotgun', [29.203, -9.716, -1.912])).toBe(false);
+    expect(triggerInGuard('coco', [20.467, -13.934, -2.626])).toBe(false);
+    expect(triggerInGuard('pistol', [0, -12, -30])).toBe(true);
+    expect(triggerInGuard('pistol', [0, -60, -30])).toBe(false);
+  });
+  it('uses the same opening at world-character weapon scale', () => {
+    const point = [3, -14, -25];
+    expect(triggerInGuard('sniper', point)).toBe(true);
+    expect(triggerInGuard('sniper', point.map(v => v * 1.3), 1.3)).toBe(true);
+    expect(triggerInGuard('sniper', [20, -14, -25].map(v => v * 1.3), 1.3)).toBe(false);
+  });
+});
 
 describe('carrying contact intent', () => {
   it('requires contact while a paw follows the same moving magazine through a blend', () => {

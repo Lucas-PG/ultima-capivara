@@ -6,6 +6,7 @@ import { writeFile } from 'node:fs/promises';
 import { measureGrip } from './grip-measure.mjs';
 import { poseHoldingState } from './fp-state.mjs';
 import { HOLDING_WEAPONS, holdingStates } from './holding-states.mjs';
+import { triggerInGuard, TRIGGER_FACE } from './trigger-guard.mjs';
 const [out, list = HOLDING_WEAPONS.join(','), stepArg = '.05'] = process.argv.slice(2);
 if (!out) throw new Error('Give an output JSON path.');
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'gl-egl'}`] });
@@ -49,13 +50,14 @@ try {
       }
       if (weapon === 'pistol' || weapon === 'revolver') row.pair = (await page.evaluate(measureGrip, [weapon, 'L', true])).worst;
       if (pose.contacts?.trigger) {
-        const trigger = await page.evaluate(measureGrip, [weapon, 'R', false, { surface: 'trigger', bones: ['index2', 'index3'] }]);
-        row.trigger = { gap: trigger.worst, digits: trigger.digits, skin: trigger.summary };
+        const trigger = await page.evaluate(measureGrip, [weapon, 'R', false, TRIGGER_FACE]);
+        row.trigger = { gap: trigger.worst, insideGuard: triggerInGuard(weapon, trigger.digits.index?.tip), digits: trigger.digits, skin: trigger.summary };
       }
       row.failures = [];
       for (const key of ['R', 'L', 'pair']) if (row[key] !== undefined && row[key] < -.5) row.failures.push(`${key} penetrates ${row[key]} mm`);
       for (const [side, contact] of Object.entries(row.contacts)) if (contact.gap < -.5 || contact.gap > 1.5 || !Number.isFinite(contact.gap)) row.failures.push(`${side} ${contact.surface} contact ${contact.gap} mm`);
       if (row.trigger && (row.trigger.gap < -.5 || row.trigger.gap > 1.5 || !Number.isFinite(row.trigger.gap))) row.failures.push(`trigger contact ${row.trigger.gap} mm`);
+      if (row.trigger && !row.trigger.insideGuard) row.failures.push('trigger digit outside guard');
       failed += row.failures.length > 0 ? 1 : 0;
       rows.push(row);
     }

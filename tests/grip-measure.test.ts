@@ -20,7 +20,7 @@ function probe(point: [number, number, number], scale = 1) {
   const paw = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
   paw.name = 'arm_R'; paw.add(hand); holder.add(paw); paw.bind(new THREE.Skeleton([hand]));
   vi.stubGlobal('window', { __vmProbe: { scene, holder, arms: { meshes: [paw] }, models: { pistol: { group, muzzle } } } });
-  return { read: () => measureGrip(['pistol', 'R']), solid, group, scene, paw };
+  return { read: (options = {}) => measureGrip(['pistol', 'R', false, options]), solid, group, scene, paw };
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -57,5 +57,13 @@ describe('signed skin contact probe', () => {
     const fixture = probe([.02, 0, 0]);
     fixture.paw.skeleton.bones[0].position.x = -.0095;
     expect(fixture.read().worst).toBe(.5);
+  });
+
+  it('cannot count a lateral trigger touch as contact with its pulling face', () => {
+    const fixture = probe([.0105, 0, 0]);
+    expect(fixture.read().worst).toBe(.5);
+    expect(fixture.read({ normal: [0, 0, -1] }).worst).toBeCloseTo(10.012, 2);
+    expect(probe([0, 0, -.0105]).read({ normal: [0, 0, -1] }).worst).toBe(.5);
+    expect(probe([0, 0, -.0095]).read({ normal: [0, 0, -1] }).worst).toBe(-.5);
   });
 });

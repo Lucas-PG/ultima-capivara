@@ -62,8 +62,10 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
   const lo = new V3(Infinity, Infinity, Infinity), hi = new V3(-Infinity, -Infinity, -Infinity);
   for (const v of measured) { lo.min(v.p); hi.max(v.p); }
   lo.subScalar(.03); hi.addScalar(.03);
+  const desiredNormal = options.normal ? new V3(...options.normal).normalize() : null;
   const near = tris.filter(([a, b, c]) => Math.max(a.x, b.x, c.x) > lo.x && Math.min(a.x, b.x, c.x) < hi.x && Math.max(a.y, b.y, c.y) > lo.y &&
-    Math.min(a.y, b.y, c.y) < hi.y && Math.max(a.z, b.z, c.z) > lo.z && Math.min(a.z, b.z, c.z) < hi.z);
+    Math.min(a.y, b.y, c.y) < hi.y && Math.max(a.z, b.z, c.z) > lo.z && Math.min(a.z, b.z, c.z) < hi.z &&
+    (!desiredNormal || n.subVectors(b, a).cross(ac.subVectors(c, a)).normalize().dot(desiredNormal) >= (options.minNormalDot ?? .5)));
   // A median BVH keeps the full-vertex pass exact while avoiding a scan of
   // every weapon triangle for every skin vertex. Bounds only prune surfaces
   // farther than the closest triangle already found, including tie tolerance.
