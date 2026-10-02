@@ -1,0 +1,49 @@
+{
+  "baseline": "8111d38965e45b988d193e4beb9e42db15f7e0c4",
+  "date": "2026-10-02",
+  "units": "world millimetres",
+  "sampleCount": 52,
+  "wholeSkinFloor": -0.5,
+  "contactRange": [
+    -0.5,
+    1.5
+  ],
+  "weapons": {
+    "pistol": {
+      "samples": 2,
+      "beforeWholeMin": -18.199,
+      "afterWholeMin": null,
+      "failed": 0
+    },
+    "smg": {
+      "samples": 3,
+      "beforeWholeMin": -3.166,
+      "afterWholeMin": 0.661,
+      "failed": 0
+    },
+    "m4": {
+      "samples": 23,
+      "beforeWholeMin": -6.309,
+      "afterWholeMin": -0.071,
+      "failed": 0
+    },
+    "dmr": {
+      "samples": 11,
+      "beforeWholeMin": -9.655,
+      "afterWholeMin": 92.787,
+      "failed": 0
+    },
+    "sniper": {
+      "samples": 5,
+      "beforeWholeMin": -15.778,
+      "afterWholeMin": 16.373,
+      "failed": 0
+    },
+    "coco": {
+      "samples": 8,
+      "beforeWholeMin": -0.607,
+      "afterWholeMin": 0.041,
+      "failed": 0
+    }
+  }
+}

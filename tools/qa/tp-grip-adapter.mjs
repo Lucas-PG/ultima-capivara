@@ -1,7 +1,7 @@
 // Run inside the character review page. Exposes the actual posed world paw to
 // the same signed skin probe used for first person, without moving either mesh.
 export function installThirdPersonGripProbe(input) {
-  const { weaponId, triggerIndices } = typeof input === 'string' ? { weaponId: input } : input;
+  const { weaponId, triggerIndices, contactIndices } = typeof input === 'string' ? { weaponId: input } : input;
   const review = window.capyReview, { avatar, renderer } = review;
   const source = avatar.body.getObjectByName('Capybara_LOD0');
   if (!source?.isSkinnedMesh) throw new Error('Missing visible world-character skin');
@@ -80,10 +80,14 @@ export function installThirdPersonGripProbe(input) {
     const geometry = weapon.geometry.clone(); geometry.setIndex(triggerIndices);
     parts.trigger = { ...body, name: `${weaponId}_trigger`, geometry };
   }
+  for (const [name, indices] of Object.entries(contactIndices ?? {})) {
+    const geometry = weapon.geometry.clone(); geometry.setIndex(indices);
+    parts[name] = { ...body, name: `${weaponId}_${name}`, geometry, position: new V3(), quaternion: new Q() };
+  }
   const mag = weapon.getObjectByName(`${weaponId}_mag`); if (mag) parts.mag = mag;
   window.__vmProbe = { scene, holder: { matrixWorld: weapon.matrixWorld, position: weapon.position, quaternion: weapon.quaternion, scale: weapon.getWorldScale(new V3()) },
     arms: { meshes }, models: { [weaponId]: { group: weapon, muzzle, parts } } };
-  window.__tpProbeMeshes = [...meshes, ...(parts.trigger ? [parts.trigger] : [])];
+  window.__tpProbeMeshes = [...meshes, ...(parts.trigger ? [parts.trigger] : []), ...Object.keys(contactIndices ?? {}).map(name => parts[name])];
   return { vertices: Object.fromEntries(meshes.map(mesh => [mesh.name.at(-1), mesh.geometry.attributes.position.count])),
     scale: weapon.getWorldScale(new V3()).toArray(), weaponGeometry: weapon.geometry.name };
 }

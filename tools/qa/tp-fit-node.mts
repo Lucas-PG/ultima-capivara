@@ -8,7 +8,7 @@ import { AvatarView } from '../../src/render/avatars';
 import { preloadCapybaraAsset, disposeCapybaraAssets } from '../../src/render/capybara';
 import { WORLD_GRIPS } from '../../src/render/world-grips';
 import { isShortGun, shortReload } from '../../src/render/short-world-parts';
-import { m4Reload } from '../../src/render/viewmodel-anims';
+import { worldReload } from '../../src/render/world-reload';
 import { newSample, sampleChoreo, type HandKey } from '../../src/render/viewmodel-choreo';
 import { wristAngles } from '../../src/render/fp-arms';
 import { WEAPONS } from '../../src/shared/weapons';
@@ -17,6 +17,7 @@ import type { ActorState, RenderFrame, WeaponId, WorldSnapshot } from '../../src
 import { realGeometryAsset } from '../../tests/helpers/real-viewmodel';
 import { installThirdPersonGripProbe } from './tp-grip-adapter.mjs';
 import { worldTriggerIndices } from './world-trigger.mjs';
+import { worldContactIndices } from './world-contact.mjs';
 import { fitGrip } from './grip-fit-core.mjs';
 import { installGripSearch } from './grip-search.mjs';
 import { measureGrip } from './grip-measure.mjs';
@@ -38,8 +39,8 @@ try {
     for (const [side, path] of Object.entries(job.tuneFrom ?? {})) grips[side as 'R' | 'L'] = JSON.parse(await readFile(path as string, 'utf8')).final.grip;
     WORLD_GRIPS[weapon] = grips;
     const phase = job.reloadPhase as number | undefined, empty = job.empty !== false;
-    const keys = phase === undefined ? null : isShortGun(weapon) ? shortReload(weapon, empty) : weapon === 'm4' ? m4Reload(empty) : null;
-    if (phase !== undefined && (!keys || phase < 0 || phase >= 1 || job.intent.side !== 'L')) throw new Error('Reload fitting needs an authored L channel and phase in [0, 1)');
+    const keys = phase === undefined ? null : worldReload(weapon, empty);
+    if (phase !== undefined && (phase < 0 || phase >= 1 || job.intent.side !== 'L')) throw new Error('Reload fitting needs an authored L channel and phase in [0, 1)');
     const baseline = keys ? structuredClone(sampleChoreo(keys, phase!, newSample()).L) : null;
     const originalKeys = keys?.map(key => ({ key, L: key.L }));
     // This process alone replaces the support channel. All moving parts and
@@ -61,7 +62,8 @@ try {
     const avatar = avatars.get(actor.id)!;
     Object.assign(globalThis, { capyReview: { avatar, renderer: { scene } } });
     const indices = await worldTriggerIndices(weapon);
-    installThirdPersonGripProbe({ weaponId: weapon, triggerIndices: indices });
+    const contactIndices = job.bakedPart ? { [job.bakedPart]: await worldContactIndices(weapon, job.bakedPart) } : undefined;
+    installThirdPersonGripProbe({ weaponId: weapon, triggerIndices: indices, contactIndices });
     const vm = (globalThis as any).__vmProbe, model = vm.models[weapon];
     const source = avatar.body.getObjectByName('Capybara_LOD0') as THREE.SkinnedMesh;
     const arm = (side: 'R' | 'L') => ({ upper: { bone: avatar.body.getObjectByName(`arm_${side}`) },
@@ -73,7 +75,7 @@ try {
     // supplies a contact target; it does not change or render the weapon mesh.
     const trigger = model.parts.trigger;
     model.parts.body = avatar.weapon;
-    model.group = { traverse(callback: (o: unknown) => void) { avatar.weapon.traverse(callback); if (trigger) callback(trigger); },
+    model.group = { traverse(callback: (o: unknown) => void) { avatar.weapon.traverse(callback); if (trigger) callback(trigger); if (job.bakedPart) callback(model.parts[job.bakedPart]); },
       getObjectByName: avatar.weapon.getObjectByName.bind(avatar.weapon) };
     vm.solveArms = (_model: unknown, next: typeof grips) => {
       WORLD_GRIPS[weapon] = next;
@@ -141,7 +143,7 @@ try {
     const result = fitGrip([weapon, job.intent, start, job.evals ?? 1200]);
     // Reinstall the independent audit adapter after fitting, so part ancestry
     // and canonical regions match the browser evidence exactly.
-    installThirdPersonGripProbe({ weaponId: weapon, triggerIndices: indices });
+    installThirdPersonGripProbe({ weaponId: weapon, triggerIndices: indices, contactIndices });
     const side = job.intent.side, opposing = !job.intent.part && side === 'L' && (weapon === 'pistol' || weapon === 'revolver');
     const contactOptions = job.intent.part ? { surface: job.intent.part } : {};
     result.skin = measureGrip([weapon, side]);
