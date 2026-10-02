@@ -25,7 +25,11 @@ it('closes a cropped paw for containment while measuring only actual skin triang
   const read = () => measureGrip(['pistol', 'R', true]);
   expect(read().worst, 'uncapped winding misses a point inside the open wrist').toBe(10);
   geometry.userData.qaCloseContactBoundary = true;
+  const otherCrop = geometry.clone();
+  const sharedData = geometry.userData;
   const closed = read();
+  expect(geometry.userData).not.toBe(sharedData);
+  expect(otherCrop.userData.qaContactTriangleCount, 'closing one crop cannot mark another as already closed').toBeUndefined();
   expect(geometry.userData.qaContactTriangleCount).toBe(10);
   expect(geometry.index!.count).toBe(36);
   expect(closed.worst, 'closure restores real penetration').toBe(-10);
@@ -35,4 +39,8 @@ it('closes a cropped paw for containment while measuring only actual skin triang
   expect(outside.worst, 'outside the closed wrist is still outside').toBeCloseTo(10.012, 2);
   expect(outside.nearestSurfaceDistance, 'a 0.5 mm cap gap cannot invent skin contact').toBeCloseTo(10.012, 2);
   expect(geometry.index!.count, 'repeated reads do not add more caps').toBe(36);
+  const closeOther = (window as unknown as { __qaCloseContactBoundary: (geometry: THREE.BufferGeometry) => void }).__qaCloseContactBoundary;
+  closeOther(otherCrop);
+  expect(otherCrop.index!.count).toBe(36);
+  expect(otherCrop.userData.qaContactTriangleCount).toBe(10);
 });

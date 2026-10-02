@@ -11,6 +11,9 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
   // volume; appended cap triangles never count as rendered contact surfaces.
   const closeBoundary = window.__qaCloseContactBoundary ??= geometry => {
     if (!geometry.userData.qaCloseContactBoundary || geometry.userData.qaContactTriangleCount !== undefined) return;
+    // Three geometry clones can share this object with their rendered source.
+    // A cap count and topology cache must belong to this cropped mesh alone.
+    geometry.userData = { ...geometry.userData };
     const position = geometry.attributes.position, index = geometry.index;
     const count = index ? index.count : position.count;
     const triangles = Array.from({ length: count }, (_, i) => index ? index.getX(i) : i);
