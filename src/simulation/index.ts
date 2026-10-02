@@ -10,6 +10,7 @@ import { ARENA, ARENA_CENTER, inArena } from '../shared/layout';
 import { navigationWaypoint, onMainNetwork, walkableHeight, walkableSegment } from '../shared/navigation';
 import { BotBuildingRoutes } from './building-routes';
 import { colliderGrid, type ColliderGrid } from '../shared/collider-grid';
+import { colliderSpan, intersectsCollider, pushFromHull } from '../shared/collider-shape';
 import { advanceAds, coolShotHeat, CORRENTE_LADDER, damageFalloff, HANDLING, shotHeatGain, shotSpread, WEAPONS } from '../shared/weapons';
 import { resolveImpact, type Impact } from './surface';
 import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
@@ -587,7 +588,12 @@ export class Simulation {
     if (s.stage === 'falling' && s.pos.y - terrainHeight(s.pos.x, s.pos.z) < 55) s.stage = 'parachute';
     let ground = terrainHeight(s.pos.x, s.pos.z);
     for (const collider of this.grid.query(s.pos.x - .32, s.pos.z - .32, s.pos.x + .32, s.pos.z + .32)) {
-      if (overlapsFootprint(s.pos, collider) && previousY >= collider.max.y && s.pos.y <= collider.max.y) ground = Math.max(ground, collider.max.y);
+      if (collider.hull) {
+        const span = colliderSpan(collider, s.pos.x, s.pos.z, .32);
+        if (!span) continue;
+        if (previousY >= span[1] && s.pos.y <= span[1]) ground = Math.max(ground, span[1]);
+        else if (previousY < span[1]) pushFromHull(collider, s.pos, 1.8, .32);
+      } else if (overlapsFootprint(s.pos, collider) && previousY >= collider.max.y && s.pos.y <= collider.max.y) ground = Math.max(ground, collider.max.y);
     }
     const water = waterAt(s.pos.x, s.pos.z);
     if (water && ground <= water.surfaceY - SWIM_DEPTH && s.pos.y <= water.surfaceY - SWIM_DRAFT) {
@@ -741,7 +747,7 @@ export class Simulation {
       const a = heading + turn, x = chest.x + Math.sin(a) * 1.25 + Math.cos(a) * side, z = chest.z + Math.cos(a) * 1.25 - Math.sin(a) * side;
       const y = dry ? terrainHeight(x, z) : Math.max(terrainHeight(x, z), chest.y);
       if (dry && (waterAt(x, z) || !walkableSegment(this.world, chest, { x, z }))) continue;
-      const blocked = this.grid.query(x - .22, z - .22, x + .22, z + .22).some(c => x > c.min.x - .22 && x < c.max.x + .22 && z > c.min.z - .22 && z < c.max.z + .22 &&
+      const blocked = this.grid.query(x - .22, z - .22, x + .22, z + .22).some(c => c.hull ? intersectsCollider(c, { x, y: y + .05, z }, .95, .22) : x > c.min.x - .22 && x < c.max.x + .22 && z > c.min.z - .22 && z < c.max.z + .22 &&
         c.max.y > y + .05 && c.min.y < y + 1);
       if (!blocked && hasLineOfSight(from, { x, y: y + .3, z }, this.world)) return { x, y, z };
     }
@@ -1146,13 +1152,16 @@ export class Simulation {
 
   // Something overhead within `margin` metres (a roof or an upper floor).
   private roofed(x: number, y: number, z: number, margin = 0) {
-    return this.grid.near(x - margin, z - margin, x + margin, z + margin).some(c => x > c.min.x - margin && x < c.max.x + margin &&
+    return this.grid.near(x - margin, z - margin, x + margin, z + margin).some(c => c.hull ? (colliderSpan(c, x, z, margin)?.[0] ?? -Infinity) > y + 1 : x > c.min.x - margin && x < c.max.x + margin &&
       z > c.min.z - margin && z < c.max.z + margin && c.min.y > y + 1);
   }
   // Standing height at (x, z) for someone at height `top`: terrain or the highest collider top within a step.
   private standAt(x: number, z: number, top: number) {
     let ground = terrainHeight(x, z);
-    for (const c of this.grid.near(x, z, x, z)) if (x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z && c.max.y <= top + .45) ground = Math.max(ground, c.max.y);
+    for (const c of this.grid.near(x, z, x, z)) {
+      const span = colliderSpan(c, x, z);
+      if (span && span[1] <= top + .45) ground = Math.max(ground, span[1]);
+    }
     return ground;
   }
   // A bot stranded on a roof or wall top walks to the nearest point where the ground drops away.
@@ -1176,7 +1185,8 @@ export class Simulation {
   }
 
   private pointBlocked(x: number, y: number, z: number) {
-    return this.grid.near(x - .8, z - .8, x + .8, z + .8).some(c => x > c.min.x - .35 && x < c.max.x + .35 && z > c.min.z - .35 && z < c.max.z + .35 && y + .6 > c.min.y && y + .3 < c.max.y);
+    return this.grid.near(x - .8, z - .8, x + .8, z + .8).some(c => c.hull ? intersectsCollider(c, { x, y: y + .3, z }, .3, .35) :
+      x > c.min.x - .35 && x < c.max.x + .35 && z > c.min.z - .35 && z < c.max.z + .35 && y + .6 > c.min.y && y + .3 < c.max.y);
   }
   // Legacy safeCircle(): the storm's next circle (Correria uses the arena rectangle instead).
   private safeCircle() {

@@ -1,4 +1,5 @@
 import { terrainHeight } from './terrain';
+import { sweepCollider } from './collider-shape';
 import type { Collider, Vec3, WorldSpec } from './types';
 
 // Static world geometry is shared by movement, cameras, navigation and bots.
@@ -76,6 +77,11 @@ export class ColliderGrid {
         if (this.marks[index] === stamp) continue;
         this.marks[index] = stamp;
         const c = this.world.colliders[index];
+        if (c.hull) {
+          const hit = sweepCollider(c, o, d, best);
+          if (hit < best) { best = hit; bestIndex = index; }
+          continue;
+        }
         let low = 0, high = best;
         for (const axis of ['x', 'y', 'z'] as const) {
           const dd = d[axis], oo = o[axis];

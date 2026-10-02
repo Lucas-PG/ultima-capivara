@@ -1,4 +1,4 @@
-"""Fractured coastal stone. The collision boxes are inscribed in the same hulls.
+"""Fractured coastal stone. Runtime collision uses the same complete hulls.
 
 This source stays Blender-independent so Mapa can regenerate the exact manifest.
 """

@@ -5,6 +5,7 @@ import { damp } from '../shared/math';
 import { aimedFov, verticalFov } from '../settings';
 import { actorEye } from '../shared/collision';
 import { colliderGrid } from '../shared/collider-grid';
+import { pushLensFromHull, sweepCollider } from '../shared/collider-shape';
 import { capybaraHasClip } from './capybara';
 import { terrainHeight } from '../shared/terrain';
 import type { ActorState, RenderFrame, Settings, Vec3, WorldSpec } from '../shared/types';
@@ -108,7 +109,7 @@ export class CameraRig {
       reach.divideScalar(length);
       let allowed = length;
       for (const collider of colliderGrid(this.world).query(eye.x - 4, eye.z - 4, eye.x + 4, eye.z + 4)) {
-        const hit = segmentAabb(eye, reach, allowed, collider.min, collider.max);
+        const hit = collider.hull ? sweepCollider(collider, eye, reach, allowed) : segmentAabb(eye, reach, allowed, collider.min, collider.max);
         if (hit < allowed) allowed = Math.max(0, hit - .2);
       }
       position.copy(eye).addScaledVector(reach, allowed);
@@ -145,7 +146,7 @@ export class CameraRig {
       let allowed = length;
       for (const collider of colliderGrid(this.world).query(Math.min(look.x, end.x) - .2, Math.min(look.z, end.z) - .2,
         Math.max(look.x, end.x) + .2, Math.max(look.z, end.z) + .2)) {
-        const hit = segmentAabb(look, direction, allowed, collider.min, collider.max);
+        const hit = collider.hull ? sweepCollider(collider, look, direction, allowed) : segmentAabb(look, direction, allowed, collider.min, collider.max);
         if (hit < allowed) allowed = Math.max(0, hit - .2);
       }
       if (allowed > best) { best = allowed; position.copy(look).addScaledVector(direction, allowed); }
@@ -156,6 +157,20 @@ export class CameraRig {
   }
 
   update(frame: PresentationFrame, settings: Settings, elapsed: number, adsAmount: number) {
+    this.updatePose(frame, settings, elapsed, adsAmount);
+    // The drop chase, death camera and blends can cross stone without their
+    // target crossing it. Protect the lens after every ordinary camera pose.
+    if ((import.meta.env.DEV || import.meta.env.VITE_QA === '1') && (globalThis as { __camOverride?: number[] }).__camOverride) return;
+    for (let pass = 0; pass < 12; pass++) {
+      let pushed = false;
+      const position = this.camera.position;
+      for (const solid of colliderGrid(this.world).query(position.x - .18, position.z - .18, position.x + .18, position.z + .18))
+        if (solid.hull) pushed = pushLensFromHull(solid, position, .18) || pushed;
+      if (!pushed) break;
+    }
+  }
+
+  private updatePose(frame: PresentationFrame, settings: Settings, elapsed: number, adsAmount: number) {
     this.settings = settings; this.elapsed = elapsed; this.adsAmount = adsAmount;
     if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') {
       // QA: window.__camOverride = [x, y, z, targetX, targetY, targetZ, fov?] frames the world freely.
@@ -232,7 +247,7 @@ export class CameraRig {
           const leanDir = this.direction.set(Math.cos(yaw) * Math.sign(leanDistance), 0, -Math.sin(yaw) * Math.sign(leanDistance));
           let allowed = Math.abs(leanDistance);
           for (const collider of colliderGrid(this.world).query(target.x - 2, target.z - 2, target.x + 2, target.z + 2)) {
-            const hit = segmentAabb(target, leanDir, allowed, collider.min, collider.max);
+            const hit = collider.hull ? sweepCollider(collider, target, leanDir, allowed) : segmentAabb(target, leanDir, allowed, collider.min, collider.max);
             if (hit < allowed) allowed = Math.max(0, hit - .07);
           }
           target.addScaledVector(leanDir, allowed);
@@ -392,7 +407,7 @@ export class CameraRig {
     let nearest = 1.5;
     const { x, z } = this.camera.position;
     for (const collider of colliderGrid(this.world).query(x - 1.5, z - 1.5, x + 1.5, z + 1.5)) {
-      const d = segmentAabb(this.camera.position, dir, 1.5, collider.min, collider.max);
+      const d = collider.hull ? sweepCollider(collider, this.camera.position, dir, 1.5) : segmentAabb(this.camera.position, dir, 1.5, collider.min, collider.max);
       if (d >= 0 && d < nearest) nearest = d;
     }
     return THREE.MathUtils.clamp((1.1 - nearest) / 1.1, 0, 1);

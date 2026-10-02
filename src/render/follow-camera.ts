@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { colliderGrid } from '../shared/collider-grid';
+import { containsCollider, sweepCollider } from '../shared/collider-shape';
 import { terrainHeight } from '../shared/terrain';
 import type { Vec3, WorldSpec } from '../shared/types';
 import { crownReach, foliageAt, foliageSpan, plantCrown, type CrownShape } from '../shared/vegetation-crowns';
@@ -85,10 +86,9 @@ export function clearDistance(world: WorldSpec, origin: Vec3, dir: Vec3, length:
   for (const collider of colliderGrid(world).query(Math.min(origin.x, end.x) - pad, Math.min(origin.z, end.z) - pad,
     Math.max(origin.x, end.x) + pad, Math.max(origin.z, end.z) + pad)) {
     // A box the origin already sits in (a low roof over a crouching target) cannot block its own inside.
-    const inside = origin.x > collider.min.x && origin.x < collider.max.x && origin.y > collider.min.y && origin.y < collider.max.y &&
-      origin.z > collider.min.z && origin.z < collider.max.z;
-    if (inside) continue;
-    const hit = sweepBox(origin, dir, allowed, collider.min, collider.max, radius);
+    const inside = containsCollider(collider, origin);
+    if (inside && !collider.hull) continue;
+    const hit = collider.hull ? sweepCollider(collider, origin, dir, allowed, radius) : sweepBox(origin, dir, allowed, collider.min, collider.max, radius);
     if (hit < allowed) allowed = Math.max(0, hit);
   }
   // Terrain: march the segment and stop before the lens dips under a slope.

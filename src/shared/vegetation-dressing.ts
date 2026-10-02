@@ -1,4 +1,5 @@
 import { colliderGrid } from './collider-grid';
+import { dressingWorld } from './collider-shape';
 import { KIT_PIECES } from './kit-collision';
 import { isHousePiece, ROADS } from './layout';
 import { fbm, terrainColor, terrainHeight, WORLD_PALETTE } from './terrain';
@@ -90,6 +91,7 @@ export function vegetationDressing(world: WorldSpec): readonly DressingPlant[] {
 }
 
 function deriveDressing(world: WorldSpec): DressingPlant[] {
+  world = dressingWorld(world);
   const out: DressingPlant[] = [], grid = colliderGrid(world), pieces = world.pieces ?? [];
   const hash = (id: string, salt: number) => { let h = salt * 2654435761; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return plantHash(h >>> 0, salt); };
   const district = (x: number, z: number) => world.districts.find(d => Math.hypot(x - d.x, z - d.z) < d.radius)?.id;

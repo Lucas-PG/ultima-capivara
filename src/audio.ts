@@ -3,6 +3,7 @@ import { clamp } from './shared/math';
 import { terrainHeight } from './shared/terrain';
 import { waterAt } from './shared/water';
 import { colliderGrid } from './shared/collider-grid';
+import { colliderSpan } from './shared/collider-shape';
 import { hasLineOfSight } from './shared/collision';
 import { WEAPONS } from './shared/weapons';
 import { weaponShotDuration } from './shared/weapon-presentation';
@@ -609,6 +610,11 @@ export class SoundEngine {
     if (this.world) {
       let best: StepMaterial | null = null, top = -Infinity;
       for (const c of [...colliderGrid(this.world).query(pos.x - .05, pos.z - .05, pos.x + .05, pos.z + .05), ...(this.world.walkways || [])]) {
+        if (c.hull) {
+          const surface = colliderSpan(c, pos.x, pos.z, .32)?.[1];
+          if (surface !== undefined && surface <= pos.y + .15 && surface >= pos.y - .4 && surface > top) { top = surface; best = 'stone'; }
+          continue;
+        }
         if (pos.x < c.min.x || pos.x > c.max.x || pos.z < c.min.z || pos.z > c.max.z) continue;
         if (c.max.y > pos.y + .15 || c.max.y < pos.y - .4 || c.max.y <= top) continue;
         top = c.max.y; best = c.material === 'earth' ? 'dirt' : c.material;

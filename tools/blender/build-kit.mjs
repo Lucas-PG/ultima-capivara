@@ -6,6 +6,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, prune, meshopt } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
+import { fitRockCollision } from './fit-rock-collision.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const result = spawnSync(process.env.BLENDER_BIN || '/Applications/Blender.app/Contents/MacOS/Blender',
@@ -19,6 +20,7 @@ await document.transform(dedup(), prune({ keepLeaves: true }), meshopt({ encoder
 await mkdir(`${root}/public/models/kit`, { recursive: true });
 const path = `${root}/public/models/kit/kit.glb`;
 await io.write(path, document);
+await fitRockCollision(root);
 const report = JSON.parse(await readFile(`${root}/output/kit/blender-report.json`, 'utf8'));
 report.bytes = (await stat(path)).size;
 // Pages serves the GLB compressed; meshopt buffers are built to shrink again under gzip.

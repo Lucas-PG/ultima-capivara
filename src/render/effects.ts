@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { rarityOf } from '../shared/rarity';
 import { terrainHeight } from '../shared/terrain';
+import { colliderSpan } from '../shared/collider-shape';
 import { WATER_LEVEL } from '../shared/water';
 import { MELEE_CONTACT } from '../shared/weapon-presentation';
 import { WEAPONS } from '../shared/weapons';
@@ -168,7 +169,11 @@ export class EffectsView {
   groundAt(x: number, z: number, top: number) {
     let ground = terrainHeight(x, z);
     const list = this.grid.get((Math.floor(x / 4) + 512) * 1024 + Math.floor(z / 4) + 512);
-    if (list) for (const c of list) if (x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z && c.max.y <= top && c.max.y > ground) ground = c.max.y;
+    if (list) for (const c of list) {
+      const surface = c.hull ? colliderSpan(c, x, z)?.[1] :
+        x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z ? c.max.y : undefined;
+      if (surface !== undefined && surface <= top && surface > ground) ground = surface;
+    }
     return ground;
   }
 

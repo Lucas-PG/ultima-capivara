@@ -71,7 +71,10 @@ export interface ActorState {
   /** Rounds fired so far: the shooter's client predicts the next one's seeded spread from it. */
   shotSeq: number;
 }
-export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth'; pieceId?: string }
+export interface Collider { id: string; min: Vec3; max: Vec3; material: 'stone' | 'wood' | 'metal' | 'earth'; pieceId?: string;
+  /** Static convex stone faces, n dot point <= distance. The AABB is broad phase only. */
+  hull?: readonly (readonly [number, number, number, number])[];
+}
 export interface KitPlacement extends Vec3 {
   id: string; piece: string; yaw: number; scale?: number;
   paintVariant?: 0 | 1 | 2;
@@ -93,6 +96,8 @@ export interface MudBathSpec extends Vec3 { id: string; radius: number }
 export interface TrampolineSpec extends Vec3 { id: string; radius: number; impulse: number }
 export interface WorldSpec {
   version: string; size: number; colliders: Collider[]; objects: MapObject[];
+  /** Authored placement cores keep painted foliage and water dressing stable. */
+  dressingColliders?: Collider[];
   spawns: SpawnPoint[]; loot: LootSpawn[]; chests: ChestSpec[]; districts: District[];
   pieces?: KitPlacement[]; arenaBoundary?: string[]; walkways?: Collider[]; navigation?: NavigationGraph;
   buildingRoutes?: BuildingRoute[];

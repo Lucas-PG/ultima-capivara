@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { dressingWorld } from '../shared/collider-shape';
 import { damp } from '../shared/math';
 import { RARITY } from '../shared/rarity';
 import { WEAPONS } from '../shared/weapons';
@@ -71,6 +72,7 @@ export class LootView {
   private readonly chestLids: THREE.InstancedMesh;
   private readonly chestGlints: THREE.InstancedMesh;
   constructor(private readonly scene: THREE.Scene, world: WorldSpec) {
+    world = dressingWorld(world);
     this.beamCeilings = world.objects.filter(object => object.kind === 'roof' || object.detail?.startsWith('prop:house:'))
       .map(object => ({ x: object.pos.x, z: object.pos.z, y: object.pos.y + (object.kind === 'roof' ? 0 : 2.95),
         halfWidth: object.scale.x / 2, halfDepth: object.scale.z / 2 }));

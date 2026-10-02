@@ -2,6 +2,7 @@ import { inArena } from './layout';
 import { overlapsFootprint, SWIM_DEPTH, SWIM_DRAFT } from './collision';
 import { KIT_PIECES } from './kit-collision';
 import { colliderGrid } from './collider-grid';
+import { colliderSpan, intersectsCollider } from './collider-shape';
 import { terrainHeight } from './terrain';
 import { waterAt } from './water';
 import type { Collider, NavigationGraph, Vec3, WorldSpec } from './types';
@@ -17,8 +18,10 @@ export function walkableHeight(x: number, z: number, world: WorldSpec): number {
   const water = waterAt(x, z);
   if (water && water.depth >= SWIM_DEPTH) y = Math.max(y, water.surfaceY - SWIM_DRAFT);
   const ground = y;
-  for (const c of nearby(world, x, z, .32)) if (c.max.y <= ground + .45 && c.max.y > y && overlapsFootprint({ x, y, z }, c))
-    y = c.max.y;
+  for (const c of nearby(world, x, z, .32)) {
+    const top = c.hull ? colliderSpan(c, x, z, .32)?.[1] : c.max.y;
+    if (top !== undefined && top <= ground + .45 && top > y && overlapsFootprint({ x, y, z }, c)) y = top;
+  }
   for (const c of world.walkways ?? []) if (overlapsFootprint({ x, y, z }, c))
     y = Math.max(y, c.max.y);
   return y;
@@ -38,7 +41,9 @@ export function walkableSegment(world: WorldSpec, from: Pick<Vec3, 'x' | 'z'>, t
     if (i && Math.abs(y - previous) > Math.max(.45, distance / steps * .85)) return false;
     // A solid whose top is one legal step up (moveActor's 0.45 m) is climbed, not
     // a wall: the next tread of a stair in front of the feet does not block it.
-    if (nearby(world, x, z, .32).some(c => y < c.max.y - .01 && c.max.y - y > STEP_UP && y + 1.8 > c.min.y &&
+    if (nearby(world, x, z, .32).some(c => c.hull ?
+      intersectsCollider(c, { x, y, z }, 1.8, .319, .01) && (colliderSpan(c, x, z, .319)![1] - y > STEP_UP) :
+      y < c.max.y - .01 && c.max.y - y > STEP_UP && y + 1.8 > c.min.y &&
       Math.hypot(Math.max(c.min.x - x, 0, x - c.max.x), Math.max(c.min.z - z, 0, z - c.max.z)) < .319)) return false;
     previous = y;
   }

@@ -268,5 +268,7 @@ for name, piece in PIECES.items():
     report['pieces'].append(dict(id=name, triangles=lod_metrics, colliders=len(piece.colliders)))
     print('KIT_PIECE', name, lod_metrics, flush=True)
 write_metadata()
+from rock_collision import write_rock_collision
+write_rock_collision(PIECES, ROOT)
 bpy.ops.export_scene.gltf(filepath=str(OUT / 'kit.raw.glb'), export_format='GLB', export_animations=False, export_yup=True, export_extras=True, export_vertex_color='NAME', export_vertex_color_name='Color', export_cameras=False, export_lights=False)
 (OUT / 'blender-report.json').write_text(json.dumps(report, indent=2) + '\n')

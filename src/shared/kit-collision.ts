@@ -1,4 +1,5 @@
 import definitions from './kit-pieces.json';
+import rockHulls from './rock-hulls.json';
 import type { Collider, KitPlacement } from './types';
 
 interface ShapeBase { x: number; y: number; z: number; height: number; material?: Collider['material'] }
@@ -12,6 +13,7 @@ export interface KitTraversal {
 }
 export interface KitPiece {
   footprint: [number, number]; height: number; colliders: KitShape[];
+  collisionHulls?: { bounds: [[number, number, number], [number, number, number]]; planes: [number, number, number, number][]; bevel: number }[];
   interaction?: { surfaceY: number; radius: number };
   traversal?: KitTraversal;
   frontClearance?: number;
@@ -26,15 +28,30 @@ export type KitPlanting =
   | { type: 'pot'; x: number; y: number; z: number; radius: number; style: 'flower' | 'tall' }
   | { type: 'bush'; x: number; y: number; z: number; species: 'bougainvillea'; height: number };
 export const KIT_PIECES = definitions as unknown as Record<string, KitPiece>;
+for (const [id, hulls] of Object.entries(rockHulls)) KIT_PIECES[id].collisionHulls = hulls as KitPiece['collisionHulls'];
 
 // Existing movement uses axis-aligned boxes. Cardinal solids remain exact;
 // round or rotated solids use inscribed strips, never an enclosing empty box.
-export function kitColliders(instance: KitPlacement): Collider[] {
+export function kitColliders(instance: KitPlacement, sourceBoxes = false): Collider[] {
   const definition = KIT_PIECES[instance.piece];
   if (!definition) throw new Error(`Unknown kit piece: ${instance.piece}`);
   const scale = instance.scale ?? 1;
   if (!Number.isFinite(scale) || scale <= 0 || !Number.isFinite(instance.yaw)) throw new Error(`Invalid kit transform: ${instance.id}`);
   const cosine = Math.cos(instance.yaw), sine = Math.sin(instance.yaw), boxes: Collider[] = [];
+  if (definition.collisionHulls && !sourceBoxes) return definition.collisionHulls.map((shape, index) => {
+    const points = [0, 1].flatMap(x => [0, 1].flatMap(y => [0, 1].map(z => [shape.bounds[x][0], shape.bounds[y][1], shape.bounds[z][2]])));
+    const vertices = points.map(([x, y, z]) => ({
+      x: instance.x + (x * cosine + z * sine) * scale, y: instance.y + y * scale,
+      z: instance.z + (z * cosine - x * sine) * scale,
+    }));
+    const hull = shape.planes.map(([nx, ny, nz, distance]) => {
+      const x = nx * cosine + nz * sine, z = nz * cosine - nx * sine;
+      return [x, ny, z, distance * scale + x * instance.x + ny * instance.y + z * instance.z] as const;
+    });
+    return { id: `${instance.id}:hull:${index}`, pieceId: instance.id, material: 'stone' as const, hull,
+      min: { x: Math.min(...vertices.map(v => v.x)), y: Math.min(...vertices.map(v => v.y)), z: Math.min(...vertices.map(v => v.z)) },
+      max: { x: Math.max(...vertices.map(v => v.x)), y: Math.max(...vertices.map(v => v.y)), z: Math.max(...vertices.map(v => v.z)) } };
+  });
   definition.colliders.forEach((shape, index) => {
     const x = instance.x + (shape.x * cosine + shape.z * sine) * scale;
     const z = instance.z + (shape.z * cosine - shape.x * sine) * scale;
