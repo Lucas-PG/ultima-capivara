@@ -6,6 +6,7 @@ import { createToonMaterial } from './materials';
 import { kitInteriorLight, kitInteriorWindows, paintKitPlacement } from './kit-interior';
 import { releaseAfterUpload } from './memory';
 import { installKitStone } from './stone-detail';
+import { cacheStaticMatrices } from './static-matrices';
 
 export interface KitPlacement {
   piece: string; x: number; y: number; z: number; yaw: number; scale?: number;
@@ -203,6 +204,9 @@ export function createKit(scene: THREE.Scene | THREE.Group, assets: AssetLoader,
     }
     sourceGeometry.forEach(geometry => geometry.dispose());
     temporaryMaterials.forEach(material => material.dispose()); temporaryMaterials.clear();
+    // Assembled kit nodes keep fixed transforms; LOD updates only visibility.
+    // Cache their matrices instead of traversing every room on every world pass.
+    cacheStaticMatrices(root);
   }) : Promise.resolve();
   // Let the caller's readiness barrier report failure without an unhandled rejection.
   void ready.catch(() => {});
