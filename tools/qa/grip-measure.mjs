@@ -35,7 +35,8 @@ export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
     const bone = bones[best];
     if (bone === 'upper' || bone === 'fore' || (options.bones && !options.bones.includes(bone))) continue;
     if (options.region === 'palm') {
-      const rest = new V3().fromBufferAttribute(mesh.geometry.attributes.position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
+      const rest = mesh.bindPalmPosition ? mesh.bindPalmPosition(i, new V3()) :
+        new V3().fromBufferAttribute(mesh.geometry.attributes.position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
       if (bone !== 'hand' || rest.y >= -.006 || rest.z >= -.012) continue;
     }
     if (options.region === 'wrap' && !/^(index|middle|ring)[23]$/.test(bone)) continue;
