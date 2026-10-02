@@ -157,7 +157,8 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     for (let k = 0; k < 4; k++) { const wk = skinWeight.getComponent(i, k); if (wk > w) { w = wk; best = skinIndex.getComponent(i, k); } }
     const bone = bones[best];
     if (bone === 'upper' || bone === 'fore') continue;
-    const local = new V3().fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
+    const local = mesh.bindPalmPosition ? mesh.bindPalmPosition(i, new V3()) :
+      new V3().fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
     // The full distal forearm can cross a grip during magazine and catch work.
     if (i % stride) continue;
     verts.push({ i, bone, palm: bone === 'hand' && local.y < -.006 && local.z < -.012, p: new V3(), d: 0,
@@ -200,6 +201,11 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     if (intent.shoulders) { vm.shoulderR.fromArray(intent.shoulders.R); vm.shoulderL.fromArray(intent.shoulders.L); }
     vm.solveArms(model, { ...restGrips, [side]: asWeaponGrip(grip) }, null, null);
     vm.arms.group.updateMatrixWorld(true);
+    // A world-character mount can move slightly to preserve both arms' reach.
+    // Its triangles remain in the same weapon coordinates; posed skin must use
+    // the current rigid frame too, instead of the original world transform.
+    toGun.copy(reference.matrixWorld).invert();
+    skinToGun.copy(toGun).multiply(mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
     mesh.skeleton.update();
     const boneMatrices = mesh.skeleton.boneMatrices;
     const groups = {};
