@@ -19,6 +19,15 @@ describe('pistol moving contacts', () => {
     expect(row.failures).toEqual([]);
   });
 
+  for (const action of ['sprint', 'inspect']) {
+    it.each([.01, .02, .025, .03, .04, .05, .065, .075, .1, .125, .15])(
+      `${action} releases the support cup without crossing the carrying paw at %s seconds`, async t => {
+        const pose = fixture.pose('pistol', action, t);
+        const row = await holdingMetrics('pistol', { action, t }, pose, measureGrip);
+        expect(row.failures).toEqual([]);
+      });
+  }
+
   for (const action of ['reload', 'reload-partial']) {
     it.each([.025, .03, .035, .04, .05, .11, .135, .16, .2, .25, .28, .3, .32, .35, 1.125, 1.15, 1.175, 1.2, 1.35, 1.38, 1.4, 1.42, 1.46, 1.49, 1.68, 1.71, 1.745, 1.76])(
       `${action} keeps the carrying digits outside the moving magazine at %s seconds`, async t => {
