@@ -388,6 +388,8 @@ export class Simulation {
         const replace = [...this.actors.values()].reverse().find(a => a.state.bot || a.disconnectedAt === -Infinity);
         if (!replace) return;
         replacedTeam = replace.state.team;
+        // A replaced bot no longer exists to identify the team of its in-flight coconut.
+        for (let i = this.projectiles.length - 1; i >= 0; i--) if (this.projectiles[i].owner === replace.state.id) this.projectiles.splice(i, 1);
         this.actors.delete(replace.state.id);
       }
       if (this.actors.size >= max && !spectator) {

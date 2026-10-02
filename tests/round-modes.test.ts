@@ -199,7 +199,12 @@ describe('Round transport and real island starts', () => {
 
 it('replaces a practice bot with a guest who waits until the next round, preserving team size', () => {
   const { sim, runtime } = fixture('squads', true, 3); runtime.updateBot = () => {};
-  live(sim); sim.player(profile('guest'), 'join');
+  live(sim);
+  const ally = runtime.actors.get('bot-1').state, before = { hp: ally.hp, armor: ally.armor };
+  const at = { x: ally.pos.x, y: ally.pos.y + .6, z: ally.pos.z };
+  runtime.projectiles.push({ owner: 'bot-5', weapon: 'coco', origin: at, pos: { ...at }, velocity: { x: 0, y: 0, z: 0 }, life: 0 });
+  sim.player(profile('guest'), 'join'); advance(sim, .02);
+  expect({ hp: ally.hp, armor: ally.armor }).toEqual(before);
   const arrived = sim.snapshot();
   expect(arrived.actors).toHaveLength(6);
   expect(arrived.actors.filter(actor => actor.team === 1)).toHaveLength(3);
