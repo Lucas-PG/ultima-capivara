@@ -10,7 +10,7 @@ beforeAll(async () => { fixture = await holdingFixture(); }, 120_000);
 afterAll(() => fixture?.dispose());
 
 describe('revolver cylinder manipulation', () => {
-  for (const action of ['reload', 'reload-partial']) it.each([.12, .125, .130988, .132408, .13316, .135, .135624, .15, .17, .835, .838402, .839371, .839715, .84, .840441, .85, .865, .88])(
+  for (const action of ['reload', 'reload-partial']) it.each([.12, .125, .130988, .131333, .132408, .13316, .135, .135624, .13607, .15, .17, .835, .838249, .838402, .839371, .839715, .84, .840255, .840441, .85, .865, .88])(
     `${action} phase %s keeps the operating thumb on the drum`, async phase => {
       const state = { action, t: phase * 2.3 };
       const pose = fixture.pose('revolver', action, state.t);

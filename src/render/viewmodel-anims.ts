@@ -393,13 +393,16 @@ const REVOLVER_CYLINDER_HOLD: HandKey = { space: 'part', part: 'cylinder', follo
 // Nodes use cylinder swing; the reload keys invert its existing out/snap easing without changing the part track.
 const REVOLVER_CYLINDER_TRANSFER = [
   [.1, -.002, 0], [.2, -.004, 0], [.3, -.005, 0], [.4, -.0045, .0008], [.5, -.0047, .001],
-  [.525, -.00395, .0012, -.001], [.55, -.0032, .0014], [.575, -.0033, .0016], [.6, -.0046, .0018],
-  [.65, -.0046, .0013], [.675, -.0038, .00165], [.7, -.006, 0], [.8, -.0048, 0], [.9, -.003, 0],
-].map(([swing, x, y, z = 0]) => {
+  [.525, -.00395, .0012, -.001], [.5375, -.003375, .0011, -.0005], [.55, -.0032, .0014], [.575, -.0033, .0016], [.6, -.0046, .0018],
+  [.65, -.0046, .0013], [.675, -.0038, .00165], [.6875, -.0049, .000825, 0, .04], [.7, -.006, 0], [.8, -.0048, 0], [.9, -.003, 0],
+].map(([swing, x, y, z = 0, indexClearance = 0]) => {
   const a = REVOLVER_CYLINDER_HAND, b = REVOLVER_CYLINDER_HOLD;
   const mix = (from: readonly number[], to: readonly number[]): Vec => from.map((v, i) => v + (to[i] - v) * swing) as Vec;
+  const curl = blendCurl(a.curl as HandCurl, b.curl as HandCurl, swing);
+  // Briefly uncurl the index by 2.3 degrees at the barrel corner, leaving the operating thumb planted.
+  curl.index = [curl.index[0] - indexClearance, curl.index[1], curl.index[2]];
   const hand: HandKey = { ...a, wrist: add(mix(a.wrist!, b.wrist!), [x, y, z]), forward: mix(a.forward!, b.forward!),
-    palm: mix(a.palm!, b.palm!), curl: blendCurl(a.curl as HandCurl, b.curl as HandCurl, swing) };
+    palm: mix(a.palm!, b.palm!), curl };
   return { swing, hand };
 });
 const REVOLVER_CYLINDER_OPEN = shift(REVOLVER_CYLINDER_HOLD, [-.008, .003, .012]);
