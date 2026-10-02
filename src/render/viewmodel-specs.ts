@@ -10,7 +10,7 @@ import fittedGrips from './fp-grips.json';
 export type V3 = readonly [number, number, number];
 export type HandlingClass = 'pistol' | 'rifle' | 'heavy' | 'melee';
 export type ReloadStyle = 'pistol' | 'revolver' | 'rifle' | 'shotgun' | 'bolt' | 'coco' | 'none';
-export type IndexPose = Pick<HandCurl, 'index' | 'indexSpread' | 'indexRoll'>;
+export type IndexPose = Pick<HandCurl, 'index' | 'indexSpread' | 'indexRoll' | 'indexPad'>;
 export interface GripSpec { wrist: V3; forward: V3; palm: V3; curl: HandCurl; pole: V3; /** Follow an animated part (the pump). */ part?: string;
   /** Trigger-digit poses fitted without moving the load-bearing palm and other digits. */ indexed?: IndexPose; fired?: IndexPose }
 
@@ -19,16 +19,19 @@ export function heldCurl(grip: GripSpec, indexedAmount = 0, triggerPull = 0): Ha
   if (!indexedAmount && (!triggerPull || !grip.fired)) return grip.curl;
   const indexed = Math.max(0, Math.min(1, indexedAmount)), pulled = Math.max(0, Math.min(1, triggerPull));
   const fired = grip.fired ?? grip.curl, safe = grip.indexed ?? { index: [.05, .08, .05] as V3, indexSpread: 0 };
-  if (indexed === 1) return { ...grip.curl, ...safe, indexRoll: safe.indexRoll ?? 0 };
-  if (indexed === 0 && pulled === 1) return { ...grip.curl, ...fired, indexRoll: fired.indexRoll ?? grip.curl.indexRoll ?? 0 };
+  if (indexed === 1) return { ...grip.curl, ...safe, indexRoll: safe.indexRoll ?? 0, indexPad: safe.indexPad ?? 1 };
+  if (indexed === 0 && pulled === 1) return { ...grip.curl, ...fired, indexRoll: fired.indexRoll ?? grip.curl.indexRoll ?? 0,
+    indexPad: fired.indexPad ?? grip.curl.indexPad ?? 1 };
   const joint = (i: 0 | 1 | 2) => {
     const ready = grip.curl.index[i] + (fired.index[i] - grip.curl.index[i]) * pulled;
     return ready + (safe.index[i] - ready) * indexed;
   };
   const readySpread = (grip.curl.indexSpread ?? 0) + ((fired.indexSpread ?? 0) - (grip.curl.indexSpread ?? 0)) * pulled;
   const readyRoll = (grip.curl.indexRoll ?? 0) + ((fired.indexRoll ?? grip.curl.indexRoll ?? 0) - (grip.curl.indexRoll ?? 0)) * pulled;
+  const readyPad = (grip.curl.indexPad ?? 1) + ((fired.indexPad ?? grip.curl.indexPad ?? 1) - (grip.curl.indexPad ?? 1)) * pulled;
   return { ...grip.curl, index: [joint(0), joint(1), joint(2)], indexSpread: readySpread + ((safe.indexSpread ?? 0) - readySpread) * indexed,
-    indexRoll: readyRoll + ((safe.indexRoll ?? 0) - readyRoll) * indexed };
+    indexRoll: readyRoll + ((safe.indexRoll ?? 0) - readyRoll) * indexed,
+    indexPad: readyPad + ((safe.indexPad ?? 1) - readyPad) * indexed };
 }
 export interface ViewSpec {
   /** First-person model (models/arsenal). */

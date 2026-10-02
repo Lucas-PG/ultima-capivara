@@ -777,14 +777,16 @@ export class WeaponView {
       this.gripTarget(model, clearGrip, out);
       out.curl = heldCurl(grip, indexedAmount, triggerPull);
       if (key.curl) out.curl = { ...out.curl, ...key.curl, indexSpread: key.curl.indexSpread ?? (key.curl.index ? 0 : out.curl.indexSpread),
-        indexRoll: key.curl.indexRoll ?? (key.curl.index ? 0 : out.curl.indexRoll) };
+        indexRoll: key.curl.indexRoll ?? (key.curl.index ? 0 : out.curl.indexRoll),
+        indexPad: key.curl.indexPad ?? (key.curl.index ? 1 : out.curl.indexPad) };
       if (key.indexed) out.curl = heldCurl({ ...grip, curl: out.curl }, 1);
       if (key.pole) out.pole.fromArray(key.pole).normalize();
       return;
     }
     const spec: GripSpec = { wrist: key.wrist ?? grip.wrist, forward: key.forward ?? grip.forward, palm: key.palm ?? grip.palm,
       curl: { ...grip.curl, ...key.curl, indexSpread: key.curl?.indexSpread ?? (key.curl?.index ? 0 : grip.curl.indexSpread),
-        indexRoll: key.curl?.indexRoll ?? (key.curl?.index ? 0 : grip.curl.indexRoll) }, pole: key.pole ?? grip.pole };
+        indexRoll: key.curl?.indexRoll ?? (key.curl?.index ? 0 : grip.curl.indexRoll),
+        indexPad: key.curl?.indexPad ?? (key.curl?.index ? 1 : grip.curl.indexPad) }, pole: key.pole ?? grip.pole };
     if (key.indexed) spec.curl = heldCurl({ ...grip, curl: spec.curl }, 1);
     if (key.space === 'gun') { this.gripTarget(model, spec, out); return; }
     out.wrist.set(spec.wrist[0], spec.wrist[1], spec.wrist[2]);

@@ -15,6 +15,8 @@ export type HandCurl = Record<Finger, readonly [number, number, number]> & {
   indexSpread?: number;
   /** Axial rotation of the index knuckle, in radians. The unchanged pad can turn inside a guard. */
   indexRoll?: number;
+  /** Soft distal-pad compression perpendicular to the bind digit axis. Length stays unchanged. */
+  indexPad?: number;
 };
 /** A hand target in the viewmodel (camera) space. */
 export interface HandTarget {
@@ -90,11 +92,13 @@ export function blendCurl(a: HandCurl, b: HandCurl, t: number): HandCurl {
   const spread = (a.spread ?? 0) + ((b.spread ?? 0) - (a.spread ?? 0)) * t;
   const indexSpread = (a.indexSpread ?? 0) + ((b.indexSpread ?? 0) - (a.indexSpread ?? 0)) * t;
   const indexRoll = (a.indexRoll ?? 0) + ((b.indexRoll ?? 0) - (a.indexRoll ?? 0)) * t;
-  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb), spread, indexSpread, indexRoll };
+  const indexPad = (a.indexPad ?? 1) + ((b.indexPad ?? 1) - (a.indexPad ?? 1)) * t;
+  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb), spread, indexSpread, indexRoll, indexPad };
 }
 
 interface ChainBone { bone: THREE.Bone; restWorld: THREE.Quaternion; restLocal: THREE.Quaternion; length: number }
-interface FingerBone { bone: THREE.Bone; restLocal: THREE.Quaternion; hinge: THREE.Vector3; spread?: THREE.Vector3; axial?: THREE.Vector3 }
+interface FingerBone { bone: THREE.Bone; restLocal: THREE.Quaternion; hinge: THREE.Vector3; spread?: THREE.Vector3; axial?: THREE.Vector3;
+  pad?: { axis: THREE.Vector3; matrix: THREE.Matrix4; auto: boolean } }
 /** Shared articulation for the world character and first-person paws. Joint
  * axes come from the bind geometry itself (digit directions and the palm they
  * curl toward), so both rigs flex the same way whatever their export frame. */
@@ -145,7 +149,9 @@ export class PawPose {
             }
           }
         }
-        this.fingers[finger].push({ bone, restLocal: local, hinge: hinge.applyQuaternion(world.invert()).normalize(), spread, axial });
+        const pad = finger === 'index' && i === 3 && base && tip
+          ? { axis: tip.clone().sub(base).normalize().applyQuaternion(world.clone().invert()).normalize(), matrix: new THREE.Matrix4(), auto: bone.matrixAutoUpdate } : undefined;
+        this.fingers[finger].push({ bone, restLocal: local, hinge: hinge.applyQuaternion(world.invert()).normalize(), spread, axial, pad });
       }
     }
   }
@@ -156,6 +162,18 @@ export class PawPose {
       if (f.spread && spread) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.spread, spread));
       f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.hinge, curl[finger][i]));
       if (f.axial && curl.indexRoll) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.axial, THREE.MathUtils.clamp(curl.indexRoll, -.65, .65)));
+      if (f.pad) {
+        const c = THREE.MathUtils.clamp(curl.indexPad ?? 1, .96, 1);
+        f.bone.matrixAutoUpdate = c === 1 ? f.pad.auto : false;
+        if (c < 1) {
+          // c I + (1-c) aa^T preserves the bind longitudinal axis exactly,
+          // including rigs whose exported digit axes are not aligned to local Y.
+          const { x, y, z } = f.pad.axis, k = 1 - c;
+          f.pad.matrix.set(c + k*x*x, k*x*y, k*x*z, 0, k*y*x, c + k*y*y, k*y*z, 0,
+            k*z*x, k*z*y, c + k*z*z, 0, 0, 0, 0, 1);
+          f.bone.updateMatrix(); f.bone.matrix.multiply(f.pad.matrix);
+        }
+      }
     });
   }
 }

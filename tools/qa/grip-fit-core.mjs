@@ -26,7 +26,8 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     forward: new V3(...grip.forward).applyQuaternion(partRotation).toArray(),
     palm: new V3(...grip.palm).applyQuaternion(partRotation).toArray(),
     // A manipulating hand's explicitly fitted index is independent of the carrier's reload index.
-    indexed: { index: grip.curl.index, indexSpread: grip.curl.indexSpread ?? 0, indexRoll: grip.curl.indexRoll ?? 0 } } : grip;
+    indexed: { index: grip.curl.index, indexSpread: grip.curl.indexSpread ?? 0, indexRoll: grip.curl.indexRoll ?? 0 } }
+    : intent.indexed ? { ...grip, indexed: { index: grip.curl.index, indexSpread: grip.curl.indexSpread ?? 0, indexRoll: grip.curl.indexRoll ?? 0 } } : grip;
   const bore = intent.axisOrigin ? new V3(...intent.axisOrigin).multiplyScalar(scale) : model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
   // ---- gun triangles in weapon space, bucketed in a grid for nearest queries
   const tris = [], partTris = {}; let nextSolid = 0;
@@ -208,7 +209,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
       wrist.addScaledVector(palm0, .004).addScaledVector(palm, -.004);
     }
     return { wrist: wrist.toArray(), forward: [f.x, f.y, f.z], palm: [palm.x, palm.y, palm.z], pole: start.pole,
-      curl: { index: c(6), middle: c(9), ring: c(12), thumb: c(15), spread: P[18], indexSpread: P[19], indexRoll: P[20] }, part: start.part };
+      curl: { index: c(6), middle: c(9), ring: c(12), thumb: c(15), spread: P[18], indexSpread: P[19], indexRoll: P[20], indexPad: start.curl.indexPad ?? 1 }, part: start.part };
   };
   const wristW = new V3(), elbowW = new V3(), knuckleW = new V3();
   function evaluate(P, detail = false) {
@@ -342,6 +343,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   const P0 = [...P];
   const lock = new Set(intent.lock ?? []);
   let steps = [.006, .006, .006, .15, .1, .15, ...Array(12).fill(.2), .15, .12, .12];
+  if (intent.stepScale > 0) steps = steps.map(step => step * intent.stepScale);
   const lo = [-Infinity, -Infinity, -Infinity, -Infinity, -1.2, -Infinity, ...Array(12).fill(-.1), -.6, -.65, -.65];
   const hi = [Infinity, Infinity, Infinity, Infinity, 1.2, Infinity, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.4, 1.2, 1, 1.2, .65, .65];
   for (const [finger, offset] of Object.entries({ index: 6, middle: 9, ring: 12, thumb: 15 }))
