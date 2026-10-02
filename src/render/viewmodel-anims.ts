@@ -380,11 +380,29 @@ const SNIPER_RELOAD_EMPTY: Choreography = [
   { t: 1, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 export const sniperReload = (empty: boolean): Choreography => empty ? SNIPER_RELOAD_EMPTY : SNIPER_RELOAD_PARTIAL;
-const REVOLVER_CYLINDER_HAND: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.080089, -0.043126, 0.031289],
+// The thumb operates the closed drum while the firing paw carries the gun.
+const REVOLVER_CYLINDER_HAND: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.082289, -0.043126, 0.031289],
   forward: [-0.019041, 0.284059, -0.958618], palm: [0.999803, -0, -0.019859],
-  curl: { index: [0.605, -0.010066, 0.400446], middle: [0.2925, 0.387285, 0.705675], ring: [0.2952, 0.4329, 0.2916], thumb: [0.045, 0.108, 0.1305], spread: -0.6000 } };
-// The crane swings out under the same paw: one orientation, a little further back, digits closing.
-const REVOLVER_CYLINDER_OPEN: HandKey = shift(REVOLVER_CYLINDER_HAND, [-.008, .003, .012]);
+  curl: { index: [0.605, -0.010066, 0.400446], middle: [0.2925, 0.387285, 0.705675], ring: [0.2952, 0.4329, 0.2916],
+    thumb: [0.23421637, 0.01146226, 0.03533607], spread: -0.6000 } };
+const REVOLVER_CYLINDER_HOLD: HandKey = { space: 'part', part: 'cylinder', followRotation: false, wrist: [-0.07976809, -0.03386608, 0.03692756],
+  forward: [0.31131404, 0.36516032, -0.87734914], palm: [0.9447089, -0.01885601, 0.32736759],
+  curl: { index: [0.67216502, 0.56511613, 0.56968173], middle: [0.03612153, 0.25586821, 0.56296411], ring: [0.29670741, 0.311389, 0.30438672],
+    thumb: [0.07538948, 0.15208919, 0.02638258], spread: -0.58857659, indexSpread: -0.18801034, indexRoll: 0.02800623 } };
+// The thumb stays on the moving drum while the other fingers pass outside the barrel and close into a wrap.
+// Nodes use cylinder swing; the reload keys invert its existing out/snap easing without changing the part track.
+const REVOLVER_CYLINDER_TRANSFER = [
+  [.1, -.002, 0], [.2, -.004, 0], [.3, -.005, 0], [.4, -.0045, .0008], [.5, -.0047, .001],
+  [.525, -.00395, .0012, -.001], [.55, -.0032, .0014], [.575, -.0033, .0016], [.6, -.0046, .0018],
+  [.65, -.0046, .0013], [.675, -.0038, .00165], [.7, -.006, 0], [.8, -.0048, 0], [.9, -.003, 0],
+].map(([swing, x, y, z = 0]) => {
+  const a = REVOLVER_CYLINDER_HAND, b = REVOLVER_CYLINDER_HOLD;
+  const mix = (from: readonly number[], to: readonly number[]): Vec => from.map((v, i) => v + (to[i] - v) * swing) as Vec;
+  const hand: HandKey = { ...a, wrist: add(mix(a.wrist!, b.wrist!), [x, y, z]), forward: mix(a.forward!, b.forward!),
+    palm: mix(a.palm!, b.palm!), curl: blendCurl(a.curl as HandCurl, b.curl as HandCurl, swing) };
+  return { swing, hand };
+});
+const REVOLVER_CYLINDER_OPEN = shift(REVOLVER_CYLINDER_HOLD, [-.008, .003, .012]);
 // The palm presses the rod's front cap, following its full extraction stroke in gun axes.
 const REVOLVER_EJECT_HAND: HandKey = { space: 'part', part: 'action', followRotation: false, wrist: [-0.08593031, -0.02023016, -0.10887405],
   forward: [0.96544354, 0.22035956, 0.13914182], palm: [-0.16669059, 0.11172083, 0.97965948], pole: [-1, -.2, -.1],
@@ -408,7 +426,8 @@ export const REVOLVER_RELOAD: Choreography = [
   { t: .08, p: [-.04, 0, -.15], r: [.20, .25, -.25], ease: 'out',
     L: shift(REVOLVER_CYLINDER_HAND, [-.048, 0, 0]) },
   { t: .12, L: REVOLVER_CYLINDER_HAND, parts: { release: 1, swing: 0 } },
-  { t: .17, L: REVOLVER_CYLINDER_HAND, parts: { swing: 1, release: 0 }, ease: 'out' },
+  ...REVOLVER_CYLINDER_TRANSFER.map(({ swing, hand }) => ({ t: .12 + .05 * (1 - Math.cbrt(1 - swing)), L: hand, ease: 'linear' as const })),
+  { t: .17, L: REVOLVER_CYLINDER_HOLD, parts: { swing: 1, release: 0 }, ease: 'out' },
   { t: .19, L: REVOLVER_CYLINDER_OPEN, parts: { swing: 1, release: 0 }, sfx: 'cylinder-open', ease: 'out' },
   { t: .23, L: REVOLVER_CYLINDER_CLEAR },
   { t: .255, L: REVOLVER_EJECT_APPROACH },
@@ -431,8 +450,10 @@ export const REVOLVER_RELOAD: Choreography = [
   { t: .785, L: REVOLVER_LOADER_HAND },
   { t: .80, L: { ...REVOLVER_CYLINDER_CLEAR, wrist: [-.15, .008, .06] } },
   { t: .82, L: REVOLVER_CYLINDER_OPEN, parts: { swing: 1 } },
-  { t: .835, L: REVOLVER_CYLINDER_HAND, parts: { swing: 1 } },
+  { t: .835, L: REVOLVER_CYLINDER_HOLD, parts: { swing: 1 } },
+  ...[...REVOLVER_CYLINDER_TRANSFER].reverse().map(({ swing, hand }) => ({ t: .835 + .045 * (1 - swing ** .2), L: hand, ease: 'linear' as const })),
   { t: .88, L: REVOLVER_CYLINDER_HAND, parts: { swing: 0 }, sfx: 'cylinder-close', ease: 'snap', p: [-.035, .01, -.1], r: [.03, .2, -.15] },
+  { t: .89, L: shift(REVOLVER_CYLINDER_HAND, [-.012, 0, 0]) },
   { t: .92, L: { space: 'gun', wrist: [-.145, -.06, .07], forward: [.15, .2, -1], palm: [1, 0, .1], curl: OPEN } },
   { t: .94, L: { space: 'grip', offset: [-.025, 0, 0] } },
   { t: .96, L: { space: 'grip' }, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
