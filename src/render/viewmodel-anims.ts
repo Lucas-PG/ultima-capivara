@@ -180,7 +180,7 @@ export const M4_RELOAD_EMPTY: Choreography = [
 export const M4_RELOAD_PARTIAL: Choreography = [
   ...M4_SWAP,
   { t: .813, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.17, -.30, -.115] } },
-  { t: .845, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.12, -.13, -.18] } },
+  { t: .845, L: { ...M4_SEAT_HAND, space: 'gun', wrist: [-.18, -.13, -.18] } },
   { t: .87, L: SUPPORT_CLEAR },
   { t: .901, L: SUPPORT_RELEASE },
   { t: .94, L: { space: 'grip' }, R: { space: 'grip' } },
