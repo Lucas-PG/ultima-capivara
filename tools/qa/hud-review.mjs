@@ -65,6 +65,12 @@ try {
           return el.scrollWidth > el.clientWidth + 1 ? [`${el.id || el.getAttribute('class') || el.tagName}:${el.textContent.trim().slice(0, 12)}`] : [];
         }));
         if (spill.length) found.push(`text spills its box: ${[...new Set(spill)].slice(0, 6).join(', ')}`);
+        const clippedWeapons = await page.evaluate(() => [...document.querySelectorAll('#hotbar .hs-name')].flatMap(el => {
+          if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return [];
+          const text = el.getBoundingClientRect(), card = el.parentElement.getBoundingClientRect();
+          return el.scrollHeight > el.clientHeight + 1 || text.bottom > card.bottom - 2 ? [el.textContent.trim()] : [];
+        }));
+        if (clippedWeapons.length) found.push(`weapon names clipped: ${clippedWeapons.join(', ')}`);
         console.log(name, found.length ? found.join('; ') : 'clean', `(${rects.length} plates)`);
         for (const fault of found) faults.push(`${name}: ${fault}`);
       }
@@ -74,3 +80,4 @@ try {
 } finally { await browser.close(); }
 writeFileSync(`${out}/faults.txt`, faults.join('\n') + '\n');
 console.log(faults.length, 'layout faults');
+if (faults.length) process.exitCode = 1;

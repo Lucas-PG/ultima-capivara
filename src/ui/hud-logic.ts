@@ -41,9 +41,9 @@ export const hudScale = (width: number, height: number, user = 1) => {
   const viewport = Math.min(1.35, Math.min(width / 1600, height / 900)), size = Math.min(1.2, Math.max(.8, user));
   return +Math.max(HUD_MIN_SCALE, viewport * size).toFixed(3);
 };
-// Bottom row in layout px: the vitals sticker (about 250 wide with the portrait) at 16 px from the left and the weapon
-// cluster (about 236) at 16 px from the right; the centre of the bottom edge stays clear. Windows narrower than
-// HUD_CENTRED_WIDTH layout px (portrait phones) lift the weapon cluster above the vitals column instead.
+// Bottom row in layout px: the vitals sticker at the left and the 405 px weapon row at the right.
+// Windows narrower than HUD_CENTRED_WIDTH layout px use two weapon rows beside a slimmer vitals card.
+// Font size stays at the same readability floor in either arrangement.
 export const HUD_CENTRED_WIDTH = 600, HUD_PHONE_WIDTH = 640;
 export const hudNarrow = (width: number, scale: number) => width / scale < HUD_CENTRED_WIDTH;
 // Short windows (21:9 laptops, phones on their side) keep the kill feed to two lines so it never reaches the weapons.

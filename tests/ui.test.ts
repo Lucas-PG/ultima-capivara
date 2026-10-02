@@ -209,9 +209,9 @@ describe('heals and pickups', () => {
     expect(bagSlotCentre(0, 1, desk)).toEqual({ x: 49, fromBottom: 141 });
     expect(bagSlotCentre(2, 5, desk)).toEqual({ x: 189, fromBottom: 141 });
     // Portrait phones wrap three to a row: the first row sits one pitch above the last.
-    const phone = { size: 52, gap: 12, perRow: 3, bottom: 112 };
-    expect(bagSlotCentre(1, 5, phone)).toEqual({ x: 110, fromBottom: 202 });
-    expect(bagSlotCentre(4, 5, phone)).toEqual({ x: 110, fromBottom: 138 });
+    const phone = { size: 48, gap: 12, perRow: 3, bottom: 100 };
+    expect(bagSlotCentre(1, 5, phone)).toEqual({ x: 104, fromBottom: 184 });
+    expect(bagSlotCentre(4, 5, phone)).toEqual({ x: 104, fromBottom: 124 });
   });
   it('warms the health bar as it drops', () => {
     expect([healthTone(100), healthTone(60), healthTone(59), healthTone(30), healthTone(29), healthTone(0)]).toEqual(['ok', 'ok', 'hurt', 'hurt', 'low', 'low']);
