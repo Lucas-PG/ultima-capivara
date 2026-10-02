@@ -1,5 +1,5 @@
 import type { WeaponId } from '../shared/types';
-import type { HandCurl } from './fp-arms';
+import { blendCurl, type HandCurl } from './fp-arms';
 import type { AssetEntry } from './asset-manifest';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
 import armsMetrics from '../../public/models/fp/metrics.json';
@@ -12,13 +12,21 @@ export type HandlingClass = 'pistol' | 'rifle' | 'heavy' | 'melee';
 export type ReloadStyle = 'pistol' | 'revolver' | 'rifle' | 'shotgun' | 'bolt' | 'coco' | 'none';
 export type IndexPose = Pick<HandCurl, 'index' | 'indexSpread' | 'indexRoll' | 'indexPad'>;
 export interface GripSpec { wrist: V3; forward: V3; palm: V3; curl: HandCurl; pole: V3; /** Follow an animated part (the pump). */ part?: string;
-  /** Trigger-digit poses fitted without moving the load-bearing palm and other digits. */ indexed?: IndexPose; fired?: IndexPose }
+  /** Trigger-digit poses fitted without moving the load-bearing palm and other digits. */ indexed?: IndexPose; fired?: IndexPose;
+  /** Measured intermediate digit poses for leaving a narrow trigger guard. */ indexExit?: readonly IndexPose[] }
 
 /** Shared first/third-person trigger articulation. Other digits keep their carrying grip throughout. */
 export function heldCurl(grip: GripSpec, indexedAmount = 0, triggerPull = 0): HandCurl {
   if (!indexedAmount && (!triggerPull || !grip.fired)) return grip.curl;
   const indexed = Math.max(0, Math.min(1, indexedAmount)), pulled = Math.max(0, Math.min(1, triggerPull));
   const fired = grip.fired ?? grip.curl, safe = grip.indexed ?? { index: [.05, .08, .05] as V3, indexSpread: 0 };
+  if (grip.indexExit?.length && indexed > 0 && indexed < 1) {
+    const position = indexed * (grip.indexExit.length + 1), segment = Math.floor(position);
+    const a = segment === 0 ? heldCurl(grip, 0, pulled) : { ...grip.curl, ...grip.indexExit[segment - 1] };
+    const b = segment === grip.indexExit.length ? { ...grip.curl, ...safe, indexPad: safe.indexPad ?? 1 }
+      : { ...grip.curl, ...grip.indexExit[segment] };
+    return blendCurl(a, b, position - segment);
+  }
   if (indexed === 1) return { ...grip.curl, ...safe, indexRoll: safe.indexRoll ?? 0, indexPad: safe.indexPad ?? 1 };
   if (indexed === 0 && pulled === 1) return { ...grip.curl, ...fired, indexRoll: fired.indexRoll ?? grip.curl.indexRoll ?? 0,
     indexPad: fired.indexPad ?? grip.curl.indexPad ?? 1 };
@@ -200,7 +208,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     url: 'models/arsenal/sniper.glb', scale: 1, handling: 'heavy', reload: 'bolt',
     hip: { pos: [.19, -.195, -.69], rot: [.044, .122, .14] },
     sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] },
-    adsDistance: .12, adsFov: 58, poles: { R: [-.077, -.996, -.034], L: [.558, -.79, .254] }, adsPoles: { R: [-.263, -.882, .39], L: [.202, -.255, .946] },
+    adsDistance: .12, adsFov: 58, poles: { R: [1, 0, 0], L: [.558, -.79, .254] }, adsPoles: { R: [-.263, -.882, .39], L: [.202, -.255, .946] },
     choreoFrame: { pos: [.217, -.096, -.46], rot: [0, .3, .45] },
     shoulders: { R: [.275, -.325, -.068], L: [-.207, -.302, -.392] }, adsShoulders: { R: [.059, -.111, .212], L: [-.497, -.238, -.331] },
     grips: GRIPS.sniper,

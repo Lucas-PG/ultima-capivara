@@ -86,4 +86,15 @@ describe('shared trigger poses', () => {
     expect(heldCurl(grip, .999).indexRoll).toBeCloseTo(.0003, 10);
     expect(blendCurl(grip.curl, { ...grip.curl, indexRoll: undefined }, 1).indexRoll).toBe(0);
   });
+  it('follows authored clearance waypoints without releasing the carrying digits', () => {
+    const grip = { ...VIEW_SPECS.m4.grips.R,
+      indexExit: [{ index: [.4, .5, .3] as const, indexSpread: -.2, indexRoll: .1 }] };
+    const middle = heldCurl(grip, .5);
+    expect(middle.index).toEqual(grip.indexExit[0].index);
+    expect(middle.indexSpread).toBe(-.2);
+    expect(middle.indexRoll).toBe(.1);
+    for (const finger of ['middle', 'ring', 'thumb'] as const) expect(middle[finger]).toEqual(grip.curl[finger]);
+    expect(heldCurl(grip, 0)).toBe(grip.curl);
+    expect(heldCurl(grip, 1).index).toEqual(grip.indexed?.index ?? [.05, .08, .05]);
+  });
 });
