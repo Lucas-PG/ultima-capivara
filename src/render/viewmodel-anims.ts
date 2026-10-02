@@ -110,9 +110,10 @@ const FIRING_CLEAR: HandKey = { space: 'grip', offset: [.135, 0, 0] };
 const FIRING_RELEASE: HandKey = { space: 'grip', offset: [.022, -.008, .012], curl: { index: [.1, .1, .05], middle: [.5, .4, .3], ring: [.5, .4, .3], thumb: [.2, .1, .05] } };
 // Contact keys live in the magazine's own frame, so its rotation and the paw
 // cannot drift apart. These normalized phases also drive the nearby world rig.
-export const M4_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.0612, -0.136442, 0.02362],
-  forward: [-0.037945, 0.932039, -0.360366], palm: [0.950032, 0.145464, 0.276189],
-  curl: { index: [1.367115, 1.035573, 0.282646], middle: [1.6994, 1.274035, 0.16781], ring: [1.7, 1.7, 0.447145], thumb: [1.241229, 1.108659, 0.617616], spread: -0.1181 } };
+export const M4_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.0593490864, -0.136928338, 0.0187194475],
+  forward: [-0.0642325252, 0.932038919, -0.356619735], palm: [0.960904205, 0.154210395, 0.229961436], pole: [-0.6, -1, 0.2],
+  curl: { index: [1.4111503, 1.07548386, 0.243035708], middle: [1.69919657, 1.26077337, 0.166553947], ring: [1.64799083, 1.64687312, 0.402045], thumb: [1.29825442, 1.18090287, 0.624376383],
+    spread: -0.15668296, indexSpread: 0.000856693515, indexRoll: 0.0742739061 } };
 const M4_SEAT_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.039363, -0.271518, -0.037076],
   forward: [0.922329, 0.267645, -0.278703], palm: [-0.257714, 0.963504, 0.072407],
   curl: { index: [0.09, 0.135, 0.09], middle: [0.09, 0.135, 0.09], ring: [0.108, 0.135, 0.09], thumb: [0.09, 0.09, 0.09], spread: 0.2000 } };
@@ -217,9 +218,10 @@ export const SMG_RELOAD_PARTIAL: Choreography = [...SMG_SWAP,
 ];
 const smgReloads = [SMG_RELOAD_PARTIAL, SMG_RELOAD_EMPTY].map(keys => [...keys].sort((a, b) => a.t - b.t));
 export const smgReload = (empty: boolean): Choreography => smgReloads[empty ? 1 : 0];
-export const DMR_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.068581, -0.177494, 0.021746],
-  forward: [0.073174, 0.932039, -0.354892], palm: [0.982424, -0.006091, 0.186566],
-  curl: { index: [1.7, 0.347659, 0.323166], middle: [1.7, 1.7, 0.4023], ring: [1.7, 1.7, 0.396], thumb: [0.576417, 1.197744, 0.86638], spread: 0.0319 } };
+export const DMR_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.0552457004, -0.176134431, 0.0297619114],
+  forward: [-0.0730927614, 0.931327437, -0.356772551], palm: [0.997298788, 0.0708548799, -0.0193575112], pole: [-0.6, -1, 0.2],
+  curl: { index: [1.69525368, 0.502577814, 0.0885968163], middle: [1.68389985, 1.68670036, 0.00712259756], ring: [1.69991943, 1.68057842, 0.566507556], thumb: [0.627791661, 1.2, 0.749037448],
+    spread: -0.0377629519, indexSpread: -0.184319642, indexRoll: 0.202376869 } };
 export const DMR_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [0.085247, -0.064489, 0.058628],
   forward: [-0.025311, 0.932039, -0.361473], palm: [-0.887942, -0.187077, -0.420193], pole: [1, -.35, .2],
   curl: { index: [1.028073, 0.63286, 1.153242], middle: [1.334, 0.194167, 1.0042], ring: [1.17, 0.99, 0.72], thumb: [0.637656, 0.282854, 0.014837], spread: -0.5602 } };
