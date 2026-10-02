@@ -27,6 +27,8 @@ export function worldReload(id: WeaponId, empty: boolean): Choreography | null {
       if (id === 'm4' && key.R?.indexed) key = { ...key, R: { ...key.R, indexed: undefined } };
       const hand = key.L;
       if (id === 'revolver' && hand?.part === 'cylinder' && [.17, .835].includes(key.t)) return { ...key, L: { ...hand, wrist: [hand.wrist![0], hand.wrist![1] + .0005, hand.wrist![2]] as V3 } };
+      // TP has already cleared the seated magazine along this measured return.
+      if (id === 'm4' && !empty && key.t === .845 && hand) return { ...key, L: { ...hand, wrist: [-.12, -.13, -.18] as V3 } };
       if (id === 'm4' && hand && [.015, .958, .901].includes(key.t)) return { ...key, L: { ...hand, offset: [-.045, -.036, .004] as V3 } };
       if (id === 'm4' && key.t >= .17 && key.t <= .7 && hand) return { ...key, L: undefined };
       if (id === 'm4' && hand && key.t >= .733 && key.t <= .785) return { ...key, L: key.t === .77 ? fits.m4Seat : translated(fits.m4Seat, hand, reference(.77)) };
