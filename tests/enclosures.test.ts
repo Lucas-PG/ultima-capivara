@@ -60,6 +60,10 @@ const centre = (index: number) => {
   return { x: x / n, z: z / n };
 };
 
+// These walk the whole island against the full rock hulls (the coastal stones became solid), about 2.5 and 7 s on an M2
+// and over twice that on a CI runner; the simulation's own tick cost measured unchanged (0.94 against 0.97 ms).
+const WALK_TIMEOUT = 60_000;
+
 describe('no walkable place on the island is sealed off', () => {
   it('every ground pocket a capybara can stand in walks out to the island network', () => {
     const sealed: string[] = [];
@@ -71,7 +75,7 @@ describe('no walkable place on the island is sealed off', () => {
       }
     });
     expect(sealed).toEqual([]);
-  });
+  }, WALK_TIMEOUT);
 
   it('every roof, terrace and tower top a parachute can land on leads back down', () => {
     const tops = new Map<string, Vec3[]>();
@@ -93,7 +97,7 @@ describe('no walkable place on the island is sealed off', () => {
     }
     expect(tops.size).toBeGreaterThan(50);
     expect(sealed).toEqual([]);
-  });
+  }, WALK_TIMEOUT);
 
   it('spawns, loot and chests all sit where a capybara walks to the island network', () => {
     const stuck = [...world.spawns.map(s => ({ id: `spawn ${s.mode}`, pos: { x: s.x, y: s.y, z: s.z } })),
