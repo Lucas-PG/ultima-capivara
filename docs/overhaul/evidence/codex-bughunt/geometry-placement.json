@@ -26,6 +26,50 @@
       "distance": 1.118033988749895
     },
     {
+      "id": "kit-cliff_rock_low-1123",
+      "before": {
+        "id": "kit-cliff_rock_low-1123",
+        "piece": "cliff_rock_low",
+        "x": -105.62449779521309,
+        "y": 16.804658332262285,
+        "z": -80.83053910648536,
+        "yaw": -2.917584641373017,
+        "scale": 2.6610386120504654
+      },
+      "after": {
+        "id": "kit-cliff_rock_low-1123",
+        "piece": "cliff_rock_low",
+        "x": -106.12449779521309,
+        "y": 15.724325750506459,
+        "z": -81.33053910648536,
+        "yaw": -2.917584641373017,
+        "scale": 2.6610386120504654
+      },
+      "distance": 0.7071067811865476
+    },
+    {
+      "id": "kit-cliff_rock_low-1145",
+      "before": {
+        "id": "kit-cliff_rock_low-1145",
+        "piece": "cliff_rock_low",
+        "x": 38.162159413588824,
+        "y": 0.8270436499834597,
+        "z": 57.441184443191375,
+        "yaw": -2.070012173966868,
+        "scale": 2.2465239931984766
+      },
+      "after": {
+        "id": "kit-cliff_rock_low-1145",
+        "piece": "cliff_rock_low",
+        "x": 36.662159413588824,
+        "y": 0.6589167656135135,
+        "z": 56.441184443191375,
+        "yaw": -2.070012173966868,
+        "scale": 2.2465239931984766
+      },
+      "distance": 1.8027756377319948
+    },
+    {
       "id": "kit-cliff_rock_low-1146",
       "before": {
         "id": "kit-cliff_rock_low-1146",
@@ -123,5 +167,9 @@
       ]
     }
   },
-  "fittedTo": "public/models/kit/kit.glb, all3LODs"
+  "fittedTo": "public/models/kit/kit.glb, all3LODs",
+  "roomFloorCorrection": {
+    "createMs": 874.1566829999999,
+    "environment": "Single createWorld check under shared load; CPU interleaved medians predate the room-floor reflow correction."
+  }
 }

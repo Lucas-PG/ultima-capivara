@@ -956,14 +956,26 @@ export function createWorld(): WorldSpec {
   // Complete rock collision after visual placement has finished. Its former
   // internal cores still author the unchanged scatter, foliage and scenery.
   const rocks = pieces.filter(piece => KIT_PIECES[piece.piece].collisionHulls);
-  // The old cores allowed three stone lips across public approaches. Keep
-  // the full shell solid and move those formations the shortest half-metre
-  // increment needed to clear the existing roads and ground-level doors.
+  // Keep full stone shells clear of public approaches and authored room floors.
+  // Internal cores also hid a stone intrusion in a furnished home; preserve
+  // its usable floor, rather than allowing the visible shell through furniture.
   const approaches = [...cliffRoutes, ...pieces.flatMap(piece =>
     (KIT_PIECES[piece.piece].traversal?.entrances ?? []).filter(entrance => !entrance.platform)
       .map(entrance => buildingPoint(piece, entrance.point))
       .filter(point => Math.abs(point.y - ground(point.x, point.z)) <= .45)
-      .map(point => ({ ...point, y: ground(point.x, point.z) })))];
+      .map(point => ({ ...point, y: ground(point.x, point.z) }))),
+    ...pieces.flatMap(piece => buildingRooms(piece).flatMap(room => {
+      const [x0, z0, x1, z1] = room.bounds, points = [];
+      // Half-metre footprints overlap across the floor sampling grid. Room stone
+      // must stay below the floor; ordinary outdoor paths allow a legal step.
+      const size = piece.scale ?? 1;
+      const nx = Math.max(1, Math.ceil((x1 - x0 - .7) * size / .65)), nz = Math.max(1, Math.ceil((z1 - z0 - .7) * size / .65));
+      for (let ix = 0; ix <= nx; ix++) for (let iz = 0; iz <= nz; iz++) points.push({
+        ...buildingPoint(piece, [x0 + .35 + (x1 - x0 - .7) * ix / nx, room.y,
+          z0 + .35 + (z1 - z0 - .7) * iz / nz]), room: true,
+      });
+      return points;
+    }))];
   const offsets = Array.from({ length: 17 }, (_, x) => Array.from({ length: 17 }, (_, z) =>
     ({ x: (x - 8) * .5, z: (z - 8) * .5 }))).flat()
     .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
@@ -973,7 +985,7 @@ export function createWorld(): WorldSpec {
       const shell = kitColliders(placement);
       return nearby.every(point => shell.every(c => {
         const span = colliderSpan(c, point.x, point.z, .5);
-        return !span || span[1] <= point.y + .45 || !intersectsCollider(c, point, 1.8, .5, .01);
+        return !span || span[1] <= point.y + ('room' in point ? .01 : .45) || !intersectsCollider(c, point, 1.8, .5, .01);
       }));
     };
     if (clear(rock)) continue;
