@@ -1,0 +1,90 @@
+{
+  "expression": "float rim = pow( 1.0 - abs( facing ), 2.8 );",
+  "hardware": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+  "samples": [
+    {
+      "facing": -1.000000238418579,
+      "rim": null,
+      "nan": 1,
+      "inf": 0
+    },
+    {
+      "facing": -1.0000001192092896,
+      "rim": null,
+      "nan": 1,
+      "inf": 0
+    },
+    {
+      "facing": -1,
+      "rim": 0,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": -0.75,
+      "rim": 0.02061731182038784,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": -0.5,
+      "rim": 0.14358730614185333,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": -0.25,
+      "rim": 0.44686007499694824,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": 0,
+      "rim": 1,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": 0.25,
+      "rim": 0.44686007499694824,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": 0.5,
+      "rim": 0.14358730614185333,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": 0.75,
+      "rim": 0.02061731182038784,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": 1,
+      "rim": 0,
+      "nan": 0,
+      "inf": 0
+    },
+    {
+      "facing": 1.0000001192092896,
+      "rim": null,
+      "nan": 1,
+      "inf": 0
+    },
+    {
+      "facing": 1.000000238418579,
+      "rim": null,
+      "nan": 1,
+      "inf": 0
+    }
+  ],
+  "normalizedVector": {
+    "facing": 1.0000001192092896,
+    "rim": null,
+    "nan": 1,
+    "inf": 0
+  }
+}

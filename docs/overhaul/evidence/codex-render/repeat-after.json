@@ -1,0 +1,4763 @@
+{
+  "measuredAt": "2026-10-02T15:42:12.998Z",
+  "base": "http://127.0.0.1:5196/after",
+  "build": "/home/lucas/codex-team/logs/render/after-dist",
+  "browser": "chrome",
+  "angle": "gl-egl",
+  "firefoxForceWebGL": false,
+  "firefoxForceEGL": false,
+  "vulkanNative": false,
+  "version": "150.0.7871.186",
+  "cpuThrottle": 1,
+  "viewport": {
+    "width": 1470,
+    "height": 956
+  },
+  "diagnostic": "Original shaders, floating target readbacks; synthetic QA stages, not live performance samples",
+  "hardware": [
+    {
+      "dpr": 1,
+      "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+      "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+      "shadingLanguage": "WebGL GLSL ES 3.00 (OpenGL ES GLSL ES 3.0 Chromium)",
+      "attributes": {
+        "alpha": false,
+        "antialias": false,
+        "depth": true,
+        "desynchronized": false,
+        "failIfMajorPerformanceCaveat": false,
+        "powerPreference": "high-performance",
+        "premultipliedAlpha": true,
+        "preserveDrawingBuffer": false,
+        "stencil": false,
+        "xrCompatible": false
+      },
+      "floatColor": true,
+      "halfFloatLinear": false,
+      "floatLinear": true,
+      "timerQuery": true,
+      "fragmentHighFloat": {
+        "rangeMin": 127,
+        "rangeMax": 127,
+        "precision": 23
+      }
+    },
+    {
+      "dpr": 2,
+      "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+      "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+      "shadingLanguage": "WebGL GLSL ES 3.00 (OpenGL ES GLSL ES 3.0 Chromium)",
+      "attributes": {
+        "alpha": false,
+        "antialias": false,
+        "depth": true,
+        "desynchronized": false,
+        "failIfMajorPerformanceCaveat": false,
+        "powerPreference": "high-performance",
+        "premultipliedAlpha": true,
+        "preserveDrawingBuffer": false,
+        "stencil": false,
+        "xrCompatible": false
+      },
+      "floatColor": true,
+      "halfFloatLinear": false,
+      "floatLinear": true,
+      "timerQuery": true,
+      "fragmentHighFloat": {
+        "rangeMin": 127,
+        "rangeMax": 127,
+        "precision": 23
+      }
+    }
+  ],
+  "controls": [],
+  "errors": [],
+  "rows": [
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "ceiling",
+      "density": 1,
+      "load": [
+        1.49,
+        5.55,
+        8.32
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "skipped": "not allocated"
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "floor",
+      "density": 0.6,
+      "load": [
+        1.49,
+        5.55,
+        8.32
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 882,
+        "height": 574
+      },
+      "readings": {
+        "world": {
+          "width": 882,
+          "height": 574,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 442,
+          "height": 288,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 890,
+          "height": 582,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "midpoint",
+      "density": 0.8,
+      "load": [
+        1.49,
+        5.55,
+        8.32
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1176,
+        "height": 765
+      },
+      "readings": {
+        "world": {
+          "width": 1176,
+          "height": 765,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 589,
+          "height": 384,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1184,
+          "height": 773,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "ceiling-again",
+      "density": 1,
+      "load": [
+        1.49,
+        5.55,
+        8.32
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "ceiling",
+      "density": 1,
+      "load": [
+        1.49,
+        5.55,
+        8.32
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "floor",
+      "density": 0.6,
+      "load": [
+        1.37,
+        5.45,
+        8.27
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 882,
+        "height": 574
+      },
+      "readings": {
+        "world": {
+          "width": 882,
+          "height": 574,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 442,
+          "height": 288,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 890,
+          "height": 582,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "midpoint",
+      "density": 0.8,
+      "load": [
+        1.37,
+        5.45,
+        8.27
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1176,
+        "height": 765
+      },
+      "readings": {
+        "world": {
+          "width": 1176,
+          "height": 765,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 589,
+          "height": 384,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1184,
+          "height": 773,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "ceiling-again",
+      "density": 1,
+      "load": [
+        1.37,
+        5.45,
+        8.27
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "ceiling",
+      "density": 1,
+      "load": [
+        1.37,
+        5.45,
+        8.27
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "floor",
+      "density": 0.6,
+      "load": [
+        1.37,
+        5.45,
+        8.27
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 882,
+        "height": 574
+      },
+      "readings": {
+        "world": {
+          "width": 882,
+          "height": 574,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 442,
+          "height": 288,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 890,
+          "height": 582,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "midpoint",
+      "density": 0.8,
+      "load": [
+        1.37,
+        5.45,
+        8.27
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1176,
+        "height": 765
+      },
+      "readings": {
+        "world": {
+          "width": 1176,
+          "height": 765,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 589,
+          "height": 384,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1184,
+          "height": 773,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1184,
+          "height": 773,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 1,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "ceiling-again",
+      "density": 1,
+      "load": [
+        1.37,
+        5.45,
+        8.27
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "ceiling",
+      "density": 1,
+      "load": [
+        1.37,
+        5.45,
+        8.27
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "floor",
+      "density": 0.75,
+      "load": [
+        1.34,
+        5.38,
+        8.23
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1103,
+        "height": 717
+      },
+      "readings": {
+        "world": {
+          "width": 1103,
+          "height": 717,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 553,
+          "height": 360,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1111,
+          "height": 725,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "midpoint",
+      "density": 0.875,
+      "load": [
+        1.34,
+        5.38,
+        8.23
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1286,
+        "height": 837
+      },
+      "readings": {
+        "world": {
+          "width": 1286,
+          "height": 837,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 644,
+          "height": 420,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1294,
+          "height": 845,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "ceiling-again",
+      "density": 1,
+      "load": [
+        1.34,
+        5.38,
+        8.23
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "ceiling",
+      "density": 1,
+      "load": [
+        1.34,
+        5.38,
+        8.23
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "floor",
+      "density": 0.75,
+      "load": [
+        1.34,
+        5.38,
+        8.23
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1103,
+        "height": 717
+      },
+      "readings": {
+        "world": {
+          "width": 1103,
+          "height": 717,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 553,
+          "height": 360,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1111,
+          "height": 725,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "midpoint",
+      "density": 0.875,
+      "load": [
+        1.34,
+        5.38,
+        8.23
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1286,
+        "height": 837
+      },
+      "readings": {
+        "world": {
+          "width": 1286,
+          "height": 837,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 644,
+          "height": 420,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1294,
+          "height": 845,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "ceiling-again",
+      "density": 1,
+      "load": [
+        1.34,
+        5.38,
+        8.23
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "ceiling",
+      "density": 1,
+      "load": [
+        1.23,
+        5.29,
+        8.19
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "floor",
+      "density": 0.75,
+      "load": [
+        1.23,
+        5.29,
+        8.19
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1103,
+        "height": 717
+      },
+      "readings": {
+        "world": {
+          "width": 1103,
+          "height": 717,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 553,
+          "height": 360,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1111,
+          "height": 725,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "midpoint",
+      "density": 0.875,
+      "load": [
+        1.23,
+        5.29,
+        8.19
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1286,
+        "height": 837
+      },
+      "readings": {
+        "world": {
+          "width": 1286,
+          "height": 837,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 644,
+          "height": 420,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1294,
+          "height": 845,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1294,
+          "height": 845,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 1,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "ceiling-again",
+      "density": 1,
+      "load": [
+        1.23,
+        5.29,
+        8.19
+      ],
+      "size": {
+        "outputWidth": 1470,
+        "outputHeight": 956,
+        "allocWidth": 1478,
+        "allocHeight": 964,
+        "width": 1470,
+        "height": 956
+      },
+      "readings": {
+        "world": {
+          "width": 1470,
+          "height": 956,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 736,
+          "height": 479,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1478,
+          "height": 964,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1478,
+          "height": 964,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "ceiling",
+      "density": 1.25,
+      "load": [
+        1.21,
+        5.22,
+        8.15
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1838,
+        "height": 1195
+      },
+      "readings": {
+        "world": {
+          "width": 1838,
+          "height": 1195,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 920,
+          "height": 599,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1846,
+          "height": 1203,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "floor",
+      "density": 0.6,
+      "load": [
+        1.28,
+        5.16,
+        8.12
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 882,
+        "height": 574
+      },
+      "readings": {
+        "world": {
+          "width": 882,
+          "height": 574,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 442,
+          "height": 288,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 890,
+          "height": 582,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "midpoint",
+      "density": 0.925,
+      "load": [
+        1.28,
+        5.16,
+        8.12
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1360,
+        "height": 884
+      },
+      "readings": {
+        "world": {
+          "width": 1360,
+          "height": 884,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 681,
+          "height": 443,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1368,
+          "height": 892,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "ceiling-again",
+      "density": 1.25,
+      "load": [
+        1.28,
+        5.16,
+        8.12
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1838,
+        "height": 1195
+      },
+      "readings": {
+        "world": {
+          "width": 1838,
+          "height": 1195,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 920,
+          "height": 599,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1846,
+          "height": 1203,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "ceiling",
+      "density": 1.25,
+      "load": [
+        1.25,
+        5.1,
+        8.08
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1838,
+        "height": 1195
+      },
+      "readings": {
+        "world": {
+          "width": 1838,
+          "height": 1195,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 920,
+          "height": 599,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1846,
+          "height": 1203,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "floor",
+      "density": 0.6,
+      "load": [
+        1.25,
+        5.1,
+        8.08
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 882,
+        "height": 574
+      },
+      "readings": {
+        "world": {
+          "width": 882,
+          "height": 574,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 442,
+          "height": 288,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 890,
+          "height": 582,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "midpoint",
+      "density": 0.925,
+      "load": [
+        1.25,
+        5.1,
+        8.08
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1360,
+        "height": 884
+      },
+      "readings": {
+        "world": {
+          "width": 1360,
+          "height": 884,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 681,
+          "height": 443,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1368,
+          "height": 892,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "ceiling-again",
+      "density": 1.25,
+      "load": [
+        1.25,
+        5.1,
+        8.08
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1838,
+        "height": 1195
+      },
+      "readings": {
+        "world": {
+          "width": 1838,
+          "height": 1195,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 920,
+          "height": 599,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1846,
+          "height": 1203,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "ceiling",
+      "density": 1.25,
+      "load": [
+        1.39,
+        5.06,
+        8.05
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1838,
+        "height": 1195
+      },
+      "readings": {
+        "world": {
+          "width": 1838,
+          "height": 1195,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 920,
+          "height": 599,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1846,
+          "height": 1203,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "floor",
+      "density": 0.6,
+      "load": [
+        1.39,
+        5.06,
+        8.05
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 882,
+        "height": 574
+      },
+      "readings": {
+        "world": {
+          "width": 882,
+          "height": 574,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 442,
+          "height": 288,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 890,
+          "height": 582,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 890,
+          "height": 582,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "midpoint",
+      "density": 0.925,
+      "load": [
+        1.39,
+        5.06,
+        8.05
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1360,
+        "height": 884
+      },
+      "readings": {
+        "world": {
+          "width": 1360,
+          "height": 884,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 681,
+          "height": 443,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1368,
+          "height": 892,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1368,
+          "height": 892,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "medium",
+      "dpr": 2,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "ceiling-again",
+      "density": 1.25,
+      "load": [
+        1.39,
+        5.06,
+        8.05
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 1846,
+        "allocHeight": 1203,
+        "width": 1838,
+        "height": 1195
+      },
+      "readings": {
+        "world": {
+          "width": 1838,
+          "height": 1195,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 920,
+          "height": 599,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1846,
+          "height": 1203,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1846,
+          "height": 1203,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "ceiling",
+      "density": 2,
+      "load": [
+        1.44,
+        5.01,
+        8.02
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2940,
+        "height": 1912
+      },
+      "readings": {
+        "world": {
+          "width": 2940,
+          "height": 1912,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1471,
+          "height": 957,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2948,
+          "height": 1920,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "skipped": "not allocated"
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "floor",
+      "density": 0.75,
+      "load": [
+        1.44,
+        5.01,
+        8.02
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 1103,
+        "height": 717
+      },
+      "readings": {
+        "world": {
+          "width": 1103,
+          "height": 717,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 553,
+          "height": 360,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1111,
+          "height": 725,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "midpoint",
+      "density": 1.375,
+      "load": [
+        1.44,
+        5.01,
+        8.02
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2021,
+        "height": 1315
+      },
+      "readings": {
+        "world": {
+          "width": 2021,
+          "height": 1315,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1012,
+          "height": 659,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2029,
+          "height": 1323,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "drop",
+      "stage": "falling",
+      "transition": "ceiling-again",
+      "density": 2,
+      "load": [
+        1.44,
+        5.01,
+        8.02
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2940,
+        "height": 1912
+      },
+      "readings": {
+        "world": {
+          "width": 2940,
+          "height": 1912,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1471,
+          "height": 957,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2948,
+          "height": 1920,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "ceiling",
+      "density": 2,
+      "load": [
+        1.33,
+        4.93,
+        7.98
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2940,
+        "height": 1912
+      },
+      "readings": {
+        "world": {
+          "width": 2940,
+          "height": 1912,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1471,
+          "height": 957,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2948,
+          "height": 1920,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "floor",
+      "density": 0.75,
+      "load": [
+        1.33,
+        4.93,
+        7.98
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 1103,
+        "height": 717
+      },
+      "readings": {
+        "world": {
+          "width": 1103,
+          "height": 717,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 553,
+          "height": 360,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1111,
+          "height": 725,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "midpoint",
+      "density": 1.375,
+      "load": [
+        1.33,
+        4.93,
+        7.98
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2021,
+        "height": 1315
+      },
+      "readings": {
+        "world": {
+          "width": 2021,
+          "height": 1315,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1012,
+          "height": 659,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2029,
+          "height": 1323,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "glide",
+      "stage": "parachute",
+      "transition": "ceiling-again",
+      "density": 2,
+      "load": [
+        1.46,
+        4.89,
+        7.95
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2940,
+        "height": 1912
+      },
+      "readings": {
+        "world": {
+          "width": 2940,
+          "height": 1912,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1471,
+          "height": 957,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2948,
+          "height": 1920,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "ceiling",
+      "density": 2,
+      "load": [
+        1.46,
+        4.89,
+        7.95
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2940,
+        "height": 1912
+      },
+      "readings": {
+        "world": {
+          "width": 2940,
+          "height": 1912,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1471,
+          "height": 957,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2948,
+          "height": 1920,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "floor",
+      "density": 0.75,
+      "load": [
+        1.46,
+        4.89,
+        7.95
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 1103,
+        "height": 717
+      },
+      "readings": {
+        "world": {
+          "width": 1103,
+          "height": 717,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 553,
+          "height": 360,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 1111,
+          "height": 725,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 1111,
+          "height": 725,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "midpoint",
+      "density": 1.375,
+      "load": [
+        1.46,
+        4.89,
+        7.95
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2021,
+        "height": 1315
+      },
+      "readings": {
+        "world": {
+          "width": 2021,
+          "height": 1315,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1012,
+          "height": 659,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2029,
+          "height": 1323,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 2029,
+          "height": 1323,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    },
+    {
+      "preset": "high",
+      "dpr": 2,
+      "camera": "hill",
+      "stage": "parachute",
+      "transition": "ceiling-again",
+      "density": 2,
+      "load": [
+        1.5,
+        4.85,
+        7.92
+      ],
+      "size": {
+        "outputWidth": 2940,
+        "outputHeight": 1912,
+        "allocWidth": 2948,
+        "allocHeight": 1920,
+        "width": 2940,
+        "height": 1912
+      },
+      "readings": {
+        "world": {
+          "width": 2940,
+          "height": 1912,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "atmosphere": {
+          "width": 1471,
+          "height": 957,
+          "format": 6408,
+          "type": 5131,
+          "error": 0,
+          "floating": true,
+          "nonFinitePixels": 0,
+          "nanComponents": 0,
+          "infComponents": 0,
+          "first": []
+        },
+        "firstPerson": {
+          "skipped": "not allocated"
+        },
+        "composite": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaEdges": {
+          "width": 2948,
+          "height": 1920,
+          "format": 33319,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "smaaWeights": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        },
+        "scaled": {
+          "width": 2948,
+          "height": 1920,
+          "format": 6408,
+          "type": 5121,
+          "error": 0,
+          "floating": false,
+          "nonFinitePixels": null,
+          "nanComponents": null,
+          "infComponents": null,
+          "first": []
+        }
+      }
+    }
+  ]
+}

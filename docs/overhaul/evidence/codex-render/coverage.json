@@ -1,0 +1,800 @@
+{
+  "date": "2026-10-02",
+  "timezone": "America/Sao_Paulo",
+  "baseCommit": "e53bc4b",
+  "fixCommit": "31ecbd9",
+  "diagnosticsCommit": "3e1bd44",
+  "scope": "Foliage domain clamp, isolated from other overhaul changes",
+  "viewportCss": [
+    1470,
+    956
+  ],
+  "timingClaim": false,
+  "buildArtifacts": [
+    {
+      "build": "before-dist",
+      "rendererFile": "renderer-uEQcJT1P.js",
+      "sha256": "05d3f18b93ac1c171e90e972a695346a1cb25e7eb6bb0b5c3963b6f8f4d027cc",
+      "rimStatement": "float rim = pow( 1.0 - abs( dot( normalize( normal ), normalize( vViewPosition ) ) ), 2.8 );"
+    },
+    {
+      "build": "after-dist",
+      "rendererFile": "renderer-Sv15HDHm.js",
+      "sha256": "bb3538486d9a725b3d621aa9810d15a3375a4b1e43af0df617648f3facff6622",
+      "rimStatement": "float rim = pow( max( 1.0 - abs( dot( normalize( normal ), normalize( vViewPosition ) ) ), 0.0 ), 2.8 );"
+    },
+    {
+      "build": "production-dist",
+      "rendererFile": "renderer-3nsboJOQ.js",
+      "sha256": "bdc9c83cae3a651c0975339b96d615f5229b200d81b8162a93d45f0237019d14",
+      "rimStatement": "float rim = pow( max( 1.0 - abs( dot( normalize( normal ), normalize( vViewPosition ) ) ), 0.0 ), 2.8 );"
+    }
+  ],
+  "runs": [
+    {
+      "label": "Chrome GL/EGL, original shader",
+      "raw": "finite-before.json",
+      "browserVersion": "150.0.7871.186",
+      "requestedAngle": "gl-egl",
+      "actualRenderers": [
+        "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)"
+      ],
+      "cases": 96,
+      "invalidCases": 0,
+      "browserErrors": 0,
+      "presets": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "dprs": [
+        1,
+        2
+      ],
+      "stages": [
+        "falling",
+        "parachute",
+        "plane"
+      ],
+      "transitions": [
+        "ceiling",
+        "ceiling-again",
+        "floor",
+        "midpoint"
+      ],
+      "load1Min": 4.15,
+      "load1Max": 6.04,
+      "passReadCounts": [
+        {
+          "pass": "world",
+          "storage": "floating",
+          "reads": 96
+        },
+        {
+          "pass": "firstPerson",
+          "storage": "unallocated",
+          "reads": 96
+        },
+        {
+          "pass": "composite",
+          "storage": "normalized-byte",
+          "reads": 96
+        },
+        {
+          "pass": "scaled",
+          "storage": "normalized-byte",
+          "reads": 94
+        },
+        {
+          "pass": "atmosphere",
+          "storage": "floating",
+          "reads": 64
+        },
+        {
+          "pass": "smaaEdges",
+          "storage": "normalized-byte",
+          "reads": 64
+        },
+        {
+          "pass": "smaaWeights",
+          "storage": "normalized-byte",
+          "reads": 64
+        },
+        {
+          "pass": "scaled",
+          "storage": "unallocated",
+          "reads": 2
+        }
+      ],
+      "negativeControls": [
+        {
+          "dpr": 1,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        },
+        {
+          "dpr": 2,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        }
+      ],
+      "liveStageCounts": null
+    },
+    {
+      "label": "Chrome GL/EGL, fixed shader",
+      "raw": "finite-after.json",
+      "browserVersion": "150.0.7871.186",
+      "requestedAngle": "gl-egl",
+      "actualRenderers": [
+        "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)"
+      ],
+      "cases": 96,
+      "invalidCases": 0,
+      "browserErrors": 0,
+      "presets": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "dprs": [
+        1,
+        2
+      ],
+      "stages": [
+        "falling",
+        "parachute",
+        "plane"
+      ],
+      "transitions": [
+        "ceiling",
+        "ceiling-again",
+        "floor",
+        "midpoint"
+      ],
+      "load1Min": 7.27,
+      "load1Max": 11.4,
+      "passReadCounts": [
+        {
+          "pass": "world",
+          "storage": "floating",
+          "reads": 96
+        },
+        {
+          "pass": "firstPerson",
+          "storage": "unallocated",
+          "reads": 96
+        },
+        {
+          "pass": "composite",
+          "storage": "normalized-byte",
+          "reads": 96
+        },
+        {
+          "pass": "scaled",
+          "storage": "normalized-byte",
+          "reads": 94
+        },
+        {
+          "pass": "atmosphere",
+          "storage": "floating",
+          "reads": 64
+        },
+        {
+          "pass": "smaaEdges",
+          "storage": "normalized-byte",
+          "reads": 64
+        },
+        {
+          "pass": "smaaWeights",
+          "storage": "normalized-byte",
+          "reads": 64
+        },
+        {
+          "pass": "scaled",
+          "storage": "unallocated",
+          "reads": 2
+        }
+      ],
+      "negativeControls": [
+        {
+          "dpr": 1,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        },
+        {
+          "dpr": 2,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        }
+      ],
+      "liveStageCounts": null
+    },
+    {
+      "label": "Chrome GL/EGL, live fixed shader",
+      "raw": "live-after.json",
+      "browserVersion": "150.0.7871.186",
+      "requestedAngle": "gl-egl",
+      "actualRenderers": [
+        "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)"
+      ],
+      "cases": 262,
+      "invalidCases": 0,
+      "browserErrors": 0,
+      "presets": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "dprs": [
+        1,
+        2
+      ],
+      "stages": [
+        "falling",
+        "ground",
+        "parachute",
+        "plane"
+      ],
+      "transitions": [
+        "ceiling",
+        "ceiling-again",
+        "floor",
+        "midpoint"
+      ],
+      "load1Min": 6.18,
+      "load1Max": 9.3,
+      "passReadCounts": [
+        {
+          "pass": "world",
+          "storage": "floating",
+          "reads": 262
+        },
+        {
+          "pass": "firstPerson",
+          "storage": "unallocated",
+          "reads": 262
+        },
+        {
+          "pass": "composite",
+          "storage": "normalized-byte",
+          "reads": 262
+        },
+        {
+          "pass": "scaled",
+          "storage": "normalized-byte",
+          "reads": 259
+        },
+        {
+          "pass": "atmosphere",
+          "storage": "floating",
+          "reads": 167
+        },
+        {
+          "pass": "smaaEdges",
+          "storage": "normalized-byte",
+          "reads": 167
+        },
+        {
+          "pass": "smaaWeights",
+          "storage": "normalized-byte",
+          "reads": 167
+        },
+        {
+          "pass": "scaled",
+          "storage": "unallocated",
+          "reads": 3
+        }
+      ],
+      "negativeControls": [],
+      "liveStageCounts": [
+        {
+          "preset": "low",
+          "dpr": 1,
+          "stage": "plane",
+          "samples": 20
+        },
+        {
+          "preset": "low",
+          "dpr": 1,
+          "stage": "falling",
+          "samples": 3
+        },
+        {
+          "preset": "low",
+          "dpr": 1,
+          "stage": "parachute",
+          "samples": 30
+        },
+        {
+          "preset": "low",
+          "dpr": 1,
+          "stage": "ground",
+          "samples": 1
+        },
+        {
+          "preset": "medium",
+          "dpr": 1,
+          "stage": "plane",
+          "samples": 21
+        },
+        {
+          "preset": "medium",
+          "dpr": 1,
+          "stage": "falling",
+          "samples": 3
+        },
+        {
+          "preset": "medium",
+          "dpr": 1,
+          "stage": "parachute",
+          "samples": 28
+        },
+        {
+          "preset": "medium",
+          "dpr": 1,
+          "stage": "ground",
+          "samples": 1
+        },
+        {
+          "preset": "high",
+          "dpr": 1,
+          "stage": "plane",
+          "samples": 23
+        },
+        {
+          "preset": "high",
+          "dpr": 1,
+          "stage": "falling",
+          "samples": 3
+        },
+        {
+          "preset": "high",
+          "dpr": 1,
+          "stage": "parachute",
+          "samples": 28
+        },
+        {
+          "preset": "high",
+          "dpr": 1,
+          "stage": "ground",
+          "samples": 1
+        },
+        {
+          "preset": "low",
+          "dpr": 2,
+          "stage": "plane",
+          "samples": 18
+        },
+        {
+          "preset": "low",
+          "dpr": 2,
+          "stage": "falling",
+          "samples": 2
+        },
+        {
+          "preset": "low",
+          "dpr": 2,
+          "stage": "parachute",
+          "samples": 20
+        },
+        {
+          "preset": "low",
+          "dpr": 2,
+          "stage": "ground",
+          "samples": 1
+        },
+        {
+          "preset": "medium",
+          "dpr": 2,
+          "stage": "plane",
+          "samples": 16
+        },
+        {
+          "preset": "medium",
+          "dpr": 2,
+          "stage": "falling",
+          "samples": 1
+        },
+        {
+          "preset": "medium",
+          "dpr": 2,
+          "stage": "parachute",
+          "samples": 16
+        },
+        {
+          "preset": "medium",
+          "dpr": 2,
+          "stage": "ground",
+          "samples": 1
+        },
+        {
+          "preset": "high",
+          "dpr": 2,
+          "stage": "plane",
+          "samples": 12
+        },
+        {
+          "preset": "high",
+          "dpr": 2,
+          "stage": "falling",
+          "samples": 2
+        },
+        {
+          "preset": "high",
+          "dpr": 2,
+          "stage": "parachute",
+          "samples": 10
+        },
+        {
+          "preset": "high",
+          "dpr": 2,
+          "stage": "ground",
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "label": "Chrome Vulkan request, actual SwiftShader",
+      "raw": "vulkan-after.json",
+      "browserVersion": "150.0.7871.186",
+      "requestedAngle": "vulkan",
+      "actualRenderers": [
+        "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      ],
+      "cases": 96,
+      "invalidCases": 0,
+      "browserErrors": 0,
+      "presets": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "dprs": [
+        1,
+        2
+      ],
+      "stages": [
+        "falling",
+        "parachute",
+        "plane"
+      ],
+      "transitions": [
+        "ceiling",
+        "ceiling-again",
+        "floor",
+        "midpoint"
+      ],
+      "load1Min": 11.56,
+      "load1Max": 19.02,
+      "passReadCounts": [
+        {
+          "pass": "world",
+          "storage": "floating",
+          "reads": 96
+        },
+        {
+          "pass": "firstPerson",
+          "storage": "unallocated",
+          "reads": 96
+        },
+        {
+          "pass": "composite",
+          "storage": "normalized-byte",
+          "reads": 96
+        },
+        {
+          "pass": "scaled",
+          "storage": "normalized-byte",
+          "reads": 94
+        },
+        {
+          "pass": "atmosphere",
+          "storage": "floating",
+          "reads": 64
+        },
+        {
+          "pass": "smaaEdges",
+          "storage": "normalized-byte",
+          "reads": 64
+        },
+        {
+          "pass": "smaaWeights",
+          "storage": "normalized-byte",
+          "reads": 64
+        },
+        {
+          "pass": "scaled",
+          "storage": "unallocated",
+          "reads": 2
+        }
+      ],
+      "negativeControls": [
+        {
+          "dpr": 1,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        },
+        {
+          "dpr": 2,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        }
+      ],
+      "liveStageCounts": null
+    },
+    {
+      "label": "Chrome explicit SwiftShader",
+      "raw": "swiftshader-after.json",
+      "browserVersion": "150.0.7871.186",
+      "requestedAngle": "swiftshader",
+      "actualRenderers": [
+        "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+      ],
+      "cases": 48,
+      "invalidCases": 0,
+      "browserErrors": 0,
+      "presets": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "dprs": [
+        1,
+        2
+      ],
+      "stages": [
+        "parachute"
+      ],
+      "transitions": [
+        "ceiling",
+        "ceiling-again",
+        "floor",
+        "midpoint"
+      ],
+      "load1Min": 12.45,
+      "load1Max": 19.91,
+      "passReadCounts": [
+        {
+          "pass": "world",
+          "storage": "floating",
+          "reads": 48
+        },
+        {
+          "pass": "firstPerson",
+          "storage": "unallocated",
+          "reads": 48
+        },
+        {
+          "pass": "composite",
+          "storage": "normalized-byte",
+          "reads": 48
+        },
+        {
+          "pass": "scaled",
+          "storage": "normalized-byte",
+          "reads": 46
+        },
+        {
+          "pass": "atmosphere",
+          "storage": "floating",
+          "reads": 32
+        },
+        {
+          "pass": "smaaEdges",
+          "storage": "normalized-byte",
+          "reads": 32
+        },
+        {
+          "pass": "smaaWeights",
+          "storage": "normalized-byte",
+          "reads": 32
+        },
+        {
+          "pass": "scaled",
+          "storage": "unallocated",
+          "reads": 2
+        }
+      ],
+      "negativeControls": [
+        {
+          "dpr": 1,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        },
+        {
+          "dpr": 2,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        }
+      ],
+      "liveStageCounts": null
+    },
+    {
+      "label": "Firefox forced EGL / force-enabled",
+      "raw": "firefox-egl-after.json",
+      "browserVersion": "155.0",
+      "requestedAngle": "gl-egl",
+      "actualRenderers": [
+        "llvmpipe, or similar"
+      ],
+      "cases": 96,
+      "invalidCases": 0,
+      "browserErrors": 0,
+      "presets": [
+        "high",
+        "low",
+        "medium"
+      ],
+      "dprs": [
+        1,
+        2
+      ],
+      "stages": [
+        "falling",
+        "parachute",
+        "plane"
+      ],
+      "transitions": [
+        "ceiling",
+        "ceiling-again",
+        "floor",
+        "midpoint"
+      ],
+      "load1Min": 17,
+      "load1Max": 36.51,
+      "passReadCounts": [
+        {
+          "pass": "world",
+          "storage": "floating",
+          "reads": 96
+        },
+        {
+          "pass": "firstPerson",
+          "storage": "unallocated",
+          "reads": 96
+        },
+        {
+          "pass": "composite",
+          "storage": "normalized-byte",
+          "reads": 96
+        },
+        {
+          "pass": "scaled",
+          "storage": "normalized-byte",
+          "reads": 94
+        },
+        {
+          "pass": "atmosphere",
+          "storage": "floating",
+          "reads": 64
+        },
+        {
+          "pass": "smaaEdges",
+          "storage": "normalized-byte",
+          "reads": 64
+        },
+        {
+          "pass": "smaaWeights",
+          "storage": "normalized-byte",
+          "reads": 64
+        },
+        {
+          "pass": "scaled",
+          "storage": "unallocated",
+          "reads": 2
+        }
+      ],
+      "negativeControls": [
+        {
+          "dpr": 1,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        },
+        {
+          "dpr": 2,
+          "injectedInvalidPixels": 1,
+          "restoredInvalidPixels": 0
+        }
+      ],
+      "liveStageCounts": null
+    }
+  ],
+  "blocked": [
+    {
+      "raw": "firefox-start.json",
+      "status": "Default WebGL2 context blocked by the host"
+    },
+    {
+      "raw": "firefox-forced.json",
+      "status": "force-enabled alone exhausted available native GL driver paths"
+    },
+    {
+      "raw": "webkit-start.json",
+      "status": "Browser startup blocked by missing OS shared libraries"
+    }
+  ],
+  "gates": {
+    "typescript": "passed",
+    "unitTests": {
+      "files": 123,
+      "tests": 1153,
+      "workers": 2,
+      "status": "passed"
+    },
+    "productionBuild": "passed",
+    "gpuRegressionBefore": "expected failure, NaN on original expression",
+    "gpuRegressionAfter": "passed",
+    "standardImageIdentity": {
+      "file": "board-identity.json",
+      "cameras": 21,
+      "changedPixels": 0,
+      "exact": true
+    },
+    "supplementalImageIdentity": {
+      "file": "finite-identity.json",
+      "cameras": 96,
+      "exact": false,
+      "note": "Repeatability control is recorded separately; no exact-identity claim for this exploratory capture."
+    },
+    "chromiumE2e": {
+      "status": "passed",
+      "tests": 2,
+      "workers": 1,
+      "files": [
+        "foliage-finite.e2e.spec.ts",
+        "scope.e2e.spec.ts"
+      ],
+      "elapsedSeconds": 11.9,
+      "servedBuild": "after-dist at http://127.0.0.1:5196/"
+    },
+    "supplementalRepeatability": {
+      "casesPerRun": 48,
+      "unchangedOriginal": {
+        "file": "repeat-control-identity.json",
+        "changedFrames": 7,
+        "changedPixels": 3067
+      },
+      "originalToFixed": {
+        "file": "repeat-fixed-identity.json",
+        "changedFrames": 9,
+        "changedPixels": 4251
+      },
+      "note": "Unchanged original and fixed controls reproduce the Medium and High drop window/roof regions and High hill patch. The initial 96-frame pair still has a separate unexplained HUD-transition difference; no exact-identity claim is made for the supplemental flight captures.",
+      "unchangedFixed": {
+        "file": "repeat-fixed-control-identity.json",
+        "changedFrames": 11,
+        "changedPixels": 4574
+      },
+      "finiteCasesPerRun": {
+        "repeat-before-a": {
+          "cases": 48,
+          "invalidCases": 0,
+          "browserErrors": 0
+        },
+        "repeat-before-b": {
+          "cases": 48,
+          "invalidCases": 0,
+          "browserErrors": 0
+        },
+        "repeat-after": {
+          "cases": 48,
+          "invalidCases": 0,
+          "browserErrors": 0
+        },
+        "repeat-after-b": {
+          "cases": 48,
+          "invalidCases": 0,
+          "browserErrors": 0
+        }
+      }
+    }
+  },
+  "limits": [
+    "Player screenshot attribution remains unconfirmed: original scene scans also finite.",
+    "Default Firefox did not start WebGL2; forced EGL software coverage is separate.",
+    "No native Vulkan result on this host; the Vulkan request selected SwiftShader.",
+    "WebKit could not launch; no game coverage in that engine.",
+    "Normalized-byte postprocessing readbacks cannot validate values lost during conversion.",
+    "GPU readbacks and forced densities are diagnostics, not performance samples."
+  ]
+}
