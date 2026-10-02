@@ -1,5 +1,5 @@
 // Match overlays and surrounding menus, captured through the real UI methods.
-// BASE=http://127.0.0.1:5195 node tools/qa/hud-overlays.mjs <outDir> <before|after>
+// BASE=http://127.0.0.1:5195 node tools/qa/hud-overlays.mjs <outDir> <before|after> (SIZES and STATES narrow the run)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import sharp from 'sharp';
@@ -7,7 +7,9 @@ const [out, prefix = 'overlays'] = process.argv.slice(2);
 if (!out) throw new Error('Give an output directory.');
 mkdirSync(out, { recursive: true });
 const sizes = (process.env.SIZES || '1280x720,1470x956').split(',').map(s => s.split('x').map(Number));
-const states = ['scoreboard', 'scoreboard-correria', 'scoreboard-corrente', 'bigmap', 'pause', 'pause-watch', 'settings', 'leave', 'emote-wheel', 'home', 'how', 'host', 'join', 'lobby', 'loading', 'loading-correria', 'loading-corrente'];
+const states = ['scoreboard', 'scoreboard-correria', 'scoreboard-corrente', 'bigmap', 'pause', 'pause-watch', 'settings', 'leave', 'emote-wheel', 'home', 'how', 'host', 'join', 'lobby', 'loading', 'loading-correria', 'loading-corrente',
+  'lobby-guest', 'lobby-loading', 'settings-bindings', 'settings-footer', 'loading-complete']
+  .filter(state => !process.env.STATES || process.env.STATES.split(',').includes(state));
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-gl=angle', '--use-angle=gl-egl'] });
 const report = {};
 try {
@@ -22,7 +24,7 @@ try {
     await page.setViewportSize({ width, height });
     const files = [];
     for (const state of states) {
-      await page.evaluate(() => { const ui = window.__hudQA; ui.closeModal(); ui.setLoading(false); ui.setRoom(null); ui.game('practice'); });
+      await page.evaluate(() => { const ui = window.__hudQA; ui.closeModal(); ui.setLoading(false); ui.setRoom(null); ui.setRoomLoading(null); ui.game('practice'); });
       await page.evaluate(pose => window.__capyQA.pose(pose), state === 'pause-watch' ? 'hud-watch' : state === 'emote-wheel' ? 'emote-wheel' : 'hud-full');
       await page.evaluate(state => {
         const ui = window.__hudQA, s = structuredClone(ui.snapshot);
@@ -31,18 +33,23 @@ try {
           ui.hudTime = 0; ui.update(s, 'practice', 30, true, 60, null);
         } else if (state === 'bigmap') { ui.toggleMap(true); ui.hudTime = 0; ui.update(s, 'practice', 30, false, 60, null); }
         else if (state.startsWith('pause')) ui.setPaused(true);
-        else if (state === 'settings') { ui.setPaused(true); ui.settingsModal(); }
+        else if (state.startsWith('settings')) {
+          ui.setPaused(true); ui.settingsModal();
+          if (state === 'settings-bindings') { const details = document.querySelector('.settings-modal .bindings'); details.open = true; details.scrollIntoView({ block: 'start' }); }
+          if (state === 'settings-footer') document.querySelector('.settings-footer').scrollIntoView({ block: 'end' });
+        }
         else if (state === 'leave') { ui.setPaused(true); ui.confirmLeave(); }
         else if (['home', 'how', 'host', 'join'].includes(state)) {
           ui.home();
           if (state === 'how') ui.howModal();
           if (state === 'host' || state === 'join') ui.roomModal(state);
-        } else if (state === 'lobby') {
-          ui.setRoom({ code: 'CAPY42', myId: 'practice', hostId: 'practice', isHost: true, phase: 'lobby', config: s.config,
+        } else if (state.startsWith('lobby')) {
+          ui.setRoom({ code: 'CAPY42', myId: 'practice', hostId: state === 'lobby-guest' ? 'bot-hud-0' : 'practice', isHost: state !== 'lobby-guest', phase: 'lobby', config: s.config,
             players: s.actors.slice(0, 6).map((a, i) => ({ id: i === 0 ? 'practice' : a.id, name: i === 0 ? 'Capivara' : a.name, color: a.color, ready: i !== 3, connected: true })) });
+          if (state === 'lobby-loading') ui.setRoomLoading(.62);
         } else if (state.startsWith('loading')) {
           ui.selectedMode = state.endsWith('correria') ? 'deathmatch' : state.endsWith('corrente') ? 'corrente' : 'battle-royale';
-          ui.setLoading(true); ui.setLoadingProgress(.62);
+          ui.setLoading(true); ui.setLoadingProgress(state === 'loading-complete' ? 1 : .62);
         }
       }, state);
       await page.waitForTimeout(600);
@@ -54,7 +61,14 @@ try {
           const px = parseFloat(getComputedStyle(el).fontSize) * (el.currentCSSZoom || 1);
           return px < 11.95 ? [`${el.id || el.className || el.tagName}: ${px.toFixed(1)}px`] : [];
         });
-        return { smallText: [...new Set(small)], horizontalOverflow: document.documentElement.scrollWidth > innerWidth };
+        const panels = [...document.querySelectorAll('dialog[open],#pause-panel:not([hidden]),#scoreboard:not([hidden]),#bigmap:not([hidden]),#emoteWheel:not([hidden])')];
+        const panelOverflow = panels.filter(el => el.scrollWidth > el.clientWidth + 1).map(el => el.id || el.className);
+        const clippedControls = panels.flatMap(panel => [...panel.querySelectorAll('button,input,select')].flatMap(el => {
+          if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return [];
+          const r = el.getBoundingClientRect(), p = panel.getBoundingClientRect();
+          return r.left < p.left - 1 || r.right > p.right + 1 ? [el.id || el.getAttribute('aria-label') || el.textContent.trim()] : [];
+        }));
+        return { smallText: [...new Set(small)], horizontalOverflow: document.documentElement.scrollWidth > innerWidth, panelOverflow, clippedControls };
       });
       const file = `${out}/${prefix}-${state}-${width}x${height}.jpg`;
       await page.screenshot({ path: file, quality: 85 }); files.push(file);
@@ -69,3 +83,5 @@ try {
   }
 } finally { await browser.close(); }
 writeFileSync(`${out}/${prefix}-overlays.json`, JSON.stringify(report, null, 2));
+const faults = Object.entries(report).filter(([, value]) => value.smallText.length || value.horizontalOverflow || value.panelOverflow.length || value.clippedControls.length);
+if (faults.length) { console.error('Overlay faults:', JSON.stringify(Object.fromEntries(faults))); process.exitCode = 1; }

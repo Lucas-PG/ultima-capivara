@@ -404,7 +404,10 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud.corrente #coach{top:448px}
 .hud-narrow #hud #matchMoment{top:calc(40vh / var(--ui,1))}
 .hud-narrow #hud #matchMoment strong{font-size:22px}
-.hud-narrow #hud #ccol{top:calc(50% + 72px)}
+.hud-narrow #hud #ccol{top:calc(50% + 72px);width:calc(100vw / var(--ui,1) - 32px)}
+.hud-narrow #hud #killConfirm{max-width:100%;padding:6px 12px;gap:8px}
+.hud-narrow #hud #killConfirm span{min-width:0}
+.hud-narrow #hud #killConfirm b{font-size:20px;max-width:280px}
 .hud-narrow #hud #deathCard{top:340px;min-width:0;width:calc(100vw / var(--ui,1) - 32px);gap:10px;padding:12px}
 .hud-narrow #hud .dc-placement{min-width:80px;padding:5px}
 .hud-narrow #hud .dc-place{font-size:34px}
@@ -415,9 +418,12 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud #hotbar{display:grid;grid-template-columns:repeat(2,80px);gap:8px}
 .hud-narrow #hud .hs{width:80px;height:68px;padding:7px 4px}
 .hud-narrow #hud .hs img,.hud-narrow #hud .hs .weapon-icon{width:70px;height:28px}
-.hud-narrow #hud #ammoBox{min-width:0;width:168px;padding:6px;gap:5px;flex-wrap:wrap}
-.hud-narrow #hud #ammoBox .wname{font-size:16px}
+.hud-narrow #hud #ammoBox{display:grid;grid-template-columns:minmax(0,1fr) auto;min-width:0;width:168px;padding:6px;gap:3px 5px}
+.hud-narrow #hud #ammoBox .winfo{display:contents}
+.hud-narrow #hud #ammoBox .wname{grid-column:1;grid-row:1;font-size:16px}
 .hud-narrow #hud #ammoBox .wchips{display:none}
+.hud-narrow #hud #ammoBox .ammo{grid-column:2;grid-row:1}
+.hud-narrow #hud #reload{grid-column:1/-1;grid-row:2;justify-self:start;max-width:100%;overflow-wrap:anywhere}
 .hud-narrow #hud #ammoBox .ammo b{font-size:28px}
 .hud-narrow #hud #ammoBox .ammo span{font-size:14px}
 .hud-narrow #hud #vitals .vcard{width:176px}
@@ -430,7 +436,14 @@ body[data-screen=game] #toast .toast-item.error{border-color:var(--h-terra);back
 .hud-narrow #hud #consbar{max-width:204px;gap:12px}
 .hud-narrow #hud .cs{width:48px;height:48px}
 .hud-narrow #hud .cs .item-art{width:44px;height:44px}
-.hud-narrow #hud #specBar{grid-template-columns:auto minmax(0,1fr) auto;width:calc(100vw / var(--ui,1) - 32px)}
+.hud-narrow #hud #specBar{grid-template-columns:repeat(2,minmax(0,1fr));width:calc(100vw / var(--ui,1) - 32px)}
+.hud-narrow #hud .sp-card{grid-column:1/-1;grid-row:1;min-width:0}
+.hud-narrow #hud .sp-nav{justify-content:center}
+.hud-narrow #hud .sp-nav.prev{grid-column:1;grid-row:2}
+.hud-narrow #hud .sp-nav.next{grid-column:2;grid-row:2}
+.hud-narrow #hud .sp-who{min-width:0}
+.hud-narrow #hud .sp-eyebrow{gap:10px;white-space:nowrap}
+.hud-narrow #hud .sp-hint{grid-row:3}
 /* Short windows reserve the space below the smaller map for mode progress. */
 .hud-short #hud #mapWrap{width:148px;padding:4px}
 .hud-short #hud #minimap{width:134px;height:134px}

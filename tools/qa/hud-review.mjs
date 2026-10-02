@@ -4,6 +4,7 @@
 // DPR=2 renders like a Retina screen). Also reports visible HUD text drawn under the readability floor (12 CSS px).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
+import { checkHudContents } from './hud-content-check.mjs';
 const out = process.argv[2];
 if (!out) throw new Error('Give a worktree-local output directory.');
 mkdirSync(out, { recursive: true });
@@ -71,6 +72,7 @@ try {
           return el.scrollHeight > el.clientHeight + 1 || text.bottom > card.bottom - 2 ? [el.textContent.trim()] : [];
         }));
         if (clippedWeapons.length) found.push(`weapon names clipped: ${clippedWeapons.join(', ')}`);
+        found.push(...await page.evaluate(checkHudContents));
         console.log(name, found.length ? found.join('; ') : 'clean', `(${rects.length} plates)`);
         for (const fault of found) faults.push(`${name}: ${fault}`);
       }
