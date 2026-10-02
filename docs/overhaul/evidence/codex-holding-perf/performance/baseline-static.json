@@ -1,0 +1,970 @@
+{
+ "measuredAt": "2026-10-02T11:43:34.241Z",
+ "base": "http://127.0.0.1:5193",
+ "viewport": {
+  "width": 1470,
+  "height": 956,
+  "dpr": 2
+ },
+ "gpu": {
+  "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+  "timerQuery": true
+ },
+ "cpuThrottle": 4,
+ "frames": 12,
+ "rows": [
+  {
+   "preset": "medium",
+   "name": "fp-m4",
+   "pose": "fp-m4",
+   "actors": 1,
+   "camera": null,
+   "load": 1.12,
+   "thermal": null,
+   "bench": {
+    "medianMs": 13,
+    "p90Ms": 13.699999999720603,
+    "gpuMedianMs": 2.59304,
+    "gpuP90Ms": 2.60536
+   },
+   "passes": {
+    "supported": true,
+    "frames": 12,
+    "lostFrames": 0,
+    "passes": {
+     "world": {
+      "mean": 1.139,
+      "p50": 1.138,
+      "p95": 1.154
+     },
+     "shadow": {
+      "mean": 0.226,
+      "p50": 0.22,
+      "p95": 0.323
+     },
+     "mask": {
+      "mean": 0.007,
+      "p50": 0.007,
+      "p95": 0.008
+     },
+     "atmosphere": {
+      "mean": 0.314,
+      "p50": 0.315,
+      "p95": 0.316
+     },
+     "post": {
+      "mean": 0.181,
+      "p50": 0.181,
+      "p95": 0.182
+     },
+     "fp-scene": {
+      "mean": 0.338,
+      "p50": 0.336,
+      "p95": 0.345
+     },
+     "fp-composite": {
+      "mean": 0.034,
+      "p50": 0.034,
+      "p95": 0.034
+     },
+     "aa": {
+      "mean": 0.193,
+      "p50": 0.193,
+      "p95": 0.197
+     },
+     "upscale": {
+      "mean": 0.244,
+      "p50": 0.244,
+      "p95": 0.246
+     }
+    },
+    "total": {
+     "mean": 2.676,
+     "p50": 2.673,
+     "p95": 2.752
+    },
+    "wall": {
+     "world": {
+      "mean": 8.425,
+      "p50": 8.1,
+      "p95": 10.9
+     },
+     "shadow": {
+      "mean": 1.983,
+      "p50": 2.2,
+      "p95": 3.3
+     },
+     "mask": {
+      "mean": 0.483,
+      "p50": 0.4,
+      "p95": 1.1
+     },
+     "atmosphere": {
+      "mean": 0.392,
+      "p50": 0.4,
+      "p95": 0.8
+     },
+     "post": {
+      "mean": 0.417,
+      "p50": 0.4,
+      "p95": 1.3
+     },
+     "fp-scene": {
+      "mean": 1.55,
+      "p50": 1.6,
+      "p95": 2.2
+     },
+     "fp-composite": {
+      "mean": 0.408,
+      "p50": 0.3,
+      "p95": 0.7
+     },
+     "aa": {
+      "mean": 0.55,
+      "p50": 0.5,
+      "p95": 1
+     },
+     "upscale": {
+      "mean": 0.283,
+      "p50": 0.3,
+      "p95": 0.6
+     }
+    },
+    "wallTotal": {
+     "mean": 14.492,
+     "p50": 14.1,
+     "p95": 17.6
+    },
+    "roundTripMs": 0.6
+   },
+   "stats": {
+    "drawCalls": 142,
+    "triangles": 1519169,
+    "renderedFrames": 27,
+    "buffer": [
+     2940,
+     1912
+    ]
+   },
+   "attribution": [],
+   "churn": {
+    "MeshPhysicalMaterial:-:7f70 (Mesh)": 10,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:531e (Mesh+color4 batched+color4)": 3,
+    "MeshStandardMaterial:paint:foliage:dab2 (instanced+color3 Mesh+color3)": 2,
+    "MeshStandardMaterial:-:a786 (instanced+color3)": 1,
+    "MeshStandardMaterial:pickup:dc9e (instanced+color3)": 1,
+    "MeshStandardMaterial:world-arsenal:4ced (instanced+color3 Mesh+color3)": 1,
+    "MeshPhysicalMaterial:-:8df3 (Mesh)": 1,
+    "MeshStandardMaterial:paint:painted-metal:a2bf (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:67dd (Mesh)": 1,
+    "MeshStandardMaterial:-:a270 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:3e8b (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:9fb4 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:plaster:4045 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:wood:d505 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:2590 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:foliage:42b2 (batched+color3)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:c9fb (Mesh+color4)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:e99d (Mesh+color4)": 1,
+    "MeshStandardMaterial:paint:terrain:ed2c (Mesh)": 1
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "plaza16",
+   "pose": "plaza",
+   "actors": 16,
+   "camera": null,
+   "load": 1.12,
+   "thermal": null,
+   "bench": {
+    "medianMs": 18.699999999720603,
+    "p90Ms": 24.700000000186265,
+    "gpuMedianMs": 2.805,
+    "gpuP90Ms": 2.80956
+   },
+   "passes": {
+    "supported": true,
+    "frames": 12,
+    "lostFrames": 0,
+    "passes": {
+     "world": {
+      "mean": 1.527,
+      "p50": 1.371,
+      "p95": 2.022
+     },
+     "shadow": {
+      "mean": 0.416,
+      "p50": 0.37,
+      "p95": 0.532
+     },
+     "mask": {
+      "mean": 0.034,
+      "p50": 0.032,
+      "p95": 0.052
+     },
+     "atmosphere": {
+      "mean": 0.332,
+      "p50": 0.296,
+      "p95": 0.443
+     },
+     "post": {
+      "mean": 0.204,
+      "p50": 0.185,
+      "p95": 0.27
+     },
+     "fp-scene": {
+      "mean": 0.211,
+      "p50": 0.193,
+      "p95": 0.283
+     },
+     "fp-composite": {
+      "mean": 0.036,
+      "p50": 0.032,
+      "p95": 0.047
+     },
+     "aa": {
+      "mean": 0.213,
+      "p50": 0.189,
+      "p95": 0.285
+     },
+     "upscale": {
+      "mean": 0.272,
+      "p50": 0.245,
+      "p95": 0.357
+     }
+    },
+    "total": {
+     "mean": 3.246,
+     "p50": 2.897,
+     "p95": 4.265
+    },
+    "wall": {
+     "world": {
+      "mean": 9.125,
+      "p50": 9.2,
+      "p95": 10.5
+     },
+     "shadow": {
+      "mean": 3.217,
+      "p50": 3.3,
+      "p95": 3.8
+     },
+     "mask": {
+      "mean": 0.983,
+      "p50": 1,
+      "p95": 1.2
+     },
+     "atmosphere": {
+      "mean": 0.517,
+      "p50": 0.5,
+      "p95": 1.2
+     },
+     "post": {
+      "mean": 0.617,
+      "p50": 0.7,
+      "p95": 1.2
+     },
+     "fp-scene": {
+      "mean": 1.475,
+      "p50": 1.5,
+      "p95": 2.4
+     },
+     "fp-composite": {
+      "mean": 0.383,
+      "p50": 0.4,
+      "p95": 0.7
+     },
+     "aa": {
+      "mean": 0.433,
+      "p50": 0.4,
+      "p95": 1.2
+     },
+     "upscale": {
+      "mean": 0.275,
+      "p50": 0.3,
+      "p95": 0.5
+     }
+    },
+    "wallTotal": {
+     "mean": 17.025,
+     "p50": 17,
+     "p95": 19.5
+    },
+    "roundTripMs": 0.5
+   },
+   "stats": {
+    "drawCalls": 149,
+    "triangles": 1690487,
+    "renderedFrames": 66,
+    "buffer": [
+     2940,
+     1912
+    ]
+   },
+   "attribution": [],
+   "churn": {
+    "MeshStandardMaterial:world-arsenal:4ced (instanced+color3 Mesh+color3)": 2,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:531e (Mesh+color4 batched+color4)": 2,
+    "MeshStandardMaterial:paint:foliage:dab2 (instanced+color3 Mesh+color3)": 2,
+    "MeshPhysicalMaterial:-:7f70 (Mesh)": 2,
+    "MeshStandardMaterial:-:a786 (instanced+color3)": 1,
+    "MeshStandardMaterial:pickup:dc9e (instanced+color3)": 1,
+    "MeshStandardMaterial:paint:painted-metal:a2bf (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:67dd (Mesh)": 1,
+    "MeshStandardMaterial:-:a270 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:3e8b (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:9fb4 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:plaster:4045 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:2590 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:foliage:42b2 (batched+color3)": 1,
+    "MeshStandardMaterial:Capivara_team_1fb5a8:2d2d (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_1fb5a8:e847 (skinned+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_e76f51:5721 (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_e76f51:ed11 (skinned+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_ffc23d:e960 (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_ffc23d:c743 (skinned+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_3d6fb6:144f (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_3d6fb6:a3a9 (skinned+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_a468ff:f46c (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_a468ff:7c68 (skinned+color4)": 1,
+    "MeshStandardMaterial:paint:terrain:ed2c (Mesh)": 1
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "vilaStreet",
+   "pose": "vilaStreet",
+   "actors": 1,
+   "camera": null,
+   "load": 1.11,
+   "thermal": null,
+   "bench": {
+    "medianMs": 10.899999999906868,
+    "p90Ms": 12,
+    "gpuMedianMs": 2.45416,
+    "gpuP90Ms": 2.47948
+   },
+   "passes": {
+    "supported": true,
+    "frames": 12,
+    "lostFrames": 0,
+    "passes": {
+     "world": {
+      "mean": 1.143,
+      "p50": 1.141,
+      "p95": 1.16
+     },
+     "shadow": {
+      "mean": 0.218,
+      "p50": 0.219,
+      "p95": 0.224
+     },
+     "mask": {
+      "mean": 0.007,
+      "p50": 0.007,
+      "p95": 0.007
+     },
+     "atmosphere": {
+      "mean": 0.309,
+      "p50": 0.309,
+      "p95": 0.315
+     },
+     "post": {
+      "mean": 0.181,
+      "p50": 0.181,
+      "p95": 0.184
+     },
+     "fp-scene": {
+      "mean": 0.181,
+      "p50": 0.18,
+      "p95": 0.19
+     },
+     "fp-composite": {
+      "mean": 0.032,
+      "p50": 0.031,
+      "p95": 0.033
+     },
+     "aa": {
+      "mean": 0.191,
+      "p50": 0.191,
+      "p95": 0.194
+     },
+     "upscale": {
+      "mean": 0.244,
+      "p50": 0.244,
+      "p95": 0.248
+     }
+    },
+    "total": {
+     "mean": 2.507,
+     "p50": 2.504,
+     "p95": 2.531
+    },
+    "wall": {
+     "world": {
+      "mean": 7.5,
+      "p50": 7.7,
+      "p95": 9.1
+     },
+     "shadow": {
+      "mean": 1.842,
+      "p50": 1.9,
+      "p95": 3.2
+     },
+     "mask": {
+      "mean": 0.483,
+      "p50": 0.6,
+      "p95": 0.7
+     },
+     "atmosphere": {
+      "mean": 0.358,
+      "p50": 0.3,
+      "p95": 0.9
+     },
+     "post": {
+      "mean": 0.492,
+      "p50": 0.5,
+      "p95": 0.8
+     },
+     "fp-scene": {
+      "mean": 1.283,
+      "p50": 1.2,
+      "p95": 2.1
+     },
+     "fp-composite": {
+      "mean": 0.333,
+      "p50": 0.3,
+      "p95": 0.8
+     },
+     "aa": {
+      "mean": 0.467,
+      "p50": 0.4,
+      "p95": 1.1
+     },
+     "upscale": {
+      "mean": 0.2,
+      "p50": 0.2,
+      "p95": 0.8
+     }
+    },
+    "wallTotal": {
+     "mean": 12.958,
+     "p50": 13.4,
+     "p95": 14.3
+    },
+    "roundTripMs": 0.6
+   },
+   "stats": {
+    "drawCalls": 142,
+    "triangles": 1513149,
+    "renderedFrames": 105,
+    "buffer": [
+     2940,
+     1912
+    ]
+   },
+   "attribution": [],
+   "churn": {
+    "MeshPhysicalMaterial:-:7f70 (Mesh)": 10,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:531e (Mesh+color4 batched+color4)": 3,
+    "MeshStandardMaterial:paint:foliage:dab2 (instanced+color3 Mesh+color3)": 2,
+    "MeshStandardMaterial:-:a786 (instanced+color3)": 1,
+    "MeshStandardMaterial:pickup:dc9e (instanced+color3)": 1,
+    "MeshStandardMaterial:world-arsenal:4ced (instanced+color3 Mesh+color3)": 1,
+    "MeshPhysicalMaterial:-:8df3 (Mesh)": 1,
+    "MeshStandardMaterial:paint:painted-metal:a2bf (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:67dd (Mesh)": 1,
+    "MeshStandardMaterial:-:a270 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:3e8b (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:9fb4 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:plaster:4045 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:wood:d505 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:2590 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:foliage:42b2 (batched+color3)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:c9fb (Mesh+color4)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:e99d (Mesh+color4)": 1,
+    "MeshStandardMaterial:paint:terrain:ed2c (Mesh)": 1
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "crowd",
+   "pose": "capyFront",
+   "actors": 12,
+   "camera": null,
+   "load": 1.11,
+   "thermal": null,
+   "bench": {
+    "medianMs": 17.399999999906868,
+    "p90Ms": 23.299999999813735,
+    "gpuMedianMs": 2.91628,
+    "gpuP90Ms": 2.94128
+   },
+   "passes": {
+    "supported": true,
+    "frames": 12,
+    "lostFrames": 0,
+    "passes": {
+     "world": {
+      "mean": 1.447,
+      "p50": 1.445,
+      "p95": 1.476
+     },
+     "shadow": {
+      "mean": 0.344,
+      "p50": 0.332,
+      "p95": 0.478
+     },
+     "mask": {
+      "mean": 0.107,
+      "p50": 0.104,
+      "p95": 0.113
+     },
+     "atmosphere": {
+      "mean": 0.271,
+      "p50": 0.272,
+      "p95": 0.274
+     },
+     "post": {
+      "mean": 0.181,
+      "p50": 0.181,
+      "p95": 0.185
+     },
+     "fp-scene": {
+      "mean": 0.184,
+      "p50": 0.182,
+      "p95": 0.196
+     },
+     "fp-composite": {
+      "mean": 0.032,
+      "p50": 0.032,
+      "p95": 0.033
+     },
+     "aa": {
+      "mean": 0.197,
+      "p50": 0.197,
+      "p95": 0.198
+     },
+     "upscale": {
+      "mean": 0.243,
+      "p50": 0.244,
+      "p95": 0.246
+     }
+    },
+    "total": {
+     "mean": 3.007,
+     "p50": 2.994,
+     "p95": 3.163
+    },
+    "wall": {
+     "world": {
+      "mean": 9.75,
+      "p50": 10,
+      "p95": 11
+     },
+     "shadow": {
+      "mean": 3.275,
+      "p50": 3.4,
+      "p95": 4.1
+     },
+     "mask": {
+      "mean": 1.2,
+      "p50": 1.3,
+      "p95": 1.6
+     },
+     "atmosphere": {
+      "mean": 0.758,
+      "p50": 0.7,
+      "p95": 1.2
+     },
+     "post": {
+      "mean": 0.742,
+      "p50": 0.7,
+      "p95": 1.6
+     },
+     "fp-scene": {
+      "mean": 1.45,
+      "p50": 1.5,
+      "p95": 2.1
+     },
+     "fp-composite": {
+      "mean": 0.767,
+      "p50": 0.8,
+      "p95": 1.2
+     },
+     "aa": {
+      "mean": 0.692,
+      "p50": 0.7,
+      "p95": 1.1
+     },
+     "upscale": {
+      "mean": 0.425,
+      "p50": 0.4,
+      "p95": 0.7
+     }
+    },
+    "wallTotal": {
+     "mean": 19.058,
+     "p50": 19.3,
+     "p95": 20.6
+    },
+    "roundTripMs": 0.3
+   },
+   "stats": {
+    "drawCalls": 162,
+    "triangles": 1781425,
+    "renderedFrames": 144,
+    "buffer": [
+     2940,
+     1912
+    ]
+   },
+   "attribution": [],
+   "churn": {
+    "MeshPhysicalMaterial:-:7f70 (Mesh)": 12,
+    "MeshStandardMaterial:world-arsenal:4ced (instanced+color3 Mesh+color3)": 2,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:531e (Mesh+color4 batched+color4)": 2,
+    "MeshStandardMaterial:paint:foliage:dab2 (instanced+color3 Mesh+color3)": 2,
+    "MeshStandardMaterial:-:a786 (instanced+color3)": 1,
+    "MeshStandardMaterial:pickup:dc9e (instanced+color3)": 1,
+    "MeshStandardMaterial:-:67dd (Mesh)": 1,
+    "MeshStandardMaterial:-:a270 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:3e8b (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:9fb4 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:plaster:4045 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:wood:d505 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:2590 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:foliage:42b2 (batched+color3)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:e99d (Mesh+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_1fb5a8:2d2d (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_1fb5a8:e847 (skinned+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_e76f51:5721 (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_e76f51:ed11 (skinned+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_f4f1e8:ad1e (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_f4f1e8:0308 (skinned+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_bd8956:2b65 (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_bd8956:175a (skinned+color4)": 1,
+    "MeshStandardMaterial:paint:terrain:ed2c (Mesh)": 1,
+    "MeshStandardMaterial:Capivara_team_bd8956:aaa5 (skinned+color4)": 1
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "plane",
+   "pose": "plaza",
+   "actors": 1,
+   "camera": "plane",
+   "load": 1.11,
+   "thermal": null,
+   "bench": {
+    "medianMs": 10.600000000093132,
+    "p90Ms": 12.099999999627471,
+    "gpuMedianMs": 2.54456,
+    "gpuP90Ms": 2.5558
+   },
+   "passes": {
+    "supported": true,
+    "frames": 12,
+    "lostFrames": 0,
+    "passes": {
+     "world": {
+      "mean": 2.362,
+      "p50": 2.418,
+      "p95": 2.561
+     },
+     "shadow": {
+      "mean": 0.19,
+      "p50": 0.193,
+      "p95": 0.204
+     },
+     "mask": {
+      "mean": 0.011,
+      "p50": 0.011,
+      "p95": 0.011
+     },
+     "atmosphere": {
+      "mean": 0.234,
+      "p50": 0.247,
+      "p95": 0.251
+     },
+     "post": {
+      "mean": 0.256,
+      "p50": 0.271,
+      "p95": 0.276
+     },
+     "fp-scene": {
+      "mean": 0.036,
+      "p50": 0.038,
+      "p95": 0.039
+     },
+     "fp-composite": {
+      "mean": 0.038,
+      "p50": 0.04,
+      "p95": 0.041
+     },
+     "aa": {
+      "mean": 0.317,
+      "p50": 0.335,
+      "p95": 0.34
+     },
+     "upscale": {
+      "mean": 0.338,
+      "p50": 0.357,
+      "p95": 0.363
+     }
+    },
+    "total": {
+     "mean": 3.782,
+     "p50": 3.911,
+     "p95": 4.054
+    },
+    "wall": {
+     "world": {
+      "mean": 7.517,
+      "p50": 7.7,
+      "p95": 8.9
+     },
+     "shadow": {
+      "mean": 1.283,
+      "p50": 1.2,
+      "p95": 2
+     },
+     "mask": {
+      "mean": 0.492,
+      "p50": 0.4,
+      "p95": 1.2
+     },
+     "atmosphere": {
+      "mean": 0.167,
+      "p50": 0.1,
+      "p95": 0.6
+     },
+     "post": {
+      "mean": 0.217,
+      "p50": 0.2,
+      "p95": 0.7
+     },
+     "fp-scene": {
+      "mean": 0.3,
+      "p50": 0.2,
+      "p95": 1
+     },
+     "fp-composite": {
+      "mean": 0.142,
+      "p50": 0.1,
+      "p95": 0.7
+     },
+     "aa": {
+      "mean": 0.167,
+      "p50": 0.2,
+      "p95": 0.6
+     },
+     "upscale": {
+      "mean": 0.075,
+      "p50": 0,
+      "p95": 0.3
+     }
+    },
+    "wallTotal": {
+     "mean": 10.358,
+     "p50": 10.8,
+     "p95": 13.1
+    },
+    "roundTripMs": 0.8
+   },
+   "stats": {
+    "drawCalls": 129,
+    "triangles": 919340,
+    "renderedFrames": 183,
+    "buffer": [
+     2940,
+     1912
+    ]
+   },
+   "attribution": [],
+   "churn": {
+    "MeshPhysicalMaterial:Ilha_painted_atlas:531e (Mesh+color4 batched+color4)": 3,
+    "MeshPhysicalMaterial:-:7f70 (Mesh)": 2,
+    "MeshStandardMaterial:-:a786 (instanced+color3)": 1,
+    "MeshStandardMaterial:pickup:dc9e (instanced+color3)": 1,
+    "MeshStandardMaterial:world-arsenal:4ced (instanced+color3 Mesh+color3)": 1,
+    "MeshPhysicalMaterial:-:a90f (Mesh)": 1,
+    "MeshPhysicalMaterial:-:83ea (Mesh)": 1,
+    "MeshPhysicalMaterial:-:8df3 (Mesh)": 1,
+    "MeshStandardMaterial:paint:painted-metal:a2bf (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:67dd (Mesh)": 1,
+    "MeshStandardMaterial:-:a270 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:3e8b (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:9fb4 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:plaster:4045 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:wood:d505 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:fabric:4283 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:2590 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:foliage:42b2 (batched+color3)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:10cd (Mesh+color4)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:0e76 (Mesh+color4)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:c9fb (Mesh+color4)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:75d8 (Mesh+color4)": 1,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:f179 (Mesh+color4)": 1,
+    "MeshStandardMaterial:paint:terrain:ed2c (Mesh)": 1
+   }
+  },
+  {
+   "preset": "medium",
+   "name": "fight",
+   "pose": "cocoBlast",
+   "actors": 8,
+   "camera": null,
+   "load": 1.02,
+   "thermal": null,
+   "bench": {
+    "medianMs": 13.5,
+    "p90Ms": 16.399999999906868,
+    "gpuMedianMs": 2.69132,
+    "gpuP90Ms": 2.70672
+   },
+   "passes": {
+    "supported": true,
+    "frames": 12,
+    "lostFrames": 0,
+    "passes": {
+     "world": {
+      "mean": 1.414,
+      "p50": 1.361,
+      "p95": 2.021
+     },
+     "shadow": {
+      "mean": 0.281,
+      "p50": 0.272,
+      "p95": 0.393
+     },
+     "mask": {
+      "mean": 0.023,
+      "p50": 0.021,
+      "p95": 0.032
+     },
+     "atmosphere": {
+      "mean": 0.306,
+      "p50": 0.295,
+      "p95": 0.434
+     },
+     "post": {
+      "mean": 0.189,
+      "p50": 0.181,
+      "p95": 0.268
+     },
+     "fp-scene": {
+      "mean": 0.192,
+      "p50": 0.184,
+      "p95": 0.278
+     },
+     "fp-composite": {
+      "mean": 0.033,
+      "p50": 0.032,
+      "p95": 0.046
+     },
+     "aa": {
+      "mean": 0.2,
+      "p50": 0.191,
+      "p95": 0.285
+     },
+     "upscale": {
+      "mean": 0.254,
+      "p50": 0.244,
+      "p95": 0.352
+     }
+    },
+    "total": {
+     "mean": 2.892,
+     "p50": 2.786,
+     "p95": 4.11
+    },
+    "wall": {
+     "world": {
+      "mean": 7.175,
+      "p50": 7.3,
+      "p95": 8.1
+     },
+     "shadow": {
+      "mean": 2.15,
+      "p50": 2.3,
+      "p95": 2.7
+     },
+     "mask": {
+      "mean": 0.892,
+      "p50": 1,
+      "p95": 1.4
+     },
+     "atmosphere": {
+      "mean": 0.358,
+      "p50": 0.4,
+      "p95": 0.9
+     },
+     "post": {
+      "mean": 0.375,
+      "p50": 0.4,
+      "p95": 0.9
+     },
+     "fp-scene": {
+      "mean": 1.25,
+      "p50": 1.3,
+      "p95": 1.7
+     },
+     "fp-composite": {
+      "mean": 0.275,
+      "p50": 0.3,
+      "p95": 0.8
+     },
+     "aa": {
+      "mean": 0.45,
+      "p50": 0.4,
+      "p95": 1.1
+     },
+     "upscale": {
+      "mean": 0.125,
+      "p50": 0.1,
+      "p95": 0.4
+     }
+    },
+    "wallTotal": {
+     "mean": 13.05,
+     "p50": 13.1,
+     "p95": 14.2
+    },
+    "roundTripMs": 0.6
+   },
+   "stats": {
+    "drawCalls": 126,
+    "triangles": 1541285,
+    "renderedFrames": 222,
+    "buffer": [
+     2940,
+     1912
+    ]
+   },
+   "attribution": [],
+   "churn": {
+    "MeshStandardMaterial:world-arsenal:4ced (instanced+color3 Mesh+color3)": 2,
+    "MeshPhysicalMaterial:Ilha_painted_atlas:531e (Mesh+color4 batched+color4)": 2,
+    "MeshStandardMaterial:paint:foliage:dab2 (instanced+color3 Mesh+color3)": 2,
+    "MeshPhysicalMaterial:-:7f70 (Mesh)": 2,
+    "MeshStandardMaterial:-:a786 (instanced+color3)": 1,
+    "MeshStandardMaterial:pickup:dc9e (instanced+color3)": 1,
+    "MeshStandardMaterial:paint:painted-metal:a2bf (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:67dd (Mesh)": 1,
+    "MeshStandardMaterial:-:a270 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:3e8b (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:9fb4 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:plaster:4045 (Mesh+color3)": 1,
+    "MeshStandardMaterial:-:2590 (Mesh+color3)": 1,
+    "MeshStandardMaterial:paint:foliage:42b2 (batched+color3)": 1,
+    "MeshStandardMaterial:Capivara_team_a468ff:f46c (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_a468ff:7c68 (skinned+color4)": 1,
+    "MeshStandardMaterial:Capivara_team_f28db2:c3be (skinned)": 1,
+    "MeshStandardMaterial:Capivara_team_f28db2:2aa9 (skinned+color4)": 1,
+    "MeshStandardMaterial:paint:terrain:ed2c (Mesh)": 1
+   }
+  }
+ ]
+}
