@@ -9,6 +9,21 @@ export class CharacterMask {
   private readonly material = new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide, fog: false, depthTest: false, depthWrite: false });
   private readonly clearColor = new THREE.Color();
   private readonly uniforms: Record<string, THREE.IUniform>;
+  private renderScenes = new WeakMap<THREE.Scene, THREE.Scene>();
+
+  private renderScene(scene: THREE.Scene) {
+    let view = this.renderScenes.get(scene);
+    if (!view) {
+      // Three caches lights and render lists by Scene identity. Reusing the world Scene
+      // for a light-free mask invalidates every lit material on the next world pass.
+      // This read-only view borrows the exact graph, ancestry and updated matrices.
+      // No Scene constructor: its UUID would advance the shared Math.random sequence.
+      view = Object.create(scene) as THREE.Scene;
+      view.background = null; view.overrideMaterial = null; view.matrixWorldAutoUpdate = false;
+      this.renderScenes.set(scene, view);
+    }
+    return view;
+  }
 
   constructor(depth: THREE.DepthTexture) {
     this.uniforms = { sceneDepth: { value: depth }, inverseSize: { value: new THREE.Vector2(1, 1) }, near: { value: .07 }, far: { value: 850 }, waterLevel: { value: WATER_LEVEL } };
@@ -54,20 +69,21 @@ export class CharacterMask {
     return material;
   }
   render(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
-    const layers = camera.layers.mask, background = scene.background, override = scene.overrideMaterial;
-    const shadows = gl.shadowMap.enabled, alpha = gl.getClearAlpha(), autoUpdate = scene.matrixWorldAutoUpdate; gl.getClearColor(this.clearColor);
+    const layers = camera.layers.mask, background = scene.background, override = scene.overrideMaterial, autoUpdate = scene.matrixWorldAutoUpdate;
+    const shadows = gl.shadowMap.enabled, alpha = gl.getClearAlpha(); gl.getClearColor(this.clearColor);
+    const renderScene = this.renderScene(scene);
     this.uniforms.near.value = camera.near; this.uniforms.far.value = camera.far;
     try {
-      // The world pass just updated every matrix of this scene: a second traversal is pure CPU cost.
-      scene.matrixWorldAutoUpdate = false;
-      camera.layers.set(1); scene.background = null; scene.overrideMaterial = null;
+      // The world pass just updated every matrix; the view skips a second traversal.
+      // Keep the original root's pass state too: mesh ancestry still leads to it.
+      camera.layers.set(1); scene.background = null; scene.overrideMaterial = null; scene.matrixWorldAutoUpdate = false;
       scene.traverseVisible(object => {
         if (!(object as THREE.Mesh).isMesh || !object.layers.test(camera.layers)) return;
         const mesh = object as THREE.Mesh;
         this.swapped.push(mesh); this.originals.push(mesh.material); mesh.material = this.variant(mesh);
       });
       gl.shadowMap.enabled = false; gl.setClearColor(0, 0);
-      gl.setRenderTarget(this.target); gl.render(scene, camera);
+      gl.setRenderTarget(this.target); gl.render(renderScene, camera);
     } finally {
       for (let i = 0; i < this.swapped.length; i++) this.swapped[i].material = this.originals[i];
       this.swapped.length = 0; this.originals.length = 0;
@@ -75,5 +91,5 @@ export class CharacterMask {
       gl.shadowMap.enabled = shadows; gl.setClearColor(this.clearColor, alpha);
     }
   }
-  dispose() { this.target.dispose(); this.material.dispose(); for (const material of this.variants.values()) material.dispose(); }
+  dispose() { this.target.dispose(); this.material.dispose(); for (const material of this.variants.values()) material.dispose(); this.renderScenes = new WeakMap(); }
 }
