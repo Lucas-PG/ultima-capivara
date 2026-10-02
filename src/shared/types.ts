@@ -1,5 +1,5 @@
 import type { LandmarkSpec } from './landmarks';
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 14;
 export const WORLD_VERSION = 'ilha-v4-redentora-1';
 export const TICK_RATE = 60;
 export const SNAPSHOT_RATE = 20;
@@ -24,6 +24,7 @@ export interface SessionCallbacks {
   input: (playerId: string, input: InputFrame) => void;
   action: (playerId: string, action: PlayerAction) => void;
   player: (profile: PlayerProfile, status: 'join' | 'disconnect' | 'reconnect' | 'expired') => void;
+  loaded?: (playerId: string, matchId: string) => void;
   snapshot: (snapshot: WorldSnapshot) => void;
   events: (events: GameEvent[]) => void;
   error: (message: string) => void;

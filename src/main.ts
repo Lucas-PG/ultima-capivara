@@ -55,6 +55,9 @@ let pageDisposed = false;
 class RendererUnavailableError extends Error {}
 const rendererUnavailableMessage = 'Não foi possível iniciar o gráfico 3D. Ative a aceleração de hardware e tente novamente.';
 let matchPreparation: Promise<void> | null = null;
+let sceneLoaded = false;
+const loadedPlayers = new Set<string>();
+const queuedPlayers: { profile: PlayerProfile; status: 'join' | 'disconnect' | 'reconnect' | 'expired' }[] = [];
 let loadFraction = 0, loadLabel = 'Desenhando a ilha';
 let worker: Worker | null = null;
 let snapshot: WorldSnapshot | null = null;
@@ -101,7 +104,12 @@ const session = new RoomSession({
   },
   input(id, frame) { worker?.postMessage({ type: 'input', id, input: frame }); },
   action(id, action) { worker?.postMessage({ type: 'action', id, action }); },
-  player(player, status) { worker?.postMessage({ type: 'player', profile: player, status }); },
+  player(player, status) {
+    if (status !== 'join') loadedPlayers.delete(player.id);
+    if (worker) worker.postMessage({ type: 'player', profile: player, status });
+    else if (playing && room?.isHost) queuedPlayers.push({ profile: player, status });
+  },
+  loaded: acceptLoaded,
   status: value => ui.setConnectionStatus(value),
   snapshot: acceptSnapshot,
   events: acceptEvents,
@@ -196,7 +204,7 @@ function beginMatch(id: string, matchId: string) {
   playerId = id; match = matchId; playing = true; dirtyFrame = true;
   lastEvent = 0; lastRound = 0; initializedPose = false; lastAlive = true; lastStage = '';
   input.reset(); ui.closeModal(); ui.game(id); ui.setPaused(!input.locked);
-  loading = true; readyToReveal = false; matchPreparation = null; ui.setLoading(true);
+  loading = true; readyToReveal = false; matchPreparation = null; sceneLoaded = false; ui.setLoading(true);
   ui.setLoadingProgress(Math.min(.98, loadFraction), loadFraction >= .98 ? 'Carregando o avião' : loadLabel);
   return true;
 }
@@ -224,6 +232,12 @@ function startReadyWorker(config: RoomConfig, players: PlayerProfile[], matchId:
   };
   worker.onerror = () => { leave(); ui.toast('A partida foi interrompida. Volte ao início e tente novamente.', true); };
   worker.postMessage({ type: 'init', world, config, players, matchId });
+  for (const player of queuedPlayers.splice(0)) worker.postMessage({ type: 'player', ...player });
+  for (const id of loadedPlayers) worker.postMessage({ type: 'match-loaded', matchId, id });
+}
+function acceptLoaded(id: string, matchId: string) {
+  if (!playing || matchId !== match || loadedPlayers.has(id)) return;
+  loadedPlayers.add(id); worker?.postMessage({ type: 'match-loaded', matchId, id });
 }
 function startPractice(config: RoomConfig, p: { name: string; color: string }) {
   void sound.unlock();
@@ -239,6 +253,7 @@ function stopMatch() {
   localPresentation.clear(); renderFrame.localActor = undefined;
   remoteInterpolation.reset(); renderedRemoteTime = null;
   playing = false; input.unlock(); worker?.terminate(); worker = null;
+  loadedPlayers.clear(); queuedPlayers.length = 0; sceneLoaded = false;
   snapshot = null; predicted = null; pending = []; spectateId = null; inputClock.reset(); interaction = null; diedAt = 0; lastKiller = null; killSeen = false; fellAt = null;
   spectator.reset(); ui.setSpectate(null);
   firePredictor.reset(); heldBox = previousBox = -1;
@@ -261,7 +276,7 @@ function acceptSnapshot(next: WorldSnapshot) {
       if (!playing || match !== preparingId || pageDisposed) return;
       return renderer!.prepareMatch(next);
     }).then(() => {
-      if (playing && match === preparingId) { readyToReveal = true; dirtyFrame = true; if (isRoundMode(next.config.mode)) worker?.postMessage({ type: 'match-ready', matchId: preparingId }); }
+      if (playing && match === preparingId) { readyToReveal = true; dirtyFrame = true; }
     }).catch(error => {
       if (match !== preparingId || pageDisposed) return;
       leave(); ui.toast(error instanceof RendererUnavailableError ? rendererUnavailableMessage :
@@ -527,6 +542,13 @@ function frame(now: number) {
   ui.scopeReady = renderer?.scoped ?? true;
   ui.update(snapshot, playerId, session.ping, input.scoreboard, fps, interaction, session.latencies);
   timing.end('hud', hudAt);
+  // Warmup/preparation uploads assets. Ack only after the real first frame,
+  // loading-overlay removal and HUD update have also completed on this client.
+  if (!loading && readyToReveal && !sceneLoaded && isRoundMode(snapshot.config.mode)) {
+    sceneLoaded = true;
+    if (practiceConfig) acceptLoaded(playerId, match);
+    else session.matchLoaded(match);
+  }
 }
 requestAnimationFrame(frame);
 document.querySelector('#loading')?.remove();
@@ -563,7 +585,7 @@ if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') {
   Object.defineProperty(window, '__capivara', { value: {
     inspect: () => ({ screen: ui.screen, room, snapshot, predicted, renderedFrames, renderer: renderer?.stats, renderDensity: renderer?.renderDensity, gpuEstimate: renderer?.gpuEstimate, pending: pending.length, spectateId, spectate: { lastKiller, killSeen, diedAt, fellAt, target: spectator.target, hold: spectator.hold },
       camera: renderer ? { ...renderer.cameraPosition, fov: renderer.camera.fov } : null,
-      clientInput: { ...input.frame, locked: input.locked }, renderState: { loading, readyToReveal, hidden: document.hidden },
+      clientInput: { ...input.frame, locked: input.locked }, renderState: { loading, readyToReveal, sceneLoaded, hidden: document.hidden },
       network: { status: session.connectionStatus, latencies: session.latencies, interpolationDelayMs: remoteInterpolation.delay * 1000 },
       remoteActors: [...(renderFrame.remoteActors?.values() ?? [])].map(actor => ({ id: actor.id, pos: { ...actor.pos }, yaw: actor.yaw })) }),
     perf: () => {

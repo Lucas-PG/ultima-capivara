@@ -431,13 +431,17 @@ export class Simulation {
     this.emit({ type: 'notice', text: `${s.name} saiu da partida` });
   }
 
-  step(dt: number) {
+  step(dt: number, holdOpening = false) {
     if (!Number.isFinite(dt) || dt <= 0) return;
     this.accumulator = Math.min(this.accumulator + Math.min(dt, .25), .5);
-    while (this.accumulator + 1e-10 >= TICK) { this.accumulator -= TICK; this.fixedStep(); }
+    while (this.accumulator + 1e-10 >= TICK) { this.accumulator -= TICK; this.fixedStep(holdOpening); }
   }
-  private fixedStep() {
-    this.time += TICK; this.tick++;
+  private fixedStep(holdOpening: boolean) {
+    this.tick++;
+    // Keep transport snapshots fresh, including arrivals/disconnects, without
+    // consuming countdown, buy time or gameplay while clients prepare the arena.
+    if (holdOpening && this.round?.number === 1 && this.phase === 'countdown') return;
+    this.time += TICK;
     if (this.phase === 'countdown') { this.countdown = Math.max(0, this.countdown - TICK); if (this.countdown <= 0) { this.phase = 'playing'; this.matchStartedAt = this.time; this.emit({ type: 'notice', text: 'A partida começou!' }); } return; }
     if (this.phase !== 'playing') return;
     if (this.round) {

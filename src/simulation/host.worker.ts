@@ -1,4 +1,5 @@
 import { Simulation } from './index';
+import { OpeningLoadGate } from './opening-load';
 import { isRoundMode } from '../shared/types';
 import type { InputFrame, PlayerAction, PlayerProfile, RoomConfig, WorldSpec } from '../shared/types';
 
@@ -8,7 +9,7 @@ type Command =
   | { type: 'action'; id: string; action: PlayerAction }
   | { type: 'player'; profile: PlayerProfile; status: 'join' | 'disconnect' | 'reconnect' | 'expired' }
   | { type: 'stop' }
-  | { type: 'match-ready'; matchId: string }
+  | { type: 'match-loaded'; matchId: string; id: string }
   // QA builds only (VITE_QA=1): deal damage so death and spectator flows can be reproduced on demand.
   | { type: 'qa-damage'; target: string; attacker: string | null; amount: number; weapon: string };
 
@@ -16,8 +17,7 @@ let simulation: Simulation | null = null;
 let previous = performance.now();
 let accumulator = 0;
 let ticks = 0;
-// A round clock starts only once its host can see the prepared arena.
-let waitingForMatch: string | null = null;
+let openingLoad: OpeningLoadGate | null = null;
 
 self.onmessage = ({ data }: MessageEvent<Command>) => {
   try {
@@ -25,13 +25,16 @@ self.onmessage = ({ data }: MessageEvent<Command>) => {
       const seed = crypto.getRandomValues(new Uint32Array(1))[0];
       simulation = new Simulation(data.world, data.config, data.players, data.matchId, seed);
       previous = performance.now(); accumulator = 0; ticks = 0;
-      waitingForMatch = isRoundMode(data.config.mode) ? data.matchId : null;
+      openingLoad = isRoundMode(data.config.mode) ? new OpeningLoadGate(data.matchId, data.players, previous) : null;
       publish();
-    } else if (data.type === 'stop') { simulation = null; waitingForMatch = null; }
-    else if (data.type === 'match-ready' && data.matchId === waitingForMatch) { waitingForMatch = null; previous = performance.now(); accumulator = 0; }
+    } else if (data.type === 'stop') { simulation = null; openingLoad = null; }
+    else if (data.type === 'match-loaded') openingLoad?.loaded(data.matchId, data.id);
     else if (data.type === 'input') simulation?.input(data.id, data.input);
     else if (data.type === 'action') simulation?.action(data.id, data.action);
-    else if (data.type === 'player') simulation?.player(data.profile, data.status);
+    else if (data.type === 'player') {
+      simulation?.player(data.profile, data.status);
+      openingLoad?.player(data.profile, data.status);
+    }
     else if (data.type === 'qa-damage' && import.meta.env.VITE_QA === '1' && simulation) {
       const sim = simulation as unknown as { actors: Map<string, unknown>; damage(target: unknown, raw: number, attacker: string | null, weapon: string, head: boolean): void };
       const target = sim.actors.get(data.target);
@@ -51,7 +54,9 @@ setInterval(() => {
   const now = performance.now();
   const elapsed = (now - previous) / 1000;
   previous = now;
-  if (!simulation || waitingForMatch) return;
+  if (!simulation) return;
+  const holdOpening = openingLoad?.waiting(now) ?? false;
+  if (!holdOpening) openingLoad = null;
   // A sleeping host must never fast-forward damage or empty a magazine on resume.
   if (elapsed > .5) {
     accumulator = 0;
@@ -64,7 +69,7 @@ setInterval(() => {
   const started = performance.now();
   try {
     while (accumulator >= 1 / 60 && steps < 6) {
-      simulation.step(1 / 60);
+      simulation.step(1 / 60, holdOpening);
       accumulator -= 1 / 60;
       steps++; ticks++;
       if (ticks % 3 === 0) publish();
