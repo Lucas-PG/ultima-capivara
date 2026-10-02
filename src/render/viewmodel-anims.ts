@@ -206,10 +206,10 @@ const SMG_SWAP: Choreography = [
 ];
 const SMG_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [-0.0712715207, -0.0365287927, 0.0465020958],
   forward: [0.259133355, 0.461110908, -0.848661673], palm: [0.9624155, -0.0493324025, 0.267063137], pole: [-0.6, -1, 0.2],
-  curl: { index: [1.12551124, 1.21059965, 0.535734993], middle: [1.28353255, 1.00933023, 1.2760274], ring: [1.25893331, 1.19648349, 0.758054273], thumb: [0.516442284, 0.143842169, -0.0551321481],
+  curl: { index: [1.12551124, 1.21059965, 0.535734993], middle: [.05, .3, .3], ring: [1.25893331, 1.19648349, 0.758054273], thumb: [0.516442284, 0.143842169, -0.0551321481],
     spread: -0.512847704, indexSpread: 0.0160632489, indexRoll: -0.00905554362 } };
 export const SMG_RELOAD_EMPTY: Choreography = [...SMG_SWAP,
-  { t: .77, L: { space: 'gun', wrist: [-.145, .04, -.13], forward: [.1, .3, -1], palm: [1, -.1, .05], curl: OPEN } },
+  { t: .77, L: { space: 'gun', wrist: [-.145, .06, -.11], forward: [.1, .3, -1], palm: [1, -.1, .05], curl: OPEN } },
   { t: .805, L: SMG_CHARGE_HAND, parts: { charge: 0 } },
   { t: .845, L: SMG_CHARGE_HAND, parts: { charge: 1 }, sfx: 'slide-back' },
   { t: .86, L: SMG_CHARGE_HAND, parts: { charge: 1 } },
