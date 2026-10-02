@@ -26,9 +26,12 @@ const PISTOL_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.078594
 const PISTOL_MAG_CLEAR = shift(PISTOL_MAG_HAND, [0, -.039, 0]);
 const PISTOL_MAG_OUTSIDE = shift(PISTOL_MAG_HAND, [-.108, -.039, 0]);
 const PISTOL_CLEAR: HandKey = { space: 'grip', offset: [-.045, 0, 0] };
-const PISTOL_RELEASE_HAND: HandKey = { space: 'part', part: 'release', wrist: [-0.061777, -0.050439, -0.044295],
-  forward: [-0.231821, 0.531271, -0.814868], palm: [0.953346, -0.042433, -0.298881],
-  curl: { index: [0.2088, 0.18, 0.135], middle: [0.2538, 0.225, 0.135], ring: [0.3312, 0.225, 0.18], thumb: [0.31749, 0.228741, 0.142476], spread: -0.1858 } };
+const PISTOL_RETURN_CLEAR: HandKey = { space: 'grip', offset: [-.045, -.025, 0] };
+const PISTOL_RELEASE_HAND: HandKey = { space: 'part', part: 'release', wrist: [-0.0523961, -0.0845468, -0.0218285],
+  forward: [-0.0228905, 0.7940599, -0.6074083],
+  palm: [0.9970598, 0.0625748, 0.0442288],
+  pole: [-1, -0.5, 0.3],
+  curl: { index: [0.1942984, 0.1859468, 0.127659], middle: [0.1705234, 0.2246227, 0.1382764], ring: [0.1138685, 0.2156006, 0.164218], thumb: [0.1490603, 0.2830322, 0.0607156], spread: 0.3145627, indexSpread: 0.0048042, indexRoll: 0 } };
 const pistolSwap = (retain: boolean): Choreography => [
   { t: .035, L: PISTOL_CLEAR },
   { t: .04, R: INDEXED },
@@ -56,17 +59,17 @@ const pistolSwap = (retain: boolean): Choreography => [
 export const PISTOL_RELOAD_EMPTY: Choreography = [
   { t: 0, parts: { slide: 1 } }, ...pistolSwap(false),
   { t: .775, L: { space: 'gun', wrist: [-.125, -.06, .06], forward: [.25, .4, -1], palm: [1, 0, .1], curl: OPEN } },
-  { t: .795, L: { space: 'gun', wrist: [-.085, -.04, .035], forward: [.25, .4, -1], palm: [1, 0, .1], curl: OPEN }, parts: { slide: 1 } },
+  { t: .795, L: shift(PISTOL_RELEASE_HAND, [-.025, 0, 0]), parts: { slide: 1 } },
   { t: .81, L: PISTOL_RELEASE_HAND, parts: { slide: 1, release: 1 } },
-  { t: .825, parts: { slide: 0, release: 1 }, p: [-.03, .024, .025], r: [.20, .10, -.26], ease: 'snap', sfx: 'slide-home' },
-  { t: .85, parts: { release: 0 }, L: { space: 'gun', wrist: [-.125, -.04, .055], forward: [.15, .1, -1], palm: [1, 0, .1], curl: OPEN } },
-  { t: .91, L: PISTOL_CLEAR },
+  { t: .825, L: PISTOL_RELEASE_HAND, parts: { slide: 0, release: 1 }, p: [-.03, .024, .025], r: [.20, .10, -.26], ease: 'snap', sfx: 'slide-home' },
+  { t: .85, parts: { release: 0 }, L: shift(PISTOL_RELEASE_HAND, [-.05, 0, 0]) },
+  { t: .91, L: PISTOL_RETURN_CLEAR },
   { t: .96, L: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 export const PISTOL_RELOAD_PARTIAL: Choreography = [
   ...pistolSwap(true),
   { t: .79, L: { space: 'gun', wrist: [-.125, -.06, .08], forward: [.15, .1, -1], palm: [1, 0, .1], curl: OPEN } },
-  { t: .85, L: PISTOL_CLEAR },
+  { t: .85, L: PISTOL_RETURN_CLEAR },
   { t: .95, L: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 const pistolReloads = [PISTOL_RELOAD_PARTIAL, PISTOL_RELOAD_EMPTY].map(keys => [...keys].sort((a, b) => a.t - b.t));

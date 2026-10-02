@@ -27,3 +27,27 @@ describe('pistol magazine palm seat', () => {
     expect(Math.abs(wrist!.pronation)).toBeLessThanOrEqual(80);
   });
 });
+
+describe('pistol slide release', () => {
+  it.each([.81, .825])('places the thumb on the actual release at %s', phase => {
+    const pose = fixture.pose('pistol', 'reload', phase * 1.8);
+    const skin = measureGrip(['pistol', 'L']);
+    const thumb = measureGrip(['pistol', 'L', false, { surface: 'release', bones: ['thumb3'] }]);
+    expect(skin.worst).toBeGreaterThanOrEqual(-.5);
+    expect(thumb.worst).toBeGreaterThanOrEqual(-.5);
+    expect(thumb.worst).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(pose.wrists.L!.flexion)).toBeLessThanOrEqual(45);
+    expect(pose.wrists.L!.deviation).toBeGreaterThanOrEqual(-25);
+    expect(pose.wrists.L!.deviation).toBeLessThanOrEqual(20);
+    expect(Math.abs(pose.wrists.L!.pronation)).toBeLessThanOrEqual(80);
+  });
+});
+
+describe('pistol support return', () => {
+  it.each([['reload', 1.675], ['reload-partial', 1.6], ['reload-partial', 1.625]] as const)(
+    '%s at %s approaches the firing paw from below without crossing it', (action, seconds) => {
+      fixture.pose('pistol', action, seconds);
+      expect(measureGrip(['pistol', 'L', true]).worst).toBeGreaterThanOrEqual(-.5);
+      expect(measureGrip(['pistol', 'L']).worst).toBeGreaterThanOrEqual(-.5);
+    });
+});
