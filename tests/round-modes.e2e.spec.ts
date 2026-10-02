@@ -68,7 +68,18 @@ test('a real guest buys through the host and receives the same team score and ne
     await host.locator('[data-do="ready"]').click(); await guest.locator('[data-do="ready"]').click();
     await expect(host.locator('[data-do="start"]')).toBeEnabled({ timeout: 60_000 });
     await host.locator('[data-do="start"]').click();
-    await expect.poll(async () => (await inspect(guest)).snapshot?.phase, { timeout: 60_000 }).toBe('playing');
+    await expect.poll(async () => {
+      const state = await inspect(guest);
+      return state.snapshot?.phase === 'playing' && !state.renderState.loading;
+    }, { timeout: 60_000 }).toBe(true);
+    await expect(guest.locator('#loadingOverlay')).toHaveCount(0);
+    // At the deliberate 2 FPS cap, a received playing snapshot can precede the
+    // HUD's last countdown frame. Press O once its buy control is ready.
+    await expect(guest.locator('[data-open-shop]')).toBeEnabled();
+    const buying = (await inspect(guest)).snapshot;
+    expect(buying.round.number).toBe(1);
+    expect(buying.round.phase).toBe('buy');
+    expect(buying.round.endsAt - buying.time).toBeGreaterThanOrEqual(10);
     await guest.keyboard.press('KeyO'); await expect(guest.locator('.round-shop')).toBeVisible();
     await guest.getByRole('button', { name: 'Comprar Colete por 650 moedas', exact: true }).click();
     const guestId = (await inspect(guest)).room.myId;
