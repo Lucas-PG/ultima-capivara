@@ -1,0 +1,73 @@
+{
+  "camera": "medium-crowd",
+  "viewport": {
+    "width": 1470,
+    "height": 956,
+    "dpr": 2
+  },
+  "cpuThrottle": 1,
+  "diagnosticInterventions": [
+    "Object3D update observer",
+    "Scene render observer",
+    "shader source observer",
+    "synchronous intermediate readback"
+  ],
+  "matricesBefore": {
+    "values": 41408,
+    "sha256": "d8f958036d4f75dc2f65e381fc41f8b6269b9df0a105702a107f068b0b3dd049"
+  },
+  "matricesAfter": {
+    "values": 41408,
+    "sha256": "d8f958036d4f75dc2f65e381fc41f8b6269b9df0a105702a107f068b0b3dd049"
+  },
+  "bonesBefore": {
+    "values": 86528,
+    "sha256": "681cec55791623e0a4365be5d31abaf3f3a22e339f674bd4f87c56988256ec38"
+  },
+  "bonesAfter": {
+    "values": 86528,
+    "sha256": "681cec55791623e0a4365be5d31abaf3f3a22e339f674bd4f87c56988256ec38"
+  },
+  "targetsBefore": {
+    "world": {
+      "width": 1846,
+      "height": 1203,
+      "format": 6408,
+      "type": 5131,
+      "error": 0,
+      "sha256": "3c2b71c2b9efe54c6b3be12b27bf8580adf26d7611ac42b7b55a668bcd54d6b6"
+    },
+    "mask": {
+      "width": 1846,
+      "height": 1203,
+      "format": 6403,
+      "type": 5121,
+      "error": 0,
+      "sha256": "38ead2a44b1b2f8f59045cc5b807aae9c5b2d80da22fb77c8539788ddbd44de4"
+    }
+  },
+  "targetsAfter": {
+    "world": {
+      "width": 1846,
+      "height": 1203,
+      "format": 6408,
+      "type": 5131,
+      "error": 0,
+      "sha256": "3c2b71c2b9efe54c6b3be12b27bf8580adf26d7611ac42b7b55a668bcd54d6b6"
+    },
+    "mask": {
+      "width": 1846,
+      "height": 1203,
+      "format": 6403,
+      "type": 5121,
+      "error": 0,
+      "sha256": "38ead2a44b1b2f8f59045cc5b807aae9c5b2d80da22fb77c8539788ddbd44de4"
+    }
+  },
+  "shaderSourceCounts": {
+    "before": 176,
+    "after": 174
+  },
+  "newShaderSourceHashes": [],
+  "decision": "Rejected: original board capture still differs despite exact observer data."
+}

@@ -1,0 +1,154 @@
+[
+  {
+    "file": "/home/lucas/codex-team/logs/performance/baseline-medium-royale.json",
+    "quality": "medium",
+    "mode": "battle-royale",
+    "seconds": 173,
+    "headless": true,
+    "menuMs": 2915,
+    "firstFrameMs": 21272,
+    "cpuThrottle": 4,
+    "pinDensity": true,
+    "machine": {
+      "platform": "linux",
+      "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+      "logicalCpus": 16,
+      "totalMemoryMB": 15905
+    },
+    "fps": 41.6,
+    "fpsByMinute": [
+      33.2,
+      41.3,
+      49.2
+    ],
+    "p50": 16.7,
+    "p95": 33.4,
+    "p99": 50,
+    "max": 900,
+    "low1": 13.3,
+    "over20": 2950,
+    "over50": 23,
+    "frames": 7187,
+    "gpuMs": 2.86,
+    "gpuPasses": {
+      "world": 1.54,
+      "shadow": 0.27,
+      "mask": 0.09,
+      "atmosphere": 0.32,
+      "post": 0.18,
+      "aa": 0.19,
+      "upscale": 0.24,
+      "fp-scene": 0.25,
+      "fp-composite": 0.03
+    },
+    "cpuMsPerFrame": {
+      "audio": 0.2,
+      "interaction": 0.01,
+      "avatars": 4.63,
+      "camera": 0.11,
+      "world-update": 0.27,
+      "weapon-view": 0.1,
+      "effects": 0.13,
+      "texture-upload": 0.12,
+      "world-draw": 12.6,
+      "render": 18.57,
+      "hud": 0.85,
+      "snapshot": 0.11,
+      "camera-transition": 0,
+      "driver-shader-compile": 0,
+      "driver-program-link": 0,
+      "shader-program-created": 0,
+      "first-person-draw": 0.08
+    },
+    "cpuMax": {
+      "audio": 20.5,
+      "interaction": 3.2,
+      "avatars": 24.9,
+      "camera": 13.4,
+      "world-update": 6.3,
+      "weapon-view": 7.3,
+      "effects": 3.9,
+      "texture-upload": 0.9,
+      "world-draw": 36.5,
+      "render": 44.1,
+      "hud": 20,
+      "snapshot": 3.7,
+      "worker-tick": 4.7,
+      "camera-transition": 0,
+      "driver-shader-compile": 0,
+      "driver-program-link": 0,
+      "shader-program-created": 0,
+      "first-person-draw": 2
+    },
+    "workerTickMs": 0.77,
+    "longTasks": 2,
+    "heapMB": [
+      235.3,
+      339.1
+    ],
+    "draws": 152,
+    "triangles": 1529424,
+    "density": {
+      "mean": 1.25,
+      "min": 1.25,
+      "max": 1.25
+    },
+    "buffer": [
+      2940,
+      1912
+    ],
+    "buffers": [
+      "2940x1912"
+    ],
+    "thermal": {
+      "null": 135
+    },
+    "load": 1.39,
+    "stages": {
+      "ground": 135
+    },
+    "stageFps": {
+      "countdown": {
+        "seconds": 1,
+        "fps": 52.7,
+        "p95": 33.3
+      },
+      "plane": {
+        "seconds": 2,
+        "fps": 57.1,
+        "p95": 33.3
+      },
+      "falling": {
+        "seconds": 2,
+        "fps": 46.8,
+        "p95": 33.4
+      },
+      "parachute": {
+        "seconds": 3,
+        "fps": 49.6,
+        "p95": 33.4
+      },
+      "ground": {
+        "seconds": 173,
+        "fps": 41.6,
+        "p95": 33.4
+      }
+    },
+    "errors": 0,
+    "gc": [
+      {
+        "at": 70,
+        "MinorGC": {
+          "n": 12,
+          "totalMs": 23.8,
+          "maxMs": 4
+        },
+        "MajorGC": {
+          "n": 2,
+          "totalMs": 20.7,
+          "maxMs": 19.8
+        }
+      }
+    ]
+  }
+]
