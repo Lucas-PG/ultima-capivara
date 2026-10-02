@@ -7,7 +7,7 @@ import measured from './world-reload-grips.json';
 
 // TP keeps the same moving parts and reload timing. Its coarser skin needs
 // independent part-local support keys; FP fitting must not move world paws.
-const fits = measured as unknown as { m4: Key[]; smg: Key[]; m4Seat: HandKey; m4Catch: HandKey; smgMag: HandKey; smgCharge: HandKey };
+const fits = measured as unknown as { m4: Key[]; smg: Key[]; m4Seat: HandKey; m4Catch: HandKey; smgMag: HandKey; smgCharge: HandKey; pistolRelease: HandKey };
 const OPEN: HandKey['curl'] = { index: [.25, .2, .15], middle: [.3, .25, .15], ring: [.35, .25, .2], thumb: [.15, .1, .05] };
 const cache = new Map<string, Choreography>();
 const translated = (key: HandKey, source: HandKey, reference: HandKey): HandKey => ({ ...key,
@@ -43,6 +43,9 @@ export function worldReload(id: WeaponId, empty: boolean): Choreography | null {
       }
       if (id === 'smg' && hand?.space === 'part' && hand.part === 'mag') return { ...key, L: translated(fits.smgMag, hand, reference(.17)) };
       if (id === 'smg' && hand?.space === 'part' && hand.part === 'charge') return { ...key, L: translated(fits.smgCharge, hand, reference(.805)) };
+      // The fitted world thumb keeps its shape while the wrist clears the lever.
+      if (id === 'pistol' && hand?.space === 'part' && hand.part === 'release') return { ...key,
+        L: { ...translated(fits.pistolRelease, hand, reference(.81)), curl: fits.pistolRelease.curl } };
       if (id === 'pistol' && key.t === .075) return { ...key, L: { ...hand!, wrist: [-.25, -.12, .08] as V3 } };
       if (id === 'pistol' && key.t === .035) return { ...key, L: { ...hand!, offset: [-.045, -.04, 0] as V3 } };
       return { ...key };
