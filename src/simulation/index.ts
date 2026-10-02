@@ -15,8 +15,9 @@ import { resolveImpact, type Impact } from './surface';
 import { canDrop, defaultBox, insertWeapon, planPickup, sidearmIndex, swimReady } from '../shared/inventory';
 import { MELEE_SECONDS } from '../shared/weapon-presentation';
 import { adaptDifficulty, aimLag, aimOffset, angleDiff, BOT_START, BOT_STYLE, BOT_STYLES, BOT_WEAPON, botValue, createBrain, DIFFICULTY, RECOVERY_SECONDS, recoveryDirection, trackAim, type BotBrain, type BotDifficulty } from './bots';
-import { isArenaMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
-import type { ActorState, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
+import { isArenaMode, isRespawnMode, isRoundMode, PROTOCOL_VERSION, WORLD_VERSION } from '../shared/types';
+import { addMoney, BUY_SECONDS, drawDuelWeapon, DUEL_READY_SECONDS, ELIMINATION_MONEY, isBuyItem, lossMoney, purchaseBlocked, roundConfig, ROUND_BREAK_SECONDS, ROUND_SECONDS, ROUND_TARGET, SHOP, START_MONEY, sameTeam, TEAM_COLORS, TEAM_NAMES, WIN_MONEY } from '../shared/round-modes';
+import type { ActorState, BuyItemId, ChestSpec, ConsumableId, EmoteId, GameEvent, InputFrame, LootState, MatchResult, PlayerAction, PlayerProfile, RoomConfig, RoundState, SupplyDropState, Vec3, WeaponId, WeaponState, WorldSnapshot, WorldSpec, ZoneState } from '../shared/types';
 
 const TICK = 1 / 60;
 const PLANE_ALTITUDE = 115, PLANE_SPEED = 30, PLANE_ROUTE = 350;
@@ -106,6 +107,9 @@ export class Simulation {
   private elimination = 0;
   private results: MatchResult[] = [];
   private correnteWinner: string | null = null;
+  private round: RoundState | null = null;
+  private losses: [number, number] = [0, 0];
+  private readonly buyKits = new Map<string, Pick<ActorState, 'weapons' | 'consumables' | 'armor' | 'helmet' | 'money'>>();
   // Legacy initPlane(): a random heading across the island, offset up to 35 m
   // from the centre, 350 m long at 30 m/s after a 3 s countdown.
   private plane: Vec3 = { x: -175, y: PLANE_ALTITUDE, z: 0 };
@@ -117,6 +121,7 @@ export class Simulation {
   private zoneStartRadius = 190;
 
   constructor(world: WorldSpec, config: RoomConfig, players: PlayerProfile[], matchId: string, seed = crypto.getRandomValues(new Uint32Array(1))[0]) {
+    config = roundConfig(config);
     this.world = world;
     this.grid = colliderGrid(world);
     this.buildingRoutes = new BotBuildingRoutes(world, isArenaMode(config.mode));
@@ -130,7 +135,7 @@ export class Simulation {
     // Snapshots must not carry undefined fields: finiteTree() rejects them and the
     // host would stop publishing. Non-weapon spawns may come with `weapon: undefined`.
     this.loot = world.loot.map(({ weapon, ...item }) => ({ ...item, ...(weapon ? { weapon } : {}), active: true, rarity: Math.floor(this.random() * 4), respawnAt: 0 }));
-    if (config.mode === 'corrente') {
+    if (config.mode === 'corrente' || isRoundMode(config.mode)) {
       for (const item of this.loot) item.active = false;
       for (const chest of world.chests) this.openedChests.add(chest.id);
     }
@@ -139,17 +144,129 @@ export class Simulation {
     this.planeStart = { x: -this.planeDir.z * offset - this.planeDir.x * PLANE_ROUTE / 2, y: PLANE_ALTITUDE, z: this.planeDir.x * offset - this.planeDir.z * PLANE_ROUTE / 2 };
     this.plane = { ...this.planeStart };
     this.zone = { x: 0, z: 0, radius: 190, nextRadius: 95, nextX: 0, nextZ: 0, phase: 0, shrinking: false, timeLeft: STORM[0].wait, damage: 1 };
-    for (const profile of players.slice(0, 16)) this.addActor(profile, false);
-    const desired = config.bots ? config.mode === 'battle-royale' ? 21 : Math.max(8, players.length) : players.length;
+    for (const profile of players.slice(0, isRoundMode(config.mode) ? config.capacity : 16)) this.addActor(profile, false);
+    const desired = config.bots ? isRoundMode(config.mode) ? config.capacity : config.mode === 'battle-royale' ? 21 : Math.max(8, players.length) : players.length;
     for (let i = this.actors.size; i < desired; i++) this.addActor({ id: `bot-${i}`, name: BOT_NAMES[(i - players.length) % BOT_NAMES.length], color: '#ae825e', ready: true, connected: true }, true);
+    if (isRoundMode(config.mode)) {
+      this.round = { number: 0, phase: 'buy', endsAt: 0, score: [0, 0], target: ROUND_TARGET, winner: null, weapon: null };
+      this.prepareRound(3);
+    }
   }
 
   private emit(event: EventWithoutId) { this.events.push({ ...event, id: ++this.eventId } as GameEvent); }
   drainEvents(): GameEvent[] { return this.events.splice(0); }
 
+  private roundSpawn(team: 0 | 1, used: Vec3[]): Vec3 {
+    const side = (team + this.round!.number) % 2 === 0 ? -1 : 1;
+    const anchor = { x: ARENA_CENTER.x + side * 28, z: side * 18 };
+    const points = this.world.spawns.filter(point => (point.mode === 'deathmatch' || point.mode === 'both') &&
+      this.inArena(point) && clearSpawn(point, this.world) && used.every(p => Math.hypot(p.x - point.x, p.z - point.z) > 2));
+    points.sort((a, b) => Math.hypot(a.x - anchor.x, a.z - anchor.z) - Math.hypot(b.x - anchor.x, b.z - anchor.z));
+    return points[0] ? { x: points[0].x, y: points[0].y, z: points[0].z } : this.spawnPoint('round');
+  }
+
+  private prepareRound(startsAt = this.time) {
+    const round = this.round!;
+    round.number++; round.phase = 'buy'; round.winner = null;
+    round.endsAt = startsAt + (this.config.mode === 'duel' ? DUEL_READY_SECONDS : BUY_SECONDS);
+    if (this.config.mode === 'duel') round.weapon = drawDuelWeapon(this.random, round.weapon);
+    this.projectiles.length = 0; this.buyKits.clear();
+    const used: Vec3[] = [];
+    for (const actor of this.actors.values()) {
+      if (actor.disconnectedAt === -Infinity) continue;
+      const s = actor.state, kept = this.config.mode === 'squads' && round.number > 1 && s.alive ?
+        copy({ weapons: s.weapons, consumables: s.consumables, armor: s.armor, helmet: s.helmet }) : null;
+      this.respawn(actor);
+      s.pos = this.roundSpawn(s.team!, used); used.push(s.pos);
+      s.yaw = Math.atan2(-(ARENA_CENTER.x - s.pos.x), -(ARENA_CENTER.z - s.pos.z)); s.pitch = 0;
+      actor.input = { ...emptyInput(), yaw: s.yaw };
+      s.protectionUntil = 0; s.shotHeat = 0;
+      if (round.weapon) {
+        s.weapons = [this.makeWeapon(round.weapon), this.makeWeapon('machete')];
+        s.armor = 50; s.helmet = 0;
+      } else if (kept) {
+        Object.assign(s, kept);
+        s.weapons = kept.weapons.map(w => this.makeWeapon(w.id));
+      } else {
+        s.weapons = [this.makeWeapon('pistol'), this.makeWeapon('machete')];
+      }
+      if (!kept) s.consumables = { bandage: 0, medkit: 0, guarana: 0, acai: 0, rapadura: 0 };
+      s.slot = 0;
+      this.buyKits.set(s.id, copy({ weapons: s.weapons, consumables: s.consumables, armor: s.armor, helmet: s.helmet, money: s.money }));
+      if (actor.brain && this.config.mode === 'squads') this.botBuy(actor);
+    }
+    this.emit({ type: 'notice', text: `Rodada ${round.number} · ${round.weapon ? WEAPONS[round.weapon].name + ' para os dois!' : 'Hora de equipar a turma!'}` });
+  }
+
+  private buy(actor: ActorRuntime, item: BuyItemId) {
+    const s = actor.state;
+    if (this.config.mode !== 'squads' || this.round?.phase !== 'buy' || !s.alive || !isBuyItem(item) || purchaseBlocked(s, item)) return;
+    const price = SHOP.find(entry => entry.id === item)!.price;
+    if (item === 'armor') s.armor = 100;
+    else if (item === 'helmet') s.helmet = 60;
+    else if (item === 'medkit') s.consumables.medkit = 1;
+    else {
+      const gun = this.makeWeapon(item), box = gun.box;
+      s.weapons = [...s.weapons.filter(w => box === 2 ? w.box !== 2 : w.box >= 2), gun].sort((a, b) => a.box - b.box);
+      s.slot = s.weapons.indexOf(gun);
+    }
+    addMoney(s, -price);
+  }
+
+  private botBuy(actor: ActorRuntime) {
+    const s = actor.state;
+    // A survivor saves its gun. A fresh kit first secures a useful primary,
+    // leaving room for protection before optional medicine.
+    if (!s.weapons.some(w => w.box < 2)) {
+      const preferred: BuyItemId[] = actor.brain?.style === 'anchor' ? ['dmr', 'm4', 'smg'] : ['m4', 'smg', 'shotgun'];
+      const gun = preferred.find(id => (s.money ?? 0) >= SHOP.find(item => item.id === id)!.price + 650);
+      if (gun) this.buy(actor, gun);
+    }
+    this.buy(actor, 'armor'); this.buy(actor, 'helmet');
+    if ((s.money ?? 0) >= 1200) this.buy(actor, 'medkit');
+  }
+
+  /** Freeze and round outcome are evaluated only by the host's fixed tick. */
+  private updateRound(): boolean {
+    const round = this.round!;
+    if (round.phase === 'over') {
+      if (this.time >= round.endsAt) {
+        if (round.score.some(score => score >= round.target)) this.finish();
+        else this.prepareRound();
+      }
+      return false;
+    }
+    if (round.phase === 'buy') {
+      if (this.time < round.endsAt) return false;
+      round.phase = 'live'; round.endsAt = this.time + ROUND_SECONDS;
+      for (const actor of this.actors.values()) { actor.jumpQueued = false; actor.triggerQueued = null; actor.wasFiring = false; }
+      this.emit({ type: 'notice', text: 'Valendo! Uma vida, capriche.' });
+    }
+    return true;
+  }
+
+  private scoreRound() {
+    const round = this.round!;
+    if (round.phase !== 'live') return;
+    const alive = [0, 0];
+    for (const actor of this.actors.values()) if (actor.state.alive) alive[actor.state.team!]++;
+    if (alive[0] && alive[1] && this.time < round.endsAt) return;
+    const winner = !alive[0] && alive[1] ? 1 : !alive[1] && alive[0] ? 0 : null;
+    round.winner = winner; round.phase = 'over'; round.endsAt = this.time + ROUND_BREAK_SECONDS;
+    this.projectiles.length = 0;
+    for (const actor of this.actors.values()) { actor.state.velocity = { x: 0, y: 0, z: 0 }; actor.state.sprint = false; actor.triggerQueued = null; }
+    if (winner !== null) {
+      round.score[winner]++; this.losses[winner] = 0; this.losses[1 - winner]++;
+      if (this.config.mode === 'squads') for (const actor of this.actors.values())
+        addMoney(actor.state, actor.state.team === winner ? WIN_MONEY : lossMoney(this.losses[1 - winner]));
+    }
+    const name = this.config.mode === 'duel' ? [...this.actors.values()].find(a => a.state.team === winner)?.state.name : winner === null ? '' : `Turma ${TEAM_NAMES[winner]}`;
+    this.emit({ type: 'notice', text: winner === null ? 'Rodada empatada. Ninguém pontua!' : `${name} levou a rodada! ${round.score[0]} a ${round.score[1]}` });
+  }
+
   private spawnPoint(id: string): Vec3 {
     const points = this.world.spawns.filter(s => (s.mode === 'both' || s.mode === this.config.mode ||
-      this.config.mode === 'corrente' && s.mode === 'deathmatch') && (!isArenaMode(this.config.mode) || this.inArena(s)));
+      isArenaMode(this.config.mode) && s.mode === 'deathmatch') && (!isArenaMode(this.config.mode) || this.inArena(s)));
     const others = [...this.actors.values()].map(v => v.state).filter(a => a.alive && a.stage === 'ground');
     let best: Vec3 | null = null, score = -Infinity;
     for (const point of points.length ? points : [{ x: -42, y: 0, z: -12, mode: 'both' as const, yaw: 0 }]) {
@@ -185,6 +302,7 @@ export class Simulation {
     const brain = bot ? this.makeBrain(spawn) : null;
     const state: ActorState = {
       id: profile.id, name: profile.name.slice(0, 28), color: profile.color, bot, connected: bot || profile.connected,
+      ...(isRoundMode(this.config.mode) ? { team: (this.actors.size % 2) as 0 | 1, money: this.config.mode === 'squads' ? START_MONEY : 0 } : {}),
       pos: br ? { ...this.plane } : spawn, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, lean: 0,
       hp: 100, armor: 0, helmet: 0, alive: true, grounded: !br, crouch: false, sprint: false, ads: false, swimming: false, wetUntil: 0,
       emote: null, emoteUntil: 0, soaking: false, bounceSeq: 0, bounceProtected: false,
@@ -198,6 +316,7 @@ export class Simulation {
       if (brain.elite) { state.name = `${state.name.slice(0, 24)} ★`; state.helmet = br ? 60 : 0; }
       if (br) this.planLanding(brain);
     }
+    if (state.team !== undefined) state.color = TEAM_COLORS[state.team];
     this.actors.set(profile.id, { state, input: emptyInput(), lastSeq: -1, lastInputAt: -Infinity, lastAction: -1, nextShot: 0, wasFiring: false, lastShotPressId: -1, jumpQueued: false, jumpQueuedUntil: 0, triggerQueued: null, disconnectedAt: Infinity, lastHurt: 0, brain, boostUntil: 0, hot: 0, shotHeat: 0, adsAmount: 0, elimination: 0, stormExposure: 0, landedAt: -Infinity, shots: 0, hits: 0, headshots: 0, chests: 0, longestShot: 0, eliminatedAt: null, history: [], readyAt: {}, sprintEndedAt: -Infinity, wasSprinting: false, triggerAt: 0, meleeSwing: false, meleeReturn: null });
   }
 
@@ -228,6 +347,13 @@ export class Simulation {
     actor.lastAction = action.id;
     const s = actor.state;
     if (!s.alive) return;
+    if (action.type === 'buy' || action.type === 'refund') {
+      if (this.config.mode !== 'squads' || this.round?.phase !== 'buy' || action.round !== this.round.number || this.time >= this.round.endsAt) return;
+      if (action.type === 'buy') this.buy(actor, action.item);
+      else { const kit = this.buyKits.get(id); if (kit) { Object.assign(s, copy(kit)); s.slot = 0; } }
+      return;
+    }
+    if (this.round && this.round.phase !== 'live') return;
     if (action.type === 'emote') {
       if (action.emote === null) this.cancelEmote(s);
       else this.startEmote(actor, action.emote);
@@ -254,8 +380,15 @@ export class Simulation {
     const actor = this.actors.get(profile.id);
     if (status === 'join' && !actor) {
       if ([...this.actors.values()].filter(a => !a.state.bot).length >= 16) return;
-      const max = this.config.mode === 'battle-royale' ? 21 : 16;
-      const spectator = this.config.mode === 'battle-royale' && this.phase !== 'countdown';
+      const max = isRoundMode(this.config.mode) ? this.config.capacity : this.config.mode === 'battle-royale' ? 21 : 16;
+      const spectator = (this.config.mode === 'battle-royale' || isRoundMode(this.config.mode)) && this.phase !== 'countdown';
+      let replacedTeam: 0 | 1 | undefined;
+      if (isRoundMode(this.config.mode) && this.actors.size >= max) {
+        const replace = [...this.actors.values()].reverse().find(a => a.state.bot || a.disconnectedAt === -Infinity);
+        if (!replace) return;
+        replacedTeam = replace.state.team;
+        this.actors.delete(replace.state.id);
+      }
       if (this.actors.size >= max && !spectator) {
         const replace = [...this.actors.values()].reverse().find(a => a.state.bot);
         if (!replace) return;
@@ -263,6 +396,10 @@ export class Simulation {
       }
       this.addActor(profile, false);
       const joined = this.actors.get(profile.id)!;
+      if (isRoundMode(this.config.mode)) {
+        const count = [0, 0]; for (const other of this.actors.values()) if (other !== joined) count[other.state.team!]++;
+        joined.state.team = replacedTeam ?? (count[0] <= count[1] ? 0 : 1); joined.state.color = TEAM_COLORS[joined.state.team];
+      }
       if (spectator) { joined.state.alive = false; joined.state.hp = 0; joined.state.stage = 'ground'; joined.state.deaths = 1; }
       return;
     }
@@ -278,7 +415,7 @@ export class Simulation {
       actor.wasFiring = false; actor.lastShotPressId = -1; actor.jumpQueued = false; actor.triggerQueued = null; actor.state.lastInput = 0;
     }
     if (status === 'expired') this.forfeit(actor);
-    actor.state.name = profile.name.slice(0, 28); actor.state.color = profile.color;
+    actor.state.name = profile.name.slice(0, 28); actor.state.color = actor.state.team === undefined ? profile.color : TEAM_COLORS[actor.state.team];
   }
   private forfeit(actor: ActorRuntime) {
     if (actor.state.connected || !Number.isFinite(actor.disconnectedAt)) return;
@@ -300,13 +437,17 @@ export class Simulation {
     this.time += TICK; this.tick++;
     if (this.phase === 'countdown') { this.countdown = Math.max(0, this.countdown - TICK); if (this.countdown <= 0) { this.phase = 'playing'; this.matchStartedAt = this.time; this.emit({ type: 'notice', text: 'A partida começou!' }); } return; }
     if (this.phase !== 'playing') return;
+    if (this.round) {
+      for (const actor of this.actors.values()) if (!actor.state.connected && actor.disconnectedAt >= 0 && this.time - actor.disconnectedAt >= 30) this.forfeit(actor);
+      if (!this.updateRound()) return;
+    }
     if (this.config.mode === 'battle-royale') { this.updatePlane(); this.updateZone(); this.updateSupplyDrops(); }
     for (const actor of this.actors.values()) {
       if (this.correnteWinner) break;
       const s = actor.state;
       if (actor.shotHeat > 0) actor.shotHeat = s.shotHeat = coolShotHeat(actor.shotHeat, TICK);
       if (!s.connected && actor.disconnectedAt >= 0 && this.time - actor.disconnectedAt >= 30) this.forfeit(actor);
-      if (!s.alive) { if (isArenaMode(this.config.mode) && s.respawnAt && this.time >= s.respawnAt && s.connected) this.respawn(actor); continue; }
+      if (!s.alive) { if (isRespawnMode(this.config.mode) && s.respawnAt && this.time >= s.respawnAt && s.connected) this.respawn(actor); continue; }
       if (s.stage === 'plane') {
         s.pos = { ...this.plane };
         if (!actor.brain && s.connected && this.time - actor.lastInputAt <= .3) { s.yaw = actor.input.yaw; s.pitch = actor.input.pitch; }
@@ -375,6 +516,7 @@ export class Simulation {
     for (const loot of this.loot) if (!loot.active && loot.respawnAt && this.time >= loot.respawnAt) { loot.active = true; loot.respawnAt = 0; }
     for (const [loot, until] of this.droppedGuns) if (this.time >= until) { this.droppedGuns.delete(loot); if (loot.active) { loot.active = false; this.spentDrops.set(loot, this.time + 1); } }
     for (const [loot, until] of this.spentDrops) if (this.time >= until) { this.loot.splice(this.loot.indexOf(loot), 1); this.spentDrops.delete(loot); }
+    if (this.round) this.scoreRound();
     if (this.correnteWinner || this.config.mode === 'deathmatch' && this.time >= this.config.duration + 3) this.finish();
     if (this.config.mode === 'battle-royale') {
       const survivors = [...this.actors.values()].filter(a => a.state.alive);
@@ -534,7 +676,7 @@ export class Simulation {
     if (s.stage !== 'ground' || typeof target !== 'string') return;
     const bath = mudBathAt(s.pos, this.world);
     if (bath?.id === target) { this.startEmote(a, 'chill'); return; }
-    if (this.config.mode === 'corrente') return;
+    if (this.config.mode === 'corrente' || this.round) return;
     const loot = this.loot.find(item => item.id === target && item.active);
     const chest = this.world.chests.find(item => item.id === target && !this.openedChests.has(item.id));
     const delivery = this.supplyDrops.find(drop => drop.id === target && !drop.opened && this.time >= drop.landsAt);
@@ -654,6 +796,7 @@ export class Simulation {
     if (id) a.nextShot = Math.max(this.time + HANDLING[id].draw, a.readyAt[id] ?? 0);
   }
   private dropHeld(a: ActorRuntime) {
+    if (this.round) return;
     const s = a.state, held = s.weapons[s.slot];
     if (this.config.mode === 'corrente' || s.stage !== 'ground' || !canDrop(held) || s.swimming) return;
     s.weapons.splice(s.slot, 1);
@@ -727,7 +870,7 @@ export class Simulation {
       let best = wall?.distance ?? def.range, victim: ActorRuntime | null = null, head = false;
       for (const other of this.actors.values()) {
         const t = other.state;
-        if (t.id === s.id || !t.alive || t.stage !== 'ground') continue;
+        if (t.id === s.id || !t.alive || sameTeam(s, t) || t.stage !== 'ground') continue;
         const rewind = !s.bot && !def.melee && this.time - clientTime <= .2 && this.time - clientTime >= 0
           ? [...other.history].reverse().find(h => h.time <= clientTime) : undefined;
         const found = this.rayActor(origin, direction, t, best, rewind?.pos, rewind?.crouch, rewind?.yaw, !!a.brain && !t.bot);
@@ -753,6 +896,9 @@ export class Simulation {
   private damage(target: ActorRuntime, raw: number, attackerId: string | null, weapon: WeaponId | 'storm' | 'fall', head: boolean, shotDistance = 0) {
     const s = target.state;
     if (!s.alive || this.correnteWinner || s.protectionUntil > this.time || !Number.isFinite(raw) || raw <= 0) return;
+    if (this.round && (this.round.phase !== 'live' || this.phase !== 'playing')) return;
+    const source = attackerId ? this.actors.get(attackerId) : null;
+    if (source && source !== target && sameTeam(source.state, s)) return;
     if (weapon === 'fall' && s.bounceProtected) return;
     let damage = raw;
     const hadArmor = s.armor > 0;
@@ -788,6 +934,7 @@ export class Simulation {
     this.cancelEmote(s); s.bounceProtected = false;
     if (killer && killer !== target) {
       killer.state.kills++;
+      if (this.config.mode === 'squads') addMoney(killer.state, ELIMINATION_MONEY);
       // Correria keeps the fight going: every elimination restocks one magazine per carried gun.
       if (this.config.mode === 'deathmatch')
         for (const w of killer.state.weapons) if (!WEAPONS[w.id].melee) w.reserve = Math.min(AMMO[w.id] * 3, w.reserve + WEAPONS[w.id].magazine);
@@ -796,9 +943,9 @@ export class Simulation {
       }
     }
     target.elimination = ++this.elimination; target.eliminatedAt ??= this.time;
-    if (isArenaMode(this.config.mode)) s.respawnAt = this.time + 3;
+    if (isRespawnMode(this.config.mode)) s.respawnAt = this.time + 3;
     // A royale elimination leaves the guns behind, fanned out so each can be picked.
-    else if (s.stage === 'ground') {
+    else if (!this.round && s.stage === 'ground') {
       const guns = s.weapons.filter(canDrop);
       guns.forEach((gun, i) => this.dropGun(s, gun, (i - (guns.length - 1) / 2) * .8));
       s.weapons = s.weapons.filter(w => !canDrop(w)); s.slot = 0;
@@ -848,7 +995,8 @@ export class Simulation {
       const wall = raycastWorld(previous, dir, length, this.world);
       let best = wall?.distance ?? length, victim: ActorRuntime | null = null, head = false;
       for (const other of this.actors.values()) {
-        if (!other.state.alive || other.state.id === p.owner || other.state.stage !== 'ground') continue;
+        if (!other.state.alive || other.state.id === p.owner || other.state.stage !== 'ground' ||
+          sameTeam(other.state, this.actors.get(p.owner)?.state ?? {})) continue;
         const hit = this.rayActor(previous, dir, other.state, best, undefined, undefined, undefined, !!this.actors.get(p.owner)?.brain && !other.state.bot);
         if (hit) { best = hit.distance; victim = other; head = hit.head; }
       }
@@ -1037,7 +1185,8 @@ export class Simulation {
     return { x: this.zone.nextX, z: this.zone.nextZ, r: this.zone.nextRadius };
   }
   private randomGoal(s: ActorState): Vec3 {
-    const sc = this.safeCircle(), spots = isArenaMode(this.config.mode) ? this.world.loot.filter(l => this.inArena(l)) : [...this.world.loot, ...this.world.chests];
+    const sc = this.safeCircle(), spots = isArenaMode(this.config.mode) ? this.world.loot.filter(l => this.inArena(l) &&
+      (!this.round || Math.hypot(l.x - ARENA_CENTER.x, l.z - ARENA_CENTER.z) < 28)) : [...this.world.loot, ...this.world.chests];
     for (let k = 0; k < 20; k++) {
       let x: number, z: number;
       // World loot is placed on the connected walking network. Arbitrary
@@ -1098,7 +1247,7 @@ export class Simulation {
     return best;
   }
   private findLoot(s: ActorState): BotBrain['loot'] {
-    if (this.config.mode === 'corrente') return null;
+    if (this.config.mode === 'corrente' || this.round) return null;
     const dm = isArenaMode(this.config.mode);
     let best: BotBrain['loot'] = null, bd = dm ? 14 : 36;
     const current = s.weapons[this.bestWeapon(s)], value = botValue(current.id, current.rarity);
@@ -1139,6 +1288,7 @@ export class Simulation {
   // Leisure never grants immunity, better aim or free healing. It uses the same
   // emote/contact mechanics as a human, and leaves combat perception running.
   private botLeisure(a: ActorRuntime, rethink: boolean): boolean {
+    if (this.round) return false;
     const s = a.state, b = a.brain!, now = this.time;
     if (!b.leisure && (now < b.leisureScanAt || now < b.leisureAt)) return false;
     if (!b.leisure) b.leisureScanAt = now + 2 + this.personalityRandom();
@@ -1274,7 +1424,7 @@ export class Simulation {
     let best: ActorRuntime | null = null, bd = Infinity;
     for (const other of this.actors.values()) {
       const t = other.state;
-      if (t.id === s.id || !t.alive || t.stage !== 'ground' || t.protectionUntil > this.time) continue;
+      if (t.id === s.id || !t.alive || sameTeam(s, t) || t.stage !== 'ground' || t.protectionUntil > this.time) continue;
       // A human who just touched down gets a moment to find their feet, unless they already shot this bot.
       if (!t.bot && this.time - other.landedAt < LANDING_GRACE && b.lastAttacker !== t.id) continue;
       // Legacy bots hunted humans and only fought other bots up close or when shot by them.
@@ -1317,7 +1467,7 @@ export class Simulation {
     const slot = this.bestWeapon(s);
     if (slot !== s.slot && !s.reloadUntil) { s.slot = slot; this.drawWeapon(a); }
     const w = s.weapons[s.slot], def = WEAPONS[w.id], bw = BOT_WEAPON[w.id], style = BOT_STYLE[b.style];
-    if (def.ammo && w.reserve < def.magazine) w.reserve = AMMO[w.id];
+    if (!this.round && def.ammo && w.reserve < def.magazine) w.reserve = AMMO[w.id];
     const rethink = now >= b.thinkAt;
     if (rethink) { b.thinkAt = now + this.rnd(.15, .25); this.botThink(a); }
     const target = b.target ? this.actors.get(b.target) : undefined, t = target?.state;
@@ -1576,7 +1726,8 @@ export class Simulation {
   private finish() {
     if (this.phase === 'results') return;
     this.phase = 'results';
-    const sorted = [...this.actors.values()].sort((a, b) => this.config.mode === 'corrente' ?
+    const sorted = [...this.actors.values()].sort((a, b) => this.round ?
+      this.round.score[b.state.team!] - this.round.score[a.state.team!] || b.state.kills - a.state.kills : this.config.mode === 'corrente' ?
       Number(b.state.id === this.correnteWinner) - Number(a.state.id === this.correnteWinner) || b.state.weaponLevel - a.state.weaponLevel ||
       b.state.kills - a.state.kills || a.state.deaths - b.state.deaths : this.config.mode === 'deathmatch' ?
       b.state.kills - a.state.kills || a.state.deaths - b.state.deaths || b.state.damage - a.state.damage :
@@ -1587,10 +1738,10 @@ export class Simulation {
       const s = a.state, prev = sorted[index - 1]?.state;
       // Eliminations decide this mode. Other columns only stabilize display order.
       const tied = this.config.mode === 'deathmatch' && prev && prev.kills === s.kills;
-      const place = tied ? previousPlace : index + 1;
+      const place = this.round ? s.team === this.round.winner ? 1 : 2 : tied ? previousPlace : index + 1;
       previousPlace = place;
       const livedUntil = this.config.mode === 'battle-royale' ? a.eliminatedAt ?? this.time : this.time;
-      const winner = this.config.mode === 'corrente' ? s.id === this.correnteWinner : place === 1 && (this.config.mode === 'deathmatch' || alive === 1);
+      const winner = this.round ? s.team === this.round.winner : this.config.mode === 'corrente' ? s.id === this.correnteWinner : place === 1 && (this.config.mode === 'deathmatch' || alive === 1);
       return { id: s.id, name: s.name, color: s.color, bot: s.bot, kills: s.kills, deaths: s.deaths, damage: s.damage, place, winner,
         shots: a.shots, hits: a.hits, headshots: a.headshots, survived: Math.round(Math.max(0, livedUntil - this.matchStartedAt) * 10) / 10, chests: a.chests, longestShot: Math.round(a.longestShot * 10) / 10 };
     });
@@ -1599,7 +1750,7 @@ export class Simulation {
   snapshot(): WorldSnapshot {
     return {
       protocol: PROTOCOL_VERSION, world: this.world.version || WORLD_VERSION, matchId: this.matchId, tick: this.tick, time: this.time, phase: this.phase,
-      config: { ...this.config }, countdown: this.countdown, remaining: this.config.mode === 'corrente' ?
+      config: { ...this.config }, countdown: this.countdown, ...(this.round ? { round: copy(this.round) } : {}), remaining: this.round ? Math.max(0, this.round.endsAt - this.time) : this.config.mode === 'corrente' ?
         this.correnteWinner ? 0 : CORRENTE_LADDER.length - Math.max(0, ...[...this.actors.values()].map(a => a.state.weaponLevel)) :
         this.config.mode === 'deathmatch' ? Math.max(0, this.config.duration - Math.max(0, this.time - 3)) : [...this.actors.values()].filter(a => a.state.alive).length,
       actors: [...this.actors.values()].map(a => copy(a.state)), loot: copy(this.loot), openedChests: [...this.openedChests], supplyDrops: copy(this.supplyDrops),

@@ -1,4 +1,5 @@
-import { PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type WorldSnapshot } from '../shared/types';
+import { isRoundMode, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type WorldSnapshot } from '../shared/types';
+import { MAX_MONEY, validRound } from '../shared/round-modes';
 import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
 import { validLoadout } from '../shared/inventory';
 import { EMOTE_IDS } from '../shared/emotes';
@@ -91,12 +92,12 @@ export async function decodeFastFrame(raw: unknown): Promise<Record<string, unkn
 export function worldPart(snapshot: WorldSnapshot) {
   return {
     config: snapshot.config, loot: snapshot.loot, openedChests: snapshot.openedChests, results: snapshot.results, supplyDrops: snapshot.supplyDrops,
-    actors: snapshot.actors.map(a => ({ id: a.id, name: a.name, color: a.color, bot: a.bot })),
+    actors: snapshot.actors.map(a => ({ id: a.id, name: a.name, color: a.color, bot: a.bot, ...(a.team !== undefined ? { team: a.team } : {}) })),
   };
 }
 
 export function gearPart(snapshot: WorldSnapshot) {
-  return snapshot.actors.map(a => ({ id: a.id, weapons: a.weapons.map(w => ({ id: w.id, rarity: w.rarity, box: w.box })), consumables: a.consumables }));
+  return snapshot.actors.map(a => ({ id: a.id, weapons: a.weapons.map(w => ({ id: w.id, rarity: w.rarity, box: w.box })), consumables: a.consumables, ...(a.money !== undefined ? { money: a.money } : {}) }));
 }
 
 // The fixed-order tuple keeps fast frames small. Names, loot and weapon identities travel reliably on change.
@@ -114,7 +115,7 @@ export function actorFrame(a: ActorState, index: number): number[] {
 export function fastPart(snapshot: WorldSnapshot) {
   return { matchId: snapshot.matchId, tick: snapshot.tick, time: q(snapshot.time, 1000), phase: snapshot.phase,
     countdown: q(snapshot.countdown), remaining: q(snapshot.remaining), zone: snapshot.zone,
-    plane: snapshot.plane, actors: snapshot.actors.map(actorFrame) };
+    plane: snapshot.plane, actors: snapshot.actors.map(actorFrame), ...(snapshot.round ? { round: snapshot.round } : {}) };
 }
 
 export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | null {
@@ -127,8 +128,11 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
     !fast.zone || typeof fast.zone !== 'object' || typeof fast.zone.shrinking !== 'boolean' ||
     !['x', 'z', 'radius', 'nextRadius', 'nextX', 'nextZ', 'phase', 'timeLeft', 'damage'].every(k => Number.isFinite(fast.zone[k])) ||
     !fast.plane || !['x', 'y', 'z'].every(k => Number.isFinite(fast.plane[k])) ||
-    !world.config || !['battle-royale', 'deathmatch', 'corrente'].includes(world.config.mode) ||
+    !world.config || !['battle-royale', 'deathmatch', 'corrente', 'duel', 'squads'].includes(world.config.mode) ||
     !Number.isInteger(world.config.capacity) || world.config.capacity < 1 || world.config.capacity > 16 ||
+    (world.config.mode === 'duel' && world.config.capacity !== 2) ||
+    (world.config.mode === 'squads' && (![2, 3].includes(world.config.teamSize) || world.config.capacity !== world.config.teamSize * 2)) ||
+    (isRoundMode(world.config.mode) && (!validRound(fast.round) || fast.actors.length > world.config.capacity)) ||
     !plainTextTree(world) || !plainTextTree(gear) || !Array.isArray(world.supplyDrops) || world.supplyDrops.length > 2 ||
     new Set(world.supplyDrops.map((drop: any) => drop?.id)).size !== world.supplyDrops.length ||
     !world.supplyDrops.every((drop: any) => drop && /^supply-[12]$/.test(drop.id) && typeof drop.district === 'string' &&
@@ -144,6 +148,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
     if (!Number.isSafeInteger(index) || index !== actors.length) return null;
     const profile = world.actors[index], kit = gear[index];
     if (!profile || !kit || profile.id !== kit.id || !stages[stage] || (using !== -1 && !items[using])) return null;
+    if (isRoundMode(world.config.mode) && ((profile.team !== 0 && profile.team !== 1) || !Number.isSafeInteger(kit.money) || kit.money < 0 || kit.money > MAX_MONEY)) return null;
     if (typeof profile.name !== 'string' || profile.name.length > 28 || /[<>\x00-\x1f]/.test(profile.name) ||
       typeof profile.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(profile.color) ||
       typeof profile.bot !== 'boolean' || !Array.isArray(kit.weapons) || kit.weapons.length < 1 || kit.weapons.length > 4 ||
@@ -169,7 +174,7 @@ export function rebuildFrame(fast: any, world: any, gear: any): WorldSnapshot | 
       crouch: !!(flags & 8), sprint: !!(flags & 16), ads: !!(flags & 32), swimming: !!(flags & 64), wetUntil: wetUntil / 100, stage: stages[stage],
       emote: emote === -1 ? null : EMOTE_IDS[emote], emoteUntil: emoteUntil / 100, soaking: !!(flags & 128),
       bounceSeq, bounceProtected: !!(flags & 256), jumping: !!(flags & 512),
-      kills, deaths, damage: damage / 100, weaponLevel, slot, weapons, consumables: kit.consumables,
+      kills, deaths, damage: damage / 100, weaponLevel, slot, weapons, consumables: kit.consumables, ...(kit.money !== undefined ? { money: kit.money } : {}),
       reloadUntil: reloadUntil / 100, useUntil: useUntil / 100, using: using === -1 ? null : items[using],
       respawnAt: respawnAt / 100, protectionUntil: protectionUntil / 100, lastInput, shotHeat: shotHeat / 100, shotSeq });
   }

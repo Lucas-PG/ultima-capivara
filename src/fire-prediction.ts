@@ -2,6 +2,7 @@ import { advanceAds, coolShotHeat, HANDLING, shotHeatGain, shotSpread, WEAPONS }
 import { pelletDirection, rayCapybara, shotOrigin } from './shared/ballistics';
 import { raycastWorld } from './shared/collision';
 import { swimReady } from './shared/inventory';
+import { sameTeam } from './shared/round-modes';
 import { resolveImpact } from './simulation/surface';
 import type { ActorState, GameEvent, InputFrame, Vec3, WeaponId, WorldSpec } from './shared/types';
 
@@ -139,7 +140,7 @@ export class FirePredictor {
       const wall = raycastWorld(origin, d, def.range, world);
       let best = wall?.distance ?? def.range, struck = false;
       for (const t of targets) {
-        if (t.id === actor.id || !t.alive || t.stage !== 'ground') continue;
+        if (t.id === actor.id || !t.alive || sameTeam(actor, t) || t.stage !== 'ground') continue;
         const found = rayCapybara(origin, d, t.pos, t.crouch, t.yaw, best);
         if (found) { best = found.distance; struck = true; }
       }

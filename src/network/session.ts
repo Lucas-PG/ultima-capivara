@@ -1,9 +1,10 @@
 import Peer, { type DataConnection, type PeerOptions } from 'peerjs';
 import { isEmote } from '../shared/emotes';
-import { DEFAULT_CONFIG, MAX_PLAYERS, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION,
+import { isRoundMode, DEFAULT_CONFIG, MAX_PLAYERS, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION,
   type GameEvent, type InputFrame, type PlayerAction, type PlayerProfile, type RoomConfig,
   type RoomState, type SessionCallbacks, type WorldSnapshot } from '../shared/types';
 import { decodeFastFrame, encodeFastFrame, fastPart, finiteTree, gearPart, MAX_FRAME_BYTES, packet, parseWire, plainTextTree, rebuildFrame, worldPart } from './codec';
+import { isBuyItem } from '../shared/round-modes';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const GRACE_MS = 30_000;
@@ -49,8 +50,10 @@ function validRoom(v: unknown): v is RoomState {
 }
 export function validConfig(v: unknown): v is RoomConfig {
   const c = v as RoomConfig;
-  return !!c && (c.mode === 'battle-royale' || c.mode === 'deathmatch' || c.mode === 'corrente') &&
+  return !!c && ['battle-royale', 'deathmatch', 'corrente', 'duel', 'squads'].includes(c.mode) &&
     Number.isInteger(c.capacity) && c.capacity >= 1 && c.capacity <= MAX_PLAYERS &&
+    (c.mode !== 'duel' || c.capacity === 2) &&
+    (c.mode !== 'squads' || (c.teamSize === 2 || c.teamSize === 3) && c.capacity === c.teamSize * 2) &&
     typeof c.bots === 'boolean' && ['easy', 'normal', 'hard'].includes(c.difficulty) &&
     [300, 480, 600].includes(c.duration);
 }
@@ -67,6 +70,8 @@ export function validAction(v: unknown): v is PlayerAction {
   const a = v as PlayerAction;
   if (!a || !Number.isSafeInteger(a.id) || a.id < 0) return false;
   switch (a.type) {
+    case 'buy': return isBuyItem(a.item) && Number.isSafeInteger(a.round) && a.round >= 1;
+    case 'refund': return Number.isSafeInteger(a.round) && a.round >= 1;
     case 'emote': return a.emote === null || isEmote(a.emote);
     case 'reload': case 'parachute': case 'jump': case 'drop': case 'melee': return true;
     case 'trigger': return [a.yaw, a.pitch, a.lean, a.clientTime].every(Number.isFinite) &&
@@ -492,6 +497,9 @@ export class RoomSession {
     const room = this.roomValue;
     if (!room?.isHost || room.phase !== 'lobby' || !room.players.every(p => p.connected && p.ready)) return;
     if (room.players.length < 2 && !room.config.bots) { this.fail('Ative os bots ou espere outro jogador.'); return; }
+    if (isRoundMode(room.config.mode) && !room.config.bots && room.players.length !== room.config.capacity) {
+      this.fail('Espere a turma completar as duas equipes ou ative os bots.'); return;
+    }
     this.matchId = token(); this.lastTick = -1; this.lastEventId = 0; this.localInput = -1; this.localActions.clear();
     for (const guest of this.guests.values()) { guest.actions.clear(); guest.lastInput = -1; }
     room.phase = 'countdown';
