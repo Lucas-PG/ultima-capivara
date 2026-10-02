@@ -29,7 +29,7 @@ Three caches lighting state by Scene object identity. The mask pass renders the 
 | Observer screenshots | 0 changed pixels |
 | Shader sources | 176 before, 174 after, no new source hashes |
 
-The observer's extra hooks/readback affect execution and cannot override the original capture failure. Both production patches and their temporary tests were reverted. Rejected patch saved outside the repository. No mask rendering change retained. Later baseline controls below reproduced the same 940 pixels with unchanged executable bytes, so those pixels cannot be attributed to the mask patch. The later explicit mask and combined gates below permit reconsideration; performance retention remains pending the final quiet run.
+The observer's extra hooks/readback affect execution and cannot override the original capture failure. At 09:24 both production patches and their temporary tests were reverted. The rejected patch is saved outside the repository. Later baseline controls below reproduced the same 940 pixels with unchanged executable bytes, so those pixels cannot be attributed to the mask patch. The later explicit mask and combined gates below permit reconsideration. The final quiet result and retention decision are recorded at the end.
 
 Window 09:01 to 09:24:16. Static paired medians at CPU throttle 4, identical draw/triangle counts and buffers:
 
@@ -56,9 +56,9 @@ A separate clean baseline Correria has no CPU-profile, allocation or tracing int
 
 | Candidate | Evidence | Status |
 | --- | --- | --- |
-| Static kit matrix traversal | World-pass matrix work is the largest measured caller | Exact controlled camera gates pass; timing repeat in progress |
-| Worker snapshot cloning | Acceptance cost is much smaller than rendering | Lower priority, no change yet |
-| Additional shader/texture warmup | Existing preparation awaits compilation, texture uploads and mask variants; clean run has no late compilation | No additional warmup justified yet |
+| Static kit matrix traversal | World-pass matrix work is the largest measured caller | Retained after exact controlled camera gates and final quiet timing |
+| Worker snapshot cloning | Acceptance cost is much smaller than rendering | Deferred, no product change |
+| Additional shader/texture warmup | Existing preparation awaits compilation, texture uploads and mask variants; clean run has no late compilation | Deferred, no demonstrated late compilation to fix |
 
 ## Baseline controls and static kit candidate
 
@@ -84,7 +84,7 @@ The complete CPU suite passes: 121 files, 1,133 tests, including exact Float64 m
 
 The player's black-pixel investigation and prepared floating-target diagnostics moved to the render agent at 11:40. The concrete foliage fractional-power domain hypothesis, raw readback limitations and reproduction instructions are in `/home/lucas/codex-team/handoff/performance-to-render/README.md`. This performance branch changes no shader and makes no claim that the player's screenshot has been reproduced or fixed.
 
-## Static timing results, retention pending
+## Earlier static timing results
 
 First quiet pair, 24 synchronized frames per camera. Machine load is recorded per row. Positive change means slower. Complete pass and program-churn data is in the adjacent JSON files.
 
@@ -175,3 +175,50 @@ Program rebuild attribution is measured separately: static-only equals baseline,
 The crowd fixture requests 12 actors and capyFront adds one close review bot, for 13 snapshot actors. Plaza16 and fight8 retain 16 and 8 snapshot actors. These are synthetic stress cases; no live simulation actors, health, positions, seeds or rules are changed.
 
 Reserved final quiet window 13:20 to 13:27. Prepared immutable combined build and sequential one-browser script measure six targeted Low/Medium/High cases using 48 frames and two A-B-B-A rounds, then clean 45-second Medium Correria and royale before/after runs with no CPU profile, heap sampler or trace. Live worker match seeds remain unmodified and runs are unseeded; bot routes and visible crowd can differ. Roughly 35 settled seconds per live run will provide short coverage, not a sustained M2 or rare-hitch guarantee. Actual stage, actor proximity, density, cadence, CPU/GPU spans and load will be recorded.
+
+## Final quiet comparison and decision
+
+The coordinator released the host after HUD's measurement at 13:19:33. The one-browser sequence ran from 13:19:57 to 13:26:16, finishing all six targeted static cases and all four 45-second live runs. Other browser, build, test and fitting jobs were paused for this reserved window. The orchestration exited successfully; all measurement Chrome and preview processes were verified closed before the explicit all-clear at 13:26:16. Immutable baseline and combined production bundles remain outside the repository.
+
+Retain static kit matrix caching (14b9cfa) and independent mask render state (5723746). The combined candidate has a new 21-camera exact pixel gate, zero changed RGBA pixels including the fixed HUD, PSNR Infinity. Its full source checks pass: 121 files, 1,135 tests, TSC and QA production build. No shader, asset, density, effect, HUD, gameplay or network protocol changes belong to these optimizations.
+
+Static measurement uses Chrome 150.0.7871.186, 1470x956 CSS pixels, DPR 2 and page CPU throttle 4. Each row has two A-B-B-A rounds with 48 frozen frames per batch, 192 frames per variant. The table is the median of each variant's four batch medians. A one-pixel read completes each GPU frame: this measures synchronized whole-frame wall cost without vsync, not a pure CPU span. GPU timer queries report the GPU share independently. The unchanged GPU share supports the inference that less CPU work explains the reduced wall cost. These six cases deliberately repeat the earlier mixed Low/High and crowded/fight cases; they do not represent every camera or sustained gameplay.
+
+| Preset | Camera | Before wall ms | After wall ms | Change | Before / after p90 ms | GPU before / after ms | Load range |
+| --- | --- | ---: | ---: | ---: | --- | --- | --- |
+| Low | Plaza16 | 15.05 | 13.70 | -9.0% | 21.75 / 20.25 | 1.229 / 1.224 | 1.26 to 1.38 |
+| Low | Crowd | 14.50 | 13.10 | -9.7% | 19.15 / 17.75 | 1.282 / 1.279 | 1.38 to 1.43 |
+| Medium | Crowd | 15.95 | 15.40 | -3.4% | 20.65 / 20.20 | 2.895 / 2.897 | 1.47 to 1.52 |
+| Medium | Fight8 | 13.50 | 12.20 | -9.6% | 16.75 / 14.80 | 2.686 / 2.687 | 1.56 to 1.67 |
+| High | FP M4 | 13.25 | 11.95 | -9.8% | 14.70 / 13.00 | 5.292 / 5.288 | 1.67 to 1.78 |
+| High | Fight8 | 15.90 | 14.70 | -7.5% | 18.80 / 17.65 | 5.403 / 5.405 | 1.88 to 1.89 |
+
+Both individual rounds improve in every row: Low plaza -9.6/-9.2%, Low crowd -9.7/-9.6%, Medium crowd -4.9/-3.8%, Medium fight -9.2/-7.6%, High FP -12.1/-8.0%, High fight -6.4/-8.6%. Every batch preserves the same draw count, triangle count, preset ceiling and canvas as its counterpart. GPU median differences are at most 0.005 ms. There are no page errors. Host CPU busy share measured from OS CPU-time deltas ranges from 10.71 to 15.34%; free RAM ranges from 9,729 to 9,933 MB. Recorded load ranges from 1.26 to 1.89. Raw per-batch process names and CPU times accompany the full JSON outside the repository; the compact summary retains load, RAM and CPU busy share.
+
+The same run independently rechecks ordinary program-parameter lookups after timed batches: Low plaza 27 to 6, Low crowd 37 to 16, Medium crowd 39 to 18, Medium fight 23 to 8, High FP 31 to 14 and High fight 23 to 8 per frame. The separate baseline/static-only/mask-only/combined attribution table above establishes that the mask change produces this reduction. No after-allocation KB/frame reduction is claimed because no new allocation sampler ran in this clean window.
+
+Live matches are unseeded and driven only through ordinary inputs. Each run has 45 configured seconds, approximately 36 settled seconds after the initial 10 seconds are excluded. The Medium ceiling is exactly 1.25 throughout, output 2940x1912, DPR 2, page CPU throttle 4. Profiles, heap sampling and GC traces are all disabled. CPU timings below are the actual render and world-draw spans; GPU values are summed per-pass queries.
+
+| Live run | Settled s | fps | p95 / p99 ms | 1% low fps | Intervals >50 ms | Max ms | Render / world CPU ms | GPU ms | Load range | Nearby ground actors max |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | --- | ---: |
+| Before Correria | 36 | 44.0 | 33.4 / 33.4 | 24.0 | 2 | 50.1 | 16.97 / 12.23 | 2.76 | 1.54 to 1.78 | 3 |
+| Combined Correria | 36 | 52.3 | 33.4 / 33.4 | 28.4 | 0 | 50.0 | 14.66 / 10.12 | 2.87 | 1.41 to 1.55 | 3 |
+| Before royale | 36 | 35.4 | 33.4 / 50.0 | 20.0 | 3 | 50.1 | 22.39 / 15.04 | 2.60 | 1.31 to 1.53 | 3 |
+| Combined royale | 36 | 37.9 | 33.4 / 50.0 | 19.1 | 10 | 66.7 | 20.82 / 13.47 | 3.00 | 1.27 to 1.34 | 3 |
+
+Both short live runs have lower average CPU submission and render costs. Correria's observed cadence improves. Royale's 1% low and >50 ms interval count are worse in this pair; the change does not establish a tail-latency gain. Different unseeded bot routes, alive players, camera paths and GPU costs prevent assigning the precise live FPS differences solely to the optimization. P95 remains 33.4 ms. The frame intervals are quantized by the browser's display cadence, so even small changes around 50 ms can cross the strict >50 ms counter.
+
+Correria contains 8 actors with at most 3 ground actors within 20 m. Royale contains 21 actors with at most 3 nearby ground actors, covering plane, falling, parachute and ground stages. Before/combined stage durations are approximately 2/2 seconds plane, 2/2 falling, 6/6 parachute and 34/34 ground. Stage FPS before/combined: plane 57.1/58.5, falling 46.7/52.7, parachute 53.0/58.4, ground 34.5/36.8. This provides plane/drop/landing coverage but does not prove a denser crowded landing or a longer Correria busy fight. The synthetic frozen crowd and fight cases provide separate controlled stress measurements.
+
+No M2 Air was available. The Radeon, RAM headroom, unthrottled worker/GPU, headless browser and unavailable Linux thermal measurement limit transfer to an M2 Air 8 GB Retina. The retained changes reduce measured CPU work while preserving controlled pixels; they do not guarantee 60 fps on M2, improved rare hitches, a new memory allocation rate or sustained thermal behavior. The original shared variant-changing materials still rebuild in their remaining cases, and worker cloning remains unchanged.
+
+| Experiment | Final decision | Evidence |
+| --- | --- | --- |
+| Mask facade V1 and original V2 captures | Rejected at 09:24 | Original strict capture differed; all failed comparisons remain preserved |
+| Unchanged baseline controls | Retained as diagnostics | Reproduce the same 940 Medium crowd pixels with identical executable and asset bytes |
+| Static kit matrix cache | Kept | Final controlled 21-camera identity plus improved combined quiet costs; root/removal/reparent tests |
+| Rechecked mask V2 | Kept | Explicit new mask and combined 21-camera exact gates, 15 to 23 fewer program lookups in quiet cases |
+| Worker snapshot pooling or cloning change | Deferred | Snapshot acceptance small relative to rendering; immutable retained interpolation contract |
+| Additional startup shader/texture warmup | Deferred | Existing preparation covers variants and uploads; no measured late compilation in clean baseline |
+
+Final evidence: `combined-quiet-static-summary.json`, `combined-live-clean-summary.json`, `combined-identity.json`, `program-rebuild-attribution.json` and this experiment log. All failures and limitations above remain part of the evidence. Final integration and its separate HUD, holding, plane and shader changes are verified by the coordinating root.

@@ -1,0 +1,4020 @@
+{
+ "source": "unseeded ordinary-input practice matches in same reserved quiet window; bot routes differ, not identical simulation state",
+ "limitations": "45 configured seconds per run, about 35 settled seconds; CDP page CPU throttle 4, GPU and worker unthrottled; not a sustained M2 or rare-hitch guarantee",
+ "rows": [
+  {
+   "label": "before-correria",
+   "measuredAt": "2026-10-02T16:22:46.140Z",
+   "sourceFile": "/home/lucas/codex-team/logs/performance/combined-before-correria-clean.json",
+   "viewport": {
+    "width": 1470,
+    "height": 956,
+    "dpr": 2
+   },
+   "gpu": {
+    "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+    "drawingBuffer": [
+     2940,
+     1912
+    ],
+    "timerQuery": true
+   },
+   "quality": "medium",
+   "mode": "deathmatch",
+   "seconds": 36,
+   "headless": true,
+   "menuMs": 2905,
+   "firstFrameMs": 20549,
+   "cpuThrottle": 4,
+   "pinDensity": true,
+   "machine": {
+    "platform": "linux",
+    "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+    "logicalCpus": 16,
+    "totalMemoryMB": 15905
+   },
+   "fps": 44,
+   "fpsByMinute": [
+    44
+   ],
+   "p50": 16.7,
+   "p95": 33.4,
+   "p99": 33.4,
+   "max": 50.1,
+   "low1": 24,
+   "over20": 563,
+   "over50": 2,
+   "frames": 1573,
+   "gpuMs": 2.76,
+   "gpuPasses": {
+    "world": 1.25,
+    "shadow": 0.28,
+    "mask": 0.03,
+    "atmosphere": 0.3,
+    "post": 0.18,
+    "fp-scene": 0.28,
+    "fp-composite": 0.03,
+    "aa": 0.19,
+    "upscale": 0.24
+   },
+   "cpuMsPerFrame": {
+    "snapshot": 0.07,
+    "audio": 0.18,
+    "interaction": 0.05,
+    "avatars": 3.08,
+    "camera": 0.05,
+    "world-update": 0.28,
+    "weapon-view": 0.54,
+    "effects": 0.17,
+    "texture-upload": 0.13,
+    "first-person-draw": 0.83,
+    "world-draw": 12.23,
+    "render": 16.97,
+    "hud": 1
+   },
+   "cpuMax": {
+    "snapshot": 0.9,
+    "audio": 3.7,
+    "interaction": 1.7,
+    "avatars": 7.6,
+    "camera": 0.8,
+    "world-update": 1,
+    "weapon-view": 3.7,
+    "effects": 2.2,
+    "texture-upload": 0.9,
+    "first-person-draw": 3,
+    "world-draw": 21.8,
+    "render": 28.1,
+    "hud": 14.3,
+    "worker-tick": 0.8
+   },
+   "workerTickMs": 0.48,
+   "longTasks": 0,
+   "heapMB": [
+    243.1,
+    302.6
+   ],
+   "draws": 140,
+   "triangles": 1472433,
+   "density": {
+    "mean": 1.25,
+    "min": 1.25,
+    "max": 1.25
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "null": 35
+   },
+   "load": 1.66,
+   "stages": {
+    "ground": 35
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 1,
+     "fps": 51,
+     "p95": 33.4
+    },
+    "ground": {
+     "seconds": 44,
+     "fps": 45.4,
+     "p95": 33.4
+    }
+   },
+   "errors": 0,
+   "gc": [],
+   "configuredSeconds": 45,
+   "loadRange": [
+    1.54,
+    1.78
+   ],
+   "freeMemoryMBRange": [
+    10314,
+    10578
+   ],
+   "actorsRange": [
+    8,
+    8
+   ],
+   "nearbyGroundActorsWithin20mRange": [
+    1,
+    3
+   ],
+   "alivePlayersRange": [
+    5,
+    8
+   ],
+   "playerAliveSamples": 41,
+   "interventions": {
+    "profiles": 0,
+    "allocations": 0,
+    "gcTraces": 0
+   },
+   "stagesInSampleOrder": [
+    {
+     "t": 1.1,
+     "phase": "countdown",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.74,
+      1.61,
+      2.59
+     ],
+     "freeMemoryMB": 10557,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 2.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.74,
+      1.61,
+      2.59
+     ],
+     "freeMemoryMB": 10556,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 3.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.74,
+      1.61,
+      2.59
+     ],
+     "freeMemoryMB": 10556,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 4.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.74,
+      1.61,
+      2.59
+     ],
+     "freeMemoryMB": 10542,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 5.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.74,
+      1.61,
+      2.59
+     ],
+     "freeMemoryMB": 10547,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 6.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.76,
+      1.62,
+      2.59
+     ],
+     "freeMemoryMB": 10548,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 7.3,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.76,
+      1.62,
+      2.59
+     ],
+     "freeMemoryMB": 10567,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 8.3,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.76,
+      1.62,
+      2.59
+     ],
+     "freeMemoryMB": 10566,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 9.3,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.76,
+      1.62,
+      2.59
+     ],
+     "freeMemoryMB": 10578,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 10.3,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.76,
+      1.62,
+      2.59
+     ],
+     "freeMemoryMB": 10567,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 11.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.78,
+      1.63,
+      2.59
+     ],
+     "freeMemoryMB": 10566,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 12.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.78,
+      1.63,
+      2.59
+     ],
+     "freeMemoryMB": 10543,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 13.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.78,
+      1.63,
+      2.59
+     ],
+     "freeMemoryMB": 10524,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 14.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.78,
+      1.63,
+      2.59
+     ],
+     "freeMemoryMB": 10516,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 15.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.78,
+      1.63,
+      2.59
+     ],
+     "freeMemoryMB": 10498,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 16.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.72,
+      1.61,
+      2.58
+     ],
+     "freeMemoryMB": 10482,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 17.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.72,
+      1.61,
+      2.58
+     ],
+     "freeMemoryMB": 10472,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 18.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.72,
+      1.61,
+      2.58
+     ],
+     "freeMemoryMB": 10452,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 19.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.72,
+      1.61,
+      2.58
+     ],
+     "freeMemoryMB": 10439,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 20.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.72,
+      1.61,
+      2.58
+     ],
+     "freeMemoryMB": 10430,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 21.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.66,
+      1.6,
+      2.57
+     ],
+     "freeMemoryMB": 10430,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 22.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.66,
+      1.6,
+      2.57
+     ],
+     "freeMemoryMB": 10434,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 23.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.66,
+      1.6,
+      2.57
+     ],
+     "freeMemoryMB": 10385,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 24.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.66,
+      1.6,
+      2.57
+     ],
+     "freeMemoryMB": 10390,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 25.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.66,
+      1.6,
+      2.57
+     ],
+     "freeMemoryMB": 10390,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 26.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": false,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.69,
+      1.61,
+      2.57
+     ],
+     "freeMemoryMB": 10387,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 27.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": false,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.69,
+      1.61,
+      2.57
+     ],
+     "freeMemoryMB": 10391,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 28.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": false,
+     "actors": 8,
+     "nearbyActors": 3,
+     "load": [
+      1.69,
+      1.61,
+      2.57
+     ],
+     "freeMemoryMB": 10392,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 29.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.69,
+      1.61,
+      2.57
+     ],
+     "freeMemoryMB": 10378,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 30.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.69,
+      1.61,
+      2.57
+     ],
+     "freeMemoryMB": 10372,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 31.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.63,
+      1.6,
+      2.56
+     ],
+     "freeMemoryMB": 10375,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 32.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.63,
+      1.6,
+      2.56
+     ],
+     "freeMemoryMB": 10387,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 33.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.63,
+      1.6,
+      2.56
+     ],
+     "freeMemoryMB": 10382,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 34.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.63,
+      1.6,
+      2.56
+     ],
+     "freeMemoryMB": 10375,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 35.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.63,
+      1.6,
+      2.56
+     ],
+     "freeMemoryMB": 10364,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 36.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.58,
+      1.59,
+      2.55
+     ],
+     "freeMemoryMB": 10326,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 37.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.58,
+      1.59,
+      2.55
+     ],
+     "freeMemoryMB": 10321,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 38.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.58,
+      1.59,
+      2.55
+     ],
+     "freeMemoryMB": 10314,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 39.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.58,
+      1.59,
+      2.55
+     ],
+     "freeMemoryMB": 10358,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 41,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.54,
+      1.58,
+      2.54
+     ],
+     "freeMemoryMB": 10351,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 42,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.54,
+      1.58,
+      2.54
+     ],
+     "freeMemoryMB": 10335,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 43,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.54,
+      1.58,
+      2.54
+     ],
+     "freeMemoryMB": 10334,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 44,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.54,
+      1.58,
+      2.54
+     ],
+     "freeMemoryMB": 10325,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 45,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.54,
+      1.58,
+      2.54
+     ],
+     "freeMemoryMB": 10323,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    }
+   ]
+  },
+  {
+   "label": "after-correria",
+   "measuredAt": "2026-10-02T16:23:55.498Z",
+   "sourceFile": "/home/lucas/codex-team/logs/performance/combined-after-correria-clean.json",
+   "viewport": {
+    "width": 1470,
+    "height": 956,
+    "dpr": 2
+   },
+   "gpu": {
+    "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+    "drawingBuffer": [
+     2940,
+     1912
+    ],
+    "timerQuery": true
+   },
+   "quality": "medium",
+   "mode": "deathmatch",
+   "seconds": 36,
+   "headless": true,
+   "menuMs": 2904,
+   "firstFrameMs": 20618,
+   "cpuThrottle": 4,
+   "pinDensity": true,
+   "machine": {
+    "platform": "linux",
+    "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+    "logicalCpus": 16,
+    "totalMemoryMB": 15905
+   },
+   "fps": 52.3,
+   "fpsByMinute": [
+    52.3
+   ],
+   "p50": 16.7,
+   "p95": 33.4,
+   "p99": 33.4,
+   "max": 50,
+   "low1": 28.4,
+   "over20": 275,
+   "over50": 0,
+   "frames": 1867,
+   "gpuMs": 2.87,
+   "gpuPasses": {
+    "world": 1.38,
+    "shadow": 0.26,
+    "mask": 0.02,
+    "atmosphere": 0.32,
+    "post": 0.18,
+    "fp-scene": 0.28,
+    "fp-composite": 0.03,
+    "aa": 0.18,
+    "upscale": 0.24
+   },
+   "cpuMsPerFrame": {
+    "audio": 0.14,
+    "interaction": 0.03,
+    "avatars": 3.01,
+    "camera": 0.04,
+    "world-update": 0.23,
+    "weapon-view": 0.51,
+    "effects": 0.16,
+    "texture-upload": 0.12,
+    "first-person-draw": 0.79,
+    "world-draw": 10.12,
+    "render": 14.66,
+    "hud": 0.67,
+    "snapshot": 0.07
+   },
+   "cpuMax": {
+    "audio": 1.2,
+    "interaction": 0.8,
+    "avatars": 8.3,
+    "camera": 0.8,
+    "world-update": 1,
+    "weapon-view": 3.3,
+    "effects": 1.1,
+    "texture-upload": 1.4,
+    "first-person-draw": 2,
+    "world-draw": 16.1,
+    "render": 25.4,
+    "hud": 10.7,
+    "snapshot": 0.9,
+    "worker-tick": 5.7
+   },
+   "workerTickMs": 0.89,
+   "longTasks": 0,
+   "heapMB": [
+    253.2,
+    296.3
+   ],
+   "draws": 134,
+   "triangles": 1439922,
+   "density": {
+    "mean": 1.25,
+    "min": 1.25,
+    "max": 1.25
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "null": 35
+   },
+   "load": 1.48,
+   "stages": {
+    "ground": 35
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 2,
+     "fps": 55.3,
+     "p95": 33.3
+    },
+    "ground": {
+     "seconds": 43,
+     "fps": 51.5,
+     "p95": 33.4
+    }
+   },
+   "errors": 0,
+   "gc": [],
+   "configuredSeconds": 45,
+   "loadRange": [
+    1.41,
+    1.55
+   ],
+   "freeMemoryMBRange": [
+    10061,
+    10284
+   ],
+   "actorsRange": [
+    8,
+    8
+   ],
+   "nearbyGroundActorsWithin20mRange": [
+    1,
+    3
+   ],
+   "alivePlayersRange": [
+    6,
+    8
+   ],
+   "playerAliveSamples": 41,
+   "interventions": {
+    "profiles": 0,
+    "allocations": 0,
+    "gcTraces": 0
+   },
+   "stagesInSampleOrder": [
+    {
+     "t": 1.1,
+     "phase": "countdown",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.49,
+      1.57,
+      2.51
+     ],
+     "freeMemoryMB": 10277,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 2.1,
+     "phase": "countdown",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.45,
+      1.56,
+      2.5
+     ],
+     "freeMemoryMB": 10282,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 3.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.45,
+      1.56,
+      2.5
+     ],
+     "freeMemoryMB": 10284,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 4.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.45,
+      1.56,
+      2.5
+     ],
+     "freeMemoryMB": 10278,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 5.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.45,
+      1.56,
+      2.5
+     ],
+     "freeMemoryMB": 10272,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 6.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.45,
+      1.56,
+      2.5
+     ],
+     "freeMemoryMB": 10262,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 7.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.41,
+      1.55,
+      2.49
+     ],
+     "freeMemoryMB": 10255,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 8.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.41,
+      1.55,
+      2.49
+     ],
+     "freeMemoryMB": 10254,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 9.3,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.41,
+      1.55,
+      2.49
+     ],
+     "freeMemoryMB": 10253,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 10.3,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.41,
+      1.55,
+      2.49
+     ],
+     "freeMemoryMB": 10247,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 11.3,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 3,
+     "load": [
+      1.41,
+      1.55,
+      2.49
+     ],
+     "freeMemoryMB": 10249,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 12.3,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.46,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10255,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 13.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.46,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10249,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 14.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.46,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10247,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 15.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.46,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10233,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 16.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.46,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10221,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 17.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.5,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10198,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 18.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.5,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10191,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 19.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.5,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10185,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 20.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.5,
+      1.56,
+      2.49
+     ],
+     "freeMemoryMB": 10185,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 21.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.46,
+      1.55,
+      2.48
+     ],
+     "freeMemoryMB": 10176,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 22.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.46,
+      1.55,
+      2.48
+     ],
+     "freeMemoryMB": 10168,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 23.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.46,
+      1.55,
+      2.48
+     ],
+     "freeMemoryMB": 10165,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 24.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.46,
+      1.55,
+      2.48
+     ],
+     "freeMemoryMB": 10181,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 25.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": false,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.46,
+      1.55,
+      2.48
+     ],
+     "freeMemoryMB": 10172,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 26.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": false,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.43,
+      1.54,
+      2.47
+     ],
+     "freeMemoryMB": 10159,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 27.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": false,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.43,
+      1.54,
+      2.47
+     ],
+     "freeMemoryMB": 10146,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 28.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.43,
+      1.54,
+      2.47
+     ],
+     "freeMemoryMB": 10133,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 29.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.43,
+      1.54,
+      2.47
+     ],
+     "freeMemoryMB": 10127,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 30.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.43,
+      1.54,
+      2.47
+     ],
+     "freeMemoryMB": 10092,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 31.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.55,
+      1.57,
+      2.47
+     ],
+     "freeMemoryMB": 10093,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 32.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.55,
+      1.57,
+      2.47
+     ],
+     "freeMemoryMB": 10096,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 33.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.55,
+      1.57,
+      2.47
+     ],
+     "freeMemoryMB": 10083,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 34.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.55,
+      1.57,
+      2.47
+     ],
+     "freeMemoryMB": 10083,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 35.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.55,
+      1.57,
+      2.47
+     ],
+     "freeMemoryMB": 10082,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 36.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.51,
+      1.56,
+      2.47
+     ],
+     "freeMemoryMB": 10077,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 37.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.51,
+      1.56,
+      2.47
+     ],
+     "freeMemoryMB": 10066,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 38.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.51,
+      1.56,
+      2.47
+     ],
+     "freeMemoryMB": 10061,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 39.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.51,
+      1.56,
+      2.47
+     ],
+     "freeMemoryMB": 10085,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 40.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 1,
+     "load": [
+      1.51,
+      1.56,
+      2.47
+     ],
+     "freeMemoryMB": 10091,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 42,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.47,
+      1.55,
+      2.46
+     ],
+     "freeMemoryMB": 10118,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 43,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.47,
+      1.55,
+      2.46
+     ],
+     "freeMemoryMB": 10116,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 44,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.47,
+      1.55,
+      2.46
+     ],
+     "freeMemoryMB": 10103,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 45,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 8,
+     "nearbyActors": 2,
+     "load": [
+      1.47,
+      1.55,
+      2.46
+     ],
+     "freeMemoryMB": 10104,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    }
+   ]
+  },
+  {
+   "label": "before-royale",
+   "measuredAt": "2026-10-02T16:25:05.871Z",
+   "sourceFile": "/home/lucas/codex-team/logs/performance/combined-before-royale-clean.json",
+   "viewport": {
+    "width": 1470,
+    "height": 956,
+    "dpr": 2
+   },
+   "gpu": {
+    "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+    "drawingBuffer": [
+     2940,
+     1912
+    ],
+    "timerQuery": true
+   },
+   "quality": "medium",
+   "mode": "battle-royale",
+   "seconds": 36,
+   "headless": true,
+   "menuMs": 2885,
+   "firstFrameMs": 21429,
+   "cpuThrottle": 4,
+   "pinDensity": true,
+   "machine": {
+    "platform": "linux",
+    "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+    "logicalCpus": 16,
+    "totalMemoryMB": 15905
+   },
+   "fps": 35.4,
+   "fpsByMinute": [
+    35.4
+   ],
+   "p50": 33.3,
+   "p95": 33.4,
+   "p99": 50,
+   "max": 50.1,
+   "low1": 20,
+   "over20": 851,
+   "over50": 3,
+   "frames": 1271,
+   "gpuMs": 2.6,
+   "gpuPasses": {
+    "world": 1.13,
+    "shadow": 0.31,
+    "mask": 0.05,
+    "atmosphere": 0.31,
+    "post": 0.18,
+    "aa": 0.18,
+    "upscale": 0.25,
+    "fp-scene": 0.16,
+    "fp-composite": 0.03
+   },
+   "cpuMsPerFrame": {
+    "audio": 0.27,
+    "interaction": 0.06,
+    "avatars": 5.69,
+    "camera": 0.05,
+    "world-update": 0.27,
+    "weapon-view": 0.52,
+    "effects": 0.16,
+    "texture-upload": 0.21,
+    "world-draw": 15.04,
+    "render": 22.39,
+    "hud": 1.07,
+    "snapshot": 0.16,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 0.73
+   },
+   "cpuMax": {
+    "audio": 2.9,
+    "interaction": 3.6,
+    "avatars": 14.1,
+    "camera": 0.8,
+    "world-update": 1.6,
+    "weapon-view": 6.5,
+    "effects": 4.3,
+    "texture-upload": 0.9,
+    "world-draw": 24.1,
+    "render": 35.1,
+    "hud": 6,
+    "snapshot": 3,
+    "worker-tick": 25.3,
+    "camera-transition": 0,
+    "driver-shader-compile": 0,
+    "driver-program-link": 0,
+    "shader-program-created": 0,
+    "first-person-draw": 1.9
+   },
+   "workerTickMs": 3.27,
+   "longTasks": 0,
+   "heapMB": [
+    271.7,
+    335.7
+   ],
+   "draws": 170,
+   "triangles": 1372719,
+   "density": {
+    "mean": 1.25,
+    "min": 1.25,
+    "max": 1.25
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "null": 35
+   },
+   "load": 1.45,
+   "stages": {
+    "parachute": 2,
+    "ground": 33
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 1,
+     "fps": 51,
+     "p95": 33.4
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 57.1,
+     "p95": 33.3
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 46.7,
+     "p95": 33.4
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 53,
+     "p95": 33.4
+    },
+    "ground": {
+     "seconds": 34,
+     "fps": 34.5,
+     "p95": 33.4
+    }
+   },
+   "errors": 0,
+   "gc": [],
+   "configuredSeconds": 45,
+   "loadRange": [
+    1.31,
+    1.53
+   ],
+   "freeMemoryMBRange": [
+    10043,
+    10291
+   ],
+   "actorsRange": [
+    21,
+    21
+   ],
+   "nearbyGroundActorsWithin20mRange": [
+    0,
+    3
+   ],
+   "alivePlayersRange": [
+    21,
+    21
+   ],
+   "playerAliveSamples": 44,
+   "interventions": {
+    "profiles": 0,
+    "allocations": 0,
+    "gcTraces": 0
+   },
+   "stagesInSampleOrder": [
+    {
+     "t": 1.1,
+     "phase": "countdown",
+     "stage": "plane",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.31,
+      1.5,
+      2.42
+     ],
+     "freeMemoryMB": 10287,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 2.1,
+     "phase": "playing",
+     "stage": "plane",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.44,
+      1.53,
+      2.42
+     ],
+     "freeMemoryMB": 10289,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 3.2,
+     "phase": "playing",
+     "stage": "plane",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.44,
+      1.53,
+      2.42
+     ],
+     "freeMemoryMB": 10291,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 4.2,
+     "phase": "playing",
+     "stage": "falling",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.44,
+      1.53,
+      2.42
+     ],
+     "freeMemoryMB": 10282,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 5.2,
+     "phase": "playing",
+     "stage": "falling",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.44,
+      1.53,
+      2.42
+     ],
+     "freeMemoryMB": 10286,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 6.2,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.44,
+      1.53,
+      2.42
+     ],
+     "freeMemoryMB": 10287,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 7.2,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.49,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10287,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 8.3,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.49,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10287,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 9.3,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.49,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10282,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 10.3,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.49,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10291,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 11.3,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.49,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10270,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 12.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.53,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10260,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 13.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.53,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10272,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 14.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.53,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10277,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 15.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.53,
+      1.54,
+      2.42
+     ],
+     "freeMemoryMB": 10282,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 16.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.49,
+      1.54,
+      2.41
+     ],
+     "freeMemoryMB": 10270,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 17.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.49,
+      1.54,
+      2.41
+     ],
+     "freeMemoryMB": 10254,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 18.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.49,
+      1.54,
+      2.41
+     ],
+     "freeMemoryMB": 10252,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 19.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.49,
+      1.54,
+      2.41
+     ],
+     "freeMemoryMB": 10240,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 20.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.49,
+      1.54,
+      2.41
+     ],
+     "freeMemoryMB": 10242,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 21.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.45,
+      1.53,
+      2.4
+     ],
+     "freeMemoryMB": 10226,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 22.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.45,
+      1.53,
+      2.4
+     ],
+     "freeMemoryMB": 10215,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 23.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.45,
+      1.53,
+      2.4
+     ],
+     "freeMemoryMB": 10193,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 24.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.45,
+      1.53,
+      2.4
+     ],
+     "freeMemoryMB": 10171,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 25.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.45,
+      1.53,
+      2.4
+     ],
+     "freeMemoryMB": 10155,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 26.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.41,
+      1.52,
+      2.39
+     ],
+     "freeMemoryMB": 10150,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 27.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.41,
+      1.52,
+      2.39
+     ],
+     "freeMemoryMB": 10135,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 28.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.41,
+      1.52,
+      2.39
+     ],
+     "freeMemoryMB": 10134,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 29.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.41,
+      1.52,
+      2.39
+     ],
+     "freeMemoryMB": 10132,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 30.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.41,
+      1.52,
+      2.39
+     ],
+     "freeMemoryMB": 10108,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 31.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.38,
+      1.51,
+      2.38
+     ],
+     "freeMemoryMB": 10108,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 32.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.38,
+      1.51,
+      2.38
+     ],
+     "freeMemoryMB": 10106,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 33.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.38,
+      1.51,
+      2.38
+     ],
+     "freeMemoryMB": 10098,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 35,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.38,
+      1.51,
+      2.38
+     ],
+     "freeMemoryMB": 10087,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 36,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.38,
+      1.51,
+      2.38
+     ],
+     "freeMemoryMB": 10070,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 37,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.43,
+      1.52,
+      2.38
+     ],
+     "freeMemoryMB": 10064,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 38,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.43,
+      1.52,
+      2.38
+     ],
+     "freeMemoryMB": 10058,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 39.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.43,
+      1.52,
+      2.38
+     ],
+     "freeMemoryMB": 10065,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 40.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.43,
+      1.52,
+      2.38
+     ],
+     "freeMemoryMB": 10069,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 41.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.43,
+      1.52,
+      2.38
+     ],
+     "freeMemoryMB": 10064,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 42.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.47,
+      1.53,
+      2.38
+     ],
+     "freeMemoryMB": 10057,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 43.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 3,
+     "load": [
+      1.47,
+      1.53,
+      2.38
+     ],
+     "freeMemoryMB": 10055,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 44.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 3,
+     "load": [
+      1.47,
+      1.53,
+      2.38
+     ],
+     "freeMemoryMB": 10051,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 45.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 3,
+     "load": [
+      1.47,
+      1.53,
+      2.38
+     ],
+     "freeMemoryMB": 10043,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    }
+   ]
+  },
+  {
+   "label": "after-royale",
+   "measuredAt": "2026-10-02T16:26:16.181Z",
+   "sourceFile": "/home/lucas/codex-team/logs/performance/combined-after-royale-clean.json",
+   "viewport": {
+    "width": 1470,
+    "height": 956,
+    "dpr": 2
+   },
+   "gpu": {
+    "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)",
+    "drawingBuffer": [
+     2940,
+     1912
+    ],
+    "timerQuery": true
+   },
+   "quality": "medium",
+   "mode": "battle-royale",
+   "seconds": 36,
+   "headless": true,
+   "menuMs": 2885,
+   "firstFrameMs": 21324,
+   "cpuThrottle": 4,
+   "pinDensity": true,
+   "machine": {
+    "platform": "linux",
+    "cpu": "AMD Ryzen 7 5700X 8-Core Processor",
+    "logicalCpus": 16,
+    "totalMemoryMB": 15905
+   },
+   "fps": 37.9,
+   "fpsByMinute": [
+    37.9
+   ],
+   "p50": 33.3,
+   "p95": 33.4,
+   "p99": 50,
+   "max": 66.7,
+   "low1": 19.1,
+   "over20": 744,
+   "over50": 10,
+   "frames": 1361,
+   "gpuMs": 3,
+   "gpuPasses": {
+    "world": 1.49,
+    "shadow": 0.28,
+    "mask": 0.05,
+    "atmosphere": 0.32,
+    "post": 0.18,
+    "aa": 0.19,
+    "upscale": 0.25,
+    "fp-scene": 0.24,
+    "fp-composite": 0.03
+   },
+   "cpuMsPerFrame": {
+    "snapshot": 0.15,
+    "audio": 0.24,
+    "interaction": 0.07,
+    "avatars": 5.57,
+    "camera": 0.05,
+    "world-update": 0.28,
+    "weapon-view": 0.51,
+    "effects": 0.18,
+    "texture-upload": 0.17,
+    "world-draw": 13.47,
+    "render": 20.82,
+    "hud": 1.03,
+    "camera-transition": 0,
+    "first-person-draw": 0.81
+   },
+   "cpuMax": {
+    "snapshot": 3.5,
+    "audio": 3.2,
+    "interaction": 0.9,
+    "avatars": 15.8,
+    "camera": 0.9,
+    "world-update": 1.2,
+    "weapon-view": 6.1,
+    "effects": 4.4,
+    "texture-upload": 0.9,
+    "world-draw": 24.4,
+    "render": 35.3,
+    "hud": 11,
+    "worker-tick": 2.5,
+    "camera-transition": 0,
+    "first-person-draw": 1.9
+   },
+   "workerTickMs": 1.09,
+   "longTasks": 0,
+   "heapMB": [
+    242,
+    313.7
+   ],
+   "draws": 152,
+   "triangles": 1405091,
+   "density": {
+    "mean": 1.25,
+    "min": 1.25,
+    "max": 1.25
+   },
+   "buffer": [
+    2940,
+    1912
+   ],
+   "buffers": [
+    "2940x1912"
+   ],
+   "thermal": {
+    "null": 35
+   },
+   "load": 1.3,
+   "stages": {
+    "parachute": 2,
+    "ground": 33
+   },
+   "stageFps": {
+    "countdown": {
+     "seconds": 1,
+     "fps": 46.6,
+     "p95": 50
+    },
+    "plane": {
+     "seconds": 2,
+     "fps": 58.5,
+     "p95": 16.8
+    },
+    "falling": {
+     "seconds": 2,
+     "fps": 52.7,
+     "p95": 33.3
+    },
+    "parachute": {
+     "seconds": 6,
+     "fps": 58.4,
+     "p95": 16.8
+    },
+    "ground": {
+     "seconds": 34,
+     "fps": 36.8,
+     "p95": 33.4
+    }
+   },
+   "errors": 0,
+   "gc": [],
+   "configuredSeconds": 45,
+   "loadRange": [
+    1.27,
+    1.34
+   ],
+   "freeMemoryMBRange": [
+    10368,
+    10595
+   ],
+   "actorsRange": [
+    21,
+    21
+   ],
+   "nearbyGroundActorsWithin20mRange": [
+    0,
+    3
+   ],
+   "alivePlayersRange": [
+    16,
+    21
+   ],
+   "playerAliveSamples": 44,
+   "interventions": {
+    "profiles": 0,
+    "allocations": 0,
+    "gcTraces": 0
+   },
+   "stagesInSampleOrder": [
+    {
+     "t": 1.1,
+     "phase": "countdown",
+     "stage": "plane",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.34,
+      1.49,
+      2.34
+     ],
+     "freeMemoryMB": 10561,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 2.1,
+     "phase": "playing",
+     "stage": "plane",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.34,
+      1.49,
+      2.34
+     ],
+     "freeMemoryMB": 10553,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 3.1,
+     "phase": "playing",
+     "stage": "plane",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.34,
+      1.49,
+      2.34
+     ],
+     "freeMemoryMB": 10563,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 4.2,
+     "phase": "playing",
+     "stage": "falling",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.34,
+      1.49,
+      2.34
+     ],
+     "freeMemoryMB": 10563,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 5.2,
+     "phase": "playing",
+     "stage": "falling",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.34,
+      1.49,
+      2.34
+     ],
+     "freeMemoryMB": 10561,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 6.2,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.32,
+      1.48,
+      2.33
+     ],
+     "freeMemoryMB": 10565,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 7.2,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.32,
+      1.48,
+      2.33
+     ],
+     "freeMemoryMB": 10581,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 8.2,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.32,
+      1.48,
+      2.33
+     ],
+     "freeMemoryMB": 10592,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 9.3,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.32,
+      1.48,
+      2.33
+     ],
+     "freeMemoryMB": 10592,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 10.3,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.32,
+      1.48,
+      2.33
+     ],
+     "freeMemoryMB": 10595,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 11.3,
+     "phase": "playing",
+     "stage": "parachute",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 0,
+     "load": [
+      1.29,
+      1.47,
+      2.33
+     ],
+     "freeMemoryMB": 10589,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 12.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.29,
+      1.47,
+      2.33
+     ],
+     "freeMemoryMB": 10582,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 13.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.29,
+      1.47,
+      2.33
+     ],
+     "freeMemoryMB": 10568,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 14.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.29,
+      1.47,
+      2.33
+     ],
+     "freeMemoryMB": 10569,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 15.4,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.29,
+      1.47,
+      2.33
+     ],
+     "freeMemoryMB": 10563,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 16.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.27,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10572,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 17.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.27,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10556,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 18.5,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.27,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10554,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 19.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.27,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10550,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 20.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.27,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10539,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 21.6,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.33,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10523,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 22.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.33,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10509,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 23.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.33,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10455,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 24.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.33,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10445,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 25.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.33,
+      1.47,
+      2.32
+     ],
+     "freeMemoryMB": 10441,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 26.7,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.3,
+      1.47,
+      2.31
+     ],
+     "freeMemoryMB": 10435,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 27.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.3,
+      1.47,
+      2.31
+     ],
+     "freeMemoryMB": 10447,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 28.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 3,
+     "load": [
+      1.3,
+      1.47,
+      2.31
+     ],
+     "freeMemoryMB": 10449,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 29.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 3,
+     "load": [
+      1.3,
+      1.47,
+      2.31
+     ],
+     "freeMemoryMB": 10446,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 30.8,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 3,
+     "load": [
+      1.3,
+      1.47,
+      2.31
+     ],
+     "freeMemoryMB": 10419,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 31.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.28,
+      1.46,
+      2.3
+     ],
+     "freeMemoryMB": 10409,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 32.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.28,
+      1.46,
+      2.3
+     ],
+     "freeMemoryMB": 10405,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 33.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.28,
+      1.46,
+      2.3
+     ],
+     "freeMemoryMB": 10401,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 34.9,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.28,
+      1.46,
+      2.3
+     ],
+     "freeMemoryMB": 10387,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 36,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.28,
+      1.46,
+      2.3
+     ],
+     "freeMemoryMB": 10392,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 37,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.33,
+      1.47,
+      2.3
+     ],
+     "freeMemoryMB": 10368,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 38,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.33,
+      1.47,
+      2.3
+     ],
+     "freeMemoryMB": 10371,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 39.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.33,
+      1.47,
+      2.3
+     ],
+     "freeMemoryMB": 10384,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 40.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.33,
+      1.47,
+      2.3
+     ],
+     "freeMemoryMB": 10374,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 41.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.31,
+      1.46,
+      2.29
+     ],
+     "freeMemoryMB": 10370,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 42.1,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.31,
+      1.46,
+      2.29
+     ],
+     "freeMemoryMB": 10369,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 43.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 1,
+     "load": [
+      1.31,
+      1.46,
+      2.29
+     ],
+     "freeMemoryMB": 10372,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 44.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.31,
+      1.46,
+      2.29
+     ],
+     "freeMemoryMB": 10370,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    },
+    {
+     "t": 45.2,
+     "phase": "playing",
+     "stage": "ground",
+     "alive": true,
+     "actors": 21,
+     "nearbyActors": 2,
+     "load": [
+      1.31,
+      1.46,
+      2.29
+     ],
+     "freeMemoryMB": 10368,
+     "density": 1.25,
+     "drawingBuffer": [
+      2940,
+      1912
+     ]
+    }
+   ]
+  }
+ ]
+}
