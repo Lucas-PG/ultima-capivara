@@ -1,0 +1,145 @@
+{
+  "source": "48fcd9b708d2d1500fcb06adf072be37dfb89af3",
+  "baseline": "8111d38965e45b988d193e4beb9e42db15f7e0c4",
+  "units": "millimetres and degrees",
+  "method": "Full c18a448 replay of 462 states, followed by a 48fcd9b replay of all changed intervals, 8 added authored states, and finer cylinder samples. Unchanged states retain their full replay measurements. This is an incremental combined result, not a monolithic 470-state run.",
+  "original": {
+    "samples": 276,
+    "active": 271,
+    "inactive": 5,
+    "failuresBefore": 68,
+    "failuresAfter": 0
+  },
+  "fullReplay": {
+    "source": "c18a448",
+    "samples": 462,
+    "active": 455,
+    "inactive": 7,
+    "failures": 0
+  },
+  "followupReplay": {
+    "source": "48fcd9b",
+    "samples": 52,
+    "failures": 0,
+    "addedAuthoredStates": 8,
+    "changedIntervalsSeconds": [
+      [
+        0.3012697818342966,
+        0.3028764152747414
+      ],
+      [
+        1.932162015158585,
+        1.93301649488062
+      ],
+      [
+        0.3119315401432369,
+        0.31401721074055045
+      ],
+      [
+        1.9276239837876838,
+        1.92832641984688
+      ]
+    ]
+  },
+  "combined": {
+    "samples": 470,
+    "active": 463,
+    "inactive": 7,
+    "failures": 0
+  },
+  "fineCylinder": {
+    "combinedSamples": 218,
+    "failures": 0,
+    "thumbContactRange": [
+      0.143,
+      1.395
+    ],
+    "leftSkinMinimum": -0.399,
+    "baseSweeps": [
+      {
+        "samples": 99,
+        "failures": 0
+      },
+      {
+        "samples": 80,
+        "failuresBeforeFollowup": 4
+      }
+    ],
+    "followupMinimumSwingStep": 0.00625
+  },
+  "worstSkin": {
+    "R": -0.1,
+    "L": -0.244,
+    "pair": -0.368
+  },
+  "wristRanges": {
+    "R": {
+      "flexion": [
+        -15.486,
+        35.31
+      ],
+      "deviation": [
+        -21.0,
+        16.0
+      ],
+      "pronation": [
+        -3.483,
+        59.838
+      ]
+    },
+    "L": {
+      "flexion": [
+        -40.0,
+        40.0
+      ],
+      "deviation": [
+        -21.0,
+        16.0
+      ],
+      "pronation": [
+        -74.0,
+        74.0
+      ]
+    }
+  },
+  "tests": {
+    "cylinder": 56,
+    "ejector": 28,
+    "loader": 26,
+    "readyAndMotion": 16,
+    "totalPassed": 126,
+    "typecheck": "passed"
+  },
+  "captures": {
+    "before": {
+      "capturedAt": "2026-10-02T18:27:28.410Z",
+      "source": "8111d38965e45b988d193e4beb9e42db15f7e0c4",
+      "browser": "150.0.7871.186",
+      "viewport": [
+        1470,
+        956
+      ],
+      "deviceScaleFactor": 1,
+      "gpu": {
+        "vendor": "Google Inc. (AMD)",
+        "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)"
+      }
+    },
+    "after": {
+      "capturedAt": "2026-10-02T19:24:10.401Z",
+      "source": "48fcd9b708d2d1500fcb06adf072be37dfb89af3",
+      "sourceHash": "7fc07bde8931de314f9a0c6d83416b6bb7a415368584f32cf12c890b5d6a2dbd",
+      "browser": "150.0.7871.186",
+      "viewport": [
+        1470,
+        956
+      ],
+      "deviceScaleFactor": 1,
+      "gpu": {
+        "vendor": "Google Inc. (AMD)",
+        "renderer": "ANGLE (AMD, AMD Radeon RX 9060 XT (radeonsi gfx1200 ACO), OpenGL ES 3.2)"
+      }
+    }
+  },
+  "scope": "First-person only. Shared reload keys are inherited by third-person; this does not certify third-person skin or manipulation contacts."
+}
