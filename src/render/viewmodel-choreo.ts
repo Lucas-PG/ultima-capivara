@@ -48,6 +48,15 @@ export function handContact(pair: ChoreoSample['R'], gripSurface: string): strin
   return a === b ? a : null;
 }
 
+/** An authored trigger withdrawal starts as soon as its blend moves, while the
+ * carrying palm and other digits retain their independent surface requirement. */
+export function handIndexed(pair: ChoreoSample['R']): boolean {
+  if (!pair) return false;
+  if (pair.u <= 1e-6) return pair.a.indexed === true;
+  if (pair.u >= 1 - 1e-6) return pair.b.indexed === true;
+  return pair.a.indexed === true || pair.b.indexed === true;
+}
+
 function shape(u: number, ease: Ease = 'smooth') {
   const t = THREE.MathUtils.clamp(u, 0, 1);
   switch (ease) {

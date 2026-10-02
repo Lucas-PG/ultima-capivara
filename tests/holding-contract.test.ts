@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blendCurl } from '../src/render/fp-arms';
-import { handContact, newSample, sampleChoreo } from '../src/render/viewmodel-choreo';
+import { handContact, handIndexed, newSample, sampleChoreo } from '../src/render/viewmodel-choreo';
 import { M4_RELOAD_EMPTY, RELOADS } from '../src/render/viewmodel-anims';
 import { heldCurl, VIEW_SPECS } from '../src/render/viewmodel-specs';
 // @ts-expect-error Standalone browser/Node QA probes deliberately have no TypeScript dependency.
@@ -40,6 +40,18 @@ describe('carrying contact intent', () => {
   });
   it('keeps the load-bearing fingers in contact when only the trigger digit indexes', () => {
     expect(handContact({ a: { space: 'grip' }, b: { space: 'grip', curl: { index: [0, 0, 0] } }, u: .5 }, 'body')).toBe('body');
+  });
+  it('checks the ready endpoint before and after an explicit trigger withdrawal', () => {
+    const ready = { space: 'grip' as const }, indexed = { space: 'grip' as const, indexed: true };
+    expect(handIndexed(null)).toBe(false);
+    for (const u of [0, .25, .5, .75, 1]) {
+      const out = { a: ready, b: indexed, u }, back = { a: indexed, b: ready, u };
+      expect(handIndexed(out)).toBe(u > 0);
+      expect(handIndexed(back)).toBe(u < 1);
+      expect(handContact(out, 'body')).toBe('body');
+      expect(handContact(back, 'body')).toBe('body');
+      expect(handIndexed({ a: ready, b: ready, u })).toBe(false);
+    }
   });
 });
 
