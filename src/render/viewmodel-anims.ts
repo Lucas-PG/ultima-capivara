@@ -282,24 +282,30 @@ export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0
     spread: -0.372212105, indexSpread: -0.051981285, indexRoll: 0.072361654 } };
 export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.124036664, -0.0881238791, 0.0570596199],
   forward: [-0.075888258, 0.932039048, -0.35432215], palm: [-0.933322825, -0.191458369, -0.303730469], pole: [1, -0.35, 0.2],
-  curl: { index: [1.69910537, -0.1, -0.0597593187], middle: [1.49371764, 0.195701799, 0.672218425], ring: [1.17030999, 0.970000092, 0.765884855], thumb: [0.466614927, -0.0920849344, 0.804425041],
+  curl: { index: [1.69910537, -0.1, -0.0597593187], middle: [1.7, 1.3, .4], ring: [1.17030999, 0.970000092, 0.765884855], thumb: [0.466614927, -0.0920849344, 0.804425041],
     spread: -0.576427671, indexSpread: -0.0175922303, indexRoll: -0.075282557 } };
-// The paw reaches the knob half open from the right and below, and leaves it open to the right.
+// The paw reaches the knob half open from the right and rear, then reverses that clear approach.
 const SNIPER_BOLT_OPEN = blendCurl(SNIPER_BOLT_HAND.curl as HandCurl, OPEN, .5);
+const SNIPER_BOLT_APPROACH = shift(SNIPER_BOLT_HAND, [.04, 0, .02], { curl: SNIPER_BOLT_OPEN });
+const SNIPER_FIRING_RELEASE: HandKey = { ...FIRING_RELEASE, indexed: true,
+  curl: { middle: [.5, .4, .3], ring: [.5, .4, .3], thumb: [.2, .1, .05] } };
 // A complete four-beat bolt stroke, anchored to the actual moving knob.
 export const SNIPER_CYCLE: Choreography = [
-  { t: .04, R: FIRING_RELEASE },
+  { t: .015, R: INDEXED },
+  { t: .04, R: SNIPER_FIRING_RELEASE },
   { t: .08, R: { ...FIRING_CLEAR, curl: OPEN }, parts: { bolt: 0, boltPull: 0 } },
-  { t: .15, R: shift(SNIPER_BOLT_HAND, [.04, -.02, 0], { curl: SNIPER_BOLT_OPEN }) },
+  { t: .15, R: SNIPER_BOLT_APPROACH },
   { t: .22, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .34, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .49, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
   { t: .56, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .72, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 } },
   { t: .84, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap', sfx: 'bolt-home' },
+  { t: .87, R: SNIPER_BOLT_APPROACH },
   { t: .9, R: shift(SNIPER_BOLT_HAND, [.13, 0, 0], { curl: OPEN }) },
   { t: .95, R: FIRING_CLEAR },
-  { t: .975, R: FIRING_RELEASE },
+  { t: .965, R: SNIPER_FIRING_RELEASE },
+  { t: .982, R: INDEXED },
   { t: 1, R: { space: 'grip' } },
 ];
 const SNIPER_TILT: { p: Vec; r: Vec } = { p: [-.045, .03, -.06], r: [.18, .28, -.42] };
@@ -334,28 +340,32 @@ const SNIPER_RELOAD_PARTIAL: Choreography = [
   { t: .98, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 const SNIPER_RELOAD_EMPTY: Choreography = [
-  { t: .025, R: FIRING_RELEASE },
+  { t: .012, R: INDEXED },
+  { t: .025, R: SNIPER_FIRING_RELEASE },
   { t: .05, p: SNIPER_TILT.p, r: SNIPER_TILT.r, ease: 'out', R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .085, R: shift(SNIPER_BOLT_HAND, [.11, .035, 0], { curl: OPEN }), parts: { bolt: 0, boltPull: 0 } },
+  { t: .085, R: SNIPER_BOLT_APPROACH, parts: { bolt: 0, boltPull: 0 } },
   { t: .12, R: SNIPER_BOLT_HAND, parts: { bolt: 0 } },
   { t: .17, R: SNIPER_BOLT_HAND, parts: { bolt: 1 }, sfx: 'bolt-open' },
   { t: .23, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 }, sfx: 'bolt-back' },
   { t: .26, R: shift(SNIPER_BOLT_HAND, [.10, -.03, .03], { curl: OPEN }) },
   { t: .285, R: FIRING_CLEAR },
-  { t: .298, R: FIRING_RELEASE },
-  { t: .31, R: { space: 'grip' } },
+  { t: .298, R: SNIPER_FIRING_RELEASE },
+  { t: .31, R: INDEXED },
   { t: .315, L: { space: 'grip' } },
   ...sniperMagazine(.33, .82),
   { t: .825, R: { space: 'grip' } },
-  { t: .835, R: FIRING_RELEASE },
+  { t: .835, R: SNIPER_FIRING_RELEASE },
   { t: .845, R: { ...FIRING_CLEAR, curl: OPEN } },
-  { t: .865, R: shift(SNIPER_BOLT_HAND, [.04, -.02, 0], { curl: SNIPER_BOLT_OPEN }) },
+  { t: .855, R: shift(SNIPER_BOLT_HAND, [.10, -.06, .03], { curl: OPEN }) },
+  { t: .865, R: SNIPER_BOLT_APPROACH },
   { t: .89, R: SNIPER_BOLT_HAND, parts: { boltPull: 1 } },
   { t: .935, R: SNIPER_BOLT_HAND, parts: { bolt: 1, boltPull: 0 }, sfx: 'bolt-home' },
   { t: .96, R: SNIPER_BOLT_HAND, parts: { bolt: 0 }, ease: 'snap' },
+  { t: .968, R: SNIPER_BOLT_APPROACH },
   { t: .975, R: shift(SNIPER_BOLT_HAND, [.13, 0, 0], { curl: OPEN }) },
   { t: .99, R: FIRING_CLEAR },
-  { t: .995, R: FIRING_RELEASE },
+  { t: .993, R: SNIPER_FIRING_RELEASE },
+  { t: .997, R: INDEXED },
   { t: 1, R: { space: 'grip' }, p: [0, 0, 0], r: [0, 0, 0] },
 ];
 export const sniperReload = (empty: boolean): Choreography => empty ? SNIPER_RELOAD_EMPTY : SNIPER_RELOAD_PARTIAL;
