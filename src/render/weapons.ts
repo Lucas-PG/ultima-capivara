@@ -174,7 +174,7 @@ export class WeaponView {
       curl: { index: [0, 0, 0], middle: [0, 0, 0], ring: [0, 0, 0], thumb: [0, 0, 0] }, pole: new THREE.Vector3(0, -1, 0) });
     this.targetR = target(); this.targetL = target();
     // QA probe (tools/qa/grip-probe.mjs): measures paw-to-gun contact on the live rig.
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') {
       (globalThis as { __vmProbe?: WeaponView }).__vmProbe = this;
       // QA framing measure (tools/qa/vm-frame.mjs): screen positions, coverage, angles, near plane.
       void import('./viewmodel-frame').then(({ measureFrame, measureWrists, wristAngles }) => {
@@ -297,7 +297,7 @@ export class WeaponView {
   ejectWorld(target: THREE.Vector3) { this.scene.updateMatrixWorld(true); return this.models[this.active].eject.getWorldPosition(target); }
 
   update(actor: ActorState | undefined, dt: number, settings: Settings, closeWall: number, simulationTime: number, viewRotation?: THREE.Quaternion) {
-    if (import.meta.env.DEV && actor) {
+    if ((import.meta.env.DEV || import.meta.env.VITE_QA === '1') && actor) {
       // QA motion review: window.__vmActor(actor, time) returns state overrides (walk, strafe, crouch, jump).
       const patch = (globalThis as { __vmActor?: (actor: ActorState, time: number) => Partial<ActorState> | undefined }).__vmActor?.(actor, simulationTime);
       if (patch) actor = { ...actor, ...patch };
@@ -507,7 +507,7 @@ export class WeaponView {
     this.triggerPull = this.shotLife > weaponShotDuration(weapon) * .5 ? 1 : 0;
     this.holdingContacts.trigger = weapon !== 'machete' && !reloading && !inspect && sprint < .001 && lowered < .001;
     this.solveArms(model, grips, choreo, sample ?? inspect, spec.freePaw);
-    if (import.meta.env.DEV) this.debugOrbit();
+    if (import.meta.env.DEV || import.meta.env.VITE_QA === '1') this.debugOrbit();
   }
 
   // QA lab: window.__vmOrbit = { yaw, pitch, distance, target: [x, y, z] } views the rig from outside.
