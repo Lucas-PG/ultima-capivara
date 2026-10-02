@@ -24,6 +24,7 @@ import { chromium } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { measure } from './weapon-contact.mjs';
 import { fitGrip } from './grip-fit-core.mjs';
+import { installGripSearch } from './grip-search.mjs';
 import { measureGrip } from './grip-measure.mjs';
 const args = process.argv.slice(2);
 const flag = name => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
@@ -59,6 +60,7 @@ try {
     await page.evaluate(p => window.__capyQA.pose(p), `${job.mode ?? mode}-${weapon}`);
     if (intent.motion) await page.evaluate(([w, a, t]) => window.__capyQA.motion(w, a, t), [weapon, ...intent.motion]);
     await page.evaluate(measureGrip, [weapon, intent.side]);
+    await page.evaluate(installGripSearch);
 
     const result = await page.evaluate(fitGrip, [weapon, intent, job.start ?? (await page.evaluate(([w, s]) => window.__vmProbe.models[w].grips[s], [weapon, intent.side])), job.evals ?? evals]);
 

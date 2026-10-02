@@ -10,13 +10,23 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   vm.scene.updateMatrixWorld(true);
   if (intent.part === 'bolt') vm.boltHand = 0;
   const reference = intent.part ? model.parts[intent.part] : holder;
-  const toGun = new M4().copy(reference.matrixWorld).invert(), scale = holder.scale.x;
-  const partToGun = new M4().copy(holder.matrixWorld).invert().multiply(reference.matrixWorld);
+  const referenceMatrix = new M4();
+  const frameMatrix = () => {
+    referenceMatrix.copy(reference.matrixWorld);
+    // Ejector and cylinder contacts follow a moving origin while retaining weapon-axis orientation.
+    if (intent.part && intent.followRotation === false)
+      referenceMatrix.copy(holder.matrixWorld).setPosition(reference.getWorldPosition(new V3()));
+    return referenceMatrix;
+  };
+  const toGun = new M4().copy(frameMatrix()).invert(), scale = holder.scale.x;
+  const partToGun = new M4().copy(holder.matrixWorld).invert().multiply(frameMatrix());
   const partRotation = new Q().setFromRotationMatrix(partToGun);
   const asWeaponGrip = grip => intent.part ? { ...grip, part: undefined,
     wrist: new V3(...grip.wrist).applyMatrix4(partToGun).toArray(),
     forward: new V3(...grip.forward).applyQuaternion(partRotation).toArray(),
-    palm: new V3(...grip.palm).applyQuaternion(partRotation).toArray() } : grip;
+    palm: new V3(...grip.palm).applyQuaternion(partRotation).toArray(),
+    // A manipulating hand's explicitly fitted index is independent of the carrier's reload index.
+    indexed: { index: grip.curl.index, indexSpread: grip.curl.indexSpread ?? 0 } } : grip;
   const bore = intent.axisOrigin ? new V3(...intent.axisOrigin).multiplyScalar(scale) : model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
   // ---- gun triangles in weapon space, bucketed in a grid for nearest queries
   const tris = [], partTris = {}; let nextSolid = 0;
@@ -204,7 +214,7 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
     // A world-character mount can move slightly to preserve both arms' reach.
     // Its triangles remain in the same weapon coordinates; posed skin must use
     // the current rigid frame too, instead of the original world transform.
-    toGun.copy(reference.matrixWorld).invert();
+    toGun.copy(frameMatrix()).invert();
     skinToGun.copy(toGun).multiply(mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
     mesh.skeleton.update();
     const boneMatrices = mesh.skeleton.boneMatrices;
@@ -225,10 +235,14 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
       }
       v.d = signed(v.p);
       const g = v.palm ? 'palm' : v.bone.replace(/[0-9]$/, '') + (/[23]$/.test(v.bone) ? '' : v.bone.endsWith('1') ? '1' : '');
-      const G = groups[g] ??= { min: Infinity, n: 0, sum: new V3() };
-      G.min = Math.min(G.min, v.d); G.n++; G.sum.add(v.p);
-      const contactTree = partTrees[intent.contactParts?.[g]];
-      if (contactTree) G.contact = Math.min(G.contact ?? Infinity, Math.abs(signed(v.p, contactTree)));
+      const names = [g];
+      if (/^(middle|ring)[23]$/.test(v.bone) || side === 'L' && /^index[23]$/.test(v.bone)) names.push('wrap');
+      for (const name of names) {
+        const G = groups[name] ??= { min: Infinity, n: 0, sum: new V3() };
+        G.min = Math.min(G.min, v.d); G.n++; G.sum.add(v.p);
+        const contactTree = partTrees[intent.contactParts?.[name]];
+        if (contactTree) G.contact = Math.min(G.contact ?? Infinity, Math.abs(signed(v.p, contactTree)));
+      }
       if (v.bone.endsWith('3') || v.bone.endsWith('1')) { const T = groups[v.bone] ??= { min: Infinity, n: 0, sum: new V3() }; T.min = Math.min(T.min, v.d); T.n++; T.sum.add(v.p); }
       const depth = (intent.clearance ?? .0008) - v.d; if (depth > 0) { const error = (depth * 1000) ** 2; pen += error; deepest = Math.max(deepest, error); }
     }
@@ -332,6 +346,12 @@ export function fitGrip([weapon, intent, start, maxEvals]) {
   P = P.map((x, i) => Math.min(hi[i], Math.max(lo[i], x)));
   let best = evaluate(P), count = 1, stalled = 0;
   const initial = evaluate(P, true);
+  if (intent.search === 'simplex' && window.__qaGripSimplex) {
+    const result = window.__qaGripSimplex(evaluate, P, { lo, hi, steps: steps.map(value => value * .5),
+      lock: [...lock], maxEvals, stopCost: intent.stopCost ?? .1,
+      progress: (n, cost) => console.log(`simplex ${n}/${maxEvals} cost ${cost.toFixed(2)}`) });
+    return { initial, final: evaluate(result.parameters, true), evals: result.evaluations };
+  }
   while (count < maxEvals && best > (intent.stopCost ?? .1) && Math.max(...steps) > 1e-4) {
     let improved = false;
     for (let i = 0; i < P.length && count < maxEvals; i++) {
