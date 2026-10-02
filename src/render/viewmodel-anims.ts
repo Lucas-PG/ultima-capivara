@@ -275,9 +275,11 @@ const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key
 ];
 export const dmrReload = (empty: boolean): Choreography => empty ? DMR_RELOAD_EMPTY : DMR_RELOAD_PARTIAL;
 
-export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.088988, -0.160195, 0.011241],
-  forward: [0.21378, 0.897557, -0.385604], palm: [0.830176, 0.041127, 0.555982],
-  curl: { index: [0.771627, 0.221598, 0.286337], middle: [1.461854, 1.092202, -0.057784], ring: [1.7, 1.7, 0.396], thumb: [0.897567, 0.589462, 0.546293], spread: -0.1879 } };
+export const SNIPER_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.06168303, -0.130380905, 0.020969671],
+  forward: [-0.081614336, 0.932038888, -0.353047604], palm: [0.941218682, 0.188578059, 0.280260072], pole: [-.6, -1, .2],
+  curl: { index: [1.453161833, 1.096850318, 0.357420103], middle: [1.699294604, 1.164363146, 0.119951493],
+    ring: [1.698009674, 1.667844655, 0.311541437], thumb: [1.389409786, 1.152091779, 0.892753878],
+    spread: -0.372212105, indexSpread: -0.051981285, indexRoll: 0.072361654 } };
 export const SNIPER_BOLT_HAND: HandKey = { space: 'part', part: 'bolt', wrist: [0.124036664, -0.0881238791, 0.0570596199],
   forward: [-0.075888258, 0.932039048, -0.35432215], palm: [-0.933322825, -0.191458369, -0.303730469], pole: [1, -0.35, 0.2],
   curl: { index: [1.69910537, -0.1, -0.0597593187], middle: [1.49371764, 0.195701799, 0.672218425], ring: [1.17030999, 0.970000092, 0.765884855], thumb: [0.466614927, -0.0920849344, 0.804425041],
@@ -301,11 +303,14 @@ export const SNIPER_CYCLE: Choreography = [
   { t: 1, R: { space: 'grip' } },
 ];
 const SNIPER_TILT: { p: Vec; r: Vec } = { p: [-.045, .03, -.06], r: [.18, .28, -.42] };
+// Clear the fore-end downward and toward the muzzle before travelling back to the magazine.
+const SNIPER_SUPPORT_RELEASE: HandKey = { ...SUPPORT_RELEASE, offset: [-.009, -.05, -.025] };
+const SNIPER_SUPPORT_CLEAR: HandKey = { ...SUPPORT_CLEAR, offset: [-.045, -.065, -.025] };
 function sniperMagazine(start: number, end: number): Choreography {
   const at = (u: number) => start + (end - start) * u;
   return [
-    { t: at(0), L: SUPPORT_RELEASE },
-    { t: at(.035), L: SUPPORT_CLEAR },
+    { t: at(0), L: SNIPER_SUPPORT_RELEASE },
+    { t: at(.035), L: SNIPER_SUPPORT_CLEAR },
     { t: at(.09), L: shift(SNIPER_MAG_HAND, [-.082, 0, 0]) },
     { t: at(.15), L: SNIPER_MAG_HAND, mag: { out: 0 } },
     { t: at(.2), L: SNIPER_MAG_HAND, mag: { out: 0 }, sfx: 'mag-out' },
@@ -318,8 +323,8 @@ function sniperMagazine(start: number, end: number): Choreography {
     { t: at(.78), L: SNIPER_MAG_HAND, mag: { out: 0 }, ease: 'snap', sfx: 'mag-in' },
     { t: at(.85), L: shift(SNIPER_MAG_HAND, [-.108, 0, 0], { curl: OPEN }) },
     { t: at(.9), L: { space: 'gun', wrist: [-.15, -.10, -.20] } },
-    { t: at(.95), L: SUPPORT_CLEAR },
-    { t: at(.975), L: SUPPORT_RELEASE },
+    { t: at(.95), L: SNIPER_SUPPORT_CLEAR },
+    { t: at(.975), L: SNIPER_SUPPORT_RELEASE },
     { t: at(1), L: { space: 'grip' } },
   ];
 }

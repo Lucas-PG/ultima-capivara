@@ -208,7 +208,7 @@ export const VIEW_SPECS: Record<WeaponId, ViewSpec> = {
     url: 'models/arsenal/sniper.glb', scale: 1, handling: 'heavy', reload: 'bolt',
     hip: { pos: [.19, -.195, -.69], rot: [.044, .122, .14] },
     sprint: { pos: [-.045, -.055, -.015], rot: [-.18, .45, .05] },
-    adsDistance: .12, adsFov: 58, poles: { R: [1, 0, 0], L: [.558, -.79, .254] }, adsPoles: { R: [-.263, -.882, .39], L: [.202, -.255, .946] },
+    adsDistance: .12, adsFov: 58, poles: { R: [1, .2, .2], L: [.558, -.79, .254] }, adsPoles: { R: [-.263, -.882, .39], L: [.202, -.255, .946] },
     choreoFrame: { pos: [.217, -.096, -.46], rot: [0, .3, .45] },
     shoulders: { R: [.275, -.325, -.068], L: [-.207, -.302, -.392] }, adsShoulders: { R: [.059, -.111, .212], L: [-.497, -.238, -.331] },
     grips: GRIPS.sniper,
