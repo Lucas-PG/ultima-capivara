@@ -8,7 +8,12 @@ export const FINGERS = ['index', 'middle', 'ring', 'thumb'] as const;
 export type Finger = typeof FINGERS[number];
 /** Curl in radians per joint (knuckle, middle, tip); `spread` swings the thumb
  * away from the fingers in the palm plane (radians, 0 = the modelled rest). */
-export type HandCurl = Record<Finger, readonly [number, number, number]> & { spread?: number };
+export type HandCurl = Record<Finger, readonly [number, number, number]> & {
+  spread?: number;
+  /** Index knuckle abduction in the palm plane. It lets the trigger digit enter a guard independently
+   * of the palm's grip, using the same articulation in the first-person and character rigs. */
+  indexSpread?: number;
+};
 /** A hand target in the viewmodel (camera) space. */
 export interface HandTarget {
   wrist: THREE.Vector3;
@@ -81,7 +86,8 @@ function frameQuaternion(primary: THREE.Vector3, secondary: THREE.Vector3, out: 
 export function blendCurl(a: HandCurl, b: HandCurl, t: number): HandCurl {
   const mix = (x: readonly [number, number, number], y: readonly [number, number, number]) => [x[0] + (y[0] - x[0]) * t, x[1] + (y[1] - x[1]) * t, x[2] + (y[2] - x[2]) * t] as const;
   const spread = (a.spread ?? 0) + ((b.spread ?? 0) - (a.spread ?? 0)) * t;
-  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb), spread };
+  const indexSpread = (a.indexSpread ?? 0) + ((b.indexSpread ?? 0) - (a.indexSpread ?? 0)) * t;
+  return { index: mix(a.index, b.index), middle: mix(a.middle, b.middle), ring: mix(a.ring, b.ring), thumb: mix(a.thumb, b.thumb), spread, indexSpread };
 }
 
 interface ChainBone { bone: THREE.Bone; restWorld: THREE.Quaternion; restLocal: THREE.Quaternion; length: number }
@@ -128,7 +134,10 @@ export class PawPose {
             spread = palm.clone();
             if (new THREE.Vector3().crossVectors(spread, along).dot(across) > 0) spread.negate();
             if (i === 1) spread.applyQuaternion(world.clone().invert()).normalize(); else spread = undefined;
-          } else hinge = new THREE.Vector3().crossVectors(along, palm).normalize();
+          } else {
+            hinge = new THREE.Vector3().crossVectors(along, palm).normalize();
+            if (finger === 'index' && i === 1) spread = palm.clone().multiplyScalar(side === 'R' ? 1 : -1).applyQuaternion(world.clone().invert()).normalize();
+          }
         }
         this.fingers[finger].push({ bone, restLocal: local, hinge: hinge.applyQuaternion(world.invert()).normalize(), spread });
       }
@@ -137,7 +146,8 @@ export class PawPose {
   apply(curl: HandCurl) {
     for (const finger of FINGERS) this.fingers[finger].forEach((f, i) => {
       f.bone.quaternion.copy(f.restLocal);
-      if (f.spread && curl.spread) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.spread, curl.spread));
+      const spread = finger === 'index' ? curl.indexSpread : curl.spread;
+      if (f.spread && spread) f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.spread, spread));
       f.bone.quaternion.multiply(tmpQ.setFromAxisAngle(f.hinge, curl[finger][i]));
     });
   }

@@ -3,7 +3,7 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { AssetLoader } from './assets';
 import { ArmsRig, FP_ARMS_URL, blendCurl, type HandTarget, type HandCurl } from './fp-arms';
 import { VIEW_SPECS, SHOULDERS, framedGrips, type GripSpec, type ViewSpec, type V3 } from './viewmodel-specs';
-import { newSample, sampleChoreo, type ChoreoSample, type HandKey } from './viewmodel-choreo';
+import { newSample, sampleChoreo, handContact, type ChoreoSample, type HandKey } from './viewmodel-choreo';
 import { WRIST_SOLVE } from './viewmodel-targets';
 import { RELOADS, m4Reload, pistolReload, smgReload, dmrReload, sniperReload, cocoReload, SNIPER_CYCLE, SHORT_INSPECTS, LONG_INSPECTS } from './viewmodel-anims';
 import arsenalMetrics from '../../public/models/arsenal/metrics.json';
@@ -66,6 +66,8 @@ function applyRarityAccent(material: THREE.MeshStandardMaterial) {
 export class WeaponView {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(VIEWMODEL_FOV, 1, .01, 10);
+  /** Active carrying surfaces for geometry QA. Null means an authored free, approaching or releasing paw. */
+  readonly holdingContacts: { R: string | null; L: string | null; trigger: boolean } = { R: 'body', L: null, trigger: false };
   private readonly holder = new THREE.Group();
   private readonly key = new THREE.DirectionalLight(PAINT.sun, 3.1);
   private readonly rim = new THREE.DirectionalLight(PAINT.rim, .8);
@@ -497,6 +499,7 @@ export class WeaponView {
     }
     this.rideR = rideR; this.rideL = rideL;
     this.tunedSpec = spec;
+    this.holdingContacts.trigger = weapon !== 'machete' && !reloading && !inspect && sprint < .001 && lowered < .001;
     this.solveArms(model, grips, choreo, sample ?? inspect, spec.freePaw);
     if (import.meta.env.DEV) this.debugOrbit();
   }
@@ -698,6 +701,14 @@ export class WeaponView {
   private solveArms(model: Model, grips: ViewSpec['grips'], choreo: Choreo | null, sample: ChoreoSample | null, free = model.spec.freePaw) {
     const arms = this.arms;
     if (!arms) return;
+    this.holdingContacts.R = handContact(sample?.R ?? null, 'body');
+    const supportSurface = model.id === 'pistol' || model.id === 'revolver' ? 'paw' : grips.L?.part ?? 'body';
+    this.holdingContacts.L = !grips.L || free || (model.spec.sprintFree && this.sprintPose > .001) ? null : handContact(sample?.L ?? null, supportSurface);
+    for (const side of ['R', 'L'] as const) {
+      const surface = this.holdingContacts[side];
+      if (surface && surface !== 'body' && surface !== 'paw' && model.parts[surface as keyof Parts]?.visible === false) this.holdingContacts[side] = null;
+    }
+    if (this.holdingContacts.R !== 'body') this.holdingContacts.trigger = false;
     this.holder.updateMatrixWorld(true);
     this.gripTarget(model, grips.R, this.targetR);
     if (sample?.R) this.blendHand(model, grips.R, sample.R, this.targetR);

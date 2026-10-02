@@ -230,7 +230,7 @@ try {
           wrist.addScaledVector(palm0, .004).addScaledVector(palm, -.004);
         }
         return { wrist: wrist.toArray(), forward: [f.x, f.y, f.z], palm: [palm.x, palm.y, palm.z], pole: start.pole,
-          curl: { index: c(6), middle: c(9), ring: c(12), thumb: c(15), spread: P[18] }, part: start.part };
+          curl: { index: c(6), middle: c(9), ring: c(12), thumb: c(15), spread: P[18], indexSpread: P[19] }, part: start.part };
       };
       const wristW = new V3(), elbowW = new V3(), knuckleW = new V3();
       function evaluate(P, detail = false) {
@@ -343,15 +343,16 @@ try {
       const yaw0 = Math.atan2(-f0.z, f0.x), pitch0 = Math.asin(f0.y);
       const up0 = new V3(0, 1, 0).addScaledVector(f0, -f0.y).normalize(), palm0 = new V3(...start.palm).addScaledVector(f0, -new V3(...start.palm).dot(f0)).normalize();
       const roll0 = Math.atan2(new V3().crossVectors(up0, palm0).dot(f0), up0.dot(palm0));
-      let P = [...start.wrist, yaw0, pitch0, roll0, ...start.curl.index, ...start.curl.middle, ...start.curl.ring, ...start.curl.thumb, start.curl.spread ?? 0];
+      let P = [...start.wrist, yaw0, pitch0, roll0, ...start.curl.index, ...start.curl.middle, ...start.curl.ring, ...start.curl.thumb, start.curl.spread ?? 0, start.curl.indexSpread ?? 0];
       const P0 = [...P];
       const lock = new Set(intent.lock ?? []);
-      let steps = [.006, .006, .006, .15, .1, .15, ...Array(12).fill(.2), .15];
-      const lo = [-Infinity, -Infinity, -Infinity, -Infinity, -1.2, -Infinity, ...Array(12).fill(-.1), -.6];
-      const hi = [Infinity, Infinity, Infinity, Infinity, 1.2, Infinity, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.4, 1.2, 1, 1.2];
+      let steps = [.006, .006, .006, .15, .1, .15, ...Array(12).fill(.2), .15, .12];
+      const lo = [-Infinity, -Infinity, -Infinity, -Infinity, -1.2, -Infinity, ...Array(12).fill(-.1), -.6, -.65];
+      const hi = [Infinity, Infinity, Infinity, Infinity, 1.2, Infinity, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.7, 1.7, 1.3, 1.4, 1.2, 1, 1.2, .65];
       for (const [finger, offset] of Object.entries({ index: 6, middle: 9, ring: 12, thumb: 15 }))
         for (const [joint, range] of (intent.curlBounds?.[finger] ?? []).entries()) if (range) [lo[offset + joint], hi[offset + joint]] = range;
       if (intent.curlBounds?.spread) [lo[18], hi[18]] = intent.curlBounds.spread;
+      if (intent.curlBounds?.indexSpread) [lo[19], hi[19]] = intent.curlBounds.indexSpread;
       P = P.map((x, i) => Math.min(hi[i], Math.max(lo[i], x)));
       let best = evaluate(P), count = 1, stalled = 0;
       const initial = evaluate(P, true);

@@ -14,7 +14,7 @@ type Vec = [number, number, number];
 const add = (a: Vec, b: Vec, k = 1): Vec => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
 // Approach and clearance keys sit at fixed offsets from their fitted contact key (in its own
 // space), so a refit of the contact carries the whole reach with it.
-const shift = (key: HandKey, d: Vec, extra: Partial<HandKey> = {}): HandKey => ({ ...key, ...extra, wrist: add(key.wrist as Vec, d) });
+const shift = (key: HandKey, d: Vec, extra: Partial<HandKey> = {}): HandKey => ({ ...key, contact: false, ...extra, wrist: add(key.wrist as Vec, d) });
 
 // The support paw remains in magazine space from acquisition through the palm seat.
 const PISTOL_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.075152, -0.145803, 0.032576],
@@ -553,4 +553,3 @@ export const LONG_INSPECTS: Partial<Record<WeaponId, Choreography>> = {
   sniper: longInspect([-.045, .03, -.08], [.08, .25, -.35], [.06, -.08, .7]),
   coco: longInspect([-.05, .03, -.07], [.1, .3, -.35], [.08, -.1, .75]),
 };
-

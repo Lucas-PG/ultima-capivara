@@ -1,5 +1,7 @@
 // Signed skin-to-weapon clearance used by still and motion reviews. Distances are millimetres.
-export function measureGrip([weapon, side, opposingPaw = false]) {
+// options.surface selects a named moving part or body; options.bones selects actual skin groups.
+// Omitting both preserves the whole-paw collision scan. A contact scan must still be paired with it.
+export function measureGrip([weapon, side, opposingPaw = false, options = {}]) {
   const vm = window.__vmProbe, model = vm.models[weapon], holder = vm.holder;
   vm.scene.updateMatrixWorld(true);
   const M4 = holder.matrixWorld.constructor, V3 = holder.position.constructor;
@@ -7,7 +9,9 @@ export function measureGrip([weapon, side, opposingPaw = false]) {
   const scale = holder.scale.x;
   // Gun triangles in weapon space (metres at scale 1).
   const tris = [];
-  const surface = opposingPaw ? vm.arms.meshes.find(m => m.name.endsWith(side === 'R' ? 'L' : 'R')) : model.group;
+  const surface = opposingPaw ? vm.arms.meshes.find(m => m.name.endsWith(side === 'R' ? 'L' : 'R')) :
+    options.surface ? model.parts[options.surface] ?? model.group.getObjectByName(`${weapon}_${options.surface}`) : model.group;
+  if (!surface) throw new Error(`Missing contact surface ${weapon}/${options.surface}`);
   surface.traverse(o => {
     if (!o.isMesh || (!opposingPaw && o.isSkinnedMesh) || !o.visible || !o.geometry.attributes.position) return;
     let hidden = false; for (let p = o; p; p = p.parent) if (!p.visible) hidden = true;
@@ -21,12 +25,20 @@ export function measureGrip([weapon, side, opposingPaw = false]) {
   const bones = mesh.skeleton.bones.map(b => b.name.replace(/_[LR]$/, ''));
   const skinIndex = mesh.geometry.attributes.skinIndex, skinWeight = mesh.geometry.attributes.skinWeight;
   const count = mesh.geometry.attributes.position.count;
+  const wristIndex = bones.indexOf('hand');
+  const wristBind = wristIndex >= 0 ? new V3().setFromMatrixPosition(new M4().copy(mesh.skeleton.boneInverses[wristIndex]).invert()) : new V3();
   const groups = {}, pts = [];
   const p = new V3();
   for (let i = 0; i < count; i++) {
     let best = -1, w = 0;
     for (let k = 0; k < 4; k++) { const wk = skinWeight.getComponent(i, k); if (wk > w) { w = wk; best = skinIndex.getComponent(i, k); } }
     const bone = bones[best];
+    if (bone === 'upper' || bone === 'fore' || (options.bones && !options.bones.includes(bone))) continue;
+    if (options.region === 'palm') {
+      const rest = new V3().fromBufferAttribute(mesh.geometry.attributes.position, i).applyMatrix4(mesh.bindMatrix).sub(wristBind);
+      if (bone !== 'hand' || rest.y >= -.006 || rest.z >= -.012) continue;
+    }
+    if (options.region === 'wrap' && !/^(index|middle|ring)[23]$/.test(bone)) continue;
     mesh.getVertexPosition(i, p); p.applyMatrix4(mesh.matrixWorld).applyMatrix4(toGun).multiplyScalar(scale);
     const world = new V3(); mesh.getVertexPosition(i, world); world.applyMatrix4(mesh.matrixWorld);
     pts.push({ bone, p: p.clone(), world });
@@ -45,7 +57,8 @@ export function measureGrip([weapon, side, opposingPaw = false]) {
     const den = 1 / (va + vb + vc); return out.copy(a).addScaledVector(ab, vb * den).addScaledVector(ac, vc * den);
   }
   // Only the paw and the wrist end of the forearm are measured.
-  const measured = pts.filter(v => v.bone !== 'upper' && v.bone !== 'fore');
+  const measured = pts.filter(v => v.bone !== 'upper' && v.bone !== 'fore' && (!options.bones || options.bones.includes(v.bone)));
+  if (!measured.length) throw new Error(`No skin vertices for ${weapon}/${side} contact`);
   const lo = new V3(Infinity, Infinity, Infinity), hi = new V3(-Infinity, -Infinity, -Infinity);
   for (const v of measured) { lo.min(v.p); hi.max(v.p); }
   lo.subScalar(.03); hi.addScalar(.03);
@@ -128,7 +141,7 @@ export function measureGrip([weapon, side, opposingPaw = false]) {
         closest(v.p, a, b, c, c0);
         const d = c0.distanceToSquared(v.p);
         if (d < best - 1e-12) {
-          best = d; v.part = part; n.subVectors(b, a).cross(ac.subVectors(c, a));
+          best = d; v.part = part; v.closest = c0.clone(); n.subVectors(b, a).cross(ac.subVectors(c, a)); v.normal = n.clone().normalize();
           sign = n.dot(q.subVectors(v.p, c0)) < 0 ? -1 : 1;
         } else if (d < best + 1e-10) { n.subVectors(b, a).cross(ac.subVectors(c, a)); if (n.dot(q.subVectors(v.p, c0)) >= 0) sign = 1; }
       }
@@ -136,8 +149,10 @@ export function measureGrip([weapon, side, opposingPaw = false]) {
     visit(root);
     if (sign < 0 && (distanceToBox(v.p, surfaceBounds) > 0 || !insideSurface(v.p))) sign = 1;
     v.d = Math.sqrt(best) * sign;
-    const g = groups[v.bone] ??= { n: 0, inside: 0, min: Infinity, tip: null, tipAlong: -Infinity };
-    g.n++; if (v.d < -.0005) g.inside++; if (v.d < g.min) { g.min = v.d; g.part = v.part; g.at = [v.p.x, v.p.y, v.p.z].map(n => Math.round(n * 1000)); }
+    const g = groups[v.bone] ??= { n: 0, inside: 0, contact: 0, min: Infinity, tip: null, tipAlong: -Infinity };
+    g.n++; if (v.d < -.0005) g.inside++; if (v.d >= -.0005 && v.d <= .0015) g.contact++;
+    if (v.d < g.min) { g.min = v.d; g.part = v.part; g.at = [v.p.x, v.p.y, v.p.z].map(n => +(n * 1000).toFixed(3));
+      g.surfaceAt = v.closest?.toArray().map(n => +(n * 1000).toFixed(3)); g.normalAt = v.normal?.toArray().map(n => +n.toFixed(3)); }
   }
   // Around the bore: 0 = right (+x), 90 = top, 180 = left, -90 = bottom.
   const bore = model.muzzle.getWorldPosition(new V3()).applyMatrix4(toGun).multiplyScalar(scale);
@@ -148,11 +163,11 @@ export function measureGrip([weapon, side, opposingPaw = false]) {
     if (!tip.length) continue;
     const avg = list => list.reduce((s, v) => s.add(v.p), new V3()).multiplyScalar(1 / list.length);
     const t = avg(tip), b = avg(base);
-    digits[f] = { base: [+(b.x * 1000).toFixed(0), +(b.y * 1000).toFixed(0), +(b.z * 1000).toFixed(0)], baseAngle: angle(b),
-      tip: [+(t.x * 1000).toFixed(0), +(t.y * 1000).toFixed(0), +(t.z * 1000).toFixed(0)], tipAngle: angle(t) };
+    digits[f] = { base: base.length ? [b.x, b.y, b.z].map(n => +(n * 1000).toFixed(3)) : null, baseAngle: base.length ? angle(b) : null,
+      tip: [t.x, t.y, t.z].map(n => +(n * 1000).toFixed(3)), tipAngle: angle(t) };
   }
-  const summary = Object.fromEntries(Object.entries(groups).map(([k, g]) => [k, { min: +(g.min * 1000).toFixed(1), inside: g.inside, n: g.n, at: g.at, part: g.part }]));
+  const summary = Object.fromEntries(Object.entries(groups).map(([k, g]) => [k, { min: +(g.min * 1000).toFixed(3), inside: g.inside, contact: g.contact, n: g.n, at: g.at, surfaceAt: g.surfaceAt, normalAt: g.normalAt, part: g.part }]));
   const centroid = measured.filter(v => v.bone === 'hand').reduce((s, v) => s.add(v.world), new V3()).multiplyScalar(1 / Math.max(1, measured.filter(v => v.bone === 'hand').length));
   return { summary, digits, bore: [bore.x, bore.y, bore.z].map(x => +(x * 1000).toFixed(0)), trianglesNear: near.length,
-    centroid: [centroid.x, centroid.y, centroid.z], worst: +(Math.min(...measured.map(v => v.d)) * 1000).toFixed(1) };
+    centroid: [centroid.x, centroid.y, centroid.z], worst: +(Math.min(...measured.map(v => v.d)) * 1000).toFixed(3) };
 }
