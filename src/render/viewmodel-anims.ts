@@ -227,9 +227,9 @@ export const DMR_MAG_HAND: HandKey = { space: 'part', part: 'mag', wrist: [-0.05
   forward: [-0.0730927614, 0.931327437, -0.356772551], palm: [0.997298788, 0.0708548799, -0.0193575112], pole: [-0.6, -1, 0.2],
   curl: { index: [1.69525368, 0.502577814, 0.0885968163], middle: [1.68389985, 1.68670036, 0.00712259756], ring: [1.69991943, 1.68057842, 0.566507556], thumb: [0.627791661, 1.2, 0.749037448],
     spread: -0.0377629519, indexSpread: -0.184319642, indexRoll: 0.202376869 } };
-export const DMR_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [0.085247, -0.064489, 0.058628],
+export const DMR_CHARGE_HAND: HandKey = { space: 'part', part: 'charge', wrist: [0.085247, -0.061489, 0.058628],
   forward: [-0.025311, 0.932039, -0.361473], palm: [-0.887942, -0.187077, -0.420193], pole: [1, -.35, .2],
-  curl: { index: [1.028073, 0.63286, 1.153242], middle: [1.334, 0.194167, 1.0042], ring: [1.17, 0.99, 0.72], thumb: [0.637656, 0.282854, 0.014837], spread: -0.5602 } };
+  curl: { index: [1.028073, 0.63286, 1.153242], middle: [1.5, .9, .3], ring: [1.17, 0.99, 0.72], thumb: [0.637656, 0.282854, 0.014837], spread: -0.5602 } };
 const DMR_CHARGE_OPEN = blendCurl(DMR_CHARGE_HAND.curl as HandCurl, OPEN, .5);
 const DMR_TILT: { p: Vec; r: Vec } = { p: [-.05, .03, -.06], r: [.2, .3, -.45] };
 // The Carabina's support paw clears straight down off its long fore-end (a sideways clear bends the wrist).
@@ -267,7 +267,7 @@ const DMR_RELOAD_EMPTY: Choreography = [...DMR_SWAP.map(key => ({ ...key, t: key
   { t: .83, R: DMR_CHARGE_HAND, parts: { charge: 0 } },
   { t: .89, R: DMR_CHARGE_HAND, parts: { charge: 1 }, sfx: 'slide-back' },
   { t: .915, R: DMR_CHARGE_HAND, parts: { charge: 0 }, ease: 'snap', sfx: 'slide-home' },
-  { t: .925, R: shift(DMR_CHARGE_HAND, [.012, 0, 0], { curl: DMR_CHARGE_OPEN }) },
+  { t: .925, R: shift(DMR_CHARGE_HAND, [.012, 0, 0]) },
   { t: .945, R: shift(DMR_CHARGE_HAND, [.11, .035, 0], { curl: OPEN }) },
   { t: .985, R: FIRING_CLEAR },
   { t: .993, R: FIRING_RELEASE },
