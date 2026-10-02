@@ -1,0 +1,116 @@
+{
+  "source": "2d1eb98",
+  "date": "2026-10-02",
+  "units": "world millimetres and degrees",
+  "acceptedReloadStates": 1698,
+  "method": "Actual runtime replay. M4/SMG: 0.005 phase cadence and authored/intermediate keys; M4 0.300-0.400 replaced by final 0.001 cadence, 0.300-0.310 by final 0.0005 cadence. Generic guns: authored keys plus 0.025 cadence. Both empty and tactical. Only final-source-equivalent rows combined; raw historical failures are retained privately.",
+  "weapons": {
+    "coco": {
+      "states": 153,
+      "failed": 0,
+      "wholeMinMm": 0.041,
+      "contactMinMm": 0.041,
+      "contactMaxMm": 0.452,
+      "wrist": {
+        "flexMin": -40.473568607818024,
+        "flexMax": -2.154882731069318,
+        "deviationMin": -21.99761504019215,
+        "deviationMax": 17.711986407567768,
+        "rollMin": -76.99529336124547,
+        "rollMax": 79.8999960791865
+      }
+    },
+    "dmr": {
+      "states": 124,
+      "failed": 0,
+      "wholeMinMm": -0.127,
+      "contactMinMm": -0.127,
+      "contactMaxMm": 0.622,
+      "wrist": {
+        "flexMin": -43.36636297028852,
+        "flexMax": 36.42417289231696,
+        "deviationMin": -22.787593373070596,
+        "deviationMax": 17.064339502792908,
+        "rollMin": -77.24522759569139,
+        "rollMax": 79.89999626652883
+      }
+    },
+    "m4": {
+      "states": 748,
+      "failed": 0,
+      "wholeMinMm": -0.419,
+      "contactMinMm": -0.419,
+      "contactMaxMm": 1.267,
+      "wrist": {
+        "flexMin": -44.89999884753987,
+        "flexMax": 44.89999665894958,
+        "deviationMin": -24.900029460377013,
+        "deviationMax": 19.899988482286307,
+        "rollMin": -79.90000246214389,
+        "rollMax": 79.68104713046485
+      }
+    },
+    "shotgun": {
+      "states": 106,
+      "failed": 0,
+      "wholeMinMm": -0.253,
+      "contactMinMm": -0.253,
+      "contactMaxMm": 0.058,
+      "wrist": {
+        "flexMin": -41.992453795859326,
+        "flexMax": 28.519593644351293,
+        "deviationMin": -24.756009547340742,
+        "deviationMax": 17.495138939364494,
+        "rollMin": -79.34888091282687,
+        "rollMax": 79.89999609715245
+      }
+    },
+    "smg": {
+      "states": 434,
+      "failed": 0,
+      "wholeMinMm": -0.429,
+      "contactMinMm": -0.429,
+      "contactMaxMm": 1.359,
+      "wrist": {
+        "flexMin": -44.241788491813786,
+        "flexMax": 44.9000303018969,
+        "deviationMin": -24.900021967614002,
+        "deviationMax": 18.600163245163895,
+        "rollMin": -19.896216487053877,
+        "rollMax": 79.89999874451786
+      }
+    },
+    "sniper": {
+      "states": 133,
+      "failed": 0,
+      "wholeMinMm": -0.176,
+      "contactMinMm": -0.176,
+      "contactMaxMm": 0.614,
+      "wrist": {
+        "flexMin": -40.517831218871166,
+        "flexMax": 17.317313608765357,
+        "deviationMin": -24.900019899906557,
+        "deviationMax": 17.597238691030245,
+        "rollMin": -79.89999263023783,
+        "rollMax": 79.8999960429942
+      }
+    }
+  },
+  "excludedFromAcceptance": [
+    "pistol reload outside the two original regression rows",
+    "revolver reload outside the repaired fully-open cylinder endpoint skin checks"
+  ],
+  "indexRoute": {
+    "source": "ead1dc5",
+    "wholeSkinMinMm": -0.35,
+    "receiverContactMm": 1.312,
+    "guardSkinVerticesInside": 0,
+    "padCompression": 1.0
+  },
+  "privateSources": [
+    "final-rifles-v2.json",
+    "m4-revolver-edge-final.json",
+    "m4-final-narrow.json",
+    "generic-final.json"
+  ]
+}
