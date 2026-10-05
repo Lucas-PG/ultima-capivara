@@ -2,7 +2,9 @@ import { CORRENTE_LADDER } from '../src/shared/weapons';
 import { describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { DEFAULT_CONFIG, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type GameEvent, type WorldSnapshot } from '../src/shared/types';
-import { decodeFastFrame, encodeFastFrame, fastPart, gearPart, MAX_COMPRESSED_FRAME_BYTES, MAX_FRAME_BYTES, packet, parseWire, rebuildFrame, worldPart } from '../src/network/codec';
+import { applyWorldDelta, decodeFastFrame, encodeFastFrame, fastPart, gearPart, MAX_COMPRESSED_FRAME_BYTES, MAX_FRAME_BYTES, packet, parseWire, rebuildFrame, worldDelta, worldPart } from '../src/network/codec';
+import { Simulation } from '../src/simulation';
+import { createWorld } from '../src/shared/world';
 import { iceServers, RoomSession, validAction, validConfig, validInput } from '../src/network/session';
 
 const actor: ActorState = {
@@ -67,7 +69,7 @@ describe('network protocol', () => {
         { id: 'pistol' as const, ammo: 12, reserve: 31, rarity: 0, box: 2 },
         { id: 'machete' as const, ammo: 0, reserve: 0, rarity: 0, box: 3 }],
       lastInput: 18_000, kills: 3, deaths: 2, damage: 300 })) };
-    const wire = JSON.stringify(packet('frame', { wr: 1, gr: 1, data: fastPart(many) }));
+    const wire = JSON.stringify(packet('frame', { rr: 1, gr: 1, data: fastPart(many) }));
     const baseline = JSON.stringify(packet('gear', { rev: 1, data: gearPart(many) })) +
       JSON.stringify(packet('world', { rev: 1, data: worldPart(many) }));
     expect(wire.length).toBeLessThan(MAX_FRAME_BYTES);
@@ -76,7 +78,7 @@ describe('network protocol', () => {
   });
 
   it('round trips compressed fast frames and supports plain-string fallback', async () => {
-    const frame = packet('frame', { wr: 1, gr: 1, data: fastPart(snapshot) });
+    const frame = packet('frame', { rr: 1, gr: 1, data: fastPart(snapshot) });
     const wire = JSON.stringify(frame);
     const compressed = await encodeFastFrame(wire);
     expect(compressed).toBeInstanceOf(Uint8Array);
@@ -91,7 +93,7 @@ describe('network protocol', () => {
   });
 
   it('rejects corrupt, truncated, or oversized compressed frames', async () => {
-    const wire = JSON.stringify(packet('frame', { wr: 1, gr: 1, data: fastPart(snapshot) }));
+    const wire = JSON.stringify(packet('frame', { rr: 1, gr: 1, data: fastPart(snapshot) }));
     const compressed = await encodeFastFrame(wire) as Uint8Array;
     expect(await decodeFastFrame(compressed.slice(0, -4))).toBeNull();
     expect(await decodeFastFrame(new Uint8Array([1, 2, 3]))).toBeNull();
@@ -500,5 +502,130 @@ describe('ICE servers', () => {
       expect(await iceServers({ VITE_ICE_URLS: 'stun:a.example:3478, turn:secret.example' })).toEqual([{ urls: ['stun:a.example:3478'] }]);
       expect(fetch).not.toHaveBeenCalled();
     } finally { vi.unstubAllGlobals(); }
+  });
+});
+
+describe('world updates on a slow reliable channel', () => {
+  const drop = { id: 'drop-1', kind: 'weapon' as const, weapon: 'm4' as const, x: 1, y: 2, z: 3, active: true, rarity: 2, respawnAt: 0 };
+  const noop = () => {};
+
+  // Host and guest joined by a reliable queue that only moves on deliver(), and a fast channel that is instant.
+  function link() {
+    const snapshots: WorldSnapshot[] = [];
+    const host = new RoomSession({ room: noop, start: noop, input: noop, action: noop, player: noop, snapshot: noop, events: noop, error: noop, closed: noop }) as any;
+    const guest = new RoomSession({ room: noop, start: noop, input: noop, action: noop, player: noop, snapshot: s => snapshots.push(s), events: noop, error: noop, closed: noop }) as any;
+    const reliable: Record<string, unknown>[] = [], frames: string[] = [];
+    host.roomValue = { isHost: true, phase: 'playing' }; host.matchId = snapshot.matchId;
+    // Messages cross as copies, as on the wire, so neither side can see the other's objects.
+    host.guests.set('guest', { conn: { open: true, send: (m: Record<string, unknown>) => reliable.push(JSON.parse(JSON.stringify(m))) },
+      game: { readyState: 'open', bufferedAmount: 0, send: (wire: string) => frames.push(wire) }, gameReady: true, gameCompression: false });
+    const toHost = { open: true, send: vi.fn() };
+    guest.roomValue = { isHost: false, phase: 'playing' }; guest.matchId = snapshot.matchId; guest.hostConn = toHost;
+    return {
+      host, guest, snapshots, reliable, toHost,
+      deliver: () => { for (const m of reliable.splice(0)) guest.onGuestControl(toHost, m); },
+      frames: () => { for (const wire of frames.splice(0)) guest.receiveFrame(JSON.parse(wire)); },
+      resyncs: () => toHost.send.mock.calls.filter(([m]) => m.t === 'resync').length,
+    };
+  }
+
+  it('keeps remote actors moving while a loot change is still in flight', () => {
+    const net = link();
+    net.host.publish(snapshot, []); net.deliver(); net.frames();
+    const looted = { ...snapshot, tick: 6, loot: [drop], actors: [{ ...actor, pos: { ...actor.pos, x: 20 } }] };
+    net.host.publish(looted, []);
+    expect(net.reliable.map(m => m.t)).toEqual(['world']);
+    net.frames(); // The fast frame outruns the world delta, as it does through a relay.
+    expect(net.snapshots.at(-1)?.tick).toBe(6);
+    expect(net.snapshots.at(-1)?.actors[0].pos.x).toBe(20);
+    expect(net.snapshots.at(-1)?.loot).toEqual([]);
+    expect(net.resyncs()).toBe(0);
+    net.deliver(); net.host.publish({ ...looted, tick: 7 }, []); net.frames();
+    expect(net.snapshots.at(-1)?.loot).toEqual([drop]);
+  });
+
+  it('holds frames until a roster change arrives so no actor shows under an old identity', () => {
+    const net = link();
+    net.host.publish(snapshot, []); net.deliver(); net.frames();
+    const renamed = { ...snapshot, tick: 6, actors: [{ ...actor, name: 'Renomeada' }] };
+    net.host.publish(renamed, []); net.frames();
+    expect(net.snapshots.map(s => s.tick)).toEqual([5]);
+    net.deliver(); net.host.publish({ ...renamed, tick: 7 }, []); net.frames();
+    expect(net.snapshots.at(-1)?.actors[0].name).toBe('Renomeada');
+  });
+
+  it('still delivers a world change when the host edits its published snapshot in place', () => {
+    const net = link();
+    const supply = { id: 'supply-1', pos: { x: 8, y: 2.2, z: -20 }, district: 'vila', heading: 1, announcedAt: 0, releaseAt: 5, landsAt: 17, opened: false };
+    const live = { ...snapshot, supplyDrops: [supply] };
+    net.host.publish(live, []); net.deliver(); net.frames();
+    supply.opened = true;
+    net.host.publish({ ...live, tick: 6 }, []); net.deliver(); net.frames();
+    expect(net.snapshots.at(-1)?.supplyDrops[0].opened).toBe(true);
+  });
+
+  it('refuses a delta that does not continue its world and asks for one full resync', () => {
+    const net = link();
+    net.host.publish(snapshot, []); net.deliver();
+    const before = net.guest.worldData;
+    net.guest.onGuestControl(net.toHost, packet('world', { rev: 9, from: 7, rr: 1, delta: { loot: { set: [drop], remove: [] } } }));
+    net.guest.onGuestControl(net.toHost, packet('world', { rev: 10, from: 9, rr: 1, delta: { loot: { set: [drop], remove: [] } } }));
+    expect(net.guest.worldData).toBe(before);
+    expect(net.resyncs()).toBe(1);
+  });
+
+  it('waits before asking for a resync while the matching gear is still in flight', () => {
+    vi.useFakeTimers();
+    try {
+      const net = link();
+      net.host.publish(snapshot, []); net.deliver(); net.frames();
+      const armed = { ...snapshot, tick: 6, actors: [{ ...actor, weapons: [...actor.weapons, { id: 'smg' as const, ammo: 19, reserve: 68, rarity: 0, box: 0 }] }] };
+      for (let tick = 6; tick < 20; tick++) { net.host.publish({ ...armed, tick }, []); net.frames(); vi.advanceTimersByTime(100); }
+      expect(net.resyncs()).toBe(0); // 1.4 s of frames ahead of their gear.
+      for (let tick = 20; tick < 26; tick++) { net.host.publish({ ...armed, tick }, []); net.frames(); vi.advanceTimersByTime(100); }
+      expect(net.resyncs()).toBe(1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('drops fast frames and inputs behind a stalled path instead of queueing stale ones', () => {
+    const net = link();
+    const stalled = { readyState: 'open', bufferedAmount: 4_000, send: vi.fn() };
+    net.host.guests.get('guest').game = stalled;
+    net.host.publish(snapshot, []);
+    expect(stalled.send).not.toHaveBeenCalled();
+    stalled.bufferedAmount = 0;
+    net.host.publish({ ...snapshot, tick: 6 }, []);
+    expect(stalled.send).toHaveBeenCalledOnce();
+    // A guest input waits for the next frame rather than falling back to the reliable channel.
+    const toHostFast = { readyState: 'open', bufferedAmount: 4_000, send: vi.fn() };
+    Object.assign(net.guest, { hostGame: toHostFast, hostGameReady: true });
+    const input = { seq: 1, moveX: 0, moveZ: 1, yaw: 0, pitch: 0, lean: 0, clientTime: 1, sprint: false, crouch: false, jump: false, fire: false, ads: false };
+    net.guest.sendInput(input);
+    expect(toHostFast.send).not.toHaveBeenCalled();
+    expect(net.toHost.send).not.toHaveBeenCalled();
+    toHostFast.bufferedAmount = 0;
+    net.guest.sendInput({ ...input, seq: 2 });
+    expect(toHostFast.send).toHaveBeenCalledOnce();
+  });
+
+  it('rebuilds every world change of a real match from small deltas', () => {
+    const humans = Array.from({ length: 4 }, (_, i) => ({ id: `human-${i}`, name: `Human ${i}`, color: PLAYER_COLORS[0], ready: true, connected: true }));
+    const sim = new Simulation(createWorld(), { mode: 'battle-royale', capacity: 8, bots: true, difficulty: 'normal', duration: 300 }, humans, 'b'.repeat(48), 1);
+    let previous: ReturnType<typeof worldPart> | null = null, changes = 0, deltaBytes = 0, worldBytes = 0;
+    for (let tick = 0; tick < 3600; tick++) {
+      humans.forEach((h, i) => sim.input(h.id, { seq: tick, moveX: Math.sin(tick * .02 + i), moveZ: Math.cos(tick * .02 + i), yaw: tick * .003 + i,
+        pitch: 0, sprint: tick % 100 < 50, crouch: false, jump: tick % 240 === 0, fire: tick % 30 < 8, ads: false, lean: 0, clientTime: tick / 60 }));
+      sim.step(1 / 60);
+      if (tick % 3) continue;
+      const next = worldPart(sim.snapshot()), json = JSON.stringify(next);
+      if (previous && json !== JSON.stringify(previous)) {
+        const delta = worldDelta(previous, next);
+        expect(JSON.stringify(applyWorldDelta(JSON.parse(JSON.stringify(previous)), JSON.parse(JSON.stringify(delta))))).toBe(json);
+        changes++; deltaBytes += JSON.stringify(delta).length; worldBytes += json.length;
+      }
+      previous = next;
+    }
+    expect(changes).toBeGreaterThan(20);
+    expect(deltaBytes).toBeLessThan(worldBytes / 20);
   });
 });
