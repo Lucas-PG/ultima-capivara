@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { DEFAULT_CONFIG, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type GameEvent, type WorldSnapshot } from '../src/shared/types';
 import { decodeFastFrame, encodeFastFrame, fastPart, gearPart, MAX_COMPRESSED_FRAME_BYTES, MAX_FRAME_BYTES, packet, parseWire, rebuildFrame, worldPart } from '../src/network/codec';
-import { RoomSession, validAction, validConfig, validInput } from '../src/network/session';
+import { iceServers, RoomSession, validAction, validConfig, validInput } from '../src/network/session';
 
 const actor: ActorState = {
   id: 'p-1', name: 'Capivara', color: PLAYER_COLORS[0], bot: false, connected: true,
@@ -460,5 +460,45 @@ describe('match scene readiness transport', () => {
     expect(start).toHaveBeenNthCalledWith(2, config, [profile], snapshot.matchId);
     expect(first.send).toHaveBeenCalledExactlyOnceWith(packet('match-loaded', { matchId: snapshot.matchId }));
     expect(resumed.send).toHaveBeenCalledExactlyOnceWith(packet('match-loaded', { matchId: snapshot.matchId }));
+  });
+});
+
+describe('ICE servers', () => {
+  const STUN_ONLY = [{ urls: ['stun:stun.l.google.com:19302'] }];
+  const relay = [
+    { urls: ['stun:stun.cloudflare.com:3478'] },
+    { urls: ['turn:turn.cloudflare.com:3478?transport=udp', 'turns:turn.cloudflare.com:443?transport=tcp'], username: 'u', credential: 'c' },
+  ];
+  const reply = (status: number, body: unknown) => vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+
+  it('uses the relay credentials the Worker returns', async () => {
+    vi.stubGlobal('fetch', reply(200, { iceServers: relay }));
+    try { expect(await iceServers({ VITE_TURN_URL: 'https://turn.example/' })).toEqual(relay); }
+    finally { vi.unstubAllGlobals(); }
+  });
+
+  it('falls back to public STUN when the Worker fails or answers with anything unsafe', async () => {
+    const failures = [
+      reply(502, { iceServers: relay }), vi.fn().mockRejectedValue(new DOMException('timeout', 'TimeoutError')),
+      vi.fn().mockResolvedValue(new Response('not json')), reply(200, { iceServers: [] }),
+      reply(200, { iceServers: [{ urls: ['http://evil.example/'] }] }),
+      reply(200, { iceServers: [{ urls: ['turn:t.example:3478'], username: 'u', credential: 7 }] }),
+    ];
+    try {
+      for (const failure of failures) {
+        vi.stubGlobal('fetch', failure);
+        // Never the dead PeerJS TURN hosts, which made every join wait on lookup errors.
+        expect(await iceServers({ VITE_TURN_URL: 'https://turn.example/' })).toEqual(STUN_ONLY);
+      }
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('skips the Worker without a configured URL and keeps an explicit STUN list', async () => {
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    try {
+      expect(await iceServers({})).toEqual(STUN_ONLY);
+      expect(await iceServers({ VITE_ICE_URLS: 'stun:a.example:3478, turn:secret.example' })).toEqual([{ urls: ['stun:a.example:3478'] }]);
+      expect(fetch).not.toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); }
   });
 });

@@ -1,0 +1,18 @@
+# Free Workers plan. Secrets (never committed): TURN_KEY_ID, TURN_KEY_API_TOKEN.
+name = "ultima-capivara-turn"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+preview_urls = false
+
+[vars]
+ALLOWED_ORIGINS = "https://lucas-pg.github.io,http://127.0.0.1:5173,http://127.0.0.1:4173"
+
+# Per-IP limit on credential requests, so scripts cannot drain the free TURN allowance quickly.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60
