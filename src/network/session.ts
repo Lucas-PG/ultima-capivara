@@ -83,18 +83,38 @@ export function validAction(v: unknown): v is PlayerAction {
     default: return false;
   }
 }
-function peerOptions(): PeerOptions {
+function validIceServer(v: unknown): v is RTCIceServer {
+  const s = v as RTCIceServer;
+  const urls = [s?.urls].flat();
+  return !!s && typeof s === 'object' && urls.length >= 1 && urls.length <= 8 &&
+    urls.every(u => typeof u === 'string' && /^(stuns?|turns?):\S+$/.test(u)) &&
+    (s.username === undefined || typeof s.username === 'string') &&
+    (s.credential === undefined || typeof s.credential === 'string');
+}
+// TURN credentials must never be embedded in a browser build. VITE_TURN_URL points at the
+// credential Worker (infra/turn-relay), which hands out expiring ones. Without it, or when it
+// fails, connect with public STUN only: a relay outage must not block direct connections.
+export async function iceServers(env: Record<string, unknown> = import.meta.env): Promise<RTCIceServer[]> {
+  if (env.VITE_TURN_URL) {
+    try {
+      const response = await fetch(String(env.VITE_TURN_URL), { signal: AbortSignal.timeout(4_000), cache: 'no-store' });
+      const servers = response.ok ? (await response.json())?.iceServers : null;
+      if (Array.isArray(servers) && servers.length >= 1 && servers.length <= 8 && servers.every(validIceServer)) return servers;
+    } catch { /* Fall back to STUN below. */ }
+  }
+  const stun = String(env.VITE_ICE_URLS || '').split(',').map(s => s.trim()).filter(s => /^stuns?:[^\s]+$/.test(s)).slice(0, 6);
+  return [{ urls: stun.length ? stun : ['stun:stun.l.google.com:19302'] }];
+}
+function peerOptions(ice: RTCIceServer[]): PeerOptions {
   const env = import.meta.env;
-  const options: PeerOptions = {};
+  // Always pass ICE servers: PeerJS's built-in TURN fallback no longer resolves.
+  const options: PeerOptions = { config: { iceServers: ice } };
   if (env.VITE_PEER_HOST) {
     options.host = String(env.VITE_PEER_HOST);
     options.port = Number(env.VITE_PEER_PORT || (location.protocol === 'https:' ? 443 : 9000));
     options.secure = env.VITE_PEER_SECURE === undefined ? location.protocol === 'https:' : env.VITE_PEER_SECURE === 'true';
     options.path = String(env.VITE_PEER_PATH || '/peerjs');
   }
-  // Public STUN URLs only. TURN credentials must never be embedded in a browser build.
-  const stun = String(env.VITE_ICE_URLS || '').split(',').map(s => s.trim()).filter(s => /^stuns?:[^\s]+$/.test(s)).slice(0, 6);
-  if (stun.length) options.config = { iceServers: [{ urls: stun }] };
   return options;
 }
 function storageKey(roomCode: string) { return `ultima-capivara-v2:${roomCode}`; }
@@ -144,6 +164,7 @@ export class RoomSession {
   private joining: { resolve: () => void; reject: (e: Error) => void } | null = null;
   private rejoinUntil = 0;
   private reconnecting = false;
+  private ice: RTCIceServer[] = [];
 
   constructor(callbacks: SessionCallbacks & { status?: (status: ConnectionStatus) => void }) { this.callbacks = callbacks; }
   get state(): RoomState | null { return this.roomValue ? structuredClone(this.roomValue) : null; }
@@ -167,7 +188,7 @@ export class RoomSession {
 
   private emitRoom() { this.callbacks.room(this.state); }
   private fail(message: string) { this.callbacks.error(message); }
-  private makePeer(id?: string): Peer { return id ? new Peer(id, peerOptions()) : new Peer(peerOptions()); }
+  private makePeer(id?: string): Peer { return id ? new Peer(id, peerOptions(this.ice)) : new Peer(peerOptions(this.ice)); }
   private whenOpen(peer: Peer): Promise<void> {
     if (peer.open) return Promise.resolve();
     if (peer.destroyed) return Promise.reject(new Error('A conexão foi encerrada.'));
@@ -182,9 +203,11 @@ export class RoomSession {
   }
 
   async host(profile: Profile, config: RoomConfig = DEFAULT_CONFIG): Promise<void> {
-    if (this.peer || this.roomValue) throw new Error('Você já está em uma sala.');
+    if (this.peer || this.roomValue || this.statusValue === 'connecting') throw new Error('Você já está em uma sala.');
     if (!validProfile(profile) || !validConfig(config)) throw new Error('Nome, cor ou configurações da sala inválidos.');
     this.closing = false; this.status('connecting');
+    this.ice = await iceServers();
+    if (this.closing) throw new Error('Você saiu da sala.');
     let lastError: Error = new Error('Não foi possível criar um código de sala.');
     for (let attempt = 0; attempt < 8; attempt++) {
       const roomCode = code();
@@ -210,9 +233,11 @@ export class RoomSession {
   }
 
   async join(roomCode: string, profile: Profile): Promise<void> {
-    if (this.peer || this.roomValue) throw new Error('Você já está em uma sala.');
+    if (this.peer || this.roomValue || this.statusValue === 'connecting') throw new Error('Você já está em uma sala.');
     if (!/^[A-HJ-NP-Z2-9]{6}$/.test(roomCode) || !validProfile(profile)) throw new Error('Código da sala, nome ou cor inválidos.');
     this.closing = false; this.status('connecting');
+    this.ice = await iceServers();
+    if (this.closing) throw new Error('Você saiu da sala.');
     const peer = this.makePeer(); this.peer = peer;
     try { await this.whenOpen(peer); }
     catch (error) { peer.destroy(); this.peer = null; this.status('idle'); throw peerError(error); }
@@ -671,7 +696,7 @@ export class RoomSession {
     this.current = null; this.matchId = ''; this.localInput = -1; this.localActions.clear();
     this.lastTick = -1; this.lastEventId = 0; this.lastResync = 0; this.lastCompressedFrame = null;
     this.worldData = this.gearData = null; this.worldJson = this.gearJson = ''; this.worldRev = this.gearRev = 0;
-    this.pingValue = 0; this.pingAt = null; this.latencyValues = {}; this.status('idle');
+    this.pingValue = 0; this.pingAt = null; this.latencyValues = {}; this.ice = []; this.status('idle');
     this.callbacks.room(null);
   }
 }

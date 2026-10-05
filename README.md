@@ -35,7 +35,7 @@ O jogo configura a conexão automaticamente. Quem cria a sala também joga e seu
 
 **O endereço `127.0.0.1` só funciona no próprio computador.** Para testar em outro computador da mesma rede, execute `npm run dev -- --host 0.0.0.0` e use o IP local do computador que serve o site. O link de convite deve usar esse IP. Para amigos em redes diferentes, cada pessoa pode executar a mesma versão local e usar o código, ou futuramente acessar uma publicação HTTPS comum. Esta branch não foi publicada.
 
-As salas usam o serviço público PeerJS para apresentar os navegadores e WebRTC para transportar o jogo. Redes corporativas, VPNs ou NAT restritivo podem impedir a conexão direta. A V2 não depende de um relay pago e não garante conexão em todas as redes. Veja [as decisões de hospedagem](docs/architecture.md).
+As salas usam o serviço público PeerJS para apresentar os navegadores e WebRTC para transportar o jogo. Quando redes corporativas, VPNs ou NAT restritivo impedem a conexão direta, a publicação retransmite o jogo pelo TURN da Cloudflare. Veja [as decisões de hospedagem](docs/architecture.md).
 
 ## Modos
 
