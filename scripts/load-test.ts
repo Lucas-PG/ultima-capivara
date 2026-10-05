@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { Simulation } from '../src/simulation';
 import { createWorld } from '../src/shared/world';
-import { encodeFastFrame, fastPart, gearPart, packet, worldPart } from '../src/network/codec';
+import { encodeFastFrame, fastPart, gearPart, packet, worldDelta, worldPart, type WorldPart } from '../src/network/codec';
 import type { PlayerProfile, RoomConfig } from '../src/shared/types';
 
 const world = createWorld();
@@ -13,7 +13,8 @@ const run = async (config: RoomConfig, count: number) => {
   for (let match = 0; match < count; match++) {
     const matchId = match.toString(16).padStart(48, '0');
     const sim = new Simulation(world, config, humans, matchId, match + 1);
-    let previousWorld = '', previousGear = '', worldRev = 0, gearRev = 0;
+    let previousWorld = '', previousGear = '', previousRoster = '', worldRev = 0, gearRev = 0, rosterRev = 0;
+    let previousWorldData: WorldPart | null = null;
     const started = performance.now();
     for (let tick = 0; tick < 3600; tick++) {
       for (let i = 0; i < humans.length; i++) sim.input(humans[i].id, {
@@ -27,14 +28,20 @@ const run = async (config: RoomConfig, count: number) => {
         const base = worldPart(snapshot), gear = gearPart(snapshot);
         const worldJson = JSON.stringify(base), gearJson = JSON.stringify(gear);
         if (worldJson !== previousWorld) {
-          previousWorld = worldJson; worldRev++; baseUpdates++;
-          wireBytes.base += JSON.stringify(packet('base', { rev: worldRev, data: base })).length;
+          const roster = JSON.stringify([base.config, base.actors]);
+          if (roster !== previousRoster) { previousRoster = roster; rosterRev++; }
+          worldRev++; baseUpdates++;
+          // Mirrors RoomSession.publishWorld: a full world first, then deltas.
+          wireBytes.base += JSON.stringify(previousWorldData ?
+            packet('world', { rev: worldRev, from: worldRev - 1, rr: rosterRev, delta: worldDelta(previousWorldData, base) }) :
+            packet('base', { rev: worldRev, rr: rosterRev, data: base })).length;
+          previousWorld = worldJson; previousWorldData = base;
         }
         if (gearJson !== previousGear) {
           previousGear = gearJson; gearRev++; gearUpdates++;
           wireBytes.gear += JSON.stringify(packet('gear', { rev: gearRev, data: gear })).length;
         }
-        const frame = JSON.stringify(packet('frame', { wr: worldRev, gr: gearRev, data: fastPart(snapshot) }));
+        const frame = JSON.stringify(packet('frame', { rr: rosterRev, gr: gearRev, data: fastPart(snapshot) }));
         const encoded = await encodeFastFrame(frame);
         if (!encoded) throw new Error('Fast frame exceeded the wire limit');
         if (typeof encoded === 'string') compressionFallbacks++;

@@ -1,4 +1,4 @@
-import { isRoundMode, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type WorldSnapshot } from '../shared/types';
+import { isRoundMode, PROTOCOL_VERSION, WORLD_VERSION, type ActorState, type LootState, type WorldSnapshot } from '../shared/types';
 import { MAX_MONEY, validRound } from '../shared/round-modes';
 import { CORRENTE_LADDER, WEAPONS } from '../shared/weapons';
 import { validLoadout } from '../shared/inventory';
@@ -94,6 +94,45 @@ export function worldPart(snapshot: WorldSnapshot) {
     config: snapshot.config, loot: snapshot.loot, openedChests: snapshot.openedChests, results: snapshot.results, supplyDrops: snapshot.supplyDrops,
     actors: snapshot.actors.map(a => ({ id: a.id, name: a.name, color: a.color, bot: a.bot, ...(a.team !== undefined ? { team: a.team } : {}) })),
   };
+}
+
+export type WorldPart = ReturnType<typeof worldPart>;
+type WorldDelta = { loot?: { set: LootState[]; remove: string[] } } & Partial<Omit<WorldPart, 'loot'>>;
+const WORLD_KEYS = ['config', 'openedChests', 'results', 'supplyDrops', 'actors'] as const;
+
+// With bots looting, the world changes about twice a second. Resending it whole (about 31 KB)
+// backed up the reliable channel on relayed connections, so changes travel as deltas.
+export function worldDelta(prev: WorldPart, next: WorldPart): WorldDelta {
+  const delta: WorldDelta = {};
+  const before = new Map(prev.loot.map(item => [item.id, JSON.stringify(item)]));
+  const ids = new Set(next.loot.map(item => item.id));
+  const set = next.loot.filter(item => before.get(item.id) !== JSON.stringify(item));
+  const remove = prev.loot.filter(item => !ids.has(item.id)).map(item => item.id);
+  if (set.length || remove.length) delta.loot = { set, remove };
+  for (const key of WORLD_KEYS) if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) Object.assign(delta, { [key]: next[key] });
+  return delta;
+}
+
+// Changed loot keeps its place and new loot is appended, matching how the simulation edits
+// its list. The host checks that the result equals its world before sending a delta.
+export function applyWorldDelta(world: WorldPart, delta: unknown): WorldPart | null {
+  if (!delta || typeof delta !== 'object' || Array.isArray(delta)) return null;
+  const d = delta as WorldDelta;
+  let loot = world.loot;
+  if (d.loot !== undefined) {
+    const { set, remove } = d.loot ?? {};
+    if (!Array.isArray(set) || !Array.isArray(remove) || !remove.every(id => typeof id === 'string') ||
+      !set.every(item => item && typeof item === 'object' && typeof item.id === 'string')) return null;
+    const removed = new Set(remove), changed = new Map(set.map(item => [item.id, item]));
+    loot = world.loot.filter(item => !removed.has(item.id)).map(item => changed.get(item.id) ?? item);
+    const present = new Set(loot.map(item => item.id));
+    for (const item of set) if (!present.has(item.id)) loot.push(item);
+  }
+  const next = { ...world, loot };
+  for (const key of WORLD_KEYS) if (Object.hasOwn(d, key)) Object.assign(next, { [key]: d[key] });
+  return Array.isArray(next.loot) && next.loot.length <= 3000 && Array.isArray(next.actors) &&
+    Array.isArray(next.openedChests) && next.openedChests.every(id => typeof id === 'string') &&
+    Array.isArray(next.results) && Array.isArray(next.supplyDrops) && finiteTree(next) && plainTextTree(next) ? next : null;
 }
 
 export function gearPart(snapshot: WorldSnapshot) {

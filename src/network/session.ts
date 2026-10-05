@@ -3,13 +3,17 @@ import { isEmote } from '../shared/emotes';
 import { isRoundMode, DEFAULT_CONFIG, MAX_PLAYERS, PLAYER_COLORS, PROTOCOL_VERSION, WORLD_VERSION,
   type GameEvent, type InputFrame, type PlayerAction, type PlayerProfile, type RoomConfig,
   type RoomState, type SessionCallbacks, type WorldSnapshot } from '../shared/types';
-import { decodeFastFrame, encodeFastFrame, fastPart, finiteTree, gearPart, MAX_FRAME_BYTES, packet, parseWire, plainTextTree, rebuildFrame, worldPart } from './codec';
+import { applyWorldDelta, decodeFastFrame, encodeFastFrame, fastPart, finiteTree, gearPart, MAX_FRAME_BYTES, packet, parseWire, plainTextTree, rebuildFrame, worldDelta, worldPart, type WorldPart } from './codec';
 import { isBuyItem } from '../shared/round-modes';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const GRACE_MS = 30_000;
 const KEEPALIVE_MS = 3_000;
 const CLOSE_ACK_MS = 1_000;
+// A roster or gear update is usually already in flight when a frame outruns it.
+const RESYNC_AFTER_MS = 1_500;
+// Fast messages are latest-wins: when the path stalls, drop them instead of queueing seconds of stale ones.
+const FAST_BACKLOG_BYTES = 2_048;
 const INPUTS_PER_SECOND = 90;
 const ACTIONS_PER_SECOND = 20;
 // Keep guest presentation events exhaustive when shared gameplay adds a type.
@@ -144,6 +148,9 @@ export class RoomSession {
   private current: WorldSnapshot | null = null;
   private matchId = '';
   private worldRev = 0;
+  private rosterRev = 0;
+  private rosterJson = '';
+  private mismatchSince: number | null = null;
   private gearRev = 0;
   private worldData: ReturnType<typeof worldPart> | null = null;
   private gearData: ReturnType<typeof gearPart> | null = null;
@@ -405,7 +412,7 @@ export class RoomSession {
       }
       case 'room': if (this.roomValue && validRoom(m.room) && (m.room as RoomState).code === this.roomValue.code) {
         const r = m.room as RoomState;
-        if (r.phase === 'lobby' && this.roomValue.phase !== 'lobby') { this.matchId = ''; this.lastTick = -1; this.worldData = null; this.gearData = null; this.localInput = -1; this.localActions.clear(); }
+        if (r.phase === 'lobby' && this.roomValue.phase !== 'lobby') { this.matchId = ''; this.lastTick = -1; this.worldData = null; this.gearData = null; this.mismatchSince = null; this.localInput = -1; this.localActions.clear(); }
         this.roomValue = { ...r, myId: this.roomValue.myId, isHost: false }; this.emitRoom();
       } break;
       case 'start': if (this.roomValue && validConfig(m.config) && Array.isArray(m.players) &&
@@ -414,8 +421,14 @@ export class RoomSession {
         this.matchId = m.matchId; this.lastTick = -1; this.lastEventId = 0;
         this.callbacks.start(m.config, m.players as PlayerProfile[], m.matchId);
       } break;
-      case 'base': if (Number.isSafeInteger(m.rev) && (m.rev as number) >= 0 && m.data && finiteTree(m.data)) {
-        this.worldRev = m.rev as number; this.worldData = m.data as ReturnType<typeof worldPart>;
+      case 'base': if (Number.isSafeInteger(m.rev) && (m.rev as number) >= 0 && Number.isSafeInteger(m.rr) && m.data && finiteTree(m.data)) {
+        this.worldRev = m.rev as number; this.rosterRev = m.rr as number; this.worldData = m.data as WorldPart;
+      } break;
+      case 'world': {
+        const next = this.worldData && m.from === this.worldRev && Number.isSafeInteger(m.rev) && Number.isSafeInteger(m.rr) ?
+          applyWorldDelta(this.worldData, m.delta) : null;
+        if (next) { this.worldRev = m.rev as number; this.rosterRev = m.rr as number; this.worldData = next; }
+        else this.resync();
       } break;
       case 'gear': if (Number.isSafeInteger(m.rev) && (m.rev as number) >= 0 && Array.isArray(m.data) && finiteTree(m.data)) {
         this.gearRev = m.rev as number; this.gearData = m.data as ReturnType<typeof gearPart>;
@@ -460,11 +473,18 @@ export class RoomSession {
     } catch { this.hostGame = null; }
   }
 
+  private resync() {
+    if (Date.now() - this.lastResync > 1000) { send(this.hostConn, packet('resync')); this.lastResync = Date.now(); }
+  }
+
+  // Frames depend only on the roster and gear; loot may trail by one round trip while actors keep moving.
   private receiveFrame(m: Record<string, unknown>) {
-    if (!this.worldData || !this.gearData || m.wr !== this.worldRev || m.gr !== this.gearRev || !m.data) {
-      if (Date.now() - this.lastResync > 1000) { send(this.hostConn, packet('resync')); this.lastResync = Date.now(); }
+    if (!this.worldData || !this.gearData || m.rr !== this.rosterRev || m.gr !== this.gearRev || !m.data) {
+      this.mismatchSince ??= Date.now();
+      if (Date.now() - this.mismatchSince > RESYNC_AFTER_MS) this.resync();
       return;
     }
+    this.mismatchSince = null;
     const f = m.data as ReturnType<typeof fastPart>;
     if (f.matchId !== this.matchId && this.matchId) return;
     if (!Number.isSafeInteger(f.tick) || f.tick <= this.lastTick || f.tick < 0) return;
@@ -550,8 +570,9 @@ export class RoomSession {
     if (room.isHost) this.callbacks.input(room.myId, input);
     else {
       const m = packet('input', { matchId: this.matchId, data: input });
-      if (this.hostGameReady && this.hostGame?.readyState === 'open' && this.hostGame.bufferedAmount < 32_000) this.hostGame.send(JSON.stringify(m));
-      else send(this.hostConn, m);
+      if (this.hostGameReady && this.hostGame?.readyState === 'open') {
+        if (this.hostGame.bufferedAmount < FAST_BACKLOG_BYTES) this.hostGame.send(JSON.stringify(m));
+      } else send(this.hostConn, m);
     }
   }
   sendAction(action: PlayerAction) {
@@ -570,16 +591,16 @@ export class RoomSession {
     if (room.phase !== snapshot.phase) { room.phase = snapshot.phase; this.broadcastRoom(); }
     const world = worldPart(snapshot), gear = gearPart(snapshot);
     const wj = JSON.stringify(world), gj = JSON.stringify(gear);
-    if (wj !== this.worldJson) { this.worldData = world; this.worldJson = wj; this.worldRev++; for (const g of this.guests.values()) send(g.conn, packet('base', { rev: this.worldRev, data: world })); }
+    if (wj !== this.worldJson) this.publishWorld(world, wj);
     if (gj !== this.gearJson) { this.gearData = gear; this.gearJson = gj; this.gearRev++; for (const g of this.guests.values()) send(g.conn, packet('gear', { rev: this.gearRev, data: gear })); }
-    const frame = packet('frame', { wr: this.worldRev, gr: this.gearRev, data: fastPart(snapshot) });
+    const frame = packet('frame', { rr: this.rosterRev, gr: this.gearRev, data: fastPart(snapshot) });
     const wire = JSON.stringify(frame);
     if (new TextEncoder().encode(wire).byteLength <= MAX_FRAME_BYTES) {
       const compressedTargets: { guest: Guest; conn: DataConnection; game: RTCDataChannel }[] = [];
       for (const g of this.guests.values()) {
         if (!g.conn?.open) continue;
         if (g.gameReady && g.game?.readyState === 'open') {
-          if (g.game.bufferedAmount >= 64_000) continue;
+          if (g.game.bufferedAmount >= FAST_BACKLOG_BYTES) continue;
           if (g.gameCompression && typeof CompressionStream === 'function')
             compressedTargets.push({ guest: g, conn: g.conn, game: g.game });
           else g.game.send(wire);
@@ -594,7 +615,7 @@ export class RoomSession {
           const payload = typeof encoded === 'string' ? null : encoded.buffer as ArrayBuffer;
           for (const { guest, conn, game } of compressedTargets) {
             if (guest.conn === conn && guest.game === game && guest.gameReady && game.readyState === 'open' &&
-              game.bufferedAmount < 64_000) {
+              game.bufferedAmount < FAST_BACKLOG_BYTES) {
               try {
                 if (typeof encoded === 'string') game.send(encoded);
                 else game.send(payload!);
@@ -609,18 +630,31 @@ export class RoomSession {
       for (const g of this.guests.values()) send(g.conn, e);
     }
   }
+  private publishWorld(world: WorldPart, json: string) {
+    const roster = JSON.stringify([world.config, world.actors]);
+    if (roster !== this.rosterJson) { this.rosterJson = roster; this.rosterRev++; }
+    // Diff against what guests were sent, not an object the caller may have changed since.
+    const previous = this.worldJson ? JSON.parse(this.worldJson) as WorldPart : null, from = this.worldRev;
+    this.worldData = world; this.worldJson = json; this.worldRev++;
+    const delta = previous && worldDelta(previous, world);
+    // Guests rebuild the world from the delta, so send it only when that reproduces this world exactly.
+    const message = delta && JSON.stringify(applyWorldDelta(previous, delta)) === json ?
+      packet('world', { rev: this.worldRev, from, rr: this.rosterRev, delta }) :
+      packet('base', { rev: this.worldRev, rr: this.rosterRev, data: world });
+    for (const g of this.guests.values()) send(g.conn, message);
+  }
   private sendBaseline(guest: Guest) {
     if (!this.current) return;
     const world = this.worldData || worldPart(this.current), gear = this.gearData || gearPart(this.current);
-    send(guest.conn, packet('base', { rev: this.worldRev, data: world }));
+    send(guest.conn, packet('base', { rev: this.worldRev, rr: this.rosterRev, data: world }));
     send(guest.conn, packet('gear', { rev: this.gearRev, data: gear }));
-    send(guest.conn, packet('frame', { wr: this.worldRev, gr: this.gearRev, data: fastPart(this.current) }));
+    send(guest.conn, packet('frame', { rr: this.rosterRev, gr: this.gearRev, data: fastPart(this.current) }));
   }
   resetLobby() {
     const room = this.roomValue;
     if (!room?.isHost || room.phase === 'lobby') return;
     room.phase = 'lobby'; this.current = null; this.matchId = ''; this.lastEventId = 0; this.worldData = null; this.gearData = null;
-    this.worldJson = this.gearJson = ''; this.worldRev = this.gearRev = 0; this.localInput = -1; this.localActions.clear();
+    this.worldJson = this.gearJson = this.rosterJson = ''; this.worldRev = this.gearRev = this.rosterRev = 0; this.localInput = -1; this.localActions.clear();
     this.lastCompressedFrame = null;
     room.players.forEach(p => p.ready = false); this.broadcastRoom();
   }
@@ -695,7 +729,7 @@ export class RoomSession {
     this.peer = null; this.hostConn = null; this.hostGame = null; this.roomValue = null;
     this.current = null; this.matchId = ''; this.localInput = -1; this.localActions.clear();
     this.lastTick = -1; this.lastEventId = 0; this.lastResync = 0; this.lastCompressedFrame = null;
-    this.worldData = this.gearData = null; this.worldJson = this.gearJson = ''; this.worldRev = this.gearRev = 0;
+    this.worldData = this.gearData = null; this.worldJson = this.gearJson = this.rosterJson = ''; this.worldRev = this.gearRev = this.rosterRev = 0; this.mismatchSince = null;
     this.pingValue = 0; this.pingAt = null; this.latencyValues = {}; this.ice = []; this.status('idle');
     this.callbacks.room(null);
   }

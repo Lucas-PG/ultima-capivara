@@ -77,14 +77,14 @@ O erro do Firefox foi `Could not find profile folder`, inclusive usando outro di
 
 | Medida | Battle royale (21 atores) | Correria (16 atores) |
 | --- | --- | --- |
-| Média por tick incluindo snapshots/compressão | 1,8811 ms | 0,6166 ms |
-| Maior frame rápido comprimido | 632 bytes | 567 bytes |
-| Heap observado ao fim dos cenários | 38,3 MB | 51,9 MB |
-| Carga de saída estimada para 15 convidados | 1,99 Mbps | 2,02 Mbps |
+| Média por tick incluindo snapshots/compressão | 0,5346 ms | 0,2467 ms |
+| Maior frame rápido comprimido | 827 bytes | 713 bytes |
+| Heap observado ao fim dos cenários | 85,1 MB | 67,3 MB |
+| Carga de saída estimada para 15 convidados | 2,10 Mbps | 2,73 Mbps |
 
 A carga inclui frames, baselines, inventário e eventos, antes do overhead de transporte. São medidas desta execução, com outras tarefas locais em andamento, não um benchmark isolado ou garantia por máquina. Navegadores sem compressão negociada consomem mais banda. O heap é amostrado entre cenários, não monitorado continuamente.
 
-Essa amostra foi coletada antes dos últimos ajustes de geometria e dos comandos de toque rápido; serve como referência local, sem promessa de desempenho exato da revisão final.
+Amostra de 2026-10-05, com o mundo enviado em deltas. Antes, cada mudança de loot reenviava o mundo inteiro (cerca de 30 KB): no royale isso somava 24,9 KB/s por convidado e cerca de 5,0 Mbps para 15 convidados; com deltas, o mundo custa 0,8 KB/s. Serve como referência local, sem promessa de desempenho exato da revisão final.
 
 ### Ainda depende de revisão humana
 
